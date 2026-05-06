@@ -3649,6 +3649,14 @@ export interface SpartStickerDropPayload {
   url?: string;
 }
 
+/**
+ * Role this user plays in a live-shared board link.
+ * - `owner`: created the share. Mirrors local edits to /shared_boards/{shareId}.
+ * - `collaborator`: joined a Synced share. Mirrors local edits + receives remote.
+ * - `viewer`: joined a View-Only share. Read-only locally; receives remote.
+ */
+export type DashboardShareRole = 'owner' | 'collaborator' | 'viewer';
+
 export interface Dashboard {
   id: string;
   name: string;
@@ -3668,6 +3676,21 @@ export interface Dashboard {
   viewportWidth?: number;
   /** Viewport height (px) when the dashboard was last saved. Used for proportional layout scaling on load. */
   viewportHeight?: number;
+  /** ID of the /shared_boards/{shareId} doc this dashboard is linked to (live share). */
+  linkedShareId?: string;
+  /** This user's role in the linked share. */
+  linkedShareRole?: DashboardShareRole;
+  /** Cached host display name for the share banner. */
+  linkedShareHostName?: string;
+  /** True after the host has revoked the share — guests see a "share ended" indicator. */
+  linkedShareEnded?: boolean;
+}
+
+/** Per-participant entry on a /shared_boards/{shareId} doc. */
+export interface SharedBoardParticipant {
+  role: 'collaborator' | 'viewer';
+  joinedAt: number;
+  displayName?: string;
 }
 
 export interface Toast {

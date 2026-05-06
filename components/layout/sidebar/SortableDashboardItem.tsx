@@ -7,6 +7,10 @@ import {
   Share2,
   Trash2,
   LayoutTemplate,
+  Cloud,
+  Eye,
+  Radio,
+  Unlink,
 } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -97,6 +101,12 @@ export const SortableDashboardItem = React.memo(
             <div className="absolute top-2 right-2 p-1 bg-amber-500 text-white rounded-full shadow-sm">
               <Star className="w-3 h-3 fill-current" />
             </div>
+          )}
+
+          {/* Live-share status badge — shown for any linked dashboard so
+              teachers can spot synced/view-only/owned boards in their list. */}
+          {db.linkedShareId && (
+            <ShareBadge role={db.linkedShareRole} ended={db.linkedShareEnded} />
           )}
         </div>
 
@@ -236,3 +246,48 @@ export const SortableDashboardItem = React.memo(
 );
 
 SortableDashboardItem.displayName = 'SortableDashboardItem';
+
+const ShareBadge: React.FC<{
+  role: Dashboard['linkedShareRole'];
+  ended?: boolean;
+}> = ({ role, ended }) => {
+  let Icon = Cloud;
+  let title = 'Shared';
+  let className = 'bg-brand-blue-primary text-white';
+
+  if (ended) {
+    Icon = Unlink;
+    title = 'Share ended';
+    className = 'bg-slate-700 text-slate-100';
+  } else if (role === 'owner') {
+    Icon = Radio;
+    title = 'You are sharing this board';
+  } else if (role === 'collaborator') {
+    Icon = Cloud;
+    title = 'Synced board';
+  } else if (role === 'viewer') {
+    Icon = Eye;
+    title = 'View-only — read-only board';
+    className = 'bg-amber-500 text-white';
+  }
+
+  return (
+    <div
+      className={`absolute bottom-2 left-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider shadow-sm ${className}`}
+      title={title}
+    >
+      <Icon className="w-3 h-3" />
+      <span>
+        {ended
+          ? 'Ended'
+          : role === 'owner'
+            ? 'Live'
+            : role === 'collaborator'
+              ? 'Synced'
+              : role === 'viewer'
+                ? 'View-Only'
+                : 'Shared'}
+      </span>
+    </div>
+  );
+};

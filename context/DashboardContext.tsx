@@ -43,7 +43,11 @@ import {
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
-import { DashboardContext } from './DashboardContextValue';
+import {
+  DashboardContext,
+  PendingShareImport,
+  SharedBoardImportMode,
+} from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
 import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
 import { AnnotationState } from './DashboardContextValue';
@@ -110,6 +114,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     subscribeToDashboards,
     shareDashboard: shareDashboardFirestore,
     loadSharedDashboard: loadSharedDashboardFirestore,
+    mirrorSharedBoard,
+    subscribeToSharedBoard,
+    joinSharedBoard,
+    leaveSharedBoard,
+    stopSharingBoard,
   } = useFirestore(user?.uid ?? null);
 
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
@@ -646,7 +655,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const handleShareDashboard = useCallback(
     async (dashboard: Dashboard): Promise<string> => {
-      // MANDATE: Share through Google Drive if available for non-admins
+      // MANDATE: Share through Google Drive if available for non-admins.
+      // Drive shares are one-time exports — they don't support live sync,
+      // and we intentionally don't tag the local dashboard as `owner`.
       if (!isAdmin && driveService) {
         try {
           const fileId = await driveService.exportDashboard(dashboard);
@@ -656,9 +667,39 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           console.error('Drive sharing failed, falling back to Firestore:', e);
         }
       }
-      return shareDashboardFirestore(dashboard);
+
+      // Firestore-backed share: also tag the local dashboard so subsequent
+      // edits mirror to the shared doc and Synced/View-Only guests stay in
+      // sync with the host.
+      const hostName = user?.displayName ?? user?.email ?? undefined;
+      const shareId = await shareDashboardFirestore(dashboard, hostName);
+      const tagged: Dashboard = {
+        ...dashboard,
+        linkedShareId: shareId,
+        linkedShareRole: 'owner',
+        linkedShareHostName: hostName,
+        linkedShareEnded: false,
+      };
+      // Optimistic local update so the UI reflects the live-share state
+      // immediately. The next save effect will persist this to Firestore.
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === dashboard.id ? tagged : d))
+      );
+      try {
+        await saveDashboardFirestore(tagged);
+      } catch (e) {
+        console.error('Failed to persist share linkage on dashboard:', e);
+      }
+      return shareId;
     },
-    [isAdmin, driveService, shareDashboardFirestore, userDomain]
+    [
+      isAdmin,
+      driveService,
+      shareDashboardFirestore,
+      saveDashboardFirestore,
+      userDomain,
+      user,
+    ]
   );
 
   const handleLoadSharedDashboard = useCallback(
@@ -1607,7 +1648,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // which can happen if dependencies change during the async load
   const processingRef = useRef<string | null>(null);
 
-  // Handle shared dashboard loading
+  // Pending share-import state. When a recipient opens /share/<id> we fetch
+  // the shared doc and stash a snapshot here; the UI shows a 3-option picker
+  // (Synced / View-Only / Copy) and calls importSharedBoard(mode) to commit.
+  const [pendingShareImport, setPendingShareImport] =
+    useState<PendingShareImport | null>(null);
+
+  // Handle shared dashboard loading — fetches snapshot, then opens the picker.
   useEffect(() => {
     if (!pendingShareId || !user) return;
     if (processingRef.current === pendingShareId) return;
@@ -1619,51 +1666,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const load = async () => {
       try {
         const sharedDb = await handleLoadSharedDashboard(currentShareId);
-
         if (!mounted) return;
 
-        if (sharedDb) {
-          // Calculate order based on current dashboards state
-          const maxOrder = dashboardsRef.current.reduce(
-            (max, db) => Math.max(max, db.order ?? 0),
-            0
-          );
-
-          // Explicitly construct new dashboard to avoid carrying over
-          // metadata from the shared document (e.g. originalAuthor, sharedAt)
-          const newDb: Dashboard = {
-            id: crypto.randomUUID(),
-            name: `${sharedDb.name} (Copy)`,
-            background: sharedDb.background,
-            widgets: sharedDb.widgets,
-            globalStyle: sharedDb.globalStyle,
-            settings: sharedDb.settings,
-            isDefault: false,
-            createdAt: Date.now(),
-            order: maxOrder + 1,
-          };
-
-          await saveDashboard(newDb);
-
-          if (!mounted) return;
-
-          updateActiveId(newDb.id);
-          addToast('Board imported successfully', 'success');
-          clearPendingShare();
-        } else {
-          if (!mounted) return;
-
+        if (!sharedDb) {
           addToast('Shared board not found', 'error');
           clearPendingShare();
+          return;
         }
+
+        // Drive-backed shares are one-time exports; only Copy mode is
+        // meaningful. Firestore-backed shares unlock all three modes.
+        const driveBacked = currentShareId.startsWith('drive-');
+        setPendingShareImport({
+          shareId: currentShareId,
+          preview: sharedDb,
+          driveBacked,
+        });
       } catch (err) {
         console.error('Failed to load shared dashboard:', err);
         if (!mounted) return;
-
         addToast('Failed to load shared board', 'error');
         clearPendingShare();
       } finally {
-        // Clear processingRef only if it still matches the current share ID
         if (processingRef.current === currentShareId) {
           processingRef.current = null;
         }
@@ -1674,8 +1698,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     return () => {
       mounted = false;
-      // Clear processingRef in cleanup if it matches the current share ID
-      // This ensures the effect can re-run after StrictMode's remount cycle
       if (processingRef.current === currentShareId) {
         processingRef.current = null;
       }
@@ -1684,11 +1706,281 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     pendingShareId,
     user,
     handleLoadSharedDashboard,
-    saveDashboard,
     addToast,
     clearPendingShare,
-    updateActiveId,
   ]);
+
+  const cancelPendingShareImport = useCallback(() => {
+    setPendingShareImport(null);
+    clearPendingShare();
+  }, [clearPendingShare]);
+
+  const importSharedBoard = useCallback(
+    async (mode: SharedBoardImportMode) => {
+      const pending = pendingShareImport;
+      if (!pending || !user) return;
+
+      const { shareId, preview, driveBacked } = pending;
+      if (!preview) return;
+
+      // Drive shares can only ever be a copy — guard against bypass.
+      const effectiveMode: SharedBoardImportMode = driveBacked ? 'copy' : mode;
+
+      const maxOrder = dashboardsRef.current.reduce(
+        (max, db) => Math.max(max, db.order ?? 0),
+        0
+      );
+
+      const baseName = preview.name || 'Shared Board';
+      const nameSuffix =
+        effectiveMode === 'synced'
+          ? ' (Synced)'
+          : effectiveMode === 'view-only'
+            ? ' (View-Only)'
+            : ' (Copy)';
+
+      const newDb: Dashboard = {
+        id: crypto.randomUUID(),
+        name: `${baseName}${nameSuffix}`,
+        background: preview.background,
+        widgets: preview.widgets ?? [],
+        globalStyle: preview.globalStyle,
+        settings: preview.settings,
+        isDefault: false,
+        createdAt: Date.now(),
+        order: maxOrder + 1,
+        ...(effectiveMode !== 'copy'
+          ? {
+              linkedShareId: shareId,
+              linkedShareRole:
+                effectiveMode === 'synced' ? 'collaborator' : 'viewer',
+              linkedShareHostName: preview.linkedShareHostName,
+              linkedShareEnded: false,
+            }
+          : {}),
+      };
+
+      try {
+        await saveDashboard(newDb);
+
+        // Join the shared doc's participants list so the host (and other
+        // peers) can count us. Best-effort — don't block the import if the
+        // join write fails (still useful as a one-way receiver).
+        if (effectiveMode !== 'copy') {
+          try {
+            await joinSharedBoard(
+              shareId,
+              effectiveMode === 'synced' ? 'collaborator' : 'viewer',
+              user.displayName ?? user.email ?? undefined
+            );
+          } catch (joinErr) {
+            console.warn('Failed to join shared board participants:', joinErr);
+          }
+        }
+
+        updateActiveId(newDb.id);
+        const verb =
+          effectiveMode === 'synced'
+            ? 'Synced board imported'
+            : effectiveMode === 'view-only'
+              ? 'View-only board imported'
+              : 'Board imported';
+        addToast(verb, 'success');
+      } catch (err) {
+        console.error('Failed to import shared board:', err);
+        addToast('Failed to import shared board', 'error');
+      } finally {
+        setPendingShareImport(null);
+        clearPendingShare();
+      }
+    },
+    [
+      pendingShareImport,
+      user,
+      saveDashboard,
+      joinSharedBoard,
+      updateActiveId,
+      addToast,
+      clearPendingShare,
+    ]
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Live-share sync
+  //
+  // For every dashboard that's linked to a shared doc:
+  //   - "owner" / "collaborator" roles MIRROR local changes into the shared
+  //     doc on a debounced cadence.
+  //   - All linked roles SUBSCRIBE to the shared doc so remote edits flow
+  //     back into the local dashboard. We skip echoes by tagging mirror
+  //     writes with our own uid in `updatedBy`.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Last serialized payload we mirrored per shareId — skip duplicate writes. */
+  const lastMirroredRef = useRef<Map<string, string>>(new Map());
+  /** Pending debounced mirror timers per shareId. */
+  const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
+
+  // Mirror local edits → shared doc (debounced, 500ms).
+  useEffect(() => {
+    if (!user) return;
+
+    dashboards.forEach((d) => {
+      if (!d.linkedShareId || d.linkedShareEnded) return;
+      if (
+        d.linkedShareRole !== 'owner' &&
+        d.linkedShareRole !== 'collaborator'
+      ) {
+        return;
+      }
+
+      // Cheap dedupe based on the same fields the saveDashboard path uses.
+      const payload = serializeDashboard(d);
+      if (lastMirroredRef.current.get(d.linkedShareId) === payload) return;
+
+      const shareId = d.linkedShareId;
+      const existing = mirrorTimersRef.current.get(shareId);
+      if (existing) clearTimeout(existing);
+
+      const timer = setTimeout(() => {
+        mirrorTimersRef.current.delete(shareId);
+        lastMirroredRef.current.set(shareId, payload);
+        void mirrorSharedBoard(shareId, d).catch((err) => {
+          console.warn('Mirror to shared board failed:', err);
+          // Drop the cached payload so we retry on the next change.
+          lastMirroredRef.current.delete(shareId);
+        });
+      }, 500);
+      mirrorTimersRef.current.set(shareId, timer);
+    });
+  }, [dashboards, user, mirrorSharedBoard]);
+
+  // Cleanup pending mirror timers on unmount so we don't write after teardown.
+  useEffect(() => {
+    const timers = mirrorTimersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
+  // Subscribe to remote edits on each linked share. We re-subscribe whenever
+  // the set of (dashboardId, shareId) pairs changes; widget content edits do
+  // NOT cause re-subscription because we read the dashboard list via ref.
+  const linkedShareKeys = useMemo(
+    () =>
+      dashboards
+        .filter((d) => d.linkedShareId)
+        .map((d) => `${d.id}:${d.linkedShareId}`)
+        .sort()
+        .join('|'),
+    [dashboards]
+  );
+
+  useEffect(() => {
+    if (!user) return;
+
+    const linked = dashboardsRef.current.filter((d) => d.linkedShareId);
+    if (linked.length === 0) return;
+
+    const unsubs = linked.map((d) => {
+      const dashboardId = d.id;
+      const shareId = d.linkedShareId;
+      if (!shareId) return () => undefined;
+      const role = d.linkedShareRole;
+
+      return subscribeToSharedBoard(shareId, (remote) => {
+        if (!remote) {
+          // Shared doc deleted by the host (revoked) — flag the local copy
+          // as "ended" but preserve the content.
+          setDashboards((prev) =>
+            prev.map((x) =>
+              x.id === dashboardId && !x.linkedShareEnded
+                ? { ...x, linkedShareEnded: true }
+                : x
+            )
+          );
+          return;
+        }
+
+        // Skip echoes of our own writes.
+        const remoteWith = remote as Dashboard & {
+          updatedBy?: string;
+        };
+        if (remoteWith.updatedBy === user.uid) return;
+
+        // Apply remote content patch to local dashboard.
+        setDashboards((prev) =>
+          prev.map((x) => {
+            if (x.id !== dashboardId) return x;
+            // Owners receive participant-only updates from the shared doc
+            // (joins/leaves) — apply those without overwriting their own
+            // canonical local content.
+            if (role === 'owner') return x;
+            return {
+              ...x,
+              widgets: remote.widgets ?? x.widgets,
+              background: remote.background ?? x.background,
+              globalStyle: remote.globalStyle ?? x.globalStyle,
+              settings: remote.settings ?? x.settings,
+              linkedShareEnded: false,
+            };
+          })
+        );
+      });
+    });
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+    // linkedShareKeys captures only structural changes (which share/dashboard
+    // pairs exist), not content edits — so we don't re-subscribe on every edit.
+  }, [linkedShareKeys, user, subscribeToSharedBoard]);
+
+  const stopSharingDashboard = useCallback(
+    async (dashboardId: string) => {
+      const target = dashboardsRef.current.find((d) => d.id === dashboardId);
+      if (!target?.linkedShareId) return;
+
+      const shareId = target.linkedShareId;
+      const isOwner = target.linkedShareRole === 'owner';
+
+      try {
+        if (isOwner) {
+          await stopSharingBoard(shareId);
+        } else {
+          // Guest: leave participants list, keep local copy.
+          await leaveSharedBoard(shareId);
+        }
+      } catch (err) {
+        console.error('Failed to tear down share:', err);
+        addToast('Failed to stop sharing', 'error');
+        return;
+      }
+
+      // Clear linkage on the local dashboard so the mirror/subscribe effects
+      // detach. The board's contents stay as a normal local dashboard.
+      const detached: Dashboard = {
+        ...target,
+        linkedShareId: undefined,
+        linkedShareRole: undefined,
+        linkedShareHostName: undefined,
+        linkedShareEnded: undefined,
+      };
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === dashboardId ? detached : d))
+      );
+      try {
+        await saveDashboard(detached);
+      } catch (err) {
+        console.error('Failed to persist detached share state:', err);
+      }
+      addToast(isOwner ? 'Stopped sharing' : 'Left shared board', 'success');
+    },
+    [stopSharingBoard, leaveSharedBoard, saveDashboard, addToast]
+  );
 
   // --- FOLDER ACTIONS ---
   const addFolder = useCallback(
@@ -2145,6 +2437,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
+  // True when the user is viewing a board they joined as a viewer in
+  // View-Only mode. Read-only mutation guards check this via a ref so
+  // memoized action callbacks don't have to invalidate on every change.
+  const isActiveBoardReadOnly =
+    activeDashboard?.linkedShareRole === 'viewer' &&
+    !activeDashboard?.linkedShareEnded;
+  const isActiveBoardReadOnlyRef = useRef(isActiveBoardReadOnly);
+  isActiveBoardReadOnlyRef.current = isActiveBoardReadOnly;
+
   /**
    * Extracts building-level config overrides for a widget type from the admin's
    * feature_permissions config. These are applied between widget defaults and
@@ -2561,6 +2862,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const addWidget = useCallback(
     (type: WidgetType, overrides?: AddWidgetOverrides) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
 
@@ -2609,6 +2911,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }[]
     ) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
 
@@ -2724,6 +3027,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const removeWidget = useCallback(
     (id: string) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -2751,6 +3055,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const duplicateWidget = useCallback(
     (id: string) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -2780,6 +3085,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const removeWidgets = useCallback(
     (ids: string[]) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       const idSet = new Set(ids);
@@ -2839,6 +3145,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -2850,6 +3157,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
 
@@ -2920,6 +3228,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }>
     ) => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       const updateMap = new Map(updates.map((u) => [u.id, u.changes]));
@@ -2945,6 +3254,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const groupWidgets = useCallback(
     (widgetIds: string[]) => {
       if (!activeIdRef.current || widgetIds.length < 2) return;
+      if (isActiveBoardReadOnlyRef.current) return;
 
       // Find the active dashboard to check widget states
       const active = dashboardsRef.current.find(
@@ -2995,6 +3305,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const ungroupWidgets = useCallback((groupId: string) => {
     if (!activeIdRef.current) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3069,6 +3380,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const moveWidgetLayer = useCallback(
     (id: string, direction: 'up' | 'down') => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
 
       setDashboards((prev) => {
         const active = prev.find((d) => d.id === activeIdRef.current);
@@ -3121,6 +3433,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const minimizeAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3141,6 +3454,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const restoreAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3162,6 +3476,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3173,6 +3488,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const resetWidgetSize = useCallback(
     (id: string) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -3198,6 +3514,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setBackground = useCallback((bg: string) => {
     if (!activeIdRef.current) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3210,6 +3527,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateDashboardSettings = useCallback(
     (updates: Partial<Dashboard['settings']>) => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = true;
       setDashboards((prev) =>
@@ -3231,6 +3549,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateDashboard = useCallback((updates: Partial<Dashboard>) => {
     if (!activeIdRef.current) return;
+    // Allow updates that only change link bookkeeping (so we can mark a
+    // viewer's board as "share ended" or detach a guest) but block any
+    // content edits when the board is read-only.
+    if (isActiveBoardReadOnlyRef.current) {
+      const onlyLinkFields = Object.keys(updates).every((k) =>
+        k.startsWith('linkedShare')
+      );
+      if (!onlyLinkFields) return;
+    }
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3240,6 +3567,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setGlobalStyle = useCallback((style: Partial<GlobalStyle>) => {
     if (!activeIdRef.current) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3381,6 +3709,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadSharedDashboard: handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      pendingShareImport,
+      cancelPendingShareImport,
+      importSharedBoard,
+      stopSharingDashboard,
+      isActiveBoardReadOnly,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,
@@ -3474,6 +3807,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      pendingShareImport,
+      cancelPendingShareImport,
+      importSharedBoard,
+      stopSharingDashboard,
+      isActiveBoardReadOnly,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,

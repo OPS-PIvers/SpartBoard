@@ -17,6 +17,8 @@ import {
   type SharedAssignmentImportMode,
 } from '@/hooks/useQuizAssignments';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
+import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
+import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
 import { logError } from '@/utils/logError';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
@@ -168,6 +170,7 @@ export const DashboardView: React.FC = () => {
     setSelectedWidgetIds,
     selectedWidgetId,
     annotationActive,
+    isActiveBoardReadOnly,
   } = useDashboard();
 
   const { importSharedQuiz, saveQuiz, deleteQuiz, attachSyncLinkage } = useQuiz(
@@ -1653,10 +1656,12 @@ export const DashboardView: React.FC = () => {
 
       {/* FIXED UI: Outside the zoom container */}
       <Sidebar />
-      {!annotationActive && <Dock />}
+      {!annotationActive && !isActiveBoardReadOnly && <Dock />}
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
+      <ShareStatusBanner />
+      <ImportShareModePicker />
       <BoardActionsFab onOpenCheatSheet={() => setIsCheatSheetOpen(true)} />
 
       {importModePrompt && (
