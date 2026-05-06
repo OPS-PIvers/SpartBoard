@@ -152,6 +152,101 @@ const MenuButton: React.FC<{
   );
 };
 
+/** Walk a Range and return the text nodes intersecting it. The start and end
+ *  text nodes are split if the range only partially covers them, so the
+ *  returned nodes correspond exactly to the selected text. */
+function collectTextNodesInRange(range: Range): Text[] {
+  if (range.collapsed) return [];
+
+  const startC = range.startContainer;
+  const endC = range.endContainer;
+
+  // Same text node: handle directly to avoid intra-node split ordering issues.
+  if (startC === endC && startC.nodeType === Node.TEXT_NODE) {
+    const text = startC as Text;
+    const startOff = range.startOffset;
+    const endOff = range.endOffset;
+    let target: Text;
+    if (startOff === 0 && endOff === text.length) {
+      target = text;
+    } else if (startOff === 0) {
+      text.splitText(endOff);
+      target = text;
+    } else if (endOff === text.length) {
+      target = text.splitText(startOff);
+    } else {
+      // Both ends mid-node: split end first (right tail ignored), then split
+      // again at startOff to isolate the middle.
+      text.splitText(endOff);
+      target = text.splitText(startOff);
+    }
+    return target.nodeValue && target.nodeValue.length > 0 ? [target] : [];
+  }
+
+  // Different containers: split end first so start offsets remain valid.
+  if (
+    endC.nodeType === Node.TEXT_NODE &&
+    range.endOffset > 0 &&
+    range.endOffset < (endC as Text).length
+  ) {
+    (endC as Text).splitText(range.endOffset);
+  }
+
+  if (
+    startC.nodeType === Node.TEXT_NODE &&
+    range.startOffset > 0 &&
+    range.startOffset < (startC as Text).length
+  ) {
+    const newStart = (startC as Text).splitText(range.startOffset);
+    range.setStart(newStart, 0);
+  }
+
+  const rootNode =
+    range.commonAncestorContainer.nodeType === Node.TEXT_NODE
+      ? range.commonAncestorContainer.parentNode
+      : range.commonAncestorContainer;
+  if (!rootNode) return [];
+
+  const walker = document.createTreeWalker(rootNode, NodeFilter.SHOW_TEXT, {
+    acceptNode: (n) => {
+      const t = n as Text;
+      if (!t.nodeValue || t.nodeValue.length === 0) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return range.intersectsNode(t)
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_REJECT;
+    },
+  });
+
+  const nodes: Text[] = [];
+  let n: Node | null;
+  while ((n = walker.nextNode())) {
+    nodes.push(n as Text);
+  }
+  return nodes;
+}
+
+/** Wrap each text node intersecting the range in a fresh <span> styled by the
+ *  callback. Preserves block structure so multi-block selections format
+ *  correctly (e.g. Ctrl+A on a multi-line note, where extractContents would
+ *  produce invalid <span><div>…</div></span>). */
+function applyInlineStyleToRange(
+  range: Range,
+  styler: (span: HTMLSpanElement) => void
+): Text[] {
+  const textNodes = collectTextNodesInRange(range);
+  for (const textNode of textNodes) {
+    const span = document.createElement('span');
+    styler(span);
+    const parent = textNode.parentNode;
+    if (!parent) continue;
+    parent.insertBefore(span, textNode);
+    span.appendChild(textNode);
+  }
+  return textNodes;
+}
+
 export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   editorRef,
   configFontSize,
@@ -266,7 +361,9 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     }
   }, [editorRef]);
 
-  /** Run a document.execCommand with styleWithCSS enabled. */
+  /** Run a document.execCommand with styleWithCSS enabled. Used for block-level
+   *  commands (justify, indent, lists, fontName, createLink) that operate on
+   *  block ancestors and work correctly across multi-block selections. */
   const runCommand = useCallback(
     (command: string, value: string = '') => {
       restoreSelection();
@@ -277,10 +374,83 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
     [restoreSelection, editorRef]
   );
 
-  /** Apply an arbitrary pixel font size to the current selection by wrapping it
-   *  in <span style="font-size:Xpx">. Uses Range.extractContents/insertNode to
-   *  handle selections that cross inline-element boundaries. Suppresses the
-   *  parent's handleInput during the mutation, then explicitly persists. */
+  /** Apply an inline style command (bold/italic/underline/foreColor/hiliteColor).
+   *  When the selection spans multiple children of the editor (commonAncestor ===
+   *  editor — typical of Ctrl+A on a multi-line note), execCommand silently fails
+   *  to format anything past the first inline run, so we walk the range and wrap
+   *  each text node in a fresh <span>. For single-block selections we fall
+   *  through to execCommand so the toggle behavior (click to un-bold) keeps
+   *  working. Cursor-position toggles ("type bold from here") also fall through. */
+  const runInlineStyleCommand = useCallback(
+    (
+      cmd: 'bold' | 'italic' | 'underline' | 'foreColor' | 'hiliteColor',
+      value: string = ''
+    ) => {
+      const editor = editorRef.current;
+      if (!editor) return;
+
+      restoreSelection();
+
+      const sel = window.getSelection();
+      const range = sel && sel.rangeCount > 0 ? sel.getRangeAt(0) : null;
+
+      const needsHelper =
+        range !== null &&
+        !range.collapsed &&
+        editor.contains(range.commonAncestorContainer) &&
+        range.commonAncestorContainer === editor;
+
+      if (!needsHelper) {
+        document.execCommand('styleWithCSS', false, 'true');
+        document.execCommand(cmd, false, value);
+        editor.focus();
+        return;
+      }
+
+      suppressInputRef.current = true;
+
+      const styler = (span: HTMLSpanElement) => {
+        switch (cmd) {
+          case 'bold':
+            span.style.fontWeight = 'bold';
+            break;
+          case 'italic':
+            span.style.fontStyle = 'italic';
+            break;
+          case 'underline':
+            span.style.textDecoration = 'underline';
+            break;
+          case 'foreColor':
+            span.style.color = value;
+            break;
+          case 'hiliteColor':
+            span.style.backgroundColor = value;
+            break;
+        }
+      };
+
+      const wrapped = applyInlineStyleToRange(range, styler);
+
+      if (wrapped.length > 0 && sel) {
+        const newRange = document.createRange();
+        newRange.setStart(wrapped[0], 0);
+        const last = wrapped[wrapped.length - 1];
+        newRange.setEnd(last, last.length);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        savedRangeRef.current = newRange.cloneRange();
+      }
+
+      suppressInputRef.current = false;
+      onContentChange();
+      editor.focus();
+    },
+    [editorRef, restoreSelection, suppressInputRef, onContentChange]
+  );
+
+  /** Apply an arbitrary pixel font size to the current selection by wrapping
+   *  each text node intersecting the range in <span style="font-size:Xpx">.
+   *  Suppresses handleInput during the mutation, then explicitly persists. */
   const applyFontSize = useCallback(
     (size: number) => {
       const clamped = Math.max(8, Math.min(96, Math.round(size)));
@@ -305,17 +475,19 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
 
       suppressInputRef.current = true;
 
-      const span = document.createElement('span');
-      span.style.fontSize = `${clamped}px`;
-      span.appendChild(range.extractContents());
-      range.insertNode(span);
+      const wrapped = applyInlineStyleToRange(range, (span) => {
+        span.style.fontSize = `${clamped}px`;
+      });
 
-      // Re-select the wrapped span so repeated +/- clicks keep targeting it.
-      const newRange = document.createRange();
-      newRange.selectNodeContents(span);
-      sel.removeAllRanges();
-      sel.addRange(newRange);
-      savedRangeRef.current = newRange.cloneRange();
+      if (wrapped.length > 0) {
+        const newRange = document.createRange();
+        newRange.setStart(wrapped[0], 0);
+        const last = wrapped[wrapped.length - 1];
+        newRange.setEnd(last, last.length);
+        sel.removeAllRanges();
+        sel.addRange(newRange);
+        savedRangeRef.current = newRange.cloneRange();
+      }
 
       suppressInputRef.current = false;
       onContentChange();
@@ -517,7 +689,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       >
         <button
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => runCommand('bold')}
+          onClick={() => runInlineStyleCommand('bold')}
           className="flex items-center justify-center w-7 h-7 rounded-l border border-r-0 border-slate-200 hover:bg-slate-100 transition-colors"
           title="Bold"
           aria-label="Bold"
@@ -526,7 +698,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         </button>
         <button
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => runCommand('italic')}
+          onClick={() => runInlineStyleCommand('italic')}
           className="flex items-center justify-center w-7 h-7 border border-r-0 border-slate-200 hover:bg-slate-100 transition-colors"
           title="Italic"
           aria-label="Italic"
@@ -535,7 +707,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         </button>
         <button
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => runCommand('underline')}
+          onClick={() => runInlineStyleCommand('underline')}
           className="flex items-center justify-center w-7 h-7 rounded-r border border-slate-200 hover:bg-slate-100 transition-colors"
           title="Underline"
           aria-label="Underline"
@@ -756,7 +928,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     key={c}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      runCommand('foreColor', c);
+                      runInlineStyleCommand('foreColor', c);
                       setShowColorMenu(false);
                     }}
                     className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
@@ -777,7 +949,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     className="sr-only"
                     aria-label="Custom font color"
                     onChange={(e) => {
-                      runCommand('foreColor', e.target.value);
+                      runInlineStyleCommand('foreColor', e.target.value);
                       setShowColorMenu(false);
                     }}
                   />
@@ -796,7 +968,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    runCommand('hiliteColor', 'transparent');
+                    runInlineStyleCommand('hiliteColor', 'transparent');
                     setShowColorMenu(false);
                   }}
                   className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
@@ -809,7 +981,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     key={c}
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      runCommand('hiliteColor', c);
+                      runInlineStyleCommand('hiliteColor', c);
                       setShowColorMenu(false);
                     }}
                     className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
@@ -830,7 +1002,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     className="sr-only"
                     aria-label="Custom highlight color"
                     onChange={(e) => {
-                      runCommand('hiliteColor', e.target.value);
+                      runInlineStyleCommand('hiliteColor', e.target.value);
                       setShowColorMenu(false);
                     }}
                   />
@@ -928,7 +1100,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      runCommand('bold');
+                      runInlineStyleCommand('bold');
                       setShowOverflowMenu(false);
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
@@ -940,7 +1112,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      runCommand('italic');
+                      runInlineStyleCommand('italic');
                       setShowOverflowMenu(false);
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
@@ -952,7 +1124,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   <button
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => {
-                      runCommand('underline');
+                      runInlineStyleCommand('underline');
                       setShowOverflowMenu(false);
                     }}
                     className="flex items-center justify-center w-8 h-8 rounded hover:bg-slate-100"
@@ -1099,7 +1271,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                         key={c}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
-                          runCommand('foreColor', c);
+                          runInlineStyleCommand('foreColor', c);
                           setShowOverflowMenu(false);
                         }}
                         className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
@@ -1120,7 +1292,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                         className="sr-only"
                         aria-label="Custom font color"
                         onChange={(e) => {
-                          runCommand('foreColor', e.target.value);
+                          runInlineStyleCommand('foreColor', e.target.value);
                           setShowOverflowMenu(false);
                         }}
                       />
@@ -1135,7 +1307,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                     <button
                       onMouseDown={(e) => e.preventDefault()}
                       onClick={() => {
-                        runCommand('hiliteColor', 'transparent');
+                        runInlineStyleCommand('hiliteColor', 'transparent');
                         setShowOverflowMenu(false);
                       }}
                       className="w-5 h-5 rounded-full border border-slate-200 flex items-center justify-center hover:scale-110 transition-transform"
@@ -1148,7 +1320,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                         key={c}
                         onMouseDown={(e) => e.preventDefault()}
                         onClick={() => {
-                          runCommand('hiliteColor', c);
+                          runInlineStyleCommand('hiliteColor', c);
                           setShowOverflowMenu(false);
                         }}
                         className="w-5 h-5 rounded-full border border-slate-200 hover:scale-110 transition-transform"
@@ -1169,7 +1341,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                         className="sr-only"
                         aria-label="Custom highlight color"
                         onChange={(e) => {
-                          runCommand('hiliteColor', e.target.value);
+                          runInlineStyleCommand('hiliteColor', e.target.value);
                           setShowOverflowMenu(false);
                         }}
                       />

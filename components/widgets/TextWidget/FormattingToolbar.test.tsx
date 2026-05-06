@@ -193,6 +193,112 @@ describe('FormattingToolbar', () => {
     vi.restoreAllMocks();
   });
 
+  // Builds the structure Chrome produces after typing-then-Enter on multiple
+  // lines: text + <div>line</div> + <div>line</div>. Selection mirrors Ctrl+A
+  // (selectNodeContents on the editor — commonAncestorContainer === editor).
+  const setupMultiBlockEditor = () => {
+    const editor = document.createElement('div');
+    const text1 = document.createTextNode('text1');
+    editor.appendChild(text1);
+    const div2 = document.createElement('div');
+    div2.appendChild(document.createTextNode('line2'));
+    editor.appendChild(div2);
+    const div3 = document.createElement('div');
+    div3.appendChild(document.createTextNode('line3'));
+    editor.appendChild(div3);
+    document.body.appendChild(editor);
+
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    const initialRange = document.createRange();
+    initialRange.selectNodeContents(editor);
+
+    let currentRange: Range = initialRange;
+    const mockSelection = {
+      get anchorNode() {
+        return currentRange.startContainer;
+      },
+      get rangeCount() {
+        return 1;
+      },
+      getRangeAt: () => currentRange,
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn((r: Range) => {
+        currentRange = r;
+      }),
+    } as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection);
+
+    return { editor, editorRef };
+  };
+
+  it('applyFontSize wraps every text run on multi-block select-all without nesting div in span', () => {
+    const { editor, editorRef } = setupMultiBlockEditor();
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    fireEvent.click(screen.getByTitle('Increase font size'));
+
+    // No malformed <span><div>…</div></span> structure.
+    expect(editor.querySelectorAll('span > div').length).toBe(0);
+
+    // All three text runs are wrapped in a font-size span.
+    const spans = editor.querySelectorAll<HTMLElement>(
+      'span[style*="font-size"]'
+    );
+    expect(spans.length).toBe(3);
+    spans.forEach((s) => expect(s.style.fontSize).toBe('19px'));
+    expect(Array.from(spans).map((s) => s.textContent)).toEqual([
+      'text1',
+      'line2',
+      'line3',
+    ]);
+
+    // Block structure preserved: editor has [text1-span, div2, div3].
+    const directChildren = Array.from(editor.children);
+    expect(directChildren.length).toBe(3);
+    expect(directChildren[0].tagName).toBe('SPAN');
+    expect(directChildren[0].textContent).toBe('text1');
+    expect(directChildren[1].tagName).toBe('DIV');
+    expect(directChildren[1].textContent).toBe('line2');
+    expect(directChildren[2].tagName).toBe('DIV');
+    expect(directChildren[2].textContent).toBe('line3');
+
+    expect(mockOnContentChange).toHaveBeenCalled();
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  it('Bold on multi-block select-all wraps each text run with font-weight span', () => {
+    const { editor, editorRef } = setupMultiBlockEditor();
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    fireEvent.click(screen.getByTitle('Bold'));
+
+    const spans = editor.querySelectorAll<HTMLElement>(
+      'span[style*="font-weight"]'
+    );
+    expect(spans.length).toBe(3);
+    spans.forEach((s) => expect(s.style.fontWeight).toBe('bold'));
+    expect(Array.from(spans).map((s) => s.textContent)).toEqual([
+      'text1',
+      'line2',
+      'line3',
+    ]);
+
+    expect(editor.querySelectorAll('span > div').length).toBe(0);
+    expect(mockOnContentChange).toHaveBeenCalled();
+    // execCommand path is bypassed for the multi-block helper case.
+    expect(execCommandMock).not.toHaveBeenCalledWith('bold', false, '');
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
   it('calls showPrompt when link button is clicked', async () => {
     mockShowPrompt.mockResolvedValue('https://google.com');
     render(<FormattingToolbar {...defaultProps} />);
