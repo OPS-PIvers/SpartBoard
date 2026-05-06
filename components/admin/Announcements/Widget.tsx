@@ -12,6 +12,7 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Copy,
   Radio,
   X,
   Clock,
@@ -895,6 +896,29 @@ export const AnnouncementsManager: React.FC = () => {
     }
   };
 
+  const handleDuplicate = async (a: Announcement) => {
+    try {
+      const now = Date.now();
+      const newId = `announcement-${crypto.randomUUID()}`;
+      const { id: _id, ...rest } = a;
+      void _id;
+      const payload: Announcement = {
+        ...rest,
+        id: newId,
+        name: `${a.name} (Copy)`,
+        isActive: false,
+        activatedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: user?.email ?? 'admin',
+      };
+      await setDoc(doc(db, 'announcements', newId), payload);
+    } catch (err) {
+      console.error('[AnnouncementsManager] Duplicate error:', err);
+      addToast('Failed to duplicate announcement.', 'error');
+    }
+  };
+
   const handleToggleActive = async (a: Announcement) => {
     const newActive = !a.isActive;
     try {
@@ -1068,6 +1092,13 @@ export const AnnouncementsManager: React.FC = () => {
                       className="p-2 text-slate-500 hover:text-brand-blue-primary hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => void handleDuplicate(a)}
+                      title="Duplicate announcement"
+                      className="p-2 text-slate-500 hover:text-brand-blue-primary hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
                     </button>
                     {confirmDeleteId === a.id ? (
                       <div className="flex items-center gap-1">
