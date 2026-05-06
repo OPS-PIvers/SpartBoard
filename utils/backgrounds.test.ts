@@ -68,6 +68,23 @@ describe('backgrounds', () => {
       expect(isCustomBackground('Custom:#ff0000')).toBe(false);
       expect(isCustomBackground('CUSTOM:#ff0000')).toBe(false);
     });
+
+    it('returns true for just the "custom:" prefix', () => {
+      expect(isCustomBackground('custom:')).toBe(true);
+    });
+
+    it('returns false for strings with leading whitespace', () => {
+      expect(isCustomBackground(' custom:#000000')).toBe(false);
+    });
+
+    it('returns false if "custom:" is not at the start', () => {
+      expect(isCustomBackground('prefix:custom:#000000')).toBe(false);
+    });
+
+    it('returns false for "custom" without the colon', () => {
+      expect(isCustomBackground('custom')).toBe(false);
+      expect(isCustomBackground('custom#ff0000')).toBe(false);
+    });
   });
 
   describe('getCustomBackgroundStyle', () => {

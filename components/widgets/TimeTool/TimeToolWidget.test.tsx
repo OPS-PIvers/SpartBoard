@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, TimeToolConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { TimeToolWidget } from './TimeToolWidget';
@@ -206,5 +207,517 @@ describe('TimeToolWidget', () => {
         }) as unknown,
       })
     );
+  });
+
+  describe('Adjust buttons (+/-)', () => {
+    it('hides ± buttons in stopwatch mode', () => {
+      const widget = createWidget({
+        mode: 'stopwatch',
+        isRunning: true,
+        elapsedTime: 30,
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+    });
+
+    it('hides ± buttons in fresh-setup state (timer not started, elapsed === duration)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 300,
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+    });
+
+    it('shows ± buttons while the timer is running', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 300,
+      });
+      renderWidget(widget);
+
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+    });
+
+    it('shows ± buttons when paused mid-run (elapsed !== duration)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+    });
+
+    it('tapping + adds exactly one step (default 60s)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 180,
+            duration: 300,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('tapping − at displayTime ≤ step clamps to 0 (does not go negative)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 30,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Subtract time'));
+      fireEvent.pointerUp(screen.getByLabelText('Subtract time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 0,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('adjusting + while running keeps isRunning true and refreshes startTime', () => {
+      const startTime = Date.now() - 30_000;
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 300,
+        startTime,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      const lastCall = mockUpdateWidget.mock.calls.at(-1);
+      expect(lastCall).toBeDefined();
+      const updatedConfig = (lastCall?.[1] as { config: TimeToolConfig })
+        .config;
+      expect(updatedConfig.isRunning).toBe(true);
+      expect(updatedConfig.startTime).not.toBeNull();
+      expect(updatedConfig.startTime).not.toBe(startTime);
+    });
+
+    it('clamps a legacy out-of-range adjustStepSeconds (>60) down to 60 on tap', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 600,
+        elapsedTime: 300,
+        adjustStepSeconds: 80, // legacy value above the new max
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      // Should bump by the clamped 60s (300 + 60 = 360), not the stored 80s.
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 360,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('clamps a legacy out-of-range adjustStepSeconds (<5) up to 5 on tap', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 600,
+        elapsedTime: 300,
+        adjustStepSeconds: 1, // legacy value below the new min
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Subtract time'));
+      fireEvent.pointerUp(screen.getByLabelText('Subtract time'));
+
+      // Should drop by the clamped 5s (300 - 5 = 295), not the stored 1s.
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 295,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('renders the clamped step label, not the legacy stored value', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 600,
+        elapsedTime: 300,
+        adjustStepSeconds: 80, // would render as "1.333…m" without the clamp
+      });
+      renderWidget(widget);
+
+      expect(screen.getByLabelText('Add time')).toHaveTextContent('1m');
+      expect(screen.getByLabelText('Subtract time')).toHaveTextContent('1m');
+    });
+
+    it('adjusting + past original duration bumps duration to match', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 60,
+        elapsedTime: 30,
+        adjustStepSeconds: 60,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 90,
+            duration: 90,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('Enter key on + fires a single 1× step (keyboard accessibility)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      fireEvent.keyDown(screen.getByLabelText('Add time'), { key: 'Enter' });
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 180,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('Space key on − fires a single 1× step (keyboard accessibility)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+      });
+      renderWidget(widget);
+
+      fireEvent.keyDown(screen.getByLabelText('Subtract time'), { key: ' ' });
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 60,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('back-to-back synchronous + taps accumulate (ref updates synchronously)', () => {
+      // Regression test for the press-and-hold ramp case: when adjustTime is
+      // called multiple times in the same task before React commits a render,
+      // each call must see the latest base, not the pre-render stale ref.
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 600,
+        elapsedTime: 600,
+        startTime: Date.now(),
+      });
+      renderWidget(widget);
+
+      const addBtn = screen.getByLabelText('Add time');
+      fireEvent.pointerDown(addBtn);
+      fireEvent.pointerUp(addBtn);
+      fireEvent.pointerDown(addBtn);
+      fireEvent.pointerUp(addBtn);
+      fireEvent.pointerDown(addBtn);
+      fireEvent.pointerUp(addBtn);
+
+      const elapsedValues = mockUpdateWidget.mock.calls.map(
+        (c) => (c[1] as { config: TimeToolConfig }).config.elapsedTime
+      );
+      expect(elapsedValues).toEqual([660, 720, 780]);
+    });
+
+    it('respects custom adjustStepSeconds value', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 120,
+        adjustStepSeconds: 30,
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 150,
+          }) as unknown,
+        })
+      );
+    });
+  });
+
+  // Variant rendering — confirms each clockStyle / visualType branch mounts
+  // without errors and the corner-pinned ± buttons remain reachable in every
+  // visual mode. Container query units (cqmin) cannot be evaluated by jsdom,
+  // so these tests assert structural presence rather than computed pixel size.
+  describe('clockStyle and visualType variants', () => {
+    const activeTimerConfig = {
+      mode: 'timer' as const,
+      isRunning: true,
+      duration: 300,
+      elapsedTime: 240,
+    };
+
+    it.each([['modern'], ['lcd'], ['minimal']] as const)(
+      'renders the digital time and ± buttons in clockStyle="%s"',
+      (clockStyle) => {
+        const widget = createWidget({ ...activeTimerConfig, clockStyle });
+        renderWidget(widget);
+
+        // Match the live time digits directly (avoids the LCD aria-hidden
+        // "88:88" ghost layer, which sits inside the same time button).
+        expect(screen.getByText('04')).toBeInTheDocument();
+        expect(screen.getByText('00')).toBeInTheDocument();
+        expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+        expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+      }
+    );
+
+    it('renders the LCD ghost overlay (88:88) when clockStyle="lcd"', () => {
+      const widget = createWidget({ ...activeTimerConfig, clockStyle: 'lcd' });
+      const { container } = renderWidget(widget);
+
+      // The aria-hidden ghost layer that gives LCD its "all segments lit"
+      // backdrop — only present in LCD mode.
+      const ghost = container.querySelector(
+        '[aria-hidden="true"][role="presentation"]'
+      );
+      expect(ghost).not.toBeNull();
+      expect(ghost?.textContent).toContain('88');
+    });
+
+    it('does NOT render the LCD ghost overlay for non-LCD styles', () => {
+      const widget = createWidget({
+        ...activeTimerConfig,
+        clockStyle: 'modern',
+      });
+      const { container } = renderWidget(widget);
+
+      expect(
+        container.querySelector('[aria-hidden="true"][role="presentation"]')
+      ).toBeNull();
+    });
+
+    it('renders the SVG progress ring when visualType="visual"', () => {
+      const widget = createWidget({
+        ...activeTimerConfig,
+        visualType: 'visual',
+      });
+      const { container } = renderWidget(widget);
+
+      // ProgressRing uses viewBox 220×220; Lucide icons use 24×24, so this
+      // selector pinpoints the ring itself.
+      const ring = container.querySelector('svg[viewBox="0 0 220 220"]');
+      expect(ring).not.toBeNull();
+      expect(ring?.querySelectorAll('circle').length).toBe(2);
+
+      // ± buttons are still reachable in visual mode
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+    });
+
+    it('does NOT render the progress ring when visualType="digital"', () => {
+      const widget = createWidget({
+        ...activeTimerConfig,
+        visualType: 'digital',
+      });
+      const { container } = renderWidget(widget);
+
+      expect(container.querySelector('svg[viewBox="0 0 220 220"]')).toBeNull();
+    });
+  });
+
+  // Layout coverage for the unified control row. All four buttons —
+  // `[− adjust] [play/pause] [reset] [+ adjust]` — share a single absolute
+  // wrapper anchored below the time (top: 110% in digital style, 120% in
+  // visual-ring style). jsdom's cssstyle parser silently drops CSS `min(...)`
+  // values when assigned via React's el.style[prop] = ... path, so we use
+  // renderToStaticMarkup to inspect the raw inline style strings React emits —
+  // the source of truth for what the browser will actually see.
+  describe('control row placement below the time', () => {
+    const renderHtml = (widget: WidgetData): string =>
+      renderToStaticMarkup(<TimeToolWidget widget={widget} />);
+
+    const wrapperFor = (html: string, ariaLabel: string): string => {
+      const dom = new DOMParser().parseFromString(html, 'text/html');
+      const btn = dom.querySelector(`button[aria-label="${ariaLabel}"]`);
+      const wrapper = btn?.parentElement;
+      if (!wrapper) {
+        throw new Error(`wrapper for "${ariaLabel}" button not found`);
+      }
+      return wrapper.outerHTML;
+    };
+
+    it('renders all four buttons inside one absolute wrapper anchored from the top', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 240,
+      });
+      const html = renderHtml(widget);
+      const wrapperHtml = wrapperFor(html, 'Subtract time');
+
+      expect(wrapperHtml).toMatch(/class="[^"]*\babsolute\b[^"]*"/);
+      // Anchored below the time via `top:`.
+      expect(wrapperHtml).toContain('top:');
+      // Should not be corner-pinned, and should not also be anchored from the
+      // bottom (which would indicate the legacy two-row layout).
+      expect(wrapperHtml).not.toContain('bottom:');
+      expect(wrapperHtml).not.toContain('left:');
+      expect(wrapperHtml).not.toContain('right:');
+    });
+
+    it('all four buttons share the same wrapper in [−, play/pause, reset, +] order', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 240,
+      });
+      renderWidget(widget);
+
+      const subBtn = screen.getByLabelText('Subtract time');
+      // Timer is running, so play/pause shows the Pause label.
+      const pauseBtn = screen.getByLabelText('Pause');
+      const resetBtn = screen.getByLabelText('Reset');
+      const addBtn = screen.getByLabelText('Add time');
+
+      // All four siblings inside the same flex row.
+      const wrapper = subBtn.parentElement;
+      if (!wrapper) {
+        throw new Error('subtract button has no parent wrapper');
+      }
+      expect(pauseBtn.parentElement).toBe(wrapper);
+      expect(resetBtn.parentElement).toBe(wrapper);
+      expect(addBtn.parentElement).toBe(wrapper);
+
+      // DOM order: −, play/pause, reset, +.
+      const children = Array.from(wrapper.children);
+      expect(children).toHaveLength(4);
+      expect(children[0]).toBe(subBtn);
+      expect(children[1]).toBe(pauseBtn);
+      expect(children[2]).toBe(resetBtn);
+      expect(children[3]).toBe(addBtn);
+    });
+
+    it.each([['modern'], ['lcd'], ['minimal']] as const)(
+      'uses top:110% in digital clockStyle="%s"',
+      (clockStyle) => {
+        const widget = createWidget({
+          mode: 'timer',
+          isRunning: true,
+          duration: 300,
+          elapsedTime: 240,
+          clockStyle,
+        });
+        const html = renderHtml(widget);
+        const wrap = wrapperFor(html, 'Subtract time');
+
+        expect(wrap).toContain('top:110%');
+      }
+    );
+
+    it('uses top:120% when visualType="visual" (progress ring on)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 300,
+        elapsedTime: 240,
+        visualType: 'visual',
+      });
+      const html = renderHtml(widget);
+      const wrap = wrapperFor(html, 'Subtract time');
+
+      expect(wrap).toContain('top:120%');
+    });
+
+    it('hides ± adjust buttons in stopwatch mode (only play/reset render)', () => {
+      const widget = createWidget({
+        mode: 'stopwatch',
+        isRunning: true,
+        elapsedTime: 0,
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Reset')).toBeInTheDocument();
+    });
+
+    it('hides ± adjust buttons in fresh-setup state (timer paused at original duration)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 300, // untouched from initial duration
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+    });
   });
 });
