@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-04_
+_Last audited: 2026-05-06_
 _Last action: 2026-05-02_
 
 ---
@@ -15,6 +15,10 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_SCALING_CONFIG, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts. No new gaps found. TimeTool ±button additions, URL widget overhaul, and BlendingBoard expansion all correctly registered. `stations`, `need-do-put-then`, `blooms-detail`, `blooms-taxonomy` — all confirmed._
+
+_2026-05-05: `blending-board` (added in dev-paul merge) verified fully registered in all locations; export names match source files. No new registry gaps from the merge._
 
 ### LOW `stickers` missing from `WIDGET_SETTINGS_COMPONENTS`
 
