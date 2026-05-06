@@ -11,7 +11,12 @@ export interface AnnouncementFormData {
   widgetSize: { w: number; h: number };
   maximized: boolean;
   activationType: AnnouncementActivationType;
+  scheduledActivationDate: string;
   scheduledActivationTime: string;
+  /** When true, the form's end date+time auto-deactivate the announcement */
+  autoDeactivateEnabled: boolean;
+  scheduledEndDate: string;
+  scheduledEndTime: string;
   dismissalType: AnnouncementDismissalType;
   scheduledDismissalTime: string;
   dismissalDurationSeconds: number;
