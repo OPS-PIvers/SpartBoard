@@ -329,6 +329,68 @@ describe('TimeToolWidget', () => {
       expect(updatedConfig.startTime).not.toBe(startTime);
     });
 
+    it('clamps a legacy out-of-range adjustStepSeconds (>60) down to 60 on tap', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 600,
+        elapsedTime: 300,
+        adjustStepSeconds: 80, // legacy value above the new max
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Add time'));
+      fireEvent.pointerUp(screen.getByLabelText('Add time'));
+
+      // Should bump by the clamped 60s (300 + 60 = 360), not the stored 80s.
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 360,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('clamps a legacy out-of-range adjustStepSeconds (<5) up to 5 on tap', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 600,
+        elapsedTime: 300,
+        adjustStepSeconds: 1, // legacy value below the new min
+      });
+      renderWidget(widget);
+
+      fireEvent.pointerDown(screen.getByLabelText('Subtract time'));
+      fireEvent.pointerUp(screen.getByLabelText('Subtract time'));
+
+      // Should drop by the clamped 5s (300 - 5 = 295), not the stored 1s.
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'timetool-1',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            elapsedTime: 295,
+          }) as unknown,
+        })
+      );
+    });
+
+    it('renders the clamped step label, not the legacy stored value', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: true,
+        duration: 600,
+        elapsedTime: 300,
+        adjustStepSeconds: 80, // would render as "1.333…m" without the clamp
+      });
+      renderWidget(widget);
+
+      expect(screen.getByLabelText('Add time')).toHaveTextContent('1m');
+      expect(screen.getByLabelText('Subtract time')).toHaveTextContent('1m');
+    });
+
     it('adjusting + past original duration bumps duration to match', () => {
       const widget = createWidget({
         mode: 'timer',
