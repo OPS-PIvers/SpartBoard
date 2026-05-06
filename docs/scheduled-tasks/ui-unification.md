@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-04-29_
+_Last audited: 2026-05-06_
 _Last action: never_
 
 ---
@@ -57,6 +57,13 @@ _Nothing currently in progress._
 - **File:** components/admin/FeatureConfigurationPanel.tsx
 - **Detail:** The file is the largest admin config panel at 706 lines and contains per-widget building-default forms inline. Many fields it renders (string inputs, number inputs, color pickers, selects, booleans) follow the same pattern that `SchemaDrivenConfigurationPanel` was designed to handle. Only `MagicConfigurationPanel.tsx` and `RecordConfigurationPanel.tsx` currently use `SchemaDrivenConfigurationPanel`. The 18 remaining config panels that don't use it include `FeatureConfigurationPanel`, `SoundboardConfigurationPanel` (593 lines), `ScheduleConfigurationPanel` (538 lines), and `MaterialsConfigurationPanel` (523 lines).
 - **Fix:** Audit `FeatureConfigurationPanel` for schema-driven extraction candidates. For panels whose entire form can be expressed as a field schema (input type + label + key + validation), migrate to `SchemaDrivenConfigurationPanel`. Panels with complex custom UIs (materials catalog, seating-chart layout, specialist schedule) should remain manual. Start with the simplest panels (DiceConfigurationPanel, TrafficLightConfigurationPanel, DrawingConfigurationPanel) as proof-of-concept before tackling the large ones.
+
+### LOW `InstructionalRoutinesWidget` uses hardcoded brand blue hex for numbered step badge
+
+- **Detected:** 2026-05-06
+- **File:** components/widgets/InstructionalRoutines/Widget.tsx:217
+- **Detail:** The numbered step badge on list/step-view routines uses `style={{ backgroundColor: '#2d3f89' }}`. `--spart-primary` is set by the admin's global style configuration in `DashboardView.tsx` specifically so that widget chrome can use `var(--spart-primary)` instead of hardcoded brand blue. Using a hardcoded hex means this badge will not update when the admin changes the primary color.
+- **Fix:** Replace `backgroundColor: '#2d3f89'` with `backgroundColor: 'var(--spart-primary, #2d3f89)'` to respect the theme while keeping the brand blue as the fallback.
 
 ### LOW `TextConfig` has `fontFamily`, `fontColor`, `textSizePreset` but no appearance panel or settings UI
 
