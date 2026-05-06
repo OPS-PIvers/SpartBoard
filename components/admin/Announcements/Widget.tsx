@@ -12,6 +12,7 @@ import {
   Plus,
   Trash2,
   Edit2,
+  Copy,
   Radio,
   X,
   Clock,
@@ -40,6 +41,7 @@ import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { Toggle } from '@/components/common/Toggle';
 import { TOOLS } from '@/config/tools';
 import { WIDGET_COMPONENTS } from '@/components/widgets/WidgetRegistry';
+import { getLocalIsoDate, combineDateAndTime } from '@/utils/localDate';
 import { AnnouncementFormData } from './types';
 import { TextConfigEditor } from './TextConfigEditor';
 import { EmbedConfigEditor } from './EmbedConfigEditor';
@@ -130,7 +132,11 @@ function buildDefaultForm(): AnnouncementFormData {
     widgetSize: getDefaultSize('text'),
     maximized: false,
     activationType: 'manual',
+    scheduledActivationDate: getLocalIsoDate(),
     scheduledActivationTime: '08:00',
+    autoDeactivateEnabled: false,
+    scheduledEndDate: getLocalIsoDate(),
+    scheduledEndTime: '15:00',
     dismissalType: 'user',
     scheduledDismissalTime: '15:00',
     dismissalDurationSeconds: 60,
@@ -138,6 +144,36 @@ function buildDefaultForm(): AnnouncementFormData {
     targetBuildings: [],
     targetUsers: [],
   };
+}
+
+type AnnouncementLiveStatus = 'inactive' | 'scheduled' | 'active' | 'expired';
+
+/**
+ * Derive a live status for an announcement at the given moment, accounting
+ * for the master `isActive` flag plus the optional scheduled start/end window.
+ */
+function getAnnouncementLiveStatus(
+  a: Announcement,
+  nowMs: number
+): AnnouncementLiveStatus {
+  if (!a.isActive) return 'inactive';
+
+  const endMs = combineDateAndTime(a.scheduledEndDate, a.scheduledEndTime);
+  if (endMs != null && nowMs >= endMs) return 'expired';
+
+  if (a.activationType === 'scheduled') {
+    const startMs = combineDateAndTime(
+      a.scheduledActivationDate,
+      a.scheduledActivationTime
+    );
+    if (startMs == null) {
+      // Misconfigured (date/time missing) — keep showing as active so admin notices.
+      return 'active';
+    }
+    if (nowMs < startMs) return 'scheduled';
+  }
+
+  return 'active';
 }
 
 // Inline config editors for common widget types
@@ -348,20 +384,47 @@ function renderConfigEditor(
   }
 }
 
-// Status badge
-function StatusBadge({ isActive }: { isActive: boolean }) {
+const LIVE_STATUS_STYLES: Record<
+  AnnouncementLiveStatus,
+  { label: string; classes: string; dot: string; pulse: boolean }
+> = {
+  active: {
+    label: 'Active now',
+    classes: 'bg-green-100 text-green-700 border border-green-300',
+    dot: 'bg-green-500',
+    pulse: true,
+  },
+  scheduled: {
+    label: 'Scheduled',
+    classes: 'bg-blue-100 text-blue-700 border border-blue-300',
+    dot: 'bg-blue-500',
+    pulse: false,
+  },
+  expired: {
+    label: 'Expired',
+    classes: 'bg-amber-100 text-amber-700 border border-amber-300',
+    dot: 'bg-amber-500',
+    pulse: false,
+  },
+  inactive: {
+    label: 'Inactive',
+    classes: 'bg-slate-100 text-slate-500 border border-slate-300',
+    dot: 'bg-slate-400',
+    pulse: false,
+  },
+};
+
+// Live status badge — derived from isActive plus the optional schedule window
+function StatusBadge({ status }: { status: AnnouncementLiveStatus }) {
+  const style = LIVE_STATUS_STYLES[status];
   return (
     <span
-      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full ${
-        isActive
-          ? 'bg-green-100 text-green-700 border border-green-300'
-          : 'bg-slate-100 text-slate-500 border border-slate-300'
-      }`}
+      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-full ${style.classes}`}
     >
       <span
-        className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-green-500 animate-pulse' : 'bg-slate-400'}`}
+        className={`w-1.5 h-1.5 rounded-full ${style.dot}${style.pulse ? ' animate-pulse' : ''}`}
       />
-      {isActive ? 'Active' : 'Inactive'}
+      {style.label}
     </span>
   );
 }
@@ -593,6 +656,13 @@ export const AnnouncementsManager: React.FC = () => {
     null
   );
   const [form, setForm] = useState<AnnouncementFormData>(buildDefaultForm);
+  // Tick every 30 s so the derived live-status badge transitions
+  // (Scheduled → Active now → Expired) without requiring a manual refresh.
+  const [nowMs, setNowMs] = useState<number>(() => Date.now());
+  useEffect(() => {
+    const interval = setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Subscribe to announcements collection
   useEffect(() => {
@@ -626,6 +696,8 @@ export const AnnouncementsManager: React.FC = () => {
   const openEdit = useCallback((a: Announcement) => {
     const durationSec = a.dismissalDurationSeconds ?? 60;
     const isMinutes = durationSec >= 60 && durationSec % 60 === 0;
+    const today = getLocalIsoDate();
+    const hasEndWindow = !!(a.scheduledEndDate && a.scheduledEndTime);
     setForm({
       name: a.name,
       widgetType: a.widgetType,
@@ -633,7 +705,15 @@ export const AnnouncementsManager: React.FC = () => {
       widgetSize: a.widgetSize,
       maximized: a.maximized,
       activationType: a.activationType,
+      // Preserve legacy time-only schedules: leave the date empty when the
+      // announcement was created before the date field existed. The overlay
+      // falls back to a daily-recurring HH:MM compare in that case. Defaulting
+      // here would silently convert the legacy schedule to a one-shot.
+      scheduledActivationDate: a.scheduledActivationDate ?? '',
       scheduledActivationTime: a.scheduledActivationTime ?? '08:00',
+      autoDeactivateEnabled: hasEndWindow,
+      scheduledEndDate: a.scheduledEndDate ?? today,
+      scheduledEndTime: a.scheduledEndTime ?? '15:00',
       dismissalType: a.dismissalType,
       scheduledDismissalTime: a.scheduledDismissalTime ?? '15:00',
       dismissalDurationSeconds: isMinutes ? durationSec / 60 : durationSec,
@@ -697,6 +777,40 @@ export const AnnouncementsManager: React.FC = () => {
       addToast('Please enter an announcement name.', 'error');
       return;
     }
+    if (form.activationType === 'scheduled') {
+      if (!form.scheduledActivationTime) {
+        addToast(
+          'Please set a start time for scheduled announcements.',
+          'error'
+        );
+        return;
+      }
+      // Start date is optional — empty preserves the legacy time-only
+      // daily-recurring behavior. The overlay falls back accordingly.
+    }
+    if (form.autoDeactivateEnabled) {
+      if (!form.scheduledEndDate || !form.scheduledEndTime) {
+        addToast(
+          'Please set both an end date and end time, or turn off auto-deactivate.',
+          'error'
+        );
+        return;
+      }
+      if (form.activationType === 'scheduled') {
+        const startMs = combineDateAndTime(
+          form.scheduledActivationDate,
+          form.scheduledActivationTime
+        );
+        const endMs = combineDateAndTime(
+          form.scheduledEndDate,
+          form.scheduledEndTime
+        );
+        if (startMs != null && endMs != null && endMs <= startMs) {
+          addToast('End date/time must be after the start date/time.', 'error');
+          return;
+        }
+      }
+    }
     setSaving(true);
     try {
       const durationSeconds =
@@ -720,6 +834,16 @@ export const AnnouncementsManager: React.FC = () => {
           form.activationType === 'scheduled'
             ? form.scheduledActivationTime
             : undefined,
+        scheduledActivationDate:
+          form.activationType === 'scheduled' && form.scheduledActivationDate
+            ? form.scheduledActivationDate
+            : undefined,
+        scheduledEndDate: form.autoDeactivateEnabled
+          ? form.scheduledEndDate
+          : undefined,
+        scheduledEndTime: form.autoDeactivateEnabled
+          ? form.scheduledEndTime
+          : undefined,
         // Scheduled announcements are enabled ("active") as soon as they're created —
         // the overlay itself gates visibility by the clock time. Manual announcements
         // start inactive until the admin explicitly clicks Activate.
@@ -769,6 +893,28 @@ export const AnnouncementsManager: React.FC = () => {
     } catch (err) {
       console.error('[AnnouncementsManager] Delete error:', err);
       addToast('Failed to delete announcement.', 'error');
+    }
+  };
+
+  const handleDuplicate = async (a: Announcement) => {
+    try {
+      const now = Date.now();
+      const newId = `announcement-${crypto.randomUUID()}`;
+      const { id: _id, ...rest } = a;
+      const payload: Announcement = {
+        ...rest,
+        id: newId,
+        name: `${a.name} (Copy)`,
+        isActive: false,
+        activatedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        createdBy: user?.email ?? 'admin',
+      };
+      await setDoc(doc(db, 'announcements', newId), payload);
+    } catch (err) {
+      console.error('[AnnouncementsManager] Duplicate error:', err);
+      addToast('Failed to duplicate announcement.', 'error');
     }
   };
 
@@ -840,6 +986,17 @@ export const AnnouncementsManager: React.FC = () => {
           {announcements.map((a) => {
             const allBuildings = a.targetBuildings.length === 0;
             const userCount = a.targetUsers?.length ?? 0;
+            const liveStatus = getAnnouncementLiveStatus(a, nowMs);
+            const startLabel =
+              a.activationType === 'scheduled'
+                ? a.scheduledActivationDate
+                  ? `Activates ${a.scheduledActivationDate} at ${a.scheduledActivationTime ?? ''}`
+                  : `Activates at ${a.scheduledActivationTime ?? ''}`
+                : 'Manual activation';
+            const endLabel =
+              a.scheduledEndDate && a.scheduledEndTime
+                ? `Auto-deactivates ${a.scheduledEndDate} at ${a.scheduledEndTime}`
+                : null;
             return (
               <div
                 key={a.id}
@@ -851,7 +1008,7 @@ export const AnnouncementsManager: React.FC = () => {
                       <h4 className="font-semibold text-slate-800 truncate">
                         {a.name}
                       </h4>
-                      <StatusBadge isActive={a.isActive} />
+                      <StatusBadge status={liveStatus} />
                     </div>
                     <div className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
                       <span className="flex items-center gap-1">
@@ -860,10 +1017,14 @@ export const AnnouncementsManager: React.FC = () => {
                       </span>
                       <span className="flex items-center gap-1">
                         <Clock className="w-3 h-3" />
-                        {a.activationType === 'manual'
-                          ? 'Manual activation'
-                          : `Activates at ${a.scheduledActivationTime}`}
+                        {startLabel}
                       </span>
+                      {endLabel && (
+                        <span className="flex items-center gap-1">
+                          <Square className="w-3 h-3" />
+                          {endLabel}
+                        </span>
+                      )}
                       <span className="flex items-center gap-1">
                         <Building2 className="w-3 h-3" />
                         {allBuildings
@@ -930,6 +1091,13 @@ export const AnnouncementsManager: React.FC = () => {
                       className="p-2 text-slate-500 hover:text-brand-blue-primary hover:bg-blue-50 rounded-lg transition-colors"
                     >
                       <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => void handleDuplicate(a)}
+                      title="Duplicate announcement"
+                      className="p-2 text-slate-500 hover:text-brand-blue-primary hover:bg-blue-50 rounded-lg transition-colors"
+                    >
+                      <Copy className="w-4 h-4" />
                     </button>
                     {confirmDeleteId === a.id ? (
                       <div className="flex items-center gap-1">
@@ -1128,23 +1296,106 @@ export const AnnouncementsManager: React.FC = () => {
                 ))}
               </div>
               {form.activationType === 'scheduled' && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    Activation Time
-                  </label>
-                  <input
-                    type="time"
-                    value={form.scheduledActivationTime}
-                    onChange={(e) =>
-                      setForm((f) => ({
-                        ...f,
-                        scheduledActivationTime: e.target.value,
-                      }))
-                    }
-                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
-                  />
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Start Date
+                      </label>
+                      <input
+                        type="date"
+                        value={form.scheduledActivationDate}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            scheduledActivationDate: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Start Time
+                      </label>
+                      <input
+                        type="time"
+                        value={form.scheduledActivationTime}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            scheduledActivationTime: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      />
+                    </div>
+                  </div>
+                  {!form.scheduledActivationDate && (
+                    <p className="text-xs text-amber-700">
+                      No start date set — the announcement recurs daily at the
+                      time above (legacy behavior). Pick a date to convert it to
+                      a one-shot schedule.
+                    </p>
+                  )}
+                </>
               )}
+              {/* Auto-deactivate end window — applies to both manual and scheduled */}
+              <div className="pt-3 border-t border-slate-100">
+                <div className="flex items-center gap-3">
+                  <Toggle
+                    checked={form.autoDeactivateEnabled}
+                    onChange={(v) =>
+                      setForm((f) => ({ ...f, autoDeactivateEnabled: v }))
+                    }
+                  />
+                  <div>
+                    <div className="text-sm font-medium text-slate-700">
+                      Auto-deactivate at end date/time
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      The announcement automatically goes inactive after this
+                      moment — no need to remember to turn it off.
+                    </div>
+                  </div>
+                </div>
+                {form.autoDeactivateEnabled && (
+                  <div className="grid grid-cols-2 gap-2 mt-3">
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        End Date
+                      </label>
+                      <input
+                        type="date"
+                        value={form.scheduledEndDate}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            scheduledEndDate: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        End Time
+                      </label>
+                      <input
+                        type="time"
+                        value={form.scheduledEndTime}
+                        onChange={(e) =>
+                          setForm((f) => ({
+                            ...f,
+                            scheduledEndTime: e.target.value,
+                          }))
+                        }
+                        className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </FormSection>
 
             {/* Dismissal */}

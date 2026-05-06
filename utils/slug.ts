@@ -21,7 +21,8 @@ export const slugify = (input: string): string =>
     .replace(/^@/, '')
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
-    .slice(0, MAX_SLUG_LENGTH);
+    .slice(0, MAX_SLUG_LENGTH)
+    .replace(/-+$/g, '');
 
 /**
  * Like `slugify()`, but falls back to a UUID (or `${prefix}-${timestamp}` on
@@ -32,8 +33,7 @@ export const slugify = (input: string): string =>
 export const slugOrFallback = (input: string, prefix: string): string => {
   const base = slugify(input);
   if (base) return base;
-  return (globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now()}`).slice(
-    0,
-    UUID_FALLBACK_LENGTH
-  );
+  return (globalThis.crypto?.randomUUID?.() ?? `${prefix}-${Date.now()}`)
+    .slice(0, UUID_FALLBACK_LENGTH)
+    .replace(/-+$/g, '');
 };

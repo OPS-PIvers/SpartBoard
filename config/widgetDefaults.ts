@@ -46,6 +46,7 @@ export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
       elapsedTime: 600,
       isRunning: false,
       selectedSound: 'Gong',
+      adjustStepSeconds: 60,
     },
   },
   traffic: { w: 120, h: 320, config: {} },

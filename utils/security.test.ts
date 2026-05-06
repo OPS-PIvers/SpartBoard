@@ -4,7 +4,7 @@ import { sanitizeHtml } from './security';
 describe('sanitizeHtml', () => {
   it('should pass through safe HTML', () => {
     const input = '<b>Hello</b> <i>World</i><br/>';
-    // DOMParser normalizes <br/> to <br>
+    // DOMParser/DOMPurify normalizes <br/> to <br>
     expect(sanitizeHtml(input)).toBe('<b>Hello</b> <i>World</i><br>');
   });
 
@@ -33,6 +33,13 @@ describe('sanitizeHtml', () => {
     expect(output).not.toContain('<iframe');
   });
 
+  it('should strip svg elements to block SVG-based XSS', () => {
+    const input = '<svg onload="alert(1)"></svg>';
+    const output = sanitizeHtml(input);
+    expect(output).not.toContain('onload');
+    expect(output).not.toContain('<svg');
+  });
+
   it('should handle nested tags', () => {
     const input = '<div><b><script>alert(1)</script>Safe</b></div>';
     const output = sanitizeHtml(input);
@@ -52,12 +59,6 @@ describe('sanitizeHtml', () => {
     expect(output).toContain('data:image/png;base64,safe');
   });
 
-  it('should handle SVG-based XSS', () => {
-    const input = '<svg onload="alert(1)"></svg>';
-    const output = sanitizeHtml(input);
-    expect(output).not.toContain('onload');
-  });
-
   it('should handle case variation', () => {
     const input = '<div onClick="alert(1)" OnMouseOver="alert(1)">Click</div>';
     const output = sanitizeHtml(input);
@@ -72,11 +73,30 @@ describe('sanitizeHtml', () => {
   });
 
   it('should handle HTML entity encoding bypasses', () => {
-    // Basic check - browsers decode entities in attributes, but our logic checks attr.value
-    // If the browser parses it, DOMParser puts decoded value in attribute
     const input =
       '<a href="&#106;&#97;&#118;&#97;&#115;&#99;&#114;&#105;&#112;&#116;&#58;alert(1)">Link</a>';
     const output = sanitizeHtml(input);
     expect(output).not.toContain('javascript:');
+  });
+
+  it('should handle malformed HTML with event handlers', () => {
+    const input = '<img src=x onerror=alert(1)>';
+    const output = sanitizeHtml(input);
+    expect(output).not.toContain('onerror');
+  });
+
+  it('should preserve style attributes for formatting', () => {
+    const input =
+      '<span style="color: rgb(255, 0, 0); background-color: yellow;">Text</span>';
+    const output = sanitizeHtml(input);
+    expect(output).toContain(
+      'style="color: rgb(255, 0, 0); background-color: yellow;"'
+    );
+  });
+
+  it('should preserve class attributes', () => {
+    const input = '<div class="text-lg font-bold">Styled Text</div>';
+    const output = sanitizeHtml(input);
+    expect(output).toContain('class="text-lg font-bold"');
   });
 });

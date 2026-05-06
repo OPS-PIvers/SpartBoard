@@ -233,6 +233,157 @@ describe('AnnouncementOverlay', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Date-bounded activation window
+  // -------------------------------------------------------------------------
+
+  describe('date window (auto-deactivate)', () => {
+    beforeEach(() => {
+      vi.useFakeTimers();
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('hides a scheduled announcement before its start date+time', () => {
+      // Clock: May 5, 7:30 AM. Window starts May 5, 8:00 AM.
+      vi.setSystemTime(new Date(2026, 4, 5, 7, 30));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'scheduled',
+          scheduledActivationDate: '2026-05-05',
+          scheduledActivationTime: '08:00',
+          isActive: true,
+        },
+      ]);
+      expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
+    });
+
+    it('shows a scheduled announcement during its window', () => {
+      // Clock: May 5, 9:00 AM. Window: May 5 08:00 → May 5 17:00.
+      vi.setSystemTime(new Date(2026, 4, 5, 9, 0));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'scheduled',
+          scheduledActivationDate: '2026-05-05',
+          scheduledActivationTime: '08:00',
+          scheduledEndDate: '2026-05-05',
+          scheduledEndTime: '17:00',
+          isActive: true,
+        },
+      ]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+
+    it('hides a scheduled announcement after its end date+time', () => {
+      // Clock: May 5, 18:00. Window ended at 17:00.
+      vi.setSystemTime(new Date(2026, 4, 5, 18, 0));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'scheduled',
+          scheduledActivationDate: '2026-05-05',
+          scheduledActivationTime: '08:00',
+          scheduledEndDate: '2026-05-05',
+          scheduledEndTime: '17:00',
+          isActive: true,
+        },
+      ]);
+      expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
+    });
+
+    it('shows a manual announcement with end window before the end moment', () => {
+      // Clock: May 5, 14:00. Manual + end May 5 17:00.
+      vi.setSystemTime(new Date(2026, 4, 5, 14, 0));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'manual',
+          scheduledEndDate: '2026-05-05',
+          scheduledEndTime: '17:00',
+          isActive: true,
+        },
+      ]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+
+    it('hides a manual announcement after its end window', () => {
+      // Clock: May 5, 18:00. Manual + end May 5 17:00.
+      vi.setSystemTime(new Date(2026, 4, 5, 18, 0));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'manual',
+          scheduledEndDate: '2026-05-05',
+          scheduledEndTime: '17:00',
+          isActive: true,
+        },
+      ]);
+      expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
+    });
+
+    it('shows a multi-day windowed announcement after midnight crossing', () => {
+      // Clock: May 6, 02:00 (crossed midnight from May 5).
+      // Window: May 5 14:00 → May 6 08:00. 02:00 < 08:00 so still within window.
+      vi.setSystemTime(new Date(2026, 4, 6, 2, 0));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'scheduled',
+          scheduledActivationDate: '2026-05-05',
+          scheduledActivationTime: '14:00',
+          scheduledEndDate: '2026-05-06',
+          scheduledEndTime: '08:00',
+          isActive: true,
+        },
+      ]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+
+    it('hides a multi-day windowed announcement after the next morning end', () => {
+      // Clock: May 6, 09:00. Window ended at May 6 08:00.
+      vi.setSystemTime(new Date(2026, 4, 6, 9, 0));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'scheduled',
+          scheduledActivationDate: '2026-05-05',
+          scheduledActivationTime: '14:00',
+          scheduledEndDate: '2026-05-06',
+          scheduledEndTime: '08:00',
+          isActive: true,
+        },
+      ]);
+      expect(screen.queryByText('Test Announcement')).not.toBeInTheDocument();
+    });
+
+    it('falls back to time-only comparison for legacy announcements without a start date', () => {
+      // Clock: 10:00. Legacy schedule: time only at 09:00, no date set.
+      vi.setSystemTime(new Date(2026, 4, 5, 10, 0));
+      render(<AnnouncementOverlay />);
+      emitAnnouncements([
+        {
+          ...BASE_ANNOUNCEMENT,
+          activationType: 'scheduled',
+          scheduledActivationTime: '09:00',
+          // no scheduledActivationDate — legacy data
+          isActive: true,
+        },
+      ]);
+      expect(screen.getByText('Test Announcement')).toBeInTheDocument();
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // Building targeting
   // -------------------------------------------------------------------------
 

@@ -109,9 +109,10 @@ const TOUCH_GESTURE_BLOCKING_SELECTOR = `${DRAG_BLOCKING_SELECTOR}, ${SCROLLABLE
 // RGB components of brand-blue-light (#4356a0) for group indicator styling
 const GROUP_BRAND_RGB = '67, 86, 160';
 
-// const MIN_GESTURE_SWIPE_DISTANCE = 100;
 const DRAG_CLICK_THRESHOLD_PX = 25;
 const INVISIBLE_EDGE_PAD = 20; // px of invisible grab zone extending outside widget bounds
+const PINNED_TOOLTIP_SESSION_KEY = 'spart_pinned_tip_shown';
+const PINNED_TOOLTIP_DURATION_MS = 3500;
 const INNER_EDGE_PAD = 16; // px of invisible drag zone inside widget bounds
 const INNER_EDGE_CORNER_INSET = 24; // px inset at corners to avoid resize handle overlap
 // Resize handles always win within this many px of the widget's outer edge in
@@ -454,6 +455,63 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const isMaximized = widget.maximized ?? false;
   const isLocked = widget.isLocked ?? false;
   const isPinned = widget.isPinned ?? false;
+
+  const [pinnedHover, setPinnedHover] = useState(false);
+  // Adjust state while rendering to clear stale hover when the widget is
+  // unpinned — the blocker zones unmount without firing onPointerLeave, so
+  // re-pinning would otherwise leave the glyph stuck at full opacity.
+  const [pinnedHoverWasPinned, setPinnedHoverWasPinned] = useState(isPinned);
+  if (pinnedHoverWasPinned !== isPinned) {
+    setPinnedHoverWasPinned(isPinned);
+    if (!isPinned && pinnedHover) setPinnedHover(false);
+  }
+  const [pinnedTooltipPos, setPinnedTooltipPos] = useState<{
+    x: number;
+    y: number;
+  } | null>(null);
+  const pinnedTooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  // Per-mount fallback flag — used only when sessionStorage is unavailable
+  // (e.g. some private-browsing modes, SSR) so the tooltip is still capped at
+  // one show per mount instead of firing on every drag attempt.
+  const pinnedTooltipShownThisMountRef = useRef(false);
+
+  const maybeShowPinnedTooltip = useCallback(
+    (clientX: number, clientY: number) => {
+      let alreadyShown = false;
+      try {
+        alreadyShown =
+          sessionStorage.getItem(PINNED_TOOLTIP_SESSION_KEY) === 'true';
+        if (!alreadyShown) {
+          sessionStorage.setItem(PINNED_TOOLTIP_SESSION_KEY, 'true');
+        }
+      } catch {
+        // sessionStorage unavailable — fall back to a per-mount ref.
+        alreadyShown = pinnedTooltipShownThisMountRef.current;
+      }
+      if (alreadyShown) return;
+      pinnedTooltipShownThisMountRef.current = true;
+
+      setPinnedTooltipPos({ x: clientX, y: clientY });
+      if (pinnedTooltipTimeoutRef.current) {
+        clearTimeout(pinnedTooltipTimeoutRef.current);
+      }
+      pinnedTooltipTimeoutRef.current = setTimeout(() => {
+        setPinnedTooltipPos(null);
+        pinnedTooltipTimeoutRef.current = null;
+      }, PINNED_TOOLTIP_DURATION_MS);
+    },
+    []
+  );
+
+  useEffect(() => {
+    return () => {
+      if (pinnedTooltipTimeoutRef.current) {
+        clearTimeout(pinnedTooltipTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const innerEdgeStripsActive =
     !isMaximized && !isAnnotating && !isPinned && !isLocked;
@@ -1751,6 +1809,30 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         />
       )}
 
+      {/* Pinned indicator glyph — always-on, brightens on edge/corner hover.
+          Informational only (pointerEvents: none); unpin still happens via the toolbar pin button. */}
+      {isPinned && !isMaximized && (
+        <div
+          data-testid="pinned-indicator"
+          role="img"
+          aria-label={t('widgetWindow.pinnedIndicator')}
+          style={{
+            position: 'absolute',
+            top: 6,
+            // Offset to the right of the group indicator dot when the widget
+            // is in a group, so both indicators are visible side-by-side.
+            left: isInGroup ? 22 : 6,
+            opacity: pinnedHover ? 1 : 0.4,
+            transition: 'opacity 150ms ease-out',
+            pointerEvents: 'none',
+            zIndex: 11,
+            color: '#d97706', // amber-600 — matches the toolbar pin button when active
+          }}
+        >
+          <Pin className="w-3.5 h-3.5" />
+        </div>
+      )}
+
       {/* Group-build mode selection overlay */}
       {groupBuildMode && (
         <div
@@ -2166,6 +2248,95 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         </>
       )}
 
+      {/* Pinned blocker zones — mirror the unpinned resize/edge geometry but with `not-allowed`
+          cursor and no drag/resize logic. Brighten the corner glyph on hover and surface a one-time
+          per-session tooltip on the first attempt to grab a pinned widget. */}
+      {isPinned && !isMaximized && !isAnnotating && (
+        <>
+          {/* Corner blockers (mirror resize handles at -12/36×36) */}
+          {(['nw', 'ne', 'sw', 'se'] as const).map((corner) => {
+            const positionStyles: React.CSSProperties =
+              corner === 'nw'
+                ? { top: -12, left: -12 }
+                : corner === 'ne'
+                  ? { top: -12, right: -12 }
+                  : corner === 'sw'
+                    ? { bottom: -12, left: -12 }
+                    : { bottom: -12, right: -12 };
+            return (
+              <div
+                key={`pinned-corner-${corner}`}
+                data-testid={`pinned-blocker-${corner}`}
+                aria-hidden="true"
+                onPointerEnter={() => setPinnedHover(true)}
+                onPointerLeave={() => setPinnedHover(false)}
+                onPointerDown={(e) => {
+                  maybeShowPinnedTooltip(e.clientX, e.clientY);
+                }}
+                style={{
+                  position: 'absolute',
+                  width: 36,
+                  height: 36,
+                  cursor: 'not-allowed',
+                  touchAction: 'none',
+                  zIndex: Z_INDEX.widgetResize,
+                  ...positionStyles,
+                }}
+              />
+            );
+          })}
+          {/* Edge blockers (mirror invisible edge grab zones) */}
+          {(['top', 'bottom', 'left', 'right'] as const).map((edge) => {
+            const positionStyles: React.CSSProperties =
+              edge === 'top'
+                ? {
+                    top: -INVISIBLE_EDGE_PAD,
+                    left: 0,
+                    right: 0,
+                    height: INVISIBLE_EDGE_PAD,
+                  }
+                : edge === 'bottom'
+                  ? {
+                      bottom: -INVISIBLE_EDGE_PAD,
+                      left: 0,
+                      right: 0,
+                      height: INVISIBLE_EDGE_PAD,
+                    }
+                  : edge === 'left'
+                    ? {
+                        left: -INVISIBLE_EDGE_PAD,
+                        top: 0,
+                        bottom: 0,
+                        width: INVISIBLE_EDGE_PAD,
+                      }
+                    : {
+                        right: -INVISIBLE_EDGE_PAD,
+                        top: 0,
+                        bottom: 0,
+                        width: INVISIBLE_EDGE_PAD,
+                      };
+            return (
+              <div
+                key={`pinned-edge-${edge}`}
+                data-testid={`pinned-blocker-${edge}`}
+                aria-hidden="true"
+                onPointerEnter={() => setPinnedHover(true)}
+                onPointerLeave={() => setPinnedHover(false)}
+                onPointerDown={(e) => {
+                  maybeShowPinnedTooltip(e.clientX, e.clientY);
+                }}
+                style={{
+                  position: 'absolute',
+                  cursor: 'not-allowed',
+                  touchAction: 'none',
+                  ...positionStyles,
+                }}
+              />
+            );
+          })}
+        </>
+      )}
+
       {/* Drag-to-Edge Visual Preview Overlay */}
       {snapPreviewZone &&
         typeof document !== 'undefined' &&
@@ -2215,6 +2386,30 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           />
         </div>
       )}
+
+      {/* Pinned tooltip — appears once per session near the cursor on the first attempt
+          to drag/resize a pinned widget. Auto-dismisses; portalled so transforms/overflow
+          on parent layers can't clip it. */}
+      {pinnedTooltipPos &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            data-testid="pinned-tooltip"
+            role="status"
+            aria-live="polite"
+            style={{
+              position: 'fixed',
+              left: pinnedTooltipPos.x + 12,
+              top: pinnedTooltipPos.y + 12,
+              pointerEvents: 'none',
+              zIndex: Z_INDEX.tooltip,
+            }}
+            className="bg-slate-900/90 text-white text-xs px-2 py-1 rounded shadow-lg backdrop-blur-sm whitespace-nowrap"
+          >
+            {t('widgetWindow.pinnedTooltip')}
+          </div>,
+          document.body
+        )}
     </GlassCard>
   );
 

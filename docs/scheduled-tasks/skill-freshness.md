@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-04-28_
+_Last audited: 2026-05-05_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-05: Skill files not accessible at `/mnt/skills/user/` in this audit environment. Codebase-side verifications performed: `SpecialistSchedule/SpecialistScheduleWidget.tsx` still exists (Widget.tsx does not); `FeaturePermissionsManager.tsx` exclusion list still omits the 7 types noted in the LOW item below; `FeatureConfigurationPanel.tsx` secondary exclusion gate still undocumented in skill. `blending-board` was added to `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` this week — the exclusion-list LOW item is now more stale. All four open items remain valid._
 
 ### MEDIUM `spart-new-widget` references non-existent `SpecialistSchedule/Widget.tsx`
 
@@ -38,14 +40,14 @@ _Nothing currently in progress._
   ```
   !['instructionalRoutines', 'stickers', 'calendar', 'specialist-schedule', 'miniApp', 'starter-pack', 'your-widget-type']
   ```
-  The actual array in `components/admin/FeaturePermissionsManager.tsx` (lines 919–933) is significantly longer and includes 7 additional types added since the skill was written: `blooms-taxonomy`, `catalyst`, `graphic-organizer`, `music`, `pdf`, `video-activity`, `work-symbols`. A developer following the example literally would insert their widget type into an outdated list and potentially misunderstand the full scope of widgets with dedicated config modals.
+  The actual array in `components/admin/FeaturePermissionsManager.tsx` (lines 941–953) is significantly longer and includes 7 additional types added since the skill was written: `blooms-taxonomy`, `catalyst`, `graphic-organizer`, `music`, `pdf`, `video-activity`, `work-symbols`. A developer following the example literally would insert their widget type into an outdated list and potentially misunderstand the full scope of widgets with dedicated config modals.
 - **Fix:** Update the skill's code example to match the current exclusion array, or replace the hardcoded list in the example with a comment like `// ...existing widget types with dedicated modals...` so the example is not tied to a specific snapshot.
 
 ### LOW `spart-widget-admin-config` does not document hardcoded exclusion list in `FeatureConfigurationPanel.tsx`
 
 - **Detected:** 2026-04-14
 - **File:** `.claude/skills/admin-widget-config/SKILL.md` — Path B description
-- **Detail:** `components/admin/FeatureConfigurationPanel.tsx` (lines 682–694) contains a hardcoded widget-type exclusion list: `['calendar', 'expectations', 'guided-learning', 'instructionalRoutines', 'miniApp', 'quiz', 'stickers', 'talking-tool', 'weather', 'webcam', ...Object.keys(BUILDING_CONFIG_PANELS)]`. These widgets show custom panels or full-screen modals within `GenericConfigurationModal`. The skill describes Path B but does not mention this secondary exclusion gate. For most new widgets the `BUILDING_CONFIG_PANELS` registration handles exclusion automatically, but if a developer needs to know why certain widgets disappear from the generic modal, this list is the missing context.
+- **Detail:** `components/admin/FeatureConfigurationPanel.tsx` (lines 688–700) contains a hardcoded widget-type exclusion list: `['calendar', 'expectations', 'guided-learning', 'instructionalRoutines', 'miniApp', 'quiz', 'stickers', 'talking-tool', 'weather', 'webcam', ...Object.keys(BUILDING_CONFIG_PANELS)]`. These widgets show custom panels or full-screen modals within `GenericConfigurationModal`. The skill describes Path B but does not mention this secondary exclusion gate. For most new widgets the `BUILDING_CONFIG_PANELS` registration handles exclusion automatically, but if a developer needs to know why certain widgets disappear from the generic modal, this list is the missing context.
 - **Fix:** Add a note in the skill's Path B section explaining this secondary exclusion list and its purpose.
 
 ---

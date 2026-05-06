@@ -274,6 +274,8 @@
     "done": "Done",
     "pin": "Pin Position",
     "unpin": "Unpin Position",
+    "pinnedIndicator": "Widget pinned",
+    "pinnedTooltip": "Pinned — open the widget toolbar and click the pin to unpin",
     "snapLayout": "Snap Layout",
     "chooseLayout": "Choose Layout",
     "snapTo": "Snap to",
@@ -434,7 +436,15 @@
       "autoAdvanceNextUpQueue": "Auto-Advance NextUp Queue",
       "addNextUpTip": "Add a NextUp widget to automatically advance to the next student when the timer ends!",
       "autoAdvanceNext": "Auto-Advance Next",
-      "advanceQueueOnEnd": "Advance the queue when timer ends"
+      "advanceQueueOnEnd": "Advance the queue when timer ends",
+      "adjustStep": "Adjust Step",
+      "adjustStepHint": "Tap to add or subtract this much time. Press and hold to add faster.",
+      "adjustStepUnit": "seconds",
+      "addTime": "Add time",
+      "subtractTime": "Subtract time",
+      "play": "Play",
+      "pause": "Pause",
+      "reset": "Reset"
     },
     "weather": {
       "actual": "Actual",

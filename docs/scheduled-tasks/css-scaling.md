@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-04_
+_Last audited: 2026-05-06_
 _Last action: 2026-04-25_
 
 ---
@@ -22,6 +22,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
 - **Detected:** 2026-04-28
@@ -32,8 +34,8 @@ _Nothing currently in progress._
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
 - **Detected:** 2026-04-27
-- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:607
-- **Detail:** The period filter `<select>` in the quiz results view uses `text-sm` (hardcoded Tailwind). The QuizWidget has `skipScaling: true`, so this element is inside a CSS container-query context. Introduced by the 2026-04-26 commit `fix(quiz): persist Results export URL on assignment doc (#1419)`.
+- **File:** components/widgets/QuizWidget/components/QuizResults.tsx:968 (line shifted from :607 as of 2026-05-05 merge)
+- **Detail:** The period filter `<select>` in the quiz results view uses `text-sm` (hardcoded Tailwind). The QuizWidget has `skipScaling: true`, so this element is inside a CSS container-query context. Introduced by the 2026-04-26 commit `fix(quiz): persist Results export URL on assignment doc (#1419)`. QuizResults grew significantly in the 2026-05-05 merge (matching/ordering editor addition) — line number has shifted.
 - **Fix:** Replace `text-sm` with an inline style: `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`. The surrounding `px-2 py-1` padding on the same element should also be converted: `style={{ padding: 'min(4px, 1.5cqmin) min(8px, 2.5cqmin)' }}`.
 
 ### LOW RevealGridWidget has additional hardcoded spacing beyond `text-xs` labels

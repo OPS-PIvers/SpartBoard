@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-04-28_
+_Last audited: 2026-05-05_
 _Last action: 2026-04-30_
 
 ---
@@ -16,6 +16,23 @@ _Nothing currently in progress._
 
 ## Open
 
+### MEDIUM `axios@1.15.0` still has two MODERATE CVEs — patched in >=1.15.1
+
+- **Detected:** 2026-05-05
+- **File:** package.json (direct devDependency), functions/package.json (direct dependency)
+- **Detail:** Two moderate CVEs appear in `pnpm audit` for both root and functions/ against the current `axios@1.15.0`:
+  - **GHSA-vf2m-468p-8v99** (moderate): HTTP adapter streamed responses bypass `maxContentLength` — allows a malicious server to return a response larger than the configured limit. Patched in `>=1.15.1`.
+  - **GHSA-xx6v-rp6x-q39c** (moderate): XSRF Token Cross-Origin Leakage via Prototype Pollution gadget in `withXSRFToken` Boolean coercion. Patched in `>=1.15.1`.
+    The previous upgrade to `1.15.0` (2026-04-14 completed item) patched the three CRITICAL CVEs. These two MODERATE CVEs are distinct advisories with `>=1.15.1` patch requirement. `pnpm outdated` shows latest is `1.16.0`.
+- **Fix:** `pnpm up axios@^1.16.0` in root and `pnpm -C functions up axios@^1.16.0` in functions/. Both advisories are patched in `>=1.15.1`; upgrading to `1.16.0` (latest) addresses both. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
+
+### HIGH `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path — unresolved
+
+- **Detected:** 2026-05-05
+- **File:** package.json (via `firebase-functions@7.0.5 > protobufjs`), functions/package.json (same path)
+- **Detail:** `pnpm audit` shows a CRITICAL advisory for `protobufjs <7.5.5` (GHSA-xq3m-2v4x-88gg — arbitrary code execution) with path `.>firebase-functions>protobufjs` in both root and functions/ audits. The 2026-04-30 completed item fixed the `@google/genai > protobufjs` path (now resolved to `protobufjs@7.5.6`), but explicitly noted: "A separate `protobufjs@7.5.4` resolution still exists via `firebase-functions@7.0.5` chain (untouched by this fix)." That secondary CRITICAL path was never followed up with an open item. `pnpm outdated` shows `firebase-functions` at `7.0.5`, latest `7.2.5`. The functions/ package shows `firebase-functions@7.2.3` current, latest `7.2.5`.
+- **Fix:** In root: `pnpm up firebase-functions@^7.2.5`. In functions/: `pnpm -C functions up firebase-functions@^7.2.5`. Verify whether `firebase-functions@7.2.x` upgrades its `protobufjs` transitive dep to `>=7.5.5`. If not, add `"protobufjs": ">=7.5.5"` to `pnpm.overrides` in root `package.json`. Verify `pnpm type-check:all`, `pnpm lint`, `pnpm test`, and `pnpm build:all` pass.
+
 ### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
 
 - **Detected:** 2026-04-14
@@ -26,8 +43,8 @@ _Nothing currently in progress._
   - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs
   - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption
     All via firebase-tools devDependency chain. These do not affect production runtime.
-    Current: 15.8.0, Latest: 15.15.0 — updating may resolve several transitively.
-- **Fix:** `pnpm up firebase-tools@^15.15.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
+    Current: 15.8.0, Latest: 15.16.0 — updating may resolve several transitively. (Updated: Latest moved from 15.15.0 → 15.16.0 as of 2026-05-05.)
+- **Fix:** `pnpm up firebase-tools@^15.16.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
 
 ### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
 
@@ -76,20 +93,21 @@ _Nothing currently in progress._
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-04-28
+- **Updated:** 2026-05-05
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
-  - `tailwindcss`: 3.4.19 → **4.2.3** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.x** (2 majors ahead, but focus on patching within v6 first)
-  - `eslint`: 9.39.2 → **10.2.1** (major — verify flat config compatibility)
+  - `tailwindcss`: 3.4.19 → **4.2.4** (major — config format changed completely)
+  - `vite`: 6.4.2 → **8.0.10** (2 majors ahead; focus on patching within v6 first)
+  - `eslint`: 9.39.2 → **10.3.0** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
   - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes)
   - `i18next`: 25.8.13 → **26.0.8** (major — API changes)
-  - `react-i18next`: 16.5.4 → **17.x** (paired with i18next)
-  - `lucide-react`: 0.563.0 → **1.8.0** (first stable major — icon API changes possible)
+  - `react-i18next`: 16.5.4 → **17.0.6** (paired with i18next)
+  - `lucide-react`: 0.563.0 → **1.14.0** (first stable major — icon API changes possible)
   - `@vitejs/plugin-react`: 5.1.2 → **6.0.1** (major)
   - `@types/node`: 24.12.2 → **25.6.0** (major — verify Node 24 compat)
-    Also notable minor updates: `react`/`react-dom` 19.2.4 → 19.2.5, `firebase-tools` 15.8.0 → 15.15.0, `firebase` 12.8.0 → 12.12.1.
+  - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only)
+    Also notable minor updates: `react`/`react-dom` 19.2.4 → 19.2.5, `firebase-tools` 15.8.0 → 15.16.0, `firebase` 12.8.0 → 12.12.1, `firebase-admin` 13.6.0 → 13.8.0.
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix.
 

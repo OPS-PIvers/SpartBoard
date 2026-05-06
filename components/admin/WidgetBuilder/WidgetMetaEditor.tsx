@@ -1,3 +1,4 @@
+import { slugify } from '@/utils/slug';
 import React from 'react';
 import { WidgetMeta, WIDGET_COLOR_PRESETS } from './types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -10,13 +11,6 @@ import { Puzzle } from 'lucide-react';
 interface WidgetMetaEditorProps {
   meta: WidgetMeta;
   onChange: (meta: WidgetMeta) => void;
-}
-
-function slugify(value: string): string {
-  return value
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
 }
 
 function renderWidgetIcon(

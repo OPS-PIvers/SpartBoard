@@ -28,6 +28,7 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { Z_INDEX } from '@/config/zIndex';
 
 import { applyAutoplay } from './applyAutoplay';
+import { applyStartAt } from './applyStartAt';
 
 const NEW_WIDGET_SPACING = 20;
 const TOOLBAR_GAP = 6;
@@ -50,6 +51,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     blockedReason = '',
     zoom = 1,
     autoplay = false,
+    startAtSeconds,
   } = config;
 
   const ZOOM_STEPS = [
@@ -208,9 +210,10 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const embedUrl = convertToEmbedUrl(sanitizedUrl);
 
   // When autoplay is enabled, append ?autoplay=1 for supported hosts
+  // and apply the YouTube start-at offset (no-op for non-YouTube hosts).
   const finalEmbedUrl = React.useMemo(
-    () => applyAutoplay(embedUrl, autoplay),
-    [embedUrl, autoplay]
+    () => applyStartAt(applyAutoplay(embedUrl, autoplay), startAtSeconds),
+    [embedUrl, autoplay, startAtSeconds]
   );
 
   const [refreshKey, setRefreshKey] = useState(0);

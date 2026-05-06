@@ -12,7 +12,7 @@ export const canReadTestClasses = (
   userRoles: UserRolesConfig | null | undefined,
   userEmail: string | null | undefined
 ): boolean => {
-  if (!orgId) return false;
+  if (!orgId || !orgId.trim()) return false;
   const isSuperAdminByEmail = Boolean(
     userEmail &&
     userRoles?.superAdmins?.some(
