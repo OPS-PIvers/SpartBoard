@@ -901,7 +901,6 @@ export const AnnouncementsManager: React.FC = () => {
       const now = Date.now();
       const newId = `announcement-${crypto.randomUUID()}`;
       const { id: _id, ...rest } = a;
-      void _id;
       const payload: Announcement = {
         ...rest,
         id: newId,
