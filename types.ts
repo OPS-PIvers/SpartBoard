@@ -1834,10 +1834,11 @@ export interface QuizSessionOptions {
   /**
    * Randomize the order of answer options (MC choices, Matching right side,
    * Ordering items) per student per attempt. Independent of the always-on
-   * server-side shuffle in `toPublicQuestion`, which only protects the
-   * Firestore doc; this toggle controls the second client-side shuffle.
-   * Default (when the field is absent on legacy/in-flight sessions) is
-   * treated as ON to preserve pre-toggle behavior.
+   * teacher-client shuffle in `toPublicQuestion` (run once at session-create
+   * time so the answer-key offset isn't deterministic in the Firestore doc);
+   * this toggle controls the second per-student shuffle that runs in the
+   * student client. Default (when the field is absent on legacy/in-flight
+   * sessions) is treated as ON to preserve pre-toggle behavior.
    */
   shuffleAnswerOptions?: boolean;
 }

@@ -516,6 +516,20 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   }
 
   if (session.status === 'active') {
+    // Wait for the student's response doc to load before rendering the
+    // active quiz UI. The per-attempt shuffle seed depends on
+    // `myResponse.completedAttempts`, so rendering before the snapshot
+    // arrives would briefly use `attempt-0` and then visibly reorder once
+    // the real attempt index loaded — confusing on retakes.
+    if (!myResponse) {
+      return (
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+          <div className="w-12 h-12 border-2 border-violet-500/30 border-t-violet-400 rounded-full animate-spin mb-4" />
+          <p className="text-slate-400 text-sm">Loading your quiz…</p>
+        </div>
+      );
+    }
+
     const publicQuestions = session.publicQuestions ?? [];
     const currentQ =
       session.currentQuestionIndex >= 0
@@ -534,7 +548,7 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     }
 
     const alreadyAnswered = currentQ
-      ? (myResponse?.answers ?? []).some((a) => a.questionId === currentQ.id)
+      ? myResponse.answers.some((a) => a.questionId === currentQ.id)
       : false;
 
     return (
@@ -707,11 +721,7 @@ const ActiveQuiz: React.FC<{
   // Per-student answer shuffle. The session-level `publicQuestions` was
   // shuffled once teacher-side; we re-shuffle on the client deterministically
   // by student id so neighbours see different orders but a single student's
-  // order stays stable across reload/back-nav. Falls back to the auth uid
-  // when the response doc hasn't loaded yet (first paint of the very first
-  // question), and to a constant when neither is available — that constant
-  // matches the fallback in `seededShuffle`'s caller, so test runs without a
-  // signed-in user are deterministic too.
+  // order stays stable across reload/back-nav.
   //
   // The seed includes `completedAttempts` so retakes get a fresh order: the
   // counter increments on every transition `in-progress → completed`, so a
@@ -719,6 +729,12 @@ const ActiveQuiz: React.FC<{
   // 2 picks up a new seed and walks through a different shuffle. Mid-attempt
   // refreshes / back-nav keep the same seed (the counter only moves on
   // submit) so the order stays stable while the attempt is in flight.
+  //
+  // The parent (QuizStudentAppContent) guards `ActiveQuiz` on myResponse
+  // being non-null, so `completedAttempts` here always reflects the real
+  // value — important for retakes, since otherwise the seed would default
+  // to `attempt-0` before the snapshot arrived and visibly reorder once the
+  // correct value appeared.
   const baseShuffleSeed =
     myResponse?.studentUid ?? auth.currentUser?.uid ?? 'anonymous-student';
   const attemptIndex = myResponse?.completedAttempts ?? 0;
