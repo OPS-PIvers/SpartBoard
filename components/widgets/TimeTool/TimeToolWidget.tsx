@@ -361,6 +361,8 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
     adjustStepSeconds = DEFAULT_ADJUST_STEP_SECONDS,
   } = config;
 
+  const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
+
   // Show ±buttons once a timer has started or been adjusted off its initial duration.
   // Hides during the fresh-setup state (where the keypad handles input) and in stopwatch mode.
   const showAdjustControls =
@@ -467,43 +469,32 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                   </div>
                 )}
 
-                {/* Adjust buttons pinned to widget corners (active timer only) */}
-                {showAdjustControls && (
-                  <>
+                {/* The core centering unit: Time + Absolute Controls */}
+                <div className="relative flex flex-col items-center justify-center">
+                  {/* Adjust controls — mirror of play/reset, above the time */}
+                  {showAdjustControls && (
                     <div
-                      className="absolute z-20"
+                      className="absolute z-10 flex items-center justify-center"
                       style={{
-                        top: 'min(10px, 2.5cqmin)',
-                        left: 'min(10px, 2.5cqmin)',
+                        bottom: isVisual ? '120%' : '110%',
+                        gap: 'min(12px, 3cqmin)',
                       }}
                     >
                       <AdjustButton
                         sign={-1}
-                        step={adjustStepSeconds}
+                        step={effectiveAdjustStep}
                         disabled={displayTime <= 0}
                         ariaLabel={t('widgets.timeTool.subtractTime')}
                         onAdjust={adjustTime}
                       />
-                    </div>
-                    <div
-                      className="absolute z-20"
-                      style={{
-                        top: 'min(10px, 2.5cqmin)',
-                        right: 'min(10px, 2.5cqmin)',
-                      }}
-                    >
                       <AdjustButton
                         sign={1}
-                        step={adjustStepSeconds}
+                        step={effectiveAdjustStep}
                         ariaLabel={t('widgets.timeTool.addTime')}
                         onAdjust={adjustTime}
                       />
                     </div>
-                  </>
-                )}
-
-                {/* The core centering unit: Time + Absolute Controls */}
-                <div className="relative flex flex-col items-center justify-center">
+                  )}
                   <button
                     onClick={() => {
                       if (!isRunning && mode === 'timer') setIsEditing(true);
