@@ -242,6 +242,19 @@ export class AttemptLimitReachedError extends Error {
 }
 
 /**
+ * Thrown by `joinQuizSession` when the resolved code maps only to ended
+ * sessions. Callers (notably the SSO auto-join in `QuizStudentApp`) use
+ * this as a sentinel to fall back to read-only review mode via
+ * `subscribeForReview`, rather than string-matching the error message.
+ */
+export class SessionEndedError extends Error {
+  constructor() {
+    super('This quiz session has already ended.');
+    this.name = 'SessionEndedError';
+  }
+}
+
+/**
  * Normalize a string for use as a segment inside a Firestore response doc id.
  *
  * Roster period names and pins are teacher-defined free text and can contain
@@ -1018,7 +1031,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           return s === 'waiting' || s === 'active' || s === 'paused';
         });
         if (joinable.length === 0) {
-          throw new Error('This quiz session has already ended.');
+          throw new SessionEndedError();
         }
         // Prefer the most recently created joinable doc.
         joinable.sort((a, b) => {
@@ -1495,6 +1508,26 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           return bt - at;
         });
         const sessionDoc = docs[0];
+        // Verify the student's response doc exists before flipping the
+        // listeners on. Without this, the response snapshot would just
+        // emit `null` and the caller would think review mode loaded
+        // successfully (matches the docstring contract: throw on
+        // missing response so the UI can show a targeted error rather
+        // than a misleading empty-review screen).
+        const responseSnap = await getDoc(
+          doc(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionDoc.id,
+            RESPONSES_COLLECTION,
+            studentUid
+          )
+        );
+        if (!responseSnap.exists()) {
+          throw new Error(
+            'No submission found for this quiz — you may not have completed it.'
+          );
+        }
         sessionIdRef.current = sessionDoc.id;
         // SSO students key their response doc by auth.uid (see
         // `computeResponseKey` for the contract).

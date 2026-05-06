@@ -2022,3 +2022,118 @@ describe('useQuizSessionTeacher — advanceQuestion', () => {
     expect(env.batch.commit).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useQuizSessionStudent — subscribeForReview', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    (auth as unknown as { currentUser: unknown }).currentUser = {
+      uid: 'sso-uid-1',
+      isAnonymous: false,
+    };
+    (firestore.doc as unknown as ReturnType<typeof vi.fn>).mockReturnValue({});
+    (
+      firestore.collection as unknown as ReturnType<typeof vi.fn>
+    ).mockReturnValue({});
+    (firestore.query as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (firestore.where as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
+      {}
+    );
+    (
+      firestore.onSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockImplementation(() => vi.fn());
+  });
+
+  it('rejects anonymous callers — review needs a stable identity', async () => {
+    (auth as unknown as { currentUser: unknown }).currentUser = {
+      uid: 'anon-uid',
+      isAnonymous: true,
+    };
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(result.current.subscribeForReview('ABC123')).rejects.toThrow(
+        /anonymous review is not supported/i
+      );
+    });
+  });
+
+  it('throws when no session matches the code', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ empty: true, docs: [] });
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(result.current.subscribeForReview('NOPE12')).rejects.toThrow(
+        /no quiz found with that code/i
+      );
+    });
+  });
+
+  it('throws when the student has no response doc on the resolved session', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        buildSessionDoc('s1', {
+          status: 'ended',
+          scoreVisibility: 'score-only',
+        }),
+      ],
+    });
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ exists: () => false });
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await expect(result.current.subscribeForReview('ABC123')).rejects.toThrow(
+        /no submission found/i
+      );
+    });
+  });
+
+  it('prefers a published-score session over a plain ended one when both share the code', async () => {
+    // Two ended sessions with the same code; only `published` carries
+    // scoreVisibility so it must win the tie-break ahead of `recent`.
+    const recentDoc = buildSessionDoc('recent', {
+      status: 'ended',
+      endedAt: 9999,
+    });
+    const publishedDoc = buildSessionDoc('published', {
+      status: 'ended',
+      endedAt: 1,
+      scoreVisibility: 'score-only',
+    });
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [recentDoc, publishedDoc],
+    });
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ exists: () => true });
+
+    const docMock = firestore.doc as unknown as ReturnType<typeof vi.fn>;
+    docMock.mockClear();
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    await act(async () => {
+      await result.current.subscribeForReview('ABC123');
+    });
+
+    // The response-existence probe should target the PUBLISHED session,
+    // not the more-recent unpublished one.
+    const responseProbeCall = docMock.mock.calls.find((args: unknown[]) =>
+      args.includes('published')
+    );
+    expect(responseProbeCall).toBeDefined();
+    const recentProbeCall = docMock.mock.calls.find((args: unknown[]) =>
+      args.includes('recent')
+    );
+    expect(recentProbeCall).toBeUndefined();
+  });
+});

@@ -1683,21 +1683,29 @@ export const useQuizAssignments = (
         const gradedAnswers: QuizResponseAnswer[] = answers.map((a) => {
           const q = questionsById.get(a.questionId);
           if (!q) {
-            // Question deleted between submission and publish — leave the
-            // answer untouched (no `isCorrect` we can claim) and skip it
-            // from the score denominator so the percentage isn't punished
-            // for a missing question.
-            return a;
+            // Question deleted between submission and publish — we can't
+            // claim correctness any more. Strip any stale `isCorrect`
+            // from a prior publish so the response doesn't carry a
+            // value the canonical quiz no longer supports.
+            const { isCorrect: _stale, ...rest } = a;
+            void _stale;
+            return rest;
           }
           const result = gradeAnswer(q, a.answer);
           pointsEarned += result.pointsEarned;
           pointsMax += result.pointsMax;
           return { ...a, isCorrect: result.isCorrect };
         });
-        // Also count questions the student didn't answer at all toward the
-        // denominator so a blank response scores 0%, not undefined.
+        // Count questions the student didn't answer toward the denominator
+        // so a blank response scores 0%, not undefined. Use a Set lookup
+        // (O(Q) total) rather than `answers.some(...)` per question (O(Q*A))
+        // — the inner `.some` would otherwise become a noticeable stall on
+        // PLC-shared assignments with hundreds of submissions × dozens of
+        // questions.
+        const answeredQuestionIds = new Set<string>();
+        for (const a of answers) answeredQuestionIds.add(a.questionId);
         for (const q of quizData.questions) {
-          if (!answers.some((a) => a.questionId === q.id)) {
+          if (!answeredQuestionIds.has(q.id)) {
             pointsMax += q.points ?? 1;
           }
         }

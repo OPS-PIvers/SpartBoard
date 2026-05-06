@@ -44,7 +44,11 @@ import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { useQuizSessionStudent, normalizeAnswer } from '@/hooks/useQuizSession';
+import {
+  useQuizSessionStudent,
+  normalizeAnswer,
+  SessionEndedError,
+} from '@/hooks/useQuizSession';
 import { shuffleQuestionForStudent } from '@/utils/quizShuffle';
 import { QuizSession, QuizPublicQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
@@ -211,13 +215,12 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       } catch (err) {
         // If the session has already ended, fall back to read-only review
         // mode so the student can see their published score / responses /
-        // answers from the `/my-assignments` Completed list. Other join
+        // answers from the `/my-assignments` Completed list. Branch on the
+        // typed sentinel rather than the error message — the latter would
+        // silently break the fallback if the copy ever changes. Other join
         // failures (no such code, network error, etc.) bubble up to the
         // existing error UI.
-        const isEnded =
-          err instanceof Error &&
-          err.message === 'This quiz session has already ended.';
-        if (isEnded) {
+        if (err instanceof SessionEndedError) {
           try {
             await subscribeForReview(urlCode);
             setJoined(true);
@@ -2006,7 +2009,7 @@ const PublishedScoreReview: React.FC<{
                           }`}
                         >
                           {studentAnswer
-                            ? formatAnswerForDisplay(studentAnswer)
+                            ? formatAnswerForDisplay(studentAnswer, q.type)
                             : '— no response'}
                         </span>
                       </p>
@@ -2014,7 +2017,7 @@ const PublishedScoreReview: React.FC<{
                         <p className="text-xs text-slate-400">
                           Correct answer:{' '}
                           <span className="font-mono text-emerald-300">
-                            {formatAnswerForDisplay(correctAnswer)}
+                            {formatAnswerForDisplay(correctAnswer, q.type)}
                           </span>
                         </p>
                       )}
@@ -2040,11 +2043,16 @@ const PublishedScoreReview: React.FC<{
 /**
  * Format pipe-encoded matching/ordering answers for human display. MC/FIB
  * answers come through as plain strings and pass through untouched.
+ *
+ * Branch on `type` rather than sniffing the string for `:` — Ordering
+ * items can legitimately contain colons (e.g. "9:00 AM", "H:O ratio")
+ * that would otherwise be reformatted as "left → right" pairs.
  */
-function formatAnswerForDisplay(raw: string): string {
-  if (!raw.includes('|') && !raw.includes(':')) return raw;
-  // Matching pairs: "left:right|left:right" → "left → right, left → right"
-  if (raw.includes(':')) {
+function formatAnswerForDisplay(
+  raw: string,
+  type: QuizPublicQuestion['type']
+): string {
+  if (type === 'Matching') {
     return raw
       .split('|')
       .map((pair) => {
@@ -2054,8 +2062,10 @@ function formatAnswerForDisplay(raw: string): string {
       })
       .join(', ');
   }
-  // Ordering: "a|b|c" → "a, b, c"
-  return raw.split('|').join(', ');
+  if (type === 'Ordering') {
+    return raw.split('|').join(', ');
+  }
+  return raw;
 }
 
 const QuizSubmittedWaitScreen: React.FC<{
