@@ -33,6 +33,13 @@ describe('sanitizeHtml', () => {
     expect(output).not.toContain('<iframe');
   });
 
+  it('should strip svg elements to block SVG-based XSS', () => {
+    const input = '<svg onload="alert(1)"></svg>';
+    const output = sanitizeHtml(input);
+    expect(output).not.toContain('onload');
+    expect(output).not.toContain('<svg');
+  });
+
   it('should handle nested tags', () => {
     const input = '<div><b><script>alert(1)</script>Safe</b></div>';
     const output = sanitizeHtml(input);
