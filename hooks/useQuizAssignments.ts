@@ -733,13 +733,15 @@ export const useQuizAssignments = (
       // PLC dashboard index: when this assignment opts into PLC mode,
       // record a snapshot under `plcs/{plcId}/assignment_index` so every
       // teammate sees it on the PLC Dashboard's Completed Assignments tab.
-      // Fire-and-forget: the helper logs and swallows errors so a transient
-      // index-write failure doesn't take down the assignment-create action.
-      // Covers every flow that goes through `createAssignment`, including
+      // Fire-and-forget — we deliberately don't `await` so the assign
+      // action returns as soon as the canonical assignment + session
+      // batch has committed. The helper has its own try/catch and never
+      // rejects, so there's no unhandled-promise concern. Covers every
+      // flow that goes through `createAssignment`, including
       // `importSharedAssignment` when the importer is a PLC member.
       if (settings.plc) {
         const current = auth.currentUser;
-        await writePlcAssignmentIndexEntry(settings.plc.id, {
+        void writePlcAssignmentIndexEntry(settings.plc.id, {
           id: assignmentId,
           kind: 'quiz',
           ownerUid: userId,

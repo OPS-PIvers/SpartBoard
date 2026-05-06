@@ -9,6 +9,22 @@ interface PlcCompletedAssignmentsTabProps {
 }
 
 /**
+ * Defense-in-depth: only render the entry's `sheetUrl` as a link if it
+ * parses as an `http:` or `https:` URL. The Firestore rule already pins
+ * `sheetUrl` to the PLC's canonical `sharedSheetUrl`, but a stale entry
+ * (or future schema change) shouldn't be able to smuggle a `javascript:`
+ * URL through the dashboard.
+ */
+function isSafeHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Read-only list of every PLC-mode assignment any member has run. Each
  * row links out to the shared Google Sheet that aggregates results.
  *
@@ -84,6 +100,9 @@ export const PlcCompletedAssignmentsTab: React.FC<
       <div className="flex flex-col gap-2">
         {entries.map((entry) => {
           const ownerLabel = entry.ownerName?.trim() || entry.ownerEmail || '—';
+          const safeSheetUrl = isSafeHttpUrl(entry.sheetUrl)
+            ? entry.sheetUrl
+            : null;
           return (
             <div
               key={entry.id}
@@ -107,17 +126,30 @@ export const PlcCompletedAssignmentsTab: React.FC<
                   <span>{formatDate(entry.createdAt)}</span>
                 </div>
               </div>
-              <a
-                href={entry.sheetUrl}
-                target="_blank"
-                rel="noreferrer noopener"
-                className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors"
-              >
-                <ExternalLink className="w-3 h-3" />
-                {t('plcDashboard.completedAssignments.openSheet', {
-                  defaultValue: 'Open Sheet',
-                })}
-              </a>
+              {safeSheetUrl ? (
+                <a
+                  href={safeSheetUrl}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors"
+                >
+                  <ExternalLink className="w-3 h-3" />
+                  {t('plcDashboard.completedAssignments.openSheet', {
+                    defaultValue: 'Open Sheet',
+                  })}
+                </a>
+              ) : (
+                <span
+                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-slate-400 rounded-lg text-xxs font-bold uppercase tracking-wider"
+                  title={t('plcDashboard.completedAssignments.unsafeSheet', {
+                    defaultValue: 'Sheet link unavailable',
+                  })}
+                >
+                  {t('plcDashboard.completedAssignments.unsafeSheet', {
+                    defaultValue: 'No link',
+                  })}
+                </span>
+              )}
             </div>
           );
         })}

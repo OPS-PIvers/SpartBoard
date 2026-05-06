@@ -140,16 +140,21 @@ export const PlcSettingsTab: React.FC<PlcSettingsTabProps> = ({ plc }) => {
           const Icon = row.icon;
           const enabled = features[row.key];
           const isBusy = busyKey === row.key;
+          // While any toggle is in-flight, lock out every row so the UI
+          // visibly matches the in-handler `if (busyKey) return` guard.
+          // Otherwise an unrelated row would look interactive but silently
+          // ignore clicks.
+          const anyBusy = busyKey !== null;
           return (
             <button
               key={row.key}
               onClick={() => void handleToggle(row.key)}
-              disabled={isBusy}
+              disabled={anyBusy}
               className={`flex items-start gap-3 p-3 bg-white border rounded-xl text-left transition-colors ${
                 enabled
                   ? 'border-brand-blue-light/60 hover:border-brand-blue-primary'
                   : 'border-slate-200 hover:border-slate-300'
-              } ${isBusy ? 'opacity-60 cursor-wait' : ''}`}
+              } ${isBusy ? 'opacity-60 cursor-wait' : anyBusy ? 'opacity-70' : ''}`}
             >
               <div
                 className={`shrink-0 w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${

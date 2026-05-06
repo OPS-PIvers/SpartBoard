@@ -893,12 +893,31 @@ service cloud.firestore {
         // author must be a current PLC member — non-members can't fabricate
         // entries pointing at someone else's assignment. Status mirroring
         // (later phases) goes through the same `update` branch.
+        //
+        // Schema lock-down (`keys().hasOnly([...])`) keeps the doc shape
+        // closed so future readers can rely on the field set without
+        // defensive parsing of unexpected payloads.
+        //
+        // `sheetUrl` is pinned to the parent PLC's `sharedSheetUrl` — the
+        // dashboard renders this as a clickable link, so an unconstrained
+        // string would let a malicious member point teammates at a
+        // phishing URL through the dashboard. Two separate `get()`s on
+        // the parent PLC are de-duped by the rules engine within a single
+        // evaluation, so this doesn't cost an extra read.
         allow create, update: if request.auth != null
           && request.auth.uid == request.resource.data.ownerUid
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
-          && assignmentId == request.resource.data.id;
+          && assignmentId == request.resource.data.id
+          && request.resource.data.keys().hasOnly([
+               'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
+               'title', 'sheetUrl', 'createdAt'
+             ])
+          && request.resource.data.kind == 'quiz'
+          && request.resource.data.sheetUrl == get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.get('sharedSheetUrl', '');
 
         // Authors can clean up their own entries (e.g. if they delete the
         // source assignment). No lead-override here — leads who want to

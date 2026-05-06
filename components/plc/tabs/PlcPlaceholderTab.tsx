@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { LucideIcon } from 'lucide-react';
 
 interface PlcPlaceholderTabProps {
@@ -17,6 +18,7 @@ export const PlcPlaceholderTab: React.FC<PlcPlaceholderTabProps> = ({
   title,
   description,
 }) => {
+  const { t } = useTranslation();
   return (
     <div className="flex flex-col items-center justify-center h-full min-h-[300px] px-6 text-center">
       <div className="w-16 h-16 rounded-2xl bg-brand-blue-lighter flex items-center justify-center mb-5">
@@ -27,7 +29,9 @@ export const PlcPlaceholderTab: React.FC<PlcPlaceholderTabProps> = ({
         {description}
       </p>
       <span className="mt-5 text-xxs font-bold uppercase tracking-widest text-brand-blue-primary bg-brand-blue-lighter px-3 py-1 rounded-full">
-        Coming soon
+        {t('plcDashboard.placeholder.comingSoon', {
+          defaultValue: 'Coming soon',
+        })}
       </span>
     </div>
   );

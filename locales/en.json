@@ -277,8 +277,12 @@
       "count_other": "{{count}} assignments",
       "byOwner": "by {{name}}",
       "openSheet": "Open Sheet",
+      "unsafeSheet": "No link",
       "emptyTitle": "No PLC assignments yet",
       "emptySubtitle": "When you or a teammate runs a quiz with PLC mode on, it'll show up here with a link to the shared results sheet."
+    },
+    "placeholder": {
+      "comingSoon": "Coming soon"
     },
     "settings": {
       "heading": "Dashboard Sections",

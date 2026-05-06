@@ -1,8 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
-import { collection, doc, onSnapshot, query, setDoc } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  onSnapshot,
+  orderBy,
+  query,
+  setDoc,
+} from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcAssignmentIndexEntry } from '@/types';
+import { logError } from '@/utils/logError';
 
 const PLCS_COLLECTION = 'plcs';
 const ASSIGNMENT_INDEX_SUBCOLLECTION = 'assignment_index';
@@ -24,13 +32,12 @@ function parseEntry(
   ) {
     return null;
   }
-  // `kind` is a discriminator for future video-activity entries; default to
-  // 'quiz' for legacy or partially-written rows so the dashboard doesn't
-  // drop them.
-  const kind = data.kind === 'quiz' ? 'quiz' : 'quiz';
+  // `kind` is a discriminator slot for future video-activity entries.
+  // Today there's only one valid value; later phases will widen the union
+  // and switch on the raw `data.kind` here.
   return {
     id,
-    kind,
+    kind: 'quiz',
     ownerUid: data.ownerUid,
     ownerName: typeof data.ownerName === 'string' ? data.ownerName : '',
     ownerEmail: typeof data.ownerEmail === 'string' ? data.ownerEmail : '',
@@ -52,6 +59,18 @@ export const usePlcAssignmentIndex = (
   const [entries, setEntries] = useState<PlcAssignmentIndexEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Reset state when the target PLC changes so the UI never flashes the
+  // previous PLC's entries while the new snapshot is in flight. This is the
+  // "adjusting state while rendering" pattern used elsewhere in the repo
+  // (see `useQuizAssignments.ts` lines 523-526) — preferred over an effect
+  // because it avoids an extra render pass.
+  const [prevPlcId, setPrevPlcId] = useState(plcId);
+  if (plcId !== prevPlcId) {
+    setPrevPlcId(plcId);
+    setEntries([]);
+    setLoading(true);
+  }
+
   useEffect(() => {
     if (!plcId || !user || isAuthBypass) {
       const t = setTimeout(() => {
@@ -60,10 +79,8 @@ export const usePlcAssignmentIndex = (
       }, 0);
       return () => clearTimeout(t);
     }
-    // No `setLoading(true)` here: the initial useState value is already
-    // true, and the snapshot callback flips it to false on first emit
-    // (success or error). Switching `plcId` mid-mount isn't a supported
-    // path — the dashboard remounts when the user picks a different PLC.
+    // Server-side ordering by `createdAt desc` so the snapshot already
+    // arrives newest-first — no client-side `.sort()` pass needed.
     const ref = collection(
       db,
       PLCS_COLLECTION,
@@ -71,19 +88,18 @@ export const usePlcAssignmentIndex = (
       ASSIGNMENT_INDEX_SUBCOLLECTION
     );
     const unsub = onSnapshot(
-      query(ref),
+      query(ref, orderBy('createdAt', 'desc')),
       (snap) => {
         const list: PlcAssignmentIndexEntry[] = [];
         snap.forEach((d) => {
           const parsed = parseEntry(d.id, d.data() as Record<string, unknown>);
           if (parsed) list.push(parsed);
         });
-        list.sort((a, b) => b.createdAt - a.createdAt);
         setEntries(list);
         setLoading(false);
       },
       (err) => {
-        console.error('[usePlcAssignmentIndex] snapshot error:', err);
+        logError('usePlcAssignmentIndex.snapshot', err, { plcId });
         setLoading(false);
       }
     );
@@ -110,6 +126,9 @@ export async function writePlcAssignmentIndexEntry(
       entry
     );
   } catch (err) {
-    console.error('[writePlcAssignmentIndexEntry] write failed:', err);
+    logError('writePlcAssignmentIndexEntry.write', err, {
+      plcId,
+      entryId: entry.id,
+    });
   }
 }
