@@ -335,7 +335,7 @@ describe('TimeToolWidget', () => {
         isRunning: false,
         duration: 60,
         elapsedTime: 30,
-        adjustStepSeconds: 120,
+        adjustStepSeconds: 60,
       });
       renderWidget(widget);
 
@@ -346,8 +346,8 @@ describe('TimeToolWidget', () => {
         'timetool-1',
         expect.objectContaining({
           config: expect.objectContaining({
-            elapsedTime: 150,
-            duration: 150,
+            elapsedTime: 90,
+            duration: 90,
           }) as unknown,
         })
       );
@@ -527,20 +527,18 @@ describe('TimeToolWidget', () => {
     });
   });
 
-  // Corner-pinning regression coverage for PR #1526. jsdom's cssstyle parser
-  // silently drops CSS `min(...)` values when assigned via React's
-  // el.style[prop] = ... path, so we use renderToStaticMarkup to inspect the
-  // raw inline style strings React emits — which is the source of truth for
-  // what the browser will actually see.
-  describe('±adjust button corner positioning (PR #1526)', () => {
+  // Layout coverage for the ±adjust pair. The pair sits in a single absolute
+  // wrapper above the time, mirroring the play/reset pair below
+  // (bottom: 110% in digital style, 120% in visual-ring style). jsdom's
+  // cssstyle parser silently drops CSS `min(...)` values when assigned via
+  // React's el.style[prop] = ... path, so we use renderToStaticMarkup to
+  // inspect the raw inline style strings React emits — the source of truth
+  // for what the browser will actually see.
+  describe('±adjust button placement above the time', () => {
     const renderHtml = (widget: WidgetData): string =>
       renderToStaticMarkup(<TimeToolWidget widget={widget} />);
 
-    // Pulls the immediately-enclosing wrapper <div> for a given aria-labeled
-    // button out of the static markup. The wrapper is the element that owns
-    // the `position: absolute` + corner-inset inline styles.
     const wrapperFor = (html: string, ariaLabel: string): string => {
-      // Walk the markup so we can find the *parent* of the matching button.
       const dom = new DOMParser().parseFromString(html, 'text/html');
       const btn = dom.querySelector(`button[aria-label="${ariaLabel}"]`);
       const wrapper = btn?.parentElement;
@@ -550,7 +548,7 @@ describe('TimeToolWidget', () => {
       return wrapper.outerHTML;
     };
 
-    it('renders the − button inside an absolute wrapper pinned to top-left', () => {
+    it('renders both buttons inside one absolute wrapper anchored from the bottom', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -560,31 +558,16 @@ describe('TimeToolWidget', () => {
       const html = renderHtml(widget);
       const wrapperHtml = wrapperFor(html, 'Subtract time');
 
-      // Tailwind class applies position:absolute via CSS; verify it's wired
       expect(wrapperHtml).toMatch(/class="[^"]*\babsolute\b[^"]*"/);
-      // Inline style fields verify corner pinning
-      expect(wrapperHtml).toContain('top:');
-      expect(wrapperHtml).toContain('left:');
-      expect(wrapperHtml).not.toContain('right:');
-    });
-
-    it('renders the + button inside an absolute wrapper pinned to top-right', () => {
-      const widget = createWidget({
-        mode: 'timer',
-        isRunning: true,
-        duration: 300,
-        elapsedTime: 240,
-      });
-      const html = renderHtml(widget);
-      const wrapperHtml = wrapperFor(html, 'Add time');
-
-      expect(wrapperHtml).toMatch(/class="[^"]*\babsolute\b[^"]*"/);
-      expect(wrapperHtml).toContain('top:');
-      expect(wrapperHtml).toContain('right:');
+      // Anchored above the time via `bottom:`, mirroring play/reset's `top:`.
+      expect(wrapperHtml).toContain('bottom:');
+      // Should not be corner-pinned anymore.
       expect(wrapperHtml).not.toContain('left:');
+      expect(wrapperHtml).not.toContain('right:');
+      expect(wrapperHtml).not.toContain('top:');
     });
 
-    it('the − and + buttons live in distinct wrappers (not a shared row)', () => {
+    it('the − and + buttons share the same wrapper (single centered pair)', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -595,13 +578,13 @@ describe('TimeToolWidget', () => {
 
       const subBtn = screen.getByLabelText('Subtract time');
       const addBtn = screen.getByLabelText('Add time');
-      // PR #1526 explicitly moves them out of a shared flex container so
-      // changing time text width can't shift either button.
-      expect(subBtn.parentElement).not.toBe(addBtn.parentElement);
+      // Buttons are now siblings inside a flex pair; that container also
+      // hosts the gap that separates them.
+      expect(subBtn.parentElement).toBe(addBtn.parentElement);
     });
 
     it.each([['modern'], ['lcd'], ['minimal']] as const)(
-      'pins both corners in clockStyle="%s"',
+      'uses bottom:110% in digital clockStyle="%s"',
       (clockStyle) => {
         const widget = createWidget({
           mode: 'timer',
@@ -611,18 +594,13 @@ describe('TimeToolWidget', () => {
           clockStyle,
         });
         const html = renderHtml(widget);
+        const wrap = wrapperFor(html, 'Subtract time');
 
-        const subWrap = wrapperFor(html, 'Subtract time');
-        expect(subWrap).toContain('top:');
-        expect(subWrap).toContain('left:');
-
-        const addWrap = wrapperFor(html, 'Add time');
-        expect(addWrap).toContain('top:');
-        expect(addWrap).toContain('right:');
+        expect(wrap).toContain('bottom:110%');
       }
     );
 
-    it('pins both corners when visualType="visual" (progress ring on)', () => {
+    it('uses bottom:120% when visualType="visual" (progress ring on)', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -631,14 +609,9 @@ describe('TimeToolWidget', () => {
         visualType: 'visual',
       });
       const html = renderHtml(widget);
+      const wrap = wrapperFor(html, 'Subtract time');
 
-      const subWrap = wrapperFor(html, 'Subtract time');
-      expect(subWrap).toContain('top:');
-      expect(subWrap).toContain('left:');
-
-      const addWrap = wrapperFor(html, 'Add time');
-      expect(addWrap).toContain('top:');
-      expect(addWrap).toContain('right:');
+      expect(wrap).toContain('bottom:120%');
     });
   });
 });
