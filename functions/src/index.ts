@@ -2574,23 +2574,31 @@ export const adminAnalytics = onRequest(
         .map(([uid]) => uid);
       const topUserEmails: Record<string, string> = {};
 
+      const chunks: string[][] = [];
       for (let i = 0; i < topUserUids.length; i += 10) {
-        const uidChunk = topUserUids.slice(i, i + 10);
-        if (uidChunk.length === 0) continue;
-
-        const usersSnapshot = await db
-          .collection('users')
-          .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-          .select('email')
-          .get();
-
-        usersSnapshot.docs.forEach((doc) => {
-          const userData = doc.data();
-          if (typeof userData.email === 'string' && userData.email.length > 0) {
-            topUserEmails[doc.id] = userData.email;
-          }
-        });
+        chunks.push(topUserUids.slice(i, i + 10));
       }
+
+      await Promise.all(
+        chunks.map(async (uidChunk) => {
+          if (uidChunk.length === 0) return;
+          const usersSnapshot = await db
+            .collection('users')
+            .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
+            .select('email')
+            .get();
+
+          usersSnapshot.docs.forEach((doc) => {
+            const userData = doc.data();
+            if (
+              typeof userData.email === 'string' &&
+              userData.email.length > 0
+            ) {
+              topUserEmails[doc.id] = userData.email;
+            }
+          });
+        })
+      );
       const unresolvedTopUserUids = topUserUids.filter(
         (uid) => !topUserEmails[uid]
       );
