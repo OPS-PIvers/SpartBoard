@@ -16,8 +16,8 @@ import {
   PlusSquare,
 } from 'lucide-react';
 
-const ADJUST_STEP_MIN = 1;
-const ADJUST_STEP_MAX = 600;
+const ADJUST_STEP_MIN = 5;
+const ADJUST_STEP_MAX = 60;
 const ADJUST_STEP_DEFAULT = 60;
 
 const clampAdjustStep = (n: number) =>
@@ -176,6 +176,7 @@ export const TimeToolSettings: React.FC<{ widget: WidgetData }> = ({
               type="number"
               min={ADJUST_STEP_MIN}
               max={ADJUST_STEP_MAX}
+              step={5}
               value={config.adjustStepSeconds ?? ADJUST_STEP_DEFAULT}
               onChange={(e) => {
                 const parsed = parseInt(e.target.value, 10);
