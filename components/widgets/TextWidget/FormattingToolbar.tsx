@@ -154,10 +154,16 @@ const MenuButton: React.FC<{
 
 /** Walk a Range and return the text nodes intersecting it. The start and end
  *  text nodes are split if the range only partially covers them, so the
- *  returned nodes correspond exactly to the selected text. */
-function collectTextNodesInRange(range: Range): Text[] {
-  if (range.collapsed) return [];
+ *  returned nodes correspond exactly to the selected text.
+ *
+ *  Operates on a clone of the input range so the explicit setStart() call
+ *  doesn't move the live selection's endpoints mid-operation. (splitText
+ *  itself can still adjust live ranges per spec, but we no longer compound
+ *  that with our own range mutation.) */
+function collectTextNodesInRange(originalRange: Range): Text[] {
+  if (originalRange.collapsed) return [];
 
+  const range = originalRange.cloneRange();
   const startC = range.startContainer;
   const endC = range.endContainer;
 
@@ -225,6 +231,50 @@ function collectTextNodesInRange(range: Range): Text[] {
     nodes.push(n as Text);
   }
   return nodes;
+}
+
+/** Block-level tags this widget can produce. Used by `rangeSpansMultipleBlocks`
+ *  to decide when execCommand will silently fail and we need the manual wrap.
+ *  Covers Chrome's auto-wrap (<div>), execCommand outputs (<blockquote>, lists,
+ *  paragraphs, headings, <pre>) and their structural pieces (<ul>/<ol>/<li>). */
+const BLOCK_LEVEL_TAGS = new Set([
+  'DIV',
+  'P',
+  'UL',
+  'OL',
+  'LI',
+  'BLOCKQUOTE',
+  'H1',
+  'H2',
+  'H3',
+  'H4',
+  'H5',
+  'H6',
+  'PRE',
+]);
+
+/** True if the range intersects two or more block-level elements within the
+ *  editor — the case where execCommand for inline-style commands silently
+ *  fails (formats only the first inline run) and we need to walk text nodes
+ *  manually. Catches both flat Ctrl+A (editor's children) and nested cases
+ *  (e.g. multiple <div>s inside a <blockquote>). */
+function rangeSpansMultipleBlocks(range: Range, editor: HTMLElement): boolean {
+  const walker = document.createTreeWalker(editor, NodeFilter.SHOW_ELEMENT, {
+    acceptNode: (n) => {
+      if (!BLOCK_LEVEL_TAGS.has((n as Element).tagName)) {
+        return NodeFilter.FILTER_SKIP;
+      }
+      return range.intersectsNode(n)
+        ? NodeFilter.FILTER_ACCEPT
+        : NodeFilter.FILTER_SKIP;
+    },
+  });
+  let count = 0;
+  while (walker.nextNode()) {
+    count++;
+    if (count >= 2) return true;
+  }
+  return false;
 }
 
 /** Wrap each text node intersecting the range in a fresh <span> styled by the
@@ -375,12 +425,14 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   );
 
   /** Apply an inline style command (bold/italic/underline/foreColor/hiliteColor).
-   *  When the selection spans multiple children of the editor (commonAncestor ===
-   *  editor — typical of Ctrl+A on a multi-line note), execCommand silently fails
-   *  to format anything past the first inline run, so we walk the range and wrap
-   *  each text node in a fresh <span>. For single-block selections we fall
-   *  through to execCommand so the toggle behavior (click to un-bold) keeps
-   *  working. Cursor-position toggles ("type bold from here") also fall through. */
+   *  When the selection spans multiple block-level elements (typical of Ctrl+A
+   *  on a multi-line note, or a drag-select crossing block boundaries — flat
+   *  <div> siblings or nested cases like <blockquote>-wrapped lists),
+   *  execCommand silently fails to format anything past the first inline run,
+   *  so we walk the range and wrap each text node in a fresh <span>. For
+   *  single-block selections we fall through to execCommand so the toggle
+   *  behavior (click to un-bold) keeps working. Cursor-position toggles
+   *  ("type bold from here") also fall through. */
   const runInlineStyleCommand = useCallback(
     (
       cmd: 'bold' | 'italic' | 'underline' | 'foreColor' | 'hiliteColor',
@@ -398,7 +450,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         range !== null &&
         !range.collapsed &&
         editor.contains(range.commonAncestorContainer) &&
-        range.commonAncestorContainer === editor;
+        rangeSpansMultipleBlocks(range, editor);
 
       if (!needsHelper) {
         document.execCommand('styleWithCSS', false, 'true');

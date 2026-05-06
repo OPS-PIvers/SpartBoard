@@ -299,6 +299,67 @@ describe('FormattingToolbar', () => {
     vi.restoreAllMocks();
   });
 
+  it('Bold on selection spanning nested blocks (inside a blockquote) wraps each text run', () => {
+    // Structure execCommand('indent') produces: indented divs nested inside
+    // a <blockquote>. commonAncestor here is the <blockquote>, not the editor —
+    // exercises the rangeSpansMultipleBlocks check, not just commonAncestor === editor.
+    const editor = document.createElement('div');
+    const blockquote = document.createElement('blockquote');
+    const innerDiv1 = document.createElement('div');
+    const innerText1 = document.createTextNode('inner1');
+    innerDiv1.appendChild(innerText1);
+    const innerDiv2 = document.createElement('div');
+    const innerText2 = document.createTextNode('inner2');
+    innerDiv2.appendChild(innerText2);
+    blockquote.appendChild(innerDiv1);
+    blockquote.appendChild(innerDiv2);
+    editor.appendChild(blockquote);
+    document.body.appendChild(editor);
+
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    const initialRange = document.createRange();
+    initialRange.setStart(innerText1, 0);
+    initialRange.setEnd(innerText2, innerText2.length);
+    expect(initialRange.commonAncestorContainer).toBe(blockquote);
+
+    let currentRange: Range = initialRange;
+    const mockSelection = {
+      get anchorNode() {
+        return currentRange.startContainer;
+      },
+      get rangeCount() {
+        return 1;
+      },
+      getRangeAt: () => currentRange,
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn((r: Range) => {
+        currentRange = r;
+      }),
+    } as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection);
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    fireEvent.click(screen.getByTitle('Bold'));
+
+    const spans = editor.querySelectorAll<HTMLElement>(
+      'span[style*="font-weight"]'
+    );
+    expect(spans.length).toBe(2);
+    expect(Array.from(spans).map((s) => s.textContent)).toEqual([
+      'inner1',
+      'inner2',
+    ]);
+    expect(editor.querySelectorAll('span > div').length).toBe(0);
+    expect(execCommandMock).not.toHaveBeenCalledWith('bold', false, '');
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
   it('calls showPrompt when link button is clicked', async () => {
     mockShowPrompt.mockResolvedValue('https://google.com');
     render(<FormattingToolbar {...defaultProps} />);
