@@ -49,7 +49,10 @@ import {
   normalizeAnswer,
   SessionEndedError,
 } from '@/hooks/useQuizSession';
-import { shuffleQuestionForStudent } from '@/utils/quizShuffle';
+import {
+  shufflePublicQuestions,
+  shuffleQuestionForStudent,
+} from '@/utils/quizShuffle';
 import { QuizSession, QuizPublicQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { StudentLeaderboard } from './StudentLeaderboard';
@@ -701,10 +704,6 @@ const ActiveQuiz: React.FC<{
     ? localIndex
     : session.currentQuestionIndex;
 
-  const baseQuestion = isStudentPaced
-    ? session.publicQuestions[localIndex]
-    : sessionQuestion;
-
   // Per-student answer shuffle. The session-level `publicQuestions` was
   // shuffled once teacher-side; we re-shuffle on the client deterministically
   // by student id so neighbours see different orders but a single student's
@@ -713,12 +712,46 @@ const ActiveQuiz: React.FC<{
   // question), and to a constant when neither is available — that constant
   // matches the fallback in `seededShuffle`'s caller, so test runs without a
   // signed-in user are deterministic too.
-  const studentShuffleSeed =
+  //
+  // The seed includes `completedAttempts` so retakes get a fresh order: the
+  // counter increments on every transition `in-progress → completed`, so a
+  // student who finishes attempt 1 (counter 0 → 1) and re-joins for attempt
+  // 2 picks up a new seed and walks through a different shuffle. Mid-attempt
+  // refreshes / back-nav keep the same seed (the counter only moves on
+  // submit) so the order stays stable while the attempt is in flight.
+  const baseShuffleSeed =
     myResponse?.studentUid ?? auth.currentUser?.uid ?? 'anonymous-student';
+  const attemptIndex = myResponse?.completedAttempts ?? 0;
+  const studentShuffleSeed = `${baseShuffleSeed}:attempt-${attemptIndex}`;
+
+  // Question-order shuffle. Only meaningful in self-paced mode — in
+  // teacher-paced/auto sessions every student must be on the SAME question
+  // when the teacher advances `currentQuestionIndex`, so reordering per
+  // student would put the projected screen out of sync with student devices.
+  // Legacy/in-flight sessions without the field default to off.
+  const questionOrderShuffleEnabled =
+    isStudentPaced && session.shuffleQuestions === true;
+  const orderedPublicQuestions = useMemo(() => {
+    if (!questionOrderShuffleEnabled) return session.publicQuestions;
+    return shufflePublicQuestions(session.publicQuestions, studentShuffleSeed);
+  }, [
+    questionOrderShuffleEnabled,
+    session.publicQuestions,
+    studentShuffleSeed,
+  ]);
+
+  const baseQuestion = isStudentPaced
+    ? orderedPublicQuestions[localIndex]
+    : sessionQuestion;
+
+  // Answer-option shuffle. Defaults to ON when the field is absent so legacy
+  // sessions that pre-date this toggle keep their always-on behavior.
+  const answerOptionShuffleEnabled = session.shuffleAnswerOptions !== false;
   const currentQuestion = useMemo(() => {
     if (!baseQuestion) return baseQuestion;
+    if (!answerOptionShuffleEnabled) return baseQuestion;
     return shuffleQuestionForStudent(baseQuestion, studentShuffleSeed);
-  }, [baseQuestion, studentShuffleSeed]);
+  }, [baseQuestion, answerOptionShuffleEnabled, studentShuffleSeed]);
 
   const alreadyAnswered = isStudentPaced
     ? (myResponse?.answers ?? []).some(

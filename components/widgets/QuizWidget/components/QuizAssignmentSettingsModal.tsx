@@ -53,6 +53,8 @@ interface SettingsOptions {
   streakBonusEnabled: boolean;
   showPodiumBetweenQuestions: boolean;
   soundEffectsEnabled: boolean;
+  shuffleQuestions: boolean;
+  shuffleAnswerOptions: boolean;
   /** null = unlimited; any positive int = hard cap. */
   attemptLimit: number | null;
   plcMode: boolean;
@@ -76,6 +78,11 @@ function initialOptionsFor(
     streakBonusEnabled: opts.streakBonusEnabled ?? false,
     showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
     soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
+    shuffleQuestions: opts.shuffleQuestions ?? false,
+    // Pre-toggle sessions had the second client-side shuffle always on, so
+    // legacy/absent reads as `true` to keep current assignments behaving
+    // identically after the upgrade.
+    shuffleAnswerOptions: opts.shuffleAnswerOptions ?? true,
     // Legacy assignments have no attemptLimit — preserve "unlimited" for
     // those rather than retroactively capping ongoing sessions.
     attemptLimit: a.attemptLimit ?? null,
@@ -158,6 +165,8 @@ export const QuizAssignmentSettingsModal: React.FC<
       streakBonusEnabled: options.streakBonusEnabled,
       showPodiumBetweenQuestions: options.showPodiumBetweenQuestions,
       soundEffectsEnabled: options.soundEffectsEnabled,
+      shuffleQuestions: options.shuffleQuestions,
+      shuffleAnswerOptions: options.shuffleAnswerOptions,
     };
     // Intentionally pass empty strings (not undefined) so that clearing a
     // field actually writes '' to Firestore. Using `|| undefined` would cause
@@ -251,6 +260,27 @@ export const QuizAssignmentSettingsModal: React.FC<
             }
             hint="Warn students who leave the quiz tab"
           />
+
+          <CollapsibleSection label="Question Randomization">
+            <ToggleRow
+              compact
+              label="Shuffle Questions"
+              checked={options.shuffleQuestions}
+              onChange={(v) =>
+                setOptions((p) => ({ ...p, shuffleQuestions: v }))
+              }
+              hint="Each student gets a fresh question order on every attempt (self-paced mode)"
+            />
+            <ToggleRow
+              compact
+              label="Shuffle Answer Options"
+              checked={options.shuffleAnswerOptions}
+              onChange={(v) =>
+                setOptions((p) => ({ ...p, shuffleAnswerOptions: v }))
+              }
+              hint="Randomize MC choices, matching pairs, and ordering items per student per attempt"
+            />
+          </CollapsibleSection>
 
           <CollapsibleSection label="Answer Feedback">
             <ToggleRow
