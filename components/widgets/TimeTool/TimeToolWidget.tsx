@@ -561,7 +561,12 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                           ? () => handleStop()
                           : () => void handleStart()
                       }
-                      className={`flex items-center justify-center rounded-2xl transition-all active:scale-95 shadow-lg ${
+                      aria-label={t(
+                        isRunning
+                          ? 'widgets.timeTool.pause'
+                          : 'widgets.timeTool.play'
+                      )}
+                      className={`flex items-center justify-center rounded-2xl transition-all select-none active:scale-95 shadow-lg ${
                         isRunning
                           ? 'bg-slate-200/60 text-slate-500'
                           : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'
@@ -589,12 +594,12 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                     </button>
                     <button
                       onClick={handleReset}
-                      className="flex items-center justify-center rounded-2xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all active:scale-95 shadow-sm"
+                      className="flex items-center justify-center rounded-2xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm"
                       style={{
                         width: 'min(56px, 14cqmin)',
                         height: 'min(56px, 14cqmin)',
                       }}
-                      aria-label="Reset"
+                      aria-label={t('widgets.timeTool.reset')}
                     >
                       <RotateCcw style={{ width: '50%', height: '50%' }} />
                     </button>

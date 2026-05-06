@@ -640,6 +640,8 @@ describe('TimeToolWidget', () => {
       renderWidget(widget);
 
       const subBtn = screen.getByLabelText('Subtract time');
+      // Timer is running, so play/pause shows the Pause label.
+      const pauseBtn = screen.getByLabelText('Pause');
       const resetBtn = screen.getByLabelText('Reset');
       const addBtn = screen.getByLabelText('Add time');
 
@@ -648,18 +650,15 @@ describe('TimeToolWidget', () => {
       if (!wrapper) {
         throw new Error('subtract button has no parent wrapper');
       }
+      expect(pauseBtn.parentElement).toBe(wrapper);
       expect(resetBtn.parentElement).toBe(wrapper);
       expect(addBtn.parentElement).toBe(wrapper);
 
-      // DOM order: −, play/pause, reset, +. Play/pause has no accessible
-      // label (its only content is an icon), so identify it positionally
-      // as the wrapper's second child.
+      // DOM order: −, play/pause, reset, +.
       const children = Array.from(wrapper.children);
       expect(children).toHaveLength(4);
       expect(children[0]).toBe(subBtn);
-      expect(children[1].tagName).toBe('BUTTON');
-      expect(children[1]).not.toBe(resetBtn);
-      expect(children[1]).not.toBe(addBtn);
+      expect(children[1]).toBe(pauseBtn);
       expect(children[2]).toBe(resetBtn);
       expect(children[3]).toBe(addBtn);
     });

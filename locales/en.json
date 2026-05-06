@@ -441,7 +441,10 @@
       "adjustStepHint": "Tap to add or subtract this much time. Press and hold to add faster.",
       "adjustStepUnit": "seconds",
       "addTime": "Add time",
-      "subtractTime": "Subtract time"
+      "subtractTime": "Subtract time",
+      "play": "Play",
+      "pause": "Pause",
+      "reset": "Reset"
     },
     "weather": {
       "actual": "Actual",
