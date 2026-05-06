@@ -432,5 +432,34 @@ describe('DraggableWindow (Tests folder)', () => {
       // Pointerdown on blocker should not trigger any drag/resize state change.
       expect(mockContext.updateWidget).not.toHaveBeenCalled();
     });
+
+    it('caps tooltip at one show per mount when sessionStorage is unavailable', () => {
+      // Simulate a private-browsing-style sessionStorage that throws.
+      const getItemSpy = vi
+        .spyOn(Storage.prototype, 'getItem')
+        .mockImplementation(() => {
+          throw new Error('sessionStorage disabled');
+        });
+      const setItemSpy = vi
+        .spyOn(Storage.prototype, 'setItem')
+        .mockImplementation(() => {
+          throw new Error('sessionStorage disabled');
+        });
+
+      try {
+        renderWidget({ isPinned: true });
+        const corner = screen.getByTestId('pinned-blocker-se');
+
+        fireEvent.pointerDown(corner, { clientX: 100, clientY: 200 });
+        expect(screen.getByTestId('pinned-tooltip')).toBeInTheDocument();
+
+        // Second attempt against the same mount should NOT add another tooltip.
+        fireEvent.pointerDown(corner, { clientX: 50, clientY: 50 });
+        expect(screen.getAllByTestId('pinned-tooltip')).toHaveLength(1);
+      } finally {
+        getItemSpy.mockRestore();
+        setItemSpy.mockRestore();
+      }
+    });
   });
 });

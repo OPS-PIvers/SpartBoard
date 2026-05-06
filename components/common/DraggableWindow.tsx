@@ -464,16 +464,27 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const pinnedTooltipTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  // Per-mount fallback flag — used only when sessionStorage is unavailable
+  // (e.g. some private-browsing modes, SSR) so the tooltip is still capped at
+  // one show per mount instead of firing on every drag attempt.
+  const pinnedTooltipShownThisMountRef = useRef(false);
 
   const maybeShowPinnedTooltip = useCallback(
     (clientX: number, clientY: number) => {
+      let alreadyShown = false;
       try {
-        if (sessionStorage.getItem(PINNED_TOOLTIP_SESSION_KEY) === 'true')
-          return;
-        sessionStorage.setItem(PINNED_TOOLTIP_SESSION_KEY, 'true');
+        alreadyShown =
+          sessionStorage.getItem(PINNED_TOOLTIP_SESSION_KEY) === 'true';
+        if (!alreadyShown) {
+          sessionStorage.setItem(PINNED_TOOLTIP_SESSION_KEY, 'true');
+        }
       } catch {
-        // sessionStorage unavailable (e.g. private mode, SSR) — show once per mount as best effort.
+        // sessionStorage unavailable — fall back to a per-mount ref.
+        alreadyShown = pinnedTooltipShownThisMountRef.current;
       }
+      if (alreadyShown) return;
+      pinnedTooltipShownThisMountRef.current = true;
+
       setPinnedTooltipPos({ x: clientX, y: clientY });
       if (pinnedTooltipTimeoutRef.current) {
         clearTimeout(pinnedTooltipTimeoutRef.current);
