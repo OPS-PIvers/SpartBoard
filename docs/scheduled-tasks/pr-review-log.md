@@ -380,3 +380,51 @@ _Automated nightly review by claude-opus-4-6_
   - PR #1504, #1505, #1506 had no inline review threads at audit time — review-only this run
   - PR #1366 head SHA `da8f0946` — unchanged since 2026-05-01; no new commits this run
   - Branch-safety: all 7 PRs had non-`main` / non-`dev-*` head branches → eligible for pushes; pushes only made where comments required a code/doc fix
+
+## 2026-05-06
+
+- PRs reviewed: 23 open PRs
+  - #1502 — Add tests for `getLocalIsoDate` (base `dev-paul`)
+  - #1503 — Add tests for first5 utilities (base `dev-paul`)
+  - #1504 — Add tests for `isCustomBackground` (base `dev-paul`)
+  - #1505 — Add tests for `blobToBase64` (base `dev-paul`)
+  - #1506 — Add error path tests for smartPaste URL parsers (base `dev-paul`)
+  - #1507 — audit(scheduled-tasks): Tuesday 2026-05-05 (base `dev-paul`)
+  - #1508 — slugify trailing-dash fix + tests (base `dev-paul`)
+  - #1509 — widgetDragFlag tests (base `dev-paul`)
+  - #1510 — styles utilities tests (base `dev-paul`)
+  - #1511 — DraggableWindow commented-code cleanup (base `dev-paul`)
+  - #1512 — Cloud Functions parallel email lookup (base `dev-paul`)
+  - #1513 — PLC tests + memberUids source-of-truth fix (base `dev-paul`)
+  - #1514 — DraggableWindow commented-code cleanup (base `dev-paul`, non-draft)
+  - #1515 — testClassAccess tests + whitespace orgId fix (base `dev-paul`)
+  - #1516 — backgrounds tests + getCustomBackgroundStyle refactor (base `dev-paul`)
+  - #1517 — PLC tests + memberEmails safety check (base `main`)
+  - #1518 — urlHelpers error path test (base `main`)
+  - #1519 — Cloud Functions concurrent getUsers (base `main`)
+  - #1520 — resolveCategory tests (base `main`)
+  - #1521 — DOMPurify XSS sanitizer replacement (base `main`)
+  - #1522 — DraggableWindow commented-code cleanup (base `main`)
+  - #1523 — DraggableWindow commented-code cleanup (base `main`)
+  - #1366 — docs: line-endings normalization plan (base `main`)
+- Comments processed: 0 actionable — every unresolved thread across all 23 PRs already had author "Fixed in [commit]" replies from prior cycles. No new code fixes required this run.
+- Fixes pushed: 0
+- Reviews posted: 23
+  - PR #1521 DOMPurify: Ready with minor notes — flagged adding back the SVG regression test and a `data:text/html` URI test to lock in the new `ALLOWED_TAGS`/URI behavior
+  - PR #1519 perf (concurrent getUsers): Ready with minor notes — optional concurrency-cap follow-up for very large orgs (Firebase Auth quota: 1000 ops/sec)
+  - PR #1512 perf (parallel email lookup): Ready
+  - PR #1508 slugify: Ready with minor notes — `slugOrFallback` now returns variable lengths (≤24); verify no caller asserts `length === 24`
+  - PR #1517 vs #1513 PLC tests: flagged as overlapping; recommended merging #1513 (stronger `memberUids` source-of-truth fix + caller-email-alias suppression) and closing #1517
+  - PR #1516 backgrounds: Ready
+  - PR #1515 testClassAccess: Ready
+  - PR #1507 audit: Ready — flagged the two new dependency-audit items (axios MEDIUM `>=1.15.1`, firebase-functions `>=7.2.5` to resolve the protobufjs HIGH path) for follow-up upgrade PRs before next Tuesday cycle
+  - PR #1502, #1503, #1504, #1505, #1506, #1509, #1510, #1518, #1520: Ready (focused test additions)
+  - PR #1511, #1514, #1522, #1523: all four delete the same commented-out `MIN_GESTURE_SWIPE_DISTANCE` constant; flagged duplicate; recommended merging one (#1511 preferred — non-draft, base `dev-paul`) and closing the other three
+  - PR #1366: Ready — eighth review with no content change since `da8f0946` (2026-05-01); all 6 prior threads addressed
+- Notes:
+  - Every open PR's unresolved review threads were already addressed by author "Fixed in [commit]" replies in prior runs (many marked `is_outdated:true` on GitHub but not `is_resolved:true`). No code/doc fixes pushed this run.
+  - Coordination call-outs raised in reviews:
+    - #1511 / #1514 / #1522 / #1523 — duplicate DraggableWindow cleanup PRs; merge one, close three
+    - #1513 / #1517 — overlapping PLC tests; recommend #1513
+    - #1504 / #1516 — overlapping `isCustomBackground` test additions on `dev-paul`; coordinate to avoid test-file conflicts
+  - Branch-safety: PR #1507 head `scheduled-tasks` is the current branch (review-only). All other open PRs have non-`main` / non-`dev-*` head branches; no pushes were required this run.
