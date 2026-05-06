@@ -589,14 +589,14 @@ describe('TimeToolWidget', () => {
     });
   });
 
-  // Layout coverage for the ±adjust pair. The pair sits in a single absolute
-  // wrapper above the time, mirroring the play/reset pair below
-  // (bottom: 110% in digital style, 120% in visual-ring style). jsdom's
-  // cssstyle parser silently drops CSS `min(...)` values when assigned via
-  // React's el.style[prop] = ... path, so we use renderToStaticMarkup to
-  // inspect the raw inline style strings React emits — the source of truth
-  // for what the browser will actually see.
-  describe('±adjust button placement above the time', () => {
+  // Layout coverage for the unified control row. All four buttons —
+  // `[− adjust] [play/pause] [reset] [+ adjust]` — share a single absolute
+  // wrapper anchored below the time (top: 110% in digital style, 120% in
+  // visual-ring style). jsdom's cssstyle parser silently drops CSS `min(...)`
+  // values when assigned via React's el.style[prop] = ... path, so we use
+  // renderToStaticMarkup to inspect the raw inline style strings React emits —
+  // the source of truth for what the browser will actually see.
+  describe('control row placement below the time', () => {
     const renderHtml = (widget: WidgetData): string =>
       renderToStaticMarkup(<TimeToolWidget widget={widget} />);
 
@@ -610,7 +610,7 @@ describe('TimeToolWidget', () => {
       return wrapper.outerHTML;
     };
 
-    it('renders both buttons inside one absolute wrapper anchored from the bottom', () => {
+    it('renders all four buttons inside one absolute wrapper anchored from the top', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -621,15 +621,16 @@ describe('TimeToolWidget', () => {
       const wrapperHtml = wrapperFor(html, 'Subtract time');
 
       expect(wrapperHtml).toMatch(/class="[^"]*\babsolute\b[^"]*"/);
-      // Anchored above the time via `bottom:`, mirroring play/reset's `top:`.
-      expect(wrapperHtml).toContain('bottom:');
-      // Should not be corner-pinned anymore.
+      // Anchored below the time via `top:`.
+      expect(wrapperHtml).toContain('top:');
+      // Should not be corner-pinned, and should not also be anchored from the
+      // bottom (which would indicate the legacy two-row layout).
+      expect(wrapperHtml).not.toContain('bottom:');
       expect(wrapperHtml).not.toContain('left:');
       expect(wrapperHtml).not.toContain('right:');
-      expect(wrapperHtml).not.toContain('top:');
     });
 
-    it('the − and + buttons share the same wrapper (single centered pair)', () => {
+    it('all four buttons share the same wrapper in [−, play/pause, reset, +] order', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -639,14 +640,31 @@ describe('TimeToolWidget', () => {
       renderWidget(widget);
 
       const subBtn = screen.getByLabelText('Subtract time');
+      // Timer is running, so play/pause shows the Pause label.
+      const pauseBtn = screen.getByLabelText('Pause');
+      const resetBtn = screen.getByLabelText('Reset');
       const addBtn = screen.getByLabelText('Add time');
-      // Buttons are now siblings inside a flex pair; that container also
-      // hosts the gap that separates them.
-      expect(subBtn.parentElement).toBe(addBtn.parentElement);
+
+      // All four siblings inside the same flex row.
+      const wrapper = subBtn.parentElement;
+      if (!wrapper) {
+        throw new Error('subtract button has no parent wrapper');
+      }
+      expect(pauseBtn.parentElement).toBe(wrapper);
+      expect(resetBtn.parentElement).toBe(wrapper);
+      expect(addBtn.parentElement).toBe(wrapper);
+
+      // DOM order: −, play/pause, reset, +.
+      const children = Array.from(wrapper.children);
+      expect(children).toHaveLength(4);
+      expect(children[0]).toBe(subBtn);
+      expect(children[1]).toBe(pauseBtn);
+      expect(children[2]).toBe(resetBtn);
+      expect(children[3]).toBe(addBtn);
     });
 
     it.each([['modern'], ['lcd'], ['minimal']] as const)(
-      'uses bottom:110% in digital clockStyle="%s"',
+      'uses top:110% in digital clockStyle="%s"',
       (clockStyle) => {
         const widget = createWidget({
           mode: 'timer',
@@ -658,11 +676,11 @@ describe('TimeToolWidget', () => {
         const html = renderHtml(widget);
         const wrap = wrapperFor(html, 'Subtract time');
 
-        expect(wrap).toContain('bottom:110%');
+        expect(wrap).toContain('top:110%');
       }
     );
 
-    it('uses bottom:120% when visualType="visual" (progress ring on)', () => {
+    it('uses top:120% when visualType="visual" (progress ring on)', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -673,7 +691,33 @@ describe('TimeToolWidget', () => {
       const html = renderHtml(widget);
       const wrap = wrapperFor(html, 'Subtract time');
 
-      expect(wrap).toContain('bottom:120%');
+      expect(wrap).toContain('top:120%');
+    });
+
+    it('hides ± adjust buttons in stopwatch mode (only play/reset render)', () => {
+      const widget = createWidget({
+        mode: 'stopwatch',
+        isRunning: true,
+        elapsedTime: 0,
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Reset')).toBeInTheDocument();
+    });
+
+    it('hides ± adjust buttons in fresh-setup state (timer paused at original duration)', () => {
+      const widget = createWidget({
+        mode: 'timer',
+        isRunning: false,
+        duration: 300,
+        elapsedTime: 300, // untouched from initial duration
+      });
+      renderWidget(widget);
+
+      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
     });
   });
 });

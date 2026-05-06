@@ -455,8 +455,8 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                   <div
                     className="absolute pointer-events-none"
                     style={{
-                      width: 'min(90%, 90cqmin)',
-                      height: 'min(90%, 90cqmin)',
+                      width: 'min(96%, 96cqmin)',
+                      height: 'min(96%, 96cqmin)',
                       top: '50%',
                       left: '50%',
                       transform: 'translate(-50%, -50%)',
@@ -471,30 +471,6 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
 
                 {/* The core centering unit: Time + Absolute Controls */}
                 <div className="relative flex flex-col items-center justify-center">
-                  {/* Adjust controls — mirror of play/reset, above the time */}
-                  {showAdjustControls && (
-                    <div
-                      className="absolute z-10 flex items-center justify-center"
-                      style={{
-                        bottom: isVisual ? '120%' : '110%',
-                        gap: 'min(12px, 3cqmin)',
-                      }}
-                    >
-                      <AdjustButton
-                        sign={-1}
-                        step={effectiveAdjustStep}
-                        disabled={displayTime <= 0}
-                        ariaLabel={t('widgets.timeTool.subtractTime')}
-                        onAdjust={adjustTime}
-                      />
-                      <AdjustButton
-                        sign={1}
-                        step={effectiveAdjustStep}
-                        ariaLabel={t('widgets.timeTool.addTime')}
-                        onAdjust={adjustTime}
-                      />
-                    </div>
-                  )}
                   <button
                     onClick={() => {
                       if (!isRunning && mode === 'timer') setIsEditing(true);
@@ -509,8 +485,8 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                       fontSize: isVisual
                         ? 'min(22cqmin, 12rem)'
                         : mode === 'stopwatch'
-                          ? 'min(55cqh, 18cqw)'
-                          : 'min(55cqh, 25cqw)',
+                          ? 'min(60cqh, 22cqw)'
+                          : 'min(60cqh, 30cqw)',
                       color: timeColor,
                       textShadow: glow
                         ? `0 0 0.1em ${timeColor}, 0 0 0.25em ${timeColor}66`
@@ -562,7 +538,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                     )}
                   </button>
 
-                  {/* Square Controls - Positioned below the centerline without pushing it */}
+                  {/* Control row - Positioned below the centerline without pushing it */}
                   <div
                     className="absolute z-10 flex items-center justify-center"
                     style={{
@@ -570,24 +546,34 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                       gap: 'min(12px, 3cqmin)',
                     }}
                   >
+                    {showAdjustControls && (
+                      <AdjustButton
+                        sign={-1}
+                        step={effectiveAdjustStep}
+                        disabled={displayTime <= 0}
+                        ariaLabel={t('widgets.timeTool.subtractTime')}
+                        onAdjust={adjustTime}
+                      />
+                    )}
                     <button
                       onClick={
                         isRunning
                           ? () => handleStop()
                           : () => void handleStart()
                       }
-                      className={`aspect-square flex items-center justify-center rounded-2xl transition-all active:scale-95 shadow-lg ${
+                      aria-label={t(
+                        isRunning
+                          ? 'widgets.timeTool.pause'
+                          : 'widgets.timeTool.play'
+                      )}
+                      className={`flex items-center justify-center rounded-2xl transition-all select-none active:scale-95 shadow-lg ${
                         isRunning
                           ? 'bg-slate-200/60 text-slate-500'
                           : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'
                       }`}
                       style={{
-                        width: isVisual
-                          ? 'min(15cqmin, 64px)'
-                          : 'min(15cqh, 12cqw)',
-                        height: isVisual
-                          ? 'min(15cqmin, 64px)'
-                          : 'min(15cqh, 12cqw)',
+                        width: 'min(56px, 14cqmin)',
+                        height: 'min(56px, 14cqmin)',
                       }}
                     >
                       {isRunning ? (
@@ -608,19 +594,23 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                     </button>
                     <button
                       onClick={handleReset}
-                      className="aspect-square flex items-center justify-center rounded-2xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all active:scale-95 shadow-sm"
+                      className="flex items-center justify-center rounded-2xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm"
                       style={{
-                        width: isVisual
-                          ? 'min(15cqmin, 64px)'
-                          : 'min(15cqh, 12cqw)',
-                        height: isVisual
-                          ? 'min(15cqmin, 64px)'
-                          : 'min(15cqh, 12cqw)',
+                        width: 'min(56px, 14cqmin)',
+                        height: 'min(56px, 14cqmin)',
                       }}
-                      aria-label="Reset"
+                      aria-label={t('widgets.timeTool.reset')}
                     >
                       <RotateCcw style={{ width: '50%', height: '50%' }} />
                     </button>
+                    {showAdjustControls && (
+                      <AdjustButton
+                        sign={1}
+                        step={effectiveAdjustStep}
+                        ariaLabel={t('widgets.timeTool.addTime')}
+                        onAdjust={adjustTime}
+                      />
+                    )}
                   </div>
                 </div>
               </div>
