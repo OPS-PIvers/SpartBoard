@@ -26,8 +26,9 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
+import { writePlcAssignmentIndexEntry } from './usePlcAssignmentIndex';
 import type {
   AssignmentMode,
   PlcLinkage,
@@ -728,6 +729,27 @@ export const useQuizAssignments = (
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), session);
       await batch.commit();
+
+      // PLC dashboard index: when this assignment opts into PLC mode,
+      // record a snapshot under `plcs/{plcId}/assignment_index` so every
+      // teammate sees it on the PLC Dashboard's Completed Assignments tab.
+      // Fire-and-forget: the helper logs and swallows errors so a transient
+      // index-write failure doesn't take down the assignment-create action.
+      // Covers every flow that goes through `createAssignment`, including
+      // `importSharedAssignment` when the importer is a PLC member.
+      if (settings.plc) {
+        const current = auth.currentUser;
+        await writePlcAssignmentIndexEntry(settings.plc.id, {
+          id: assignmentId,
+          kind: 'quiz',
+          ownerUid: userId,
+          ownerName: current?.displayName ?? '',
+          ownerEmail: (current?.email ?? '').toLowerCase(),
+          title: quiz.title,
+          sheetUrl: settings.plc.sheetUrl,
+          createdAt: now,
+        });
+      }
 
       return { id: assignmentId, code };
     },

@@ -807,6 +807,21 @@ service cloud.firestore {
            );
     }
 
+    // True iff the pending update is any current member toggling the
+    // dashboard `features` map (and nothing else). Per spec, every PLC
+    // member can toggle which optional sections render in the PLC Dashboard
+    // — this is shared configuration, not lead-only. Constrained to the
+    // `features` field plus the customary `updatedAt` bump so this branch
+    // can't be used to smuggle membership/leadership/sheet-URL changes.
+    function isUpdatingPlcFeatures() {
+      return (request.auth.uid in resource.data.memberUids)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['features', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['features'])
+        && request.resource.data.features is map;
+    }
+
     // True iff the pending update is the caller self-removing from
     // memberUids (i.e. leaving the PLC). The lead can't use this path —
     // they must transfer leadership first or delete the PLC outright.
@@ -853,11 +868,44 @@ service cloud.firestore {
         || isAcceptingPlcInvite(plcId)
         || isLeavingPlc()
         || isSettingPlcSharedSheetUrl()
+        || isUpdatingPlcFeatures()
       );
 
       // Only the lead can dissolve the PLC.
       allow delete: if request.auth != null
         && request.auth.uid == resource.data.leadUid;
+
+      // Index of PLC-mode assignments authored by any member. Each row is
+      // a small snapshot (title, ownerUid, sheetUrl, createdAt) written by
+      // the author when their personal `quiz_assignments` doc opts into
+      // PLC mode. Subcollection rather than a top-level collection so
+      // membership-gated reads are a one-line rule.
+      match /assignment_index/{assignmentId} {
+        // Any current member can read the index — the dashboard renders
+        // the same list for everyone in the PLC.
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Only the assignment author writes their own entries; doc id is
+        // forced to the source assignment id for easy join-back. The
+        // author must be a current PLC member — non-members can't fabricate
+        // entries pointing at someone else's assignment. Status mirroring
+        // (later phases) goes through the same `update` branch.
+        allow create, update: if request.auth != null
+          && request.auth.uid == request.resource.data.ownerUid
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && assignmentId == request.resource.data.id;
+
+        // Authors can clean up their own entries (e.g. if they delete the
+        // source assignment). No lead-override here — leads who want to
+        // sweep stale entries can ask the owner.
+        allow delete: if request.auth != null
+          && request.auth.uid == resource.data.ownerUid;
+      }
     }
 
     match /plc_invitations/{inviteId} {

@@ -55,6 +55,12 @@ vi.mock('@/hooks/useSyncedQuizGroups', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
+  // `useQuizAssignments.createAssignment` reads `auth.currentUser` to
+  // snapshot the owner's display name + email into the PLC assignment
+  // index when the new assignment opts into PLC mode. Tests don't exercise
+  // that branch end-to-end, but importing `auth` would crash without this
+  // stub since `vi.mock` replaces the whole module.
+  auth: { currentUser: null },
 }));
 
 const mockCollection = collection as Mock;

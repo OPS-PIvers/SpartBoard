@@ -206,8 +206,86 @@ export interface Plc {
    * next assignment regenerates transparently.
    */
   sharedSheetUrl?: string | null;
+  /**
+   * PLC dashboard section toggles. Any member can flip these — they govern
+   * which optional sections render in the PLC Dashboard view. Absent or
+   * partial maps are merged against `DEFAULT_PLC_FEATURE_SETTINGS` so legacy
+   * PLCs (and any newly added flags) default to enabled. Always read via
+   * `getPlcFeatures(plc)` rather than `plc.features` directly.
+   */
+  features?: PlcFeatureSettings;
   createdAt: number;
   updatedAt: number;
+}
+
+/**
+ * Per-PLC dashboard section toggles. Any member can flip these. Use
+ * `getPlcFeatures(plc)` when reading so legacy PLCs (no `features` field)
+ * and partial maps merge against `DEFAULT_PLC_FEATURE_SETTINGS`.
+ *
+ * `completedAssignments` is intentionally NOT a flag — the index of finished
+ * PLC assignments is always visible since it's the read-only history view
+ * that anchors the dashboard.
+ */
+export interface PlcFeatureSettings {
+  /** PLC Quiz Library tab (Phase 2). */
+  quizzes: boolean;
+  /** PLC Video Activities tab (Phase 4). */
+  videoActivities: boolean;
+  /** PLC-authored Assignments tab (Phase 3). */
+  assignments: boolean;
+  /** PLC Notes tab (Phase 5). */
+  notes: boolean;
+  /** PLC To-Do list tab (Phase 5). */
+  todos: boolean;
+  /** PLC Shared Boards tab (Phase 6). */
+  sharedBoards: boolean;
+}
+
+export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
+  quizzes: true,
+  videoActivities: true,
+  assignments: true,
+  notes: true,
+  todos: true,
+  sharedBoards: true,
+};
+
+/**
+ * Merge a (possibly absent or partial) `Plc.features` map against
+ * `DEFAULT_PLC_FEATURE_SETTINGS`. Use this everywhere the dashboard reads
+ * feature flags so legacy PLCs and newly added flags default to enabled.
+ */
+export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
+  return { ...DEFAULT_PLC_FEATURE_SETTINGS, ...(plc.features ?? {}) };
+}
+
+/**
+ * One row in `plcs/{plcId}/assignment_index/{assignmentId}`. Written by the
+ * assignment author at create time when their assignment opts into PLC
+ * mode (i.e. `QuizAssignmentSettings.plc` is set). Lets every PLC member
+ * read a unified list of "PLC assignments my teammates have run" without
+ * cross-user collection-group queries on each teacher's `quiz_assignments`.
+ *
+ * Snapshot fields (title, ownerName, sheetUrl) are taken at create time;
+ * Phase 1 does not mirror later edits. The doc id matches the source
+ * assignment's id for easy join-back.
+ */
+export interface PlcAssignmentIndexEntry {
+  id: string;
+  /** Discriminator for future video-activity support. */
+  kind: 'quiz';
+  /** UID of the teacher who created the assignment. Always a PLC member. */
+  ownerUid: string;
+  /** Display name snapshot — avoids a `/users` lookup per row. */
+  ownerName: string;
+  /** Lowercased email snapshot — used for member matching in the UI. */
+  ownerEmail: string;
+  /** Quiz title at create time. */
+  title: string;
+  /** Shared PLC Google Sheet URL (mirrored from `Plc.sharedSheetUrl`). */
+  sheetUrl: string;
+  createdAt: number;
 }
 
 /**
