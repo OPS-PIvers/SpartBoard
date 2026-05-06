@@ -1948,8 +1948,15 @@ const PublishedScoreReview: React.FC<{
               <p className="text-5xl font-black text-white sm:text-6xl">
                 {scorePercent}%
               </p>
+              {/* Per-question tally counts only fully-correct answers, so it
+                  can lag the percentage on quizzes that award partial credit
+                  (Matching/Ordering with `allowPartialCredit`) or use non-1
+                  point values. The "fully correct" qualifier makes the
+                  potential gap between this line and the percentage above
+                  legible to the student rather than appearing to contradict
+                  it. */}
               <p className="mt-2 text-sm text-slate-400">
-                {correctCount} of {total} correct
+                {correctCount} of {total} fully correct
               </p>
             </>
           ) : (
