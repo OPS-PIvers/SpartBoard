@@ -277,6 +277,103 @@ function rangeSpansMultipleBlocks(range: Range, editor: HTMLElement): boolean {
   return false;
 }
 
+type InlineStyleCommand =
+  | 'bold'
+  | 'italic'
+  | 'underline'
+  | 'foreColor'
+  | 'hiliteColor';
+
+type InlineStyleKey =
+  | 'fontWeight'
+  | 'fontStyle'
+  | 'textDecoration'
+  | 'color'
+  | 'backgroundColor';
+
+/** Map each inline-style command to the JS-style property that represents it.
+ *  Used to detect "is this text already styled" and to clear the matching
+ *  property when toggling off or replacing a value (color/highlight). */
+const INLINE_STYLE_KEY: Record<InlineStyleCommand, InlineStyleKey> = {
+  bold: 'fontWeight',
+  italic: 'fontStyle',
+  underline: 'textDecoration',
+  foreColor: 'color',
+  hiliteColor: 'backgroundColor',
+};
+
+/** Commands that toggle on/off (no value to apply). Re-clicking on already-
+ *  styled text removes the style; re-clicking the value commands (foreColor,
+ *  hiliteColor) replaces the value instead. */
+const TOGGLE_COMMANDS: ReadonlySet<InlineStyleCommand> = new Set([
+  'bold',
+  'italic',
+  'underline',
+]);
+
+/** Walk up from a text node to the editor and return every ancestor element
+ *  that already has `styleKey` set as inline style. Used to decide whether to
+ *  toggle off, and to clear matching ancestors before re-applying so repeated
+ *  clicks don't accumulate nested spans. */
+function findStyledAncestors(
+  textNode: Text,
+  styleKey: InlineStyleKey,
+  root: HTMLElement
+): HTMLElement[] {
+  const ancestors: HTMLElement[] = [];
+  let cur: Node | null = textNode.parentNode;
+  while (cur && cur !== root) {
+    if (cur.nodeType === Node.ELEMENT_NODE) {
+      const el = cur as HTMLElement;
+      if (el.style && el.style[styleKey]) {
+        ancestors.push(el);
+      }
+    }
+    cur = cur.parentNode;
+  }
+  return ancestors;
+}
+
+/** Clear `styleKey` on `element`. If the element is a <span> with no
+ *  remaining attributes (no other inline style, no class/id/etc.), unwrap it
+ *  by replacing it with its children — keeps the DOM clean across repeated
+ *  toggle/replace cycles instead of leaving empty wrapper spans behind. */
+function unsetInlineStyleAndMaybeUnwrap(
+  element: HTMLElement,
+  styleKey: InlineStyleKey
+): void {
+  element.style[styleKey] = '';
+  if (element.tagName !== 'SPAN') return;
+  if (element.style.cssText.trim() !== '') return;
+  for (const attr of Array.from(element.attributes)) {
+    if (attr.name !== 'style') return;
+  }
+  const parent = element.parentNode;
+  if (!parent) return;
+  while (element.firstChild) {
+    parent.insertBefore(element.firstChild, element);
+  }
+  parent.removeChild(element);
+}
+
+/** Wrap each text node in a fresh <span> styled by the callback. Used by
+ *  applyInlineStyleToRange and by runInlineStyleCommand (which pre-collects
+ *  the text nodes so it can also do toggle-off / unset-matching-ancestors
+ *  bookkeeping over the same set). */
+function wrapTextNodesInStyledSpan(
+  textNodes: Text[],
+  styler: (span: HTMLSpanElement) => void
+): void {
+  for (const textNode of textNodes) {
+    const span = document.createElement('span');
+    styler(span);
+    const parent = textNode.parentNode;
+    if (!parent) continue;
+    parent.insertBefore(span, textNode);
+    span.appendChild(textNode);
+  }
+}
+
 /** Wrap each text node intersecting the range in a fresh <span> styled by the
  *  callback. Preserves block structure so multi-block selections format
  *  correctly (e.g. Ctrl+A on a multi-line note, where extractContents would
@@ -429,15 +526,18 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
    *  on a multi-line note, or a drag-select crossing block boundaries — flat
    *  <div> siblings or nested cases like <blockquote>-wrapped lists),
    *  execCommand silently fails to format anything past the first inline run,
-   *  so we walk the range and wrap each text node in a fresh <span>. For
-   *  single-block selections we fall through to execCommand so the toggle
-   *  behavior (click to un-bold) keeps working. Cursor-position toggles
-   *  ("type bold from here") also fall through. */
+   *  so we walk the range and apply the style manually. For single-block
+   *  selections we fall through to execCommand so cursor-position toggles
+   *  ("type bold from here") and other browser behaviors keep working.
+   *
+   *  In the helper path, we also handle toggling and merging:
+   *    - Toggle commands (bold/italic/underline) on already-fully-styled text
+   *      remove the style (and unwrap empty wrapper spans) instead of stacking.
+   *    - For all commands, ancestor spans that already set the same property
+   *      are cleared before re-applying so repeated clicks don't accumulate
+   *      nested spans. */
   const runInlineStyleCommand = useCallback(
-    (
-      cmd: 'bold' | 'italic' | 'underline' | 'foreColor' | 'hiliteColor',
-      value: string = ''
-    ) => {
+    (cmd: InlineStyleCommand, value: string = '') => {
       const editor = editorRef.current;
       if (!editor) return;
 
@@ -461,6 +561,8 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
 
       suppressInputRef.current = true;
 
+      const styleKey = INLINE_STYLE_KEY[cmd];
+      const isToggle = TOGGLE_COMMANDS.has(cmd);
       const styler = (span: HTMLSpanElement) => {
         switch (cmd) {
           case 'bold':
@@ -481,12 +583,31 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         }
       };
 
-      const wrapped = applyInlineStyleToRange(range, styler);
+      const textNodes = collectTextNodesInRange(range);
+      const ancestorsPerNode = textNodes.map((tn) =>
+        findStyledAncestors(tn, styleKey, editor)
+      );
+      const allStyled =
+        textNodes.length > 0 && ancestorsPerNode.every((arr) => arr.length > 0);
+      const toggleOff = isToggle && allStyled;
 
-      if (wrapped.length > 0 && sel) {
+      // Always clear matching ancestors first:
+      //  - Toggle off: this is the user-visible action.
+      //  - Toggle re-apply on partial selection: clean before re-wrapping.
+      //  - Value commands: prevents nested same-property spans on re-click.
+      const uniqueAncestors = new Set<HTMLElement>(ancestorsPerNode.flat());
+      for (const ancestor of uniqueAncestors) {
+        unsetInlineStyleAndMaybeUnwrap(ancestor, styleKey);
+      }
+
+      if (!toggleOff) {
+        wrapTextNodesInStyledSpan(textNodes, styler);
+      }
+
+      if (textNodes.length > 0 && sel) {
         const newRange = document.createRange();
-        newRange.setStart(wrapped[0], 0);
-        const last = wrapped[wrapped.length - 1];
+        newRange.setStart(textNodes[0], 0);
+        const last = textNodes[textNodes.length - 1];
         newRange.setEnd(last, last.length);
         sel.removeAllRanges();
         sel.addRange(newRange);

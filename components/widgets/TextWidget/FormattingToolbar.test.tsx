@@ -2,6 +2,7 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { FormattingToolbar } from './FormattingToolbar';
+import { FONT_COLORS } from '@/config/fonts';
 
 // Mock useDialog
 const mockShowPrompt = vi.fn();
@@ -294,6 +295,72 @@ describe('FormattingToolbar', () => {
     expect(mockOnContentChange).toHaveBeenCalled();
     // execCommand path is bypassed for the multi-block helper case.
     expect(execCommandMock).not.toHaveBeenCalledWith('bold', false, '');
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  it('Bold clicked twice on multi-block select-all toggles off (no leftover wrapper spans)', () => {
+    const { editor, editorRef } = setupMultiBlockEditor();
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    const boldButton = screen.getByTitle('Bold');
+
+    // First click: bolds everything (3 wrapper spans).
+    fireEvent.click(boldButton);
+    expect(editor.querySelectorAll('span[style*="font-weight"]').length).toBe(
+      3
+    );
+
+    // Second click: toggles off — wrapper spans should be unwrapped.
+    fireEvent.click(boldButton);
+    expect(editor.querySelectorAll('span[style*="font-weight"]').length).toBe(
+      0
+    );
+    // No leftover empty wrapper <span>s in the DOM.
+    expect(editor.querySelectorAll('span').length).toBe(0);
+    // Original block structure intact.
+    expect(editor.textContent).toBe('text1line2line3');
+    const directChildren = Array.from(editor.children);
+    expect(directChildren.length).toBe(2);
+    expect(directChildren[0].tagName).toBe('DIV');
+    expect(directChildren[1].tagName).toBe('DIV');
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
+  });
+
+  it('foreColor applied twice on multi-block select-all does not stack nested color spans', () => {
+    const { editor, editorRef } = setupMultiBlockEditor();
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    // Pick two different palette entries — resilient to palette changes.
+    const firstColor = FONT_COLORS[0];
+    const secondColor = FONT_COLORS[FONT_COLORS.length - 1];
+    expect(firstColor).not.toBe(secondColor);
+
+    // Open the Colors menu and click first color, then second.
+    fireEvent.click(screen.getByTitle('Colors'));
+    fireEvent.click(screen.getByTitle(firstColor));
+    fireEvent.click(screen.getByTitle('Colors'));
+    fireEvent.click(screen.getByTitle(secondColor));
+
+    const colorSpans = editor.querySelectorAll<HTMLElement>(
+      'span[style*="color"]'
+    );
+    // One span per text run, no nested same-property ancestor.
+    expect(colorSpans.length).toBe(3);
+    colorSpans.forEach((s) => {
+      // The latest color is what stuck — first one was unset before re-applying.
+      expect(s.style.color).not.toBe('');
+      let cur: HTMLElement | null = s.parentElement;
+      while (cur && cur !== editor) {
+        expect(cur.style.color).toBe('');
+        cur = cur.parentElement;
+      }
+    });
 
     document.body.removeChild(editor);
     vi.restoreAllMocks();
