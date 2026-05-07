@@ -20,6 +20,10 @@ import { VideoActivityResponse, VideoActivitySession } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
+  gradeVideoActivityAnswer,
+  computeVideoActivityScorePct,
+} from '@/utils/videoActivityGrading';
+import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
@@ -61,30 +65,19 @@ export const Results: React.FC<ResultsProps> = ({
   const questions = session.questions;
   const totalStudents = responses.length;
 
-  /** Compute correctness from the authoritative activity question data. */
+  /**
+   * Compute correctness from the authoritative activity question data.
+   * Routes through the shared `gradeVideoActivityAnswer` so MA / FIB
+   * variants / partial-credit semantics stay aligned with the student
+   * client and the post-completion summary.
+   */
   const isAnswerCorrect = (questionId: string, answer: string): boolean => {
     const q = questions.find((q) => q.id === questionId);
-    return q ? answer === q.correctAnswer : false;
+    return q ? gradeVideoActivityAnswer(q, answer).isCorrect : false;
   };
 
-  const getStudentScore = (r: VideoActivityResponse): number => {
-    if (questions.length === 0) return 0;
-    // Count at most one correct answer per question to prevent inflated scores
-    // from duplicate entries (e.g. if arrayUnion raced and stored multiple answers).
-    let correct = 0;
-    for (const question of questions) {
-      if (
-        r.answers.some(
-          (a) =>
-            a.questionId === question.id &&
-            isAnswerCorrect(a.questionId, a.answer)
-        )
-      ) {
-        correct += 1;
-      }
-    }
-    return Math.round((correct / questions.length) * 100);
-  };
+  const getStudentScore = (r: VideoActivityResponse): number =>
+    computeVideoActivityScorePct(questions, r.answers);
 
   // ⚡ Bolt: Consolidate multiple O(N) array passes inside render
   // Calculate completed count and average score in a single loop
@@ -93,31 +86,13 @@ export const Results: React.FC<ResultsProps> = ({
       return { completed: 0, avgScore: 0 };
     }
 
-    const correctAnswersMap = new Map<string, string>();
-    for (const q of questions) {
-      correctAnswersMap.set(q.id, q.correctAnswer);
-    }
-
     let completedCount = 0;
     let scoreSum = 0;
 
     for (const r of responses) {
       if (r.completedAt !== null) {
         completedCount++;
-
-        const correctAnswersForStudent = new Set<string>();
-        for (const answer of r.answers) {
-          if (answer.answer === correctAnswersMap.get(answer.questionId)) {
-            correctAnswersForStudent.add(answer.questionId);
-          }
-        }
-        const score =
-          questions.length > 0
-            ? Math.round(
-                (correctAnswersForStudent.size / questions.length) * 100
-              )
-            : 0;
-        scoreSum += score;
+        scoreSum += computeVideoActivityScorePct(questions, r.answers);
       }
     }
 
@@ -186,10 +161,19 @@ export const Results: React.FC<ResultsProps> = ({
       // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
       // their resolved ClassLink names instead of falling back to the
       // generic "Student" label.
+      // TODO(PR3): The Quiz exporter calls Quiz's `gradeAnswer`, which has
+      // no 'MA' case and returns 0 points for VA Multi-Answer questions in
+      // the export. PR3 lifts `buildResultsSheetData` into a generic util
+      // that accepts a custom grader (`utils/assignmentExportShared.ts`)
+      // and at that point the VA call here will pass `gradeVideoActivityAnswer`.
+      // Until then, MA columns in the exported sheet read as "0 / Npt".
+      // MC + FIB questions grade correctly.
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
-        questions,
+        questions as unknown as Parameters<
+          typeof drive.exportResultsToSheet
+        >[2],
         { byStudentUid }
       );
       setExportUrl(url);

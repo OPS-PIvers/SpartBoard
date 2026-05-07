@@ -2543,13 +2543,46 @@ export interface SharedQuizAssignment {
 // --- VIDEO ACTIVITY TYPES ---
 
 /**
- * A quiz question that is tied to a specific timestamp in a YouTube video.
- * Only MC question type is supported in V1.
+ * Question types supported by the Video Activity widget. Distinct from
+ * `QuizQuestionType` — VA introduces `'MA'` (multi-answer / "select all
+ * that apply") and does not surface Matching or Ordering, which don't
+ * map cleanly to a video-cue-point pause.
  */
-export interface VideoActivityQuestion extends QuizQuestion {
+export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
+
+/**
+ * A question tied to a specific timestamp in a YouTube video.
+ *
+ * Storage shape per `type`:
+ *   - `MC`:  `correctAnswer` is the correct option text;
+ *            `incorrectAnswers` are distractors.
+ *   - `FIB`: `correctAnswer` is the canonical accepted answer;
+ *            `acceptableVariants` (optional) is a list of additional
+ *            accepted forms (e.g. ["color", "colour"]).
+ *   - `MA`:  `correctAnswer` is `|`-encoded correct selections
+ *            ("opt1|opt2|opt3"); `incorrectAnswers` are the distractor
+ *            options shown alongside. Mirrors the Matching/Ordering
+ *            convention so the wire format stays uniform.
+ *
+ * Inherits `points?` and `allowPartialCredit?` from `QuizQuestion`. MA
+ * uses `allowPartialCredit` to score (|correct ∩ given| − |given − correct|)
+ * / |correct| × points; without partial credit the question is all-or-nothing.
+ */
+export type VideoActivityQuestion = Omit<
+  QuizQuestion,
+  'type' | 'matchingDistractors'
+> & {
+  type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */
   timestamp: number;
-}
+  /**
+   * FIB only — additional accepted answers beyond `correctAnswer`. Each
+   * variant is normalized (whitespace + case collapsed) before comparison
+   * via `normalizeAnswer`. Empty/missing = the canonical answer is the
+   * only accepted form.
+   */
+  acceptableVariants?: string[];
+};
 
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
