@@ -2,11 +2,14 @@
  * VideoActivityStudentApp — student-facing video activity experience.
  * Accessible at /activity/:sessionId (no Google auth required).
  *
- * Flow:
- *  1. Anonymous Firebase auth (satisfies Firestore security rules)
- *  2. Student enters name + PIN to join
- *  3. Video plays with embedded questions at timestamps
- *  4. Completion / score screen when all questions answered and video ends
+ * Flow (mirrors QuizStudentApp):
+ *  - SSO `studentRole` joiners (custom-token users from /my-assignments):
+ *    auto-join on mount. No PIN, no class-period picker, no name input.
+ *    Their auth UID identifies them; class period is resolved from the
+ *    session's `classPeriodByClassId` map when available.
+ *  - Anonymous (PIN) joiners: enter PIN, then pick a class period if the
+ *    session declares any. No name is collected — Results UI uses
+ *    `useAssignmentPseudonyms` for display.
  */
 
 import React, { useState, useCallback, useEffect, useRef } from 'react';
@@ -24,27 +27,85 @@ import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
-import { VideoActivityQuestion } from '@/types';
+import { VideoActivityQuestion, VideoActivitySession } from '@/types';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
+
+/**
+ * Resolve the SSO student's class period from the session's
+ * `classPeriodByClassId` map. Mirrors the Quiz semantics: only resolves
+ * when the intersection of the student's claimed `classIds` with the
+ * session's targeted `classIds` is unambiguously a single class. When the
+ * intersection is empty (claim doesn't overlap the session) or multiple
+ * (the student is in 2+ targeted classes), returns `undefined` and lets
+ * the response doc carry no period — wrong-but-confident attribution to
+ * `periodNames[0]` is worse than no attribution because it silently
+ * corrupts results filtering and the export sheet's class-period column.
+ */
+function resolveSsoClassPeriod(
+  session: VideoActivitySession,
+  classIdsClaim: string[]
+): string | undefined {
+  const map = session.classPeriodByClassId;
+  if (!map) return undefined;
+  const sessionClassIds = new Set(session.classIds ?? []);
+  const matches = classIdsClaim
+    .filter((id) => sessionClassIds.size === 0 || sessionClassIds.has(id))
+    .map((id) => map[id])
+    .filter((period): period is string => typeof period === 'string');
+  // Dedupe so a student enrolled in multiple targeted classes that share
+  // the same period name (e.g. teacher labelled both "Period 1") still
+  // resolves cleanly. Only `Set.size !== 1` is genuinely ambiguous.
+  const unique = new Set(matches);
+  if (unique.size !== 1) return undefined;
+  return matches[0];
+}
 
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export const VideoActivityStudentApp: React.FC = () => {
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
+  // True iff `auth.currentUser` carries the `studentRole: true` custom claim
+  // minted by `studentLoginV1`. Resolved at mount; drives the auto-join
+  // branch in `JoinAndPlay`. Anonymous joiners stay `false`.
+  const [isStudentRole, setIsStudentRole] = useState(false);
+  // ClassLink class-id list from the SSO custom claim. Used to resolve the
+  // joining student's period via `session.classPeriodByClassId`.
+  const [ssoClassIds, setSsoClassIds] = useState<string[]>([]);
 
   useEffect(() => {
     const init = async () => {
-      if (!auth.currentUser) {
-        try {
+      try {
+        // Sign in anonymously only when nobody is signed in — SSO students
+        // arrive with a custom-token user we must keep.
+        if (!auth.currentUser) {
           await signInAnonymously(auth);
-        } catch (err) {
-          console.warn('[VideoActivityStudentApp] Anonymous auth failed:', err);
-          setAuthFailed(true);
         }
+        const user = auth.currentUser;
+        if (user && !user.isAnonymous) {
+          // Probe custom claims once. We don't refresh — `studentLoginV1`
+          // minted these and a stale token is fine for read-only identity;
+          // Firestore rules re-validate on every write.
+          const tokenResult = await user.getIdTokenResult();
+          if (tokenResult.claims?.studentRole === true) {
+            setIsStudentRole(true);
+            const claimedClassIds = tokenResult.claims.classIds;
+            if (Array.isArray(claimedClassIds)) {
+              setSsoClassIds(
+                claimedClassIds.filter(
+                  (id): id is string => typeof id === 'string' && id.length > 0
+                )
+              );
+            }
+          }
+        }
+      } catch (err) {
+        logError('VideoActivityStudentApp.authInit', err);
+        setAuthFailed(true);
+      } finally {
+        setAuthReady(true);
       }
-      setAuthReady(true);
     };
     void init();
   }, []);
@@ -53,22 +114,31 @@ export const VideoActivityStudentApp: React.FC = () => {
     return <FullPageLoader message="Loading…" />;
   }
 
-  if (authFailed) {
+  if (authFailed || !auth.currentUser) {
     return (
       <ErrorScreen message="Unable to connect. Please refresh and try again." />
     );
   }
 
-  return <JoinAndPlay />;
+  return (
+    <JoinAndPlay isStudentRole={isStudentRole} ssoClassIds={ssoClassIds} />
+  );
 };
 
 // ─── Join + Play ───────────────────────────────────────────────────────────────
 
-const JoinAndPlay: React.FC = () => {
+interface JoinAndPlayProps {
+  isStudentRole: boolean;
+  ssoClassIds: string[];
+}
+
+const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
+  isStudentRole,
+  ssoClassIds,
+}) => {
   // Extract sessionId from /activity/:sessionId
   const sessionId = window.location.pathname.replace(/^\/activity\/?/, '');
 
-  const [name, setName] = useState('');
   const [pin, setPin] = useState('');
   const [activeQuestion, setActiveQuestion] =
     useState<VideoActivityQuestion | null>(null);
@@ -121,8 +191,9 @@ const JoinAndPlay: React.FC = () => {
   }, [isViewOnly, session?.id, authedUid]);
 
   // Multi-period selection step — shown when the session has more than one
-  // class-period name configured, so students pick their period before the
-  // response doc is created (mirrors the Quiz pattern).
+  // class-period name configured, so anon students pick their period before
+  // the response doc is created (mirrors the Quiz pattern). SSO joiners
+  // skip this step entirely.
   const [periodStep, setPeriodStep] = useState<string[] | null>(null);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
   // Local guard for the async `lookupSession` leg of `handleJoin` — the
@@ -130,6 +201,59 @@ const JoinAndPlay: React.FC = () => {
   // so without this the button would stay clickable during the lookup and
   // a double-tap could fan out parallel requests.
   const [lookingUp, setLookingUp] = useState(false);
+
+  // SSO auto-join. Mirrors QuizStudentApp's pattern: a single ref guards
+  // against StrictMode double-invoke. When `joinStatus` flips to `'error'`,
+  // the render-time reset below clears the ref AND `joinStatus` is in the
+  // effect deps, so the effect re-fires once on the next render — letting
+  // a transient Firestore failure recover without a page refresh. Local
+  // `ssoAutoJoinError` covers the lookup-failure leg (`lookupSession`
+  // swallows errors and returns `null`); the hook's own `error`/
+  // `joinStatus` carry post-lookup failures.
+  const ssoAutoJoinStartedRef = useRef(false);
+  const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
+
+  // Re-arm the started ref when the hook reports an error so the effect
+  // pass below can retry. Done as adjust-state-during-render rather than
+  // an effect to avoid an extra render cycle (per CLAUDE.md "useEffect is
+  // an escape hatch"). Pairs with `joinStatus` in the effect deps —
+  // without that dep, the reset would have nothing to trigger the rerun.
+  if (joinStatus === 'error' && ssoAutoJoinStartedRef.current) {
+    ssoAutoJoinStartedRef.current = false;
+  }
+
+  useEffect(() => {
+    if (!isStudentRole || !sessionId) return;
+    if (ssoAutoJoinStartedRef.current) return;
+    if (joinStatus === 'joined' || joinStatus === 'loading') return;
+    ssoAutoJoinStartedRef.current = true;
+    setSsoAutoJoinError(null);
+    void (async () => {
+      try {
+        const sessionInfo = await lookupSession(sessionId);
+        if (!sessionInfo) {
+          setSsoAutoJoinError(
+            'This activity session was not found. Check the link and try again.'
+          );
+          return;
+        }
+        const autoClassPeriod = resolveSsoClassPeriod(sessionInfo, ssoClassIds);
+        await joinSession(sessionId, undefined, autoClassPeriod);
+      } catch (err) {
+        logError('VideoActivityStudentApp.ssoAutoJoin', err, { sessionId });
+        setSsoAutoJoinError(
+          'Something went wrong joining this activity. Please refresh and try again.'
+        );
+      }
+    })();
+  }, [
+    isStudentRole,
+    sessionId,
+    ssoClassIds,
+    lookupSession,
+    joinSession,
+    joinStatus,
+  ]);
 
   // Track answered question IDs for anti-skip enforcement in VideoPlayer
   const answeredQuestionIds = React.useMemo(
@@ -142,18 +266,21 @@ const JoinAndPlay: React.FC = () => {
 
   const handleJoin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !pin.trim() || !sessionId) return;
+    if (!pin.trim() || !sessionId) return;
     if (lookingUp || joinStatus === 'loading') return;
     setLookingUp(true);
     try {
       const sessionInfo = await lookupSession(sessionId);
       const periodNames = sessionInfo?.periodNames ?? [];
+      // Anon (PIN) joiners disambiguate by period when the assignment
+      // declares more than one — `pin-{period}-{pin}` is what keys the
+      // response doc. With a single period there's nothing for the
+      // student to choose, so auto-pick to skip a friction tap.
       if (periodNames.length > 1) {
         setPeriodStep(periodNames);
         return;
       }
-      const autoClassPeriod = periodNames[0];
-      await joinSession(sessionId, pin.trim(), name.trim(), autoClassPeriod);
+      await joinSession(sessionId, pin.trim(), periodNames[0]);
     } finally {
       setLookingUp(false);
     }
@@ -161,8 +288,8 @@ const JoinAndPlay: React.FC = () => {
 
   const handlePeriodConfirm = useCallback(async () => {
     if (!selectedPeriod || !sessionId) return;
-    await joinSession(sessionId, pin.trim(), name.trim(), selectedPeriod);
-  }, [joinSession, sessionId, pin, name, selectedPeriod]);
+    await joinSession(sessionId, pin.trim(), selectedPeriod);
+  }, [joinSession, sessionId, pin, selectedPeriod]);
 
   const handleQuestionTrigger = useCallback(
     (question: VideoActivityQuestion) => {
@@ -297,6 +424,19 @@ const JoinAndPlay: React.FC = () => {
   // ── Not joined yet ────────────────────────────────────────────────────────
 
   if (joinStatus !== 'joined') {
+    // SSO students are auto-joining via the effect above — show the loader
+    // (or any error surfaced from the auto-join attempt) instead of the
+    // PIN form. Anonymous joiners fall through to the PIN form below.
+    if (isStudentRole) {
+      if (ssoAutoJoinError || error) {
+        // Prefer the hook's specific error (e.g. "session ended", "PIN
+        // rejected") over the generic auto-join wrapper message. Mirrors
+        // the QuizStudentApp precedence.
+        return <ErrorScreen message={error ?? ssoAutoJoinError ?? ''} />;
+      }
+      return <FullPageLoader message="Joining activity…" />;
+    }
+
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
         <div className="w-full max-w-sm">
@@ -325,21 +465,6 @@ const JoinAndPlay: React.FC = () => {
             <form onSubmit={handleJoin} className="p-5 flex flex-col gap-4">
               <div>
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Your Name
-                </label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="First name"
-                  autoComplete="given-name"
-                  className="w-full border-2 border-slate-200 focus:border-brand-blue-primary rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
                   Roster PIN
                 </label>
                 <input
@@ -348,6 +473,7 @@ const JoinAndPlay: React.FC = () => {
                   onChange={(e) => setPin(e.target.value)}
                   placeholder="Ask your teacher"
                   inputMode="numeric"
+                  autoFocus
                   className="w-full border-2 border-slate-200 focus:border-brand-blue-primary rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
                   required
                 />
@@ -362,12 +488,7 @@ const JoinAndPlay: React.FC = () => {
 
               <button
                 type="submit"
-                disabled={
-                  joinStatus === 'loading' ||
-                  lookingUp ||
-                  !name.trim() ||
-                  !pin.trim()
-                }
+                disabled={joinStatus === 'loading' || lookingUp || !pin.trim()}
                 className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
               >
                 {joinStatus === 'loading' || lookingUp ? (
@@ -415,13 +536,7 @@ const JoinAndPlay: React.FC = () => {
             </div>
 
             <div className="p-6 flex flex-col gap-4">
-              <p className="text-slate-600 font-medium">
-                Great work,{' '}
-                <span className="text-brand-blue-dark font-bold">
-                  {myResponse?.name}
-                </span>
-                !
-              </p>
+              <p className="text-slate-600 font-medium">Great work!</p>
 
               {totalQuestions > 0 && (
                 <div className="bg-brand-blue-lighter/30 rounded-2xl p-5">

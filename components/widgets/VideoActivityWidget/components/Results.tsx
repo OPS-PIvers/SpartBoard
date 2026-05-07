@@ -3,7 +3,7 @@
  * Adapted from QuizResults. Shows per-student scores and per-question accuracy.
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Download,
@@ -20,7 +20,7 @@ import { VideoActivityResponse, VideoActivitySession } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
-  useAssignmentPseudonyms,
+  useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 
@@ -36,9 +36,19 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
 }) => {
   const { googleAccessToken, orgId } = useAuth();
-  const { byStudentUid } = useAssignmentPseudonyms(
+  // Use the multi-class variant — `session.classId` is a transitional
+  // mirror of `classIds[0]` only, so the single-class hook would miss
+  // SSO students from `classIds[1+]` on multi-class assignments and
+  // their export rows would fall back to the generic "Student" label.
+  // Mirrors the QuizLiveMonitor pattern.
+  const sessionClassIds = useMemo(() => {
+    if (session.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session.classId ? [session.classId] : [];
+  }, [session.classIds, session.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
     session.id,
-    session.classId ?? null,
+    sessionClassIds,
     orgId
   );
   const [exporting, setExporting] = useState(false);
@@ -153,8 +163,10 @@ export const Results: React.FC<ResultsProps> = ({
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
       const quizResponses = responses.map((r) => ({
-        studentUid: r.pin,
-        pin: r.pin,
+        studentUid: r.studentUid,
+        // Anon responses always carry a PIN; SSO responses don't. Fall back
+        // to empty string so the export shape stays string-typed.
+        pin: r.pin ?? '',
         joinedAt: r.joinedAt,
         status: (r.completedAt ? 'completed' : 'in-progress') as
           | 'completed'
@@ -168,13 +180,17 @@ export const Results: React.FC<ResultsProps> = ({
         })),
         score: r.score,
         submittedAt: r.completedAt,
-        tabSwitchWarnings: 0,
+        tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
       }));
 
+      // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
+      // their resolved ClassLink names instead of falling back to the
+      // generic "Student" label.
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
-        questions
+        questions,
+        { byStudentUid }
       );
       setExportUrl(url);
     } catch (err) {
@@ -506,9 +522,12 @@ export const Results: React.FC<ResultsProps> = ({
                           className="font-bold text-slate-800 truncate"
                           style={{ fontSize: 'min(13px, 4cqmin)' }}
                         >
-                          {formatStudentName(byStudentUid.get(r.studentUid)) ||
-                            r.name ||
-                            r.pin}
+                          {/* `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`; pick the first non-empty string so the falsy-fallthrough intent is explicit (no `||` chain that ESLint would flag). */}
+                          {[
+                            formatStudentName(byStudentUid.get(r.studentUid)),
+                            r.name,
+                            r.pin,
+                          ].find((s) => typeof s === 'string' && s.length > 0)}
                         </p>
                         <p
                           className="text-slate-400"

@@ -27,6 +27,10 @@ import {
 import { db, auth } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import {
+  computeResponseKey,
+  encodeResponseKeySegment,
+} from '@/hooks/useQuizSession';
+import {
   AssignmentMode,
   VideoActivitySession,
   VideoActivityResponse,
@@ -107,7 +111,11 @@ export interface UseVideoActivitySessionTeacherResult {
     rosterIds?: string[],
     /** Org-wide assignment mode frozen onto the session. Defaults to
      *  `'submissions'`. */
-    mode?: AssignmentMode
+    mode?: AssignmentMode,
+    /** Map of ClassLink classId -> period name. Lets the SSO student-app
+     *  auto-join path resolve the joining student's period without a
+     *  picker. Optional; falls back to `periodNames[0]` when absent. */
+    classPeriodByClassId?: Record<string, string>
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -161,7 +169,8 @@ export const useVideoActivitySessionTeacher =
         classIds: string[] = [],
         periodNames: string[] = [],
         rosterIds: string[] = [],
-        mode: AssignmentMode = 'submissions'
+        mode: AssignmentMode = 'submissions',
+        classPeriodByClassId?: Record<string, string>
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -193,6 +202,10 @@ export const useVideoActivitySessionTeacher =
           ...(classIds.length > 0 ? { classIds, classId: classIds[0] } : {}),
           ...(periodNames.length > 0 ? { periodNames } : {}),
           ...(rosterIds.length > 0 ? { rosterIds } : {}),
+          ...(classPeriodByClassId &&
+          Object.keys(classPeriodByClassId).length > 0
+            ? { classPeriodByClassId }
+            : {}),
           mode,
         };
 
@@ -393,10 +406,23 @@ export interface UseVideoActivitySessionStudentResult {
    * picker before committing the join.
    */
   lookupSession: (sessionId: string) => Promise<VideoActivitySession | null>;
+  /**
+   * Join a session and create the response document.
+   *
+   * Calling conventions mirror `useQuizSession.joinQuizSession`:
+   *   - Anonymous PIN students:  pass `pin` and `classPeriod`. Response
+   *     doc is keyed `pin-{period}-{pin}` so the same PIN in different
+   *     periods doesn't collide and attempt limits survive device resets.
+   *   - SSO `studentRole` joiners: pass `pin = undefined`. The hook reads
+   *     the auth UID and keys the response doc by it. `classPeriod` is
+   *     derived from `session.classPeriodByClassId` if available.
+   *
+   * The student's name is no longer collected — Results UI uses
+   * `useAssignmentPseudonyms` for display.
+   */
   joinSession: (
     sessionId: string,
-    pin: string,
-    name: string,
+    pin: string | undefined,
     classPeriod?: string
   ) => Promise<void>;
   submitAnswer: (questionId: string, answer: string) => Promise<void>;
@@ -412,7 +438,10 @@ export const useVideoActivitySessionStudent =
     const [joinStatus, setJoinStatus] = useState<StudentJoinStatus>('idle');
     const [error, setError] = useState<string | null>(null);
     const [sessionId, setSessionId] = useState<string | null>(null);
-    // responseDocId is the student's Firebase auth UID (used as the Firestore document ID)
+    // responseDocId is the deterministic Firestore doc id for the student's
+    // response — `auth.uid` for SSO `studentRole` joiners, or
+    // `pin-{period}-{pin}` for anonymous PIN joiners. Computed at join time
+    // via `computeResponseKey`; see `useQuizSession.ts`.
     const [responseDocId, setResponseDocId] = useState<string | null>(null);
 
     // Listen to session document
@@ -427,10 +456,9 @@ export const useVideoActivitySessionStudent =
           }
         },
         (err) => {
-          console.error(
-            '[useVideoActivitySessionStudent] Session listener error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.sessionListener', err, {
+            sessionId,
+          });
         }
       );
 
@@ -455,10 +483,10 @@ export const useVideoActivitySessionStudent =
           }
         },
         (err) => {
-          console.error(
-            '[useVideoActivitySessionStudent] Response listener error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.responseListener', err, {
+            sessionId,
+            responseDocId,
+          });
         }
       );
 
@@ -474,10 +502,9 @@ export const useVideoActivitySessionStudent =
           if (!snap.exists()) return null;
           return snap.data() as VideoActivitySession;
         } catch (err) {
-          console.error(
-            '[useVideoActivitySessionStudent] lookupSession error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.lookupSession', err, {
+            sessionId: targetSessionId,
+          });
           return null;
         }
       },
@@ -487,8 +514,7 @@ export const useVideoActivitySessionStudent =
     const joinSession = useCallback(
       async (
         targetSessionId: string,
-        studentPin: string,
-        studentName: string,
+        studentPin: string | undefined,
         classPeriod?: string
       ): Promise<void> => {
         setJoinStatus('loading');
@@ -510,14 +536,32 @@ export const useVideoActivitySessionStudent =
 
           const sessionData = sessionSnap.data() as VideoActivitySession;
 
-          // Validate PIN against allowed list (empty list = open to any PIN)
-          if (
-            sessionData.allowedPins.length > 0 &&
-            !sessionData.allowedPins.includes(studentPin)
-          ) {
-            setJoinStatus('pin-rejected');
-            setError('Incorrect PIN. Please check with your teacher.');
+          const currentUser = auth.currentUser;
+          if (!currentUser) {
+            setJoinStatus('error');
+            setError('Authentication required. Please refresh and try again.');
             return;
+          }
+
+          const isAnonymous = currentUser.isAnonymous;
+
+          // Anonymous (PIN) joiners must supply a PIN and pass the allowedPins
+          // gate. SSO joiners (studentRole custom-token users) skip both checks
+          // — they're identified by their auth UID, not by a roster PIN.
+          if (isAnonymous) {
+            if (!studentPin || studentPin.trim().length === 0) {
+              setJoinStatus('error');
+              setError('A roster PIN is required to join this activity.');
+              return;
+            }
+            if (
+              sessionData.allowedPins.length > 0 &&
+              !sessionData.allowedPins.includes(studentPin)
+            ) {
+              setJoinStatus('pin-rejected');
+              setError('Incorrect PIN. Please check with your teacher.');
+              return;
+            }
           }
 
           if (sessionData.status === 'ended') {
@@ -537,46 +581,106 @@ export const useVideoActivitySessionStudent =
             return;
           }
 
-          const studentUid = auth.currentUser?.uid;
-          if (!studentUid) {
+          // Compute the deterministic response-doc key. Anonymous joiners get
+          // `pin-{period}-{pin}` so the same PIN in different periods stays
+          // distinct and attempt limits survive a device wipe; SSO joiners
+          // get `auth.uid`. `computeResponseKey` is the canonical helper —
+          // shared with the Quiz student app.
+          const responseDocKey = computeResponseKey(
+            currentUser.uid,
+            isAnonymous,
+            studentPin ?? '',
+            classPeriod
+          );
+
+          // Defense against the encoder's `'default'` fallback. The PIN
+          // segment is the per-student field, so any all-special-character
+          // input collapses to `'default'` and two such students in the
+          // same period collide on the same doc — a much more reachable
+          // shape than both-segments-default. Surface a user-facing error
+          // instead. (Period defaulting alone is harmless because there's
+          // only one period bucket per session.)
+          if (
+            isAnonymous &&
+            encodeResponseKeySegment(studentPin) === 'default'
+          ) {
             setJoinStatus('error');
-            setError('Authentication required. Please refresh and try again.');
+            setError(
+              'Your PIN is in an unsupported format. Please check the PIN your teacher gave you.'
+            );
             return;
           }
 
-          // Response document ID is the student's auth UID (prevents PIN-claiming attacks)
+          // Probe the deterministic key first. If nothing's there AND the
+          // caller is anonymous, also probe a legacy `auth.uid`-keyed doc
+          // (the pre-PR1 keying scheme) so an in-flight student rejoining
+          // after deploy resumes their existing response instead of starting
+          // a fresh one. SSO joiners are unaffected — their `auth.uid` is
+          // both the new key and the legacy key. The legacy probe is
+          // skipped when we already found the new doc, so the steady-state
+          // path stays one read.
           const responseRef = doc(
             db,
             SESSIONS_COLLECTION,
             targetSessionId,
             RESPONSES_SUBCOLLECTION,
-            studentUid
+            responseDocKey
           );
-          const existingSnap = await getDoc(responseRef);
+          let effectiveResponseRef = responseRef;
+          let existingSnap = await getDoc(responseRef);
+
+          if (
+            !existingSnap.exists() &&
+            isAnonymous &&
+            responseDocKey !== currentUser.uid
+          ) {
+            const legacyRef = doc(
+              db,
+              SESSIONS_COLLECTION,
+              targetSessionId,
+              RESPONSES_SUBCOLLECTION,
+              currentUser.uid
+            );
+            const legacySnap = await getDoc(legacyRef);
+            if (legacySnap.exists()) {
+              effectiveResponseRef = legacyRef;
+              existingSnap = legacySnap;
+            }
+          }
 
           if (!existingSnap.exists()) {
+            // Initialize `completedAttempts` and `tabSwitchWarnings` to 0 so
+            // the Firestore rules' monotonic-growth check on update has a
+            // concrete prior value to compare against (otherwise
+            // `resource.data.completedAttempts` is missing on first write
+            // and `.size()`/comparison would throw). Mirrors the Quiz
+            // create-time initialization.
             const newResponse: VideoActivityResponse = {
-              pin: studentPin,
-              name: studentName,
-              studentUid,
+              studentUid: currentUser.uid,
               joinedAt: Date.now(),
               answers: [],
               completedAt: null,
               score: null,
+              completedAttempts: 0,
+              tabSwitchWarnings: 0,
+              ...(studentPin ? { pin: studentPin } : {}),
               ...(classPeriod ? { classPeriod } : {}),
             };
-            await setDoc(responseRef, newResponse);
+            await setDoc(effectiveResponseRef, newResponse);
           }
 
           setSessionId(targetSessionId);
-          setResponseDocId(studentUid);
+          // When a legacy doc was found we resume against its id (the
+          // student's auth.uid) rather than the deterministic key — the
+          // listener path keeps tracking the doc that actually has their
+          // answers. New writes always go to `effectiveResponseRef`.
+          setResponseDocId(effectiveResponseRef.id);
           setSession(sessionData);
           setJoinStatus('joined');
         } catch (err) {
-          console.error(
-            '[useVideoActivitySessionStudent] joinSession error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.joinSession', err, {
+            sessionId: targetSessionId,
+          });
           setJoinStatus('error');
           setError('Failed to join the session. Please try again.');
         }
