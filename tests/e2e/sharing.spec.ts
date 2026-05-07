@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/require-await */
+
 import { test, expect } from '@playwright/test';
 
 test.describe('Board Sharing', () => {
@@ -72,20 +72,41 @@ test.describe('Board Sharing', () => {
     // Force click to ensure it registers even if there are layout shifts
     await shareButton.click({ force: true });
 
-    await expect(page.getByText(/Link copied/i)).toBeVisible({
+    // Share now opens `ShareLinkCreatorModal` (host picks a mode, then
+    // clicks "Create link"). Wait for the modal then click through.
+    await expect(
+      page.getByRole('heading', { name: 'Share board' })
+    ).toBeVisible({
       timeout: 15000,
     });
+    // The default "Synced" mode is fine for this test — no need to click a
+    // mode option first.
+    await page.getByRole('button', { name: /create link/i }).click();
 
-    // If clipboard text is still empty, fall back to assuming success if toast appeared
+    // The result panel shows the URL in an input (aria-label "Share link
+    // URL"). Wait for it to appear — this is the success signal that
+    // replaces the legacy "Link copied" toast.
+    const shareUrlInput = page.getByLabel('Share link URL');
+    await expect(shareUrlInput).toBeVisible({ timeout: 15000 });
+
+    // The modal auto-copies on Create; if the clipboard mock didn't catch
+    // it, fall back to reading the URL straight out of the input. Either
+    // way the toast-based assertion is gone — the visible URL panel is
+    // proof of success.
+    if (!clipboardText) {
+      const inputValue = await shareUrlInput.inputValue();
+      if (inputValue.includes('/share/')) {
+        clipboardText = inputValue;
+      }
+    }
+
     if (!clipboardText) {
       // eslint-disable-next-line no-console
       console.log(
-        'Clipboard mock empty, skipping specific URL check but verify toast appeared.'
+        'Clipboard mock empty and URL input empty — skipping specific URL check.'
       );
     } else {
-      await expect(async () => {
-        expect(clipboardText).toContain('/share/');
-      }).toPass({ timeout: 15000 });
+      expect(clipboardText).toContain('/share/');
     }
 
     // If we have a URL, test visiting it. If not (clipboard mock fail), skip the visit part to avoid failing the whole suite on a flake
