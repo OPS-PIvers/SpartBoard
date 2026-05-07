@@ -45,6 +45,11 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
   const [draftTitle, setDraftTitle] = useState('');
   const [draftBody, setDraftBody] = useState('');
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Accumulates patches from rapid edits across fields so a same-window
+  // title→body sequence doesn't drop the title patch. Reset on flush /
+  // cancel.
+  const pendingPatchRef = useRef<{ title?: string; body?: string }>({});
+  const pendingNoteIdRef = useRef<string | null>(null);
 
   // Auto-select the most-recent note once data lands. Same "adjust state
   // during render" pattern used elsewhere in the repo.
@@ -93,27 +98,55 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
     setDraftBody(selectedNote.body);
   }
 
+  const flushPendingSave = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    const id = pendingNoteIdRef.current;
+    const toSave = pendingPatchRef.current;
+    pendingPatchRef.current = {};
+    pendingNoteIdRef.current = null;
+    if (!id || (toSave.title === undefined && toSave.body === undefined)) {
+      return;
+    }
+    void updateNote(id, toSave).catch((err: unknown) => {
+      logError('PlcNotesTab.updateNote', err, { plcId: plc.id, noteId: id });
+    });
+  };
+
+  const cancelPendingSave = () => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    pendingPatchRef.current = {};
+    pendingNoteIdRef.current = null;
+  };
+
   // Flush pending debounced writes on unmount so a fast tab close doesn't
   // drop the user's last edit.
   useEffect(() => {
-    const timerRef = debounceTimerRef;
     return () => {
-      if (timerRef.current) {
-        clearTimeout(timerRef.current);
-      }
+      flushPendingSave();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const scheduleSave = (
     id: string,
     patch: { title?: string; body?: string }
   ) => {
+    // If a write is queued for a different note, flush it first so we
+    // don't merge title/body across notes.
+    if (pendingNoteIdRef.current && pendingNoteIdRef.current !== id) {
+      flushPendingSave();
+    }
+    pendingNoteIdRef.current = id;
+    pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
-      debounceTimerRef.current = null;
-      void updateNote(id, patch).catch((err: unknown) => {
-        logError('PlcNotesTab.updateNote', err, { plcId: plc.id, noteId: id });
-      });
+      flushPendingSave();
     }, SAVE_DEBOUNCE_MS);
   };
 
@@ -142,9 +175,10 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
       }
     );
     if (!confirmed) return;
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
+    // Drop any queued write — the doc is being deleted, no point flushing
+    // (and the rule on `notes/{id}` would reject a write to a missing doc).
+    if (pendingNoteIdRef.current === note.id) {
+      cancelPendingSave();
     }
     try {
       await deleteNote(note.id);
@@ -162,10 +196,9 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
   };
 
   const handleSelect = (id: string) => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = null;
-    }
+    // Flush any queued write for the previously-selected note so switching
+    // notes mid-debounce doesn't drop the user's last edit.
+    flushPendingSave();
     const note = notes.find((n) => n.id === id);
     if (!note) return;
     setSelectedId(id);
