@@ -316,6 +316,10 @@ export const QuizAssignmentSettingsModal: React.FC<
             onAttemptLimitChange={(v) =>
               setOptions((p) => ({ ...p, attemptLimit: v }))
             }
+            // Per-student question shuffle only takes effect in self-paced
+            // mode; disable + hint the toggle otherwise so teachers don't
+            // enable a flag that won't fire.
+            shuffleQuestionsAvailable={sessionMode === 'student'}
             trailingSlot={
               <CollapsibleSection label="Gamification">
                 <ToggleRow

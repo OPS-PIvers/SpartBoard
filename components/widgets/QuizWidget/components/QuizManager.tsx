@@ -194,9 +194,10 @@ function buildDefaultAssignOptions(
     showPodiumBetweenQuestions: false,
     soundEffectsEnabled: false,
     shuffleQuestions: false,
-    // Pre-toggle sessions had the second client-side shuffle always on; keep
-    // the default ON so behavior matches what teachers had before this
-    // toggle was exposed in the create flow.
+    // Default ON: matches the legacy always-on answer shuffle that
+    // pre-dated this toggle, and mirrors the edit modal's `?? true`
+    // fallback so a new assignment behaves identically to one created
+    // before the toggle was exposed.
     shuffleAnswerOptions: true,
     // Default: one attempt per student. Teachers can switch to 2/3/Unlimited
     // in the assign modal or later in the assignment settings.
@@ -1512,6 +1513,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               options={assignOptions}
               onChange={setAssignOptions}
               rosters={rosters}
+              selectedMode={selectedMode}
             />
           }
           plcSlot={
@@ -1945,7 +1947,8 @@ const AssignExtraSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
   rosters: ClassRoster[];
-}> = ({ options, onChange, rosters }) => {
+  selectedMode: QuizSessionMode | null;
+}> = ({ options, onChange, rosters, selectedMode }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
@@ -1976,6 +1979,12 @@ const AssignExtraSlot: React.FC<{
         }
         attemptLimit={options.attemptLimit}
         onAttemptLimitChange={(v) => update('attemptLimit', v)}
+        // Per-student question shuffle only takes effect in self-paced mode
+        // (teacher/auto-paced sessions broadcast a single shared question
+        // sequence). Disable the toggle in non-self-paced modes so teachers
+        // don't enable a flag that won't fire — the primitive renders a hint
+        // explaining the gating.
+        shuffleQuestionsAvailable={selectedMode === 'student'}
         trailingSlot={
           <CollapsibleSection label="Gamification">
             <ToggleRow
