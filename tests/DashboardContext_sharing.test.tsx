@@ -26,11 +26,16 @@ vi.mock('../context/useAuth', () => ({
 
 const mockLoadSharedDashboard = vi.fn();
 const mockSaveDashboard = vi.fn().mockResolvedValue(undefined);
+const mockDeleteDashboard = vi.fn().mockResolvedValue(undefined);
 const mockJoinSharedBoard = vi.fn().mockResolvedValue(undefined);
-const mockSubscribeToSharedBoard = vi.fn(() => () => undefined);
+type SharedBoardSubscribeCallback = (remote: Dashboard | null) => void;
+const mockSubscribeToSharedBoard = vi.fn(
+  (_shareId: string, _cb: SharedBoardSubscribeCallback) => () => undefined
+);
 const mockMirrorSharedBoard = vi.fn().mockResolvedValue(undefined);
 const mockStopSharingBoard = vi.fn().mockResolvedValue(undefined);
 const mockLeaveSharedBoard = vi.fn().mockResolvedValue(undefined);
+const mockShareDashboardFirestore = vi.fn().mockResolvedValue('mock-share-id');
 
 type SubscribeCallback = (
   dashboards: Dashboard[],
@@ -55,9 +60,9 @@ vi.mock('../hooks/useFirestore', () => ({
   useFirestore: () => ({
     saveDashboard: mockSaveDashboard,
     saveDashboards: vi.fn().mockResolvedValue(undefined),
-    deleteDashboard: vi.fn().mockResolvedValue(undefined),
+    deleteDashboard: mockDeleteDashboard,
     subscribeToDashboards: mockSubscribeToDashboards,
-    shareDashboard: vi.fn(),
+    shareDashboard: mockShareDashboardFirestore,
     loadSharedDashboard: mockLoadSharedDashboard,
     mirrorSharedBoard: mockMirrorSharedBoard,
     subscribeToSharedBoard: mockSubscribeToSharedBoard,
@@ -500,6 +505,379 @@ describe('DashboardContext Sharing Logic', () => {
 
       expect(mockLeaveSharedBoard).toHaveBeenCalledWith('test-share-id');
       expect(mockStopSharingBoard).not.toHaveBeenCalled();
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Host-picks-mode flow: the share doc carries `intendedMode`; the
+  // recipient uses it to skip the 3-option picker and to drive the import.
+  // ───────────────────────────────────────────────────────────────────────
+  describe('intendedMode propagation', () => {
+    it('pendingShareImport carries intendedMode when the share doc has one', async () => {
+      const sharedDashboard = {
+        id: 'orig',
+        name: 'Picked View-Only',
+        background: 'bg-slate-900',
+        widgets: [],
+        createdAt: 1,
+        intendedMode: 'view-only' as const,
+      };
+      mockLoadSharedDashboard.mockResolvedValue(sharedDashboard);
+
+      type CapturedImport = ReturnType<
+        typeof useDashboard
+      >['pendingShareImport'];
+      let captured: CapturedImport = null;
+      const Probe: React.FC = () => {
+        const { pendingShareImport } = useDashboard();
+        useEffect(() => {
+          captured = pendingShareImport;
+        }, [pendingShareImport]);
+        return <div />;
+      };
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(captured).not.toBeNull();
+        expect(captured?.intendedMode).toBe('view-only');
+      });
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // View-Only is ephemeral: when the host stops sharing OR the viewer
+  // chooses to leave, the local copy is removed (not just marked ended).
+  // ───────────────────────────────────────────────────────────────────────
+  describe('view-only deletion lifecycle', () => {
+    beforeEach(() => {
+      window.history.pushState({}, '', '/');
+    });
+
+    it('viewer is detached from the dashboards list when host stops sharing', async () => {
+      // Capture the subscribe callback so we can simulate `remote === null`
+      // (host deletion).
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const linked: Dashboard = {
+        id: 'view-board',
+        name: 'View Only Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-vo',
+        linkedShareRole: 'viewer',
+        linkedShareHostName: 'Other Teacher',
+      };
+      const otherBoard: Dashboard = {
+        id: 'fallback',
+        name: 'Fallback',
+        background: 'bg-slate-900',
+        widgets: [],
+        createdAt: 2,
+      };
+      initialDashboardsSeed = [linked, otherBoard];
+
+      let capturedDashboards: Dashboard[] = [];
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          capturedDashboards = dashboards;
+        }, [dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(subscribeCb).not.toBeNull();
+        expect(capturedDashboards.length).toBe(2);
+      });
+
+      mockDeleteDashboard.mockClear();
+      // Simulate the host deleting their share doc — subscribe fires null.
+      act(() => {
+        if (subscribeCb) subscribeCb(null);
+      });
+
+      await waitFor(() => {
+        expect(capturedDashboards.find((d) => d.id === 'view-board')).toBe(
+          undefined
+        );
+        expect(mockDeleteDashboard).toHaveBeenCalledWith('view-board');
+      });
+    });
+
+    it('synced collaborator keeps their dashboard when host stops sharing (linkedShareEnded set)', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const linked: Dashboard = {
+        id: 'collab-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        linkedShareHostName: 'Other Teacher',
+      };
+      initialDashboardsSeed = [linked];
+
+      let capturedDashboards: Dashboard[] = [];
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          capturedDashboards = dashboards;
+        }, [dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+      mockDeleteDashboard.mockClear();
+      act(() => {
+        if (subscribeCb) subscribeCb(null);
+      });
+
+      await waitFor(() => {
+        const board = capturedDashboards.find((d) => d.id === 'collab-board');
+        expect(board).toBeDefined();
+        expect(board?.linkedShareEnded).toBe(true);
+      });
+      expect(mockDeleteDashboard).not.toHaveBeenCalled();
+    });
+
+    it('viewer leaving the board (Leave button) deletes the local copy', async () => {
+      const linked: Dashboard = {
+        id: 'view-board',
+        name: 'View Only Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-vo',
+        linkedShareRole: 'viewer',
+      };
+      initialDashboardsSeed = [linked];
+
+      type Stop = ReturnType<typeof useDashboard>['stopSharingDashboard'];
+      let stop: Stop | null = null;
+      const Probe: React.FC = () => {
+        const { stopSharingDashboard } = useDashboard();
+        useEffect(() => {
+          stop = stopSharingDashboard;
+        }, [stopSharingDashboard]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => expect(stop).not.toBeNull());
+
+      mockDeleteDashboard.mockClear();
+      await act(async () => {
+        if (stop) await stop('view-board');
+      });
+
+      // Viewer leave should call leaveSharedBoard AND deleteDashboard.
+      expect(mockLeaveSharedBoard).toHaveBeenCalledWith('share-vo');
+      expect(mockDeleteDashboard).toHaveBeenCalledWith('view-board');
+    });
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Annotation overlay sync — bidirectional. Per-author Undo: a user's
+  // Undo only removes their own most recent stroke, not the other side's.
+  // ───────────────────────────────────────────────────────────────────────
+  describe('annotation sync', () => {
+    beforeEach(() => {
+      window.history.pushState({}, '', '/');
+    });
+
+    it("undoAnnotation only removes the local user's most recent stroke", async () => {
+      const linked: Dashboard = {
+        id: 'sync-board',
+        name: 'Synced Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-sync',
+        linkedShareRole: 'collaborator',
+        annotationOverlay: {
+          objects: [
+            {
+              id: 'a1',
+              kind: 'path',
+              z: 1,
+              points: [{ x: 0, y: 0 }],
+              color: '#000',
+              width: 2,
+              authorUid: 'other-user',
+            },
+            {
+              id: 'a2',
+              kind: 'path',
+              z: 2,
+              points: [{ x: 1, y: 1 }],
+              color: '#000',
+              width: 2,
+              authorUid: 'test-user',
+            },
+            {
+              id: 'a3',
+              kind: 'path',
+              z: 3,
+              points: [{ x: 2, y: 2 }],
+              color: '#000',
+              width: 2,
+              authorUid: 'other-user',
+            },
+          ],
+          updatedAt: 1,
+        },
+      };
+      initialDashboardsSeed = [linked];
+
+      type Undo = ReturnType<typeof useDashboard>['undoAnnotation'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let undo: Undo | null = null;
+      let load: Load | null = null;
+      let captured: Dashboard | undefined;
+
+      const Probe: React.FC = () => {
+        const { undoAnnotation, loadDashboard, dashboards } = useDashboard();
+        useEffect(() => {
+          undo = undoAnnotation;
+          load = loadDashboard;
+          captured = dashboards.find((d) => d.id === 'sync-board');
+        }, [undoAnnotation, loadDashboard, dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(undo).not.toBeNull();
+        expect(load).not.toBeNull();
+      });
+
+      // Activate the linked board so undo targets it.
+      act(() => {
+        if (load) load('sync-board');
+      });
+      act(() => {
+        if (undo) undo();
+      });
+
+      await waitFor(() => {
+        const objects = captured?.annotationOverlay?.objects ?? [];
+        // Only the local user's stroke ('a2') should be removed; both
+        // 'other-user' strokes remain.
+        const ids = objects.map((o) => o.id);
+        expect(ids).toEqual(['a1', 'a3']);
+      });
+    });
+
+    it('subscribe path applies remote annotationOverlay to local dashboard', async () => {
+      let subscribeCb: ((remote: Dashboard | null) => void) | null = null;
+      mockSubscribeToSharedBoard.mockImplementation(
+        (_id: string, cb: (remote: Dashboard | null) => void) => {
+          subscribeCb = cb;
+          return () => undefined;
+        }
+      );
+
+      const linked: Dashboard = {
+        id: 'view-board',
+        name: 'View Only Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1,
+        linkedShareId: 'share-vo',
+        linkedShareRole: 'viewer',
+      };
+      initialDashboardsSeed = [linked];
+
+      let captured: Dashboard | undefined;
+      const Probe: React.FC = () => {
+        const { dashboards } = useDashboard();
+        useEffect(() => {
+          captured = dashboards.find((d) => d.id === 'view-board');
+        }, [dashboards]);
+        return <div />;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => expect(subscribeCb).not.toBeNull());
+
+      // Host pushes a stroke; viewer should receive it via the subscribe
+      // path. updatedBy is set to a different uid so the echo filter
+      // doesn't suppress it.
+      const remote = {
+        ...linked,
+        annotationOverlay: {
+          objects: [
+            {
+              id: 'host-stroke',
+              kind: 'path' as const,
+              z: 1,
+              points: [{ x: 5, y: 5 }],
+              color: '#f00',
+              width: 4,
+              authorUid: 'other-user',
+            },
+          ],
+          updatedAt: 99,
+        },
+        updatedBy: 'other-user',
+      } as unknown as Dashboard;
+
+      act(() => {
+        if (subscribeCb) subscribeCb(remote);
+      });
+
+      await waitFor(() => {
+        const objects = captured?.annotationOverlay?.objects ?? [];
+        expect(objects.length).toBe(1);
+        expect(objects[0].id).toBe('host-stroke');
+      });
     });
   });
 });

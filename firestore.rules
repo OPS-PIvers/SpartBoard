@@ -579,6 +579,7 @@ service cloud.firestore {
     //   originalAuthor: string (uid)         — host, set at create
     //   sharedAt: number                     — timestamp
     //   participants: { [uid]: { role, joinedAt, displayName? } }
+    //   intendedMode?: 'copy' | 'synced' | 'view-only' — host's chosen mode
     //   updatedAt?: number / updatedBy?: string  — last writer (echo prevention)
     //   ...plus all Dashboard fields (name, background, widgets, globalStyle, settings)
     //
@@ -590,29 +591,35 @@ service cloud.firestore {
     //   - Any authed user can append themselves to participants (join), but
     //     cannot mutate other participants' entries or change other fields in
     //     the same write.
+    //   - intendedMode is immutable after create — the recipient flow trusts
+    //     it to skip the picker, so any update path that allows it to drift
+    //     would let a participant spoof the host's choice.
     match /shared_boards/{shareId} {
       allow read: if request.auth != null;
 
       allow create: if request.auth != null &&
         request.resource.data.originalAuthor == request.auth.uid;
 
-      // Host or admin: full update power (content + participants).
+      // Host or admin: full update power (content + participants), but
+      // intendedMode is locked to its create-time value.
       allow update: if request.auth != null &&
-        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
+        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null);
 
       // Collaborator (Synced participant): may update content but must not
-      // change participants map, originalAuthor, originalAuthorName, or
-      // sharedAt. originalAuthorName in particular is the host display
-      // name shown in the import-picker / banner UI for every participant,
-      // so a collaborator who could rewrite it would be able to spoof the
-      // host's identity to other peers.
+      // change participants map, originalAuthor, originalAuthorName,
+      // sharedAt, or intendedMode. originalAuthorName in particular is the
+      // host display name shown in the import-picker / banner UI for every
+      // participant, so a collaborator who could rewrite it would be able
+      // to spoof the host's identity to other peers.
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.get('participants', {}) &&
         resource.data.participants[request.auth.uid].get('role', '') == 'collaborator' &&
         request.resource.data.get('participants', {}) == resource.data.get('participants', {}) &&
         request.resource.data.originalAuthor == resource.data.originalAuthor &&
         request.resource.data.get('originalAuthorName', null) == resource.data.get('originalAuthorName', null) &&
-        request.resource.data.get('sharedAt', null) == resource.data.get('sharedAt', null);
+        request.resource.data.get('sharedAt', null) == resource.data.get('sharedAt', null) &&
+        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null);
 
       // Self-join: any authed user may add ONLY their own uid to participants
       // without changing any other field. Used by importers picking Synced

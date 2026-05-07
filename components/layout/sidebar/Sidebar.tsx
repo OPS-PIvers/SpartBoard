@@ -114,6 +114,7 @@ export const Sidebar: React.FC = () => {
     annotationActive,
     openAnnotation,
     closeAnnotation,
+    isActiveBoardReadOnly,
   } = useDashboard();
 
   // Mount the PLC listeners once at the Sidebar level and drill the data into
@@ -255,24 +256,30 @@ export const Sidebar: React.FC = () => {
           size="md"
         />
 
-        <IconButton
-          onClick={() =>
-            annotationActive ? closeAnnotation() : openAnnotation()
-          }
-          icon={<Pencil className="w-5 h-5" />}
-          label={
-            annotationActive
-              ? t('sidebar.header.stopAnnotating')
-              : t('sidebar.header.annotateScreen')
-          }
-          variant="brand-ghost"
-          size="md"
-          className={
-            annotationActive
-              ? '!bg-brand-blue-lighter !text-brand-blue-primary'
-              : ''
-          }
-        />
+        {/* Pencil button is hidden on View-Only shared boards. Viewers
+            can't push annotations through the live mirror (the host's
+            strokes flow in read-only via the dashboard subscribe path),
+            so exposing the toggle would be a dead control. */}
+        {!isActiveBoardReadOnly && (
+          <IconButton
+            onClick={() =>
+              annotationActive ? closeAnnotation() : openAnnotation()
+            }
+            icon={<Pencil className="w-5 h-5" />}
+            label={
+              annotationActive
+                ? t('sidebar.header.stopAnnotating')
+                : t('sidebar.header.annotateScreen')
+            }
+            variant="brand-ghost"
+            size="md"
+            className={
+              annotationActive
+                ? '!bg-brand-blue-lighter !text-brand-blue-primary'
+                : ''
+            }
+          />
+        )}
 
         <IconButton
           onClick={async () => {

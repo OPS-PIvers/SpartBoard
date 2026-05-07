@@ -312,3 +312,50 @@ describe('shared_boards — self-leave', () => {
     );
   });
 });
+
+// `intendedMode` is the host-chosen import mode. The recipient flow trusts
+// it to skip the picker and to drive role assignment, so any update path
+// that allows it to drift would let a participant spoof the host's choice.
+describe('shared_boards — intendedMode immutability', () => {
+  beforeEach(async () => {
+    // Re-seed with intendedMode so we can exercise the immutability check.
+    await testEnv.clearFirestore();
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `shared_boards/${SHARE_ID}`),
+        seededShare({ intendedMode: 'view-only' })
+      );
+    });
+  });
+
+  it('host CANNOT mutate intendedMode after create', async () => {
+    await assertFails(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        intendedMode: 'synced',
+        updatedAt: 2000,
+        updatedBy: HOST_UID,
+      })
+    );
+  });
+
+  it('collaborator CANNOT mutate intendedMode', async () => {
+    await assertFails(
+      updateDoc(doc(asCollab(), `shared_boards/${SHARE_ID}`), {
+        intendedMode: 'synced',
+        updatedAt: 2000,
+        updatedBy: COLLAB_UID,
+      })
+    );
+  });
+
+  it('host can still update content while intendedMode stays the same', async () => {
+    await assertSucceeds(
+      updateDoc(doc(asHost(), `shared_boards/${SHARE_ID}`), {
+        name: 'Renamed but mode preserved',
+        intendedMode: 'view-only',
+        updatedAt: 2000,
+        updatedBy: HOST_UID,
+      })
+    );
+  });
+});

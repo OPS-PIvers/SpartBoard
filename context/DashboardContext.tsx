@@ -26,7 +26,7 @@ import {
 } from '../types';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
-import { useFirestore } from '../hooks/useFirestore';
+import { useFirestore, type SharedBoardSnapshot } from '../hooks/useFirestore';
 import { TOOLS } from '../config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
 import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
@@ -197,23 +197,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [zoom, setZoom] = useState<number>(1);
 
   // --- Annotation (ephemeral full-screen draw-over overlay; NOT a widget) ---
+  // The `objects` array is stored on the active dashboard's
+  // `annotationOverlay` so it rides through the live-share mirror to all
+  // participants. Per-user UI state (color, width, palette) stays local.
   const [annotationActive, setAnnotationActive] = useState(false);
-  const [annotationState, setAnnotationState] = useState<AnnotationState>(
-    () => ({
-      objects: [],
-      color: STANDARD_COLORS.slate,
-      width: DRAWING_DEFAULTS.WIDTH,
-      customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
-    })
-  );
+  const [annotationLocalState, setAnnotationLocalState] = useState<
+    Omit<AnnotationState, 'objects'>
+  >(() => ({
+    color: STANDARD_COLORS.slate,
+    width: DRAWING_DEFAULTS.WIDTH,
+    customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
+  }));
 
   // Helper to centralize active dashboard switching and its side-effects (like zoom reset)
   const updateActiveId = useCallback((id: string | null) => {
     setActiveId(id);
     setZoom(1);
-    // Auto-close annotation when switching dashboards — annotations are board-local
+    // Auto-close annotation when switching dashboards — annotations are
+    // board-local. The objects themselves live on the dashboard's
+    // `annotationOverlay`, so switching boards naturally swaps which strokes
+    // are visible.
     setAnnotationActive(false);
-    setAnnotationState((prev) => ({ ...prev, objects: [] }));
   }, []);
 
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
@@ -654,10 +658,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const handleShareDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<string> => {
+    async (
+      dashboard: Dashboard,
+      intendedMode?: SharedBoardImportMode
+    ): Promise<string> => {
       // MANDATE: Share through Google Drive if available for non-admins.
       // Drive shares are one-time exports — they don't support live sync,
       // and we intentionally don't tag the local dashboard as `owner`.
+      // Drive-backed shares are always Copy-mode on the receiving end;
+      // intendedMode is ignored here.
       if (!isAdmin && driveService) {
         try {
           const fileId = await driveService.exportDashboard(dashboard);
@@ -678,7 +687,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // shared_boards seed up front so the very first write is clean too.
       const hostName = user?.displayName ?? user?.email ?? undefined;
       const scrubbedSeed = scrubDashboardPII(dashboard);
-      const shareId = await shareDashboardFirestore(scrubbedSeed, hostName);
+      const shareId = await shareDashboardFirestore(
+        scrubbedSeed,
+        intendedMode,
+        hostName
+      );
+      // Copy-mode shares are one-time snapshots. Don't tag the local
+      // dashboard as a live owner — there's no live sync to wire up.
+      if (intendedMode === 'copy') {
+        return shareId;
+      }
       const tagged: Dashboard = {
         ...dashboard,
         linkedShareId: shareId,
@@ -713,13 +731,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const handleLoadSharedDashboard = useCallback(
-    async (shareId: string): Promise<Dashboard | null> => {
+    async (shareId: string): Promise<SharedBoardSnapshot | null> => {
       if (shareId.startsWith('drive-')) {
         if (!driveService) {
           throw new Error('Google Drive access required to load this board');
         }
         const fileId = shareId.replace('drive-', '');
-        return driveService.importDashboard(fileId);
+        const drv = await driveService.importDashboard(fileId);
+        return drv as SharedBoardSnapshot | null;
       }
       return loadSharedDashboardFirestore(shareId);
     },
@@ -1687,10 +1706,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // Drive-backed shares are one-time exports; only Copy mode is
         // meaningful. Firestore-backed shares unlock all three modes.
         const driveBacked = currentShareId.startsWith('drive-');
+        // For Drive-backed shares, the doc itself doesn't carry intendedMode —
+        // force 'copy' so the recipient sees the single-action confirmation
+        // path instead of the legacy 3-option picker.
+        const sharedSnap = sharedDb as SharedBoardSnapshot | null;
+        const docIntendedMode = sharedSnap?.intendedMode;
+        const intendedMode: SharedBoardImportMode | undefined = driveBacked
+          ? 'copy'
+          : docIntendedMode;
         setPendingShareImport({
           shareId: currentShareId,
           preview: sharedDb,
           driveBacked,
+          ...(intendedMode ? { intendedMode } : {}),
         });
       } catch (err) {
         console.error('Failed to load shared dashboard:', err);
@@ -1927,8 +1955,63 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       return subscribeToSharedBoard(shareId, (remote) => {
         if (!remote) {
-          // Shared doc deleted by the host (revoked) — flag the local copy
-          // as "ended" but preserve the content.
+          // Shared doc deleted by the host (revoked). Behavior depends on
+          // the local user's role:
+          //  - viewer: View-Only is ephemeral end-to-end. Delete the local
+          //    dashboard so the user doesn't accumulate zombie copies.
+          //  - collaborator (or anything else): preserve content as a
+          //    detached editable copy and flag `linkedShareEnded` so the
+          //    UI can surface a "share ended" indicator.
+          const local = dashboardsRef.current.find((x) => x.id === dashboardId);
+          if (local?.linkedShareRole === 'viewer') {
+            const hostName = local.linkedShareHostName;
+            // Switch active dashboard away if the doomed board is current.
+            if (activeIdRef.current === dashboardId) {
+              const next = dashboardsRef.current.find(
+                (x) => x.id !== dashboardId
+              );
+              updateActiveId(next ? next.id : null);
+            }
+            // Delete from Firestore FIRST, then filter local state on success.
+            // Otherwise a transient Firestore failure leaves the local view
+            // gone but the persisted doc still present — on next load the
+            // zombie reappears, which is exactly the state we're trying to
+            // avoid for view-only.
+            void deleteDashboardFirestore(dashboardId).then(
+              () => {
+                setDashboards((prev) =>
+                  prev.filter((x) => x.id !== dashboardId)
+                );
+                addToast(
+                  hostName
+                    ? `Session closed by ${hostName}`
+                    : 'View-only session closed by host',
+                  'info'
+                );
+              },
+              (err: unknown) => {
+                console.error(
+                  'Failed to delete view-only dashboard after host stopped sharing:',
+                  err
+                );
+                // Fall back to the collaborator path (mark ended, keep
+                // content) so the user has a non-broken board to recover
+                // from. They can manually delete it later.
+                setDashboards((prev) =>
+                  prev.map((x) =>
+                    x.id === dashboardId && !x.linkedShareEnded
+                      ? { ...x, linkedShareEnded: true }
+                      : x
+                  )
+                );
+                addToast(
+                  'View-only session closed, but we couldn’t remove the local copy. Try deleting it manually.',
+                  'error'
+                );
+              }
+            );
+            return;
+          }
           setDashboards((prev) =>
             prev.map((x) =>
               x.id === dashboardId && !x.linkedShareEnded
@@ -1963,6 +2046,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               background: remote.background ?? x.background,
               globalStyle: remote.globalStyle ?? x.globalStyle,
               settings: remote.settings ?? x.settings,
+              // Live annotation overlay — hosts and collaborators push
+              // strokes through this field so all participants see strokes
+              // appear in real time. Falls back to the local copy when the
+              // remote omits it (legacy docs).
+              annotationOverlay:
+                remote.annotationOverlay ?? x.annotationOverlay,
               linkedShareEnded: false,
             };
             // Prime the mirror dedupe so the state change we just made
@@ -1981,7 +2070,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     };
     // linkedShareKeys captures only structural changes (which share/dashboard
     // pairs exist), not content edits — so we don't re-subscribe on every edit.
-  }, [linkedShareKeys, user, subscribeToSharedBoard]);
+  }, [
+    linkedShareKeys,
+    user,
+    subscribeToSharedBoard,
+    addToast,
+    deleteDashboardFirestore,
+    updateActiveId,
+  ]);
 
   const stopSharingDashboard = useCallback(
     async (dashboardId: string) => {
@@ -1990,12 +2086,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       const shareId = target.linkedShareId;
       const isOwner = target.linkedShareRole === 'owner';
+      const isViewer = target.linkedShareRole === 'viewer';
 
       try {
         if (isOwner) {
           await stopSharingBoard(shareId);
         } else {
-          // Guest: leave participants list, keep local copy.
+          // Guest: leave participants list. Local-side handling diverges by
+          // role (see below).
           await leaveSharedBoard(shareId);
         }
       } catch (err) {
@@ -2004,8 +2102,38 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
 
+      // Viewer leaving a View-Only board: View-Only is ephemeral end-to-end,
+      // so the local copy is removed instead of being kept as a detached
+      // editable dashboard. Switch active dashboard away first if needed.
+      if (isViewer) {
+        if (activeIdRef.current === dashboardId) {
+          const next = dashboardsRef.current.find((x) => x.id !== dashboardId);
+          updateActiveId(next ? next.id : null);
+        }
+        // Delete from Firestore first, then filter local state on success.
+        // Optimistically filtering before the Firestore round-trip leaves
+        // the doc orphaned if the delete fails — on next load it would
+        // reappear with `linkedShareId` cleared (since `leaveSharedBoard`
+        // ran), which is exactly the zombie copy view-only is supposed to
+        // avoid.
+        try {
+          await deleteDashboardFirestore(dashboardId);
+        } catch (err) {
+          console.error('Failed to delete view-only dashboard on leave:', err);
+          addToast(
+            'Left the share, but we couldn’t remove the local copy. Try deleting it manually.',
+            'error'
+          );
+          return;
+        }
+        setDashboards((prev) => prev.filter((d) => d.id !== dashboardId));
+        addToast('Left view-only board', 'success');
+        return;
+      }
+
       // Clear linkage on the local dashboard so the mirror/subscribe effects
-      // detach. The board's contents stay as a normal local dashboard.
+      // detach. The board's contents stay as a normal local dashboard for
+      // owners stopping a share and for collaborators leaving Synced.
       const detached: Dashboard = {
         ...target,
         linkedShareId: undefined,
@@ -2023,7 +2151,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       addToast(isOwner ? 'Stopped sharing' : 'Left shared board', 'success');
     },
-    [stopSharingBoard, leaveSharedBoard, saveDashboard, addToast]
+    [
+      stopSharingBoard,
+      leaveSharedBoard,
+      saveDashboard,
+      addToast,
+      deleteDashboardFirestore,
+      updateActiveId,
+    ]
   );
 
   // --- FOLDER ACTIONS ---
@@ -3630,6 +3765,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // --- Annotation actions ---
+  // Helper: write a new annotationOverlay onto the active dashboard. Used by
+  // every mutator below so all writes go through the same mirror-friendly
+  // path. Read-only check is intentionally NOT applied here for annotation —
+  // annotations on Synced boards are bidirectional by design (host and
+  // collaborator both push). For viewers, the pencil button is hidden in
+  // the UI, so they have no way to invoke these.
+  const setActiveAnnotationObjects = useCallback((next: DrawableObject[]) => {
+    const id = activeIdRef.current;
+    if (!id) return;
+    lastLocalUpdateAt.current = Date.now();
+    lastUpdateWasSettingsOnly.current = false;
+    setDashboards((prev) =>
+      prev.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              annotationOverlay: {
+                objects: next,
+                updatedAt: Date.now(),
+              },
+            }
+          : d
+      )
+    );
+  }, []);
+
   const openAnnotation = useCallback(() => {
     // Seed from admin building defaults for width + color palette.
     // `color` is not configurable at the admin level — keep the user's
@@ -3638,46 +3799,100 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       width?: number;
       customColors?: string[];
     };
-    setAnnotationState((prev) => ({
-      objects: [],
+    setAnnotationLocalState((prev) => ({
       color: prev.color,
       width: adminConfig.width ?? DRAWING_DEFAULTS.WIDTH,
       customColors: adminConfig.customColors ?? [
         ...DRAWING_DEFAULTS.CUSTOM_COLORS,
       ],
     }));
+    // Reset the dashboard's overlay so a fresh session starts blank for
+    // everyone (including remote participants on a synced board).
+    setActiveAnnotationObjects([]);
     setAnnotationActive(true);
-  }, [getAdminBuildingConfig]);
+  }, [getAdminBuildingConfig, setActiveAnnotationObjects]);
 
   const closeAnnotation = useCallback(() => {
     setAnnotationActive(false);
-    setAnnotationState((prev) => ({ ...prev, objects: [] }));
-  }, []);
+    // Clear shared strokes so collaborators / viewers see them disappear
+    // when the host (or any synced participant) ends the session.
+    setActiveAnnotationObjects([]);
+  }, [setActiveAnnotationObjects]);
 
   const updateAnnotationState = useCallback(
     (updates: Partial<AnnotationState>) => {
-      setAnnotationState((prev) => ({ ...prev, ...updates }));
+      const { objects: nextObjects, ...rest } = updates;
+      if (Object.keys(rest).length > 0) {
+        setAnnotationLocalState((prev) => ({ ...prev, ...rest }));
+      }
+      if (nextObjects !== undefined) {
+        setActiveAnnotationObjects(nextObjects);
+      }
     },
-    []
+    [setActiveAnnotationObjects]
   );
 
-  const addAnnotationObject = useCallback((obj: DrawableObject) => {
-    setAnnotationState((prev) => ({
-      ...prev,
-      objects: [...prev.objects, obj],
-    }));
-  }, []);
+  const addAnnotationObject = useCallback(
+    (obj: DrawableObject) => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      const stamped: DrawableObject = {
+        ...obj,
+        authorUid: obj.authorUid ?? user?.uid,
+      };
+      const current =
+        dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
+          ?.objects ?? [];
+      setActiveAnnotationObjects([...current, stamped]);
+    },
+    [setActiveAnnotationObjects, user?.uid]
+  );
 
   const undoAnnotation = useCallback(() => {
-    setAnnotationState((prev) => ({
-      ...prev,
-      objects: prev.objects.slice(0, -1),
-    }));
-  }, []);
+    const id = activeIdRef.current;
+    if (!id) return;
+    const current =
+      dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
+        ?.objects ?? [];
+    if (current.length === 0) return;
+    // Per-author undo: only remove the local user's most recent stroke so
+    // collaborators on a synced board can't accidentally clobber each
+    // other's drawings. Falls back to the very last object when the
+    // user's uid isn't known (auth-bypass / pre-stamped legacy data).
+    const uid = user?.uid;
+    let removeAt = -1;
+    if (uid) {
+      for (let i = current.length - 1; i >= 0; i--) {
+        if (current[i].authorUid === uid) {
+          removeAt = i;
+          break;
+        }
+      }
+    }
+    if (removeAt < 0) {
+      removeAt = current.length - 1;
+    }
+    const next = [
+      ...current.slice(0, removeAt),
+      ...current.slice(removeAt + 1),
+    ];
+    setActiveAnnotationObjects(next);
+  }, [setActiveAnnotationObjects, user?.uid]);
 
   const clearAnnotation = useCallback(() => {
-    setAnnotationState((prev) => ({ ...prev, objects: [] }));
-  }, []);
+    setActiveAnnotationObjects([]);
+  }, [setActiveAnnotationObjects]);
+
+  // Exposed `annotationState` merges per-user UI state with the active
+  // dashboard's shared object list. This keeps a single shape for consumers
+  // while making `objects` reactive to remote sync updates.
+  const annotationState = useMemo<AnnotationState>(
+    () => ({
+      ...annotationLocalState,
+      objects: activeDashboard?.annotationOverlay?.objects ?? [],
+    }),
+    [annotationLocalState, activeDashboard?.annotationOverlay?.objects]
+  );
 
   const contextValue = useMemo(
     () => ({

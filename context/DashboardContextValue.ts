@@ -17,7 +17,7 @@ import {
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
 
-/** Mode chosen by the recipient when pasting a shared-board URL. */
+/** Mode applied to a shared-board import. Mirrors `SharedBoardIntendedMode`. */
 export type SharedBoardImportMode = 'copy' | 'synced' | 'view-only';
 
 export interface PendingShareImport {
@@ -29,6 +29,12 @@ export interface PendingShareImport {
    * Firestore-backed shares support all three modes.
    */
   driveBacked: boolean;
+  /**
+   * The mode the host chose when creating the link, if present on the share
+   * doc. When set, the recipient flow shows a single confirmation dialog
+   * instead of a 3-option picker.
+   */
+  intendedMode?: SharedBoardImportMode;
 }
 
 export interface AnnotationState {
@@ -129,7 +135,10 @@ export interface DashboardContextValue {
   setGroupBuildMode: (active: boolean) => void;
 
   // Sharing system
-  shareDashboard: (dashboard: Dashboard) => Promise<string>;
+  shareDashboard: (
+    dashboard: Dashboard,
+    intendedMode?: SharedBoardImportMode
+  ) => Promise<string>;
   loadSharedDashboard: (shareId: string) => Promise<Dashboard | null>;
   pendingShareId: string | null;
   clearPendingShare: () => void;

@@ -15,7 +15,21 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
-import { Dashboard, SharedBoardParticipant } from '../types';
+import {
+  Dashboard,
+  SharedBoardIntendedMode,
+  SharedBoardParticipant,
+} from '../types';
+
+/**
+ * Snapshot returned from `loadSharedDashboard` — a normalized Dashboard plus
+ * the host-chosen `intendedMode` from the shared doc. Kept separate from the
+ * `Dashboard` type because intendedMode is doc-side metadata, not a per-user
+ * link field.
+ */
+export type SharedBoardSnapshot = Dashboard & {
+  intendedMode?: SharedBoardIntendedMode;
+};
 
 /**
  * Singleton pattern for mock storage in bypass mode.
@@ -104,9 +118,13 @@ class MockDashboardStore {
 
 class MockSharedStore {
   private static instance: MockSharedStore;
-  private shared: Map<string, Dashboard> = new Map();
-  private listeners: Map<string, Set<(d: Dashboard | null) => void>> =
-    new Map();
+  // Stored docs may carry shared-only fields (intendedMode, originalAuthorName);
+  // typed loosely to match the live Firestore shape without polluting Dashboard.
+  private shared: Map<string, Record<string, unknown>> = new Map();
+  private listeners: Map<
+    string,
+    Set<(d: Record<string, unknown> | null) => void>
+  > = new Map();
 
   private constructor() {
     // Private constructor for singleton
@@ -119,18 +137,25 @@ class MockSharedStore {
     return MockSharedStore.instance;
   }
 
-  add(dashboard: Dashboard): string {
+  add(dashboard: Dashboard | Record<string, unknown>): string {
     const id = 'share-' + Date.now();
-    const data = { ...dashboard, id };
+    const data = { ...(dashboard as Record<string, unknown>), id };
     this.shared.set(id, data);
     this.persist(id, data);
     return id;
   }
 
-  update(id: string, patch: Partial<Dashboard>): void {
+  update(
+    id: string,
+    patch: Partial<Dashboard> | Record<string, unknown>
+  ): void {
     const existing = this.get(id);
     if (!existing) return;
-    const updated = { ...existing, ...patch, id };
+    const updated = {
+      ...existing,
+      ...(patch as Record<string, unknown>),
+      id,
+    };
     this.shared.set(id, updated);
     this.persist(id, updated);
     this.notify(id, updated);
@@ -146,15 +171,15 @@ class MockSharedStore {
     this.notify(id, null);
   }
 
-  get(id: string): Dashboard | undefined {
+  get(id: string): Record<string, unknown> | undefined {
     if (this.shared.has(id)) return this.shared.get(id);
     try {
       const item = sessionStorage.getItem('mock_shared_' + id);
       if (item) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
         const data = JSON.parse(item);
-        this.shared.set(id, data as Dashboard);
-        return data as Dashboard;
+        this.shared.set(id, data as Record<string, unknown>);
+        return data as Record<string, unknown>;
       }
     } catch (e) {
       console.error('Failed to load mock share from storage', e);
@@ -162,7 +187,10 @@ class MockSharedStore {
     return undefined;
   }
 
-  subscribe(id: string, cb: (d: Dashboard | null) => void): () => void {
+  subscribe(
+    id: string,
+    cb: (d: Record<string, unknown> | null) => void
+  ): () => void {
     let bucket = this.listeners.get(id);
     if (!bucket) {
       bucket = new Set();
@@ -175,7 +203,7 @@ class MockSharedStore {
     };
   }
 
-  private persist(id: string, data: Dashboard): void {
+  private persist(id: string, data: Record<string, unknown>): void {
     try {
       sessionStorage.setItem('mock_shared_' + id, JSON.stringify(data));
     } catch (e) {
@@ -183,7 +211,7 @@ class MockSharedStore {
     }
   }
 
-  private notify(id: string, data: Dashboard | null): void {
+  private notify(id: string, data: Record<string, unknown> | null): void {
     this.listeners.get(id)?.forEach((cb) => cb(data));
   }
 }
@@ -199,16 +227,27 @@ const mockSharedStore = MockSharedStore.getInstance();
  * per-recipient state, not part of the broadcast). Map it back here so
  * downstream callers see a single canonical field.
  */
-function mapSharedDocToDashboard(data: unknown, shareId: string): Dashboard {
+function mapSharedDocToDashboard(
+  data: unknown,
+  shareId: string
+): SharedBoardSnapshot {
   const record = (data ?? {}) as Record<string, unknown>;
   const originalAuthorName =
     typeof record.originalAuthorName === 'string'
       ? record.originalAuthorName
       : undefined;
+  const rawIntendedMode = record.intendedMode;
+  const intendedMode: SharedBoardIntendedMode | undefined =
+    rawIntendedMode === 'copy' ||
+    rawIntendedMode === 'synced' ||
+    rawIntendedMode === 'view-only'
+      ? rawIntendedMode
+      : undefined;
   return {
     ...(record as unknown as Dashboard),
     id: shareId,
     ...(originalAuthorName ? { linkedShareHostName: originalAuthorName } : {}),
+    ...(intendedMode ? { intendedMode } : {}),
   };
 }
 
@@ -318,7 +357,11 @@ export const useFirestore = (userId: string | null) => {
   );
 
   const shareDashboard = useCallback(
-    async (dashboard: Dashboard, hostDisplayName?: string): Promise<string> => {
+    async (
+      dashboard: Dashboard,
+      intendedMode?: SharedBoardIntendedMode,
+      hostDisplayName?: string
+    ): Promise<string> => {
       if (isAuthBypass) {
         // Stash the host display name on the mock doc under the same field
         // the live path uses so loadSharedDashboard's mapping works in bypass.
@@ -326,6 +369,9 @@ export const useFirestore = (userId: string | null) => {
           ...dashboard,
           ...(hostDisplayName
             ? ({ originalAuthorName: hostDisplayName } as Partial<Dashboard>)
+            : {}),
+          ...(intendedMode
+            ? ({ intendedMode } as unknown as Partial<Dashboard>)
             : {}),
         } as Dashboard);
       }
@@ -348,6 +394,7 @@ export const useFirestore = (userId: string | null) => {
         sharedAt: Date.now(),
         originalAuthor: userId,
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
+        ...(intendedMode ? { intendedMode } : {}),
         participants: {},
         updatedAt: Date.now(),
         updatedBy: userId,
@@ -406,10 +453,12 @@ export const useFirestore = (userId: string | null) => {
   const subscribeToSharedBoard = useCallback(
     (
       shareId: string,
-      callback: (dashboard: Dashboard | null) => void
+      callback: (dashboard: SharedBoardSnapshot | null) => void
     ): (() => void) => {
       if (isAuthBypass) {
-        return mockSharedStore.subscribe(shareId, callback);
+        return mockSharedStore.subscribe(shareId, (raw) => {
+          callback(raw ? mapSharedDocToDashboard(raw, shareId) : null);
+        });
       }
       const docRef = doc(db, 'shared_boards', shareId);
       return onSnapshot(
@@ -446,14 +495,12 @@ export const useFirestore = (userId: string | null) => {
         const existing = mockSharedStore.get(shareId);
         if (!existing) return;
         const participants = {
-          ...((existing as unknown as Record<string, unknown>).participants as
+          ...(existing.participants as
             | Record<string, SharedBoardParticipant>
             | undefined),
           [userId]: entry,
         };
-        mockSharedStore.update(shareId, {
-          ...({ participants } as unknown as Partial<Dashboard>),
-        });
+        mockSharedStore.update(shareId, { participants });
         return;
       }
       const docRef = doc(db, 'shared_boards', shareId);
@@ -471,14 +518,12 @@ export const useFirestore = (userId: string | null) => {
         const existing = mockSharedStore.get(shareId);
         if (!existing) return;
         const participants = {
-          ...((existing as unknown as Record<string, unknown>).participants as
+          ...(existing.participants as
             | Record<string, SharedBoardParticipant>
             | undefined),
         };
         delete participants[userId];
-        mockSharedStore.update(shareId, {
-          ...({ participants } as unknown as Partial<Dashboard>),
-        });
+        mockSharedStore.update(shareId, { participants });
         return;
       }
       const docRef = doc(db, 'shared_boards', shareId);
@@ -503,7 +548,7 @@ export const useFirestore = (userId: string | null) => {
   );
 
   const loadSharedDashboard = useCallback(
-    async (shareId: string): Promise<Dashboard | null> => {
+    async (shareId: string): Promise<SharedBoardSnapshot | null> => {
       if (isAuthBypass) {
         const mock = mockSharedStore.get(shareId) ?? null;
         return mock ? mapSharedDocToDashboard(mock, shareId) : null;

@@ -25,6 +25,7 @@ import { Dashboard, DashboardTemplate } from '@/types';
 import { SortableDashboardItem } from './SortableDashboardItem';
 import { useDialog } from '@/context/useDialog';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
+import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { db as firestoreDb, isAuthBypass } from '@/config/firebase';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 
@@ -52,7 +53,6 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     renameDashboard,
     reorderDashboards,
     setDefaultDashboard,
-    shareDashboard,
     addToast,
   } = useDashboard();
 
@@ -64,6 +64,8 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     id: string;
     name: string;
   } | null>(null);
+  const [shareTargetDashboard, setShareTargetDashboard] =
+    useState<Dashboard | null>(null);
 
   // Template state
   const [templates, setTemplates] = useState<DashboardTemplate[]>([]);
@@ -139,34 +141,14 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
     [dashboards, reorderDashboards]
   );
 
-  const handleShare = async (db?: Dashboard) => {
+  const handleShare = (db?: Dashboard) => {
     if (!canAccessFeature('dashboard-sharing')) {
       addToast(t('toasts.boardSharingDisabled'), 'error');
       return;
     }
     const target = db ?? activeDashboard;
     if (!target) return;
-
-    addToast(t('toasts.generatingShareLink'), 'info');
-
-    try {
-      const shareId = await shareDashboard(target);
-      const url = `${window.location.origin}/share/${shareId}`;
-
-      try {
-        await navigator.clipboard.writeText(url);
-        addToast(t('toasts.linkCopied'), 'success');
-      } catch (clipErr) {
-        console.warn(
-          'Initial clipboard write failed, likely focus issue:',
-          clipErr
-        );
-        addToast(t('toasts.boardShared'), 'success');
-      }
-    } catch (err) {
-      console.error('Share failed:', err);
-      addToast(t('toasts.shareFailed'), 'error');
-    }
+    setShareTargetDashboard(target);
   };
 
   const handleImport = async () => {
@@ -460,6 +442,12 @@ export const SidebarBoards: React.FC<SidebarBoardsProps> = ({ isVisible }) => {
         isOpen={!!saveAsTemplateDash}
         currentDashboard={saveAsTemplateDash}
         onClose={() => setSaveAsTemplateDash(null)}
+      />
+
+      <ShareLinkCreatorModal
+        isOpen={!!shareTargetDashboard}
+        dashboard={shareTargetDashboard}
+        onClose={() => setShareTargetDashboard(null)}
       />
     </>
   );

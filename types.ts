@@ -385,6 +385,8 @@ export interface BaseDrawableObject {
   kind: DrawableObjectKind;
   z: number;
   rotation?: number;
+  /** UID of the user who drew this object — used to scope per-author Undo in synced annotation. */
+  authorUid?: string;
 }
 
 export interface PathObject extends BaseDrawableObject {
@@ -3841,7 +3843,23 @@ export interface Dashboard {
   linkedShareHostName?: string;
   /** True after the host has revoked the share — guests see a "share ended" indicator. */
   linkedShareEnded?: boolean;
+  /**
+   * Live annotation overlay (the pencil-icon draw-over). When the dashboard is
+   * part of a live share, this rides through the mirror so host + collaborator
+   * strokes propagate to all participants. Viewers receive but cannot write.
+   */
+  annotationOverlay?: {
+    objects: DrawableObject[];
+    updatedAt?: number;
+  };
 }
+
+/**
+ * Mode the host chose when creating a share link. Persisted on the
+ * /shared_boards/{shareId} doc as `intendedMode` so the recipient flow can
+ * honor the host's choice instead of letting the recipient pick.
+ */
+export type SharedBoardIntendedMode = 'copy' | 'synced' | 'view-only';
 
 /** Per-participant entry on a /shared_boards/{shareId} doc. */
 export interface SharedBoardParticipant {
