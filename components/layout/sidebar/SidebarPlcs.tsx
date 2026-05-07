@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Users2,
@@ -67,6 +67,23 @@ const PlcRow: React.FC<PlcRowProps> = ({
   const kebabRef = useRef<HTMLButtonElement>(null);
 
   useClickOutside(menuRef, () => setMenuOpen(false), [kebabRef]);
+
+  // Escape closes the menu and restores focus to the kebab button.
+  // `aria-haspopup="menu"` on the kebab implies this contract per WAI-ARIA
+  // menu-button practices. Mounted only while the menu is open to avoid a
+  // global listener tax for every PLC row in the sidebar.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setMenuOpen(false);
+        kebabRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [menuOpen]);
 
   const handleMenuClick = (e: React.MouseEvent, action: () => void) => {
     e.stopPropagation();

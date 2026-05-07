@@ -149,6 +149,23 @@ describe('users/{uid}/plc_layouts — owner-only', () => {
       })
     );
   });
+
+  it('rejects an oversized tiles list (> 50 entries)', async () => {
+    // Defense-in-depth size cap. Per-tile interior validation is delegated
+    // to the client parser, but the rule must still bound the doc size so
+    // a malicious extension can't weaponize the layout doc as unbounded
+    // storage on the user's own quota.
+    const oversized = Array.from({ length: 51 }, () => ({
+      kind: 'todos',
+      size: 'sm',
+    }));
+    await assertFails(
+      setDoc(doc(asMemberA(), `users/${MEMBER_A_UID}/plc_layouts/${PLC_ID}`), {
+        tiles: oversized,
+        updatedAt: 1,
+      })
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

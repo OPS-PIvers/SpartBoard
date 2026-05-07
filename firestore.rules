@@ -418,12 +418,21 @@ service cloud.firestore {
     // needed (a non-member's layout doc here would be inert because the
     // tiles can't read PLC content without passing the PLC rule gates).
     // Schema lock-down keeps the doc shape closed for future readers.
+    //
+    // Per-tile interior validation (kind / size enums) is intentionally
+    // delegated to the client parser in `usePlcOverviewLayout.ts` rather
+    // than CEL: Firestore rules don't expose `.every()` over lists, and
+    // the blast radius of garbage tile entries is bounded to the user's
+    // own dashboard (the rule scope is owner-only). The tiles-list size
+    // cap below prevents a single doc from being weaponized as unbounded
+    // storage.
     match /users/{userId}/plc_layouts/{plcId} {
       allow read, delete: if request.auth != null && request.auth.uid == userId;
       allow write: if request.auth != null
                    && request.auth.uid == userId
                    && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
                    && request.resource.data.tiles is list
+                   && request.resource.data.tiles.size() <= 50
                    && request.resource.data.updatedAt is int;
     }
 

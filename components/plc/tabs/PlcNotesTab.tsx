@@ -50,6 +50,12 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
   // cancel.
   const pendingPatchRef = useRef<{ title?: string; body?: string }>({});
   const pendingNoteIdRef = useRef<string | null>(null);
+  // State mirror of `pendingNoteIdRef` for render-time consumption. Refs
+  // can't be read during render (react-hooks/refs lint rule), but the
+  // remote-edit re-sync below needs to know if the active note has unsaved
+  // local edits — otherwise a teammate's snapshot would clobber the user's
+  // in-flight typing.
+  const [pendingNoteId, setPendingNoteId] = useState<string | null>(null);
 
   // Auto-select the most-recent note once data lands. Same "adjust state
   // during render" pattern used elsewhere in the repo.
@@ -88,8 +94,14 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
   } else if (
     selectedNote &&
     syncedSnapshot &&
-    selectedNote.lastEditedAt > syncedSnapshot.lastEditedAt
+    selectedNote.lastEditedAt > syncedSnapshot.lastEditedAt &&
+    pendingNoteId !== selectedNote.id
   ) {
+    // Remote edit landed on the active note AND we have no unsaved local
+    // edits for it — accept the remote update. When `pendingNoteId` matches
+    // the selection, the user is mid-typing; their drafts win until the
+    // debounce flushes (at which point `lastEditedAt` will catch up and
+    // this branch becomes a no-op).
     setSyncedSnapshot({
       id: selectedNote.id,
       lastEditedAt: selectedNote.lastEditedAt,
@@ -107,6 +119,7 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
     const toSave = pendingPatchRef.current;
     pendingPatchRef.current = {};
     pendingNoteIdRef.current = null;
+    setPendingNoteId(null);
     if (!id || (toSave.title === undefined && toSave.body === undefined)) {
       return;
     }
@@ -122,6 +135,7 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
     }
     pendingPatchRef.current = {};
     pendingNoteIdRef.current = null;
+    setPendingNoteId(null);
   };
 
   // Flush pending debounced writes on unmount so a fast tab close doesn't
@@ -143,6 +157,7 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
       flushPendingSave();
     }
     pendingNoteIdRef.current = id;
+    setPendingNoteId(id);
     pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
     if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
