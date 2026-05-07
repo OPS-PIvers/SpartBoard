@@ -177,9 +177,14 @@ const MyAssignmentsPage: React.FC = () => {
 
   // Partition assignments according to the rule in the plan. Compute once
   // at the page level and slice per scope (overview vs class) below.
+  // Also collects the set of compositeIds for ended-channel rows surfaced
+  // optimistically (completion still 'unknown') so the list rows can render
+  // a muted "Checking…" visual instead of looking like a real Completed
+  // entry until the per-row check confirms participation.
   const partitioned = useMemo(() => {
     const active: AssignmentSummary[] = [];
     const completed: AssignmentSummary[] = [];
+    const pendingVerificationKeys = new Set<string>();
     for (const a of assignments) {
       const completion = completionMap[`${a.kind}:${a.sessionId}`] ?? 'unknown';
       if (completion === 'completed') {
@@ -187,17 +192,30 @@ const MyAssignmentsPage: React.FC = () => {
         continue;
       }
       if (a.channel === 'ended') {
-        // Ended-channel rows the student didn't complete are hidden.
+        // Surface ended-channel rows in Completed while the per-row
+        // completion check is still resolving. The check only fires when
+        // AssignmentListItem mounts, so filtering 'unknown' rows out here
+        // would prevent the check from ever running and a participating
+        // student's completed assignment would stay hidden forever even
+        // though their response doc exists. Once the check resolves to
+        // 'not-completed' (student wasn't part of this session), the row
+        // drops out on the next pass.
+        if (completion === 'not-completed') continue;
+        completed.push(a);
+        pendingVerificationKeys.add(a.compositeId);
         continue;
       }
       active.push(a);
     }
-    return { active, completed };
+    return { active, completed, pendingVerificationKeys };
   }, [assignments, completionMap]);
 
   // Per-class slices. Multi-class assignments appear under each matching
   // class because `assignment.classIds` is the intersection with the
-  // student's claims (computed in useStudentAssignments).
+  // student's claims (computed in useStudentAssignments). The pending-
+  // verification key set is invariant under class slicing — keying by
+  // compositeId makes filtering a no-op — so the same set is reused for
+  // every scope.
   const slicedForClass = useCallback(
     (classId: string | null) => {
       if (classId === null) {
@@ -207,6 +225,7 @@ const MyAssignmentsPage: React.FC = () => {
       return {
         active: partitioned.active.filter(inClass),
         completed: partitioned.completed.filter(inClass),
+        pendingVerificationKeys: partitioned.pendingVerificationKeys,
       };
     },
     [partitioned]
@@ -302,6 +321,7 @@ const MyAssignmentsPage: React.FC = () => {
             pseudonymUid={pseudonymUid}
             directoryById={directory.byId}
             onCompletionResolved={onCompletionResolved}
+            pendingVerificationKeys={visibleScope.pendingVerificationKeys}
           />
         ) : (
           <StudentClassView
@@ -315,6 +335,7 @@ const MyAssignmentsPage: React.FC = () => {
             pseudonymUid={pseudonymUid}
             directoryById={directory.byId}
             onCompletionResolved={onCompletionResolved}
+            pendingVerificationKeys={visibleScope.pendingVerificationKeys}
           />
         )}
       </PageShell>

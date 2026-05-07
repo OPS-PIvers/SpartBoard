@@ -21,6 +21,7 @@ interface StudentOverviewProps {
     kind: AssignmentSummary['kind'],
     completion: CompletionState
   ) => void;
+  pendingVerificationKeys?: ReadonlySet<string>;
 }
 
 export const StudentOverview: React.FC<StudentOverviewProps> = ({
@@ -32,6 +33,7 @@ export const StudentOverview: React.FC<StudentOverviewProps> = ({
   pseudonymUid,
   directoryById,
   onCompletionResolved,
+  pendingVerificationKeys,
 }) => {
   const total = active.length + completed.length;
   const dueToday = active.length;
@@ -80,6 +82,7 @@ export const StudentOverview: React.FC<StudentOverviewProps> = ({
         pseudonymUid={pseudonymUid}
         directoryById={directoryById}
         onCompletionResolved={onCompletionResolved}
+        pendingVerificationKeys={pendingVerificationKeys}
       />
     </div>
   );

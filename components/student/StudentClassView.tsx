@@ -24,6 +24,7 @@ interface StudentClassViewProps {
     kind: AssignmentSummary['kind'],
     completion: CompletionState
   ) => void;
+  pendingVerificationKeys?: ReadonlySet<string>;
 }
 
 export const StudentClassView: React.FC<StudentClassViewProps> = ({
@@ -37,6 +38,7 @@ export const StudentClassView: React.FC<StudentClassViewProps> = ({
   pseudonymUid,
   directoryById,
   onCompletionResolved,
+  pendingVerificationKeys,
 }) => {
   const color = getClassColor(classId);
   const className = classEntry?.name ?? 'Class';
@@ -87,6 +89,7 @@ export const StudentClassView: React.FC<StudentClassViewProps> = ({
         directoryById={directoryById}
         hideClassName
         onCompletionResolved={onCompletionResolved}
+        pendingVerificationKeys={pendingVerificationKeys}
       />
     </div>
   );

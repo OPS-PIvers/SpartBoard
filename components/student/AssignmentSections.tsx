@@ -14,7 +14,13 @@ import type { AssignmentFilterMode } from './AssignmentFilterTabs';
  *   - completion === 'completed' → Completed section
  *   - completion === 'not-completed' AND channel === 'active' → Active
  *   - completion === 'not-completed' AND channel === 'ended' → hidden
- *   - completion === 'unknown' → Active (with neutral pill, resolves later)
+ *   - completion === 'unknown' AND channel === 'active' → Active (with neutral pill, resolves later)
+ *   - completion === 'unknown' AND channel === 'ended' → Completed (optimistic;
+ *       lets AssignmentListItem mount so its completion check can fire and
+ *       either keep the row in Completed or filter it out). Rows in this
+ *       state render with the muted "Checking…" treatment via
+ *       `pendingVerificationKeys` so the student doesn't see a row that
+ *       looks like a confirmed completion before the check has resolved.
  */
 
 interface AssignmentSectionsProps {
@@ -29,6 +35,12 @@ interface AssignmentSectionsProps {
     kind: AssignmentSummary['kind'],
     completion: CompletionState
   ) => void;
+  /**
+   * Set of `${kind}:${sessionId}` keys for rows surfaced in Completed
+   * optimistically (ended channel, completion check still resolving).
+   * Drives the muted "Checking…" visual on the matching list rows.
+   */
+  pendingVerificationKeys?: ReadonlySet<string>;
   /** Optional override for the all-empty state (mode='all', both sections empty). */
   emptyAll?: React.ReactNode;
 }
@@ -41,6 +53,7 @@ export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
   directoryById,
   hideClassName,
   onCompletionResolved,
+  pendingVerificationKeys,
   emptyAll,
 }) => {
   const showActive = mode === 'all' || mode === 'active';
@@ -119,6 +132,7 @@ export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
               }
               hideClassName={hideClassName}
               onCompletionResolved={onCompletionResolved}
+              pendingVerification={pendingVerificationKeys?.has(a.compositeId)}
             />
           ))}
         </Section>
