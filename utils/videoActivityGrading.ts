@@ -17,7 +17,21 @@
  */
 
 import type { GradeResult, VideoActivityQuestion } from '@/types';
-import { normalizeAnswer } from '@/hooks/useQuizSession';
+import { normalizeAnswer as quizNormalizeAnswer } from '@/hooks/useQuizSession';
+
+/**
+ * VA-specific answer normalization. Applies Quiz's whitespace + case pass
+ * AND additionally strips combining diacritical marks (NFD + remove
+ * `̀-ͯ`), so that `café` and `cafe`, `naïve` and `naive`, or
+ * `résumé` and `resume` all compare as equivalent. This is a deliberate
+ * VA-only forgiveness — Quiz's own grading stays strict to keep Matching
+ * pair-equality behavior unchanged.
+ */
+function normalizeAnswer(s: string): string {
+  return quizNormalizeAnswer(s)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+}
 
 /**
  * Grade a single Video Activity answer.

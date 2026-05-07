@@ -215,6 +215,11 @@ export const VideoActivityEditorModal: React.FC<
     ]
   );
 
+  const totalPoints = useMemo(
+    () => questions.reduce((sum, q) => sum + (q.points ?? 1), 0),
+    [questions]
+  );
+
   const updateQuestion = (
     id: string,
     updates: Partial<VideoActivityQuestion>
@@ -329,8 +334,24 @@ export const VideoActivityEditorModal: React.FC<
           .split('|')
           .map((s) => s.trim())
           .filter((s) => s.length > 0).length;
-        if (correctCount === 0) {
+        const incorrectCount = (q.incorrectAnswers ?? []).filter(
+          (s) => s.trim().length > 0
+        ).length;
+        if (correctCount + incorrectCount === 0) {
+          errors.push(`Question ${i + 1}: add at least one option`);
+        } else if (correctCount === 0) {
           errors.push(`Question ${i + 1}: select at least one correct option`);
+        }
+        // Defense-in-depth: a `|` in option text would corrupt the
+        // pipe-encoded `correctAnswer` wire format silently.
+        const hasPipe = [
+          ...q.correctAnswer.split('|'),
+          ...(q.incorrectAnswers ?? []),
+        ].some((s) => s.includes('|'));
+        if (hasPipe) {
+          errors.push(
+            `Question ${i + 1}: option text cannot contain the | character`
+          );
         }
       } else if (!q.correctAnswer.trim()) {
         errors.push(`Question ${i + 1}: correct answer is required`);
@@ -380,10 +401,7 @@ export const VideoActivityEditorModal: React.FC<
       subtitle={
         <span>
           {questions.length} {questions.length === 1 ? 'question' : 'questions'}{' '}
-          • {questions.reduce((sum, q) => sum + (q.points ?? 1), 0)}{' '}
-          {questions.reduce((sum, q) => sum + (q.points ?? 1), 0) === 1
-            ? 'point'
-            : 'points'}
+          • {totalPoints} {totalPoints === 1 ? 'point' : 'points'}
         </span>
       }
       isDirty={isDirty}
@@ -614,15 +632,28 @@ export const VideoActivityEditorModal: React.FC<
                             type="button"
                             aria-pressed={active}
                             onClick={() => {
-                              // When type changes, reset format-specific fields
-                              // so we don't carry stale MA pipe-encodings into
-                              // a fresh MC question, etc.
                               if (opt.value === q.type) return;
+                              // Preserve non-empty distractor rows across
+                              // type changes so a teacher who's already typed
+                              // a few options doesn't lose their work. Reset
+                              // format-specific encodings (MA pipe-encoding,
+                              // FIB variants, partial-credit flag) so they
+                              // don't bleed into the new type's semantics.
+                              const preservedDistractors = (
+                                q.incorrectAnswers ?? []
+                              ).filter((s) => s.trim().length > 0);
+                              const padTo = (arr: string[], n: number) => {
+                                const out = [...arr];
+                                while (out.length < n) out.push('');
+                                return out;
+                              };
                               updateQuestion(q.id, {
                                 type: opt.value,
                                 correctAnswer: '',
                                 incorrectAnswers:
-                                  opt.value === 'FIB' ? [] : ['', '', ''],
+                                  opt.value === 'FIB'
+                                    ? []
+                                    : padTo(preservedDistractors, 3),
                                 acceptableVariants: undefined,
                                 allowPartialCredit: false,
                               });
@@ -879,52 +910,99 @@ interface MaSubFormProps {
   onUpdate: (patch: Partial<VideoActivityQuestion>) => void;
 }
 
+interface MaRow {
+  text: string;
+  isCorrect: boolean;
+}
+
 /**
- * MA editor: a single combined "options" list where the teacher checks
- * each correct option. We persist the correct selections into
- * `correctAnswer` as `'opt1|opt2|opt3'` and the unchecked options into
- * `incorrectAnswers`. This keeps the wire format aligned with the
- * existing Matching/Ordering convention and works with the shared
- * grader's set-compare logic.
+ * Build the local row state from the wire format. The wire format
+ * (`correctAnswer` + `incorrectAnswers`) is disjoint, so we render
+ * correct rows first, then incorrect, then pad. This is the ONLY
+ * place we read the wire format directly — every subsequent edit
+ * mutates the local row state and re-derives the wire format.
  */
-const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
-  const correctSelections = (question.correctAnswer ?? '')
+function rowsFromQuestion(question: VideoActivityQuestion): MaRow[] {
+  const correct = (question.correctAnswer ?? '')
     .split('|')
     .map((s) => s.trim())
     .filter((s) => s.length > 0);
-  const allOptions = [
-    ...correctSelections,
-    ...(question.incorrectAnswers ?? []),
+  const incorrect = (question.incorrectAnswers ?? []).filter(
+    (s) => s.trim().length > 0
+  );
+  const rows: MaRow[] = [
+    ...correct.map((text) => ({ text, isCorrect: true })),
+    ...incorrect.map((text) => ({ text, isCorrect: false })),
   ];
   // Pad to at least 4 rows so the teacher always has a place to type.
-  while (allOptions.length < 4) allOptions.push('');
+  while (rows.length < 4) rows.push({ text: '', isCorrect: false });
+  return rows;
+}
 
-  const setOptionAt = (idx: number, value: string) => {
-    const next = [...allOptions];
-    next[idx] = value;
-    persist(next, isCheckedAt);
-  };
+/**
+ * MA editor: a single combined "options" list where the teacher checks
+ * each correct option. Persists the correct selections into
+ * `correctAnswer` as `'opt1|opt2|opt3'` and the unchecked options into
+ * `incorrectAnswers` — wire format aligned with Matching/Ordering and the
+ * shared grader's set-compare.
+ *
+ * **Why local state for rows?** Using `correctAnswer.split('|')` directly
+ * for rendering meant every toggle re-partitioned the visible row order
+ * (because `correctSelections.length` changed), causing rows to visibly
+ * jump positions. We hold the row order in component state, decoupled
+ * from persistence, so toggling only flips `isCorrect` without reordering.
+ */
+const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
+  const [rows, setRows] = useState<MaRow[]>(() => rowsFromQuestion(question));
 
-  const isCheckedAt = (idx: number): boolean => idx < correctSelections.length;
+  // If the question identity changes (different question expanded), reset
+  // the local row state. Adjusting state during render — same pattern used
+  // elsewhere in this file for editor-prop changes.
+  const [prevQuestionId, setPrevQuestionId] = useState(question.id);
+  if (prevQuestionId !== question.id) {
+    setPrevQuestionId(question.id);
+    setRows(rowsFromQuestion(question));
+  }
 
-  const toggleAt = (idx: number) => {
-    persist(allOptions, (i) => (i === idx ? !isCheckedAt(i) : isCheckedAt(i)));
-  };
-
-  function persist(rows: string[], isCorrect: (idx: number) => boolean) {
+  const persist = (next: MaRow[]): void => {
     const correct: string[] = [];
     const incorrect: string[] = [];
-    rows.forEach((r, idx) => {
-      const trimmed = r.trim();
+    next.forEach((r) => {
+      const trimmed = r.text.trim();
       if (trimmed.length === 0) return;
-      if (isCorrect(idx)) correct.push(trimmed);
+      if (r.isCorrect) correct.push(trimmed);
       else incorrect.push(trimmed);
     });
     onUpdate({
       correctAnswer: correct.join('|'),
       incorrectAnswers: incorrect,
     });
-  }
+  };
+
+  const setRowsAndPersist = (next: MaRow[]) => {
+    setRows(next);
+    persist(next);
+  };
+
+  const setOptionAt = (idx: number, value: string) => {
+    setRowsAndPersist(
+      rows.map((r, i) => (i === idx ? { ...r, text: value } : r))
+    );
+  };
+
+  const isCheckedAt = (idx: number): boolean => rows[idx]?.isCorrect ?? false;
+
+  const toggleAt = (idx: number) => {
+    setRowsAndPersist(
+      rows.map((r, i) => (i === idx ? { ...r, isCorrect: !r.isCorrect } : r))
+    );
+  };
+
+  // Detect a teacher typing a `|` into an option text — the wire format
+  // would silently corrupt because `correctAnswer.split('|')` would treat
+  // it as a separator. Render an inline warning rather than a toast so the
+  // teacher sees it next to the offending input.
+  const hasPipeInOption = rows.some((r) => r.text.includes('|'));
 
   return (
     <>
@@ -936,7 +1014,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
           </span>
         </label>
         <div className="grid gap-2">
-          {allOptions.map((opt, idx) => {
+          {rows.map((row, idx) => {
             const checked = isCheckedAt(idx);
             return (
               <div key={idx} className="flex items-center gap-2">
@@ -955,7 +1033,7 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
                 </button>
                 <input
                   type="text"
-                  value={opt}
+                  value={row.text}
                   onChange={(e) => setOptionAt(idx, e.target.value)}
                   placeholder={`Option ${idx + 1}`}
                   className={`flex-1 px-3 py-1.5 bg-white border rounded-xl font-medium focus:outline-none shadow-sm text-sm ${
@@ -968,6 +1046,14 @@ const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
             );
           })}
         </div>
+        {hasPipeInOption && (
+          <p className="text-xxs text-amber-600 font-medium pl-9">
+            Option text contains a pipe (<code>|</code>) character, which is
+            reserved as the wire format separator. Replace it with another
+            character before saving — otherwise the question will grade
+            incorrectly.
+          </p>
+        )}
       </div>
 
       <label className="flex items-center gap-2 cursor-pointer">

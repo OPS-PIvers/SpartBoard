@@ -188,6 +188,36 @@ describe('gradeVideoActivityAnswer — MA', () => {
   });
 });
 
+describe('gradeVideoActivityAnswer — Unicode normalization (VA-specific)', () => {
+  it('treats accented and unaccented as equivalent (FIB)', () => {
+    const result = gradeVideoActivityAnswer(
+      q({ type: 'FIB', correctAnswer: 'café' }),
+      'cafe'
+    );
+    expect(result.isCorrect).toBe(true);
+  });
+
+  it('reverse direction also works — accented student, unaccented canonical', () => {
+    const result = gradeVideoActivityAnswer(
+      q({ type: 'FIB', correctAnswer: 'naive' }),
+      'naïve'
+    );
+    expect(result.isCorrect).toBe(true);
+  });
+
+  it('strips combining marks across MA option compare', () => {
+    const result = gradeVideoActivityAnswer(
+      q({
+        type: 'MA',
+        correctAnswer: 'résumé|élève',
+        incorrectAnswers: ['école'],
+      }),
+      'resume|eleve'
+    );
+    expect(result.isCorrect).toBe(true);
+  });
+});
+
 describe('gradeVideoActivityAnswer — defensive defaults', () => {
   it('treats missing type as MC', () => {
     const result = gradeVideoActivityAnswer(
@@ -206,6 +236,16 @@ describe('gradeVideoActivityAnswer — defensive defaults', () => {
     );
     expect(result.pointsMax).toBe(1);
     expect(result.pointsEarned).toBe(1);
+  });
+
+  it('points: 0 produces zero pointsEarned and pointsMax', () => {
+    const result = gradeVideoActivityAnswer(
+      q({ type: 'MC', correctAnswer: 'X', points: 0 }),
+      'X'
+    );
+    expect(result.isCorrect).toBe(true);
+    expect(result.pointsEarned).toBe(0);
+    expect(result.pointsMax).toBe(0);
   });
 
   it('unknown type fails closed', () => {
