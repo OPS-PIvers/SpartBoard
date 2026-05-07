@@ -84,30 +84,21 @@ test.describe('Board Sharing', () => {
     await page.getByRole('button', { name: /create link/i }).click();
 
     // The result panel shows the URL in an input (aria-label "Share link
-    // URL"). Wait for it to appear — this is the success signal that
-    // replaces the legacy "Link copied" toast.
+    // URL"). Wait for it to appear AND validate the URL shape directly on
+    // the input — the input's value is the source of truth and works even
+    // when the clipboard mock fails to capture the auto-copy. This
+    // replaces the legacy "Link copied" toast assertion.
     const shareUrlInput = page.getByLabel('Share link URL');
     await expect(shareUrlInput).toBeVisible({ timeout: 15000 });
+    await expect(shareUrlInput).toHaveValue(/\/share\//, { timeout: 15000 });
 
-    // The modal auto-copies on Create; if the clipboard mock didn't catch
-    // it, fall back to reading the URL straight out of the input. Either
-    // way the toast-based assertion is gone — the visible URL panel is
-    // proof of success.
+    // Prefer the clipboard-mock value when present (covers the auto-copy
+    // path); fall back to reading the input directly so the import
+    // roundtrip below always has a URL to navigate to.
     if (!clipboardText) {
-      const inputValue = await shareUrlInput.inputValue();
-      if (inputValue.includes('/share/')) {
-        clipboardText = inputValue;
-      }
+      clipboardText = await shareUrlInput.inputValue();
     }
-
-    if (!clipboardText) {
-      // eslint-disable-next-line no-console
-      console.log(
-        'Clipboard mock empty and URL input empty — skipping specific URL check.'
-      );
-    } else {
-      expect(clipboardText).toContain('/share/');
-    }
+    expect(clipboardText).toContain('/share/');
 
     // If we have a URL, test visiting it. If not (clipboard mock fail), skip the visit part to avoid failing the whole suite on a flake
     if (clipboardText && clipboardText.includes('/share/')) {

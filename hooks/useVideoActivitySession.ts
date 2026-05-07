@@ -26,7 +26,10 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { computeResponseKey } from '@/hooks/useQuizSession';
+import {
+  computeResponseKey,
+  encodeResponseKeySegment,
+} from '@/hooks/useQuizSession';
 import {
   AssignmentMode,
   VideoActivitySession,
@@ -590,11 +593,17 @@ export const useVideoActivitySessionStudent =
             classPeriod
           );
 
-          // Defense against the encoder's `'default'` fallback — when the
-          // PIN and period are both all-special-chars or empty, both
-          // segments collapse to `'default'` and unrelated students collide
-          // on the same doc. Surface a user-facing error instead.
-          if (isAnonymous && responseDocKey === 'pin-default-default') {
+          // Defense against the encoder's `'default'` fallback. The PIN
+          // segment is the per-student field, so any all-special-character
+          // input collapses to `'default'` and two such students in the
+          // same period collide on the same doc — a much more reachable
+          // shape than both-segments-default. Surface a user-facing error
+          // instead. (Period defaulting alone is harmless because there's
+          // only one period bucket per session.)
+          if (
+            isAnonymous &&
+            encodeResponseKeySegment(studentPin) === 'default'
+          ) {
             setJoinStatus('error');
             setError(
               'Your PIN is in an unsupported format. Please check the PIN your teacher gave you.'

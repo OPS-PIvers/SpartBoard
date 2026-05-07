@@ -3,7 +3,7 @@
  * Adapted from QuizResults. Shows per-student scores and per-question accuracy.
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Download,
@@ -20,7 +20,7 @@ import { VideoActivityResponse, VideoActivitySession } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
-  useAssignmentPseudonyms,
+  useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 
@@ -36,9 +36,19 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
 }) => {
   const { googleAccessToken, orgId } = useAuth();
-  const { byStudentUid } = useAssignmentPseudonyms(
+  // Use the multi-class variant — `session.classId` is a transitional
+  // mirror of `classIds[0]` only, so the single-class hook would miss
+  // SSO students from `classIds[1+]` on multi-class assignments and
+  // their export rows would fall back to the generic "Student" label.
+  // Mirrors the QuizLiveMonitor pattern.
+  const sessionClassIds = useMemo(() => {
+    if (session.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session.classId ? [session.classId] : [];
+  }, [session.classIds, session.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
     session.id,
-    session.classId ?? null,
+    sessionClassIds,
     orgId
   );
   const [exporting, setExporting] = useState(false);

@@ -53,7 +53,11 @@ function resolveSsoClassPeriod(
     .filter((id) => sessionClassIds.size === 0 || sessionClassIds.has(id))
     .map((id) => map[id])
     .filter((period): period is string => typeof period === 'string');
-  if (matches.length !== 1) return undefined;
+  // Dedupe so a student enrolled in multiple targeted classes that share
+  // the same period name (e.g. teacher labelled both "Period 1") still
+  // resolves cleanly. Only `Set.size !== 1` is genuinely ambiguous.
+  const unique = new Set(matches);
+  if (unique.size !== 1) return undefined;
   return matches[0];
 }
 
@@ -199,20 +203,21 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const [lookingUp, setLookingUp] = useState(false);
 
   // SSO auto-join. Mirrors QuizStudentApp's pattern: a single ref guards
-  // against StrictMode double-invoke. The ref is reset whenever
-  // `joinStatus` flips to `'error'` so a transient Firestore hiccup
-  // doesn't strand the student on a permanent loader — the next render
-  // (e.g. a refresh, network recovery) re-arms the effect for another
-  // attempt. Local `ssoAutoJoinError` covers the lookup-failure leg
-  // (`lookupSession` swallows errors and returns `null`); the hook's own
-  // `error`/`joinStatus` carry post-lookup failures.
+  // against StrictMode double-invoke. When `joinStatus` flips to `'error'`,
+  // the render-time reset below clears the ref AND `joinStatus` is in the
+  // effect deps, so the effect re-fires once on the next render — letting
+  // a transient Firestore failure recover without a page refresh. Local
+  // `ssoAutoJoinError` covers the lookup-failure leg (`lookupSession`
+  // swallows errors and returns `null`); the hook's own `error`/
+  // `joinStatus` carry post-lookup failures.
   const ssoAutoJoinStartedRef = useRef(false);
   const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
 
-  // Re-arm the started ref when the hook reports an error so a recoverable
-  // failure (e.g. transient network) can retry on the next effect pass.
-  // Done as adjust-state-during-render rather than an effect to avoid an
-  // extra render cycle (per CLAUDE.md "useEffect is an escape hatch").
+  // Re-arm the started ref when the hook reports an error so the effect
+  // pass below can retry. Done as adjust-state-during-render rather than
+  // an effect to avoid an extra render cycle (per CLAUDE.md "useEffect is
+  // an escape hatch"). Pairs with `joinStatus` in the effect deps —
+  // without that dep, the reset would have nothing to trigger the rerun.
   if (joinStatus === 'error' && ssoAutoJoinStartedRef.current) {
     ssoAutoJoinStartedRef.current = false;
   }
@@ -241,12 +246,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         );
       }
     })();
-    // `joinStatus` is intentionally omitted from deps. The ref guard above
-    // and the early-return on 'joined'/'loading' make a status-driven
-    // re-fire redundant; including it would just trigger a no-op re-render
-    // on every status transition.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isStudentRole, sessionId, ssoClassIds, lookupSession, joinSession]);
+  }, [
+    isStudentRole,
+    sessionId,
+    ssoClassIds,
+    lookupSession,
+    joinSession,
+    joinStatus,
+  ]);
 
   // Track answered question IDs for anti-skip enforcement in VideoPlayer
   const answeredQuestionIds = React.useMemo(

@@ -30,7 +30,7 @@ import {
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
 import {
-  useAssignmentPseudonyms,
+  useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -313,9 +313,18 @@ export const VideoActivityLiveMonitor: React.FC<
   const { orgId } = useAuth();
   // SSO `studentRole` responses carry no PIN or self-typed name; resolve
   // their roster identities here so the monitor row labels stay populated.
-  const { byStudentUid } = useAssignmentPseudonyms(
+  // Use the multi-class variant — `session.classId` is a transitional
+  // mirror of `classIds[0]` only, so the single-class hook would miss
+  // SSO students from `classIds[1+]` entirely on multi-class assignments.
+  // Mirrors the QuizLiveMonitor pattern.
+  const sessionClassIds = useMemo(() => {
+    if (session.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session.classId ? [session.classId] : [];
+  }, [session.classIds, session.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
     session.id,
-    session.classId ?? null,
+    sessionClassIds,
     orgId
   );
   const questions = session.questions;
