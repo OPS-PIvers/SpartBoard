@@ -187,7 +187,16 @@ const MyAssignmentsPage: React.FC = () => {
         continue;
       }
       if (a.channel === 'ended') {
-        // Ended-channel rows the student didn't complete are hidden.
+        // Surface ended-channel rows in Completed while the per-row
+        // completion check is still resolving. The check only fires when
+        // AssignmentListItem mounts, so filtering 'unknown' rows out here
+        // would prevent the check from ever running and a participating
+        // student's completed assignment would stay hidden forever even
+        // though their response doc exists. Once the check resolves to
+        // 'not-completed' (student wasn't part of this session), the row
+        // drops out on the next pass.
+        if (completion === 'not-completed') continue;
+        completed.push(a);
         continue;
       }
       active.push(a);

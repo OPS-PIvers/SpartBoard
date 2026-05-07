@@ -14,7 +14,10 @@ import type { AssignmentFilterMode } from './AssignmentFilterTabs';
  *   - completion === 'completed' → Completed section
  *   - completion === 'not-completed' AND channel === 'active' → Active
  *   - completion === 'not-completed' AND channel === 'ended' → hidden
- *   - completion === 'unknown' → Active (with neutral pill, resolves later)
+ *   - completion === 'unknown' AND channel === 'active' → Active (with neutral pill, resolves later)
+ *   - completion === 'unknown' AND channel === 'ended' → Completed (optimistic;
+ *       lets AssignmentListItem mount so its completion check can fire and
+ *       either keep the row in Completed or filter it out)
  */
 
 interface AssignmentSectionsProps {
