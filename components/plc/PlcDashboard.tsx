@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BookOpen,
@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ClipboardList,
   Film,
+  LayoutDashboard,
   ListChecks,
   Settings as SettingsIcon,
   SquareSquare,
@@ -16,8 +17,11 @@ import {
 
 import { Plc, PlcFeatureSettings, getPlcFeatures } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { PlcOverviewTab } from './tabs/PlcOverviewTab';
 import { PlcCompletedAssignmentsTab } from './tabs/PlcCompletedAssignmentsTab';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
+import { PlcNotesTab } from './tabs/PlcNotesTab';
+import { PlcTodosTab } from './tabs/PlcTodosTab';
 import { PlcPlaceholderTab } from './tabs/PlcPlaceholderTab';
 
 interface PlcDashboardProps {
@@ -25,7 +29,8 @@ interface PlcDashboardProps {
   onClose: () => void;
 }
 
-type TabId =
+export type PlcDashboardTabId =
+  | 'overview'
   | 'completed'
   | 'quizzes'
   | 'assignments'
@@ -36,13 +41,13 @@ type TabId =
   | 'settings';
 
 interface TabDef {
-  id: TabId;
+  id: PlcDashboardTabId;
   icon: LucideIcon;
   labelKey: string;
   labelDefault: string;
   /**
    * Feature flag key gating this tab; absent means the tab is always
-   * visible (Completed Assignments + Settings).
+   * visible (Overview, Completed Assignments, Settings).
    */
   feature?: keyof PlcFeatureSettings;
   /** Phase 1 placeholder copy for tabs not yet implemented. */
@@ -50,6 +55,12 @@ interface TabDef {
 }
 
 const TABS: readonly TabDef[] = [
+  {
+    id: 'overview',
+    icon: LayoutDashboard,
+    labelKey: 'plcDashboard.tabs.overview',
+    labelDefault: 'Overview',
+  },
   {
     id: 'completed',
     icon: ClipboardList,
@@ -98,10 +109,6 @@ const TABS: readonly TabDef[] = [
     labelKey: 'plcDashboard.tabs.notes',
     labelDefault: 'Notes',
     feature: 'notes',
-    placeholder: {
-      titleDefault: 'PLC Notes',
-      descriptionDefault: 'A shared notebook for the PLC.',
-    },
   },
   {
     id: 'todos',
@@ -109,11 +116,6 @@ const TABS: readonly TabDef[] = [
     labelKey: 'plcDashboard.tabs.todos',
     labelDefault: 'To-Do List',
     feature: 'todos',
-    placeholder: {
-      titleDefault: 'PLC To-Do List',
-      descriptionDefault:
-        'Track action items the PLC has agreed to follow up on.',
-    },
   },
   {
     id: 'sharedBoards',
@@ -143,7 +145,7 @@ const TABS: readonly TabDef[] = [
 export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<TabId>('completed');
+  const [activeTab, setActiveTab] = useState<PlcDashboardTabId>('overview');
   const [showMobileMenu, setShowMobileMenu] = useState(true);
 
   // Close on Escape — same UX contract as AdminSettings.
@@ -162,11 +164,11 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
   );
 
   // If the active tab gets hidden via a settings toggle by another member,
-  // fall back to "Completed Assignments" — which is always visible. Adjust
-  // state during render rather than via an effect to avoid an extra render
-  // pass; the setter is a no-op when the value is already 'completed'.
+  // fall back to "Overview" — which is always visible. Adjust state during
+  // render rather than via an effect to avoid an extra render pass; the
+  // setter is a no-op when the value is already 'overview'.
   if (!visibleTabs.find((tab) => tab.id === activeTab)) {
-    setActiveTab('completed');
+    setActiveTab('overview');
   }
 
   const activeTabDef = visibleTabs.find((tab) => tab.id === activeTab);
@@ -180,9 +182,27 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     }
   };
 
+  // Tile click handler — overview tiles call this to drill into a tab.
+  // On mobile the drawer is currently open (because the user just
+  // navigated from the menu); auto-collapse it so the tab content
+  // becomes visible without an extra tap.
+  const handleNavigateTab = useCallback((tabId: PlcDashboardTabId) => {
+    setActiveTab(tabId);
+    setShowMobileMenu(false);
+  }, []);
+
   const renderTabContent = (tab: TabDef) => {
+    if (tab.id === 'overview') {
+      return <PlcOverviewTab plc={plc} onNavigateTab={handleNavigateTab} />;
+    }
     if (tab.id === 'completed') {
       return <PlcCompletedAssignmentsTab plc={plc} />;
+    }
+    if (tab.id === 'notes') {
+      return <PlcNotesTab plc={plc} />;
+    }
+    if (tab.id === 'todos') {
+      return <PlcTodosTab plc={plc} />;
     }
     if (tab.id === 'settings') {
       return <PlcSettingsTab plc={plc} />;

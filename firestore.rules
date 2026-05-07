@@ -413,6 +413,20 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // PLC Overview layout — per-user customization of the PLC Dashboard
+    // bento grid. Pure view preferences, so no PLC membership check is
+    // needed (a non-member's layout doc here would be inert because the
+    // tiles can't read PLC content without passing the PLC rule gates).
+    // Schema lock-down keeps the doc shape closed for future readers.
+    match /users/{userId}/plc_layouts/{plcId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
+                   && request.resource.data.tiles is list
+                   && request.resource.data.updatedAt is int;
+    }
+
     // Mini Apps - users can only access their own mini apps in their subcollection
     match /users/{userId}/miniapps/{appId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -963,6 +977,107 @@ service cloud.firestore {
         // sweep stale entries can ask the owner.
         allow delete: if request.auth != null
           && request.auth.uid == resource.data.ownerUid;
+      }
+
+      // PLC shared notes (Phase 5). Lightweight collaborative notebook —
+      // any current member can CRUD any note. LWW on edits via the
+      // `lastEditedBy` / `lastEditedAt` snapshot on each write. Schema
+      // is locked so future readers can rely on the field set.
+      match /notes/{noteId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'body',
+               'createdBy', 'createdAt',
+               'lastEditedBy', 'lastEditedAt'
+             ])
+          && request.resource.data.id == noteId
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.lastEditedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.body is string
+          && request.resource.data.createdAt is int
+          && request.resource.data.lastEditedAt is int;
+
+        // Update: any current member can edit any note. createdBy /
+        // createdAt / id are immutable — they describe who first authored
+        // the note and shouldn't be rewritten by later editors. The
+        // editor must stamp themselves into `lastEditedBy` so the audit
+        // trail is honest.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'body',
+               'createdBy', 'createdAt',
+               'lastEditedBy', 'lastEditedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.lastEditedBy == request.auth.uid
+          && request.resource.data.lastEditedAt is int
+          && request.resource.data.title is string
+          && request.resource.data.body is string;
+
+        // Any member can delete (matches the "shared notebook" model —
+        // notes are PLC-owned, not creator-owned).
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
+      // PLC shared to-do list (Phase 5). One doc per todo so concurrent
+      // toggles don't serialize on a single parent doc. Any current
+      // member can CRUD any todo.
+      match /todos/{todoId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'text', 'done', 'createdBy', 'createdAt'
+             ])
+          && request.resource.data.id == todoId
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.done is bool
+          && request.resource.data.createdAt is int;
+
+        // Update: createdBy / createdAt / id are immutable. `done` and
+        // `text` are mutable so any teammate can mark a todo complete or
+        // tweak the wording.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'text', 'done', 'createdBy', 'createdAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.text is string
+          && request.resource.data.done is bool;
+
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
       }
     }
 

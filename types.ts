@@ -289,6 +289,111 @@ export interface PlcAssignmentIndexEntry {
 }
 
 /**
+ * One shared note in a PLC notebook. Members CRUD freely; LWW on edits.
+ */
+export interface PlcNote {
+  id: string;
+  title: string;
+  body: string;
+  createdBy: string;
+  createdAt: number;
+  lastEditedBy: string;
+  lastEditedAt: number;
+}
+
+/**
+ * One PLC to-do. Stored as one doc per todo (not an array on a parent doc)
+ * so concurrent edits don't serialize against the whole list.
+ */
+export interface PlcTodo {
+  id: string;
+  text: string;
+  done: boolean;
+  createdBy: string;
+  createdAt: number;
+}
+
+/**
+ * Bento-grid layout types for the PLC Overview tab. Per-user layout —
+ * persisted at `users/{uid}/plc_layouts/{plcId}` so each member arranges
+ * their own dashboard without affecting teammates.
+ */
+export type PlcBentoTileSize = 'sm' | 'md-wide' | 'md-tall' | 'lg';
+
+/**
+ * Stable identifier for each tile renderer. Doubles as the doc-key in the
+ * persisted layout (one tile per kind). Adding a new tile = appending the
+ * kind here + extending the rules' `kind in […]` allow-list.
+ */
+export type PlcBentoTileKind =
+  | 'plcInfo'
+  | 'members'
+  | 'completedAssignments'
+  | 'notes'
+  | 'todos'
+  | 'sharedSheet'
+  | 'quickActions'
+  | 'quizLibrary'
+  | 'activeAssignments'
+  | 'videoActivities'
+  | 'sharedBoards';
+
+export interface PlcBentoTile {
+  kind: PlcBentoTileKind;
+  size: PlcBentoTileSize;
+  /** When true the tile sits in the "Hidden tiles" tray instead of the grid. */
+  hidden?: boolean;
+}
+
+export interface PlcOverviewLayout {
+  tiles: PlcBentoTile[];
+  updatedAt: number;
+}
+
+export const PLC_BENTO_TILE_SIZES: readonly PlcBentoTileSize[] = [
+  'sm',
+  'md-wide',
+  'md-tall',
+  'lg',
+] as const;
+
+export const PLC_BENTO_TILE_KINDS: readonly PlcBentoTileKind[] = [
+  'plcInfo',
+  'members',
+  'completedAssignments',
+  'notes',
+  'todos',
+  'sharedSheet',
+  'quickActions',
+  'quizLibrary',
+  'activeAssignments',
+  'videoActivities',
+  'sharedBoards',
+] as const;
+
+/**
+ * Default tile order + sizes for a brand-new PLC overview. Used when a
+ * member opens the dashboard for the first time and no `plc_layouts` doc
+ * exists yet. Live-data tiles come first; "coming soon" placeholders trail.
+ */
+export const DEFAULT_PLC_OVERVIEW_LAYOUT: PlcOverviewLayout = {
+  tiles: [
+    { kind: 'plcInfo', size: 'md-wide' },
+    { kind: 'quickActions', size: 'md-wide' },
+    { kind: 'members', size: 'sm' },
+    { kind: 'sharedSheet', size: 'sm' },
+    { kind: 'todos', size: 'md-tall' },
+    { kind: 'notes', size: 'md-wide' },
+    { kind: 'completedAssignments', size: 'lg' },
+    { kind: 'quizLibrary', size: 'sm' },
+    { kind: 'activeAssignments', size: 'sm' },
+    { kind: 'videoActivities', size: 'sm' },
+    { kind: 'sharedBoards', size: 'sm' },
+  ],
+  updatedAt: 0,
+};
+
+/**
  * An outstanding invitation for a teacher to join a PLC. Top-level so the
  * invitee can read pending invites by email without being a member of the
  * target PLC yet. The doc id is *deterministic* — `<plcId>_<emailLower>`

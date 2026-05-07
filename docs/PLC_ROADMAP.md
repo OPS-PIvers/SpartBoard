@@ -30,8 +30,11 @@ This roadmap is designed to be **executed in independent chunks across multiple 
 - [ ] **Phase 2** — PLC Quiz Library (share-with-PLC, collaborative editing, sync-or-copy import)
 - [ ] **Phase 3** — PLC-authored Assignments tab + auto-bubble-up from personal assignments
 - [ ] **Phase 4** — Video Activities (extend with `PlcLinkage` + dashboard surface)
-- [ ] **Phase 5** — Notes + To-Do list (collaborative shared docs)
+- [x] **Phase 5** — Notes + To-Do list (collaborative shared docs) _(bundled with Overview/Bento — see Phase 1.5 below)_
 - [ ] **Phase 6** — Shared Boards surface
+- [x] **Phase 1.5 (out-of-band)** — PLC Overview tab with per-user customizable bento grid + sidebar kebab UX
+
+> **Phase 1.5 deviation note:** Phase 5 (Notes + To-Dos) was pulled forward and shipped alongside the Overview tab + bento grid + sidebar kebab refactor in a single PR. This deviates from the "one phase per PR" rule because the Overview tab's bento tiles needed real content for Notes and To-Dos on day one — placeholder tiles linking to placeholder tabs would have felt empty. Phases 2/3/4/6 remain stubbed with "coming soon" tiles that swap to live data when those phases ship; the layout doesn't have to change.
 
 Branch convention: each phase opens a `claude/plc-phase-N-<slug>` branch off `dev-paul`. Do **not** target `main` directly.
 
@@ -221,7 +224,57 @@ _(Fill in after shipping.)_
 
 ### Notes from implementation
 
-_(Fill in after shipping.)_
+Shipped together with Phase 1.5 (Overview + bento grid + sidebar kebab). See "Phase 1.5" below for the details that affect future phases.
+
+---
+
+## Phase 1.5 — Overview tab + bento grid + sidebar kebab _(SHIPPED)_
+
+**Status:** Shipped together with Phase 5 (Notes + To-Dos).
+
+### What landed
+
+- `components/plc/tabs/PlcOverviewTab.tsx` — new default landing tab. Wraps the bento grid with an Edit Layout / Reset toggle.
+- `components/plc/overview/PlcBentoGrid.tsx` — dnd-kit `SortableContext` + `DragOverlay` + closest-center collision detection. Mirrors `components/common/library/LibraryGrid.tsx` exactly (the canonical sortable pattern in this codebase — do not invent a new shape).
+- `components/plc/overview/PlcBentoTile.tsx` — sortable tile wrapper. Drag handle scoped to a grip icon (so tile content stays interactive when not dragging). Resize button cycles `sm → md-wide → md-tall → lg`. Hide button moves the tile into a "Hidden tiles" tray below the grid.
+- `components/plc/overview/tileRegistry.tsx` — central switchboard for tile content, keyed by `PlcBentoTileKind`. Adding a new tile = a new case here + a new union member in `types.ts`. The "coming soon" tiles for Phases 2/3/4/6 route through `ComingSoonTile`; swap the case for the real component when each phase ships.
+- `components/plc/overview/tiles/*` — live tile content for Members, PlcInfo, CompletedAssignments, Notes, Todos, SharedSheet, QuickActions, plus `ComingSoonTile` for the four still-stubbed phases.
+- `hooks/usePlcOverviewLayout.ts` — per-user layout persistence at `users/{uid}/plc_layouts/{plcId}`. Optimistic local state with debounced (~500ms) writes; `lastWrittenAt` guard so an in-flight snapshot doesn't clobber a fresher local rearrangement; pending write flushes on unmount.
+- `firestore.rules` — new `match /users/{userId}/plc_layouts/{plcId}` block (owner-only, schema lock-down via `keys().hasOnly([...])`).
+- `components/layout/sidebar/SidebarPlcs.tsx` — refactored. Each PLC card is now a single click target (backdrop button + layered visible content with `pointer-events-none`); secondary actions (edit/view, delete/leave) live in a kebab popover. Whole-card hover state and chevron-right affordance.
+
+### Notes from implementation
+
+- **dnd-kit usage in this codebase:** the canonical sortable pattern lives in `components/common/library/LibraryGrid.tsx` + `useSortableReorder.ts`. Mirror its sensor activation (`PointerSensor { distance: 5 }`), collision detection (`closestCenter`), strategy (`rectSortingStrategy`), and overlay (`DragOverlay` with `snapCenterToCursor`). An earlier exploration that "found" zero dnd-kit usage was wrong — when in doubt, search for `useSortable` and `SortableContext` imports.
+- **Heterogeneous tile sizes:** the bento grid mixes 1×1, 2×1, 1×2, and 2×2 tiles inside a CSS grid. `closestCenter` is forgiving enough for the current ~10-tile size; if jitter shows up at scale the documented mitigation is to collapse non-active tiles to 1×1 during drag (`activeId != null` ⇒ render-time span override) so the sort math sees uniform rects.
+- **Resize via cycle button:** the alternative — drag-resize against a CSS-grid container — would require quantizing pointer deltas to grid cells and is a notable rabbit hole. The 4-state cycle button (sm→md-wide→md-tall→lg→sm) is much cheaper and is well-discoverable with a tooltip.
+- **Per-tile drag handle is mandatory:** without binding `{...listeners}` to a specific grip icon (instead of the whole tile), tile content (e.g. note row click handlers) becomes inert. The bento tile additionally suppresses content interaction with `pointer-events-none` while `editMode` is on.
+- **Sidebar click affordance:** the previous split-row layout (left button + right icons) was already two real `<button>`s side-by-side, but the affordance was unclear. The new layout uses an absolute-positioned backdrop `<button>` covering the whole card with `pointer-events-none` on the visible content — clicks pass through to the backdrop unless they hit the kebab. This avoids the invalid nested-button HTML the previous design was working around.
+
+---
+
+## Phase 5 — Notes + To-Do list _(SHIPPED)_
+
+**Status:** Shipped together with Phase 1.5 (see above for the bundling rationale).
+
+### What landed
+
+- `plcs/{plcId}/notes/{noteId}` subcollection — `{ id, title, body, createdBy, createdAt, lastEditedBy, lastEditedAt }`. Any member CRUD; `createdBy`/`createdAt`/`id` immutable on update; `lastEditedBy` must equal `request.auth.uid` on every update. Members can also delete (PLC-owned model — notes are shared, not creator-owned).
+- `plcs/{plcId}/todos/{todoId}` subcollection — `{ id, text, done, createdBy, createdAt }`. Any member CRUD; `createdBy`/`createdAt`/`id` immutable. One doc per todo (not an array on a parent doc) so concurrent toggles don't serialize against the whole list.
+- `hooks/usePlcNotes.ts`, `hooks/usePlcTodos.ts` — live subscriptions + CRUD mutators. The hook pattern mirrors `usePlcAssignmentIndex.ts` (parser drops malformed entries, listener disabled with `null` plcId, no useEffect for state-on-prop-change).
+- `components/plc/tabs/PlcNotesTab.tsx` — two-pane (list + editor). Plain textarea body editing; debounced (~500ms) writes via `updateNote`. Snapshot updates apply to the editor only when there's no pending local write.
+- `components/plc/tabs/PlcTodosTab.tsx` — single list. Add input + click-to-edit-inline + completed section.
+
+### Open questions resolved
+
+- **Multi-note vs. single notepad:** Multi-note model. Subcollection-per-note matches the rest of the app's collaborative pattern.
+- **Optional `assignedTo` on todos:** Deferred. Not in this PR. Add later as a non-breaking schema extension (the rules' `keys().hasOnly([...])` would need to widen).
+
+### Out of scope (still)
+
+- Rich text in notes (we ship plain textarea — Markdown is fine via convention; no rendering yet).
+- Per-todo `assignedTo` field.
+- Notification when a teammate changes shared content.
 
 ---
 
@@ -298,4 +351,4 @@ _(Add new ones here as they come up. Resolve before starting the affected phase.
 
 ---
 
-**Last updated:** 2026-05-07 (Phase 1 shipped — PR #1537)
+**Last updated:** 2026-05-07 (Phase 1.5 + Phase 5 shipped — Overview tab + bento grid + sidebar kebab + Notes/To-Dos)
