@@ -44,7 +44,11 @@ import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
-import { useQuizSessionStudent, normalizeAnswer } from '@/hooks/useQuizSession';
+import {
+  useQuizSessionStudent,
+  normalizeAnswer,
+  SessionEndedError,
+} from '@/hooks/useQuizSession';
 import { shuffleQuestionForStudent } from '@/utils/quizShuffle';
 import { QuizSession, QuizPublicQuestion } from '@/types';
 import { useDialog } from '@/context/useDialog';
@@ -154,6 +158,7 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     error,
     lookupSession,
     joinQuizSession,
+    subscribeForReview,
     submitAnswer,
     completeQuiz,
     reportTabSwitch,
@@ -208,6 +213,25 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
         await joinQuizSession(urlCode, undefined, undefined);
         setJoined(true);
       } catch (err) {
+        // If the session has already ended, fall back to read-only review
+        // mode so the student can see their published score / responses /
+        // answers from the `/my-assignments` Completed list. Branch on the
+        // typed sentinel rather than the error message — the latter would
+        // silently break the fallback if the copy ever changes. Other join
+        // failures (no such code, network error, etc.) bubble up to the
+        // existing error UI.
+        if (err instanceof SessionEndedError) {
+          try {
+            await subscribeForReview(urlCode);
+            setJoined(true);
+            return;
+          } catch (reviewErr) {
+            console.warn(
+              '[QuizStudentApp] subscribeForReview fallback failed:',
+              reviewErr
+            );
+          }
+        }
         console.warn('[QuizStudentApp] SSO auto-join failed:', err);
         // Surface the failure to the UI. The hook's own `error` state will
         // also be populated, and the render branch below prefers that more
@@ -222,7 +246,7 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       }
     };
     void run();
-  }, [isStudentRole, urlCode, joined, joinQuizSession]);
+  }, [isStudentRole, urlCode, joined, joinQuizSession, subscribeForReview]);
 
   const isViewOnly = session?.mode === 'view-only';
 
@@ -528,6 +552,7 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   return (
     <ResultsScreen
       session={session}
+      myResponse={myResponse}
       answeredCount={(myResponse?.answers ?? []).length}
       totalQuestions={session.totalQuestions}
       pin={pin}
@@ -1783,49 +1808,272 @@ const ReviewPhase: React.FC<{
 
 const ResultsScreen: React.FC<{
   session: QuizSession;
+  myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
   answeredCount: number;
   totalQuestions: number;
   pin: string;
   /** Auth uid — used by `StudentLeaderboard` to highlight the SSO student's row. */
   myStudentUid?: string;
-}> = ({ session, answeredCount, totalQuestions, pin, myStudentUid }) => (
-  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-    <Trophy className="w-16 h-16 text-amber-400 mb-6" />
-    <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
-    <p className="text-slate-400 text-sm mb-8">
-      {pin ? (
-        <>
-          Great job, PIN{' '}
-          <span className="font-mono font-bold text-white">{pin}</span>!
-        </>
-      ) : (
-        'Great job!'
-      )}
-    </p>
+}> = ({
+  session,
+  myResponse,
+  answeredCount,
+  totalQuestions,
+  pin,
+  myStudentUid,
+}) => {
+  const visibility = session.scoreVisibility ?? 'none';
+  const showReview = visibility !== 'none' && !!myResponse;
 
-    <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
-      <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
-      <p className="text-slate-400 text-sm">
-        of {totalQuestions} questions answered
+  if (showReview) {
+    return (
+      <PublishedScoreReview
+        session={session}
+        myResponse={myResponse}
+        visibility={visibility}
+        pin={pin}
+      />
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
+      <Trophy className="w-16 h-16 text-amber-400 mb-6" />
+      <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
+      <p className="text-slate-400 text-sm mb-8">
+        {pin ? (
+          <>
+            Great job, PIN{' '}
+            <span className="font-mono font-bold text-white">{pin}</span>!
+          </>
+        ) : (
+          'Great job!'
+        )}
       </p>
-    </div>
 
-    <p className="text-slate-500 text-sm max-w-xs">
-      Your answers have been submitted. Ask your teacher to see your results.
-    </p>
-
-    {isGamificationActive(session) && session.liveLeaderboard && (
-      <div className="mt-8 w-full flex justify-center">
-        <StudentLeaderboard
-          entries={session.liveLeaderboard}
-          myPin={pin}
-          myStudentUid={myStudentUid}
-          scoreSuffix={getScoreSuffix(session)}
-        />
+      <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
+        <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
+        <p className="text-slate-400 text-sm">
+          of {totalQuestions} questions answered
+        </p>
       </div>
-    )}
-  </div>
-);
+
+      <p className="text-slate-500 text-sm max-w-xs">
+        Your answers have been submitted. Ask your teacher to see your results.
+      </p>
+
+      {isGamificationActive(session) && session.liveLeaderboard && (
+        <div className="mt-8 w-full flex justify-center">
+          <StudentLeaderboard
+            entries={session.liveLeaderboard}
+            myPin={pin}
+            myStudentUid={myStudentUid}
+            scoreSuffix={getScoreSuffix(session)}
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ─── Published-score review ──────────────────────────────────────────────────
+//
+// Rendered on the post-end results screen when the teacher has flipped
+// `scoreVisibility` on the session via the archive's "Publish Scores" kebab
+// action. The three modes are progressive disclosure:
+//
+//   - score-only: top card with the percentage + correct/total tally.
+//   - score-and-responses: above + per-question rows showing each of the
+//     student's answers tagged correct (green) or incorrect (red), but
+//     never the canonical correct answer.
+//   - score-responses-and-answers: above + the canonical correct answer
+//     under each row, sourced from `session.revealedAnswers` (populated
+//     atomically by `publishAssignmentScores`).
+//
+// All data the screen needs already lives on `myResponse` (score + each
+// answer's `isCorrect`) and `session` (publicQuestions, revealedAnswers).
+// We deliberately don't recompute correctness client-side — the teacher's
+// publish step is the only writer for those fields, so a stale-cache
+// student device can't manufacture a "correct" badge that isn't on the
+// authoritative response doc.
+
+const PublishedScoreReview: React.FC<{
+  session: QuizSession;
+  myResponse: NonNullable<
+    ReturnType<typeof useQuizSessionStudent>['myResponse']
+  >;
+  visibility: NonNullable<QuizSession['scoreVisibility']>;
+  pin: string;
+}> = ({ session, myResponse, visibility, pin }) => {
+  const showResponses =
+    visibility === 'score-and-responses' ||
+    visibility === 'score-responses-and-answers';
+  const showAnswers = visibility === 'score-responses-and-answers';
+
+  const scorePercent =
+    typeof myResponse.score === 'number' ? myResponse.score : null;
+  // Per-question correctness counts come straight off the authoritative
+  // response — no client-side grading. Defensive default: a published
+  // assignment with all-undefined `isCorrect` reads as 0 correct rather
+  // than crashing.
+  const answerById = new Map<string, (typeof myResponse.answers)[number]>();
+  for (const a of myResponse.answers) {
+    answerById.set(a.questionId, a);
+  }
+  const correctCount = myResponse.answers.filter(
+    (a) => a.isCorrect === true
+  ).length;
+  const total = session.totalQuestions;
+
+  return (
+    <div className="min-h-screen bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-2xl">
+        <header className="mb-6 flex flex-col items-center text-center">
+          <Trophy className="mb-4 h-12 w-12 text-amber-400" />
+          <h1 className="text-2xl font-black text-white sm:text-3xl">
+            Your Results
+          </h1>
+          <p className="mt-1 text-sm text-slate-400">{session.quizTitle}</p>
+          {pin && (
+            <p className="mt-1 text-xs text-slate-500">
+              PIN <span className="font-mono text-slate-300">{pin}</span>
+            </p>
+          )}
+        </header>
+
+        {/* Score card — present at every visibility level. */}
+        <section className="mb-6 rounded-2xl border border-slate-700 bg-slate-800 p-6 text-center">
+          {scorePercent !== null ? (
+            <>
+              <p className="text-5xl font-black text-white sm:text-6xl">
+                {scorePercent}%
+              </p>
+              {/* Per-question tally counts only fully-correct answers, so it
+                  can lag the percentage on quizzes that award partial credit
+                  (Matching/Ordering with `allowPartialCredit`) or use non-1
+                  point values. The "fully correct" qualifier makes the
+                  potential gap between this line and the percentage above
+                  legible to the student rather than appearing to contradict
+                  it. */}
+              <p className="mt-2 text-sm text-slate-400">
+                {correctCount} of {total} fully correct
+              </p>
+            </>
+          ) : (
+            <p className="text-sm text-slate-300">
+              Your score is being prepared. Check back soon.
+            </p>
+          )}
+        </section>
+
+        {showResponses && (
+          <section>
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-400">
+              Your Answers
+            </h2>
+            <div className="flex flex-col gap-3">
+              {(session.publicQuestions ?? []).map((q, idx) => {
+                const ans = answerById.get(q.id);
+                const studentAnswer = ans?.answer ?? '';
+                const isCorrect = ans?.isCorrect === true;
+                const isIncorrect = ans?.isCorrect === false;
+                const correctAnswer = session.revealedAnswers?.[q.id];
+                return (
+                  <article
+                    key={q.id}
+                    className={`rounded-xl border bg-slate-800/60 p-4 ${
+                      isCorrect
+                        ? 'border-emerald-500/40'
+                        : isIncorrect
+                          ? 'border-red-500/40'
+                          : 'border-slate-700'
+                    }`}
+                  >
+                    <header className="mb-2 flex items-start gap-2">
+                      <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-700 font-mono text-[11px] font-bold text-slate-200">
+                        {idx + 1}
+                      </span>
+                      <p className="flex-1 text-sm font-semibold text-slate-100">
+                        {q.text}
+                      </p>
+                      {ans?.isCorrect === true && (
+                        <Check className="h-5 w-5 shrink-0 text-emerald-400" />
+                      )}
+                      {ans?.isCorrect === false && (
+                        <XIcon className="h-5 w-5 shrink-0 text-red-400" />
+                      )}
+                    </header>
+                    <div className="ml-7 space-y-1.5">
+                      <p className="text-xs text-slate-400">
+                        Your answer:{' '}
+                        <span
+                          className={`font-mono ${
+                            isCorrect
+                              ? 'text-emerald-300'
+                              : isIncorrect
+                                ? 'text-red-300'
+                                : 'text-slate-200'
+                          }`}
+                        >
+                          {studentAnswer
+                            ? formatAnswerForDisplay(studentAnswer, q.type)
+                            : '— no response'}
+                        </span>
+                      </p>
+                      {showAnswers && correctAnswer && (
+                        <p className="text-xs text-slate-400">
+                          Correct answer:{' '}
+                          <span className="font-mono text-emerald-300">
+                            {formatAnswerForDisplay(correctAnswer, q.type)}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
+        {!showResponses && (
+          <p className="text-center text-xs text-slate-500">
+            Your teacher published your score. Detailed responses aren&apos;t
+            shared for this assignment.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Format pipe-encoded matching/ordering answers for human display. MC/FIB
+ * answers come through as plain strings and pass through untouched.
+ *
+ * Branch on `type` rather than sniffing the string for `:` — Ordering
+ * items can legitimately contain colons (e.g. "9:00 AM", "H:O ratio")
+ * that would otherwise be reformatted as "left → right" pairs.
+ */
+function formatAnswerForDisplay(
+  raw: string,
+  type: QuizPublicQuestion['type']
+): string {
+  if (type === 'Matching') {
+    return raw
+      .split('|')
+      .map((pair) => {
+        const sep = pair.indexOf(':');
+        if (sep < 0) return pair;
+        return `${pair.slice(0, sep)} → ${pair.slice(sep + 1)}`;
+      })
+      .join(', ');
+  }
+  if (type === 'Ordering') {
+    return raw.split('|').join(', ');
+  }
+  return raw;
+}
 
 const QuizSubmittedWaitScreen: React.FC<{
   session: QuizSession;

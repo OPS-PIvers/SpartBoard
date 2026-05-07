@@ -38,6 +38,7 @@ import {
   PowerOff,
   RefreshCw,
   RotateCcw,
+  Send,
   Calendar,
   Radio,
   Inbox,
@@ -292,6 +293,13 @@ interface QuizManagerProps {
   onArchiveResults?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveEditSettings?: (assignment: QuizAssignment) => void;
   onArchiveShare?: (assignment: QuizAssignment) => void | Promise<void>;
+  /**
+   * Publish (or unpublish) student-facing score visibility for an
+   * assignment. The widget owns the picker modal and the
+   * `publishAssignmentScores` call; the manager just surfaces the
+   * kebab affordance.
+   */
+  onArchivePublishScores?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchivePauseResume?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveDeactivate?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Reopen an ended assignment back to a paused state. */
@@ -450,6 +458,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveResults,
   onArchiveEditSettings,
   onArchiveShare,
+  onArchivePublishScores,
   onArchivePauseResume,
   onArchiveDeactivate,
   onArchiveReopen,
@@ -1049,6 +1058,19 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       icon: Share2,
       onClick: () => void (onArchiveShare ?? noop)(a),
     });
+    if (onArchivePublishScores) {
+      // Surface the same affordance regardless of current visibility — the
+      // modal handles both first-publish and unpublish/re-publish flows.
+      secondaries.push({
+        id: 'publish-scores',
+        label:
+          a.scoreVisibility && a.scoreVisibility !== 'none'
+            ? 'Update published scores'
+            : 'Publish scores',
+        icon: Send,
+        onClick: () => void onArchivePublishScores(a),
+      });
+    }
     secondaries.push({
       id: 'reopen',
       label: 'Reopen',

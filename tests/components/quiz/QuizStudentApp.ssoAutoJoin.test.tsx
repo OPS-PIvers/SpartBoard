@@ -68,23 +68,37 @@ vi.mock('firebase/auth', () => ({
 
 // Stub the hook so we can observe the call args and control rejections.
 // `normalizeAnswer` is also imported but only fires post-join, so a
-// pass-through identity is fine.
-vi.mock('@/hooks/useQuizSession', () => ({
-  useQuizSessionStudent: () => ({
-    session: null,
-    myResponse: null,
-    loading: false,
-    error: null,
-    sessionIdRef: { current: null },
-    lookupSession: mockLookupSession,
-    joinQuizSession: mockJoinQuizSession,
-    submitAnswer: vi.fn(),
-    completeQuiz: vi.fn(),
-    reportTabSwitch: vi.fn(),
-    warningCount: 0,
-  }),
-  normalizeAnswer: (s: string) => s,
-}));
+// pass-through identity is fine. `SessionEndedError` is re-exported as a
+// real subclass so the component's `err instanceof SessionEndedError`
+// branch inside the SSO auto-join catch resolves correctly under the
+// mock — without it the `instanceof` would target `undefined` and throw,
+// which would break the "rejection surfaces in the UI" tests below.
+vi.mock('@/hooks/useQuizSession', () => {
+  class MockSessionEndedError extends Error {
+    constructor() {
+      super('This quiz session has already ended.');
+      this.name = 'SessionEndedError';
+    }
+  }
+  return {
+    useQuizSessionStudent: () => ({
+      session: null,
+      myResponse: null,
+      loading: false,
+      error: null,
+      sessionIdRef: { current: null },
+      lookupSession: mockLookupSession,
+      joinQuizSession: mockJoinQuizSession,
+      subscribeForReview: vi.fn(),
+      submitAnswer: vi.fn(),
+      completeQuiz: vi.fn(),
+      reportTabSwitch: vi.fn(),
+      warningCount: 0,
+    }),
+    normalizeAnswer: (s: string) => s,
+    SessionEndedError: MockSessionEndedError,
+  };
+});
 
 // Imported AFTER the mocks above so the component picks up the stubs.
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';

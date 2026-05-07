@@ -32,6 +32,7 @@ import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { QuizAssignmentImportSetupModal } from './components/QuizAssignmentImportSetupModal';
+import { PublishScoresModal } from './components/PublishScoresModal';
 import type { QuizAssignment } from '@/types';
 import {
   buildPinToNameMap,
@@ -131,6 +132,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setAssignmentExportUrl,
     setAssignmentExportedResponseIds,
     shareAssignment,
+    publishAssignmentScores,
     syncAssignmentToLatest,
   } = useQuizAssignments(user?.uid);
 
@@ -167,6 +169,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // Ephemeral modal state for per-assignment settings editing.
   const [editingAssignment, setEditingAssignment] =
+    useState<QuizAssignment | null>(null);
+  // Ephemeral modal state for the per-assignment "Publish Scores" picker.
+  const [publishingAssignment, setPublishingAssignment] =
     useState<QuizAssignment | null>(null);
 
   // Local state for views that need loaded data
@@ -1437,6 +1442,9 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
+        onArchivePublishScores={(a) => {
+          setPublishingAssignment(a);
+        }}
         onArchivePauseResume={async (a) => {
           try {
             if (a.status === 'paused') {
@@ -1663,6 +1671,69 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               // user's edits intact so they can retry. Without this,
               // toast appears, modal disappears, edits are lost.
               throw err;
+            }
+          }}
+        />
+      )}
+      {publishingAssignment && (
+        <PublishScoresModal
+          quizTitle={publishingAssignment.quizTitle}
+          currentVisibility={publishingAssignment.scoreVisibility}
+          onClose={() => setPublishingAssignment(null)}
+          onConfirm={async (visibility) => {
+            // Resolve the canonical quiz from Drive so the score
+            // computation has access to every question's correctAnswer
+            // (the session's `publicQuestions` strips them for student
+            // safety). When unpublishing the quiz lookup is skipped —
+            // the hook's `'none'` path doesn't read questions.
+            const target = publishingAssignment;
+            try {
+              if (visibility === 'none') {
+                await publishAssignmentScores(
+                  target.id,
+                  // Empty placeholder QuizData — the 'none' branch never
+                  // reads it. Cheaper than re-loading the quiz from Drive
+                  // for a flag-flip.
+                  {
+                    id: target.quizId,
+                    title: target.quizTitle,
+                    questions: [],
+                    createdAt: 0,
+                    updatedAt: 0,
+                  },
+                  visibility
+                );
+                addToast('Scores unpublished.', 'success');
+                setPublishingAssignment(null);
+                return;
+              }
+              const meta = quizzes.find((q) => q.id === target.quizId);
+              if (!meta) {
+                addToast(
+                  'Quiz is no longer in your library — cannot publish scores.',
+                  'error'
+                );
+                return;
+              }
+              const data = await loadQuiz(meta);
+              if (!data) return;
+              const result = await publishAssignmentScores(
+                target.id,
+                data,
+                visibility
+              );
+              addToast(
+                result.responsesUpdated > 0
+                  ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
+                  : 'Scores published. Students will see results once they submit.',
+                'success'
+              );
+              setPublishingAssignment(null);
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Failed to publish scores',
+                'error'
+              );
             }
           }}
         />

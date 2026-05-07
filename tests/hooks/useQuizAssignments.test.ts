@@ -1007,3 +1007,237 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
     expect(updatedRefs).toContain(refFresh);
   });
 });
+
+describe('useQuizAssignments - publishAssignmentScores', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+  const mockGetDocs = getDocs as Mock;
+
+  // A small canonical quiz used across the publish tests. Two MC questions,
+  // 1 point each, so the published-score arithmetic is easy to assert.
+  const quizData = {
+    id: 'quiz-1',
+    title: 'Test Quiz',
+    questions: [
+      {
+        id: 'q0',
+        text: 'Q0',
+        type: 'MC' as const,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b', 'c', 'd'],
+        timeLimit: 30,
+        points: 1,
+      },
+      {
+        id: 'q1',
+        text: 'Q1',
+        type: 'MC' as const,
+        correctAnswer: 'b',
+        incorrectAnswers: ['a', 'c', 'd'],
+        timeLimit: 30,
+        points: 1,
+      },
+    ],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it("clears flags and skips response writes when visibility is 'none'", async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      const outcome = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'none'
+      );
+      expect(outcome).toEqual({ responsesUpdated: 0 });
+    });
+
+    // Exactly one batch (assignment + session) — no response queries.
+    expect(mockGetDocs).not.toHaveBeenCalled();
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!assignmentCall) {
+      throw new Error('expected batch.update on assignment doc');
+    }
+    expect(assignmentCall[1]).toMatchObject({
+      scoreVisibility: 'none',
+      scorePublishedAt: DELETE_FIELD_SENTINEL,
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) {
+      throw new Error('expected batch.update on session doc');
+    }
+    expect(sessionCall[1]).toMatchObject({
+      scoreVisibility: 'none',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
+  });
+
+  it('grades responses and writes per-answer isCorrect on score-only publish', async () => {
+    // Two responses: a perfect 2/2 and a partial 1/2. Score is the percentage.
+    const refPerfect = { id: 'r-perfect' };
+    const refPartial = { id: 'r-partial' };
+    const refBlank = { id: 'r-blank' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refPerfect,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              { questionId: 'q1', answer: 'b', answeredAt: 2 },
+            ],
+          }),
+        },
+        {
+          ref: refPartial,
+          data: () => ({
+            studentUid: 's2',
+            answers: [
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
+            ],
+          }),
+        },
+        // Student who joined but never answered — both questions count
+        // toward the denominator so the score is 0 / 2 = 0%.
+        {
+          ref: refBlank,
+          data: () => ({
+            studentUid: 's3',
+            answers: [],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      const outcome = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+      expect(outcome).toEqual({ responsesUpdated: 3 });
+    });
+
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+
+    // Session should NOT carry revealedAnswers on score-only — the
+    // implementation deleteField()s it for any visibility level below
+    // the highest one.
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected session update');
+    expect(sessionCall[1]).toMatchObject({
+      scoreVisibility: 'score-only',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
+
+    // Per-response patches carry the computed score plus answers with
+    // isCorrect tagged. Locate by ref so the order in mock.calls
+    // doesn't matter.
+    const perfectCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refPerfect
+    );
+    const partialCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refPartial
+    );
+    const blankCall = batchUpdate.mock.calls.find(([ref]) => ref === refBlank);
+    if (!perfectCall || !partialCall || !blankCall) {
+      throw new Error('expected updates on all three response refs');
+    }
+    expect(perfectCall[1]).toMatchObject({ score: 100 });
+    expect(
+      (perfectCall[1] as { answers: { isCorrect: boolean }[] }).answers
+    ).toEqual([
+      expect.objectContaining({ questionId: 'q0', isCorrect: true }),
+      expect.objectContaining({ questionId: 'q1', isCorrect: true }),
+    ]);
+    expect(partialCall[1]).toMatchObject({ score: 50 });
+    expect(
+      (partialCall[1] as { answers: { isCorrect: boolean }[] }).answers
+    ).toEqual([
+      expect.objectContaining({ questionId: 'q0', isCorrect: true }),
+      expect.objectContaining({ questionId: 'q1', isCorrect: false }),
+    ]);
+    expect(blankCall[1]).toMatchObject({ score: 0, answers: [] });
+  });
+
+  it('populates session.revealedAnswers on score-responses-and-answers publish', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-responses-and-answers'
+      );
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected session update');
+    expect(sessionCall[1]).toMatchObject({
+      scoreVisibility: 'score-responses-and-answers',
+      revealedAnswers: { q0: 'a', q1: 'b' },
+    });
+  });
+
+  it('chunks response writes across multiple batches when there are more than 398 responses', async () => {
+    // 500 responses — exceeds the 400-write batch budget after the
+    // assignment + session writes consume 2 slots, so the remaining
+    // 102 spill into a second batch.
+    const responseDocs = Array.from({ length: 500 }, (_, i) => ({
+      ref: { id: `r${i}` },
+      data: () => ({
+        studentUid: `s${i}`,
+        answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
+      }),
+    }));
+    mockGetDocs.mockResolvedValueOnce({ docs: responseDocs });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      const outcome = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+      expect(outcome).toEqual({ responsesUpdated: 500 });
+    });
+
+    // First batch + at least one continuation batch.
+    expect(batchCommit.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+});
