@@ -399,6 +399,11 @@ export const useVideoActivityAssignments = (
       if (patch.periodNames !== undefined)
         sessionPatch.periodNames = patch.periodNames;
       if (Object.keys(sessionPatch).length > 0) {
+        // Tag the write with the originating user so a future bidirectional
+        // edit flow (e.g. PLC sync) can suppress echoes back to the writer.
+        // Currently teacher-only, so the field is informational; once PR3
+        // adds shared sync this is the hook for echo prevention.
+        sessionPatch.updatedBy = userId;
         batch.update(
           doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
           sessionPatch

@@ -217,7 +217,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
       unknown
     >;
     expect(sessionDocPath).toContain('video_activity_sessions/assignment-1');
-    expect(sessionPatch).toEqual({ sessionOptions });
+    expect(sessionPatch).toEqual({ sessionOptions, updatedBy: TEACHER_UID });
   });
 
   it('mirrors className to the session doc as assignmentName', async () => {
@@ -238,7 +238,10 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
       string,
       unknown
     >;
-    expect(sessionPatch).toEqual({ assignmentName: 'Period 2 Renamed' });
+    expect(sessionPatch).toEqual({
+      assignmentName: 'Period 2 Renamed',
+      updatedBy: TEACHER_UID,
+    });
   });
 
   it('mirrors periodNames to the session doc', async () => {
@@ -259,6 +262,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
     >;
     expect(sessionPatch).toEqual({
       periodNames: ['Period 3', 'Period 4'],
+      updatedBy: TEACHER_UID,
     });
   });
 

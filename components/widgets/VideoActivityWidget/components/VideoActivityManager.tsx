@@ -43,6 +43,7 @@ import { AssignModal } from '@/components/common/library/AssignModal';
 import {
   AssignmentSettingsToggleGroup,
   SectionHeader,
+  ToggleRow,
 } from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
@@ -63,7 +64,6 @@ import {
 } from '@/components/common/library/folderFilters';
 import { useFolders } from '@/hooks/useFolders';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
-import { Toggle } from '@/components/common/Toggle';
 import type {
   AssignmentStatusBadge,
   LibraryBadge,
@@ -1305,35 +1305,6 @@ function buildDefaultPolicyOptions(): VideoActivitySessionOptions {
     scoreVisibility: 'score_only',
   };
 }
-
-/* ─── ToggleRow — small presentational helper ─────────────────────────────── */
-
-interface ToggleRowProps {
-  label: string;
-  hint?: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-}
-
-const ToggleRow: React.FC<ToggleRowProps> = ({
-  label,
-  hint,
-  checked,
-  onChange,
-}) => (
-  <div className="flex items-center justify-between gap-3">
-    <div className="min-w-0">
-      <p className="text-sm font-bold text-slate-700">{label}</p>
-      {hint && <p className="text-xs text-slate-500">{hint}</p>}
-    </div>
-    <Toggle
-      checked={checked}
-      onChange={onChange}
-      size="sm"
-      showLabels={false}
-    />
-  </div>
-);
 
 /* ─── Video-Activity scoring/penalty block ────────────────────────────────── */
 
