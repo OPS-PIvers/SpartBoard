@@ -135,6 +135,8 @@ interface QuizAssignOptions {
   streakBonusEnabled: boolean;
   showPodiumBetweenQuestions: boolean;
   soundEffectsEnabled: boolean;
+  shuffleQuestions: boolean;
+  shuffleAnswerOptions: boolean;
   /** Max completed submissions per student. null = unlimited. Default 1. */
   attemptLimit: number | null;
   plcMode: boolean;
@@ -191,6 +193,11 @@ function buildDefaultAssignOptions(
     streakBonusEnabled: false,
     showPodiumBetweenQuestions: false,
     soundEffectsEnabled: false,
+    shuffleQuestions: false,
+    // Pre-toggle sessions had the second client-side shuffle always on; keep
+    // the default ON so behavior matches what teachers had before this
+    // toggle was exposed in the create flow.
+    shuffleAnswerOptions: true,
     // Default: one attempt per student. Teachers can switch to 2/3/Unlimited
     // in the assign modal or later in the assignment settings.
     attemptLimit: 1,
@@ -1151,6 +1158,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       streakBonusEnabled: assignOptions.streakBonusEnabled,
       showPodiumBetweenQuestions: assignOptions.showPodiumBetweenQuestions,
       soundEffectsEnabled: assignOptions.soundEffectsEnabled,
+      shuffleQuestions: assignOptions.shuffleQuestions,
+      shuffleAnswerOptions: assignOptions.shuffleAnswerOptions,
     };
     onAssign(
       assignTarget,
@@ -1956,6 +1965,8 @@ const AssignExtraSlot: React.FC<{
           showResultToStudent: options.showResultToStudent,
           showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
           showCorrectOnBoard: options.showCorrectOnBoard,
+          shuffleQuestions: options.shuffleQuestions,
+          shuffleAnswerOptions: options.shuffleAnswerOptions,
         }}
         onOptionsChange={(next) =>
           // The primitive's `update` always emits the full options object
@@ -1965,7 +1976,6 @@ const AssignExtraSlot: React.FC<{
         }
         attemptLimit={options.attemptLimit}
         onAttemptLimitChange={(v) => update('attemptLimit', v)}
-        excludeSections={['randomization']}
         trailingSlot={
           <CollapsibleSection label="Gamification">
             <ToggleRow

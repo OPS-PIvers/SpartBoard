@@ -237,89 +237,7 @@ export const QuizAssignmentSettingsModal: React.FC<
       confirmLabel="Save"
       onAssign={handleAssign}
       extraSlot={
-        <AssignmentSettingsToggleGroup
-          modeLocked={modeLocked}
-          options={{
-            tabWarningsEnabled: options.tabWarningsEnabled,
-            showResultToStudent: options.showResultToStudent,
-            showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
-            showCorrectOnBoard: options.showCorrectOnBoard,
-            shuffleQuestions: options.shuffleQuestions,
-            shuffleAnswerOptions: options.shuffleAnswerOptions,
-          }}
-          onOptionsChange={(next) =>
-            // The primitive's internal `update` always emits the full options
-            // object with one field changed, so spreading `next` over `p`
-            // correctly merges without dropping other state. Avoids the
-            // `?? p.X` pattern that's easy to misread as a falsy bug.
-            setOptions((p) => ({ ...p, ...next }))
-          }
-          attemptLimit={options.attemptLimit}
-          onAttemptLimitChange={(v) =>
-            setOptions((p) => ({ ...p, attemptLimit: v }))
-          }
-          trailingSlot={
-            <CollapsibleSection label="Gamification">
-              <ToggleRow
-                compact
-                label="Speed Bonus Points"
-                checked={options.speedBonusEnabled}
-                onChange={(v) =>
-                  setOptions((p) => ({ ...p, speedBonusEnabled: v }))
-                }
-                hint="Up to 50% bonus for fast answers"
-              />
-              <ToggleRow
-                compact
-                label="Streak Bonuses"
-                checked={options.streakBonusEnabled}
-                onChange={(v) =>
-                  setOptions((p) => ({ ...p, streakBonusEnabled: v }))
-                }
-                hint="Multiplier for consecutive correct answers"
-              />
-              <ToggleRow
-                compact
-                label="Podium Between Questions"
-                checked={options.showPodiumBetweenQuestions}
-                onChange={(v) =>
-                  setOptions((p) => ({ ...p, showPodiumBetweenQuestions: v }))
-                }
-                hint="Show top 3 leaderboard after each question"
-              />
-              <ToggleRow
-                compact
-                label="Sound Effects"
-                checked={options.soundEffectsEnabled}
-                onChange={(v) =>
-                  setOptions((p) => ({ ...p, soundEffectsEnabled: v }))
-                }
-                hint="Chimes, ticks, and fanfares during the quiz"
-              />
-            </CollapsibleSection>
-          }
-        />
-      }
-      plcSlot={
         <>
-          <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Share2 className="w-4 h-4 text-brand-blue-primary" />
-              <span className="text-sm font-bold text-brand-blue-dark">
-                Share with PLC
-              </span>
-            </div>
-            <Toggle
-              checked={options.plcMode}
-              onChange={(v) => setOptions((p) => ({ ...p, plcMode: v }))}
-              size="sm"
-              showLabels={true}
-            />
-          </div>
-          <p className="text-xxs text-slate-500 -mt-1">
-            Export results to a shared Google Sheet for your PLC team.
-          </p>
-
           <div>
             <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
               Class Periods
@@ -376,6 +294,93 @@ export const QuizAssignmentSettingsModal: React.FC<
               their class when joining.
             </p>
           </div>
+
+          <AssignmentSettingsToggleGroup
+            modeLocked={modeLocked}
+            options={{
+              tabWarningsEnabled: options.tabWarningsEnabled,
+              showResultToStudent: options.showResultToStudent,
+              showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
+              showCorrectOnBoard: options.showCorrectOnBoard,
+              shuffleQuestions: options.shuffleQuestions,
+              shuffleAnswerOptions: options.shuffleAnswerOptions,
+            }}
+            onOptionsChange={(next) =>
+              // The primitive's internal `update` always emits the full options
+              // object with one field changed, so spreading `next` over `p`
+              // correctly merges without dropping other state. Avoids the
+              // `?? p.X` pattern that's easy to misread as a falsy bug.
+              setOptions((p) => ({ ...p, ...next }))
+            }
+            attemptLimit={options.attemptLimit}
+            onAttemptLimitChange={(v) =>
+              setOptions((p) => ({ ...p, attemptLimit: v }))
+            }
+            trailingSlot={
+              <CollapsibleSection label="Gamification">
+                <ToggleRow
+                  compact
+                  label="Speed Bonus Points"
+                  checked={options.speedBonusEnabled}
+                  onChange={(v) =>
+                    setOptions((p) => ({ ...p, speedBonusEnabled: v }))
+                  }
+                  hint="Up to 50% bonus for fast answers"
+                />
+                <ToggleRow
+                  compact
+                  label="Streak Bonuses"
+                  checked={options.streakBonusEnabled}
+                  onChange={(v) =>
+                    setOptions((p) => ({ ...p, streakBonusEnabled: v }))
+                  }
+                  hint="Multiplier for consecutive correct answers"
+                />
+                <ToggleRow
+                  compact
+                  label="Podium Between Questions"
+                  checked={options.showPodiumBetweenQuestions}
+                  onChange={(v) =>
+                    setOptions((p) => ({
+                      ...p,
+                      showPodiumBetweenQuestions: v,
+                    }))
+                  }
+                  hint="Show top 3 leaderboard after each question"
+                />
+                <ToggleRow
+                  compact
+                  label="Sound Effects"
+                  checked={options.soundEffectsEnabled}
+                  onChange={(v) =>
+                    setOptions((p) => ({ ...p, soundEffectsEnabled: v }))
+                  }
+                  hint="Chimes, ticks, and fanfares during the quiz"
+                />
+              </CollapsibleSection>
+            }
+          />
+        </>
+      }
+      plcSlot={
+        <>
+          <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-brand-blue-primary" />
+              <span className="text-sm font-bold text-brand-blue-dark">
+                Share with PLC
+              </span>
+            </div>
+            <Toggle
+              checked={options.plcMode}
+              onChange={(v) => setOptions((p) => ({ ...p, plcMode: v }))}
+              size="sm"
+              showLabels={true}
+            />
+          </div>
+          <p className="text-xxs text-slate-500 -mt-1">
+            Export results to a shared Google Sheet for your PLC team.
+          </p>
 
           {options.plcMode && (
             <div className="space-y-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
