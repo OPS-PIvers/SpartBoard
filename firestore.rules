@@ -1338,7 +1338,12 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         (resource.data.teacherUid == request.auth.uid || isAdmin());
 
-      match /responses/{studentUid} {
+      // Doc id (`responseDocId`) is one of:
+      //   - `auth.uid`             (SSO `studentRole` joiners — stable per user)
+      //   - `pin-{period}-{pin}`   (anonymous PIN joiners — period-scoped)
+      // The variable name predates PR1; the runtime helper below decides
+      // whether the caller is the legitimate owner of the doc.
+      match /responses/{responseDocId} {
         function vaSessionClassId() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classId', '');
         }
@@ -1349,39 +1354,63 @@ service cloud.firestore {
         function vaSessionMode() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('mode', 'submissions');
         }
+        // True iff the doc id is either the caller's auth.uid (SSO) or a
+        // `pin-…` anonymous response key. Anonymous students are scoped by
+        // the `studentUid` field on the doc; that field is always required
+        // to equal `request.auth.uid` so the same physical caller cannot
+        // claim two anon docs at once.
+        function callerOwnsResponse() {
+          return responseDocId == request.auth.uid ||
+            responseDocId.matches('^pin-.+');
+        }
 
-        // Teacher can read all responses; students can only read their own (doc ID == auth UID)
+        // Teacher can read all responses; students can only read their own.
+        // SSO joiners' doc id equals auth.uid; anon joiners' doc carries
+        // their auth uid in the `studentUid` field.
         allow read: if request.auth != null && (
           isAdmin() ||
           get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
-          (studentUid == request.auth.uid && passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()))
+          ((responseDocId == request.auth.uid || resource.data.studentUid == request.auth.uid) &&
+            passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()))
         );
-        // Students create their own response; document ID and studentUid field must match their auth UID.
-        // studentRole users must also be enrolled in the session's class.
+        // Students create their own response. The `studentUid` field must
+        // equal the caller's auth uid (prevents impersonation); the doc id
+        // must follow either the `pin-…` anon scheme or be the caller's
+        // auth uid (SSO). studentRole users must also be enrolled in the
+        // session's class.
         allow create: if request.auth != null &&
-          studentUid == request.auth.uid &&
+          callerOwnsResponse() &&
           request.resource.data.studentUid == request.auth.uid &&
           request.resource.data.score == null &&
           request.resource.data.completedAt == null &&
           passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           vaSessionMode() == 'submissions';
-        // Students can update only their own response to add answers or set completedAt;
-        // identity fields and score are immutable from the client; answers array may only grow
+        // Students update their own response to add answers, set
+        // completedAt, log tab switches, log attempts, or set their class
+        // period after the post-PIN picker. Identity fields and
+        // teacher-controlled fields (score, isCorrect, scoreVisibility)
+        // remain immutable from the client; answers array may only grow.
         allow update: if request.auth != null &&
-          studentUid == request.auth.uid &&
+          callerOwnsResponse() &&
+          resource.data.studentUid == request.auth.uid &&
           passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           request.resource.data.studentUid == resource.data.studentUid &&
-          // Same fragility class as the quiz_sessions/responses rule: SSO
-          // studentRole responses may omit `pin` and `name` entirely, so
+          // SSO studentRole responses omit `pin` and `name` entirely, so
           // direct dot-access would throw and deny the write. The
-          // `affectedKeys().hasOnly(['answers', 'completedAt'])` clause
-          // below still prevents a student from adding/changing them.
+          // `affectedKeys().hasOnly(...)` clause below still prevents a
+          // student from changing them.
           request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
           request.resource.data.get('name', null) == resource.data.get('name', null) &&
           request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
           request.resource.data.score == resource.data.score &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt']) &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'answers',
+            'completedAt',
+            'tabSwitchWarnings',
+            'completedAttempts',
+            'classPeriod'
+          ]) &&
           request.resource.data.answers.size() >= resource.data.answers.size() &&
           request.resource.data.answers.hasAll(resource.data.answers);
         // Owning teacher (or admin) may delete responses when permanently

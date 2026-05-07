@@ -1893,34 +1893,42 @@ export interface QuizMetadata {
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
 export type QuizSessionMode = 'teacher' | 'auto' | 'student';
 
-/** Options passed from the assignment modal to configure session toggles. */
-export interface QuizSessionOptions {
+/**
+ * Common session-level toggles applicable to any assignment widget that
+ * mirrors the Quiz pattern (Quiz, Video Activity, future GuidedLearning).
+ * Keep this surface small — only fields with the same semantics across
+ * widgets belong here. Widget-specific knobs go on the per-widget
+ * extension type.
+ */
+export interface BaseSessionOptions {
   tabWarningsEnabled?: boolean;
   showResultToStudent?: boolean;
   showCorrectAnswerToStudent?: boolean;
   showCorrectOnBoard?: boolean;
-  speedBonusEnabled?: boolean;
-  streakBonusEnabled?: boolean;
-  showPodiumBetweenQuestions?: boolean;
-  soundEffectsEnabled?: boolean;
   /**
    * Randomize the order of questions per student per attempt. When on, every
    * student in the class sees questions in their own order, and each retake
-   * by the same student gets a fresh order too. Self-paced mode only —
-   * teacher-paced/auto sessions ignore this toggle (the teacher's
-   * `currentQuestionIndex` is the canonical pointer).
+   * by the same student gets a fresh order too. (Self-paced quiz only —
+   * teacher-paced/auto sessions ignore this toggle.)
    */
   shuffleQuestions?: boolean;
   /**
    * Randomize the order of answer options (MC choices, Matching right side,
    * Ordering items) per student per attempt. Independent of the always-on
-   * teacher-client shuffle in `toPublicQuestion` (run once at session-create
-   * time so the answer-key offset isn't deterministic in the Firestore doc);
-   * this toggle controls the second per-student shuffle that runs in the
-   * student client. Default (when the field is absent on legacy/in-flight
-   * sessions) is treated as ON to preserve pre-toggle behavior.
+   * teacher-client shuffle in `toPublicQuestion`; this toggle controls the
+   * second per-student shuffle that runs in the student client. Default
+   * (when the field is absent on legacy/in-flight sessions) is treated as
+   * ON to preserve pre-toggle behavior.
    */
   shuffleAnswerOptions?: boolean;
+}
+
+/** Options passed from the quiz assignment modal to configure session toggles. */
+export interface QuizSessionOptions extends BaseSessionOptions {
+  speedBonusEnabled?: boolean;
+  streakBonusEnabled?: boolean;
+  showPodiumBetweenQuestions?: boolean;
+  soundEffectsEnabled?: boolean;
 }
 
 /**
@@ -2603,10 +2611,51 @@ export interface VideoActivityConfig {
   lastRosterIdsByActivityId?: Record<string, string[]>;
 }
 
+/**
+ * Player-behavior controls that the student-side VideoPlayer reads directly.
+ * Captured at assignment-create time and mirrored onto the session doc so the
+ * student client can enforce them without a teacher round-trip.
+ */
 export interface VideoActivitySessionSettings {
   autoPlay: boolean;
+  /**
+   * Legacy "rewind to section start on incorrect answer" flag. New code
+   * prefers `VideoActivitySessionOptions.rewindOnIncorrectSeconds`. When that
+   * field is absent, `requireCorrectAnswer === true` is interpreted as
+   * "rewind to the previous question's timestamp" (the historical behavior).
+   */
   requireCorrectAnswer: boolean;
   allowSkipping: boolean;
+}
+
+/**
+ * Score-visibility levels mirroring `QuizAssignment.scoreVisibility`. Controls
+ * what the student sees on the post-completion screen.
+ */
+export type VideoActivityScoreVisibility =
+  | 'none'
+  | 'score_only'
+  | 'score_and_responses'
+  | 'score_responses_and_answers';
+
+/**
+ * Assignment-policy options for a Video Activity session. Distinct from
+ * `VideoActivitySessionSettings` (player behavior) — these are the
+ * security/feedback/scoring knobs that mirror the Quiz toggle group.
+ */
+export interface VideoActivitySessionOptions extends BaseSessionOptions {
+  /** Hard cap on the number of attempts per question. null/undefined = unlimited. */
+  attemptLimit?: number | null;
+  /**
+   * Seconds to rewind on a wrong submission. 0 / undefined = no rewind. When
+   * set and > 0, supersedes the legacy `requireCorrectAnswer` rewind-to-
+   * section-start behavior.
+   */
+  rewindOnIncorrectSeconds?: number;
+  /** Points to deduct per incorrect submission. 0 / undefined = no penalty. */
+  pointPenaltyOnIncorrect?: number;
+  /** Controls how much of the result the student sees post-completion. */
+  scoreVisibility?: VideoActivityScoreVisibility;
 }
 
 export interface GlobalVideoActivity extends VideoActivityMetadata {
@@ -2632,8 +2681,13 @@ export interface VideoActivitySession {
   youtubeUrl: string;
   /** Full questions including correctAnswer — used server-side for grading. */
   questions: VideoActivityQuestion[];
-  /** Session-level behavior controls configured at assignment time. */
+  /** Session-level player-behavior controls configured at assignment time. */
   settings?: VideoActivitySessionSettings;
+  /**
+   * Assignment-policy options (security, feedback, attempt limits, scoring).
+   * Mirrors QuizSession.sessionOptions. Absent on pre-PR1 sessions.
+   */
+  sessionOptions?: VideoActivitySessionOptions;
   status: 'active' | 'ended';
   /**
    * Roster PINs allowed to join. Teacher sets this when assigning to a class.
@@ -2671,6 +2725,12 @@ export interface VideoActivitySession {
    */
   rosterIds?: string[];
   /**
+   * Optional map of ClassLink `classId` → period name. Lets the SSO join
+   * path resolve the joining student's period without prompting them.
+   * Mirrors `QuizSession.classPeriodByClassId`.
+   */
+  classPeriodByClassId?: Record<string, string>;
+  /**
    * Frozen at creation from the org-wide `assignment-modes` admin setting.
    * Determines whether students see a tracked Share link (`'view-only'`) or
    * the full assignment experience (`'submissions'`). Absent on pre-feature
@@ -2691,12 +2751,27 @@ export interface VideoActivityAnswer {
 
 /**
  * Per-student response document in Firestore.
- * Stored at /video_activity_sessions/{sessionId}/responses/{studentUid}
- * The document ID is the student's Firebase auth UID (prevents PIN-claiming attacks).
+ *
+ * Document ID format mirrors the Quiz pattern:
+ *   - SSO students:         {auth.uid}            (stable identity)
+ *   - Anonymous PIN joiners: pin-{period}-{pin}    (deterministic, period-scoped)
+ *
+ * The deterministic anon key prevents two students with the same PIN in
+ * different periods from colliding, and lets the response doc be addressed
+ * server-side without prior knowledge of the auth UID.
+ *
+ * Stored at /video_activity_sessions/{sessionId}/responses/{responseKey}
  */
 export interface VideoActivityResponse {
-  pin: string;
-  name: string;
+  /** Roster PIN — present for anonymous joiners, absent on SSO joiners. */
+  pin?: string;
+  /**
+   * Self-typed name. Optional from PR1 onward — the student app no longer
+   * collects a name. Pre-PR1 archived responses still carry one; the Results
+   * UI prefers `useAssignmentPseudonyms` for display so legacy values remain
+   * harmless.
+   */
+  name?: string;
   /** Firebase auth UID of the student who created this response. Used for Firestore ownership rules. */
   studentUid: string;
   joinedAt: number;
@@ -2705,6 +2780,21 @@ export interface VideoActivityResponse {
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
+  /** Count of tab/focus losses while the activity is in progress. */
+  tabSwitchWarnings?: number;
+  /**
+   * Timestamps of completed attempts on each question. Used to enforce
+   * `VideoActivitySessionOptions.attemptLimit`. The array is appended to on
+   * every submission (correct or incorrect).
+   */
+  completedAttempts?: number[];
+  /** Final correctness flag, set when scores are published. */
+  isCorrect?: boolean;
+  /**
+   * Server-published score visibility for the response. Set when the teacher
+   * publishes scores; mirrors `VideoActivityScoreVisibility`.
+   */
+  scoreVisibility?: VideoActivityScoreVisibility;
 }
 
 export interface TalkingToolConfig {
@@ -4601,8 +4691,27 @@ export type VideoActivityAssignmentStatus = 'active' | 'paused' | 'inactive';
 export interface VideoActivityAssignmentSettings {
   /** Free-text label shown in the archive (e.g. "Period 2"). */
   className?: string;
-  /** Session behavior captured at assign time. */
+  /** Player-behavior toggles captured at assign time (autoPlay, etc.). */
   sessionSettings: VideoActivitySessionSettings;
+  /**
+   * Assignment-policy options (security, feedback, scoring). Mirrors
+   * `QuizAssignmentSettings.sessionOptions`. Optional so legacy assignments
+   * persist without these knobs; consumers default missing fields safely.
+   */
+  sessionOptions?: VideoActivitySessionOptions;
+  /**
+   * Score visibility level chosen by the teacher. Authoritative for what the
+   * student sees on the post-completion screen.
+   */
+  scoreVisibility?: VideoActivityScoreVisibility;
+  /** Server-set timestamp for when scores were published (publishScoresModal). */
+  scorePublishedAt?: number;
+  /**
+   * Per-roster period name(s) the assignment targets. Mirrors
+   * `QuizAssignment.periodNames` — populated at create time from the
+   * roster picker so the student-app post-PIN picker has stable labels.
+   */
+  periodNames?: string[];
 }
 
 /**

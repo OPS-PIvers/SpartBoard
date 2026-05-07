@@ -457,7 +457,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             derived.classIds,
             derived.periodNames,
             derived.rosterIds,
-            vaAssignmentMode
+            vaAssignmentMode,
+            derived.classPeriodByClassId
           );
 
           // Persist per-activity memory of the last roster selection so

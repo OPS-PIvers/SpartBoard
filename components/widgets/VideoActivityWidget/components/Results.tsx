@@ -153,8 +153,10 @@ export const Results: React.FC<ResultsProps> = ({
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
       const quizResponses = responses.map((r) => ({
-        studentUid: r.pin,
-        pin: r.pin,
+        studentUid: r.studentUid,
+        // Anon responses always carry a PIN; SSO responses don't. Fall back
+        // to empty string so the export shape stays string-typed.
+        pin: r.pin ?? '',
         joinedAt: r.joinedAt,
         status: (r.completedAt ? 'completed' : 'in-progress') as
           | 'completed'
@@ -168,7 +170,7 @@ export const Results: React.FC<ResultsProps> = ({
         })),
         score: r.score,
         submittedAt: r.completedAt,
-        tabSwitchWarnings: 0,
+        tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
       }));
 
       const url = await drive.exportResultsToSheet(
