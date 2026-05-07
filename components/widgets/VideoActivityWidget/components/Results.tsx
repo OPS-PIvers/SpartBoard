@@ -508,9 +508,12 @@ export const Results: React.FC<ResultsProps> = ({
                           className="font-bold text-slate-800 truncate"
                           style={{ fontSize: 'min(13px, 4cqmin)' }}
                         >
-                          {formatStudentName(byStudentUid.get(r.studentUid)) ||
-                            r.name ||
-                            r.pin}
+                          {/* `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`; pick the first non-empty string so the falsy-fallthrough intent is explicit (no `||` chain that ESLint would flag). */}
+                          {[
+                            formatStudentName(byStudentUid.get(r.studentUid)),
+                            r.name,
+                            r.pin,
+                          ].find((s) => typeof s === 'string' && s.length > 0)}
                         </p>
                         <p
                           className="text-slate-400"

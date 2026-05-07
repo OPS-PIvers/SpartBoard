@@ -115,7 +115,10 @@ const StudentRow: React.FC<StudentRowProps> = ({ response, questions }) => {
             className="font-bold text-slate-800 truncate"
             style={{ fontSize: 'min(13px, 4cqmin)' }}
           >
-            {response.name || response.pin}
+            {/* Legacy rows may carry '' for `response.name`; fall through to PIN when name is empty. */}
+            {response.name && response.name.length > 0
+              ? response.name
+              : response.pin}
           </p>
           {response.classPeriod && (
             <span
