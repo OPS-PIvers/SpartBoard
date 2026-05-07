@@ -610,18 +610,27 @@ describe('video_activity_sessions/responses — student-role gate', () => {
     );
   });
 
-  it('anonymous PIN student can create response without studentRole restriction', async () => {
+  it('anonymous PIN student can create response under pin-{period}-{pin} key', async () => {
+    // Anonymous joiners write under deterministic `pin-{period}-{pin}` keys
+    // (mirrors `computeResponseKey` / `encodeResponseKeySegment` on the
+    // client). The rules require this exact shape via regex; using
+    // `auth.uid` as the doc key would now be denied for anon callers.
+    const period = 'period_1';
+    const pin = '5678';
+    const responseKey = `pin-${period}-${pin}`;
     await assertSucceeds(
       setDoc(
-        doc(asAnonStudent(), `${col}/${SESSION_A}/responses/${ANON_UID}`),
+        doc(asAnonStudent(), `${col}/${SESSION_A}/responses/${responseKey}`),
         {
           studentUid: ANON_UID,
-          pin: '5678',
-          name: 'Anon',
+          pin,
+          classPeriod: period,
           joinedAt: 2000,
           score: null,
           completedAt: null,
           answers: [],
+          completedAttempts: 0,
+          tabSwitchWarnings: 0,
         }
       )
     );
