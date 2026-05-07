@@ -1,9 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Users2, Plus, Pencil, LogOut, Trash2, Mail } from 'lucide-react';
+import {
+  Users2,
+  Plus,
+  Pencil,
+  LogOut,
+  Trash2,
+  Mail,
+  ChevronRight,
+  MoreVertical,
+} from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { Plc, PlcInvitation } from '@/types';
 import { PlcEditModal } from './PlcEditModal';
 import { PlcInvitesModal } from './PlcInvitesModal';
@@ -22,11 +32,184 @@ interface SidebarPlcsProps {
   onOpenDashboard: (plcId: string) => void;
 }
 
+interface PlcRowProps {
+  plc: Plc;
+  isLead: boolean;
+  onOpen: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onLeave: () => void;
+}
+
+/**
+ * One PLC card in the sidebar list.
+ *
+ * Click-affordance design: the entire card is a single click target that
+ * opens the PLC Dashboard. Secondary actions (edit/view, delete/leave)
+ * collapse into a kebab popover. Implemented as an absolute-positioned
+ * backdrop `<button>` (the row click) with the visible content + kebab
+ * layered above. `pointer-events-none` on the static visual content lets
+ * clicks fall through to the backdrop; `pointer-events-auto` on the kebab
+ * captures its own clicks. This avoids the invalid nested-button HTML
+ * the previous split-row layout was working around.
+ */
+const PlcRow: React.FC<PlcRowProps> = ({
+  plc,
+  isLead,
+  onOpen,
+  onEdit,
+  onDelete,
+  onLeave,
+}) => {
+  const { t } = useTranslation();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const kebabRef = useRef<HTMLButtonElement>(null);
+
+  useClickOutside(menuRef, () => setMenuOpen(false), [kebabRef]);
+
+  // Escape closes the menu and restores focus to the kebab button.
+  // `aria-haspopup="menu"` on the kebab implies this contract per WAI-ARIA
+  // menu-button practices. Mounted only while the menu is open to avoid a
+  // global listener tax for every PLC row in the sidebar.
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handler = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.stopPropagation();
+        setMenuOpen(false);
+        kebabRef.current?.focus();
+      }
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [menuOpen]);
+
+  const handleMenuClick = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
+    setMenuOpen(false);
+    action();
+  };
+
+  return (
+    <div className="group relative flex items-center gap-2 p-2.5 bg-white border border-slate-200 hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/20 rounded-xl transition-all">
+      {/* Backdrop click target — covers the full card so clicking anywhere
+          (except the kebab) opens the dashboard. */}
+      <button
+        type="button"
+        onClick={onOpen}
+        className="absolute inset-0 rounded-xl focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary"
+        aria-label={t('sidebar.plcs.openDashboard', {
+          defaultValue: 'Open {{name}} dashboard',
+          name: plc.name,
+        })}
+      />
+
+      {/* Visible content. `pointer-events-none` so clicks pass through to
+          the backdrop button. */}
+      <div className="relative flex items-center gap-2 flex-1 min-w-0 pointer-events-none">
+        <div className="shrink-0 w-8 h-8 rounded-lg bg-brand-blue-lighter flex items-center justify-center">
+          <Users2 className="w-4 h-4 text-brand-blue-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <div className="text-sm font-bold text-slate-800 truncate">
+              {plc.name}
+            </div>
+            {isLead && (
+              <span className="text-xxs font-bold text-brand-blue-primary bg-brand-blue-lighter px-1.5 py-0.5 rounded uppercase tracking-wider">
+                {t('sidebar.plcs.leadBadge', { defaultValue: 'Lead' })}
+              </span>
+            )}
+          </div>
+          <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
+            {t('sidebar.plcs.memberCount', {
+              count: plc.memberUids.length,
+              defaultValue: '{{count}} Member',
+              defaultValue_other: '{{count}} Members',
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* Right-side cluster: chevron affordance + kebab. `pointer-events-auto`
+          re-enables clicks here so the kebab fires its own handler. */}
+      <div className="relative flex items-center gap-0.5 shrink-0 pointer-events-auto">
+        <ChevronRight
+          className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors"
+          aria-hidden="true"
+        />
+        <button
+          ref={kebabRef}
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((prev) => !prev);
+          }}
+          className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          aria-label={t('sidebar.plcs.actionsMenu', {
+            defaultValue: 'PLC actions',
+          })}
+          title={t('sidebar.plcs.actionsMenu', {
+            defaultValue: 'PLC actions',
+          })}
+        >
+          <MoreVertical className="w-4 h-4" />
+        </button>
+
+        {menuOpen && (
+          <div
+            ref={menuRef}
+            role="menu"
+            className="absolute right-0 top-full mt-1 z-20 min-w-[160px] bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150"
+            data-click-outside-ignore="true"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={(e) => handleMenuClick(e, onEdit)}
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 transition-colors text-left"
+            >
+              <Pencil className="w-3.5 h-3.5 text-slate-500" />
+              {isLead
+                ? t('sidebar.plcs.editPlc', { defaultValue: 'Edit PLC' })
+                : t('sidebar.plcs.viewPlc', { defaultValue: 'View PLC' })}
+            </button>
+            {isLead ? (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => handleMenuClick(e, onDelete)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {t('sidebar.plcs.deletePlc', { defaultValue: 'Delete PLC' })}
+              </button>
+            ) : (
+              <button
+                type="button"
+                role="menuitem"
+                onClick={(e) => handleMenuClick(e, onLeave)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors text-left border-t border-slate-100"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                {t('sidebar.plcs.leavePlc', { defaultValue: 'Leave PLC' })}
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
 /**
  * "My PLCs" sidebar page.
  *
- * Mirrors `SidebarClasses` — flat list of the user's PLCs with inline edit /
- * leave / delete actions and modals for create+edit + pending invites.
+ * Mirrors `SidebarClasses` — flat list of the user's PLCs with a kebab
+ * action menu and modals for create+edit + pending invites.
  */
 export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   isVisible,
@@ -207,102 +390,15 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                   {plcs.map((plc) => {
                     const isLead = plc.leadUid === user?.uid;
                     return (
-                      <div
+                      <PlcRow
                         key={plc.id}
-                        className="flex items-center gap-2 p-2.5 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition-all"
-                      >
-                        {/* Left side: clickable area opens the PLC dashboard.
-                            Implemented as a button so keyboard + screen-reader
-                            navigation work. The right-side action icons sit
-                            outside this button so nested-button HTML is avoided. */}
-                        <button
-                          type="button"
-                          onClick={() => onOpenDashboard(plc.id)}
-                          className="flex items-center gap-2 flex-1 min-w-0 text-left rounded-lg hover:bg-brand-blue-lighter/30 transition-colors -m-1 p-1"
-                          aria-label={t('sidebar.plcs.openDashboard', {
-                            defaultValue: 'Open {{name}} dashboard',
-                            name: plc.name,
-                          })}
-                        >
-                          <div className="shrink-0 w-8 h-8 rounded-lg bg-brand-blue-lighter flex items-center justify-center">
-                            <Users2 className="w-4 h-4 text-brand-blue-primary" />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1.5 min-w-0">
-                              <div className="text-sm font-bold text-slate-800 truncate">
-                                {plc.name}
-                              </div>
-                              {isLead && (
-                                <span className="text-xxs font-bold text-brand-blue-primary bg-brand-blue-lighter px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                  {t('sidebar.plcs.leadBadge', {
-                                    defaultValue: 'Lead',
-                                  })}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-                              {t('sidebar.plcs.memberCount', {
-                                count: plc.memberUids.length,
-                                defaultValue: '{{count}} Member',
-                                defaultValue_other: '{{count}} Members',
-                              })}
-                            </div>
-                          </div>
-                        </button>
-                        <div className="flex items-center gap-0.5 shrink-0">
-                          <button
-                            onClick={() => setEditingPlcId(plc.id)}
-                            className="p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-                            title={
-                              isLead
-                                ? t('sidebar.plcs.editPlc', {
-                                    defaultValue: 'Edit PLC',
-                                  })
-                                : t('sidebar.plcs.viewPlc', {
-                                    defaultValue: 'View PLC',
-                                  })
-                            }
-                            aria-label={
-                              isLead
-                                ? t('sidebar.plcs.editPlc', {
-                                    defaultValue: 'Edit PLC',
-                                  })
-                                : t('sidebar.plcs.viewPlc', {
-                                    defaultValue: 'View PLC',
-                                  })
-                            }
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          {isLead ? (
-                            <button
-                              onClick={() => void handleDelete(plc)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title={t('sidebar.plcs.deletePlc', {
-                                defaultValue: 'Delete PLC',
-                              })}
-                              aria-label={t('sidebar.plcs.deletePlc', {
-                                defaultValue: 'Delete PLC',
-                              })}
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => void handleLeave(plc)}
-                              className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                              title={t('sidebar.plcs.leavePlc', {
-                                defaultValue: 'Leave PLC',
-                              })}
-                              aria-label={t('sidebar.plcs.leavePlc', {
-                                defaultValue: 'Leave PLC',
-                              })}
-                            >
-                              <LogOut className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
-                      </div>
+                        plc={plc}
+                        isLead={isLead}
+                        onOpen={() => onOpenDashboard(plc.id)}
+                        onEdit={() => setEditingPlcId(plc.id)}
+                        onDelete={() => void handleDelete(plc)}
+                        onLeave={() => void handleLeave(plc)}
+                      />
                     );
                   })}
                 </div>

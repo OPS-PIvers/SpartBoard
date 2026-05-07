@@ -178,6 +178,8 @@
       "viewPlcTitle": "PLC Details",
       "deletePlc": "Delete PLC",
       "leavePlc": "Leave PLC",
+      "actionsMenu": "PLC actions",
+      "openDashboard": "Open {{name}} dashboard",
       "yourPlcs": "Your PLCs",
       "leadBadge": "Lead",
       "memberCount_one": "{{count}} Member",
@@ -257,6 +259,7 @@
     "backToMenu": "Back",
     "close": "Close",
     "tabs": {
+      "overview": "Overview",
       "completed": "Completed Assignments",
       "quizzes": "Quiz Library",
       "assignments": "PLC Assignments",
@@ -312,6 +315,118 @@
         "title": "Shared Boards",
         "description": "Surface dashboards shared with this PLC."
       }
+    },
+    "overview": {
+      "heading": "Overview",
+      "editLayout": "Edit layout",
+      "doneEditing": "Done",
+      "reset": "Reset",
+      "editHint": "Drag tiles by the grip, click the corner to resize, click the eye to hide.",
+      "confirmReset": "Reset your bento layout to the default arrangement? Tile sizes and order will be restored.",
+      "confirmResetTitle": "Reset layout",
+      "dragHandle": "Drag to reorder",
+      "hideTile": "Hide tile",
+      "unhideTile": "Restore {{kind}} tile",
+      "resizeTile": "Resize tile (current: {{size}})",
+      "hiddenTiles": "Hidden tiles",
+      "hiddenTilesHint": "click to restore",
+      "tiles": {
+        "comingSoon": "Phase {{phase}} · soon",
+        "plcInfo": {
+          "label": "Professional Learning Community",
+          "members": "Members",
+          "lead": "Lead",
+          "you": "You",
+          "created": "Created",
+          "openSettings": "Open settings"
+        },
+        "members": {
+          "heading": "Members"
+        },
+        "completedAssignments": {
+          "heading": "Recent results",
+          "empty": "No assignments run yet",
+          "emptySubtitle": "Quizzes you run with PLC mode appear here.",
+          "viewAll": "View all"
+        },
+        "notes": {
+          "heading": "Notes",
+          "empty": "No notes yet",
+          "emptySubtitle": "Capture meeting notes, decisions, ideas.",
+          "untitled": "Untitled",
+          "openAll": "Open notes",
+          "justNow": "just now",
+          "minutesAgo_one": "{{count}}m ago",
+          "minutesAgo_other": "{{count}}m ago",
+          "hoursAgo_one": "{{count}}h ago",
+          "hoursAgo_other": "{{count}}h ago",
+          "daysAgo_one": "{{count}}d ago",
+          "daysAgo_other": "{{count}}d ago"
+        },
+        "todos": {
+          "heading": "To-do list",
+          "empty": "Nothing to do",
+          "emptySubtitle": "Add action items in the To-Do tab.",
+          "openAll": "Open list",
+          "toggle": "Mark \"{{text}}\" complete",
+          "moreCount_one": "+{{count}} more",
+          "moreCount_other": "+{{count}} more"
+        },
+        "sharedSheet": {
+          "heading": "Shared sheet",
+          "connectedHint": "Aggregated PLC results land in this Google Sheet. All members can open it.",
+          "unsetHint": "No shared sheet yet — it will be created automatically when the first PLC quiz is run.",
+          "open": "Open sheet",
+          "notReady": "Not yet created"
+        },
+        "quickActions": {
+          "heading": "Quick actions",
+          "addNote": "Add note",
+          "addTodo": "Add to-do"
+        },
+        "quizLibrary": {
+          "title": "Quiz library",
+          "teaser": "Share quizzes with your PLC."
+        },
+        "activeAssignments": {
+          "title": "Active assignments",
+          "teaser": "PLC-authored assignments awaiting pickup."
+        },
+        "videoActivities": {
+          "title": "Video activities",
+          "teaser": "Share video activities with the PLC."
+        },
+        "sharedBoards": {
+          "title": "Shared boards",
+          "teaser": "Boards shared with this PLC."
+        }
+      }
+    },
+    "notes": {
+      "heading": "Notes",
+      "newNote": "New",
+      "untitled": "Untitled",
+      "empty": "Empty note",
+      "emptyTitle": "No notes yet",
+      "emptySubtitle": "Create the first one to get started.",
+      "titlePlaceholder": "Note title",
+      "bodyPlaceholder": "Write your notes…",
+      "deleteNote": "Delete note",
+      "confirmDelete": "Delete this note? This cannot be undone.",
+      "confirmDeleteTitle": "Delete note",
+      "lastEdited": "Last edited {{when}}",
+      "pickOrCreate": "Select a note to edit, or create a new one."
+    },
+    "todos": {
+      "addPlaceholder": "Add a to-do for the PLC…",
+      "add": "Add",
+      "openHeading": "To do",
+      "doneHeading": "Done",
+      "allDone": "Nothing on the list",
+      "toggle": "Mark \"{{text}}\" complete",
+      "deleteTodo": "Delete to-do",
+      "confirmDelete": "Delete this to-do?",
+      "confirmDeleteTitle": "Delete to-do"
     }
   },
   "widgetWindow": {
