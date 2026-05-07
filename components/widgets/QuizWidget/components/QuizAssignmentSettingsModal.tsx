@@ -11,7 +11,7 @@
  */
 
 import React, { useState } from 'react';
-import { AlertTriangle, Lock, User, Zap, Clock, Share2 } from 'lucide-react';
+import { AlertTriangle, User, Zap, Clock, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
   QuizAssignmentSettings,
@@ -20,10 +20,11 @@ import type {
   ClassRoster,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
-import { AttemptLimitRow } from './AttemptLimitRow';
 import {
   AssignModal,
+  AssignmentSettingsToggleGroup,
   CollapsibleSection,
+  ToggleRow,
   type AssignModeOption,
 } from '@/components/common/library';
 
@@ -53,6 +54,8 @@ interface SettingsOptions {
   streakBonusEnabled: boolean;
   showPodiumBetweenQuestions: boolean;
   soundEffectsEnabled: boolean;
+  shuffleQuestions: boolean;
+  shuffleAnswerOptions: boolean;
   /** null = unlimited; any positive int = hard cap. */
   attemptLimit: number | null;
   plcMode: boolean;
@@ -76,6 +79,11 @@ function initialOptionsFor(
     streakBonusEnabled: opts.streakBonusEnabled ?? false,
     showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
     soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
+    shuffleQuestions: opts.shuffleQuestions ?? false,
+    // Pre-toggle sessions had the second client-side shuffle always on, so
+    // legacy/absent reads as `true` to keep current assignments behaving
+    // identically after the upgrade.
+    shuffleAnswerOptions: opts.shuffleAnswerOptions ?? true,
     // Legacy assignments have no attemptLimit — preserve "unlimited" for
     // those rather than retroactively capping ongoing sessions.
     attemptLimit: a.attemptLimit ?? null,
@@ -158,6 +166,8 @@ export const QuizAssignmentSettingsModal: React.FC<
       streakBonusEnabled: options.streakBonusEnabled,
       showPodiumBetweenQuestions: options.showPodiumBetweenQuestions,
       soundEffectsEnabled: options.soundEffectsEnabled,
+      shuffleQuestions: options.shuffleQuestions,
+      shuffleAnswerOptions: options.shuffleAnswerOptions,
     };
     // Intentionally pass empty strings (not undefined) so that clearing a
     // field actually writes '' to Firestore. Using `|| undefined` would cause
@@ -228,121 +238,6 @@ export const QuizAssignmentSettingsModal: React.FC<
       onAssign={handleAssign}
       extraSlot={
         <>
-          {modeLocked && (
-            <div className="flex items-center gap-1.5 text-xxs font-bold text-slate-400 uppercase tracking-widest -mt-2">
-              <Lock className="w-3 h-3" />
-              Session mode locked
-              <span className="font-normal text-slate-400 normal-case tracking-normal">
-                — make this assignment inactive to change it.
-              </span>
-            </div>
-          )}
-
-          <SectionHeader label="Quiz Integrity" />
-          <AttemptLimitRow
-            value={options.attemptLimit}
-            onChange={(v) => setOptions((p) => ({ ...p, attemptLimit: v }))}
-          />
-          <ToggleRow
-            label="Tab Switch Detection"
-            checked={options.tabWarningsEnabled}
-            onChange={(v) =>
-              setOptions((p) => ({ ...p, tabWarningsEnabled: v }))
-            }
-            hint="Warn students who leave the quiz tab"
-          />
-
-          <CollapsibleSection label="Answer Feedback">
-            <ToggleRow
-              compact
-              label="Show right/wrong to students"
-              checked={options.showResultToStudent}
-              onChange={(v) =>
-                setOptions((p) => ({ ...p, showResultToStudent: v }))
-              }
-              hint="Students see ✓ or ✗ after submitting"
-            />
-            <ToggleRow
-              compact
-              label="Reveal correct answer to students"
-              checked={options.showCorrectAnswerToStudent}
-              onChange={(v) =>
-                setOptions((p) => ({ ...p, showCorrectAnswerToStudent: v }))
-              }
-              disabled={!options.showResultToStudent}
-              hint="Also show what the correct answer was"
-            />
-            <ToggleRow
-              compact
-              label="Show correct answer on board"
-              checked={options.showCorrectOnBoard}
-              onChange={(v) =>
-                setOptions((p) => ({ ...p, showCorrectOnBoard: v }))
-              }
-              hint="Display correct answer on the projected screen"
-            />
-          </CollapsibleSection>
-
-          <CollapsibleSection label="Gamification">
-            <ToggleRow
-              compact
-              label="Speed Bonus Points"
-              checked={options.speedBonusEnabled}
-              onChange={(v) =>
-                setOptions((p) => ({ ...p, speedBonusEnabled: v }))
-              }
-              hint="Up to 50% bonus for fast answers"
-            />
-            <ToggleRow
-              compact
-              label="Streak Bonuses"
-              checked={options.streakBonusEnabled}
-              onChange={(v) =>
-                setOptions((p) => ({ ...p, streakBonusEnabled: v }))
-              }
-              hint="Multiplier for consecutive correct answers"
-            />
-            <ToggleRow
-              compact
-              label="Podium Between Questions"
-              checked={options.showPodiumBetweenQuestions}
-              onChange={(v) =>
-                setOptions((p) => ({ ...p, showPodiumBetweenQuestions: v }))
-              }
-              hint="Show top 3 leaderboard after each question"
-            />
-            <ToggleRow
-              compact
-              label="Sound Effects"
-              checked={options.soundEffectsEnabled}
-              onChange={(v) =>
-                setOptions((p) => ({ ...p, soundEffectsEnabled: v }))
-              }
-              hint="Chimes, ticks, and fanfares during the quiz"
-            />
-          </CollapsibleSection>
-        </>
-      }
-      plcSlot={
-        <>
-          <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Share2 className="w-4 h-4 text-brand-blue-primary" />
-              <span className="text-sm font-bold text-brand-blue-dark">
-                Share with PLC
-              </span>
-            </div>
-            <Toggle
-              checked={options.plcMode}
-              onChange={(v) => setOptions((p) => ({ ...p, plcMode: v }))}
-              size="sm"
-              showLabels={true}
-            />
-          </div>
-          <p className="text-xxs text-slate-500 -mt-1">
-            Export results to a shared Google Sheet for your PLC team.
-          </p>
-
           <div>
             <label className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1">
               Class Periods
@@ -399,6 +294,97 @@ export const QuizAssignmentSettingsModal: React.FC<
               their class when joining.
             </p>
           </div>
+
+          <AssignmentSettingsToggleGroup
+            modeLocked={modeLocked}
+            options={{
+              tabWarningsEnabled: options.tabWarningsEnabled,
+              showResultToStudent: options.showResultToStudent,
+              showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
+              showCorrectOnBoard: options.showCorrectOnBoard,
+              shuffleQuestions: options.shuffleQuestions,
+              shuffleAnswerOptions: options.shuffleAnswerOptions,
+            }}
+            onOptionsChange={(next) =>
+              // The primitive's internal `update` always emits the full options
+              // object with one field changed, so spreading `next` over `p`
+              // correctly merges without dropping other state. Avoids the
+              // `?? p.X` pattern that's easy to misread as a falsy bug.
+              setOptions((p) => ({ ...p, ...next }))
+            }
+            attemptLimit={options.attemptLimit}
+            onAttemptLimitChange={(v) =>
+              setOptions((p) => ({ ...p, attemptLimit: v }))
+            }
+            // Per-student question shuffle only takes effect in self-paced
+            // mode; disable + hint the toggle otherwise so teachers don't
+            // enable a flag that won't fire.
+            shuffleQuestionsAvailable={sessionMode === 'student'}
+            trailingSlot={
+              <CollapsibleSection label="Gamification">
+                <ToggleRow
+                  compact
+                  label="Speed Bonus Points"
+                  checked={options.speedBonusEnabled}
+                  onChange={(v) =>
+                    setOptions((p) => ({ ...p, speedBonusEnabled: v }))
+                  }
+                  hint="Up to 50% bonus for fast answers"
+                />
+                <ToggleRow
+                  compact
+                  label="Streak Bonuses"
+                  checked={options.streakBonusEnabled}
+                  onChange={(v) =>
+                    setOptions((p) => ({ ...p, streakBonusEnabled: v }))
+                  }
+                  hint="Multiplier for consecutive correct answers"
+                />
+                <ToggleRow
+                  compact
+                  label="Podium Between Questions"
+                  checked={options.showPodiumBetweenQuestions}
+                  onChange={(v) =>
+                    setOptions((p) => ({
+                      ...p,
+                      showPodiumBetweenQuestions: v,
+                    }))
+                  }
+                  hint="Show top 3 leaderboard after each question"
+                />
+                <ToggleRow
+                  compact
+                  label="Sound Effects"
+                  checked={options.soundEffectsEnabled}
+                  onChange={(v) =>
+                    setOptions((p) => ({ ...p, soundEffectsEnabled: v }))
+                  }
+                  hint="Chimes, ticks, and fanfares during the quiz"
+                />
+              </CollapsibleSection>
+            }
+          />
+        </>
+      }
+      plcSlot={
+        <>
+          <div className="border-t border-slate-200/70 pt-3 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Share2 className="w-4 h-4 text-brand-blue-primary" />
+              <span className="text-sm font-bold text-brand-blue-dark">
+                Share with PLC
+              </span>
+            </div>
+            <Toggle
+              checked={options.plcMode}
+              onChange={(v) => setOptions((p) => ({ ...p, plcMode: v }))}
+              size="sm"
+              showLabels={true}
+            />
+          </div>
+          <p className="text-xxs text-slate-500 -mt-1">
+            Export results to a shared Google Sheet for your PLC team.
+          </p>
 
           {options.plcMode && (
             <div className="space-y-3 bg-slate-50 rounded-xl p-3 border border-slate-100">
@@ -464,41 +450,3 @@ export const QuizAssignmentSettingsModal: React.FC<
     />
   );
 };
-
-/* ─── Local small UI helpers ─────────────────────────────────────────────── */
-
-const SectionHeader: React.FC<{ label: string }> = ({ label }) => (
-  <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest pt-1">
-    {label}
-  </p>
-);
-
-const ToggleRow: React.FC<{
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  hint?: string;
-  disabled?: boolean;
-  /**
-   * When true, the label renders in the small uppercase brand-blue style
-   * used inside `CollapsibleSection` bodies. Top-level rows (e.g. Tab
-   * Switch Detection) use the default bold-dark label.
-   */
-  compact?: boolean;
-}> = ({ label, checked, onChange, hint, disabled, compact = false }) => (
-  <div className={disabled ? 'opacity-40 pointer-events-none' : ''}>
-    <div className="flex items-center justify-between">
-      <span
-        className={
-          compact
-            ? 'text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest'
-            : 'text-sm font-bold text-brand-blue-dark'
-        }
-      >
-        {label}
-      </span>
-      <Toggle checked={checked} onChange={onChange} size="sm" showLabels />
-    </div>
-    {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}
-  </div>
-);

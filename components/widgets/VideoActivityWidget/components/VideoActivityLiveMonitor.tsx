@@ -28,6 +28,11 @@ import {
   VideoActivityQuestion,
 } from '@/types';
 import { useDialog } from '@/context/useDialog';
+import { useAuth } from '@/context/useAuth';
+import {
+  useAssignmentPseudonymsMulti,
+  formatStudentName,
+} from '@/hooks/useAssignmentPseudonyms';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 interface VideoActivityLiveMonitorProps {
@@ -51,9 +56,41 @@ interface VideoActivityLiveMonitorProps {
 interface StudentRowProps {
   response: VideoActivityResponse;
   questions: VideoActivityQuestion[];
+  /**
+   * Roster name lookup keyed by `response.studentUid`. Used to label SSO
+   * `studentRole` joiners (who carry no `pin` or `name` field) with their
+   * real ClassLink name. Empty map = legacy / non-SSO sessions; rows fall
+   * back through `response.name` and finally `response.pin`.
+   */
+  byStudentUid: Map<string, { givenName: string; familyName: string }>;
 }
 
-const StudentRow: React.FC<StudentRowProps> = ({ response, questions }) => {
+/**
+ * Pick the first non-empty display label from
+ *   1. The roster name resolved via `byStudentUid` (SSO students)
+ *   2. The self-typed `response.name` (legacy pre-PR1 anon rows)
+ *   3. The PIN itself (PR1+ anon rows)
+ *
+ * Returns `undefined` if all three are empty/missing — caller renders an
+ * em-dash so the UI never goes blank.
+ */
+function pickDisplayLabel(
+  response: VideoActivityResponse,
+  byStudentUid: Map<string, { givenName: string; familyName: string }>
+): string | undefined {
+  const candidates = [
+    formatStudentName(byStudentUid.get(response.studentUid)),
+    response.name,
+    response.pin,
+  ];
+  return candidates.find((s) => typeof s === 'string' && s.length > 0);
+}
+
+const StudentRow: React.FC<StudentRowProps> = ({
+  response,
+  questions,
+  byStudentUid,
+}) => {
   const correctAnswerById = useMemo(() => {
     const m = new Map<string, string>();
     for (const q of questions) m.set(q.id, q.correctAnswer);
@@ -115,7 +152,7 @@ const StudentRow: React.FC<StudentRowProps> = ({ response, questions }) => {
             className="font-bold text-slate-800 truncate"
             style={{ fontSize: 'min(13px, 4cqmin)' }}
           >
-            {response.name || response.pin}
+            {pickDisplayLabel(response, byStudentUid) ?? '—'}
           </p>
           {response.classPeriod && (
             <span
@@ -157,8 +194,9 @@ const StudentRow: React.FC<StudentRowProps> = ({ response, questions }) => {
             marginTop: 'min(2px, 0.5cqmin)',
           }}
         >
-          PIN {response.pin} · {answeredCount}/{questions.length} answered ·
-          last {formatTime(latestAnsweredAt)}
+          {response.pin ? `PIN ${response.pin} · ` : null}
+          {answeredCount}/{questions.length} answered · last{' '}
+          {formatTime(latestAnsweredAt)}
         </p>
       </div>
 
@@ -272,6 +310,23 @@ export const VideoActivityLiveMonitor: React.FC<
   VideoActivityLiveMonitorProps
 > = ({ session, responses, onEnd, onPause, onResume, onBack }) => {
   const { showConfirm } = useDialog();
+  const { orgId } = useAuth();
+  // SSO `studentRole` responses carry no PIN or self-typed name; resolve
+  // their roster identities here so the monitor row labels stay populated.
+  // Use the multi-class variant — `session.classId` is a transitional
+  // mirror of `classIds[0]` only, so the single-class hook would miss
+  // SSO students from `classIds[1+]` entirely on multi-class assignments.
+  // Mirrors the QuizLiveMonitor pattern.
+  const sessionClassIds = useMemo(() => {
+    if (session.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session.classId ? [session.classId] : [];
+  }, [session.classIds, session.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
+    session.id,
+    sessionClassIds,
+    orgId
+  );
   const questions = session.questions;
   const [ending, setEnding] = useState(false);
   const [toggling, setToggling] = useState(false);
@@ -577,6 +632,7 @@ export const VideoActivityLiveMonitor: React.FC<
                     key={r.studentUid}
                     response={r}
                     questions={questions}
+                    byStudentUid={byStudentUid}
                   />
                 ))}
               </div>

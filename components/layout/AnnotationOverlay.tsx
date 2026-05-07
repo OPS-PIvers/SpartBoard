@@ -62,11 +62,21 @@ export const AnnotationOverlay: React.FC = () => {
     addToast,
     updateWidget,
     addWidget,
+    isActiveBoardReadOnly,
   } = dashboard;
   // Defensive fallback — older mock contexts (e.g. in unit tests) may omit
   // annotationState; provide sensible defaults so this component never throws.
   const annotationState =
     dashboard.annotationState ?? FALLBACK_ANNOTATION_STATE;
+  // Viewer (View-Only participant) renders strokes only — no toolbar, no
+  // pen interaction. The host's strokes flow in via the dashboard's
+  // `annotationOverlay` field through the live-share mirror.
+  const isReadOnly = !!isActiveBoardReadOnly;
+  // Show overlay either when the local user opened it, OR when remote
+  // strokes exist on the active dashboard (so viewers see incoming strokes
+  // even without ever clicking the pencil).
+  const hasRemoteStrokes = (annotationState.objects?.length ?? 0) > 0;
+  const shouldRender = annotationActive || hasRemoteStrokes;
   const { canAccessFeature } = useAuth();
   const { saveDrawingToDrive, isConnected: isDriveConnected } =
     useGoogleDrive();
@@ -83,7 +93,7 @@ export const AnnotationOverlay: React.FC = () => {
 
   // Locate the dashboard root portal target (waits for mount if needed)
   useEffect(() => {
-    if (!annotationActive) return;
+    if (!shouldRender) return;
     const findTarget = () => {
       const target = document.getElementById('dashboard-root');
       if (target) {
@@ -98,26 +108,26 @@ export const AnnotationOverlay: React.FC = () => {
     });
     observer.observe(document.body, { childList: true, subtree: true });
     return () => observer.disconnect();
-  }, [annotationActive]);
+  }, [shouldRender]);
 
   // Track viewport size for canvas resolution
   useEffect(() => {
-    if (!annotationActive) return undefined;
+    if (!shouldRender) return undefined;
     const handleResize = () =>
       setViewport({ width: window.innerWidth, height: window.innerHeight });
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, [annotationActive]);
+  }, [shouldRender]);
 
   // Escape key exits annotation
   useEffect(() => {
-    if (!annotationActive) return undefined;
+    if (!shouldRender) return undefined;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeAnnotation();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [annotationActive, closeAnnotation]);
+  }, [shouldRender, closeAnnotation]);
 
   const canvasSize = useMemo(
     () => ({ width: viewport.width, height: viewport.height }),
@@ -242,9 +252,13 @@ export const AnnotationOverlay: React.FC = () => {
     }
   }, [activeDashboard, addToast, addWidget, updateWidget]);
 
-  if (!annotationActive || !portalTarget) return null;
+  if (!shouldRender || !portalTarget) return null;
 
   const { color, width, customColors, objects } = annotationState;
+  // Read-only canvas for viewers and for the passive "remote strokes are
+  // showing but I haven't opened the toolbar" state. No pen interaction,
+  // no toolbar — just the strokes painted on top of the dashboard.
+  const interactive = annotationActive && !isReadOnly;
 
   return createPortal(
     <div
@@ -253,142 +267,164 @@ export const AnnotationOverlay: React.FC = () => {
     >
       <canvas
         ref={canvasRef}
-        onPointerDown={handleStart}
-        onPointerMove={handleMove}
-        onPointerUp={handleEnd}
-        onPointerLeave={handleEnd}
-        className="absolute inset-0 pointer-events-auto cursor-crosshair"
-        style={{ touchAction: 'none' }}
+        onPointerDown={interactive ? handleStart : undefined}
+        onPointerMove={interactive ? handleMove : undefined}
+        onPointerUp={interactive ? handleEnd : undefined}
+        onPointerLeave={interactive ? handleEnd : undefined}
+        className={`absolute inset-0 ${
+          interactive
+            ? 'pointer-events-auto cursor-crosshair'
+            : 'pointer-events-none'
+        }`}
+        style={{ touchAction: interactive ? 'none' : 'auto' }}
       />
 
-      {/* Floating toolbar — sits where the Dock normally lives */}
-      <div
-        data-screenshot="exclude"
-        className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex items-center gap-2 animate-in slide-in-from-bottom duration-300"
-      >
-        <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
-          <MousePointer2 className="w-4 h-4 text-indigo-600 animate-pulse" />
-          <span className="text-xxs font-black uppercase tracking-widest text-slate-700">
-            Annotating
-          </span>
-        </div>
+      {/* Floating toolbar — sits where the Dock normally lives.
+          Hidden for viewers and for the passive remote-stroke render path. */}
+      {interactive && (
+        <div
+          data-screenshot="exclude"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex items-center gap-2 animate-in slide-in-from-bottom duration-300"
+        >
+          <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
+            <MousePointer2 className="w-4 h-4 text-indigo-600 animate-pulse" />
+            <span className="text-xxs font-black uppercase tracking-widest text-slate-700">
+              Annotating
+            </span>
+          </div>
 
-        <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
-          {customColors.map((c) => (
+          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+            {customColors.map((c) => (
+              <button
+                key={c}
+                onClick={() => updateAnnotationState({ color: c })}
+                className={`w-7 h-7 rounded-md transition-all ${
+                  color === c
+                    ? 'scale-110 shadow-sm ring-2 ring-indigo-500'
+                    : 'hover:scale-105'
+                }`}
+                style={{ backgroundColor: c }}
+                aria-label={`Color ${c}`}
+              />
+            ))}
             <button
-              key={c}
-              onClick={() => updateAnnotationState({ color: c })}
-              className={`w-7 h-7 rounded-md transition-all ${
-                color === c
-                  ? 'scale-110 shadow-sm ring-2 ring-indigo-500'
-                  : 'hover:scale-105'
+              onClick={() => updateAnnotationState({ color: 'eraser' })}
+              className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${
+                color === 'eraser' ? 'ring-2 ring-indigo-500' : ''
               }`}
-              style={{ backgroundColor: c }}
-              aria-label={`Color ${c}`}
+              aria-label="Eraser"
+            >
+              <Eraser className="w-3.5 h-3.5 text-slate-500" />
+            </button>
+          </div>
+
+          {/* Width slider */}
+          <div className="flex items-center gap-2 px-2">
+            <input
+              type="range"
+              min={1}
+              max={20}
+              step={1}
+              value={width}
+              onChange={(e) =>
+                updateAnnotationState({ width: parseInt(e.target.value, 10) })
+              }
+              className="w-20 accent-indigo-600"
+              aria-label="Brush thickness"
             />
-          ))}
-          <button
-            onClick={() => updateAnnotationState({ color: 'eraser' })}
-            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${
-              color === 'eraser' ? 'ring-2 ring-indigo-500' : ''
-            }`}
-            aria-label="Eraser"
-          >
-            <Eraser className="w-3.5 h-3.5 text-slate-500" />
-          </button>
-        </div>
+            <span className="w-7 text-center font-mono text-xs text-slate-600">
+              {width}px
+            </span>
+          </div>
 
-        {/* Width slider */}
-        <div className="flex items-center gap-2 px-2">
-          <input
-            type="range"
-            min={1}
-            max={20}
-            step={1}
-            value={width}
-            onChange={(e) =>
-              updateAnnotationState({ width: parseInt(e.target.value, 10) })
-            }
-            className="w-20 accent-indigo-600"
-            aria-label="Brush thickness"
-          />
-          <span className="w-7 text-center font-mono text-xs text-slate-600">
-            {width}px
-          </span>
-        </div>
+          <div className="h-6 w-px bg-slate-200 mx-1" />
 
-        <div className="h-6 w-px bg-slate-200 mx-1" />
-
-        <Button
-          onClick={undoAnnotation}
-          title="Undo"
-          variant="ghost"
-          size="icon"
-          disabled={objects.length === 0}
-          icon={<Undo2 className="w-4 h-4" />}
-        />
-        <Button
-          onClick={clearAnnotation}
-          title="Clear all"
-          variant="ghost-danger"
-          size="icon"
-          disabled={objects.length === 0}
-          icon={<Trash2 className="w-4 h-4" />}
-        />
-
-        <div className="h-6 w-px bg-slate-200 mx-1" />
-
-        <Button
-          onClick={() => void handleDownload()}
-          disabled={isBusy !== null}
-          variant="ghost"
-          size="icon"
-          title="Download PNG"
-          icon={<Camera className="w-4 h-4" />}
-        />
-        <Button
-          onClick={() => void handleSaveToDrive()}
-          disabled={isBusy !== null}
-          variant="ghost"
-          size="icon"
-          title="Save to Google Drive"
-          icon={
-            isBusy === 'drive' ? (
-              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
-            ) : (
-              <HardDriveUpload className="w-4 h-4" />
-            )
-          }
-        />
-        {canAccessFeature('gemini-functions') && (
           <Button
-            onClick={() => void handleExtractText()}
+            onClick={undoAnnotation}
+            title="Undo"
+            variant="ghost"
+            size="icon"
+            disabled={objects.length === 0}
+            icon={<Undo2 className="w-4 h-4" />}
+          />
+          <Button
+            onClick={clearAnnotation}
+            title="Clear all"
+            variant="ghost-danger"
+            size="icon"
+            disabled={objects.length === 0}
+            icon={<Trash2 className="w-4 h-4" />}
+          />
+
+          <div className="h-6 w-px bg-slate-200 mx-1" />
+
+          <Button
+            onClick={() => void handleDownload()}
             disabled={isBusy !== null}
             variant="ghost"
             size="icon"
-            title="Extract text (AI)"
+            title="Download PNG"
+            icon={<Camera className="w-4 h-4" />}
+          />
+          <Button
+            onClick={() => void handleSaveToDrive()}
+            disabled={isBusy !== null}
+            variant="ghost"
+            size="icon"
+            title="Save to Google Drive"
             icon={
-              isBusy === 'ocr' ? (
+              isBusy === 'drive' ? (
                 <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
               ) : (
-                <Type className="w-4 h-4" />
+                <HardDriveUpload className="w-4 h-4" />
               )
             }
           />
-        )}
+          {canAccessFeature('gemini-functions') && (
+            <Button
+              onClick={() => void handleExtractText()}
+              disabled={isBusy !== null}
+              variant="ghost"
+              size="icon"
+              title="Extract text (AI)"
+              icon={
+                isBusy === 'ocr' ? (
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <Type className="w-4 h-4" />
+                )
+              }
+            />
+          )}
 
-        <div className="h-6 w-px bg-slate-200 mx-1" />
+          <div className="h-6 w-px bg-slate-200 mx-1" />
 
-        <Button
-          onClick={closeAnnotation}
-          variant="secondary"
-          size="sm"
-          title="Exit annotation (Esc)"
-          icon={<X className="w-3.5 h-3.5" />}
+          <Button
+            onClick={closeAnnotation}
+            variant="secondary"
+            size="sm"
+            title="Exit annotation (Esc)"
+            icon={<X className="w-3.5 h-3.5" />}
+          >
+            Exit
+          </Button>
+        </div>
+      )}
+
+      {/* Passive read-only indicator — surfaces a small chip when the user
+          is seeing remote strokes (viewer or pre-toolbar synced) so it's
+          clear those marks aren't theirs. */}
+      {!interactive && hasRemoteStrokes && (
+        <div
+          data-screenshot="exclude"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-none bg-white/80 backdrop-blur-md rounded-full shadow-md border border-white/40 px-3 py-1 flex items-center gap-2"
         >
-          Exit
-        </Button>
-      </div>
+          <MousePointer2 className="w-3.5 h-3.5 text-indigo-600" />
+          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-700">
+            Host annotation
+          </span>
+        </div>
+      )}
     </div>,
     portalTarget
   );

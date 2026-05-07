@@ -250,15 +250,25 @@ describe('Video Activity responses — view-only mode blocks submissions', () =>
     });
   });
 
-  it("denies response create when mode === 'view-only'", async () => {
-    const path = `video_activity_sessions/${sessionId}/responses/${STUDENT_UID}`;
+  it("denies anonymous PIN response create when mode === 'view-only'", async () => {
+    // Mirrors the Quiz pattern: anon joiners write under
+    // `pin-{period}-{pin}` keys. Using STUDENT_UID directly would now be
+    // denied by the doc-id-shape regex before the view-only gate fires;
+    // we want to prove the view-only mode gate is what blocks the write,
+    // so the key is well-formed.
+    const responseKey = `pin-period_1-01`;
+    const path = `video_activity_sessions/${sessionId}/responses/${responseKey}`;
     await assertFails(
       setDoc(doc(asStudent(), path), {
         studentUid: STUDENT_UID,
+        pin: '01',
+        classPeriod: 'period_1',
         score: null,
         completedAt: null,
         answers: [],
         joinedAt: 1000,
+        completedAttempts: 0,
+        tabSwitchWarnings: 0,
       })
     );
   });

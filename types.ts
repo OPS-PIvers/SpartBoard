@@ -206,9 +206,192 @@ export interface Plc {
    * next assignment regenerates transparently.
    */
   sharedSheetUrl?: string | null;
+  /**
+   * PLC dashboard section toggles. Any member can flip these — they govern
+   * which optional sections render in the PLC Dashboard view. Absent or
+   * partial maps are merged against `DEFAULT_PLC_FEATURE_SETTINGS` so legacy
+   * PLCs (and any newly added flags) default to enabled. Always read via
+   * `getPlcFeatures(plc)` rather than `plc.features` directly.
+   */
+  features?: PlcFeatureSettings;
   createdAt: number;
   updatedAt: number;
 }
+
+/**
+ * Per-PLC dashboard section toggles. Any member can flip these. Use
+ * `getPlcFeatures(plc)` when reading so legacy PLCs (no `features` field)
+ * and partial maps merge against `DEFAULT_PLC_FEATURE_SETTINGS`.
+ *
+ * `completedAssignments` is intentionally NOT a flag — the index of finished
+ * PLC assignments is always visible since it's the read-only history view
+ * that anchors the dashboard.
+ */
+export interface PlcFeatureSettings {
+  /** PLC Quiz Library tab (Phase 2). */
+  quizzes: boolean;
+  /** PLC Video Activities tab (Phase 4). */
+  videoActivities: boolean;
+  /** PLC-authored Assignments tab (Phase 3). */
+  assignments: boolean;
+  /** PLC Notes tab (Phase 5). */
+  notes: boolean;
+  /** PLC To-Do list tab (Phase 5). */
+  todos: boolean;
+  /** PLC Shared Boards tab (Phase 6). */
+  sharedBoards: boolean;
+}
+
+export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
+  quizzes: true,
+  videoActivities: true,
+  assignments: true,
+  notes: true,
+  todos: true,
+  sharedBoards: true,
+};
+
+/**
+ * Merge a (possibly absent or partial) `Plc.features` map against
+ * `DEFAULT_PLC_FEATURE_SETTINGS`. Use this everywhere the dashboard reads
+ * feature flags so legacy PLCs and newly added flags default to enabled.
+ */
+export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
+  return { ...DEFAULT_PLC_FEATURE_SETTINGS, ...(plc.features ?? {}) };
+}
+
+/**
+ * One row in `plcs/{plcId}/assignment_index/{assignmentId}`. Written by the
+ * assignment author at create time when their assignment opts into PLC
+ * mode (i.e. `QuizAssignmentSettings.plc` is set). Lets every PLC member
+ * read a unified list of "PLC assignments my teammates have run" without
+ * cross-user collection-group queries on each teacher's `quiz_assignments`.
+ *
+ * Snapshot fields (title, ownerName, sheetUrl) are taken at create time;
+ * Phase 1 does not mirror later edits. The doc id matches the source
+ * assignment's id for easy join-back.
+ */
+export interface PlcAssignmentIndexEntry {
+  id: string;
+  /** Discriminator for future video-activity support. */
+  kind: 'quiz';
+  /** UID of the teacher who created the assignment. Always a PLC member. */
+  ownerUid: string;
+  /** Display name snapshot — avoids a `/users` lookup per row. */
+  ownerName: string;
+  /** Lowercased email snapshot — used for member matching in the UI. */
+  ownerEmail: string;
+  /** Quiz title at create time. */
+  title: string;
+  /** Shared PLC Google Sheet URL (mirrored from `Plc.sharedSheetUrl`). */
+  sheetUrl: string;
+  createdAt: number;
+}
+
+/**
+ * One shared note in a PLC notebook. Members CRUD freely; LWW on edits.
+ */
+export interface PlcNote {
+  id: string;
+  title: string;
+  body: string;
+  createdBy: string;
+  createdAt: number;
+  lastEditedBy: string;
+  lastEditedAt: number;
+}
+
+/**
+ * One PLC to-do. Stored as one doc per todo (not an array on a parent doc)
+ * so concurrent edits don't serialize against the whole list.
+ */
+export interface PlcTodo {
+  id: string;
+  text: string;
+  done: boolean;
+  createdBy: string;
+  createdAt: number;
+}
+
+/**
+ * Bento-grid layout types for the PLC Overview tab. Per-user layout —
+ * persisted at `users/{uid}/plc_layouts/{plcId}` so each member arranges
+ * their own dashboard without affecting teammates.
+ */
+export type PlcBentoTileSize = 'sm' | 'md-wide' | 'md-tall' | 'lg';
+
+/**
+ * Stable identifier for each tile renderer. Doubles as the doc-key in the
+ * persisted layout (one tile per kind). Adding a new tile = appending the
+ * kind here + extending the rules' `kind in […]` allow-list.
+ */
+export type PlcBentoTileKind =
+  | 'plcInfo'
+  | 'members'
+  | 'completedAssignments'
+  | 'notes'
+  | 'todos'
+  | 'sharedSheet'
+  | 'quickActions'
+  | 'quizLibrary'
+  | 'activeAssignments'
+  | 'videoActivities'
+  | 'sharedBoards';
+
+export interface PlcBentoTile {
+  kind: PlcBentoTileKind;
+  size: PlcBentoTileSize;
+  /** When true the tile sits in the "Hidden tiles" tray instead of the grid. */
+  hidden?: boolean;
+}
+
+export interface PlcOverviewLayout {
+  tiles: PlcBentoTile[];
+  updatedAt: number;
+}
+
+export const PLC_BENTO_TILE_SIZES: readonly PlcBentoTileSize[] = [
+  'sm',
+  'md-wide',
+  'md-tall',
+  'lg',
+] as const;
+
+export const PLC_BENTO_TILE_KINDS: readonly PlcBentoTileKind[] = [
+  'plcInfo',
+  'members',
+  'completedAssignments',
+  'notes',
+  'todos',
+  'sharedSheet',
+  'quickActions',
+  'quizLibrary',
+  'activeAssignments',
+  'videoActivities',
+  'sharedBoards',
+] as const;
+
+/**
+ * Default tile order + sizes for a brand-new PLC overview. Used when a
+ * member opens the dashboard for the first time and no `plc_layouts` doc
+ * exists yet. Live-data tiles come first; "coming soon" placeholders trail.
+ */
+export const DEFAULT_PLC_OVERVIEW_LAYOUT: PlcOverviewLayout = {
+  tiles: [
+    { kind: 'plcInfo', size: 'md-wide' },
+    { kind: 'quickActions', size: 'md-wide' },
+    { kind: 'members', size: 'sm' },
+    { kind: 'sharedSheet', size: 'sm' },
+    { kind: 'todos', size: 'md-tall' },
+    { kind: 'notes', size: 'md-wide' },
+    { kind: 'completedAssignments', size: 'lg' },
+    { kind: 'quizLibrary', size: 'sm' },
+    { kind: 'activeAssignments', size: 'sm' },
+    { kind: 'videoActivities', size: 'sm' },
+    { kind: 'sharedBoards', size: 'sm' },
+  ],
+  updatedAt: 0,
+};
 
 /**
  * An outstanding invitation for a teacher to join a PLC. Top-level so the
@@ -307,6 +490,8 @@ export interface BaseDrawableObject {
   kind: DrawableObjectKind;
   z: number;
   rotation?: number;
+  /** UID of the user who drew this object — used to scope per-author Undo in synced annotation. */
+  authorUid?: string;
 }
 
 export interface PathObject extends BaseDrawableObject {
@@ -1813,12 +1998,39 @@ export interface QuizMetadata {
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
 export type QuizSessionMode = 'teacher' | 'auto' | 'student';
 
-/** Options passed from the assignment modal to configure session toggles. */
-export interface QuizSessionOptions {
+/**
+ * Common session-level toggles applicable to any assignment widget that
+ * mirrors the Quiz pattern. Currently extended by `QuizSessionOptions`
+ * and `VideoActivitySessionOptions`; other widgets may opt in by
+ * extending too. Keep this surface small — only fields with the same
+ * semantics across widgets belong here; widget-specific knobs go on the
+ * per-widget extension type.
+ */
+export interface BaseSessionOptions {
   tabWarningsEnabled?: boolean;
   showResultToStudent?: boolean;
   showCorrectAnswerToStudent?: boolean;
   showCorrectOnBoard?: boolean;
+  /**
+   * Randomize the order of questions per student per attempt. When on, every
+   * student in the class sees questions in their own order, and each retake
+   * by the same student gets a fresh order too. (Self-paced quiz only —
+   * teacher-paced/auto sessions ignore this toggle.)
+   */
+  shuffleQuestions?: boolean;
+  /**
+   * Randomize the order of answer options (MC choices, Matching right side,
+   * Ordering items) per student per attempt. Independent of the always-on
+   * teacher-client shuffle in `toPublicQuestion`; this toggle controls the
+   * second per-student shuffle that runs in the student client. Default
+   * (when the field is absent on legacy/in-flight sessions) is treated as
+   * ON to preserve pre-toggle behavior.
+   */
+  shuffleAnswerOptions?: boolean;
+}
+
+/** Options passed from the quiz assignment modal to configure session toggles. */
+export interface QuizSessionOptions extends BaseSessionOptions {
   speedBonusEnabled?: boolean;
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
@@ -1828,7 +2040,9 @@ export interface QuizSessionOptions {
 /**
  * Student-safe question stored in the session document.
  * Never contains correctAnswer so students cannot cheat by inspecting
- * Firestore/network traffic. Answer choices are pre-shuffled server-side.
+ * Firestore/network traffic. Answer choices are pre-shuffled by the teacher
+ * client at session-create time (in `toPublicQuestion`) before the doc is
+ * written to Firestore.
  */
 export interface QuizPublicQuestion {
   id: string;
@@ -1915,6 +2129,18 @@ export interface QuizSession {
   showPodiumBetweenQuestions?: boolean;
   /** Play sound effects during the quiz (default false) */
   soundEffectsEnabled?: boolean;
+  /**
+   * Per-student per-attempt question-order shuffle (default false / absent).
+   * Mirrored from the assignment's `sessionOptions.shuffleQuestions` so the
+   * student client doesn't need a second fetch.
+   */
+  shuffleQuestions?: boolean;
+  /**
+   * Per-student per-attempt answer-option shuffle. Absent on legacy sessions
+   * — consumers must default to `true` to preserve the pre-toggle behavior
+   * (the second client-side shuffle was always on before this flag landed).
+   */
+  shuffleAnswerOptions?: boolean;
   /** Current phase within a question: 'answering' (default) or 'reviewing' (between-question review) */
   questionPhase?: 'answering' | 'reviewing';
   /** Top-N leaderboard snapshot broadcast by the teacher for student view. */
@@ -1972,6 +2198,18 @@ export interface QuizSession {
    * sessions; consumers must default to `'submissions'`.
    */
   mode?: AssignmentMode;
+  /**
+   * Mirror of `QuizAssignment.scoreVisibility`. Absent / `'none'` means
+   * scores have not been published to students yet. Read by the student
+   * `/my-assignments` Completed review screen to decide which fields
+   * (score / per-answer correctness / correct-answer text) to surface.
+   *
+   * `revealedAnswers` (above) is the source of truth for correct-answer
+   * text when `scoreVisibility === 'score-responses-and-answers'` —
+   * `publishAssignmentScores` populates it with every question's
+   * canonical answer in one batch.
+   */
+  scoreVisibility?: QuizScoreVisibility;
 }
 
 export interface QuizResponseAnswer {
@@ -2148,6 +2386,29 @@ export interface QuizConfig {
 export type QuizAssignmentStatus = 'active' | 'paused' | 'inactive';
 
 /**
+ * Score-publication visibility level for a quiz assignment.
+ *
+ * Set by the teacher's "Publish Scores" action on an archived assignment.
+ * Controls what each student sees on the `/my-assignments` Completed
+ * review screen.
+ *
+ * - `none`: scores not published. Students see only "submitted".
+ * - `score-only`: students see their numeric score (out of total).
+ * - `score-and-responses`: students see score + each of their answers
+ *   marked correct/incorrect, but not the correct answer.
+ * - `score-responses-and-answers`: students see score, their answers
+ *   marked correct/incorrect, AND the correct answer for each question.
+ *
+ * Mirrored to the matching `QuizSession` doc so students can read the
+ * level without needing access to the teacher's assignment doc.
+ */
+export type QuizScoreVisibility =
+  | 'none'
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
+
+/**
  * PLC linkage for a quiz assignment. Present iff the assignment is in PLC
  * mode (the originator opted into "Share with PLC" at create time, or the
  * importer is a member of the originator's PLC). The presence of this
@@ -2287,6 +2548,18 @@ export interface QuizAssignment extends QuizAssignmentSettings {
   /** Frozen at creation from the org-wide `assignment-modes` admin setting.
    *  Mirrors QuizSession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+  /**
+   * Score-publication visibility level. Absent / `'none'` means scores
+   * have not been published to students yet. Mirrored to the matching
+   * `QuizSession` doc by `publishAssignmentScores`.
+   */
+  scoreVisibility?: QuizScoreVisibility;
+  /**
+   * Timestamp of the most recent `publishAssignmentScores` call. Used by
+   * the archive UI to surface "Published <date>" text on cards whose
+   * scores have been shared with students.
+   */
+  scorePublishedAt?: number;
 }
 
 /** See `QuizAssignment.sync`. */
@@ -2375,13 +2648,46 @@ export interface SharedQuizAssignment {
 // --- VIDEO ACTIVITY TYPES ---
 
 /**
- * A quiz question that is tied to a specific timestamp in a YouTube video.
- * Only MC question type is supported in V1.
+ * Question types supported by the Video Activity widget. Distinct from
+ * `QuizQuestionType` — VA introduces `'MA'` (multi-answer / "select all
+ * that apply") and does not surface Matching or Ordering, which don't
+ * map cleanly to a video-cue-point pause.
  */
-export interface VideoActivityQuestion extends QuizQuestion {
+export type VideoActivityQuestionType = 'MC' | 'FIB' | 'MA';
+
+/**
+ * A question tied to a specific timestamp in a YouTube video.
+ *
+ * Storage shape per `type`:
+ *   - `MC`:  `correctAnswer` is the correct option text;
+ *            `incorrectAnswers` are distractors.
+ *   - `FIB`: `correctAnswer` is the canonical accepted answer;
+ *            `acceptableVariants` (optional) is a list of additional
+ *            accepted forms (e.g. ["color", "colour"]).
+ *   - `MA`:  `correctAnswer` is `|`-encoded correct selections
+ *            ("opt1|opt2|opt3"); `incorrectAnswers` are the distractor
+ *            options shown alongside. Mirrors the Matching/Ordering
+ *            convention so the wire format stays uniform.
+ *
+ * Inherits `points?` and `allowPartialCredit?` from `QuizQuestion`. MA
+ * uses `allowPartialCredit` to score (|correct ∩ given| − |given − correct|)
+ * / |correct| × points; without partial credit the question is all-or-nothing.
+ */
+export type VideoActivityQuestion = Omit<
+  QuizQuestion,
+  'type' | 'matchingDistractors'
+> & {
+  type: VideoActivityQuestionType;
   /** Seconds into the video when this question should trigger. */
   timestamp: number;
-}
+  /**
+   * FIB only — additional accepted answers beyond `correctAnswer`. Each
+   * variant is normalized (whitespace + case collapsed) before comparison
+   * via `normalizeAnswer`. Empty/missing = the canonical answer is the
+   * only accepted form.
+   */
+  acceptableVariants?: string[];
+};
 
 /** Full video activity data stored in Google Drive as JSON. */
 export interface VideoActivityData {
@@ -2444,10 +2750,56 @@ export interface VideoActivityConfig {
   lastRosterIdsByActivityId?: Record<string, string[]>;
 }
 
+/**
+ * Player-behavior controls that the student-side VideoPlayer reads directly.
+ * Captured at assignment-create time and mirrored onto the session doc so the
+ * student client can enforce them without a teacher round-trip.
+ */
 export interface VideoActivitySessionSettings {
   autoPlay: boolean;
+  /**
+   * Legacy "rewind to section start on incorrect answer" flag. New code
+   * prefers `VideoActivitySessionOptions.rewindOnIncorrectSeconds`. When that
+   * field is absent, `requireCorrectAnswer === true` is interpreted as
+   * "rewind to the previous question's timestamp" (the historical behavior).
+   */
   requireCorrectAnswer: boolean;
   allowSkipping: boolean;
+}
+
+/**
+ * Score-visibility levels mirroring `QuizAssignment.scoreVisibility`. Controls
+ * what the student sees on the post-completion screen.
+ */
+export type VideoActivityScoreVisibility =
+  | 'none'
+  | 'score_only'
+  | 'score_and_responses'
+  | 'score_responses_and_answers';
+
+/**
+ * Assignment-policy options for a Video Activity session. Distinct from
+ * `VideoActivitySessionSettings` (player behavior) — these are the
+ * security/feedback/scoring knobs that mirror the Quiz toggle group.
+ */
+export interface VideoActivitySessionOptions extends BaseSessionOptions {
+  /**
+   * Hard cap on the number of times the student may attempt the activity
+   * (one increment per `completedAttempts` bump). null/undefined = unlimited.
+   * Compared against `VideoActivityResponse.completedAttempts`, which is a
+   * single counter — not per-question.
+   */
+  attemptLimit?: number | null;
+  /**
+   * Seconds to rewind on a wrong submission. 0 / undefined = no rewind. When
+   * set and > 0, supersedes the legacy `requireCorrectAnswer` rewind-to-
+   * section-start behavior.
+   */
+  rewindOnIncorrectSeconds?: number;
+  /** Points to deduct per incorrect submission. 0 / undefined = no penalty. */
+  pointPenaltyOnIncorrect?: number;
+  /** Controls how much of the result the student sees post-completion. */
+  scoreVisibility?: VideoActivityScoreVisibility;
 }
 
 export interface GlobalVideoActivity extends VideoActivityMetadata {
@@ -2473,8 +2825,13 @@ export interface VideoActivitySession {
   youtubeUrl: string;
   /** Full questions including correctAnswer — used server-side for grading. */
   questions: VideoActivityQuestion[];
-  /** Session-level behavior controls configured at assignment time. */
+  /** Session-level player-behavior controls configured at assignment time. */
   settings?: VideoActivitySessionSettings;
+  /**
+   * Assignment-policy options (security, feedback, attempt limits, scoring).
+   * Mirrors QuizSession.sessionOptions. Absent on pre-PR1 sessions.
+   */
+  sessionOptions?: VideoActivitySessionOptions;
   status: 'active' | 'ended';
   /**
    * Roster PINs allowed to join. Teacher sets this when assigning to a class.
@@ -2512,6 +2869,12 @@ export interface VideoActivitySession {
    */
   rosterIds?: string[];
   /**
+   * Optional map of ClassLink `classId` → period name. Lets the SSO join
+   * path resolve the joining student's period without prompting them.
+   * Mirrors `QuizSession.classPeriodByClassId`.
+   */
+  classPeriodByClassId?: Record<string, string>;
+  /**
    * Frozen at creation from the org-wide `assignment-modes` admin setting.
    * Determines whether students see a tracked Share link (`'view-only'`) or
    * the full assignment experience (`'submissions'`). Absent on pre-feature
@@ -2532,12 +2895,27 @@ export interface VideoActivityAnswer {
 
 /**
  * Per-student response document in Firestore.
- * Stored at /video_activity_sessions/{sessionId}/responses/{studentUid}
- * The document ID is the student's Firebase auth UID (prevents PIN-claiming attacks).
+ *
+ * Document ID format mirrors the Quiz pattern:
+ *   - SSO students:         {auth.uid}            (stable identity)
+ *   - Anonymous PIN joiners: pin-{period}-{pin}    (deterministic, period-scoped)
+ *
+ * The deterministic anon key prevents two students with the same PIN in
+ * different periods from colliding, and lets the response doc be addressed
+ * server-side without prior knowledge of the auth UID.
+ *
+ * Stored at /video_activity_sessions/{sessionId}/responses/{responseKey}
  */
 export interface VideoActivityResponse {
-  pin: string;
-  name: string;
+  /** Roster PIN — present for anonymous joiners, absent on SSO joiners. */
+  pin?: string;
+  /**
+   * Self-typed name. Optional from PR1 onward — the student app no longer
+   * collects a name. Pre-PR1 archived responses still carry one; the Results
+   * UI prefers `useAssignmentPseudonyms` for display so legacy values remain
+   * harmless.
+   */
+  name?: string;
   /** Firebase auth UID of the student who created this response. Used for Firestore ownership rules. */
   studentUid: string;
   joinedAt: number;
@@ -2546,6 +2924,30 @@ export interface VideoActivityResponse {
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
+  /** Count of tab/focus losses while the activity is in progress. Append-only at the rules layer. */
+  tabSwitchWarnings?: number;
+  /**
+   * Number of completed activity attempts. Used to enforce
+   * `VideoActivitySessionOptions.attemptLimit`. Initialized to 0 at create
+   * time and incremented on each completion. Append-only at the rules layer
+   * (a student can only write a value `>=` the existing one). Mirrors
+   * `QuizResponse.completedAttempts`.
+   */
+  completedAttempts?: number;
+  /**
+   * Per-attempt correctness flag, set by the teacher-side score-publish
+   * flow. **Semantics for VA are intentionally left to the publisher in
+   * PR1b** — the publish UI will choose between "all questions correct"
+   * vs "score >= threshold" and write the resulting boolean here. Until
+   * then this field is always absent on VA responses; UI consumers must
+   * tolerate `undefined`. Mirrors `QuizResponse.isCorrect`.
+   */
+  isCorrect?: boolean;
+  /**
+   * Server-published score visibility for the response. Set when the teacher
+   * publishes scores; mirrors `VideoActivityScoreVisibility`.
+   */
+  scoreVisibility?: VideoActivityScoreVisibility;
 }
 
 export interface TalkingToolConfig {
@@ -3525,12 +3927,35 @@ export type WidgetOutput = WidgetLayout | React.ReactNode;
 export interface WidgetData {
   id: string;
   type: WidgetType;
+  /**
+   * Pixel position/size in the current viewport. These are DERIVED on dashboard
+   * load (and on viewport resize) from the canonical {@link xProp}, {@link yProp},
+   * {@link wProp}, {@link hProp}, and {@link aspectRatio} fields. Widget components
+   * can keep reading w/h as pixels for canvas sizing, layout math, etc.
+   */
   x: number;
   y: number;
-  /** Width in grid units (dashboard) or pixels (student view) */
   w: number;
-  /** Height in grid units (dashboard) or pixels (student view) */
   h: number;
+  /**
+   * Canonical proportional bounds — fraction of the safe board (viewport minus
+   * SNAP_LAYOUT_CONSTANTS.PADDING on each side). These are persisted to
+   * Firestore; pixel x/y/w/h are recomputed from them per device. Optional
+   * during the migration window; populated by `migrateWidgetToProportional`
+   * the first time a legacy dashboard loads.
+   */
+  xProp?: number;
+  yProp?: number;
+  wProp?: number;
+  hProp?: number;
+  /**
+   * Pixel-W / pixel-H at the time of the last resize. Used to lock visual
+   * shape across viewports of different aspect ratios (e.g. a clock stays
+   * square going from a 16:9 projector to a 4:3 tablet). Stretch-behavior
+   * widgets (drawing, embed, hotspot-image, pdf, custom-widget) ignore this
+   * and fill their proportional rect.
+   */
+  aspectRatio?: number;
   z: number;
   flipped: boolean;
   version?: number;
@@ -3649,6 +4074,14 @@ export interface SpartStickerDropPayload {
   url?: string;
 }
 
+/**
+ * Role this user plays in a live-shared board link.
+ * - `owner`: created the share. Mirrors local edits to /shared_boards/{shareId}.
+ * - `collaborator`: joined a Synced share. Mirrors local edits + receives remote.
+ * - `viewer`: joined a View-Only share. Read-only locally; receives remote.
+ */
+export type DashboardShareRole = 'owner' | 'collaborator' | 'viewer';
+
 export interface Dashboard {
   id: string;
   name: string;
@@ -3668,6 +4101,37 @@ export interface Dashboard {
   viewportWidth?: number;
   /** Viewport height (px) when the dashboard was last saved. Used for proportional layout scaling on load. */
   viewportHeight?: number;
+  /** ID of the /shared_boards/{shareId} doc this dashboard is linked to (live share). */
+  linkedShareId?: string;
+  /** This user's role in the linked share. */
+  linkedShareRole?: DashboardShareRole;
+  /** Cached host display name for the share banner. */
+  linkedShareHostName?: string;
+  /** True after the host has revoked the share — guests see a "share ended" indicator. */
+  linkedShareEnded?: boolean;
+  /**
+   * Live annotation overlay (the pencil-icon draw-over). When the dashboard is
+   * part of a live share, this rides through the mirror so host + collaborator
+   * strokes propagate to all participants. Viewers receive but cannot write.
+   */
+  annotationOverlay?: {
+    objects: DrawableObject[];
+    updatedAt?: number;
+  };
+}
+
+/**
+ * Mode the host chose when creating a share link. Persisted on the
+ * /shared_boards/{shareId} doc as `intendedMode` so the recipient flow can
+ * honor the host's choice instead of letting the recipient pick.
+ */
+export type SharedBoardIntendedMode = 'copy' | 'synced' | 'view-only';
+
+/** Per-participant entry on a /shared_boards/{shareId} doc. */
+export interface SharedBoardParticipant {
+  role: 'collaborator' | 'viewer';
+  joinedAt: number;
+  displayName?: string;
 }
 
 export interface Toast {
@@ -4380,8 +4844,27 @@ export type VideoActivityAssignmentStatus = 'active' | 'paused' | 'inactive';
 export interface VideoActivityAssignmentSettings {
   /** Free-text label shown in the archive (e.g. "Period 2"). */
   className?: string;
-  /** Session behavior captured at assign time. */
+  /** Player-behavior toggles captured at assign time (autoPlay, etc.). */
   sessionSettings: VideoActivitySessionSettings;
+  /**
+   * Assignment-policy options (security, feedback, scoring). Mirrors
+   * `QuizAssignmentSettings.sessionOptions`. Optional so legacy assignments
+   * persist without these knobs; consumers default missing fields safely.
+   */
+  sessionOptions?: VideoActivitySessionOptions;
+  /**
+   * Score visibility level chosen by the teacher. Authoritative for what the
+   * student sees on the post-completion screen.
+   */
+  scoreVisibility?: VideoActivityScoreVisibility;
+  /** Server-set timestamp for when scores were published (publishScoresModal). */
+  scorePublishedAt?: number;
+  /**
+   * Per-roster period name(s) the assignment targets. Mirrors
+   * `QuizAssignment.periodNames` — populated at create time from the
+   * roster picker so the student-app post-PIN picker has stable labels.
+   */
+  periodNames?: string[];
 }
 
 /**

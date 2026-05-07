@@ -50,26 +50,26 @@ const AdjustButton: React.FC<{
       onPointerCancel={handlers.onPointerCancel}
       onPointerLeave={handlers.onPointerLeave}
       onKeyDown={handlers.onKeyDown}
-      className={`flex flex-col items-center justify-center rounded-2xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
+      className={`flex flex-col items-center justify-center rounded-xl bg-slate-200/40 text-slate-500 transition-all select-none touch-none active:scale-95 hover:bg-slate-300/60 hover:text-slate-700 ${
         disabled ? 'opacity-30 cursor-not-allowed' : ''
       }`}
       style={{
-        width: 'min(56px, 14cqmin)',
-        height: 'min(56px, 14cqmin)',
-        padding: 'min(4px, 1cqmin)',
-        gap: 'min(2px, 0.5cqmin)',
+        width: 'min(40px, 10cqmin)',
+        height: 'min(40px, 10cqmin)',
+        padding: 'min(3px, 0.75cqmin)',
+        gap: 'min(1px, 0.25cqmin)',
       }}
     >
       <Icon
         style={{
-          width: 'min(28px, 8cqmin)',
-          height: 'min(28px, 8cqmin)',
+          width: 'min(18px, 5cqmin)',
+          height: 'min(18px, 5cqmin)',
         }}
         strokeWidth={3}
       />
       <span
         className="font-black tabular-nums leading-none"
-        style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+        style={{ fontSize: 'min(9px, 2.5cqmin)' }}
       >
         {presetLabel(step)}
       </span>
@@ -363,12 +363,7 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
 
   const effectiveAdjustStep = Math.max(5, Math.min(60, adjustStepSeconds));
 
-  // Show ±buttons once a timer has started or been adjusted off its initial duration.
-  // Hides during the fresh-setup state (where the keypad handles input) and in stopwatch mode.
-  const showAdjustControls =
-    mode === 'timer' &&
-    !isEditing &&
-    (isRunning || config.elapsedTime !== config.duration);
+  const showAdjustControls = mode === 'timer' && !isEditing;
 
   // ─── Parse time into parts ───────────────────────────────────────
 
@@ -542,8 +537,8 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                   <div
                     className="absolute z-10 flex items-center justify-center"
                     style={{
-                      top: isVisual ? '120%' : '110%',
-                      gap: 'min(12px, 3cqmin)',
+                      top: isVisual ? '115%' : '110%',
+                      gap: 'min(8px, 2cqmin)',
                     }}
                   >
                     {showAdjustControls && (
@@ -566,14 +561,14 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                           ? 'widgets.timeTool.pause'
                           : 'widgets.timeTool.play'
                       )}
-                      className={`flex items-center justify-center rounded-2xl transition-all select-none active:scale-95 shadow-lg ${
+                      className={`flex items-center justify-center rounded-xl transition-all select-none active:scale-95 shadow-lg ${
                         isRunning
                           ? 'bg-slate-200/60 text-slate-500'
                           : 'bg-brand-blue-primary text-white shadow-brand-blue-primary/20'
                       }`}
                       style={{
-                        width: 'min(56px, 14cqmin)',
-                        height: 'min(56px, 14cqmin)',
+                        width: 'min(40px, 10cqmin)',
+                        height: 'min(40px, 10cqmin)',
                       }}
                     >
                       {isRunning ? (
@@ -594,10 +589,10 @@ export const TimeToolWidget: React.FC<{ widget: WidgetData }> = ({
                     </button>
                     <button
                       onClick={handleReset}
-                      className="flex items-center justify-center rounded-2xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm"
+                      className="flex items-center justify-center rounded-xl bg-slate-200/60 text-slate-400 hover:bg-slate-300/70 hover:text-brand-blue-primary transition-all select-none active:scale-95 shadow-sm"
                       style={{
-                        width: 'min(56px, 14cqmin)',
-                        height: 'min(56px, 14cqmin)',
+                        width: 'min(40px, 10cqmin)',
+                        height: 'min(40px, 10cqmin)',
                       }}
                       aria-label={t('widgets.timeTool.reset')}
                     >

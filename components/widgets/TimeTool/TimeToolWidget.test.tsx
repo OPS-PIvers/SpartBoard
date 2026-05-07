@@ -222,7 +222,7 @@ describe('TimeToolWidget', () => {
       expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
     });
 
-    it('hides ± buttons in fresh-setup state (timer not started, elapsed === duration)', () => {
+    it('shows ± buttons in fresh-setup state (timer not started, elapsed === duration)', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: false,
@@ -231,8 +231,8 @@ describe('TimeToolWidget', () => {
       });
       renderWidget(widget);
 
-      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
     });
 
     it('shows ± buttons while the timer is running', () => {
@@ -680,7 +680,7 @@ describe('TimeToolWidget', () => {
       }
     );
 
-    it('uses top:120% when visualType="visual" (progress ring on)', () => {
+    it('uses top:115% when visualType="visual" (progress ring on)', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: true,
@@ -691,7 +691,7 @@ describe('TimeToolWidget', () => {
       const html = renderHtml(widget);
       const wrap = wrapperFor(html, 'Subtract time');
 
-      expect(wrap).toContain('top:120%');
+      expect(wrap).toContain('top:115%');
     });
 
     it('hides ± adjust buttons in stopwatch mode (only play/reset render)', () => {
@@ -707,7 +707,7 @@ describe('TimeToolWidget', () => {
       expect(screen.getByLabelText('Reset')).toBeInTheDocument();
     });
 
-    it('hides ± adjust buttons in fresh-setup state (timer paused at original duration)', () => {
+    it('shows ± adjust buttons in fresh-setup state (timer paused at original duration)', () => {
       const widget = createWidget({
         mode: 'timer',
         isRunning: false,
@@ -716,8 +716,8 @@ describe('TimeToolWidget', () => {
       });
       renderWidget(widget);
 
-      expect(screen.queryByLabelText('Subtract time')).not.toBeInTheDocument();
-      expect(screen.queryByLabelText('Add time')).not.toBeInTheDocument();
+      expect(screen.getByLabelText('Subtract time')).toBeInTheDocument();
+      expect(screen.getByLabelText('Add time')).toBeInTheDocument();
     });
   });
 });

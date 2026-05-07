@@ -3,7 +3,7 @@
  * Adapted from QuizResults. Shows per-student scores and per-question accuracy.
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ArrowLeft,
   Download,
@@ -20,7 +20,11 @@ import { VideoActivityResponse, VideoActivitySession } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
-  useAssignmentPseudonyms,
+  gradeVideoActivityAnswer,
+  computeVideoActivityScorePct,
+} from '@/utils/videoActivityGrading';
+import {
+  useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 
@@ -36,9 +40,19 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
 }) => {
   const { googleAccessToken, orgId } = useAuth();
-  const { byStudentUid } = useAssignmentPseudonyms(
+  // Use the multi-class variant — `session.classId` is a transitional
+  // mirror of `classIds[0]` only, so the single-class hook would miss
+  // SSO students from `classIds[1+]` on multi-class assignments and
+  // their export rows would fall back to the generic "Student" label.
+  // Mirrors the QuizLiveMonitor pattern.
+  const sessionClassIds = useMemo(() => {
+    if (session.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session.classId ? [session.classId] : [];
+  }, [session.classIds, session.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
     session.id,
-    session.classId ?? null,
+    sessionClassIds,
     orgId
   );
   const [exporting, setExporting] = useState(false);
@@ -51,30 +65,19 @@ export const Results: React.FC<ResultsProps> = ({
   const questions = session.questions;
   const totalStudents = responses.length;
 
-  /** Compute correctness from the authoritative activity question data. */
+  /**
+   * Compute correctness from the authoritative activity question data.
+   * Routes through the shared `gradeVideoActivityAnswer` so MA / FIB
+   * variants / partial-credit semantics stay aligned with the student
+   * client and the post-completion summary.
+   */
   const isAnswerCorrect = (questionId: string, answer: string): boolean => {
     const q = questions.find((q) => q.id === questionId);
-    return q ? answer === q.correctAnswer : false;
+    return q ? gradeVideoActivityAnswer(q, answer).isCorrect : false;
   };
 
-  const getStudentScore = (r: VideoActivityResponse): number => {
-    if (questions.length === 0) return 0;
-    // Count at most one correct answer per question to prevent inflated scores
-    // from duplicate entries (e.g. if arrayUnion raced and stored multiple answers).
-    let correct = 0;
-    for (const question of questions) {
-      if (
-        r.answers.some(
-          (a) =>
-            a.questionId === question.id &&
-            isAnswerCorrect(a.questionId, a.answer)
-        )
-      ) {
-        correct += 1;
-      }
-    }
-    return Math.round((correct / questions.length) * 100);
-  };
+  const getStudentScore = (r: VideoActivityResponse): number =>
+    computeVideoActivityScorePct(questions, r.answers);
 
   // ⚡ Bolt: Consolidate multiple O(N) array passes inside render
   // Calculate completed count and average score in a single loop
@@ -83,31 +86,13 @@ export const Results: React.FC<ResultsProps> = ({
       return { completed: 0, avgScore: 0 };
     }
 
-    const correctAnswersMap = new Map<string, string>();
-    for (const q of questions) {
-      correctAnswersMap.set(q.id, q.correctAnswer);
-    }
-
     let completedCount = 0;
     let scoreSum = 0;
 
     for (const r of responses) {
       if (r.completedAt !== null) {
         completedCount++;
-
-        const correctAnswersForStudent = new Set<string>();
-        for (const answer of r.answers) {
-          if (answer.answer === correctAnswersMap.get(answer.questionId)) {
-            correctAnswersForStudent.add(answer.questionId);
-          }
-        }
-        const score =
-          questions.length > 0
-            ? Math.round(
-                (correctAnswersForStudent.size / questions.length) * 100
-              )
-            : 0;
-        scoreSum += score;
+        scoreSum += computeVideoActivityScorePct(questions, r.answers);
       }
     }
 
@@ -153,8 +138,10 @@ export const Results: React.FC<ResultsProps> = ({
 
       // Map VideoActivityResponses to QuizResponse shape for reuse
       const quizResponses = responses.map((r) => ({
-        studentUid: r.pin,
-        pin: r.pin,
+        studentUid: r.studentUid,
+        // Anon responses always carry a PIN; SSO responses don't. Fall back
+        // to empty string so the export shape stays string-typed.
+        pin: r.pin ?? '',
         joinedAt: r.joinedAt,
         status: (r.completedAt ? 'completed' : 'in-progress') as
           | 'completed'
@@ -168,13 +155,26 @@ export const Results: React.FC<ResultsProps> = ({
         })),
         score: r.score,
         submittedAt: r.completedAt,
-        tabSwitchWarnings: 0,
+        tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
       }));
 
+      // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
+      // their resolved ClassLink names instead of falling back to the
+      // generic "Student" label.
+      // TODO(PR3): The Quiz exporter calls Quiz's `gradeAnswer`, which has
+      // no 'MA' case and returns 0 points for VA Multi-Answer questions in
+      // the export. PR3 lifts `buildResultsSheetData` into a generic util
+      // that accepts a custom grader (`utils/assignmentExportShared.ts`)
+      // and at that point the VA call here will pass `gradeVideoActivityAnswer`.
+      // Until then, MA columns in the exported sheet read as "0 / Npt".
+      // MC + FIB questions grade correctly.
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
-        questions
+        questions as unknown as Parameters<
+          typeof drive.exportResultsToSheet
+        >[2],
+        { byStudentUid }
       );
       setExportUrl(url);
     } catch (err) {
@@ -506,9 +506,12 @@ export const Results: React.FC<ResultsProps> = ({
                           className="font-bold text-slate-800 truncate"
                           style={{ fontSize: 'min(13px, 4cqmin)' }}
                         >
-                          {formatStudentName(byStudentUid.get(r.studentUid)) ||
-                            r.name ||
-                            r.pin}
+                          {/* `formatStudentName` returns '' on roster miss and legacy rows may carry '' for `r.name`; pick the first non-empty string so the falsy-fallthrough intent is explicit (no `||` chain that ESLint would flag). */}
+                          {[
+                            formatStudentName(byStudentUid.get(r.studentUid)),
+                            r.name,
+                            r.pin,
+                          ].find((s) => typeof s === 'string' && s.length > 0)}
                         </p>
                         <p
                           className="text-slate-400"

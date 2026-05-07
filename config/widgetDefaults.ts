@@ -19,6 +19,32 @@ import {
   DEFAULT_THEN_ITEMS,
 } from '@/components/widgets/NeedDoPutThen/constants';
 
+/**
+ * Per-widget-type behavior when the device viewport's aspect ratio differs
+ * from the authoring aspect ratio:
+ *   - `'preserve-aspect'` (default): widget keeps its authored visual shape;
+ *     the rendered pixel rect is the largest aspect-locked rect that fits
+ *     inside the proportional rect, centered. Best for widgets where shape
+ *     carries meaning (clock, dice, webcam preview, lunch-count grid).
+ *   - `'fill'`: widget always fills its proportional rect, even if that
+ *     distorts internal content. Appropriate for widgets whose layout adapts
+ *     gracefully to any rect (drawing canvas, embeds/iframes, PDFs, free-form
+ *     hotspot images, AI-built custom widgets).
+ *
+ * Widget types not listed here default to `'preserve-aspect'`.
+ */
+export const WIDGET_STRETCH_BEHAVIOR: Partial<
+  Record<WidgetType, 'fill' | 'preserve-aspect'>
+> = {
+  drawing: 'fill',
+  embed: 'fill',
+  'hotspot-image': 'fill',
+  pdf: 'fill',
+  'custom-widget': 'fill',
+  miniApp: 'fill',
+  smartNotebook: 'fill',
+};
+
 export const WIDGET_DEFAULTS: Record<WidgetType, Partial<WidgetData>> = {
   url: {
     w: 220,

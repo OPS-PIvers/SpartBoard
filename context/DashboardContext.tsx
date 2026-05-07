@@ -26,14 +26,26 @@ import {
 } from '../types';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
-import { useFirestore } from '../hooks/useFirestore';
+import { useFirestore, type SharedBoardSnapshot } from '../hooks/useFirestore';
 import { TOOLS } from '../config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
-import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
+import {
+  WIDGET_DEFAULTS,
+  WIDGET_STRETCH_BEHAVIOR,
+} from '../config/widgetDefaults';
 import {
   migrateLocalStorageToFirestore,
   migrateWidget,
 } from '../utils/migration';
+import {
+  REFERENCE_VIEWPORT,
+  pixelToProp,
+  computeWidgetPixelRect,
+} from '../utils/proportionalLayout';
+import {
+  migrateDashboardWidgets,
+  hydrateWidgetPixels,
+} from '../utils/migrateProportionalLayout';
 import {
   scrubDashboardPII,
   extractDashboardPII,
@@ -43,7 +55,11 @@ import {
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
-import { DashboardContext } from './DashboardContextValue';
+import {
+  DashboardContext,
+  PendingShareImport,
+  SharedBoardImportMode,
+} from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
 import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
 import { AnnotationState } from './DashboardContextValue';
@@ -57,11 +73,99 @@ const migrateToDockItems = (
   return visibleTools.map((type) => ({ type: 'tool', toolType: type }));
 };
 
+const getCurrentViewport = (): { vpW: number; vpH: number } => {
+  if (typeof window === 'undefined') {
+    return { vpW: REFERENCE_VIEWPORT.w, vpH: REFERENCE_VIEWPORT.h };
+  }
+  return {
+    vpW: window.innerWidth || REFERENCE_VIEWPORT.w,
+    vpH: window.innerHeight || REFERENCE_VIEWPORT.h,
+  };
+};
+
+/**
+ * Run proportional migration (idempotent) and hydrate pixel x/y/w/h from
+ * proportions × current viewport. After this, widget components can keep
+ * reading widget.w/h as pixels regardless of which device authored the board.
+ */
+const hydrateDashboardForViewport = (
+  d: Dashboard,
+  vpW: number,
+  vpH: number
+): Dashboard => {
+  const migrated = migrateDashboardWidgets(
+    d.widgets,
+    d.viewportWidth,
+    d.viewportHeight
+  );
+  let widgetsChanged = migrated !== d.widgets;
+  const hydrated = migrated.map((w) => {
+    const stretch = WIDGET_STRETCH_BEHAVIOR[w.type] ?? 'preserve-aspect';
+    const next = hydrateWidgetPixels(w, vpW, vpH, stretch);
+    if (next !== w) widgetsChanged = true;
+    return next;
+  });
+  if (!widgetsChanged) return d;
+  return { ...d, widgets: hydrated };
+};
+
+/**
+ * Update a widget's proportional fields and aspect ratio to match its current
+ * pixel x/y/w/h at the current viewport. Called from mutation paths
+ * (drag/resize/snap commits, addWidget, paste, etc.) so the canonical
+ * proportional storage stays in sync with the pixel state used for rendering.
+ *
+ * `updateAspect` defaults to true; pass false for drag-only changes (no resize)
+ * so the locked aspect ratio survives free-position moves.
+ */
+const syncWidgetProportionsFromPixels = (
+  w: WidgetData,
+  vpW: number,
+  vpH: number,
+  updateAspect = true
+): WidgetData => {
+  const prop = pixelToProp({ x: w.x, y: w.y, w: w.w, h: w.h }, vpW, vpH);
+  const aspectRatio = updateAspect
+    ? w.h > 0
+      ? w.w / w.h
+      : (w.aspectRatio ?? 1)
+    : w.aspectRatio;
+  if (
+    prop.xProp === w.xProp &&
+    prop.yProp === w.yProp &&
+    prop.wProp === w.wProp &&
+    prop.hProp === w.hProp &&
+    aspectRatio === w.aspectRatio
+  ) {
+    return w;
+  }
+  return {
+    ...w,
+    xProp: prop.xProp,
+    yProp: prop.yProp,
+    wProp: prop.wProp,
+    hProp: prop.hProp,
+    ...(typeof aspectRatio === 'number' ? { aspectRatio } : {}),
+  };
+};
+
+/**
+ * Strip the derived pixel x/y/w/h fields from a widget. Pixel values are
+ * recomputed from xProp/yProp/wProp/hProp on every dashboard load and on
+ * window resize, so they should not factor into "did anything change"
+ * comparisons — otherwise window resizes (which only update derived pixels)
+ * would trigger phantom saves.
+ */
+const stripDerivedPixels = (w: WidgetData) => {
+  const { x: _x, y: _y, w: _w, h: _h, ...rest } = w;
+  return rest;
+};
+
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
   JSON.stringify({
     widgets: d.widgets.map((w) => {
-      const { config, ...rest } = w;
+      const { config, ...rest } = stripDerivedPixels(w);
       return {
         ...rest,
         // Fallback for old widgets without version
@@ -78,7 +182,7 @@ const serializeDashboard = (d: Dashboard): string =>
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
   fields: {
-    widgets: JSON.stringify(d.widgets),
+    widgets: JSON.stringify(d.widgets.map(stripDerivedPixels)),
     background: d.background,
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
@@ -110,6 +214,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     subscribeToDashboards,
     shareDashboard: shareDashboardFirestore,
     loadSharedDashboard: loadSharedDashboardFirestore,
+    mirrorSharedBoard,
+    subscribeToSharedBoard,
+    joinSharedBoard,
+    leaveSharedBoard,
+    stopSharingBoard,
   } = useFirestore(user?.uid ?? null);
 
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
@@ -188,23 +297,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [zoom, setZoom] = useState<number>(1);
 
   // --- Annotation (ephemeral full-screen draw-over overlay; NOT a widget) ---
+  // The `objects` array is stored on the active dashboard's
+  // `annotationOverlay` so it rides through the live-share mirror to all
+  // participants. Per-user UI state (color, width, palette) stays local.
   const [annotationActive, setAnnotationActive] = useState(false);
-  const [annotationState, setAnnotationState] = useState<AnnotationState>(
-    () => ({
-      objects: [],
-      color: STANDARD_COLORS.slate,
-      width: DRAWING_DEFAULTS.WIDTH,
-      customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
-    })
-  );
+  const [annotationLocalState, setAnnotationLocalState] = useState<
+    Omit<AnnotationState, 'objects'>
+  >(() => ({
+    color: STANDARD_COLORS.slate,
+    width: DRAWING_DEFAULTS.WIDTH,
+    customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
+  }));
 
   // Helper to centralize active dashboard switching and its side-effects (like zoom reset)
   const updateActiveId = useCallback((id: string | null) => {
     setActiveId(id);
     setZoom(1);
-    // Auto-close annotation when switching dashboards — annotations are board-local
+    // Auto-close annotation when switching dashboards — annotations are
+    // board-local. The objects themselves live on the dashboard's
+    // `annotationOverlay`, so switching boards naturally swaps which strokes
+    // are visible.
     setAnnotationActive(false);
-    setAnnotationState((prev) => ({ ...prev, objects: [] }));
   }, []);
 
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
@@ -645,8 +758,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const handleShareDashboard = useCallback(
-    async (dashboard: Dashboard): Promise<string> => {
-      // MANDATE: Share through Google Drive if available for non-admins
+    async (
+      dashboard: Dashboard,
+      intendedMode?: SharedBoardImportMode
+    ): Promise<string> => {
+      // MANDATE: Share through Google Drive if available for non-admins.
+      // Drive shares are one-time exports — they don't support live sync,
+      // and we intentionally don't tag the local dashboard as `owner`.
+      // Drive-backed shares are always Copy-mode on the receiving end;
+      // intendedMode is ignored here.
       if (!isAdmin && driveService) {
         try {
           const fileId = await driveService.exportDashboard(dashboard);
@@ -656,19 +776,69 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           console.error('Drive sharing failed, falling back to Firestore:', e);
         }
       }
-      return shareDashboardFirestore(dashboard);
+
+      // Firestore-backed share: also tag the local dashboard so subsequent
+      // edits mirror to the shared doc and Synced/View-Only guests stay in
+      // sync with the host. Both writes (the shared_boards seed and the
+      // local dashboard with its new linkage) MUST go through PII scrubbing
+      // — Firestore never holds student-name fields, even for the owner's
+      // own dashboards collection. The mirror effect (further down) and the
+      // local saveDashboard() path do this independently; here we scrub the
+      // shared_boards seed up front so the very first write is clean too.
+      const hostName = user?.displayName ?? user?.email ?? undefined;
+      const scrubbedSeed = scrubDashboardPII(dashboard);
+      const shareId = await shareDashboardFirestore(
+        scrubbedSeed,
+        intendedMode,
+        hostName
+      );
+      // Copy-mode shares are one-time snapshots. Don't tag the local
+      // dashboard as a live owner — there's no live sync to wire up.
+      if (intendedMode === 'copy') {
+        return shareId;
+      }
+      const tagged: Dashboard = {
+        ...dashboard,
+        linkedShareId: shareId,
+        linkedShareRole: 'owner',
+        linkedShareHostName: hostName,
+        linkedShareEnded: false,
+      };
+      // Optimistic local update so the UI reflects the live-share state
+      // immediately.
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === dashboard.id ? tagged : d))
+      );
+      // Persist the linkage via the full saveDashboard pipeline, which
+      // handles PII scrub + Drive supplement. Going through
+      // saveDashboardFirestore directly would bypass that and could leak
+      // restored-from-Drive PII to Firestore.
+      try {
+        await saveDashboard(tagged);
+      } catch (e) {
+        console.error('Failed to persist share linkage on dashboard:', e);
+      }
+      return shareId;
     },
-    [isAdmin, driveService, shareDashboardFirestore, userDomain]
+    [
+      isAdmin,
+      driveService,
+      shareDashboardFirestore,
+      saveDashboard,
+      userDomain,
+      user,
+    ]
   );
 
   const handleLoadSharedDashboard = useCallback(
-    async (shareId: string): Promise<Dashboard | null> => {
+    async (shareId: string): Promise<SharedBoardSnapshot | null> => {
       if (shareId.startsWith('drive-')) {
         if (!driveService) {
           throw new Error('Google Drive access required to load this board');
         }
         const fileId = shareId.replace('drive-', '');
-        return driveService.importDashboard(fileId);
+        const drv = await driveService.importDashboard(fileId);
+        return drv as SharedBoardSnapshot | null;
       }
       return loadSharedDashboardFirestore(shareId);
     },
@@ -697,10 +867,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return (b.createdAt || 0) - (a.createdAt || 0);
         });
 
-        const migratedDashboards = sortedDashboards.map((db) => ({
-          ...db,
-          widgets: db.widgets.map(migrateWidget),
-        }));
+        const { vpW, vpH } = getCurrentViewport();
+        const migratedDashboards = sortedDashboards.map((db) => {
+          const widgetMigrated: Dashboard = {
+            ...db,
+            widgets: db.widgets.map(migrateWidget),
+          };
+          return hydrateDashboardForViewport(widgetMigrated, vpW, vpH);
+        });
 
         // Update saving status: clear when Firestore confirms no pending writes
         // and we have no local saves in flight
@@ -819,11 +993,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const localById = new Map(
                 currentActive.widgets.map((w) => [w.id, w])
               );
+              // Proportional fields are the canonical layout source — pixel
+              // x/y/w/h are derived per-viewport and would produce false
+              // positives when two devices on different screen sizes view
+              // the same board.
               const LAYOUT_FIELDS = [
-                'x',
-                'y',
-                'w',
-                'h',
+                'xProp',
+                'yProp',
+                'wProp',
+                'hProp',
+                'aspectRatio',
                 'z',
                 'minimized',
                 'flipped',
@@ -1209,6 +1388,39 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     isStudentRole,
     roleResolved,
   ]);
+
+  // Re-hydrate widget pixel x/y/w/h from canonical proportional bounds
+  // whenever the viewport changes. The proportional fields don't change here,
+  // so this update is invisible to the save path (which compares without
+  // pixel fields) and to two-device sync.
+  useEffect(() => {
+    let rafId: number | null = null;
+    const onResize = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const { vpW, vpH } = getCurrentViewport();
+        setDashboards((prev) => {
+          let anyChanged = false;
+          const next = prev.map((d) => {
+            const hydrated = hydrateDashboardForViewport(d, vpW, vpH);
+            if (hydrated !== d) anyChanged = true;
+            return hydrated;
+          });
+          return anyChanged ? next : prev;
+        });
+      });
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', onResize);
+    }
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', onResize);
+      }
+    };
+  }, []);
 
   // Auto-save to Firestore with debouncing
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1607,7 +1819,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // which can happen if dependencies change during the async load
   const processingRef = useRef<string | null>(null);
 
-  // Handle shared dashboard loading
+  // Pending share-import state. When a recipient opens /share/<id> we fetch
+  // the shared doc and stash a snapshot here; the UI shows a 3-option picker
+  // (Synced / View-Only / Copy) and calls importSharedBoard(mode) to commit.
+  const [pendingShareImport, setPendingShareImport] =
+    useState<PendingShareImport | null>(null);
+
+  // Handle shared dashboard loading — fetches snapshot, then opens the picker.
   useEffect(() => {
     if (!pendingShareId || !user) return;
     if (processingRef.current === pendingShareId) return;
@@ -1619,51 +1837,37 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const load = async () => {
       try {
         const sharedDb = await handleLoadSharedDashboard(currentShareId);
-
         if (!mounted) return;
 
-        if (sharedDb) {
-          // Calculate order based on current dashboards state
-          const maxOrder = dashboardsRef.current.reduce(
-            (max, db) => Math.max(max, db.order ?? 0),
-            0
-          );
-
-          // Explicitly construct new dashboard to avoid carrying over
-          // metadata from the shared document (e.g. originalAuthor, sharedAt)
-          const newDb: Dashboard = {
-            id: crypto.randomUUID(),
-            name: `${sharedDb.name} (Copy)`,
-            background: sharedDb.background,
-            widgets: sharedDb.widgets,
-            globalStyle: sharedDb.globalStyle,
-            settings: sharedDb.settings,
-            isDefault: false,
-            createdAt: Date.now(),
-            order: maxOrder + 1,
-          };
-
-          await saveDashboard(newDb);
-
-          if (!mounted) return;
-
-          updateActiveId(newDb.id);
-          addToast('Board imported successfully', 'success');
-          clearPendingShare();
-        } else {
-          if (!mounted) return;
-
+        if (!sharedDb) {
           addToast('Shared board not found', 'error');
           clearPendingShare();
+          return;
         }
+
+        // Drive-backed shares are one-time exports; only Copy mode is
+        // meaningful. Firestore-backed shares unlock all three modes.
+        const driveBacked = currentShareId.startsWith('drive-');
+        // For Drive-backed shares, the doc itself doesn't carry intendedMode —
+        // force 'copy' so the recipient sees the single-action confirmation
+        // path instead of the legacy 3-option picker.
+        const sharedSnap = sharedDb as SharedBoardSnapshot | null;
+        const docIntendedMode = sharedSnap?.intendedMode;
+        const intendedMode: SharedBoardImportMode | undefined = driveBacked
+          ? 'copy'
+          : docIntendedMode;
+        setPendingShareImport({
+          shareId: currentShareId,
+          preview: sharedDb,
+          driveBacked,
+          ...(intendedMode ? { intendedMode } : {}),
+        });
       } catch (err) {
         console.error('Failed to load shared dashboard:', err);
         if (!mounted) return;
-
         addToast('Failed to load shared board', 'error');
         clearPendingShare();
       } finally {
-        // Clear processingRef only if it still matches the current share ID
         if (processingRef.current === currentShareId) {
           processingRef.current = null;
         }
@@ -1674,8 +1878,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     return () => {
       mounted = false;
-      // Clear processingRef in cleanup if it matches the current share ID
-      // This ensures the effect can re-run after StrictMode's remount cycle
       if (processingRef.current === currentShareId) {
         processingRef.current = null;
       }
@@ -1684,11 +1886,434 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     pendingShareId,
     user,
     handleLoadSharedDashboard,
-    saveDashboard,
     addToast,
     clearPendingShare,
+  ]);
+
+  const cancelPendingShareImport = useCallback(() => {
+    setPendingShareImport(null);
+    clearPendingShare();
+  }, [clearPendingShare]);
+
+  const importSharedBoard = useCallback(
+    async (mode: SharedBoardImportMode) => {
+      const pending = pendingShareImport;
+      if (!pending || !user) return;
+
+      const { shareId, preview, driveBacked } = pending;
+      if (!preview) return;
+
+      // Drive shares can only ever be a copy — guard against bypass.
+      const effectiveMode: SharedBoardImportMode = driveBacked ? 'copy' : mode;
+
+      const maxOrder = dashboardsRef.current.reduce(
+        (max, db) => Math.max(max, db.order ?? 0),
+        0
+      );
+
+      const baseName = preview.name || 'Shared Board';
+      const nameSuffix =
+        effectiveMode === 'synced'
+          ? ' (Synced)'
+          : effectiveMode === 'view-only'
+            ? ' (View-Only)'
+            : ' (Copy)';
+
+      const newDb: Dashboard = {
+        id: crypto.randomUUID(),
+        name: `${baseName}${nameSuffix}`,
+        background: preview.background,
+        widgets: preview.widgets ?? [],
+        globalStyle: preview.globalStyle,
+        settings: preview.settings,
+        isDefault: false,
+        createdAt: Date.now(),
+        order: maxOrder + 1,
+        ...(effectiveMode !== 'copy'
+          ? {
+              linkedShareId: shareId,
+              linkedShareRole:
+                effectiveMode === 'synced' ? 'collaborator' : 'viewer',
+              linkedShareHostName: preview.linkedShareHostName,
+              linkedShareEnded: false,
+            }
+          : {}),
+      };
+
+      try {
+        await saveDashboard(newDb);
+
+        // Join the shared doc's participants list so the host (and other
+        // peers) can count us. Best-effort — don't block the import if the
+        // join write fails (still useful as a one-way receiver).
+        if (effectiveMode !== 'copy') {
+          try {
+            await joinSharedBoard(
+              shareId,
+              effectiveMode === 'synced' ? 'collaborator' : 'viewer',
+              user.displayName ?? user.email ?? undefined
+            );
+          } catch (joinErr) {
+            console.warn('Failed to join shared board participants:', joinErr);
+          }
+        }
+
+        updateActiveId(newDb.id);
+        const verb =
+          effectiveMode === 'synced'
+            ? 'Synced board imported'
+            : effectiveMode === 'view-only'
+              ? 'View-only board imported'
+              : 'Board imported';
+        addToast(verb, 'success');
+      } catch (err) {
+        console.error('Failed to import shared board:', err);
+        addToast('Failed to import shared board', 'error');
+      } finally {
+        setPendingShareImport(null);
+        clearPendingShare();
+      }
+    },
+    [
+      pendingShareImport,
+      user,
+      saveDashboard,
+      joinSharedBoard,
+      updateActiveId,
+      addToast,
+      clearPendingShare,
+    ]
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Live-share sync
+  //
+  // For every dashboard that's linked to a shared doc:
+  //   - "owner" / "collaborator" roles MIRROR local changes into the shared
+  //     doc on a debounced cadence.
+  //   - All linked roles SUBSCRIBE to the shared doc so remote edits flow
+  //     back into the local dashboard. We skip echoes by tagging mirror
+  //     writes with our own uid in `updatedBy`.
+  // ─────────────────────────────────────────────────────────────────────────
+
+  /** Last serialized payload we mirrored per shareId — skip duplicate writes. */
+  const lastMirroredRef = useRef<Map<string, string>>(new Map());
+  /** Pending debounced mirror timers per shareId. */
+  const mirrorTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(
+    new Map()
+  );
+
+  // Mirror local edits → shared doc (debounced, 500ms).
+  useEffect(() => {
+    if (!user) return;
+
+    // Track which shareIds are still actively linked this pass so we can
+    // cancel any pending timers for dashboards that have been detached
+    // (stopSharingDashboard / leaveSharedBoard) before their 500ms debounce
+    // window elapses. Without this, a stale snapshot would land in the
+    // shared doc after the user already stopped sharing.
+    const liveShareIds = new Set<string>();
+
+    dashboards.forEach((d) => {
+      if (!d.linkedShareId || d.linkedShareEnded) return;
+      if (
+        d.linkedShareRole !== 'owner' &&
+        d.linkedShareRole !== 'collaborator'
+      ) {
+        return;
+      }
+
+      const shareId = d.linkedShareId;
+      liveShareIds.add(shareId);
+
+      // Scrub student PII before broadcasting. The local dashboard may have
+      // had names merged back in from Drive (mergeDashboardPII); those must
+      // never reach Firestore — least of all the cross-user shared_boards
+      // collection. The mirror sees only scrubbed data.
+      const scrubbed = scrubDashboardPII(d);
+
+      // Cheap dedupe based on the same fields the saveDashboard path uses.
+      const payload = serializeDashboard(scrubbed);
+      if (lastMirroredRef.current.get(shareId) === payload) return;
+
+      const existing = mirrorTimersRef.current.get(shareId);
+      if (existing) clearTimeout(existing);
+
+      const timer = setTimeout(() => {
+        mirrorTimersRef.current.delete(shareId);
+        lastMirroredRef.current.set(shareId, payload);
+        void mirrorSharedBoard(shareId, scrubbed).catch((err) => {
+          console.warn('Mirror to shared board failed:', err);
+          // Drop the cached payload so we retry on the next change.
+          lastMirroredRef.current.delete(shareId);
+        });
+      }, 500);
+      mirrorTimersRef.current.set(shareId, timer);
+    });
+
+    // Cancel pending writes for shareIds that are no longer in the live set —
+    // i.e. boards that were detached/unlinked while a debounce was queued.
+    for (const [shareId, timer] of mirrorTimersRef.current) {
+      if (!liveShareIds.has(shareId)) {
+        clearTimeout(timer);
+        mirrorTimersRef.current.delete(shareId);
+        lastMirroredRef.current.delete(shareId);
+      }
+    }
+  }, [dashboards, user, mirrorSharedBoard]);
+
+  // Cleanup pending mirror timers on unmount so we don't write after teardown.
+  useEffect(() => {
+    const timers = mirrorTimersRef.current;
+    return () => {
+      timers.forEach((t) => clearTimeout(t));
+      timers.clear();
+    };
+  }, []);
+
+  // Subscribe to remote edits on each linked share. We re-subscribe whenever
+  // the set of (dashboardId, shareId) pairs changes; widget content edits do
+  // NOT cause re-subscription because we read the dashboard list via ref.
+  const linkedShareKeys = useMemo(
+    () =>
+      dashboards
+        .filter((d) => d.linkedShareId)
+        .map((d) => `${d.id}:${d.linkedShareId}`)
+        .sort()
+        .join('|'),
+    [dashboards]
+  );
+
+  useEffect(() => {
+    if (!user) return;
+
+    const linked = dashboardsRef.current.filter((d) => d.linkedShareId);
+    if (linked.length === 0) return;
+
+    const unsubs = linked.map((d) => {
+      const dashboardId = d.id;
+      const shareId = d.linkedShareId;
+      if (!shareId) return () => undefined;
+
+      return subscribeToSharedBoard(shareId, (remote) => {
+        if (!remote) {
+          // Shared doc deleted by the host (revoked). Behavior depends on
+          // the local user's role:
+          //  - viewer: View-Only is ephemeral end-to-end. Delete the local
+          //    dashboard so the user doesn't accumulate zombie copies.
+          //  - collaborator (or anything else): preserve content as a
+          //    detached editable copy and flag `linkedShareEnded` so the
+          //    UI can surface a "share ended" indicator.
+          const local = dashboardsRef.current.find((x) => x.id === dashboardId);
+          if (local?.linkedShareRole === 'viewer') {
+            const hostName = local.linkedShareHostName;
+            // Switch active dashboard away if the doomed board is current.
+            if (activeIdRef.current === dashboardId) {
+              const next = dashboardsRef.current.find(
+                (x) => x.id !== dashboardId
+              );
+              updateActiveId(next ? next.id : null);
+            }
+            // Delete from Firestore FIRST, then filter local state on success.
+            // Otherwise a transient Firestore failure leaves the local view
+            // gone but the persisted doc still present — on next load the
+            // zombie reappears, which is exactly the state we're trying to
+            // avoid for view-only.
+            void deleteDashboardFirestore(dashboardId).then(
+              () => {
+                setDashboards((prev) =>
+                  prev.filter((x) => x.id !== dashboardId)
+                );
+                addToast(
+                  hostName
+                    ? `Session closed by ${hostName}`
+                    : 'View-only session closed by host',
+                  'info'
+                );
+              },
+              (err: unknown) => {
+                console.error(
+                  'Failed to delete view-only dashboard after host stopped sharing:',
+                  err
+                );
+                // Fall back to the collaborator path (mark ended, keep
+                // content) so the user has a non-broken board to recover
+                // from. They can manually delete it later.
+                setDashboards((prev) =>
+                  prev.map((x) =>
+                    x.id === dashboardId && !x.linkedShareEnded
+                      ? { ...x, linkedShareEnded: true }
+                      : x
+                  )
+                );
+                addToast(
+                  'View-only session closed, but we couldn’t remove the local copy. Try deleting it manually.',
+                  'error'
+                );
+              }
+            );
+            return;
+          }
+          setDashboards((prev) =>
+            prev.map((x) =>
+              x.id === dashboardId && !x.linkedShareEnded
+                ? { ...x, linkedShareEnded: true }
+                : x
+            )
+          );
+          return;
+        }
+
+        // Skip echoes of our own writes — `updatedBy` is stamped by the
+        // mirror effect with the writer's uid, so this filter applies
+        // symmetrically to owner, collaborator, and viewer roles.
+        const remoteWith = remote as Dashboard & {
+          updatedBy?: string;
+        };
+        if (remoteWith.updatedBy === user.uid) return;
+
+        // Apply remote content patch to the local dashboard. This runs for
+        // every role:
+        //   - owner       receives collaborator edits (Synced bidirectional)
+        //   - collaborator receives owner + peer edits (Synced bidirectional)
+        //   - viewer       receives owner edits (View-Only one-way)
+        // The echo filter above prevents a writer from re-applying its own
+        // mirrored update.
+        setDashboards((prev) =>
+          prev.map((x) => {
+            if (x.id !== dashboardId) return x;
+            const { vpW, vpH } = getCurrentViewport();
+            // Hydrate pixel x/y/w/h for this viewport: the remote may have
+            // been authored on a screen with different dimensions, so its
+            // pixel fields are stale. Proportional fields are the source of
+            // truth and stay identical across devices.
+            const remoteHydrated: Dashboard = remote.widgets
+              ? hydrateDashboardForViewport(
+                  { ...x, widgets: remote.widgets },
+                  vpW,
+                  vpH
+                )
+              : x;
+            const next: Dashboard = {
+              ...x,
+              widgets: remoteHydrated.widgets,
+              background: remote.background ?? x.background,
+              globalStyle: remote.globalStyle ?? x.globalStyle,
+              settings: remote.settings ?? x.settings,
+              // Live annotation overlay — hosts and collaborators push
+              // strokes through this field so all participants see strokes
+              // appear in real time. Falls back to the local copy when the
+              // remote omits it (legacy docs).
+              annotationOverlay:
+                remote.annotationOverlay ?? x.annotationOverlay,
+              linkedShareEnded: false,
+            };
+            // Prime the mirror dedupe so the state change we just made
+            // doesn't trigger an immediate echo write back to the shared
+            // doc. Without this, every remote apply costs an extra
+            // Firestore write of identical content.
+            lastMirroredRef.current.set(shareId, serializeDashboard(next));
+            return next;
+          })
+        );
+      });
+    });
+
+    return () => {
+      unsubs.forEach((u) => u());
+    };
+    // linkedShareKeys captures only structural changes (which share/dashboard
+    // pairs exist), not content edits — so we don't re-subscribe on every edit.
+  }, [
+    linkedShareKeys,
+    user,
+    subscribeToSharedBoard,
+    addToast,
+    deleteDashboardFirestore,
     updateActiveId,
   ]);
+
+  const stopSharingDashboard = useCallback(
+    async (dashboardId: string) => {
+      const target = dashboardsRef.current.find((d) => d.id === dashboardId);
+      if (!target?.linkedShareId) return;
+
+      const shareId = target.linkedShareId;
+      const isOwner = target.linkedShareRole === 'owner';
+      const isViewer = target.linkedShareRole === 'viewer';
+
+      try {
+        if (isOwner) {
+          await stopSharingBoard(shareId);
+        } else {
+          // Guest: leave participants list. Local-side handling diverges by
+          // role (see below).
+          await leaveSharedBoard(shareId);
+        }
+      } catch (err) {
+        console.error('Failed to tear down share:', err);
+        addToast('Failed to stop sharing', 'error');
+        return;
+      }
+
+      // Viewer leaving a View-Only board: View-Only is ephemeral end-to-end,
+      // so the local copy is removed instead of being kept as a detached
+      // editable dashboard. Switch active dashboard away first if needed.
+      if (isViewer) {
+        if (activeIdRef.current === dashboardId) {
+          const next = dashboardsRef.current.find((x) => x.id !== dashboardId);
+          updateActiveId(next ? next.id : null);
+        }
+        // Delete from Firestore first, then filter local state on success.
+        // Optimistically filtering before the Firestore round-trip leaves
+        // the doc orphaned if the delete fails — on next load it would
+        // reappear with `linkedShareId` cleared (since `leaveSharedBoard`
+        // ran), which is exactly the zombie copy view-only is supposed to
+        // avoid.
+        try {
+          await deleteDashboardFirestore(dashboardId);
+        } catch (err) {
+          console.error('Failed to delete view-only dashboard on leave:', err);
+          addToast(
+            'Left the share, but we couldn’t remove the local copy. Try deleting it manually.',
+            'error'
+          );
+          return;
+        }
+        setDashboards((prev) => prev.filter((d) => d.id !== dashboardId));
+        addToast('Left view-only board', 'success');
+        return;
+      }
+
+      // Clear linkage on the local dashboard so the mirror/subscribe effects
+      // detach. The board's contents stay as a normal local dashboard for
+      // owners stopping a share and for collaborators leaving Synced.
+      const detached: Dashboard = {
+        ...target,
+        linkedShareId: undefined,
+        linkedShareRole: undefined,
+        linkedShareHostName: undefined,
+        linkedShareEnded: undefined,
+      };
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === dashboardId ? detached : d))
+      );
+      try {
+        await saveDashboard(detached);
+      } catch (err) {
+        console.error('Failed to persist detached share state:', err);
+      }
+      addToast(isOwner ? 'Stopped sharing' : 'Left shared board', 'success');
+    },
+    [
+      stopSharingBoard,
+      leaveSharedBoard,
+      saveDashboard,
+      addToast,
+      deleteDashboardFirestore,
+      updateActiveId,
+    ]
+  );
 
   // --- FOLDER ACTIONS ---
   const addFolder = useCallback(
@@ -2145,6 +2770,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
+  // True when the user is viewing a board they joined as a viewer in
+  // View-Only mode. Read-only mutation guards check this via a ref so
+  // memoized action callbacks don't have to invalidate on every change.
+  const isActiveBoardReadOnly =
+    activeDashboard?.linkedShareRole === 'viewer' &&
+    !activeDashboard?.linkedShareEnded;
+  const isActiveBoardReadOnlyRef = useRef(isActiveBoardReadOnly);
+  isActiveBoardReadOnlyRef.current = isActiveBoardReadOnly;
+
   /**
    * Extracts building-level config overrides for a widget type from the admin's
    * feature_permissions config. These are applied between widget defaults and
@@ -2561,6 +3195,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const addWidget = useCallback(
     (type: WidgetType, overrides?: AddWidgetOverrides) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
 
@@ -2574,13 +3209,38 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const newWidgetId = crypto.randomUUID();
           locallyAddedWidgetIds.current.add(newWidgetId);
-          const newWidget: WidgetData = {
+          // Anchor pixel defaults against the reference viewport so a widget
+          // added on a 1366×768 laptop and one added on a 1920×1080 projector
+          // get identical proportional bounds.
+          const anchorX = 50;
+          const anchorY = 80;
+          const pixelW = defaults.w ?? 200;
+          const pixelH = defaults.h ?? 200;
+          const anchorProp = pixelToProp(
+            { x: anchorX, y: anchorY, w: pixelW, h: pixelH },
+            REFERENCE_VIEWPORT.w,
+            REFERENCE_VIEWPORT.h
+          );
+          const stretch = WIDGET_STRETCH_BEHAVIOR[type] ?? 'preserve-aspect';
+          const { vpW, vpH } = getCurrentViewport();
+          const initialPixels = computeWidgetPixelRect(
+            anchorProp,
+            vpW,
+            vpH,
+            stretch
+          );
+          const baseWidget: WidgetData = {
             id: newWidgetId,
             type,
-            x: 50,
-            y: 80,
-            w: defaults.w ?? 200,
-            h: defaults.h ?? 200,
+            x: initialPixels.x,
+            y: initialPixels.y,
+            w: initialPixels.w,
+            h: initialPixels.h,
+            xProp: anchorProp.xProp,
+            yProp: anchorProp.yProp,
+            wProp: anchorProp.wProp,
+            hProp: anchorProp.hProp,
+            aspectRatio: pixelW / pixelH,
             flipped: false,
             z: maxZ + 1,
             version: 1,
@@ -2593,6 +3253,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               overrides?.config
             ),
           };
+          // Overrides (e.g. starter packs) may have supplied legacy pixel
+          // x/y/w/h without proportional fields — re-derive proportions and
+          // aspect ratio from whatever pixel rect the widget ended up with,
+          // anchored against the reference viewport so the same starter
+          // pack produces the same proportions on every device.
+          const overrodePixels =
+            !!overrides &&
+            ('x' in overrides ||
+              'y' in overrides ||
+              'w' in overrides ||
+              'h' in overrides);
+          const overrodeProps =
+            !!overrides &&
+            ('xProp' in overrides ||
+              'yProp' in overrides ||
+              'wProp' in overrides ||
+              'hProp' in overrides);
+          const newWidget =
+            overrodePixels && !overrodeProps
+              ? syncWidgetProportionsFromPixels(
+                  baseWidget,
+                  REFERENCE_VIEWPORT.w,
+                  REFERENCE_VIEWPORT.h,
+                  true
+                )
+              : baseWidget;
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
       );
@@ -2609,6 +3295,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }[]
     ) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
 
@@ -2673,9 +3360,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const newWidgetId = crypto.randomUUID();
             locallyAddedWidgetIds.current.add(newWidgetId);
 
-            // 1. SMART LAYOUT: If AI provided spatial data
-            if (validatedGrid) {
-              const { col, row, colSpan, rowSpan } = validatedGrid;
+            const stretch =
+              WIDGET_STRETCH_BEHAVIOR[item.type] ?? 'preserve-aspect';
+
+            const buildWidget = (pixels: {
+              x: number;
+              y: number;
+              w: number;
+              h: number;
+            }): WidgetData => {
+              const prop = pixelToProp(pixels, BOARD_W, BOARD_H);
+              const aspectRatio = pixels.w / Math.max(1, pixels.h);
+              const { vpW: curW, vpH: curH } = getCurrentViewport();
+              const hydrated = computeWidgetPixelRect(
+                prop,
+                curW,
+                curH,
+                stretch
+              );
               return {
                 id: newWidgetId,
                 type: item.type,
@@ -2683,12 +3385,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 z: maxZ,
                 version: 1,
                 ...defaults,
+                x: hydrated.x,
+                y: hydrated.y,
+                w: hydrated.w,
+                h: hydrated.h,
+                xProp: prop.xProp,
+                yProp: prop.yProp,
+                wProp: prop.wProp,
+                hProp: prop.hProp,
+                aspectRatio,
+                config: baseConfig,
+              } as WidgetData;
+            };
+
+            // 1. SMART LAYOUT: If AI provided spatial data
+            if (validatedGrid) {
+              const { col, row, colSpan, rowSpan } = validatedGrid;
+              return buildWidget({
                 x: col * COL_W + OFFSET_X,
                 y: row * ROW_H + OFFSET_Y,
                 w: Math.max(1, colSpan * COL_W - GRID_GAP),
                 h: Math.max(1, rowSpan * ROW_H - GRID_GAP),
-                config: baseConfig,
-              } as WidgetData;
+              });
             }
 
             // 2. FALLBACK LAYOUT: Legacy 3-column placement for missing gridConfigs
@@ -2699,19 +3417,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const COL_WIDTH = 350;
             const ROW_HEIGHT = 280;
 
-            return {
-              id: newWidgetId,
-              type: item.type,
+            return buildWidget({
               x: START_X + col * COL_WIDTH,
               y: START_Y + row * ROW_HEIGHT,
               w: defaults.w ?? 250,
               h: defaults.h ?? 250,
-              flipped: false,
-              z: maxZ,
-              version: 1,
-              ...defaults,
-              config: baseConfig,
-            } as WidgetData;
+            });
           });
 
           return { ...d, widgets: [...d.widgets, ...newWidgets] };
@@ -2724,6 +3435,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const removeWidget = useCallback(
     (id: string) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -2751,6 +3463,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const duplicateWidget = useCallback(
     (id: string) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -2760,11 +3473,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!target) return d;
 
           const maxZ = d.widgets.reduce((max, w) => Math.max(max, w.z), 0);
-          const duplicated: WidgetData = {
+          const { vpW, vpH } = getCurrentViewport();
+          const offsetTarget = {
             ...target,
-            id: crypto.randomUUID(),
             x: target.x + 20,
             y: target.y + 20,
+          };
+          const withProps = syncWidgetProportionsFromPixels(
+            offsetTarget,
+            vpW,
+            vpH,
+            false // duplication is a position change only
+          );
+          const duplicated: WidgetData = {
+            ...withProps,
+            id: crypto.randomUUID(),
             z: maxZ + 1,
             version: 1,
             groupId: undefined, // Duplicated widgets are independent
@@ -2780,6 +3503,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const removeWidgets = useCallback(
     (ids: string[]) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       const idSet = new Set(ids);
@@ -2839,6 +3563,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -2850,13 +3575,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
 
-      // Track whether this update changes widget position/size so we can
-      // stamp the current viewport dimensions — ensuring the saved viewport
-      // always matches the viewport where widget layout was actually set.
-      const isLayoutChange =
+      // A pixel-size change implies the user resized — refresh aspectRatio.
+      // A pure position change keeps the locked aspect ratio.
+      const isResize = 'w' in updates || 'h' in updates;
+      const isPositionOrSize =
         'x' in updates || 'y' in updates || 'w' in updates || 'h' in updates;
 
       setDashboards((prev) =>
@@ -2878,12 +3604,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
               }
 
-              return {
+              const merged: WidgetData = {
                 ...w,
                 ...updates,
                 version: newVersion,
                 config: newConfig,
               };
+
+              // After a pixel position/size change, re-derive proportional
+              // bounds from the new pixel state. This is what makes the
+              // canonical proportional storage track local edits.
+              if (isPositionOrSize) {
+                const { vpW, vpH } = getCurrentViewport();
+                return syncWidgetProportionsFromPixels(
+                  merged,
+                  vpW,
+                  vpH,
+                  isResize
+                );
+              }
+              return merged;
             }
             return w;
           });
@@ -2897,12 +3637,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return {
             ...d,
             widgets: newWidgets,
-            ...(isLayoutChange
-              ? {
-                  viewportWidth: window.innerWidth,
-                  viewportHeight: window.innerHeight,
-                }
-              : {}),
           };
         })
       );
@@ -2920,21 +3654,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }>
     ) => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       const updateMap = new Map(updates.map((u) => [u.id, u.changes]));
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeIdRef.current) return d;
+          const { vpW, vpH } = getCurrentViewport();
           return {
             ...d,
             widgets: d.widgets.map((w) => {
               const changes = updateMap.get(w.id);
               if (!changes) return w;
-              return { ...w, ...changes };
+              const merged = { ...w, ...changes };
+              const isResize = 'w' in changes || 'h' in changes;
+              return syncWidgetProportionsFromPixels(
+                merged,
+                vpW,
+                vpH,
+                isResize
+              );
             }),
-            viewportWidth: window.innerWidth,
-            viewportHeight: window.innerHeight,
           };
         })
       );
@@ -2945,6 +3686,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const groupWidgets = useCallback(
     (widgetIds: string[]) => {
       if (!activeIdRef.current || widgetIds.length < 2) return;
+      if (isActiveBoardReadOnlyRef.current) return;
 
       // Find the active dashboard to check widget states
       const active = dashboardsRef.current.find(
@@ -2995,6 +3737,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const ungroupWidgets = useCallback((groupId: string) => {
     if (!activeIdRef.current) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3069,6 +3812,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const moveWidgetLayer = useCallback(
     (id: string, direction: 'up' | 'down') => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
 
       setDashboards((prev) => {
         const active = prev.find((d) => d.id === activeIdRef.current);
@@ -3121,6 +3865,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const minimizeAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3141,6 +3886,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const restoreAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3162,6 +3908,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const deleteAllWidgets = useCallback(() => {
     if (!activeId) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3173,6 +3920,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const resetWidgetSize = useCallback(
     (id: string) => {
       if (!activeId) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
       setDashboards((prev) =>
@@ -3198,6 +3946,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setBackground = useCallback((bg: string) => {
     if (!activeIdRef.current) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3210,6 +3959,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const updateDashboardSettings = useCallback(
     (updates: Partial<Dashboard['settings']>) => {
       if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = true;
       setDashboards((prev) =>
@@ -3231,6 +3981,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const updateDashboard = useCallback((updates: Partial<Dashboard>) => {
     if (!activeIdRef.current) return;
+    // Allow updates that only change link bookkeeping (so we can mark a
+    // viewer's board as "share ended" or detach a guest) but block any
+    // content edits when the board is read-only.
+    if (isActiveBoardReadOnlyRef.current) {
+      const onlyLinkFields = Object.keys(updates).every((k) =>
+        k.startsWith('linkedShare')
+      );
+      if (!onlyLinkFields) return;
+    }
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3240,6 +3999,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const setGlobalStyle = useCallback((style: Partial<GlobalStyle>) => {
     if (!activeIdRef.current) return;
+    if (isActiveBoardReadOnlyRef.current) return;
     lastLocalUpdateAt.current = Date.now();
     lastUpdateWasSettingsOnly.current = false;
     setDashboards((prev) =>
@@ -3258,6 +4018,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, []);
 
   // --- Annotation actions ---
+  // Helper: write a new annotationOverlay onto the active dashboard. Used by
+  // every mutator below so all writes go through the same mirror-friendly
+  // path. Read-only check is intentionally NOT applied here for annotation —
+  // annotations on Synced boards are bidirectional by design (host and
+  // collaborator both push). For viewers, the pencil button is hidden in
+  // the UI, so they have no way to invoke these.
+  const setActiveAnnotationObjects = useCallback((next: DrawableObject[]) => {
+    const id = activeIdRef.current;
+    if (!id) return;
+    lastLocalUpdateAt.current = Date.now();
+    lastUpdateWasSettingsOnly.current = false;
+    setDashboards((prev) =>
+      prev.map((d) =>
+        d.id === id
+          ? {
+              ...d,
+              annotationOverlay: {
+                objects: next,
+                updatedAt: Date.now(),
+              },
+            }
+          : d
+      )
+    );
+  }, []);
+
   const openAnnotation = useCallback(() => {
     // Seed from admin building defaults for width + color palette.
     // `color` is not configurable at the admin level — keep the user's
@@ -3266,46 +4052,100 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       width?: number;
       customColors?: string[];
     };
-    setAnnotationState((prev) => ({
-      objects: [],
+    setAnnotationLocalState((prev) => ({
       color: prev.color,
       width: adminConfig.width ?? DRAWING_DEFAULTS.WIDTH,
       customColors: adminConfig.customColors ?? [
         ...DRAWING_DEFAULTS.CUSTOM_COLORS,
       ],
     }));
+    // Reset the dashboard's overlay so a fresh session starts blank for
+    // everyone (including remote participants on a synced board).
+    setActiveAnnotationObjects([]);
     setAnnotationActive(true);
-  }, [getAdminBuildingConfig]);
+  }, [getAdminBuildingConfig, setActiveAnnotationObjects]);
 
   const closeAnnotation = useCallback(() => {
     setAnnotationActive(false);
-    setAnnotationState((prev) => ({ ...prev, objects: [] }));
-  }, []);
+    // Clear shared strokes so collaborators / viewers see them disappear
+    // when the host (or any synced participant) ends the session.
+    setActiveAnnotationObjects([]);
+  }, [setActiveAnnotationObjects]);
 
   const updateAnnotationState = useCallback(
     (updates: Partial<AnnotationState>) => {
-      setAnnotationState((prev) => ({ ...prev, ...updates }));
+      const { objects: nextObjects, ...rest } = updates;
+      if (Object.keys(rest).length > 0) {
+        setAnnotationLocalState((prev) => ({ ...prev, ...rest }));
+      }
+      if (nextObjects !== undefined) {
+        setActiveAnnotationObjects(nextObjects);
+      }
     },
-    []
+    [setActiveAnnotationObjects]
   );
 
-  const addAnnotationObject = useCallback((obj: DrawableObject) => {
-    setAnnotationState((prev) => ({
-      ...prev,
-      objects: [...prev.objects, obj],
-    }));
-  }, []);
+  const addAnnotationObject = useCallback(
+    (obj: DrawableObject) => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      const stamped: DrawableObject = {
+        ...obj,
+        authorUid: obj.authorUid ?? user?.uid,
+      };
+      const current =
+        dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
+          ?.objects ?? [];
+      setActiveAnnotationObjects([...current, stamped]);
+    },
+    [setActiveAnnotationObjects, user?.uid]
+  );
 
   const undoAnnotation = useCallback(() => {
-    setAnnotationState((prev) => ({
-      ...prev,
-      objects: prev.objects.slice(0, -1),
-    }));
-  }, []);
+    const id = activeIdRef.current;
+    if (!id) return;
+    const current =
+      dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
+        ?.objects ?? [];
+    if (current.length === 0) return;
+    // Per-author undo: only remove the local user's most recent stroke so
+    // collaborators on a synced board can't accidentally clobber each
+    // other's drawings. Falls back to the very last object when the
+    // user's uid isn't known (auth-bypass / pre-stamped legacy data).
+    const uid = user?.uid;
+    let removeAt = -1;
+    if (uid) {
+      for (let i = current.length - 1; i >= 0; i--) {
+        if (current[i].authorUid === uid) {
+          removeAt = i;
+          break;
+        }
+      }
+    }
+    if (removeAt < 0) {
+      removeAt = current.length - 1;
+    }
+    const next = [
+      ...current.slice(0, removeAt),
+      ...current.slice(removeAt + 1),
+    ];
+    setActiveAnnotationObjects(next);
+  }, [setActiveAnnotationObjects, user?.uid]);
 
   const clearAnnotation = useCallback(() => {
-    setAnnotationState((prev) => ({ ...prev, objects: [] }));
-  }, []);
+    setActiveAnnotationObjects([]);
+  }, [setActiveAnnotationObjects]);
+
+  // Exposed `annotationState` merges per-user UI state with the active
+  // dashboard's shared object list. This keeps a single shape for consumers
+  // while making `objects` reactive to remote sync updates.
+  const annotationState = useMemo<AnnotationState>(
+    () => ({
+      ...annotationLocalState,
+      objects: activeDashboard?.annotationOverlay?.objects ?? [],
+    }),
+    [annotationLocalState, activeDashboard?.annotationOverlay?.objects]
+  );
 
   const contextValue = useMemo(
     () => ({
@@ -3381,6 +4221,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadSharedDashboard: handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      pendingShareImport,
+      cancelPendingShareImport,
+      importSharedBoard,
+      stopSharingDashboard,
+      isActiveBoardReadOnly,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,
@@ -3474,6 +4319,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
+      pendingShareImport,
+      cancelPendingShareImport,
+      importSharedBoard,
+      stopSharingDashboard,
+      isActiveBoardReadOnly,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,

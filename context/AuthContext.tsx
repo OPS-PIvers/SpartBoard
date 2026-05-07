@@ -48,6 +48,7 @@ import {
   getBuildingGradeLevels,
 } from '../config/buildings';
 import i18n from '../i18n';
+import { GoogleDriveService } from '../utils/googleDriveService';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
 import {
@@ -277,6 +278,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // re-arms the write. A plain boolean would latch the first target
   // forever within a session.
   const memberLastActiveSyncedKeyRef = useRef<string | null>(null);
+  // Tracks the uid we've already run the returning-user Drive probe for, so
+  // a token refresh later in the session doesn't re-probe and re-write the
+  // profile doc. Cleared on sign-out.
+  const driveProbedForUidRef = useRef<string | null>(null);
 
   // Reset role-resolution flags synchronously when `user` changes. Without
   // this, a re-render between users would briefly carry the previous user's
@@ -805,6 +810,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setDockPositionState('bottom');
 
       if (!user) {
+        driveProbedForUidRef.current = null;
         setSelectedBuildingsState([]);
         setSavedWidgetConfigs({});
         setProfileLoaded(true);
@@ -950,6 +956,59 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       isCancelled = true;
     };
   }, [user]);
+
+  // Returning-user Drive probe.
+  //
+  // When a user with no Firestore profile doc signs in (their `loadProfile`
+  // above set `setupCompleted=false`), check whether they already have a
+  // SpartBoard folder in Google Drive. If so, this is a returning user on
+  // a new device — write a profile doc with `setupCompleted=true` so the
+  // setup wizard is skipped and they land straight on their dashboard.
+  //
+  // Runs as a separate effect (not inside `loadProfile`) so it can fire
+  // when `googleAccessToken` arrives independently of the user-changed
+  // event. The ref guard means a later token refresh during the session
+  // does not re-probe or re-write the profile doc.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!user || !profileLoaded || setupCompleted) return;
+    if (!googleAccessToken) return;
+    if (driveProbedForUidRef.current === user.uid) return;
+
+    driveProbedForUidRef.current = user.uid;
+    let cancelled = false;
+
+    void (async () => {
+      try {
+        const driveService = new GoogleDriveService(
+          googleAccessToken,
+          refreshGoogleToken
+        );
+        const isReturning = await driveService.hasExistingAppFolder();
+        if (cancelled || !isReturning) return;
+
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { setupCompleted: true },
+          { merge: true }
+        );
+        if (cancelled) return;
+        setSetupCompletedState(true);
+      } catch (e) {
+        console.warn('[AuthContext] Returning-user Drive probe failed:', e);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    user,
+    googleAccessToken,
+    profileLoaded,
+    setupCompleted,
+    refreshGoogleToken,
+  ]);
 
   // Sync the root users/{uid} document so the admin analytics Cloud Function can
   // read email, lastLogin, and buildings without querying subcollections.

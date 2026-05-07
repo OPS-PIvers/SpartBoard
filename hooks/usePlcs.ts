@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { Plc } from '@/types';
+import { DEFAULT_PLC_FEATURE_SETTINGS, Plc, PlcFeatureSettings } from '@/types';
 
 const PLCS_COLLECTION = 'plcs';
 // Mirrors the constant in `usePlcInvitations` — kept here so `deletePlc` can
@@ -60,6 +60,16 @@ interface UsePlcsResult {
    * for the "already created?" check to avoid racing two teachers).
    */
   getPlcSharedSheetUrl: (plcId: string) => Promise<string | null>;
+  /**
+   * Any member: toggle the PLC dashboard `features` map. Always writes the
+   * full canonical map (defaults merged in) so partial historical writes
+   * can't leave dangling fields. Rejected by rules if the caller is not a
+   * current member of the PLC.
+   */
+  updatePlcFeatures: (
+    plcId: string,
+    features: PlcFeatureSettings
+  ) => Promise<void>;
 }
 
 function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
@@ -83,6 +93,40 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
   if (typeof data.sharedSheetUrl === 'string') {
     sharedSheetUrl = data.sharedSheetUrl;
   }
+  // features: optional map of dashboard section toggles. Read consumers
+  // should always merge against DEFAULT_PLC_FEATURE_SETTINGS via
+  // `getPlcFeatures()` rather than reading this field directly, so an
+  // absent field (legacy PLCs) and partial maps both default to enabled.
+  let features: PlcFeatureSettings | undefined;
+  if (data.features && typeof data.features === 'object') {
+    const raw = data.features as Record<string, unknown>;
+    features = {
+      quizzes:
+        typeof raw.quizzes === 'boolean'
+          ? raw.quizzes
+          : DEFAULT_PLC_FEATURE_SETTINGS.quizzes,
+      videoActivities:
+        typeof raw.videoActivities === 'boolean'
+          ? raw.videoActivities
+          : DEFAULT_PLC_FEATURE_SETTINGS.videoActivities,
+      assignments:
+        typeof raw.assignments === 'boolean'
+          ? raw.assignments
+          : DEFAULT_PLC_FEATURE_SETTINGS.assignments,
+      notes:
+        typeof raw.notes === 'boolean'
+          ? raw.notes
+          : DEFAULT_PLC_FEATURE_SETTINGS.notes,
+      todos:
+        typeof raw.todos === 'boolean'
+          ? raw.todos
+          : DEFAULT_PLC_FEATURE_SETTINGS.todos,
+      sharedBoards:
+        typeof raw.sharedBoards === 'boolean'
+          ? raw.sharedBoards
+          : DEFAULT_PLC_FEATURE_SETTINGS.sharedBoards,
+    };
+  }
   return {
     id,
     name: data.name,
@@ -90,6 +134,7 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
     memberUids: data.memberUids,
     memberEmails,
     sharedSheetUrl,
+    ...(features ? { features } : {}),
     createdAt: typeof data.createdAt === 'number' ? data.createdAt : 0,
     updatedAt: typeof data.updatedAt === 'number' ? data.updatedAt : 0,
   };
@@ -361,6 +406,28 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     []
   );
 
+  // Any current member: write the canonical features map. We always send
+  // the full merged shape (defaults overlaid with the partial caller map)
+  // so partial writes can't leave dangling fields, and so the rule's
+  // `is map` check always sees a complete object. The `isUpdatingPlcFeatures`
+  // rule branch guards the field-set so this can't be used to smuggle
+  // membership/leadership/sheet-URL changes.
+  const updatePlcFeatures = useCallback(
+    async (plcId: string, features: PlcFeatureSettings) => {
+      if (!user) throw new Error('Not signed in');
+      const merged: PlcFeatureSettings = {
+        ...DEFAULT_PLC_FEATURE_SETTINGS,
+        ...features,
+      };
+      await setDoc(
+        doc(db, PLCS_COLLECTION, plcId),
+        { features: merged, updatedAt: Date.now() },
+        { merge: true }
+      );
+    },
+    [user]
+  );
+
   return useMemo(
     () => ({
       plcs,
@@ -373,6 +440,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
+      updatePlcFeatures,
     }),
     [
       plcs,
@@ -385,6 +453,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       setPlcSharedSheetUrl,
       clearPlcSharedSheetUrl,
       getPlcSharedSheetUrl,
+      updatePlcFeatures,
     ]
   );
 };

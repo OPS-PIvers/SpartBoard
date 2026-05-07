@@ -82,3 +82,20 @@ export function shuffleQuestionForStudent(
   }
   return q;
 }
+
+/**
+ * Re-order the session's public questions per student per attempt. Callers
+ * should pass a seed that already encodes both the student identity and the
+ * attempt number (e.g. `${studentUid}:attempt-${completedAttempts}` — the
+ * format used by `QuizStudentApp`) so every retake walks through a fresh
+ * ordering. The `:question-order` suffix decorrelates this shuffle from the
+ * per-question option shuffle that uses the same base seed — without it,
+ * the option order on the first question would be a deterministic function
+ * of the question-order shuffle.
+ */
+export function shufflePublicQuestions(
+  questions: readonly QuizPublicQuestion[],
+  attemptSeed: string
+): QuizPublicQuestion[] {
+  return seededShuffle(questions, `${attemptSeed}:question-order`);
+}

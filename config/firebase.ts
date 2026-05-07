@@ -58,6 +58,11 @@ if (isConfigured) {
   functions = getFunctions(app, 'us-central1');
   googleProvider = new GoogleAuthProvider();
   GOOGLE_OAUTH_SCOPES.forEach((scope) => googleProvider.addScope(scope));
+  // Force Google's consent screen on every sign-in. Without this, returning
+  // users who previously authorized SpartBoard with fewer scopes get a
+  // Firebase user without a Drive accessToken — they then have to click
+  // "Connect Drive" manually to recover their data on a new device.
+  googleProvider.setCustomParameters({ prompt: 'consent' });
 } else {
   // Mock objects to prevent crashes when importing
   auth = {

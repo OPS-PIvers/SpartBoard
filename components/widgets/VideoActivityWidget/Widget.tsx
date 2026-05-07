@@ -437,7 +437,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
-        onAssign={async (meta, sessionSettings, assignmentName, rosterIds) => {
+        onAssign={async (
+          meta,
+          sessionSettings,
+          assignmentName,
+          rosterIds,
+          sessionOptions
+        ) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
@@ -457,7 +463,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             derived.classIds,
             derived.periodNames,
             derived.rosterIds,
-            vaAssignmentMode
+            vaAssignmentMode,
+            derived.classPeriodByClassId,
+            sessionOptions
           );
 
           // Persist per-activity memory of the last roster selection so

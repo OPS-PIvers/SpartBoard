@@ -32,6 +32,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  updateDoc,
   doc,
   query,
   where,
@@ -610,20 +611,124 @@ describe('video_activity_sessions/responses — student-role gate', () => {
     );
   });
 
-  it('anonymous PIN student can create response without studentRole restriction', async () => {
+  it('anonymous PIN student can create response under pin-{period}-{pin} key', async () => {
+    // Anonymous joiners write under deterministic `pin-{period}-{pin}` keys
+    // (mirrors `computeResponseKey` / `encodeResponseKeySegment` on the
+    // client). The rules require this exact shape via regex; using
+    // `auth.uid` as the doc key would now be denied for anon callers.
+    const period = 'period_1';
+    const pin = '5678';
+    const responseKey = `pin-${period}-${pin}`;
     await assertSucceeds(
+      setDoc(
+        doc(asAnonStudent(), `${col}/${SESSION_A}/responses/${responseKey}`),
+        {
+          studentUid: ANON_UID,
+          pin,
+          classPeriod: period,
+          joinedAt: 2000,
+          score: null,
+          completedAt: null,
+          answers: [],
+          completedAttempts: 0,
+          tabSwitchWarnings: 0,
+        }
+      )
+    );
+  });
+
+  it('anonymous PIN student cannot create response under arbitrary key shape', async () => {
+    // Locks in the doc-id-shape regex: anonymous joiners must use the
+    // `^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$` scheme. Writing under a
+    // bare uid (the pre-PR1 keying) or any other arbitrary id is denied
+    // even when the studentUid field is correct — closes the cross-auth
+    // grief-create vector.
+    await assertFails(
       setDoc(
         doc(asAnonStudent(), `${col}/${SESSION_A}/responses/${ANON_UID}`),
         {
           studentUid: ANON_UID,
           pin: '5678',
-          name: 'Anon',
+          classPeriod: 'period_1',
           joinedAt: 2000,
           score: null,
           completedAt: null,
           answers: [],
+          completedAttempts: 0,
+          tabSwitchWarnings: 0,
         }
       )
+    );
+  });
+
+  it('studentRole user cannot create response under pin-scheme key', async () => {
+    // SSO `studentRole` joiners must write under their auth.uid (the
+    // stable identity). Routing through a `pin-*` key is denied even
+    // when the studentUid field matches — same cross-auth defense.
+    const responseKey = 'pin-period_1-9999';
+    await assertFails(
+      setDoc(
+        doc(asStudentA(), `${col}/${SESSION_A}/responses/${responseKey}`),
+        {
+          studentUid: STUDENT_A_UID,
+          pin: '9999',
+          classPeriod: 'period_1',
+          joinedAt: 2000,
+          score: null,
+          completedAt: null,
+          answers: [],
+          completedAttempts: 0,
+          tabSwitchWarnings: 0,
+        }
+      )
+    );
+  });
+
+  it('student cannot decrement completedAttempts on update', async () => {
+    // Locks in the monotonic-growth check on `completedAttempts`.
+    // Without it, a student could reset their attempt counter to 0 and
+    // bypass the assignment's `attemptLimit` cap.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), respPath(SESSION_A)), {
+        studentUid: STUDENT_A_UID,
+        pin: '9999',
+        name: 'Student A',
+        joinedAt: 1000,
+        score: null,
+        completedAt: null,
+        answers: [],
+        completedAttempts: 2,
+        tabSwitchWarnings: 0,
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asStudentA(), respPath(SESSION_A)), {
+        completedAttempts: 1,
+      })
+    );
+  });
+
+  it('student cannot decrement tabSwitchWarnings on update', async () => {
+    // Locks in the monotonic-growth check on `tabSwitchWarnings`.
+    // Without it, a student could clear their tab-switch history before
+    // the teacher reviews results.
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), respPath(SESSION_A)), {
+        studentUid: STUDENT_A_UID,
+        pin: '9999',
+        name: 'Student A',
+        joinedAt: 1000,
+        score: null,
+        completedAt: null,
+        answers: [],
+        completedAttempts: 0,
+        tabSwitchWarnings: 3,
+      });
+    });
+    await assertFails(
+      updateDoc(doc(asStudentA(), respPath(SESSION_A)), {
+        tabSwitchWarnings: 1,
+      })
     );
   });
 });

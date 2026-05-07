@@ -17,6 +17,8 @@ import {
   type SharedAssignmentImportMode,
 } from '@/hooks/useQuizAssignments';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
+import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
+import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
 import { logError } from '@/utils/logError';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
@@ -142,7 +144,6 @@ export const DashboardView: React.FC = () => {
     dashboards,
     addWidget,
     updateWidget,
-    updateWidgets,
     removeWidget,
     duplicateWidget,
     bringToFront,
@@ -168,6 +169,7 @@ export const DashboardView: React.FC = () => {
     setSelectedWidgetIds,
     selectedWidgetId,
     annotationActive,
+    isActiveBoardReadOnly,
   } = useDashboard();
 
   const { importSharedQuiz, saveQuiz, deleteQuiz, attachSyncLinkage } = useQuiz(
@@ -552,10 +554,12 @@ export const DashboardView: React.FC = () => {
   // WIDGET POSITION RESCUE
   // Refs keep values fresh inside stable callbacks without re-registering
   // the resize listener on every widget move/resize (per CLAUDE.md ref pattern).
-
-  // Tracks which dashboard IDs have already been scaled this session to prevent
-  // re-scaling on every render cycle.
-  const scaledDashboardIdsRef = React.useRef(new Set<string>());
+  //
+  // (The legacy "proportional layout scaling" pass — which scaled pixel widget
+  // bounds based on the dashboard's saved viewport — was removed when widget
+  // bounds were promoted to canonical proportional storage. DashboardContext
+  // now hydrates pixel x/y/w/h from xProp/yProp/wProp/hProp on dashboard load
+  // and on window resize.)
 
   const rescueWidgetsRef = React.useRef(activeDashboard?.widgets);
   rescueWidgetsRef.current = activeDashboard?.widgets;
@@ -602,73 +606,6 @@ export const DashboardView: React.FC = () => {
       window.removeEventListener('resize', onResize);
     };
   }, [rescueWidgets]); // rescueWidgets is stable ([] deps), so listener is registered once
-
-  // PROPORTIONAL LAYOUT SCALING
-  // Runs once per dashboard per session when the viewport differs meaningfully
-  // from the viewport stored at last save. Declared after rescueWidgets so that
-  // when both fire on the same activeDashboard?.id change, scaling runs last and
-  // its updateWidget calls take final precedence over rescue's pre-scale clamping.
-  React.useEffect(() => {
-    if (!activeDashboard) return;
-    const {
-      id,
-      viewportWidth: savedW,
-      viewportHeight: savedH,
-      widgets,
-    } = activeDashboard;
-
-    if (scaledDashboardIdsRef.current.has(id)) return;
-    scaledDashboardIdsRef.current.add(id);
-
-    // Skip scaling if saved viewport is missing or unreasonably small
-    // (< 300px is almost certainly a corrupted value).
-    if (!savedW || !savedH || savedW < 300 || savedH < 300 || !widgets.length)
-      return;
-
-    const currentW = window.innerWidth;
-    const currentH = window.innerHeight;
-
-    const diffX = Math.abs(currentW - savedW) / savedW;
-    const diffY = Math.abs(currentH - savedH) / savedH;
-    if (diffX < 0.1 && diffY < 0.1) return; // Same screen (~10% tolerance)
-
-    const MAX_SCALE = 3;
-    const scaleX = Math.min(MAX_SCALE, currentW / savedW);
-    const scaleY = Math.min(MAX_SCALE, currentH / savedH);
-
-    const batch: Array<{
-      id: string;
-      changes: { x: number; y: number; w: number; h: number };
-    }> = [];
-    widgets.forEach(({ id: widgetId, x, y, w, h }) => {
-      // Scale dimensions, capped at viewport size
-      const newW = Math.min(currentW, Math.max(100, Math.round(w * scaleX)));
-      const newH = Math.min(currentH, Math.max(60, Math.round(h * scaleY)));
-
-      // Scale positions and clamp so the resized widget stays fully on-screen.
-      const newX = Math.max(
-        0,
-        Math.min(Math.round(x * scaleX), Math.max(0, currentW - newW))
-      );
-      const newY = Math.max(
-        0,
-        Math.min(Math.round(y * scaleY), Math.max(0, currentH - newH))
-      );
-
-      if (newX !== x || newY !== y || newW !== w || newH !== h) {
-        batch.push({
-          id: widgetId,
-          changes: { x: newX, y: newY, w: newW, h: newH },
-        });
-      }
-    });
-
-    updateWidgets(batch);
-    if (batch.length) {
-      addToast('Layout scaled to fit this screen', 'info');
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally only on id change
-  }, [activeDashboard?.id]);
 
   const { canAccessFeature } = useAuth();
 
@@ -1653,10 +1590,12 @@ export const DashboardView: React.FC = () => {
 
       {/* FIXED UI: Outside the zoom container */}
       <Sidebar />
-      {!annotationActive && <Dock />}
+      {!annotationActive && !isActiveBoardReadOnly && <Dock />}
       <AnnotationOverlay />
       <ToastContainer />
       <AnnouncementOverlay />
+      <ShareStatusBanner />
+      <ImportShareModePicker />
       <BoardActionsFab onOpenCheatSheet={() => setIsCheatSheetOpen(true)} />
 
       {importModePrompt && (

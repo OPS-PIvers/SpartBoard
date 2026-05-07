@@ -46,6 +46,7 @@ import { SidebarClasses } from './SidebarClasses';
 import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
+import { PlcDashboard } from '@/components/plc/PlcDashboard';
 
 type MenuSection =
   | 'main'
@@ -113,6 +114,7 @@ export const Sidebar: React.FC = () => {
     annotationActive,
     openAnnotation,
     closeAnnotation,
+    isActiveBoardReadOnly,
   } = useDashboard();
 
   // Mount the PLC listeners once at the Sidebar level and drill the data into
@@ -122,12 +124,19 @@ export const Sidebar: React.FC = () => {
   // Firestore `onSnapshot` subscriptions (1 from usePlcs, 2 from
   // usePlcInvitations) for data that's semantically a singleton per session.
   //
-  // `enabled: isOpen` keeps the subscriptions paused while the drawer is
-  // closed — the consumers (`PlcsMenuButton`, `SidebarPlcs`) only render
-  // inside `{isOpen && (...)}`, so paying for those listeners while the
-  // sidebar is hidden buys nothing. `Sidebar` itself is always mounted by
-  // `DashboardView`, so we can't rely on unmounting alone to release them.
-  const plcsHook = usePlcs({ enabled: isOpen });
+  // `enabled: isOpen || dashboardOpen` keeps the subscriptions paused while
+  // both the drawer AND the PLC dashboard overlay are closed — the
+  // dashboard render keys off the live `plcs` array so the subscription
+  // must remain active while it's mounted (e.g. so a feature toggle from
+  // another member is reflected immediately). `Sidebar` itself is always
+  // mounted by `DashboardView`, so we can't rely on unmounting alone to
+  // release the listeners.
+  const [openPlcDashboardId, setOpenPlcDashboardId] = useState<string | null>(
+    null
+  );
+  const plcsHook = usePlcs({
+    enabled: isOpen || openPlcDashboardId !== null,
+  });
   const plcInvitationsHook = usePlcInvitations({ enabled: isOpen });
 
   const { isConnected: isDriveConnected } = useGoogleDrive();
@@ -173,6 +182,23 @@ export const Sidebar: React.FC = () => {
   }, []);
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
+
+  // The currently-open PLC dashboard tracks against the live `plcs` array so
+  // a feature toggle by another member shows up immediately. If the PLC
+  // disappears from the user's list (e.g. removed by the lead, or they left
+  // elsewhere), close the dashboard. Adjusting state during render avoids
+  // the extra round-trip an effect would cost.
+  const openPlcDashboardPlc =
+    openPlcDashboardId !== null
+      ? (plcsHook.plcs.find((p) => p.id === openPlcDashboardId) ?? null)
+      : null;
+  if (
+    openPlcDashboardId !== null &&
+    !openPlcDashboardPlc &&
+    !plcsHook.loading
+  ) {
+    setOpenPlcDashboardId(null);
+  }
 
   return (
     <>
@@ -230,24 +256,30 @@ export const Sidebar: React.FC = () => {
           size="md"
         />
 
-        <IconButton
-          onClick={() =>
-            annotationActive ? closeAnnotation() : openAnnotation()
-          }
-          icon={<Pencil className="w-5 h-5" />}
-          label={
-            annotationActive
-              ? t('sidebar.header.stopAnnotating')
-              : t('sidebar.header.annotateScreen')
-          }
-          variant="brand-ghost"
-          size="md"
-          className={
-            annotationActive
-              ? '!bg-brand-blue-lighter !text-brand-blue-primary'
-              : ''
-          }
-        />
+        {/* Pencil button is hidden on View-Only shared boards. Viewers
+            can't push annotations through the live mirror (the host's
+            strokes flow in read-only via the dashboard subscribe path),
+            so exposing the toggle would be a dead control. */}
+        {!isActiveBoardReadOnly && (
+          <IconButton
+            onClick={() =>
+              annotationActive ? closeAnnotation() : openAnnotation()
+            }
+            icon={<Pencil className="w-5 h-5" />}
+            label={
+              annotationActive
+                ? t('sidebar.header.stopAnnotating')
+                : t('sidebar.header.annotateScreen')
+            }
+            variant="brand-ghost"
+            size="md"
+            className={
+              annotationActive
+                ? '!bg-brand-blue-lighter !text-brand-blue-primary'
+                : ''
+            }
+          />
+        )}
 
         <IconButton
           onClick={async () => {
@@ -270,6 +302,13 @@ export const Sidebar: React.FC = () => {
 
       {showAdminSettings && (
         <AdminSettings onClose={() => setShowAdminSettings(false)} />
+      )}
+
+      {openPlcDashboardPlc && (
+        <PlcDashboard
+          plc={openPlcDashboardPlc}
+          onClose={() => setOpenPlcDashboardId(null)}
+        />
       )}
 
       {isOpen && (
@@ -531,6 +570,11 @@ export const Sidebar: React.FC = () => {
                 leavePlc={plcsHook.leavePlc}
                 deletePlc={plcsHook.deletePlc}
                 pendingInvites={plcInvitationsHook.pendingInvites}
+                onOpenDashboard={(plcId) => {
+                  setOpenPlcDashboardId(plcId);
+                  setIsOpen(false);
+                  setActiveSection('main');
+                }}
               />
 
               {/* STYLE SECTION */}

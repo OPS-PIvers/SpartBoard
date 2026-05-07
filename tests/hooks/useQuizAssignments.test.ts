@@ -53,8 +53,35 @@ vi.mock('@/hooks/useSyncedQuizGroups', () => ({
   SyncedQuizVersionConflictError: class extends Error {},
 }));
 
+// `useQuizAssignments.createAssignment` reads `auth.currentUser` to
+// snapshot the owner's display name + email into the PLC assignment
+// index when the new assignment opts into PLC mode. Hold the user object
+// in a mutable cell so individual PLC-side-effect tests can swap it.
+const authMock: {
+  currentUser: { displayName?: string; email?: string } | null;
+} = {
+  currentUser: null,
+};
 vi.mock('@/config/firebase', () => ({
   db: {},
+  get auth() {
+    return authMock;
+  },
+}));
+
+// PLC dashboard index — `createAssignment` calls this best-effort when
+// `settings.plc` is set. Mocked so tests can assert the canonical payload
+// (assignmentId, ownerUid/Name/Email, title, sheetUrl, createdAt) lands
+// without exercising the helper's own setDoc path. Resolves to a Promise
+// so the production code's `void` discard is safe.
+const writePlcAssignmentIndexEntryMock = vi
+  .fn<(plcId: string, entry: Record<string, unknown>) => Promise<void>>()
+  .mockResolvedValue(undefined);
+vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
+  writePlcAssignmentIndexEntry: (
+    plcId: string,
+    entry: Record<string, unknown>
+  ) => writePlcAssignmentIndexEntryMock(plcId, entry),
 }));
 
 const mockCollection = collection as Mock;
@@ -1005,5 +1032,382 @@ describe('useQuizAssignments - syncAssignmentToLatest', () => {
       (call: unknown[]) => call[0]
     );
     expect(updatedRefs).toContain(refFresh);
+  });
+});
+
+describe('useQuizAssignments - publishAssignmentScores', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+  const mockGetDocs = getDocs as Mock;
+
+  // A small canonical quiz used across the publish tests. Two MC questions,
+  // 1 point each, so the published-score arithmetic is easy to assert.
+  const quizData = {
+    id: 'quiz-1',
+    title: 'Test Quiz',
+    questions: [
+      {
+        id: 'q0',
+        text: 'Q0',
+        type: 'MC' as const,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b', 'c', 'd'],
+        timeLimit: 30,
+        points: 1,
+      },
+      {
+        id: 'q1',
+        text: 'Q1',
+        type: 'MC' as const,
+        correctAnswer: 'b',
+        incorrectAnswers: ['a', 'c', 'd'],
+        timeLimit: 30,
+        points: 1,
+      },
+    ],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it("clears flags and skips response writes when visibility is 'none'", async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      const outcome = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'none'
+      );
+      expect(outcome).toEqual({ responsesUpdated: 0 });
+    });
+
+    // Exactly one batch (assignment + session) — no response queries.
+    expect(mockGetDocs).not.toHaveBeenCalled();
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+
+    const assignmentCall = batchUpdate.mock.calls.find(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith(`users/${TEACHER_UID}/quiz_assignments/`)
+    );
+    if (!assignmentCall) {
+      throw new Error('expected batch.update on assignment doc');
+    }
+    expect(assignmentCall[1]).toMatchObject({
+      scoreVisibility: 'none',
+      scorePublishedAt: DELETE_FIELD_SENTINEL,
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) {
+      throw new Error('expected batch.update on session doc');
+    }
+    expect(sessionCall[1]).toMatchObject({
+      scoreVisibility: 'none',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
+  });
+
+  it('grades responses and writes per-answer isCorrect on score-only publish', async () => {
+    // Two responses: a perfect 2/2 and a partial 1/2. Score is the percentage.
+    const refPerfect = { id: 'r-perfect' };
+    const refPartial = { id: 'r-partial' };
+    const refBlank = { id: 'r-blank' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refPerfect,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              { questionId: 'q1', answer: 'b', answeredAt: 2 },
+            ],
+          }),
+        },
+        {
+          ref: refPartial,
+          data: () => ({
+            studentUid: 's2',
+            answers: [
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
+            ],
+          }),
+        },
+        // Student who joined but never answered — both questions count
+        // toward the denominator so the score is 0 / 2 = 0%.
+        {
+          ref: refBlank,
+          data: () => ({
+            studentUid: 's3',
+            answers: [],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      const outcome = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+      expect(outcome).toEqual({ responsesUpdated: 3 });
+    });
+
+    expect(batchCommit).toHaveBeenCalledTimes(1);
+
+    // Session should NOT carry revealedAnswers on score-only — the
+    // implementation deleteField()s it for any visibility level below
+    // the highest one.
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected session update');
+    expect(sessionCall[1]).toMatchObject({
+      scoreVisibility: 'score-only',
+      revealedAnswers: DELETE_FIELD_SENTINEL,
+    });
+
+    // Per-response patches carry the computed score plus answers with
+    // isCorrect tagged. Locate by ref so the order in mock.calls
+    // doesn't matter.
+    const perfectCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refPerfect
+    );
+    const partialCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refPartial
+    );
+    const blankCall = batchUpdate.mock.calls.find(([ref]) => ref === refBlank);
+    if (!perfectCall || !partialCall || !blankCall) {
+      throw new Error('expected updates on all three response refs');
+    }
+    expect(perfectCall[1]).toMatchObject({ score: 100 });
+    expect(
+      (perfectCall[1] as { answers: { isCorrect: boolean }[] }).answers
+    ).toEqual([
+      expect.objectContaining({ questionId: 'q0', isCorrect: true }),
+      expect.objectContaining({ questionId: 'q1', isCorrect: true }),
+    ]);
+    expect(partialCall[1]).toMatchObject({ score: 50 });
+    expect(
+      (partialCall[1] as { answers: { isCorrect: boolean }[] }).answers
+    ).toEqual([
+      expect.objectContaining({ questionId: 'q0', isCorrect: true }),
+      expect.objectContaining({ questionId: 'q1', isCorrect: false }),
+    ]);
+    expect(blankCall[1]).toMatchObject({ score: 0, answers: [] });
+  });
+
+  it('populates session.revealedAnswers on score-responses-and-answers publish', async () => {
+    mockGetDocs.mockResolvedValueOnce({ docs: [] });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-responses-and-answers'
+      );
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected session update');
+    expect(sessionCall[1]).toMatchObject({
+      scoreVisibility: 'score-responses-and-answers',
+      revealedAnswers: { q0: 'a', q1: 'b' },
+    });
+  });
+
+  it('chunks response writes across multiple batches when there are more than 398 responses', async () => {
+    // 500 responses — exceeds the 400-write batch budget after the
+    // assignment + session writes consume 2 slots, so the remaining
+    // 102 spill into a second batch.
+    const responseDocs = Array.from({ length: 500 }, (_, i) => ({
+      ref: { id: `r${i}` },
+      data: () => ({
+        studentUid: `s${i}`,
+        answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
+      }),
+    }));
+    mockGetDocs.mockResolvedValueOnce({ docs: responseDocs });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      const outcome = await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        quizData,
+        'score-only'
+      );
+      expect(outcome).toEqual({ responsesUpdated: 500 });
+    });
+
+    // First batch + at least one continuation batch.
+    expect(batchCommit.mock.calls.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// createAssignment — PLC dashboard index side effect
+// ---------------------------------------------------------------------------
+//
+// When the new assignment opts into PLC mode (`settings.plc` is present),
+// `createAssignment` writes a snapshot under `plcs/{plcId}/assignment_index`
+// so every PLC member sees the assignment on the PLC Dashboard's
+// Completed Assignments tab. These tests pin the contract:
+//
+//   - The write fires only when `settings.plc` is set (no PLC linkage =
+//     no index churn for solo assignments).
+//   - The payload carries the assignment id (matches the source doc),
+//     the canonical PLC sheet URL (so security rules match against the
+//     parent PLC's sharedSheetUrl), and a snapshot of the owner's
+//     identity from `auth.currentUser`.
+//
+// We mock `writePlcAssignmentIndexEntry` rather than hitting Firestore
+// so the assertions describe the integration boundary, not the helper's
+// internals. The helper itself is tested separately in
+// `tests/hooks/usePlcAssignmentIndex.test.ts`.
+describe('useQuizAssignments - createAssignment (PLC index side effect)', () => {
+  const batchSet = vi.fn();
+  const batchCommit = vi.fn();
+  const mockGetDocs = getDocs as Mock;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockReturnValue('coll-ref');
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    // allocateJoinCode probes for code collisions; return empty so the
+    // first generated code wins.
+    mockGetDocs.mockResolvedValue({ docs: [], empty: true });
+    batchSet.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      set: batchSet,
+      update: vi.fn(),
+      commit: batchCommit,
+    });
+    writePlcAssignmentIndexEntryMock.mockReset().mockResolvedValue(undefined);
+    authMock.currentUser = {
+      displayName: 'Alice Owner',
+      email: 'Alice@Example.com',
+    };
+  });
+
+  const QUIZ = {
+    id: 'quiz-1',
+    title: 'Fractions Quick Check',
+    driveFileId: 'drive-1',
+    questions: [],
+  };
+
+  function plcSettings() {
+    return {
+      sessionMode: 'teacher' as const,
+      sessionOptions: {},
+      plc: {
+        id: 'plc-42',
+        name: 'Math PLC',
+        sheetUrl: 'https://docs.google.com/spreadsheets/d/plc-42-sheet',
+        memberEmails: ['a@x.com', 'b@x.com'],
+      },
+    };
+  }
+
+  it('writes an index entry to the PLC subcollection when settings.plc is set', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    let returnedId = '';
+    await act(async () => {
+      const created = await result.current.createAssignment(
+        QUIZ,
+        plcSettings()
+      );
+      returnedId = created.id;
+    });
+
+    // Exactly one index write per assignment-create.
+    expect(writePlcAssignmentIndexEntryMock).toHaveBeenCalledTimes(1);
+    const [plcId, entry] = writePlcAssignmentIndexEntryMock.mock.calls[0];
+
+    // Targets the PLC the assignment is linked to.
+    expect(plcId).toBe('plc-42');
+
+    // Pins the canonical payload shape. Each field matters:
+    //   - `id` matches the source assignment so the dashboard can
+    //     join back if it ever needs to.
+    //   - `kind: 'quiz'` is the discriminator slot for future video-
+    //     activity entries.
+    //   - `ownerUid` matches the teacher running the assignment.
+    //   - `ownerEmail` is lowercased so it matches across surfaces.
+    //   - `sheetUrl` mirrors `settings.plc.sheetUrl` so the firestore
+    //     rule's `sheetUrl == parentPlc.sharedSheetUrl` check holds.
+    //   - `createdAt` is a number (the same `now` the assignment doc
+    //     uses).
+    expect(entry).toMatchObject({
+      id: returnedId,
+      kind: 'quiz',
+      ownerUid: TEACHER_UID,
+      ownerName: 'Alice Owner',
+      ownerEmail: 'alice@example.com',
+      title: 'Fractions Quick Check',
+      sheetUrl: 'https://docs.google.com/spreadsheets/d/plc-42-sheet',
+    });
+    expect(typeof entry.createdAt).toBe('number');
+  });
+
+  it('does NOT write an index entry when settings.plc is absent (solo assignment)', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+        // No `plc` field — solo assignment, no PLC dashboard surfacing.
+      });
+    });
+
+    // No PLC linkage = no churn on any PLC's assignment_index.
+    // Without this guard, every solo assignment would either crash (no
+    // plcId) or write to a phantom PLC.
+    expect(writePlcAssignmentIndexEntryMock).not.toHaveBeenCalled();
+  });
+
+  it('falls back to empty strings when auth.currentUser has no displayName / email', async () => {
+    authMock.currentUser = { displayName: undefined, email: undefined };
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, plcSettings());
+    });
+
+    const [, entry] = writePlcAssignmentIndexEntryMock.mock.calls[0];
+    // The Firestore schema lock requires both fields to be strings, so
+    // the snapshot must coerce missing identity to '' rather than
+    // omitting the keys (which would fail `keys().hasOnly([...])`).
+    expect(entry.ownerName).toBe('');
+    expect(entry.ownerEmail).toBe('');
   });
 });

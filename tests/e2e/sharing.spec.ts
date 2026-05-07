@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/require-await */
+
 import { test, expect } from '@playwright/test';
 
 test.describe('Board Sharing', () => {
@@ -72,54 +72,72 @@ test.describe('Board Sharing', () => {
     // Force click to ensure it registers even if there are layout shifts
     await shareButton.click({ force: true });
 
-    await expect(page.getByText(/Link copied/i)).toBeVisible({
+    // Share now opens `ShareLinkCreatorModal` (host picks a mode, then
+    // clicks "Create link"). Wait for the modal then click through.
+    await expect(
+      page.getByRole('heading', { name: 'Share board' })
+    ).toBeVisible({
       timeout: 15000,
     });
+    // The default "Synced" mode is fine for this test — no need to click a
+    // mode option first.
+    await page.getByRole('button', { name: /create link/i }).click();
 
-    // If clipboard text is still empty, fall back to assuming success if toast appeared
+    // The result panel shows the URL in an input (aria-label "Share link
+    // URL"). Wait for it to appear AND validate the URL shape directly on
+    // the input — the input's value is the source of truth and works even
+    // when the clipboard mock fails to capture the auto-copy. This
+    // replaces the legacy "Link copied" toast assertion.
+    const shareUrlInput = page.getByLabel('Share link URL');
+    await expect(shareUrlInput).toBeVisible({ timeout: 15000 });
+    await expect(shareUrlInput).toHaveValue(/\/share\//, { timeout: 15000 });
+
+    // Prefer the clipboard-mock value when present (covers the auto-copy
+    // path); fall back to reading the input directly so the import
+    // roundtrip below always has a URL to navigate to.
     if (!clipboardText) {
-      // eslint-disable-next-line no-console
-      console.log(
-        'Clipboard mock empty, skipping specific URL check but verify toast appeared.'
-      );
-    } else {
-      await expect(async () => {
-        expect(clipboardText).toContain('/share/');
-      }).toPass({ timeout: 15000 });
+      clipboardText = await shareUrlInput.inputValue();
     }
+    expect(clipboardText).toContain('/share/');
 
-    // If we have a URL, test visiting it. If not (clipboard mock fail), skip the visit part to avoid failing the whole suite on a flake
-    if (clipboardText && clipboardText.includes('/share/')) {
-      const shareUrl = clipboardText;
-      // eslint-disable-next-line no-console
-      console.log('Share URL:', shareUrl);
+    // Visit the share URL. The recipient flow is the new
+    // `ImportShareModePicker` in confirmation mode (the host already
+    // chose "synced" by default in `ShareLinkCreatorModal`), so the
+    // dialog shows heading "Import shared board" and a single primary
+    // action button labelled "Import synced board" — not the legacy
+    // 3-option picker.
+    const shareUrl = clipboardText;
+    // eslint-disable-next-line no-console
+    console.log('Share URL:', shareUrl);
 
-      await page.goto(shareUrl);
+    await page.goto(shareUrl);
 
-      await expect(page.getByText('Import Board')).toBeVisible();
-      await expect(page.getByText('Loading shared board...')).not.toBeVisible();
+    const importHeading = page.getByRole('heading', {
+      name: 'Import shared board',
+    });
+    await expect(importHeading).toBeVisible({ timeout: 15000 });
 
-      await page.getByRole('button', { name: 'Add Board' }).click();
+    // Default host mode is "synced" → button text is "Import synced board".
+    await page.getByRole('button', { name: /import synced board/i }).click();
 
-      await expect(page.getByText('Import Board')).not.toBeVisible();
+    // Modal dismisses on import success.
+    await expect(importHeading).not.toBeVisible();
 
-      await page.getByTitle('Open Menu').click();
-      // Use a specific locator for the Sidebar Boards button
-      await page
-        .locator('nav button')
-        .filter({ hasText: /Boards/i })
-        .click();
+    await page.getByTitle('Open Menu').click();
+    await page
+      .locator('nav button')
+      .filter({ hasText: /Boards/i })
+      .click();
 
-      // Use a more generic locator for the imported board if specific text fails
-      await expect(
-        page
-          .locator('.group.relative')
-          .filter({ hasText: /Imported:/ })
-          .first()
-      ).toBeVisible();
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('Skipping import test steps due to missing clipboard URL.');
-    }
+    // The imported board's name carries a " (Synced)" suffix (see
+    // `importSharedBoard` in DashboardContext.tsx). Use the suffix as
+    // the locator so the assertion doesn't depend on the source board's
+    // name.
+    await expect(
+      page
+        .locator('.group.relative')
+        .filter({ hasText: /\(Synced\)/ })
+        .first()
+    ).toBeVisible({ timeout: 15000 });
   });
 });

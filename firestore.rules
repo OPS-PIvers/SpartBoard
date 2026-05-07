@@ -413,6 +413,29 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // PLC Overview layout — per-user customization of the PLC Dashboard
+    // bento grid. Pure view preferences, so no PLC membership check is
+    // needed (a non-member's layout doc here would be inert because the
+    // tiles can't read PLC content without passing the PLC rule gates).
+    // Schema lock-down keeps the doc shape closed for future readers.
+    //
+    // Per-tile interior validation (kind / size enums) is intentionally
+    // delegated to the client parser in `usePlcOverviewLayout.ts` rather
+    // than CEL: Firestore rules don't expose `.every()` over lists, and
+    // the blast radius of garbage tile entries is bounded to the user's
+    // own dashboard (the rule scope is owner-only). The tiles-list size
+    // cap below prevents a single doc from being weaponized as unbounded
+    // storage.
+    match /users/{userId}/plc_layouts/{plcId} {
+      allow read, delete: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && request.auth.uid == userId
+                   && request.resource.data.keys().hasOnly(['tiles', 'updatedAt'])
+                   && request.resource.data.tiles is list
+                   && request.resource.data.tiles.size() <= 50
+                   && request.resource.data.updatedAt is int;
+    }
+
     // Mini Apps - users can only access their own mini apps in their subcollection
     match /users/{userId}/miniapps/{appId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -569,13 +592,78 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Shared boards - Anyone can read, only authenticated users can create. 
-    // Authors and admins can update or delete.
+    // Shared boards — backing store for live-shared dashboards.
+    // Three import modes are layered on top of this collection:
+    //   - "Make a Copy"  : reader pulls a snapshot, no doc-side state changes
+    //   - "View-Only"    : reader joins as { role: 'viewer' }, host pushes updates
+    //   - "Synced"       : reader joins as { role: 'collaborator' }, both push updates
+    //
+    // Field surface:
+    //   originalAuthor: string (uid)         — host, set at create
+    //   sharedAt: number                     — timestamp
+    //   participants: { [uid]: { role, joinedAt, displayName? } }
+    //   intendedMode?: 'copy' | 'synced' | 'view-only' — host's chosen mode
+    //   updatedAt?: number / updatedBy?: string  — last writer (echo prevention)
+    //   ...plus all Dashboard fields (name, background, widgets, globalStyle, settings)
+    //
+    // Update rules:
+    //   - Host can update anything (content + participants).
+    //   - A participant with role=='collaborator' (Synced) can update content
+    //     fields but cannot rewrite the participants map or transfer ownership.
+    //   - A participant with role=='viewer' cannot update.
+    //   - Any authed user can append themselves to participants (join), but
+    //     cannot mutate other participants' entries or change other fields in
+    //     the same write.
+    //   - intendedMode is immutable after create — the recipient flow trusts
+    //     it to skip the picker, so any update path that allows it to drift
+    //     would let a participant spoof the host's choice.
     match /shared_boards/{shareId} {
       allow read: if request.auth != null;
+
       allow create: if request.auth != null &&
         request.resource.data.originalAuthor == request.auth.uid;
-      allow update, delete: if request.auth != null &&
+
+      // Host or admin: full update power (content + participants), but
+      // intendedMode is locked to its create-time value.
+      allow update: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
+        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null);
+
+      // Collaborator (Synced participant): may update content but must not
+      // change participants map, originalAuthor, originalAuthorName,
+      // sharedAt, or intendedMode. originalAuthorName in particular is the
+      // host display name shown in the import-picker / banner UI for every
+      // participant, so a collaborator who could rewrite it would be able
+      // to spoof the host's identity to other peers.
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.get('participants', {}) &&
+        resource.data.participants[request.auth.uid].get('role', '') == 'collaborator' &&
+        request.resource.data.get('participants', {}) == resource.data.get('participants', {}) &&
+        request.resource.data.originalAuthor == resource.data.originalAuthor &&
+        request.resource.data.get('originalAuthorName', null) == resource.data.get('originalAuthorName', null) &&
+        request.resource.data.get('sharedAt', null) == resource.data.get('sharedAt', null) &&
+        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null);
+
+      // Self-join: any authed user may add ONLY their own uid to participants
+      // without changing any other field. Used by importers picking Synced
+      // or View-Only mode.
+      allow update: if request.auth != null &&
+        !(request.auth.uid in resource.data.get('participants', {})) &&
+        request.auth.uid in request.resource.data.get('participants', {}) &&
+        request.resource.data.participants.diff(resource.data.get('participants', {}))
+          .affectedKeys().hasOnly([request.auth.uid]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']);
+
+      // Self-leave: any participant may remove ONLY their own uid from
+      // participants without changing any other field.
+      allow update: if request.auth != null &&
+        request.auth.uid in resource.data.get('participants', {}) &&
+        !(request.auth.uid in request.resource.data.get('participants', {})) &&
+        resource.data.participants.diff(request.resource.data.get('participants', {}))
+          .affectedKeys().hasOnly([request.auth.uid]) &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']);
+
+      allow delete: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
@@ -749,6 +837,21 @@ service cloud.firestore {
            );
     }
 
+    // True iff the pending update is any current member toggling the
+    // dashboard `features` map (and nothing else). Per spec, every PLC
+    // member can toggle which optional sections render in the PLC Dashboard
+    // — this is shared configuration, not lead-only. Constrained to the
+    // `features` field plus the customary `updatedAt` bump so this branch
+    // can't be used to smuggle membership/leadership/sheet-URL changes.
+    function isUpdatingPlcFeatures() {
+      return (request.auth.uid in resource.data.memberUids)
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasOnly(['features', 'updatedAt'])
+        && request.resource.data.diff(resource.data).affectedKeys()
+             .hasAny(['features'])
+        && request.resource.data.features is map;
+    }
+
     // True iff the pending update is the caller self-removing from
     // memberUids (i.e. leaving the PLC). The lead can't use this path —
     // they must transfer leadership first or delete the PLC outright.
@@ -795,11 +898,196 @@ service cloud.firestore {
         || isAcceptingPlcInvite(plcId)
         || isLeavingPlc()
         || isSettingPlcSharedSheetUrl()
+        || isUpdatingPlcFeatures()
       );
 
       // Only the lead can dissolve the PLC.
       allow delete: if request.auth != null
         && request.auth.uid == resource.data.leadUid;
+
+      // Index of PLC-mode assignments authored by any member. Each row is
+      // a small snapshot (title, ownerUid, sheetUrl, createdAt) written by
+      // the author when their personal `quiz_assignments` doc opts into
+      // PLC mode. Subcollection rather than a top-level collection so
+      // membership-gated reads are a one-line rule.
+      match /assignment_index/{assignmentId} {
+        // Any current member can read the index — the dashboard renders
+        // the same list for everyone in the PLC.
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Only the assignment author writes their own entries; doc id is
+        // forced to the source assignment id for easy join-back. The
+        // author must be a current PLC member — non-members can't fabricate
+        // entries pointing at someone else's assignment. Status mirroring
+        // (later phases) goes through the same `update` branch.
+        //
+        // Schema lock-down (`keys().hasOnly([...])`) keeps the doc shape
+        // closed so future readers can rely on the field set without
+        // defensive parsing of unexpected payloads.
+        //
+        // `sheetUrl` is pinned to the parent PLC's `sharedSheetUrl` — the
+        // dashboard renders this as a clickable link, so an unconstrained
+        // string would let a malicious member point teammates at a
+        // phishing URL through the dashboard. The two `get()`s on the
+        // parent PLC are de-duped by the rules engine within a single
+        // evaluation, so this doesn't cost an extra read.
+        //
+        // Create and update are split because the `update` branch must
+        // also check the *existing* `resource.data.ownerUid`. Without that
+        // extra check, a different PLC member could overwrite someone
+        // else's entry by simply setting `request.resource.data.ownerUid`
+        // to their own UID. The split also lets `update` enforce
+        // immutability on `id`, `ownerUid`, and `createdAt` so future
+        // status-mirroring writes (later phases) can't quietly retarget
+        // an entry to a different assignment or rewrite history.
+        allow create: if request.auth != null
+          && request.auth.uid == request.resource.data.ownerUid
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && assignmentId == request.resource.data.id
+          && request.resource.data.keys().hasOnly([
+               'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
+               'title', 'sheetUrl', 'createdAt'
+             ])
+          && request.resource.data.kind == 'quiz'
+          && request.resource.data.sheetUrl == get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.get('sharedSheetUrl', '');
+
+        allow update: if request.auth != null
+          // Caller must be the *existing* owner — prevents takeover by a
+          // different member rewriting `ownerUid` to themselves.
+          && request.auth.uid == resource.data.ownerUid
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          // Identity fields are immutable across the lifetime of the
+          // entry. Mutable fields (e.g. status mirroring later) must
+          // still keep the doc shape closed via `keys().hasOnly([...])`.
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.ownerUid == resource.data.ownerUid
+          && request.resource.data.createdAt == resource.data.createdAt
+          && assignmentId == request.resource.data.id
+          && request.resource.data.keys().hasOnly([
+               'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
+               'title', 'sheetUrl', 'createdAt'
+             ])
+          && request.resource.data.kind == 'quiz'
+          && request.resource.data.sheetUrl == get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.get('sharedSheetUrl', '');
+
+        // Authors can clean up their own entries (e.g. if they delete the
+        // source assignment). No lead-override here — leads who want to
+        // sweep stale entries can ask the owner.
+        allow delete: if request.auth != null
+          && request.auth.uid == resource.data.ownerUid;
+      }
+
+      // PLC shared notes (Phase 5). Lightweight collaborative notebook —
+      // any current member can CRUD any note. LWW on edits via the
+      // `lastEditedBy` / `lastEditedAt` snapshot on each write. Schema
+      // is locked so future readers can rely on the field set.
+      match /notes/{noteId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'body',
+               'createdBy', 'createdAt',
+               'lastEditedBy', 'lastEditedAt'
+             ])
+          && request.resource.data.id == noteId
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.lastEditedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.body is string
+          && request.resource.data.createdAt is int
+          && request.resource.data.lastEditedAt is int;
+
+        // Update: any current member can edit any note. createdBy /
+        // createdAt / id are immutable — they describe who first authored
+        // the note and shouldn't be rewritten by later editors. The
+        // editor must stamp themselves into `lastEditedBy` so the audit
+        // trail is honest.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'body',
+               'createdBy', 'createdAt',
+               'lastEditedBy', 'lastEditedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.lastEditedBy == request.auth.uid
+          && request.resource.data.lastEditedAt is int
+          && request.resource.data.title is string
+          && request.resource.data.body is string;
+
+        // Any member can delete (matches the "shared notebook" model —
+        // notes are PLC-owned, not creator-owned).
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
+      // PLC shared to-do list (Phase 5). One doc per todo so concurrent
+      // toggles don't serialize on a single parent doc. Any current
+      // member can CRUD any todo.
+      match /todos/{todoId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'text', 'done', 'createdBy', 'createdAt'
+             ])
+          && request.resource.data.id == todoId
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.done is bool
+          && request.resource.data.createdAt is int;
+
+        // Update: createdBy / createdAt / id are immutable. `done` and
+        // `text` are mutable so any teammate can mark a todo complete or
+        // tweak the wording.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'text', 'done', 'createdBy', 'createdAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.text is string
+          && request.resource.data.done is bool;
+
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
     }
 
     match /plc_invitations/{inviteId} {
@@ -990,7 +1278,7 @@ service cloud.firestore {
           sessionMode() == 'submissions' &&
           (isStudentRoleUser()
             ? responseKey == request.auth.uid
-            : responseKey.matches('^pin-[a-z0-9_]+-[a-z0-9_]+$'));
+            : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
         allow update: if request.auth != null && (
           // Teacher and admins can update any field
           request.auth.uid == sessionTeacherUid() || isAdmin() ||
@@ -1174,57 +1462,114 @@ service cloud.firestore {
       allow delete: if request.auth != null &&
         (resource.data.teacherUid == request.auth.uid || isAdmin());
 
-      match /responses/{studentUid} {
+      // Doc id (`responseDocId`) is one of:
+      //   - `auth.uid`                   (SSO `studentRole` joiners — stable per user)
+      //   - `pin-{period}-{pin}`         (anonymous PIN joiners — period-scoped)
+      // Mirrors the Quiz response keying contract; see `computeResponseKey`
+      // and `encodeResponseKeySegment` in `useQuizSession.ts`.
+      match /responses/{responseDocId} {
         function vaSessionClassId() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classId', '');
         }
         function vaSessionClassIds() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('classIds', []);
         }
+        function vaSessionTeacherUid() {
+          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid;
+        }
         // Defense in depth — block response writes on view-only sessions.
         function vaSessionMode() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('mode', 'submissions');
         }
 
-        // Teacher can read all responses; students can only read their own (doc ID == auth UID)
+        // Student branch allows `resource == null` so the student-app join
+        // flow can call getDoc() to probe whether a response already exists
+        // before deciding to create. Without this guard, a read of a
+        // non-existent `pin-*` doc would throw a Null-value error on
+        // `resource.data.studentUid` and deny the write. Mirrors the Quiz
+        // response read rule.
         allow read: if request.auth != null && (
           isAdmin() ||
-          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
-          (studentUid == request.auth.uid && passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()))
+          request.auth.uid == vaSessionTeacherUid() ||
+          (passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
+           (resource == null || request.auth.uid == resource.data.studentUid))
         );
-        // Students create their own response; document ID and studentUid field must match their auth UID.
+        // Students create their own response. The `studentUid` field must
+        // equal the caller's auth uid (prevents impersonation). Doc-id
+        // shape is enforced split-by-auth-mode:
+        //   - SSO (studentRole)  → responseDocId must equal auth.uid
+        //   - Anonymous (PIN)    → responseDocId must match
+        //                          ^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$
+        //                          (mirrors
+        //                          `encodeResponseKeySegment` on the
+        //                          client). This closes the cross-auth
+        //                          path where any authenticated caller
+        //                          could grief-create arbitrary `pin-*`
+        //                          docs.
         // studentRole users must also be enrolled in the session's class.
         allow create: if request.auth != null &&
-          studentUid == request.auth.uid &&
           request.resource.data.studentUid == request.auth.uid &&
           request.resource.data.score == null &&
           request.resource.data.completedAt == null &&
+          // Students cannot forge prior completions — initialize to 0.
+          request.resource.data.get('completedAttempts', 0) == 0 &&
+          request.resource.data.get('tabSwitchWarnings', 0) == 0 &&
           passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
-          vaSessionMode() == 'submissions';
-        // Students can update only their own response to add answers or set completedAt;
-        // identity fields and score are immutable from the client; answers array may only grow
+          vaSessionMode() == 'submissions' &&
+          (isStudentRoleUser()
+            ? responseDocId == request.auth.uid
+            : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
+        // Students update their own response to add answers, set
+        // completedAt, log tab switches, increment the attempt counter, or
+        // set their class period after the post-PIN picker. Ownership is
+        // enforced against the `studentUid` field, not the doc key (which
+        // is pin-derived for anonymous joiners). Mutable-field allowlist
+        // and monotonic-growth checks mirror Quiz response rules:
+        //   - `tabSwitchWarnings` and `completedAttempts` may only stay
+        //     the same or increase (prevents rollback tampering, e.g. a
+        //     student resetting their attempt counter to bypass the
+        //     `attemptLimit` cap).
+        //   - `answers` may only grow (size monotonic, all prior elements
+        //     preserved).
+        //   - Identity fields (`pin`, `name`, `joinedAt`) and
+        //     teacher-controlled fields (`score`, `isCorrect`,
+        //     `scoreVisibility`) are immutable from the client.
+        //     `studentUid` is checked separately as the ownership anchor
+        //     (the line right above this block).
         allow update: if request.auth != null &&
-          studentUid == request.auth.uid &&
+          resource.data.studentUid == request.auth.uid &&
           passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           request.resource.data.studentUid == resource.data.studentUid &&
-          // Same fragility class as the quiz_sessions/responses rule: SSO
-          // studentRole responses may omit `pin` and `name` entirely, so
-          // direct dot-access would throw and deny the write. The
-          // `affectedKeys().hasOnly(['answers', 'completedAt'])` clause
-          // below still prevents a student from adding/changing them.
+          // Defense-in-depth: redundant with the `changedKeys().hasOnly([...])`
+          // allowlist below (which would already reject a `pin`/`name`/
+          // `joinedAt` change), but kept explicit so a future allowlist
+          // expansion can't silently allow these to mutate. SSO
+          // `studentRole` responses omit `pin` and `name` entirely, so the
+          // checks use `.get(_, null)` to tolerate the field being absent
+          // on both sides instead of throwing a Null-value error.
           request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
           request.resource.data.get('name', null) == resource.data.get('name', null) &&
           request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
           request.resource.data.score == resource.data.score &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt']) &&
+          request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            'answers',
+            'completedAt',
+            'tabSwitchWarnings',
+            'completedAttempts',
+            'classPeriod'
+          ]) &&
+          request.resource.data.answers is list &&
           request.resource.data.answers.size() >= resource.data.answers.size() &&
-          request.resource.data.answers.hasAll(resource.data.answers);
+          request.resource.data.answers.hasAll(resource.data.answers) &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
+           request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
+          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
+           request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0));
         // Owning teacher (or admin) may delete responses when permanently
         // deleting the assignment (matches GL responses).
         allow delete: if request.auth != null && (
-          get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.teacherUid == request.auth.uid ||
-          isAdmin()
+          request.auth.uid == vaSessionTeacherUid() || isAdmin()
         );
       }
 

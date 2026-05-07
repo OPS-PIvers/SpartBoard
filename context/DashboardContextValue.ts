@@ -17,6 +17,26 @@ import {
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
 
+/** Mode applied to a shared-board import. Mirrors `SharedBoardIntendedMode`. */
+export type SharedBoardImportMode = 'copy' | 'synced' | 'view-only';
+
+export interface PendingShareImport {
+  shareId: string;
+  /** Snapshot fetched from the shared doc — populated when the picker opens. */
+  preview: Dashboard | null;
+  /**
+   * Drive-backed shares are one-time exports and only support 'copy' mode.
+   * Firestore-backed shares support all three modes.
+   */
+  driveBacked: boolean;
+  /**
+   * The mode the host chose when creating the link, if present on the share
+   * doc. When set, the recipient flow shows a single confirmation dialog
+   * instead of a 3-option picker.
+   */
+  intendedMode?: SharedBoardImportMode;
+}
+
 export interface AnnotationState {
   objects: DrawableObject[];
   color: string;
@@ -115,10 +135,23 @@ export interface DashboardContextValue {
   setGroupBuildMode: (active: boolean) => void;
 
   // Sharing system
-  shareDashboard: (dashboard: Dashboard) => Promise<string>;
+  shareDashboard: (
+    dashboard: Dashboard,
+    intendedMode?: SharedBoardImportMode
+  ) => Promise<string>;
   loadSharedDashboard: (shareId: string) => Promise<Dashboard | null>;
   pendingShareId: string | null;
   clearPendingShare: () => void;
+  /** Set after the picker should be displayed — null when no import is pending. */
+  pendingShareImport: PendingShareImport | null;
+  /** Cancel the pending import (close picker without importing). */
+  cancelPendingShareImport: () => void;
+  /** Complete the pending import in the chosen mode. */
+  importSharedBoard: (mode: SharedBoardImportMode) => Promise<void>;
+  /** Host action: tear down the live share for the active dashboard. */
+  stopSharingDashboard: (dashboardId: string) => Promise<void>;
+  /** True when the active dashboard is a view-only guest copy. */
+  isActiveBoardReadOnly: boolean;
   pendingQuizShareId: string | null;
   clearPendingQuizShare: () => void;
   pendingAssignmentShareId: string | null;

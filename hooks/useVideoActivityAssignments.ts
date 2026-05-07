@@ -182,6 +182,15 @@ export const useVideoActivityAssignments = (
         updatedAt: now,
         className: settings.className,
         sessionSettings: settings.sessionSettings,
+        ...(settings.sessionOptions
+          ? { sessionOptions: settings.sessionOptions }
+          : {}),
+        ...(settings.scoreVisibility
+          ? { scoreVisibility: settings.scoreVisibility }
+          : {}),
+        ...(settings.periodNames && settings.periodNames.length > 0
+          ? { periodNames: settings.periodNames }
+          : {}),
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
         mode,
       };
@@ -201,6 +210,9 @@ export const useVideoActivityAssignments = (
         youtubeUrl: activity.youtubeUrl,
         questions: activity.questions,
         settings: settings.sessionSettings,
+        ...(settings.sessionOptions
+          ? { sessionOptions: settings.sessionOptions }
+          : {}),
         status: sessionStatus,
         allowedPins: [],
         createdAt: now,
@@ -372,12 +384,29 @@ export const useVideoActivityAssignments = (
         ),
         { ...patch, updatedAt: now } as Record<string, unknown>
       );
-      // Mirror session-settings changes to the session doc so students pick
-      // them up on next join.
-      if (patch.sessionSettings) {
+      // Mirror student-visible changes to the session doc so an in-flight
+      // join picks them up on next visit. We propagate:
+      //   - sessionSettings (player behavior — autoPlay, etc.)
+      //   - sessionOptions (assignment policy — feedback, attempts, scoring)
+      //   - className (rendered in the post-PIN picker as `assignmentName`)
+      //   - periodNames (drive the period selector)
+      const sessionPatch: Record<string, unknown> = {};
+      if (patch.sessionSettings) sessionPatch.settings = patch.sessionSettings;
+      if (patch.sessionOptions)
+        sessionPatch.sessionOptions = patch.sessionOptions;
+      if (patch.className !== undefined)
+        sessionPatch.assignmentName = patch.className;
+      if (patch.periodNames !== undefined)
+        sessionPatch.periodNames = patch.periodNames;
+      if (Object.keys(sessionPatch).length > 0) {
+        // Tag the write with the originating user so a future bidirectional
+        // edit flow (e.g. PLC sync) can suppress echoes back to the writer.
+        // Currently teacher-only, so the field is informational; once PR3
+        // adds shared sync this is the hook for echo prevention.
+        sessionPatch.updatedBy = userId;
         batch.update(
           doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
-          { settings: patch.sessionSettings }
+          sessionPatch
         );
       }
       await batch.commit();
