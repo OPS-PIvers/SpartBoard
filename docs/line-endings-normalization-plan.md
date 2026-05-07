@@ -106,6 +106,8 @@ git add --renormalize .
 git commit -m "chore: normalize line endings to LF per .gitattributes"
 ```
 
+**Title PR 2 exactly as `chore: normalize line endings to LF per .gitattributes`.** GitHub's "Squash and merge" uses the **PR title** (not the branch commit message) as the squash commit subject, and Step 4 greps that subject (case-insensitive, for `"normalize line endings"`) to discover the hash. If the PR title is renamed before merging, Step 4's grep returns nothing and the hard-fail guard triggers — leaving the operator with a confusing error and no easy way to diagnose the root cause.
+
 **Do not add the commit hash to `.git-blame-ignore-revs` in this PR.** This repo uses "Squash and merge" (see [PR #1365](https://github.com/OPS-PIvers/SpartBoard/pull/1365)), so the hash on your PR branch will **not** be the hash that lands on `main` — the squash produces a new commit. Pre-capturing a hash here records a ref that never exists on `main`, silently breaking blame-ignore.
 
 ### Step 3 — verify before merging PR 2
@@ -113,7 +115,7 @@ git commit -m "chore: normalize line endings to LF per .gitattributes"
 Run these checks on the PR 2 branch before clicking "Squash and merge":
 
 - `git diff main...HEAD -- . ':!*.png' ':!*.jpg' ':!*.pdf' | head -50` — spot-check diff shows only line-ending changes (no content drift).
-- `git diff main...HEAD --ignore-cr-at-eol` should be **empty** (or only touch `.gitattributes` / `.git-blame-ignore-revs`). This is the single most important check. **Do not** add `--ignore-all-space` here — it would also mask trailing-space, indentation, and template-literal whitespace changes, hiding real content drift in the renormalize commit.
+- `git diff main...HEAD --ignore-cr-at-eol` should be **empty**. This is the single most important check. (Both `.gitattributes` and `.git-blame-ignore-revs` were added in PR 1, so neither file should appear in PR 2's diff — Step 2 starts from a freshly-pulled `main` after PR 1 has merged. If either does show up here, stop and investigate.) **Do not** add `--ignore-all-space` here — it would also mask trailing-space, indentation, and template-literal whitespace changes, hiding real content drift in the renormalize commit.
 - `pnpm run validate` passes cleanly on Windows (no more `Delete ␍` errors).
 - CI passes (same checks as any other PR).
 
@@ -164,13 +166,16 @@ Immediately after PR 2 merges:
 - In each local worktree, **force git to re-check-out every file through the new `.gitattributes` rules**:
 
   ```bash
+  # 0. Confirm clean working tree first — the next commands discard uncommitted changes
+  git status
+
   git pull
   git rm --cached -r .
   git reset --hard
-  git status   # should be clean
+  git status   # should still be clean
   ```
 
-  `git add --renormalize .` alone only fixes the index, not the files on disk — `git rm --cached -r .` followed by `git reset --hard` is what actually rewrites the working-tree files to LF. Only run this in a worktree with no uncommitted changes.
+  `git add --renormalize .` alone only fixes the index, not the files on disk — `git rm --cached -r .` followed by `git reset --hard` is what actually rewrites the working-tree files to LF. The leading `git status` mirrors Step 2's pre-flight guard so an operator who copies the block top-to-bottom can't accidentally lose uncommitted work; do not skip it.
 
 - Any branch with in-progress work: `git rebase main` — conflicts should be line-ending-only. Resolve each conflicted file, then continue:
 
