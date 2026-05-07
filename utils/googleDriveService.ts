@@ -250,6 +250,30 @@ export class GoogleDriveService {
   }
 
   /**
+   * Read-only probe: does the user already have an APP_NAME folder in their
+   * Drive root? Used at sign-in to distinguish a returning user (existing
+   * Drive data) from a genuinely new user, so the setup wizard isn't
+   * re-shown on a new device. Resolves to false on Drive errors so a Drive
+   * outage never blocks sign-in.
+   */
+  async hasExistingAppFolder(): Promise<boolean> {
+    try {
+      const folderId = await this.findFolder(APP_NAME, 'root');
+      if (folderId) return true;
+      // Fall back to the legacy folder name in case the rename migration
+      // hasn't run yet for this user.
+      const legacyFolderId = await this.findFolder('SPART Board', 'root');
+      return !!legacyFolderId;
+    } catch (e) {
+      console.warn(
+        '[GoogleDriveService] hasExistingAppFolder probe failed:',
+        e
+      );
+      return false;
+    }
+  }
+
+  /**
    * Rename a Drive file or folder by ID.
    */
   async renameFile(fileId: string, newName: string): Promise<void> {
