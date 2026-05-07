@@ -28,6 +28,7 @@ import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useVideoActivitySessionStudent } from '@/hooks/useVideoActivitySession';
 import { VideoActivityQuestion, VideoActivitySession } from '@/types';
+import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
 
@@ -515,14 +516,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   if (videoEnded || myResponse?.completedAt) {
     const answeredCount = myResponse?.answers.length ?? 0;
     const totalQuestions = session?.questions.length ?? 0;
-    // Derive correctness from authoritative session data rather than the stored
-    // isCorrect field, which is no longer written by the client.
+    // Derive correctness via the shared grader so MA / FIB-variants /
+    // partial-credit semantics line up with the teacher Results view and
+    // the in-flight QuestionOverlay submit path.
     const correct =
-      session?.questions.filter((q) =>
-        myResponse?.answers.some(
-          (a) => a.questionId === q.id && a.answer === q.correctAnswer
-        )
-      ).length ?? 0;
+      session?.questions.filter((q) => {
+        const a = myResponse?.answers.find((x) => x.questionId === q.id);
+        return a ? gradeVideoActivityAnswer(q, a.answer).isCorrect : false;
+      }).length ?? 0;
 
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">

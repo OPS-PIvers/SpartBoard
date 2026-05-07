@@ -30,6 +30,7 @@ import {
   computeResponseKey,
   encodeResponseKeySegment,
 } from '@/hooks/useQuizSession';
+import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import {
   AssignmentMode,
   VideoActivitySession,
@@ -60,7 +61,7 @@ const normalizeSession = (
         : `${activityTitle} ${new Date(createdAt).toLocaleString()}`,
     teacherUid: data.teacherUid ?? '',
     youtubeUrl: data.youtubeUrl ?? '',
-    questions: data.questions ?? [],
+    questions: normalizeVideoActivityQuestions(data.questions),
     settings: {
       autoPlay: data.settings?.autoPlay ?? false,
       requireCorrectAnswer: data.settings?.requireCorrectAnswer ?? true,

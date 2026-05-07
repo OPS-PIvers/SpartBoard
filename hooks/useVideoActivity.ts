@@ -18,6 +18,7 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
+import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import { VideoActivityData, VideoActivityMetadata } from '@/types';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
@@ -144,8 +145,15 @@ export const useVideoActivity = (
     async (driveFileId: string): Promise<VideoActivityData> => {
       const drive = getDriveService();
       // loadQuiz returns the raw JSON blob we stored — it is a VideoActivityData
-      const raw = await drive.loadQuiz(driveFileId);
-      return raw as unknown as VideoActivityData;
+      const raw = (await drive.loadQuiz(
+        driveFileId
+      )) as unknown as VideoActivityData;
+      // Normalize legacy V1 questions (no `type`, no `points`) up to the
+      // PR2a shape so consumers can rely on the fields being present.
+      return {
+        ...raw,
+        questions: normalizeVideoActivityQuestions(raw.questions),
+      };
     },
     [getDriveService]
   );

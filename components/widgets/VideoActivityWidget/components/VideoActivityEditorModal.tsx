@@ -72,7 +72,18 @@ const blankQuestion = (): VideoActivityQuestion => ({
   correctAnswer: '',
   incorrectAnswers: ['', '', ''],
   timestamp: 0,
+  points: 1,
 });
+
+const arrEq = (a?: string[], b?: string[]): boolean => {
+  const aa = a ?? [];
+  const bb = b ?? [];
+  if (aa.length !== bb.length) return false;
+  for (let i = 0; i < aa.length; i++) {
+    if (aa[i] !== bb[i]) return false;
+  }
+  return true;
+};
 
 const questionsEqual = (
   a: VideoActivityQuestion[],
@@ -88,12 +99,13 @@ const questionsEqual = (
       qa.correctAnswer !== qb.correctAnswer ||
       qa.timeLimit !== qb.timeLimit ||
       qa.timestamp !== qb.timestamp ||
-      qa.incorrectAnswers.length !== qb.incorrectAnswers.length
+      qa.type !== qb.type ||
+      (qa.points ?? 1) !== (qb.points ?? 1) ||
+      (qa.allowPartialCredit ?? false) !== (qb.allowPartialCredit ?? false) ||
+      !arrEq(qa.incorrectAnswers, qb.incorrectAnswers) ||
+      !arrEq(qa.acceptableVariants, qb.acceptableVariants)
     ) {
       return false;
-    }
-    for (let j = 0; j < qa.incorrectAnswers.length; j++) {
-      if (qa.incorrectAnswers[j] !== qb.incorrectAnswers[j]) return false;
     }
   }
   return true;
@@ -311,8 +323,18 @@ export const VideoActivityEditorModal: React.FC<
     if (questions.length === 0) errors.push('Add at least one question');
     questions.forEach((q, i) => {
       if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
-      if (!q.correctAnswer.trim())
+      const type = q.type ?? 'MC';
+      if (type === 'MA') {
+        const correctCount = q.correctAnswer
+          .split('|')
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0).length;
+        if (correctCount === 0) {
+          errors.push(`Question ${i + 1}: select at least one correct option`);
+        }
+      } else if (!q.correctAnswer.trim()) {
         errors.push(`Question ${i + 1}: correct answer is required`);
+      }
     });
 
     // Timestamps must be strictly increasing to keep cue-point playback
@@ -357,7 +379,11 @@ export const VideoActivityEditorModal: React.FC<
       title={title.trim() || (originalTitle ? 'Edit Activity' : 'New Activity')}
       subtitle={
         <span>
-          {questions.length} {questions.length === 1 ? 'question' : 'questions'}
+          {questions.length} {questions.length === 1 ? 'question' : 'questions'}{' '}
+          • {questions.reduce((sum, q) => sum + (q.points ?? 1), 0)}{' '}
+          {questions.reduce((sum, q) => sum + (q.points ?? 1), 0) === 1
+            ? 'point'
+            : 'points'}
         </span>
       }
       isDirty={isDirty}
@@ -504,7 +530,7 @@ export const VideoActivityEditorModal: React.FC<
 
               {expandedId === q.id && (
                 <div className="px-4 pb-4 space-y-4 border-t border-brand-blue-primary/5 pt-4 bg-brand-blue-lighter/10">
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <div>
                       <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
                         Trigger Timestamp (MM:SS)
@@ -549,6 +575,70 @@ export const VideoActivityEditorModal: React.FC<
                         </span>
                       </div>
                     </div>
+                    <div>
+                      <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
+                        Points
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        step={1}
+                        value={q.points ?? 1}
+                        onChange={(e) => {
+                          const next = Math.floor(Number(e.target.value));
+                          const safe =
+                            Number.isFinite(next) && next >= 1 ? next : 1;
+                          updateQuestion(q.id, { points: safe });
+                        }}
+                        className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
+                      Question Type
+                    </label>
+                    <div className="inline-flex rounded-xl border border-brand-blue-primary/20 bg-white overflow-hidden">
+                      {(
+                        [
+                          { value: 'MC', label: 'Multiple Choice' },
+                          { value: 'FIB', label: 'Fill in the Blank' },
+                          { value: 'MA', label: 'Multi-Answer' },
+                        ] as const
+                      ).map((opt) => {
+                        const active = (q.type ?? 'MC') === opt.value;
+                        return (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            aria-pressed={active}
+                            onClick={() => {
+                              // When type changes, reset format-specific fields
+                              // so we don't carry stale MA pipe-encodings into
+                              // a fresh MC question, etc.
+                              if (opt.value === q.type) return;
+                              updateQuestion(q.id, {
+                                type: opt.value,
+                                correctAnswer: '',
+                                incorrectAnswers:
+                                  opt.value === 'FIB' ? [] : ['', '', ''],
+                                acceptableVariants: undefined,
+                                allowPartialCredit: false,
+                              });
+                            }}
+                            className={
+                              'px-3 py-1.5 text-xs font-bold transition ' +
+                              (active
+                                ? 'bg-brand-blue-primary text-white'
+                                : 'text-brand-blue-dark hover:bg-brand-blue-lighter/40')
+                            }
+                          >
+                            {opt.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
 
                   <div>
@@ -566,43 +656,35 @@ export const VideoActivityEditorModal: React.FC<
                     />
                   </div>
 
-                  <div>
-                    <label className="block font-bold text-emerald-700 mb-1 text-xs">
-                      Correct Answer
-                    </label>
-                    <input
-                      type="text"
-                      value={q.correctAnswer}
-                      onChange={(e) =>
-                        updateQuestion(q.id, { correctAnswer: e.target.value })
+                  {/* Type-specific sub-form */}
+                  {(q.type ?? 'MC') === 'MC' && (
+                    <McSubForm
+                      question={q}
+                      onChangeCorrect={(v) =>
+                        updateQuestion(q.id, { correctAnswer: v })
                       }
-                      className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
-                      placeholder="Enter the correct answer"
+                      onChangeIncorrect={(idx, v) =>
+                        updateIncorrect(q.id, idx, v)
+                      }
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="block font-bold text-brand-red-primary mb-1 text-xs">
-                      Distractors (Incorrect Options)
-                    </label>
-                    <div className="grid gap-2">
-                      {(q.incorrectAnswers.length === 0
-                        ? ['', '', '']
-                        : q.incorrectAnswers
-                      ).map((ans, idx) => (
-                        <input
-                          key={idx}
-                          type="text"
-                          value={ans}
-                          onChange={(e) =>
-                            updateIncorrect(q.id, idx, e.target.value)
-                          }
-                          placeholder={`Distractor ${idx + 1}`}
-                          className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/10 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-red-primary shadow-sm text-sm"
-                        />
-                      ))}
-                    </div>
-                  </div>
+                  )}
+                  {q.type === 'FIB' && (
+                    <FibSubForm
+                      question={q}
+                      onChangeCorrect={(v) =>
+                        updateQuestion(q.id, { correctAnswer: v })
+                      }
+                      onChangeVariants={(variants) =>
+                        updateQuestion(q.id, { acceptableVariants: variants })
+                      }
+                    />
+                  )}
+                  {q.type === 'MA' && (
+                    <MaSubForm
+                      question={q}
+                      onUpdate={(patch) => updateQuestion(q.id, patch)}
+                    />
+                  )}
                 </div>
               )}
             </div>
@@ -684,5 +766,224 @@ export const VideoActivityEditorModal: React.FC<
         </div>
       )}
     </EditorModalShell>
+  );
+};
+
+/* ─── Type-specific sub-forms ─────────────────────────────────────────────── */
+
+interface McSubFormProps {
+  question: VideoActivityQuestion;
+  onChangeCorrect: (v: string) => void;
+  onChangeIncorrect: (idx: number, v: string) => void;
+}
+
+const McSubForm: React.FC<McSubFormProps> = ({
+  question,
+  onChangeCorrect,
+  onChangeIncorrect,
+}) => (
+  <>
+    <div>
+      <label className="block font-bold text-emerald-700 mb-1 text-xs">
+        Correct Answer
+      </label>
+      <input
+        type="text"
+        value={question.correctAnswer}
+        onChange={(e) => onChangeCorrect(e.target.value)}
+        className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
+        placeholder="Enter the correct answer"
+      />
+    </div>
+
+    <div className="space-y-2">
+      <label className="block font-bold text-brand-red-primary mb-1 text-xs">
+        Distractors (Incorrect Options)
+      </label>
+      <div className="grid gap-2">
+        {(question.incorrectAnswers.length === 0
+          ? ['', '', '']
+          : question.incorrectAnswers
+        ).map((ans, idx) => (
+          <input
+            key={idx}
+            type="text"
+            value={ans}
+            onChange={(e) => onChangeIncorrect(idx, e.target.value)}
+            placeholder={`Distractor ${idx + 1}`}
+            className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/10 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-red-primary shadow-sm text-sm"
+          />
+        ))}
+      </div>
+    </div>
+  </>
+);
+
+interface FibSubFormProps {
+  question: VideoActivityQuestion;
+  onChangeCorrect: (v: string) => void;
+  onChangeVariants: (variants: string[] | undefined) => void;
+}
+
+const FibSubForm: React.FC<FibSubFormProps> = ({
+  question,
+  onChangeCorrect,
+  onChangeVariants,
+}) => {
+  const variantsText = (question.acceptableVariants ?? []).join('\n');
+  return (
+    <>
+      <div>
+        <label className="block font-bold text-emerald-700 mb-1 text-xs">
+          Canonical Answer
+        </label>
+        <input
+          type="text"
+          value={question.correctAnswer}
+          onChange={(e) => onChangeCorrect(e.target.value)}
+          className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
+          placeholder="The expected answer"
+        />
+      </div>
+      <div>
+        <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
+          Acceptable Variants{' '}
+          <span className="font-normal text-brand-blue-primary/50">
+            (one per line, optional)
+          </span>
+        </label>
+        <textarea
+          value={variantsText}
+          onChange={(e) => {
+            const lines = e.target.value
+              .split('\n')
+              .map((s) => s.trim())
+              .filter((s) => s.length > 0);
+            onChangeVariants(lines.length > 0 ? lines : undefined);
+          }}
+          rows={3}
+          placeholder={'color\ncolour'}
+          className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-medium resize-none focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
+        />
+        <p className="text-xxs text-slate-500 mt-1">
+          Whitespace + case are ignored automatically. Add variants for spelling
+          differences, synonyms, or alternate phrasings.
+        </p>
+      </div>
+    </>
+  );
+};
+
+interface MaSubFormProps {
+  question: VideoActivityQuestion;
+  onUpdate: (patch: Partial<VideoActivityQuestion>) => void;
+}
+
+/**
+ * MA editor: a single combined "options" list where the teacher checks
+ * each correct option. We persist the correct selections into
+ * `correctAnswer` as `'opt1|opt2|opt3'` and the unchecked options into
+ * `incorrectAnswers`. This keeps the wire format aligned with the
+ * existing Matching/Ordering convention and works with the shared
+ * grader's set-compare logic.
+ */
+const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
+  const correctSelections = (question.correctAnswer ?? '')
+    .split('|')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+  const allOptions = [
+    ...correctSelections,
+    ...(question.incorrectAnswers ?? []),
+  ];
+  // Pad to at least 4 rows so the teacher always has a place to type.
+  while (allOptions.length < 4) allOptions.push('');
+
+  const setOptionAt = (idx: number, value: string) => {
+    const next = [...allOptions];
+    next[idx] = value;
+    persist(next, isCheckedAt);
+  };
+
+  const isCheckedAt = (idx: number): boolean => idx < correctSelections.length;
+
+  const toggleAt = (idx: number) => {
+    persist(allOptions, (i) => (i === idx ? !isCheckedAt(i) : isCheckedAt(i)));
+  };
+
+  function persist(rows: string[], isCorrect: (idx: number) => boolean) {
+    const correct: string[] = [];
+    const incorrect: string[] = [];
+    rows.forEach((r, idx) => {
+      const trimmed = r.trim();
+      if (trimmed.length === 0) return;
+      if (isCorrect(idx)) correct.push(trimmed);
+      else incorrect.push(trimmed);
+    });
+    onUpdate({
+      correctAnswer: correct.join('|'),
+      incorrectAnswers: incorrect,
+    });
+  }
+
+  return (
+    <>
+      <div className="space-y-2">
+        <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
+          Options{' '}
+          <span className="font-normal text-brand-blue-primary/50">
+            (check each correct selection)
+          </span>
+        </label>
+        <div className="grid gap-2">
+          {allOptions.map((opt, idx) => {
+            const checked = isCheckedAt(idx);
+            return (
+              <div key={idx} className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => toggleAt(idx)}
+                  aria-pressed={checked}
+                  aria-label={`Mark option ${idx + 1} ${checked ? 'incorrect' : 'correct'}`}
+                  className={`shrink-0 w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
+                    checked
+                      ? 'border-emerald-500 bg-emerald-500 text-white'
+                      : 'border-slate-300 bg-white text-slate-400 hover:border-emerald-400'
+                  }`}
+                >
+                  {checked ? '✓' : ''}
+                </button>
+                <input
+                  type="text"
+                  value={opt}
+                  onChange={(e) => setOptionAt(idx, e.target.value)}
+                  placeholder={`Option ${idx + 1}`}
+                  className={`flex-1 px-3 py-1.5 bg-white border rounded-xl font-medium focus:outline-none shadow-sm text-sm ${
+                    checked
+                      ? 'border-emerald-500/30 text-emerald-800 focus:border-emerald-500'
+                      : 'border-brand-red-primary/10 text-brand-blue-dark focus:border-brand-red-primary'
+                  }`}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <label className="flex items-center gap-2 cursor-pointer">
+        <input
+          type="checkbox"
+          checked={question.allowPartialCredit ?? false}
+          onChange={(e) => onUpdate({ allowPartialCredit: e.target.checked })}
+          className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
+        />
+        <span className="text-sm font-bold text-brand-blue-dark">
+          Allow partial credit
+        </span>
+        <span className="text-xxs text-slate-500">
+          (proportional to correct ∩ given)
+        </span>
+      </label>
+    </>
   );
 };
