@@ -58,7 +58,6 @@ import {
   SyncedQuizGroup,
 } from '@/types';
 import { type QuizSessionOptions } from '@/hooks/useQuizSession';
-import { AttemptLimitRow } from './AttemptLimitRow';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
@@ -76,6 +75,8 @@ import {
   LibraryGrid,
   LibraryItemCard,
   AssignModal,
+  AssignmentSettingsToggleGroup,
+  ToggleRow,
   ViewOnlyShareModal,
   CollapsibleSection,
   AssignmentArchiveCard,
@@ -1949,73 +1950,55 @@ const AssignExtraSlot: React.FC<{
         onChange={(picker) => update('picker', picker)}
       />
 
-      <SectionHeader label="Quiz Integrity" />
-      <AttemptLimitRow
-        value={options.attemptLimit}
-        onChange={(v) => update('attemptLimit', v)}
+      <AssignmentSettingsToggleGroup
+        options={{
+          tabWarningsEnabled: options.tabWarningsEnabled,
+          showResultToStudent: options.showResultToStudent,
+          showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
+          showCorrectOnBoard: options.showCorrectOnBoard,
+        }}
+        onOptionsChange={(next) =>
+          // The primitive's `update` always emits the full options object
+          // with one field changed, so spreading `next` over `options`
+          // correctly merges without dropping other state.
+          onChange({ ...options, ...next })
+        }
+        attemptLimit={options.attemptLimit}
+        onAttemptLimitChange={(v) => update('attemptLimit', v)}
+        excludeSections={['randomization']}
+        trailingSlot={
+          <CollapsibleSection label="Gamification">
+            <ToggleRow
+              compact
+              label="Speed Bonus Points"
+              checked={options.speedBonusEnabled}
+              onChange={(v) => update('speedBonusEnabled', v)}
+              hint="Up to 50% bonus for fast answers"
+            />
+            <ToggleRow
+              compact
+              label="Streak Bonuses"
+              checked={options.streakBonusEnabled}
+              onChange={(v) => update('streakBonusEnabled', v)}
+              hint="Multiplier for consecutive correct answers"
+            />
+            <ToggleRow
+              compact
+              label="Podium Between Questions"
+              checked={options.showPodiumBetweenQuestions}
+              onChange={(v) => update('showPodiumBetweenQuestions', v)}
+              hint="Show top 3 leaderboard after each question"
+            />
+            <ToggleRow
+              compact
+              label="Sound Effects"
+              checked={options.soundEffectsEnabled}
+              onChange={(v) => update('soundEffectsEnabled', v)}
+              hint="Chimes, ticks, and fanfares during the quiz"
+            />
+          </CollapsibleSection>
+        }
       />
-      <ToggleRow
-        label="Tab Switch Detection"
-        checked={options.tabWarningsEnabled}
-        onChange={(v) => update('tabWarningsEnabled', v)}
-        hint="Warn students who leave the quiz tab"
-      />
-
-      <CollapsibleSection label="Answer Feedback">
-        <ToggleRow
-          compact
-          label="Show right/wrong to students"
-          checked={options.showResultToStudent}
-          onChange={(v) => update('showResultToStudent', v)}
-          hint="Students see ✓ or ✗ after submitting"
-        />
-        <ToggleRow
-          compact
-          label="Reveal correct answer to students"
-          checked={options.showCorrectAnswerToStudent}
-          onChange={(v) => update('showCorrectAnswerToStudent', v)}
-          disabled={!options.showResultToStudent}
-          hint="Also show what the correct answer was"
-        />
-        <ToggleRow
-          compact
-          label="Show correct answer on board"
-          checked={options.showCorrectOnBoard}
-          onChange={(v) => update('showCorrectOnBoard', v)}
-          hint="Display correct answer on the projected screen"
-        />
-      </CollapsibleSection>
-
-      <CollapsibleSection label="Gamification">
-        <ToggleRow
-          compact
-          label="Speed Bonus Points"
-          checked={options.speedBonusEnabled}
-          onChange={(v) => update('speedBonusEnabled', v)}
-          hint="Up to 50% bonus for fast answers"
-        />
-        <ToggleRow
-          compact
-          label="Streak Bonuses"
-          checked={options.streakBonusEnabled}
-          onChange={(v) => update('streakBonusEnabled', v)}
-          hint="Multiplier for consecutive correct answers"
-        />
-        <ToggleRow
-          compact
-          label="Podium Between Questions"
-          checked={options.showPodiumBetweenQuestions}
-          onChange={(v) => update('showPodiumBetweenQuestions', v)}
-          hint="Show top 3 leaderboard after each question"
-        />
-        <ToggleRow
-          compact
-          label="Sound Effects"
-          checked={options.soundEffectsEnabled}
-          onChange={(v) => update('soundEffectsEnabled', v)}
-          hint="Chimes, ticks, and fanfares during the quiz"
-        />
-      </CollapsibleSection>
     </>
   );
 };
@@ -2206,44 +2189,6 @@ const AssignPlcSlot: React.FC<{
     </>
   );
 };
-
-/* ─── Shared small UI primitives ─────────────────────────────────────────── */
-
-const SectionHeader: React.FC<{ label: string }> = ({ label }) => (
-  <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest pt-1">
-    {label}
-  </p>
-);
-
-const ToggleRow: React.FC<{
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  hint?: string;
-  disabled?: boolean;
-  /**
-   * When true, the label renders in the small uppercase brand-blue style
-   * used inside `CollapsibleSection` bodies. Top-level rows (e.g. Tab
-   * Switch Detection) use the default bold-dark label.
-   */
-  compact?: boolean;
-}> = ({ label, checked, onChange, hint, disabled, compact = false }) => (
-  <div className={disabled ? 'opacity-40 pointer-events-none' : ''}>
-    <div className="flex items-center justify-between">
-      <span
-        className={
-          compact
-            ? 'text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest'
-            : 'text-sm font-bold text-brand-blue-dark'
-        }
-      >
-        {label}
-      </span>
-      <Toggle checked={checked} onChange={onChange} size="sm" showLabels />
-    </div>
-    {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}
-  </div>
-);
 
 /* ─── Type exports kept so callers don't break if they re-import them ────── */
 

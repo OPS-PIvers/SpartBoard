@@ -18,6 +18,18 @@ export { AssignModal } from './AssignModal';
 export { ViewOnlyShareModal } from './ViewOnlyShareModal';
 export type { ViewOnlyShareModalProps } from './ViewOnlyShareModal';
 export { CollapsibleSection } from './CollapsibleSection';
+export {
+  AssignmentSettingsToggleGroup,
+  AttemptLimitRow,
+  SectionHeader,
+  ToggleRow,
+} from './AssignmentSettingsToggleGroup';
+export type {
+  AssignmentSettingsToggleGroupProps,
+  AssignmentSettingsSection,
+  AttemptLimitRowProps,
+  ToggleRowProps,
+} from './AssignmentSettingsToggleGroup';
 export { AssignmentArchiveCard } from './AssignmentArchiveCard';
 export { ViewCountBadge } from './ViewCountBadge';
 export { PeriodSelector } from './PeriodSelector';
