@@ -4,6 +4,31 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-07
+
+- PRs reviewed:
+  - #1366 — docs: line-endings normalization plan (base `main`)
+  - #1534 — feat(quiz): add Shuffle Questions / Shuffle Answer Options toggles (base `dev-paul`)
+  - #1535 — feat(quiz): publish scores with per-assignment visibility levels (base `dev-paul`)
+  - #1536 — feat(sharing): board import picker — Synced / View-Only / Make a Copy (base `dev-paul`)
+  - #1537 — feat(plc): PLC Dashboard shell + feature toggles + completed assignments (Phase 1) (base `dev-paul`)
+- Comments processed: 16 unanswered review threads/issue comments across the 5 PRs — 13 already addressed in current code (replies posted explaining), 3 fixed by a doc-hardening commit on PR #1366.
+- Fixes pushed:
+  - `958c237` on `docs/line-endings-normalization-plan` — applied 3 doc improvements to `docs/line-endings-normalization-plan.md` covering Step 2 PR-title guidance (issue 4374319374), Step 3 verification parenthetical (issue 4374318572), and Step 5 pre-flight `git status` guard (issue 4361544503). `prettier --check` ✓.
+- Reviews posted: 5
+  - PR #1537 PLC Dashboard: Ready with minor notes — strong firestore rules (split create/update with existing-owner check, `keys().hasOnly` schema lock, `sheetUrl` pinned to parent PLC's `sharedSheetUrl`), `void writePlcAssignmentIndexEntry` keeps Assign action fast. Flagged: no test coverage for `usePlcAssignmentIndex` (parser, ordering, error path) or for the new firestore rules.
+  - PR #1536 Board import picker: Ready with minor notes — PII scrub coverage is thorough across all three write paths (seed, mirror, linkage). Role-gated rule splits (host/collaborator/self-join/self-leave) with `originalAuthorName` immutability prevent host-display-name spoofing. Flagged: medium regression risk on `DashboardContext.tsx` (~470 lines added; now 3886 lines total); no test for cancellation-on-detach mirror timer path.
+  - PR #1535 Publish quiz scores: Ready — well-tested (234 + 115 lines of new tests cover unpublish, multi-response publish, chunking past `MAX_BATCH_WRITES`, anonymous rejection, missing-response throw); server-authoritative grading prevents client-side correctness fabrication; idempotent re-publish + clean unpublish.
+  - PR #1534 Quiz shuffle: Ready — per-attempt seed (`${uid}:attempt-${completedAttempts}`) with `:question-order` domain suffix decorrelates the two shuffles; `if (!myResponse) return <loading />` guard prevents `attempt-0` flash on retakes; `shuffleQuestions` correctly restricted to self-paced sessions. 6 new tests cover variance, stability, multiset preservation, and decorrelation.
+  - PR #1366 Line endings doc: Ready — doc-only PR; today's run added 3 hardening edits and confirmed the prior 5 review concerns are already addressed in the current revision. CI in progress on `958c237`.
+- Notes:
+  - All 4 feature PRs (1534, 1535, 1536, 1537) had CI green at review time.
+  - All 4 feature PRs target `dev-paul`, not `main` — author has been merging into `dev-paul` for integration testing before the broader merge-up to `main`.
+  - Branch safety: today's run pushed only to `docs/line-endings-normalization-plan` (matches neither `main` nor `dev-*`). No writes to `main` or `dev-paul`.
+  - 13 of the 16 unanswered review-comment threads on these PRs were already addressed in current code by the author across earlier commits — the threads remained "open" on GitHub because Copilot/Gemini comments are not auto-resolved when the underlying code changes. Posted "already addressed" replies citing the current line numbers and rationale.
+
+---
+
 ## 2026-04-14
 
 - PRs reviewed:
