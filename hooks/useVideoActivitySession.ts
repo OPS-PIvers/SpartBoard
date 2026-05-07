@@ -37,6 +37,7 @@ import {
   VideoActivityData,
   VideoActivityAnswer,
   VideoActivitySessionSettings,
+  VideoActivitySessionOptions,
 } from '@/types';
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
@@ -115,7 +116,11 @@ export interface UseVideoActivitySessionTeacherResult {
     /** Map of ClassLink classId -> period name. Lets the SSO student-app
      *  auto-join path resolve the joining student's period without a
      *  picker. Optional; falls back to `periodNames[0]` when absent. */
-    classPeriodByClassId?: Record<string, string>
+    classPeriodByClassId?: Record<string, string>,
+    /** Assignment-policy options (security, feedback, attempt limits,
+     *  scoring). Optional — when omitted the session doc carries player-
+     *  behavior settings only and grading falls back to legacy semantics. */
+    sessionOptions?: VideoActivitySessionOptions
   ) => Promise<string>;
   /** Sessions created by the current teacher for the selected activity. */
   sessions: VideoActivitySession[];
@@ -170,7 +175,8 @@ export const useVideoActivitySessionTeacher =
         periodNames: string[] = [],
         rosterIds: string[] = [],
         mode: AssignmentMode = 'submissions',
-        classPeriodByClassId?: Record<string, string>
+        classPeriodByClassId?: Record<string, string>,
+        sessionOptions?: VideoActivitySessionOptions
       ): Promise<string> => {
         const sessionId = crypto.randomUUID();
         const trimmedAssignmentName = assignmentName?.trim();
@@ -206,6 +212,7 @@ export const useVideoActivitySessionTeacher =
           Object.keys(classPeriodByClassId).length > 0
             ? { classPeriodByClassId }
             : {}),
+          ...(sessionOptions ? { sessionOptions } : {}),
           mode,
         };
 

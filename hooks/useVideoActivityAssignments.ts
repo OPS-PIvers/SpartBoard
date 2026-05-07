@@ -182,6 +182,15 @@ export const useVideoActivityAssignments = (
         updatedAt: now,
         className: settings.className,
         sessionSettings: settings.sessionSettings,
+        ...(settings.sessionOptions
+          ? { sessionOptions: settings.sessionOptions }
+          : {}),
+        ...(settings.scoreVisibility
+          ? { scoreVisibility: settings.scoreVisibility }
+          : {}),
+        ...(settings.periodNames && settings.periodNames.length > 0
+          ? { periodNames: settings.periodNames }
+          : {}),
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
         mode,
       };
@@ -201,6 +210,9 @@ export const useVideoActivityAssignments = (
         youtubeUrl: activity.youtubeUrl,
         questions: activity.questions,
         settings: settings.sessionSettings,
+        ...(settings.sessionOptions
+          ? { sessionOptions: settings.sessionOptions }
+          : {}),
         status: sessionStatus,
         allowedPins: [],
         createdAt: now,
@@ -373,11 +385,16 @@ export const useVideoActivityAssignments = (
         { ...patch, updatedAt: now } as Record<string, unknown>
       );
       // Mirror session-settings changes to the session doc so students pick
-      // them up on next join.
-      if (patch.sessionSettings) {
+      // them up on next join. Both player-behavior (sessionSettings) and
+      // assignment-policy (sessionOptions) flow through to the live session.
+      const sessionPatch: Record<string, unknown> = {};
+      if (patch.sessionSettings) sessionPatch.settings = patch.sessionSettings;
+      if (patch.sessionOptions)
+        sessionPatch.sessionOptions = patch.sessionOptions;
+      if (Object.keys(sessionPatch).length > 0) {
         batch.update(
           doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),
-          { settings: patch.sessionSettings }
+          sessionPatch
         );
       }
       await batch.commit();

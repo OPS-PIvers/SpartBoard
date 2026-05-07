@@ -40,6 +40,7 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignModal } from '@/components/common/library/AssignModal';
+import { AssignmentSettingsToggleGroup } from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
@@ -73,7 +74,9 @@ import type {
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
   VideoActivityMetadata,
+  VideoActivityScoreVisibility,
   VideoActivitySession,
+  VideoActivitySessionOptions,
   VideoActivitySessionSettings,
 } from '@/types';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -107,7 +110,14 @@ export interface VideoActivityManagerProps {
     settings: VideoActivitySessionSettings,
     assignmentName: string,
     /** Selected roster IDs (unified picker output). */
-    rosterIds: string[]
+    rosterIds: string[],
+    /**
+     * Assignment-policy options (security, feedback, attempt limits, scoring).
+     * Mirrors `QuizAssignmentSettings.sessionOptions`. Optional — callers that
+     * don't yet wire it through can pass undefined and the session doc will
+     * persist legacy player-behavior settings only.
+     */
+    sessionOptions?: VideoActivitySessionOptions
   ) => Promise<string>;
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
@@ -405,6 +415,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [isCreatingViewOnlyShare, setIsCreatingViewOnlyShare] = useState(false);
   const [assignOptions, setAssignOptions] =
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
+  // Assignment-policy options (security, feedback, attempt limits, scoring).
+  // Sibling to `assignOptions` (player behavior) — the two persist to
+  // `session.settings` and `session.sessionOptions` respectively.
+  const [assignPolicyOptions, setAssignPolicyOptions] =
+    useState<VideoActivitySessionOptions>(buildDefaultPolicyOptions);
   const [assignmentName, setAssignmentName] = useState<string>('');
   const [assignError, setAssignError] = useState<string | null>(null);
   // Unified roster picker state. Seeded from the per-activity roster memory
@@ -421,6 +436,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
     setAssignOptions(defaultSessionSettings);
+    setAssignPolicyOptions(buildDefaultPolicyOptions());
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
     setAssignError(null);
     // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
@@ -644,7 +660,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         assignTarget,
         assignOptions,
         assignmentName.trim(),
-        validRosterIds
+        validRosterIds,
+        assignPolicyOptions
       );
       setAssignTarget(null);
     } catch (err) {
@@ -1180,6 +1197,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               )}
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 space-y-3">
+                <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
+                  Player Behavior
+                </p>
                 <ToggleRow
                   label="Auto-Play"
                   hint="Start video automatically after join"
@@ -1211,6 +1231,27 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                   }
                 />
               </div>
+
+              <AssignmentSettingsToggleGroup
+                options={assignPolicyOptions}
+                onOptionsChange={(next) =>
+                  setAssignPolicyOptions((prev) => ({ ...prev, ...next }))
+                }
+                attemptLimit={assignPolicyOptions.attemptLimit ?? null}
+                onAttemptLimitChange={(v) =>
+                  setAssignPolicyOptions((prev) => ({
+                    ...prev,
+                    attemptLimit: v,
+                  }))
+                }
+                attemptLimitHint="Limit how many times each student can complete the activity. Reset by removing them from the live monitor."
+                trailingSlot={
+                  <VideoActivityScoringBlock
+                    options={assignPolicyOptions}
+                    onChange={setAssignPolicyOptions}
+                  />
+                }
+              />
             </div>
           }
         />
@@ -1242,6 +1283,27 @@ function buildDefaultAssignmentName(title: string): string {
   return `${title} - ${formattedDate}`;
 }
 
+/**
+ * Initial policy-options state used when the assign modal opens. Mirrors the
+ * Quiz default toggle states so a teacher coming from Quiz finds parity:
+ * tab warnings on, feedback off, no shuffle, single attempt, no rewind/penalty,
+ * "score only" visibility.
+ */
+function buildDefaultPolicyOptions(): VideoActivitySessionOptions {
+  return {
+    tabWarningsEnabled: true,
+    showResultToStudent: false,
+    showCorrectAnswerToStudent: false,
+    showCorrectOnBoard: false,
+    shuffleQuestions: false,
+    shuffleAnswerOptions: true,
+    attemptLimit: 1,
+    rewindOnIncorrectSeconds: 0,
+    pointPenaltyOnIncorrect: 0,
+    scoreVisibility: 'score_only',
+  };
+}
+
 /* ─── ToggleRow — small presentational helper ─────────────────────────────── */
 
 interface ToggleRowProps {
@@ -1270,3 +1332,156 @@ const ToggleRow: React.FC<ToggleRowProps> = ({
     />
   </div>
 );
+
+/* ─── Video-Activity scoring/penalty block ────────────────────────────────── */
+
+const REWIND_OPTIONS: { label: string; value: number }[] = [
+  { label: 'Off', value: 0 },
+  { label: '15s', value: 15 },
+  { label: '30s', value: 30 },
+  { label: '60s', value: 60 },
+];
+
+const SCORE_VISIBILITY_OPTIONS: {
+  value: VideoActivityScoreVisibility;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    value: 'none',
+    label: 'Hidden',
+    hint: "Students see 'Submitted' only — no score.",
+  },
+  {
+    value: 'score_only',
+    label: 'Score',
+    hint: 'Students see their final score, no per-question detail.',
+  },
+  {
+    value: 'score_and_responses',
+    label: 'Score + responses',
+    hint: 'Students see their score and which questions they got right/wrong.',
+  },
+  {
+    value: 'score_responses_and_answers',
+    label: 'Full review',
+    hint: 'Students see their score, right/wrong, and the correct answers.',
+  },
+];
+
+interface VideoActivityScoringBlockProps {
+  options: VideoActivitySessionOptions;
+  onChange: React.Dispatch<React.SetStateAction<VideoActivitySessionOptions>>;
+}
+
+/**
+ * VA-specific knobs that don't fit the shared toggle group: rewind seconds,
+ * point penalty per incorrect submission, and the score-visibility selector.
+ * Renders inside `AssignmentSettingsToggleGroup`'s `trailingSlot`.
+ */
+const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
+  options,
+  onChange,
+}) => {
+  const rewind = options.rewindOnIncorrectSeconds ?? 0;
+  const penalty = options.pointPenaltyOnIncorrect ?? 0;
+  const visibility: VideoActivityScoreVisibility =
+    options.scoreVisibility ?? 'score_only';
+
+  return (
+    <div className="space-y-3 pt-1">
+      <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest pt-1">
+        Scoring & Penalties
+      </p>
+
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-bold text-brand-blue-dark">
+            Rewind on Incorrect
+          </span>
+          <div className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+            {REWIND_OPTIONS.map((opt) => {
+              const active = rewind === opt.value;
+              return (
+                <button
+                  key={opt.label}
+                  type="button"
+                  onClick={() =>
+                    onChange((prev) => ({
+                      ...prev,
+                      rewindOnIncorrectSeconds: opt.value,
+                    }))
+                  }
+                  className={
+                    'px-3 py-1.5 text-xs font-bold transition ' +
+                    (active
+                      ? 'bg-brand-blue-primary text-white'
+                      : 'text-slate-600 hover:bg-slate-50')
+                  }
+                >
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+        <p className="text-xxs text-slate-500 mt-0.5">
+          Send the video back this many seconds when a student answers wrong.
+        </p>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-bold text-brand-blue-dark">
+            Point Penalty per Incorrect
+          </span>
+          <input
+            type="number"
+            min={0}
+            value={penalty}
+            onChange={(e) => {
+              const next = Number(e.target.value);
+              const safe = Number.isFinite(next) && next >= 0 ? next : 0;
+              onChange((prev) => ({
+                ...prev,
+                pointPenaltyOnIncorrect: safe,
+              }));
+            }}
+            className="w-20 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+        </div>
+        <p className="text-xxs text-slate-500 mt-0.5">
+          Subtract this many points each time a student answers wrong. 0 = off.
+        </p>
+      </div>
+
+      <div>
+        <div className="flex items-center justify-between gap-3">
+          <span className="text-sm font-bold text-brand-blue-dark">
+            Score Visibility
+          </span>
+          <select
+            value={visibility}
+            onChange={(e) =>
+              onChange((prev) => ({
+                ...prev,
+                scoreVisibility: e.target.value as VideoActivityScoreVisibility,
+              }))
+            }
+            className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          >
+            {SCORE_VISIBILITY_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <p className="text-xxs text-slate-500 mt-0.5">
+          {SCORE_VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.hint ??
+            ''}
+        </p>
+      </div>
+    </div>
+  );
+};
