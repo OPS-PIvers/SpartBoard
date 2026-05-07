@@ -29,11 +29,23 @@ import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
 import { useFirestore, type SharedBoardSnapshot } from '../hooks/useFirestore';
 import { TOOLS } from '../config/tools';
 import { canonicalizeBuildingKeyedRecord } from '@/config/buildings';
-import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
+import {
+  WIDGET_DEFAULTS,
+  WIDGET_STRETCH_BEHAVIOR,
+} from '../config/widgetDefaults';
 import {
   migrateLocalStorageToFirestore,
   migrateWidget,
 } from '../utils/migration';
+import {
+  REFERENCE_VIEWPORT,
+  pixelToProp,
+  computeWidgetPixelRect,
+} from '../utils/proportionalLayout';
+import {
+  migrateDashboardWidgets,
+  hydrateWidgetPixels,
+} from '../utils/migrateProportionalLayout';
 import {
   scrubDashboardPII,
   extractDashboardPII,
@@ -61,11 +73,99 @@ const migrateToDockItems = (
   return visibleTools.map((type) => ({ type: 'tool', toolType: type }));
 };
 
+const getCurrentViewport = (): { vpW: number; vpH: number } => {
+  if (typeof window === 'undefined') {
+    return { vpW: REFERENCE_VIEWPORT.w, vpH: REFERENCE_VIEWPORT.h };
+  }
+  return {
+    vpW: window.innerWidth || REFERENCE_VIEWPORT.w,
+    vpH: window.innerHeight || REFERENCE_VIEWPORT.h,
+  };
+};
+
+/**
+ * Run proportional migration (idempotent) and hydrate pixel x/y/w/h from
+ * proportions × current viewport. After this, widget components can keep
+ * reading widget.w/h as pixels regardless of which device authored the board.
+ */
+const hydrateDashboardForViewport = (
+  d: Dashboard,
+  vpW: number,
+  vpH: number
+): Dashboard => {
+  const migrated = migrateDashboardWidgets(
+    d.widgets,
+    d.viewportWidth,
+    d.viewportHeight
+  );
+  let widgetsChanged = migrated !== d.widgets;
+  const hydrated = migrated.map((w) => {
+    const stretch = WIDGET_STRETCH_BEHAVIOR[w.type] ?? 'preserve-aspect';
+    const next = hydrateWidgetPixels(w, vpW, vpH, stretch);
+    if (next !== w) widgetsChanged = true;
+    return next;
+  });
+  if (!widgetsChanged) return d;
+  return { ...d, widgets: hydrated };
+};
+
+/**
+ * Update a widget's proportional fields and aspect ratio to match its current
+ * pixel x/y/w/h at the current viewport. Called from mutation paths
+ * (drag/resize/snap commits, addWidget, paste, etc.) so the canonical
+ * proportional storage stays in sync with the pixel state used for rendering.
+ *
+ * `updateAspect` defaults to true; pass false for drag-only changes (no resize)
+ * so the locked aspect ratio survives free-position moves.
+ */
+const syncWidgetProportionsFromPixels = (
+  w: WidgetData,
+  vpW: number,
+  vpH: number,
+  updateAspect = true
+): WidgetData => {
+  const prop = pixelToProp({ x: w.x, y: w.y, w: w.w, h: w.h }, vpW, vpH);
+  const aspectRatio = updateAspect
+    ? w.h > 0
+      ? w.w / w.h
+      : (w.aspectRatio ?? 1)
+    : w.aspectRatio;
+  if (
+    prop.xProp === w.xProp &&
+    prop.yProp === w.yProp &&
+    prop.wProp === w.wProp &&
+    prop.hProp === w.hProp &&
+    aspectRatio === w.aspectRatio
+  ) {
+    return w;
+  }
+  return {
+    ...w,
+    xProp: prop.xProp,
+    yProp: prop.yProp,
+    wProp: prop.wProp,
+    hProp: prop.hProp,
+    ...(typeof aspectRatio === 'number' ? { aspectRatio } : {}),
+  };
+};
+
+/**
+ * Strip the derived pixel x/y/w/h fields from a widget. Pixel values are
+ * recomputed from xProp/yProp/wProp/hProp on every dashboard load and on
+ * window resize, so they should not factor into "did anything change"
+ * comparisons — otherwise window resizes (which only update derived pixels)
+ * would trigger phantom saves.
+ */
+const stripDerivedPixels = (w: WidgetData) => {
+  const { x: _x, y: _y, w: _w, h: _h, ...rest } = w;
+  return rest;
+};
+
 /** Serialize dashboard state for change-detection comparisons. */
 const serializeDashboard = (d: Dashboard): string =>
   JSON.stringify({
     widgets: d.widgets.map((w) => {
-      const { config, ...rest } = w;
+      const { config, ...rest } = stripDerivedPixels(w);
       return {
         ...rest,
         // Fallback for old widgets without version
@@ -82,7 +182,7 @@ const serializeDashboard = (d: Dashboard): string =>
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
   fields: {
-    widgets: JSON.stringify(d.widgets),
+    widgets: JSON.stringify(d.widgets.map(stripDerivedPixels)),
     background: d.background,
     name: d.name,
     libraryOrder: JSON.stringify(d.libraryOrder ?? []),
@@ -767,10 +867,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return (b.createdAt || 0) - (a.createdAt || 0);
         });
 
-        const migratedDashboards = sortedDashboards.map((db) => ({
-          ...db,
-          widgets: db.widgets.map(migrateWidget),
-        }));
+        const { vpW, vpH } = getCurrentViewport();
+        const migratedDashboards = sortedDashboards.map((db) => {
+          const widgetMigrated: Dashboard = {
+            ...db,
+            widgets: db.widgets.map(migrateWidget),
+          };
+          return hydrateDashboardForViewport(widgetMigrated, vpW, vpH);
+        });
 
         // Update saving status: clear when Firestore confirms no pending writes
         // and we have no local saves in flight
@@ -889,11 +993,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               const localById = new Map(
                 currentActive.widgets.map((w) => [w.id, w])
               );
+              // Proportional fields are the canonical layout source — pixel
+              // x/y/w/h are derived per-viewport and would produce false
+              // positives when two devices on different screen sizes view
+              // the same board.
               const LAYOUT_FIELDS = [
-                'x',
-                'y',
-                'w',
-                'h',
+                'xProp',
+                'yProp',
+                'wProp',
+                'hProp',
+                'aspectRatio',
                 'z',
                 'minimized',
                 'flipped',
@@ -1279,6 +1388,39 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     isStudentRole,
     roleResolved,
   ]);
+
+  // Re-hydrate widget pixel x/y/w/h from canonical proportional bounds
+  // whenever the viewport changes. The proportional fields don't change here,
+  // so this update is invisible to the save path (which compares without
+  // pixel fields) and to two-device sync.
+  useEffect(() => {
+    let rafId: number | null = null;
+    const onResize = () => {
+      if (rafId !== null) return;
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const { vpW, vpH } = getCurrentViewport();
+        setDashboards((prev) => {
+          let anyChanged = false;
+          const next = prev.map((d) => {
+            const hydrated = hydrateDashboardForViewport(d, vpW, vpH);
+            if (hydrated !== d) anyChanged = true;
+            return hydrated;
+          });
+          return anyChanged ? next : prev;
+        });
+      });
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('resize', onResize);
+    }
+    return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('resize', onResize);
+      }
+    };
+  }, []);
 
   // Auto-save to Firestore with debouncing
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -2040,9 +2182,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         setDashboards((prev) =>
           prev.map((x) => {
             if (x.id !== dashboardId) return x;
+            const { vpW, vpH } = getCurrentViewport();
+            // Hydrate pixel x/y/w/h for this viewport: the remote may have
+            // been authored on a screen with different dimensions, so its
+            // pixel fields are stale. Proportional fields are the source of
+            // truth and stay identical across devices.
+            const remoteHydrated: Dashboard = remote.widgets
+              ? hydrateDashboardForViewport(
+                  { ...x, widgets: remote.widgets },
+                  vpW,
+                  vpH
+                )
+              : x;
             const next: Dashboard = {
               ...x,
-              widgets: remote.widgets ?? x.widgets,
+              widgets: remoteHydrated.widgets,
               background: remote.background ?? x.background,
               globalStyle: remote.globalStyle ?? x.globalStyle,
               settings: remote.settings ?? x.settings,
@@ -3055,13 +3209,38 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
           const newWidgetId = crypto.randomUUID();
           locallyAddedWidgetIds.current.add(newWidgetId);
-          const newWidget: WidgetData = {
+          // Anchor pixel defaults against the reference viewport so a widget
+          // added on a 1366×768 laptop and one added on a 1920×1080 projector
+          // get identical proportional bounds.
+          const anchorX = 50;
+          const anchorY = 80;
+          const pixelW = defaults.w ?? 200;
+          const pixelH = defaults.h ?? 200;
+          const anchorProp = pixelToProp(
+            { x: anchorX, y: anchorY, w: pixelW, h: pixelH },
+            REFERENCE_VIEWPORT.w,
+            REFERENCE_VIEWPORT.h
+          );
+          const stretch = WIDGET_STRETCH_BEHAVIOR[type] ?? 'preserve-aspect';
+          const { vpW, vpH } = getCurrentViewport();
+          const initialPixels = computeWidgetPixelRect(
+            anchorProp,
+            vpW,
+            vpH,
+            stretch
+          );
+          const baseWidget: WidgetData = {
             id: newWidgetId,
             type,
-            x: 50,
-            y: 80,
-            w: defaults.w ?? 200,
-            h: defaults.h ?? 200,
+            x: initialPixels.x,
+            y: initialPixels.y,
+            w: initialPixels.w,
+            h: initialPixels.h,
+            xProp: anchorProp.xProp,
+            yProp: anchorProp.yProp,
+            wProp: anchorProp.wProp,
+            hProp: anchorProp.hProp,
+            aspectRatio: pixelW / pixelH,
             flipped: false,
             z: maxZ + 1,
             version: 1,
@@ -3074,6 +3253,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               overrides?.config
             ),
           };
+          // Overrides (e.g. starter packs) may have supplied legacy pixel
+          // x/y/w/h without proportional fields — re-derive proportions and
+          // aspect ratio from whatever pixel rect the widget ended up with,
+          // anchored against the reference viewport so the same starter
+          // pack produces the same proportions on every device.
+          const overrodePixels =
+            !!overrides &&
+            ('x' in overrides ||
+              'y' in overrides ||
+              'w' in overrides ||
+              'h' in overrides);
+          const overrodeProps =
+            !!overrides &&
+            ('xProp' in overrides ||
+              'yProp' in overrides ||
+              'wProp' in overrides ||
+              'hProp' in overrides);
+          const newWidget =
+            overrodePixels && !overrodeProps
+              ? syncWidgetProportionsFromPixels(
+                  baseWidget,
+                  REFERENCE_VIEWPORT.w,
+                  REFERENCE_VIEWPORT.h,
+                  true
+                )
+              : baseWidget;
           return { ...d, widgets: [...d.widgets, newWidget] };
         })
       );
@@ -3155,9 +3360,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const newWidgetId = crypto.randomUUID();
             locallyAddedWidgetIds.current.add(newWidgetId);
 
-            // 1. SMART LAYOUT: If AI provided spatial data
-            if (validatedGrid) {
-              const { col, row, colSpan, rowSpan } = validatedGrid;
+            const stretch =
+              WIDGET_STRETCH_BEHAVIOR[item.type] ?? 'preserve-aspect';
+
+            const buildWidget = (pixels: {
+              x: number;
+              y: number;
+              w: number;
+              h: number;
+            }): WidgetData => {
+              const prop = pixelToProp(pixels, BOARD_W, BOARD_H);
+              const aspectRatio = pixels.w / Math.max(1, pixels.h);
+              const { vpW: curW, vpH: curH } = getCurrentViewport();
+              const hydrated = computeWidgetPixelRect(
+                prop,
+                curW,
+                curH,
+                stretch
+              );
               return {
                 id: newWidgetId,
                 type: item.type,
@@ -3165,12 +3385,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 z: maxZ,
                 version: 1,
                 ...defaults,
+                x: hydrated.x,
+                y: hydrated.y,
+                w: hydrated.w,
+                h: hydrated.h,
+                xProp: prop.xProp,
+                yProp: prop.yProp,
+                wProp: prop.wProp,
+                hProp: prop.hProp,
+                aspectRatio,
+                config: baseConfig,
+              } as WidgetData;
+            };
+
+            // 1. SMART LAYOUT: If AI provided spatial data
+            if (validatedGrid) {
+              const { col, row, colSpan, rowSpan } = validatedGrid;
+              return buildWidget({
                 x: col * COL_W + OFFSET_X,
                 y: row * ROW_H + OFFSET_Y,
                 w: Math.max(1, colSpan * COL_W - GRID_GAP),
                 h: Math.max(1, rowSpan * ROW_H - GRID_GAP),
-                config: baseConfig,
-              } as WidgetData;
+              });
             }
 
             // 2. FALLBACK LAYOUT: Legacy 3-column placement for missing gridConfigs
@@ -3181,19 +3417,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             const COL_WIDTH = 350;
             const ROW_HEIGHT = 280;
 
-            return {
-              id: newWidgetId,
-              type: item.type,
+            return buildWidget({
               x: START_X + col * COL_WIDTH,
               y: START_Y + row * ROW_HEIGHT,
               w: defaults.w ?? 250,
               h: defaults.h ?? 250,
-              flipped: false,
-              z: maxZ,
-              version: 1,
-              ...defaults,
-              config: baseConfig,
-            } as WidgetData;
+            });
           });
 
           return { ...d, widgets: [...d.widgets, ...newWidgets] };
@@ -3244,11 +3473,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           if (!target) return d;
 
           const maxZ = d.widgets.reduce((max, w) => Math.max(max, w.z), 0);
-          const duplicated: WidgetData = {
+          const { vpW, vpH } = getCurrentViewport();
+          const offsetTarget = {
             ...target,
-            id: crypto.randomUUID(),
             x: target.x + 20,
             y: target.y + 20,
+          };
+          const withProps = syncWidgetProportionsFromPixels(
+            offsetTarget,
+            vpW,
+            vpH,
+            false // duplication is a position change only
+          );
+          const duplicated: WidgetData = {
+            ...withProps,
+            id: crypto.randomUUID(),
             z: maxZ + 1,
             version: 1,
             groupId: undefined, // Duplicated widgets are independent
@@ -3340,10 +3579,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       lastLocalUpdateAt.current = Date.now();
       lastUpdateWasSettingsOnly.current = false;
 
-      // Track whether this update changes widget position/size so we can
-      // stamp the current viewport dimensions — ensuring the saved viewport
-      // always matches the viewport where widget layout was actually set.
-      const isLayoutChange =
+      // A pixel-size change implies the user resized — refresh aspectRatio.
+      // A pure position change keeps the locked aspect ratio.
+      const isResize = 'w' in updates || 'h' in updates;
+      const isPositionOrSize =
         'x' in updates || 'y' in updates || 'w' in updates || 'h' in updates;
 
       setDashboards((prev) =>
@@ -3365,12 +3604,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 }
               }
 
-              return {
+              const merged: WidgetData = {
                 ...w,
                 ...updates,
                 version: newVersion,
                 config: newConfig,
               };
+
+              // After a pixel position/size change, re-derive proportional
+              // bounds from the new pixel state. This is what makes the
+              // canonical proportional storage track local edits.
+              if (isPositionOrSize) {
+                const { vpW, vpH } = getCurrentViewport();
+                return syncWidgetProportionsFromPixels(
+                  merged,
+                  vpW,
+                  vpH,
+                  isResize
+                );
+              }
+              return merged;
             }
             return w;
           });
@@ -3384,12 +3637,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return {
             ...d,
             widgets: newWidgets,
-            ...(isLayoutChange
-              ? {
-                  viewportWidth: window.innerWidth,
-                  viewportHeight: window.innerHeight,
-                }
-              : {}),
           };
         })
       );
@@ -3414,15 +3661,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       setDashboards((prev) =>
         prev.map((d) => {
           if (d.id !== activeIdRef.current) return d;
+          const { vpW, vpH } = getCurrentViewport();
           return {
             ...d,
             widgets: d.widgets.map((w) => {
               const changes = updateMap.get(w.id);
               if (!changes) return w;
-              return { ...w, ...changes };
+              const merged = { ...w, ...changes };
+              const isResize = 'w' in changes || 'h' in changes;
+              return syncWidgetProportionsFromPixels(
+                merged,
+                vpW,
+                vpH,
+                isResize
+              );
             }),
-            viewportWidth: window.innerWidth,
-            viewportHeight: window.innerHeight,
           };
         })
       );

@@ -3684,12 +3684,35 @@ export type WidgetOutput = WidgetLayout | React.ReactNode;
 export interface WidgetData {
   id: string;
   type: WidgetType;
+  /**
+   * Pixel position/size in the current viewport. These are DERIVED on dashboard
+   * load (and on viewport resize) from the canonical {@link xProp}, {@link yProp},
+   * {@link wProp}, {@link hProp}, and {@link aspectRatio} fields. Widget components
+   * can keep reading w/h as pixels for canvas sizing, layout math, etc.
+   */
   x: number;
   y: number;
-  /** Width in grid units (dashboard) or pixels (student view) */
   w: number;
-  /** Height in grid units (dashboard) or pixels (student view) */
   h: number;
+  /**
+   * Canonical proportional bounds — fraction of the safe board (viewport minus
+   * SNAP_LAYOUT_CONSTANTS.PADDING on each side). These are persisted to
+   * Firestore; pixel x/y/w/h are recomputed from them per device. Optional
+   * during the migration window; populated by `migrateWidgetToProportional`
+   * the first time a legacy dashboard loads.
+   */
+  xProp?: number;
+  yProp?: number;
+  wProp?: number;
+  hProp?: number;
+  /**
+   * Pixel-W / pixel-H at the time of the last resize. Used to lock visual
+   * shape across viewports of different aspect ratios (e.g. a clock stays
+   * square going from a 16:9 projector to a 4:3 tablet). Stretch-behavior
+   * widgets (drawing, embed, hotspot-image, pdf, custom-widget) ignore this
+   * and fill their proportional rect.
+   */
+  aspectRatio?: number;
   z: number;
   flipped: boolean;
   version?: number;
