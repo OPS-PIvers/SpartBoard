@@ -435,7 +435,10 @@ export const useVideoActivitySessionStudent =
     const [joinStatus, setJoinStatus] = useState<StudentJoinStatus>('idle');
     const [error, setError] = useState<string | null>(null);
     const [sessionId, setSessionId] = useState<string | null>(null);
-    // responseDocId is the student's Firebase auth UID (used as the Firestore document ID)
+    // responseDocId is the deterministic Firestore doc id for the student's
+    // response — `auth.uid` for SSO `studentRole` joiners, or
+    // `pin-{period}-{pin}` for anonymous PIN joiners. Computed at join time
+    // via `computeResponseKey`; see `useQuizSession.ts`.
     const [responseDocId, setResponseDocId] = useState<string | null>(null);
 
     // Listen to session document
@@ -450,10 +453,9 @@ export const useVideoActivitySessionStudent =
           }
         },
         (err) => {
-          console.error(
-            '[useVideoActivitySessionStudent] Session listener error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.sessionListener', err, {
+            sessionId,
+          });
         }
       );
 
@@ -478,10 +480,10 @@ export const useVideoActivitySessionStudent =
           }
         },
         (err) => {
-          console.error(
-            '[useVideoActivitySessionStudent] Response listener error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.responseListener', err, {
+            sessionId,
+            responseDocId,
+          });
         }
       );
 
@@ -497,10 +499,9 @@ export const useVideoActivitySessionStudent =
           if (!snap.exists()) return null;
           return snap.data() as VideoActivitySession;
         } catch (err) {
-          console.error(
-            '[useVideoActivitySessionStudent] lookupSession error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.lookupSession', err, {
+            sessionId: targetSessionId,
+          });
           return null;
         }
       },
@@ -589,6 +590,26 @@ export const useVideoActivitySessionStudent =
             classPeriod
           );
 
+          // Defense against the encoder's `'default'` fallback — when the
+          // PIN and period are both all-special-chars or empty, both
+          // segments collapse to `'default'` and unrelated students collide
+          // on the same doc. Surface a user-facing error instead.
+          if (isAnonymous && responseDocKey === 'pin-default-default') {
+            setJoinStatus('error');
+            setError(
+              'Your PIN is in an unsupported format. Please check the PIN your teacher gave you.'
+            );
+            return;
+          }
+
+          // Probe the deterministic key first. If nothing's there AND the
+          // caller is anonymous, also probe a legacy `auth.uid`-keyed doc
+          // (the pre-PR1 keying scheme) so an in-flight student rejoining
+          // after deploy resumes their existing response instead of starting
+          // a fresh one. SSO joiners are unaffected — their `auth.uid` is
+          // both the new key and the legacy key. The legacy probe is
+          // skipped when we already found the new doc, so the steady-state
+          // path stays one read.
           const responseRef = doc(
             db,
             SESSIONS_COLLECTION,
@@ -596,7 +617,27 @@ export const useVideoActivitySessionStudent =
             RESPONSES_SUBCOLLECTION,
             responseDocKey
           );
-          const existingSnap = await getDoc(responseRef);
+          let effectiveResponseRef = responseRef;
+          let existingSnap = await getDoc(responseRef);
+
+          if (
+            !existingSnap.exists() &&
+            isAnonymous &&
+            responseDocKey !== currentUser.uid
+          ) {
+            const legacyRef = doc(
+              db,
+              SESSIONS_COLLECTION,
+              targetSessionId,
+              RESPONSES_SUBCOLLECTION,
+              currentUser.uid
+            );
+            const legacySnap = await getDoc(legacyRef);
+            if (legacySnap.exists()) {
+              effectiveResponseRef = legacyRef;
+              existingSnap = legacySnap;
+            }
+          }
 
           if (!existingSnap.exists()) {
             // Initialize `completedAttempts` and `tabSwitchWarnings` to 0 so
@@ -616,11 +657,15 @@ export const useVideoActivitySessionStudent =
               ...(studentPin ? { pin: studentPin } : {}),
               ...(classPeriod ? { classPeriod } : {}),
             };
-            await setDoc(responseRef, newResponse);
+            await setDoc(effectiveResponseRef, newResponse);
           }
 
           setSessionId(targetSessionId);
-          setResponseDocId(responseDocKey);
+          // When a legacy doc was found we resume against its id (the
+          // student's auth.uid) rather than the deterministic key — the
+          // listener path keeps tracking the doc that actually has their
+          // answers. New writes always go to `effectiveResponseRef`.
+          setResponseDocId(effectiveResponseRef.id);
           setSession(sessionData);
           setJoinStatus('joined');
         } catch (err) {

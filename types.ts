@@ -1895,10 +1895,11 @@ export type QuizSessionMode = 'teacher' | 'auto' | 'student';
 
 /**
  * Common session-level toggles applicable to any assignment widget that
- * mirrors the Quiz pattern (Quiz, Video Activity, future GuidedLearning).
- * Keep this surface small — only fields with the same semantics across
- * widgets belong here. Widget-specific knobs go on the per-widget
- * extension type.
+ * mirrors the Quiz pattern. Currently extended by `QuizSessionOptions`
+ * and `VideoActivitySessionOptions`; other widgets may opt in by
+ * extending too. Keep this surface small — only fields with the same
+ * semantics across widgets belong here; widget-specific knobs go on the
+ * per-widget extension type.
  */
 export interface BaseSessionOptions {
   tabWarningsEnabled?: boolean;
@@ -2644,7 +2645,12 @@ export type VideoActivityScoreVisibility =
  * security/feedback/scoring knobs that mirror the Quiz toggle group.
  */
 export interface VideoActivitySessionOptions extends BaseSessionOptions {
-  /** Hard cap on the number of attempts per question. null/undefined = unlimited. */
+  /**
+   * Hard cap on the number of times the student may attempt the activity
+   * (one increment per `completedAttempts` bump). null/undefined = unlimited.
+   * Compared against `VideoActivityResponse.completedAttempts`, which is a
+   * single counter — not per-question.
+   */
   attemptLimit?: number | null;
   /**
    * Seconds to rewind on a wrong submission. 0 / undefined = no rewind. When
@@ -2790,7 +2796,14 @@ export interface VideoActivityResponse {
    * `QuizResponse.completedAttempts`.
    */
   completedAttempts?: number;
-  /** Final correctness flag, set when scores are published. */
+  /**
+   * Per-attempt correctness flag, set by the teacher-side score-publish
+   * flow. **Semantics for VA are intentionally left to the publisher in
+   * PR1b** — the publish UI will choose between "all questions correct"
+   * vs "score >= threshold" and write the resulting boolean here. Until
+   * then this field is always absent on VA responses; UI consumers must
+   * tolerate `undefined`. Mirrors `QuizResponse.isCorrect`.
+   */
   isCorrect?: boolean;
   /**
    * Server-published score visibility for the response. Set when the teacher

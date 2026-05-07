@@ -33,23 +33,28 @@ import { QuestionOverlay } from './QuestionOverlay';
 
 /**
  * Resolve the SSO student's class period from the session's
- * `classPeriodByClassId` map. Falls back to the first declared period name
- * when the map is missing (best-effort — the session-create flow populates
- * the map for new assignments). Returns undefined when no period can be
- * resolved; callers default the response doc's `classPeriod` accordingly.
+ * `classPeriodByClassId` map. Mirrors the Quiz semantics: only resolves
+ * when the intersection of the student's claimed `classIds` with the
+ * session's targeted `classIds` is unambiguously a single class. When the
+ * intersection is empty (claim doesn't overlap the session) or multiple
+ * (the student is in 2+ targeted classes), returns `undefined` and lets
+ * the response doc carry no period — wrong-but-confident attribution to
+ * `periodNames[0]` is worse than no attribution because it silently
+ * corrupts results filtering and the export sheet's class-period column.
  */
 function resolveSsoClassPeriod(
   session: VideoActivitySession,
   classIdsClaim: string[]
 ): string | undefined {
   const map = session.classPeriodByClassId;
-  if (map) {
-    for (const classId of classIdsClaim) {
-      const period = map[classId];
-      if (period) return period;
-    }
-  }
-  return session.periodNames?.[0];
+  if (!map) return undefined;
+  const sessionClassIds = new Set(session.classIds ?? []);
+  const matches = classIdsClaim
+    .filter((id) => sessionClassIds.size === 0 || sessionClassIds.has(id))
+    .map((id) => map[id])
+    .filter((period): period is string => typeof period === 'string');
+  if (matches.length !== 1) return undefined;
+  return matches[0];
 }
 
 // ─── Root ──────────────────────────────────────────────────────────────────────
@@ -85,7 +90,7 @@ export const VideoActivityStudentApp: React.FC = () => {
             if (Array.isArray(claimedClassIds)) {
               setSsoClassIds(
                 claimedClassIds.filter(
-                  (id): id is string => typeof id === 'string'
+                  (id): id is string => typeof id === 'string' && id.length > 0
                 )
               );
             }
@@ -194,17 +199,30 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const [lookingUp, setLookingUp] = useState(false);
 
   // SSO auto-join. Mirrors QuizStudentApp's pattern: a single ref guards
-  // against StrictMode double-invoke; on success the student is taken
-  // straight to the player. Local error state because `lookupSession` can
-  // throw before the hook's `joinSession` runs.
+  // against StrictMode double-invoke. The ref is reset whenever
+  // `joinStatus` flips to `'error'` so a transient Firestore hiccup
+  // doesn't strand the student on a permanent loader — the next render
+  // (e.g. a refresh, network recovery) re-arms the effect for another
+  // attempt. Local `ssoAutoJoinError` covers the lookup-failure leg
+  // (`lookupSession` swallows errors and returns `null`); the hook's own
+  // `error`/`joinStatus` carry post-lookup failures.
   const ssoAutoJoinStartedRef = useRef(false);
   const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
+
+  // Re-arm the started ref when the hook reports an error so a recoverable
+  // failure (e.g. transient network) can retry on the next effect pass.
+  // Done as adjust-state-during-render rather than an effect to avoid an
+  // extra render cycle (per CLAUDE.md "useEffect is an escape hatch").
+  if (joinStatus === 'error' && ssoAutoJoinStartedRef.current) {
+    ssoAutoJoinStartedRef.current = false;
+  }
 
   useEffect(() => {
     if (!isStudentRole || !sessionId) return;
     if (ssoAutoJoinStartedRef.current) return;
     if (joinStatus === 'joined' || joinStatus === 'loading') return;
     ssoAutoJoinStartedRef.current = true;
+    setSsoAutoJoinError(null);
     void (async () => {
       try {
         const sessionInfo = await lookupSession(sessionId);
@@ -223,14 +241,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         );
       }
     })();
-  }, [
-    isStudentRole,
-    sessionId,
-    ssoClassIds,
-    lookupSession,
-    joinSession,
-    joinStatus,
-  ]);
+    // `joinStatus` is intentionally omitted from deps. The ref guard above
+    // and the early-return on 'joined'/'loading' make a status-driven
+    // re-fire redundant; including it would just trigger a no-op re-render
+    // on every status transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isStudentRole, sessionId, ssoClassIds, lookupSession, joinSession]);
 
   // Track answered question IDs for anti-skip enforcement in VideoPlayer
   const answeredQuestionIds = React.useMemo(
@@ -249,15 +265,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     try {
       const sessionInfo = await lookupSession(sessionId);
       const periodNames = sessionInfo?.periodNames ?? [];
-      // Anon (PIN) joiners always disambiguate by period when the assignment
-      // declares any — `pin-{period}-{pin}` is what keys the response doc.
-      // Show the picker even when there's only one period to keep the doc
-      // key deterministic across re-joins.
-      if (periodNames.length > 0) {
+      // Anon (PIN) joiners disambiguate by period when the assignment
+      // declares more than one — `pin-{period}-{pin}` is what keys the
+      // response doc. With a single period there's nothing for the
+      // student to choose, so auto-pick to skip a friction tap.
+      if (periodNames.length > 1) {
         setPeriodStep(periodNames);
         return;
       }
-      await joinSession(sessionId, pin.trim(), undefined);
+      await joinSession(sessionId, pin.trim(), periodNames[0]);
     } finally {
       setLookingUp(false);
     }
@@ -406,7 +422,10 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     // PIN form. Anonymous joiners fall through to the PIN form below.
     if (isStudentRole) {
       if (ssoAutoJoinError || error) {
-        return <ErrorScreen message={ssoAutoJoinError ?? error ?? ''} />;
+        // Prefer the hook's specific error (e.g. "session ended", "PIN
+        // rejected") over the generic auto-join wrapper message. Mirrors
+        // the QuizStudentApp precedence.
+        return <ErrorScreen message={error ?? ssoAutoJoinError ?? ''} />;
       }
       return <FullPageLoader message="Joining activity…" />;
     }

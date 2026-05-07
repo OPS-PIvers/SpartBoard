@@ -1154,7 +1154,7 @@ service cloud.firestore {
           sessionMode() == 'submissions' &&
           (isStudentRoleUser()
             ? responseKey == request.auth.uid
-            : responseKey.matches('^pin-[a-z0-9_]+-[a-z0-9_]+$'));
+            : responseKey.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
         allow update: if request.auth != null && (
           // Teacher and admins can update any field
           request.auth.uid == sessionTeacherUid() || isAdmin() ||
@@ -1375,7 +1375,8 @@ service cloud.firestore {
         // shape is enforced split-by-auth-mode:
         //   - SSO (studentRole)  → responseDocId must equal auth.uid
         //   - Anonymous (PIN)    → responseDocId must match
-        //                          ^pin-[a-z0-9_]+-[a-z0-9_]+$ (mirrors
+        //                          ^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$
+        //                          (mirrors
         //                          `encodeResponseKeySegment` on the
         //                          client). This closes the cross-auth
         //                          path where any authenticated caller
@@ -1394,7 +1395,7 @@ service cloud.firestore {
           vaSessionMode() == 'submissions' &&
           (isStudentRoleUser()
             ? responseDocId == request.auth.uid
-            : responseDocId.matches('^pin-[a-z0-9_]+-[a-z0-9_]+$'));
+            : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
         // Students update their own response to add answers, set
         // completedAt, log tab switches, increment the attempt counter, or
         // set their class period after the post-PIN picker. Ownership is
@@ -1407,17 +1408,22 @@ service cloud.firestore {
         //     `attemptLimit` cap).
         //   - `answers` may only grow (size monotonic, all prior elements
         //     preserved).
-        //   - Identity fields (`pin`, `name`, `joinedAt`, `studentUid`)
-        //     and teacher-controlled fields (`score`, `isCorrect`,
+        //   - Identity fields (`pin`, `name`, `joinedAt`) and
+        //     teacher-controlled fields (`score`, `isCorrect`,
         //     `scoreVisibility`) are immutable from the client.
+        //     `studentUid` is checked separately as the ownership anchor
+        //     (the line right above this block).
         allow update: if request.auth != null &&
           resource.data.studentUid == request.auth.uid &&
           passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
           request.resource.data.studentUid == resource.data.studentUid &&
-          // SSO studentRole responses omit `pin` and `name` entirely, so
-          // direct dot-access would throw and deny the write. The
-          // `changedKeys().hasOnly(...)` clause below still prevents a
-          // student from adding/changing them.
+          // Defense-in-depth: redundant with the `changedKeys().hasOnly([...])`
+          // allowlist below (which would already reject a `pin`/`name`/
+          // `joinedAt` change), but kept explicit so a future allowlist
+          // expansion can't silently allow these to mutate. SSO
+          // `studentRole` responses omit `pin` and `name` entirely, so the
+          // checks use `.get(_, null)` to tolerate the field being absent
+          // on both sides instead of throwing a Null-value error.
           request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
           request.resource.data.get('name', null) == resource.data.get('name', null) &&
           request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
