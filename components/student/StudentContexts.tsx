@@ -259,6 +259,17 @@ const mockDashboard: DashboardContextValue = {
   clearPendingShare: () => {
     // No-op
   },
+  pendingShareImport: null,
+  cancelPendingShareImport: () => {
+    // No-op — student view never imports shared boards.
+  },
+  importSharedBoard: async () => {
+    // No-op
+  },
+  stopSharingDashboard: async () => {
+    // No-op
+  },
+  isActiveBoardReadOnly: false,
   pendingQuizShareId: null,
   clearPendingQuizShare: () => {
     // No-op

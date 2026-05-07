@@ -195,6 +195,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     selectedWidgetIds,
     setSelectedWidgetIds,
     zoom,
+    isActiveBoardReadOnly,
   } = useDashboard();
   const { showConfirm: showConfirmDialog } = useDialog();
 
@@ -453,7 +454,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   );
 
   const isMaximized = widget.maximized ?? false;
-  const isLocked = widget.isLocked ?? false;
+  // View-only guests treat every widget as locked. The DashboardContext
+  // mutation guards already block writes — this just surfaces the locked
+  // state to all the existing UI affordances (drag, resize, gear, close).
+  const isLocked = (widget.isLocked ?? false) || isActiveBoardReadOnly;
   const isPinned = widget.isPinned ?? false;
 
   const [pinnedHover, setPinnedHover] = useState(false);
