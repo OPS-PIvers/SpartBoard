@@ -135,6 +135,8 @@ interface QuizAssignOptions {
   streakBonusEnabled: boolean;
   showPodiumBetweenQuestions: boolean;
   soundEffectsEnabled: boolean;
+  shuffleQuestions: boolean;
+  shuffleAnswerOptions: boolean;
   /** Max completed submissions per student. null = unlimited. Default 1. */
   attemptLimit: number | null;
   plcMode: boolean;
@@ -191,6 +193,12 @@ function buildDefaultAssignOptions(
     streakBonusEnabled: false,
     showPodiumBetweenQuestions: false,
     soundEffectsEnabled: false,
+    shuffleQuestions: false,
+    // Default ON: matches the legacy always-on answer shuffle that
+    // pre-dated this toggle, and mirrors the edit modal's `?? true`
+    // fallback so a new assignment behaves identically to one created
+    // before the toggle was exposed.
+    shuffleAnswerOptions: true,
     // Default: one attempt per student. Teachers can switch to 2/3/Unlimited
     // in the assign modal or later in the assignment settings.
     attemptLimit: 1,
@@ -1151,6 +1159,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       streakBonusEnabled: assignOptions.streakBonusEnabled,
       showPodiumBetweenQuestions: assignOptions.showPodiumBetweenQuestions,
       soundEffectsEnabled: assignOptions.soundEffectsEnabled,
+      shuffleQuestions: assignOptions.shuffleQuestions,
+      shuffleAnswerOptions: assignOptions.shuffleAnswerOptions,
     };
     onAssign(
       assignTarget,
@@ -1503,6 +1513,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
               options={assignOptions}
               onChange={setAssignOptions}
               rosters={rosters}
+              selectedMode={selectedMode}
             />
           }
           plcSlot={
@@ -1936,7 +1947,8 @@ const AssignExtraSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
   rosters: ClassRoster[];
-}> = ({ options, onChange, rosters }) => {
+  selectedMode: QuizSessionMode | null;
+}> = ({ options, onChange, rosters, selectedMode }) => {
   const update = <K extends keyof QuizAssignOptions>(
     key: K,
     value: QuizAssignOptions[K]
@@ -1956,6 +1968,8 @@ const AssignExtraSlot: React.FC<{
           showResultToStudent: options.showResultToStudent,
           showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
           showCorrectOnBoard: options.showCorrectOnBoard,
+          shuffleQuestions: options.shuffleQuestions,
+          shuffleAnswerOptions: options.shuffleAnswerOptions,
         }}
         onOptionsChange={(next) =>
           // The primitive's `update` always emits the full options object
@@ -1965,7 +1979,12 @@ const AssignExtraSlot: React.FC<{
         }
         attemptLimit={options.attemptLimit}
         onAttemptLimitChange={(v) => update('attemptLimit', v)}
-        excludeSections={['randomization']}
+        // Per-student question shuffle only takes effect in self-paced mode
+        // (teacher/auto-paced sessions broadcast a single shared question
+        // sequence). Disable the toggle in non-self-paced modes so teachers
+        // don't enable a flag that won't fire — the primitive renders a hint
+        // explaining the gating.
+        shuffleQuestionsAvailable={selectedMode === 'student'}
         trailingSlot={
           <CollapsibleSection label="Gamification">
             <ToggleRow
