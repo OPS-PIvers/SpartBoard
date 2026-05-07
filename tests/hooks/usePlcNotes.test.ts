@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { usePlcNotes } from '@/hooks/usePlcNotes';
 
@@ -20,6 +21,7 @@ vi.mock('firebase/firestore', () => ({
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
   setDoc: vi.fn(),
+  updateDoc: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -38,6 +40,7 @@ const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockSetDoc = setDoc as Mock;
+const mockUpdateDoc = updateDoc as Mock;
 const mockDeleteDoc = deleteDoc as Mock;
 const mockOrderBy = orderBy as Mock;
 
@@ -58,6 +61,7 @@ beforeEach(() => {
     segs.join('/')
   );
   mockSetDoc.mockResolvedValue(undefined);
+  mockUpdateDoc.mockResolvedValue(undefined);
   mockDeleteDoc.mockResolvedValue(undefined);
   useAuthMock.mockReturnValue({ user: { uid: USER_UID } });
 });
@@ -159,5 +163,50 @@ describe('usePlcNotes — createNote', () => {
     expect(written.lastEditedBy).toBe(USER_UID);
     expect(typeof written.createdAt).toBe('number');
     expect(typeof written.lastEditedAt).toBe('number');
+  });
+});
+
+// updateDoc patches — verify only the changed field travels in the wire
+// payload (plus the always-stamped lastEditedBy / lastEditedAt). The
+// previous setDoc-based implementation rewrote the full doc from local
+// state, which could revert a teammate's concurrent edit on the *other*
+// field.
+describe('usePlcNotes — patch-only updateNote', () => {
+  it('sends only the patched field plus lastEditedBy/At via updateDoc', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await result.current.updateNote('note-1', { body: 'new body' });
+    });
+
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const [path, patch] = mockUpdateDoc.mock.calls[0] ?? [];
+    expect(path).toBe(`plcs/${PLC_ID}/notes/note-1`);
+    const fields = patch as Record<string, unknown>;
+    // Only `body` is patched, plus the rule-required `lastEditedBy` and
+    // `lastEditedAt`. `title` must NOT appear — that's the whole point
+    // of the patch-only contract (a teammate's concurrent title edit
+    // would otherwise be reverted by stale local state).
+    expect(fields.body).toBe('new body');
+    expect(fields.title).toBeUndefined();
+    expect(fields.lastEditedBy).toBe(USER_UID);
+    expect(typeof fields.lastEditedAt).toBe('number');
+  });
+
+  it('omits both title and body when patch contains neither (still stamps lastEditedBy)', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcNotes(PLC_ID));
+
+    await act(async () => {
+      await result.current.updateNote('note-1', {});
+    });
+
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const fields = mockUpdateDoc.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(fields.title).toBeUndefined();
+    expect(fields.body).toBeUndefined();
+    expect(fields.lastEditedBy).toBe(USER_UID);
   });
 });

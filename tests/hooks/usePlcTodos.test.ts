@@ -7,6 +7,7 @@ import {
   onSnapshot,
   orderBy,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { usePlcTodos } from '@/hooks/usePlcTodos';
 
@@ -20,6 +21,7 @@ vi.mock('firebase/firestore', () => ({
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
   setDoc: vi.fn(),
+  updateDoc: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -38,6 +40,7 @@ const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
 const mockSetDoc = setDoc as Mock;
+const mockUpdateDoc = updateDoc as Mock;
 const mockDeleteDoc = deleteDoc as Mock;
 const mockOrderBy = orderBy as Mock;
 
@@ -56,6 +59,7 @@ beforeEach(() => {
     segs.join('/')
   );
   mockSetDoc.mockResolvedValue(undefined);
+  mockUpdateDoc.mockResolvedValue(undefined);
   mockDeleteDoc.mockResolvedValue(undefined);
   useAuthMock.mockReturnValue({ user: { uid: USER_UID } });
 });
@@ -136,5 +140,41 @@ describe('usePlcTodos — createTodo', () => {
     expect(written.text).toBe('meet on Tuesday');
     expect(written.done).toBe(false);
     expect(written.createdBy).toBe(USER_UID);
+  });
+});
+
+// updateDoc patches — verify only the changed field travels in the wire
+// payload. The previous setDoc-based implementation rewrote the full doc
+// from local state, which could revert a teammate's concurrent edit on
+// the *other* field. These tests pin the patch-only contract.
+describe('usePlcTodos — patch-only updates', () => {
+  it('toggleDone sends only { done } via updateDoc (no full-doc rewrite)', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcTodos(PLC_ID));
+
+    await act(async () => {
+      await result.current.toggleDone('todo-1', true);
+    });
+
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const [path, patch] = mockUpdateDoc.mock.calls[0] ?? [];
+    expect(path).toBe(`plcs/${PLC_ID}/todos/todo-1`);
+    expect(patch).toEqual({ done: true });
+  });
+
+  it('updateText sends only { text } trimmed via updateDoc', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcTodos(PLC_ID));
+
+    await act(async () => {
+      await result.current.updateText('todo-1', '  call parents  ');
+    });
+
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const [path, patch] = mockUpdateDoc.mock.calls[0] ?? [];
+    expect(path).toBe(`plcs/${PLC_ID}/todos/todo-1`);
+    expect(patch).toEqual({ text: 'call parents' });
   });
 });

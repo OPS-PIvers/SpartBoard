@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronRight, ListChecks, Loader2 } from 'lucide-react';
 import { Plc } from '@/types';
 import { usePlcTodos } from '@/hooks/usePlcTodos';
+import { logError } from '@/utils/logError';
 import type { PlcDashboardTabId } from '../../PlcDashboard';
 
 interface TodosTileProps {
@@ -67,7 +68,14 @@ export const TodosTile: React.FC<TodosTileProps> = ({ plc, onNavigateTab }) => {
                   type="checkbox"
                   checked={todo.done}
                   onChange={(e) => {
-                    void toggleDone(todo.id, e.target.checked);
+                    void toggleDone(todo.id, e.target.checked).catch(
+                      (err: unknown) => {
+                        logError('TodosTile.toggleDone', err, {
+                          plcId: plc.id,
+                          todoId: todo.id,
+                        });
+                      }
+                    );
                   }}
                   className="mt-0.5 w-4 h-4 rounded border-slate-300 text-violet-600 focus:ring-violet-500 focus:ring-offset-0 cursor-pointer"
                   aria-label={t('plcDashboard.overview.tiles.todos.toggle', {

@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -117,17 +118,20 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
     [plcId, user]
   );
 
+  // Patch-only updates so a teammate's concurrent edit on a different
+  // field isn't reverted by a stale local copy of the todo. The rule's
+  // `keys.hasOnly([...])` check applies to the post-merge doc, so a
+  // partial `updateDoc` patch passes — id/createdBy/createdAt remain
+  // immutable because they're untouched.
   const toggleDone = useCallback(
     async (todoId: string, done: boolean): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      const existing = todos.find((t) => t.id === todoId);
-      if (!existing) throw new Error('Todo not found');
-      await setDoc(
+      await updateDoc(
         doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
-        { ...existing, done }
+        { done }
       );
     },
-    [plcId, user, todos]
+    [plcId, user]
   );
 
   const updateText = useCallback(
@@ -135,14 +139,12 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
       if (!plcId || !user) throw new Error('Not signed in');
       const trimmed = text.trim();
       if (!trimmed) throw new Error('Todo text required');
-      const existing = todos.find((t) => t.id === todoId);
-      if (!existing) throw new Error('Todo not found');
-      await setDoc(
+      await updateDoc(
         doc(db, PLCS_COLLECTION, plcId, TODOS_SUBCOLLECTION, todoId),
-        { ...existing, text: trimmed }
+        { text: trimmed }
       );
     },
-    [plcId, user, todos]
+    [plcId, user]
   );
 
   const deleteTodo = useCallback(

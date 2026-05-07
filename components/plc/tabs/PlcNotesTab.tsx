@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Plus, StickyNote, Trash2 } from 'lucide-react';
 import { Plc, PlcNote } from '@/types';
@@ -110,7 +116,11 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
     setDraftBody(selectedNote.body);
   }
 
-  const flushPendingSave = () => {
+  // Stable across renders so the unmount cleanup effect can depend on it
+  // without re-running each render. Re-binds only when `updateNote` or
+  // `plc.id` changes — both effectively constant for the component's
+  // lifetime, since `PlcDashboard` unmounts on PLC switch.
+  const flushPendingSave = useCallback(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
@@ -126,9 +136,9 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
     void updateNote(id, toSave).catch((err: unknown) => {
       logError('PlcNotesTab.updateNote', err, { plcId: plc.id, noteId: id });
     });
-  };
+  }, [updateNote, plc.id]);
 
-  const cancelPendingSave = () => {
+  const cancelPendingSave = useCallback(() => {
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = null;
@@ -136,7 +146,7 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
     pendingPatchRef.current = {};
     pendingNoteIdRef.current = null;
     setPendingNoteId(null);
-  };
+  }, []);
 
   // Flush pending debounced writes on unmount so a fast tab close doesn't
   // drop the user's last edit.
@@ -144,26 +154,25 @@ export const PlcNotesTab: React.FC<PlcNotesTabProps> = ({ plc }) => {
     return () => {
       flushPendingSave();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [flushPendingSave]);
 
-  const scheduleSave = (
-    id: string,
-    patch: { title?: string; body?: string }
-  ) => {
-    // If a write is queued for a different note, flush it first so we
-    // don't merge title/body across notes.
-    if (pendingNoteIdRef.current && pendingNoteIdRef.current !== id) {
-      flushPendingSave();
-    }
-    pendingNoteIdRef.current = id;
-    setPendingNoteId(id);
-    pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
-    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-    debounceTimerRef.current = setTimeout(() => {
-      flushPendingSave();
-    }, SAVE_DEBOUNCE_MS);
-  };
+  const scheduleSave = useCallback(
+    (id: string, patch: { title?: string; body?: string }) => {
+      // If a write is queued for a different note, flush it first so we
+      // don't merge title/body across notes.
+      if (pendingNoteIdRef.current && pendingNoteIdRef.current !== id) {
+        flushPendingSave();
+      }
+      pendingNoteIdRef.current = id;
+      setPendingNoteId(id);
+      pendingPatchRef.current = { ...pendingPatchRef.current, ...patch };
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        flushPendingSave();
+      }, SAVE_DEBOUNCE_MS);
+    },
+    [flushPendingSave]
+  );
 
   const handleCreate = async () => {
     try {

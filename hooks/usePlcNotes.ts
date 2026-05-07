@@ -7,6 +7,7 @@ import {
   orderBy,
   query,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -124,26 +125,27 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
       patch: { title?: string; body?: string }
     ): Promise<void> => {
       if (!plcId || !user) throw new Error('Not signed in');
-      // Find the existing note in local state so we can re-write the full
-      // doc — the rule requires `keys().hasOnly(...)`, so a partial merge
-      // would fail if the local state ever drifts from the server.
-      const existing = notes.find((n) => n.id === noteId);
-      if (!existing) {
-        throw new Error('Note not found');
-      }
-      const updated: PlcNote = {
-        ...existing,
-        title: patch.title ?? existing.title,
-        body: patch.body ?? existing.body,
+      // Patch-only updates so a teammate's concurrent edit on the *other*
+      // field isn't reverted by our stale local snapshot. The rule's
+      // `keys.hasOnly(...)` check applies to the post-merge doc, so a
+      // partial `updateDoc` passes — `id`/`createdBy`/`createdAt` stay
+      // immutable because they're untouched.
+      //
+      // `lastEditedBy` + `lastEditedAt` must be in the patch on every
+      // edit: the rule requires `lastEditedBy == request.auth.uid` and
+      // `lastEditedAt is int` on update.
+      const fields: Record<string, unknown> = {
         lastEditedBy: user.uid,
         lastEditedAt: Date.now(),
       };
-      await setDoc(
+      if (patch.title !== undefined) fields.title = patch.title;
+      if (patch.body !== undefined) fields.body = patch.body;
+      await updateDoc(
         doc(db, PLCS_COLLECTION, plcId, NOTES_SUBCOLLECTION, noteId),
-        updated
+        fields
       );
     },
-    [plcId, user, notes]
+    [plcId, user]
   );
 
   const deleteNote = useCallback(

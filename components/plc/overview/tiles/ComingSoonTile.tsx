@@ -21,33 +21,48 @@ interface ComingSoonTileProps {
   onNavigateTab: () => void;
 }
 
+// `titleKey` and `teaserKey` are sibling leaves in the locale tree
+// (e.g. `quizLibrary.title` + `quizLibrary.teaser`). They must be tracked
+// as separate strings — `${titleKey}.teaser` would yield `…title.teaser`,
+// which doesn't exist in the locale JSON and would only render the
+// defaultValue.
 const META: Record<
   ComingSoonKind,
-  { icon: LucideIcon; titleKey: string; titleDefault: string; teaser: string }
+  {
+    icon: LucideIcon;
+    titleKey: string;
+    titleDefault: string;
+    teaserKey: string;
+    teaserDefault: string;
+  }
 > = {
   quizLibrary: {
     icon: BookOpen,
     titleKey: 'plcDashboard.overview.tiles.quizLibrary.title',
     titleDefault: 'Quiz library',
-    teaser: 'Share quizzes with your PLC.',
+    teaserKey: 'plcDashboard.overview.tiles.quizLibrary.teaser',
+    teaserDefault: 'Share quizzes with your PLC.',
   },
   activeAssignments: {
     icon: ClipboardList,
     titleKey: 'plcDashboard.overview.tiles.activeAssignments.title',
     titleDefault: 'Active assignments',
-    teaser: 'PLC-authored assignments awaiting pickup.',
+    teaserKey: 'plcDashboard.overview.tiles.activeAssignments.teaser',
+    teaserDefault: 'PLC-authored assignments awaiting pickup.',
   },
   videoActivities: {
     icon: Film,
     titleKey: 'plcDashboard.overview.tiles.videoActivities.title',
     titleDefault: 'Video activities',
-    teaser: 'Share video activities with the PLC.',
+    teaserKey: 'plcDashboard.overview.tiles.videoActivities.teaser',
+    teaserDefault: 'Share video activities with the PLC.',
   },
   sharedBoards: {
     icon: SquareSquare,
     titleKey: 'plcDashboard.overview.tiles.sharedBoards.title',
     titleDefault: 'Shared boards',
-    teaser: 'Boards shared with this PLC.',
+    teaserKey: 'plcDashboard.overview.tiles.sharedBoards.teaser',
+    teaserDefault: 'Boards shared with this PLC.',
   },
 };
 
@@ -75,7 +90,7 @@ export const ComingSoonTile: React.FC<ComingSoonTileProps> = ({
         </h4>
       </div>
       <p className="text-xxs text-slate-500 leading-snug flex-1">
-        {t(`${meta.titleKey}.teaser`, { defaultValue: meta.teaser })}
+        {t(meta.teaserKey, { defaultValue: meta.teaserDefault })}
       </p>
       <span className="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-100 text-xxs font-bold uppercase tracking-widest text-slate-400">
         {t('plcDashboard.overview.tiles.comingSoon', {
