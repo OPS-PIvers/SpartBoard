@@ -384,13 +384,20 @@ export const useVideoActivityAssignments = (
         ),
         { ...patch, updatedAt: now } as Record<string, unknown>
       );
-      // Mirror session-settings changes to the session doc so students pick
-      // them up on next join. Both player-behavior (sessionSettings) and
-      // assignment-policy (sessionOptions) flow through to the live session.
+      // Mirror student-visible changes to the session doc so an in-flight
+      // join picks them up on next visit. We propagate:
+      //   - sessionSettings (player behavior — autoPlay, etc.)
+      //   - sessionOptions (assignment policy — feedback, attempts, scoring)
+      //   - className (rendered in the post-PIN picker as `assignmentName`)
+      //   - periodNames (drive the period selector)
       const sessionPatch: Record<string, unknown> = {};
       if (patch.sessionSettings) sessionPatch.settings = patch.sessionSettings;
       if (patch.sessionOptions)
         sessionPatch.sessionOptions = patch.sessionOptions;
+      if (patch.className !== undefined)
+        sessionPatch.assignmentName = patch.className;
+      if (patch.periodNames !== undefined)
+        sessionPatch.periodNames = patch.periodNames;
       if (Object.keys(sessionPatch).length > 0) {
         batch.update(
           doc(db, VIDEO_ACTIVITY_SESSIONS_COLLECTION, assignmentId),

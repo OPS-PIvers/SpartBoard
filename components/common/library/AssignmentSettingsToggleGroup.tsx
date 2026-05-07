@@ -54,13 +54,18 @@ export const AttemptLimitRow: React.FC<AttemptLimitRowProps> = ({
       <span className="text-sm font-bold text-brand-blue-dark">
         Attempts Allowed
       </span>
-      <div className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div
+        role="group"
+        aria-label="Attempts allowed"
+        className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
+      >
         {ATTEMPT_OPTIONS.map((opt) => {
           const active = value === opt.value;
           return (
             <button
               key={opt.label}
               type="button"
+              aria-pressed={active}
               onClick={() => onChange(opt.value)}
               className={
                 'px-3 py-1.5 text-xs font-bold transition ' +
@@ -149,6 +154,12 @@ export interface AssignmentSettingsToggleGroupProps {
   /** Override the AttemptLimitRow helper text. */
   attemptLimitHint?: string;
   /**
+   * Header label for the integrity section. Defaults to "Quiz Integrity"
+   * for backwards compat; widgets that aren't Quiz should pass a more
+   * appropriate label (e.g. "Activity Integrity" for Video Activity).
+   */
+  integritySectionLabel?: string;
+  /**
    * Quiz-only: when true, renders a "Session mode locked" banner above the
    * toggle group. VA has no session modes today and passes false.
    */
@@ -185,6 +196,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
   shuffleQuestionsAvailable = true,
   excludeSections,
   trailingSlot,
+  integritySectionLabel,
 }) => {
   const update = <K extends keyof BaseSessionOptions>(
     key: K,
@@ -211,7 +223,7 @@ export const AssignmentSettingsToggleGroup: React.FC<
 
       {showSection('integrity') && (
         <>
-          <SectionHeader label="Quiz Integrity" />
+          <SectionHeader label={integritySectionLabel ?? 'Quiz Integrity'} />
           {showAttempts && (
             <AttemptLimitRow
               value={attemptLimit ?? null}

@@ -29,7 +29,11 @@ vi.mock('@/config/firebase', () => ({
   db: {},
 }));
 
-vi.mock('./useSessionViewCount', () => ({
+// Hook imports from `./useSessionViewCount` (relative to hooks/), so we
+// mock the same absolute alias path the hook resolves to. This guards the
+// reactivate-assignment code path; current tests don't hit it, but
+// preserves the mock if a future test adds reactivate coverage.
+vi.mock('@/hooks/useSessionViewCount', () => ({
   invalidateSessionViewCount: vi.fn(),
 }));
 
@@ -216,7 +220,7 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
     expect(sessionPatch).toEqual({ sessionOptions });
   });
 
-  it('does not touch the session doc when only assignment-only fields change', async () => {
+  it('mirrors className to the session doc as assignmentName', async () => {
     const { result } = renderHook(() =>
       useVideoActivityAssignments(TEACHER_UID)
     );
@@ -227,7 +231,52 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
       });
     });
 
-    // Only the assignment doc gets updated — no session-side update.
+    // Both the assignment doc AND the session doc get updated so the
+    // student-side picker label tracks renames in real time.
+    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    const sessionPatch = batchUpdate.mock.calls[1][1] as Record<
+      string,
+      unknown
+    >;
+    expect(sessionPatch).toEqual({ assignmentName: 'Period 2 Renamed' });
+  });
+
+  it('mirrors periodNames to the session doc', async () => {
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings('assignment-1', {
+        periodNames: ['Period 3', 'Period 4'],
+      });
+    });
+
+    expect(batchUpdate).toHaveBeenCalledTimes(2);
+    const sessionPatch = batchUpdate.mock.calls[1][1] as Record<
+      string,
+      unknown
+    >;
+    expect(sessionPatch).toEqual({
+      periodNames: ['Period 3', 'Period 4'],
+    });
+  });
+
+  it('does not touch the session doc when no student-visible field changes', async () => {
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+
+    await act(async () => {
+      // `scoreVisibility` and `scorePublishedAt` are teacher-only metadata —
+      // they live on the assignment archive doc but never need to flow to
+      // the session doc, so the session-update branch should stay quiet.
+      await result.current.updateAssignmentSettings('assignment-1', {
+        scoreVisibility: 'score_only',
+        scorePublishedAt: 1700000000000,
+      });
+    });
+
     expect(batchUpdate).toHaveBeenCalledTimes(1);
   });
 });

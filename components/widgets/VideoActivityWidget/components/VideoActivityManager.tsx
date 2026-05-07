@@ -40,7 +40,10 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignModal } from '@/components/common/library/AssignModal';
-import { AssignmentSettingsToggleGroup } from '@/components/common/library/AssignmentSettingsToggleGroup';
+import {
+  AssignmentSettingsToggleGroup,
+  SectionHeader,
+} from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
@@ -1197,9 +1200,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               )}
 
               <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 space-y-3">
-                <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest">
-                  Player Behavior
-                </p>
+                <SectionHeader label="Player Behavior" />
                 <ToggleRow
                   label="Auto-Play"
                   hint="Start video automatically after join"
@@ -1245,6 +1246,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                   }))
                 }
                 attemptLimitHint="Limit how many times each student can complete the activity. Reset by removing them from the live monitor."
+                integritySectionLabel="Activity Integrity"
                 trailingSlot={
                   <VideoActivityScoringBlock
                     options={assignPolicyOptions}
@@ -1390,22 +1392,25 @@ const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
 
   return (
     <div className="space-y-3 pt-1">
-      <p className="text-xxs font-bold text-brand-blue-primary/60 uppercase tracking-widest pt-1">
-        Scoring & Penalties
-      </p>
+      <SectionHeader label="Scoring & Penalties" />
 
       <div>
         <div className="flex items-center justify-between gap-3">
           <span className="text-sm font-bold text-brand-blue-dark">
             Rewind on Incorrect
           </span>
-          <div className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden">
+          <div
+            role="group"
+            aria-label="Rewind seconds on incorrect answer"
+            className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
+          >
             {REWIND_OPTIONS.map((opt) => {
               const active = rewind === opt.value;
               return (
                 <button
                   key={opt.label}
                   type="button"
+                  aria-pressed={active}
                   onClick={() =>
                     onChange((prev) => ({
                       ...prev,
