@@ -599,12 +599,20 @@ export const useVideoActivitySessionStudent =
           const existingSnap = await getDoc(responseRef);
 
           if (!existingSnap.exists()) {
+            // Initialize `completedAttempts` and `tabSwitchWarnings` to 0 so
+            // the Firestore rules' monotonic-growth check on update has a
+            // concrete prior value to compare against (otherwise
+            // `resource.data.completedAttempts` is missing on first write
+            // and `.size()`/comparison would throw). Mirrors the Quiz
+            // create-time initialization.
             const newResponse: VideoActivityResponse = {
               studentUid: currentUser.uid,
               joinedAt: Date.now(),
               answers: [],
               completedAt: null,
               score: null,
+              completedAttempts: 0,
+              tabSwitchWarnings: 0,
               ...(studentPin ? { pin: studentPin } : {}),
               ...(classPeriod ? { classPeriod } : {}),
             };
@@ -616,10 +624,9 @@ export const useVideoActivitySessionStudent =
           setSession(sessionData);
           setJoinStatus('joined');
         } catch (err) {
-          console.error(
-            '[useVideoActivitySessionStudent] joinSession error:',
-            err
-          );
+          logError('useVideoActivitySessionStudent.joinSession', err, {
+            sessionId: targetSessionId,
+          });
           setJoinStatus('error');
           setError('Failed to join the session. Please try again.');
         }

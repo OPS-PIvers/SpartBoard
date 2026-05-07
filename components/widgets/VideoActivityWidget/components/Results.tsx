@@ -173,10 +173,14 @@ export const Results: React.FC<ResultsProps> = ({
         tabSwitchWarnings: r.tabSwitchWarnings ?? 0,
       }));
 
+      // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
+      // their resolved ClassLink names instead of falling back to the
+      // generic "Student" label.
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
-        questions
+        questions,
+        { byStudentUid }
       );
       setExportUrl(url);
     } catch (err) {

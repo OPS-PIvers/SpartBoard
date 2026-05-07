@@ -92,7 +92,7 @@ export const VideoActivityStudentApp: React.FC = () => {
           }
         }
       } catch (err) {
-        console.warn('[VideoActivityStudentApp] Auth init failed:', err);
+        logError('VideoActivityStudentApp.authInit', err);
         setAuthFailed(true);
       } finally {
         setAuthReady(true);
@@ -217,7 +217,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
         const autoClassPeriod = resolveSsoClassPeriod(sessionInfo, ssoClassIds);
         await joinSession(sessionId, undefined, autoClassPeriod);
       } catch (err) {
-        console.error('[VideoActivityStudentApp] SSO auto-join failed:', err);
+        logError('VideoActivityStudentApp.ssoAutoJoin', err, { sessionId });
         setSsoAutoJoinError(
           'Something went wrong joining this activity. Please refresh and try again.'
         );

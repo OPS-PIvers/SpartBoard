@@ -2780,14 +2780,16 @@ export interface VideoActivityResponse {
   score: number | null;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
-  /** Count of tab/focus losses while the activity is in progress. */
+  /** Count of tab/focus losses while the activity is in progress. Append-only at the rules layer. */
   tabSwitchWarnings?: number;
   /**
-   * Timestamps of completed attempts on each question. Used to enforce
-   * `VideoActivitySessionOptions.attemptLimit`. The array is appended to on
-   * every submission (correct or incorrect).
+   * Number of completed activity attempts. Used to enforce
+   * `VideoActivitySessionOptions.attemptLimit`. Initialized to 0 at create
+   * time and incremented on each completion. Append-only at the rules layer
+   * (a student can only write a value `>=` the existing one). Mirrors
+   * `QuizResponse.completedAttempts`.
    */
-  completedAttempts?: number[];
+  completedAttempts?: number;
   /** Final correctness flag, set when scores are published. */
   isCorrect?: boolean;
   /**
