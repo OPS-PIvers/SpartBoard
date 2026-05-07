@@ -216,7 +216,8 @@
       "removeFailed": "Failed to remove member",
       "revokeFailed": "Failed to revoke invitation",
       "acceptFailed": "Failed to accept invitation",
-      "declineFailed": "Failed to decline invitation"
+      "declineFailed": "Failed to decline invitation",
+      "openDashboard": "Open {{name}} dashboard"
     },
     "widgets": {
       "gradeFilter": "Grade Filter",
@@ -250,6 +251,68 @@
       "saveAllChanges": "Save all changes"
     },
     "confirmClearBoard": "Are you sure you want to close ALL widget windows?"
+  },
+  "plcDashboard": {
+    "subtitle": "PLC Dashboard",
+    "backToMenu": "Back",
+    "close": "Close",
+    "tabs": {
+      "completed": "Completed Assignments",
+      "quizzes": "Quiz Library",
+      "assignments": "PLC Assignments",
+      "videoActivities": "Video Activities",
+      "notes": "Notes",
+      "todos": "To-Do List",
+      "sharedBoards": "Shared Boards",
+      "settings": "Settings"
+    },
+    "meta": {
+      "members_one": "{{count}} Member",
+      "members_other": "{{count}} Members",
+      "youLead": "You lead this PLC"
+    },
+    "completedAssignments": {
+      "heading": "Shared Results",
+      "count_one": "{{count}} assignment",
+      "count_other": "{{count}} assignments",
+      "byOwner": "by {{name}}",
+      "openSheet": "Open Sheet",
+      "unsafeSheet": "No link",
+      "emptyTitle": "No PLC assignments yet",
+      "emptySubtitle": "When you or a teammate runs a quiz with PLC mode on, it'll show up here with a link to the shared results sheet."
+    },
+    "placeholder": {
+      "comingSoon": "Coming soon"
+    },
+    "settings": {
+      "heading": "Dashboard Sections",
+      "description": "Choose which sections appear in this PLC's dashboard. Any PLC member can update these.",
+      "saveFailed": "Failed to save settings",
+      "quizzes": {
+        "title": "Quiz Library",
+        "description": "Share quizzes with the PLC. Members can sync edits or copy a quiz into their own library."
+      },
+      "assignments": {
+        "title": "PLC Assignments",
+        "description": "Author PLC-level assignments that members can pick up on their own boards."
+      },
+      "videoActivities": {
+        "title": "Video Activities",
+        "description": "Share video-based activities and aggregate completion data with the PLC."
+      },
+      "notes": {
+        "title": "Notes",
+        "description": "A shared notebook for the PLC."
+      },
+      "todos": {
+        "title": "To-Do List",
+        "description": "A shared checklist so the PLC can track action items."
+      },
+      "sharedBoards": {
+        "title": "Shared Boards",
+        "description": "Surface dashboards shared with this PLC."
+      }
+    }
   },
   "widgetWindow": {
     "closeWidget": "Close widget? Data will be lost.",

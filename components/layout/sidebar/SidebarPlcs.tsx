@@ -18,6 +18,8 @@ interface SidebarPlcsProps {
   deletePlc: (plcId: string) => Promise<void>;
   /** Pending invites, lifted alongside `plcs` for the same reason. */
   pendingInvites: PlcInvitation[];
+  /** Open the full PLC Dashboard for the selected PLC. */
+  onOpenDashboard: (plcId: string) => void;
 }
 
 /**
@@ -34,6 +36,7 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
   leavePlc,
   deletePlc,
   pendingInvites,
+  onOpenDashboard,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -208,30 +211,44 @@ export const SidebarPlcs: React.FC<SidebarPlcsProps> = ({
                         key={plc.id}
                         className="flex items-center gap-2 p-2.5 bg-white border border-slate-200 hover:border-slate-300 rounded-xl transition-all"
                       >
-                        <div className="shrink-0 w-8 h-8 rounded-lg bg-brand-blue-lighter flex items-center justify-center">
-                          <Users2 className="w-4 h-4 text-brand-blue-primary" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5 min-w-0">
-                            <div className="text-sm font-bold text-slate-800 truncate">
-                              {plc.name}
+                        {/* Left side: clickable area opens the PLC dashboard.
+                            Implemented as a button so keyboard + screen-reader
+                            navigation work. The right-side action icons sit
+                            outside this button so nested-button HTML is avoided. */}
+                        <button
+                          type="button"
+                          onClick={() => onOpenDashboard(plc.id)}
+                          className="flex items-center gap-2 flex-1 min-w-0 text-left rounded-lg hover:bg-brand-blue-lighter/30 transition-colors -m-1 p-1"
+                          aria-label={t('sidebar.plcs.openDashboard', {
+                            defaultValue: 'Open {{name}} dashboard',
+                            name: plc.name,
+                          })}
+                        >
+                          <div className="shrink-0 w-8 h-8 rounded-lg bg-brand-blue-lighter flex items-center justify-center">
+                            <Users2 className="w-4 h-4 text-brand-blue-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <div className="text-sm font-bold text-slate-800 truncate">
+                                {plc.name}
+                              </div>
+                              {isLead && (
+                                <span className="text-xxs font-bold text-brand-blue-primary bg-brand-blue-lighter px-1.5 py-0.5 rounded uppercase tracking-wider">
+                                  {t('sidebar.plcs.leadBadge', {
+                                    defaultValue: 'Lead',
+                                  })}
+                                </span>
+                              )}
                             </div>
-                            {isLead && (
-                              <span className="text-xxs font-bold text-brand-blue-primary bg-brand-blue-lighter px-1.5 py-0.5 rounded uppercase tracking-wider">
-                                {t('sidebar.plcs.leadBadge', {
-                                  defaultValue: 'Lead',
-                                })}
-                              </span>
-                            )}
+                            <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
+                              {t('sidebar.plcs.memberCount', {
+                                count: plc.memberUids.length,
+                                defaultValue: '{{count}} Member',
+                                defaultValue_other: '{{count}} Members',
+                              })}
+                            </div>
                           </div>
-                          <div className="text-xxs font-semibold text-slate-400 uppercase tracking-widest">
-                            {t('sidebar.plcs.memberCount', {
-                              count: plc.memberUids.length,
-                              defaultValue: '{{count}} Member',
-                              defaultValue_other: '{{count}} Members',
-                            })}
-                          </div>
-                        </div>
+                        </button>
                         <div className="flex items-center gap-0.5 shrink-0">
                           <button
                             onClick={() => setEditingPlcId(plc.id)}

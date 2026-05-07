@@ -26,8 +26,9 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { auth, db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
+import { writePlcAssignmentIndexEntry } from './usePlcAssignmentIndex';
 import type {
   AssignmentMode,
   PlcLinkage,
@@ -728,6 +729,29 @@ export const useQuizAssignments = (
       );
       batch.set(doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId), session);
       await batch.commit();
+
+      // PLC dashboard index: when this assignment opts into PLC mode,
+      // record a snapshot under `plcs/{plcId}/assignment_index` so every
+      // teammate sees it on the PLC Dashboard's Completed Assignments tab.
+      // Fire-and-forget — we deliberately don't `await` so the assign
+      // action returns as soon as the canonical assignment + session
+      // batch has committed. The helper has its own try/catch and never
+      // rejects, so there's no unhandled-promise concern. Covers every
+      // flow that goes through `createAssignment`, including
+      // `importSharedAssignment` when the importer is a PLC member.
+      if (settings.plc) {
+        const current = auth.currentUser;
+        void writePlcAssignmentIndexEntry(settings.plc.id, {
+          id: assignmentId,
+          kind: 'quiz',
+          ownerUid: userId,
+          ownerName: current?.displayName ?? '',
+          ownerEmail: (current?.email ?? '').toLowerCase(),
+          title: quiz.title,
+          sheetUrl: settings.plc.sheetUrl,
+          createdAt: now,
+        });
+      }
 
       return { id: assignmentId, code };
     },
