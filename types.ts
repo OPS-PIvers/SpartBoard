@@ -1823,12 +1823,32 @@ export interface QuizSessionOptions {
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
   soundEffectsEnabled?: boolean;
+  /**
+   * Randomize the order of questions per student per attempt. When on, every
+   * student in the class sees questions in their own order, and each retake
+   * by the same student gets a fresh order too. Self-paced mode only —
+   * teacher-paced/auto sessions ignore this toggle (the teacher's
+   * `currentQuestionIndex` is the canonical pointer).
+   */
+  shuffleQuestions?: boolean;
+  /**
+   * Randomize the order of answer options (MC choices, Matching right side,
+   * Ordering items) per student per attempt. Independent of the always-on
+   * teacher-client shuffle in `toPublicQuestion` (run once at session-create
+   * time so the answer-key offset isn't deterministic in the Firestore doc);
+   * this toggle controls the second per-student shuffle that runs in the
+   * student client. Default (when the field is absent on legacy/in-flight
+   * sessions) is treated as ON to preserve pre-toggle behavior.
+   */
+  shuffleAnswerOptions?: boolean;
 }
 
 /**
  * Student-safe question stored in the session document.
  * Never contains correctAnswer so students cannot cheat by inspecting
- * Firestore/network traffic. Answer choices are pre-shuffled server-side.
+ * Firestore/network traffic. Answer choices are pre-shuffled by the teacher
+ * client at session-create time (in `toPublicQuestion`) before the doc is
+ * written to Firestore.
  */
 export interface QuizPublicQuestion {
   id: string;
@@ -1915,6 +1935,18 @@ export interface QuizSession {
   showPodiumBetweenQuestions?: boolean;
   /** Play sound effects during the quiz (default false) */
   soundEffectsEnabled?: boolean;
+  /**
+   * Per-student per-attempt question-order shuffle (default false / absent).
+   * Mirrored from the assignment's `sessionOptions.shuffleQuestions` so the
+   * student client doesn't need a second fetch.
+   */
+  shuffleQuestions?: boolean;
+  /**
+   * Per-student per-attempt answer-option shuffle. Absent on legacy sessions
+   * — consumers must default to `true` to preserve the pre-toggle behavior
+   * (the second client-side shuffle was always on before this flag landed).
+   */
+  shuffleAnswerOptions?: boolean;
   /** Current phase within a question: 'answering' (default) or 'reviewing' (between-question review) */
   questionPhase?: 'answering' | 'reviewing';
   /** Top-N leaderboard snapshot broadcast by the teacher for student view. */

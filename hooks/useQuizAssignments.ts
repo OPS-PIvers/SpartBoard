@@ -696,6 +696,11 @@ export const useQuizAssignments = (
         streakBonusEnabled: opts.streakBonusEnabled ?? false,
         showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? true,
         soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
+        // Per-student per-attempt shuffling. `shuffleAnswerOptions` defaults
+        // to true to preserve the always-on behavior that pre-dates this
+        // toggle; `shuffleQuestions` is opt-in.
+        shuffleQuestions: opts.shuffleQuestions ?? false,
+        shuffleAnswerOptions: opts.shuffleAnswerOptions ?? true,
         questionPhase: 'answering',
         periodNames: settings.periodNames,
         // Phase 5A: multi-class ClassLink targeting. Write `classIds` when
@@ -950,6 +955,10 @@ export const useQuizAssignments = (
             o.showPodiumBetweenQuestions;
         if (o.soundEffectsEnabled !== undefined)
           sessionPatch.soundEffectsEnabled = o.soundEffectsEnabled;
+        if (o.shuffleQuestions !== undefined)
+          sessionPatch.shuffleQuestions = o.shuffleQuestions;
+        if (o.shuffleAnswerOptions !== undefined)
+          sessionPatch.shuffleAnswerOptions = o.shuffleAnswerOptions;
       }
       if (Object.keys(sessionPatch).length > 0) {
         batch.update(
