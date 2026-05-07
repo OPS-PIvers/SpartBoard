@@ -28,15 +28,24 @@ const mockLoadSharedDashboard = vi.fn();
 const mockSaveDashboard = vi.fn().mockResolvedValue(undefined);
 const mockJoinSharedBoard = vi.fn().mockResolvedValue(undefined);
 const mockSubscribeToSharedBoard = vi.fn(() => () => undefined);
+const mockMirrorSharedBoard = vi.fn().mockResolvedValue(undefined);
+const mockStopSharingBoard = vi.fn().mockResolvedValue(undefined);
+const mockLeaveSharedBoard = vi.fn().mockResolvedValue(undefined);
 
 type SubscribeCallback = (
   dashboards: Dashboard[],
   hasPendingWrites: boolean
 ) => void;
 
+// Mutable seed for the initial dashboards-list snapshot. Tests that need
+// the provider to start with a pre-existing linked board override this in
+// their setup before render. Default = empty list so legacy tests are
+// unaffected.
+let initialDashboardsSeed: Dashboard[] = [];
+
 const mockSubscribeToDashboards = vi.fn((cb: SubscribeCallback) => {
-  // Immediate callback with empty list to simulate loaded state
-  cb([], false);
+  // Immediate callback with the seeded list to simulate loaded state
+  cb(initialDashboardsSeed, false);
   return () => {
     // no-op
   };
@@ -50,11 +59,11 @@ vi.mock('../hooks/useFirestore', () => ({
     subscribeToDashboards: mockSubscribeToDashboards,
     shareDashboard: vi.fn(),
     loadSharedDashboard: mockLoadSharedDashboard,
-    mirrorSharedBoard: vi.fn().mockResolvedValue(undefined),
+    mirrorSharedBoard: mockMirrorSharedBoard,
     subscribeToSharedBoard: mockSubscribeToSharedBoard,
     joinSharedBoard: mockJoinSharedBoard,
-    leaveSharedBoard: vi.fn().mockResolvedValue(undefined),
-    stopSharingBoard: vi.fn().mockResolvedValue(undefined),
+    leaveSharedBoard: mockLeaveSharedBoard,
+    stopSharingBoard: mockStopSharingBoard,
     rosters: [],
     addRoster: vi.fn(),
     updateRoster: vi.fn(),
@@ -82,6 +91,7 @@ describe('DashboardContext Sharing Logic', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    initialDashboardsSeed = [];
 
     // Simulate visiting the share URL by updating the history state
     window.history.pushState({}, '', '/share/test-share-id');
@@ -284,5 +294,212 @@ describe('DashboardContext Sharing Logic', () => {
       'viewer',
       expect.any(String)
     );
+  });
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Live-share lifecycle: detach during debounce + host-side stopSharing.
+  //
+  // Both paths share a failure mode: the 500ms mirror debounce can fire
+  // AFTER the user already detached, which would write a stale snapshot
+  // into /shared_boards/{shareId} (or worse, a snapshot for a doc that no
+  // longer exists / a participant that no longer has write access). The
+  // mirror effect is supposed to cancel those pending timers when a
+  // shareId leaves the live linked-set; these tests pin that behavior.
+  // ───────────────────────────────────────────────────────────────────────
+  describe('mirror cancellation on detach', () => {
+    beforeEach(() => {
+      // No share URL for these tests — they exercise the linked-board
+      // lifecycle, not the import flow.
+      window.history.pushState({}, '', '/');
+    });
+
+    it('host stopSharingDashboard cancels a pending mirror write within the 500ms debounce window', async () => {
+      // Seed a Synced board this user owns. The mirror effect is meant
+      // to push edits to /shared_boards/{shareId} on a 500ms debounce.
+      const linkedDashboard: Dashboard = {
+        id: 'local-dash-1',
+        name: 'My Linked Board',
+        background: 'bg-slate-800',
+        widgets: [
+          {
+            id: 'w1',
+            type: 'clock',
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 100,
+            z: 1,
+            flipped: false,
+            config: {},
+          },
+        ],
+        createdAt: 1234567890,
+        linkedShareId: 'test-share-id',
+        linkedShareRole: 'owner',
+      };
+      initialDashboardsSeed = [linkedDashboard];
+
+      type Stop = ReturnType<typeof useDashboard>['stopSharingDashboard'];
+      type Update = ReturnType<typeof useDashboard>['updateWidget'];
+      type Load = ReturnType<typeof useDashboard>['loadDashboard'];
+      let stop: Stop | null = null;
+      let update: Update | null = null;
+      let load: Load | null = null;
+
+      const Probe: React.FC = () => {
+        const { stopSharingDashboard, updateWidget, loadDashboard } =
+          useDashboard();
+        useEffect(() => {
+          stop = stopSharingDashboard;
+          update = updateWidget;
+          load = loadDashboard;
+        }, [stopSharingDashboard, updateWidget, loadDashboard]);
+        return <div>Test App</div>;
+      };
+
+      vi.useFakeTimers();
+      try {
+        render(
+          <DashboardProvider>
+            <Probe />
+          </DashboardProvider>
+        );
+
+        // Wait for the provider to settle and capture handles.
+        await vi.waitFor(() => {
+          expect(stop).not.toBeNull();
+          expect(update).not.toBeNull();
+          expect(load).not.toBeNull();
+        });
+
+        // The seeded board has an initial mirror write queued by the
+        // first effect pass (because lastMirroredRef has no entry yet).
+        // Activate it so updateWidget targets it, then trigger an edit
+        // to refresh the debounce window.
+        act(() => {
+          if (load) load('local-dash-1');
+        });
+        act(() => {
+          if (update) update('w1', { x: 50 });
+        });
+
+        // BEFORE 500ms elapses, the host stops sharing.
+        await act(async () => {
+          if (stop) await stop('local-dash-1');
+        });
+
+        // Now advance past the debounce window. The cancellation logic
+        // should have cleared the pending timer, so no mirror write
+        // fires for the detached share.
+        mockMirrorSharedBoard.mockClear();
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1000);
+        });
+
+        expect(mockMirrorSharedBoard).not.toHaveBeenCalled();
+        // Host detach also tears down the shared doc.
+        expect(mockStopSharingBoard).toHaveBeenCalledWith('test-share-id');
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('host stopSharingDashboard clears linkedShareId on the local board', async () => {
+      // After stop-sharing, the local copy keeps its content but loses
+      // the live-share link metadata so banner / mirror effects detach.
+      const linkedDashboard: Dashboard = {
+        id: 'local-dash-2',
+        name: 'My Linked Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1234567890,
+        linkedShareId: 'test-share-id',
+        linkedShareRole: 'owner',
+        linkedShareHostName: 'Test User',
+      };
+      initialDashboardsSeed = [linkedDashboard];
+
+      type Stop = ReturnType<typeof useDashboard>['stopSharingDashboard'];
+      let stop: Stop | null = null;
+      let observed: Dashboard | undefined;
+
+      const Probe: React.FC = () => {
+        const { stopSharingDashboard, dashboards } = useDashboard();
+        useEffect(() => {
+          stop = stopSharingDashboard;
+          observed = dashboards.find((d) => d.id === 'local-dash-2');
+        }, [stopSharingDashboard, dashboards]);
+        return <div>Test App</div>;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => {
+        expect(stop).not.toBeNull();
+        expect(observed?.linkedShareId).toBe('test-share-id');
+      });
+
+      await act(async () => {
+        if (stop) await stop('local-dash-2');
+      });
+
+      await waitFor(() => {
+        expect(observed?.linkedShareId).toBeUndefined();
+        expect(observed?.linkedShareRole).toBeUndefined();
+      });
+      // The shared doc was deleted on the firestore side.
+      expect(mockStopSharingBoard).toHaveBeenCalledWith('test-share-id');
+      // saveDashboard was called with the detached (cleared-link) snapshot.
+      const detachedSave = (
+        mockSaveDashboard.mock.calls as Array<[Dashboard]>
+      ).find(
+        (c) => c[0].id === 'local-dash-2' && c[0].linkedShareId === undefined
+      );
+      expect(detachedSave).toBeDefined();
+    });
+
+    it('guest stopSharingDashboard calls leaveSharedBoard, not stopSharingBoard', async () => {
+      // Guests can leave but cannot tear down the host's shared doc.
+      const linkedDashboard: Dashboard = {
+        id: 'guest-dash',
+        name: 'Joined Board',
+        background: 'bg-slate-800',
+        widgets: [],
+        createdAt: 1234567890,
+        linkedShareId: 'test-share-id',
+        linkedShareRole: 'collaborator',
+      };
+      initialDashboardsSeed = [linkedDashboard];
+
+      type Stop = ReturnType<typeof useDashboard>['stopSharingDashboard'];
+      let stop: Stop | null = null;
+
+      const Probe: React.FC = () => {
+        const { stopSharingDashboard } = useDashboard();
+        useEffect(() => {
+          stop = stopSharingDashboard;
+        }, [stopSharingDashboard]);
+        return <div>Test App</div>;
+      };
+
+      render(
+        <DashboardProvider>
+          <Probe />
+        </DashboardProvider>
+      );
+
+      await waitFor(() => expect(stop).not.toBeNull());
+
+      await act(async () => {
+        if (stop) await stop('guest-dash');
+      });
+
+      expect(mockLeaveSharedBoard).toHaveBeenCalledWith('test-share-id');
+      expect(mockStopSharingBoard).not.toHaveBeenCalled();
+    });
   });
 });
