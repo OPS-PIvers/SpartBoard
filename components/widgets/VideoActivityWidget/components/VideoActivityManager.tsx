@@ -1438,9 +1438,13 @@ const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
           <input
             type="number"
             min={0}
+            step={1}
             value={penalty}
             onChange={(e) => {
-              const next = Number(e.target.value);
+              // Integer-only: a fractional penalty mid-quiz produces a
+              // confusing "you lost 0.5 points" message. Floor any decimal
+              // the browser accepts (some mobile keyboards still allow .).
+              const next = Math.floor(Number(e.target.value));
               const safe = Number.isFinite(next) && next >= 0 ? next : 0;
               onChange((prev) => ({
                 ...prev,

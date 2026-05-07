@@ -248,20 +248,11 @@ export const QuizAssignmentSettingsModal: React.FC<
             shuffleAnswerOptions: options.shuffleAnswerOptions,
           }}
           onOptionsChange={(next) =>
-            setOptions((p) => ({
-              ...p,
-              tabWarningsEnabled:
-                next.tabWarningsEnabled ?? p.tabWarningsEnabled,
-              showResultToStudent:
-                next.showResultToStudent ?? p.showResultToStudent,
-              showCorrectAnswerToStudent:
-                next.showCorrectAnswerToStudent ?? p.showCorrectAnswerToStudent,
-              showCorrectOnBoard:
-                next.showCorrectOnBoard ?? p.showCorrectOnBoard,
-              shuffleQuestions: next.shuffleQuestions ?? p.shuffleQuestions,
-              shuffleAnswerOptions:
-                next.shuffleAnswerOptions ?? p.shuffleAnswerOptions,
-            }))
+            // The primitive's internal `update` always emits the full options
+            // object with one field changed, so spreading `next` over `p`
+            // correctly merges without dropping other state. Avoids the
+            // `?? p.X` pattern that's easy to misread as a falsy bug.
+            setOptions((p) => ({ ...p, ...next }))
           }
           attemptLimit={options.attemptLimit}
           onAttemptLimitChange={(v) =>

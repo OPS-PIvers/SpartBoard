@@ -1958,18 +1958,10 @@ const AssignExtraSlot: React.FC<{
           showCorrectOnBoard: options.showCorrectOnBoard,
         }}
         onOptionsChange={(next) =>
-          onChange({
-            ...options,
-            tabWarningsEnabled:
-              next.tabWarningsEnabled ?? options.tabWarningsEnabled,
-            showResultToStudent:
-              next.showResultToStudent ?? options.showResultToStudent,
-            showCorrectAnswerToStudent:
-              next.showCorrectAnswerToStudent ??
-              options.showCorrectAnswerToStudent,
-            showCorrectOnBoard:
-              next.showCorrectOnBoard ?? options.showCorrectOnBoard,
-          })
+          // The primitive's `update` always emits the full options object
+          // with one field changed, so spreading `next` over `options`
+          // correctly merges without dropping other state.
+          onChange({ ...options, ...next })
         }
         attemptLimit={options.attemptLimit}
         onAttemptLimitChange={(v) => update('attemptLimit', v)}
