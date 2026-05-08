@@ -424,13 +424,30 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   // override the persisted preference until the teacher confirms it's
   // safe to display student performance on this screen — a projector
   // could otherwise leak grades the moment the monitor opens.
+  // Effective values gated by the session-local reveal approval. We
+  // override the persisted preference until the teacher confirms it's
+  // safe to display student performance on this screen — a projector
+  // could otherwise leak grades the moment the monitor opens.
   const effectiveColorsEnabled =
     scoreRevealApproved && quizMonitorColorsEnabled;
   const effectiveScoreDisplay: 'percent' | 'count' | 'hidden' =
     scoreRevealApproved ? quizMonitorScoreDisplay : 'hidden';
 
+  // Live session-id tracker. The `requestScoreReveal` callback can stay
+  // mounted while a teacher's confirm dialog awaits, and Firestore can
+  // swap `session.id` underneath. `useCallback` would close over a stale
+  // `session.id` from its capturing render, so we read the current id
+  // through a ref that's updated every render.
+  const sessionIdRef = useRef(session.id);
+  sessionIdRef.current = session.id;
+
   const requestScoreReveal = useCallback(async () => {
     if (scoreRevealApproved) return true;
+    // Capture the session this prompt belongs to. If the active session
+    // changes mid-await, the resolution must NOT apply approval to the
+    // fresh session — that would silently bypass the gate on a session
+    // the teacher never agreed to reveal.
+    const sessionAtRequest = sessionIdRef.current;
     const ok = await showConfirm(
       "Heads up — this monitor may be projected to the class. Confirm only if it's appropriate to display student performance on the current screen.",
       {
@@ -440,6 +457,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
         cancelLabel: 'Keep hidden',
       }
     );
+    if (sessionIdRef.current !== sessionAtRequest) return false;
     if (ok) setScoreRevealApproved(true);
     return ok;
   }, [scoreRevealApproved, showConfirm]);
@@ -2540,7 +2558,7 @@ const StudentRow: React.FC<{
 
   return (
     <div
-      className={`flex items-center rounded-xl border transition-all group/row ${rowBg}`}
+      className={`flex items-center rounded-xl border transition-all ${rowBg}`}
       style={{
         gap: 'min(8px, 2cqmin)',
         padding: 'min(8px, 2cqmin)',

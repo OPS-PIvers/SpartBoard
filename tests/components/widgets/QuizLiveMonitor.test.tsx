@@ -454,6 +454,59 @@ describe('QuizLiveMonitor', () => {
     expect(showConfirm).toHaveBeenCalledTimes(1);
   });
 
+  it('does not apply approval to a fresh session if session.id changes while the confirm dialog is awaiting', async () => {
+    // Hold the confirm promise open so we can swap session.id under it.
+    let resolveConfirm: (value: boolean) => void = () => undefined;
+    showConfirm.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveConfirm = resolve;
+        })
+    );
+    const result = render(
+      buildTree({
+        session: { id: 'sess-A', periodNames: ['P1'] },
+        responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
+      })
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
+
+    // Swap the active session before the dialog resolves. The session-id
+    // change block clears any prior approval — but the in-flight confirm
+    // must NOT race ahead and re-set scoreRevealApproved on the new session.
+    const session2 = makeSession({ id: 'sess-B', periodNames: ['P1'] });
+    const config2 = makeConfig({ periodNames: session2.periodNames });
+    result.rerender(
+      <QuizLiveMonitor
+        session={session2}
+        responses={[makeResponse({ pin: '1111', classPeriod: 'P1' })]}
+        quizData={makeQuizData()}
+        onAdvance={noopAsync}
+        onEnd={noopAsync}
+        config={config2}
+        rosters={[makeRoster('P1')]}
+        onUpdateConfig={vi.fn()}
+      />
+    );
+
+    // Now resolve the original confirm with `true` — the new session must
+    // stay un-approved, so the next reveal click on session B prompts again.
+    await act(async () => {
+      resolveConfirm(true);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    showConfirm.mockClear();
+    showConfirm.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the empty-state and Clear filter button when the active filter narrows to zero rows', () => {
     renderMonitor({
       session: { periodNames: ['P1', 'P2'] },
