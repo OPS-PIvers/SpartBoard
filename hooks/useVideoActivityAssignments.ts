@@ -642,49 +642,44 @@ export const useVideoActivityAssignments = (
         throw new Error('Shared video activity not found.');
       }
 
-      // 1) Save the activity into the importer's library.
-      const importedActivity: VideoActivityData = {
-        id: crypto.randomUUID(),
-        title: sharedDoc.title,
-        youtubeUrl: sharedDoc.youtubeUrl,
-        questions: sharedDoc.questions,
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      };
-      const savedMeta = await options.saveActivity(importedActivity);
-
-      // 2) Sync mode — join the synced group + attach linkage to local meta.
+      // 1) Sync mode FIRST — join the synced group and pull the canonical
+      // content BEFORE we save the activity. This guarantees the local
+      // replica matches the live group at join time; the share doc's
+      // inlined content can be stale relative to the canonical (peers
+      // edit the canonical via the publish transaction; the share doc is
+      // a snapshot from the moment the originator clicked Share).
       let syncedFromLinkage: VideoActivityAssignmentSyncLinkage | undefined;
+      let canonicalContent: {
+        title: string;
+        youtubeUrl: string;
+        questions: typeof sharedDoc.questions;
+      } | null = null;
       if (options.mode === 'sync' && sharedDoc.syncGroupId) {
         try {
           const joinResult = await callJoinSyncedVideoActivityGroup(shareId);
-          // Pull the canonical to guarantee the importer's local Drive replica
-          // matches the live group at join time (avoids drift if the share
-          // doc's inlined content is stale relative to the canonical's
-          // current `version`).
           const canonical = await pullSyncedVideoActivityContent(
             joinResult.groupId
           );
-          if (options.attachSyncLinkage) {
-            await options.attachSyncLinkage(savedMeta.id, {
-              groupId: joinResult.groupId,
-              lastSyncedVersion: canonical.version,
-            });
-          }
+          canonicalContent = {
+            title: canonical.title,
+            youtubeUrl: canonical.youtubeUrl,
+            questions: canonical.questions,
+          };
           syncedFromLinkage = {
             groupId: joinResult.groupId,
             syncedVersion: canonical.version,
           };
         } catch (err) {
-          // Best-effort rollback: leave the synced group so the importer
-          // doesn't accumulate orphan participation when the rest of the
-          // import fails.
+          // Best-effort leave: if the join itself failed there's nothing
+          // to leave; if it succeeded but the pull failed, leave so the
+          // importer doesn't accumulate orphan participation. Either way,
+          // rethrow so the caller knows the import didn't run.
           if (sharedDoc.syncGroupId) {
             await callLeaveSyncedVideoActivityGroup(
               sharedDoc.syncGroupId
             ).catch((leaveErr) =>
               logError(
-                'useVideoActivityAssignments.importSharedAssignment.rollbackLeave',
+                'useVideoActivityAssignments.importSharedAssignment.rollbackJoin',
                 leaveErr,
                 { shareId }
               )
@@ -694,38 +689,79 @@ export const useVideoActivityAssignments = (
         }
       }
 
-      // 3) Create the local assignment, paused. Originator-only fields
-      // cleared: teacherName + periodName (which encode the original author's
-      // identity / single-class targeting). PLC linkage is preserved so the
-      // importer's results flow through the same sheet for PLC peers.
-      const sourceSettings = sharedDoc.assignmentSettings;
-      const importedSettings: VideoActivityAssignmentSettings = {
-        className: sourceSettings.className,
-        sessionSettings: sourceSettings.sessionSettings,
-        ...(sourceSettings.sessionOptions
-          ? { sessionOptions: sourceSettings.sessionOptions }
-          : {}),
-        ...(sourceSettings.scoreVisibility
-          ? { scoreVisibility: sourceSettings.scoreVisibility }
-          : {}),
-        ...(sourceSettings.periodNames && sourceSettings.periodNames.length > 0
-          ? { periodNames: sourceSettings.periodNames }
-          : {}),
-        ...(sourceSettings.plc ? { plc: sourceSettings.plc } : {}),
-        ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
+      // 2) Save activity content into the importer's library — using the
+      // canonical content when sync mode succeeded, otherwise the share
+      // doc's inline snapshot for copy mode.
+      const importedActivity: VideoActivityData = {
+        id: crypto.randomUUID(),
+        title: canonicalContent?.title ?? sharedDoc.title,
+        youtubeUrl: canonicalContent?.youtubeUrl ?? sharedDoc.youtubeUrl,
+        questions: canonicalContent?.questions ?? sharedDoc.questions,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
       };
-      const created = await createAssignment(
-        {
-          id: savedMeta.id,
-          title: savedMeta.title,
-          driveFileId: savedMeta.driveFileId,
-          youtubeUrl: savedMeta.youtubeUrl,
-          questions: importedActivity.questions,
-        },
-        importedSettings,
-        'paused'
-      );
-      return { assignmentId: created.id, activityId: savedMeta.id };
+
+      // From here onward, every failure must roll back the synced-group
+      // join (if any) so the importer doesn't end up as a participant in
+      // a group with no corresponding local assignment. Single try block
+      // wrapping save → attach → create covers all three failure points.
+      const rollbackLeave = async (rollbackErrCtx: string): Promise<void> => {
+        if (!syncedFromLinkage) return;
+        await callLeaveSyncedVideoActivityGroup(
+          syncedFromLinkage.groupId
+        ).catch((leaveErr) => logError(rollbackErrCtx, leaveErr, { shareId }));
+      };
+
+      try {
+        const savedMeta = await options.saveActivity(importedActivity);
+
+        if (syncedFromLinkage && options.attachSyncLinkage) {
+          await options.attachSyncLinkage(savedMeta.id, {
+            groupId: syncedFromLinkage.groupId,
+            lastSyncedVersion: syncedFromLinkage.syncedVersion,
+          });
+        }
+
+        // 3) Create the local assignment, paused. Originator-only fields
+        // cleared: teacherName + periodName (which encode the original
+        // author's identity / single-class targeting). PLC linkage is
+        // preserved so the importer's results flow through the same
+        // sheet for PLC peers.
+        const sourceSettings = sharedDoc.assignmentSettings;
+        const importedSettings: VideoActivityAssignmentSettings = {
+          className: sourceSettings.className,
+          sessionSettings: sourceSettings.sessionSettings,
+          ...(sourceSettings.sessionOptions
+            ? { sessionOptions: sourceSettings.sessionOptions }
+            : {}),
+          ...(sourceSettings.scoreVisibility
+            ? { scoreVisibility: sourceSettings.scoreVisibility }
+            : {}),
+          ...(sourceSettings.periodNames &&
+          sourceSettings.periodNames.length > 0
+            ? { periodNames: sourceSettings.periodNames }
+            : {}),
+          ...(sourceSettings.plc ? { plc: sourceSettings.plc } : {}),
+          ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
+        };
+        const created = await createAssignment(
+          {
+            id: savedMeta.id,
+            title: savedMeta.title,
+            driveFileId: savedMeta.driveFileId,
+            youtubeUrl: savedMeta.youtubeUrl,
+            questions: importedActivity.questions,
+          },
+          importedSettings,
+          'paused'
+        );
+        return { assignmentId: created.id, activityId: savedMeta.id };
+      } catch (err) {
+        await rollbackLeave(
+          'useVideoActivityAssignments.importSharedAssignment.rollbackSaveOrCreate'
+        );
+        throw err;
+      }
     },
     [userId, peekSharedAssignment, createAssignment]
   );

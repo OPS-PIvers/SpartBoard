@@ -66,7 +66,13 @@ export function useSyncedVideoActivityGroupsByIds(
     () => (syncGroupIds?.length ?? 0) > 0
   );
 
-  const idsKey = (syncGroupIds ?? []).slice().sort().join(',');
+  // Dedupe before sorting so `total` in the effect's `markResolved`
+  // counter matches the number of unique listeners we'll actually
+  // create. Otherwise a duplicate id would inflate `total` and the
+  // hook's `loading` flag would hang at `true` forever.
+  const idsKey = Array.from(new Set(syncGroupIds ?? []))
+    .sort()
+    .join(',');
 
   const [prevIdsKey, setPrevIdsKey] = useState(idsKey);
   if (prevIdsKey !== idsKey) {

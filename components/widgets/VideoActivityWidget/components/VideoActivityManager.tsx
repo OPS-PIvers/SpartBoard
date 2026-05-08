@@ -1383,8 +1383,15 @@ const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
 }) => {
   const rewind = options.rewindOnIncorrectSeconds ?? 0;
   const penalty = options.pointPenaltyOnIncorrect ?? 0;
+  // Backward compat for pre-PR3a snake_case scoreVisibility values that
+  // may already be persisted in Firestore. Without the normalize step the
+  // <select> falls through to the default 'score-only' silently, hiding
+  // the teacher's actual choice.
+  const rawVisibility = options.scoreVisibility;
   const visibility: VideoActivityScoreVisibility =
-    options.scoreVisibility ?? 'score-only';
+    rawVisibility === undefined
+      ? 'score-only'
+      : (rawVisibility.replace(/_/g, '-') as VideoActivityScoreVisibility);
 
   return (
     <div className="space-y-3 pt-1">
