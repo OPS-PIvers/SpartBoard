@@ -220,6 +220,12 @@ export const useGuidedLearningSessionTeacher = (
         ...(set.imageTransition && set.imageTransition !== 'none'
           ? { imageTransition: set.imageTransition }
           : {}),
+        ...(set.welcomeEnabled && set.welcomeMessage?.trim()
+          ? {
+              welcomeEnabled: true,
+              welcomeMessage: set.welcomeMessage,
+            }
+          : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

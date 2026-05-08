@@ -148,6 +148,8 @@ export const GuidedLearningEditorModal: React.FC<
     set?.hotspotPulse ?? 'consistent';
   const originalImageTransition: 'none' | 'slide' | 'fade' =
     set?.imageTransition ?? 'none';
+  const originalWelcomeEnabled = Boolean(set?.welcomeEnabled);
+  const originalWelcomeMessage = set?.welcomeMessage ?? '';
   const originalImageUrls = useMemo(
     () => (set ? [...set.imageUrls] : []),
     [set]
@@ -187,6 +189,8 @@ export const GuidedLearningEditorModal: React.FC<
       liveState.mode !== originalMode ||
       liveState.hotspotPulse !== originalHotspotPulse ||
       liveState.imageTransition !== originalImageTransition ||
+      liveState.welcomeEnabled !== originalWelcomeEnabled ||
+      liveState.welcomeMessage !== originalWelcomeMessage ||
       !arraysEqual(liveState.imageUrls, originalImageUrls) ||
       !stepsEqual(liveState.steps, originalSteps)
     );
@@ -197,6 +201,8 @@ export const GuidedLearningEditorModal: React.FC<
     originalMode,
     originalHotspotPulse,
     originalImageTransition,
+    originalWelcomeEnabled,
+    originalWelcomeMessage,
     originalImageUrls,
     originalSteps,
   ]);
@@ -224,6 +230,16 @@ export const GuidedLearningEditorModal: React.FC<
           : {}),
         ...(liveState.imageTransition !== 'none'
           ? { imageTransition: liveState.imageTransition }
+          : {}),
+        // Welcome screen — only persist when actually enabled WITH content.
+        // Toggle-on-but-empty falls back to default behavior at render time
+        // anyway, so don't write the field; this also avoids cluttering
+        // legacy sets that have never touched welcome settings.
+        ...(liveState.welcomeEnabled && liveState.welcomeMessage.trim()
+          ? {
+              welcomeEnabled: true,
+              welcomeMessage: liveState.welcomeMessage,
+            }
           : {}),
       };
       await onSave(builtSet, meta?.driveFileId);

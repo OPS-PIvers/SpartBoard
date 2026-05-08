@@ -304,14 +304,31 @@ const StartScreen: React.FC<{
     );
   }
 
+  // Welcome message gates: must be explicitly enabled AND have non-empty
+  // content. Toggle-on-with-empty-message falls through to the default
+  // mode/step subtitle so we never render an empty card.
+  const welcomeMessage = session.welcomeMessage?.trim() ?? '';
+  const showWelcome =
+    Boolean(session.welcomeEnabled) && welcomeMessage.length > 0;
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div
+        className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
+      >
         <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
         <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-        <p className="text-slate-400 text-sm mb-6 capitalize">
-          {session.mode} mode · {session.publicSteps.length} steps
-        </p>
+        {showWelcome ? (
+          <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
+            <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+              {welcomeMessage}
+            </p>
+          </div>
+        ) : (
+          <p className="text-slate-400 text-sm mb-6 capitalize">
+            {session.mode} mode · {session.publicSteps.length} steps
+          </p>
+        )}
 
         {selectedPeriod && periods.length > 1 && (
           <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2">
@@ -348,7 +365,7 @@ const StartScreen: React.FC<{
           onClick={onStart}
           className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
         >
-          Start
+          {showWelcome ? 'Get started' : 'Start'}
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>

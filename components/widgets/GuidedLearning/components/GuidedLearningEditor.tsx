@@ -99,6 +99,10 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
     setHotspotPulse,
     imageTransition,
     setImageTransition,
+    welcomeEnabled,
+    setWelcomeEnabled,
+    welcomeMessage,
+    setWelcomeMessage,
     imageUrls,
     currentImageIndex,
     setCurrentImageIndex,
@@ -271,6 +275,40 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
               {opt.label}
             </button>
           ))}
+        </div>
+
+        {/* Welcome screen — shown to students before the experience starts.
+            Toggle off → default subtitle (mode + step count). Toggle on with
+            an empty/whitespace message → still falls back to the default. */}
+        <div className="space-y-2">
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={welcomeEnabled}
+              onChange={(e) => setWelcomeEnabled(e.target.checked)}
+              className="accent-brand-blue-primary w-4 h-4 mt-0.5"
+            />
+            <span>
+              Show welcome screen
+              <span className="block text-xxs font-medium text-slate-500 mt-0.5">
+                Replaces the default mode/step subtitle on the student start
+                screen with your custom message and changes the Start button to
+                &quot;Get started&quot;.
+              </span>
+            </span>
+          </label>
+          <textarea
+            value={welcomeMessage}
+            onChange={(e) => setWelcomeMessage(e.target.value)}
+            disabled={!welcomeEnabled}
+            rows={3}
+            placeholder={
+              welcomeEnabled
+                ? 'e.g. Welcome to the Civil War tour. Click pins to explore each station.'
+                : 'Turn on the toggle above to add a welcome message.'
+            }
+            className="w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
+          />
         </div>
       </div>
 

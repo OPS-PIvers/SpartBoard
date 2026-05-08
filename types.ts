@@ -3689,6 +3689,20 @@ export interface GuidedLearningSet {
    * variants honor `prefers-reduced-motion`.
    */
   imageTransition?: 'none' | 'slide' | 'fade';
+  /**
+   * When true, the student start screen replaces the default mode/step
+   * subtitle with a custom message and changes the Start button label
+   * to "Get started". The message lives in `welcomeMessage`. Falsy =
+   * default behavior (mode + step count subtitle).
+   */
+  welcomeEnabled?: boolean;
+  /**
+   * Custom welcome message displayed on the student start screen when
+   * `welcomeEnabled` is true. Newlines are preserved. Empty/whitespace
+   * strings fall back to the default subtitle even when the toggle is
+   * on, so an enabled-but-empty welcome doesn't render an empty card.
+   */
+  welcomeMessage?: string;
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
@@ -3808,6 +3822,10 @@ export interface GuidedLearningSession {
   hotspotPulse?: 'consistent' | 'reminder' | 'off';
   /** Mirrors `GuidedLearningSet.imageTransition`. */
   imageTransition?: 'none' | 'slide' | 'fade';
+  /** Mirrors `GuidedLearningSet.welcomeEnabled`. */
+  welcomeEnabled?: boolean;
+  /** Mirrors `GuidedLearningSet.welcomeMessage`. */
+  welcomeMessage?: string;
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */

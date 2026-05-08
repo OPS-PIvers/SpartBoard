@@ -19,6 +19,8 @@ export interface GuidedLearningEditorState {
   uploading: boolean;
   hotspotPulse: 'consistent' | 'reminder' | 'off';
   imageTransition: 'none' | 'slide' | 'fade';
+  welcomeEnabled: boolean;
+  welcomeMessage: string;
 }
 
 interface UseGuidedLearningEditorStateProps {
@@ -43,6 +45,10 @@ export interface GuidedLearningEditorController {
   setHotspotPulse: (next: 'consistent' | 'reminder' | 'off') => void;
   imageTransition: 'none' | 'slide' | 'fade';
   setImageTransition: (next: 'none' | 'slide' | 'fade') => void;
+  welcomeEnabled: boolean;
+  setWelcomeEnabled: (next: boolean) => void;
+  welcomeMessage: string;
+  setWelcomeMessage: (next: string) => void;
   // Images
   imageUrls: string[];
   currentImageIndex: number;
@@ -111,6 +117,12 @@ export function useGuidedLearningEditorState({
   const [imageTransition, setImageTransition] = useState<
     'none' | 'slide' | 'fade'
   >(existingSet?.imageTransition ?? 'none');
+  const [welcomeEnabled, setWelcomeEnabled] = useState<boolean>(
+    Boolean(existingSet?.welcomeEnabled)
+  );
+  const [welcomeMessage, setWelcomeMessage] = useState<string>(
+    existingSet?.welcomeMessage ?? ''
+  );
 
   // Reset all draft state when the underlying set identity changes (parent
   // swapped to a different set). Uses the "adjust state while rendering"
@@ -130,6 +142,8 @@ export function useGuidedLearningEditorState({
     setAddingStep(false);
     setHotspotPulse(existingSet?.hotspotPulse ?? 'consistent');
     setImageTransition(existingSet?.imageTransition ?? 'none');
+    setWelcomeEnabled(Boolean(existingSet?.welcomeEnabled));
+    setWelcomeMessage(existingSet?.welcomeMessage ?? '');
   }
 
   useEffect(() => {
@@ -142,6 +156,8 @@ export function useGuidedLearningEditorState({
       uploading,
       hotspotPulse,
       imageTransition,
+      welcomeEnabled,
+      welcomeMessage,
     });
   }, [
     title,
@@ -152,6 +168,8 @@ export function useGuidedLearningEditorState({
     uploading,
     hotspotPulse,
     imageTransition,
+    welcomeEnabled,
+    welcomeMessage,
     onStateChange,
   ]);
 
@@ -311,6 +329,10 @@ export function useGuidedLearningEditorState({
     setHotspotPulse,
     imageTransition,
     setImageTransition,
+    welcomeEnabled,
+    setWelcomeEnabled,
+    welcomeMessage,
+    setWelcomeMessage,
     imageUrls,
     currentImageIndex,
     setCurrentImageIndex,
