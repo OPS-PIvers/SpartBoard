@@ -5,6 +5,8 @@ import { RandomGroup, SharedGroup } from '@/types';
 interface RandomGroupsProps {
   displayResult: string | string[] | string[][] | RandomGroup[] | null;
   sharedGroups?: SharedGroup[];
+  /** Default group name prefix when a group has no shared-groups entry. */
+  groupNamePrefix?: string;
 }
 
 const computeColumnCount = (
@@ -46,6 +48,7 @@ const computeColumnCount = (
 export const RandomGroups: React.FC<RandomGroupsProps> = ({
   displayResult,
   sharedGroups,
+  groupNamePrefix = 'Group',
 }) => {
   const groups = useMemo(() => {
     if (
@@ -115,7 +118,7 @@ export const RandomGroups: React.FC<RandomGroupsProps> = ({
         const groupId =
           !Array.isArray(groupItem) && 'id' in groupItem ? groupItem.id : null;
 
-        let groupName = `Group ${i + 1}`;
+        let groupName = `${groupNamePrefix} ${i + 1}`;
         if (groupId && sharedGroups) {
           const shared = sharedGroups.find((g) => g.id === groupId);
           if (shared) groupName = shared.name;

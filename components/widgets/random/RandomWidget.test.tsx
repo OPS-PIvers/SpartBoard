@@ -152,8 +152,8 @@ describe('RandomWidget', () => {
     it('renders home groups when jigsawView is "home"', () => {
       render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
       expect(screen.getByText('A')).toBeInTheDocument();
-      expect(screen.getByText('Group 1')).toBeInTheDocument();
-      // Footer launch buttons present
+      expect(screen.getByText('Home Group 1')).toBeInTheDocument();
+      // Footer launch buttons present (active one is disabled)
       expect(
         screen.getByRole('button', { name: /Launch Jigsaw/i })
       ).toBeInTheDocument();
@@ -162,14 +162,28 @@ describe('RandomWidget', () => {
       ).toBeInTheDocument();
     });
 
-    it('renders expert groups when jigsawView is "expert"', () => {
+    it('renders all expert groups when jigsawView is "expert"', () => {
       render(<RandomWidget widget={jigsawWidget({ jigsawView: 'expert' })} />);
-      // Expert group 1 has [A, C, E] together (one student per home group at
-      // position 0). Asserting on the expert-specific composition rules out
-      // that we accidentally rendered the home view.
-      expect(screen.getByText('A')).toBeInTheDocument();
-      expect(screen.getByText('C')).toBeInTheDocument();
-      expect(screen.getByText('E')).toBeInTheDocument();
+      // Expert group 1 has [A, C, E] (position 0 from each home group);
+      // expert group 2 has [B, D, F] (position 1). Asserting on both rules
+      // out a regression where only the first expert group renders.
+      expect(screen.getByText('Expert Group 1')).toBeInTheDocument();
+      expect(screen.getByText('Expert Group 2')).toBeInTheDocument();
+      for (const name of ['A', 'B', 'C', 'D', 'E', 'F']) {
+        expect(screen.getByText(name)).toBeInTheDocument();
+      }
+    });
+
+    it('disables the active jigsaw view button (clear current state)', () => {
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+      // jigsawView === 'home' → Launch Home Group is the current view, so it
+      // should be disabled to make the active state visually unambiguous.
+      expect(
+        screen.getByRole('button', { name: /Launch Home Group/i })
+      ).toBeDisabled();
+      expect(
+        screen.getByRole('button', { name: /Launch Jigsaw/i })
+      ).not.toBeDisabled();
     });
 
     it('toggles jigsawView when Launch Jigsaw is clicked', () => {

@@ -27,6 +27,7 @@ import {
   Home,
   Sparkles,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { logError } from '@/utils/logError';
@@ -43,6 +44,40 @@ import { RandomFlash } from './RandomFlash';
 import { RandomGroups } from './RandomGroups';
 
 import { WidgetLayout } from '../WidgetLayout';
+
+interface ModeCycleEntry {
+  id: string;
+  labelKey: string;
+  defaultLabel: string;
+  icon: LucideIcon;
+}
+
+const MODE_CYCLE: readonly ModeCycleEntry[] = [
+  {
+    id: 'single',
+    labelKey: 'widgets.random.modes.single',
+    defaultLabel: 'Pick One',
+    icon: UserPlus,
+  },
+  {
+    id: 'shuffle',
+    labelKey: 'widgets.random.modes.shuffle',
+    defaultLabel: 'Shuffle',
+    icon: Layers,
+  },
+  {
+    id: 'groups',
+    labelKey: 'widgets.random.modes.groups',
+    defaultLabel: 'Groups',
+    icon: Users,
+  },
+  {
+    id: 'jigsaw',
+    labelKey: 'widgets.random.modes.jigsaw',
+    defaultLabel: 'Jigsaw',
+    icon: Puzzle,
+  },
+];
 
 export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t } = useTranslation();
@@ -95,6 +130,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   >(() => normalizeLastResult(config.lastResult));
   const [rotation, setRotation] = useState(0);
 
+  // Monotonic generation counter for in-flight picks. Bumped whenever the
+  // user resets, cycles modes, or the active roster changes mid-spin so the
+  // deferred jigsaw/groups setTimeout can detect that its result is stale
+  // and bail before clobbering the new state.
+  const spinGenRef = useRef(0);
+
   // Sync displayResult when config.lastResult changes (e.g. mode switch clears
   // it) using the "adjusting state while rendering" pattern. Doing this in a
   // useEffect would leave displayResult stale for one render, which crashed
@@ -120,16 +161,25 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
     if (changed) {
       lastRosterRef.current = { id: activeRosterId, mode: rosterMode };
-      updateWidget(widget.id, {
-        config: {
-          ...config,
-          lastResult: null,
-          remainingStudents: [],
-          jigsawHomeGroups: null,
-          jigsawExpertGroups: null,
-          jigsawView: 'home',
-        },
-      });
+      // Only write when there is actually transient state to clear —
+      // otherwise every roster swap costs a Firestore round-trip.
+      const hasTransientState =
+        config.lastResult != null ||
+        (config.remainingStudents?.length ?? 0) > 0 ||
+        (config.jigsawHomeGroups?.length ?? 0) > 0 ||
+        (config.jigsawExpertGroups?.length ?? 0) > 0;
+      if (hasTransientState) {
+        spinGenRef.current += 1;
+        updateWidget(widget.id, {
+          config: {
+            lastResult: null,
+            remainingStudents: [],
+            jigsawHomeGroups: null,
+            jigsawExpertGroups: null,
+            jigsawView: 'home',
+          } as unknown as WidgetConfig,
+        });
+      }
     }
   }, [activeRosterId, widget.id, updateWidget, config, rosterMode]);
 
@@ -197,6 +247,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
 
   const handleReset = () => {
+    spinGenRef.current += 1;
     updateWidget(widget.id, {
       config: {
         remainingStudents: [],
@@ -210,28 +261,25 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setRotation(0);
   };
 
-  const MODE_CYCLE: { id: string; label: string; icon: typeof UserPlus }[] = [
-    { id: 'single', label: 'Pick One', icon: UserPlus },
-    { id: 'shuffle', label: 'Shuffle', icon: Layers },
-    { id: 'groups', label: 'Groups', icon: Users },
-    { id: 'jigsaw', label: 'Jigsaw', icon: Puzzle },
-  ];
   const currentModeMeta =
     MODE_CYCLE.find((m) => m.id === mode) ?? MODE_CYCLE[0];
+  const currentModeLabel = t(currentModeMeta.labelKey, {
+    defaultValue: currentModeMeta.defaultLabel,
+  });
   const ModeIcon = currentModeMeta.icon;
 
   const cycleMode = () => {
     const idx = MODE_CYCLE.findIndex((m) => m.id === mode);
     const next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
+    spinGenRef.current += 1;
     updateWidget(widget.id, {
       config: {
-        ...config,
         mode: next.id,
         lastResult: null,
         jigsawHomeGroups: null,
         jigsawExpertGroups: null,
         jigsawView: 'home',
-      },
+      } as unknown as WidgetConfig,
     });
   };
 
@@ -501,7 +549,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }, 100);
       }
     } else if (mode === 'jigsaw') {
+      const myGen = ++spinGenRef.current;
       setTimeout(() => {
+        // Bail if the user reset / cycled mode / changed class while the
+        // 500 ms timeout was pending — otherwise we'd write home/expert
+        // groups for a mode the user already moved away from.
+        if (myGen !== spinGenRef.current) {
+          setIsSpinning(false);
+          return;
+        }
         let homeGroups: RandomGroup[];
         if (rosterMode === 'class' && activeRoster) {
           const { groups, unsatisfied } = makeRestrictedGroups(
@@ -528,12 +584,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         setIsSpinning(false);
 
         try {
-          const newSharedGroups: SharedGroup[] = homeGroups.map((g, i) => ({
+          const newHomeShared: SharedGroup[] = homeGroups.map((g, i) => ({
             id: g.id ?? '',
             name: `Home Group ${i + 1}`,
           }));
+          const newExpertShared: SharedGroup[] = expertGroups.map((g, i) => ({
+            id: g.id ?? '',
+            name: `Expert Group ${i + 1}`,
+          }));
           const existing = activeDashboard?.sharedGroups ?? [];
-          const uniqueNew = newSharedGroups.filter(
+          const uniqueNew = [...newHomeShared, ...newExpertShared].filter(
             (n) => n.id && !existing.some((e) => e.id === n.id)
           );
           if (uniqueNew.length > 0) {
@@ -553,7 +613,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
       }, 500);
     } else {
+      const myGen = ++spinGenRef.current;
       setTimeout(() => {
+        if (myGen !== spinGenRef.current) {
+          setIsSpinning(false);
+          return;
+        }
         let result: string[] | RandomGroup[];
         if (mode === 'shuffle') {
           result = shuffle(students);
@@ -764,27 +829,34 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 type="button"
                 onClick={cycleMode}
                 disabled={isSpinning}
-                className="flex items-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex items-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2"
                 style={{
                   gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                  height: 'min(32px, 8cqmin)',
+                  padding:
+                    'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
+                  minHeight: 'clamp(32px, 8cqmin, 48px)',
                 }}
-                aria-label={`Operation mode: ${currentModeMeta.label}. Tap to change.`}
-                title={`Mode: ${currentModeMeta.label} — tap to cycle`}
+                aria-label={t('widgets.random.modeChipAria', {
+                  mode: currentModeLabel,
+                  defaultValue: 'Operation mode: {{mode}}',
+                })}
+                title={t('widgets.random.modeChipTitle', {
+                  mode: currentModeLabel,
+                  defaultValue: 'Mode: {{mode}} — click to cycle',
+                })}
               >
                 <ModeIcon
                   className="text-brand-blue-primary shrink-0"
                   style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
+                    width: 'clamp(14px, 4cqmin, 22px)',
+                    height: 'clamp(14px, 4cqmin, 22px)',
                   }}
                 />
                 <span
                   className="font-black uppercase text-brand-blue-primary truncate min-w-0 tracking-widest"
-                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                  style={{ fontSize: 'clamp(11px, 3.5cqmin, 18px)' }}
                 >
-                  {currentModeMeta.label}
+                  {currentModeLabel}
                 </span>
               </button>
               {mode === 'single' && (
@@ -855,6 +927,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       : (jigsawHomeGroups ?? null)
                   }
                   sharedGroups={activeDashboard?.sharedGroups}
+                  groupNamePrefix={
+                    jigsawView === 'expert' ? 'Expert Group' : 'Home Group'
+                  }
                 />
               </div>
             ) : (
@@ -952,15 +1027,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   shape="pill"
                   size="md"
                   onClick={() => setJigsawView('expert')}
+                  disabled={jigsawView === 'expert'}
+                  aria-pressed={jigsawView === 'expert'}
                   className="flex-1"
                   style={{
                     height: 'clamp(40px, 10cqmin, 72px)',
                     paddingLeft: 'clamp(10px, 3cqmin, 24px)',
                     paddingRight: 'clamp(10px, 3cqmin, 24px)',
                   }}
-                  aria-label={t('widgets.random.launchJigsaw', {
-                    defaultValue: 'Launch Jigsaw',
-                  })}
                   title={t('widgets.random.launchJigsawHint', {
                     defaultValue: 'Show expert groups',
                   })}
@@ -987,15 +1061,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   shape="pill"
                   size="md"
                   onClick={() => setJigsawView('home')}
+                  disabled={jigsawView === 'home'}
+                  aria-pressed={jigsawView === 'home'}
                   className="flex-1"
                   style={{
                     height: 'clamp(40px, 10cqmin, 72px)',
                     paddingLeft: 'clamp(10px, 3cqmin, 24px)',
                     paddingRight: 'clamp(10px, 3cqmin, 24px)',
                   }}
-                  aria-label={t('widgets.random.launchHomeGroup', {
-                    defaultValue: 'Launch Home Group',
-                  })}
                   title={t('widgets.random.launchHomeGroupHint', {
                     defaultValue: 'Return to home groups',
                   })}
