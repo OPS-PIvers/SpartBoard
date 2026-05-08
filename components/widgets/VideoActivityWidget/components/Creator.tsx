@@ -307,13 +307,22 @@ export const Creator: React.FC<CreatorProps> = ({
                           aria-selected={active}
                           onClick={() => setDiscoverTab(id)}
                           className={
-                            'flex-1 px-3 py-2 text-xs font-bold transition-colors flex items-center justify-center gap-1.5 ' +
+                            'flex-1 font-bold transition-colors flex items-center justify-center gap-1.5 ' +
                             (active
                               ? 'bg-brand-blue-primary text-white'
                               : 'text-slate-600 hover:bg-slate-50')
                           }
+                          style={{
+                            padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)',
+                            fontSize: 'min(12px, 3.5cqmin)',
+                          }}
                         >
-                          <Icon className="w-3.5 h-3.5" />
+                          <Icon
+                            style={{
+                              width: 'min(14px, 4cqmin)',
+                              height: 'min(14px, 4cqmin)',
+                            }}
+                          />
                           {label}
                         </button>
                       );
@@ -556,14 +565,16 @@ const SearchTab: React.FC<SearchTabProps> = ({
             if (e.key === 'Enter') onSubmit();
           }}
           placeholder="e.g. photosynthesis crash course"
-          className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary text-sm shadow-sm"
+          className="w-full pl-9 pr-3 py-2.5 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary shadow-sm"
+          style={{ fontSize: 'min(13px, 3.5cqmin)' }}
         />
       </div>
       <button
         type="button"
         onClick={onSubmit}
         disabled={query.trim().length === 0 || searching}
-        className="px-4 py-2.5 bg-brand-blue-primary text-white rounded-xl font-bold text-xs uppercase tracking-wider disabled:opacity-50 hover:bg-brand-blue-dark transition-colors shadow-sm"
+        className="px-4 py-2.5 bg-brand-blue-primary text-white rounded-xl font-bold uppercase tracking-wider disabled:opacity-50 hover:bg-brand-blue-dark transition-colors shadow-sm"
+        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
         {searching ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Search'}
       </button>
@@ -659,13 +670,15 @@ const RecommendTab: React.FC<RecommendTabProps> = ({
         onChange={(e) => onTopicChange(e.target.value)}
         rows={3}
         placeholder="e.g. 6th grade lesson on photosynthesis — focus on chloroplasts and the role of sunlight"
-        className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary text-sm shadow-sm resize-none"
+        className="w-full px-3 py-2 bg-white border-2 border-slate-200 rounded-xl text-slate-800 font-medium focus:outline-none focus:border-brand-blue-primary shadow-sm resize-none"
+        style={{ fontSize: 'min(13px, 3.5cqmin)' }}
       />
       <button
         type="button"
         onClick={onSubmit}
         disabled={topic.trim().length === 0 || recommending}
-        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold text-xs uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
+        className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white rounded-xl font-bold uppercase tracking-wider transition-colors flex items-center justify-center gap-2 shadow-sm"
+        style={{ fontSize: 'min(12px, 3.5cqmin)' }}
       >
         {recommending ? (
           <>

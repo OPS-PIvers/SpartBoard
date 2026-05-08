@@ -137,13 +137,15 @@ export const Timeline: React.FC<TimelineProps> = ({
       }
       // Replace any previous instance bound to this container.
       teardown();
-      // Ensure the target element exists with our unique id; the YT API
-      // mutates the DOM at this id.
-      let target = document.getElementById(playerElementId);
-      if (!target) {
-        target = document.createElement('div');
-        target.id = playerElementId;
-        playerContainerRef.current.appendChild(target);
+      // The target div is rendered in JSX with id=playerElementId; YT.Player
+      // takes ownership of it by id and replaces it with an iframe. We don't
+      // re-create it here — leaving DOM ownership to React first, then YT —
+      // because manual createElement() can race React's reconciliation when
+      // the component re-renders.
+      if (!document.getElementById(playerElementId)) {
+        // JSX hasn't flushed yet on this render; bail and let the next
+        // videoId-effect tick recreate the player.
+        return;
       }
       playerRef.current = new window.YT.Player(playerElementId, {
         height: '100%',
@@ -239,25 +241,29 @@ export const Timeline: React.FC<TimelineProps> = ({
         <div
           role="slider"
           aria-label="Video timeline"
+          aria-orientation="horizontal"
           aria-valuemin={0}
           aria-valuemax={Math.floor(duration)}
           aria-valuenow={Math.floor(playhead)}
+          aria-valuetext={`${formatHms(playhead)} of ${formatHms(duration)}`}
           tabIndex={0}
           onClick={handleTrackClick}
           onKeyDown={(e) => {
             if (!playerRef.current || duration <= 0) return;
             const step = 5; // 5-second nudge per arrow press
-            if (e.key === 'ArrowLeft') {
-              const next = Math.max(0, playhead - step);
-              playerRef.current.seekTo(next, true);
-              setPlayhead(next);
+            const bigStep = Math.max(15, Math.floor(duration / 10));
+            const seek = (next: number) => {
+              const clamped = Math.max(0, Math.min(duration, next));
+              playerRef.current?.seekTo(clamped, true);
+              setPlayhead(clamped);
               e.preventDefault();
-            } else if (e.key === 'ArrowRight') {
-              const next = Math.min(duration, playhead + step);
-              playerRef.current.seekTo(next, true);
-              setPlayhead(next);
-              e.preventDefault();
-            }
+            };
+            if (e.key === 'ArrowLeft') seek(playhead - step);
+            else if (e.key === 'ArrowRight') seek(playhead + step);
+            else if (e.key === 'PageUp') seek(playhead - bigStep);
+            else if (e.key === 'PageDown') seek(playhead + bigStep);
+            else if (e.key === 'Home') seek(0);
+            else if (e.key === 'End') seek(duration);
           }}
           className="relative h-8 rounded-lg bg-slate-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-blue-primary focus:ring-offset-2"
         >
@@ -278,6 +284,16 @@ export const Timeline: React.FC<TimelineProps> = ({
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
+                  // Seek the player so the teacher sees the video context
+                  // alongside the question they just selected.
+                  if (playerRef.current && duration > 0) {
+                    try {
+                      playerRef.current.seekTo(q.timestamp, true);
+                      setPlayhead(q.timestamp);
+                    } catch {
+                      /* ignore — player may have torn down */
+                    }
+                  }
                   onSelectQuestion?.(q.id);
                 }}
                 aria-label={`Question at ${formatHms(q.timestamp)}: ${q.text || 'untitled'}`}
