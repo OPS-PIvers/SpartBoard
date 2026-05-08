@@ -106,6 +106,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
                 onChange={() => setSelectedId(plc.id)}
                 className="h-4 w-4 accent-brand-blue-primary"
                 disabled={submitting}
+                aria-label={plc.name}
               />
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-slate-800 truncate">

@@ -148,6 +148,15 @@ Open these in the first session so you understand the pivot points:
 - **Edit-in-place from the PLC tab is not in this PR.** The existing `QuizEditorModal` reads/writes Drive, which only works for quizzes already in the user's personal library. Members sync the quiz first ("Add to my library → Sync"), then edit from their library card; published edits propagate back to all teammates via the existing LWW infrastructure. Direct in-tab editing on the synced doc would need a Drive-less editor surface — explicitly out of scope here.
 - **dev-paul branch convention:** Phase 2 was committed to `claude/shared-plc-implementation-TB67Z` and PR'd into `dev-paul`. The auth bypass was not exercised; manual smoke tests were not run because this environment lacks Firebase project access — verification falls to the dev preview URL and the human reviewer.
 
+### Phase 2 follow-ups (not blockers; track separately)
+
+These were surfaced in the final review pass and intentionally deferred to keep this PR focused. None block merge:
+
+- **Modal i18n.** `PlcShareTargetModal` and `PlcQuizImportModal` use hardcoded English. Consistent with the sibling `QuizAssignmentImportModeModal.tsx` pattern — every share/import picker in this codebase is currently English-only. A separate localization sweep should bring all three modals plus the QuizManager kebab labels under `t()` together.
+- **Rollback path tests.** `PlcQuizLibraryTab.handleImport` has a 3-stage rollback (leave sync group + delete personal quiz on partial failure) but no integration test exercising it. The shared-assignment importer's analogous path also has unit-only coverage today; adding this would be additive parity.
+- **Cloud Function unit tests.** `joinPlcQuizSyncGroup` (`functions/src/plcQuizSyncJoin.ts`) has no `*.test.ts` sibling. The Firestore rules suite covers the subcollection's permissions, but the Admin-SDK transaction logic itself (membership re-check, idempotent `alreadyJoined`, version-bump invariants) isn't directly exercised. Sibling pattern: `syncedQuizGroups.test.ts` (Phase 1).
+- **Modal title polish.** When the user clicks "Re-import" on an already-synced quiz, the `PlcQuizImportModal` header still reads "Add to my library". Minor UX nit — the import button label updates correctly, but the modal title doesn't acknowledge the re-import context.
+
 ---
 
 ## Phase 3 — PLC-authored Assignments tab

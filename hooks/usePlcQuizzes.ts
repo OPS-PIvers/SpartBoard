@@ -174,7 +174,12 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
         );
       } catch (err) {
         // Mirror writes are best-effort — never reject so callers' primary
-        // action (e.g. `publishSyncedQuiz`) returns cleanly.
+        // action (e.g. `publishSyncedQuiz`) returns cleanly. A
+        // `not-found` from `updateDoc` here means a teammate unshared the
+        // PLC entry between our snapshot read and this mirror write —
+        // the entry is already gone, the canonical sync group still has
+        // the new content, and the next snapshot tick will reflect both.
+        // No remediation needed; logging is sufficient.
         logError('usePlcQuizzes.mirrorHeader', err, { plcId, plcQuizId });
       }
     },

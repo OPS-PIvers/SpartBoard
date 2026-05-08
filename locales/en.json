@@ -448,6 +448,7 @@
       "addToMyLibrary": "Add to my library",
       "reimport": "Re-import",
       "inLibrary": "In your library",
+      "alreadySynced": "\"{{title}}\" is already synced to your library.",
       "unshareAction": "Unshare",
       "unshareYours": "Unshare from PLC",
       "unshareTeammate": "Unshare from PLC (any member can remove)",

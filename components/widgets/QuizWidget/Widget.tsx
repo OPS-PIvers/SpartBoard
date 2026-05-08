@@ -24,6 +24,7 @@ import {
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useFolders } from '@/hooks/useFolders';
 import {
+  callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
   useSyncedQuizGroupsByIds,
 } from '@/hooks/useSyncedQuizGroups';
@@ -247,16 +248,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
    *   2. If the quiz isn't yet part of a synced group, mint a fresh group
    *      with `plcId` set, then attach the linkage to the local
    *      `quiz_metadata` so subsequent edits publish (LWW) for every
-   *      member who imports.
+   *      member who imports. If `attachSyncLinkage` fails, leave the
+   *      freshly-minted group via `callLeaveSyncedQuizGroup` so we don't
+   *      leave a phantom participant entry — the empty group itself
+   *      stays (synced_quizzes rules intentionally don't delete empty
+   *      groups; future paste of the same id should still resolve).
    *   3. Write the `plcs/{plcId}/quizzes/{plcQuizId}` header. Doc id is a
    *      fresh uuid so the same quiz can be shared with multiple PLCs
    *      without doc-id collisions.
    *
-   * Failures at any step toast the error and abort. The synced group +
-   * sync linkage are intentionally NOT rolled back if the PLC subcoll
-   * write fails — the canonical doc is shared with the user's other
-   * library cards as the "Synced" pill, which is still useful, and the
-   * PR description documents this trade-off.
+   * If step 3 fails after step 2 succeeded, the synced group + sync
+   * linkage stay in place — the canonical doc is reachable from the
+   * user's library card as the "Synced" pill (self-only group), and a
+   * retry of "Share with PLC" reuses the existing groupId rather than
+   * minting a new one. Idempotent on retry.
    */
   const handleShareWithPlc = useCallback(
     async (quizMeta: QuizMetadata, plcId: string): Promise<void> => {
@@ -279,10 +284,25 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           questions: data.questions,
           plcId,
         });
-        await attachSyncLinkage(quizMeta.id, {
-          groupId: syncGroupId,
-          lastSyncedVersion: 1,
-        });
+        try {
+          await attachSyncLinkage(quizMeta.id, {
+            groupId: syncGroupId,
+            lastSyncedVersion: 1,
+          });
+        } catch (linkageErr) {
+          // Best-effort: drop our self-participant entry on the
+          // freshly-minted group so we don't leave a phantom participant
+          // pointing at a sync group the local library never knew about.
+          try {
+            await callLeaveSyncedQuizGroup(syncGroupId);
+          } catch (leaveErr) {
+            logError('QuizWidget.shareWithPlc.rollbackLeave', leaveErr, {
+              plcId,
+              syncGroupId,
+            });
+          }
+          throw linkageErr;
+        }
       }
 
       const ownerEmailLower =

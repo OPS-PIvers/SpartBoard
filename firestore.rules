@@ -1024,6 +1024,10 @@ service cloud.firestore {
           && request.resource.data.questionCount is int
           && request.resource.data.questionCount >= 0
           && request.resource.data.syncGroupId is string
+          // Guard against an empty `syncGroupId` smuggling a broken stub
+          // entry past the rule. The Cloud Function rejects empty strings
+          // server-side too; pinning at the rule layer is defense-in-depth.
+          && request.resource.data.syncGroupId.size() > 0
           && request.resource.data.sharedByEmail is string
           && request.resource.data.sharedByName is string
           && request.resource.data.sharedAt is int
