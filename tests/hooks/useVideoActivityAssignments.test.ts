@@ -465,6 +465,54 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     ).rejects.toThrow(/Source activity is missing/);
   });
 
+  it('shareAssignment rolls back the metadata sync linkage when addDoc fails', async () => {
+    // Source activity has no synced linkage — so we mint one, then addDoc fails.
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce(seedMetadataSnap());
+    mockAddDoc.mockRejectedValue(new Error('share write denied'));
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.shareAssignment('assign-1', ACTIVITY_DATA)
+    ).rejects.toThrow(/share write denied/);
+
+    // updateDoc was called twice: once to attach the freshly-minted linkage,
+    // once to roll it back to null after addDoc failed. Without the rollback
+    // the local meta would carry a `sync.groupId` pointing at a group with
+    // no matching share doc — same race the Quiz hook has documented.
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(2);
+    const rollbackPatch = mockUpdateDoc.mock.calls[1][1] as Record<
+      string,
+      unknown
+    >;
+    expect(rollbackPatch.sync).toBeNull();
+  });
+
+  it('shareAssignment does NOT roll back metadata when source already had a syncGroupId', async () => {
+    // Pre-existing linkage means we never minted one, so a downstream
+    // addDoc failure shouldn't clear what predates this share call.
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce(
+        seedMetadataSnap({
+          sync: { groupId: 'pre-existing', lastSyncedVersion: 5 },
+        })
+      );
+    mockAddDoc.mockRejectedValue(new Error('share write denied'));
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.shareAssignment('assign-1', ACTIVITY_DATA)
+    ).rejects.toThrow(/share write denied/);
+
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
   it('peekSharedAssignment returns null for missing shareId', async () => {
     mockGetDoc.mockResolvedValueOnce({
       exists: () => false,
@@ -647,5 +695,70 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     ).rejects.toThrow(/canonical fetch failed/);
     // Rollback fired so the importer doesn't accumulate orphan participation.
     expect(mockCallLeave).toHaveBeenCalledWith('group-fail');
+  });
+
+  it('importSharedAssignment rolls back the synced-group join when attachSyncLinkage fails', async () => {
+    const sharedDoc: SharedVideoActivityAssignment = {
+      id: 'share-4',
+      title: 'Linkage-attach failure',
+      youtubeUrl: 'https://youtube.com/watch?v=mno',
+      questions: [],
+      createdAt: 100,
+      updatedAt: 200,
+      assignmentSettings: {
+        sessionSettings: {
+          autoPlay: false,
+          requireCorrectAnswer: true,
+          allowSkipping: false,
+        },
+      },
+      originalAuthor: 'teacher-A',
+      sharedAt: 300,
+      syncGroupId: 'group-attach-fail',
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+    mockCallJoin.mockResolvedValue({
+      groupId: 'group-attach-fail',
+      version: 4,
+      alreadyJoined: false,
+    });
+    mockPullContent.mockResolvedValue({
+      title: 'Linkage-attach failure',
+      youtubeUrl: 'https://youtube.com/watch?v=mno',
+      questions: [],
+      version: 4,
+    });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.importSharedAssignment('share-4', {
+        mode: 'sync',
+        saveActivity: vi
+          .fn<
+            (
+              activity: import('@/types').VideoActivityData
+            ) => Promise<VideoActivityMetadata>
+          >()
+          .mockResolvedValue({
+            id: 'imported-4',
+            title: 'Linkage-attach failure',
+            youtubeUrl: 'https://youtube.com/watch?v=mno',
+            driveFileId: 'd',
+            questionCount: 0,
+            createdAt: 1,
+            updatedAt: 1,
+          }),
+        // Simulate the metadata patch failing AFTER join + pull succeed.
+        attachSyncLinkage: vi
+          .fn()
+          .mockRejectedValue(new Error('metadata patch denied')),
+      })
+    ).rejects.toThrow(/metadata patch denied/);
+    expect(mockCallLeave).toHaveBeenCalledWith('group-attach-fail');
   });
 });

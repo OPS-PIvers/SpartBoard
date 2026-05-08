@@ -594,7 +594,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             }
             const url = await shareAssignment(assignment.id, data);
             await copyUrlToClipboard(url, addToast, {
-              successMessage: 'Share link copied! Send it to your PLC peers.',
+              successMessage: 'Share link copied! Send it to a peer teacher.',
               errorMessage:
                 'Share link created, but it could not be copied. Visit the assignment to grab the link.',
             });

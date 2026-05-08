@@ -240,10 +240,12 @@ describe('usePlcAssignmentIndex - parseEntry (via snapshot)', () => {
     expect(result.current.loading).toBe(false);
   });
 
-  it("normalizes `kind` to 'quiz' even for legacy or wrong values", () => {
-    // Today the parser hardcodes `kind: 'quiz'`; this test pins that
-    // behaviour so a future widening of the union has to update both the
-    // parser AND this test consciously.
+  it("reads kind: 'video-activity' through the parser (PR3a widening)", () => {
+    // PR3a widened `PlcAssignmentIndexEntry.kind` from `'quiz'` to
+    // `'quiz' | 'video-activity'` and updated the parser to read the raw
+    // `data.kind` field. PR3b's `useVideoActivityAssignments` will start
+    // writing VA index entries; this test pins that the parser passes the
+    // discriminator through faithfully.
     let cb: (snap: unknown) => void = () => {
       throw new Error('snapshot callback not captured');
     };
@@ -259,7 +261,38 @@ describe('usePlcAssignmentIndex - parseEntry (via snapshot)', () => {
           {
             id: 'a',
             data: {
-              kind: 'video-activity', // future widening, ignored today
+              kind: 'video-activity',
+              ownerUid: 'u1',
+              title: 'A',
+              sheetUrl: 'https://example.com/a',
+              createdAt: 1000,
+            },
+          },
+        ])
+      );
+    });
+
+    expect(result.current.entries[0].kind).toBe('video-activity');
+  });
+
+  it("defaults missing `kind` to 'quiz' for backward compat with pre-PR3a entries", () => {
+    let cb: (snap: unknown) => void = () => {
+      throw new Error('snapshot callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+    const { result } = renderHook(() => usePlcAssignmentIndex(PLC_ID));
+
+    act(() => {
+      cb(
+        fakeSnap([
+          {
+            id: 'a',
+            data: {
+              // No `kind` field — pre-PR3a entries written before the
+              // discriminator existed.
               ownerUid: 'u1',
               title: 'A',
               sheetUrl: 'https://example.com/a',

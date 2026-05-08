@@ -273,8 +273,12 @@ export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
  */
 export interface PlcAssignmentIndexEntry {
   id: string;
-  /** Discriminator for future video-activity support. */
-  kind: 'quiz';
+  /**
+   * Discriminator for the source assignment widget. PR3a widens this to
+   * accept `'video-activity'` (rules updated alongside); PR3b will start
+   * writing VA index entries via `useVideoActivityAssignments`.
+   */
+  kind: 'quiz' | 'video-activity';
   /** UID of the teacher who created the assignment. Always a PLC member. */
   ownerUid: string;
   /** Display name snapshot — avoids a `/users` lookup per row. */
@@ -286,6 +290,42 @@ export interface PlcAssignmentIndexEntry {
   /** Shared PLC Google Sheet URL (mirrored from `Plc.sharedSheetUrl`). */
   sheetUrl: string;
   createdAt: number;
+}
+
+/**
+ * One quiz shared with a PLC, stored at `plcs/{plcId}/quizzes/{plcQuizId}`.
+ *
+ * The doc is a lightweight header that points at the canonical
+ * `synced_quizzes/{syncGroupId}` doc — questions live there, not here, so
+ * list rendering avoids an N+1 read against the sync collection. `title`
+ * and `questionCount` are best-effort mirrors of the canonical doc; they
+ * get bumped fire-and-forget after a successful publish, but the source
+ * of truth for content is always the synced group.
+ *
+ * Any PLC member can share, edit (via the synced group), or unshare a
+ * quiz — same posture as Phase 5 notes/todos. The `sharedBy` snapshot is
+ * for attribution only; deleting your personal copy does NOT cascade-
+ * delete the PLC entry (orphan-tolerant per Phase 2 spec).
+ */
+export interface PlcQuizEntry {
+  /** Doc id; matches the document key under `plcs/{plcId}/quizzes/`. */
+  id: string;
+  /** Mirrored from the synced group; used for list rendering. */
+  title: string;
+  /** Mirrored from the synced group's questions array length. */
+  questionCount: number;
+  /** Pointer to the canonical `/synced_quizzes/{groupId}` doc. */
+  syncGroupId: string;
+  /** UID of the original sharer. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** ms timestamp; bumped on title/questionCount mirror updates. */
+  updatedAt: number;
 }
 
 /**

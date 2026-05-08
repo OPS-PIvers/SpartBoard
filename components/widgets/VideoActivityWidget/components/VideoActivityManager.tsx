@@ -973,12 +973,15 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           },
         });
       }
-      // PR3 PLC sharing — only meaningful on submission assignments where
-      // peer teachers can collect parallel responses to the same activity.
+      // PR3 cross-teacher sharing — works for any submission assignment
+      // (PLC linkage is optional in PR3a; the share doc carries the
+      // teacher's settings either way and peers can import it). Label
+      // says "peers" rather than "PLC" because the button isn't gated
+      // on `assignment.plc` — it's a generic peer-handoff affordance.
       if (onArchiveShare && !assignmentIsViewOnly) {
         actions.push({
-          id: 'share-with-plc',
-          label: 'Share with PLC',
+          id: 'share-with-peers',
+          label: 'Share with peers',
           icon: Share2,
           onClick: () => {
             void onArchiveShare(assignment);

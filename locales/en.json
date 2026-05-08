@@ -386,7 +386,14 @@
         },
         "quizLibrary": {
           "title": "Quiz library",
-          "teaser": "Share quizzes with your PLC."
+          "teaser": "Share quizzes with your PLC.",
+          "heading": "Quiz Library",
+          "empty": "No shared quizzes",
+          "emptySubtitle": "Share a quiz from the kebab on its library card.",
+          "questionCount_one": "{{count}} q",
+          "questionCount_other": "{{count}} q",
+          "bySharer": "shared by {{name}}",
+          "openAll": "Open library"
         },
         "activeAssignments": {
           "title": "Active assignments",
@@ -427,6 +434,33 @@
       "deleteTodo": "Delete to-do",
       "confirmDelete": "Delete this to-do?",
       "confirmDeleteTitle": "Delete to-do"
+    },
+    "quizLibrary": {
+      "heading": "Shared Quizzes",
+      "count_one": "{{count}} quiz",
+      "count_other": "{{count}} quizzes",
+      "emptyTitle": "No shared quizzes yet",
+      "emptySubtitle": "Open the Quiz widget in your dashboard, click the kebab on any quiz, and choose \"Share with PLC\" to add it here.",
+      "bySharer": "shared by {{name}}",
+      "unknownSharer": "a teammate",
+      "questionCount_one": "{{count}} question",
+      "questionCount_other": "{{count}} questions",
+      "addToMyLibrary": "Add to my library",
+      "reimport": "Re-import",
+      "inLibrary": "In your library",
+      "alreadySynced": "\"{{title}}\" is already synced to your library.",
+      "unshareAction": "Unshare",
+      "unshareYours": "Unshare from PLC",
+      "unshareTeammate": "Unshare from PLC (any member can remove)",
+      "unshareTitle": "Unshare quiz",
+      "unshareConfirm": "Remove \"{{title}}\" from this PLC? Other teammates will lose access to the shared library entry. Their personal copies (if any) keep working.",
+      "unshared": "\"{{title}}\" removed from this PLC.",
+      "unshareFailed": "Failed to unshare quiz.",
+      "importedSync": "\"{{title}}\" added to your library (synced).",
+      "importedCopy": "\"{{title}}\" copied to your library.",
+      "importFailed": "Failed to import quiz.",
+      "driveRequired": "Connect Google Drive in your account to import PLC quizzes.",
+      "driveDisconnected": "Connect Google Drive to import PLC quizzes into your personal library."
     }
   },
   "widgetWindow": {

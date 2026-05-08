@@ -32,12 +32,15 @@ function parseEntry(
   ) {
     return null;
   }
-  // `kind` is a discriminator slot for future video-activity entries.
-  // Today there's only one valid value; later phases will widen the union
-  // and switch on the raw `data.kind` here.
+  // PR3a widened the type union to include 'video-activity'. Pre-PR3a
+  // entries lack the `kind` field; default to 'quiz' for backward compat.
+  // VA index writes (PR3b) will set `kind: 'video-activity'` explicitly.
+  const rawKind = data.kind;
+  const kind: PlcAssignmentIndexEntry['kind'] =
+    rawKind === 'video-activity' ? 'video-activity' : 'quiz';
   return {
     id,
-    kind: 'quiz',
+    kind,
     ownerUid: data.ownerUid,
     ownerName: typeof data.ownerName === 'string' ? data.ownerName : '',
     ownerEmail: typeof data.ownerEmail === 'string' ? data.ownerEmail : '',

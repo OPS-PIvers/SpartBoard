@@ -526,6 +526,10 @@ export const useVideoActivityAssignments = (
       // part of a group, reuse it; otherwise mint a fresh group with the
       // sharer as the sole participant.
       let syncGroupId = meta.sync?.groupId;
+      // Track whether we just minted the linkage so the rollback path knows
+      // whether to clear it. If the source already had a `sync.groupId` we
+      // leave it alone on rollback — that linkage predates this share call.
+      let mintedLinkage = false;
       if (!syncGroupId) {
         syncGroupId = crypto.randomUUID();
         await createSyncedVideoActivityGroup({
@@ -539,6 +543,7 @@ export const useVideoActivityAssignments = (
         await updateDoc(metaRef, {
           sync: { groupId: syncGroupId, lastSyncedVersion: 1 },
         });
+        mintedLinkage = true;
       }
 
       const payload: Omit<SharedVideoActivityAssignment, 'id'> = {
@@ -571,10 +576,31 @@ export const useVideoActivityAssignments = (
         sharedAt: Date.now(),
         syncGroupId,
       };
-      const ref = await addDoc(
-        collection(db, SHARED_VA_ASSIGNMENTS_COLLECTION),
-        payload
-      );
+      // Best-effort rollback: if `addDoc` fails AFTER we've minted the
+      // synced-group linkage, clear the local metadata patch so the
+      // teacher's library doesn't carry a sync linkage to a group with no
+      // matching share doc. Non-rollback (rethrow original) on cleanup
+      // failure — we can't do better than logging.
+      let ref;
+      try {
+        ref = await addDoc(
+          collection(db, SHARED_VA_ASSIGNMENTS_COLLECTION),
+          payload
+        );
+      } catch (err) {
+        if (mintedLinkage) {
+          try {
+            await updateDoc(metaRef, { sync: null });
+          } catch (rollbackErr) {
+            logError(
+              'useVideoActivityAssignments.shareAssignment.rollback',
+              rollbackErr,
+              { assignmentId, syncGroupId }
+            );
+          }
+        }
+        throw err;
+      }
       return `${window.location.origin}/share/video-activity/${ref.id}`;
     },
     [userId]
