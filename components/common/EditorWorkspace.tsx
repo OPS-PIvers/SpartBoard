@@ -5,6 +5,12 @@ interface EditorWorkspaceProps {
   isOpen: boolean;
   title: string;
   subtitle?: React.ReactNode;
+  /** Pass-through to `EditorModalShell.onTitleChange`. */
+  onTitleChange?: (next: string) => void;
+  /** Pass-through to `EditorModalShell.titlePlaceholder`. */
+  titlePlaceholder?: string;
+  /** Pass-through to `EditorModalShell.headerExtras`. */
+  headerExtras?: React.ReactNode;
   isDirty: boolean;
   isSaving?: boolean;
   saveLabel?: string;

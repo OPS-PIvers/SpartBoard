@@ -11,8 +11,8 @@ import {
   MousePointerClick,
 } from 'lucide-react';
 import { GuidedLearningMode } from '@/types';
-import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
+import { useClickOutside } from '@/hooks/useClickOutside';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { calculateImageFootprint } from '../utils/imageUtils';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
@@ -75,6 +75,95 @@ const TRANSITION_OPTIONS: {
   },
 ];
 
+// ─── SettingChip (compact "Label: value ▾" with popover) ─────────────────────
+
+interface SettingChipOption<T extends string> {
+  value: T;
+  label: string;
+  desc: string;
+}
+
+interface SettingChipProps<T extends string> {
+  label: string;
+  value: T;
+  options: SettingChipOption<T>[];
+  onChange: (next: T) => void;
+}
+
+/**
+ * Compact "Label: value ▾" chip that opens a small popover of options.
+ * Replaces a labeled segmented row when the row would consume more
+ * vertical space than the choice deserves (e.g. set-level display
+ * settings the teacher tweaks once and forgets).
+ */
+function SettingChip<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: SettingChipProps<T>) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+
+  const current = options.find((o) => o.value === value);
+  const currentLabel = current?.label ?? value;
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={current?.desc}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+          open
+            ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+        }`}
+      >
+        <span className="text-slate-500 font-medium uppercase tracking-wider text-xxs">
+          {label}
+        </span>
+        <span>{currentLabel}</span>
+        <ChevronDown className="w-3 h-3 text-slate-400" />
+      </button>
+      {open && (
+        <div
+          role="menu"
+          className="absolute left-0 top-full z-10 mt-1 min-w-[200px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+        >
+          {options.map((opt) => {
+            const isCurrent = opt.value === value;
+            return (
+              <button
+                key={opt.value}
+                role="menuitem"
+                type="button"
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors ${
+                  isCurrent
+                    ? 'bg-brand-blue-lighter/40 text-brand-blue-dark'
+                    : 'text-slate-700 hover:bg-slate-100'
+                }`}
+              >
+                <span className="font-bold text-xs">{opt.label}</span>
+                <span className="text-xxs text-slate-500 leading-snug">
+                  {opt.desc}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Context pane ────────────────────────────────────────────────────────────
 
 interface PaneProps {
@@ -88,9 +177,10 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
+  // Title + folder are owned by the modal shell now (editable header
+  // input + header folder icon button), so the body destructures only
+  // what it still renders.
   const {
-    title,
-    setTitle,
     description,
     setDescription,
     mode,
@@ -120,9 +210,6 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
     steps,
     updateStep,
     currentImageSteps,
-    folders,
-    folderId,
-    onFolderChange,
   } = state;
 
   const currentImageUrl = imageUrls[currentImageIndex] ?? '';
@@ -192,22 +279,21 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      {/* Settings strip */}
-      <div className="px-5 py-4 border-b border-slate-200 space-y-3 bg-white shrink-0">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Set title (e.g. Parts of a Cell)"
-          className="w-full bg-transparent border-0 text-slate-900 placeholder:text-slate-400 focus:outline-none text-lg font-bold p-0"
-        />
+      {/* Settings strip — title and folder live in the modal header now,
+          so the body owns description, mode, display settings, and the
+          welcome card. */}
+      <div className="px-5 py-3 border-b border-slate-200 space-y-2.5 bg-white shrink-0">
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Description (optional)"
+          placeholder="Add a description (optional)"
           className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
         />
+        {/* Mode + compact display chips on a single row to maximize the
+            canvas area. Mode keeps its segmented look (only 3 short
+            labels), Pulse and Image Transition collapse to "Label: value"
+            chips with a popover so they don't claim a full row each. */}
         <div className="flex flex-wrap gap-2 items-center">
           {MODE_OPTIONS.map((opt) => (
             <button
@@ -223,58 +309,19 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
               {opt.label}
             </button>
           ))}
-          {folders && onFolderChange && (
-            <div className="ml-auto min-w-[180px]">
-              <FolderSelectField
-                folders={folders}
-                value={folderId ?? null}
-                onChange={onFolderChange}
-              />
-            </div>
-          )}
-        </div>
-
-        {/* Display settings — set-level controls that affect the player. */}
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xxs font-bold uppercase tracking-wider text-slate-500 mr-1">
-            Pulse
-          </span>
-          {PULSE_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setHotspotPulse(opt.value)}
-              title={opt.desc}
-              aria-pressed={hotspotPulse === opt.value}
-              className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
-                hotspotPulse === opt.value
-                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
-                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xxs font-bold uppercase tracking-wider text-slate-500 mr-1">
-            Image transition
-          </span>
-          {TRANSITION_OPTIONS.map((opt) => (
-            <button
-              key={opt.value}
-              onClick={() => setImageTransition(opt.value)}
-              title={opt.desc}
-              aria-pressed={imageTransition === opt.value}
-              className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
-                imageTransition === opt.value
-                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
-                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
-              }`}
-            >
-              {opt.label}
-            </button>
-          ))}
+          <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden="true" />
+          <SettingChip
+            label="Pulse"
+            value={hotspotPulse}
+            options={PULSE_OPTIONS}
+            onChange={setHotspotPulse}
+          />
+          <SettingChip
+            label="Image transition"
+            value={imageTransition}
+            options={TRANSITION_OPTIONS}
+            onChange={setImageTransition}
+          />
         </div>
 
         {/* Welcome screen — shown to students before the experience starts.
@@ -297,18 +344,15 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
               </span>
             </span>
           </label>
-          <textarea
-            value={welcomeMessage}
-            onChange={(e) => setWelcomeMessage(e.target.value)}
-            disabled={!welcomeEnabled}
-            rows={3}
-            placeholder={
-              welcomeEnabled
-                ? 'e.g. Welcome to the Civil War tour. Click pins to explore each station.'
-                : 'Turn on the toggle above to add a welcome message.'
-            }
-            className="w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
-          />
+          {welcomeEnabled && (
+            <textarea
+              value={welcomeMessage}
+              onChange={(e) => setWelcomeMessage(e.target.value)}
+              rows={3}
+              placeholder="e.g. Welcome to the Civil War tour. Click pins to explore each station."
+              className="w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none"
+            />
+          )}
         </div>
       </div>
 

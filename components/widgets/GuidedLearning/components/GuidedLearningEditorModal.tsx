@@ -6,8 +6,8 @@
  * for the currently-selected hotspot.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Folder as FolderIcon, Inbox, Sparkles } from 'lucide-react';
 import {
   GuidedLearningMode,
   GuidedLearningQuestion,
@@ -17,6 +17,7 @@ import {
   LibraryFolder,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
+import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { useAuth } from '@/context/useAuth';
 import {
   GuidedLearningEditorContextPane,
@@ -249,13 +250,31 @@ export const GuidedLearningEditorModal: React.FC<
     }
   };
 
-  const displayTitle = liveState?.title.trim()
-    ? liveState.title.trim()
-    : originalTitle
-      ? 'Edit Set'
-      : 'New Set';
+  // The header now hosts the editable title input directly. Pass through
+  // the live value so users see what they're typing; placeholder kicks in
+  // for empty strings.
+  const headerTitleValue = liveState?.title ?? originalTitle ?? '';
+  const titlePlaceholder = originalTitle ? 'Edit Set' : 'Set title…';
 
   const stepCount = liveState?.steps.length ?? set?.steps.length ?? 0;
+
+  // Folder picker — surfaced as a compact icon button in the header so
+  // it doesn't take a full row in the body. Anchored popover renders
+  // when open. Only shown when both `folders` and `onFolderChange` are
+  // wired (matches the previous body behavior).
+  const folderButtonRef = useRef<HTMLButtonElement>(null);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const folderPickerEnabled = Boolean(folders && onFolderChange);
+  const currentFolder =
+    folderPickerEnabled && folderId != null
+      ? (folders?.find((f) => f.id === folderId) ?? null)
+      : null;
+  const folderTooltip =
+    folderId == null
+      ? 'No folder'
+      : currentFolder
+        ? `Folder: ${currentFolder.name}`
+        : 'Folder not found';
 
   if (!set) return null;
 
@@ -264,11 +283,35 @@ export const GuidedLearningEditorModal: React.FC<
       <EditorWorkspace
         key={set.id}
         isOpen={isOpen}
-        title={displayTitle}
+        title={headerTitleValue}
+        onTitleChange={editorState.setTitle}
+        titlePlaceholder={titlePlaceholder}
         subtitle={
           <span>
             {stepCount} {stepCount === 1 ? 'step' : 'steps'}
           </span>
+        }
+        headerExtras={
+          folderPickerEnabled ? (
+            <button
+              ref={folderButtonRef}
+              type="button"
+              onClick={() => setFolderPickerOpen((v) => !v)}
+              title={folderTooltip}
+              aria-label={folderTooltip}
+              aria-expanded={folderPickerOpen}
+              aria-haspopup="dialog"
+              className={`inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 ${
+                folderId != null ? 'text-brand-blue-primary' : ''
+              }`}
+            >
+              {folderId == null ? (
+                <Inbox className="h-5 w-5" />
+              ) : (
+                <FolderIcon className="h-5 w-5" />
+              )}
+            </button>
+          ) : null
         }
         isDirty={isDirty}
         isSaving={saving}
@@ -298,6 +341,17 @@ export const GuidedLearningEditorModal: React.FC<
         contextPane={<GuidedLearningEditorContextPane state={editorState} />}
         detailPane={<GuidedLearningEditorDetailPane state={editorState} />}
       />
+      {folderPickerEnabled && folderPickerOpen && (
+        <FolderPickerPopover
+          variant="popover"
+          anchorRef={folderButtonRef}
+          folders={folders ?? []}
+          selectedFolderId={folderId ?? null}
+          onSelect={(next) => onFolderChange?.(next)}
+          onClose={() => setFolderPickerOpen(false)}
+          title="Select folder"
+        />
+      )}
       {showAiGen && canUseAi && (
         <GuidedLearningAIGenerator
           onClose={() => setShowAiGen(false)}
