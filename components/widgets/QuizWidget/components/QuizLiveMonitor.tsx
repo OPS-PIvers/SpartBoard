@@ -71,6 +71,7 @@ import {
   playPodiumFanfare,
   playQuizCompleteCelebration,
 } from '@/utils/quizAudio';
+import { logError } from '@/utils/logError';
 
 interface QuizLiveMonitorProps {
   session: QuizSession;
@@ -407,23 +408,29 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   // Apply the class-period filter to the response stream that drives the
   // monitor's KPIs and roster. Leaderboard broadcasts intentionally use the
   // unfiltered `responses` so the student-facing leaderboard stays global.
+  // SSO joiners write `classPeriod` directly when their classIds claim
+  // resolves cleanly, but multi-class students or claim failures can leave
+  // a row with only `classId`. Resolve those through
+  // `session.classPeriodByClassId` before filtering so SSO students don't
+  // silently disappear from a narrowed view.
   const filteredResponses = useMemo(() => {
     if (!filterActive) return responses;
     const allow = new Set(selectedPeriodNames);
-    // Drop SSO/legacy rows that have no `classPeriod`: when the teacher
-    // narrows to a specific period they expect a clean view, and a row
-    // with no period claim should not silently leak through.
-    return responses.filter((r) =>
-      r.classPeriod ? allow.has(r.classPeriod) : false
-    );
-  }, [responses, selectedPeriodNames, filterActive]);
+    const classIdToPeriod = session.classPeriodByClassId ?? {};
+    return responses.filter((r) => {
+      const period =
+        r.classPeriod ?? (r.classId ? classIdToPeriod[r.classId] : undefined);
+      return period ? allow.has(period) : false;
+    });
+  }, [
+    responses,
+    selectedPeriodNames,
+    filterActive,
+    session.classPeriodByClassId,
+  ]);
 
   const { addToast } = useDashboard();
 
-  // Effective values gated by the session-local reveal approval. We
-  // override the persisted preference until the teacher confirms it's
-  // safe to display student performance on this screen — a projector
-  // could otherwise leak grades the moment the monitor opens.
   // Effective values gated by the session-local reveal approval. We
   // override the persisted preference until the teacher confirms it's
   // safe to display student performance on this screen — a projector
@@ -462,6 +469,23 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     return ok;
   }, [scoreRevealApproved, showConfirm]);
 
+  // Single seam for the "preference write failed" pattern. Routes the error
+  // through the structured `logError` helper (so future Sentry/Bugsnag
+  // wiring picks these up) and surfaces a toast with a label-specific
+  // message. Returned as a `.catch` handler factory so each call site
+  // stays a one-liner.
+  const persistPreferenceFailed = useCallback(
+    (scope: string, label: string) =>
+      (err: unknown): void => {
+        logError(`QuizLiveMonitor.${scope}`, err);
+        addToast(
+          `Could not save the ${label} preference — try again or check your connection.`,
+          'error'
+        );
+      },
+    [addToast]
+  );
+
   const handleToggleColors = useCallback(() => {
     void (async () => {
       // Turning ON requires confirmation while results are still gated.
@@ -469,30 +493,15 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
         const ok = await requestScoreReveal();
         if (!ok) return;
         if (!quizMonitorColorsEnabled) {
-          updateAccountPreferences({ quizMonitorColorsEnabled: true }).catch(
-            (err: unknown) => {
-              console.error(
-                '[QuizLiveMonitor] persist colors toggle failed:',
-                err
-              );
-              addToast(
-                'Could not save the Colors preference — try again or check your connection.',
-                'error'
-              );
-            }
-          );
+          updateAccountPreferences({
+            quizMonitorColorsEnabled: true,
+          }).catch(persistPreferenceFailed('persistColorsToggle', 'Colors'));
         }
         return;
       }
       // Turning OFF — no confirmation needed.
       updateAccountPreferences({ quizMonitorColorsEnabled: false }).catch(
-        (err: unknown) => {
-          console.error('[QuizLiveMonitor] persist colors toggle failed:', err);
-          addToast(
-            'Could not save the Colors preference — try again or check your connection.',
-            'error'
-          );
-        }
+        persistPreferenceFailed('persistColorsToggle', 'Colors')
       );
     })();
   }, [
@@ -500,7 +509,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     quizMonitorColorsEnabled,
     requestScoreReveal,
     updateAccountPreferences,
-    addToast,
+    persistPreferenceFailed,
   ]);
 
   const handleCycleScoreDisplay = useCallback(() => {
@@ -516,16 +525,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
             : quizMonitorScoreDisplay;
         if (next !== quizMonitorScoreDisplay) {
           updateAccountPreferences({ quizMonitorScoreDisplay: next }).catch(
-            (err: unknown) => {
-              console.error(
-                '[QuizLiveMonitor] persist score-display cycle failed:',
-                err
-              );
-              addToast(
-                'Could not save the score display preference — try again or check your connection.',
-                'error'
-              );
-            }
+            persistPreferenceFailed('persistScoreDisplayCycle', 'score display')
           );
         }
         return;
@@ -537,16 +537,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
             ? 'hidden'
             : 'percent';
       updateAccountPreferences({ quizMonitorScoreDisplay: next }).catch(
-        (err: unknown) => {
-          console.error(
-            '[QuizLiveMonitor] persist score-display cycle failed:',
-            err
-          );
-          addToast(
-            'Could not save the score display preference — try again or check your connection.',
-            'error'
-          );
-        }
+        persistPreferenceFailed('persistScoreDisplayCycle', 'score display')
       );
     })();
   }, [
@@ -554,7 +545,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     quizMonitorScoreDisplay,
     requestScoreReveal,
     updateAccountPreferences,
-    addToast,
+    persistPreferenceFailed,
   ]);
   const [confirmRemove, setConfirmRemove] = useState<ResponseDocKey | null>(
     null

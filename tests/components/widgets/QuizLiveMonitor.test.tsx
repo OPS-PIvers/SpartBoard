@@ -328,6 +328,48 @@ describe('QuizLiveMonitor', () => {
     );
   });
 
+  it('resolves SSO joiners through session.classPeriodByClassId so they are not filtered out when only classId is set', () => {
+    // SSO student: response has `classId` but no `classPeriod` (multi-class
+    // claim, claim-resolution race, or legacy doc). The chip filter must
+    // resolve via the session map before deciding to drop the row.
+    renderMonitor({
+      session: {
+        periodNames: ['P1', 'P2'],
+        classPeriodByClassId: { 'class-A': 'P1', 'class-B': 'P2' },
+      },
+      responses: [
+        makeResponse({ pin: '1111', classPeriod: 'P1', status: 'completed' }),
+        // SSO row: classId only, no classPeriod
+        {
+          studentUid: 'uid-sso-A',
+          joinedAt: 1,
+          status: 'completed',
+          answers: [{ questionId: 'q1', answer: 'a', answeredAt: 100 }],
+          score: null,
+          submittedAt: 200,
+          tabSwitchWarnings: 0,
+          classId: 'class-A',
+        } as unknown as QuizResponse,
+        // SSO row that belongs to P2 — must NOT show under default P1.
+        {
+          studentUid: 'uid-sso-B',
+          joinedAt: 1,
+          status: 'completed',
+          answers: [{ questionId: 'q1', answer: 'a', answeredAt: 100 }],
+          score: null,
+          submittedAt: 200,
+          tabSwitchWarnings: 0,
+          classId: 'class-B',
+        } as unknown as QuizResponse,
+      ],
+    });
+    // Default narrows to P1: PIN row (P1) + SSO row resolved via class-A → P1.
+    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 2');
+    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
+    // P2: only the class-B SSO row qualifies.
+    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
+  });
+
   it('cycles the score-display preference percent → count → hidden → percent after the privacy gate is approved', async () => {
     const { rerenderSame } = renderMonitor({
       session: { periodNames: ['P1'] },
