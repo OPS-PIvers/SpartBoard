@@ -165,4 +165,16 @@ describe('buildResultsSheetData', () => {
     expect(dataRows[0][3]).toBe('Aiden');
     expect(dataRows[1][3]).toBe('Zara');
   });
+
+  it('handles empty questions and responses without crashing', () => {
+    const empty = buildResultsSheetData([], [], ALWAYS_FULL);
+    expect(empty.headers).toHaveLength(11); // 11 fixed cols + 0 question cols
+    expect(empty.dataRows).toEqual([]);
+
+    // Responses but no questions: maxPoints = 0 must not divide-by-zero;
+    // Score column blanks out via the maxPoints > 0 guard.
+    const noQs = buildResultsSheetData([r()], [], ALWAYS_FULL);
+    expect(noQs.dataRows[0][6]).toBe(''); // Score (%) blank
+    expect(noQs.dataRows[0][8]).toBe('0'); // Max Points = 0
+  });
 });

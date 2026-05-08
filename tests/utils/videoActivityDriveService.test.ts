@@ -93,6 +93,17 @@ describe('buildVideoActivityResultsSheetData', () => {
     expect(dataRows[0][6]).toBe(''); // score blank for in-progress
   });
 
+  it('treats completedAt: 0 as completed (explicit null check)', () => {
+    // The type allows `number | null`; a truthiness check would misclassify
+    // `0` (Jan 1 1970 timestamp) as in-progress.
+    const r = vaResponse({ completedAt: 0 });
+    const { dataRows } = buildVideoActivityResultsSheetData(
+      [r],
+      [vaQuestion()]
+    );
+    expect(dataRows[0][5]).toBe('completed');
+  });
+
   it('preserves the canonical 12-column shape', () => {
     const { headers } = buildVideoActivityResultsSheetData(
       [vaResponse()],

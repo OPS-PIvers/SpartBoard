@@ -35,9 +35,14 @@ export { formatExportPoints };
  *   completedAt: number → status: 'completed', submittedAt: completedAt
  *   completedAt: null   → status: 'in-progress', submittedAt: null
  *
+ * Uses an explicit `!== null` check rather than truthiness so a
+ * `completedAt: 0` (theoretical Jan 1 1970 timestamp; the type allows it)
+ * still maps to `'completed'`.
+ *
  * Pure function; safe to call inside .map().
  */
 function toExportable(r: VideoActivityResponse): ExportableResponse {
+  const completed = r.completedAt !== null;
   return {
     pin: r.pin,
     studentUid: r.studentUid,
@@ -46,8 +51,8 @@ function toExportable(r: VideoActivityResponse): ExportableResponse {
       questionId: a.questionId,
       answer: a.answer,
     })),
-    status: r.completedAt ? 'completed' : 'in-progress',
-    submittedAt: r.completedAt ?? null,
+    status: completed ? 'completed' : 'in-progress',
+    submittedAt: completed ? r.completedAt : null,
     tabSwitchWarnings: r.tabSwitchWarnings,
   };
 }
