@@ -14,13 +14,13 @@
  */
 
 import type { VideoActivityQuestion, VideoActivityResponse } from '@/types';
-import { gradeVideoActivityAnswer } from './videoActivityGrading';
+import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 import {
   buildResultsSheetData,
   formatExportPoints,
   type BuildResultsSheetDataOptions,
   type ExportableResponse,
-} from './assignmentExportShared';
+} from '@/utils/assignmentExportShared';
 
 /**
  * Re-export so consumers don't have to know which file the helper lives

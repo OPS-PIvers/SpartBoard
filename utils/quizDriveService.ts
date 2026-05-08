@@ -18,7 +18,7 @@ import {
 import { gradeAnswer } from '../hooks/useQuizSession';
 import { APP_NAME } from '../config/constants';
 import { authError } from './driveAuthErrors';
-import { buildResultsSheetData as buildResultsSheetDataShared } from './assignmentExportShared';
+import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
