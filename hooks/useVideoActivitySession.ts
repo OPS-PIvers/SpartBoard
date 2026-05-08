@@ -37,6 +37,7 @@ import {
   AssignmentMode,
   VideoActivitySession,
   VideoActivityResponse,
+  VideoActivityAttemptLedger,
   VideoActivityData,
   VideoActivityAnswer,
   VideoActivitySessionSettings,
@@ -45,6 +46,20 @@ import {
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
+/**
+ * Top-level cross-launch attempt ledger for Video Activity. Mirrors the
+ * Quiz ledger collection — see `QUIZ_ATTEMPT_LEDGER_COLLECTION` in
+ * `useQuizSession.ts` for the rationale and key shape.
+ */
+const VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION =
+  'video_activity_attempt_ledger';
+
+function videoActivityLedgerKey(
+  activityId: string,
+  studentUid: string
+): string {
+  return `${activityId}__${studentUid}`;
+}
 
 const normalizeSession = (
   sessionId: string,
@@ -658,6 +673,39 @@ export const useVideoActivitySessionStudent =
             }
           }
 
+          // Cross-launch attempt cap (Phase 2). Only meaningful for
+          // non-anonymous (SSO/studentRole) joiners — see the matching
+          // comment in `useQuizSession.joinQuizSession` for the rationale.
+          let ledgerCompleted = 0;
+          if (
+            !isAnonymous &&
+            typeof sessionData.activityId === 'string' &&
+            sessionData.activityId.length > 0
+          ) {
+            const ledgerRef = doc(
+              db,
+              VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
+              videoActivityLedgerKey(sessionData.activityId, currentUser.uid)
+            );
+            const ledgerSnap = await getDoc(ledgerRef).catch((err: unknown) => {
+              logError(
+                'useVideoActivitySessionStudent.ledgerRead',
+                err as Error,
+                {
+                  activityId: sessionData.activityId,
+                  studentUid: currentUser.uid,
+                }
+              );
+              return null;
+            });
+            if (ledgerSnap?.exists()) {
+              const ledger = ledgerSnap.data() as VideoActivityAttemptLedger;
+              ledgerCompleted = ledger.completedAttempts ?? 0;
+            }
+          }
+
+          const limit = sessionData.sessionOptions?.attemptLimit ?? null;
+
           if (existingSnap.exists()) {
             const existing = existingSnap.data() as VideoActivityResponse;
             // Attempt-limit enforcement on rejoin.
@@ -667,15 +715,20 @@ export const useVideoActivitySessionStudent =
             //     ≥1 completed attempt even if the counter literally reads
             //     0 (legacy docs that submitted before the counter was
             //     wired up).
+            //   - The ledger augments this with cross-launch state: a
+            //     student who completed an earlier launch shows up here
+            //     with `ledgerCompleted >= limit` even though the new
+            //     session's response doc is fresh.
             //   - Under the cap, reset the doc to a fresh attempt
             //     (`completedAt: null, answers: []`); preserve
             //     `completedAttempts` so future joins still see the cap.
             if (existing.completedAt != null) {
-              const limit = sessionData.sessionOptions?.attemptLimit ?? null;
-              const completed = Math.max(existing.completedAttempts ?? 0, 1);
+              const completed = Math.max(
+                existing.completedAttempts ?? 0,
+                ledgerCompleted,
+                1
+              );
               if (limit !== null && completed >= limit) {
-                setJoinStatus('error');
-                setError(new AttemptLimitReachedError().message);
                 throw new AttemptLimitReachedError();
               }
               await updateDoc(effectiveResponseRef, {
@@ -686,6 +739,15 @@ export const useVideoActivitySessionStudent =
                   : {}),
               });
             }
+          } else if (limit !== null && ledgerCompleted >= limit) {
+            // No response doc for this session yet, but the ledger says
+            // the student is already at/past the cap. This is the SSO
+            // student who completed an earlier launch and has now opened
+            // a new launch — without this branch the create path below
+            // would give them a fresh response and the per-session
+            // counter would let them submit again. See the Quiz mirror
+            // in `useQuizSession.joinQuizSession`.
+            throw new AttemptLimitReachedError();
           } else {
             // Initialize `completedAttempts` and `tabSwitchWarnings` to 0 so
             // the Firestore rules' monotonic-growth check on update has a
@@ -720,7 +782,15 @@ export const useVideoActivitySessionStudent =
             sessionId: targetSessionId,
           });
           setJoinStatus('error');
-          setError('Failed to join the session. Please try again.');
+          // Preserve the cap-reached message so students know to ask the
+          // teacher rather than seeing the generic "try again" copy.
+          // Branched on the typed sentinel (not the message) so future
+          // copy edits don't silently break the discrimination.
+          if (err instanceof AttemptLimitReachedError) {
+            setError(err.message);
+          } else {
+            setError('Failed to join the session. Please try again.');
+          }
         }
       },
       []
@@ -769,24 +839,72 @@ export const useVideoActivitySessionStudent =
         responseDocId
       );
 
-      // Wrap completion in a transaction so the "already-completed?" check
-      // and the timestamp/counter writes are atomic. Two concurrent
-      // completeActivity calls (rapid double-click, two browser tabs) would
-      // otherwise both write `completedAt` and double-increment
-      // `completedAttempts`, bypassing the cap. If the doc is already
-      // completed, no-op (idempotent — VA student-side has no error toast
-      // for repeated completes, and silently dropping is the right UX).
+      // Resolve the cross-launch ledger ref (Phase 2). Same identity
+      // caveat as the Quiz hook — only meaningful for non-anonymous
+      // joiners until Phase 3 unifies the PIN flow's uid space.
+      const studentUid = auth.currentUser?.uid ?? null;
+      const isAnonymous = auth.currentUser?.isAnonymous ?? true;
+      const activityId = session?.activityId ?? null;
+      const teacherUid = session?.teacherUid ?? null;
+      const writeLedger =
+        !isAnonymous &&
+        typeof studentUid === 'string' &&
+        studentUid.length > 0 &&
+        typeof activityId === 'string' &&
+        activityId.length > 0 &&
+        typeof teacherUid === 'string' &&
+        teacherUid.length > 0;
+      const ledgerRef = writeLedger
+        ? doc(
+            db,
+            VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
+            videoActivityLedgerKey(activityId, studentUid)
+          )
+        : null;
+
+      // Wrap completion in a transaction so the "already-completed?"
+      // check, the response timestamp/counter writes, and the ledger
+      // increment are all atomic. Two concurrent completeActivity calls
+      // (rapid double-click, two browser tabs) would otherwise both write
+      // `completedAt` and double-increment both counters, bypassing the
+      // cap. If the doc is already completed, no-op (idempotent — VA
+      // student-side has no error toast for repeated completes).
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(responseRef);
         if (!snap.exists()) return;
         const existing = snap.data() as VideoActivityResponse;
         if (existing.completedAt != null) return;
+
+        // All reads before all writes (Firestore transaction rule).
+        const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
+
+        const completedAt = Date.now();
         tx.update(responseRef, {
-          completedAt: Date.now(),
+          completedAt,
           completedAttempts: increment(1),
         });
+
+        if (ledgerRef && ledgerSnap) {
+          if (ledgerSnap.exists()) {
+            tx.update(ledgerRef, {
+              completedAttempts: increment(1),
+              lastAttemptAt: completedAt,
+              lastSessionId: sessionId,
+            });
+          } else {
+            const newLedger: VideoActivityAttemptLedger = {
+              activityId: activityId as string,
+              studentUid: studentUid as string,
+              teacherUid: teacherUid as string,
+              completedAttempts: 1,
+              lastAttemptAt: completedAt,
+              lastSessionId: sessionId,
+            };
+            tx.set(ledgerRef, newLedger);
+          }
+        }
       });
-    }, [sessionId, responseDocId]);
+    }, [sessionId, responseDocId, session?.activityId, session?.teacherUid]);
 
     return {
       session,

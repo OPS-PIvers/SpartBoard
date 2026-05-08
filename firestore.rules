@@ -1604,6 +1604,104 @@ service cloud.firestore {
       }
     }
 
+    // Quiz Attempt Ledger — top-level, cross-launch attempt counter per
+    // (quiz, student). See `QuizAttemptLedger` in types.ts and
+    // `QUIZ_ATTEMPT_LEDGER_COLLECTION` in `useQuizSession.ts` for the
+    // rationale. The doc id is `${quizId}__${studentUid}`; the
+    // `studentUid` field on the doc must equal the student's auth uid
+    // (the rules can't decompose the doc id back into its halves).
+    //
+    // Ledger writes happen only inside the `completeQuiz` transaction
+    // alongside the response status flip, so the rules' append-only
+    // invariant on `completedAttempts` is the last line of defense
+    // against a hostile or buggy client trying to roll the counter
+    // back. The teacher's `removeStudent` action deletes the ledger
+    // (atomic with the response delete) — see Phase 2 in the
+    // attempt-cap fix branch.
+    match /quiz_attempt_ledger/{ledgerId} {
+      allow read: if request.auth != null && (
+        isAdmin() ||
+        request.auth.uid == resource.data.teacherUid ||
+        request.auth.uid == resource.data.studentUid
+      );
+      // Student creates their own ledger entry on first completion.
+      // Constraints mirror the response create rule shape:
+      //   - studentUid field must equal the caller's auth uid
+      //   - completedAttempts must initialize to exactly 1 (not 0 — a
+      //     ledger entry only exists once the first completion has
+      //     occurred, and not >1 — a fresh entry shouldn't be able to
+      //     forge prior history)
+      //   - identity fields must be present and well-typed
+      allow create: if request.auth != null &&
+        request.resource.data.studentUid == request.auth.uid &&
+        request.resource.data.completedAttempts == 1 &&
+        request.resource.data.quizId is string &&
+        request.resource.data.teacherUid is string &&
+        request.resource.data.lastAttemptAt is number;
+      // Update is split into a STUDENT branch (monotonic increment via
+      // their own completeQuiz transaction) and a TEACHER branch (reset
+      // to 0). Identity fields are immutable on both.
+      allow update: if request.auth != null && (
+        // Student branch — increment by exactly 1.
+        (request.auth.uid == resource.data.studentUid &&
+         request.resource.data.studentUid == resource.data.studentUid &&
+         request.resource.data.quizId == resource.data.quizId &&
+         request.resource.data.teacherUid == resource.data.teacherUid &&
+         request.resource.data.completedAttempts == resource.data.completedAttempts + 1 &&
+         request.resource.data.lastAttemptAt is number)
+        ||
+        // Teacher reset branch — set completedAttempts back to 0.
+        (request.auth.uid == resource.data.teacherUid &&
+         request.resource.data.studentUid == resource.data.studentUid &&
+         request.resource.data.quizId == resource.data.quizId &&
+         request.resource.data.teacherUid == resource.data.teacherUid &&
+         request.resource.data.completedAttempts == 0)
+        ||
+        isAdmin()
+      );
+      // Owning teacher (or admin) may delete the entry — used by the
+      // teacher monitor's "Reset student" action. The student cannot
+      // delete (they'd be able to wipe their own cap).
+      allow delete: if request.auth != null && (
+        request.auth.uid == resource.data.teacherUid || isAdmin()
+      );
+    }
+
+    // Video Activity Attempt Ledger — same shape as the Quiz ledger.
+    // Doc id: `${activityId}__${studentUid}`.
+    match /video_activity_attempt_ledger/{ledgerId} {
+      allow read: if request.auth != null && (
+        isAdmin() ||
+        request.auth.uid == resource.data.teacherUid ||
+        request.auth.uid == resource.data.studentUid
+      );
+      allow create: if request.auth != null &&
+        request.resource.data.studentUid == request.auth.uid &&
+        request.resource.data.completedAttempts == 1 &&
+        request.resource.data.activityId is string &&
+        request.resource.data.teacherUid is string &&
+        request.resource.data.lastAttemptAt is number;
+      allow update: if request.auth != null && (
+        (request.auth.uid == resource.data.studentUid &&
+         request.resource.data.studentUid == resource.data.studentUid &&
+         request.resource.data.activityId == resource.data.activityId &&
+         request.resource.data.teacherUid == resource.data.teacherUid &&
+         request.resource.data.completedAttempts == resource.data.completedAttempts + 1 &&
+         request.resource.data.lastAttemptAt is number)
+        ||
+        (request.auth.uid == resource.data.teacherUid &&
+         request.resource.data.studentUid == resource.data.studentUid &&
+         request.resource.data.activityId == resource.data.activityId &&
+         request.resource.data.teacherUid == resource.data.teacherUid &&
+         request.resource.data.completedAttempts == 0)
+        ||
+        isAdmin()
+      );
+      allow delete: if request.auth != null && (
+        request.auth.uid == resource.data.teacherUid || isAdmin()
+      );
+    }
+
     // Announcements - all authenticated users can read, only admins can create/update/delete
     match /announcements/{announcementId} {
       allow read: if request.auth != null;

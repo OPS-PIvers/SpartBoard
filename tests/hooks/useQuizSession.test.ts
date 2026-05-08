@@ -1499,7 +1499,11 @@ interface TeacherMockEnv {
   /** All `collection(...)` calls in argument-array form (post-db). */
   collectionCalls: unknown[][];
   /** Mock writeBatch instance the hook will use during finalize. */
-  batch: { update: ReturnType<typeof vi.fn>; commit: ReturnType<typeof vi.fn> };
+  batch: {
+    update: ReturnType<typeof vi.fn>;
+    delete: ReturnType<typeof vi.fn>;
+    commit: ReturnType<typeof vi.fn>;
+  };
 }
 
 /**
@@ -1518,6 +1522,7 @@ function setupTeacherMocks(): TeacherMockEnv {
     collectionCalls: [],
     batch: {
       update: vi.fn(),
+      delete: vi.fn(),
       commit: vi.fn().mockResolvedValue(undefined),
     },
   };
@@ -1616,11 +1621,20 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
       await result.current.removeStudent('pin-period_1-9999');
     });
 
-    expect(firestore.deleteDoc).toHaveBeenCalledTimes(1);
+    // Phase 2: removeStudent now writes through a batch so the response
+    // delete and the cross-launch ledger delete commit atomically. With
+    // no matching response loaded into the snapshot list (this hook
+    // started without a subscribeToSession call), the ledger ref is
+    // unresolvable — the batch should still issue the response delete
+    // exactly once and commit.
+    expect(env.batch.delete).toHaveBeenCalledTimes(1);
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
     // Confirm the path segments target the responses subcollection at the
     // PIN-derived key, which is what the teacher monitor passes in.
-    const lastDocCall = env.docCalls.at(-1);
-    expect(lastDocCall).toEqual([
+    const responseRef = env.batch.delete.mock.calls[0][0] as {
+      path: string[];
+    };
+    expect(responseRef.path).toEqual([
       'quiz_sessions',
       'sess-1',
       'responses',
@@ -1635,7 +1649,9 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
       await result.current.removeStudent('pin-period_1-9999');
     });
 
-    expect(firestore.deleteDoc).not.toHaveBeenCalled();
+    // No batch should be created when sessionId is null.
+    expect(env.batch.delete).not.toHaveBeenCalled();
+    expect(env.batch.commit).not.toHaveBeenCalled();
   });
 
   it('revealAnswer writes a dotted-path map entry on the session doc', async () => {

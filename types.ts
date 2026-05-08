@@ -2417,6 +2417,50 @@ export interface QuizResponse {
   preSyncVersion?: number;
 }
 
+/**
+ * Cross-launch attempt ledger. Stored at the top level
+ * `/quiz_attempt_ledger/{ledgerId}` where `ledgerId = ${quizId}__${studentUid}`.
+ *
+ * Per-session response docs are scoped under the session and reset every time
+ * a teacher launches a new session for the same quiz, so the per-session
+ * `completedAttempts` counter cannot enforce "1 attempt for this quiz, ever"
+ * across re-launches. The ledger sits above sessions and accumulates a
+ * student's attempts on a specific quiz regardless of how many times the
+ * teacher launches it.
+ *
+ * Identity: keyed by the student's auth.uid, which for SSO joiners is the
+ * stable HMAC pseudonym minted by `studentLoginV1`. PIN joiners' anonymous
+ * auth uids rotate per device, so the ledger only enforces meaningfully for
+ * SSO joiners — until Phase 3's `pinLoginV1` unifies the PIN flow onto the
+ * same uid space, at which point the ledger covers PIN joiners too without
+ * any change to this shape.
+ */
+export interface QuizAttemptLedger {
+  /** Matches `QuizSession.quizId`. Half of the deterministic ledger key. */
+  quizId: string;
+  /** Matches `auth.uid`. Other half of the deterministic ledger key. */
+  studentUid: string;
+  /**
+   * UID of the teacher who owns the quiz. Carried so Firestore rules can
+   * authorize the teacher's reset action without a second `get()` to look
+   * up the parent quiz; also supports admin-only repair flows.
+   */
+  teacherUid: string;
+  /**
+   * Monotonic counter — incremented inside the same transaction that flips
+   * a session's response doc to `status: 'completed'`. The teacher reset
+   * path (see `removeStudent`) sets this back to 0.
+   */
+  completedAttempts: number;
+  /** Server-time `Date.now()` of the most recent successful completion. */
+  lastAttemptAt: number;
+  /**
+   * Session id of the most recent successful completion. Diagnostic
+   * breadcrumb only — never read for enforcement.
+   */
+  lastSessionId?: string;
+}
+
 /** Global admin configuration for the Quiz widget */
 export interface QuizGlobalConfig {
   dockDefaults?: Record<string, boolean>;
@@ -3157,6 +3201,27 @@ export interface VideoActivityResponse {
    * publishes scores; mirrors `VideoActivityScoreVisibility`.
    */
   scoreVisibility?: VideoActivityScoreVisibility;
+}
+
+/**
+ * Cross-launch attempt ledger for Video Activity. Mirrors
+ * `QuizAttemptLedger` exactly — see that type's docs for the rationale.
+ * Stored at `/video_activity_attempt_ledger/{ledgerId}` where
+ * `ledgerId = ${activityId}__${studentUid}`.
+ */
+export interface VideoActivityAttemptLedger {
+  /** Matches `VideoActivitySession.activityId`. */
+  activityId: string;
+  /** Matches `auth.uid`. */
+  studentUid: string;
+  /** UID of the teacher who owns the activity. */
+  teacherUid: string;
+  /** Monotonic counter; reset to 0 by the teacher's removeStudent action. */
+  completedAttempts: number;
+  /** Server-time `Date.now()` of the most recent successful completion. */
+  lastAttemptAt: number;
+  /** Diagnostic breadcrumb — most recent session id; not used for enforcement. */
+  lastSessionId?: string;
 }
 
 export interface TalkingToolConfig {
