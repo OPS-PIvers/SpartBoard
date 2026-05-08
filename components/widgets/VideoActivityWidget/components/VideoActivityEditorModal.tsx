@@ -31,6 +31,8 @@ import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { useAuth } from '@/context/useAuth';
 import { generateVideoActivity } from '@/utils/ai';
+import { extractYouTubeId } from '@/utils/youtube';
+import { Timeline } from './Timeline';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
@@ -220,6 +222,16 @@ export const VideoActivityEditorModal: React.FC<
     [questions]
   );
 
+  /**
+   * Memoize the parsed videoId so Timeline.tsx doesn't restart its YT
+   * player on every keystroke into the URL field — the player only
+   * rebuilds when the resolved id actually changes.
+   */
+  const videoIdForTimeline = useMemo(
+    () => (youtubeUrl.trim() ? extractYouTubeId(youtubeUrl.trim()) : null),
+    [youtubeUrl]
+  );
+
   const updateQuestion = (
     id: string,
     updates: Partial<VideoActivityQuestion>
@@ -263,6 +275,45 @@ export const VideoActivityEditorModal: React.FC<
     setQuestions((prev) => [...prev, q]);
     setTimestampInputs((prev) => ({ ...prev, [q.id]: secondsToMmSs(0) }));
     setExpandedId(q.id);
+  };
+
+  /**
+   * Add a question at the Timeline's current playhead. Mirrors `addQuestion`
+   * but seeds the timestamp from the seconds the teacher chose. Inserts in
+   * timestamp order so the strictly-increasing-timestamp save validation
+   * doesn't fail when the user adds out-of-order. Tied timestamps get a
+   * +1s nudge rather than a save error so the teacher can still hit Save.
+   */
+  const addQuestionAtTime = (seconds: number) => {
+    setQuestions((prev) => {
+      const used = new Set(prev.map((q) => q.timestamp));
+      let target = Math.max(0, Math.floor(seconds));
+      while (used.has(target)) target += 1;
+      const fresh: VideoActivityQuestion = {
+        ...blankQuestion(),
+        timestamp: target,
+      };
+      const next = [...prev, fresh].sort((a, b) => a.timestamp - b.timestamp);
+      setTimestampInputs((tsPrev) => ({
+        ...tsPrev,
+        [fresh.id]: secondsToMmSs(target),
+      }));
+      setExpandedId(fresh.id);
+      return next;
+    });
+  };
+
+  /** Marker click — scroll the question into view and expand it. */
+  const focusQuestion = (id: string) => {
+    setExpandedId(id);
+    if (typeof document !== 'undefined') {
+      // The question card has `id={`q-card-${id}`}`. Scroll only when the
+      // element is present (it always should be for in-list questions).
+      const el = document.getElementById(`q-card-${id}`);
+      if (el?.scrollIntoView) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
   };
 
   const handleAiGenerate = async () => {
@@ -481,11 +532,23 @@ export const VideoActivityEditorModal: React.FC<
           </div>
         )}
 
+        {/* Timeline: only renders when we have a parseable YouTube URL. */}
+        {videoIdForTimeline && (
+          <Timeline
+            videoId={videoIdForTimeline}
+            questions={questions}
+            onAddAtTime={addQuestionAtTime}
+            onSelectQuestion={focusQuestion}
+            activeQuestionId={expandedId ?? undefined}
+          />
+        )}
+
         {questions.map((q, i) => {
           const tsValue = timestampInputs[q.id] ?? secondsToMmSs(q.timestamp);
           return (
             <div
               key={q.id}
+              id={`q-card-${q.id}`}
               className={`bg-white border rounded-2xl overflow-hidden transition-all shadow-sm ${
                 expandedId === q.id
                   ? 'border-brand-blue-primary/30 ring-2 ring-brand-blue-primary/5 shadow-md'

@@ -14,6 +14,7 @@ import {
   generateVideoActivity,
   transcribeVideoWithGemini,
   generateGuidedLearning,
+  recommendVideoForActivity,
 } from '@/utils/ai';
 
 // Mock Firebase Functions
@@ -162,6 +163,32 @@ vi.mock('firebase/functions', () => {
                   incorrectAnswers: ['B', 'C'],
                 },
               ],
+            },
+          };
+        }
+
+        if (data.type === 'video-activity-recommend') {
+          if (data.prompt.includes('refuse')) {
+            // Gemini refuses with empty videoId
+            return {
+              data: { videoId: '', title: '', rationale: 'Topic too vague.' },
+            };
+          }
+          if (data.prompt.includes('hallucinate')) {
+            // Bad videoId shape (only 5 chars) — wrapper rejects
+            return {
+              data: { videoId: 'short', title: 'Bad', rationale: 'x' },
+            };
+          }
+          if (data.prompt.includes('garbage')) {
+            // Missing fields entirely
+            return { data: {} };
+          }
+          return {
+            data: {
+              videoId: 'abcDEF12345',
+              title: 'Photosynthesis Crash Course',
+              rationale: 'Aligned with 6th-grade life science standards.',
             },
           };
         }
@@ -413,5 +440,43 @@ describe('video activity callables', () => {
     ).rejects.toThrow(
       'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
     );
+  });
+});
+
+describe('recommendVideoForActivity', () => {
+  it('returns a parsed recommendation on a valid response', async () => {
+    const result = await recommendVideoForActivity('photosynthesis 6th grade');
+    expect(result).toEqual({
+      videoId: 'abcDEF12345',
+      title: 'Photosynthesis Crash Course',
+      rationale: 'Aligned with 6th-grade life science standards.',
+    });
+  });
+
+  it('returns null when Gemini refuses with empty videoId', async () => {
+    const result = await recommendVideoForActivity('refuse this topic');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when Gemini hallucinates an invalid id shape', async () => {
+    // 5 chars — must be exactly 11 alphanumerics/hyphens/underscores
+    const result = await recommendVideoForActivity('hallucinate test');
+    expect(result).toBeNull();
+  });
+
+  it('returns null on garbled response (missing fields)', async () => {
+    const result = await recommendVideoForActivity('garbage in');
+    expect(result).toBeNull();
+  });
+
+  it('throws when topic is empty', async () => {
+    await expect(recommendVideoForActivity('   ')).rejects.toThrow(
+      'A topic or objective is required.'
+    );
+  });
+
+  it('routes through the generic generateWithAI function', async () => {
+    await recommendVideoForActivity('photosynthesis 6th grade');
+    expect(vi.mocked(httpsCallable)).toHaveBeenCalledWith({}, 'generateWithAI');
   });
 });
