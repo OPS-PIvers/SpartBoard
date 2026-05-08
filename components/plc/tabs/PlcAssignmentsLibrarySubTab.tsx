@@ -118,6 +118,14 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
       setBusyRowId(target.plcAssignmentId);
       let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
       let joinedGroupId: string | null = null;
+      // Hoisted to function scope so the `syncedFrom` block below can
+      // tag the new personal assignment with the same version that
+      // `attachSyncLinkage` saw — prevents a stale-by-zero "Sync
+      // available" prompt on a card that's actually current. `Math.max`
+      // here guards against a peer publish landing between the
+      // canonical pull and the Cloud-Function join, which would leave
+      // `joinResult.version` higher than `canonical.version`.
+      let liveVersion: number | undefined;
       try {
         const canonical = await pullSyncedQuizContent(target.syncGroupId);
         const now = Date.now();
@@ -138,7 +146,7 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
             target.plcAssignmentId
           );
           joinedGroupId = joinResult.groupId;
-          const liveVersion = Math.max(canonical.version, joinResult.version);
+          liveVersion = Math.max(canonical.version, joinResult.version);
           await attachSyncLinkage(savedMeta.id, {
             groupId: target.syncGroupId,
             lastSyncedVersion: liveVersion,
@@ -166,14 +174,11 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
           {
             initialStatus: 'paused',
             skipPlcTemplateWrite: true,
-            ...(mode === 'sync'
+            ...(mode === 'sync' && liveVersion !== undefined
               ? {
                   syncedFrom: {
                     groupId: target.syncGroupId,
-                    syncedVersion: Math.max(
-                      canonical.version,
-                      joinedGroupId ? canonical.version : 1
-                    ),
+                    syncedVersion: liveVersion,
                   },
                 }
               : {}),
