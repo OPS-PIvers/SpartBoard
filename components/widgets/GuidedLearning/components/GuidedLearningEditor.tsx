@@ -110,20 +110,20 @@ function SettingChip<T extends string>({
   const currentLabel = current?.label ?? value;
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         title={current?.desc}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
           open
             ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
             : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
         }`}
       >
-        <span className="text-slate-500 font-medium uppercase tracking-wider text-xxs">
+        <span className="text-slate-500 font-medium uppercase tracking-wide text-xxs">
           {label}
         </span>
         <span>{currentLabel}</span>
@@ -197,20 +197,20 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
   const status = enabled && trimmed.length > 0 ? 'On' : 'Off';
 
   return (
-    <div ref={ref} className="relative">
+    <div ref={ref} className="relative shrink-0">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Customize the welcome screen students see before they start."
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
           open || status === 'On'
             ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
             : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
         }`}
       >
-        <span className="text-slate-500 font-medium uppercase tracking-wider text-xxs">
+        <span className="text-slate-500 font-medium uppercase tracking-wide text-xxs">
           Welcome
         </span>
         <span>{status}</span>
@@ -380,13 +380,16 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
           placeholder="Add a description (optional)"
           className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
         />
-        <div className="flex flex-wrap gap-2 items-center">
+        {/* Single row, never wraps. Mode pills + display chips share one
+            line; if the modal is too narrow to fit them all the row scrolls
+            horizontally instead of breaking onto multiple rows. */}
+        <div className="flex flex-nowrap gap-1.5 items-center overflow-x-auto custom-scrollbar -mx-1 px-1">
           {MODE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
               onClick={() => setMode(opt.value)}
               title={opt.desc}
-              className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+              className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
                 mode === opt.value
                   ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
@@ -395,7 +398,10 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
               {opt.label}
             </button>
           ))}
-          <span className="mx-1 h-4 w-px bg-slate-200" aria-hidden="true" />
+          <span
+            className="shrink-0 mx-0.5 h-4 w-px bg-slate-200"
+            aria-hidden="true"
+          />
           <SettingChip
             label="Pulse"
             value={hotspotPulse}
@@ -403,7 +409,7 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
             onChange={setHotspotPulse}
           />
           <SettingChip
-            label="Image transition"
+            label="Transition"
             value={imageTransition}
             options={TRANSITION_OPTIONS}
             onChange={setImageTransition}
