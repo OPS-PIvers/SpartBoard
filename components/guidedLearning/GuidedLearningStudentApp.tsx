@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  RefreshCw,
   Trophy,
 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -118,6 +119,11 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   const [completed, setCompleted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [answers, setAnswers] = useState<GuidedLearningResponse['answers']>([]);
+  // Bumped when the user clicks "Replay from beginning" on a view-only
+  // completion screen. Used as the React key on the player so its
+  // internal state (currentIdx, activeStepId, image index, etc.) fully
+  // resets to a fresh experience without needing reload.
+  const [replayKey, setReplayKey] = useState(0);
   // Phase 5A: post-PIN class-period picker. When the session has multiple
   // periods configured, the student chooses one before the experience
   // begins; the value is persisted on their response doc.
@@ -192,6 +198,17 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
         session={session}
         score={score}
         isViewOnly={isViewOnly}
+        onReplay={() => {
+          // Drop responses + bump key so the player fully remounts with
+          // fresh state at step 0 / image 0. Keep `started` true so the
+          // user goes straight to the player rather than back through
+          // the start screen.
+          setAnswers([]);
+          setScore(null);
+          setCompleted(false);
+          setReplayKey((k) => k + 1);
+          startedAt.current = Date.now();
+        }}
       />
     );
   }
@@ -242,6 +259,7 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     <div className="h-screen h-dvh overflow-hidden bg-slate-950">
       <div className="h-full relative">
         <GuidedLearningPlayer
+          key={`gl-player-${replayKey}`}
           set={
             setForPlayer as Parameters<typeof GuidedLearningPlayer>[0]['set']
           }
@@ -400,24 +418,57 @@ const CompletionScreen: React.FC<{
   session: GuidedLearningSession;
   score: number | null;
   isViewOnly: boolean;
-}> = ({ session, score, isViewOnly }) => (
-  <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-    <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-      <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
-      <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-      <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
-      <p className="text-emerald-400 font-semibold text-lg mb-1">Complete!</p>
-      {!isViewOnly && score !== null && (
-        <p className="text-slate-300 text-sm mb-4">
-          You scored <span className="text-white font-bold">{score}%</span> on
-          the comprehension questions.
+  /**
+   * View-only "Replay from beginning" handler. Resets state so the
+   * player remounts at step 0. Not shown for response-tracked sessions
+   * (those have already submitted — replay would imply submitting
+   * twice).
+   */
+  onReplay: () => void;
+}> = ({ session, score, isViewOnly, onReplay }) => {
+  // View-only completion is purely informational — there's no "score",
+  // no "you finished an assignment" framing, just "you reached the end
+  // of this resource". Suppress the gamified Trophy / Complete! styling
+  // and surface the Replay CTA as the primary action.
+  if (isViewOnly) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+          <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
+          <p className="text-slate-400 text-sm mb-6">
+            You&apos;ve reached the end of this activity.
+          </p>
+          <button
+            onClick={onReplay}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Replay from beginning
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Response-tracked completion — keep the achievement framing.
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
+        <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
+        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
+        <p className="text-emerald-400 font-semibold text-lg mb-1">Complete!</p>
+        {score !== null && (
+          <p className="text-slate-300 text-sm mb-4">
+            You scored <span className="text-white font-bold">{score}%</span> on
+            the comprehension questions.
+          </p>
+        )}
+        <p className="text-slate-500 text-xs">
+          Your responses have been submitted.
         </p>
-      )}
-      <p className="text-slate-500 text-xs">
-        {isViewOnly
-          ? 'Thanks for viewing!'
-          : 'Your responses have been submitted.'}
-      </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};
