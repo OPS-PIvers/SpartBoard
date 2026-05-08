@@ -4,7 +4,8 @@
  * given assignment.
  *
  * Reached from the archive tab's per-assignment kebab → "Publish Scores".
- * The four levels map to `QuizScoreVisibility`:
+ * The four levels map to the assignment's score-visibility union (Quiz
+ * and Video Activity define structurally identical unions):
  *
  *   - none: scores are hidden from students (default / unpublish path).
  *   - score-only: students see their final percentage score.
@@ -16,7 +17,7 @@
  * The modal is purely a level-picker — the actual publish work
  * (computing scores, writing per-response `isCorrect`, populating
  * `session.revealedAnswers`, mirroring the visibility flag) is done by
- * `useQuizAssignments.publishAssignmentScores`.
+ * the caller's `publishAssignmentScores` hook.
  */
 
 import React, { useState } from 'react';
@@ -30,19 +31,30 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import type { QuizScoreVisibility } from '@/types';
+import type {
+  QuizScoreVisibility,
+  VideoActivityScoreVisibility,
+} from '@/types';
+
+/**
+ * Score-visibility level. Quiz and VA both define the same string-literal
+ * union; either resolves to the same shape at the call site.
+ */
+export type PublishScoresVisibility =
+  | QuizScoreVisibility
+  | VideoActivityScoreVisibility;
 
 interface PublishScoresModalProps {
-  /** Quiz title — shown as a sub-line so the teacher knows which assignment they're publishing. */
-  quizTitle: string;
+  /** Assignment title — sub-line so the teacher knows which assignment they're publishing. */
+  assignmentTitle: string;
   /** Currently-published level (or 'none' / undefined when nothing is published yet). */
-  currentVisibility: QuizScoreVisibility | undefined;
+  currentVisibility: PublishScoresVisibility | undefined;
   onClose: () => void;
-  onConfirm: (visibility: QuizScoreVisibility) => Promise<void> | void;
+  onConfirm: (visibility: PublishScoresVisibility) => Promise<void> | void;
 }
 
 interface VisibilityOption {
-  id: QuizScoreVisibility;
+  id: PublishScoresVisibility;
   title: string;
   body: string;
   Icon: React.ComponentType<{ className?: string }>;
@@ -70,24 +82,24 @@ const OPTIONS: VisibilityOption[] = [
 ];
 
 export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
-  quizTitle,
+  assignmentTitle,
   currentVisibility,
   onClose,
   onConfirm,
 }) => {
   // Default the picker to whatever the assignment is currently set to (or
   // 'score-only' on first publish — the calmest non-empty choice).
-  const initial: QuizScoreVisibility =
+  const initial: PublishScoresVisibility =
     currentVisibility && currentVisibility !== 'none'
       ? currentVisibility
       : 'score-only';
-  const [selected, setSelected] = useState<QuizScoreVisibility>(initial);
+  const [selected, setSelected] = useState<PublishScoresVisibility>(initial);
   const [submitting, setSubmitting] = useState(false);
 
   const isPublished =
     currentVisibility !== undefined && currentVisibility !== 'none';
 
-  const handleConfirm = async (visibility: QuizScoreVisibility) => {
+  const handleConfirm = async (visibility: PublishScoresVisibility) => {
     if (submitting) return;
     setSubmitting(true);
     try {
@@ -115,7 +127,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                 Publish scores
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
-                {quizTitle}
+                {assignmentTitle}
               </p>
             </div>
           </div>

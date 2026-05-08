@@ -85,6 +85,26 @@ vi.mock('../hooks/useQuizAssignments', () => ({
     importSharedAssignment: vi.fn().mockResolvedValue('a1'),
   }),
 }));
+vi.mock('../hooks/useVideoActivity', () => ({
+  useVideoActivity: () => ({
+    activities: [],
+    loading: false,
+    error: null,
+    saveActivity: vi.fn().mockResolvedValue({ id: 'va1', driveFileId: 'd-1' }),
+    deleteActivity: vi.fn().mockResolvedValue(undefined),
+    attachSyncLinkage: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+vi.mock('../hooks/useVideoActivityAssignments', () => ({
+  useVideoActivityAssignments: () => ({
+    assignments: [],
+    loading: false,
+    error: null,
+    importSharedAssignment: vi
+      .fn()
+      .mockResolvedValue({ assignmentId: 'a1', activityId: 'va1' }),
+  }),
+}));
 vi.mock('../hooks/usePlcs', () => ({
   usePlcs: () => ({
     plcs: [],

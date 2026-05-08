@@ -38,7 +38,7 @@ import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { QuizAssignmentImportSetupModal } from './components/QuizAssignmentImportSetupModal';
-import { PublishScoresModal } from './components/PublishScoresModal';
+import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import type { QuizAssignment } from '@/types';
 import {
   buildPinToNameMap,
@@ -1784,7 +1784,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       )}
       {publishingAssignment && (
         <PublishScoresModal
-          quizTitle={publishingAssignment.quizTitle}
+          assignmentTitle={publishingAssignment.quizTitle}
           currentVisibility={publishingAssignment.scoreVisibility}
           onClose={() => setPublishingAssignment(null)}
           onConfirm={async (visibility) => {

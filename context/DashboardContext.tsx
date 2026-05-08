@@ -225,9 +225,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [pendingShareId, setPendingShareId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
     const path = window.location.pathname;
-    // Skip quiz and assignment share URLs — those are handled separately
+    // Skip quiz, assignment, and video-activity share URLs — those are
+    // handled separately by their dedicated `pending*ShareId` states.
     if (path.startsWith('/share/quiz/')) return null;
     if (path.startsWith('/share/assignment/')) return null;
+    if (path.startsWith('/share/video-activity/')) return null;
     if (path.startsWith('/share/')) {
       return path.split('/share/')[1] || null;
     }
@@ -256,6 +258,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return null;
   });
 
+  const [pendingVideoActivityShareId, setPendingVideoActivityShareId] =
+    useState<string | null>(() => {
+      if (typeof window === 'undefined') return null;
+      const path = window.location.pathname;
+      if (path.startsWith('/share/video-activity/')) {
+        return path.split('/share/video-activity/')[1] || null;
+      }
+      return null;
+    });
+
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
     window.history.replaceState(null, '', '/');
@@ -268,6 +280,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearPendingAssignmentShare = useCallback(() => {
     setPendingAssignmentShareId(null);
+    window.history.replaceState(null, '', '/');
+  }, []);
+
+  const clearPendingVideoActivityShare = useCallback(() => {
+    setPendingVideoActivityShareId(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
@@ -4232,6 +4249,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentShareId,
       setPendingAssignmentShareId,
       clearPendingAssignmentShare,
+      pendingVideoActivityShareId,
+      setPendingVideoActivityShareId,
+      clearPendingVideoActivityShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
@@ -4330,6 +4350,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentShareId,
       setPendingAssignmentShareId,
       clearPendingAssignmentShare,
+      pendingVideoActivityShareId,
+      setPendingVideoActivityShareId,
+      clearPendingVideoActivityShare,
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,

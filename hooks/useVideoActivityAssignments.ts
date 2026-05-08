@@ -16,6 +16,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   addDoc,
   collection,
+  deleteField,
   doc,
   getDoc,
   onSnapshot,
@@ -37,6 +38,7 @@ import { logError } from '../utils/logError';
 import type {
   AssignmentMode,
   SharedVideoActivityAssignment,
+  VideoActivityAnswer,
   VideoActivityAssignment,
   VideoActivityAssignmentSettings,
   VideoActivityAssignmentSyncLinkage,
@@ -44,8 +46,11 @@ import type {
   VideoActivityData,
   VideoActivityMetadata,
   VideoActivityMetadataSyncLinkage,
+  VideoActivityResponse,
+  VideoActivityScoreVisibility,
   VideoActivitySession,
 } from '../types';
+import { gradeVideoActivityAnswer } from '../utils/videoActivityGrading';
 
 const VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION = 'video_activity_assignments';
 const VIDEO_ACTIVITY_SESSIONS_COLLECTION = 'video_activity_sessions';
@@ -152,6 +157,31 @@ export interface UseVideoActivityAssignmentsResult {
     shareId: string,
     options: ImportSharedAssignmentOptions
   ) => Promise<{ assignmentId: string; activityId: string }>;
+  /**
+   * Publish (or unpublish) per-student scores for an assignment. Mirrors
+   * `useQuizAssignments.publishAssignmentScores`. Grades every response
+   * via `gradeVideoActivityAnswer` (handles MA / FIB-with-variants — the
+   * Quiz grader's `'MA'` blind spot is irrelevant here), writes the
+   * computed `score` + per-answer `isCorrect` flags onto each response,
+   * and mirrors the visibility flag onto the assignment + session docs.
+   *
+   * `'none'` is the unpublish path: clears `scoreVisibility` on assignment
+   * + session and wipes `revealedAnswers`. Already-written `score` /
+   * `isCorrect` are left in place — the reader gates on `scoreVisibility`,
+   * so this is harmless and avoids a multi-batch wipe on a gesture the
+   * teacher may immediately undo.
+   *
+   * `'score-responses-and-answers'` populates `session.revealedAnswers`
+   * (id → correctAnswer) so the student review screen can show the
+   * canonical correct answer for each question — VA's session strips
+   * correct answers from `publicQuestions` for the in-progress flow,
+   * mirroring Quiz's student-safety pattern.
+   */
+  publishAssignmentScores: (
+    assignmentId: string,
+    activityData: VideoActivityData,
+    visibility: VideoActivityScoreVisibility
+  ) => Promise<{ responsesUpdated: number }>;
 }
 
 export interface ImportSharedAssignmentOptions {
@@ -766,6 +796,146 @@ export const useVideoActivityAssignments = (
     [userId, peekSharedAssignment, createAssignment]
   );
 
+  const publishAssignmentScores = useCallback<
+    UseVideoActivityAssignmentsResult['publishAssignmentScores']
+  >(
+    async (assignmentId, activityData, visibility) => {
+      if (!userId) throw new Error('Not authenticated');
+
+      const now = Date.now();
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const sessionRef = doc(
+        db,
+        VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+        assignmentId
+      );
+
+      if (visibility === 'none') {
+        const batch = writeBatch(db);
+        batch.update(assignmentRef, {
+          scoreVisibility: 'none',
+          scorePublishedAt: deleteField(),
+          updatedAt: now,
+        });
+        batch.update(sessionRef, {
+          scoreVisibility: 'none',
+          revealedAnswers: deleteField(),
+        });
+        await batch.commit();
+        return { responsesUpdated: 0 };
+      }
+
+      const questionsById = new Map(
+        activityData.questions.map((q) => [q.id, q])
+      );
+
+      const responsesSnap = await getDocs(
+        collection(
+          db,
+          VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+          assignmentId,
+          RESPONSES_COLLECTION
+        )
+      );
+
+      interface ResponseUpdate {
+        ref: ReturnType<typeof doc>;
+        patch: { score: number; answers: VideoActivityAnswer[] };
+      }
+      const updates: ResponseUpdate[] = [];
+      for (const d of responsesSnap.docs) {
+        const data = d.data() as VideoActivityResponse;
+        const answers = Array.isArray(data.answers) ? data.answers : [];
+        let pointsEarned = 0;
+        let pointsMax = 0;
+        const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
+          const q = questionsById.get(a.questionId);
+          if (!q) {
+            // Question deleted between submission and publish — drop any
+            // stale `isCorrect` from a prior publish so the response
+            // doesn't carry a value the canonical activity no longer
+            // supports. Mirrors the Quiz pattern.
+            const { isCorrect: _stale, ...rest } = a;
+            void _stale;
+            return rest;
+          }
+          const result = gradeVideoActivityAnswer(q, a.answer);
+          pointsEarned += result.pointsEarned;
+          pointsMax += result.pointsMax;
+          return { ...a, isCorrect: result.isCorrect };
+        });
+        // Count unanswered questions toward the denominator so a blank
+        // response scores 0%, not undefined. O(Q) Set lookup vs the
+        // O(Q*A) `.some` pattern matters on PLC-shared assignments.
+        const answeredQuestionIds = new Set<string>();
+        for (const a of answers) answeredQuestionIds.add(a.questionId);
+        for (const q of activityData.questions) {
+          if (!answeredQuestionIds.has(q.id)) {
+            pointsMax += q.points ?? 1;
+          }
+        }
+        const score =
+          pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
+        updates.push({
+          ref: d.ref,
+          patch: { score, answers: gradedAnswers },
+        });
+      }
+
+      const MAX_BATCH_WRITES = 400;
+      const firstBatch = writeBatch(db);
+      firstBatch.update(assignmentRef, {
+        scoreVisibility: visibility,
+        scorePublishedAt: now,
+        updatedAt: now,
+      });
+      const sessionPatch: Record<string, unknown> = {
+        scoreVisibility: visibility,
+      };
+      if (visibility === 'score-responses-and-answers') {
+        const revealedAnswers: Record<string, string> = {};
+        for (const q of activityData.questions) {
+          revealedAnswers[q.id] = q.correctAnswer;
+        }
+        sessionPatch.revealedAnswers = revealedAnswers;
+      } else {
+        sessionPatch.revealedAnswers = deleteField();
+      }
+      firstBatch.update(sessionRef, sessionPatch);
+
+      // 2 writes already consumed (assignment + session); fill the rest
+      // of the first batch with response updates so the visibility flip
+      // is atomic with at least the first chunk of grades.
+      const firstChunkSize = Math.min(updates.length, MAX_BATCH_WRITES - 2);
+      for (let i = 0; i < firstChunkSize; i++) {
+        firstBatch.update(updates[i].ref, updates[i].patch);
+      }
+      await firstBatch.commit();
+
+      for (
+        let cursor = firstChunkSize;
+        cursor < updates.length;
+        cursor += MAX_BATCH_WRITES
+      ) {
+        const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
+        const chunkBatch = writeBatch(db);
+        for (const u of chunk) {
+          chunkBatch.update(u.ref, u.patch);
+        }
+        await chunkBatch.commit();
+      }
+
+      return { responsesUpdated: updates.length };
+    },
+    [userId]
+  );
+
   return {
     assignments,
     loading,
@@ -780,5 +950,6 @@ export const useVideoActivityAssignments = (
     shareAssignment,
     peekSharedAssignment,
     importSharedAssignment,
+    publishAssignmentScores,
   };
 };

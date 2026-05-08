@@ -12,12 +12,14 @@ import {
   WidgetData,
   VideoActivityConfig,
   VideoActivityView,
+  VideoActivityAssignment,
   VideoActivityMetadata,
   VideoActivityData,
   VideoActivitySessionSettings,
   VideoActivityGlobalConfig,
   VideoActivitySession,
 } from '@/types';
+import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
@@ -104,7 +106,11 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     reactivateAssignment,
     deleteAssignment,
     shareAssignment,
+    publishAssignmentScores,
   } = useVideoActivityAssignments(user?.uid);
+
+  const [publishingAssignment, setPublishingAssignment] =
+    useState<VideoActivityAssignment | null>(null);
 
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [selectedSession, setSelectedSession] =
@@ -318,10 +324,14 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   }
 
   if (view === 'results' && selectedSession) {
+    const resultsAssignment = assignments.find(
+      (a) => a.id === selectedSession.id
+    );
     return (
       <Results
         session={selectedSession}
         responses={responses}
+        plc={resultsAssignment?.plc}
         onBack={() => {
           unsubscribeFromSession();
           setSelectedSession(null);
@@ -705,6 +715,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             } as VideoActivityConfig,
           });
         }}
+        onArchivePublishScores={(assignment) =>
+          setPublishingAssignment(assignment)
+        }
         initialLibraryViewMode={config.libraryViewMode}
         onLibraryViewModeChange={(mode) => {
           updateWidget(widget.id, {
@@ -712,6 +725,65 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           });
         }}
       />
+      {publishingAssignment && (
+        <PublishScoresModal
+          assignmentTitle={
+            publishingAssignment.className ?? publishingAssignment.activityTitle
+          }
+          currentVisibility={publishingAssignment.scoreVisibility}
+          onClose={() => setPublishingAssignment(null)}
+          onConfirm={async (visibility) => {
+            const target = publishingAssignment;
+            try {
+              if (visibility === 'none') {
+                await publishAssignmentScores(
+                  target.id,
+                  // Empty placeholder VideoActivityData — the 'none' branch
+                  // never reads it. Cheaper than re-loading from Drive for
+                  // a flag flip.
+                  {
+                    id: target.activityId,
+                    title: target.activityTitle,
+                    youtubeUrl: '',
+                    questions: [],
+                    createdAt: 0,
+                    updatedAt: 0,
+                  },
+                  visibility
+                );
+                addToast('Scores unpublished.', 'success');
+                setPublishingAssignment(null);
+                return;
+              }
+              const data = await loadActivityData(target.activityDriveFileId);
+              if (!data) {
+                addToast(
+                  'Activity content unavailable — cannot publish scores.',
+                  'error'
+                );
+                return;
+              }
+              const result = await publishAssignmentScores(
+                target.id,
+                data,
+                visibility
+              );
+              addToast(
+                result.responsesUpdated > 0
+                  ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
+                  : 'Scores published. Students will see results once they submit.',
+                'success'
+              );
+              setPublishingAssignment(null);
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Failed to publish scores',
+                'error'
+              );
+            }
+          }}
+        />
+      )}
       <VideoActivityEditorModal
         isOpen={!!editingActivity}
         activity={editingActivity}

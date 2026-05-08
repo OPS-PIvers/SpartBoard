@@ -16,6 +16,8 @@ import {
   useQuizAssignments,
   type SharedAssignmentImportMode,
 } from '@/hooks/useQuizAssignments';
+import { useVideoActivity } from '@/hooks/useVideoActivity';
+import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
@@ -160,6 +162,8 @@ export const DashboardView: React.FC = () => {
     clearPendingQuizShare,
     pendingAssignmentShareId,
     clearPendingAssignmentShare,
+    pendingVideoActivityShareId,
+    clearPendingVideoActivityShare,
     setPendingAssignmentSetup,
     // Widget grouping
     groupWidgets,
@@ -178,6 +182,13 @@ export const DashboardView: React.FC = () => {
   const { importSharedAssignment, peekSharedAssignment } = useQuizAssignments(
     user?.uid
   );
+  const {
+    saveActivity: saveVideoActivity,
+    deleteActivity: deleteVideoActivity,
+    attachSyncLinkage: attachVideoActivitySyncLinkage,
+  } = useVideoActivity(user?.uid);
+  const { importSharedAssignment: importSharedVideoActivityAssignment } =
+    useVideoActivityAssignments(user?.uid);
   const { plcs, loading: plcsLoading } = usePlcs();
 
   // Mode picker state — populated when a synced share is detected; null
@@ -212,6 +223,32 @@ export const DashboardView: React.FC = () => {
         bringToFront(quizWidget.id);
       } else {
         addWidget('quiz', {
+          config: { view: 'manager', managerTab: tab },
+        });
+      }
+    },
+    [activeDashboard, updateWidget, addWidget, bringToFront]
+  );
+
+  const openVideoActivityWidgetToTab = React.useCallback(
+    (tab: 'library' | 'active' | 'archive') => {
+      const vaWidget = activeDashboard?.widgets.find(
+        (w) => w.type === 'video-activity'
+      );
+      if (vaWidget) {
+        if (vaWidget.minimized) {
+          updateWidget(vaWidget.id, { minimized: false });
+        }
+        updateWidget(vaWidget.id, {
+          config: {
+            ...vaWidget.config,
+            view: 'manager',
+            managerTab: tab,
+          },
+        });
+        bringToFront(vaWidget.id);
+      } else {
+        addWidget('video-activity', {
           config: { view: 'manager', managerTab: tab },
         });
       }
@@ -449,6 +486,59 @@ export const DashboardView: React.FC = () => {
     peekAndDispatchImport,
     clearPendingAssignmentShare,
     plcsLoading,
+  ]);
+
+  // PR3c — pending video-activity-assignment share import. Mirrors the
+  // quiz-assignment effect above. Default to 'copy' mode for now: VA's
+  // sync-mode picker UI hasn't been ported, and a synced share will simply
+  // import as a copy (peers can re-share if they want sync). Errors
+  // surface a Retry-capable toast like the Quiz path.
+  useEffect(() => {
+    if (!pendingVideoActivityShareId || !user) return;
+    if (plcsLoading) return;
+    const shareId = pendingVideoActivityShareId;
+    clearPendingVideoActivityShare();
+    void importSharedVideoActivityAssignment(shareId, {
+      mode: 'copy',
+      saveActivity: saveVideoActivity,
+      attachSyncLinkage: attachVideoActivitySyncLinkage,
+    })
+      .then(() => {
+        addToast('Shared video activity imported!', 'success');
+        openVideoActivityWidgetToTab('active');
+      })
+      .catch((err: unknown) => {
+        logError('DashboardView.importSharedVideoActivity', err, { shareId });
+        // No half-state to roll back: the VA import hook handles its own
+        // rollback (Drive copy + sync-group leave) on failure paths.
+        // `deleteVideoActivity` stays referenced via the dep array so a
+        // future expansion can hook a rollback path here without a
+        // ref-stale closure.
+        void deleteVideoActivity;
+        const msg =
+          err instanceof Error
+            ? err.message
+            : typeof err === 'string'
+              ? err
+              : '';
+        addToast(
+          msg
+            ? `Failed to import shared video activity: ${msg}`
+            : 'Failed to import shared video activity.',
+          'error'
+        );
+      });
+  }, [
+    pendingVideoActivityShareId,
+    user,
+    plcsLoading,
+    clearPendingVideoActivityShare,
+    importSharedVideoActivityAssignment,
+    saveVideoActivity,
+    attachVideoActivitySyncLinkage,
+    addToast,
+    openVideoActivityWidgetToTab,
+    deleteVideoActivity,
   ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
