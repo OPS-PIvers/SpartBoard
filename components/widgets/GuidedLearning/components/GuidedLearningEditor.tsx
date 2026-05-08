@@ -16,6 +16,10 @@ import {
   ChevronDown,
   Trash2,
   MousePointerClick,
+  Activity,
+  ArrowLeftRight,
+  MessageSquare,
+  type LucideIcon,
 } from 'lucide-react';
 import { GuidedLearningMode } from '@/types';
 import { SortableList } from '@/components/common/SortableList';
@@ -127,6 +131,12 @@ interface SettingChipOption<T extends string> {
 
 interface SettingChipProps<T extends string> {
   label: string;
+  /**
+   * Leading icon that identifies what the chip controls. The verbose
+   * uppercase label is intentionally replaced by an icon so the chip row
+   * fits in narrower modal widths; `label` is preserved as the tooltip.
+   */
+  icon: LucideIcon;
   value: T;
   options: SettingChipOption<T>[];
   onChange: (next: T) => void;
@@ -142,6 +152,7 @@ const SETTING_CHIP_POPOVER_WIDTH = 220;
 
 function SettingChip<T extends string>({
   label,
+  icon: Icon,
   value,
   options,
   onChange,
@@ -164,18 +175,17 @@ function SettingChip<T extends string>({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title={current?.desc}
+        title={`${label}${current?.desc ? ` — ${current.desc}` : ''}`}
+        aria-label={`${label}: ${currentLabel}`}
         aria-haspopup="menu"
         aria-expanded={open}
-        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
           open
             ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
             : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
         }`}
       >
-        <span className="text-slate-500 font-medium uppercase tracking-wide text-xxs">
-          {label}
-        </span>
+        <Icon className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
         <span>{currentLabel}</span>
         <ChevronDown className="w-3 h-3 text-slate-400" />
       </button>
@@ -274,18 +284,20 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
         ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
-        title="Customize the welcome screen students see before they start."
+        title="Welcome screen — customize what students see before they start"
+        aria-label={`Welcome screen: ${status}`}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className={`inline-flex items-center gap-1 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
           open || status === 'On'
             ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
             : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
         }`}
       >
-        <span className="text-slate-500 font-medium uppercase tracking-wide text-xxs">
-          Welcome
-        </span>
+        <MessageSquare
+          className="w-3.5 h-3.5 text-slate-500"
+          aria-hidden="true"
+        />
         <span>{status}</span>
         <ChevronDown className="w-3 h-3 text-slate-400" />
       </button>
@@ -468,10 +480,12 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
           placeholder="Add a description (optional)"
           className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
         />
-        {/* Single row, never wraps. Chip popovers are portal'd to body
-            so they can't be clipped by an overflow ancestor — the row
-            itself can stay overflow-visible without a stray scrollbar. */}
-        <div className="flex flex-nowrap gap-1.5 items-center">
+        {/* Chips wrap to a second row when the modal is too narrow to
+            fit them on one — chip popovers are still portal'd to body so
+            they can't be clipped by an overflow ancestor. Setting chips
+            use leading icons (no uppercase label prefix) so the row
+            packs tightly and the wrapped layout stays visually quiet. */}
+        <div className="flex flex-wrap gap-x-1.5 gap-y-1.5 items-center">
           {MODE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
@@ -492,12 +506,14 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
           />
           <SettingChip
             label="Pulse"
+            icon={Activity}
             value={hotspotPulse}
             options={PULSE_OPTIONS}
             onChange={setHotspotPulse}
           />
           <SettingChip
             label="Transition"
+            icon={ArrowLeftRight}
             value={imageTransition}
             options={TRANSITION_OPTIONS}
             onChange={setImageTransition}
