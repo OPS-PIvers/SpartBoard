@@ -10,17 +10,16 @@ import React from 'react';
 import {
   AlertCircle,
   GripVertical,
-  Loader2,
   MousePointerClick,
   Plus,
   Sparkles,
   Trash2,
-  X,
 } from 'lucide-react';
 import { LibraryFolder, QuizQuestion, QuizQuestionType } from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
+import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { useAuth } from '@/context/useAuth';
 import {
   MatchingAnswerEditor,
@@ -508,68 +507,33 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
     runAiGenerate,
   } = state;
 
-  if (!showAiPrompt) return null;
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Magic Quiz Generator"
-      className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
+    <AIGeneratorOverlay
+      open={showAiPrompt}
+      onClose={() => setShowAiPrompt(false)}
+      title="Magic Quiz Generator"
+      description="Describe the quiz you want to create. Generated questions will be appended to the current list."
+      generating={aiGenerating}
+      canGenerate={!!aiPrompt.trim() && !aiFileExtracting}
+      onGenerate={() => void runAiGenerate()}
+      error={aiError}
+      generateLabel="Generate Quiz"
     >
-      <div className="w-full max-w-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-            <Sparkles className="w-5 h-5" /> Magic Quiz Generator
-          </h4>
-          <button
-            onClick={() => setShowAiPrompt(false)}
-            className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
-            aria-label="Close Magic Generator"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
-          Describe the quiz you want to create. Generated questions will be
-          appended to the current list.
-        </p>
-        <textarea
-          value={aiPrompt}
-          onChange={(e) => setAiPrompt(e.target.value)}
-          placeholder="e.g. A 5-question quiz about the solar system for 3rd graders."
-          className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
-          autoFocus
-          aria-label="Describe your quiz"
+      <textarea
+        value={aiPrompt}
+        onChange={(e) => setAiPrompt(e.target.value)}
+        placeholder="e.g. A 5-question quiz about the solar system for 3rd graders."
+        className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+        autoFocus
+        aria-label="Describe your quiz"
+      />
+      {canAccessFeature('ai-file-context') && (
+        <DriveFileAttachment
+          onFileContent={(content, name) => setAiFile(content, name)}
+          onExtractingChange={setAiFileExtracting}
+          disabled={aiGenerating}
         />
-        {canAccessFeature('ai-file-context') && (
-          <DriveFileAttachment
-            onFileContent={(content, name) => setAiFile(content, name)}
-            onExtractingChange={setAiFileExtracting}
-            disabled={aiGenerating}
-          />
-        )}
-        {aiError && (
-          <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {aiError}
-          </div>
-        )}
-        <button
-          onClick={() => void runAiGenerate()}
-          disabled={aiGenerating || aiFileExtracting || !aiPrompt.trim()}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
-        >
-          {aiGenerating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" /> Generate Quiz
-            </>
-          )}
-        </button>
-      </div>
-    </div>
+      )}
+    </AIGeneratorOverlay>
   );
 };

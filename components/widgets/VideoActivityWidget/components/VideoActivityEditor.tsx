@@ -12,17 +12,16 @@ import {
   AlertCircle,
   Clock,
   GripVertical,
-  Loader2,
   MousePointerClick,
   Plus,
   Sparkles,
   Trash2,
-  X,
   Youtube,
 } from 'lucide-react';
 import { LibraryFolder, VideoActivityQuestion } from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { SortableList } from '@/components/common/SortableList';
+import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { extractYouTubeId } from '@/utils/youtube';
 import { Timeline } from './Timeline';
 import {
@@ -507,68 +506,34 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
     youtubeUrl,
   } = state;
 
-  if (!showAiPrompt) return null;
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Magic Question Generator"
-      className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
+    <AIGeneratorOverlay
+      open={showAiPrompt}
+      onClose={() => setShowAiPrompt(false)}
+      title="Magic Question Generator"
+      description="Gemini will watch the video and append questions to the current list."
+      generating={aiGenerating}
+      canGenerate={!!youtubeUrl.trim()}
+      onGenerate={() => void runAiGenerate()}
+      error={aiError}
+      generateLabel="Generate Questions"
     >
-      <div className="w-full max-w-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-            <Sparkles className="w-5 h-5" /> Magic Question Generator
-          </h4>
-          <button
-            onClick={() => setShowAiPrompt(false)}
-            className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
-            aria-label="Close Magic Generator"
-          >
-            <X className="w-5 h-5" />
-          </button>
+      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">
+        <div className="flex justify-between items-center text-xs font-bold text-indigo-700/70 uppercase">
+          <span>Question Count</span>
+          <span>{aiQuestionCount}</span>
         </div>
-        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
-          Gemini will watch the video and append questions to the current list.
-        </p>
-        <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">
-          <div className="flex justify-between items-center text-xs font-bold text-indigo-700/70 uppercase">
-            <span>Question Count</span>
-            <span>{aiQuestionCount}</span>
-          </div>
-          <input
-            type="range"
-            min={3}
-            max={15}
-            value={aiQuestionCount}
-            onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
-            className="w-full accent-indigo-600"
-            aria-label="Target question count"
-          />
-        </div>
-        {aiError && (
-          <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {aiError}
-          </div>
-        )}
-        <button
-          onClick={() => void runAiGenerate()}
-          disabled={aiGenerating || !youtubeUrl.trim()}
-          className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center gap-2"
-        >
-          {aiGenerating ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" /> Generating...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4" /> Generate Questions
-            </>
-          )}
-        </button>
+        <input
+          type="range"
+          min={3}
+          max={15}
+          value={aiQuestionCount}
+          onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
+          className="w-full accent-indigo-600"
+          aria-label="Target question count"
+        />
       </div>
-    </div>
+    </AIGeneratorOverlay>
   );
 };
 
