@@ -164,6 +164,94 @@ function SettingChip<T extends string>({
   );
 }
 
+// ─── WelcomeChip (compact "Welcome: On/Off ▾" with a textarea popover) ───────
+
+interface WelcomeChipProps {
+  enabled: boolean;
+  message: string;
+  onEnabledChange: (next: boolean) => void;
+  onMessageChange: (next: string) => void;
+}
+
+/**
+ * Compact chip that surfaces the welcome-screen toggle + message
+ * textarea in a popover instead of an always-visible block. Same
+ * dismiss-on-outside-click contract as `SettingChip`. Keeping the
+ * textarea in a popover lets the editor body stay short — the image
+ * canvas keeps its real estate even when a welcome message is set.
+ */
+const WelcomeChip: React.FC<WelcomeChipProps> = ({
+  enabled,
+  message,
+  onEnabledChange,
+  onMessageChange,
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+
+  const trimmed = message.trim();
+  // The chip's status mirrors what the student app actually does at
+  // render time: an enabled toggle without content falls back to the
+  // default subtitle, so we surface it as "Off" here too.
+  const status = enabled && trimmed.length > 0 ? 'On' : 'Off';
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Customize the welcome screen students see before they start."
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+          open || status === 'On'
+            ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+        }`}
+      >
+        <span className="text-slate-500 font-medium uppercase tracking-wider text-xxs">
+          Welcome
+        </span>
+        <span>{status}</span>
+        <ChevronDown className="w-3 h-3 text-slate-400" />
+      </button>
+      {open && (
+        <div
+          role="dialog"
+          aria-label="Welcome screen settings"
+          className="absolute left-0 top-full z-10 mt-1 w-[320px] rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
+        >
+          <label className="flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              checked={enabled}
+              onChange={(e) => onEnabledChange(e.target.checked)}
+              className="accent-brand-blue-primary w-4 h-4 mt-0.5"
+            />
+            <span>
+              <span className="font-bold text-xs">Show welcome screen</span>
+              <span className="block text-xxs font-medium text-slate-500 mt-0.5 leading-snug">
+                Replaces the default mode/step subtitle on the student start
+                screen with your custom message and changes the Start button to
+                &quot;Get started&quot;.
+              </span>
+            </span>
+          </label>
+          <textarea
+            value={message}
+            onChange={(e) => onMessageChange(e.target.value)}
+            disabled={!enabled}
+            rows={3}
+            placeholder="e.g. Welcome to the Civil War tour. Click pins to explore each station."
+            className="mt-2 w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Context pane ────────────────────────────────────────────────────────────
 
 interface PaneProps {
@@ -280,8 +368,10 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
   return (
     <div className="flex flex-col h-full">
       {/* Settings strip — title and folder live in the modal header now,
-          so the body owns description, mode, display settings, and the
-          welcome card. */}
+          so the body owns only the description and a single chip row. All
+          set-level toggles (Pulse, Image transition, Welcome) collapse
+          into popover chips so the image canvas keeps its vertical
+          real estate. */}
       <div className="px-5 py-3 border-b border-slate-200 space-y-2.5 bg-white shrink-0">
         <input
           type="text"
@@ -290,10 +380,6 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
           placeholder="Add a description (optional)"
           className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
         />
-        {/* Mode + compact display chips on a single row to maximize the
-            canvas area. Mode keeps its segmented look (only 3 short
-            labels), Pulse and Image Transition collapse to "Label: value"
-            chips with a popover so they don't claim a full row each. */}
         <div className="flex flex-wrap gap-2 items-center">
           {MODE_OPTIONS.map((opt) => (
             <button
@@ -322,37 +408,12 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
             options={TRANSITION_OPTIONS}
             onChange={setImageTransition}
           />
-        </div>
-
-        {/* Welcome screen — shown to students before the experience starts.
-            Toggle off → default subtitle (mode + step count). Toggle on with
-            an empty/whitespace message → still falls back to the default. */}
-        <div className="space-y-2">
-          <label className="flex items-start gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={welcomeEnabled}
-              onChange={(e) => setWelcomeEnabled(e.target.checked)}
-              className="accent-brand-blue-primary w-4 h-4 mt-0.5"
-            />
-            <span>
-              Show welcome screen
-              <span className="block text-xxs font-medium text-slate-500 mt-0.5">
-                Replaces the default mode/step subtitle on the student start
-                screen with your custom message and changes the Start button to
-                &quot;Get started&quot;.
-              </span>
-            </span>
-          </label>
-          {welcomeEnabled && (
-            <textarea
-              value={welcomeMessage}
-              onChange={(e) => setWelcomeMessage(e.target.value)}
-              rows={3}
-              placeholder="e.g. Welcome to the Civil War tour. Click pins to explore each station."
-              className="w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none"
-            />
-          )}
+          <WelcomeChip
+            enabled={welcomeEnabled}
+            message={welcomeMessage}
+            onEnabledChange={setWelcomeEnabled}
+            onMessageChange={setWelcomeMessage}
+          />
         </div>
       </div>
 
