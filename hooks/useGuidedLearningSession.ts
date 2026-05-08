@@ -87,6 +87,7 @@ export function toPublicStep(
     label: step.label,
     interactionType: step.interactionType,
     hideStepNumber: step.hideStepNumber,
+    hotspotAlwaysHidden: step.hotspotAlwaysHidden,
     showOverlay: step.showOverlay,
     tooltipPosition: step.tooltipPosition,
     tooltipOffset: step.tooltipOffset,

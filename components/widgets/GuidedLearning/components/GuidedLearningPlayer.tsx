@@ -626,16 +626,27 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             {steps.map((step, idx) => {
               if (step.imageIndex !== currentImageIndex) return null;
               const isActive = activeStepId === step.id;
+              // Per-step "Always hidden" — never render the marker. The
+              // legacy `hideStepNumber` flag is read as a fallback so old
+              // sets keep working without migration.
+              const alwaysHidden = Boolean(
+                step.hotspotAlwaysHidden ?? step.hideStepNumber
+              );
+              if (alwaysHidden) return null;
+              // Auto-hide-while-live: in explore mode the active step's
+              // marker disappears so it doesn't sit on top of the
+              // popover/tooltip/spotlight content it just opened. Other pins
+              // on the same image stay visible so users can still click them.
+              // Structured/guided keep the active pin so it remains the
+              // visual anchor for tooltip/audio/video interactions whose
+              // overlays don't sit directly on top of the marker.
+              if (mode === 'explore' && isActive) return null;
+              // Structured/guided only render the *current* step's pin
+              // (other steps are sequenced through Prev/Next, not clickable
+              // out of order). Explore mode renders every pin on the image.
               const isCurrentStructured =
                 mode !== 'explore' && step.id === currentStep?.id;
-              const hidePinInStructured =
-                mode !== 'explore' &&
-                isCurrentStructured &&
-                Boolean(step.hideStepNumber);
-              const showPin =
-                (mode === 'explore' || isCurrentStructured) &&
-                !hidePinInStructured;
-
+              const showPin = mode === 'explore' || isCurrentStructured;
               if (!showPin) return null;
 
               const position = toContainerCoords(
@@ -665,6 +676,8 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                       // (not a ring child) so it actually moves the marker.
                       // 'consistent' uses the inline ping ring below.
                       // 'off' adds nothing.
+                      // The active pin already gets visual emphasis via the
+                      // scale/color treatment above, so we skip pulses on it.
                       !isActive && pulseMode === 'reminder'
                         ? 'animate-gl-pulse-reminder motion-reduce:animate-none'
                         : ''
@@ -689,7 +702,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                       className="relative text-white font-bold select-none"
                       style={{ fontSize: 'min(12px, 3cqmin)' }}
                     >
-                      {mode === 'explore' && step.hideStepNumber ? '' : idx + 1}
+                      {idx + 1}
                     </span>
                   </button>
                 </div>

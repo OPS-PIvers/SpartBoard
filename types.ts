@@ -3621,8 +3621,19 @@ export interface GuidedLearningStep {
   imageIndex: number;
   label?: string;
   interactionType: GuidedLearningInteractionType;
-  /** Optional hotspot style customization */
+  /**
+   * @deprecated Read-only legacy field kept for back-compat. New writes use
+   * `hotspotAlwaysHidden`. Reads still honor this when the new field is
+   * absent so existing sets keep working without migration.
+   */
   hideStepNumber?: boolean;
+  /**
+   * When true, this hotspot's marker is never rendered in the player. The
+   * underlying image region is still clickable in explore mode, so this is
+   * for "find the click zone yourself" exercises where the visual marker
+   * would give the answer away. Default false.
+   */
+  hotspotAlwaysHidden?: boolean;
   /** Overlay style for pan-zoom/spotlight interactions */
   showOverlay?: GuidedLearningOverlayType;
   /** Tooltip anchor relative to hotspot (default 'auto') */
@@ -3707,7 +3718,10 @@ export interface GuidedLearningPublicStep {
   imageIndex: number;
   label?: string;
   interactionType: GuidedLearningInteractionType;
+  /** @deprecated Legacy back-compat read; new writes use `hotspotAlwaysHidden`. */
   hideStepNumber?: boolean;
+  /** Mirrors `GuidedLearningStep.hotspotAlwaysHidden`. */
+  hotspotAlwaysHidden?: boolean;
   showOverlay?: GuidedLearningOverlayType;
   tooltipPosition?: 'above' | 'below' | 'left' | 'right' | 'auto';
   tooltipOffset?: number;

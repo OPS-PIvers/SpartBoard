@@ -105,7 +105,8 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
       (sa.spotlightRadius ?? 25) !== (sb.spotlightRadius ?? 25) ||
       (sa.bannerTone ?? 'blue') !== (sb.bannerTone ?? 'blue') ||
       (sa.autoAdvanceDuration ?? 0) !== (sb.autoAdvanceDuration ?? 0) ||
-      !!sa.hideStepNumber !== !!sb.hideStepNumber
+      !!sa.hideStepNumber !== !!sb.hideStepNumber ||
+      !!sa.hotspotAlwaysHidden !== !!sb.hotspotAlwaysHidden
     ) {
       return false;
     }

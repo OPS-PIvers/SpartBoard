@@ -150,14 +150,23 @@ export const GuidedLearningStepEditor: React.FC<Props> = ({
           </div>
         )}
 
-        <label className="flex items-center gap-2 text-sm text-slate-700">
+        <label
+          className="flex items-start gap-2 text-sm text-slate-700"
+          title="When on, the hotspot marker is never rendered in the player. In explore mode the underlying image region is still clickable, so this is useful for 'find the click zone' exercises where the marker would give it away. In structured/guided mode the marker is auto-hidden anyway while a step is live; this option just suppresses the brief flash before the interaction renders."
+        >
           <input
             type="checkbox"
-            checked={Boolean(step.hideStepNumber)}
-            onChange={(e) => update({ hideStepNumber: e.target.checked })}
-            className="accent-brand-blue-primary w-4 h-4"
+            checked={Boolean(step.hotspotAlwaysHidden ?? step.hideStepNumber)}
+            onChange={(e) => update({ hotspotAlwaysHidden: e.target.checked })}
+            className="accent-brand-blue-primary w-4 h-4 mt-0.5"
           />
-          Hide hotspot pin
+          <span>
+            Always hide hotspot marker
+            <span className="block text-xxs font-medium text-slate-500 mt-0.5">
+              Marker never appears. Useful for &quot;find the click zone&quot;
+              exercises in explore mode.
+            </span>
+          </span>
         </label>
 
         {/* Text content */}
