@@ -618,10 +618,10 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         />
       )}
 
-      {/* Magic Design Prompt Dialog */}
+      {/* AI prompt dialog */}
       {showPromptDialog && (
         <PromptDialog
-          title="Magic Design"
+          title="Draft with AI"
           message="Describe the instructional routine you want to create"
           placeholder='e.g., "A 3-step routine for peer review where students swap papers twice"'
           confirmLabel="Generate"

@@ -175,10 +175,10 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         )}
       </div>
 
-      {/* Magic Generator */}
+      {/* AI poll generator */}
       {canAccessFeature('smart-poll') && (
         <div>
-          <SettingsLabel>Magic Generator</SettingsLabel>
+          <SettingsLabel>Draft with AI</SettingsLabel>
           {canAccessFeature('ai-file-context') && (
             <DriveFileAttachment
               onFileContent={(content, name) => {
@@ -208,10 +208,10 @@ export const PollSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 } as PollConfig,
               });
               setLocalQuestion(result.question);
-              addToast('Poll generated magically!', 'success');
+              addToast('Poll generated.', 'success');
             }}
             placeholder="e.g. Photosynthesis, Civil War, 3rd Grade Math..."
-            buttonLabel="Magic Poll"
+            buttonLabel="Draft with AI"
           />
         </div>
       )}

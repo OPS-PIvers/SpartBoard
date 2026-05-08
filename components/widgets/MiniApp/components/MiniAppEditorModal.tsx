@@ -49,7 +49,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Magic Generator state
+  // AI generator state
   const [prompt, setPrompt] = useState('');
   const [showPromptInput, setShowPromptInput] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -100,7 +100,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     }
   };
 
-  // --- Magic Generator ---
+  // --- AI generator ---
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
@@ -188,11 +188,11 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       bodyClassName="px-6 py-5 bg-slate-50/50"
     >
       <div className="flex flex-col gap-4 h-full relative">
-        {/* Magic Generator Overlay */}
+        {/* AI generator Overlay */}
         <AIGeneratorOverlay
           open={showPromptInput}
           onClose={() => setShowPromptInput(false)}
-          title="Magic Generator"
+          title="Draft with AI"
           description="Describe the mini-app you want to build."
           headerExtras={
             <button
@@ -227,7 +227,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
           )}
         </AIGeneratorOverlay>
 
-        {/* Title + Magic button */}
+        {/* Title + AI generator button */}
         <div className="flex gap-2">
           <div className="flex-1">
             <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">

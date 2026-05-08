@@ -56,6 +56,8 @@ export interface GuidedLearningEditorController {
   addStepAt: (xPct: number, yPct: number) => void;
   updateStep: (updated: GuidedLearningStep) => void;
   deleteStep: (id: string) => void;
+  /** Apply a new ordering of the entire steps array (e.g. from drag-reorder). */
+  reorderSteps: (next: GuidedLearningStep[]) => void;
   // Folder picker
   folders?: LibraryFolder[];
   folderId?: string | null;
@@ -250,6 +252,10 @@ export function useGuidedLearningEditorState({
     [selectedStepId]
   );
 
+  const reorderSteps = useCallback((next: GuidedLearningStep[]) => {
+    setSteps(next);
+  }, []);
+
   const selectedStep = useMemo(
     () => steps.find((s) => s.id === selectedStepId) ?? null,
     [steps, selectedStepId]
@@ -285,6 +291,7 @@ export function useGuidedLearningEditorState({
     addStepAt,
     updateStep,
     deleteStep,
+    reorderSteps,
     folders,
     folderId,
     onFolderChange,

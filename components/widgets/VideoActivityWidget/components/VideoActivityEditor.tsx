@@ -61,6 +61,7 @@ export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
     deleteQuestion,
     reorderQuestions,
     reorderHintFor,
+    updateQuestion,
     error,
     showAiPrompt,
     setShowAiPrompt,
@@ -115,6 +116,9 @@ export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
             questions={questions}
             onAddAtTime={addQuestionAtTime}
             onSelectQuestion={setSelectedId}
+            onMarkerDrag={(id, seconds) =>
+              updateQuestion(id, { timestamp: seconds })
+            }
             activeQuestionId={selectedId ?? undefined}
           />
         ) : (
@@ -510,7 +514,7 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
     <AIGeneratorOverlay
       open={showAiPrompt}
       onClose={() => setShowAiPrompt(false)}
-      title="Magic Question Generator"
+      title="Draft with AI"
       description="Gemini will watch the video and append questions to the current list."
       generating={aiGenerating}
       canGenerate={!!youtubeUrl.trim()}

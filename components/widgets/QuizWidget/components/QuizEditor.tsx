@@ -511,7 +511,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
     <AIGeneratorOverlay
       open={showAiPrompt}
       onClose={() => setShowAiPrompt(false)}
-      title="Magic Quiz Generator"
+      title="Draft with AI"
       description="Describe the quiz you want to create. Generated questions will be appended to the current list."
       generating={aiGenerating}
       canGenerate={!!aiPrompt.trim() && !aiFileExtracting}

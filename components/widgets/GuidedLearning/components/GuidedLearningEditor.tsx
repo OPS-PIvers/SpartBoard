@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { GuidedLearningMode } from '@/types';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
+import { SortableList } from '@/components/common/SortableList';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { calculateImageFootprint } from '../utils/imageUtils';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
@@ -64,6 +65,8 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
     addStepAt,
     setSelectedStepId,
     selectedStepId,
+    steps,
+    updateStep,
     currentImageSteps,
     folders,
     folderId,
@@ -216,46 +219,19 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
                 draggable={false}
                 onLoad={measureImage}
               />
-              {currentImageSteps.map((s, idx) => {
-                const isSelected = s.id === selectedStepId;
+              {currentImageSteps.map((s) => {
+                const globalIndex = steps.findIndex((x) => x.id === s.id);
                 return (
-                  <button
+                  <HotspotMarker
                     key={s.id}
-                    type="button"
-                    className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-pointer select-none shadow-md transition-transform ${
-                      isSelected
-                        ? 'bg-brand-blue-primary text-white border-2 border-white ring-2 ring-brand-blue-primary/40 scale-110'
-                        : 'bg-brand-blue-primary text-white border-2 border-white hover:scale-110'
-                    }`}
-                    style={
-                      imgBounds
-                        ? {
-                            left:
-                              imgBounds.offsetLeft +
-                              (s.xPct / 100) * imgBounds.width,
-                            top:
-                              imgBounds.offsetTop +
-                              (s.yPct / 100) * imgBounds.height,
-                            width: 24,
-                            height: 24,
-                            fontSize: 11,
-                          }
-                        : {
-                            left: `${s.xPct}%`,
-                            top: `${s.yPct}%`,
-                            width: 24,
-                            height: 24,
-                            fontSize: 11,
-                          }
-                    }
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedStepId(s.id);
-                    }}
-                    aria-label={`Select hotspot ${idx + 1}`}
-                  >
-                    {idx + 1}
-                  </button>
+                    step={s}
+                    stepNumber={globalIndex + 1}
+                    isSelected={s.id === selectedStepId}
+                    imgBounds={imgBounds}
+                    containerRef={imageContainerRef}
+                    onSelect={() => setSelectedStepId(s.id)}
+                    onMove={(xPct, yPct) => updateStep({ ...s, xPct, yPct })}
+                  />
                 );
               })}
               {addingStep && (
@@ -392,52 +368,283 @@ export const GuidedLearningEditorDetailPane: React.FC<PaneProps> = ({
     steps,
     updateStep,
     deleteStep,
+    reorderSteps,
     currentImageSteps,
+    currentImageIndex,
+    setCurrentImageIndex,
   } = state;
 
-  if (!selectedStep) {
-    return (
-      <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
-        <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
-        <h4 className="text-base font-bold text-slate-700 mb-1">
-          {imageUrls.length === 0
-            ? 'Add an image first'
-            : 'Pick a hotspot to edit'}
-        </h4>
-        <p className="text-sm max-w-xs">
-          {imageUrls.length === 0
-            ? 'Upload an image on the left, then add hotspots to make it interactive.'
-            : currentImageSteps.length === 0
-              ? 'No hotspots on this image yet — click "Add hotspot" then click anywhere on the image.'
-              : 'Click a numbered hotspot on the image, or add a new one.'}
-        </p>
-        {imageUrls.length > 0 && !addingStep && (
-          <button
-            onClick={() => {
-              setSelectedStepId(null);
-              setAddingStep(true);
-            }}
-            className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            Add hotspot
-          </button>
-        )}
-      </div>
-    );
-  }
-
-  // 1-indexed position of the selected step in the full ordered list
-  const stepNumber = steps.findIndex((s) => s.id === selectedStepId) + 1;
+  const showNavigator = steps.length > 0;
+  const stepNumber = selectedStepId
+    ? steps.findIndex((s) => s.id === selectedStepId) + 1
+    : 0;
 
   return (
-    <GuidedLearningStepEditor
-      key={selectedStep.id}
-      step={selectedStep}
-      stepNumber={stepNumber}
-      imageCount={imageUrls.length}
-      onChange={updateStep}
-      onDelete={() => deleteStep(selectedStep.id)}
-    />
+    <div className="flex flex-col h-full">
+      {showNavigator && (
+        <StepNavigator
+          steps={steps}
+          selectedStepId={selectedStepId}
+          imageCount={imageUrls.length}
+          currentImageIndex={currentImageIndex}
+          onSelectStep={(step) => {
+            if (step.imageIndex !== currentImageIndex) {
+              setCurrentImageIndex(step.imageIndex);
+            }
+            setSelectedStepId(step.id);
+          }}
+          onReorder={reorderSteps}
+        />
+      )}
+
+      <div className="flex-1 min-h-0">
+        {selectedStep ? (
+          <GuidedLearningStepEditor
+            key={selectedStep.id}
+            step={selectedStep}
+            stepNumber={stepNumber}
+            imageCount={imageUrls.length}
+            onChange={updateStep}
+            onDelete={() => deleteStep(selectedStep.id)}
+          />
+        ) : (
+          <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
+            <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
+            <h4 className="text-base font-bold text-slate-700 mb-1">
+              {imageUrls.length === 0
+                ? 'Add an image first'
+                : 'Pick a hotspot to edit'}
+            </h4>
+            <p className="text-sm max-w-xs">
+              {imageUrls.length === 0
+                ? 'Upload an image on the left, then add hotspots to make it interactive.'
+                : currentImageSteps.length === 0
+                  ? 'No hotspots on this image yet — click "Add hotspot" then click anywhere on the image.'
+                  : 'Click a numbered hotspot on the image, or add a new one.'}
+            </p>
+            {imageUrls.length > 0 && !addingStep && (
+              <button
+                onClick={() => {
+                  setSelectedStepId(null);
+                  setAddingStep(true);
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add hotspot
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Step navigator (sortable pill strip) ────────────────────────────────────
+
+interface StepNavigatorProps {
+  steps: import('@/types').GuidedLearningStep[];
+  selectedStepId: string | null;
+  imageCount: number;
+  currentImageIndex: number;
+  onSelectStep: (step: import('@/types').GuidedLearningStep) => void;
+  onReorder: (next: import('@/types').GuidedLearningStep[]) => void;
+}
+
+const StepNavigator: React.FC<StepNavigatorProps> = ({
+  steps,
+  selectedStepId,
+  imageCount,
+  onSelectStep,
+  onReorder,
+}) => {
+  return (
+    <div className="px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+          Step order
+        </span>
+        <span className="text-xxs text-slate-400">Drag to reorder</span>
+      </div>
+      <SortableList
+        items={steps}
+        getId={(s) => s.id}
+        onReorder={onReorder}
+        renderItem={(s, handle) => {
+          const idx = steps.findIndex((x) => x.id === s.id);
+          const isSelected = s.id === selectedStepId;
+          return (
+            <button
+              type="button"
+              {...handle.attributes}
+              onPointerDown={
+                handle.listeners?.onPointerDown as
+                  | React.PointerEventHandler<HTMLButtonElement>
+                  | undefined
+              }
+              onClick={() => onSelectStep(s)}
+              aria-label={`Step ${idx + 1}${imageCount > 1 ? ` on image ${s.imageIndex + 1}` : ''}${s.label ? `: ${s.label}` : ''}`}
+              title={s.label?.trim() ? s.label : `Step ${idx + 1}`}
+              className={`shrink-0 cursor-grab active:cursor-grabbing touch-none flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold border transition-colors ${
+                isSelected
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+              }`}
+            >
+              <span className="font-mono">{idx + 1}</span>
+              {imageCount > 1 && (
+                <span
+                  className={`text-xxs font-mono px-1 rounded ${
+                    isSelected
+                      ? 'bg-brand-blue-dark text-white/80'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}
+                  aria-hidden
+                >
+                  i{s.imageIndex + 1}
+                </span>
+              )}
+            </button>
+          );
+        }}
+        className="flex flex-wrap gap-1.5"
+      />
+    </div>
+  );
+};
+
+// ─── Draggable hotspot marker ────────────────────────────────────────────────
+
+interface HotspotMarkerProps {
+  step: import('@/types').GuidedLearningStep;
+  stepNumber: number;
+  isSelected: boolean;
+  imgBounds: {
+    offsetLeft: number;
+    offsetTop: number;
+    width: number;
+    height: number;
+  } | null;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  onSelect: () => void;
+  onMove: (xPct: number, yPct: number) => void;
+}
+
+const DRAG_THRESHOLD_PX = 4;
+
+const HotspotMarker: React.FC<HotspotMarkerProps> = ({
+  step,
+  stepNumber,
+  isSelected,
+  imgBounds,
+  containerRef,
+  onSelect,
+  onMove,
+}) => {
+  // Local position used during a drag so the marker tracks the cursor without
+  // a parent re-render per pointer move. Cleared on pointer-up; the next
+  // render reads from the persisted step.
+  const [dragPos, setDragPos] = useState<{ xPct: number; yPct: number } | null>(
+    null
+  );
+  const xPct = dragPos?.xPct ?? step.xPct;
+  const yPct = dragPos?.yPct ?? step.yPct;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (!imgBounds || !containerRef.current) {
+      onSelect();
+      return;
+    }
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    let dragged = false;
+    let lastXPct = step.xPct;
+    let lastYPct = step.yPct;
+    const target = e.currentTarget;
+
+    const computePct = (clientX: number, clientY: number) => {
+      const x = clientX - containerRect.left - imgBounds.offsetLeft;
+      const y = clientY - containerRect.top - imgBounds.offsetTop;
+      const px = (x / imgBounds.width) * 100;
+      const py = (y / imgBounds.height) * 100;
+      return {
+        xPct: Math.max(2, Math.min(98, px)),
+        yPct: Math.max(2, Math.min(98, py)),
+      };
+    };
+
+    const onMoveEvt = (ev: PointerEvent) => {
+      if (!dragged) {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
+        dragged = true;
+      }
+      const next = computePct(ev.clientX, ev.clientY);
+      lastXPct = next.xPct;
+      lastYPct = next.yPct;
+      setDragPos(next);
+    };
+
+    const onUpEvt = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMoveEvt);
+      window.removeEventListener('pointerup', onUpEvt);
+      window.removeEventListener('pointercancel', onUpEvt);
+      try {
+        target.releasePointerCapture(ev.pointerId);
+      } catch {
+        // already released
+      }
+      if (dragged) {
+        onMove(lastXPct, lastYPct);
+        setDragPos(null);
+      } else {
+        onSelect();
+      }
+    };
+
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch {
+      // capture not supported — fall through to window listeners
+    }
+    window.addEventListener('pointermove', onMoveEvt);
+    window.addEventListener('pointerup', onUpEvt);
+    window.addEventListener('pointercancel', onUpEvt);
+  };
+
+  return (
+    <button
+      type="button"
+      onPointerDown={handlePointerDown}
+      aria-label={`Hotspot ${stepNumber} — drag to move, click to edit`}
+      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing select-none shadow-md transition-transform touch-none ${
+        isSelected
+          ? 'bg-brand-blue-primary text-white border-2 border-white ring-2 ring-brand-blue-primary/40 scale-110'
+          : 'bg-brand-blue-primary text-white border-2 border-white hover:scale-110'
+      }`}
+      style={
+        imgBounds
+          ? {
+              left: imgBounds.offsetLeft + (xPct / 100) * imgBounds.width,
+              top: imgBounds.offsetTop + (yPct / 100) * imgBounds.height,
+              width: 24,
+              height: 24,
+              fontSize: 11,
+            }
+          : {
+              left: `${xPct}%`,
+              top: `${yPct}%`,
+              width: 24,
+              height: 24,
+              fontSize: 11,
+            }
+      }
+    >
+      {stepNumber}
+    </button>
   );
 };

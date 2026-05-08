@@ -46,6 +46,13 @@ export interface TimelineProps {
    * matching question editor below.
    */
   onSelectQuestion?: (questionId: string) => void;
+  /**
+   * Called when the teacher drags an existing question marker to a new
+   * position on the track. Receives the question id and the new timestamp
+   * in seconds (snapped to integer). The parent is responsible for
+   * persisting the change (and re-sorting if needed).
+   */
+  onMarkerDrag?: (questionId: string, newSeconds: number) => void;
   /** Optional id of a question the parent considers "active" (rendered larger). */
   activeQuestionId?: string;
 }
@@ -66,14 +73,21 @@ export const Timeline: React.FC<TimelineProps> = ({
   questions,
   onAddAtTime,
   onSelectQuestion,
+  onMarkerDrag,
   activeQuestionId,
 }) => {
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
+  const trackRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const [duration, setDuration] = useState(0);
   const [playhead, setPlayhead] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
+  /** Per-marker drag overlay: id → seconds being previewed. Cleared on pointer-up. */
+  const [markerDragSec, setMarkerDragSec] = useState<{
+    id: string;
+    seconds: number;
+  } | null>(null);
   // Each player instance gets a unique DOM id. React's StrictMode mounts
   // effects twice in dev; reusing the same id collides because IFrame API
   // takes ownership of the element by id. Lazy-initialized state (not a
@@ -239,6 +253,7 @@ export const Timeline: React.FC<TimelineProps> = ({
           </span>
         </div>
         <div
+          ref={trackRef}
           role="slider"
           aria-label="Video timeline"
           aria-orientation="horizontal"
@@ -275,33 +290,109 @@ export const Timeline: React.FC<TimelineProps> = ({
 
           {/* Question markers */}
           {questions.map((q) => {
-            const pct = (q.timestamp / safeDuration) * 100;
+            const previewSec =
+              markerDragSec && markerDragSec.id === q.id
+                ? markerDragSec.seconds
+                : q.timestamp;
+            const pct = (previewSec / safeDuration) * 100;
             if (pct < 0 || pct > 100) return null;
             const isActive = q.id === activeQuestionId;
-            return (
-              <button
-                key={q.id}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  // Seek the player so the teacher sees the video context
-                  // alongside the question they just selected.
+            const isDragging =
+              markerDragSec !== null && markerDragSec.id === q.id;
+
+            const handleMarkerPointerDown = (
+              e: React.PointerEvent<HTMLButtonElement>
+            ) => {
+              e.stopPropagation();
+              if (!trackRef.current || duration <= 0 || !onMarkerDrag) {
+                // Drag not possible — fall through to plain click on pointer-up.
+              }
+              const startX = e.clientX;
+              const startY = e.clientY;
+              const target = e.currentTarget;
+              const trackEl = trackRef.current;
+              let dragged = false;
+              let lastSec = q.timestamp;
+
+              const computeSec = (clientX: number) => {
+                if (!trackEl || duration <= 0) return q.timestamp;
+                const rect = trackEl.getBoundingClientRect();
+                const ratio = (clientX - rect.left) / rect.width;
+                const clamped = Math.max(0, Math.min(1, ratio));
+                return Math.round(clamped * duration);
+              };
+
+              const onMoveEvt = (ev: PointerEvent) => {
+                if (!dragged) {
+                  const dx = ev.clientX - startX;
+                  const dy = ev.clientY - startY;
+                  if (dx * dx + dy * dy < 16) return; // 4px threshold
+                  dragged = true;
+                }
+                if (!onMarkerDrag) return;
+                lastSec = computeSec(ev.clientX);
+                setMarkerDragSec({ id: q.id, seconds: lastSec });
+              };
+
+              const onUpEvt = (ev: PointerEvent) => {
+                window.removeEventListener('pointermove', onMoveEvt);
+                window.removeEventListener('pointerup', onUpEvt);
+                window.removeEventListener('pointercancel', onUpEvt);
+                try {
+                  target.releasePointerCapture(ev.pointerId);
+                } catch {
+                  // already released
+                }
+                if (dragged && onMarkerDrag) {
+                  onMarkerDrag(q.id, lastSec);
+                  setMarkerDragSec(null);
+                  // Seek the player to the new spot so the teacher sees the
+                  // video context that matches the new timestamp.
+                  if (playerRef.current && duration > 0) {
+                    try {
+                      playerRef.current.seekTo(lastSec, true);
+                      setPlayhead(lastSec);
+                    } catch {
+                      // player teardown — ignore
+                    }
+                  }
+                } else {
+                  // Plain click — select + seek.
                   if (playerRef.current && duration > 0) {
                     try {
                       playerRef.current.seekTo(q.timestamp, true);
                       setPlayhead(q.timestamp);
                     } catch {
-                      /* ignore — player may have torn down */
+                      // ignore
                     }
                   }
                   onSelectQuestion?.(q.id);
-                }}
-                aria-label={`Question at ${formatHms(q.timestamp)}: ${q.text || 'untitled'}`}
-                title={`${formatHms(q.timestamp)} — ${q.text || 'Untitled question'}`}
-                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all ${
-                  isActive
-                    ? 'w-4 h-4 bg-emerald-500 ring-2 ring-emerald-200'
-                    : 'w-3 h-3 bg-emerald-500 hover:w-4 hover:h-4'
+                }
+              };
+
+              try {
+                target.setPointerCapture(e.pointerId);
+              } catch {
+                // capture not supported — window listeners still work
+              }
+              window.addEventListener('pointermove', onMoveEvt);
+              window.addEventListener('pointerup', onUpEvt);
+              window.addEventListener('pointercancel', onUpEvt);
+            };
+
+            return (
+              <button
+                key={q.id}
+                type="button"
+                onPointerDown={handleMarkerPointerDown}
+                aria-label={`Question at ${formatHms(previewSec)}: ${q.text || 'untitled'} — drag to move, click to select`}
+                title={`${formatHms(previewSec)} — ${q.text || 'Untitled question'}`}
+                className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 rounded-full transition-all touch-none ${
+                  isDragging
+                    ? 'w-4 h-4 bg-emerald-600 ring-2 ring-emerald-300 cursor-grabbing'
+                    : isActive
+                      ? 'w-4 h-4 bg-emerald-500 ring-2 ring-emerald-200 cursor-grab'
+                      : 'w-3 h-3 bg-emerald-500 hover:w-4 hover:h-4 cursor-grab'
                 }`}
                 style={{ left: `${pct}%` }}
               />
@@ -318,8 +409,8 @@ export const Timeline: React.FC<TimelineProps> = ({
         {/* Add-at-playhead button */}
         <div className="flex items-center justify-between gap-3">
           <p className="text-xxs text-slate-500">
-            Click the timeline to seek. Click a green marker to jump to an
-            existing question.
+            Click the timeline to seek. Click a green marker to select it, or
+            drag the marker to retime its question.
           </p>
           <button
             type="button"
