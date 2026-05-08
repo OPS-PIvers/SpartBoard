@@ -54,42 +54,46 @@ export async function handleJoinPlcQuizSyncGroup(
   const plcRef = db.collection('plcs').doc(plcId);
   const plcQuizRef = plcRef.collection('quizzes').doc(plcQuizId);
 
-  const [plcSnap, plcQuizSnap] = await Promise.all([
-    plcRef.get(),
-    plcQuizRef.get(),
-  ]);
-  if (!plcSnap.exists) {
-    throw new HttpsError('not-found', 'PLC not found.');
-  }
-  const plcData = plcSnap.data() as { memberUids?: unknown } | undefined;
-  const memberUids = Array.isArray(plcData?.memberUids)
-    ? (plcData?.memberUids as unknown[]).filter(
-        (u): u is string => typeof u === 'string'
-      )
-    : [];
-  if (!memberUids.includes(uid)) {
-    throw new HttpsError(
-      'permission-denied',
-      'You are not a member of this PLC.'
-    );
-  }
-
-  if (!plcQuizSnap.exists) {
-    throw new HttpsError('not-found', 'PLC quiz not found.');
-  }
-  const plcQuizData = plcQuizSnap.data() as
-    | { syncGroupId?: unknown }
-    | undefined;
-  const groupId = plcQuizData?.syncGroupId;
-  if (typeof groupId !== 'string' || groupId.length === 0) {
-    throw new HttpsError(
-      'failed-precondition',
-      'PLC quiz is not linked to a synced group.'
-    );
-  }
-
-  const groupRef = db.collection('synced_quizzes').doc(groupId);
   return db.runTransaction(async (tx) => {
+    // Read membership + plc quiz inside the transaction so a member who
+    // is removed from `memberUids` mid-flow can't sneak into the synced
+    // group's `participants` map (the membership read becomes a
+    // contention point that forces a retry on concurrent change).
+    const [plcSnap, plcQuizSnap] = await Promise.all([
+      tx.get(plcRef),
+      tx.get(plcQuizRef),
+    ]);
+    if (!plcSnap.exists) {
+      throw new HttpsError('not-found', 'PLC not found.');
+    }
+    const plcData = plcSnap.data() as { memberUids?: unknown } | undefined;
+    const memberUids = Array.isArray(plcData?.memberUids)
+      ? (plcData?.memberUids as unknown[]).filter(
+          (u): u is string => typeof u === 'string'
+        )
+      : [];
+    if (!memberUids.includes(uid)) {
+      throw new HttpsError(
+        'permission-denied',
+        'You are not a member of this PLC.'
+      );
+    }
+
+    if (!plcQuizSnap.exists) {
+      throw new HttpsError('not-found', 'PLC quiz not found.');
+    }
+    const plcQuizData = plcQuizSnap.data() as
+      | { syncGroupId?: unknown }
+      | undefined;
+    const groupId = plcQuizData?.syncGroupId;
+    if (typeof groupId !== 'string' || groupId.length === 0) {
+      throw new HttpsError(
+        'failed-precondition',
+        'PLC quiz is not linked to a synced group.'
+      );
+    }
+
+    const groupRef = db.collection('synced_quizzes').doc(groupId);
     const groupSnap = await tx.get(groupRef);
     if (!groupSnap.exists) {
       throw new HttpsError('not-found', 'Synced group not found.');

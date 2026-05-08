@@ -19,8 +19,10 @@
  *
  *   - Already-imported indicator — when the user's personal library
  *     already carries a `sync.groupId === plcQuiz.syncGroupId`, the row
- *     shows an "In your library" badge and the import action becomes
- *     non-destructive (still allowed; reuses existing linkage).
+ *     shows an "In your library" badge. Re-importing in Sync mode is a
+ *     no-op (informational toast — duplicating a synced linkage would
+ *     just create two personal copies pointing at the same group); Copy
+ *     mode still creates a fresh snapshot.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -42,6 +44,7 @@ import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
 import { useQuiz } from '@/hooks/useQuiz';
 import {
   callJoinPlcQuizSyncGroup,
+  callLeaveSyncedQuizGroup,
   pullSyncedQuizContent,
 } from '@/hooks/useSyncedQuizGroups';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
@@ -86,6 +89,7 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
   const {
     quizzes: personalQuizzes,
     saveQuiz,
+    deleteQuiz,
     attachSyncLinkage,
     isDriveConnected,
   } = useQuiz(user?.uid);
@@ -117,8 +121,27 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
         );
         return;
       }
+
+      // Short-circuit a redundant Sync re-import: a personal quiz is
+      // already linked to this synced group, so writing a fresh copy
+      // would just duplicate it. (Copy mode is allowed to fall through —
+      // the user explicitly asked for a snapshot.)
+      if (mode === 'sync' && personalBySyncGroup.has(target.syncGroupId)) {
+        setImportTarget(null);
+        addToast(
+          t('plcDashboard.quizLibrary.alreadySynced', {
+            title: target.title,
+            defaultValue: '"{{title}}" is already synced to your library.',
+          }),
+          'info'
+        );
+        return;
+      }
+
       setImportTarget(null);
       setBusyRowId(target.plcQuizId);
+      let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
+      let joinedGroupId: string | null = null;
       try {
         const canonical = await pullSyncedQuizContent(target.syncGroupId);
         const now = Date.now();
@@ -129,15 +152,26 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
           createdAt: now,
           updatedAt: now,
         };
-        const savedMeta = await saveQuiz(fresh);
+        savedMeta = await saveQuiz(fresh);
         if (mode === 'sync') {
           // Server-side participant write must precede the client-side
           // attachSyncLinkage so a later editor save doesn't try to
           // publish from a non-participant context.
-          await callJoinPlcQuizSyncGroup(plc.id, target.plcQuizId);
+          const joinResult = await callJoinPlcQuizSyncGroup(
+            plc.id,
+            target.plcQuizId
+          );
+          joinedGroupId = joinResult.groupId;
+          // Prefer the higher of canonical.version (read at pull time)
+          // and joinResult.version (read inside the join transaction).
+          // If a peer published between those two reads, joinResult.version
+          // is fresher — using only canonical.version would tag the new
+          // local copy as already-stale and surface a false "Sync available"
+          // prompt right after import.
+          const liveVersion = Math.max(canonical.version, joinResult.version);
           await attachSyncLinkage(savedMeta.id, {
             groupId: target.syncGroupId,
-            lastSyncedVersion: canonical.version,
+            lastSyncedVersion: liveVersion,
           });
           addToast(
             t('plcDashboard.quizLibrary.importedSync', {
@@ -161,6 +195,30 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
           plcQuizId: target.plcQuizId,
           mode,
         });
+        // Best-effort rollback so a partial failure (join or attach)
+        // doesn't leave an orphan personal quiz / phantom participant
+        // entry behind. Mirrors the shared-assignment importer's shape.
+        if (joinedGroupId) {
+          try {
+            await callLeaveSyncedQuizGroup(joinedGroupId);
+          } catch (leaveErr) {
+            logError('PlcQuizLibraryTab.import.rollbackLeave', leaveErr, {
+              plcId: plc.id,
+              groupId: joinedGroupId,
+            });
+          }
+        }
+        if (savedMeta) {
+          try {
+            await deleteQuiz(savedMeta.id, savedMeta.driveFileId);
+          } catch (rollbackErr) {
+            logError('PlcQuizLibraryTab.import.rollbackQuiz', rollbackErr, {
+              plcId: plc.id,
+              quizId: savedMeta.id,
+              driveFileId: savedMeta.driveFileId,
+            });
+          }
+        }
         addToast(
           err instanceof Error
             ? err.message
@@ -173,7 +231,17 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
         setBusyRowId(null);
       }
     },
-    [addToast, attachSyncLinkage, isDriveConnected, plc.id, saveQuiz, t, user]
+    [
+      addToast,
+      attachSyncLinkage,
+      deleteQuiz,
+      isDriveConnected,
+      personalBySyncGroup,
+      plc.id,
+      saveQuiz,
+      t,
+      user,
+    ]
   );
 
   const handleUnshare = useCallback(

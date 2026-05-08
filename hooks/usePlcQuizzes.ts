@@ -220,11 +220,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
 export async function writePlcQuizEntry(
   plcId: string,
   uid: string,
-  input: ShareQuizWithPlcInput & {
-    /** Pre-resolved display-name and email snapshots. */
-    sharedByName: string;
-    sharedByEmail: string;
-  }
+  input: ShareQuizWithPlcInput
 ): Promise<void> {
   const now = Date.now();
   const entry: PlcQuizEntry = {
