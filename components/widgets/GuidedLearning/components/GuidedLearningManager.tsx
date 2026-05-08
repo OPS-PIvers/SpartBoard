@@ -595,21 +595,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     const canEdit = isBuildingEntry ? isAdmin : true;
     const canDelete = isBuildingEntry ? isAdmin : true;
 
-    const secondary: LibraryMenuAction[] = [
-      {
-        id: 'play',
-        label: 'Play (teacher mode)',
-        icon: Play,
-        onClick: () =>
-          onPlay(
-            entry.source === 'personal'
-              ? entry.id.slice('personal:'.length)
-              : entry.id.slice('building:'.length),
-            entry.driveFileId,
-            entry.buildingSet
-          ),
-      },
-    ];
+    // Play is no longer a kebab item — it's surfaced as a visible
+    // `secondaryPrimaryAction` on the card next to Assign/Share. See the
+    // LibraryItemCard render below.
+    const secondary: LibraryMenuAction[] = [];
 
     if (canEdit) {
       secondary.push({
@@ -701,6 +690,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         subtitle={subtitle}
         thumbnail={thumbnail}
         badges={badges}
+        secondaryPrimaryAction={{
+          label: 'Play',
+          icon: Play,
+          onClick: () => onPlay(rawId, entry.driveFileId, entry.buildingSet),
+        }}
         primaryAction={{
           label: primaryActionLabel,
           icon: Link2,

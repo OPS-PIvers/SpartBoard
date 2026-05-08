@@ -245,6 +245,16 @@ export interface LibraryItemCardProps<TMeta = unknown> {
    */
   primaryAction?: LibraryPrimaryAction;
   /**
+   * A second labelled action rendered to the LEFT of `primaryAction` with a
+   * lighter visual treatment (white background, brand-blue border) so it's
+   * visibly secondary but still a first-class CTA. Use this when two
+   * actions share weight — e.g. "Play" alongside "Assign/Share" — so users
+   * don't have to open the kebab for the second one. At narrow card widths
+   * the text label collapses and only the icon shows; the icon's tooltip
+   * is the action label.
+   */
+  secondaryPrimaryAction?: LibraryPrimaryAction;
+  /**
    * Compact icon-only buttons rendered before `primaryAction`. Used for
    * equal-weight quick actions where the label would consume too much row
    * width. Tooltip is each action's `label`.

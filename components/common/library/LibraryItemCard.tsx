@@ -334,6 +334,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     thumbnail,
     badges,
     primaryAction,
+    secondaryPrimaryAction,
     iconActions,
     secondaryActions,
     onClick,
@@ -347,6 +348,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   } = props;
 
   const PrimaryIcon = primaryAction?.icon;
+  const SecondaryPrimaryIcon = secondaryPrimaryAction?.icon;
   const isList = viewMode === 'list';
 
   const handleBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
@@ -363,7 +365,10 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     <div
       onClick={(onClick ?? selectionMode) ? handleBodyClick : undefined}
       className={[
-        'group relative flex rounded-2xl border backdrop-blur-sm text-slate-700 shadow-sm transition-shadow hover:shadow-md',
+        // `@container` makes the card itself the query target so the action
+        // buttons can collapse their text labels at narrow widths via
+        // `@[Npx]:` Tailwind variants below.
+        '@container group relative flex rounded-2xl border backdrop-blur-sm text-slate-700 shadow-sm transition-shadow hover:shadow-md',
         selectionMode && selected
           ? 'border-brand-blue-primary/60 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-brand-blue-primary/30'
           : 'border-slate-200/80 bg-white/70 hover:bg-white/85',
@@ -483,6 +488,45 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
         {iconActions?.map((action) => (
           <IconActionButton key={action.id} action={action} />
         ))}
+        {secondaryPrimaryAction && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (!secondaryPrimaryAction.disabled)
+                secondaryPrimaryAction.onClick();
+            }}
+            disabled={secondaryPrimaryAction.disabled}
+            title={
+              secondaryPrimaryAction.disabled
+                ? secondaryPrimaryAction.disabledReason
+                : secondaryPrimaryAction.label
+            }
+            aria-label={secondaryPrimaryAction.label}
+            // Same outer shape/size as `primaryAction` but inverted palette:
+            // white surface with brand-blue border so it reads as the
+            // secondary CTA. Label collapses to icon-only below ~280px
+            // card width (the @container threshold).
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-brand-blue-primary/30 bg-white font-bold uppercase tracking-widest text-brand-blue-dark shadow-sm transition-all hover:bg-brand-blue-lighter/30 hover:border-brand-blue-primary/60 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
+            style={{
+              paddingInline: 'min(14px, 3.2cqmin)',
+              paddingBlock: 'min(6px, 1.6cqmin)',
+              fontSize: 'min(12px, 3.8cqmin)',
+            }}
+          >
+            {SecondaryPrimaryIcon && (
+              <SecondaryPrimaryIcon
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            )}
+            <span className="hidden @[280px]:inline">
+              {secondaryPrimaryAction.label}
+            </span>
+          </button>
+        )}
         {primaryAction && (
           <button
             type="button"
@@ -496,6 +540,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 ? primaryAction.disabledReason
                 : primaryAction.label
             }
+            aria-label={primaryAction.label}
             className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-brand-blue-primary font-bold uppercase tracking-widest text-white shadow-sm transition-all hover:bg-brand-blue-dark active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-brand-blue-primary"
             style={{
               paddingInline: 'min(14px, 3.2cqmin)',
@@ -511,7 +556,17 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
                 }}
               />
             )}
-            {primaryAction.label}
+            {/* When a secondaryPrimaryAction is also rendered we collapse
+                this label too at narrow widths, since the row gets crowded.
+                Solo primary keeps its label always visible (current
+                behavior — no callers depend on icon-only). */}
+            {secondaryPrimaryAction ? (
+              <span className="hidden @[280px]:inline">
+                {primaryAction.label}
+              </span>
+            ) : (
+              primaryAction.label
+            )}
           </button>
         )}
         {secondaryActions && secondaryActions.length > 0 && (
