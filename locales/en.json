@@ -494,6 +494,12 @@
       "importedSync": "\"{{title}}\" added to your library (synced).",
       "importedCopy": "\"{{title}}\" copied to your library.",
       "importFailed": "Failed to import quiz.",
+      "editAction": "Edit",
+      "editTooltip": "Edit collaboratively (changes sync to teammates)",
+      "editTooltipAutoImport": "Edit collaboratively — adds to your library on first edit",
+      "editAutoImported": "\"{{title}}\" added to your library — opening editor.",
+      "editSaved": "Quiz saved — teammates will sync on next refresh.",
+      "editFailed": "Failed to open editor.",
       "driveRequired": "Connect Google Drive in your account to import PLC quizzes.",
       "driveDisconnected": "Connect Google Drive to import PLC quizzes into your personal library."
     }

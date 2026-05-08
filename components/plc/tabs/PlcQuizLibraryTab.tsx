@@ -11,6 +11,16 @@
  *     surfaces the "Synced" / "Sync available" pills. On Copy we just
  *     pull canonical and save a fresh personal copy (no sync linkage).
  *
+ *   - "Edit" — opens `QuizEditorModal` against the user's personal
+ *     copy. If the user doesn't yet have one, we auto-import via Sync
+ *     mode first (mirrors the Sync path of `handleImport`) so the
+ *     editor has a Drive-backed canonical to write into. Saving calls
+ *     `saveQuiz`, which auto-publishes to `synced_quizzes/{groupId}`
+ *     via the existing LWW infrastructure — teammates whose libraries
+ *     are also synced to this group pick up the change on the next
+ *     snapshot. Documented Phase 3 follow-up: "Library template
+ *     editing" / Phase 2 follow-up: "Edit-in-place from the PLC tab".
+ *
  *   - "Unshare" — any current member can remove a PLC quiz entry
  *     (PLC-owned model — quizzes shared with the PLC belong to the PLC,
  *     not the original sharer). The canonical `synced_quizzes/{groupId}`
@@ -33,10 +43,11 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  Pencil,
   Trash2,
   Users2,
 } from 'lucide-react';
-import type { Plc, QuizData } from '@/types';
+import type { Plc, QuizData, QuizMetadata } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -50,6 +61,7 @@ import {
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { PlcQuizImportModal } from '../PlcQuizImportModal';
+import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 
 interface PlcQuizLibraryTabProps {
   plc: Plc;
@@ -91,19 +103,30 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
     saveQuiz,
     deleteQuiz,
     attachSyncLinkage,
+    loadQuizData,
     isDriveConnected,
   } = useQuiz(user?.uid);
 
   const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
+  // Editor state — when set, the QuizEditorModal opens against the
+  // user's personal copy (auto-imported via Sync if missing). Saving
+  // calls `saveQuiz` which auto-publishes to the synced group via the
+  // existing LWW infrastructure, so teammates' synced copies update too.
+  const [editing, setEditing] = useState<{
+    quiz: QuizData;
+    quizMetaId: string;
+    driveFileId: string;
+  } | null>(null);
 
-  // Map of syncGroupId → personal quiz that already carries this linkage.
-  // Used to render the "In your library" badge and to skip a redundant
-  // re-import.
+  // Map of syncGroupId → personal quiz metadata that already carries this
+  // linkage. Used to render the "In your library" badge, skip a redundant
+  // re-import, and locate the existing personal copy when opening the
+  // collaborative editor.
   const personalBySyncGroup = useMemo(() => {
-    const map = new Map<string, string>();
+    const map = new Map<string, QuizMetadata>();
     for (const q of personalQuizzes) {
-      if (q.sync?.groupId) map.set(q.sync.groupId, q.id);
+      if (q.sync?.groupId) map.set(q.sync.groupId, q);
     }
     return map;
   }, [personalQuizzes]);
@@ -242,6 +265,167 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
       t,
       user,
     ]
+  );
+
+  /**
+   * Edit a PLC-shared quiz collaboratively.
+   *
+   * Resolves a personal copy first — auto-importing via Sync mode if the
+   * user doesn't already carry one — then opens the standard QuizEditor
+   * modal against that copy. On save, `saveQuiz` writes the local Drive
+   * replica AND publishes to `synced_quizzes/{groupId}` (LWW, version-
+   * gated) via the existing infrastructure, so teammates whose libraries
+   * are also synced pick up the change on their next snapshot.
+   *
+   * Edge cases:
+   *  - Drive must be connected (canonical content lives in Drive on the
+   *    saver's account; without Drive there's no place to land the
+   *    auto-imported copy).
+   *  - If the user has the quiz as a Copy (no `sync.groupId`), this
+   *    creates a SECOND personal copy that's synced. Acceptable trade-
+   *    off — switching a Copy to Sync without losing local edits is a
+   *    separate problem and out of scope here.
+   *  - Auto-import failures roll back the same way handleImport does
+   *    (leave the freshly-joined sync group, delete the freshly-saved
+   *    personal quiz).
+   */
+  const handleEdit = useCallback(
+    async (target: ImportTarget) => {
+      if (!user) return;
+      if (!isDriveConnected) {
+        addToast(
+          t('plcDashboard.quizLibrary.driveRequired', {
+            defaultValue:
+              'Connect Google Drive in your account to edit PLC quizzes.',
+          }),
+          'error'
+        );
+        return;
+      }
+
+      setBusyRowId(target.plcQuizId);
+      let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
+      let joinedGroupId: string | null = null;
+      let autoImported = false;
+      try {
+        // Find an existing personal copy already synced to this group;
+        // otherwise auto-import via Sync to acquire one.
+        let personalMeta: QuizMetadata | undefined = personalBySyncGroup.get(
+          target.syncGroupId
+        );
+        if (!personalMeta) {
+          autoImported = true;
+          const canonical = await pullSyncedQuizContent(target.syncGroupId);
+          const now = Date.now();
+          const fresh: QuizData = {
+            id: crypto.randomUUID(),
+            title: canonical.title,
+            questions: canonical.questions,
+            createdAt: now,
+            updatedAt: now,
+          };
+          savedMeta = await saveQuiz(fresh);
+          const joinResult = await callJoinPlcQuizSyncGroup(
+            plc.id,
+            target.plcQuizId
+          );
+          joinedGroupId = joinResult.groupId;
+          const liveVersion = Math.max(canonical.version, joinResult.version);
+          await attachSyncLinkage(savedMeta.id, {
+            groupId: target.syncGroupId,
+            lastSyncedVersion: liveVersion,
+          });
+          personalMeta = {
+            ...savedMeta,
+            sync: {
+              groupId: target.syncGroupId,
+              lastSyncedVersion: liveVersion,
+            },
+          };
+        }
+
+        const quizData = await loadQuizData(personalMeta.driveFileId);
+        setEditing({
+          quiz: quizData,
+          quizMetaId: personalMeta.id,
+          driveFileId: personalMeta.driveFileId,
+        });
+        if (autoImported) {
+          addToast(
+            t('plcDashboard.quizLibrary.editAutoImported', {
+              title: target.title,
+              defaultValue:
+                '"{{title}}" added to your library — opening editor.',
+            }),
+            'info'
+          );
+        }
+      } catch (err) {
+        logError('PlcQuizLibraryTab.edit', err, {
+          plcId: plc.id,
+          plcQuizId: target.plcQuizId,
+        });
+        // Roll back the auto-import on failure so a partial open doesn't
+        // leave an orphan personal quiz / phantom participant entry.
+        if (joinedGroupId) {
+          try {
+            await callLeaveSyncedQuizGroup(joinedGroupId);
+          } catch (leaveErr) {
+            logError('PlcQuizLibraryTab.edit.rollbackLeave', leaveErr, {
+              plcId: plc.id,
+              groupId: joinedGroupId,
+            });
+          }
+        }
+        if (savedMeta) {
+          try {
+            await deleteQuiz(savedMeta.id, savedMeta.driveFileId);
+          } catch (rollbackErr) {
+            logError('PlcQuizLibraryTab.edit.rollbackQuiz', rollbackErr, {
+              plcId: plc.id,
+              quizId: savedMeta.id,
+              driveFileId: savedMeta.driveFileId,
+            });
+          }
+        }
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.quizLibrary.editFailed', {
+                defaultValue: 'Failed to open editor.',
+              }),
+          'error'
+        );
+      } finally {
+        setBusyRowId(null);
+      }
+    },
+    [
+      addToast,
+      attachSyncLinkage,
+      deleteQuiz,
+      isDriveConnected,
+      loadQuizData,
+      personalBySyncGroup,
+      plc.id,
+      saveQuiz,
+      t,
+      user,
+    ]
+  );
+
+  const handleSaveEdit = useCallback(
+    async (updated: QuizData) => {
+      if (!editing) return;
+      await saveQuiz(updated, editing.driveFileId);
+      addToast(
+        t('plcDashboard.quizLibrary.editSaved', {
+          defaultValue: 'Quiz saved — teammates will sync on next refresh.',
+        }),
+        'success'
+      );
+    },
+    [addToast, editing, saveQuiz, t]
   );
 
   const handleUnshare = useCallback(
@@ -431,6 +615,35 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
                 </button>
                 <button
                   type="button"
+                  onClick={() =>
+                    void handleEdit({
+                      plcQuizId: quiz.id,
+                      syncGroupId: quiz.syncGroupId,
+                      title: quiz.title,
+                      sharedByName: quiz.sharedByName,
+                    })
+                  }
+                  disabled={isBusy || !isDriveConnected}
+                  aria-label={t('plcDashboard.quizLibrary.editAction', {
+                    defaultValue: 'Edit',
+                  })}
+                  title={
+                    inLibrary
+                      ? t('plcDashboard.quizLibrary.editTooltip', {
+                          defaultValue:
+                            'Edit collaboratively (changes sync to teammates)',
+                        })
+                      : t('plcDashboard.quizLibrary.editTooltipAutoImport', {
+                          defaultValue:
+                            'Edit collaboratively — adds to your library on first edit',
+                        })
+                  }
+                  className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+                <button
+                  type="button"
                   onClick={() => void handleUnshare(quiz.id, quiz.title)}
                   disabled={isBusy}
                   aria-label={t('plcDashboard.quizLibrary.unshareAction', {
@@ -474,6 +687,12 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
           onClose={() => setImportTarget(null)}
         />
       )}
+      <QuizEditorModal
+        isOpen={editing !== null}
+        quiz={editing?.quiz ?? null}
+        onClose={() => setEditing(null)}
+        onSave={handleSaveEdit}
+      />
     </div>
   );
 };
