@@ -52,7 +52,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   onClose,
   confirmDiscardMessage = 'You have unsaved changes. Discard them?',
   confirmDiscardTitle = 'Discard changes?',
-  maxWidth = 'max-w-5xl',
+  maxWidth = 'max-w-7xl',
   className = 'h-[85vh]',
   bodyClassName = 'px-6 py-5',
   saveErrorMessage = 'Could not save your changes. Please try again.',

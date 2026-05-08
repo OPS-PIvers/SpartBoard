@@ -248,7 +248,6 @@ export const GuidedLearningEditorModal: React.FC<
           </button>
         ) : null
       }
-      maxWidth="max-w-6xl"
       className="h-[90vh]"
       bodyClassName="p-0 relative"
     >
