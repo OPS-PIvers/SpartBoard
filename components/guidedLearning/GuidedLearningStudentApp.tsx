@@ -204,12 +204,20 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
         onPinChange={setPin}
         selectedPeriod={classPeriod}
         onPeriodChange={setClassPeriod}
+        // View-only Share links are public resources — they aren't
+        // associated with a particular student or class, so we skip the
+        // PIN entry and the class-period picker entirely. The user lands
+        // on the welcome / mode screen and clicks straight through.
+        isViewOnly={isViewOnly}
         onStart={() => {
           // Auto-select the single period if there's exactly one so the
-          // response still gets tagged consistently.
-          const periods = session.periodNames ?? [];
-          if (periods.length === 1 && !classPeriod) {
-            setClassPeriod(periods[0]);
+          // response still gets tagged consistently. Skipped on view-only
+          // since responses aren't tracked anyway.
+          if (!isViewOnly) {
+            const periods = session.periodNames ?? [];
+            if (periods.length === 1 && !classPeriod) {
+              setClassPeriod(periods[0]);
+            }
           }
           setStarted(true);
         }}
@@ -262,6 +270,12 @@ const StartScreen: React.FC<{
   onPinChange: (v: string) => void;
   selectedPeriod: string | null;
   onPeriodChange: (v: string | null) => void;
+  /**
+   * View-only Share links are public resources, not assignments — they
+   * aren't tied to a specific student or class. When true, the period
+   * picker and PIN entry are both suppressed.
+   */
+  isViewOnly: boolean;
   onStart: () => void;
 }> = ({
   session,
@@ -269,10 +283,12 @@ const StartScreen: React.FC<{
   onPinChange,
   selectedPeriod,
   onPeriodChange,
+  isViewOnly,
   onStart,
 }) => {
   const periods = session.periodNames ?? [];
-  const needsPeriodPicker = periods.length > 1 && !selectedPeriod;
+  const needsPeriodPicker =
+    !isViewOnly && periods.length > 1 && !selectedPeriod;
 
   if (needsPeriodPicker) {
     return (
@@ -330,7 +346,7 @@ const StartScreen: React.FC<{
           </p>
         )}
 
-        {selectedPeriod && periods.length > 1 && (
+        {!isViewOnly && selectedPeriod && periods.length > 1 && (
           <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2">
             <span className="text-xs text-slate-400">Class</span>
             <div className="flex items-center gap-2">
@@ -347,23 +363,30 @@ const StartScreen: React.FC<{
           </div>
         )}
 
-        <div className="mb-6">
-          <label className="block text-slate-400 text-xs mb-1.5 text-left">
-            Your PIN <span className="text-slate-600">(optional)</span>
-          </label>
-          <input
-            type="text"
-            value={pin}
-            onChange={(e) => onPinChange(e.target.value)}
-            placeholder="Enter your class PIN"
-            className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
-            maxLength={10}
-          />
-        </div>
+        {!isViewOnly && (
+          <div className="mb-6">
+            <label className="block text-slate-400 text-xs mb-1.5 text-left">
+              Your PIN <span className="text-slate-600">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={pin}
+              onChange={(e) => onPinChange(e.target.value)}
+              placeholder="Enter your class PIN"
+              className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
+              maxLength={10}
+            />
+          </div>
+        )}
 
         <button
           onClick={onStart}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          className={`w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+            // When PIN entry is suppressed (view-only) and no welcome
+            // card preceded it, the start button would butt up against
+            // the title — give it some breathing room.
+            isViewOnly && !showWelcome ? 'mt-2' : ''
+          }`}
         >
           {showWelcome ? 'Get started' : 'Start'}
           <ArrowRight className="w-4 h-4" />
