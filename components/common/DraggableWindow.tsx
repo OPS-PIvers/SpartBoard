@@ -572,7 +572,31 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   }, []);
   const canScreenshot = !SCREENSHOT_BLACKLIST.includes(widget.type);
 
+  /**
+   * React events from a portal'd descendant (Modal, Dialog, etc.) bubble
+   * through the COMPONENT tree, not the DOM tree — even though the modal
+   * is rendered to `document.body`, its events still reach this widget's
+   * pointer handlers in the React tree. Without this guard, every click
+   * inside an open editor modal would trigger `bringToFront`, focus
+   * stealing, or worse on the host widget, making it look like the
+   * widget behind the modal was reacting to the user's modal clicks.
+   *
+   * We can't fix this at the modal layer by calling `stopPropagation` —
+   * that would also halt the underlying native DOM event, breaking
+   * window-level pointer listeners that legitimate drag handlers
+   * (e.g. the GL hotspot marker's `setPointerCapture` flow) rely on.
+   * Instead, ignore events whose target is inside a portal'd modal.
+   */
+  const isFromPortaledOverlay = (e: React.PointerEvent): boolean => {
+    const target =
+      e.target instanceof Element
+        ? e.target
+        : ((e.target as Node).parentElement ?? null);
+    return Boolean(target?.closest('[role="dialog"]'));
+  };
+
   const handlePointerDown = (e: React.PointerEvent) => {
+    if (isFromPortaledOverlay(e)) return;
     // In group-building mode, toggle selection instead of normal behavior
     if (groupBuildMode) {
       e.stopPropagation();
@@ -1657,6 +1681,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const activeTouchCount = useRef(0);
 
   const handleWidgetPointerDown = (e: React.PointerEvent) => {
+    // Same portal-events guard as `handlePointerDown` — see the comment
+    // there. A modal click bubbling through the React tree should not
+    // start the long-press screenshot timer or the 2-finger annotation
+    // gesture on the widget that hosts the modal.
+    if (isFromPortaledOverlay(e)) return;
     if (e.pointerType !== 'mouse') {
       activeTouchCount.current++;
 
