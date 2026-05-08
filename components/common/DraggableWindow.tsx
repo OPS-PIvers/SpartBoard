@@ -797,6 +797,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   };
 
   const handleDragStart = (e: React.PointerEvent) => {
+    // Same portal-events guard as `handlePointerDown` — see the comment
+    // there. The drag-surface is a React ancestor of any portal'd modal
+    // rendered from this widget, so React events bubble through it; without
+    // this check, dragging anywhere on an open editor modal would drag the
+    // host widget around in the dimmed background.
+    if (isFromPortaledOverlay(e)) return;
     if (isMaximized) return;
     if (isLocked || isPinned) return;
 
