@@ -334,3 +334,21 @@ export async function callLeaveSyncedQuizGroup(
   const result = await fn({ groupId });
   return result.data;
 }
+
+/**
+ * PLC variant of `callJoinSyncedQuizGroup` (Phase 2). Adds the caller to
+ * the synced group referenced by `plcs/{plcId}/quizzes/{plcQuizId}` after
+ * the Cloud Function verifies the caller is a current PLC member. Used by
+ * the PLC Quiz Library tab's "Add to my library (Sync)" path.
+ */
+export async function callJoinPlcQuizSyncGroup(
+  plcId: string,
+  plcQuizId: string
+): Promise<JoinResponse> {
+  const fn = httpsCallable<{ plcId: string; plcQuizId: string }, JoinResponse>(
+    functions,
+    'joinPlcQuizSyncGroup'
+  );
+  const result = await fn({ plcId, plcQuizId });
+  return result.data;
+}

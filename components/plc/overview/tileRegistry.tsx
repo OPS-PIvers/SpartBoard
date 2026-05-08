@@ -8,6 +8,7 @@ import { NotesTile } from './tiles/NotesTile';
 import { TodosTile } from './tiles/TodosTile';
 import { SharedSheetTile } from './tiles/SharedSheetTile';
 import { QuickActionsTile } from './tiles/QuickActionsTile';
+import { QuizLibraryTile } from './tiles/QuizLibraryTile';
 import { ComingSoonTile } from './tiles/ComingSoonTile';
 
 export interface TileContext {
@@ -80,11 +81,7 @@ export function renderTileContent(
       return <QuickActionsTile onNavigateTab={ctx.onNavigateTab} />;
     case 'quizLibrary':
       return (
-        <ComingSoonTile
-          kind="quizLibrary"
-          phase={2}
-          onNavigateTab={() => ctx.onNavigateTab('quizzes')}
-        />
+        <QuizLibraryTile plc={ctx.plc} onNavigateTab={ctx.onNavigateTab} />
       );
     case 'activeAssignments':
       return (

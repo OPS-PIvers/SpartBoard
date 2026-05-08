@@ -27,7 +27,7 @@ This roadmap is designed to be **executed in independent chunks across multiple 
 ## Status
 
 - [x] **Phase 1** — Dashboard shell + feature toggles + completed-assignments tab _(PR #1537)_
-- [ ] **Phase 2** — PLC Quiz Library (share-with-PLC, collaborative editing, sync-or-copy import)
+- [x] **Phase 2** — PLC Quiz Library (share-with-PLC, collaborative editing, sync-or-copy import) _(this PR)_
 - [ ] **Phase 3** — PLC-authored Assignments tab + auto-bubble-up from personal assignments
 - [ ] **Phase 4** — Video Activities (extend with `PlcLinkage` + dashboard surface)
 - [x] **Phase 5** — Notes + To-Do list (collaborative shared docs) _(bundled with Overview/Bento — see Phase 1.5 below)_
@@ -131,13 +131,31 @@ Open these in the first session so you understand the pivot points:
 - PLC-authored assignments (Phase 3) — sharing a quiz does not auto-create an assignment; the assignment is created by the importer's existing flow.
 - Permissions beyond "any member can edit / any member can copy". No editor-vs-viewer split.
 
-### Open question
+### Open question — RESOLVED
 
-- When the original sharer **deletes** their personal copy of a quiz that's been synced to a PLC, does the PLC copy stay (orphan-tolerant) or get pulled? Recommend: **stays.** PLC copy lives in its own subcollection; deleting your personal version doesn't affect the PLC's shared version. Confirm with user before implementing.
+- When the original sharer **deletes** their personal copy of a quiz that's been synced to a PLC, the PLC copy **stays** (orphan-tolerant). The PLC subcoll doc lives independently of the sharer's `quiz_metadata`; the canonical `synced_quizzes/{groupId}` doc also stays in place (its rule already declines client deletes). No cascade.
 
 ### Notes from implementation
 
-_(Fill in after shipping.)_
+- **Subcollection shape:** `plcs/{plcId}/quizzes/{plcQuizId}` is a lightweight header (`title`, `questionCount`, `syncGroupId`, `sharedBy*`, `sharedAt`, `updatedAt`) — questions live only in `synced_quizzes/{groupId}`. List rendering thus avoids an N+1 read against the sync collection. After every successful peer publish, `mirrorPlcQuizHeader` patches title/questionCount onto the PLC doc fire-and-forget — failures log via `logError('usePlcQuizzes.mirrorHeader', …)` and never reject so the publish path stays fast.
+- **Doc ids:** the PLC doc id is a fresh v4 UUID minted at share time (NOT the source quiz id). This lets the same source quiz be shared with multiple PLCs without doc-id collisions, and lets the sharer remove a PLC entry without affecting their personal library.
+- **Sharing flow** (`Widget.tsx → handleShareWithPlc`): load drive content → mint `synced_quizzes/{groupId}` (with `plcId` set) if the quiz wasn't already synced → attach sync linkage to local `quiz_metadata` → write the PLC subcoll doc. If the PLC subcoll write fails after the synced group is minted, the synced group + sync linkage are intentionally NOT rolled back — the canonical doc still appears as a "Synced" pill on the user's library card, which is still useful, and a retry just re-uses the existing groupId.
+- **Importing flow** (`PlcQuizLibraryTab → handleImport`):
+  - **Sync** — `pullSyncedQuizContent(syncGroupId)` → `saveQuiz(fresh)` → `callJoinPlcQuizSyncGroup(plcId, plcQuizId)` (Cloud Function) → `attachSyncLinkage`. Server-side participant write precedes the local linkage attach so a later editor save publishes from a participant context.
+  - **Copy** — pull canonical → `saveQuiz(fresh)`. No sync linkage; future PLC edits do NOT propagate.
+- **New Cloud Function** `joinPlcQuizSyncGroup({plcId, plcQuizId})` (`functions/src/plcQuizSyncJoin.ts`). Mirrors the existing `joinSyncedQuizGroup` shape but resolves `syncGroupId` via `plcs/{plcId}/quizzes/{plcQuizId}` instead of `shared_assignments/{shareId}` — and adds an explicit Admin-SDK membership check so the caller can't sneak into a sync group by knowing the PLC quiz id alone. **Requires `firebase deploy --only functions:joinPlcQuizSyncGroup`** before the Sync import path will work in the staging or production environment; until then, Copy mode still works without the Cloud Function.
+- **Permissions:** any current member can share / edit (via the synced group, after import) / unshare. The unshare action in the PLC tab is therefore visible on every row, not just rows the current user shared — this matches the Phase 5 notes/todos PLC-owned posture. The rules pin identity + attribution fields (`id`, `syncGroupId`, `sharedBy`, `sharedByEmail`, `sharedByName`, `sharedAt`) immutable on update so a teammate can't quietly retarget an entry or rewrite authorship while patching the title mirror.
+- **Edit-in-place from the PLC tab is not in this PR.** The existing `QuizEditorModal` reads/writes Drive, which only works for quizzes already in the user's personal library. Members sync the quiz first ("Add to my library → Sync"), then edit from their library card; published edits propagate back to all teammates via the existing LWW infrastructure. Direct in-tab editing on the synced doc would need a Drive-less editor surface — explicitly out of scope here.
+- **dev-paul branch convention:** Phase 2 was committed to `claude/shared-plc-implementation-TB67Z` and PR'd into `dev-paul`. The auth bypass was not exercised; manual smoke tests were not run because this environment lacks Firebase project access — verification falls to the dev preview URL and the human reviewer.
+
+### Phase 2 follow-ups (not blockers; track separately)
+
+These were surfaced in the final review pass and intentionally deferred to keep this PR focused. None block merge:
+
+- **Modal i18n.** `PlcShareTargetModal` and `PlcQuizImportModal` use hardcoded English. Consistent with the sibling `QuizAssignmentImportModeModal.tsx` pattern — every share/import picker in this codebase is currently English-only. A separate localization sweep should bring all three modals plus the QuizManager kebab labels under `t()` together.
+- **Rollback path tests.** `PlcQuizLibraryTab.handleImport` has a 3-stage rollback (leave sync group + delete personal quiz on partial failure) but no integration test exercising it. The shared-assignment importer's analogous path also has unit-only coverage today; adding this would be additive parity.
+- **Cloud Function unit tests.** `joinPlcQuizSyncGroup` (`functions/src/plcQuizSyncJoin.ts`) has no `*.test.ts` sibling. The Firestore rules suite covers the subcollection's permissions, but the Admin-SDK transaction logic itself (membership re-check, idempotent `alreadyJoined`, version-bump invariants) isn't directly exercised. Sibling pattern: `syncedQuizGroups.test.ts` (Phase 1).
+- **Modal title polish.** When the user clicks "Re-import" on an already-synced quiz, the `PlcQuizImportModal` header still reads "Add to my library". Minor UX nit — the import button label updates correctly, but the modal title doesn't acknowledge the re-import context.
 
 ---
 
@@ -342,13 +360,16 @@ logError('writePlcAssignmentIndexEntry.write', err, { plcId, entryId });
 
 _(Add new ones here as they come up. Resolve before starting the affected phase.)_
 
-- **Phase 2:** orphan behavior when sharer deletes their personal copy of a synced PLC quiz.
 - **Phase 3:** does the personal "PLC option" toggle create a brand-new PLC-level assignment template, or fork from the personal one?
 - **Phase 3:** what happens to in-flight imports if the PLC-level template is deleted?
-- **Phase 5:** single shared notepad vs. multiple notes per PLC.
-- **Phase 5:** are todos PLC-owned or per-member?
 - **Phase 6:** read-only vs. editable for PLC-shared boards.
+
+Resolved:
+
+- ~~**Phase 2:** orphan behavior when sharer deletes their personal copy of a synced PLC quiz.~~ → PLC copy stays (orphan-tolerant). See Phase 2 "Notes from implementation".
+- ~~**Phase 5:** single shared notepad vs. multiple notes per PLC.~~ → Multi-note. Shipped.
+- ~~**Phase 5:** are todos PLC-owned or per-member?~~ → PLC-owned, optional `assignedTo` deferred. Shipped.
 
 ---
 
-**Last updated:** 2026-05-07 (Phase 1.5 + Phase 5 shipped — Overview tab + bento grid + sidebar kebab + Notes/To-Dos)
+**Last updated:** 2026-05-08 (Phase 2 shipped — PLC Quiz Library: share-with-PLC, sync-or-copy import, collaborative edits via synced_quizzes)
