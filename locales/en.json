@@ -498,10 +498,11 @@
       "editTooltip": "Edit collaboratively (changes sync to teammates)",
       "editTooltipAutoImport": "Edit collaboratively — adds to your library on first edit",
       "editAutoImported": "\"{{title}}\" added to your library — opening editor.",
-      "editSaved": "Quiz saved — teammates will sync on next refresh.",
+      "editSaved": "Quiz saved — teammates will sync automatically.",
       "editConflict": "Another teacher published an update to this quiz. We pulled their changes; your unsaved edits were not saved. Reopen the quiz to re-apply.",
       "editFailed": "Failed to open editor.",
       "driveRequired": "Connect Google Drive in your account to import PLC quizzes.",
+      "driveRequiredForEdit": "Connect Google Drive in your account to edit PLC quizzes.",
       "driveDisconnected": "Connect Google Drive to import PLC quizzes into your personal library."
     }
   },

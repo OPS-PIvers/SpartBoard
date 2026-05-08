@@ -296,7 +296,7 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
       if (!user) return;
       if (!isDriveConnected) {
         addToast(
-          t('plcDashboard.quizLibrary.driveRequired', {
+          t('plcDashboard.quizLibrary.driveRequiredForEdit', {
             defaultValue:
               'Connect Google Drive in your account to edit PLC quizzes.',
           }),
