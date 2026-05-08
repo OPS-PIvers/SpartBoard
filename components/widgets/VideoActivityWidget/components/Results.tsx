@@ -161,20 +161,30 @@ export const Results: React.FC<ResultsProps> = ({
       // Pass `byStudentUid` so SSO `studentRole` rows (no PIN) export with
       // their resolved ClassLink names instead of falling back to the
       // generic "Student" label.
-      // TODO(PR3): The Quiz exporter calls Quiz's `gradeAnswer`, which has
-      // no 'MA' case and returns 0 points for VA Multi-Answer questions in
-      // the export. PR3 lifts `buildResultsSheetData` into a generic util
-      // that accepts a custom grader (`utils/assignmentExportShared.ts`)
-      // and at that point the VA call here will pass `gradeVideoActivityAnswer`.
-      // Until then, MA columns in the exported sheet read as "0 / Npt".
-      // MC + FIB questions grade correctly.
+      //
+      // PR3b: pass `gradeFn: gradeVideoActivityAnswer` so the exporter
+      // grades VA's MA / FIB-with-variants questions correctly. Without
+      // this override the Quiz default grader has no `'MA'` case and
+      // returns 0 points for those columns (the TODO PR2a left here).
+      // Cast away the QuizQuestion / QuizResponse / typeof-gradeAnswer
+      // shapes — the lifted `buildResultsSheetData` is generic enough to
+      // accept VA's variants but the public `exportResultsToSheet`
+      // signature is still typed as Quiz-shaped. PR3 documents the cast
+      // boundary; a future refactor that splits the Quiz-specific
+      // question-stats block out into a generic helper would let this
+      // function become generic too and remove the cast.
+      type ExporterOptions = Parameters<typeof drive.exportResultsToSheet>[3];
       const url = await drive.exportResultsToSheet(
         session.assignmentName,
         quizResponses,
         questions as unknown as Parameters<
           typeof drive.exportResultsToSheet
         >[2],
-        { byStudentUid }
+        {
+          byStudentUid,
+          gradeFn:
+            gradeVideoActivityAnswer as unknown as NonNullable<ExporterOptions>['gradeFn'],
+        }
       );
       setExportUrl(url);
     } catch (err) {
