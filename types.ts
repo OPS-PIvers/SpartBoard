@@ -2439,8 +2439,8 @@ export interface QuizResponse {
  * across PIN-related collections.
  *
  * Populated by `commitRosterPinIndexV1` (callable, teacher-only). Read
- * via `admin SDK` inside `pinLoginV1` (callable, public). Client clients
- * never read or write these docs directly.
+ * via `admin SDK` inside `pinLoginV1` (callable, public). Clients never
+ * read or write these docs directly.
  */
 export interface RosterPinIndexEntry {
   /** HMAC(STUDENT_PSEUDONYM_HMAC_SECRET, `sid:${classlinkSourcedId}`). */
@@ -2451,6 +2451,16 @@ export interface RosterPinIndexEntry {
    * `passesStudentClassGate` on the session's responses.
    */
   classId: string;
+  /**
+   * ClassLink organization id (from the parent roster's `classlinkOrgId`).
+   * Stored on each pin_index entry so `pinLoginV1` can mint the custom
+   * token with the right `orgId` claim using a single doc read per
+   * roster probe — without it, the function would have to fan out a
+   * `collectionGroup('rosters').where('classlinkClassId'…)` lookup on
+   * every PIN login (a hot path: every PIN-bridged join). Empty string
+   * for rosters whose roster doc is missing the field.
+   */
+  orgId: string;
   /** Raw period name. Diagnostic only — `indexKey` carries the encoded form. */
   period: string;
   /** Server-time ms of the most recent index rebuild for this entry. */

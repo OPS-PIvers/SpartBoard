@@ -30,7 +30,7 @@ import {
   runTransaction,
   type DocumentSnapshot,
 } from 'firebase/firestore';
-import { db, auth, functions } from '../config/firebase';
+import { db, auth, functions } from '@/config/firebase';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -42,8 +42,8 @@ import {
   QuizPublicQuestion,
   QuizAttemptLedger,
   GradeResult,
-} from '../types';
-import { resolvePeriodNames } from '../utils/periodCompat';
+} from '@/types';
+import { resolvePeriodNames } from '@/utils/periodCompat';
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
@@ -262,21 +262,6 @@ export class AttemptLimitReachedError extends Error {
       "You've already submitted this quiz. Talk to your teacher if you need another attempt."
     );
     this.name = 'AttemptLimitReachedError';
-  }
-}
-
-/**
- * Thrown by `completeQuiz` when the response doc is already in the
- * `completed` state — i.e. the student already submitted (possibly from
- * another tab or via a rapid double-click). The submit transaction treats
- * this as a no-op (idempotent), so callers should suppress this in the UI.
- * Branched on the typed sentinel rather than the message so future copy
- * changes don't silently break the suppression.
- */
-export class AlreadySubmittedError extends Error {
-  constructor() {
-    super('This quiz has already been submitted.');
-    this.name = 'AlreadySubmittedError';
   }
 }
 
@@ -1657,10 +1642,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       if (!snap.exists()) return;
       const existing = snap.data() as QuizResponse;
       if (existing.status === 'completed') {
-        // Idempotent: the doc was already finalized by an earlier
-        // completeQuiz call (other tab, retry, etc.). Throw a typed
-        // sentinel so the UI can suppress the error toast cleanly.
-        throw new AlreadySubmittedError();
+        // Idempotent no-op: the doc was already finalized by an earlier
+        // completeQuiz call (other tab, retry, rapid double-click). We
+        // intentionally `return` instead of throwing — callers
+        // (handleSubmitAndAdvance, handleAutoSubmit, the auto-complete
+        // branch in handleAnswer) all `await onComplete()`, sometimes
+        // without a try/catch, so a thrown sentinel would surface as an
+        // unhandled rejection / wrong "submit failed" toast even though
+        // the submit actually succeeded earlier. Returning early
+        // mirrors `completeActivity` in `useVideoActivitySession`.
+        return;
       }
 
       // Read the ledger inside the same transaction so the increment

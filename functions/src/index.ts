@@ -3725,6 +3725,14 @@ export const commitRosterPinIndexV1 = onCall(
       rosterData.classlinkClassId.length > 0
         ? rosterData.classlinkClassId
         : null;
+    // Optional on the roster doc; empty-string default keeps the
+    // pin_index entry shape stable so `pinLoginV1` can read a string
+    // field unconditionally. Stored alongside `classId` so the login
+    // path doesn't need a `collectionGroup` lookup to recover orgId.
+    const classlinkOrgId =
+      typeof rosterData.classlinkOrgId === 'string'
+        ? rosterData.classlinkOrgId
+        : '';
     if (!classlinkClassId) {
       // Local rosters have no ClassLink class id and so can't bridge into
       // the SSO uid space. Returning success (with `wrote: 0`) keeps the
@@ -3744,6 +3752,7 @@ export const commitRosterPinIndexV1 = onCall(
       {
         pseudonym: string;
         classId: string;
+        orgId: string;
         period: string;
         updatedAt: number;
       }
@@ -3755,6 +3764,7 @@ export const commitRosterPinIndexV1 = onCall(
       desired.set(key, {
         pseudonym: computeStudentUid(entry.classlinkSourcedId, hmacSecret),
         classId: classlinkClassId,
+        orgId: classlinkOrgId,
         period: entry.period,
         updatedAt: now,
       });
@@ -3905,32 +3915,50 @@ export const pinLoginV1 = onCall(
 
     const indexKey = pinIndexKey(period, pin);
 
-    // Probe each roster's pin_index for the indexKey. A multi-class
-    // session (multiple rosters) will typically have only one match
-    // because PIN+encoded-period uniquely identifies a student in
-    // practice. If multiple rosters happen to match (PIN collision
-    // across periods with a missing/default period), prefer the first
-    // hit — same behavior the legacy PIN response-key resolution
-    // documents at `quizScoreboard.ts` `resolvePinName`.
-    let matched: { pseudonym: string; classId: string } | null = null;
-    for (const rosterId of rosterIds) {
-      const indexRef = db
+    // Probe each roster's pin_index for the indexKey IN PARALLEL.
+    // PIN-bridged join is on the hot path of every PIN-joining student,
+    // and a multi-class session (multiple rosters) would otherwise
+    // serialize one .get() per roster. Fan-out is bounded by
+    // STUDENT_LOGIN_CLASS_IDS_MAX-style sizing on the client side
+    // (rosterIds is teacher-authored and small in practice).
+    //
+    // A multi-class session will typically have only one match because
+    // PIN + encoded-period uniquely identifies a student. If multiple
+    // rosters happen to match (PIN collision across periods with a
+    // missing/default period), prefer the first hit by rosterIds order
+    // — same behavior the legacy PIN response-key resolution documents
+    // at `quizScoreboard.ts` `resolvePinName`.
+    //
+    // `orgId` lives directly on the index entry (Phase 3 review fix),
+    // so the login path is a single doc read per roster instead of an
+    // additional `collectionGroup('rosters').where('classlinkClassId'…)`
+    // scan to recover org metadata.
+    const indexRefs = rosterIds.map((rosterId) =>
+      db
         .collection('users')
         .doc(teacherUid)
         .collection('rosters')
         .doc(rosterId)
         .collection(PIN_INDEX_SUBCOLLECTION)
-        .doc(indexKey);
-      const indexSnap = await indexRef.get();
-      if (indexSnap.exists) {
-        const entry = indexSnap.data() ?? {};
-        const pseudonym =
-          typeof entry.pseudonym === 'string' ? entry.pseudonym : '';
-        const classId = typeof entry.classId === 'string' ? entry.classId : '';
-        if (pseudonym && classId) {
-          matched = { pseudonym, classId };
-          break;
-        }
+        .doc(indexKey)
+    );
+    const indexSnaps = await Promise.all(indexRefs.map((ref) => ref.get()));
+
+    let matched: {
+      pseudonym: string;
+      classId: string;
+      orgId: string;
+    } | null = null;
+    for (const indexSnap of indexSnaps) {
+      if (!indexSnap.exists) continue;
+      const entry = indexSnap.data() ?? {};
+      const pseudonym =
+        typeof entry.pseudonym === 'string' ? entry.pseudonym : '';
+      const classId = typeof entry.classId === 'string' ? entry.classId : '';
+      const orgId = typeof entry.orgId === 'string' ? entry.orgId : '';
+      if (pseudonym && classId) {
+        matched = { pseudonym, classId, orgId };
+        break;
       }
     }
 
@@ -3938,32 +3966,11 @@ export const pinLoginV1 = onCall(
       return { matched: false, reason: 'no-index-entry' };
     }
 
-    // Recover orgId from the matched roster for the token claim. Best-
-    // effort — the response-rule class gate uses classIds, not orgId,
-    // so an empty orgId is harmless for cap enforcement (only
-    // surfaces in the classlink directory UI).
-    let orgId = '';
-    try {
-      const orgRosterSnap = await db
-        .collectionGroup('rosters')
-        .where('classlinkClassId', '==', matched.classId)
-        .limit(1)
-        .get();
-      if (!orgRosterSnap.empty) {
-        const orgIdMaybe = (
-          orgRosterSnap.docs[0].data() as { classlinkOrgId?: unknown }
-        ).classlinkOrgId;
-        if (typeof orgIdMaybe === 'string') orgId = orgIdMaybe;
-      }
-    } catch (err) {
-      console.warn('[pinLoginV1] orgId lookup failed:', err);
-    }
-
     let customToken: string;
     try {
       customToken = await admin.auth().createCustomToken(matched.pseudonym, {
         studentRole: true,
-        orgId,
+        orgId: matched.orgId,
         classIds: [matched.classId],
       });
     } catch (err) {

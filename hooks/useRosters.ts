@@ -12,10 +12,10 @@ import {
 import { deleteField } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import { User } from 'firebase/auth';
-import { ClassRoster, ClassRosterMeta, Student } from '../types';
-import { db, functions, isAuthBypass } from '../config/firebase';
-import { useGoogleDrive } from './useGoogleDrive';
-import { getLocalIsoDate } from '../utils/localDate';
+import { ClassRoster, ClassRosterMeta, Student } from '@/types';
+import { db, functions, isAuthBypass } from '@/config/firebase';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { getLocalIsoDate } from '@/utils/localDate';
 
 /**
  * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.

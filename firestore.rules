@@ -1634,7 +1634,17 @@ service cloud.firestore {
     // (atomic with the response delete) — see Phase 2 in the
     // attempt-cap fix branch.
     match /quiz_attempt_ledger/{ledgerId} {
+      // `resource == null` short-circuit lets the student-app join flow
+      // call getDoc() to probe whether a ledger entry exists before
+      // deciding to create it on first completion — without it, the
+      // rules engine throws a Null-value error on
+      // `resource.data.teacherUid` and the read is denied. Mirrors the
+      // response read rule pattern. The student's pseudonym uid is an
+      // opaque HMAC (computed in `studentLoginV1`), so probing another
+      // student's path is not realistically possible without already
+      // knowing that student's uid.
       allow read: if request.auth != null && (
+        resource == null ||
         isAdmin() ||
         request.auth.uid == resource.data.teacherUid ||
         request.auth.uid == resource.data.studentUid
@@ -1685,7 +1695,10 @@ service cloud.firestore {
     // Video Activity Attempt Ledger — same shape as the Quiz ledger.
     // Doc id: `${activityId}__${studentUid}`.
     match /video_activity_attempt_ledger/{ledgerId} {
+      // See `quiz_attempt_ledger` above for the `resource == null`
+      // rationale — same pattern, same threat model.
       allow read: if request.auth != null && (
+        resource == null ||
         isAdmin() ||
         request.auth.uid == resource.data.teacherUid ||
         request.auth.uid == resource.data.studentUid
