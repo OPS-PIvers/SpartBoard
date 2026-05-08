@@ -1,27 +1,35 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import {
+  addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import type {
+  SharedVideoActivityAssignment,
   VideoActivityAssignmentSettings,
+  VideoActivityMetadata,
   VideoActivitySession,
   VideoActivitySessionOptions,
 } from '@/types';
 
 vi.mock('firebase/firestore', () => ({
+  addDoc: vi.fn(),
   collection: vi.fn(),
   doc: vi.fn(),
+  getDoc: vi.fn(),
   getDocs: vi.fn(),
   onSnapshot: vi.fn(),
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
+  updateDoc: vi.fn(),
   writeBatch: vi.fn(),
 }));
 
@@ -29,18 +37,34 @@ vi.mock('@/config/firebase', () => ({
   db: {},
 }));
 
-// Hook imports from `./useSessionViewCount` (relative to hooks/), so we
-// mock the same absolute alias path the hook resolves to. This guards the
-// reactivate-assignment code path; current tests don't hit it, but
-// preserves the mock if a future test adds reactivate coverage.
 vi.mock('@/hooks/useSessionViewCount', () => ({
   invalidateSessionViewCount: vi.fn(),
 }));
 
+// Sync-group cloud function shims — mocked so `shareAssignment` / `import…`
+// don't try to write to a real Firestore or fire an httpsCallable.
+const mockCallJoin = vi.fn();
+const mockCallLeave = vi.fn();
+const mockCreateGroup = vi.fn();
+const mockPullContent = vi.fn();
+vi.mock('@/hooks/useSyncedVideoActivityGroups', () => ({
+  callJoinSyncedVideoActivityGroup: (shareId: string): unknown =>
+    mockCallJoin(shareId) as unknown,
+  callLeaveSyncedVideoActivityGroup: (groupId: string): unknown =>
+    mockCallLeave(groupId) as unknown,
+  createSyncedVideoActivityGroup: (input: unknown): unknown =>
+    mockCreateGroup(input) as unknown,
+  pullSyncedVideoActivityContent: (groupId: string): unknown =>
+    mockPullContent(groupId) as unknown,
+}));
+
+const mockAddDoc = addDoc as Mock;
 const mockCollection = collection as Mock;
 const mockDoc = doc as Mock;
+const mockGetDoc = getDoc as Mock;
 const mockGetDocs = getDocs as Mock;
 const mockOnSnapshot = onSnapshot as Mock;
+const mockUpdateDoc = updateDoc as Mock;
 const mockWriteBatch = writeBatch as Mock;
 
 const TEACHER_UID = 'teacher-1';
@@ -66,7 +90,7 @@ function makeSessionOptions(
     attemptLimit: 2,
     rewindOnIncorrectSeconds: 30,
     pointPenaltyOnIncorrect: 1,
-    scoreVisibility: 'score_and_responses',
+    scoreVisibility: 'score-and-responses',
     ...overrides,
   };
 }
@@ -157,7 +181,7 @@ describe('useVideoActivityAssignments — createAssignment persists sessionOptio
       useVideoActivityAssignments(TEACHER_UID)
     );
     const settings = makeSettings({
-      scoreVisibility: 'score_responses_and_answers',
+      scoreVisibility: 'score-responses-and-answers',
       periodNames: ['Period 1', 'Period 2'],
     });
 
@@ -170,7 +194,7 @@ describe('useVideoActivityAssignments — createAssignment persists sessionOptio
       unknown
     >;
     expect(assignmentPayload.scoreVisibility).toBe(
-      'score_responses_and_answers'
+      'score-responses-and-answers'
     );
     expect(assignmentPayload.periodNames).toEqual(['Period 1', 'Period 2']);
   });
@@ -276,11 +300,465 @@ describe('useVideoActivityAssignments — updateAssignmentSettings mirrors polic
       // they live on the assignment archive doc but never need to flow to
       // the session doc, so the session-update branch should stay quiet.
       await result.current.updateAssignmentSettings('assignment-1', {
-        scoreVisibility: 'score_only',
+        scoreVisibility: 'score-only',
         scorePublishedAt: 1700000000000,
       });
     });
 
     expect(batchUpdate).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useVideoActivityAssignments — shareAssignment + import', () => {
+  const batchSet = vi.fn();
+  const batchCommit = vi.fn();
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, name: string) => name);
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchSet.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      set: batchSet,
+      update: vi.fn(),
+      commit: batchCommit,
+    });
+    mockAddDoc.mockReset();
+    mockUpdateDoc.mockReset().mockResolvedValue(undefined);
+    mockCreateGroup.mockReset().mockResolvedValue(undefined);
+    mockCallJoin.mockReset();
+    mockCallLeave.mockReset().mockResolvedValue({ remainingParticipants: 0 });
+    mockPullContent.mockReset();
+  });
+
+  const ACTIVITY_DATA = {
+    id: 'activity-1',
+    title: 'Photosynthesis',
+    youtubeUrl: 'https://youtube.com/watch?v=abc',
+    questions: [],
+    createdAt: 100,
+    updatedAt: 200,
+  };
+
+  function seedAssignmentSnap(overrides: Record<string, unknown> = {}): {
+    exists: () => boolean;
+    data: () => Record<string, unknown>;
+  } {
+    return {
+      exists: () => true,
+      data: () => ({
+        id: 'assign-1',
+        activityId: 'activity-1',
+        teacherUid: TEACHER_UID,
+        sessionSettings: {
+          autoPlay: false,
+          requireCorrectAnswer: true,
+          allowSkipping: false,
+        },
+        ...overrides,
+      }),
+    };
+  }
+
+  function seedMetadataSnap(overrides: Record<string, unknown> = {}): {
+    exists: () => boolean;
+    data: () => Record<string, unknown>;
+  } {
+    return {
+      exists: () => true,
+      data: () => ({
+        id: 'activity-1',
+        title: 'Photosynthesis',
+        youtubeUrl: 'https://youtube.com/watch?v=abc',
+        driveFileId: 'drive-1',
+        questionCount: 0,
+        createdAt: 100,
+        updatedAt: 100,
+        ...overrides,
+      }),
+    };
+  }
+
+  it('shareAssignment auto-creates a synced group when source has none', async () => {
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce(seedMetadataSnap());
+    mockAddDoc.mockResolvedValue({ id: 'share-abc' });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    let url = '';
+    await act(async () => {
+      url = await result.current.shareAssignment('assign-1', ACTIVITY_DATA);
+    });
+
+    // 1) Synced group was minted with the sharer as sole participant.
+    expect(mockCreateGroup).toHaveBeenCalledTimes(1);
+    const groupArg = mockCreateGroup.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >;
+    expect(groupArg.uid).toBe(TEACHER_UID);
+    expect(groupArg.title).toBe('Photosynthesis');
+    expect(typeof groupArg.groupId).toBe('string');
+
+    // 2) Local metadata patched with the new linkage.
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    const linkagePatch = mockUpdateDoc.mock.calls[0][1] as Record<
+      string,
+      unknown
+    >;
+    const sync = linkagePatch.sync as {
+      groupId: string;
+      lastSyncedVersion: number;
+    };
+    expect(sync.groupId).toBe(groupArg.groupId);
+    expect(sync.lastSyncedVersion).toBe(1);
+
+    // 3) Share doc carries the syncGroupId so importers can pick Synced.
+    expect(mockAddDoc).toHaveBeenCalledTimes(1);
+    const sharePayload = mockAddDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(sharePayload.originalAuthor).toBe(TEACHER_UID);
+    expect(sharePayload.syncGroupId).toBe(groupArg.groupId);
+    expect(url).toContain('/share/video-activity/share-abc');
+  });
+
+  it('shareAssignment reuses an existing syncGroupId when source already has one', async () => {
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce(
+        seedMetadataSnap({
+          sync: { groupId: 'existing-group', lastSyncedVersion: 3 },
+        })
+      );
+    mockAddDoc.mockResolvedValue({ id: 'share-xyz' });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.shareAssignment('assign-1', ACTIVITY_DATA);
+    });
+
+    // Existing group reused — no new createSyncedGroup, no metadata patch.
+    expect(mockCreateGroup).not.toHaveBeenCalled();
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+    const sharePayload = mockAddDoc.mock.calls[0][1] as Record<string, unknown>;
+    expect(sharePayload.syncGroupId).toBe('existing-group');
+  });
+
+  it('shareAssignment throws when source activity is missing from local library', async () => {
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce({ exists: () => false, data: () => ({}) });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.shareAssignment('assign-1', ACTIVITY_DATA)
+    ).rejects.toThrow(/Source activity is missing/);
+  });
+
+  it('shareAssignment rolls back the metadata sync linkage when addDoc fails', async () => {
+    // Source activity has no synced linkage — so we mint one, then addDoc fails.
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce(seedMetadataSnap());
+    mockAddDoc.mockRejectedValue(new Error('share write denied'));
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.shareAssignment('assign-1', ACTIVITY_DATA)
+    ).rejects.toThrow(/share write denied/);
+
+    // updateDoc was called twice: once to attach the freshly-minted linkage,
+    // once to roll it back to null after addDoc failed. Without the rollback
+    // the local meta would carry a `sync.groupId` pointing at a group with
+    // no matching share doc — same race the Quiz hook has documented.
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(2);
+    const rollbackPatch = mockUpdateDoc.mock.calls[1][1] as Record<
+      string,
+      unknown
+    >;
+    expect(rollbackPatch.sync).toBeNull();
+  });
+
+  it('shareAssignment does NOT roll back metadata when source already had a syncGroupId', async () => {
+    // Pre-existing linkage means we never minted one, so a downstream
+    // addDoc failure shouldn't clear what predates this share call.
+    mockGetDoc
+      .mockResolvedValueOnce(seedAssignmentSnap())
+      .mockResolvedValueOnce(
+        seedMetadataSnap({
+          sync: { groupId: 'pre-existing', lastSyncedVersion: 5 },
+        })
+      );
+    mockAddDoc.mockRejectedValue(new Error('share write denied'));
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.shareAssignment('assign-1', ACTIVITY_DATA)
+    ).rejects.toThrow(/share write denied/);
+
+    expect(mockUpdateDoc).not.toHaveBeenCalled();
+  });
+
+  it('peekSharedAssignment returns null for missing shareId', async () => {
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => false,
+      data: () => ({}),
+    });
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    const out = await result.current.peekSharedAssignment('nope');
+    expect(out).toBeNull();
+  });
+
+  it('importSharedAssignment in copy mode does not call sync-group join', async () => {
+    const sharedDoc: SharedVideoActivityAssignment = {
+      id: 'share-1',
+      title: 'Shared Activity',
+      youtubeUrl: 'https://youtube.com/watch?v=def',
+      questions: [],
+      createdAt: 100,
+      updatedAt: 200,
+      assignmentSettings: {
+        sessionSettings: {
+          autoPlay: false,
+          requireCorrectAnswer: true,
+          allowSkipping: false,
+        },
+      },
+      originalAuthor: 'teacher-A',
+      sharedAt: 300,
+      syncGroupId: 'group-x',
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+
+    const newMeta: VideoActivityMetadata = {
+      id: 'imported-activity',
+      title: 'Shared Activity',
+      youtubeUrl: 'https://youtube.com/watch?v=def',
+      driveFileId: 'imported-drive',
+      questionCount: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const saveActivity = vi.fn().mockResolvedValue(newMeta);
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.importSharedAssignment('share-1', {
+        mode: 'copy',
+        saveActivity,
+      });
+    });
+    expect(saveActivity).toHaveBeenCalledTimes(1);
+    expect(mockCallJoin).not.toHaveBeenCalled();
+    expect(mockPullContent).not.toHaveBeenCalled();
+  });
+
+  it('importSharedAssignment in sync mode joins the group and attaches linkage', async () => {
+    const sharedDoc: SharedVideoActivityAssignment = {
+      id: 'share-2',
+      title: 'Synced Activity',
+      youtubeUrl: 'https://youtube.com/watch?v=ghi',
+      questions: [],
+      createdAt: 100,
+      updatedAt: 200,
+      assignmentSettings: {
+        sessionSettings: {
+          autoPlay: false,
+          requireCorrectAnswer: true,
+          allowSkipping: false,
+        },
+      },
+      originalAuthor: 'teacher-A',
+      sharedAt: 300,
+      syncGroupId: 'group-sync',
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+    mockCallJoin.mockResolvedValue({
+      groupId: 'group-sync',
+      version: 7,
+      alreadyJoined: false,
+    });
+    mockPullContent.mockResolvedValue({
+      title: 'Synced Activity',
+      youtubeUrl: 'https://youtube.com/watch?v=ghi',
+      questions: [],
+      version: 7,
+    });
+
+    const newMeta: VideoActivityMetadata = {
+      id: 'imported-2',
+      title: 'Synced Activity',
+      youtubeUrl: 'https://youtube.com/watch?v=ghi',
+      driveFileId: 'imported-drive-2',
+      questionCount: 0,
+      createdAt: 1,
+      updatedAt: 1,
+    };
+    const saveActivity = vi.fn().mockResolvedValue(newMeta);
+    const attachSyncLinkage = vi.fn().mockResolvedValue(undefined);
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.importSharedAssignment('share-2', {
+        mode: 'sync',
+        saveActivity,
+        attachSyncLinkage,
+      });
+    });
+
+    expect(mockCallJoin).toHaveBeenCalledWith('share-2');
+    expect(mockPullContent).toHaveBeenCalledWith('group-sync');
+    expect(attachSyncLinkage).toHaveBeenCalledWith('imported-2', {
+      groupId: 'group-sync',
+      lastSyncedVersion: 7,
+    });
+  });
+
+  it('importSharedAssignment rolls back the synced-group join when downstream save fails', async () => {
+    const sharedDoc: SharedVideoActivityAssignment = {
+      id: 'share-3',
+      title: 'Failing import',
+      youtubeUrl: 'https://youtube.com/watch?v=jkl',
+      questions: [],
+      createdAt: 100,
+      updatedAt: 200,
+      assignmentSettings: {
+        sessionSettings: {
+          autoPlay: false,
+          requireCorrectAnswer: true,
+          allowSkipping: false,
+        },
+      },
+      originalAuthor: 'teacher-A',
+      sharedAt: 300,
+      syncGroupId: 'group-fail',
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+    mockCallJoin.mockResolvedValue({
+      groupId: 'group-fail',
+      version: 1,
+      alreadyJoined: false,
+    });
+    mockPullContent.mockRejectedValue(new Error('canonical fetch failed'));
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.importSharedAssignment('share-3', {
+        mode: 'sync',
+        saveActivity: vi
+          .fn<
+            (
+              activity: import('@/types').VideoActivityData
+            ) => Promise<VideoActivityMetadata>
+          >()
+          .mockResolvedValue({
+            id: 'imported-3',
+            title: 'Failing import',
+            youtubeUrl: 'https://youtube.com/watch?v=jkl',
+            driveFileId: 'd',
+            questionCount: 0,
+            createdAt: 1,
+            updatedAt: 1,
+          }),
+      })
+    ).rejects.toThrow(/canonical fetch failed/);
+    // Rollback fired so the importer doesn't accumulate orphan participation.
+    expect(mockCallLeave).toHaveBeenCalledWith('group-fail');
+  });
+
+  it('importSharedAssignment rolls back the synced-group join when attachSyncLinkage fails', async () => {
+    const sharedDoc: SharedVideoActivityAssignment = {
+      id: 'share-4',
+      title: 'Linkage-attach failure',
+      youtubeUrl: 'https://youtube.com/watch?v=mno',
+      questions: [],
+      createdAt: 100,
+      updatedAt: 200,
+      assignmentSettings: {
+        sessionSettings: {
+          autoPlay: false,
+          requireCorrectAnswer: true,
+          allowSkipping: false,
+        },
+      },
+      originalAuthor: 'teacher-A',
+      sharedAt: 300,
+      syncGroupId: 'group-attach-fail',
+    };
+    mockGetDoc.mockResolvedValueOnce({
+      exists: () => true,
+      data: () => sharedDoc,
+    });
+    mockCallJoin.mockResolvedValue({
+      groupId: 'group-attach-fail',
+      version: 4,
+      alreadyJoined: false,
+    });
+    mockPullContent.mockResolvedValue({
+      title: 'Linkage-attach failure',
+      youtubeUrl: 'https://youtube.com/watch?v=mno',
+      questions: [],
+      version: 4,
+    });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await expect(
+      result.current.importSharedAssignment('share-4', {
+        mode: 'sync',
+        saveActivity: vi
+          .fn<
+            (
+              activity: import('@/types').VideoActivityData
+            ) => Promise<VideoActivityMetadata>
+          >()
+          .mockResolvedValue({
+            id: 'imported-4',
+            title: 'Linkage-attach failure',
+            youtubeUrl: 'https://youtube.com/watch?v=mno',
+            driveFileId: 'd',
+            questionCount: 0,
+            createdAt: 1,
+            updatedAt: 1,
+          }),
+        // Simulate the metadata patch failing AFTER join + pull succeed.
+        attachSyncLinkage: vi
+          .fn()
+          .mockRejectedValue(new Error('metadata patch denied')),
+      })
+    ).rejects.toThrow(/metadata patch denied/);
+    expect(mockCallLeave).toHaveBeenCalledWith('group-attach-fail');
   });
 });

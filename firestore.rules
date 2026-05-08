@@ -761,6 +761,67 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ---- Shared / Synced VIDEO ACTIVITY parallel collections (PR3) ----
+    //
+    // Mirrors the quiz `/shared_assignments` and `/synced_quizzes` rule blocks
+    // exactly, scoped to Video Activity. Kept as parallel collections (rather
+    // than mixing into the quiz collections behind a `kind` discriminator) so
+    // existing quiz-only rules don't have to migrate, and so VA's content
+    // schema can drift independently (it carries `youtubeUrl` and a different
+    // question shape).
+
+    match /shared_video_activity_assignments/{shareId} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null &&
+        request.resource.data.originalAuthor == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+    }
+
+    match /synced_video_activities/{groupId} {
+      allow get: if request.auth != null;
+      // Listing is closed for the same reason as `synced_quizzes`: any
+      // authenticated user knowing only the collection name could otherwise
+      // enumerate every synced activity (questions included). Clients always
+      // know the specific groupId via either their own
+      // `video_activity_metadata` or a pasted share URL.
+      allow list: if false;
+
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly([
+             'id', 'version', 'title', 'youtubeUrl', 'questions',
+             'participants', 'plcId', 'createdAt',
+             'updatedAt', 'updatedBy'
+           ])
+        && request.resource.data.id == groupId
+        && request.resource.data.version is int
+        && request.resource.data.version == 1
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.participants.keys().hasOnly([request.auth.uid])
+        && request.resource.data.participants[request.auth.uid].joinedAt is int
+        && request.resource.data.participants[request.auth.uid].joinedAt >= 0
+        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string);
+
+      // Content updates: caller must be a participant; participants map and
+      // doc id are immutable from the client; version must strictly increase
+      // by 1. Loser of a concurrent transaction retries with the new base
+      // version. Mirrors `synced_quizzes` line-for-line.
+      allow update: if request.auth != null
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.keys().hasOnly([
+             'id', 'version', 'title', 'youtubeUrl', 'questions',
+             'participants', 'plcId', 'createdAt',
+             'updatedAt', 'updatedBy'
+           ])
+        && request.resource.data.id == resource.data.id
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.version == resource.data.version + 1
+        && request.resource.data.updatedBy == request.auth.uid
+        && request.resource.data.get('plcId', null) == resource.data.get('plcId', null);
+
+      allow delete: if false;
+    }
+
     // ---- PLC (Professional Learning Community) helpers + rules ----
     //
     // PLCs are top-level so cross-teacher reads work — every member needs to
@@ -953,7 +1014,7 @@ service cloud.firestore {
                'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
                'title', 'sheetUrl', 'createdAt'
              ])
-          && request.resource.data.kind == 'quiz'
+          && request.resource.data.kind in ['quiz', 'video-activity']
           && request.resource.data.sheetUrl == get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.get('sharedSheetUrl', '');
@@ -976,7 +1037,7 @@ service cloud.firestore {
                'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
                'title', 'sheetUrl', 'createdAt'
              ])
-          && request.resource.data.kind == 'quiz'
+          && request.resource.data.kind in ['quiz', 'video-activity']
           && request.resource.data.sheetUrl == get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.get('sharedSheetUrl', '');
@@ -1514,25 +1575,20 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Only authenticated (non-anonymous) users can create sessions (teachers)
       allow create: if request.auth != null && request.auth.token.firebase.sign_in_provider != 'anonymous';
-      // Teacher owners may rename or end sessions, but not mutate session content.
+      // Teacher owners may update their own session — including renames,
+      // status changes, sync-pull content updates, PLC linkage attach, score-
+      // publish field writes, and PR3 sharing fields. Identity fields stay
+      // immutable. The looser allowlist matches the Quiz session pattern:
+      // simple ownership check + immutable identity, no per-field hasOnly
+      // (sync, PLC, publish flows would otherwise need ever-growing
+      // allowlists). The student-side response rule below remains tight.
       allow update: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         resource.data.teacherUid == request.auth.uid &&
         request.resource.data.id == resource.data.id &&
         request.resource.data.activityId == resource.data.activityId &&
-        request.resource.data.activityTitle == resource.data.activityTitle &&
         request.resource.data.teacherUid == resource.data.teacherUid &&
-        request.resource.data.youtubeUrl == resource.data.youtubeUrl &&
-        request.resource.data.questions == resource.data.questions &&
-        request.resource.data.settings == resource.data.settings &&
-        request.resource.data.allowedPins == resource.data.allowedPins &&
-        request.resource.data.createdAt == resource.data.createdAt &&
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['assignmentName', 'status', 'endedAt', 'expiresAt']) &&
-        request.resource.data.assignmentName is string &&
-        request.resource.data.assignmentName.size() > 0 &&
-        request.resource.data.status in ['active', 'ended'] &&
-        (!('endedAt' in request.resource.data) || request.resource.data.endedAt is int) &&
-        (!('expiresAt' in request.resource.data) || request.resource.data.expiresAt is int);
+        request.resource.data.createdAt == resource.data.createdAt;
       // Owning teacher (or admin) may delete — used by the Video Activity
       // "Delete permanently" action in the Assignment archive to clean up the
       // session along with the per-teacher assignment doc. Mirrors GL sessions.
@@ -1597,52 +1653,49 @@ service cloud.firestore {
           (isStudentRoleUser()
             ? responseDocId == request.auth.uid
             : responseDocId.matches('^pin-[a-z0-9_]{1,64}-[a-z0-9_]{1,64}$'));
-        // Students update their own response to add answers, set
-        // completedAt, log tab switches, increment the attempt counter, or
-        // set their class period after the post-PIN picker. Ownership is
-        // enforced against the `studentUid` field, not the doc key (which
-        // is pin-derived for anonymous joiners). Mutable-field allowlist
-        // and monotonic-growth checks mirror Quiz response rules:
-        //   - `tabSwitchWarnings` and `completedAttempts` may only stay
-        //     the same or increase (prevents rollback tampering, e.g. a
-        //     student resetting their attempt counter to bypass the
-        //     `attemptLimit` cap).
-        //   - `answers` may only grow (size monotonic, all prior elements
-        //     preserved).
-        //   - Identity fields (`pin`, `name`, `joinedAt`) and
-        //     teacher-controlled fields (`score`, `isCorrect`,
-        //     `scoreVisibility`) are immutable from the client.
-        //     `studentUid` is checked separately as the ownership anchor
-        //     (the line right above this block).
-        allow update: if request.auth != null &&
-          resource.data.studentUid == request.auth.uid &&
-          passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
-          request.resource.data.studentUid == resource.data.studentUid &&
-          // Defense-in-depth: redundant with the `changedKeys().hasOnly([...])`
-          // allowlist below (which would already reject a `pin`/`name`/
-          // `joinedAt` change), but kept explicit so a future allowlist
-          // expansion can't silently allow these to mutate. SSO
-          // `studentRole` responses omit `pin` and `name` entirely, so the
-          // checks use `.get(_, null)` to tolerate the field being absent
-          // on both sides instead of throwing a Null-value error.
-          request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
-          request.resource.data.get('name', null) == resource.data.get('name', null) &&
-          request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
-          request.resource.data.score == resource.data.score &&
-          request.resource.data.diff(resource.data).changedKeys().hasOnly([
-            'answers',
-            'completedAt',
-            'tabSwitchWarnings',
-            'completedAttempts',
-            'classPeriod'
-          ]) &&
-          request.resource.data.answers is list &&
-          request.resource.data.answers.size() >= resource.data.answers.size() &&
-          request.resource.data.answers.hasAll(resource.data.answers) &&
-          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
-           request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
-          (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
-           request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0));
+        // Update is split into a TEACHER branch (PR3 publish-scores writes
+        // `score`/`isCorrect`/`scoreVisibility` onto each response) and a
+        // STUDENT branch (the existing answer-submit path). The teacher
+        // branch is permissive — the parent session's `teacherUid` gate
+        // is sufficient ownership; admins also pass for the
+        // `delete-assignment` and emergency repair flows. Mirrors the
+        // Quiz response update pattern.
+        //
+        // Branch mutual exclusivity is by intent, not accident: the teacher
+        // branch only checks `request.auth.uid == vaSessionTeacherUid()`,
+        // never `resource.data`, so a student calling update() will fail
+        // the teacher disjunct (their uid won't match the session's
+        // teacherUid) and fall through to the student branch's full
+        // append-only invariants. If `vaSessionTeacherUid()` ever needs to
+        // dereference the response itself (it shouldn't), revisit.
+        allow update: if request.auth != null && (
+          // Teacher branch.
+          (request.auth.uid == vaSessionTeacherUid() || isAdmin()) ||
+          // Student branch — same invariants as before PR3.
+          (
+            resource.data.studentUid == request.auth.uid &&
+            passesStudentClassGateCompat(vaSessionClassIds(), vaSessionClassId()) &&
+            request.resource.data.studentUid == resource.data.studentUid &&
+            request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
+            request.resource.data.get('name', null) == resource.data.get('name', null) &&
+            request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
+            request.resource.data.score == resource.data.score &&
+            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+              'answers',
+              'completedAt',
+              'tabSwitchWarnings',
+              'completedAttempts',
+              'classPeriod'
+            ]) &&
+            request.resource.data.answers is list &&
+            request.resource.data.answers.size() >= resource.data.answers.size() &&
+            request.resource.data.answers.hasAll(resource.data.answers) &&
+            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
+             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
+            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
+             request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0))
+          )
+        );
         // Owning teacher (or admin) may delete responses when permanently
         // deleting the assignment (matches GL responses).
         allow delete: if request.auth != null && (

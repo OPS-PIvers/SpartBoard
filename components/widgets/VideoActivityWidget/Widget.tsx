@@ -103,6 +103,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     deactivateAssignment,
     reactivateAssignment,
     deleteAssignment,
+    shareAssignment,
   } = useVideoActivityAssignments(user?.uid);
 
   const [loadingActivity, setLoadingActivity] = useState(false);
@@ -577,6 +578,29 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Delete failed',
+              'error'
+            );
+          }
+        }}
+        onArchiveShare={async (assignment) => {
+          // Hydrate the activity from Drive (Manager doesn't keep full
+          // question content) so shareAssignment can inline the questions
+          // into the share doc + canonical synced group.
+          try {
+            const data = await loadActivityData(assignment.activityDriveFileId);
+            if (!data) {
+              addToast('Could not load activity content for sharing.', 'error');
+              return;
+            }
+            const url = await shareAssignment(assignment.id, data);
+            await copyUrlToClipboard(url, addToast, {
+              successMessage: 'Share link copied! Send it to a peer teacher.',
+              errorMessage:
+                'Share link created, but it could not be copied. Visit the assignment to grab the link.',
+            });
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Share failed',
               'error'
             );
           }

@@ -227,14 +227,27 @@ describe('plcs/{plcId}/assignment_index — create', () => {
     );
   });
 
-  it("rejects kind != 'quiz' (constrained discriminator)", async () => {
-    // `kind` is reserved for future video-activity entries but currently
-    // only `'quiz'` is valid. Rejecting other values keeps the dashboard
-    // from rendering rows it doesn't know how to display.
-    await assertFails(
+  it("accepts kind: 'video-activity' (PR3a widening)", async () => {
+    // PR3a widened the rules constraint from `kind == 'quiz'` to
+    // `kind in ['quiz', 'video-activity']` so VA's PR3b assignment-share
+    // flow can write its own index entries. This test pins the new
+    // allow-list and prevents a future narrowing regression.
+    await assertSucceeds(
       setDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
         validEntry({ kind: 'video-activity' })
+      )
+    );
+  });
+
+  it("rejects kind outside ['quiz', 'video-activity']", async () => {
+    // The rule's `kind in [...]` is still a closed allowlist; arbitrary
+    // values must still be rejected so the dashboard doesn't render rows
+    // it doesn't know how to display.
+    await assertFails(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
+        validEntry({ kind: 'mini-app' })
       )
     );
   });

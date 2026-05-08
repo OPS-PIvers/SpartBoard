@@ -273,8 +273,12 @@ export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
  */
 export interface PlcAssignmentIndexEntry {
   id: string;
-  /** Discriminator for future video-activity support. */
-  kind: 'quiz';
+  /**
+   * Discriminator for the source assignment widget. PR3a widens this to
+   * accept `'video-activity'` (rules updated alongside); PR3b will start
+   * writing VA index entries via `useVideoActivityAssignments`.
+   */
+  kind: 'quiz' | 'video-activity';
   /** UID of the teacher who created the assignment. Always a PLC member. */
   ownerUid: string;
   /** Display name snapshot — avoids a `/users` lookup per row. */
@@ -2681,6 +2685,75 @@ export interface SharedQuizAssignment {
   syncGroupId?: string;
 }
 
+/**
+ * Synchronized canonical Video Activity shared by multiple PLC peers, stored
+ * at `/synced_video_activities/{groupId}`. Counterpart to `SyncedQuizGroup`.
+ *
+ * Each peer's local `video_activity_metadata` carries `sync.groupId`
+ * referencing this doc; the Drive-resident JSON acts as an editing canvas +
+ * cached replica. Edits run inside a Firestore transaction that increments
+ * `version`, writes the new `questions`/`title`/`youtubeUrl`, and stamps
+ * `updatedBy`. Other peers' `onSnapshot` listeners surface a "Sync available"
+ * pill on the library card.
+ *
+ * Last-write-wins on content; the monotonic `version` increment serializes
+ * concurrent saves. Participants are added/removed via the
+ * `joinSyncedVideoActivityGroup` / `leaveSyncedVideoActivityGroup` Cloud
+ * Functions so Firestore rules can keep client writes scoped to existing
+ * participants.
+ */
+export interface SyncedVideoActivityGroup {
+  /** Group id (Firestore doc id). */
+  id: string;
+  /**
+   * Monotonically increasing version. Bumped inside a Firestore transaction
+   * on every content write. Initial value is `1` at create time.
+   */
+  version: number;
+  title: string;
+  youtubeUrl: string;
+  questions: VideoActivityQuestion[];
+  /**
+   * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
+   * Modified only by the Cloud Function paths so the rules-side write check
+   * can be a simple `auth.uid in resource.data.participants` predicate.
+   */
+  participants: Record<string, { joinedAt: number }>;
+  /** Optional PLC linkage for downstream notification routing. */
+  plcId?: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Auth uid of whoever last published an edit. */
+  updatedBy: string;
+}
+
+/**
+ * Shared-assignment document stored at
+ * `/shared_video_activity_assignments/{shareId}`. Counterpart to
+ * `SharedQuizAssignment` — kept in a parallel collection rather than mixed
+ * into `/shared_assignments` so the existing quiz-only `originalAuthor`-
+ * gated rules don't need a `kind` discriminator.
+ */
+export interface SharedVideoActivityAssignment {
+  /** Shared-doc id (Firestore auto-id). */
+  id: string;
+  /** Inlined activity data so the importer can copy it into their own library. */
+  title: string;
+  youtubeUrl: string;
+  questions: VideoActivityQuestion[];
+  createdAt: number;
+  updatedAt: number;
+  assignmentSettings: VideoActivityAssignmentSettings;
+  /** Original author's UID. */
+  originalAuthor: string;
+  sharedAt: number;
+  /**
+   * If present, this share offers a "Sync" import option that joins the
+   * importer to the named synced group. Absent on copy-only shares.
+   */
+  syncGroupId?: string;
+}
+
 // --- VIDEO ACTIVITY TYPES ---
 
 /**
@@ -2737,6 +2810,23 @@ export interface VideoActivityData {
   updatedAt: number;
 }
 
+/**
+ * See `VideoActivityMetadata.sync`. Mirrors `QuizMetadataSyncLinkage`:
+ * present iff the activity participates in a `/synced_video_activities/{groupId}`
+ * group. Both fields are required or neither is present so the type forbids
+ * partial states.
+ */
+export interface VideoActivityMetadataSyncLinkage {
+  /** Doc id under `/synced_video_activities/{groupId}`. */
+  groupId: string;
+  /**
+   * The `version` of the canonical group doc this local Drive replica was
+   * last reconciled with. Used as a stale-detector against the canonical's
+   * live `version`.
+   */
+  lastSyncedVersion: number;
+}
+
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list). */
 export interface VideoActivityMetadata {
   id: string;
@@ -2753,6 +2843,11 @@ export interface VideoActivityMetadata {
    * Refers to a folder id in `/users/{userId}/video_activity_folders/{folderId}`.
    */
   folderId?: string | null;
+  /**
+   * Optional sync-group linkage for PR3 PLC sharing. Present iff this
+   * activity participates in a synced group. Mirrors `QuizMetadata.sync`.
+   */
+  sync?: VideoActivityMetadataSyncLinkage;
 }
 
 export type VideoActivityView = 'manager' | 'create' | 'results' | 'monitor';
@@ -2809,9 +2904,9 @@ export interface VideoActivitySessionSettings {
  */
 export type VideoActivityScoreVisibility =
   | 'none'
-  | 'score_only'
-  | 'score_and_responses'
-  | 'score_responses_and_answers';
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
 
 /**
  * Assignment-policy options for a Video Activity session. Distinct from
@@ -2917,6 +3012,26 @@ export interface VideoActivitySession {
    * sessions; consumers must default to `'submissions'`.
    */
   mode?: AssignmentMode;
+  /**
+   * Map of question id → revealed correct answer string. Populated by the
+   * teacher's Publish Scores flow (PR3) when the chosen `scoreVisibility`
+   * level reveals correct answers to students. Absent until publish runs.
+   * Mirrors `QuizSession.revealedAnswers`.
+   */
+  revealedAnswers?: Record<string, string>;
+  /**
+   * Optional sync-group linkage. Mirrors `QuizSession.sync`. Set when the
+   * assignment was created from (or imported as) a synced share so peer
+   * edits to the canonical group flow through to this session on next
+   * teacher sync-pull.
+   */
+  sync?: VideoActivitySessionSyncLinkage;
+}
+
+/** Per-session sync linkage to `/synced_video_activities/{groupId}`. */
+export interface VideoActivitySessionSyncLinkage {
+  groupId: string;
+  syncedVersion: number;
 }
 
 /** A single answer submitted by a student for a video activity question. */
@@ -4876,6 +4991,12 @@ export interface RemoteGlobalConfig {
 
 export type VideoActivityAssignmentStatus = 'active' | 'paused' | 'inactive';
 
+/** See `VideoActivityAssignment.sync`. Mirrors `QuizAssignmentSyncLinkage`. */
+export interface VideoActivityAssignmentSyncLinkage {
+  groupId: string;
+  syncedVersion: number;
+}
+
 /** Persisted settings for a Video Activity assignment (session behavior flags). */
 export interface VideoActivityAssignmentSettings {
   /** Free-text label shown in the archive (e.g. "Period 2"). */
@@ -4901,6 +5022,31 @@ export interface VideoActivityAssignmentSettings {
    * roster picker so the student-app post-PIN picker has stable labels.
    */
   periodNames?: string[];
+  /**
+   * Single period name for legacy compatibility. Set to `periodNames[0]` at
+   * write time so pre-multiclass clients can still read a single label.
+   * Mirrors `QuizAssignment.periodName`.
+   */
+  periodName?: string;
+  /**
+   * Display name of the teacher who owns this assignment. Surfaces in the
+   * exported PLC sheet's "Teacher" column. Mirrors `QuizAssignment.teacherName`.
+   */
+  teacherName?: string;
+  /**
+   * PLC linkage. Set when the teacher opts into PLC mode at assign time. The
+   * `sheetUrl` on this sub-object is the canonical export target — when
+   * absent, PR3 auto-creates the sheet on first export. Mirrors
+   * `QuizAssignment.plc`.
+   */
+  plc?: PlcLinkage;
+  /**
+   * Sync-group linkage. Present iff this assignment was created from (or
+   * imported as) a synced share. Drives the per-assignment "Sync" button
+   * which detects divergence against `/synced_video_activities/{groupId}`
+   * and offers to pull the canonical's latest content.
+   */
+  sync?: VideoActivityAssignmentSyncLinkage;
 }
 
 /**
