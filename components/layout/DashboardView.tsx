@@ -184,7 +184,6 @@ export const DashboardView: React.FC = () => {
   );
   const {
     saveActivity: saveVideoActivity,
-    deleteActivity: deleteVideoActivity,
     attachSyncLinkage: attachVideoActivitySyncLinkage,
   } = useVideoActivity(user?.uid);
   const { importSharedAssignment: importSharedVideoActivityAssignment } =
@@ -488,57 +487,74 @@ export const DashboardView: React.FC = () => {
     plcsLoading,
   ]);
 
+  // Stable dispatcher for VA share imports — extracted so the failure
+  // toast's Retry action can re-invoke it without re-running the
+  // pending-id effect (which clears the id synchronously to avoid the
+  // triple-import race documented on the Quiz path above). Mirrors
+  // `peekAndDispatchImport` for the Quiz flow but skips the peek + mode
+  // picker — VA's sync-mode picker UI hasn't been ported and a synced
+  // share simply imports as a copy.
+  const runVideoActivityImport = React.useCallback(
+    (shareId: string) => {
+      void importSharedVideoActivityAssignment(shareId, {
+        mode: 'copy',
+        saveActivity: saveVideoActivity,
+        attachSyncLinkage: attachVideoActivitySyncLinkage,
+      })
+        .then(() => {
+          addToast('Shared video activity imported!', 'success');
+          openVideoActivityWidgetToTab('active');
+        })
+        .catch((err: unknown) => {
+          logError('DashboardView.importSharedVideoActivity', err, {
+            shareId,
+          });
+          // The VA import hook handles its own rollback (Drive copy +
+          // sync-group leave) on failure paths, so the catch block is
+          // surface-only — no manual cleanup needed.
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : '';
+          addToast(
+            msg
+              ? `Failed to import shared video activity: ${msg}`
+              : 'Failed to import shared video activity.',
+            'error',
+            {
+              label: 'Retry',
+              onClick: () => runVideoActivityImport(shareId),
+            }
+          );
+        });
+    },
+    [
+      importSharedVideoActivityAssignment,
+      saveVideoActivity,
+      attachVideoActivitySyncLinkage,
+      addToast,
+      openVideoActivityWidgetToTab,
+    ]
+  );
+
   // PR3c — pending video-activity-assignment share import. Mirrors the
-  // quiz-assignment effect above. Default to 'copy' mode for now: VA's
-  // sync-mode picker UI hasn't been ported, and a synced share will simply
-  // import as a copy (peers can re-share if they want sync). Errors
-  // surface a Retry-capable toast like the Quiz path.
+  // quiz-assignment effect above: clears the pending id synchronously
+  // before dispatching to avoid the triple-import race; the dispatcher's
+  // failure toast carries Retry as the recovery path.
   useEffect(() => {
     if (!pendingVideoActivityShareId || !user) return;
     if (plcsLoading) return;
     const shareId = pendingVideoActivityShareId;
     clearPendingVideoActivityShare();
-    void importSharedVideoActivityAssignment(shareId, {
-      mode: 'copy',
-      saveActivity: saveVideoActivity,
-      attachSyncLinkage: attachVideoActivitySyncLinkage,
-    })
-      .then(() => {
-        addToast('Shared video activity imported!', 'success');
-        openVideoActivityWidgetToTab('active');
-      })
-      .catch((err: unknown) => {
-        logError('DashboardView.importSharedVideoActivity', err, { shareId });
-        // No half-state to roll back: the VA import hook handles its own
-        // rollback (Drive copy + sync-group leave) on failure paths.
-        // `deleteVideoActivity` stays referenced via the dep array so a
-        // future expansion can hook a rollback path here without a
-        // ref-stale closure.
-        void deleteVideoActivity;
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === 'string'
-              ? err
-              : '';
-        addToast(
-          msg
-            ? `Failed to import shared video activity: ${msg}`
-            : 'Failed to import shared video activity.',
-          'error'
-        );
-      });
+    runVideoActivityImport(shareId);
   }, [
     pendingVideoActivityShareId,
     user,
     plcsLoading,
     clearPendingVideoActivityShare,
-    importSharedVideoActivityAssignment,
-    saveVideoActivity,
-    attachVideoActivitySyncLinkage,
-    addToast,
-    openVideoActivityWidgetToTab,
-    deleteVideoActivity,
+    runVideoActivityImport,
   ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });
