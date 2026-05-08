@@ -143,6 +143,8 @@ export const GuidedLearningEditorModal: React.FC<
   const originalTitle = set?.title ?? '';
   const originalDescription = set?.description ?? '';
   const originalMode: GuidedLearningMode = set?.mode ?? 'structured';
+  const originalHotspotPulse: 'consistent' | 'reminder' | 'off' =
+    set?.hotspotPulse ?? 'consistent';
   const originalImageUrls = useMemo(
     () => (set ? [...set.imageUrls] : []),
     [set]
@@ -180,6 +182,7 @@ export const GuidedLearningEditorModal: React.FC<
       liveState.title !== originalTitle ||
       liveState.description !== originalDescription ||
       liveState.mode !== originalMode ||
+      liveState.hotspotPulse !== originalHotspotPulse ||
       !arraysEqual(liveState.imageUrls, originalImageUrls) ||
       !stepsEqual(liveState.steps, originalSteps)
     );
@@ -188,6 +191,7 @@ export const GuidedLearningEditorModal: React.FC<
     originalTitle,
     originalDescription,
     originalMode,
+    originalHotspotPulse,
     originalImageUrls,
     originalSteps,
   ]);
@@ -208,6 +212,11 @@ export const GuidedLearningEditorModal: React.FC<
         updatedAt: now,
         isBuilding: set.isBuilding,
         authorUid: set.authorUid,
+        // Only persist a hotspotPulse value when it differs from the default
+        // ('consistent') — keeps untouched legacy sets clean of new fields.
+        ...(liveState.hotspotPulse !== 'consistent'
+          ? { hotspotPulse: liveState.hotspotPulse }
+          : {}),
       };
       await onSave(builtSet, meta?.driveFileId);
       onClose();

@@ -17,6 +17,7 @@ export interface GuidedLearningEditorState {
   imageUrls: string[];
   steps: GuidedLearningStep[];
   uploading: boolean;
+  hotspotPulse: 'consistent' | 'reminder' | 'off';
 }
 
 interface UseGuidedLearningEditorStateProps {
@@ -36,6 +37,9 @@ export interface GuidedLearningEditorController {
   setDescription: (next: string) => void;
   mode: GuidedLearningMode;
   setMode: (next: GuidedLearningMode) => void;
+  // Display settings
+  hotspotPulse: 'consistent' | 'reminder' | 'off';
+  setHotspotPulse: (next: 'consistent' | 'reminder' | 'off') => void;
   // Images
   imageUrls: string[];
   currentImageIndex: number;
@@ -98,6 +102,9 @@ export function useGuidedLearningEditorState({
   const [selectedStepId, setSelectedStepId] = useState<string | null>(null);
   const [imageError, setImageError] = useState('');
   const [addingStep, setAddingStep] = useState(false);
+  const [hotspotPulse, setHotspotPulse] = useState<
+    'consistent' | 'reminder' | 'off'
+  >(existingSet?.hotspotPulse ?? 'consistent');
 
   // Reset all draft state when the underlying set identity changes (parent
   // swapped to a different set). Uses the "adjust state while rendering"
@@ -115,11 +122,29 @@ export function useGuidedLearningEditorState({
     setSelectedStepId(null);
     setImageError('');
     setAddingStep(false);
+    setHotspotPulse(existingSet?.hotspotPulse ?? 'consistent');
   }
 
   useEffect(() => {
-    onStateChange?.({ title, description, mode, imageUrls, steps, uploading });
-  }, [title, description, mode, imageUrls, steps, uploading, onStateChange]);
+    onStateChange?.({
+      title,
+      description,
+      mode,
+      imageUrls,
+      steps,
+      uploading,
+      hotspotPulse,
+    });
+  }, [
+    title,
+    description,
+    mode,
+    imageUrls,
+    steps,
+    uploading,
+    hotspotPulse,
+    onStateChange,
+  ]);
 
   const uploadFromFiles = useCallback(
     async (files: File[]) => {
@@ -273,6 +298,8 @@ export function useGuidedLearningEditorState({
     setDescription,
     mode,
     setMode,
+    hotspotPulse,
+    setHotspotPulse,
     imageUrls,
     currentImageIndex,
     setCurrentImageIndex,

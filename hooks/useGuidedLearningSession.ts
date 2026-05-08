@@ -211,6 +211,11 @@ export const useGuidedLearningSessionTeacher = (
         // Frozen at creation. Stored under `assignmentMode` (not `mode`) so
         // it doesn't collide with the GL play-mode field above.
         assignmentMode,
+        // Display settings — only mirror when set differs from default so
+        // legacy session docs stay free of new fields.
+        ...(set.hotspotPulse && set.hotspotPulse !== 'consistent'
+          ? { hotspotPulse: set.hotspotPulse }
+          : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

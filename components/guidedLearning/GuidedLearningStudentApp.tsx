@@ -226,6 +226,7 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     mode: session.mode,
     createdAt: session.createdAt,
     updatedAt: session.createdAt,
+    hotspotPulse: session.hotspotPulse,
   };
 
   return (

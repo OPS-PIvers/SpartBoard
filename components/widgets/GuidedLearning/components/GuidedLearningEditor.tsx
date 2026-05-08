@@ -31,6 +31,28 @@ const MODE_OPTIONS: {
   { value: 'explore', label: 'Explore', desc: 'Student clicks any hotspot' },
 ];
 
+const PULSE_OPTIONS: {
+  value: 'consistent' | 'reminder' | 'off';
+  label: string;
+  desc: string;
+}[] = [
+  {
+    value: 'consistent',
+    label: 'Consistent',
+    desc: 'Continuous breathing pulse so hotspots are always discoverable.',
+  },
+  {
+    value: 'reminder',
+    label: 'Reminder',
+    desc: 'A brief shake every few seconds to draw the eye occasionally.',
+  },
+  {
+    value: 'off',
+    label: 'Off',
+    desc: 'No animation — hotspots stay still.',
+  },
+];
+
 // ─── Context pane ────────────────────────────────────────────────────────────
 
 interface PaneProps {
@@ -51,6 +73,8 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
     setDescription,
     mode,
     setMode,
+    hotspotPulse,
+    setHotspotPulse,
     imageUrls,
     currentImageIndex,
     setCurrentImageIndex,
@@ -180,6 +204,28 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
               />
             </div>
           )}
+        </div>
+
+        {/* Display settings — set-level controls that affect the player. */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xxs font-bold uppercase tracking-wider text-slate-500 mr-1">
+            Pulse
+          </span>
+          {PULSE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setHotspotPulse(opt.value)}
+              title={opt.desc}
+              aria-pressed={hotspotPulse === opt.value}
+              className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                hotspotPulse === opt.value
+                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 

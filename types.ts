@@ -3663,6 +3663,13 @@ export interface GuidedLearningSet {
   /** Admin-created building-level sets stored in Firestore, not Drive */
   isBuilding?: boolean;
   authorUid?: string;
+  /**
+   * Hotspot pulse animation for the player. Default `'consistent'` (matches
+   * pre-feature behavior — a continuous breathing pulse). `'reminder'` does
+   * a brief wiggle every ~6s and stays still otherwise. `'off'` removes the
+   * pulse entirely. All variants honor `prefers-reduced-motion`.
+   */
+  hotspotPulse?: 'consistent' | 'reminder' | 'off';
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
@@ -3775,6 +3782,8 @@ export interface GuidedLearningSession {
    * Mini App) store it as `mode`.
    */
   assignmentMode?: AssignmentMode;
+  /** Mirrors `GuidedLearningSet.hotspotPulse` so the student app sees it. */
+  hotspotPulse?: 'consistent' | 'reminder' | 'off';
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */

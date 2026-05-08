@@ -38,6 +38,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   teacherMode = false,
 }) => {
   const mode: GuidedLearningMode = set.mode;
+  // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
+  // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
+  // disables both. All variants degrade to no-animation under
+  // prefers-reduced-motion via the motion-reduce:* utilities.
+  const pulseMode: 'consistent' | 'reminder' | 'off' =
+    set.hotspotPulse ?? 'consistent';
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
   // GuidedLearningPublicStep[] (via the student-app cast). We intentionally
   // narrow to GuidedLearningPublicStep[] here so interaction components never
@@ -654,6 +660,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                       isActive
                         ? 'bg-indigo-600 scale-125 shadow-indigo-500/60'
                         : 'bg-white/25 hover:bg-white/35'
+                    } ${
+                      // 'reminder' wiggle is applied to the button itself
+                      // (not a ring child) so it actually moves the marker.
+                      // 'consistent' uses the inline ping ring below.
+                      // 'off' adds nothing.
+                      !isActive && pulseMode === 'reminder'
+                        ? 'animate-gl-pulse-reminder motion-reduce:animate-none'
+                        : ''
                     }`}
                     style={{
                       width: 'min(32px, 8cqmin)',
@@ -661,7 +675,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                     }}
                     aria-label={step.label ?? `Step ${idx + 1}`}
                   >
-                    {!isActive && (
+                    {!isActive && pulseMode === 'consistent' && (
                       <span className="pointer-events-none absolute inset-0 rounded-full border border-white/70 animate-ping opacity-70 motion-reduce:hidden [animation-duration:2s]" />
                     )}
                     <span

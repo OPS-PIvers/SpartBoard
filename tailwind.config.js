@@ -206,12 +206,22 @@ export default {
           '0%': { transform: 'translateX(0%)' },
           '100%': { transform: 'translateX(-50%)' },
         },
+        // Guided Learning "reminder" hotspot pulse: a brief shake/grow burst
+        // followed by a long idle so it draws the eye occasionally without
+        // distracting from content the rest of the time. Total cycle 6s.
+        'gl-pulse-reminder': {
+          '0%, 8%, 100%': { transform: 'scale(1) rotate(0deg)' },
+          '2%': { transform: 'scale(1.18) rotate(-8deg)' },
+          '4%': { transform: 'scale(1.18) rotate(8deg)' },
+          '6%': { transform: 'scale(1.12) rotate(-4deg)' },
+        },
       },
       animation: {
         'spin-slow': 'spin-slow 12s linear infinite',
         jiggle: 'jiggle 0.5s ease-in-out infinite',
         shimmer: 'shimmer 1.5s infinite',
         marquee: 'marquee 12s linear infinite',
+        'gl-pulse-reminder': 'gl-pulse-reminder 6s ease-in-out infinite',
       },
     },
   },
