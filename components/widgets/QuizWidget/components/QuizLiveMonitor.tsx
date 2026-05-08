@@ -350,7 +350,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   // monitor. Defaults to false so a fresh open never shows scores or
   // score-band tinting on what may be a projected screen, regardless of
   // the teacher's persisted preference. Toggling Colors or Score Display
-  // requires confirming a privacy-aware reveal once per session.
+  // requires confirming a privacy-aware reveal, and the flag resets when
+  // the session id changes (see the session-change block below) so each
+  // quiz starts hidden again.
   const [scoreRevealApproved, setScoreRevealApproved] = useState(false);
 
   // Periods this assignment was launched against, deduped while preserving
@@ -547,15 +549,18 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const lastLeaderboardFingerprintRef = useRef<string | null>(null);
   const hasClearedLeaderboardRef = useRef(false);
 
-  // Reset leaderboard tracking refs when the session id changes. Done during
+  // Reset session-scoped tracking when the session id changes. Done during
   // render via the "adjusting state while rendering" pattern (see React docs)
   // instead of an effect — useEffect is reserved for syncing with external
-  // systems, and ref assignment is purely local.
+  // systems, and ref assignment is purely local. Includes the score-reveal
+  // approval flag so a teacher's confirm in one quiz doesn't silently leak
+  // scores when the same QuizLiveMonitor instance hosts a new session.
   const [prevSessionId, setPrevSessionId] = useState(session.id);
   if (prevSessionId !== session.id) {
     setPrevSessionId(session.id);
     lastLeaderboardFingerprintRef.current = null;
     hasClearedLeaderboardRef.current = false;
+    setScoreRevealApproved(false);
   }
 
   // Broadcast student-safe live leaderboard snapshot for gamified sessions.

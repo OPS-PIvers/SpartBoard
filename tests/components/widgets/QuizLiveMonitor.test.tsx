@@ -406,6 +406,54 @@ describe('QuizLiveMonitor', () => {
     expect(updateAccountPreferences).not.toHaveBeenCalled();
   });
 
+  it('resets the score-reveal approval when the session id changes so a new quiz starts with scores hidden', async () => {
+    const result = render(
+      buildTree({
+        session: { id: 'sess-A', periodNames: ['P1'] },
+        responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
+      })
+    );
+    // Approve the privacy gate in the first session.
+    showConfirm.mockResolvedValueOnce(true);
+    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    // Sanity: subsequent toggles in the same session no longer prompt.
+    showConfirm.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(showConfirm).not.toHaveBeenCalled();
+
+    // Now swap to a fresh session id on the same component instance — the
+    // approval should reset, so the next reveal click prompts again.
+    const session2 = makeSession({ id: 'sess-B', periodNames: ['P1'] });
+    const config2 = makeConfig({ periodNames: session2.periodNames });
+    result.rerender(
+      <QuizLiveMonitor
+        session={session2}
+        responses={[makeResponse({ pin: '1111', classPeriod: 'P1' })]}
+        quizData={makeQuizData()}
+        onAdvance={noopAsync}
+        onEnd={noopAsync}
+        config={config2}
+        rosters={[makeRoster('P1')]}
+        onUpdateConfig={vi.fn()}
+      />
+    );
+    showConfirm.mockClear();
+    showConfirm.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+  });
+
   it('shows the empty-state and Clear filter button when the active filter narrows to zero rows', () => {
     renderMonitor({
       session: { periodNames: ['P1', 'P2'] },
