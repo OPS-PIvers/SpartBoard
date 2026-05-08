@@ -340,6 +340,17 @@ export const GuidedLearningEditorModal: React.FC<
         contextRatio={58}
         contextPane={<GuidedLearningEditorContextPane state={editorState} />}
         detailPane={<GuidedLearningEditorDetailPane state={editorState} />}
+        overlay={
+          showAiGen && canUseAi ? (
+            <GuidedLearningAIGenerator
+              onClose={() => setShowAiGen(false)}
+              onGenerated={(generated) => {
+                setShowAiGen(false);
+                onAiGenerated?.(generated);
+              }}
+            />
+          ) : null
+        }
       />
       {folderPickerEnabled && folderPickerOpen && (
         <FolderPickerPopover
@@ -350,15 +361,6 @@ export const GuidedLearningEditorModal: React.FC<
           onSelect={(next) => onFolderChange?.(next)}
           onClose={() => setFolderPickerOpen(false)}
           title="Select folder"
-        />
-      )}
-      {showAiGen && canUseAi && (
-        <GuidedLearningAIGenerator
-          onClose={() => setShowAiGen(false)}
-          onGenerated={(generated) => {
-            setShowAiGen(false);
-            onAiGenerated?.(generated);
-          }}
         />
       )}
     </>
