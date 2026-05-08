@@ -80,10 +80,29 @@ export const Modal: React.FC<ModalProps> = ({
   // Ensure we are in a browser environment
   if (typeof document === 'undefined') return null;
 
+  // Stop pointer events from escaping the modal via React's synthetic
+  // event tree. Modals render via `createPortal` to `document.body`, but
+  // React events still bubble up the COMPONENT tree — so a click on the
+  // modal would otherwise reach the widget that hosts the modal in JSX
+  // (the GL widget rendering its editor modal, etc.) and trigger that
+  // widget's `bringToFront`, drag handlers, gesture detection, and so
+  // on. Without this guard, every click on the modal looked like a
+  // click on the widget behind it.
+  //
+  // Click events keep their existing handlers (backdrop closes the
+  // modal; the inner content stops propagation so backdrop click only
+  // fires when the user actually clicks the dim layer). Stopping at
+  // pointer events is what prevents the widget-host from reacting to
+  // anything happening inside the modal.
+  const stopPointer = (e: React.PointerEvent) => e.stopPropagation();
+
   return createPortal(
     <div
       className={`fixed inset-0 ${zIndex} flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in duration-200`}
       onClick={onClose}
+      onPointerDown={stopPointer}
+      onPointerMove={stopPointer}
+      onPointerUp={stopPointer}
       role="dialog"
       aria-modal="true"
       aria-label={ariaLabel ?? (!ariaLabelledby ? title : undefined)}
