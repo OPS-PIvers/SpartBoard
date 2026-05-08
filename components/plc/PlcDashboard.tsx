@@ -18,7 +18,7 @@ import {
 import { Plc, PlcFeatureSettings, getPlcFeatures } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { PlcOverviewTab } from './tabs/PlcOverviewTab';
-import { PlcCompletedAssignmentsTab } from './tabs/PlcCompletedAssignmentsTab';
+import { PlcAssignmentsTab } from './tabs/PlcAssignmentsTab';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { PlcNotesTab } from './tabs/PlcNotesTab';
 import { PlcTodosTab } from './tabs/PlcTodosTab';
@@ -32,7 +32,6 @@ interface PlcDashboardProps {
 
 export type PlcDashboardTabId =
   | 'overview'
-  | 'completed'
   | 'quizzes'
   | 'assignments'
   | 'videoActivities'
@@ -63,12 +62,6 @@ const TABS: readonly TabDef[] = [
     labelDefault: 'Overview',
   },
   {
-    id: 'completed',
-    icon: ClipboardList,
-    labelKey: 'plcDashboard.tabs.completed',
-    labelDefault: 'Completed Assignments',
-  },
-  {
     id: 'quizzes',
     icon: BookOpen,
     labelKey: 'plcDashboard.tabs.quizzes',
@@ -81,11 +74,6 @@ const TABS: readonly TabDef[] = [
     labelKey: 'plcDashboard.tabs.assignments',
     labelDefault: 'PLC Assignments',
     feature: 'assignments',
-    placeholder: {
-      titleDefault: 'PLC Assignments',
-      descriptionDefault:
-        'Author PLC-level assignments here so teammates can pick them up on their own boards.',
-    },
   },
   {
     id: 'videoActivities',
@@ -191,9 +179,6 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     if (tab.id === 'overview') {
       return <PlcOverviewTab plc={plc} onNavigateTab={handleNavigateTab} />;
     }
-    if (tab.id === 'completed') {
-      return <PlcCompletedAssignmentsTab plc={plc} />;
-    }
     if (tab.id === 'notes') {
       return <PlcNotesTab plc={plc} />;
     }
@@ -202,6 +187,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     }
     if (tab.id === 'quizzes') {
       return <PlcQuizLibraryTab plc={plc} />;
+    }
+    if (tab.id === 'assignments') {
+      return <PlcAssignmentsTab plc={plc} />;
     }
     if (tab.id === 'settings') {
       return <PlcSettingsTab plc={plc} />;

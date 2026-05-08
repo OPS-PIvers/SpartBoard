@@ -72,6 +72,10 @@ const validEntry = (overrides: Record<string, unknown> = {}) => ({
   ownerEmail: 'member-a@example.com',
   title: 'My Quiz',
   sheetUrl: SHEET_URL,
+  // Phase 3: required field. 'active' is the canonical create-time value;
+  // pause/resume/deactivate flow through the update branch which checks
+  // the `status in [...]` set.
+  status: 'active',
   createdAt: 1000,
   ...overrides,
 });

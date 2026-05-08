@@ -289,7 +289,65 @@ export interface PlcAssignmentIndexEntry {
   title: string;
   /** Shared PLC Google Sheet URL (mirrored from `Plc.sharedSheetUrl`). */
   sheetUrl: string;
+  /**
+   * Live status of the source assignment. Mirrored fire-and-forget from
+   * `useQuizAssignments` whenever the canonical assignment changes status
+   * (`active` → `paused`, `paused` → `active`, `active|paused` →
+   * `inactive`). Drives the In-progress vs Completed split in the PLC
+   * Assignments tab — `active|paused` shows under In-progress, `inactive`
+   * shows under Completed. Legacy entries written before Phase 3 lack the
+   * field; the parser defaults missing/invalid values to `'active'` so
+   * legacy entries surface in In-progress until their owner deactivates
+   * them.
+   */
+  status: QuizAssignmentStatus;
   createdAt: number;
+}
+
+/**
+ * One PLC-authored assignment template, stored at
+ * `plcs/{plcId}/assignments/{plcAssignmentId}`.
+ *
+ * Templates are authored by any PLC member (either via the explicit
+ * Library "share" flow or as a fire-and-forget side effect of toggling
+ * "PLC mode" on a personal assignment) and represent an assignment any
+ * teammate can pick up onto their own board. Templates do NOT carry
+ * `classIds`/`rosterIds` — those are filled in by each importer.
+ *
+ * The doc points at a canonical `synced_quizzes/{syncGroupId}` doc, so
+ * importers can pull content even though the source quiz lives only in
+ * the author's Drive. Same orphan-tolerant posture as `PlcQuizEntry`:
+ * deleting a template does NOT cascade to teammates' already-imported
+ * personal assignments.
+ */
+export interface PlcAssignmentTemplate {
+  /** Doc id; matches the document key under `plcs/{plcId}/assignments/`. */
+  id: string;
+  /** Quiz title at share time; mirrored on later peer publishes. */
+  quizTitle: string;
+  /** Source quiz id — informational only (importers don't need access). */
+  quizId: string;
+  /** Pointer to the canonical `/synced_quizzes/{groupId}` doc. */
+  syncGroupId: string;
+  /** Default session mode the importer's assignment will inherit. */
+  sessionMode: QuizSessionMode;
+  /** Default session options the importer's assignment will inherit. */
+  sessionOptions: QuizSessionOptions;
+  /**
+   * Default attempt limit. `null` (or absent) = unlimited; legacy templates
+   * predating attempt limits parse to `null`.
+   */
+  attemptLimit: number | null;
+  /** UID of the teacher who shared this template. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** ms timestamp; bumped on title/setting mirror updates. */
+  updatedAt: number;
 }
 
 /**

@@ -260,7 +260,6 @@
     "close": "Close",
     "tabs": {
       "overview": "Overview",
-      "completed": "Completed Assignments",
       "quizzes": "Quiz Library",
       "assignments": "PLC Assignments",
       "videoActivities": "Video Activities",
@@ -268,6 +267,42 @@
       "todos": "To-Do List",
       "sharedBoards": "Shared Boards",
       "settings": "Settings"
+    },
+    "assignmentsSubTabs": {
+      "label": "Assignment views",
+      "library": "Library",
+      "inProgress": "In-progress",
+      "completed": "Completed"
+    },
+    "assignmentsLibrary": {
+      "heading": "Assignment Templates",
+      "count_one": "{{count}} template",
+      "count_other": "{{count}} templates",
+      "bySharer": "shared by {{name}}",
+      "unknownSharer": "a teammate",
+      "addToMyBoard": "Add to my board",
+      "unshareAction": "Unshare",
+      "unshareTitle": "Unshare assignment template",
+      "unshareConfirm": "Remove \"{{title}}\" from this PLC? Teammates who have already added it to their board keep their copy.",
+      "unshareTooltip": "Remove from PLC (any member can unshare; existing imports keep working)",
+      "unshared": "\"{{title}}\" removed from this PLC.",
+      "unshareFailed": "Failed to unshare assignment template.",
+      "importedSync": "\"{{title}}\" added to your board (paused, synced).",
+      "importedCopy": "\"{{title}}\" copied to your board (paused).",
+      "importFailed": "Failed to add assignment to your board.",
+      "driveRequired": "Connect Google Drive in your account to pick up PLC assignments.",
+      "driveDisconnected": "Connect Google Drive to pick up PLC assignments onto your board.",
+      "emptyTitle": "No assignment templates yet",
+      "emptySubtitle": "Toggle \"Share with PLC\" on any quiz assignment you create — it'll show up here so teammates can pick it up onto their own boards."
+    },
+    "assignmentsInProgress": {
+      "heading": "Live Across the Team",
+      "count_one": "{{count}} running",
+      "count_other": "{{count}} running",
+      "statusActive": "Active",
+      "statusPaused": "Paused",
+      "emptyTitle": "No assignments in progress",
+      "emptySubtitle": "When you or a teammate starts a PLC-mode assignment, it shows up here. Pause or stop it from your board and the row updates live."
     },
     "meta": {
       "members_one": "{{count}} Member",
@@ -281,8 +316,8 @@
       "byOwner": "by {{name}}",
       "openSheet": "Open Sheet",
       "unsafeSheet": "No link",
-      "emptyTitle": "No PLC assignments yet",
-      "emptySubtitle": "When you or a teammate runs a quiz with PLC mode on, it'll show up here with a link to the shared results sheet."
+      "emptyTitle": "No completed assignments yet",
+      "emptySubtitle": "When a PLC-mode assignment is stopped from any teammate's board, it lands here with a link to the shared results sheet."
     },
     "placeholder": {
       "comingSoon": "Coming soon"

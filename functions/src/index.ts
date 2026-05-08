@@ -32,6 +32,7 @@ export {
   leaveSyncedVideoActivityGroup,
 } from './syncedVideoActivityGroups';
 export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
+export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 
 setGlobalOptions({ region: 'us-central1' });
 

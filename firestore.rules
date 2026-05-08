@@ -1012,9 +1012,10 @@ service cloud.firestore {
           && assignmentId == request.resource.data.id
           && request.resource.data.keys().hasOnly([
                'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
-               'title', 'sheetUrl', 'createdAt'
+               'title', 'sheetUrl', 'status', 'createdAt'
              ])
           && request.resource.data.kind in ['quiz', 'video-activity']
+          && request.resource.data.status in ['active', 'paused', 'inactive']
           && request.resource.data.sheetUrl == get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.get('sharedSheetUrl', '');
@@ -1027,17 +1028,20 @@ service cloud.firestore {
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.memberUids
           // Identity fields are immutable across the lifetime of the
-          // entry. Mutable fields (e.g. status mirroring later) must
-          // still keep the doc shape closed via `keys().hasOnly([...])`.
+          // entry. Mutable fields are `status` (mirrored on pause /
+          // deactivate / reopen by the source assignment's owner) plus
+          // legacy mutable fields. The doc shape stays closed via
+          // `keys().hasOnly([...])`.
           && request.resource.data.id == resource.data.id
           && request.resource.data.ownerUid == resource.data.ownerUid
           && request.resource.data.createdAt == resource.data.createdAt
           && assignmentId == request.resource.data.id
           && request.resource.data.keys().hasOnly([
                'id', 'kind', 'ownerUid', 'ownerName', 'ownerEmail',
-               'title', 'sheetUrl', 'createdAt'
+               'title', 'sheetUrl', 'status', 'createdAt'
              ])
           && request.resource.data.kind in ['quiz', 'video-activity']
+          && request.resource.data.status in ['active', 'paused', 'inactive']
           && request.resource.data.sheetUrl == get(
                /databases/$(database)/documents/plcs/$(plcId)
              ).data.get('sharedSheetUrl', '');
@@ -1120,6 +1124,92 @@ service cloud.firestore {
 
         // Any member can unshare. Matches the "PLC-owned" model — a quiz
         // shared with the PLC belongs to the PLC, not the original sharer.
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
+      // PLC-authored Assignments (Phase 3). Templates that any member can
+      // pick up onto their own board. Each template points at a canonical
+      // `synced_quizzes/{groupId}` doc (importers pull content from there
+      // since the source quiz lives only in the author's Drive).
+      //
+      // Posture mirrors the PLC Quiz Library above — any current member
+      // can author, mirror updates, or unshare. Identity + attribution
+      // fields are immutable post-create so a teammate can't quietly
+      // retarget an entry or rewrite who shared it.
+      //
+      // Orphan policy: deleting a template does NOT cascade to teammates'
+      // already-imported personal assignments — those are independent
+      // assignment + session docs after import.
+      match /assignments/{plcAssignmentId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Create: any member, doc id pinned, sharedBy must equal caller.
+        // Session config is opaque to the rule — `sessionOptions` is a map
+        // and its keys vary by session mode. We pin shape via top-level
+        // `keys().hasOnly([...])` and lean on the importer's own client
+        // validation for individual option fields.
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'quizTitle', 'quizId', 'syncGroupId',
+               'sessionMode', 'sessionOptions', 'attemptLimit',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && plcAssignmentId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.quizTitle is string
+          && request.resource.data.quizId is string
+          && request.resource.data.syncGroupId is string
+          // Guard against an empty `syncGroupId` smuggling a stub entry.
+          && request.resource.data.syncGroupId.size() > 0
+          && request.resource.data.sessionMode in ['teacher', 'auto', 'student']
+          && request.resource.data.sessionOptions is map
+          && (request.resource.data.attemptLimit == null
+                || request.resource.data.attemptLimit is int)
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.updatedAt is int;
+
+        // Update: any member can mirror title/sessionOptions/updatedAt
+        // (e.g. if the author later edits the template). Identity +
+        // attribution fields are immutable so stale-mirror writes can't
+        // quietly retarget the entry or rewrite who shared it.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'quizTitle', 'quizId', 'syncGroupId',
+               'sessionMode', 'sessionOptions', 'attemptLimit',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.quizId == resource.data.quizId
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.quizTitle is string
+          && request.resource.data.sessionMode in ['teacher', 'auto', 'student']
+          && request.resource.data.sessionOptions is map
+          && (request.resource.data.attemptLimit == null
+                || request.resource.data.attemptLimit is int)
+          && request.resource.data.updatedAt is int;
+
+        // Any member can unshare a template. Already-imported personal
+        // assignments on teammates' boards keep running (independent docs).
         allow delete: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
