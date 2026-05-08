@@ -685,17 +685,22 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 step.hotspotAlwaysHidden ?? step.hideStepNumber
               );
               if (alwaysHidden) return null;
-              // Auto-hide-while-live: in explore mode the active step's
-              // marker disappears so it doesn't sit on top of the
-              // popover/tooltip/spotlight content it just opened. Other pins
-              // on the same image stay visible so users can still click them.
-              // Structured/guided keep the active pin so it remains the
-              // visual anchor for tooltip/audio/video interactions whose
-              // overlays don't sit directly on top of the marker.
-              if (mode === 'explore' && isActive) return null;
+              // Auto-hide-while-live: the active step's marker disappears
+              // in any mode so it doesn't sit on top of the
+              // popover/tooltip/spotlight content it just opened. Other
+              // pins on the same image stay visible so explore-mode users
+              // can still click them. The interaction overlay (tooltip
+              // arrow, spotlight focus, popover position) is still
+              // anchored to the pin's coordinates even with the marker
+              // hidden, so users keep their visual anchor.
+              if (isActive) return null;
               // Structured/guided only render the *current* step's pin
               // (other steps are sequenced through Prev/Next, not clickable
-              // out of order). Explore mode renders every pin on the image.
+              // out of order). Since the current step is also the active
+              // one in those modes, this branch effectively renders no
+              // pin during a live structured/guided step — the user sees
+              // only the interaction overlay. Explore mode renders every
+              // non-active pin on the image.
               const isCurrentStructured =
                 mode !== 'explore' && step.id === currentStep?.id;
               const showPin = mode === 'explore' || isCurrentStructured;
@@ -719,18 +724,12 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 >
                   <button
                     onClick={() => handlePinClick(step)}
-                    className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
-                      isActive
-                        ? 'bg-indigo-600 scale-125 shadow-indigo-500/60'
-                        : 'bg-white/25 hover:bg-white/35'
-                    } ${
+                    className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 bg-white/25 hover:bg-white/35 ${
                       // 'reminder' wiggle is applied to the button itself
                       // (not a ring child) so it actually moves the marker.
                       // 'consistent' uses the inline ping ring below.
                       // 'off' adds nothing.
-                      // The active pin already gets visual emphasis via the
-                      // scale/color treatment above, so we skip pulses on it.
-                      !isActive && pulseMode === 'reminder'
+                      pulseMode === 'reminder'
                         ? 'animate-gl-pulse-reminder motion-reduce:animate-none'
                         : ''
                     }`}
@@ -740,7 +739,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                     }}
                     aria-label={step.label ?? `Step ${idx + 1}`}
                   >
-                    {!isActive && pulseMode === 'consistent' && (
+                    {pulseMode === 'consistent' && (
                       <span className="pointer-events-none absolute inset-0 rounded-full border border-white/70 animate-ping opacity-70 motion-reduce:hidden [animation-duration:2s]" />
                     )}
                     <span

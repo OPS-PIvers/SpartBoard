@@ -141,12 +141,13 @@ describe('GuidedLearningPlayer', () => {
     fireEvent.load(screen.getByAltText('Player Test'));
 
     expect(screen.getByTestId('tooltip-coords')).toHaveTextContent('30,80');
+    // The active step's hotspot pin is auto-hidden in any mode (the
+    // interaction overlay is the visual anchor instead). Validating the
+    // tooltip's transformed coordinates above is sufficient — the pin's
+    // own coordinates would just duplicate that math.
     expect(
-      screen.getByRole('button', { name: /step 1/i }).parentElement
-    ).toHaveStyle({
-      left: '30%',
-      top: '80%',
-    });
+      screen.queryByRole('button', { name: /step 1/i })
+    ).not.toBeInTheDocument();
   });
 
   it('lets explore mode switch images and keeps pan-zoom spotlight overlays visible', () => {
