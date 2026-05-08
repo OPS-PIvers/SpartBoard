@@ -157,7 +157,7 @@ describe('ActiveClassChip', () => {
     fireEvent.click(screen.getByRole('button', { name: /active class/i }));
     expect(screen.getByRole('menu')).toBeInTheDocument();
 
-    fireEvent.mouseDown(screen.getByTestId('outside'));
+    fireEvent.pointerDown(screen.getByTestId('outside'));
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 

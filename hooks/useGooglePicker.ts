@@ -145,8 +145,14 @@ export const useGooglePicker = () => {
               .setMimeTypes(mimeTypes)
               .setMode(google.picker.DocsViewMode.LIST);
 
-            const apiKey = (import.meta.env.VITE_GOOGLE_API_KEY ??
-              import.meta.env.VITE_FIREBASE_API_KEY) as string | undefined;
+            // Only the dedicated Google API key is valid for Picker — the
+            // Firebase API key isn't authorized for Picker API in GCP and
+            // makes the picker fail with "developer API key not valid".
+            // Picker works fine without a developer key (OAuth-only); it's
+            // only required for usage/billing tracking.
+            const apiKey = import.meta.env.VITE_GOOGLE_API_KEY as
+              | string
+              | undefined;
 
             const title =
               mode === 'images'

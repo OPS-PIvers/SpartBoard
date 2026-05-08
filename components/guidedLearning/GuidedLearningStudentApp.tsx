@@ -19,6 +19,7 @@ import {
   Loader2,
   AlertCircle,
   CheckCircle2,
+  RefreshCw,
   Trophy,
 } from 'lucide-react';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -118,6 +119,11 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   const [completed, setCompleted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [answers, setAnswers] = useState<GuidedLearningResponse['answers']>([]);
+  // Bumped when the user clicks "Replay from beginning" on a view-only
+  // completion screen. Used as the React key on the player so its
+  // internal state (currentIdx, activeStepId, image index, etc.) fully
+  // resets to a fresh experience without needing reload.
+  const [replayKey, setReplayKey] = useState(0);
   // Phase 5A: post-PIN class-period picker. When the session has multiple
   // periods configured, the student chooses one before the experience
   // begins; the value is persisted on their response doc.
@@ -192,6 +198,17 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
         session={session}
         score={score}
         isViewOnly={isViewOnly}
+        onReplay={() => {
+          // Drop responses + bump key so the player fully remounts with
+          // fresh state at step 0 / image 0. Keep `started` true so the
+          // user goes straight to the player rather than back through
+          // the start screen.
+          setAnswers([]);
+          setScore(null);
+          setCompleted(false);
+          setReplayKey((k) => k + 1);
+          startedAt.current = Date.now();
+        }}
       />
     );
   }
@@ -204,12 +221,20 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
         onPinChange={setPin}
         selectedPeriod={classPeriod}
         onPeriodChange={setClassPeriod}
+        // View-only Share links are public resources — they aren't
+        // associated with a particular student or class, so we skip the
+        // PIN entry and the class-period picker entirely. The user lands
+        // on the welcome / mode screen and clicks straight through.
+        isViewOnly={isViewOnly}
         onStart={() => {
           // Auto-select the single period if there's exactly one so the
-          // response still gets tagged consistently.
-          const periods = session.periodNames ?? [];
-          if (periods.length === 1 && !classPeriod) {
-            setClassPeriod(periods[0]);
+          // response still gets tagged consistently. Skipped on view-only
+          // since responses aren't tracked anyway.
+          if (!isViewOnly) {
+            const periods = session.periodNames ?? [];
+            if (periods.length === 1 && !classPeriod) {
+              setClassPeriod(periods[0]);
+            }
           }
           setStarted(true);
         }}
@@ -226,12 +251,15 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     mode: session.mode,
     createdAt: session.createdAt,
     updatedAt: session.createdAt,
+    hotspotPulse: session.hotspotPulse,
+    imageTransition: session.imageTransition,
   };
 
   return (
     <div className="h-screen h-dvh overflow-hidden bg-slate-950">
       <div className="h-full relative">
         <GuidedLearningPlayer
+          key={`gl-player-${replayKey}`}
           set={
             setForPlayer as Parameters<typeof GuidedLearningPlayer>[0]['set']
           }
@@ -260,6 +288,12 @@ const StartScreen: React.FC<{
   onPinChange: (v: string) => void;
   selectedPeriod: string | null;
   onPeriodChange: (v: string | null) => void;
+  /**
+   * View-only Share links are public resources, not assignments — they
+   * aren't tied to a specific student or class. When true, the period
+   * picker and PIN entry are both suppressed.
+   */
+  isViewOnly: boolean;
   onStart: () => void;
 }> = ({
   session,
@@ -267,10 +301,12 @@ const StartScreen: React.FC<{
   onPinChange,
   selectedPeriod,
   onPeriodChange,
+  isViewOnly,
   onStart,
 }) => {
   const periods = session.periodNames ?? [];
-  const needsPeriodPicker = periods.length > 1 && !selectedPeriod;
+  const needsPeriodPicker =
+    !isViewOnly && periods.length > 1 && !selectedPeriod;
 
   if (needsPeriodPicker) {
     return (
@@ -302,16 +338,33 @@ const StartScreen: React.FC<{
     );
   }
 
+  // Welcome message gates: must be explicitly enabled AND have non-empty
+  // content. Toggle-on-with-empty-message falls through to the default
+  // mode/step subtitle so we never render an empty card.
+  const welcomeMessage = session.welcomeMessage?.trim() ?? '';
+  const showWelcome =
+    Boolean(session.welcomeEnabled) && welcomeMessage.length > 0;
+
   return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+      <div
+        className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
+      >
         <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
         <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-        <p className="text-slate-400 text-sm mb-6 capitalize">
-          {session.mode} mode · {session.publicSteps.length} steps
-        </p>
+        {showWelcome ? (
+          <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
+            <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+              {welcomeMessage}
+            </p>
+          </div>
+        ) : (
+          <p className="text-slate-400 text-sm mb-6 capitalize">
+            {session.mode} mode · {session.publicSteps.length} steps
+          </p>
+        )}
 
-        {selectedPeriod && periods.length > 1 && (
+        {!isViewOnly && selectedPeriod && periods.length > 1 && (
           <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2">
             <span className="text-xs text-slate-400">Class</span>
             <div className="flex items-center gap-2">
@@ -328,25 +381,32 @@ const StartScreen: React.FC<{
           </div>
         )}
 
-        <div className="mb-6">
-          <label className="block text-slate-400 text-xs mb-1.5 text-left">
-            Your PIN <span className="text-slate-600">(optional)</span>
-          </label>
-          <input
-            type="text"
-            value={pin}
-            onChange={(e) => onPinChange(e.target.value)}
-            placeholder="Enter your class PIN"
-            className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
-            maxLength={10}
-          />
-        </div>
+        {!isViewOnly && (
+          <div className="mb-6">
+            <label className="block text-slate-400 text-xs mb-1.5 text-left">
+              Your PIN <span className="text-slate-600">(optional)</span>
+            </label>
+            <input
+              type="text"
+              value={pin}
+              onChange={(e) => onPinChange(e.target.value)}
+              placeholder="Enter your class PIN"
+              className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
+              maxLength={10}
+            />
+          </div>
+        )}
 
         <button
           onClick={onStart}
-          className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          className={`w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+            // When PIN entry is suppressed (view-only) and no welcome
+            // card preceded it, the start button would butt up against
+            // the title — give it some breathing room.
+            isViewOnly && !showWelcome ? 'mt-2' : ''
+          }`}
         >
-          Start
+          {showWelcome ? 'Get started' : 'Start'}
           <ArrowRight className="w-4 h-4" />
         </button>
       </div>
@@ -358,24 +418,57 @@ const CompletionScreen: React.FC<{
   session: GuidedLearningSession;
   score: number | null;
   isViewOnly: boolean;
-}> = ({ session, score, isViewOnly }) => (
-  <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-    <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-      <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
-      <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-      <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
-      <p className="text-emerald-400 font-semibold text-lg mb-1">Complete!</p>
-      {!isViewOnly && score !== null && (
-        <p className="text-slate-300 text-sm mb-4">
-          You scored <span className="text-white font-bold">{score}%</span> on
-          the comprehension questions.
+  /**
+   * View-only "Replay from beginning" handler. Resets state so the
+   * player remounts at step 0. Not shown for response-tracked sessions
+   * (those have already submitted — replay would imply submitting
+   * twice).
+   */
+  onReplay: () => void;
+}> = ({ session, score, isViewOnly, onReplay }) => {
+  // View-only completion is purely informational — there's no "score",
+  // no "you finished an assignment" framing, just "you reached the end
+  // of this resource". Suppress the gamified Trophy / Complete! styling
+  // and surface the Replay CTA as the primary action.
+  if (isViewOnly) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+          <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
+          <p className="text-slate-400 text-sm mb-6">
+            You&apos;ve reached the end of this activity.
+          </p>
+          <button
+            onClick={onReplay}
+            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Replay from beginning
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Response-tracked completion — keep the achievement framing.
+  return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
+      <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+        <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
+        <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
+        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
+        <p className="text-emerald-400 font-semibold text-lg mb-1">Complete!</p>
+        {score !== null && (
+          <p className="text-slate-300 text-sm mb-4">
+            You scored <span className="text-white font-bold">{score}%</span> on
+            the comprehension questions.
+          </p>
+        )}
+        <p className="text-slate-500 text-xs">
+          Your responses have been submitted.
         </p>
-      )}
-      <p className="text-slate-500 text-xs">
-        {isViewOnly
-          ? 'Thanks for viewing!'
-          : 'Your responses have been submitted.'}
-      </p>
+      </div>
     </div>
-  </div>
-);
+  );
+};

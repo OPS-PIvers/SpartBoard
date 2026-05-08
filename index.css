@@ -95,6 +95,26 @@ body.is-dragging-widget video {
   }
 }
 
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slideLeftOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-100%);
+    opacity: 0;
+  }
+}
+
 .animate-slide-left-in {
   animation: slideLeftIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
@@ -103,8 +123,16 @@ body.is-dragging-widget video {
   animation: slideRightIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
 }
 
+.animate-slide-left-out {
+  animation: slideLeftOut 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
+}
+
+.animate-fade-out {
+  animation: fadeOut 0.5s ease-out forwards;
 }
 
 /* Hide scrollbar for Chrome, Safari and Opera */
@@ -186,4 +214,12 @@ body.is-dragging-widget video {
 
 .animate-dice-jitter {
   animation: dice-jitter 0.15s infinite linear;
+}
+
+/* Google Picker stacks at ~1001 inline, which renders behind our editor
+   modals (z-modal = 10000). Bump above the modal stack so the picker
+   surfaces correctly when launched from inside an editor. */
+.picker-dialog-bg,
+.picker-dialog {
+  z-index: 14500 !important;
 }

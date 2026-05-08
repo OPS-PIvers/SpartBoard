@@ -92,10 +92,10 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
     <div
       ref={setNodeRef}
       style={style}
-      className={`grid grid-cols-[auto_1fr] gap-3 p-2.5 bg-white/5 border rounded-xl ${
+      className={`grid grid-cols-[auto_1fr] gap-3 p-2.5 bg-slate-50 border rounded-xl ${
         isDragging
-          ? 'border-brand-blue-light/60 shadow-lg opacity-80'
-          : 'border-white/10'
+          ? 'border-indigo-300 shadow-lg opacity-80'
+          : 'border-slate-200'
       }`}
     >
       <div className="flex items-center gap-2">
@@ -104,12 +104,12 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           {...(disabled ? {} : attributes)}
           {...(disabled ? {} : listeners)}
           disabled={disabled}
-          className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-200 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+          className="cursor-grab active:cursor-grabbing p-1 text-slate-400 hover:text-slate-600 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
           aria-label="Drag to reorder"
         >
           <GripVertical className="w-4 h-4" />
         </button>
-        <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-800 shrink-0">
+        <div className="relative w-16 h-16 rounded-lg overflow-hidden bg-slate-100 shrink-0">
           <img
             src={image.url}
             alt={image.fileName}
@@ -123,7 +123,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
       <div className="flex flex-col gap-1 min-w-0">
         <div className="flex items-start gap-2">
           <span
-            className="text-xs text-slate-300 font-medium truncate flex-1"
+            className="text-xs text-slate-700 font-medium truncate flex-1"
             title={image.fileName}
           >
             {image.fileName}
@@ -132,7 +132,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
             type="button"
             onClick={() => onRemove(image.id)}
             disabled={disabled}
-            className="p-1 text-slate-400 hover:text-red-400 transition-colors disabled:opacity-50"
+            className="p-1 text-slate-400 hover:text-brand-red-primary transition-colors disabled:opacity-50"
             aria-label="Remove image"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -144,7 +144,7 @@ const SortableImageRow: React.FC<SortableImageRowProps> = ({
           placeholder="Optional notes for this image…"
           rows={2}
           disabled={disabled}
-          className="w-full bg-slate-900/60 border border-white/10 rounded-md px-2 py-1.5 text-xs text-slate-200 placeholder:text-slate-500 focus:border-brand-blue-light focus:outline-none resize-none disabled:opacity-50"
+          className="w-full bg-white border border-slate-200 rounded-md px-2 py-1.5 text-xs text-slate-700 placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none resize-none disabled:opacity-50"
         />
       </div>
     </div>
@@ -365,22 +365,28 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
 
   return (
     <div
-      className="absolute inset-0 z-widget-internal-overlay bg-slate-900/95 backdrop-blur-sm flex flex-col p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Generate with AI"
+      className="absolute inset-0 z-widget-internal-overlay bg-white/95 backdrop-blur-sm flex flex-col p-6"
       onDragOver={(e) => e.preventDefault()}
       onDrop={handleDrop}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <button onClick={onClose} className="text-slate-400 hover:text-white">
-          <X className="w-4 h-4" />
+      <div className="flex items-center justify-between mb-4">
+        <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
+          <Sparkles className="w-5 h-5" /> Generate with AI
+        </h4>
+        <button
+          onClick={onClose}
+          className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors"
+          aria-label="Close generator"
+        >
+          <X className="w-5 h-5" />
         </button>
-        <Sparkles className="w-4 h-4 text-brand-blue-light" />
-        <span className="text-white font-semibold text-sm">
-          Generate with AI
-        </span>
       </div>
 
       <div className="space-y-3 flex-1 overflow-y-auto">
-        <p className="text-slate-400 text-xs">
+        <p className="text-sm text-slate-600">
           Add one or more images — upload, paste, or pull from Drive. Gemini
           will analyze them together and draft a guided learning experience with
           hotspots spanning the images you provide.
@@ -391,13 +397,13 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             type="button"
             onClick={() => fileRef.current?.click()}
             disabled={busy}
-            className="w-full border-2 border-dashed border-white/20 rounded-xl py-5 text-center hover:border-white/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full border-2 border-dashed border-slate-300 rounded-xl py-5 text-center hover:border-indigo-400 hover:bg-indigo-50/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Upload className="w-6 h-6 text-slate-400 mx-auto mb-1" />
-            <span className="text-slate-300 text-xs block">
+            <span className="text-slate-700 text-xs font-medium block">
               Click to upload, drop here, or paste (Ctrl+V)
             </span>
-            <span className="text-slate-500 text-[11px] mt-0.5 block">
+            <span className="text-slate-400 text-[11px] mt-0.5 block">
               PNG, JPG, WebP — multi-select supported
             </span>
           </button>
@@ -414,7 +420,6 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             <DriveImagePicker
               onImageAdded={handleDriveImageAdded}
               disabled={busy}
-              variant="dark"
               label="Add image from Drive"
             />
             {canAccessFeature('ai-file-context') && (
@@ -424,7 +429,6 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
                   setFileName(name);
                 }}
                 disabled={busy}
-                variant="dark"
                 label="Attach context doc"
               />
             )}
@@ -432,7 +436,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         </div>
 
         {uploadingImages && (
-          <div className="flex items-center gap-2 text-xs text-slate-400">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
             Uploading images…
           </div>
@@ -441,7 +445,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         {images.length > 0 && (
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <label className="text-xs text-slate-400">
+              <label className="text-xs font-bold uppercase tracking-widest text-slate-500">
                 {images.length} image{images.length === 1 ? '' : 's'} — drag to
                 reorder
               </label>
@@ -473,7 +477,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         )}
 
         <div>
-          <label className="block text-xs text-slate-400 mb-1">
+          <label className="block text-xs font-bold uppercase tracking-widest text-slate-500 mb-1">
             Additional instructions (optional)
           </label>
           <textarea
@@ -481,22 +485,23 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             onChange={(e) => setPrompt(e.target.value)}
             rows={3}
             placeholder="e.g. Focus on vocabulary, include 3 questions, make it for 5th grade…"
-            className="w-full bg-slate-800 border border-slate-600 rounded-lg px-3 py-2 text-white text-sm resize-none"
+            className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-slate-800 text-sm resize-none focus:border-indigo-500 focus:outline-none placeholder:text-slate-400"
           />
         </div>
 
         {error && (
-          <p className="text-red-400 text-xs bg-red-900/20 px-3 py-2 rounded-lg whitespace-pre-wrap">
-            {error}
-          </p>
+          <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-start gap-2 text-sm text-brand-red-dark font-bold">
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
+            <span className="whitespace-pre-wrap">{error}</span>
+          </div>
         )}
 
         {clampWarning && (
           <div
             role="alert"
-            className="flex items-start gap-2 text-amber-200 text-xs bg-amber-900/25 border border-amber-500/30 px-3 py-2 rounded-lg"
+            className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800"
           >
-            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-300" />
+            <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5 text-amber-600" />
             <span className="whitespace-pre-wrap">{clampWarning}</span>
           </div>
         )}
@@ -510,7 +515,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
             setClampWarning('');
             onGenerated(set);
           }}
-          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl transition-colors font-medium text-sm"
+          className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
         >
           <Sparkles className="w-4 h-4" />
           Open in editor to review
@@ -519,7 +524,7 @@ export const GuidedLearningAIGenerator: React.FC<Props> = ({
         <button
           onClick={handleGenerate}
           disabled={images.length === 0 || busy}
-          className="mt-4 w-full flex items-center justify-center gap-2 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-700 disabled:text-slate-500 text-white rounded-xl transition-colors font-medium text-sm"
+          className="mt-4 w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
         >
           {generating ? (
             <>

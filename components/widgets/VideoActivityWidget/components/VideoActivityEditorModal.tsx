@@ -1,36 +1,27 @@
 /**
- * VideoActivityEditorModal — full-screen modal editor for video activity
- * questions. Launched from the video activity Manager library view. Wraps
- * the shared EditorModalShell so it stays visually aligned with other
- * content editors (Quiz, Guided Learning, MiniApp).
+ * VideoActivityEditorModal — full-screen editor for a Video Activity.
  *
- * Adapted from QuizEditorModal with timestamp (MM:SS) inputs and a
- * required YouTube URL field. V1 supports MC question type only.
+ * Wraps the two-pane EditorWorkspace: left context pane has the title +
+ * YouTube URL + Timeline + sortable question list; right detail pane has
+ * the editor for the currently-selected question (timestamp / type /
+ * prompt / answers).
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
-import {
-  AlertCircle,
-  ChevronDown,
-  ChevronUp,
-  Clock,
-  GripVertical,
-  Loader2,
-  Plus,
-  Sparkles,
-  Trash2,
-  X,
-  Youtube,
-} from 'lucide-react';
+import React, { useMemo } from 'react';
+import { Sparkles } from 'lucide-react';
 import {
   LibraryFolder,
   VideoActivityData,
   VideoActivityQuestion,
 } from '@/types';
-import { EditorModalShell } from '@/components/common/EditorModalShell';
-import { FolderSelectField } from '@/components/common/library/FolderSelectField';
+import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
-import { generateVideoActivity } from '@/utils/ai';
+import {
+  VideoActivityAiOverlay,
+  VideoActivityEditorContextPane,
+  VideoActivityEditorDetailPane,
+} from './VideoActivityEditor';
+import { useVideoActivityEditorState } from './useVideoActivityEditorState';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
@@ -46,34 +37,6 @@ interface VideoActivityEditorModalProps {
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
 }
-
-/** Convert total seconds to MM:SS string. */
-function secondsToMmSs(seconds: number): string {
-  const m = Math.floor(Math.max(0, seconds) / 60);
-  const s = Math.floor(Math.max(0, seconds) % 60);
-  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-}
-
-/** Convert MM:SS or M:SS string to total seconds. Returns NaN if invalid. */
-function mmSsToSeconds(value: string): number {
-  const parts = value.split(':');
-  if (parts.length !== 2) return NaN;
-  const m = parseInt(parts[0] ?? '0');
-  const s = parseInt(parts[1] ?? '0');
-  if (isNaN(m) || isNaN(s) || s >= 60) return NaN;
-  return m * 60 + s;
-}
-
-const blankQuestion = (): VideoActivityQuestion => ({
-  id: crypto.randomUUID(),
-  timeLimit: 30,
-  text: '',
-  type: 'MC',
-  correctAnswer: '',
-  incorrectAnswers: ['', '', ''],
-  timestamp: 0,
-  points: 1,
-});
 
 const arrEq = (a?: string[], b?: string[]): boolean => {
   const aa = a ?? [];
@@ -125,80 +88,23 @@ export const VideoActivityEditorModal: React.FC<
   onFolderChange,
 }) => {
   const { canAccessFeature } = useAuth();
-  // Snapshot the activity when the modal opens so `isDirty` compares against
-  // the original. When the `activity` prop identity changes, local state is
-  // reset via the "adjusting state while rendering" block below.
-  const originalQuestions = useMemo(
-    () => (activity ? activity.questions.map((q) => ({ ...q })) : []),
-    [activity]
-  );
-  const originalTitle = activity?.title ?? '';
-  const originalYoutubeUrl = activity?.youtubeUrl ?? '';
-
-  const [title, setTitle] = useState<string>(originalTitle);
-  const [youtubeUrl, setYoutubeUrl] = useState<string>(originalYoutubeUrl);
-  const [questions, setQuestions] =
-    useState<VideoActivityQuestion[]>(originalQuestions);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [expandedId, setExpandedId] = useState<string | null>(
-    originalQuestions[0]?.id ?? null
-  );
-  // Track raw MM:SS input text per question so users can type freely
-  // (e.g. clearing the field) without bouncing through invalid intermediate
-  // states. The timestamp in `questions` is only updated when parse succeeds.
-  const [timestampInputs, setTimestampInputs] = useState<
-    Record<string, string>
-  >(() => {
-    const init: Record<string, string> = {};
-    originalQuestions.forEach((q) => {
-      init[q.id] = secondsToMmSs(q.timestamp);
-    });
-    return init;
-  });
-
-  // AI generation state.
-  const [showAiPrompt, setShowAiPrompt] = useState(false);
-  const [aiQuestionCount, setAiQuestionCount] = useState(5);
-  const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiError, setAiError] = useState<string | null>(null);
-
   const canUseAi =
     canAccessFeature('gemini-functions') && (aiEnabled || isAdmin);
 
-  // Global Escape listener so the overlay dismisses even when focus is
-  // outside its children (e.g., user clicked the backdrop).
-  useEffect(() => {
-    if (!showAiPrompt) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code === 'Escape') setShowAiPrompt(false);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showAiPrompt]);
+  const editorState = useVideoActivityEditorState({ activity });
 
-  // Reset local state when the `activity` prop identity changes.
-  const [prevActivity, setPrevActivity] = useState<VideoActivityData | null>(
-    activity
-  );
-  if (activity !== prevActivity) {
-    setPrevActivity(activity);
-    setTitle(originalTitle);
-    setYoutubeUrl(originalYoutubeUrl);
-    setQuestions(originalQuestions);
-    setError(null);
-    setSaving(false);
-    setExpandedId(originalQuestions[0]?.id ?? null);
-    const init: Record<string, string> = {};
-    originalQuestions.forEach((q) => {
-      init[q.id] = secondsToMmSs(q.timestamp);
-    });
-    setTimestampInputs(init);
-    setShowAiPrompt(false);
-    setAiQuestionCount(5);
-    setAiGenerating(false);
-    setAiError(null);
-  }
+  const {
+    title,
+    youtubeUrl,
+    questions,
+    totalPoints,
+    saving,
+    setSaving,
+    setError,
+    originalTitle,
+    originalYoutubeUrl,
+    originalQuestions,
+  } = editorState;
 
   const isDirty = useMemo(
     () =>
@@ -214,111 +120,6 @@ export const VideoActivityEditorModal: React.FC<
       originalQuestions,
     ]
   );
-
-  const totalPoints = useMemo(
-    () => questions.reduce((sum, q) => sum + (q.points ?? 1), 0),
-    [questions]
-  );
-
-  const updateQuestion = (
-    id: string,
-    updates: Partial<VideoActivityQuestion>
-  ) => {
-    setQuestions((prev) =>
-      prev.map((q) => (q.id === id ? { ...q, ...updates } : q))
-    );
-  };
-
-  const updateIncorrect = (id: string, index: number, value: string) => {
-    setQuestions((prev) =>
-      prev.map((q) => {
-        if (q.id !== id) return q;
-        const incorrect = [...q.incorrectAnswers];
-        incorrect[index] = value;
-        return { ...q, incorrectAnswers: incorrect };
-      })
-    );
-  };
-
-  const moveQuestion = (index: number, direction: 'up' | 'down') => {
-    const newQ = [...questions];
-    const swap = direction === 'up' ? index - 1 : index + 1;
-    if (swap < 0 || swap >= newQ.length) return;
-    [newQ[index], newQ[swap]] = [newQ[swap], newQ[index]];
-    setQuestions(newQ);
-  };
-
-  const deleteQuestion = (id: string) => {
-    setQuestions((prev) => prev.filter((q) => q.id !== id));
-    setTimestampInputs((prev) => {
-      const next = { ...prev };
-      delete next[id];
-      return next;
-    });
-    if (expandedId === id) setExpandedId(null);
-  };
-
-  const addQuestion = () => {
-    const q = blankQuestion();
-    setQuestions((prev) => [...prev, q]);
-    setTimestampInputs((prev) => ({ ...prev, [q.id]: secondsToMmSs(0) }));
-    setExpandedId(q.id);
-  };
-
-  const handleAiGenerate = async () => {
-    if (!youtubeUrl.trim()) {
-      setAiError('A YouTube URL is required to generate questions.');
-      return;
-    }
-    setAiGenerating(true);
-    setAiError(null);
-    let result: Awaited<ReturnType<typeof generateVideoActivity>>;
-    try {
-      result = await generateVideoActivity(youtubeUrl.trim(), aiQuestionCount);
-    } catch (err) {
-      setAiError(err instanceof Error ? err.message : 'Generation failed');
-      setAiGenerating(false);
-      return;
-    }
-    try {
-      if (!result || !Array.isArray(result.questions)) {
-        throw new Error('AI returned an unexpected response shape.');
-      }
-      if (!title.trim() && result.title) setTitle(result.title);
-      const generated: VideoActivityQuestion[] = result.questions.map((q) => ({
-        id: crypto.randomUUID(),
-        timestamp: q.timestamp,
-        text: q.text,
-        type: 'MC',
-        correctAnswer: q.correctAnswer ?? '',
-        incorrectAnswers: q.incorrectAnswers ?? [],
-        timeLimit: q.timeLimit ?? 30,
-      }));
-      // Merge with existing, then sort by timestamp so strictly-increasing
-      // validation passes in handleSave.
-      const merged = [...questions, ...generated].sort(
-        (a, b) => a.timestamp - b.timestamp
-      );
-      setQuestions(merged);
-      setTimestampInputs((prev) => {
-        const next = { ...prev };
-        generated.forEach((q) => {
-          next[q.id] = secondsToMmSs(q.timestamp);
-        });
-        return next;
-      });
-      if (generated[0]) setExpandedId(generated[0].id);
-      setShowAiPrompt(false);
-    } catch (err) {
-      setAiError(
-        err instanceof Error
-          ? `Could not parse AI response: ${err.message}`
-          : 'Could not parse AI response.'
-      );
-    } finally {
-      setAiGenerating(false);
-    }
-  };
 
   const handleSave = async () => {
     if (!activity) return;
@@ -342,8 +143,6 @@ export const VideoActivityEditorModal: React.FC<
         } else if (correctCount === 0) {
           errors.push(`Question ${i + 1}: select at least one correct option`);
         }
-        // Defense-in-depth: a `|` in option text would corrupt the
-        // pipe-encoded `correctAnswer` wire format silently.
         const hasPipe = [
           ...q.correctAnswer.split('|'),
           ...(q.incorrectAnswers ?? []),
@@ -358,17 +157,16 @@ export const VideoActivityEditorModal: React.FC<
       }
     });
 
-    // Timestamps must be strictly increasing to keep cue-point playback
-    // deterministic. Duplicates would cause two prompts at the same moment.
-    const hasStrictlyIncreasingTimestamps = questions.every(
-      (q, index, arr) =>
-        index === 0 || q.timestamp > (arr[index - 1]?.timestamp ?? -1)
-    );
-    if (questions.length > 0 && !hasStrictlyIncreasingTimestamps) {
-      errors.push(
-        'Questions must have unique, strictly increasing timestamps. Re-order them or adjust timestamps.'
-      );
-    }
+    // No strict-monotonic check — questions are auto-sorted by timestamp on
+    // every edit, so they're always in a valid order at save time. The only
+    // remaining risk is duplicate timestamps, which we resolve by nudging.
+    const seen = new Set<number>();
+    const finalQuestions = questions.map((q) => {
+      let ts = q.timestamp;
+      while (seen.has(ts)) ts += 1;
+      seen.add(ts);
+      return ts === q.timestamp ? q : { ...q, timestamp: ts };
+    });
 
     if (errors.length > 0) {
       setError(errors[0]);
@@ -381,7 +179,7 @@ export const VideoActivityEditorModal: React.FC<
         ...activity,
         title: title.trim(),
         youtubeUrl: youtubeUrl.trim(),
-        questions,
+        questions: finalQuestions,
         updatedAt: Date.now(),
       });
       onClose();
@@ -395,7 +193,8 @@ export const VideoActivityEditorModal: React.FC<
   if (!activity) return null;
 
   return (
-    <EditorModalShell
+    <EditorWorkspace
+      key={activity.id}
       isOpen={isOpen}
       title={title.trim() || (originalTitle ? 'Edit Activity' : 'New Activity')}
       subtitle={
@@ -409,667 +208,40 @@ export const VideoActivityEditorModal: React.FC<
       onSave={handleSave}
       onClose={onClose}
       saveLabel="Save Activity"
-      bodyClassName="px-6 py-5 bg-slate-50/50 relative"
-    >
-      <div className="flex flex-col gap-3">
-        <div className="flex gap-2 items-end">
-          <div className="flex-1">
-            <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-              Activity Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Introduction to Photosynthesis"
-              className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
-            />
-          </div>
-          {canUseAi && (
-            <>
-              <button
-                onClick={() => setShowAiPrompt(true)}
-                disabled={!youtubeUrl.trim()}
-                className="h-[38px] px-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-                title={
-                  youtubeUrl.trim()
-                    ? 'Generate questions with AI'
-                    : 'Enter a YouTube URL to enable AI generation'
-                }
-                aria-describedby="va-ai-button-hint"
-              >
-                <Sparkles className="w-4 h-4" />
-                Draft with AI
-              </button>
-              <span id="va-ai-button-hint" className="sr-only">
-                {youtubeUrl.trim()
-                  ? 'Generate questions with AI'
-                  : 'Enter a YouTube URL to enable AI generation'}
-              </span>
-            </>
-          )}
-        </div>
-
-        <div>
-          <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-            YouTube URL
-          </label>
-          <div className="relative">
-            <Youtube className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-red-500" />
-            <input
-              type="url"
-              value={youtubeUrl}
-              onChange={(e) => setYoutubeUrl(e.target.value)}
-              placeholder="https://www.youtube.com/watch?v=..."
-              className="w-full pl-9 pr-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
-            />
-          </div>
-        </div>
-
-        {folders && onFolderChange && (
-          <FolderSelectField
-            folders={folders}
-            value={folderId ?? null}
-            onChange={onFolderChange}
-          />
-        )}
-
-        {error && (
-          <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">
-            <AlertCircle className="w-4 h-4 shrink-0" />
-            {error}
-          </div>
-        )}
-
-        {questions.map((q, i) => {
-          const tsValue = timestampInputs[q.id] ?? secondsToMmSs(q.timestamp);
-          return (
-            <div
-              key={q.id}
-              className={`bg-white border rounded-2xl overflow-hidden transition-all shadow-sm ${
-                expandedId === q.id
-                  ? 'border-brand-blue-primary/30 ring-2 ring-brand-blue-primary/5 shadow-md'
-                  : 'border-brand-blue-primary/10 hover:border-brand-blue-primary/20'
-              }`}
-            >
-              <div
-                className="flex items-center gap-2 px-3 py-2.5 cursor-pointer"
-                onClick={() => setExpandedId(expandedId === q.id ? null : q.id)}
-              >
-                <GripVertical className="w-4 h-4 text-brand-blue-primary/20 shrink-0" />
-                <span className="font-black text-brand-blue-primary/40 w-5 shrink-0 text-xs">
-                  {i + 1}.
-                </span>
-                <span className="flex items-center gap-1 bg-brand-blue-lighter text-brand-blue-primary font-black rounded-md shrink-0 px-1.5 py-0.5 text-xxs uppercase tracking-wider">
-                  <Clock className="w-3 h-3" />
-                  {secondsToMmSs(q.timestamp)}
-                </span>
-                <span className="flex-1 font-bold text-brand-blue-dark truncate text-sm">
-                  {q.text || (
-                    <span className="italic opacity-40">Untitled question</span>
-                  )}
-                </span>
-
-                <div className="flex items-center gap-1 ml-1 border-l border-brand-blue-primary/5 pl-1">
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveQuestion(i, 'up');
-                    }}
-                    disabled={i === 0}
-                    className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
-                    aria-label="Move up"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      moveQuestion(i, 'down');
-                    }}
-                    disabled={i === questions.length - 1}
-                    className="p-1 text-brand-blue-primary hover:bg-brand-blue-lighter rounded transition-colors disabled:opacity-20"
-                    aria-label="Move down"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteQuestion(q.id);
-                    }}
-                    className="p-1 text-brand-red-primary hover:bg-brand-red-lighter rounded transition-colors"
-                    aria-label="Delete question"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {expandedId === q.id && (
-                <div className="px-4 pb-4 space-y-4 border-t border-brand-blue-primary/5 pt-4 bg-brand-blue-lighter/10">
-                  <div className="grid grid-cols-3 gap-3">
-                    <div>
-                      <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-                        Trigger Timestamp (MM:SS)
-                      </label>
-                      <input
-                        type="text"
-                        value={tsValue}
-                        onChange={(e) => {
-                          const raw = e.target.value;
-                          setTimestampInputs((prev) => ({
-                            ...prev,
-                            [q.id]: raw,
-                          }));
-                          const secs = mmSsToSeconds(raw);
-                          if (!isNaN(secs)) {
-                            updateQuestion(q.id, { timestamp: secs });
-                          }
-                        }}
-                        placeholder="01:30"
-                        className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
-                      />
-                    </div>
-                    <div>
-                      <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-                        Time Limit (Seconds)
-                      </label>
-                      <div className="relative">
-                        <input
-                          type="number"
-                          min={10}
-                          max={300}
-                          value={q.timeLimit}
-                          onChange={(e) =>
-                            updateQuestion(q.id, {
-                              timeLimit: parseInt(e.target.value, 10) || 30,
-                            })
-                          }
-                          className="w-full pl-3 pr-8 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
-                        />
-                        <span className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-gray-light font-bold text-xxs">
-                          SEC
-                        </span>
-                      </div>
-                    </div>
-                    <div>
-                      <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-                        Points
-                      </label>
-                      <input
-                        type="number"
-                        min={1}
-                        step={1}
-                        value={q.points ?? 1}
-                        onChange={(e) => {
-                          const next = Math.floor(Number(e.target.value));
-                          const safe =
-                            Number.isFinite(next) && next >= 1 ? next : 1;
-                          updateQuestion(q.id, { points: safe });
-                        }}
-                        className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-bold focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-                      Question Type
-                    </label>
-                    <div className="inline-flex rounded-xl border border-brand-blue-primary/20 bg-white overflow-hidden">
-                      {(
-                        [
-                          { value: 'MC', label: 'Multiple Choice' },
-                          { value: 'FIB', label: 'Fill in the Blank' },
-                          { value: 'MA', label: 'Multi-Answer' },
-                        ] as const
-                      ).map((opt) => {
-                        const active = (q.type ?? 'MC') === opt.value;
-                        return (
-                          <button
-                            key={opt.value}
-                            type="button"
-                            aria-pressed={active}
-                            onClick={() => {
-                              if (opt.value === q.type) return;
-                              // Preserve non-empty distractor rows across
-                              // type changes so a teacher who's already typed
-                              // a few options doesn't lose their work. Reset
-                              // format-specific encodings (MA pipe-encoding,
-                              // FIB variants, partial-credit flag) so they
-                              // don't bleed into the new type's semantics.
-                              const preservedDistractors = (
-                                q.incorrectAnswers ?? []
-                              ).filter((s) => s.trim().length > 0);
-                              const padTo = (arr: string[], n: number) => {
-                                const out = [...arr];
-                                while (out.length < n) out.push('');
-                                return out;
-                              };
-                              updateQuestion(q.id, {
-                                type: opt.value,
-                                correctAnswer: '',
-                                incorrectAnswers:
-                                  opt.value === 'FIB'
-                                    ? []
-                                    : padTo(preservedDistractors, 3),
-                                acceptableVariants: undefined,
-                                allowPartialCredit: false,
-                              });
-                            }}
-                            className={
-                              'px-3 py-1.5 text-xs font-bold transition ' +
-                              (active
-                                ? 'bg-brand-blue-primary text-white'
-                                : 'text-brand-blue-dark hover:bg-brand-blue-lighter/40')
-                            }
-                          >
-                            {opt.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-                      Question Prompt
-                    </label>
-                    <textarea
-                      value={q.text}
-                      onChange={(e) =>
-                        updateQuestion(q.id, { text: e.target.value })
-                      }
-                      rows={2}
-                      className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-medium resize-none focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
-                      placeholder="Enter your question here…"
-                    />
-                  </div>
-
-                  {/* Type-specific sub-form */}
-                  {(q.type ?? 'MC') === 'MC' && (
-                    <McSubForm
-                      question={q}
-                      onChangeCorrect={(v) =>
-                        updateQuestion(q.id, { correctAnswer: v })
-                      }
-                      onChangeIncorrect={(idx, v) =>
-                        updateIncorrect(q.id, idx, v)
-                      }
-                    />
-                  )}
-                  {q.type === 'FIB' && (
-                    <FibSubForm
-                      question={q}
-                      onChangeCorrect={(v) =>
-                        updateQuestion(q.id, { correctAnswer: v })
-                      }
-                      onChangeVariants={(variants) =>
-                        updateQuestion(q.id, { acceptableVariants: variants })
-                      }
-                    />
-                  )}
-                  {q.type === 'MA' && (
-                    <MaSubForm
-                      question={q}
-                      onUpdate={(patch) => updateQuestion(q.id, patch)}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          );
-        })}
-
-        <button
-          onClick={addQuestion}
-          className="w-full py-4 border-2 border-dashed border-brand-blue-primary/20 hover:border-brand-blue-primary/40 hover:bg-brand-blue-lighter/30 rounded-2xl text-brand-blue-primary font-black flex flex-col items-center justify-center gap-1 transition-all active:scale-95"
-        >
-          <div className="bg-brand-blue-primary text-white rounded-full p-1 shadow-sm">
-            <Plus className="w-5 h-5" />
-          </div>
-          <span className="text-sm">ADD NEW QUESTION</span>
-        </button>
-      </div>
-
-      {showAiPrompt && canUseAi && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-label="Magic Question Generator"
-          className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
-        >
-          <div className="w-full max-w-sm space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-                <Sparkles className="w-5 h-5" /> Magic Question Generator
-              </h4>
-              <button
-                onClick={() => setShowAiPrompt(false)}
-                className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
-                aria-label="Close Magic Generator"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
-              Gemini will watch the video and generate questions. They will be
-              appended to the current list.
-            </p>
-            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">
-              <div className="flex justify-between items-center text-xs font-bold text-indigo-700/70 uppercase">
-                <span>Question Count</span>
-                <span>{aiQuestionCount}</span>
-              </div>
-              <input
-                type="range"
-                min={3}
-                max={15}
-                value={aiQuestionCount}
-                onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
-                className="w-full accent-indigo-600"
-                aria-label="Target question count"
-              />
-            </div>
-            {aiError && (
-              <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-center gap-2 text-sm text-brand-red-dark font-bold">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                {aiError}
-              </div>
-            )}
-            <button
-              onClick={() => void handleAiGenerate()}
-              disabled={aiGenerating || !youtubeUrl.trim()}
-              className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center justify-center gap-2"
-            >
-              {aiGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" /> Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4" /> Generate Questions
-                </>
-              )}
-            </button>
-          </div>
-        </div>
-      )}
-    </EditorModalShell>
-  );
-};
-
-/* ─── Type-specific sub-forms ─────────────────────────────────────────────── */
-
-interface McSubFormProps {
-  question: VideoActivityQuestion;
-  onChangeCorrect: (v: string) => void;
-  onChangeIncorrect: (idx: number, v: string) => void;
-}
-
-const McSubForm: React.FC<McSubFormProps> = ({
-  question,
-  onChangeCorrect,
-  onChangeIncorrect,
-}) => (
-  <>
-    <div>
-      <label className="block font-bold text-emerald-700 mb-1 text-xs">
-        Correct Answer
-      </label>
-      <input
-        type="text"
-        value={question.correctAnswer}
-        onChange={(e) => onChangeCorrect(e.target.value)}
-        className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
-        placeholder="Enter the correct answer"
-      />
-    </div>
-
-    <div className="space-y-2">
-      <label className="block font-bold text-brand-red-primary mb-1 text-xs">
-        Distractors (Incorrect Options)
-      </label>
-      <div className="grid gap-2">
-        {(question.incorrectAnswers.length === 0
-          ? ['', '', '']
-          : question.incorrectAnswers
-        ).map((ans, idx) => (
-          <input
-            key={idx}
-            type="text"
-            value={ans}
-            onChange={(e) => onChangeIncorrect(idx, e.target.value)}
-            placeholder={`Distractor ${idx + 1}`}
-            className="flex-1 px-3 py-1.5 bg-white border border-brand-red-primary/10 rounded-xl text-brand-blue-dark font-medium focus:outline-none focus:border-brand-red-primary shadow-sm text-sm"
-          />
-        ))}
-      </div>
-    </div>
-  </>
-);
-
-interface FibSubFormProps {
-  question: VideoActivityQuestion;
-  onChangeCorrect: (v: string) => void;
-  onChangeVariants: (variants: string[] | undefined) => void;
-}
-
-const FibSubForm: React.FC<FibSubFormProps> = ({
-  question,
-  onChangeCorrect,
-  onChangeVariants,
-}) => {
-  const variantsText = (question.acceptableVariants ?? []).join('\n');
-  return (
-    <>
-      <div>
-        <label className="block font-bold text-emerald-700 mb-1 text-xs">
-          Canonical Answer
-        </label>
-        <input
-          type="text"
-          value={question.correctAnswer}
-          onChange={(e) => onChangeCorrect(e.target.value)}
-          className="w-full px-3 py-2 bg-white border-2 border-emerald-500/20 rounded-xl text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 shadow-sm text-sm"
-          placeholder="The expected answer"
+      footerExtras={
+        canUseAi ? (
+          <button
+            onClick={() => editorState.setShowAiPrompt(true)}
+            disabled={!youtubeUrl.trim()}
+            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+            title={
+              youtubeUrl.trim()
+                ? 'Generate questions with AI'
+                : 'Paste a YouTube URL first'
+            }
+          >
+            <Sparkles className="w-4 h-4" />
+            Draft with AI
+          </button>
+        ) : null
+      }
+      contextRatio={56}
+      contextPane={
+        <VideoActivityEditorContextPane
+          state={editorState}
+          canUseAi={canUseAi}
+          folders={folders}
+          folderId={folderId}
+          onFolderChange={onFolderChange}
         />
-      </div>
-      <div>
-        <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-          Acceptable Variants{' '}
-          <span className="font-normal text-brand-blue-primary/50">
-            (one per line, optional)
-          </span>
-        </label>
-        <textarea
-          value={variantsText}
-          onChange={(e) => {
-            const lines = e.target.value
-              .split('\n')
-              .map((s) => s.trim())
-              .filter((s) => s.length > 0);
-            onChangeVariants(lines.length > 0 ? lines : undefined);
-          }}
-          rows={3}
-          placeholder={'color\ncolour'}
-          className="w-full px-3 py-2 bg-white border border-brand-blue-primary/20 rounded-xl text-brand-blue-dark font-medium resize-none focus:outline-none focus:border-brand-blue-primary shadow-sm text-sm"
+      }
+      detailPane={
+        <VideoActivityEditorDetailPane
+          state={editorState}
+          canUseAi={canUseAi}
         />
-        <p className="text-xxs text-slate-500 mt-1">
-          Whitespace + case are ignored automatically. Add variants for spelling
-          differences, synonyms, or alternate phrasings.
-        </p>
-      </div>
-    </>
-  );
-};
-
-interface MaSubFormProps {
-  question: VideoActivityQuestion;
-  onUpdate: (patch: Partial<VideoActivityQuestion>) => void;
-}
-
-interface MaRow {
-  text: string;
-  isCorrect: boolean;
-}
-
-/**
- * Build the local row state from the wire format. The wire format
- * (`correctAnswer` + `incorrectAnswers`) is disjoint, so we render
- * correct rows first, then incorrect, then pad. This is the ONLY
- * place we read the wire format directly — every subsequent edit
- * mutates the local row state and re-derives the wire format.
- */
-function rowsFromQuestion(question: VideoActivityQuestion): MaRow[] {
-  const correct = (question.correctAnswer ?? '')
-    .split('|')
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0);
-  const incorrect = (question.incorrectAnswers ?? []).filter(
-    (s) => s.trim().length > 0
-  );
-  const rows: MaRow[] = [
-    ...correct.map((text) => ({ text, isCorrect: true })),
-    ...incorrect.map((text) => ({ text, isCorrect: false })),
-  ];
-  // Pad to at least 4 rows so the teacher always has a place to type.
-  while (rows.length < 4) rows.push({ text: '', isCorrect: false });
-  return rows;
-}
-
-/**
- * MA editor: a single combined "options" list where the teacher checks
- * each correct option. Persists the correct selections into
- * `correctAnswer` as `'opt1|opt2|opt3'` and the unchecked options into
- * `incorrectAnswers` — wire format aligned with Matching/Ordering and the
- * shared grader's set-compare.
- *
- * **Why local state for rows?** Using `correctAnswer.split('|')` directly
- * for rendering meant every toggle re-partitioned the visible row order
- * (because `correctSelections.length` changed), causing rows to visibly
- * jump positions. We hold the row order in component state, decoupled
- * from persistence, so toggling only flips `isCorrect` without reordering.
- */
-const MaSubForm: React.FC<MaSubFormProps> = ({ question, onUpdate }) => {
-  const [rows, setRows] = useState<MaRow[]>(() => rowsFromQuestion(question));
-
-  // If the question identity changes (different question expanded), reset
-  // the local row state. Adjusting state during render — same pattern used
-  // elsewhere in this file for editor-prop changes.
-  const [prevQuestionId, setPrevQuestionId] = useState(question.id);
-  if (prevQuestionId !== question.id) {
-    setPrevQuestionId(question.id);
-    setRows(rowsFromQuestion(question));
-  }
-
-  const persist = (next: MaRow[]): void => {
-    const correct: string[] = [];
-    const incorrect: string[] = [];
-    next.forEach((r) => {
-      const trimmed = r.text.trim();
-      if (trimmed.length === 0) return;
-      if (r.isCorrect) correct.push(trimmed);
-      else incorrect.push(trimmed);
-    });
-    onUpdate({
-      correctAnswer: correct.join('|'),
-      incorrectAnswers: incorrect,
-    });
-  };
-
-  const setRowsAndPersist = (next: MaRow[]) => {
-    setRows(next);
-    persist(next);
-  };
-
-  const setOptionAt = (idx: number, value: string) => {
-    setRowsAndPersist(
-      rows.map((r, i) => (i === idx ? { ...r, text: value } : r))
-    );
-  };
-
-  const isCheckedAt = (idx: number): boolean => rows[idx]?.isCorrect ?? false;
-
-  const toggleAt = (idx: number) => {
-    setRowsAndPersist(
-      rows.map((r, i) => (i === idx ? { ...r, isCorrect: !r.isCorrect } : r))
-    );
-  };
-
-  // Detect a teacher typing a `|` into an option text — the wire format
-  // would silently corrupt because `correctAnswer.split('|')` would treat
-  // it as a separator. Render an inline warning rather than a toast so the
-  // teacher sees it next to the offending input.
-  const hasPipeInOption = rows.some((r) => r.text.includes('|'));
-
-  return (
-    <>
-      <div className="space-y-2">
-        <label className="block font-bold text-brand-blue-dark mb-1 text-xs">
-          Options{' '}
-          <span className="font-normal text-brand-blue-primary/50">
-            (check each correct selection)
-          </span>
-        </label>
-        <div className="grid gap-2">
-          {rows.map((row, idx) => {
-            const checked = isCheckedAt(idx);
-            return (
-              <div key={idx} className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => toggleAt(idx)}
-                  aria-pressed={checked}
-                  aria-label={`Mark option ${idx + 1} ${checked ? 'incorrect' : 'correct'}`}
-                  className={`shrink-0 w-7 h-7 rounded-md border-2 flex items-center justify-center transition-colors ${
-                    checked
-                      ? 'border-emerald-500 bg-emerald-500 text-white'
-                      : 'border-slate-300 bg-white text-slate-400 hover:border-emerald-400'
-                  }`}
-                >
-                  {checked ? '✓' : ''}
-                </button>
-                <input
-                  type="text"
-                  value={row.text}
-                  onChange={(e) => setOptionAt(idx, e.target.value)}
-                  placeholder={`Option ${idx + 1}`}
-                  className={`flex-1 px-3 py-1.5 bg-white border rounded-xl font-medium focus:outline-none shadow-sm text-sm ${
-                    checked
-                      ? 'border-emerald-500/30 text-emerald-800 focus:border-emerald-500'
-                      : 'border-brand-red-primary/10 text-brand-blue-dark focus:border-brand-red-primary'
-                  }`}
-                />
-              </div>
-            );
-          })}
-        </div>
-        {hasPipeInOption && (
-          <p className="text-xxs text-amber-600 font-medium pl-9">
-            Option text contains a pipe (<code>|</code>) character, which is
-            reserved as the wire format separator. Replace it with another
-            character before saving — otherwise the question will grade
-            incorrectly.
-          </p>
-        )}
-      </div>
-
-      <label className="flex items-center gap-2 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={question.allowPartialCredit ?? false}
-          onChange={(e) => onUpdate({ allowPartialCredit: e.target.checked })}
-          className="rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary"
-        />
-        <span className="text-sm font-bold text-brand-blue-dark">
-          Allow partial credit
-        </span>
-        <span className="text-xxs text-slate-500">
-          (proportional to correct ∩ given)
-        </span>
-      </label>
-    </>
+      }
+      overlay={<VideoActivityAiOverlay state={editorState} />}
+    />
   );
 };

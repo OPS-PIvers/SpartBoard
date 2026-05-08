@@ -6,13 +6,14 @@
  */
 
 import React, { useMemo, useState } from 'react';
-import { Code2, FileText, Loader2, Sparkles, X } from 'lucide-react';
+import { Code2, FileText, Sparkles } from 'lucide-react';
 import { LibraryFolder, MiniAppItem, TextConfig } from '@/types';
 import { EditorModalShell } from '@/components/common/EditorModalShell';
 import { FolderSelectField } from '@/components/common/library/FolderSelectField';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { DriveFileAttachment } from '@/components/common/DriveFileAttachment';
+import { AIGeneratorOverlay } from '@/components/common/AIGeneratorOverlay';
 import { generateMiniAppCode, buildPromptWithFileContext } from '@/utils/ai';
 
 interface MiniAppEditorModalProps {
@@ -48,7 +49,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Magic Generator state
+  // AI generator state
   const [prompt, setPrompt] = useState('');
   const [showPromptInput, setShowPromptInput] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -99,7 +100,7 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
     }
   };
 
-  // --- Magic Generator ---
+  // --- AI generator ---
   const handleGenerate = async () => {
     if (!prompt.trim()) return;
     setIsGenerating(true);
@@ -187,78 +188,46 @@ export const MiniAppEditorModal: React.FC<MiniAppEditorModalProps> = ({
       bodyClassName="px-6 py-5 bg-slate-50/50"
     >
       <div className="flex flex-col gap-4 h-full relative">
-        {/* Magic Generator Overlay */}
-        {showPromptInput && (
-          <div
-            className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
-            onKeyDown={(e) => {
-              if (e.key === 'Escape') setShowPromptInput(false);
-            }}
-          >
-            <div className="w-full max-w-sm space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-black text-indigo-600 flex items-center gap-2 uppercase tracking-tight">
-                  <Sparkles className="w-5 h-5" /> Magic Generator
-                </h4>
-                <button
-                  onClick={() => setShowPromptInput(false)}
-                  className="p-1 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600"
-                  aria-label="Close Magic Generator"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-              <p className="text-xs text-slate-500 font-bold uppercase tracking-widest opacity-60">
-                Describe the mini-app you want to build.
-              </p>
+        {/* AI generator Overlay */}
+        <AIGeneratorOverlay
+          open={showPromptInput}
+          onClose={() => setShowPromptInput(false)}
+          title="Draft with AI"
+          description="Describe the mini-app you want to build."
+          headerExtras={
+            <button
+              onClick={importFromNotes}
+              className="text-xxs font-black uppercase text-indigo-500 hover:text-indigo-600 flex items-center gap-1 transition-colors"
+              title="Import prompt from a Notes widget on your dashboard"
+            >
+              <FileText className="w-3 h-3" /> Import from Notes
+            </button>
+          }
+          generating={isGenerating}
+          canGenerate={!!prompt.trim()}
+          onGenerate={() => void handleGenerate()}
+          generateLabel="Generate Code"
+        >
+          <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="e.g. A team randomizer for 5 groups with a spinning wheel animation and confetti effect."
+            className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+            autoFocus
+            aria-label="Describe your mini-app"
+          />
+          {canAccessFeature('ai-file-context') && (
+            <DriveFileAttachment
+              onFileContent={(content, name) => {
+                setFileContext(content);
+                setFileName(name);
+              }}
+              disabled={isGenerating}
+            />
+          )}
+        </AIGeneratorOverlay>
 
-              <div className="flex justify-end">
-                <button
-                  onClick={importFromNotes}
-                  className="text-xxs font-black uppercase text-indigo-500 hover:text-indigo-600 flex items-center gap-1 transition-colors"
-                  title="Import prompt from a Notes widget on your dashboard"
-                >
-                  <FileText className="w-3 h-3" /> Import from Notes
-                </button>
-              </div>
-
-              <textarea
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="e.g. A team randomizer for 5 groups with a spinning wheel animation and confetti effect."
-                className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
-                autoFocus
-                aria-label="Describe your mini-app"
-              />
-              {canAccessFeature('ai-file-context') && (
-                <DriveFileAttachment
-                  onFileContent={(content, name) => {
-                    setFileContext(content);
-                    setFileName(name);
-                  }}
-                  disabled={isGenerating}
-                />
-              )}
-              <button
-                onClick={handleGenerate}
-                disabled={isGenerating || !prompt.trim()}
-                className="w-full py-3 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl font-black text-xs uppercase tracking-widest shadow-lg shadow-indigo-200 transition-all flex items-center justify-center gap-2"
-              >
-                {isGenerating ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" /> Generating...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="w-4 h-4" /> Generate Code
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Title + Magic button */}
+        {/* Title + AI generator button */}
         <div className="flex gap-2">
           <div className="flex-1">
             <label className="block text-xxs font-black uppercase text-slate-400 tracking-widest mb-1">

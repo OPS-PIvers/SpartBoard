@@ -8,6 +8,20 @@ interface EditorModalShellProps {
   isOpen: boolean;
   title: string;
   subtitle?: React.ReactNode;
+  /**
+   * When provided, the title renders as an inline-editable input bound to
+   * this callback. Lets editors reuse the header as the title input
+   * surface and drop the duplicate title field from their body.
+   */
+  onTitleChange?: (next: string) => void;
+  /** Placeholder for the editable title input. Ignored when `onTitleChange` is omitted. */
+  titlePlaceholder?: string;
+  /**
+   * Optional right-aligned slot in the header (renders between the
+   * title and the close button). Used for compact actions that belong
+   * with metadata rather than the body — e.g. a folder picker icon.
+   */
+  headerExtras?: React.ReactNode;
   isDirty: boolean;
   isSaving?: boolean;
   saveLabel?: string;
@@ -43,6 +57,9 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   isOpen,
   title,
   subtitle,
+  onTitleChange,
+  titlePlaceholder,
+  headerExtras,
   isDirty,
   isSaving = false,
   saveLabel = 'Save',
@@ -52,7 +69,7 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
   onClose,
   confirmDiscardMessage = 'You have unsaved changes. Discard them?',
   confirmDiscardTitle = 'Discard changes?',
-  maxWidth = 'max-w-5xl',
+  maxWidth = 'max-w-7xl',
   className = 'h-[85vh]',
   bodyClassName = 'px-6 py-5',
   saveErrorMessage = 'Could not save your changes. Please try again.',
@@ -104,17 +121,37 @@ export const EditorModalShell: React.FC<EditorModalShellProps> = ({
 
   const customHeader = (
     <div className="flex items-center justify-between gap-4 px-6 py-4 border-b border-slate-200 shrink-0">
-      <div className="flex flex-col min-w-0">
-        <h3
-          id="editor-modal-shell-title"
-          className="font-black text-lg text-slate-800 truncate"
-        >
-          {title}
-        </h3>
+      <div className="flex flex-col min-w-0 flex-1">
+        {onTitleChange ? (
+          <input
+            id="editor-modal-shell-title"
+            type="text"
+            value={title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            placeholder={titlePlaceholder ?? 'Untitled'}
+            // Visually identical to the static h3 fallback below (same font
+            // weight/size/color), but editable and full-width so the user
+            // can rename the item without a duplicate title field in the
+            // editor body. `aria-labelledby` on the modal still resolves
+            // here because the id is preserved.
+            className="font-black text-lg text-slate-800 truncate bg-transparent border-0 focus:outline-none focus:ring-0 placeholder:text-slate-400 placeholder:font-bold w-full p-0"
+            aria-label="Title"
+          />
+        ) : (
+          <h3
+            id="editor-modal-shell-title"
+            className="font-black text-lg text-slate-800 truncate"
+          >
+            {title}
+          </h3>
+        )}
         {subtitle !== undefined && subtitle !== null && (
           <div className="text-xs text-slate-500 mt-0.5">{subtitle}</div>
         )}
       </div>
+      {headerExtras && (
+        <div className="flex items-center gap-2 shrink-0">{headerExtras}</div>
+      )}
       <button
         onClick={() => void requestClose()}
         className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors shrink-0"

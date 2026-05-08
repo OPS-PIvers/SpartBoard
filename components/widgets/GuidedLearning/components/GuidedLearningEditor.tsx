@@ -3,59 +3,65 @@ import React, {
   useRef,
   useCallback,
   useEffect,
-  useMemo,
+  useLayoutEffect,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Upload,
   ImageIcon,
-  Save,
-  X,
   Loader2,
   Plus,
   Clipboard,
   ChevronUp,
   ChevronDown,
   Trash2,
+  MousePointerClick,
+  Activity,
+  ArrowLeftRight,
+  MessageSquare,
+  type LucideIcon,
 } from 'lucide-react';
-import {
-  GuidedLearningSet,
-  GuidedLearningMode,
-  GuidedLearningStep,
-  GuidedLearningSetMetadata,
-  LibraryFolder,
-} from '@/types';
-import { useAuth } from '@/context/useAuth';
-import { useStorage } from '@/hooks/useStorage';
-import { FolderSelectField } from '@/components/common/library/FolderSelectField';
+import { GuidedLearningMode } from '@/types';
+import { SortableList } from '@/components/common/SortableList';
+import { useClickOutside } from '@/hooks/useClickOutside';
+import { Z_INDEX } from '@/config/zIndex';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { calculateImageFootprint } from '../utils/imageUtils';
+import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
 
-/** State emitted by `onStateChange` so a parent modal can track dirty state. */
-export interface GuidedLearningEditorState {
-  title: string;
-  description: string;
-  mode: GuidedLearningMode;
-  imageUrls: string[];
-  steps: GuidedLearningStep[];
-  uploading: boolean;
-}
-
-interface Props {
-  /** Existing set to edit, or null for new */
-  existingSet: GuidedLearningSet | null;
-  existingMeta: GuidedLearningSetMetadata | null;
-  onSave: (set: GuidedLearningSet, driveFileId?: string) => Promise<void>;
-  onCancel: () => void;
-  saving: boolean;
-  /** When true, hides the built-in header (Cancel/Save bar) — the parent modal provides chrome. */
-  headless?: boolean;
-  /** Fires whenever editable fields change so a parent modal can compute isDirty. */
-  onStateChange?: (state: GuidedLearningEditorState) => void;
-  /** Optional folder picker. When `folders` and `onFolderChange` are both provided, a folder-select field is shown. */
-  folders?: LibraryFolder[];
-  folderId?: string | null;
-  onFolderChange?: (folderId: string | null) => void;
-}
+/**
+ * Compute viewport-relative coordinates for a popover anchored under a
+ * trigger button. Clamped 8px in from the right edge so the popover
+ * never tucks under the modal close button on tight widths.
+ */
+const usePopoverPosition = (
+  open: boolean,
+  triggerRef: React.RefObject<HTMLButtonElement | null>,
+  width: number
+): { top: number; left: number } | null => {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const update = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const viewportW =
+        typeof window !== 'undefined' ? window.innerWidth : rect.right;
+      const left = Math.max(8, Math.min(rect.left, viewportW - width - 8));
+      setPos({ top: rect.bottom + 4, left });
+    };
+    update();
+    // Reposition on resize / scroll so the popover stays anchored if the
+    // user resizes the modal or scrolls the chip into view.
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, triggerRef, width]);
+  return pos;
+};
 
 const MODE_OPTIONS: {
   value: GuidedLearningMode;
@@ -71,53 +77,330 @@ const MODE_OPTIONS: {
   { value: 'explore', label: 'Explore', desc: 'Student clicks any hotspot' },
 ];
 
-export const GuidedLearningEditor: React.FC<Props> = ({
-  existingSet,
-  existingMeta,
-  onSave,
-  onCancel,
-  saving,
-  headless,
-  onStateChange,
-  folders,
-  folderId,
-  onFolderChange,
+const PULSE_OPTIONS: {
+  value: 'consistent' | 'reminder' | 'off';
+  label: string;
+  desc: string;
+}[] = [
+  {
+    value: 'consistent',
+    label: 'Consistent',
+    desc: 'Continuous breathing pulse so hotspots are always discoverable.',
+  },
+  {
+    value: 'reminder',
+    label: 'Reminder',
+    desc: 'A brief shake every few seconds to draw the eye occasionally.',
+  },
+  {
+    value: 'off',
+    label: 'Off',
+    desc: 'No animation — hotspots stay still.',
+  },
+];
+
+const TRANSITION_OPTIONS: {
+  value: 'none' | 'slide' | 'fade';
+  label: string;
+  desc: string;
+}[] = [
+  {
+    value: 'none',
+    label: 'None',
+    desc: 'Instant swap when changing images — fastest, no animation.',
+  },
+  {
+    value: 'slide',
+    label: 'Slide',
+    desc: 'New image slides in from the right; previous image exits left.',
+  },
+  {
+    value: 'fade',
+    label: 'Fade',
+    desc: 'Cross-dissolve between the previous and new image.',
+  },
+];
+
+// ─── SettingChip (compact "Label: value ▾" with popover) ─────────────────────
+
+interface SettingChipOption<T extends string> {
+  value: T;
+  label: string;
+  desc: string;
+}
+
+interface SettingChipProps<T extends string> {
+  label: string;
+  /**
+   * Leading icon that identifies what the chip controls. The verbose
+   * uppercase label is intentionally replaced by an icon so the chip row
+   * fits in narrower modal widths; `label` is preserved as the tooltip.
+   */
+  icon: LucideIcon;
+  value: T;
+  options: SettingChipOption<T>[];
+  onChange: (next: T) => void;
+}
+
+/**
+ * Compact "Label: value ▾" chip that opens a small popover of options.
+ * Replaces a labeled segmented row when the row would consume more
+ * vertical space than the choice deserves (e.g. set-level display
+ * settings the teacher tweaks once and forgets).
+ */
+const SETTING_CHIP_POPOVER_WIDTH = 220;
+
+function SettingChip<T extends string>({
+  label,
+  icon: Icon,
+  value,
+  options,
+  onChange,
+}: SettingChipProps<T>) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  // Click-outside listens on both the chip container AND the portal'd
+  // popover so clicks inside the popover don't dismiss it.
+  useClickOutside(containerRef, () => setOpen(false), [popoverRef]);
+
+  const current = options.find((o) => o.value === value);
+  const currentLabel = current?.label ?? value;
+  const pos = usePopoverPosition(open, triggerRef, SETTING_CHIP_POPOVER_WIDTH);
+
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title={`${label}${current?.desc ? ` — ${current.desc}` : ''}`}
+        aria-label={`${label}: ${currentLabel}`}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
+          open
+            ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+        }`}
+      >
+        <Icon className="w-3.5 h-3.5 text-slate-500" aria-hidden="true" />
+        <span>{currentLabel}</span>
+        <ChevronDown className="w-3 h-3 text-slate-400" />
+      </button>
+      {open &&
+        pos &&
+        typeof document !== 'undefined' &&
+        // Portal'd to document.body so the popover escapes the modal
+        // body's `overflow-hidden` and the chip row's `overflow-x-auto`.
+        // Without this the menu was being clipped by ancestor scroll
+        // containers and inaccessible.
+        createPortal(
+          <div
+            ref={popoverRef}
+            role="menu"
+            data-click-outside-ignore="true"
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: SETTING_CHIP_POPOVER_WIDTH,
+              zIndex: Z_INDEX.modalContent,
+            }}
+          >
+            {options.map((opt) => {
+              const isCurrent = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors ${
+                    isCurrent
+                      ? 'bg-brand-blue-lighter/40 text-brand-blue-dark'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="font-bold text-xs">{opt.label}</span>
+                  <span className="text-xxs text-slate-500 leading-snug">
+                    {opt.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+}
+
+// ─── WelcomeChip (compact "Welcome: On/Off ▾" with a textarea popover) ───────
+
+interface WelcomeChipProps {
+  enabled: boolean;
+  message: string;
+  onEnabledChange: (next: boolean) => void;
+  onMessageChange: (next: string) => void;
+}
+
+/**
+ * Compact chip that surfaces the welcome-screen toggle + message
+ * textarea in a popover instead of an always-visible block. Same
+ * dismiss-on-outside-click contract as `SettingChip`. Keeping the
+ * textarea in a popover lets the editor body stay short — the image
+ * canvas keeps its real estate even when a welcome message is set.
+ */
+const WELCOME_CHIP_POPOVER_WIDTH = 320;
+
+const WelcomeChip: React.FC<WelcomeChipProps> = ({
+  enabled,
+  message,
+  onEnabledChange,
+  onMessageChange,
 }) => {
-  const { user } = useAuth();
-  const { uploading, uploadHotspotImage } = useStorage();
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useClickOutside(containerRef, () => setOpen(false), [popoverRef]);
 
-  const [title, setTitle] = useState(existingSet?.title ?? '');
-  const [description, setDescription] = useState(
-    existingSet?.description ?? ''
-  );
-  const [mode, setMode] = useState<GuidedLearningMode>(
-    existingSet?.mode ?? 'structured'
-  );
-  const [imageUrls, setImageUrls] = useState<string[]>(
-    existingSet?.imageUrls ?? []
-  );
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [steps, setSteps] = useState<GuidedLearningStep[]>(
-    existingSet?.steps ?? []
-  );
-  const [expandedStepId, setExpandedStepId] = useState<string | null>(null);
-  const [imageError, setImageError] = useState('');
-  const [addingStep, setAddingStep] = useState(false);
+  const trimmed = message.trim();
+  // The chip's status mirrors what the student app actually does at
+  // render time: an enabled toggle without content falls back to the
+  // default subtitle, so we surface it as "Off" here too.
+  const status = enabled && trimmed.length > 0 ? 'On' : 'Off';
+  const pos = usePopoverPosition(open, triggerRef, WELCOME_CHIP_POPOVER_WIDTH);
 
-  // Notify parent modal of state changes for dirty-check computation
-  useEffect(() => {
-    onStateChange?.({ title, description, mode, imageUrls, steps, uploading });
-  }, [title, description, mode, imageUrls, steps, uploading, onStateChange]);
+  return (
+    <div ref={containerRef} className="relative shrink-0">
+      <button
+        ref={triggerRef}
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        title="Welcome screen — customize what students see before they start"
+        aria-label={`Welcome screen: ${status}`}
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border text-xs font-bold whitespace-nowrap transition-colors ${
+          open || status === 'On'
+            ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+            : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+        }`}
+      >
+        <MessageSquare
+          className="w-3.5 h-3.5 text-slate-500"
+          aria-hidden="true"
+        />
+        <span>{status}</span>
+        <ChevronDown className="w-3 h-3 text-slate-400" />
+      </button>
+      {open &&
+        pos &&
+        typeof document !== 'undefined' &&
+        // Portal'd to document.body so the popover escapes the modal
+        // body's `overflow-hidden` and the chip row's `overflow-x-auto`.
+        createPortal(
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-label="Welcome screen settings"
+            data-click-outside-ignore="true"
+            className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: WELCOME_CHIP_POPOVER_WIDTH,
+              zIndex: Z_INDEX.modalContent,
+            }}
+          >
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => onEnabledChange(e.target.checked)}
+                className="accent-brand-blue-primary w-4 h-4 mt-0.5"
+              />
+              <span>
+                <span className="font-bold text-xs">Show welcome screen</span>
+                <span className="block text-xxs font-medium text-slate-500 mt-0.5 leading-snug">
+                  Replaces the default mode/step subtitle on the student start
+                  screen with your custom message and changes the Start button
+                  to &quot;Get started&quot;.
+                </span>
+              </span>
+            </label>
+            <textarea
+              value={message}
+              onChange={(e) => onMessageChange(e.target.value)}
+              disabled={!enabled}
+              rows={3}
+              placeholder="e.g. Welcome to the Civil War tour. Click pins to explore each station."
+              className="mt-2 w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
+            />
+          </div>,
+          document.body
+        )}
+    </div>
+  );
+};
 
+// ─── Context pane ────────────────────────────────────────────────────────────
+
+interface PaneProps {
+  state: GuidedLearningEditorController;
+}
+
+export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
+  state,
+}) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
+  // Title + folder are owned by the modal shell now (editable header
+  // input + header folder icon button), so the body destructures only
+  // what it still renders.
+  const {
+    description,
+    setDescription,
+    mode,
+    setMode,
+    hotspotPulse,
+    setHotspotPulse,
+    imageTransition,
+    setImageTransition,
+    welcomeEnabled,
+    setWelcomeEnabled,
+    welcomeMessage,
+    setWelcomeMessage,
+    imageUrls,
+    currentImageIndex,
+    setCurrentImageIndex,
+    uploading,
+    uploadFromFiles,
+    uploadFromClipboard,
+    deleteImage,
+    moveImage,
+    imageError,
+    addingStep,
+    setAddingStep,
+    addStepAt,
+    setSelectedStepId,
+    selectedStepId,
+    steps,
+    updateStep,
+    currentImageSteps,
+  } = state;
+
   const currentImageUrl = imageUrls[currentImageIndex] ?? '';
-  const currentImageSteps = useMemo(
-    () => steps.filter((step) => step.imageIndex === currentImageIndex),
-    [steps, currentImageIndex]
-  );
 
   const [imgBounds, setImgBounds] = useState<{
     offsetLeft: number;
@@ -131,132 +414,29 @@ export const GuidedLearningEditor: React.FC<Props> = ({
       setImgBounds(null);
       return;
     }
-
     const footprint = calculateImageFootprint(
       imageRef.current.naturalWidth,
       imageRef.current.naturalHeight,
       imageContainerRef.current.getBoundingClientRect().width,
       imageContainerRef.current.getBoundingClientRect().height
     );
-
     setImgBounds(footprint);
   }, []);
 
   useEffect(() => {
     if (!imageContainerRef.current) return;
-    const ro = new ResizeObserver(() => {
-      measureImage();
-    });
+    const ro = new ResizeObserver(() => measureImage());
     ro.observe(imageContainerRef.current);
     return () => ro.disconnect();
   }, [currentImageUrl, measureImage]);
 
-  const uploadImages = async (files: File[]) => {
-    if (!user || files.length === 0) return;
-    setImageError('');
-
-    try {
-      const uploadedUrls = await Promise.all(
-        files.map((file) => uploadHotspotImage(user.uid, file))
-      );
-      if (uploadedUrls.length > 0) {
-        setImageUrls((prev) => [...prev, ...uploadedUrls]);
-        setCurrentImageIndex((prev) =>
-          Math.max(prev, imageUrls.length + uploadedUrls.length - 1)
-        );
-      }
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Upload failed';
-      setImageError(msg);
-    }
-  };
-
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
-    await uploadImages(files);
+    await uploadFromFiles(files);
     e.target.value = '';
   };
 
-  const handleDeleteImage = (deleteIndex: number) => {
-    const updatedImageUrls = imageUrls.filter(
-      (_, index) => index !== deleteIndex
-    );
-    setImageUrls(updatedImageUrls);
-    setCurrentImageIndex((curr) => {
-      if (updatedImageUrls.length === 0) return 0;
-      if (curr === deleteIndex)
-        return Math.min(deleteIndex, updatedImageUrls.length - 1);
-      if (curr > deleteIndex) return curr - 1;
-      return curr;
-    });
-
-    setSteps((prev) =>
-      prev
-        .filter((step) => step.imageIndex !== deleteIndex)
-        .map((step) => ({
-          ...step,
-          imageIndex:
-            step.imageIndex > deleteIndex
-              ? step.imageIndex - 1
-              : step.imageIndex,
-        }))
-    );
-  };
-
-  const handleMoveImage = (fromIndex: number, direction: -1 | 1) => {
-    const toIndex = fromIndex + direction;
-    if (toIndex < 0 || toIndex >= imageUrls.length) return;
-
-    setImageUrls((prev) => {
-      const updated = [...prev];
-      [updated[fromIndex], updated[toIndex]] = [
-        updated[toIndex],
-        updated[fromIndex],
-      ];
-      return updated;
-    });
-
-    setSteps((prev) =>
-      prev.map((step) => {
-        if (step.imageIndex === fromIndex)
-          return { ...step, imageIndex: toIndex };
-        if (step.imageIndex === toIndex)
-          return { ...step, imageIndex: fromIndex };
-        return step;
-      })
-    );
-
-    setCurrentImageIndex((prev) => {
-      if (prev === fromIndex) return toIndex;
-      if (prev === toIndex) return fromIndex;
-      return prev;
-    });
-  };
-
-  // Paste from clipboard
-  const handlePaste = async () => {
-    try {
-      const items = await navigator.clipboard.read();
-      for (const item of items) {
-        for (const type of item.types) {
-          if (type.startsWith('image/')) {
-            const blob = await item.getType(type);
-            const file = new File([blob], 'pasted-image.png', { type });
-            await uploadImages([file]);
-            return;
-          }
-        }
-      }
-      setImageError('No image found in clipboard.');
-    } catch {
-      setImageError(
-        'Could not read clipboard. Try using the file upload instead.'
-      );
-    }
-  };
-
-  // Click on image to add a step
   const handleImageClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (!addingStep || !imageContainerRef.current || !imgBounds) return;
     const containerRect = imageContainerRef.current.getBoundingClientRect();
@@ -282,522 +462,533 @@ export const GuidedLearningEditor: React.FC<Props> = ({
       2,
       Math.min(98, ((e.clientY - top) / imgBounds.height) * 100)
     );
-
-    const newStep: GuidedLearningStep = {
-      id: crypto.randomUUID(),
-      xPct,
-      yPct,
-      imageIndex: currentImageIndex,
-      interactionType: 'text-popover',
-      showOverlay: 'none',
-      text: '',
-    };
-    setSteps((prev) => [...prev, newStep]);
-    setExpandedStepId(newStep.id);
-    setAddingStep(false);
-  };
-
-  const handleSave = async () => {
-    if (!title.trim()) return;
-    const now = Date.now();
-    const setId = existingSet?.id ?? crypto.randomUUID();
-    const set: GuidedLearningSet = {
-      id: setId,
-      title: title.trim(),
-      description: description.trim() || undefined,
-      imageUrls,
-      steps,
-      mode,
-      createdAt: existingSet?.createdAt ?? now,
-      updatedAt: now,
-      authorUid: user?.uid,
-    };
-    await onSave(set, existingMeta?.driveFileId);
+    addStepAt(xPct, yPct);
   };
 
   return (
-    <div className="h-full flex flex-col bg-slate-900">
-      {!headless && (
-        <div
-          className="flex items-center border-b border-white/10 flex-shrink-0"
-          style={{
-            gap: 'min(8px, 2cqmin)',
-            padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-          }}
-        >
-          <button
-            onClick={onCancel}
-            className="text-slate-400 hover:text-white transition-colors"
-            aria-label="Cancel"
-          >
-            <X
-              style={{
-                width: 'min(16px, 4cqmin)',
-                height: 'min(16px, 4cqmin)',
-              }}
-            />
-          </button>
+    <div className="flex flex-col h-full">
+      {/* Settings strip — title and folder live in the modal header now,
+          so the body owns only the description and a single chip row. All
+          set-level toggles (Pulse, Image transition, Welcome) collapse
+          into popover chips so the image canvas keeps its vertical
+          real estate. */}
+      <div className="px-5 py-3 border-b border-slate-200 space-y-2.5 bg-white shrink-0">
+        <input
+          type="text"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Add a description (optional)"
+          className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
+        />
+        {/* Chips wrap to a second row when the modal is too narrow to
+            fit them on one — chip popovers are still portal'd to body so
+            they can't be clipped by an overflow ancestor. Setting chips
+            use leading icons (no uppercase label prefix) so the row
+            packs tightly and the wrapped layout stays visually quiet. */}
+        <div className="flex flex-wrap gap-x-1.5 gap-y-1.5 items-center">
+          {MODE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setMode(opt.value)}
+              title={opt.desc}
+              className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                mode === opt.value
+                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
           <span
-            className="text-white font-bold flex-1 truncate"
-            style={{ fontSize: 'min(14px, 4cqmin)' }}
-          >
-            {existingSet ? 'Edit Set' : 'New Set'}
-          </span>
-          <button
-            onClick={handleSave}
-            disabled={
-              saving || uploading || !title.trim() || imageUrls.length === 0
-            }
-            className="flex items-center bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 disabled:text-slate-500 text-white font-bold rounded-lg transition-all active:scale-95"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-              fontSize: 'clamp(11px, 3cqmin, 16px)',
-            }}
-          >
-            {saving || uploading ? (
-              <Loader2
-                className="animate-spin"
-                style={{
-                  width: 'min(12px, 3cqmin)',
-                  height: 'min(12px, 3cqmin)',
-                }}
-              />
-            ) : (
-              <Save
-                style={{
-                  width: 'min(12px, 3cqmin)',
-                  height: 'min(12px, 3cqmin)',
-                }}
-              />
-            )}
-            Save
-          </button>
+            className="shrink-0 mx-0.5 h-4 w-px bg-slate-200"
+            aria-hidden="true"
+          />
+          <SettingChip
+            label="Pulse"
+            icon={Activity}
+            value={hotspotPulse}
+            options={PULSE_OPTIONS}
+            onChange={setHotspotPulse}
+          />
+          <SettingChip
+            label="Transition"
+            icon={ArrowLeftRight}
+            value={imageTransition}
+            options={TRANSITION_OPTIONS}
+            onChange={setImageTransition}
+          />
+          <WelcomeChip
+            enabled={welcomeEnabled}
+            message={welcomeMessage}
+            onEnabledChange={setWelcomeEnabled}
+            onMessageChange={setWelcomeMessage}
+          />
         </div>
-      )}
+      </div>
 
-      <div className="flex-1 overflow-y-auto custom-scrollbar">
-        <div className="space-y-3" style={{ padding: 'min(12px, 3cqmin)' }}>
-          <div>
-            <label
-              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
-            >
-              Title *
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Parts of a Cell"
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
-              style={{
-                padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(13px, 3.5cqmin)',
-              }}
-            />
-          </div>
-
-          <div>
-            <label
-              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
-            >
-              Description (optional)
-            </label>
-            <input
-              type="text"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Brief description of this experience"
-              className="w-full bg-slate-800 border border-slate-600 rounded-lg text-white placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/40"
-              style={{
-                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(12px, 3.2cqmin)',
-              }}
-            />
-          </div>
-
-          {folders && onFolderChange && (
-            <FolderSelectField
-              folders={folders}
-              value={folderId ?? null}
-              onChange={onFolderChange}
-            />
-          )}
-
-          <div>
-            <label
-              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
-            >
-              Mode
-            </label>
-            <div
-              className="grid grid-cols-3"
-              style={{ gap: 'min(6px, 1.5cqmin)' }}
-            >
-              {MODE_OPTIONS.map((opt) => (
-                <button
-                  key={opt.value}
-                  onClick={() => setMode(opt.value)}
-                  className={`rounded-lg text-left border transition-all active:scale-95 ${
-                    mode === opt.value
-                      ? 'border-indigo-400 bg-indigo-500/20'
-                      : 'border-white/10 bg-white/5 hover:border-white/20'
-                  }`}
-                  style={{ padding: 'min(8px, 2cqmin)' }}
-                >
-                  <div
-                    className="text-white font-bold mb-0.5"
-                    style={{ fontSize: 'clamp(11px, 3cqmin, 16px)' }}
-                  >
-                    {opt.label}
-                  </div>
-                  <div
-                    className="text-slate-400 leading-tight"
-                    style={{ fontSize: 'clamp(9px, 2.2cqmin, 12px)' }}
-                  >
-                    {opt.desc}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label
-              className="block text-slate-400 font-bold uppercase tracking-wider mb-1"
-              style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
-            >
-              Images *
-            </label>
-
-            {currentImageUrl ? (
-              <>
-                <div
-                  className="flex flex-wrap"
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    marginBottom: 'min(8px, 2cqmin)',
-                  }}
-                >
-                  {imageUrls.map((url, idx) => (
-                    <button
-                      key={url}
-                      onClick={() => setCurrentImageIndex(idx)}
-                      className={`border rounded px-2 py-1 text-xs ${idx === currentImageIndex ? 'border-indigo-400 text-indigo-300 bg-indigo-500/10' : 'border-white/20 text-slate-300'}`}
-                    >
-                      Image {idx + 1}
-                    </button>
-                  ))}
-                </div>
-
-                <div
-                  ref={imageContainerRef}
-                  className={`relative rounded-lg overflow-hidden bg-slate-800 ${addingStep ? 'cursor-crosshair' : ''}`}
-                  onClick={handleImageClick}
-                  data-no-drag={addingStep ? 'true' : undefined}
-                  style={{ height: 'min(600px, 50cqh)' }}
-                >
-                  <img
-                    ref={imageRef}
-                    src={currentImageUrl}
-                    alt="Current step image"
-                    className="w-full h-full object-contain"
-                    draggable={false}
-                    onLoad={measureImage}
-                  />
-                  {currentImageSteps.map((s, idx) => (
-                    <div
-                      key={s.id}
-                      className="absolute -translate-x-1/2 -translate-y-1/2 bg-indigo-600 text-white rounded-full flex items-center justify-center border-2 border-white cursor-pointer select-none shadow-md"
-                      style={
-                        imgBounds
-                          ? {
-                              left:
-                                imgBounds.offsetLeft +
-                                (s.xPct / 100) * imgBounds.width,
-                              top:
-                                imgBounds.offsetTop +
-                                (s.yPct / 100) * imgBounds.height,
-                              width: 'min(20px, 5cqmin)',
-                              height: 'min(20px, 5cqmin)',
-                              fontSize: 'min(10px, 2.5cqmin)',
-                            }
-                          : {
-                              left: `${s.xPct}%`,
-                              top: `${s.yPct}%`,
-                              width: 'min(20px, 5cqmin)',
-                              height: 'min(20px, 5cqmin)',
-                              fontSize: 'min(10px, 2.5cqmin)',
-                            }
-                      }
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setExpandedStepId((prev) =>
-                          prev === s.id ? null : s.id
-                        );
-                      }}
-                    >
-                      {idx + 1}
-                    </div>
-                  ))}
-                  {addingStep && (
-                    <div
-                      className="absolute bg-indigo-500/10 border-2 border-indigo-400 border-dashed rounded-lg flex items-center justify-center pointer-events-none"
-                      style={
-                        imgBounds
-                          ? {
-                              left: imgBounds.offsetLeft,
-                              top: imgBounds.offsetTop,
-                              width: imgBounds.width,
-                              height: imgBounds.height,
-                            }
-                          : { inset: 0 }
-                      }
-                    >
-                      <span
-                        className="text-indigo-200 font-bold bg-indigo-900/70 rounded-lg shadow-xl"
-                        style={{
-                          padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
-                          fontSize: 'clamp(12px, 3cqmin, 16px)',
-                        }}
-                      >
-                        Click to place hotspot
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </>
-            ) : (
-              <div
-                className="border-2 border-dashed border-white/20 rounded-xl text-center"
-                style={{ padding: 'min(24px, 6cqmin)' }}
-              >
-                {uploading ? (
-                  <div
-                    className="flex flex-col items-center"
-                    style={{ gap: 'min(8px, 2cqmin)' }}
-                  >
-                    <Loader2
-                      className="text-indigo-400 animate-spin"
-                      style={{
-                        width: 'min(32px, 8cqmin)',
-                        height: 'min(32px, 8cqmin)',
-                      }}
-                    />
-                    <p
-                      className="text-slate-400 font-medium"
-                      style={{ fontSize: 'clamp(12px, 3cqmin, 16px)' }}
-                    >
-                      Uploading…
-                    </p>
-                  </div>
-                ) : (
-                  <ImageIcon
-                    className="text-slate-500 mx-auto"
-                    style={{
-                      width: 'min(32px, 8cqmin)',
-                      height: 'min(32px, 8cqmin)',
-                      marginBottom: 'min(8px, 2cqmin)',
-                    }}
-                  />
-                )}
-              </div>
-            )}
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-
-            <div
-              className="flex flex-wrap"
-              style={{ gap: 'min(8px, 2cqmin)', marginTop: 'min(8px, 2cqmin)' }}
-            >
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="flex items-center justify-center bg-indigo-600 hover:bg-indigo-500 text-white font-bold rounded-lg transition-colors"
-                style={{
-                  gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                  fontSize: 'clamp(11px, 3cqmin, 16px)',
-                }}
-              >
-                <Upload
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-                Add Image(s)
-              </button>
-              <button
-                onClick={handlePaste}
-                className="flex items-center justify-center bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-lg transition-colors"
-                style={{
-                  gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                  fontSize: 'clamp(11px, 3cqmin, 16px)',
-                }}
-              >
-                <Clipboard
-                  style={{
-                    width: 'min(12px, 3cqmin)',
-                    height: 'min(12px, 3cqmin)',
-                  }}
-                />
-                Paste Image
-              </button>
-              {imageUrls.length > 0 && (
-                <button
-                  onClick={() => handleDeleteImage(currentImageIndex)}
-                  className="flex items-center justify-center bg-red-700/80 hover:bg-red-600 text-white font-bold rounded-lg transition-colors"
-                  style={{
-                    gap: 'min(6px, 1.5cqmin)',
-                    padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-                    fontSize: 'clamp(11px, 3cqmin, 16px)',
-                  }}
-                >
-                  <Trash2
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                  Delete Current Image
-                </button>
-              )}
-            </div>
-
+      {/* Canvas */}
+      <div className="flex-1 min-h-0 px-5 py-4 flex flex-col gap-3 bg-slate-50">
+        {imageUrls.length > 0 ? (
+          <>
             {imageUrls.length > 1 && (
-              <div
-                className="flex items-center"
-                style={{
-                  gap: 'min(8px, 2cqmin)',
-                  marginTop: 'min(8px, 2cqmin)',
-                }}
-              >
-                <button
-                  onClick={() => handleMoveImage(currentImageIndex, -1)}
-                  disabled={currentImageIndex === 0}
-                  className="text-slate-300 disabled:opacity-40"
-                >
-                  <ChevronUp
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                </button>
-                <button
-                  onClick={() => handleMoveImage(currentImageIndex, 1)}
-                  disabled={currentImageIndex === imageUrls.length - 1}
-                  className="text-slate-300 disabled:opacity-40"
-                >
-                  <ChevronDown
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                </button>
-                <span className="text-slate-400 text-xs">
-                  Reorder current image
-                </span>
+              <div className="flex flex-wrap gap-1.5 shrink-0">
+                {imageUrls.map((url, idx) => (
+                  <button
+                    key={url}
+                    onClick={() => setCurrentImageIndex(idx)}
+                    className={`px-2.5 py-1 rounded-md text-xs font-bold border transition-colors ${
+                      idx === currentImageIndex
+                        ? 'border-brand-blue-primary bg-brand-blue-primary text-white'
+                        : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+                    }`}
+                  >
+                    Image {idx + 1}
+                  </button>
+                ))}
               </div>
             )}
 
-            {imageError && (
-              <p
-                className="text-red-400 font-medium"
-                style={{
-                  fontSize: 'min(11px, 2.8cqmin)',
-                  marginTop: 'min(4px, 1cqmin)',
-                }}
-              >
-                {imageError}
-              </p>
-            )}
-          </div>
-
-          {imageUrls.length > 0 && (
-            <div>
-              <div
-                className="flex items-center justify-between"
-                style={{ marginBottom: 'min(8px, 2cqmin)' }}
-              >
-                <label
-                  className="text-slate-400 font-bold uppercase tracking-wider"
-                  style={{ fontSize: 'clamp(10px, 2.5cqmin, 14px)' }}
-                >
-                  Steps ({steps.length})
-                </label>
-                <button
-                  onClick={() => setAddingStep((v) => !v)}
-                  className={`flex items-center font-bold rounded-lg transition-colors ${
-                    addingStep
-                      ? 'bg-indigo-600 text-white'
-                      : 'bg-slate-700 hover:bg-slate-600 text-white'
-                  }`}
-                  style={{
-                    gap: 'min(4px, 1cqmin)',
-                    padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-                    fontSize: 'clamp(11px, 3cqmin, 16px)',
-                  }}
-                >
-                  <Plus
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                  {addingStep ? 'Click image…' : 'Add Step'}
-                </button>
-              </div>
-
-              <div className="space-y-2">
-                {steps.map((s) => (
-                  <GuidedLearningStepEditor
+            <div
+              ref={imageContainerRef}
+              className={`flex-1 min-h-0 relative rounded-lg overflow-hidden bg-slate-200 border border-slate-300 ${addingStep ? 'cursor-crosshair' : ''}`}
+              onClick={handleImageClick}
+              data-no-drag={addingStep ? 'true' : undefined}
+            >
+              <img
+                ref={imageRef}
+                src={currentImageUrl}
+                alt="Current step image"
+                className="w-full h-full object-contain"
+                draggable={false}
+                onLoad={measureImage}
+              />
+              {currentImageSteps.map((s) => {
+                const globalIndex = steps.findIndex((x) => x.id === s.id);
+                return (
+                  <HotspotMarker
                     key={s.id}
                     step={s}
-                    imageCount={imageUrls.length}
-                    onChange={(updated) =>
-                      setSteps((prev) =>
-                        prev.map((x) => (x.id === updated.id ? updated : x))
-                      )
-                    }
-                    onDelete={() =>
-                      setSteps((prev) => prev.filter((x) => x.id !== s.id))
-                    }
-                    isExpanded={expandedStepId === s.id}
-                    onToggle={() =>
-                      setExpandedStepId((prev) => (prev === s.id ? null : s.id))
-                    }
+                    stepNumber={globalIndex + 1}
+                    isSelected={s.id === selectedStepId}
+                    imgBounds={imgBounds}
+                    containerRef={imageContainerRef}
+                    onSelect={() => setSelectedStepId(s.id)}
+                    onMove={(xPct, yPct) => updateStep({ ...s, xPct, yPct })}
                   />
-                ))}
-                {steps.length === 0 && (
-                  <p
-                    className="text-slate-500 font-medium text-center"
-                    style={{
-                      padding: 'min(16px, 4cqmin) 0',
-                      fontSize: 'clamp(11px, 3cqmin, 16px)',
-                    }}
-                  >
-                    Click &quot;Add Step&quot; then click the image to place a
-                    hotspot.
-                  </p>
-                )}
-              </div>
+                );
+              })}
+              {addingStep && (
+                <div
+                  className="absolute bg-brand-blue-primary/5 border-2 border-brand-blue-primary border-dashed rounded-lg flex items-center justify-center pointer-events-none"
+                  style={
+                    imgBounds
+                      ? {
+                          left: imgBounds.offsetLeft,
+                          top: imgBounds.offsetTop,
+                          width: imgBounds.width,
+                          height: imgBounds.height,
+                        }
+                      : { inset: 0 }
+                  }
+                >
+                  <span className="bg-brand-blue-primary text-white text-sm font-bold rounded-lg shadow-lg px-3 py-1.5 flex items-center gap-2">
+                    <MousePointerClick className="w-4 h-4" />
+                    Click to place hotspot
+                  </span>
+                </div>
+              )}
             </div>
+          </>
+        ) : (
+          <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-300 rounded-xl text-center bg-white">
+            {uploading ? (
+              <div className="flex flex-col items-center gap-2 text-slate-500">
+                <Loader2 className="w-8 h-8 animate-spin text-brand-blue-primary" />
+                <p className="font-medium">Uploading…</p>
+              </div>
+            ) : (
+              <div className="flex flex-col items-center gap-2 text-slate-500">
+                <ImageIcon className="w-10 h-10" />
+                <p className="font-medium">Add an image to get started</p>
+                <p className="text-xs">
+                  PNG, JPG, GIF, or paste from clipboard
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {imageError && (
+          <p className="text-red-600 text-xs font-medium">{imageError}</p>
+        )}
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          className="hidden"
+          onChange={handleFileSelect}
+        />
+
+        {/* Action toolbar */}
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-colors text-sm"
+          >
+            <Upload className="w-4 h-4" />
+            Add image
+          </button>
+          <button
+            onClick={() => void uploadFromClipboard()}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-slate-400 text-slate-700 font-bold rounded-lg transition-colors text-sm"
+          >
+            <Clipboard className="w-4 h-4" />
+            Paste
+          </button>
+          {imageUrls.length > 0 && (
+            <>
+              <button
+                onClick={() => setAddingStep(!addingStep)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 font-bold rounded-lg transition-colors text-sm border ${
+                  addingStep
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white border-slate-300 hover:border-slate-400 text-slate-700'
+                }`}
+              >
+                <Plus className="w-4 h-4" />
+                {addingStep ? 'Click image…' : 'Add hotspot'}
+              </button>
+              {imageUrls.length > 1 && (
+                <div className="flex items-center gap-1 ml-auto">
+                  <button
+                    onClick={() => moveImage(currentImageIndex, -1)}
+                    disabled={currentImageIndex === 0}
+                    className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                    aria-label="Move image earlier"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => moveImage(currentImageIndex, 1)}
+                    disabled={currentImageIndex === imageUrls.length - 1}
+                    className="p-1.5 text-slate-500 disabled:opacity-30 hover:bg-slate-200 rounded transition-colors"
+                    aria-label="Move image later"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+              <button
+                onClick={() => deleteImage(currentImageIndex)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 bg-white border border-slate-300 hover:border-red-300 hover:bg-red-50 text-slate-600 hover:text-red-600 font-bold rounded-lg transition-colors text-sm ${imageUrls.length > 1 ? '' : 'ml-auto'}`}
+                aria-label="Delete current image"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete image
+              </button>
+            </>
           )}
         </div>
       </div>
     </div>
+  );
+};
+
+// ─── Detail pane ─────────────────────────────────────────────────────────────
+
+export const GuidedLearningEditorDetailPane: React.FC<PaneProps> = ({
+  state,
+}) => {
+  const {
+    selectedStep,
+    selectedStepId,
+    setSelectedStepId,
+    setAddingStep,
+    addingStep,
+    imageUrls,
+    steps,
+    updateStep,
+    deleteStep,
+    reorderSteps,
+    currentImageSteps,
+    currentImageIndex,
+    setCurrentImageIndex,
+  } = state;
+
+  const showNavigator = steps.length > 0;
+  const stepNumber = selectedStepId
+    ? steps.findIndex((s) => s.id === selectedStepId) + 1
+    : 0;
+
+  return (
+    <div className="flex flex-col h-full">
+      {showNavigator && (
+        <StepNavigator
+          steps={steps}
+          selectedStepId={selectedStepId}
+          imageCount={imageUrls.length}
+          currentImageIndex={currentImageIndex}
+          onSelectStep={(step) => {
+            if (step.imageIndex !== currentImageIndex) {
+              setCurrentImageIndex(step.imageIndex);
+            }
+            setSelectedStepId(step.id);
+          }}
+          onReorder={reorderSteps}
+        />
+      )}
+
+      <div className="flex-1 min-h-0">
+        {selectedStep ? (
+          <GuidedLearningStepEditor
+            key={selectedStep.id}
+            step={selectedStep}
+            stepNumber={stepNumber}
+            imageCount={imageUrls.length}
+            onChange={updateStep}
+            onDelete={() => deleteStep(selectedStep.id)}
+          />
+        ) : (
+          <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
+            <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
+            <h4 className="text-base font-bold text-slate-700 mb-1">
+              {imageUrls.length === 0
+                ? 'Add an image first'
+                : 'Pick a hotspot to edit'}
+            </h4>
+            <p className="text-sm max-w-xs">
+              {imageUrls.length === 0
+                ? 'Upload an image on the left, then add hotspots to make it interactive.'
+                : currentImageSteps.length === 0
+                  ? 'No hotspots on this image yet — click "Add hotspot" then click anywhere on the image.'
+                  : 'Click a numbered hotspot on the image, or add a new one.'}
+            </p>
+            {imageUrls.length > 0 && !addingStep && (
+              <button
+                onClick={() => {
+                  setSelectedStepId(null);
+                  setAddingStep(true);
+                }}
+                className="mt-4 inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg text-sm transition-colors"
+              >
+                <Plus className="w-4 h-4" />
+                Add hotspot
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// ─── Step navigator (sortable pill strip) ────────────────────────────────────
+
+interface StepNavigatorProps {
+  steps: import('@/types').GuidedLearningStep[];
+  selectedStepId: string | null;
+  imageCount: number;
+  currentImageIndex: number;
+  onSelectStep: (step: import('@/types').GuidedLearningStep) => void;
+  onReorder: (next: import('@/types').GuidedLearningStep[]) => void;
+}
+
+const StepNavigator: React.FC<StepNavigatorProps> = ({
+  steps,
+  selectedStepId,
+  imageCount,
+  onSelectStep,
+  onReorder,
+}) => {
+  return (
+    <div className="px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+          Step order
+        </span>
+        <span className="text-xxs text-slate-400">Drag to reorder</span>
+      </div>
+      <SortableList
+        items={steps}
+        getId={(s) => s.id}
+        onReorder={onReorder}
+        renderItem={(s, handle) => {
+          const idx = steps.findIndex((x) => x.id === s.id);
+          const isSelected = s.id === selectedStepId;
+          return (
+            <button
+              type="button"
+              {...handle.attributes}
+              onPointerDown={
+                handle.listeners?.onPointerDown as
+                  | React.PointerEventHandler<HTMLButtonElement>
+                  | undefined
+              }
+              onClick={() => onSelectStep(s)}
+              aria-label={`Step ${idx + 1}${imageCount > 1 ? ` on image ${s.imageIndex + 1}` : ''}${s.label ? `: ${s.label}` : ''}`}
+              title={s.label?.trim() ? s.label : `Step ${idx + 1}`}
+              className={`shrink-0 cursor-grab active:cursor-grabbing touch-none flex items-center gap-1 px-2 py-1 rounded-md text-xs font-bold border transition-colors ${
+                isSelected
+                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                  : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
+              }`}
+            >
+              <span className="font-mono">{idx + 1}</span>
+              {imageCount > 1 && (
+                <span
+                  className={`text-xxs font-mono px-1 rounded ${
+                    isSelected
+                      ? 'bg-brand-blue-dark text-white/80'
+                      : 'bg-slate-100 text-slate-500'
+                  }`}
+                  aria-hidden
+                >
+                  i{s.imageIndex + 1}
+                </span>
+              )}
+            </button>
+          );
+        }}
+        className="flex flex-wrap gap-1.5"
+      />
+    </div>
+  );
+};
+
+// ─── Draggable hotspot marker ────────────────────────────────────────────────
+
+interface HotspotMarkerProps {
+  step: import('@/types').GuidedLearningStep;
+  stepNumber: number;
+  isSelected: boolean;
+  imgBounds: {
+    offsetLeft: number;
+    offsetTop: number;
+    width: number;
+    height: number;
+  } | null;
+  containerRef: React.RefObject<HTMLDivElement | null>;
+  onSelect: () => void;
+  onMove: (xPct: number, yPct: number) => void;
+}
+
+const DRAG_THRESHOLD_PX = 4;
+
+const HotspotMarker: React.FC<HotspotMarkerProps> = ({
+  step,
+  stepNumber,
+  isSelected,
+  imgBounds,
+  containerRef,
+  onSelect,
+  onMove,
+}) => {
+  // Local position used during a drag so the marker tracks the cursor without
+  // a parent re-render per pointer move. Cleared on pointer-up; the next
+  // render reads from the persisted step.
+  const [dragPos, setDragPos] = useState<{ xPct: number; yPct: number } | null>(
+    null
+  );
+  const xPct = dragPos?.xPct ?? step.xPct;
+  const yPct = dragPos?.yPct ?? step.yPct;
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    if (!imgBounds || !containerRef.current) {
+      onSelect();
+      return;
+    }
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const containerRect = containerRef.current.getBoundingClientRect();
+    let dragged = false;
+    let lastXPct = step.xPct;
+    let lastYPct = step.yPct;
+    const target = e.currentTarget;
+
+    const computePct = (clientX: number, clientY: number) => {
+      const x = clientX - containerRect.left - imgBounds.offsetLeft;
+      const y = clientY - containerRect.top - imgBounds.offsetTop;
+      const px = (x / imgBounds.width) * 100;
+      const py = (y / imgBounds.height) * 100;
+      return {
+        xPct: Math.max(2, Math.min(98, px)),
+        yPct: Math.max(2, Math.min(98, py)),
+      };
+    };
+
+    const onMoveEvt = (ev: PointerEvent) => {
+      if (!dragged) {
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        if (dx * dx + dy * dy < DRAG_THRESHOLD_PX * DRAG_THRESHOLD_PX) return;
+        dragged = true;
+      }
+      const next = computePct(ev.clientX, ev.clientY);
+      lastXPct = next.xPct;
+      lastYPct = next.yPct;
+      setDragPos(next);
+    };
+
+    const onUpEvt = (ev: PointerEvent) => {
+      window.removeEventListener('pointermove', onMoveEvt);
+      window.removeEventListener('pointerup', onUpEvt);
+      window.removeEventListener('pointercancel', onUpEvt);
+      try {
+        target.releasePointerCapture(ev.pointerId);
+      } catch {
+        // already released
+      }
+      if (dragged) {
+        onMove(lastXPct, lastYPct);
+        setDragPos(null);
+      } else {
+        onSelect();
+      }
+    };
+
+    try {
+      target.setPointerCapture(e.pointerId);
+    } catch {
+      // capture not supported — fall through to window listeners
+    }
+    window.addEventListener('pointermove', onMoveEvt);
+    window.addEventListener('pointerup', onUpEvt);
+    window.addEventListener('pointercancel', onUpEvt);
+  };
+
+  return (
+    <button
+      type="button"
+      onPointerDown={handlePointerDown}
+      aria-label={`Hotspot ${stepNumber} — drag to move, click to edit`}
+      className={`absolute -translate-x-1/2 -translate-y-1/2 rounded-full flex items-center justify-center cursor-grab active:cursor-grabbing select-none shadow-md transition-transform touch-none ${
+        isSelected
+          ? 'bg-brand-blue-primary text-white border-2 border-white ring-2 ring-brand-blue-primary/40 scale-110'
+          : 'bg-brand-blue-primary text-white border-2 border-white hover:scale-110'
+      }`}
+      style={
+        imgBounds
+          ? {
+              left: imgBounds.offsetLeft + (xPct / 100) * imgBounds.width,
+              top: imgBounds.offsetTop + (yPct / 100) * imgBounds.height,
+              width: 24,
+              height: 24,
+              fontSize: 11,
+            }
+          : {
+              left: `${xPct}%`,
+              top: `${yPct}%`,
+              width: 24,
+              height: 24,
+              fontSize: 11,
+            }
+      }
+    >
+      {stepNumber}
+    </button>
   );
 };

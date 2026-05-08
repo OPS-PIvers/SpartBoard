@@ -91,8 +91,10 @@ describe('AssignmentArchiveCard', () => {
     fireEvent.click(trigger);
     expect(screen.getByRole('menu')).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /Edit/ })).toBeInTheDocument();
-    // Close on outside click (mousedown on document.body)
-    fireEvent.mouseDown(document.body);
+    // Close on outside click — `useClickOutside` listens for `pointerdown`
+    // (the source event); `mousedown` is a synthesized compatibility event
+    // that React `preventDefault()` calls on `pointerdown` would suppress.
+    fireEvent.pointerDown(document.body);
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 

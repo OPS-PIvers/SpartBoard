@@ -87,6 +87,7 @@ export function toPublicStep(
     label: step.label,
     interactionType: step.interactionType,
     hideStepNumber: step.hideStepNumber,
+    hotspotAlwaysHidden: step.hotspotAlwaysHidden,
     showOverlay: step.showOverlay,
     tooltipPosition: step.tooltipPosition,
     tooltipOffset: step.tooltipOffset,
@@ -211,6 +212,20 @@ export const useGuidedLearningSessionTeacher = (
         // Frozen at creation. Stored under `assignmentMode` (not `mode`) so
         // it doesn't collide with the GL play-mode field above.
         assignmentMode,
+        // Display settings — only mirror when set differs from default so
+        // legacy session docs stay free of new fields.
+        ...(set.hotspotPulse && set.hotspotPulse !== 'consistent'
+          ? { hotspotPulse: set.hotspotPulse }
+          : {}),
+        ...(set.imageTransition && set.imageTransition !== 'none'
+          ? { imageTransition: set.imageTransition }
+          : {}),
+        ...(set.welcomeEnabled && set.welcomeMessage?.trim()
+          ? {
+              welcomeEnabled: true,
+              welcomeMessage: set.welcomeMessage,
+            }
+          : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

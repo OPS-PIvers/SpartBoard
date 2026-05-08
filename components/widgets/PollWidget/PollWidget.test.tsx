@@ -193,10 +193,7 @@ describe('PollSettings', () => {
     });
 
     // Verify toast
-    expect(mockAddToast).toHaveBeenCalledWith(
-      'Poll generated magically!',
-      'success'
-    );
+    expect(mockAddToast).toHaveBeenCalledWith('Poll generated.', 'success');
   });
 
   it('updates the question on blur', () => {

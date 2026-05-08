@@ -33,6 +33,8 @@ import {
   PlayCircle,
   Plus,
   RotateCcw,
+  Send,
+  Share2,
   Trash2,
 } from 'lucide-react';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
@@ -160,12 +162,27 @@ export interface VideoActivityManagerProps {
   onArchiveDelete?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
   /**
+   * PR3 PLC sharing — invoked when the teacher picks "Share with PLC" on an
+   * assignment's kebab menu. Implementation lives in `Widget.tsx` and calls
+   * `useVideoActivityAssignments.shareAssignment` after hydrating the
+   * activity from Drive. The handler is responsible for copying the
+   * resulting share URL to the clipboard and surfacing toasts.
+   */
+  onArchiveShare?: (assignment: VideoActivityAssignment) => Promise<void>;
+  /**
    * Open the live teacher monitor for an active assignment. Surfaced as the
    * In Progress tab's primary CTA when wired; mirrors the Quiz manager.
    */
   onArchiveMonitor?: (
     assignment: VideoActivityAssignment
   ) => void | Promise<void>;
+  /**
+   * PR3c — open the publish-scores modal for this assignment. Set ⇒ the
+   * archive kebab gains a "Publish scores" / "Update published scores"
+   * entry that calls back through to `Widget.tsx`'s
+   * `useVideoActivityAssignments.publishAssignmentScores` hook.
+   */
+  onArchivePublishScores?: (assignment: VideoActivityAssignment) => void;
 
   /** Persisted library grid/list toggle (from widget config). */
   initialLibraryViewMode?: 'grid' | 'list';
@@ -386,7 +403,9 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveReactivate,
   onArchiveDelete,
   onArchiveResults,
+  onArchiveShare,
   onArchiveMonitor,
+  onArchivePublishScores,
   initialLibraryViewMode,
   onLibraryViewModeChange,
   rosters,
@@ -963,6 +982,21 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           },
         });
       }
+      // PR3 cross-teacher sharing — works for any submission assignment
+      // (PLC linkage is optional in PR3a; the share doc carries the
+      // teacher's settings either way and peers can import it). Label
+      // says "peers" rather than "PLC" because the button isn't gated
+      // on `assignment.plc` — it's a generic peer-handoff affordance.
+      if (onArchiveShare && !assignmentIsViewOnly) {
+        actions.push({
+          id: 'share-with-peers',
+          label: 'Share with peers',
+          icon: Share2,
+          onClick: () => {
+            void onArchiveShare(assignment);
+          },
+        });
+      }
     }
 
     // Reactivate is view-only-only, archive-only — flips status back to
@@ -989,6 +1023,22 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         label: 'Results',
         icon: BarChart3,
         onClick: () => onArchiveResults(assignment),
+      });
+    }
+
+    // PR3c — surface "Publish scores" on the archive kebab when the
+    // assignment carries submissions. Label flips to "Update published
+    // scores" once a level is set so the teacher sees that re-opening
+    // the modal will replace, not stack.
+    if (onArchivePublishScores && !assignmentIsViewOnly) {
+      const isPublished =
+        assignment.scoreVisibility !== undefined &&
+        assignment.scoreVisibility !== 'none';
+      actions.push({
+        id: 'publish-scores',
+        label: isPublished ? 'Update published scores' : 'Publish scores',
+        icon: Send,
+        onClick: () => onArchivePublishScores(assignment),
       });
     }
 
@@ -1302,7 +1352,7 @@ function buildDefaultPolicyOptions(): VideoActivitySessionOptions {
     attemptLimit: 1,
     rewindOnIncorrectSeconds: 0,
     pointPenaltyOnIncorrect: 0,
-    scoreVisibility: 'score_only',
+    scoreVisibility: 'score-only',
   };
 }
 
@@ -1326,17 +1376,17 @@ const SCORE_VISIBILITY_OPTIONS: {
     hint: "Students see 'Submitted' only — no score.",
   },
   {
-    value: 'score_only',
+    value: 'score-only',
     label: 'Score',
     hint: 'Students see their final score, no per-question detail.',
   },
   {
-    value: 'score_and_responses',
+    value: 'score-and-responses',
     label: 'Score + responses',
     hint: 'Students see their score and which questions they got right/wrong.',
   },
   {
-    value: 'score_responses_and_answers',
+    value: 'score-responses-and-answers',
     label: 'Full review',
     hint: 'Students see their score, right/wrong, and the correct answers.',
   },
@@ -1358,8 +1408,15 @@ const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
 }) => {
   const rewind = options.rewindOnIncorrectSeconds ?? 0;
   const penalty = options.pointPenaltyOnIncorrect ?? 0;
+  // Backward compat for pre-PR3a snake_case scoreVisibility values that
+  // may already be persisted in Firestore. Without the normalize step the
+  // <select> falls through to the default 'score-only' silently, hiding
+  // the teacher's actual choice.
+  const rawVisibility = options.scoreVisibility;
   const visibility: VideoActivityScoreVisibility =
-    options.scoreVisibility ?? 'score_only';
+    rawVisibility === undefined
+      ? 'score-only'
+      : (rawVisibility.replace(/_/g, '-') as VideoActivityScoreVisibility);
 
   return (
     <div className="space-y-3 pt-1">

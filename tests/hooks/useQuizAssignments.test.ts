@@ -77,11 +77,36 @@ vi.mock('@/config/firebase', () => ({
 const writePlcAssignmentIndexEntryMock = vi
   .fn<(plcId: string, entry: Record<string, unknown>) => Promise<void>>()
   .mockResolvedValue(undefined);
+const mirrorPlcAssignmentStatusMock = vi
+  .fn<(plcId: string, assignmentId: string, status: string) => Promise<void>>()
+  .mockResolvedValue(undefined);
 vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
   writePlcAssignmentIndexEntry: (
     plcId: string,
     entry: Record<string, unknown>
   ) => writePlcAssignmentIndexEntryMock(plcId, entry),
+  mirrorPlcAssignmentStatus: (
+    plcId: string,
+    assignmentId: string,
+    status: string
+  ) => mirrorPlcAssignmentStatusMock(plcId, assignmentId, status),
+}));
+
+const writePlcAssignmentTemplateMock = vi
+  .fn<
+    (
+      plcId: string,
+      uid: string,
+      input: Record<string, unknown>
+    ) => Promise<void>
+  >()
+  .mockResolvedValue(undefined);
+vi.mock('@/hooks/usePlcAssignments', () => ({
+  writePlcAssignmentTemplate: (
+    plcId: string,
+    uid: string,
+    input: Record<string, unknown>
+  ) => writePlcAssignmentTemplateMock(plcId, uid, input),
 }));
 
 const mockCollection = collection as Mock;
@@ -1375,8 +1400,29 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       ownerEmail: 'alice@example.com',
       title: 'Fractions Quick Check',
       sheetUrl: 'https://docs.google.com/spreadsheets/d/plc-42-sheet',
+      // Phase 3: status is stamped on create so the In-progress sub-tab
+      // shows the entry immediately. Defaults to 'active' for a fresh
+      // assignment; later pause/deactivate/reopen calls mirror the new
+      // status fire-and-forget.
+      status: 'active',
     });
     expect(typeof entry.createdAt).toBe('number');
+  });
+
+  it('Phase 3: mirrors initialStatus into the index entry status field', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, plcSettings(), {
+        initialStatus: 'paused',
+      });
+    });
+    const [, entry] = writePlcAssignmentIndexEntryMock.mock.calls[0];
+    // A teacher who creates a paused assignment should see it land in
+    // the In-progress sub-tab pre-paused, not flicker through 'active'
+    // on the way in. Stamping `initialStatus` on the index entry keeps
+    // the dashboard consistent with the source assignment's status from
+    // the very first snapshot.
+    expect(entry.status).toBe('paused');
   });
 
   it('does NOT write an index entry when settings.plc is absent (solo assignment)', async () => {
@@ -1393,6 +1439,74 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     // Without this guard, every solo assignment would either crash (no
     // plcId) or write to a phantom PLC.
     expect(writePlcAssignmentIndexEntryMock).not.toHaveBeenCalled();
+    // Same posture for the Phase 3 template write — solo assignments
+    // never become PLC-authored templates.
+    expect(writePlcAssignmentTemplateMock).not.toHaveBeenCalled();
+  });
+
+  it('Phase 3: writes a PLC assignment template when settings.plc + plcTemplateSyncGroupId are set', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, plcSettings(), {
+        plcTemplateSyncGroupId: 'sync-group-abc',
+      });
+    });
+
+    // Single template write per PLC-mode assignment authored from
+    // scratch. Teammates pick the template up from the Library sub-tab.
+    expect(writePlcAssignmentTemplateMock).toHaveBeenCalledTimes(1);
+    const [plcId, uid, input] = writePlcAssignmentTemplateMock.mock.calls[0];
+    expect(plcId).toBe('plc-42');
+    expect(uid).toBe(TEACHER_UID);
+    expect(input).toMatchObject({
+      quizId: 'quiz-1',
+      quizTitle: 'Fractions Quick Check',
+      syncGroupId: 'sync-group-abc',
+      sessionMode: 'teacher',
+      sharedByName: 'Alice Owner',
+      sharedByEmail: 'alice@example.com',
+    });
+    // Template id must be a fresh uuid, not the source assignment id —
+    // sharing the same quiz to multiple PLCs (or re-sharing after an
+    // unshare) needs a unique id per template doc.
+    expect(typeof input.plcAssignmentId).toBe('string');
+    expect((input.plcAssignmentId as string).length).toBeGreaterThan(0);
+  });
+
+  it('Phase 3: skips the template write when skipPlcTemplateWrite is true (Library import re-entry)', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, plcSettings(), {
+        plcTemplateSyncGroupId: 'sync-group-abc',
+        skipPlcTemplateWrite: true,
+      });
+    });
+
+    // Picking up an existing template from the PLC Library sub-tab must
+    // NOT recursively author another template. The skip flag is the
+    // contract that prevents the Library list from doubling on every
+    // teammate import.
+    expect(writePlcAssignmentTemplateMock).not.toHaveBeenCalled();
+    // Index entry write still fires — every PLC-mode assignment, even
+    // one created by importing a template, surfaces in the In-progress
+    // / Completed sub-tabs.
+    expect(writePlcAssignmentIndexEntryMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('Phase 3: skips the template write when no syncGroupId is resolvable', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, plcSettings(), {
+        // No `plcTemplateSyncGroupId`, no `syncedFrom` — the source quiz
+        // isn't yet synced. The hook can't promote a Drive-only quiz to
+        // a synced group from here (no Drive content in scope), so it
+        // skips the template write rather than minting an unusable stub.
+      });
+    });
+
+    expect(writePlcAssignmentTemplateMock).not.toHaveBeenCalled();
+    // Index entry still fires — that doesn't depend on a synced group.
+    expect(writePlcAssignmentIndexEntryMock).toHaveBeenCalledTimes(1);
   });
 
   it('falls back to empty strings when auth.currentUser has no displayName / email', async () => {

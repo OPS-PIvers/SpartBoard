@@ -15,6 +15,15 @@ describe('useClickOutside', () => {
     elementsToCleanup.length = 0;
   });
 
+  // Helper — dispatches a `pointerdown` that bubbles to document, matching
+  // the native source event the hook now listens for. Using the raw
+  // `Event` constructor (rather than `PointerEvent`) keeps the test
+  // resilient across JSDOM versions that have flaky `PointerEvent`
+  // constructors; the hook only reads `event.target`, which `Event` provides.
+  const dispatchPointerDown = (target: EventTarget) => {
+    target.dispatchEvent(new Event('pointerdown', { bubbles: true }));
+  };
+
   it('should call handler when clicking outside', () => {
     const handler = vi.fn();
     const div = document.createElement('div');
@@ -24,8 +33,7 @@ describe('useClickOutside', () => {
 
     renderHook(() => useClickOutside(ref, handler));
 
-    const event = new MouseEvent('mousedown', { bubbles: true });
-    document.body.dispatchEvent(event);
+    dispatchPointerDown(document.body);
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -39,8 +47,9 @@ describe('useClickOutside', () => {
 
     renderHook(() => useClickOutside(ref, handler));
 
-    const event = new TouchEvent('touchstart', { bubbles: true });
-    document.body.dispatchEvent(event);
+    // Touch interactions dispatch `pointerdown` (pointerType = 'touch')
+    // ahead of any compatibility `touchstart`/`mousedown`.
+    dispatchPointerDown(document.body);
 
     expect(handler).toHaveBeenCalledTimes(1);
   });
@@ -54,8 +63,7 @@ describe('useClickOutside', () => {
 
     renderHook(() => useClickOutside(ref, handler));
 
-    const event = new MouseEvent('mousedown', { bubbles: true });
-    ref.current.dispatchEvent(event);
+    dispatchPointerDown(ref.current);
 
     expect(handler).not.toHaveBeenCalled();
   });
@@ -76,8 +84,7 @@ describe('useClickOutside', () => {
 
     renderHook(() => useClickOutside(ref, handler));
 
-    const event = new MouseEvent('mousedown', { bubbles: true });
-    portalChild.dispatchEvent(event);
+    dispatchPointerDown(portalChild);
 
     expect(handler).not.toHaveBeenCalled();
   });
@@ -95,8 +102,7 @@ describe('useClickOutside', () => {
 
     renderHook(() => useClickOutside(ref, handler, [ignoreRef]));
 
-    const event = new MouseEvent('mousedown', { bubbles: true });
-    ignoreRef.current.dispatchEvent(event);
+    dispatchPointerDown(ignoreRef.current);
 
     expect(handler).not.toHaveBeenCalled();
   });

@@ -273,8 +273,12 @@ export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
  */
 export interface PlcAssignmentIndexEntry {
   id: string;
-  /** Discriminator for future video-activity support. */
-  kind: 'quiz';
+  /**
+   * Discriminator for the source assignment widget. PR3a widens this to
+   * accept `'video-activity'` (rules updated alongside); PR3b will start
+   * writing VA index entries via `useVideoActivityAssignments`.
+   */
+  kind: 'quiz' | 'video-activity';
   /** UID of the teacher who created the assignment. Always a PLC member. */
   ownerUid: string;
   /** Display name snapshot — avoids a `/users` lookup per row. */
@@ -285,7 +289,101 @@ export interface PlcAssignmentIndexEntry {
   title: string;
   /** Shared PLC Google Sheet URL (mirrored from `Plc.sharedSheetUrl`). */
   sheetUrl: string;
+  /**
+   * Live status of the source assignment. Mirrored fire-and-forget from
+   * `useQuizAssignments` whenever the canonical assignment changes status
+   * (`active` → `paused`, `paused` → `active`, `active|paused` →
+   * `inactive`). Drives the In-progress vs Completed split in the PLC
+   * Assignments tab — `active|paused` shows under In-progress, `inactive`
+   * shows under Completed. Legacy entries written before Phase 3 lack the
+   * field; the parser defaults missing/invalid values to `'active'` so
+   * legacy entries surface in In-progress until their owner deactivates
+   * them.
+   */
+  status: QuizAssignmentStatus;
   createdAt: number;
+}
+
+/**
+ * One PLC-authored assignment template, stored at
+ * `plcs/{plcId}/assignments/{plcAssignmentId}`.
+ *
+ * Templates are authored by any PLC member (either via the explicit
+ * Library "share" flow or as a fire-and-forget side effect of toggling
+ * "PLC mode" on a personal assignment) and represent an assignment any
+ * teammate can pick up onto their own board. Templates do NOT carry
+ * `classIds`/`rosterIds` — those are filled in by each importer.
+ *
+ * The doc points at a canonical `synced_quizzes/{syncGroupId}` doc, so
+ * importers can pull content even though the source quiz lives only in
+ * the author's Drive. Same orphan-tolerant posture as `PlcQuizEntry`:
+ * deleting a template does NOT cascade to teammates' already-imported
+ * personal assignments.
+ */
+export interface PlcAssignmentTemplate {
+  /** Doc id; matches the document key under `plcs/{plcId}/assignments/`. */
+  id: string;
+  /** Quiz title at share time; mirrored on later peer publishes. */
+  quizTitle: string;
+  /** Source quiz id — informational only (importers don't need access). */
+  quizId: string;
+  /** Pointer to the canonical `/synced_quizzes/{groupId}` doc. */
+  syncGroupId: string;
+  /** Default session mode the importer's assignment will inherit. */
+  sessionMode: QuizSessionMode;
+  /** Default session options the importer's assignment will inherit. */
+  sessionOptions: QuizSessionOptions;
+  /**
+   * Default attempt limit. `null` (or absent) = unlimited; legacy templates
+   * predating attempt limits parse to `null`.
+   */
+  attemptLimit: number | null;
+  /** UID of the teacher who shared this template. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** ms timestamp; bumped on title/setting mirror updates. */
+  updatedAt: number;
+}
+
+/**
+ * One quiz shared with a PLC, stored at `plcs/{plcId}/quizzes/{plcQuizId}`.
+ *
+ * The doc is a lightweight header that points at the canonical
+ * `synced_quizzes/{syncGroupId}` doc — questions live there, not here, so
+ * list rendering avoids an N+1 read against the sync collection. `title`
+ * and `questionCount` are best-effort mirrors of the canonical doc; they
+ * get bumped fire-and-forget after a successful publish, but the source
+ * of truth for content is always the synced group.
+ *
+ * Any PLC member can share, edit (via the synced group), or unshare a
+ * quiz — same posture as Phase 5 notes/todos. The `sharedBy` snapshot is
+ * for attribution only; deleting your personal copy does NOT cascade-
+ * delete the PLC entry (orphan-tolerant per Phase 2 spec).
+ */
+export interface PlcQuizEntry {
+  /** Doc id; matches the document key under `plcs/{plcId}/quizzes/`. */
+  id: string;
+  /** Mirrored from the synced group; used for list rendering. */
+  title: string;
+  /** Mirrored from the synced group's questions array length. */
+  questionCount: number;
+  /** Pointer to the canonical `/synced_quizzes/{groupId}` doc. */
+  syncGroupId: string;
+  /** UID of the original sharer. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** ms timestamp; bumped on title/questionCount mirror updates. */
+  updatedAt: number;
 }
 
 /**
@@ -2319,6 +2417,100 @@ export interface QuizResponse {
   preSyncVersion?: number;
 }
 
+/**
+ * Per-roster, non-PII PIN index. Stored at
+ * `/users/{teacherUid}/rosters/{rosterId}/pin_index/{indexKey}`.
+ *
+ * Bridges PIN-joining students into the same identity space as SSO
+ * (`studentLoginV1`) joiners. The index maps `(period, pin)` → the same
+ * HMAC pseudonym uid `studentLoginV1` would mint for the student, so a
+ * PIN client can sign in via `pinLoginV1` with a custom token whose uid
+ * matches the SSO uid. Result: one student, one response doc per
+ * session, regardless of which auth path they took. Closes the
+ * mixed-auth duplicate path (Hypothesis E in the attempt-cap fix).
+ *
+ * Non-PII by design: the doc holds only opaque hashes and ids. PIN
+ * values are SpartBoard-internal join codes and don't identify a person
+ * without the (private) roster.
+ *
+ * Index key (`indexKey`):
+ *   `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`
+ * — same encoder Quiz response docs use, so the shape is consistent
+ * across PIN-related collections.
+ *
+ * Populated by `commitRosterPinIndexV1` (callable, teacher-only). Read
+ * via `admin SDK` inside `pinLoginV1` (callable, public). Clients never
+ * read or write these docs directly.
+ */
+export interface RosterPinIndexEntry {
+  /** HMAC(STUDENT_PSEUDONYM_HMAC_SECRET, `sid:${classlinkSourcedId}`). */
+  pseudonym: string;
+  /**
+   * The student's ClassLink class `sourcedId`. Written into the minted
+   * custom token's `classIds` claim so the student passes
+   * `passesStudentClassGate` on the session's responses.
+   */
+  classId: string;
+  /**
+   * ClassLink organization id (from the parent roster's `classlinkOrgId`).
+   * Stored on each pin_index entry so `pinLoginV1` can mint the custom
+   * token with the right `orgId` claim using a single doc read per
+   * roster probe — without it, the function would have to fan out a
+   * `collectionGroup('rosters').where('classlinkClassId'…)` lookup on
+   * every PIN login (a hot path: every PIN-bridged join). Empty string
+   * for rosters whose roster doc is missing the field.
+   */
+  orgId: string;
+  /** Raw period name. Diagnostic only — `indexKey` carries the encoded form. */
+  period: string;
+  /** Server-time ms of the most recent index rebuild for this entry. */
+  updatedAt: number;
+}
+
+/**
+ * Cross-launch attempt ledger. Stored at the top level
+ * `/quiz_attempt_ledger/{ledgerId}` where `ledgerId = ${quizId}__${studentUid}`.
+ *
+ * Per-session response docs are scoped under the session and reset every time
+ * a teacher launches a new session for the same quiz, so the per-session
+ * `completedAttempts` counter cannot enforce "1 attempt for this quiz, ever"
+ * across re-launches. The ledger sits above sessions and accumulates a
+ * student's attempts on a specific quiz regardless of how many times the
+ * teacher launches it.
+ *
+ * Identity: keyed by the student's auth.uid, which for SSO joiners is the
+ * stable HMAC pseudonym minted by `studentLoginV1`. PIN joiners' anonymous
+ * auth uids rotate per device, so the ledger only enforces meaningfully for
+ * SSO joiners — until Phase 3's `pinLoginV1` unifies the PIN flow onto the
+ * same uid space, at which point the ledger covers PIN joiners too without
+ * any change to this shape.
+ */
+export interface QuizAttemptLedger {
+  /** Matches `QuizSession.quizId`. Half of the deterministic ledger key. */
+  quizId: string;
+  /** Matches `auth.uid`. Other half of the deterministic ledger key. */
+  studentUid: string;
+  /**
+   * UID of the teacher who owns the quiz. Carried so Firestore rules can
+   * authorize the teacher's reset action without a second `get()` to look
+   * up the parent quiz; also supports admin-only repair flows.
+   */
+  teacherUid: string;
+  /**
+   * Monotonic counter — incremented inside the same transaction that flips
+   * a session's response doc to `status: 'completed'`. The teacher reset
+   * path (see `removeStudent`) sets this back to 0.
+   */
+  completedAttempts: number;
+  /** Server-time `Date.now()` of the most recent successful completion. */
+  lastAttemptAt: number;
+  /**
+   * Session id of the most recent successful completion. Diagnostic
+   * breadcrumb only — never read for enforcement.
+   */
+  lastSessionId?: string;
+}
+
 /** Global admin configuration for the Quiz widget */
 export interface QuizGlobalConfig {
   dockDefaults?: Record<string, boolean>;
@@ -2645,6 +2837,75 @@ export interface SharedQuizAssignment {
   syncGroupId?: string;
 }
 
+/**
+ * Synchronized canonical Video Activity shared by multiple PLC peers, stored
+ * at `/synced_video_activities/{groupId}`. Counterpart to `SyncedQuizGroup`.
+ *
+ * Each peer's local `video_activity_metadata` carries `sync.groupId`
+ * referencing this doc; the Drive-resident JSON acts as an editing canvas +
+ * cached replica. Edits run inside a Firestore transaction that increments
+ * `version`, writes the new `questions`/`title`/`youtubeUrl`, and stamps
+ * `updatedBy`. Other peers' `onSnapshot` listeners surface a "Sync available"
+ * pill on the library card.
+ *
+ * Last-write-wins on content; the monotonic `version` increment serializes
+ * concurrent saves. Participants are added/removed via the
+ * `joinSyncedVideoActivityGroup` / `leaveSyncedVideoActivityGroup` Cloud
+ * Functions so Firestore rules can keep client writes scoped to existing
+ * participants.
+ */
+export interface SyncedVideoActivityGroup {
+  /** Group id (Firestore doc id). */
+  id: string;
+  /**
+   * Monotonically increasing version. Bumped inside a Firestore transaction
+   * on every content write. Initial value is `1` at create time.
+   */
+  version: number;
+  title: string;
+  youtubeUrl: string;
+  questions: VideoActivityQuestion[];
+  /**
+   * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
+   * Modified only by the Cloud Function paths so the rules-side write check
+   * can be a simple `auth.uid in resource.data.participants` predicate.
+   */
+  participants: Record<string, { joinedAt: number }>;
+  /** Optional PLC linkage for downstream notification routing. */
+  plcId?: string;
+  createdAt: number;
+  updatedAt: number;
+  /** Auth uid of whoever last published an edit. */
+  updatedBy: string;
+}
+
+/**
+ * Shared-assignment document stored at
+ * `/shared_video_activity_assignments/{shareId}`. Counterpart to
+ * `SharedQuizAssignment` — kept in a parallel collection rather than mixed
+ * into `/shared_assignments` so the existing quiz-only `originalAuthor`-
+ * gated rules don't need a `kind` discriminator.
+ */
+export interface SharedVideoActivityAssignment {
+  /** Shared-doc id (Firestore auto-id). */
+  id: string;
+  /** Inlined activity data so the importer can copy it into their own library. */
+  title: string;
+  youtubeUrl: string;
+  questions: VideoActivityQuestion[];
+  createdAt: number;
+  updatedAt: number;
+  assignmentSettings: VideoActivityAssignmentSettings;
+  /** Original author's UID. */
+  originalAuthor: string;
+  sharedAt: number;
+  /**
+   * If present, this share offers a "Sync" import option that joins the
+   * importer to the named synced group. Absent on copy-only shares.
+   */
+  syncGroupId?: string;
+}
+
 // --- VIDEO ACTIVITY TYPES ---
 
 /**
@@ -2701,6 +2962,23 @@ export interface VideoActivityData {
   updatedAt: number;
 }
 
+/**
+ * See `VideoActivityMetadata.sync`. Mirrors `QuizMetadataSyncLinkage`:
+ * present iff the activity participates in a `/synced_video_activities/{groupId}`
+ * group. Both fields are required or neither is present so the type forbids
+ * partial states.
+ */
+export interface VideoActivityMetadataSyncLinkage {
+  /** Doc id under `/synced_video_activities/{groupId}`. */
+  groupId: string;
+  /**
+   * The `version` of the canonical group doc this local Drive replica was
+   * last reconciled with. Used as a stale-detector against the canonical's
+   * live `version`.
+   */
+  lastSyncedVersion: number;
+}
+
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list). */
 export interface VideoActivityMetadata {
   id: string;
@@ -2717,6 +2995,11 @@ export interface VideoActivityMetadata {
    * Refers to a folder id in `/users/{userId}/video_activity_folders/{folderId}`.
    */
   folderId?: string | null;
+  /**
+   * Optional sync-group linkage for PR3 PLC sharing. Present iff this
+   * activity participates in a synced group. Mirrors `QuizMetadata.sync`.
+   */
+  sync?: VideoActivityMetadataSyncLinkage;
 }
 
 export type VideoActivityView = 'manager' | 'create' | 'results' | 'monitor';
@@ -2773,9 +3056,9 @@ export interface VideoActivitySessionSettings {
  */
 export type VideoActivityScoreVisibility =
   | 'none'
-  | 'score_only'
-  | 'score_and_responses'
-  | 'score_responses_and_answers';
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
 
 /**
  * Assignment-policy options for a Video Activity session. Distinct from
@@ -2881,6 +3164,26 @@ export interface VideoActivitySession {
    * sessions; consumers must default to `'submissions'`.
    */
   mode?: AssignmentMode;
+  /**
+   * Map of question id → revealed correct answer string. Populated by the
+   * teacher's Publish Scores flow (PR3) when the chosen `scoreVisibility`
+   * level reveals correct answers to students. Absent until publish runs.
+   * Mirrors `QuizSession.revealedAnswers`.
+   */
+  revealedAnswers?: Record<string, string>;
+  /**
+   * Optional sync-group linkage. Mirrors `QuizSession.sync`. Set when the
+   * assignment was created from (or imported as) a synced share so peer
+   * edits to the canonical group flow through to this session on next
+   * teacher sync-pull.
+   */
+  sync?: VideoActivitySessionSyncLinkage;
+}
+
+/** Per-session sync linkage to `/synced_video_activities/{groupId}`. */
+export interface VideoActivitySessionSyncLinkage {
+  groupId: string;
+  syncedVersion: number;
 }
 
 /** A single answer submitted by a student for a video activity question. */
@@ -2948,6 +3251,27 @@ export interface VideoActivityResponse {
    * publishes scores; mirrors `VideoActivityScoreVisibility`.
    */
   scoreVisibility?: VideoActivityScoreVisibility;
+}
+
+/**
+ * Cross-launch attempt ledger for Video Activity. Mirrors
+ * `QuizAttemptLedger` exactly — see that type's docs for the rationale.
+ * Stored at `/video_activity_attempt_ledger/{ledgerId}` where
+ * `ledgerId = ${activityId}__${studentUid}`.
+ */
+export interface VideoActivityAttemptLedger {
+  /** Matches `VideoActivitySession.activityId`. */
+  activityId: string;
+  /** Matches `auth.uid`. */
+  studentUid: string;
+  /** UID of the teacher who owns the activity. */
+  teacherUid: string;
+  /** Monotonic counter; reset to 0 by the teacher's removeStudent action. */
+  completedAttempts: number;
+  /** Server-time `Date.now()` of the most recent successful completion. */
+  lastAttemptAt: number;
+  /** Diagnostic breadcrumb — most recent session id; not used for enforcement. */
+  lastSessionId?: string;
 }
 
 export interface TalkingToolConfig {
@@ -3412,8 +3736,19 @@ export interface GuidedLearningStep {
   imageIndex: number;
   label?: string;
   interactionType: GuidedLearningInteractionType;
-  /** Optional hotspot style customization */
+  /**
+   * @deprecated Read-only legacy field kept for back-compat. New writes use
+   * `hotspotAlwaysHidden`. Reads still honor this when the new field is
+   * absent so existing sets keep working without migration.
+   */
   hideStepNumber?: boolean;
+  /**
+   * When true, this hotspot's marker is never rendered in the player. The
+   * underlying image region is still clickable in explore mode, so this is
+   * for "find the click zone yourself" exercises where the visual marker
+   * would give the answer away. Default false.
+   */
+  hotspotAlwaysHidden?: boolean;
   /** Overlay style for pan-zoom/spotlight interactions */
   showOverlay?: GuidedLearningOverlayType;
   /** Tooltip anchor relative to hotspot (default 'auto') */
@@ -3454,6 +3789,35 @@ export interface GuidedLearningSet {
   /** Admin-created building-level sets stored in Firestore, not Drive */
   isBuilding?: boolean;
   authorUid?: string;
+  /**
+   * Hotspot pulse animation for the player. Default `'consistent'` (matches
+   * pre-feature behavior — a continuous breathing pulse). `'reminder'` does
+   * a brief wiggle every ~6s and stays still otherwise. `'off'` removes the
+   * pulse entirely. All variants honor `prefers-reduced-motion`.
+   */
+  hotspotPulse?: 'consistent' | 'reminder' | 'off';
+  /**
+   * Image-to-image transition style when the player switches between
+   * images. Default `'none'` (instant swap — pre-feature behavior).
+   * `'slide'` moves the new image in from the right while the previous
+   * image exits to the left. `'fade'` cross-dissolves the two. All
+   * variants honor `prefers-reduced-motion`.
+   */
+  imageTransition?: 'none' | 'slide' | 'fade';
+  /**
+   * When true, the student start screen replaces the default mode/step
+   * subtitle with a custom message and changes the Start button label
+   * to "Get started". The message lives in `welcomeMessage`. Falsy =
+   * default behavior (mode + step count subtitle).
+   */
+  welcomeEnabled?: boolean;
+  /**
+   * Custom welcome message displayed on the student start screen when
+   * `welcomeEnabled` is true. Newlines are preserved. Empty/whitespace
+   * strings fall back to the default subtitle even when the toggle is
+   * on, so an enabled-but-empty welcome doesn't render an empty card.
+   */
+  welcomeMessage?: string;
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
@@ -3491,7 +3855,10 @@ export interface GuidedLearningPublicStep {
   imageIndex: number;
   label?: string;
   interactionType: GuidedLearningInteractionType;
+  /** @deprecated Legacy back-compat read; new writes use `hotspotAlwaysHidden`. */
   hideStepNumber?: boolean;
+  /** Mirrors `GuidedLearningStep.hotspotAlwaysHidden`. */
+  hotspotAlwaysHidden?: boolean;
   showOverlay?: GuidedLearningOverlayType;
   tooltipPosition?: 'above' | 'below' | 'left' | 'right' | 'auto';
   tooltipOffset?: number;
@@ -3566,6 +3933,14 @@ export interface GuidedLearningSession {
    * Mini App) store it as `mode`.
    */
   assignmentMode?: AssignmentMode;
+  /** Mirrors `GuidedLearningSet.hotspotPulse` so the student app sees it. */
+  hotspotPulse?: 'consistent' | 'reminder' | 'off';
+  /** Mirrors `GuidedLearningSet.imageTransition`. */
+  imageTransition?: 'none' | 'slide' | 'fade';
+  /** Mirrors `GuidedLearningSet.welcomeEnabled`. */
+  welcomeEnabled?: boolean;
+  /** Mirrors `GuidedLearningSet.welcomeMessage`. */
+  welcomeMessage?: string;
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -4840,6 +5215,12 @@ export interface RemoteGlobalConfig {
 
 export type VideoActivityAssignmentStatus = 'active' | 'paused' | 'inactive';
 
+/** See `VideoActivityAssignment.sync`. Mirrors `QuizAssignmentSyncLinkage`. */
+export interface VideoActivityAssignmentSyncLinkage {
+  groupId: string;
+  syncedVersion: number;
+}
+
 /** Persisted settings for a Video Activity assignment (session behavior flags). */
 export interface VideoActivityAssignmentSettings {
   /** Free-text label shown in the archive (e.g. "Period 2"). */
@@ -4865,6 +5246,31 @@ export interface VideoActivityAssignmentSettings {
    * roster picker so the student-app post-PIN picker has stable labels.
    */
   periodNames?: string[];
+  /**
+   * Single period name for legacy compatibility. Set to `periodNames[0]` at
+   * write time so pre-multiclass clients can still read a single label.
+   * Mirrors `QuizAssignment.periodName`.
+   */
+  periodName?: string;
+  /**
+   * Display name of the teacher who owns this assignment. Surfaces in the
+   * exported PLC sheet's "Teacher" column. Mirrors `QuizAssignment.teacherName`.
+   */
+  teacherName?: string;
+  /**
+   * PLC linkage. Set when the teacher opts into PLC mode at assign time. The
+   * `sheetUrl` on this sub-object is the canonical export target — when
+   * absent, PR3 auto-creates the sheet on first export. Mirrors
+   * `QuizAssignment.plc`.
+   */
+  plc?: PlcLinkage;
+  /**
+   * Sync-group linkage. Present iff this assignment was created from (or
+   * imported as) a synced share. Drives the per-assignment "Sync" button
+   * which detects divergence against `/synced_video_activities/{groupId}`
+   * and offers to pull the canonical's latest content.
+   */
+  sync?: VideoActivityAssignmentSyncLinkage;
 }
 
 /**

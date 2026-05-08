@@ -512,8 +512,20 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   }
 
   // ── Completion screen ─────────────────────────────────────────────────────
-
-  if (videoEnded || myResponse?.completedAt) {
+  //
+  // Defense-in-depth gate: in addition to the existing video-ended /
+  // completedAt triggers, also short-circuit to the completion screen when
+  // the student is at or past the session's attempt cap, regardless of the
+  // response's `completedAt` state. The join hook resets `completedAt: null`
+  // when a student rejoins under the cap, and throws AttemptLimitReached
+  // when at/over it — so this branch is normally redundant. It exists so a
+  // future bug or stale snapshot that leaves a capped response in
+  // `completedAt: null` state can't leak the question UI back to the
+  // student.
+  const attemptLimit = session?.sessionOptions?.attemptLimit ?? null;
+  const completedCount = myResponse?.completedAttempts ?? 0;
+  const atCap = attemptLimit !== null && completedCount >= attemptLimit;
+  if (videoEnded || myResponse?.completedAt || atCap) {
     const answeredCount = myResponse?.answers.length ?? 0;
     const totalQuestions = session?.questions.length ?? 0;
     // Derive correctness via the shared grader so MA / FIB-variants /

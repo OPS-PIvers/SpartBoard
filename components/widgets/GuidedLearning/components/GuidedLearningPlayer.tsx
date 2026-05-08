@@ -38,6 +38,17 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   teacherMode = false,
 }) => {
   const mode: GuidedLearningMode = set.mode;
+  // Hotspot pulse style — 'consistent' (default) preserves the legacy ping
+  // ring; 'reminder' adds a periodic wiggle on the marker itself; 'off'
+  // disables both. All variants degrade to no-animation under
+  // prefers-reduced-motion via the motion-reduce:* utilities.
+  const pulseMode: 'consistent' | 'reminder' | 'off' =
+    set.hotspotPulse ?? 'consistent';
+  // Image-to-image transition style. 'none' = instant swap (legacy);
+  // 'slide' = new image slides in from the right while previous exits left;
+  // 'fade' = cross-dissolve. Reduces to 'none' under prefers-reduced-motion.
+  const transitionMode: 'none' | 'slide' | 'fade' =
+    set.imageTransition ?? 'none';
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
   // GuidedLearningPublicStep[] (via the student-app cast). We intentionally
   // narrow to GuidedLearningPublicStep[] here so interaction components never
@@ -132,6 +143,29 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           Math.max(set.imageUrls.length - 1, 0)
         );
   const currentImageUrl = set.imageUrls[currentImageIndex] ?? set.imageUrls[0];
+
+  // Image-transition bookkeeping — when `currentImageIndex` changes and a
+  // transition is enabled, we briefly render the previous image as an
+  // exiting layer alongside the current one. The "adjust state during
+  // render" pattern detects the change without an effect; the
+  // 500ms-cleanup effect below drops the previous layer once its
+  // animation has finished.
+  const transitionsActive = transitionMode !== 'none' && !prefersReducedMotion;
+  const [prevImageIndex, setPrevImageIndex] = useState<number | null>(null);
+  const [trackedImageIndex, setTrackedImageIndex] = useState(currentImageIndex);
+  if (trackedImageIndex !== currentImageIndex) {
+    if (transitionsActive) {
+      setPrevImageIndex(trackedImageIndex);
+    }
+    setTrackedImageIndex(currentImageIndex);
+  }
+  useEffect(() => {
+    if (prevImageIndex === null) return;
+    const id = setTimeout(() => setPrevImageIndex(null), 500);
+    return () => clearTimeout(id);
+  }, [prevImageIndex]);
+  const previousImageUrl =
+    prevImageIndex !== null ? (set.imageUrls[prevImageIndex] ?? null) : null;
 
   const toContainerStep = useCallback(
     (step: GuidedLearningPublicStep | null) => {
@@ -605,14 +639,38 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             className="w-full h-full relative motion-reduce:transition-none"
             style={getPanZoomStyle()}
           >
+            {/* Current image is always mounted — kept stable across image
+                changes so React doesn't re-create the <img> node, which
+                would invalidate refs held by callers/tests and force a
+                fresh load even when the URL is unchanged. */}
             {currentImageUrl && (
               <img
                 ref={imgRef}
                 src={currentImageUrl}
                 alt={set.title}
-                className="w-full h-full object-contain pointer-events-none"
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                 draggable={false}
                 onLoad={measureImg}
+              />
+            )}
+            {/* Previous image — only mounted while a transition is in
+                flight. Rendered ABOVE the current layer (later in DOM
+                order, so it paints on top) and animates OUT, revealing
+                the current image underneath. The cleanup effect drops
+                this layer 500ms after mount. */}
+            {previousImageUrl && (
+              <img
+                src={previousImageUrl}
+                alt=""
+                aria-hidden="true"
+                className={`absolute inset-0 w-full h-full object-contain pointer-events-none ${
+                  transitionMode === 'slide'
+                    ? 'animate-slide-left-out'
+                    : transitionMode === 'fade'
+                      ? 'animate-fade-out'
+                      : ''
+                }`}
+                draggable={false}
               />
             )}
 
@@ -620,16 +678,32 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             {steps.map((step, idx) => {
               if (step.imageIndex !== currentImageIndex) return null;
               const isActive = activeStepId === step.id;
+              // Per-step "Always hidden" — never render the marker. The
+              // legacy `hideStepNumber` flag is read as a fallback so old
+              // sets keep working without migration.
+              const alwaysHidden = Boolean(
+                step.hotspotAlwaysHidden ?? step.hideStepNumber
+              );
+              if (alwaysHidden) return null;
+              // Auto-hide-while-live: the active step's marker disappears
+              // in any mode so it doesn't sit on top of the
+              // popover/tooltip/spotlight content it just opened. Other
+              // pins on the same image stay visible so explore-mode users
+              // can still click them. The interaction overlay (tooltip
+              // arrow, spotlight focus, popover position) is still
+              // anchored to the pin's coordinates even with the marker
+              // hidden, so users keep their visual anchor.
+              if (isActive) return null;
+              // Structured/guided only render the *current* step's pin
+              // (other steps are sequenced through Prev/Next, not clickable
+              // out of order). Since the current step is also the active
+              // one in those modes, this branch effectively renders no
+              // pin during a live structured/guided step — the user sees
+              // only the interaction overlay. Explore mode renders every
+              // non-active pin on the image.
               const isCurrentStructured =
                 mode !== 'explore' && step.id === currentStep?.id;
-              const hidePinInStructured =
-                mode !== 'explore' &&
-                isCurrentStructured &&
-                Boolean(step.hideStepNumber);
-              const showPin =
-                (mode === 'explore' || isCurrentStructured) &&
-                !hidePinInStructured;
-
+              const showPin = mode === 'explore' || isCurrentStructured;
               if (!showPin) return null;
 
               const position = toContainerCoords(
@@ -650,10 +724,14 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                 >
                   <button
                     onClick={() => handlePinClick(step)}
-                    className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 ${
-                      isActive
-                        ? 'bg-indigo-600 scale-125 shadow-indigo-500/60'
-                        : 'bg-white/25 hover:bg-white/35'
+                    className={`group relative flex items-center justify-center rounded-full border-2 border-white transition-all shadow-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-white/90 bg-white/25 hover:bg-white/35 ${
+                      // 'reminder' wiggle is applied to the button itself
+                      // (not a ring child) so it actually moves the marker.
+                      // 'consistent' uses the inline ping ring below.
+                      // 'off' adds nothing.
+                      pulseMode === 'reminder'
+                        ? 'animate-gl-pulse-reminder motion-reduce:animate-none'
+                        : ''
                     }`}
                     style={{
                       width: 'min(32px, 8cqmin)',
@@ -661,7 +739,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                     }}
                     aria-label={step.label ?? `Step ${idx + 1}`}
                   >
-                    {!isActive && (
+                    {pulseMode === 'consistent' && (
                       <span className="pointer-events-none absolute inset-0 rounded-full border border-white/70 animate-ping opacity-70 motion-reduce:hidden [animation-duration:2s]" />
                     )}
                     <span
@@ -675,7 +753,7 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
                       className="relative text-white font-bold select-none"
                       style={{ fontSize: 'min(12px, 3cqmin)' }}
                     >
-                      {mode === 'explore' && step.hideStepNumber ? '' : idx + 1}
+                      {idx + 1}
                     </span>
                   </button>
                 </div>

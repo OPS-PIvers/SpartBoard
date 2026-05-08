@@ -33,7 +33,6 @@ import {
   VolumeX,
   Palette,
   Percent,
-  Filter,
   Medal,
   Pause,
   Play,
@@ -72,7 +71,7 @@ import {
   playPodiumFanfare,
   playQuizCompleteCelebration,
 } from '@/utils/quizAudio';
-import { PeriodSelector } from '@/components/common/library/PeriodSelector';
+import { logError } from '@/utils/logError';
 
 interface QuizLiveMonitorProps {
   session: QuizSession;
@@ -318,7 +317,10 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const [showStats, setShowStats] = useState(false);
   const [advancing, setAdvancing] = useState(false);
   const [ending, setEnding] = useState(false);
-  const [showRoster, setShowRoster] = useState(false);
+  // Roster is visible by default — teachers monitoring a live session
+  // expect the student list immediately; gating it behind a click hurt
+  // discoverability, especially on touch devices.
+  const [showRoster, setShowRoster] = useState(true);
   const [autoCountdown, setAutoCountdown] = useState<number | null>(null);
   const [showLiveScoreboardSetup, setShowLiveScoreboardSetup] = useState(false);
   const [liveScoreboardMode, setLiveScoreboardMode] = useState<'pin' | 'name'>(
@@ -340,9 +342,19 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     Boolean(session.showPodiumBetweenQuestions);
   const showScoreboardControl = isGamifiedSession || isLiveScoreboardActive;
 
-  // New state for Phase 1 & 2 features
-  const [showTabWarnings, setShowTabWarnings] = useState(true);
-  const [showPeriodFilter, setShowPeriodFilter] = useState(false);
+  // Tab-switch warnings are hidden by default — they're noise during
+  // normal monitoring and only meaningful for assessments. Teachers can
+  // surface them on demand from the roster toolbar.
+  const [showTabWarnings, setShowTabWarnings] = useState(false);
+
+  // Session-local approval gate for revealing student performance on the
+  // monitor. Defaults to false so a fresh open never shows scores or
+  // score-band tinting on what may be a projected screen, regardless of
+  // the teacher's persisted preference. Toggling Colors or Score Display
+  // requires confirming a privacy-aware reveal, and the flag resets when
+  // the session id changes (see the session-change block below) so each
+  // quiz starts hidden again.
+  const [scoreRevealApproved, setScoreRevealApproved] = useState(false);
 
   // Periods this assignment was launched against, deduped while preserving
   // order. Drives the class-period filter UI: hidden when there's only a
@@ -352,12 +364,16 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     return Array.from(new Set(list.filter((p) => typeof p === 'string' && p)));
   }, [session.periodNames]);
 
-  // Selected periods for the live monitor view. Default = all targeted periods
-  // so a fresh open shows the same data the teacher is used to. Local state —
-  // resets between sessions, which is the right default for a transient
-  // monitor filter (teachers usually want to start with everyone visible).
+  // Selected periods for the live monitor view. Teachers run live
+  // sessions one period at a time, so the default narrows to the first
+  // targeted period rather than dumping every period into the same KPI
+  // counts and roster (which obscured "who's in this room right now").
+  // When the assignment only targets one period this is a no-op.
   const [selectedPeriodNames, setSelectedPeriodNames] = useState<string[]>(
-    () => sessionPeriodNames
+    () =>
+      sessionPeriodNames.length > 1
+        ? [sessionPeriodNames[0]]
+        : sessionPeriodNames
   );
   // If the assignment's targeted periods change (e.g. teacher edits the
   // assignment in another tab), reset the selection rather than letting it go
@@ -375,7 +391,11 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     prevPeriods.some((p, i) => p !== sessionPeriodNames[i]);
   if (periodsChanged && sessionPeriodNames.length > 0) {
     lastSessionPeriodsRef.current = sessionPeriodNames;
-    setSelectedPeriodNames(sessionPeriodNames);
+    setSelectedPeriodNames(
+      sessionPeriodNames.length > 1
+        ? [sessionPeriodNames[0]]
+        : sessionPeriodNames
+    );
   }
 
   // True when the user has narrowed the session's targeted periods. Used
@@ -388,52 +408,145 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   // Apply the class-period filter to the response stream that drives the
   // monitor's KPIs and roster. Leaderboard broadcasts intentionally use the
   // unfiltered `responses` so the student-facing leaderboard stays global.
+  // SSO joiners write `classPeriod` directly when their classIds claim
+  // resolves cleanly, but multi-class students or claim failures can leave
+  // a row with only `classId`. Resolve those through
+  // `session.classPeriodByClassId` before filtering so SSO students don't
+  // silently disappear from a narrowed view.
   const filteredResponses = useMemo(() => {
     if (!filterActive) return responses;
     const allow = new Set(selectedPeriodNames);
-    // Drop SSO/legacy rows that have no `classPeriod`: when the teacher
-    // narrows to a specific period they expect a clean view, and a row
-    // with no period claim should not silently leak through.
-    return responses.filter((r) =>
-      r.classPeriod ? allow.has(r.classPeriod) : false
-    );
-  }, [responses, selectedPeriodNames, filterActive]);
+    const classIdToPeriod = session.classPeriodByClassId ?? {};
+    return responses.filter((r) => {
+      const period =
+        r.classPeriod ?? (r.classId ? classIdToPeriod[r.classId] : undefined);
+      return period ? allow.has(period) : false;
+    });
+  }, [
+    responses,
+    selectedPeriodNames,
+    filterActive,
+    session.classPeriodByClassId,
+  ]);
 
   const { addToast } = useDashboard();
 
-  const handleToggleColors = useCallback(() => {
-    const next = !quizMonitorColorsEnabled;
-    updateAccountPreferences({ quizMonitorColorsEnabled: next }).catch(
-      (err: unknown) => {
-        console.error('[QuizLiveMonitor] persist colors toggle failed:', err);
-        addToast(
-          'Could not save the Colors preference — try again or check your connection.',
-          'error'
-        );
+  // Effective values gated by the session-local reveal approval. We
+  // override the persisted preference until the teacher confirms it's
+  // safe to display student performance on this screen — a projector
+  // could otherwise leak grades the moment the monitor opens.
+  const effectiveColorsEnabled =
+    scoreRevealApproved && quizMonitorColorsEnabled;
+  const effectiveScoreDisplay: 'percent' | 'count' | 'hidden' =
+    scoreRevealApproved ? quizMonitorScoreDisplay : 'hidden';
+
+  // Live session-id tracker. The `requestScoreReveal` callback can stay
+  // mounted while a teacher's confirm dialog awaits, and Firestore can
+  // swap `session.id` underneath. `useCallback` would close over a stale
+  // `session.id` from its capturing render, so we read the current id
+  // through a ref that's updated every render.
+  const sessionIdRef = useRef(session.id);
+  sessionIdRef.current = session.id;
+
+  const requestScoreReveal = useCallback(async () => {
+    if (scoreRevealApproved) return true;
+    // Capture the session this prompt belongs to. If the active session
+    // changes mid-await, the resolution must NOT apply approval to the
+    // fresh session — that would silently bypass the gate on a session
+    // the teacher never agreed to reveal.
+    const sessionAtRequest = sessionIdRef.current;
+    const ok = await showConfirm(
+      "Heads up — this monitor may be projected to the class. Confirm only if it's appropriate to display student performance on the current screen.",
+      {
+        title: 'Reveal student results?',
+        variant: 'warning',
+        confirmLabel: 'Yes, reveal',
+        cancelLabel: 'Keep hidden',
       }
     );
-  }, [quizMonitorColorsEnabled, updateAccountPreferences, addToast]);
+    if (sessionIdRef.current !== sessionAtRequest) return false;
+    if (ok) setScoreRevealApproved(true);
+    return ok;
+  }, [scoreRevealApproved, showConfirm]);
+
+  // Single seam for the "preference write failed" pattern. Routes the error
+  // through the structured `logError` helper (so future Sentry/Bugsnag
+  // wiring picks these up) and surfaces a toast with a label-specific
+  // message. Returned as a `.catch` handler factory so each call site
+  // stays a one-liner.
+  const persistPreferenceFailed = useCallback(
+    (scope: string, label: string) =>
+      (err: unknown): void => {
+        logError(`QuizLiveMonitor.${scope}`, err);
+        addToast(
+          `Could not save the ${label} preference — try again or check your connection.`,
+          'error'
+        );
+      },
+    [addToast]
+  );
+
+  const handleToggleColors = useCallback(() => {
+    void (async () => {
+      // Turning ON requires confirmation while results are still gated.
+      if (!effectiveColorsEnabled) {
+        const ok = await requestScoreReveal();
+        if (!ok) return;
+        if (!quizMonitorColorsEnabled) {
+          updateAccountPreferences({
+            quizMonitorColorsEnabled: true,
+          }).catch(persistPreferenceFailed('persistColorsToggle', 'Colors'));
+        }
+        return;
+      }
+      // Turning OFF — no confirmation needed.
+      updateAccountPreferences({ quizMonitorColorsEnabled: false }).catch(
+        persistPreferenceFailed('persistColorsToggle', 'Colors')
+      );
+    })();
+  }, [
+    effectiveColorsEnabled,
+    quizMonitorColorsEnabled,
+    requestScoreReveal,
+    updateAccountPreferences,
+    persistPreferenceFailed,
+  ]);
 
   const handleCycleScoreDisplay = useCallback(() => {
-    const next: 'percent' | 'count' | 'hidden' =
-      quizMonitorScoreDisplay === 'percent'
-        ? 'count'
-        : quizMonitorScoreDisplay === 'count'
-          ? 'hidden'
-          : 'percent';
-    updateAccountPreferences({ quizMonitorScoreDisplay: next }).catch(
-      (err: unknown) => {
-        console.error(
-          '[QuizLiveMonitor] persist score-display cycle failed:',
-          err
-        );
-        addToast(
-          'Could not save the score display preference — try again or check your connection.',
-          'error'
-        );
+    void (async () => {
+      // Cycling away from "hidden" reveals scores — gate it behind the
+      // same approval prompt as the Colors toggle.
+      if (effectiveScoreDisplay === 'hidden') {
+        const ok = await requestScoreReveal();
+        if (!ok) return;
+        const next =
+          quizMonitorScoreDisplay === 'hidden'
+            ? 'percent'
+            : quizMonitorScoreDisplay;
+        if (next !== quizMonitorScoreDisplay) {
+          updateAccountPreferences({ quizMonitorScoreDisplay: next }).catch(
+            persistPreferenceFailed('persistScoreDisplayCycle', 'score display')
+          );
+        }
+        return;
       }
-    );
-  }, [quizMonitorScoreDisplay, updateAccountPreferences, addToast]);
+      const next: 'percent' | 'count' | 'hidden' =
+        quizMonitorScoreDisplay === 'percent'
+          ? 'count'
+          : quizMonitorScoreDisplay === 'count'
+            ? 'hidden'
+            : 'percent';
+      updateAccountPreferences({ quizMonitorScoreDisplay: next }).catch(
+        persistPreferenceFailed('persistScoreDisplayCycle', 'score display')
+      );
+    })();
+  }, [
+    effectiveScoreDisplay,
+    quizMonitorScoreDisplay,
+    requestScoreReveal,
+    updateAccountPreferences,
+    persistPreferenceFailed,
+  ]);
   const [confirmRemove, setConfirmRemove] = useState<ResponseDocKey | null>(
     null
   );
@@ -445,15 +558,18 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const lastLeaderboardFingerprintRef = useRef<string | null>(null);
   const hasClearedLeaderboardRef = useRef(false);
 
-  // Reset leaderboard tracking refs when the session id changes. Done during
+  // Reset session-scoped tracking when the session id changes. Done during
   // render via the "adjusting state while rendering" pattern (see React docs)
   // instead of an effect — useEffect is reserved for syncing with external
-  // systems, and ref assignment is purely local.
+  // systems, and ref assignment is purely local. Includes the score-reveal
+  // approval flag so a teacher's confirm in one quiz doesn't silently leak
+  // scores when the same QuizLiveMonitor instance hosts a new session.
   const [prevSessionId, setPrevSessionId] = useState(session.id);
   if (prevSessionId !== session.id) {
     setPrevSessionId(session.id);
     lastLeaderboardFingerprintRef.current = null;
     hasClearedLeaderboardRef.current = false;
+    setScoreRevealApproved(false);
   }
 
   // Broadcast student-safe live leaderboard snapshot for gamified sessions.
@@ -1137,6 +1253,18 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 />
               )}
 
+              {/* 2a. CLASS-PERIOD CHIPS — visible at the top of the
+                     KPI cluster so teachers see immediately which
+                     period is driving the counts and roster below.
+                     Defaults to a single period (set in state init);
+                     the All chip widens back out. */}
+              <PeriodChipFilter
+                sessionPeriodNames={sessionPeriodNames}
+                selectedPeriodNames={selectedPeriodNames}
+                onSelectPeriod={(name) => setSelectedPeriodNames([name])}
+                onSelectAll={() => setSelectedPeriodNames(sessionPeriodNames)}
+              />
+
               {/* 2. INTERACTIVE STAT BOXES — tappable to show students */}
               <div
                 className="grid grid-cols-3"
@@ -1385,18 +1513,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     </button>
                     {showRoster && (
                       <RosterToolbar
-                        rosters={rosters}
-                        sessionPeriodNames={sessionPeriodNames}
-                        selectedPeriodNames={selectedPeriodNames}
-                        onChangeSelectedPeriods={setSelectedPeriodNames}
-                        showPeriodFilter={showPeriodFilter}
-                        onTogglePeriodFilter={() =>
-                          setShowPeriodFilter(!showPeriodFilter)
-                        }
-                        onClosePeriodFilter={() => setShowPeriodFilter(false)}
-                        colorsEnabled={quizMonitorColorsEnabled}
+                        colorsEnabled={effectiveColorsEnabled}
                         onToggleColors={handleToggleColors}
-                        scoreDisplay={quizMonitorScoreDisplay}
+                        scoreDisplay={effectiveScoreDisplay}
                         onCycleScoreDisplay={handleCycleScoreDisplay}
                         tabWarningsAllowed={
                           session.tabWarningsEnabled !== false
@@ -1452,8 +1571,8 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               totalQuestions={session.totalQuestions}
                               questions={quizData.questions}
                               scoringConfig={scoringConfig}
-                              colorsEnabled={quizMonitorColorsEnabled}
-                              scoreDisplay={quizMonitorScoreDisplay}
+                              colorsEnabled={effectiveColorsEnabled}
+                              scoreDisplay={effectiveScoreDisplay}
                               showTabWarnings={
                                 showTabWarnings &&
                                 session.tabWarningsEnabled !== false
@@ -1630,6 +1749,16 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                 </div>
               )}
 
+              {/* Period chips above stat boxes — same pattern as the
+                  active layout so teachers can preview / review one
+                  period at a time before starting or after ending. */}
+              <PeriodChipFilter
+                sessionPeriodNames={sessionPeriodNames}
+                selectedPeriodNames={selectedPeriodNames}
+                onSelectPeriod={(name) => setSelectedPeriodNames([name])}
+                onSelectAll={() => setSelectedPeriodNames(sessionPeriodNames)}
+              />
+
               {/* Stat boxes (non-interactive for waiting/ended) */}
               <div
                 className="grid grid-cols-3"
@@ -1769,18 +1898,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     </button>
                     {showRoster && (
                       <RosterToolbar
-                        rosters={rosters}
-                        sessionPeriodNames={sessionPeriodNames}
-                        selectedPeriodNames={selectedPeriodNames}
-                        onChangeSelectedPeriods={setSelectedPeriodNames}
-                        showPeriodFilter={showPeriodFilter}
-                        onTogglePeriodFilter={() =>
-                          setShowPeriodFilter(!showPeriodFilter)
-                        }
-                        onClosePeriodFilter={() => setShowPeriodFilter(false)}
-                        colorsEnabled={quizMonitorColorsEnabled}
+                        colorsEnabled={effectiveColorsEnabled}
                         onToggleColors={handleToggleColors}
-                        scoreDisplay={quizMonitorScoreDisplay}
+                        scoreDisplay={effectiveScoreDisplay}
                         onCycleScoreDisplay={handleCycleScoreDisplay}
                         tabWarningsAllowed={
                           session.tabWarningsEnabled !== false
@@ -1836,8 +1956,8 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               totalQuestions={session.totalQuestions}
                               questions={quizData.questions}
                               scoringConfig={scoringConfig}
-                              colorsEnabled={quizMonitorColorsEnabled}
-                              scoreDisplay={quizMonitorScoreDisplay}
+                              colorsEnabled={effectiveColorsEnabled}
+                              scoreDisplay={effectiveScoreDisplay}
                               showTabWarnings={
                                 showTabWarnings &&
                                 session.tabWarningsEnabled !== false
@@ -2065,20 +2185,100 @@ const InteractiveStatBox: React.FC<{
 };
 
 /**
- * Right-side controls in the roster header: period filter, Colors toggle,
- * score-display cycle, and tab-warnings toggle. Extracted because the same
- * cluster is rendered in two layouts (active in-question view and
- * waiting/ended view) and the previous inline duplication was already
- * starting to drift across edits.
+ * PeriodChipFilter — touch-friendly chip strip for switching the
+ * monitor between class periods. One chip per targeted period plus an
+ * "All" chip. Single-select on individual periods (the common teacher
+ * workflow is "show me period 3 right now"); the All chip widens back
+ * out for end-of-day overviews. Hidden when the assignment only
+ * targets one period.
  */
-const RosterToolbar: React.FC<{
-  rosters: ClassRoster[];
+const PeriodChipFilter: React.FC<{
   sessionPeriodNames: string[];
   selectedPeriodNames: string[];
-  onChangeSelectedPeriods: (names: string[]) => void;
-  showPeriodFilter: boolean;
-  onTogglePeriodFilter: () => void;
-  onClosePeriodFilter: () => void;
+  onSelectPeriod: (name: string) => void;
+  onSelectAll: () => void;
+}> = ({
+  sessionPeriodNames,
+  selectedPeriodNames,
+  onSelectPeriod,
+  onSelectAll,
+}) => {
+  if (sessionPeriodNames.length <= 1) return null;
+  const allSelected =
+    selectedPeriodNames.length === sessionPeriodNames.length &&
+    sessionPeriodNames.every((p) => selectedPeriodNames.includes(p));
+  const isActive = (name: string) =>
+    !allSelected &&
+    selectedPeriodNames.length === 1 &&
+    selectedPeriodNames[0] === name;
+  return (
+    <div
+      className="flex items-center flex-wrap"
+      role="group"
+      aria-label="Filter monitor by class period"
+      style={{ gap: 'min(6px, 1.5cqmin)' }}
+    >
+      <span
+        className="text-brand-blue-primary/60 font-black uppercase tracking-widest shrink-0"
+        style={{ fontSize: 'min(10px, 3cqmin)' }}
+      >
+        Period
+      </span>
+      {sessionPeriodNames.map((name) => {
+        const active = isActive(name);
+        return (
+          <button
+            key={name}
+            type="button"
+            onClick={() => onSelectPeriod(name)}
+            aria-pressed={active}
+            className={`font-bold rounded-full border transition-all active:scale-95 ${
+              active
+                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                : 'bg-white text-brand-blue-dark border-brand-blue-primary/20 hover:bg-brand-blue-lighter/40'
+            }`}
+            style={{
+              fontSize: 'min(12px, 3.2cqmin)',
+              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+              minHeight: 'min(32px, 8cqmin)',
+            }}
+          >
+            {name}
+          </button>
+        );
+      })}
+      <button
+        type="button"
+        onClick={onSelectAll}
+        aria-pressed={allSelected}
+        className={`font-bold rounded-full border transition-all active:scale-95 ${
+          allSelected
+            ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+            : 'bg-white text-brand-blue-dark/70 border-brand-blue-primary/15 hover:bg-brand-blue-lighter/30'
+        }`}
+        style={{
+          fontSize: 'min(12px, 3.2cqmin)',
+          padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+          minHeight: 'min(32px, 8cqmin)',
+        }}
+        title="Show every targeted period at once"
+      >
+        All
+      </button>
+    </div>
+  );
+};
+
+/**
+ * Right-side controls in the roster header: Colors toggle, score-display
+ * cycle, and tab-warnings toggle. Extracted because the same cluster is
+ * rendered in two layouts (active in-question view and waiting/ended
+ * view) and the previous inline duplication was already starting to
+ * drift across edits. The class-period filter lives in a separate chip
+ * row above the KPI cards so teachers can swap periods at a glance
+ * instead of digging into a dropdown.
+ */
+const RosterToolbar: React.FC<{
   colorsEnabled: boolean;
   onToggleColors: () => void;
   scoreDisplay: 'percent' | 'count' | 'hidden';
@@ -2087,13 +2287,6 @@ const RosterToolbar: React.FC<{
   showTabWarnings: boolean;
   onToggleTabWarnings: () => void;
 }> = ({
-  rosters,
-  sessionPeriodNames,
-  selectedPeriodNames,
-  onChangeSelectedPeriods,
-  showPeriodFilter,
-  onTogglePeriodFilter,
-  onClosePeriodFilter,
   colorsEnabled,
   onToggleColors,
   scoreDisplay,
@@ -2102,9 +2295,6 @@ const RosterToolbar: React.FC<{
   showTabWarnings,
   onToggleTabWarnings,
 }) => {
-  const filterActive =
-    sessionPeriodNames.length > 1 &&
-    selectedPeriodNames.length < sessionPeriodNames.length;
   const scoreDisplayLabels = {
     percent: 'showing percent',
     count: 'showing answered / total',
@@ -2112,46 +2302,6 @@ const RosterToolbar: React.FC<{
   } as const;
   return (
     <div className="flex items-center gap-2">
-      {sessionPeriodNames.length > 1 && (
-        <div className="relative">
-          <button
-            onClick={onTogglePeriodFilter}
-            className={`flex items-center gap-1 font-bold rounded-md transition-all ${
-              filterActive
-                ? 'text-brand-blue-primary bg-brand-blue-lighter/50'
-                : 'text-brand-blue-primary/40 hover:text-brand-blue-primary/60'
-            }`}
-            style={{
-              fontSize: 'min(9px, 2.5cqmin)',
-              padding: 'min(3px, 0.7cqmin) min(6px, 1.5cqmin)',
-            }}
-            title="Filter monitor by class period"
-            aria-label="Filter by class period"
-            aria-haspopup="dialog"
-            aria-expanded={showPeriodFilter}
-          >
-            <Filter
-              style={{
-                width: 'min(12px, 3cqmin)',
-                height: 'min(12px, 3cqmin)',
-              }}
-            />
-            {filterActive
-              ? `${selectedPeriodNames.length}/${sessionPeriodNames.length}`
-              : 'All Periods'}
-          </button>
-          {showPeriodFilter && (
-            <PeriodSelector
-              rosters={rosters.filter((r) =>
-                sessionPeriodNames.includes(r.name)
-              )}
-              selectedPeriodNames={selectedPeriodNames}
-              onSave={onChangeSelectedPeriods}
-              onClose={onClosePeriodFilter}
-            />
-          )}
-        </div>
-      )}
       <button
         onClick={onToggleColors}
         className={`flex items-center gap-1 font-bold rounded-md transition-all ${
@@ -2399,7 +2549,7 @@ const StudentRow: React.FC<{
 
   return (
     <div
-      className={`flex items-center rounded-xl border transition-all group/row ${rowBg}`}
+      className={`flex items-center rounded-xl border transition-all ${rowBg}`}
       style={{
         gap: 'min(8px, 2cqmin)',
         padding: 'min(8px, 2cqmin)',
@@ -2460,16 +2610,20 @@ const StudentRow: React.FC<{
           {pillText}
         </span>
       )}
-      {/* Remove button */}
+      {/* Remove button — always visible. Hover-only discoverability
+          failed on touch devices and made the action effectively
+          invisible. The icon stays muted so it doesn't compete with
+          the row content. */}
       {onRemove && (
         <button
           onClick={onConfirmRemoveToggle}
-          className="opacity-0 group-hover/row:opacity-100 text-red-400 hover:text-red-600 transition-all shrink-0"
+          className="text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-md transition-colors shrink-0 flex items-center justify-center"
           style={{
-            width: 'min(16px, 4cqmin)',
-            height: 'min(16px, 4cqmin)',
+            width: 'min(20px, 5cqmin)',
+            height: 'min(20px, 5cqmin)',
           }}
           title="Remove student"
+          aria-label="Remove student"
         >
           <X
             style={{

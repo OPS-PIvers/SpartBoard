@@ -1,13 +1,13 @@
 /**
- * GuidedLearningEditorModal — full-screen modal wrapping the existing
- * GuidedLearningEditor in headless mode. Adds EditorModalShell chrome
- * (sticky header/footer, dirty-guard, save spinner) while delegating
- * the complex editor body (image viewport, hotspot placement, step
- * editing) to the existing component unchanged.
+ * GuidedLearningEditorModal — full-screen editor for a Guided Learning set.
+ *
+ * Wraps the two-pane EditorWorkspace: left context pane has the image canvas
+ * and hotspot placement; right detail pane has the always-visible step editor
+ * for the currently-selected hotspot.
  */
 
-import React, { useCallback, useMemo, useState } from 'react';
-import { Sparkles } from 'lucide-react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { Folder as FolderIcon, Inbox, Sparkles } from 'lucide-react';
 import {
   GuidedLearningMode,
   GuidedLearningQuestion,
@@ -16,12 +16,17 @@ import {
   GuidedLearningStep,
   LibraryFolder,
 } from '@/types';
-import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { EditorWorkspace } from '@/components/common/EditorWorkspace';
+import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { useAuth } from '@/context/useAuth';
 import {
-  GuidedLearningEditor,
-  GuidedLearningEditorState,
+  GuidedLearningEditorContextPane,
+  GuidedLearningEditorDetailPane,
 } from './GuidedLearningEditor';
+import {
+  GuidedLearningEditorState,
+  useGuidedLearningEditorState,
+} from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
 interface GuidedLearningEditorModalProps {
@@ -101,7 +106,8 @@ function stepsEqual(a: GuidedLearningStep[], b: GuidedLearningStep[]): boolean {
       (sa.spotlightRadius ?? 25) !== (sb.spotlightRadius ?? 25) ||
       (sa.bannerTone ?? 'blue') !== (sb.bannerTone ?? 'blue') ||
       (sa.autoAdvanceDuration ?? 0) !== (sb.autoAdvanceDuration ?? 0) ||
-      !!sa.hideStepNumber !== !!sb.hideStepNumber
+      !!sa.hideStepNumber !== !!sb.hideStepNumber ||
+      !!sa.hotspotAlwaysHidden !== !!sb.hotspotAlwaysHidden
     ) {
       return false;
     }
@@ -126,7 +132,6 @@ export const GuidedLearningEditorModal: React.FC<
   onFolderChange,
 }) => {
   const { isAdmin, canAccessFeature } = useAuth();
-  // Track live state from the headless editor via onStateChange callback
   const [liveState, setLiveState] = useState<GuidedLearningEditorState | null>(
     null
   );
@@ -140,6 +145,12 @@ export const GuidedLearningEditorModal: React.FC<
   const originalTitle = set?.title ?? '';
   const originalDescription = set?.description ?? '';
   const originalMode: GuidedLearningMode = set?.mode ?? 'structured';
+  const originalHotspotPulse: 'consistent' | 'reminder' | 'off' =
+    set?.hotspotPulse ?? 'consistent';
+  const originalImageTransition: 'none' | 'slide' | 'fade' =
+    set?.imageTransition ?? 'none';
+  const originalWelcomeEnabled = Boolean(set?.welcomeEnabled);
+  const originalWelcomeMessage = set?.welcomeMessage ?? '';
   const originalImageUrls = useMemo(
     () => (set ? [...set.imageUrls] : []),
     [set]
@@ -158,18 +169,29 @@ export const GuidedLearningEditorModal: React.FC<
     setShowAiGen(false);
   }
 
-  // Stable callback for the editor
   const handleStateChange = useCallback((state: GuidedLearningEditorState) => {
     setLiveState(state);
   }, []);
 
-  // Dirty check
+  const editorState = useGuidedLearningEditorState({
+    existingSet: set,
+    existingMeta: meta,
+    onStateChange: handleStateChange,
+    folders,
+    folderId,
+    onFolderChange,
+  });
+
   const isDirty = useMemo(() => {
     if (!liveState) return false;
     return (
       liveState.title !== originalTitle ||
       liveState.description !== originalDescription ||
       liveState.mode !== originalMode ||
+      liveState.hotspotPulse !== originalHotspotPulse ||
+      liveState.imageTransition !== originalImageTransition ||
+      liveState.welcomeEnabled !== originalWelcomeEnabled ||
+      liveState.welcomeMessage !== originalWelcomeMessage ||
       !arraysEqual(liveState.imageUrls, originalImageUrls) ||
       !stepsEqual(liveState.steps, originalSteps)
     );
@@ -178,11 +200,14 @@ export const GuidedLearningEditorModal: React.FC<
     originalTitle,
     originalDescription,
     originalMode,
+    originalHotspotPulse,
+    originalImageTransition,
+    originalWelcomeEnabled,
+    originalWelcomeMessage,
     originalImageUrls,
     originalSteps,
   ]);
 
-  // Save
   const handleSave = async () => {
     if (!set || !liveState) return;
     setSaving(true);
@@ -199,6 +224,24 @@ export const GuidedLearningEditorModal: React.FC<
         updatedAt: now,
         isBuilding: set.isBuilding,
         authorUid: set.authorUid,
+        // Only persist a hotspotPulse value when it differs from the default
+        // ('consistent') — keeps untouched legacy sets clean of new fields.
+        ...(liveState.hotspotPulse !== 'consistent'
+          ? { hotspotPulse: liveState.hotspotPulse }
+          : {}),
+        ...(liveState.imageTransition !== 'none'
+          ? { imageTransition: liveState.imageTransition }
+          : {}),
+        // Welcome screen — only persist when actually enabled WITH content.
+        // Toggle-on-but-empty falls back to default behavior at render time
+        // anyway, so don't write the field; this also avoids cluttering
+        // legacy sets that have never touched welcome settings.
+        ...(liveState.welcomeEnabled && liveState.welcomeMessage.trim()
+          ? {
+              welcomeEnabled: true,
+              welcomeMessage: liveState.welcomeMessage,
+            }
+          : {}),
       };
       await onSave(builtSet, meta?.driveFileId);
       onClose();
@@ -207,75 +250,119 @@ export const GuidedLearningEditorModal: React.FC<
     }
   };
 
-  // Derive modal title from live state
-  const displayTitle = liveState?.title.trim()
-    ? liveState.title.trim()
-    : originalTitle
-      ? 'Edit Set'
-      : 'New Set';
+  // The header now hosts the editable title input directly. Pass through
+  // the live value so users see what they're typing; placeholder kicks in
+  // for empty strings.
+  const headerTitleValue = liveState?.title ?? originalTitle ?? '';
+  const titlePlaceholder = originalTitle ? 'Edit Set' : 'Set title…';
 
   const stepCount = liveState?.steps.length ?? set?.steps.length ?? 0;
 
+  // Folder picker — surfaced as a compact icon button in the header so
+  // it doesn't take a full row in the body. Anchored popover renders
+  // when open. Only shown when both `folders` and `onFolderChange` are
+  // wired (matches the previous body behavior).
+  const folderButtonRef = useRef<HTMLButtonElement>(null);
+  const [folderPickerOpen, setFolderPickerOpen] = useState(false);
+  const folderPickerEnabled = Boolean(folders && onFolderChange);
+  const currentFolder =
+    folderPickerEnabled && folderId != null
+      ? (folders?.find((f) => f.id === folderId) ?? null)
+      : null;
+  const folderTooltip =
+    folderId == null
+      ? 'No folder'
+      : currentFolder
+        ? `Folder: ${currentFolder.name}`
+        : 'Folder not found';
+
+  if (!set) return null;
+
   return (
-    <EditorModalShell
-      isOpen={isOpen}
-      title={displayTitle}
-      subtitle={
-        <span>
-          {stepCount} {stepCount === 1 ? 'step' : 'steps'}
-        </span>
-      }
-      isDirty={isDirty}
-      isSaving={saving}
-      onSave={handleSave}
-      onClose={onClose}
-      saveLabel="Save Set"
-      saveDisabled={
-        !liveState ||
-        !liveState.title.trim() ||
-        liveState.imageUrls.length === 0 ||
-        liveState.uploading
-      }
-      footerExtras={
-        canUseAi ? (
-          <button
-            onClick={() => setShowAiGen(true)}
-            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-            title="Generate with AI (Admin)"
-          >
-            <Sparkles className="w-4 h-4" />
-            Draft with AI
-          </button>
-        ) : null
-      }
-      maxWidth="max-w-6xl"
-      className="h-[90vh]"
-      bodyClassName="p-0 relative"
-    >
-      {set && (
-        <GuidedLearningEditor
-          key={set.id}
-          existingSet={set}
-          existingMeta={meta}
-          onSave={onSave}
-          onCancel={onClose}
-          saving={saving}
-          headless
-          onStateChange={handleStateChange}
-          folders={folders}
-          folderId={folderId}
-          onFolderChange={onFolderChange}
+    <>
+      <EditorWorkspace
+        key={set.id}
+        isOpen={isOpen}
+        title={headerTitleValue}
+        onTitleChange={editorState.setTitle}
+        titlePlaceholder={titlePlaceholder}
+        subtitle={
+          <span>
+            {stepCount} {stepCount === 1 ? 'step' : 'steps'}
+          </span>
+        }
+        headerExtras={
+          folderPickerEnabled ? (
+            <button
+              ref={folderButtonRef}
+              type="button"
+              onClick={() => setFolderPickerOpen((v) => !v)}
+              title={folderTooltip}
+              aria-label={folderTooltip}
+              aria-expanded={folderPickerOpen}
+              aria-haspopup="dialog"
+              className={`inline-flex items-center justify-center rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 ${
+                folderId != null ? 'text-brand-blue-primary' : ''
+              }`}
+            >
+              {folderId == null ? (
+                <Inbox className="h-5 w-5" />
+              ) : (
+                <FolderIcon className="h-5 w-5" />
+              )}
+            </button>
+          ) : null
+        }
+        isDirty={isDirty}
+        isSaving={saving}
+        onSave={handleSave}
+        onClose={onClose}
+        saveLabel="Save Set"
+        saveDisabled={
+          !liveState ||
+          !liveState.title.trim() ||
+          liveState.imageUrls.length === 0 ||
+          liveState.uploading
+        }
+        footerExtras={
+          canUseAi ? (
+            <button
+              onClick={() => setShowAiGen(true)}
+              className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+              title="Generate with AI (Admin)"
+            >
+              <Sparkles className="w-4 h-4" />
+              Draft with AI
+            </button>
+          ) : null
+        }
+        className="h-[90vh]"
+        contextRatio={58}
+        contextPane={<GuidedLearningEditorContextPane state={editorState} />}
+        detailPane={<GuidedLearningEditorDetailPane state={editorState} />}
+        overlay={
+          showAiGen && canUseAi ? (
+            <GuidedLearningAIGenerator
+              onClose={() => setShowAiGen(false)}
+              onGenerated={(generated) => {
+                setShowAiGen(false);
+                onAiGenerated?.(generated);
+              }}
+            />
+          ) : null
+        }
+      />
+      {folderPickerEnabled && folderPickerOpen && (
+        <FolderPickerPopover
+          variant="popover"
+          anchorRef={folderButtonRef}
+          folders={folders ?? []}
+          selectedFolderId={folderId ?? null}
+          onSelect={(next) => onFolderChange?.(next)}
+          onClose={() => setFolderPickerOpen(false)}
+          title="Select folder"
         />
       )}
-      {showAiGen && canUseAi && (
-        <GuidedLearningAIGenerator
-          onClose={() => setShowAiGen(false)}
-          onGenerated={(generated) => {
-            setShowAiGen(false);
-            onAiGenerated?.(generated);
-          }}
-        />
-      )}
-    </EditorModalShell>
+    </>
   );
 };

@@ -8,36 +8,58 @@
  * document (under /video_activity_sessions/{sessionId}) 1:1.
  *
  * Mirrors the shape of useQuizAssignments but simplified: Video Activities
- * have no join code, no session-mode variants, no PLC sharing, and session
- * status is binary (active | ended). Assignment statuses still distinguish
- * active/paused/inactive so the In Progress tab can surface paused sessions
- * the teacher may want to resume.
+ * have no join code and no session-mode variants. PR3 adds PLC sharing
+ * (mirroring Quiz's `shareAssignment` / `importSharedAssignment` flows).
  */
 
 import { useState, useEffect, useCallback } from 'react';
 import {
+  addDoc,
   collection,
+  deleteField,
   doc,
+  getDoc,
   onSnapshot,
   getDocs,
   query,
   orderBy,
+  updateDoc,
   writeBatch,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
+import {
+  callJoinSyncedVideoActivityGroup,
+  callLeaveSyncedVideoActivityGroup,
+  createSyncedVideoActivityGroup,
+  pullSyncedVideoActivityContent,
+} from './useSyncedVideoActivityGroups';
+import { logError } from '../utils/logError';
 import type {
   AssignmentMode,
+  SharedVideoActivityAssignment,
+  VideoActivityAnswer,
   VideoActivityAssignment,
   VideoActivityAssignmentSettings,
+  VideoActivityAssignmentSyncLinkage,
   VideoActivityAssignmentStatus,
   VideoActivityData,
+  VideoActivityMetadata,
+  VideoActivityMetadataSyncLinkage,
+  VideoActivityResponse,
+  VideoActivityScoreVisibility,
   VideoActivitySession,
 } from '../types';
+import { gradeVideoActivityAnswer } from '../utils/videoActivityGrading';
 
 const VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION = 'video_activity_assignments';
 const VIDEO_ACTIVITY_SESSIONS_COLLECTION = 'video_activity_sessions';
+const VIDEO_ACTIVITY_METADATA_COLLECTION = 'video_activities';
+const SHARED_VA_ASSIGNMENTS_COLLECTION = 'shared_video_activity_assignments';
 const RESPONSES_COLLECTION = 'responses';
+
+/** Import-mode picker result for shared-VA-assignment paste flows. */
+export type SharedVideoActivityImportMode = 'sync' | 'copy';
 
 /**
  * Minimal activity data needed to stand up an assignment. The driveFileId lets
@@ -101,6 +123,83 @@ export interface UseVideoActivityAssignmentsResult {
   updateAssignmentSettings: (
     assignmentId: string,
     patch: Partial<VideoActivityAssignmentSettings>
+  ) => Promise<void>;
+  /**
+   * Publish a shared-VA-assignment doc to `/shared_video_activity_assignments/`
+   * and (if the source activity has no synced linkage yet) auto-create a
+   * canonical group at `/synced_video_activities/{groupId}` so peer importers
+   * can pick "Synced" mode. Returns the share URL the teacher copies.
+   */
+  shareAssignment: (
+    assignmentId: string,
+    activityData: VideoActivityData
+  ) => Promise<string>;
+  /**
+   * Read-only fetch for a shared-assignment doc. Used by the importer's URL-
+   * paste flow to preview the share before committing to copy/sync mode.
+   */
+  peekSharedAssignment: (
+    shareId: string
+  ) => Promise<SharedVideoActivityAssignment | null>;
+  /**
+   * Import a shared-assignment doc into the teacher's library. Mirrors
+   * `useQuizAssignments.importSharedAssignment` — runs a copy of the
+   * activity into the teacher's Drive, creates a paused local assignment,
+   * and (in 'sync' mode) joins the synced group via the Cloud Function.
+   *
+   * The caller provides:
+   *   - `saveActivity`: writes the inlined activity content into Drive
+   *     and Firestore metadata (returns the created VideoActivityMetadata).
+   *   - `attachSyncLinkage` (sync-mode only): patches the local activity's
+   *     metadata with the synced-group linkage so future edits publish.
+   */
+  importSharedAssignment: (
+    shareId: string,
+    options: ImportSharedAssignmentOptions
+  ) => Promise<{ assignmentId: string; activityId: string }>;
+  /**
+   * Publish (or unpublish) per-student scores for an assignment. Mirrors
+   * `useQuizAssignments.publishAssignmentScores`. Grades every response
+   * via `gradeVideoActivityAnswer` (handles MA / FIB-with-variants — the
+   * Quiz grader's `'MA'` blind spot is irrelevant here), writes the
+   * computed `score` + per-answer `isCorrect` flags onto each response,
+   * and mirrors the visibility flag onto the assignment + session docs.
+   *
+   * `'none'` is the unpublish path: clears `scoreVisibility` on assignment
+   * + session and wipes `revealedAnswers`. Already-written `score` /
+   * `isCorrect` are left in place — the reader gates on `scoreVisibility`,
+   * so this is harmless and avoids a multi-batch wipe on a gesture the
+   * teacher may immediately undo.
+   *
+   * `'score-responses-and-answers'` populates `session.revealedAnswers`
+   * (id → correctAnswer) so the student review screen can show the
+   * canonical correct answer for each question — VA's session strips
+   * correct answers from `publicQuestions` for the in-progress flow,
+   * mirroring Quiz's student-safety pattern.
+   */
+  publishAssignmentScores: (
+    assignmentId: string,
+    activityData: VideoActivityData,
+    visibility: VideoActivityScoreVisibility
+  ) => Promise<{ responsesUpdated: number }>;
+}
+
+export interface ImportSharedAssignmentOptions {
+  mode: SharedVideoActivityImportMode;
+  /**
+   * Persist a fresh copy of the activity content to the importer's Drive +
+   * Firestore metadata. Returns the new VideoActivityMetadata so the
+   * import flow can attach a sync linkage and create the local assignment.
+   */
+  saveActivity: (activity: VideoActivityData) => Promise<VideoActivityMetadata>;
+  /**
+   * Sync-mode only: write `sync.{ groupId, lastSyncedVersion }` onto the
+   * importer's local `video_activities/{activityId}` metadata so the editor's
+   * save path will publish future edits to the canonical group.
+   */
+  attachSyncLinkage?: (
+    activityId: string,
+    linkage: VideoActivityMetadataSyncLinkage
   ) => Promise<void>;
 }
 
@@ -414,6 +513,429 @@ export const useVideoActivityAssignments = (
     [userId]
   );
 
+  /**
+   * Publish a shared-VA-assignment doc + auto-create a synced group if the
+   * source activity has none yet. Mirrors `useQuizAssignments.shareAssignment`
+   * but scoped to VA's parallel collections. The local activity metadata gets
+   * its `sync` field patched in place so the editor's save path can publish
+   * future edits to peers.
+   */
+  const shareAssignment = useCallback<
+    UseVideoActivityAssignmentsResult['shareAssignment']
+  >(
+    async (assignmentId, activityData) => {
+      if (!userId) throw new Error('Not authenticated');
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const snap = await getDoc(assignmentRef);
+      if (!snap.exists()) throw new Error('Assignment not found');
+      const assignment = snap.data() as VideoActivityAssignment;
+
+      const metaRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_METADATA_COLLECTION,
+        assignment.activityId
+      );
+      const metaSnap = await getDoc(metaRef);
+      if (!metaSnap.exists()) {
+        throw new Error(
+          'Source activity is missing from your library — cannot share.'
+        );
+      }
+      const meta = metaSnap.data() as VideoActivityMetadata;
+
+      // Sync-mode plumbing: every share carries a `syncGroupId` so the
+      // importer's mode picker can offer Synced. If the source is already
+      // part of a group, reuse it; otherwise mint a fresh group with the
+      // sharer as the sole participant.
+      let syncGroupId = meta.sync?.groupId;
+      // Track whether we just minted the linkage so the rollback path knows
+      // whether to clear it. If the source already had a `sync.groupId` we
+      // leave it alone on rollback — that linkage predates this share call.
+      let mintedLinkage = false;
+      if (!syncGroupId) {
+        syncGroupId = crypto.randomUUID();
+        await createSyncedVideoActivityGroup({
+          groupId: syncGroupId,
+          uid: userId,
+          title: activityData.title,
+          youtubeUrl: activityData.youtubeUrl,
+          questions: activityData.questions,
+          ...(assignment.plc?.id ? { plcId: assignment.plc.id } : {}),
+        });
+        await updateDoc(metaRef, {
+          sync: { groupId: syncGroupId, lastSyncedVersion: 1 },
+        });
+        mintedLinkage = true;
+      }
+
+      const payload: Omit<SharedVideoActivityAssignment, 'id'> = {
+        title: activityData.title,
+        youtubeUrl: activityData.youtubeUrl,
+        questions: activityData.questions,
+        createdAt: activityData.createdAt,
+        updatedAt: activityData.updatedAt,
+        assignmentSettings: {
+          className: assignment.className,
+          sessionSettings: assignment.sessionSettings,
+          ...(assignment.sessionOptions
+            ? { sessionOptions: assignment.sessionOptions }
+            : {}),
+          ...(assignment.scoreVisibility
+            ? { scoreVisibility: assignment.scoreVisibility }
+            : {}),
+          ...(assignment.periodNames && assignment.periodNames.length > 0
+            ? { periodNames: assignment.periodNames }
+            : {}),
+          ...(assignment.periodName
+            ? { periodName: assignment.periodName }
+            : {}),
+          ...(assignment.teacherName
+            ? { teacherName: assignment.teacherName }
+            : {}),
+          ...(assignment.plc ? { plc: assignment.plc } : {}),
+        },
+        originalAuthor: userId,
+        sharedAt: Date.now(),
+        syncGroupId,
+      };
+      // Best-effort rollback: if `addDoc` fails AFTER we've minted the
+      // synced-group linkage, clear the local metadata patch so the
+      // teacher's library doesn't carry a sync linkage to a group with no
+      // matching share doc. Non-rollback (rethrow original) on cleanup
+      // failure — we can't do better than logging.
+      let ref;
+      try {
+        ref = await addDoc(
+          collection(db, SHARED_VA_ASSIGNMENTS_COLLECTION),
+          payload
+        );
+      } catch (err) {
+        if (mintedLinkage) {
+          try {
+            await updateDoc(metaRef, { sync: null });
+          } catch (rollbackErr) {
+            logError(
+              'useVideoActivityAssignments.shareAssignment.rollback',
+              rollbackErr,
+              { assignmentId, syncGroupId }
+            );
+          }
+        }
+        throw err;
+      }
+      return `${window.location.origin}/share/video-activity/${ref.id}`;
+    },
+    [userId]
+  );
+
+  /** Read-only peek for the importer's URL-paste preview. */
+  const peekSharedAssignment = useCallback<
+    UseVideoActivityAssignmentsResult['peekSharedAssignment']
+  >(async (shareId) => {
+    const snap = await getDoc(
+      doc(db, SHARED_VA_ASSIGNMENTS_COLLECTION, shareId)
+    );
+    if (!snap.exists()) return null;
+    return {
+      id: shareId,
+      ...(snap.data() as Omit<SharedVideoActivityAssignment, 'id'>),
+    };
+  }, []);
+
+  /**
+   * Import a shared-VA-assignment into the local library. Forks the read-side
+   * of `useQuizAssignments.importSharedAssignment`. The flow:
+   *   1. Fetch the share doc.
+   *   2. Save a fresh copy of the activity into the importer's Drive +
+   *      Firestore metadata (caller-supplied `saveActivity`).
+   *   3. (sync mode) Join the synced group via the Cloud Function and patch
+   *      local metadata with the linkage.
+   *   4. Create a paused local assignment seeded from the shared settings —
+   *      with originator-only fields cleared (teacherName, periodName) so
+   *      the importer doesn't masquerade as the original author.
+   */
+  const importSharedAssignment = useCallback<
+    UseVideoActivityAssignmentsResult['importSharedAssignment']
+  >(
+    async (shareId, options) => {
+      if (!userId) throw new Error('Not authenticated');
+      const sharedDoc = await peekSharedAssignment(shareId);
+      if (!sharedDoc) {
+        throw new Error('Shared video activity not found.');
+      }
+
+      // 1) Sync mode FIRST — join the synced group and pull the canonical
+      // content BEFORE we save the activity. This guarantees the local
+      // replica matches the live group at join time; the share doc's
+      // inlined content can be stale relative to the canonical (peers
+      // edit the canonical via the publish transaction; the share doc is
+      // a snapshot from the moment the originator clicked Share).
+      let syncedFromLinkage: VideoActivityAssignmentSyncLinkage | undefined;
+      let canonicalContent: {
+        title: string;
+        youtubeUrl: string;
+        questions: typeof sharedDoc.questions;
+      } | null = null;
+      if (options.mode === 'sync' && sharedDoc.syncGroupId) {
+        try {
+          const joinResult = await callJoinSyncedVideoActivityGroup(shareId);
+          const canonical = await pullSyncedVideoActivityContent(
+            joinResult.groupId
+          );
+          canonicalContent = {
+            title: canonical.title,
+            youtubeUrl: canonical.youtubeUrl,
+            questions: canonical.questions,
+          };
+          syncedFromLinkage = {
+            groupId: joinResult.groupId,
+            syncedVersion: canonical.version,
+          };
+        } catch (err) {
+          // Best-effort leave: if the join itself failed there's nothing
+          // to leave; if it succeeded but the pull failed, leave so the
+          // importer doesn't accumulate orphan participation. Either way,
+          // rethrow so the caller knows the import didn't run.
+          if (sharedDoc.syncGroupId) {
+            await callLeaveSyncedVideoActivityGroup(
+              sharedDoc.syncGroupId
+            ).catch((leaveErr) =>
+              logError(
+                'useVideoActivityAssignments.importSharedAssignment.rollbackJoin',
+                leaveErr,
+                { shareId }
+              )
+            );
+          }
+          throw err;
+        }
+      }
+
+      // 2) Save activity content into the importer's library — using the
+      // canonical content when sync mode succeeded, otherwise the share
+      // doc's inline snapshot for copy mode.
+      const importedActivity: VideoActivityData = {
+        id: crypto.randomUUID(),
+        title: canonicalContent?.title ?? sharedDoc.title,
+        youtubeUrl: canonicalContent?.youtubeUrl ?? sharedDoc.youtubeUrl,
+        questions: canonicalContent?.questions ?? sharedDoc.questions,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+
+      // From here onward, every failure must roll back the synced-group
+      // join (if any) so the importer doesn't end up as a participant in
+      // a group with no corresponding local assignment. Single try block
+      // wrapping save → attach → create covers all three failure points.
+      const rollbackLeave = async (rollbackErrCtx: string): Promise<void> => {
+        if (!syncedFromLinkage) return;
+        await callLeaveSyncedVideoActivityGroup(
+          syncedFromLinkage.groupId
+        ).catch((leaveErr) => logError(rollbackErrCtx, leaveErr, { shareId }));
+      };
+
+      try {
+        const savedMeta = await options.saveActivity(importedActivity);
+
+        if (syncedFromLinkage && options.attachSyncLinkage) {
+          await options.attachSyncLinkage(savedMeta.id, {
+            groupId: syncedFromLinkage.groupId,
+            lastSyncedVersion: syncedFromLinkage.syncedVersion,
+          });
+        }
+
+        // 3) Create the local assignment, paused. Originator-only fields
+        // cleared: teacherName + periodName (which encode the original
+        // author's identity / single-class targeting). PLC linkage is
+        // preserved so the importer's results flow through the same
+        // sheet for PLC peers.
+        const sourceSettings = sharedDoc.assignmentSettings;
+        const importedSettings: VideoActivityAssignmentSettings = {
+          className: sourceSettings.className,
+          sessionSettings: sourceSettings.sessionSettings,
+          ...(sourceSettings.sessionOptions
+            ? { sessionOptions: sourceSettings.sessionOptions }
+            : {}),
+          ...(sourceSettings.scoreVisibility
+            ? { scoreVisibility: sourceSettings.scoreVisibility }
+            : {}),
+          ...(sourceSettings.periodNames &&
+          sourceSettings.periodNames.length > 0
+            ? { periodNames: sourceSettings.periodNames }
+            : {}),
+          ...(sourceSettings.plc ? { plc: sourceSettings.plc } : {}),
+          ...(syncedFromLinkage ? { sync: syncedFromLinkage } : {}),
+        };
+        const created = await createAssignment(
+          {
+            id: savedMeta.id,
+            title: savedMeta.title,
+            driveFileId: savedMeta.driveFileId,
+            youtubeUrl: savedMeta.youtubeUrl,
+            questions: importedActivity.questions,
+          },
+          importedSettings,
+          'paused'
+        );
+        return { assignmentId: created.id, activityId: savedMeta.id };
+      } catch (err) {
+        await rollbackLeave(
+          'useVideoActivityAssignments.importSharedAssignment.rollbackSaveOrCreate'
+        );
+        throw err;
+      }
+    },
+    [userId, peekSharedAssignment, createAssignment]
+  );
+
+  const publishAssignmentScores = useCallback<
+    UseVideoActivityAssignmentsResult['publishAssignmentScores']
+  >(
+    async (assignmentId, activityData, visibility) => {
+      if (!userId) throw new Error('Not authenticated');
+
+      const now = Date.now();
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const sessionRef = doc(
+        db,
+        VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+        assignmentId
+      );
+
+      if (visibility === 'none') {
+        const batch = writeBatch(db);
+        batch.update(assignmentRef, {
+          scoreVisibility: 'none',
+          scorePublishedAt: deleteField(),
+          updatedAt: now,
+        });
+        batch.update(sessionRef, {
+          scoreVisibility: 'none',
+          revealedAnswers: deleteField(),
+        });
+        await batch.commit();
+        return { responsesUpdated: 0 };
+      }
+
+      const questionsById = new Map(
+        activityData.questions.map((q) => [q.id, q])
+      );
+
+      const responsesSnap = await getDocs(
+        collection(
+          db,
+          VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+          assignmentId,
+          RESPONSES_COLLECTION
+        )
+      );
+
+      interface ResponseUpdate {
+        ref: ReturnType<typeof doc>;
+        patch: { score: number; answers: VideoActivityAnswer[] };
+      }
+      const updates: ResponseUpdate[] = [];
+      for (const d of responsesSnap.docs) {
+        const data = d.data() as VideoActivityResponse;
+        const answers = Array.isArray(data.answers) ? data.answers : [];
+        let pointsEarned = 0;
+        let pointsMax = 0;
+        const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
+          const q = questionsById.get(a.questionId);
+          if (!q) {
+            // Question deleted between submission and publish — drop any
+            // stale `isCorrect` from a prior publish so the response
+            // doesn't carry a value the canonical activity no longer
+            // supports. Mirrors the Quiz pattern.
+            const { isCorrect: _stale, ...rest } = a;
+            void _stale;
+            return rest;
+          }
+          const result = gradeVideoActivityAnswer(q, a.answer);
+          pointsEarned += result.pointsEarned;
+          pointsMax += result.pointsMax;
+          return { ...a, isCorrect: result.isCorrect };
+        });
+        // Count unanswered questions toward the denominator so a blank
+        // response scores 0%, not undefined. O(Q) Set lookup vs the
+        // O(Q*A) `.some` pattern matters on PLC-shared assignments.
+        const answeredQuestionIds = new Set<string>();
+        for (const a of answers) answeredQuestionIds.add(a.questionId);
+        for (const q of activityData.questions) {
+          if (!answeredQuestionIds.has(q.id)) {
+            pointsMax += q.points ?? 1;
+          }
+        }
+        const score =
+          pointsMax === 0 ? 0 : Math.round((pointsEarned / pointsMax) * 100);
+        updates.push({
+          ref: d.ref,
+          patch: { score, answers: gradedAnswers },
+        });
+      }
+
+      const MAX_BATCH_WRITES = 400;
+      const firstBatch = writeBatch(db);
+      firstBatch.update(assignmentRef, {
+        scoreVisibility: visibility,
+        scorePublishedAt: now,
+        updatedAt: now,
+      });
+      const sessionPatch: Record<string, unknown> = {
+        scoreVisibility: visibility,
+      };
+      if (visibility === 'score-responses-and-answers') {
+        const revealedAnswers: Record<string, string> = {};
+        for (const q of activityData.questions) {
+          revealedAnswers[q.id] = q.correctAnswer;
+        }
+        sessionPatch.revealedAnswers = revealedAnswers;
+      } else {
+        sessionPatch.revealedAnswers = deleteField();
+      }
+      firstBatch.update(sessionRef, sessionPatch);
+
+      // 2 writes already consumed (assignment + session); fill the rest
+      // of the first batch with response updates so the visibility flip
+      // is atomic with at least the first chunk of grades.
+      const firstChunkSize = Math.min(updates.length, MAX_BATCH_WRITES - 2);
+      for (let i = 0; i < firstChunkSize; i++) {
+        firstBatch.update(updates[i].ref, updates[i].patch);
+      }
+      await firstBatch.commit();
+
+      for (
+        let cursor = firstChunkSize;
+        cursor < updates.length;
+        cursor += MAX_BATCH_WRITES
+      ) {
+        const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
+        const chunkBatch = writeBatch(db);
+        for (const u of chunk) {
+          chunkBatch.update(u.ref, u.patch);
+        }
+        await chunkBatch.commit();
+      }
+
+      return { responsesUpdated: updates.length };
+    },
+    [userId]
+  );
+
   return {
     assignments,
     loading,
@@ -425,5 +947,9 @@ export const useVideoActivityAssignments = (
     reactivateAssignment,
     deleteAssignment,
     updateAssignmentSettings,
+    shareAssignment,
+    peekSharedAssignment,
+    importSharedAssignment,
+    publishAssignmentScores,
   };
 };

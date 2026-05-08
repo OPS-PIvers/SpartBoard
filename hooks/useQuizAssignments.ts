@@ -11,7 +11,7 @@
  * submissions) or Inactive (URL dead, responses preserved).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   collection,
   deleteField,
@@ -28,7 +28,11 @@ import {
 } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
-import { writePlcAssignmentIndexEntry } from './usePlcAssignmentIndex';
+import {
+  mirrorPlcAssignmentStatus,
+  writePlcAssignmentIndexEntry,
+} from './usePlcAssignmentIndex';
+import { writePlcAssignmentTemplate } from './usePlcAssignments';
 import type {
   AssignmentMode,
   PlcLinkage,
@@ -104,6 +108,25 @@ export interface CreateAssignmentOptions {
    * Defaults to `'submissions'` (preserves pre-feature behavior).
    */
   mode?: AssignmentMode;
+  /**
+   * Phase 3 reverse-bubble-up suppression. Set by the PLC Library "Add
+   * to my board" import flow so picking up an existing template doesn't
+   * recursively create another template. Default `false` — every PLC-
+   * mode personal assignment authored from scratch fires a template
+   * write so teammates see it on their PLC Assignments tab without an
+   * extra step.
+   */
+  skipPlcTemplateWrite?: boolean;
+  /**
+   * Optional override for the canonical synced-quiz group when bubbling
+   * up a template. Default behavior is "use whatever group the source
+   * quiz already participates in (via `quiz.sync` on the user's library
+   * card)". When the source quiz isn't yet synced, callers MUST mint a
+   * group up-front and pass its id here — this hook does NOT promote
+   * Drive-only quizzes to synced groups (that lives in the QuizWidget
+   * `handleShareWithPlc` path, which has Drive content already loaded).
+   */
+  plcTemplateSyncGroupId?: string;
 }
 
 const QUIZ_ASSIGNMENTS_COLLECTION = 'quiz_assignments';
@@ -550,6 +573,17 @@ export const useQuizAssignments = (
   const [loading, setLoading] = useState<boolean>(!!userId);
   const [error, setError] = useState<string | null>(null);
 
+  // Latest snapshot of `assignments` accessible from stable callbacks
+  // without re-creating them every render. Status mutators read from
+  // here to look up `settings.plc.id` so they can mirror status changes
+  // to the PLC index. Updated via `useEffect` (rather than during
+  // render) to keep the `react-hooks/refs` lint happy — by the time a
+  // mutator fires, the effect has run and the ref is up to date.
+  const assignmentsRef = useRef<QuizAssignment[]>(assignments);
+  useEffect(() => {
+    assignmentsRef.current = assignments;
+  }, [assignments]);
+
   // Adjust state during render when userId transitions away — avoids the
   // "set-state-in-effect" anti-pattern while still clearing stale data when
   // the user signs out.
@@ -609,6 +643,8 @@ export const useQuizAssignments = (
         classPeriodByClassId,
         syncedFrom,
         mode: assignmentMode = 'submissions',
+        skipPlcTemplateWrite = false,
+        plcTemplateSyncGroupId,
       } = options ?? {};
       if (!userId) throw new Error('Not authenticated');
       // Defensive sanitization at the hook boundary: drop empty/non-string
@@ -732,25 +768,57 @@ export const useQuizAssignments = (
 
       // PLC dashboard index: when this assignment opts into PLC mode,
       // record a snapshot under `plcs/{plcId}/assignment_index` so every
-      // teammate sees it on the PLC Dashboard's Completed Assignments tab.
+      // teammate sees it on the PLC Dashboard's PLC Assignments tab.
       // Fire-and-forget — we deliberately don't `await` so the assign
       // action returns as soon as the canonical assignment + session
       // batch has committed. The helper has its own try/catch and never
       // rejects, so there's no unhandled-promise concern. Covers every
       // flow that goes through `createAssignment`, including
       // `importSharedAssignment` when the importer is a PLC member.
+      //
+      // Phase 3: also fires a template write to `plcs/{plcId}/assignments`
+      // so teammates can pick the assignment up onto their own boards. The
+      // `skipPlcTemplateWrite` option suppresses this when the importer is
+      // already PICKING UP a template (avoids recursive template creation).
       if (settings.plc) {
         const current = auth.currentUser;
+        const ownerName = current?.displayName ?? '';
+        const ownerEmail = (current?.email ?? '').toLowerCase();
         void writePlcAssignmentIndexEntry(settings.plc.id, {
           id: assignmentId,
           kind: 'quiz',
           ownerUid: userId,
-          ownerName: current?.displayName ?? '',
-          ownerEmail: (current?.email ?? '').toLowerCase(),
+          ownerName,
+          ownerEmail,
           title: quiz.title,
           sheetUrl: settings.plc.sheetUrl,
+          status: initialStatus,
           createdAt: now,
         });
+
+        // Template write — only if the source quiz already participates
+        // in a synced group (either via the user's library `sync.groupId`
+        // surfaced to us via `plcTemplateSyncGroupId`, or via a syncedFrom
+        // linkage attached to this very assignment). Drive-only quizzes
+        // don't create templates here — promoting them to a synced group
+        // requires Drive content the hook doesn't have. The QuizWidget
+        // `handleShareWithPlc` flow does the explicit promotion when a
+        // user opts in via the kebab.
+        const resolvedSyncGroupId =
+          plcTemplateSyncGroupId ?? syncedFrom?.groupId;
+        if (!skipPlcTemplateWrite && resolvedSyncGroupId) {
+          void writePlcAssignmentTemplate(settings.plc.id, userId, {
+            plcAssignmentId: crypto.randomUUID(),
+            quizId: quiz.id,
+            quizTitle: quiz.title,
+            syncGroupId: resolvedSyncGroupId,
+            sessionMode: settings.sessionMode,
+            sessionOptions: settings.sessionOptions,
+            attemptLimit: settings.attemptLimit ?? null,
+            sharedByName: ownerName,
+            sharedByEmail: ownerEmail,
+          });
+        }
       }
 
       return { id: assignmentId, code };
@@ -791,6 +859,22 @@ export const useQuizAssignments = (
         sessionPatch
       );
       await batch.commit();
+
+      // Phase 3: mirror status to the PLC index entry so the
+      // In-progress / Completed sub-tabs stay in sync. Fire-and-forget
+      // (helper logs + swallows). Looks up the assignment in the live
+      // snapshot to read `settings.plc.id` — any assignment created
+      // before the snapshot landed locally won't have an entry yet,
+      // and that's fine: the index write in `createAssignment` already
+      // stamped the initial status.
+      const live = assignmentsRef.current.find((a) => a.id === assignmentId);
+      if (live?.plc?.id) {
+        void mirrorPlcAssignmentStatus(
+          live.plc.id,
+          assignmentId,
+          assignmentStatus
+        );
+      }
     },
     [userId]
   );
@@ -885,6 +969,13 @@ export const useQuizAssignments = (
       // aggregation query on next mount; submissions-mode reopens get the
       // call too (no-op against a missing key).
       invalidateSessionViewCount('quiz_sessions', assignmentId);
+
+      // Mirror reopen → 'paused' onto the PLC index entry so the row
+      // moves from Completed back to In-progress on every member's tab.
+      const live = assignmentsRef.current.find((a) => a.id === assignmentId);
+      if (live?.plc?.id) {
+        void mirrorPlcAssignmentStatus(live.plc.id, assignmentId, 'paused');
+      }
     },
     [userId]
   );
