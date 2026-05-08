@@ -28,6 +28,7 @@ import {
   writeBatch,
   increment,
   deleteField,
+  runTransaction,
   type DocumentSnapshot,
 } from 'firebase/firestore';
 import { db, auth } from '../config/firebase';
@@ -238,6 +239,21 @@ export class AttemptLimitReachedError extends Error {
       "You've already submitted this quiz. Talk to your teacher if you need another attempt."
     );
     this.name = 'AttemptLimitReachedError';
+  }
+}
+
+/**
+ * Thrown by `completeQuiz` when the response doc is already in the
+ * `completed` state — i.e. the student already submitted (possibly from
+ * another tab or via a rapid double-click). The submit transaction treats
+ * this as a no-op (idempotent), so callers should suppress this in the UI.
+ * Branched on the typed sentinel rather than the message so future copy
+ * changes don't silently break the suppression.
+ */
+export class AlreadySubmittedError extends Error {
+  constructor() {
+    super('This quiz has already been submitted.');
+    this.name = 'AlreadySubmittedError';
   }
 }
 
@@ -564,9 +580,15 @@ export const useQuizSessionTeacher = (
     snap.docs.forEach((d) => {
       const data = d.data() as QuizResponse;
       if (data.status === 'in-progress' || data.status === 'joined') {
+        // Bump `completedAttempts` so the join-side cap check sees this
+        // forced finalize as a real completed attempt. Without the bump,
+        // the doc lands at `status: 'completed', completedAttempts: 0`
+        // and a later rejoin's `completed >= limit` check reads 0,
+        // letting the student through under the cap.
         batch.update(d.ref, {
           status: 'completed',
           submittedAt: Date.now(),
+          completedAttempts: increment(1),
         });
         count++;
       }
@@ -1080,9 +1102,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // Attempt-limit enforcement.
         //   - `attemptLimit == null/undefined` means unlimited (legacy).
         //   - Limit is compared against `completedAttempts` (counter field).
-        //   - Legacy docs with `status === 'completed'` but no counter are
-        //     treated as 1 completed attempt so pre-upgrade submissions still
-        //     count against the cap.
+        //   - Any doc with `status === 'completed'` is treated as having ≥1
+        //     completed attempt even when the counter literally reads 0.
+        //     The literal-0 case happens when `finalizeAllResponses` (or any
+        //     legacy/forced finalize) marked a `joined`/`in-progress` doc as
+        //     completed without bumping the counter — `?? 1` only catches
+        //     `null`/`undefined`, so a stored `0` would otherwise let the
+        //     student rejoin under the cap.
         //   - If the student is under the limit, reset the completed doc to
         //     a fresh 'joined' state so the next join starts a new attempt,
         //     preserving `completedAttempts` to enforce the cap on future
@@ -1091,7 +1117,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         if (existingSnap?.exists()) {
           const existing = existingSnap.data() as QuizResponse;
           if (existing.status === 'completed') {
-            const completed = existing.completedAttempts ?? 1;
+            const completed = Math.max(existing.completedAttempts ?? 0, 1);
             if (limit !== null && completed >= limit) {
               throw new AttemptLimitReachedError();
             }
@@ -1391,24 +1417,39 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     const responseKey = responseKeyRef.current;
     if (!sessionId || !responseKey) return;
 
-    // Score is computed from gradeAnswer() by the teacher/results view,
-    // not written by the student, to prevent client-side forgery of the score field.
-    // Increment `completedAttempts` so the attempt-limit check on the next
-    // join can count this submission (and block once the cap is reached).
-    await updateDoc(
-      doc(
-        db,
-        QUIZ_SESSIONS_COLLECTION,
-        sessionId,
-        RESPONSES_COLLECTION,
-        responseKey
-      ),
-      {
+    const responseRef = doc(
+      db,
+      QUIZ_SESSIONS_COLLECTION,
+      sessionId,
+      RESPONSES_COLLECTION,
+      responseKey
+    );
+
+    // Wrap submit in a transaction so the "already-completed?" check and
+    // the status flip are atomic. Without this, two concurrent calls (rapid
+    // double-click, two browser tabs of the same student) both read
+    // `status !== 'completed'`, both write `status: 'completed'`, and the
+    // `completedAttempts: increment(1)` runs twice — bypassing a 1-attempt
+    // cap. The transaction makes the second writer see the first's commit
+    // and short-circuit. Score is computed from gradeAnswer() by the
+    // teacher/results view, not written by the student, to prevent
+    // client-side forgery of the score field.
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(responseRef);
+      if (!snap.exists()) return;
+      const existing = snap.data() as QuizResponse;
+      if (existing.status === 'completed') {
+        // Idempotent: the doc was already finalized by an earlier
+        // completeQuiz call (other tab, retry, etc.). Throw a typed
+        // sentinel so the UI can suppress the error toast cleanly.
+        throw new AlreadySubmittedError();
+      }
+      tx.update(responseRef, {
         status: 'completed',
         submittedAt: Date.now(),
         completedAttempts: increment(1),
-      }
-    );
+      });
+    });
   }, []);
 
   const reportTabSwitch = useCallback(async (): Promise<number> => {

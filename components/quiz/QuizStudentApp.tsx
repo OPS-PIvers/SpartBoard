@@ -504,8 +504,26 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     return <WaitingRoom session={session} pin={pin} />;
   }
 
-  // Active quiz
-  if (session.status === 'active' && myResponse?.status === 'completed') {
+  // Active quiz — already-completed gate.
+  //
+  // Two paths reach the wait screen instead of the question flow:
+  //   1. The student's response is `status: 'completed'` (normal post-submit).
+  //   2. The student is at or past the session's attempt cap, regardless of
+  //      the response's current status. This is defense in depth: if any
+  //      bug ever resets a capped response back to `'joined'` (e.g. a stale
+  //      counter, a partial finalize, a future refactor that changes the
+  //      reset path), the UI still refuses to render the questions. The
+  //      `completeQuiz` transaction blocks a second submit too, but a
+  //      student briefly seeing a question they can't submit would be
+  //      confusing — short-circuiting at the UI is the cleaner UX.
+  const attemptLimit = session.attemptLimit ?? null;
+  const completedCount = myResponse?.completedAttempts ?? 0;
+  const atCap = attemptLimit !== null && completedCount >= attemptLimit;
+  if (
+    session.status === 'active' &&
+    myResponse &&
+    (myResponse.status === 'completed' || atCap)
+  ) {
     return (
       <QuizSubmittedWaitScreen
         session={session}

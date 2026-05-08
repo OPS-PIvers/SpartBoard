@@ -1746,7 +1746,14 @@ describe('useQuizSessionTeacher — endQuizSession', () => {
     // finalizeAllResponses must touch only the two non-completed docs.
     expect(env.batch.update).toHaveBeenCalledTimes(2);
     const updateCalls = env.batch.update.mock.calls as Array<
-      [{ path: string[] }, { status: string; submittedAt: unknown }]
+      [
+        { path: string[] },
+        {
+          status: string;
+          submittedAt: unknown;
+          completedAttempts: unknown;
+        },
+      ]
     >;
     const updatedRefs = updateCalls.map((c) => c[0].path[3]);
     expect(updatedRefs).toEqual(
@@ -1756,6 +1763,13 @@ describe('useQuizSessionTeacher — endQuizSession', () => {
     for (const call of updateCalls) {
       expect(call[1]).toMatchObject({ status: 'completed' });
       expect(typeof call[1].submittedAt).toBe('number');
+      // Phase 1 Fix A: every finalized doc must include the
+      // `completedAttempts` field set via `increment(1)` so the join-side
+      // cap check sees the forced finalize as a real completed attempt.
+      // The auto-mock for `increment` returns undefined, so the assertion
+      // checks property presence rather than value (a missing key would
+      // be the actual regression — re-opening the rejoin-bypass).
+      expect(call[1]).toHaveProperty('completedAttempts');
     }
     expect(env.batch.commit).toHaveBeenCalledTimes(1);
   });

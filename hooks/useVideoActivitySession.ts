@@ -18,6 +18,7 @@ import {
   onSnapshot,
   updateDoc,
   arrayUnion,
+  increment,
   runTransaction,
   Unsubscribe,
   query,
@@ -29,6 +30,7 @@ import { logError } from '@/utils/logError';
 import {
   computeResponseKey,
   encodeResponseKeySegment,
+  AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import {
@@ -656,7 +658,35 @@ export const useVideoActivitySessionStudent =
             }
           }
 
-          if (!existingSnap.exists()) {
+          if (existingSnap.exists()) {
+            const existing = existingSnap.data() as VideoActivityResponse;
+            // Attempt-limit enforcement on rejoin.
+            //   - `attemptLimit == null/undefined` means unlimited.
+            //   - VA tracks completion via `completedAt != null` (no
+            //     `status` field), so any prior completion is treated as
+            //     ≥1 completed attempt even if the counter literally reads
+            //     0 (legacy docs that submitted before the counter was
+            //     wired up).
+            //   - Under the cap, reset the doc to a fresh attempt
+            //     (`completedAt: null, answers: []`); preserve
+            //     `completedAttempts` so future joins still see the cap.
+            if (existing.completedAt != null) {
+              const limit = sessionData.sessionOptions?.attemptLimit ?? null;
+              const completed = Math.max(existing.completedAttempts ?? 0, 1);
+              if (limit !== null && completed >= limit) {
+                setJoinStatus('error');
+                setError(new AttemptLimitReachedError().message);
+                throw new AttemptLimitReachedError();
+              }
+              await updateDoc(effectiveResponseRef, {
+                completedAt: null,
+                answers: [],
+                ...(classPeriod && existing.classPeriod !== classPeriod
+                  ? { classPeriod }
+                  : {}),
+              });
+            }
+          } else {
             // Initialize `completedAttempts` and `tabSwitchWarnings` to 0 so
             // the Firestore rules' monotonic-growth check on update has a
             // concrete prior value to compare against (otherwise
@@ -739,8 +769,22 @@ export const useVideoActivitySessionStudent =
         responseDocId
       );
 
-      await updateDoc(responseRef, {
-        completedAt: Date.now(),
+      // Wrap completion in a transaction so the "already-completed?" check
+      // and the timestamp/counter writes are atomic. Two concurrent
+      // completeActivity calls (rapid double-click, two browser tabs) would
+      // otherwise both write `completedAt` and double-increment
+      // `completedAttempts`, bypassing the cap. If the doc is already
+      // completed, no-op (idempotent — VA student-side has no error toast
+      // for repeated completes, and silently dropping is the right UX).
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(responseRef);
+        if (!snap.exists()) return;
+        const existing = snap.data() as VideoActivityResponse;
+        if (existing.completedAt != null) return;
+        tx.update(responseRef, {
+          completedAt: Date.now(),
+          completedAttempts: increment(1),
+        });
       });
     }, [sessionId, responseDocId]);
 

@@ -1454,6 +1454,13 @@ service cloud.firestore {
         function sessionMode() {
           return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('mode', 'submissions');
         }
+        // Server-side attempt cap. The client also enforces this in the
+        // join + submit transactions; the rule is the last line of defense
+        // against a race, a buggy client, or a hostile caller. Returns
+        // null when the session has no cap (legacy or explicitly unlimited).
+        function sessionAttemptLimit() {
+          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.get('attemptLimit', null);
+        }
 
         // Student branch allows `resource == null` so the student-app join
         // flow can call getDoc() to probe whether a response already exists
@@ -1553,7 +1560,22 @@ service cloud.firestore {
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
-            request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)))
+            request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
+           // Attempt-cap enforcement. completedAttempts may not exceed the
+           // session's attemptLimit. attemptLimit == null means unlimited.
+           // Without this rule a hostile client could call completeQuiz N
+           // times and increment the counter past the cap.
+           (sessionAttemptLimit() == null ||
+            request.resource.data.get('completedAttempts', 0) <= sessionAttemptLimit()) &&
+           // Status-transition gate: students cannot re-complete an
+           // already-completed response. Submitting transitions
+           // 'joined'/'in-progress' → 'completed'; rejoining-under-cap
+           // transitions 'completed' → 'joined' (still allowed by this
+           // rule because the new status is not 'completed'). The case
+           // this blocks is 'completed' → 'completed', which only happens
+           // via a race or bug.
+           (resource.data.get('status', '') != 'completed' ||
+            request.resource.data.get('status', '') != 'completed'))
         );
         allow delete: if request.auth != null &&
           (request.auth.uid == sessionTeacherUid() || isAdmin());
@@ -1704,6 +1726,13 @@ service cloud.firestore {
         function vaSessionMode() {
           return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('mode', 'submissions');
         }
+        // Server-side attempt cap. attemptLimit lives nested under
+        // sessionOptions on VideoActivitySession. Pre-PR1 sessions have no
+        // sessionOptions field at all; we tolerate that with the default
+        // empty map. Returns null when the session has no cap.
+        function vaSessionAttemptLimit() {
+          return get(/databases/$(database)/documents/video_activity_sessions/$(sessionId)).data.get('sessionOptions', {}).get('attemptLimit', null);
+        }
 
         // Student branch allows `resource == null` so the student-app join
         // flow can call getDoc() to probe whether a response already exists
@@ -1778,12 +1807,34 @@ service cloud.firestore {
               'classPeriod'
             ]) &&
             request.resource.data.answers is list &&
-            request.resource.data.answers.size() >= resource.data.answers.size() &&
-            request.resource.data.answers.hasAll(resource.data.answers) &&
+            // Append-only on answers, EXCEPT during a rejoin-reset for a
+            // new attempt under the cap. The reset path writes
+            // `completedAt: null` on a doc whose prior `completedAt` was
+            // non-null, signaling a fresh attempt; in that single case
+            // answers may be cleared to []. Otherwise the legacy
+            // append-only invariant holds (prevents a mid-attempt
+            // student from rolling back their answers).
+            ((resource.data.get('completedAt', null) != null &&
+              request.resource.data.get('completedAt', null) == null &&
+              request.resource.data.answers.size() == 0) ||
+             (request.resource.data.answers.size() >= resource.data.answers.size() &&
+              request.resource.data.answers.hasAll(resource.data.answers))) &&
             (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
              request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
             (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
-             request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0))
+             request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
+            // Attempt-cap enforcement — last line of defense behind the
+            // client-side join + completeActivity transactions.
+            (vaSessionAttemptLimit() == null ||
+             request.resource.data.get('completedAttempts', 0) <= vaSessionAttemptLimit()) &&
+            // completedAt transition gate: students cannot write a new
+            // non-null completedAt when the prior completedAt was already
+            // non-null. Legit completion goes null → non-null;
+            // rejoin-under-cap goes non-null → null. The case this
+            // blocks is non-null → non-null, which only happens via a
+            // race or bug.
+            (resource.data.get('completedAt', null) == null ||
+             request.resource.data.get('completedAt', null) == null)
           )
         );
         // Owning teacher (or admin) may delete responses when permanently
