@@ -905,6 +905,26 @@ Worked example (flashcards app with a "Done" button):
           `,
           userPrompt: sanitizedUserInput,
         }),
+        'video-activity-recommend': () => ({
+          systemPrompt: `
+You are an expert classroom instructional designer recommending YouTube videos for K-12 teachers building Video Activity assignments. The teacher will provide a topic, learning objective, or grade-level description in the <topic> tags. Recommend a SINGLE high-quality, classroom-appropriate YouTube video that fits the topic.
+
+Hard constraints:
+1. The video MUST be on YouTube (not Vimeo, TED.com, etc.) and have a stable 11-character video id.
+2. Prefer videos under 15 minutes — shorter is better for in-class video activities.
+3. Prefer educator-aligned channels (Crash Course, SciShow Kids, Khan Academy, TED-Ed, National Geographic, etc.) over random uploads.
+4. Reject anything with mature content, ads-heavy intros, or low production quality.
+5. If you cannot confidently recommend a real, currently-live YouTube video that fits the topic, return { "videoId": "", "title": "", "rationale": "..." } with an empty videoId — do NOT hallucinate ids.
+
+Output JSON ONLY in this exact shape:
+{
+  "videoId": "11_char_id",
+  "title": "Video title as you remember it",
+  "rationale": "One sentence explaining why this fits the topic and grade level."
+}
+          `,
+          userPrompt: `Topic: <topic>${sanitizedUserInput}</topic>`,
+        }),
       };
 
       const promptDataFn = promptMap[genType];

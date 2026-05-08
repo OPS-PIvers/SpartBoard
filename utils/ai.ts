@@ -39,6 +39,10 @@ interface AIResponseData {
   options?: string[];
   widgets?: GeneratedWidget[];
   text?: string;
+  /** `video-activity-recommend`: 11-character YouTube video id Gemini recommends. */
+  videoId?: string;
+  /** `video-activity-recommend`: one-sentence reason this video fits the topic. */
+  rationale?: string;
 }
 
 export type AIGenerationType =
@@ -49,6 +53,7 @@ export type AIGenerationType =
   | 'ocr'
   | 'quiz'
   | 'video-activity'
+  | 'video-activity-recommend'
   | 'guided-learning'
   | 'blooms-ai';
 
@@ -295,6 +300,54 @@ export async function generateVideoActivity(
       'Failed to generate video activity. Please try again with a different video.'
     );
   }
+}
+
+/**
+ * Result from `recommendVideoForActivity`. The Cloud Function asks Gemini
+ * to suggest a single YouTube video matching the teacher's topic/objective
+ * and respond with the videoId plus a one-sentence rationale. Returns
+ * `null` when Gemini declines (e.g. topic too vague or unsafe).
+ */
+export interface VideoActivityRecommendation {
+  videoId: string;
+  /** Title Gemini believes the video has — display while we don't load the video API. */
+  title: string;
+  /** One-sentence reason this video fits the topic. Shown to the teacher. */
+  rationale: string;
+}
+
+/**
+ * Ask Gemini to recommend a YouTube video for a Video Activity given a
+ * topic, objective, or grade-level description. Routes through the same
+ * `generateWithAI` Cloud Function as the rest of our AI integrations —
+ * no client-side Gemini SDK or VITE-prefixed Gemini key.
+ */
+export async function recommendVideoForActivity(
+  topic: string
+): Promise<VideoActivityRecommendation | null> {
+  const trimmed = topic.trim();
+  if (trimmed.length === 0) {
+    throw new Error('A topic or objective is required.');
+  }
+  const data = await callAI(
+    { type: 'video-activity-recommend', prompt: trimmed },
+    'Failed to recommend a video. Please try again with a different topic.'
+  );
+  // The Cloud Function parses Gemini's JSON server-side and spreads its
+  // fields into AIResponseData, so videoId/title/rationale arrive as
+  // top-level fields. Defensive: bad shapes (Gemini refused, hallucinated
+  // an invalid id) return null and the caller shows a generic error.
+  if (
+    typeof data.videoId !== 'string' ||
+    !/^[A-Za-z0-9_-]{11}$/.test(data.videoId)
+  ) {
+    return null;
+  }
+  return {
+    videoId: data.videoId,
+    title: typeof data.title === 'string' ? data.title : '',
+    rationale: typeof data.rationale === 'string' ? data.rationale : '',
+  };
 }
 
 /**
