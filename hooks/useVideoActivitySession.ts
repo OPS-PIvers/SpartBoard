@@ -653,13 +653,39 @@ export const useVideoActivitySessionStudent =
                 }
               }
             } catch (err) {
-              logError(
-                'useVideoActivitySessionStudent.pinLoginBridge',
-                err as Error,
-                {
-                  sessionId: targetSessionId,
-                }
-              );
+              // The bridge is best-effort by design — falling through to
+              // the legacy anonymous PIN flow preserves PIN-only sessions
+              // and rosters whose pin_index hasn't been built yet.
+              // However we still want to LOUDLY surface unexpected
+              // failures so a misconfigured production (rules typo,
+              // function outage) doesn't silently re-open the duplicate-
+              // doc bypass. `not-found` and `unavailable` are the
+              // expected "fall through" codes; everything else gets
+              // logged at error level so it shows up in monitoring.
+              const code =
+                err && typeof err === 'object' && 'code' in err
+                  ? (err as { code?: unknown }).code
+                  : undefined;
+              const expected = code === 'not-found' || code === 'unavailable';
+              const safeErr =
+                err instanceof Error ? err : new Error(String(err));
+              if (expected) {
+                logError(
+                  'useVideoActivitySessionStudent.pinLoginBridge.expected',
+                  safeErr,
+                  { sessionId: targetSessionId, code: String(code) }
+                );
+              } else {
+                console.error(
+                  '[useVideoActivitySessionStudent.pinLoginBridge] unexpected failure — falling back to anonymous PIN flow:',
+                  safeErr
+                );
+                logError(
+                  'useVideoActivitySessionStudent.pinLoginBridge.unexpected',
+                  safeErr,
+                  { sessionId: targetSessionId }
+                );
+              }
             }
           }
 
@@ -926,6 +952,11 @@ export const useVideoActivitySessionStudent =
       // `completedAt` and double-increment both counters, bypassing the
       // cap. If the doc is already completed, no-op (idempotent — VA
       // student-side has no error toast for repeated completes).
+      //
+      // Ledger atomicity: same trade-off as `completeQuiz` — the ledger
+      // write is NOT best-effort. A ledger-rule failure rolls the whole
+      // transaction back so we never accept a submit without recording
+      // the attempt against the cross-launch cap.
       await runTransaction(db, async (tx) => {
         const snap = await tx.get(responseRef);
         if (!snap.exists()) return;

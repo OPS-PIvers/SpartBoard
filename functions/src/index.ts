@@ -3670,8 +3670,12 @@ export const commitRosterPinIndexV1 = onCall(
     }
 
     const entries: CommitRosterPinIndexEntry[] = [];
+    let skippedMalformed = 0;
     for (const e of rawData.entries) {
-      if (typeof e !== 'object' || e === null) continue;
+      if (typeof e !== 'object' || e === null) {
+        skippedMalformed++;
+        continue;
+      }
       const period = (e as { period?: unknown }).period;
       const pin = (e as { pin?: unknown }).pin;
       const sourcedId = (e as { classlinkSourcedId?: unknown })
@@ -3684,10 +3688,20 @@ export const commitRosterPinIndexV1 = onCall(
         pin.length === 0 ||
         sourcedId.length === 0
       ) {
-        // Skip malformed entries; don't fail the whole rebuild.
+        // Skip malformed entries; don't fail the whole rebuild. Counted
+        // and surfaced in the response so the client can warn the
+        // teacher when one student's row is silently dropped (a typo'd
+        // ClassLink id otherwise produces an unindexed student who
+        // bypasses the cross-launch cap on legacy PIN).
+        skippedMalformed++;
         continue;
       }
       entries.push({ period, pin, classlinkSourcedId: sourcedId });
+    }
+    if (skippedMalformed > 0) {
+      console.warn(
+        `[commitRosterPinIndexV1] Skipped ${skippedMalformed} malformed entries in roster ${rosterId}`
+      );
     }
 
     const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
@@ -3716,7 +3730,12 @@ export const commitRosterPinIndexV1 = onCall(
       // the SSO uid space. Returning success (with `wrote: 0`) keeps the
       // client's "save then commit index" hook idempotent across roster
       // types — it doesn't have to special-case origin.
-      return { wrote: 0, deleted: 0, skippedReason: 'no-classlink-class-id' };
+      return {
+        wrote: 0,
+        deleted: 0,
+        skippedMalformed,
+        skippedReason: 'no-classlink-class-id' as const,
+      };
     }
 
     // Compute the desired set of (indexKey -> doc payload) tuples.
@@ -3766,7 +3785,7 @@ export const commitRosterPinIndexV1 = onCall(
     }
 
     await batch.commit();
-    return { wrote, deleted };
+    return { wrote, deleted, skippedMalformed };
   }
 );
 

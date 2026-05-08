@@ -1168,11 +1168,28 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               }
             }
           } catch (err) {
-            // Swallow — fall through to anonymous flow. Logging the
-            // class-of-failure is fine; we deliberately don't surface
-            // an error toast because the user-visible behavior is
-            // unchanged from pre-Phase-3 in this fallback path.
-            console.warn('[useQuizSession] pinLoginV1 bridge failed:', err);
+            // The bridge is best-effort by design — falling through to
+            // the legacy anonymous PIN flow preserves PIN-only sessions
+            // and rosters whose pin_index hasn't been built yet.
+            // However we still want to LOUDLY surface unexpected
+            // failures so a misconfigured production (rules typo,
+            // function outage) doesn't silently re-open the duplicate-
+            // doc bypass. `not-found` and `unavailable` are the
+            // expected "fall through" codes; everything else gets
+            // logged at error level so it shows up in monitoring.
+            const code = getErrorCode(err);
+            const expected = code === 'not-found' || code === 'unavailable';
+            if (expected) {
+              console.warn('[useQuizSession] pinLoginV1 bridge fell through:', {
+                code,
+                err,
+              });
+            } else {
+              console.error(
+                '[useQuizSession] pinLoginV1 bridge unexpected failure — falling back to anonymous PIN flow:',
+                err
+              );
+            }
           }
         }
 
@@ -1627,6 +1644,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     // on both the response and the ledger — bypassing a 1-attempt cap.
     // Score is computed from gradeAnswer() by the teacher/results view,
     // not written by the student, to prevent client-side forgery.
+    //
+    // Ledger atomicity: the ledger write is intentionally NOT best-effort
+    // — if the rules deny the ledger update (e.g. a ledger-rule typo or
+    // schema drift) the entire transaction rolls back and the student's
+    // submit fails with a visible error. That's the right call: a silent
+    // "submit accepted but cap not recorded" would re-open the cross-
+    // launch bypass without any signal. Production rule changes against
+    // this collection MUST be deployed with care.
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(responseRef);
       if (!snap.exists()) return;

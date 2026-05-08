@@ -58,9 +58,25 @@ async function syncRosterPinIndex(
   try {
     const callable = httpsCallable<
       { rosterId: string; entries: typeof entries },
-      { wrote: number; deleted: number; skippedReason?: string }
+      {
+        wrote: number;
+        deleted: number;
+        skippedMalformed?: number;
+        skippedReason?: string;
+      }
     >(functions, 'commitRosterPinIndexV1');
-    await callable({ rosterId, entries });
+    const res = await callable({ rosterId, entries });
+    // Server-side input validation may silently drop entries with
+    // malformed shape (typo'd ClassLink id, missing pin). Surface
+    // any such drops to the console so a teacher debugging "why
+    // can't this student SSO-bridge" has a breadcrumb to follow.
+    // Not a toast: the data is still saved, the affected student
+    // just falls back to legacy PIN — same as before Phase 3.
+    if (res.data.skippedMalformed && res.data.skippedMalformed > 0) {
+      console.warn(
+        `[useRosters] commitRosterPinIndexV1 dropped ${res.data.skippedMalformed} malformed entries on roster ${rosterId}`
+      );
+    }
   } catch (err) {
     console.warn('[useRosters] commitRosterPinIndexV1 failed:', err);
   }
