@@ -284,6 +284,13 @@ const mockDashboard: DashboardContextValue = {
   clearPendingAssignmentShare: () => {
     // No-op
   },
+  pendingVideoActivityShareId: null,
+  setPendingVideoActivityShareId: () => {
+    // No-op
+  },
+  clearPendingVideoActivityShare: () => {
+    // No-op
+  },
   pendingAssignmentSetupId: null,
   setPendingAssignmentSetup: () => {
     // No-op — student view never imports assignments.

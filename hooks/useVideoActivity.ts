@@ -9,6 +9,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   collection,
   doc,
+  getDoc,
   onSnapshot,
   setDoc,
   deleteDoc,
@@ -19,7 +20,11 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
 import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
-import { VideoActivityData, VideoActivityMetadata } from '@/types';
+import {
+  VideoActivityData,
+  VideoActivityMetadata,
+  VideoActivityMetadataSyncLinkage,
+} from '@/types';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
   MockQuizDriveService,
@@ -42,6 +47,16 @@ export interface UseVideoActivityResult {
   loadActivityData: (driveFileId: string) => Promise<VideoActivityData>;
   /** Delete an activity from Drive and Firestore. */
   deleteActivity: (activityId: string, driveFileId: string) => Promise<void>;
+  /**
+   * Patch the synced-group linkage onto an activity's Firestore metadata.
+   * Mirrors `useQuiz.attachSyncLinkage`: used by the shared-assignment import
+   * flow to mark a freshly-imported activity as participating in a synced
+   * group, so future edits publish to the canonical doc.
+   */
+  attachSyncLinkage: (
+    activityId: string,
+    linkage: VideoActivityMetadataSyncLinkage
+  ) => Promise<void>;
   /** Create a template Google Sheet for CSV import. */
   createTemplateSheet: (title: string) => Promise<string>;
   /** Is a Drive service available? */
@@ -183,6 +198,47 @@ export const useVideoActivity = (
     [getDriveService]
   );
 
+  const attachSyncLinkage = useCallback(
+    async (
+      activityId: string,
+      linkage: VideoActivityMetadataSyncLinkage
+    ): Promise<void> => {
+      if (!userId) throw new Error('Not authenticated');
+      const metaRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITIES_COLLECTION,
+        activityId
+      );
+      const snap = await getDoc(metaRef);
+      if (!snap.exists()) {
+        throw new Error(
+          `Cannot attach sync linkage: activity ${activityId} not in library.`
+        );
+      }
+      const existing = snap.data() as VideoActivityMetadata;
+      if (
+        existing.sync?.groupId === linkage.groupId &&
+        existing.sync?.lastSyncedVersion === linkage.lastSyncedVersion
+      ) {
+        return;
+      }
+      await setDoc(
+        metaRef,
+        {
+          ...existing,
+          sync: {
+            groupId: linkage.groupId,
+            lastSyncedVersion: linkage.lastSyncedVersion,
+          },
+        } satisfies VideoActivityMetadata,
+        { merge: false }
+      );
+    },
+    [userId]
+  );
+
   return {
     activities,
     loading,
@@ -191,6 +247,7 @@ export const useVideoActivity = (
     loadActivityData,
     deleteActivity,
     createTemplateSheet,
+    attachSyncLinkage,
     isDriveConnected: isAuthBypass || isConnected,
   };
 };

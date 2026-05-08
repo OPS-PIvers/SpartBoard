@@ -157,6 +157,14 @@ export interface DashboardContextValue {
   pendingAssignmentShareId: string | null;
   setPendingAssignmentShareId: (shareId: string | null) => void;
   clearPendingAssignmentShare: () => void;
+  /**
+   * Pending video-activity-assignment share id, parsed from
+   * `/share/video-activity/{shareId}`. Mirrors `pendingAssignmentShareId`;
+   * the VideoActivityWidget's URL-paste flow drives off this state.
+   */
+  pendingVideoActivityShareId: string | null;
+  setPendingVideoActivityShareId: (shareId: string | null) => void;
+  clearPendingVideoActivityShare: () => void;
   setPendingQuizShareId: (shareId: string | null) => void;
   /**
    * Set after a successful `importSharedAssignment` to signal the QuizWidget

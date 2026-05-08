@@ -15,8 +15,13 @@ import {
   Users,
   CheckCircle2,
   XCircle,
+  Share2,
 } from 'lucide-react';
-import { VideoActivityResponse, VideoActivitySession } from '@/types';
+import {
+  PlcLinkage,
+  VideoActivityResponse,
+  VideoActivitySession,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
@@ -27,17 +32,25 @@ import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
+import { PlcTab } from '@/components/common/library/PlcTab';
 
 interface ResultsProps {
   session: VideoActivitySession;
   responses: VideoActivityResponse[];
   onBack: () => void;
+  /**
+   * PLC linkage for this assignment, if any. Set → render the 4th tab
+   * ("PLC") that aggregates across every PLC peer's exports against the
+   * shared sheet. Absent → tab is hidden.
+   */
+  plc?: PlcLinkage;
 }
 
 export const Results: React.FC<ResultsProps> = ({
   session,
   responses,
   onBack,
+  plc,
 }) => {
   const { googleAccessToken, orgId } = useAuth();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -59,7 +72,7 @@ export const Results: React.FC<ResultsProps> = ({
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<
-    'overview' | 'questions' | 'students'
+    'overview' | 'questions' | 'students' | 'plc'
   >('overview');
 
   const questions = session.questions;
@@ -317,6 +330,9 @@ export const Results: React.FC<ResultsProps> = ({
             { id: 'overview', icon: <BarChart3 />, label: 'Overview' },
             { id: 'questions', icon: <Clock />, label: 'Questions' },
             { id: 'students', icon: <Users />, label: 'Students' },
+            ...(plc?.sheetUrl
+              ? [{ id: 'plc' as const, icon: <Share2 />, label: 'PLC' }]
+              : []),
           ] as const
         ).map((tab) => (
           <button
@@ -568,6 +584,14 @@ export const Results: React.FC<ResultsProps> = ({
                 })
             )}
           </div>
+        )}
+
+        {activeTab === 'plc' && plc?.sheetUrl && (
+          <PlcTab
+            plcSheetUrl={plc.sheetUrl}
+            googleAccessToken={googleAccessToken}
+            questions={questions}
+          />
         )}
       </div>
     </div>

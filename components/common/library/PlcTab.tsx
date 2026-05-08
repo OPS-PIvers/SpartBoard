@@ -1,5 +1,5 @@
 /**
- * PlcTab — cross-teacher aggregate view of a PLC's quiz results.
+ * PlcTab — cross-teacher aggregate view of a PLC's assignment results.
  *
  * Renders only when the active assignment is in PLC mode (Share-with-PLC
  * enabled). The teacher's own class data lives in the Overview / Questions /
@@ -13,6 +13,12 @@
  * and per-period filtering is intentionally NOT exposed here: if a teacher
  * needs that level of detail, they open the sheet itself. This tab keeps
  * the focus on aggregate signal.
+ *
+ * Generic over the assignment kind: works for both Quiz and Video Activity
+ * because both exporters write the same column shape (PR3b lifted
+ * `buildResultsSheetData` into a shared helper). The `questions` prop only
+ * needs `id` + `text`; `QuizQuestion` and `VideoActivityQuestion` both
+ * satisfy `PlcTabQuestion` structurally.
  */
 
 import React, { useEffect, useState, useMemo } from 'react';
@@ -27,13 +33,18 @@ import {
   ExternalLink,
   RefreshCw,
 } from 'lucide-react';
-import type { QuizQuestion } from '@/types';
 import { QuizDriveService, type PlcSheetRow } from '@/utils/quizDriveService';
+
+/** Minimal question shape this tab renders. */
+export interface PlcTabQuestion {
+  id: string;
+  text: string;
+}
 
 interface PlcTabProps {
   plcSheetUrl: string;
   googleAccessToken: string | null;
-  questions: QuizQuestion[];
+  questions: PlcTabQuestion[];
 }
 
 interface PlcAggregate {
@@ -83,7 +94,7 @@ const SCORE_BUCKETS = [
 
 function aggregate(
   rows: PlcSheetRow[],
-  questions: QuizQuestion[]
+  questions: PlcTabQuestion[]
 ): PlcAggregate {
   const completed = rows.filter((r) => r.status === 'completed');
   const teachers = new Set<string>();

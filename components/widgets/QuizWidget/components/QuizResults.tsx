@@ -57,7 +57,7 @@ import {
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
-import { PlcTab } from './PlcTab';
+import { PlcTab } from '@/components/common/library/PlcTab';
 
 interface QuizResultsProps {
   quiz: QuizData;

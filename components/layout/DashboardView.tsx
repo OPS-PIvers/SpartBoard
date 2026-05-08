@@ -16,6 +16,8 @@ import {
   useQuizAssignments,
   type SharedAssignmentImportMode,
 } from '@/hooks/useQuizAssignments';
+import { useVideoActivity } from '@/hooks/useVideoActivity';
+import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
@@ -160,6 +162,8 @@ export const DashboardView: React.FC = () => {
     clearPendingQuizShare,
     pendingAssignmentShareId,
     clearPendingAssignmentShare,
+    pendingVideoActivityShareId,
+    clearPendingVideoActivityShare,
     setPendingAssignmentSetup,
     // Widget grouping
     groupWidgets,
@@ -178,6 +182,12 @@ export const DashboardView: React.FC = () => {
   const { importSharedAssignment, peekSharedAssignment } = useQuizAssignments(
     user?.uid
   );
+  const {
+    saveActivity: saveVideoActivity,
+    attachSyncLinkage: attachVideoActivitySyncLinkage,
+  } = useVideoActivity(user?.uid);
+  const { importSharedAssignment: importSharedVideoActivityAssignment } =
+    useVideoActivityAssignments(user?.uid);
   const { plcs, loading: plcsLoading } = usePlcs();
 
   // Mode picker state — populated when a synced share is detected; null
@@ -212,6 +222,32 @@ export const DashboardView: React.FC = () => {
         bringToFront(quizWidget.id);
       } else {
         addWidget('quiz', {
+          config: { view: 'manager', managerTab: tab },
+        });
+      }
+    },
+    [activeDashboard, updateWidget, addWidget, bringToFront]
+  );
+
+  const openVideoActivityWidgetToTab = React.useCallback(
+    (tab: 'library' | 'active' | 'archive') => {
+      const vaWidget = activeDashboard?.widgets.find(
+        (w) => w.type === 'video-activity'
+      );
+      if (vaWidget) {
+        if (vaWidget.minimized) {
+          updateWidget(vaWidget.id, { minimized: false });
+        }
+        updateWidget(vaWidget.id, {
+          config: {
+            ...vaWidget.config,
+            view: 'manager',
+            managerTab: tab,
+          },
+        });
+        bringToFront(vaWidget.id);
+      } else {
+        addWidget('video-activity', {
           config: { view: 'manager', managerTab: tab },
         });
       }
@@ -449,6 +485,76 @@ export const DashboardView: React.FC = () => {
     peekAndDispatchImport,
     clearPendingAssignmentShare,
     plcsLoading,
+  ]);
+
+  // Stable dispatcher for VA share imports — extracted so the failure
+  // toast's Retry action can re-invoke it without re-running the
+  // pending-id effect (which clears the id synchronously to avoid the
+  // triple-import race documented on the Quiz path above). Mirrors
+  // `peekAndDispatchImport` for the Quiz flow but skips the peek + mode
+  // picker — VA's sync-mode picker UI hasn't been ported and a synced
+  // share simply imports as a copy.
+  const runVideoActivityImport = React.useCallback(
+    (shareId: string) => {
+      void importSharedVideoActivityAssignment(shareId, {
+        mode: 'copy',
+        saveActivity: saveVideoActivity,
+        attachSyncLinkage: attachVideoActivitySyncLinkage,
+      })
+        .then(() => {
+          addToast('Shared video activity imported!', 'success');
+          openVideoActivityWidgetToTab('active');
+        })
+        .catch((err: unknown) => {
+          logError('DashboardView.importSharedVideoActivity', err, {
+            shareId,
+          });
+          // The VA import hook handles its own rollback (Drive copy +
+          // sync-group leave) on failure paths, so the catch block is
+          // surface-only — no manual cleanup needed.
+          const msg =
+            err instanceof Error
+              ? err.message
+              : typeof err === 'string'
+                ? err
+                : '';
+          addToast(
+            msg
+              ? `Failed to import shared video activity: ${msg}`
+              : 'Failed to import shared video activity.',
+            'error',
+            {
+              label: 'Retry',
+              onClick: () => runVideoActivityImport(shareId),
+            }
+          );
+        });
+    },
+    [
+      importSharedVideoActivityAssignment,
+      saveVideoActivity,
+      attachVideoActivitySyncLinkage,
+      addToast,
+      openVideoActivityWidgetToTab,
+    ]
+  );
+
+  // PR3c — pending video-activity-assignment share import. Mirrors the
+  // quiz-assignment effect above: clears the pending id synchronously
+  // before dispatching to avoid the triple-import race; the dispatcher's
+  // failure toast carries Retry as the recovery path.
+  useEffect(() => {
+    if (!pendingVideoActivityShareId || !user) return;
+    if (plcsLoading) return;
+    const shareId = pendingVideoActivityShareId;
+    clearPendingVideoActivityShare();
+    runVideoActivityImport(shareId);
+  }, [
+    pendingVideoActivityShareId,
+    user,
+    plcsLoading,
+    clearPendingVideoActivityShare,
+    runVideoActivityImport,
   ]);
 
   const [panOffset, setPanOffset] = React.useState({ x: 0, y: 0 });

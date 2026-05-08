@@ -33,6 +33,7 @@ import {
   PlayCircle,
   Plus,
   RotateCcw,
+  Send,
   Share2,
   Trash2,
 } from 'lucide-react';
@@ -175,6 +176,13 @@ export interface VideoActivityManagerProps {
   onArchiveMonitor?: (
     assignment: VideoActivityAssignment
   ) => void | Promise<void>;
+  /**
+   * PR3c — open the publish-scores modal for this assignment. Set ⇒ the
+   * archive kebab gains a "Publish scores" / "Update published scores"
+   * entry that calls back through to `Widget.tsx`'s
+   * `useVideoActivityAssignments.publishAssignmentScores` hook.
+   */
+  onArchivePublishScores?: (assignment: VideoActivityAssignment) => void;
 
   /** Persisted library grid/list toggle (from widget config). */
   initialLibraryViewMode?: 'grid' | 'list';
@@ -397,6 +405,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveResults,
   onArchiveShare,
   onArchiveMonitor,
+  onArchivePublishScores,
   initialLibraryViewMode,
   onLibraryViewModeChange,
   rosters,
@@ -1014,6 +1023,22 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         label: 'Results',
         icon: BarChart3,
         onClick: () => onArchiveResults(assignment),
+      });
+    }
+
+    // PR3c — surface "Publish scores" on the archive kebab when the
+    // assignment carries submissions. Label flips to "Update published
+    // scores" once a level is set so the teacher sees that re-opening
+    // the modal will replace, not stack.
+    if (onArchivePublishScores && !assignmentIsViewOnly) {
+      const isPublished =
+        assignment.scoreVisibility !== undefined &&
+        assignment.scoreVisibility !== 'none';
+      actions.push({
+        id: 'publish-scores',
+        label: isPublished ? 'Update published scores' : 'Publish scores',
+        icon: Send,
+        onClick: () => onArchivePublishScores(assignment),
       });
     }
 
