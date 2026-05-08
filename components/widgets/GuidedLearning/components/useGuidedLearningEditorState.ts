@@ -18,6 +18,7 @@ export interface GuidedLearningEditorState {
   steps: GuidedLearningStep[];
   uploading: boolean;
   hotspotPulse: 'consistent' | 'reminder' | 'off';
+  imageTransition: 'none' | 'slide' | 'fade';
 }
 
 interface UseGuidedLearningEditorStateProps {
@@ -40,6 +41,8 @@ export interface GuidedLearningEditorController {
   // Display settings
   hotspotPulse: 'consistent' | 'reminder' | 'off';
   setHotspotPulse: (next: 'consistent' | 'reminder' | 'off') => void;
+  imageTransition: 'none' | 'slide' | 'fade';
+  setImageTransition: (next: 'none' | 'slide' | 'fade') => void;
   // Images
   imageUrls: string[];
   currentImageIndex: number;
@@ -105,6 +108,9 @@ export function useGuidedLearningEditorState({
   const [hotspotPulse, setHotspotPulse] = useState<
     'consistent' | 'reminder' | 'off'
   >(existingSet?.hotspotPulse ?? 'consistent');
+  const [imageTransition, setImageTransition] = useState<
+    'none' | 'slide' | 'fade'
+  >(existingSet?.imageTransition ?? 'none');
 
   // Reset all draft state when the underlying set identity changes (parent
   // swapped to a different set). Uses the "adjust state while rendering"
@@ -123,6 +129,7 @@ export function useGuidedLearningEditorState({
     setImageError('');
     setAddingStep(false);
     setHotspotPulse(existingSet?.hotspotPulse ?? 'consistent');
+    setImageTransition(existingSet?.imageTransition ?? 'none');
   }
 
   useEffect(() => {
@@ -134,6 +141,7 @@ export function useGuidedLearningEditorState({
       steps,
       uploading,
       hotspotPulse,
+      imageTransition,
     });
   }, [
     title,
@@ -143,6 +151,7 @@ export function useGuidedLearningEditorState({
     steps,
     uploading,
     hotspotPulse,
+    imageTransition,
     onStateChange,
   ]);
 
@@ -300,6 +309,8 @@ export function useGuidedLearningEditorState({
     setMode,
     hotspotPulse,
     setHotspotPulse,
+    imageTransition,
+    setImageTransition,
     imageUrls,
     currentImageIndex,
     setCurrentImageIndex,

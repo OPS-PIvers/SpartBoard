@@ -53,6 +53,28 @@ const PULSE_OPTIONS: {
   },
 ];
 
+const TRANSITION_OPTIONS: {
+  value: 'none' | 'slide' | 'fade';
+  label: string;
+  desc: string;
+}[] = [
+  {
+    value: 'none',
+    label: 'None',
+    desc: 'Instant swap when changing images — fastest, no animation.',
+  },
+  {
+    value: 'slide',
+    label: 'Slide',
+    desc: 'New image slides in from the right; previous image exits left.',
+  },
+  {
+    value: 'fade',
+    label: 'Fade',
+    desc: 'Cross-dissolve between the previous and new image.',
+  },
+];
+
 // ─── Context pane ────────────────────────────────────────────────────────────
 
 interface PaneProps {
@@ -75,6 +97,8 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
     setMode,
     hotspotPulse,
     setHotspotPulse,
+    imageTransition,
+    setImageTransition,
     imageUrls,
     currentImageIndex,
     setCurrentImageIndex,
@@ -219,6 +243,27 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
               aria-pressed={hotspotPulse === opt.value}
               className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
                 hotspotPulse === opt.value
+                  ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
+                  : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xxs font-bold uppercase tracking-wider text-slate-500 mr-1">
+            Image transition
+          </span>
+          {TRANSITION_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setImageTransition(opt.value)}
+              title={opt.desc}
+              aria-pressed={imageTransition === opt.value}
+              className={`px-3 py-1.5 rounded-full border text-xs font-bold transition-colors ${
+                imageTransition === opt.value
                   ? 'border-brand-blue-primary bg-brand-blue-primary/10 text-brand-blue-primary'
                   : 'border-slate-300 bg-white text-slate-600 hover:border-slate-400'
               }`}

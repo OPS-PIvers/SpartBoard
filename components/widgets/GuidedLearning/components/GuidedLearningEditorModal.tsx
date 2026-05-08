@@ -146,6 +146,8 @@ export const GuidedLearningEditorModal: React.FC<
   const originalMode: GuidedLearningMode = set?.mode ?? 'structured';
   const originalHotspotPulse: 'consistent' | 'reminder' | 'off' =
     set?.hotspotPulse ?? 'consistent';
+  const originalImageTransition: 'none' | 'slide' | 'fade' =
+    set?.imageTransition ?? 'none';
   const originalImageUrls = useMemo(
     () => (set ? [...set.imageUrls] : []),
     [set]
@@ -184,6 +186,7 @@ export const GuidedLearningEditorModal: React.FC<
       liveState.description !== originalDescription ||
       liveState.mode !== originalMode ||
       liveState.hotspotPulse !== originalHotspotPulse ||
+      liveState.imageTransition !== originalImageTransition ||
       !arraysEqual(liveState.imageUrls, originalImageUrls) ||
       !stepsEqual(liveState.steps, originalSteps)
     );
@@ -193,6 +196,7 @@ export const GuidedLearningEditorModal: React.FC<
     originalDescription,
     originalMode,
     originalHotspotPulse,
+    originalImageTransition,
     originalImageUrls,
     originalSteps,
   ]);
@@ -217,6 +221,9 @@ export const GuidedLearningEditorModal: React.FC<
         // ('consistent') — keeps untouched legacy sets clean of new fields.
         ...(liveState.hotspotPulse !== 'consistent'
           ? { hotspotPulse: liveState.hotspotPulse }
+          : {}),
+        ...(liveState.imageTransition !== 'none'
+          ? { imageTransition: liveState.imageTransition }
           : {}),
       };
       await onSave(builtSet, meta?.driveFileId);

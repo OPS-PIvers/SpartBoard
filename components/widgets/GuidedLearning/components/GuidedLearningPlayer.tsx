@@ -44,6 +44,11 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // prefers-reduced-motion via the motion-reduce:* utilities.
   const pulseMode: 'consistent' | 'reminder' | 'off' =
     set.hotspotPulse ?? 'consistent';
+  // Image-to-image transition style. 'none' = instant swap (legacy);
+  // 'slide' = new image slides in from the right while previous exits left;
+  // 'fade' = cross-dissolve. Reduces to 'none' under prefers-reduced-motion.
+  const transitionMode: 'none' | 'slide' | 'fade' =
+    set.imageTransition ?? 'none';
   // In teacher mode set.steps is GuidedLearningStep[]; in student mode it is
   // GuidedLearningPublicStep[] (via the student-app cast). We intentionally
   // narrow to GuidedLearningPublicStep[] here so interaction components never
@@ -138,6 +143,29 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
           Math.max(set.imageUrls.length - 1, 0)
         );
   const currentImageUrl = set.imageUrls[currentImageIndex] ?? set.imageUrls[0];
+
+  // Image-transition bookkeeping — when `currentImageIndex` changes and a
+  // transition is enabled, we briefly render the previous image as an
+  // exiting layer alongside the current one. The "adjust state during
+  // render" pattern detects the change without an effect; the
+  // 500ms-cleanup effect below drops the previous layer once its
+  // animation has finished.
+  const transitionsActive = transitionMode !== 'none' && !prefersReducedMotion;
+  const [prevImageIndex, setPrevImageIndex] = useState<number | null>(null);
+  const [trackedImageIndex, setTrackedImageIndex] = useState(currentImageIndex);
+  if (trackedImageIndex !== currentImageIndex) {
+    if (transitionsActive) {
+      setPrevImageIndex(trackedImageIndex);
+    }
+    setTrackedImageIndex(currentImageIndex);
+  }
+  useEffect(() => {
+    if (prevImageIndex === null) return;
+    const id = setTimeout(() => setPrevImageIndex(null), 500);
+    return () => clearTimeout(id);
+  }, [prevImageIndex]);
+  const previousImageUrl =
+    prevImageIndex !== null ? (set.imageUrls[prevImageIndex] ?? null) : null;
 
   const toContainerStep = useCallback(
     (step: GuidedLearningPublicStep | null) => {
@@ -611,14 +639,38 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
             className="w-full h-full relative motion-reduce:transition-none"
             style={getPanZoomStyle()}
           >
+            {/* Current image is always mounted — kept stable across image
+                changes so React doesn't re-create the <img> node, which
+                would invalidate refs held by callers/tests and force a
+                fresh load even when the URL is unchanged. */}
             {currentImageUrl && (
               <img
                 ref={imgRef}
                 src={currentImageUrl}
                 alt={set.title}
-                className="w-full h-full object-contain pointer-events-none"
+                className="absolute inset-0 w-full h-full object-contain pointer-events-none"
                 draggable={false}
                 onLoad={measureImg}
+              />
+            )}
+            {/* Previous image — only mounted while a transition is in
+                flight. Rendered ABOVE the current layer (later in DOM
+                order, so it paints on top) and animates OUT, revealing
+                the current image underneath. The cleanup effect drops
+                this layer 500ms after mount. */}
+            {previousImageUrl && (
+              <img
+                src={previousImageUrl}
+                alt=""
+                aria-hidden="true"
+                className={`absolute inset-0 w-full h-full object-contain pointer-events-none ${
+                  transitionMode === 'slide'
+                    ? 'animate-slide-left-out'
+                    : transitionMode === 'fade'
+                      ? 'animate-fade-out'
+                      : ''
+                }`}
+                draggable={false}
               />
             )}
 

@@ -217,6 +217,9 @@ export const useGuidedLearningSessionTeacher = (
         ...(set.hotspotPulse && set.hotspotPulse !== 'consistent'
           ? { hotspotPulse: set.hotspotPulse }
           : {}),
+        ...(set.imageTransition && set.imageTransition !== 'none'
+          ? { imageTransition: set.imageTransition }
+          : {}),
       };
 
       await setDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId), session);

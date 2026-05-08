@@ -3681,6 +3681,14 @@ export interface GuidedLearningSet {
    * pulse entirely. All variants honor `prefers-reduced-motion`.
    */
   hotspotPulse?: 'consistent' | 'reminder' | 'off';
+  /**
+   * Image-to-image transition style when the player switches between
+   * images. Default `'none'` (instant swap — pre-feature behavior).
+   * `'slide'` moves the new image in from the right while the previous
+   * image exits to the left. `'fade'` cross-dissolves the two. All
+   * variants honor `prefers-reduced-motion`.
+   */
+  imageTransition?: 'none' | 'slide' | 'fade';
 }
 
 /** Lightweight metadata stored in Firestore (avoids Drive API on every list) */
@@ -3798,6 +3806,8 @@ export interface GuidedLearningSession {
   assignmentMode?: AssignmentMode;
   /** Mirrors `GuidedLearningSet.hotspotPulse` so the student app sees it. */
   hotspotPulse?: 'consistent' | 'reminder' | 'off';
+  /** Mirrors `GuidedLearningSet.imageTransition`. */
+  imageTransition?: 'none' | 'slide' | 'fade';
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */

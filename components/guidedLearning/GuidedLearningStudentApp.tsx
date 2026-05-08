@@ -227,6 +227,7 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
     createdAt: session.createdAt,
     updatedAt: session.createdAt,
     hotspotPulse: session.hotspotPulse,
+    imageTransition: session.imageTransition,
   };
 
   return (
