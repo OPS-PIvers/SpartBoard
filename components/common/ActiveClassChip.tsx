@@ -42,7 +42,11 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
 
   useEffect(() => {
     if (!open) return;
-    const handleMouseDown = (event: MouseEvent) => {
+    // Listen for `pointerdown` rather than `mousedown` — pointer events are
+    // the source events; React handlers that call `preventDefault()` on
+    // `pointerdown` (e.g. DraggableWindow's drag-surface) suppress the
+    // synthesized `mousedown`, which would otherwise leak this menu open.
+    const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (popoverRef.current?.contains(target)) return;
       if (anchorRef.current?.contains(target)) return;
@@ -60,13 +64,13 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
         }
       });
     };
-    document.addEventListener('mousedown', handleMouseDown);
+    document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKey);
     window.addEventListener('resize', handleReposition);
     window.addEventListener('scroll', handleReposition, true);
     return () => {
       cancelAnimationFrame(animationFrameId);
-      document.removeEventListener('mousedown', handleMouseDown);
+      document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKey);
       window.removeEventListener('resize', handleReposition);
       window.removeEventListener('scroll', handleReposition, true);

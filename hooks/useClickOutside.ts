@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, RefObject } from 'react';
 
-type Handler = (event: MouseEvent | TouchEvent) => void;
+type Handler = (event: PointerEvent) => void;
 
 // Module-level constant so callers that omit `ignoreRefs` get the SAME
 // empty-array reference every render — kept as a defensive default even
@@ -26,7 +26,7 @@ export const useClickOutside = <T extends HTMLElement = HTMLElement>(
   });
 
   useEffect(() => {
-    const listener = (event: MouseEvent | TouchEvent) => {
+    const listener = (event: PointerEvent) => {
       const target = event.target as Node;
 
       // Do nothing if clicking ref's element or descendent elements
@@ -56,12 +56,19 @@ export const useClickOutside = <T extends HTMLElement = HTMLElement>(
       handler(event);
     };
 
-    document.addEventListener('mousedown', listener);
-    document.addEventListener('touchstart', listener);
+    // Listen on `pointerdown` rather than `mousedown` + `touchstart`. Pointer
+    // events are the source events; mouse events are synthesized from them as
+    // compatibility. When a React handler calls `e.preventDefault()` on a
+    // `pointerdown` (e.g. DraggableWindow.handleDragStart suppressing native
+    // text-selection during drag), the synthesized `mousedown` is also
+    // suppressed — which would silently break click-outside dismissal for
+    // any popover whose host widget started a drag. Listening on
+    // `pointerdown` itself avoids that compatibility-event gap and also
+    // unifies mouse/touch/pen handling under one listener.
+    document.addEventListener('pointerdown', listener);
 
     return () => {
-      document.removeEventListener('mousedown', listener);
-      document.removeEventListener('touchstart', listener);
+      document.removeEventListener('pointerdown', listener);
     };
   }, [ref, handler]);
 };

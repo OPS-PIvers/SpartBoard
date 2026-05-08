@@ -95,8 +95,8 @@ describe('PeriodSelector', () => {
         onClose={onClose}
       />
     );
-    // Click outside the popover
-    fireEvent.mouseDown(document.body);
+    // Click outside the popover — `useClickOutside` listens for `pointerdown`
+    fireEvent.pointerDown(document.body);
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
