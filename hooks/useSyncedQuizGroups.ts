@@ -352,3 +352,23 @@ export async function callJoinPlcQuizSyncGroup(
   const result = await fn({ plcId, plcQuizId });
   return result.data;
 }
+
+/**
+ * Phase 3 sibling of `callJoinPlcQuizSyncGroup`. Resolves `syncGroupId`
+ * via `plcs/{plcId}/assignments/{plcAssignmentId}` instead of the
+ * `quizzes/` subcollection. Used by the PLC Assignments tab's "Add to my
+ * board (Sync)" path. The Cloud Function performs the same Admin-SDK
+ * membership check before joining the caller to the canonical synced
+ * group.
+ */
+export async function callJoinPlcAssignmentSyncGroup(
+  plcId: string,
+  plcAssignmentId: string
+): Promise<JoinResponse> {
+  const fn = httpsCallable<
+    { plcId: string; plcAssignmentId: string },
+    JoinResponse
+  >(functions, 'joinPlcAssignmentSyncGroup');
+  const result = await fn({ plcId, plcAssignmentId });
+  return result.data;
+}

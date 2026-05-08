@@ -6,10 +6,11 @@ import {
   orderBy,
   query,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { PlcAssignmentIndexEntry } from '@/types';
+import { PlcAssignmentIndexEntry, QuizAssignmentStatus } from '@/types';
 import { logError } from '@/utils/logError';
 
 const PLCS_COLLECTION = 'plcs';
@@ -19,6 +20,12 @@ interface UsePlcAssignmentIndexResult {
   entries: PlcAssignmentIndexEntry[];
   loading: boolean;
 }
+
+const VALID_STATUSES: ReadonlySet<QuizAssignmentStatus> = new Set([
+  'active',
+  'paused',
+  'inactive',
+]);
 
 function parseEntry(
   id: string,
@@ -38,6 +45,16 @@ function parseEntry(
   const rawKind = data.kind;
   const kind: PlcAssignmentIndexEntry['kind'] =
     rawKind === 'video-activity' ? 'video-activity' : 'quiz';
+  // Phase 3 added `status`. Legacy entries (created pre-Phase-3) lack the
+  // field — default to `'active'` so they surface in the In-progress
+  // sub-tab until their owner deactivates them. An invalid value is also
+  // coerced to `'active'` so a single corrupt write can't hide a row.
+  const rawStatus = data.status;
+  const status: QuizAssignmentStatus =
+    typeof rawStatus === 'string' &&
+    VALID_STATUSES.has(rawStatus as QuizAssignmentStatus)
+      ? (rawStatus as QuizAssignmentStatus)
+      : 'active';
   return {
     id,
     kind,
@@ -46,6 +63,7 @@ function parseEntry(
     ownerEmail: typeof data.ownerEmail === 'string' ? data.ownerEmail : '',
     title: data.title,
     sheetUrl: data.sheetUrl,
+    status,
     createdAt: data.createdAt,
   };
 }
@@ -132,6 +150,43 @@ export async function writePlcAssignmentIndexEntry(
     logError('writePlcAssignmentIndexEntry.write', err, {
       plcId,
       entryId: entry.id,
+    });
+  }
+}
+
+/**
+ * Mirror a status change to the PLC index entry. Called fire-and-forget
+ * from `pauseAssignment` / `deactivateAssignment` / `reopenAssignment`
+ * whenever the canonical assignment carries `settings.plc`. Failures log
+ * but never reject — the canonical assignment update is the primary write
+ * and must not be blocked by the mirror.
+ *
+ * `not-found` here is benign: it means the index entry was deleted (or
+ * the PLC was) between the canonical write and this mirror call. The
+ * In-progress / Completed sub-tabs will simply not show the entry — same
+ * end state as a successful mirror to a deleted row.
+ */
+export async function mirrorPlcAssignmentStatus(
+  plcId: string,
+  assignmentId: string,
+  status: QuizAssignmentStatus
+): Promise<void> {
+  try {
+    await updateDoc(
+      doc(
+        db,
+        PLCS_COLLECTION,
+        plcId,
+        ASSIGNMENT_INDEX_SUBCOLLECTION,
+        assignmentId
+      ),
+      { status }
+    );
+  } catch (err) {
+    logError('mirrorPlcAssignmentStatus.write', err, {
+      plcId,
+      assignmentId,
+      status,
     });
   }
 }

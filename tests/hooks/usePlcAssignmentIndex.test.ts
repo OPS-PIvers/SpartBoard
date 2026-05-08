@@ -15,8 +15,10 @@ import {
   orderBy,
   query,
   setDoc,
+  updateDoc,
 } from 'firebase/firestore';
 import {
+  mirrorPlcAssignmentStatus,
   usePlcAssignmentIndex,
   writePlcAssignmentIndexEntry,
 } from '@/hooks/usePlcAssignmentIndex';
@@ -32,6 +34,7 @@ vi.mock('firebase/firestore', () => ({
   })),
   query: vi.fn((_ref, ...constraints) => ({ __query: constraints })),
   setDoc: vi.fn(),
+  updateDoc: vi.fn(),
 }));
 
 vi.mock('@/config/firebase', () => ({
@@ -54,6 +57,7 @@ const mockOnSnapshot = onSnapshot as Mock;
 const mockOrderBy = orderBy as Mock;
 const mockQuery = query as Mock;
 const mockSetDoc = setDoc as Mock;
+const mockUpdateDoc = updateDoc as Mock;
 const mockLogError = logError as unknown as Mock;
 
 const TEACHER_UID = 'teacher-1';
@@ -71,6 +75,7 @@ beforeEach(() => {
     segs.join('/')
   );
   mockSetDoc.mockResolvedValue(undefined);
+  mockUpdateDoc.mockResolvedValue(undefined);
   useAuthMock.mockReturnValue({ user: { uid: TEACHER_UID } });
 });
 
@@ -235,9 +240,85 @@ describe('usePlcAssignmentIndex - parseEntry (via snapshot)', () => {
       ownerEmail: '',
       title: 'A',
       sheetUrl: 'https://example.com/a',
+      // Phase 3: legacy entries (created before the field existed)
+      // default to 'active' so they surface in the In-progress sub-tab
+      // until their owner deactivates them.
+      status: 'active',
       createdAt: 1000,
     });
     expect(result.current.loading).toBe(false);
+  });
+
+  it("Phase 3: parses 'status' faithfully and coerces invalid values to 'active'", () => {
+    let cb: (snap: unknown) => void = () => {
+      throw new Error('snapshot callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+    const { result } = renderHook(() => usePlcAssignmentIndex(PLC_ID));
+
+    act(() => {
+      cb(
+        fakeSnap([
+          {
+            id: 'live',
+            data: {
+              ownerUid: 'u1',
+              title: 'Live one',
+              sheetUrl: 'https://example.com/x',
+              status: 'active',
+              createdAt: 1000,
+            },
+          },
+          {
+            id: 'paused',
+            data: {
+              ownerUid: 'u1',
+              title: 'Paused one',
+              sheetUrl: 'https://example.com/y',
+              status: 'paused',
+              createdAt: 1001,
+            },
+          },
+          {
+            id: 'done',
+            data: {
+              ownerUid: 'u1',
+              title: 'Done one',
+              sheetUrl: 'https://example.com/z',
+              status: 'inactive',
+              createdAt: 1002,
+            },
+          },
+          {
+            id: 'invalid',
+            data: {
+              ownerUid: 'u1',
+              title: 'Bad status',
+              sheetUrl: 'https://example.com/w',
+              // Garbage status string — must be coerced rather than
+              // dropping the row, so a corrupt write doesn't hide it
+              // from the dashboard. 'active' is the safe default
+              // (surfaces under In-progress so the owner notices).
+              status: 'banana',
+              createdAt: 1003,
+            },
+          },
+        ])
+      );
+    });
+
+    const byId = Object.fromEntries(
+      result.current.entries.map((e) => [e.id, e.status])
+    );
+    expect(byId).toEqual({
+      live: 'active',
+      paused: 'paused',
+      done: 'inactive',
+      invalid: 'active',
+    });
   });
 
   it("reads kind: 'video-activity' through the parser (PR3a widening)", () => {
@@ -391,6 +472,7 @@ describe('writePlcAssignmentIndexEntry', () => {
     ownerEmail: 'alice@example.com',
     title: 'My Quiz',
     sheetUrl: 'https://docs.google.com/spreadsheets/d/abc',
+    status: 'active',
     createdAt: 12345,
   };
 
@@ -419,6 +501,39 @@ describe('writePlcAssignmentIndexEntry', () => {
       'writePlcAssignmentIndexEntry.write',
       err,
       { plcId: PLC_ID, entryId: ENTRY.id }
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// mirrorPlcAssignmentStatus (Phase 3)
+// ---------------------------------------------------------------------------
+
+describe('mirrorPlcAssignmentStatus', () => {
+  it('writes only the status field via updateDoc to the index entry path', async () => {
+    await mirrorPlcAssignmentStatus(PLC_ID, 'asn-1', 'paused');
+    expect(mockUpdateDoc).toHaveBeenCalledTimes(1);
+    expect(mockUpdateDoc).toHaveBeenCalledWith(
+      `plcs/${PLC_ID}/assignment_index/asn-1`,
+      { status: 'paused' }
+    );
+  });
+
+  it('swallows errors via logError so canonical pause/resume/deactivate stay fast', async () => {
+    const err = new Error('not-found');
+    mockUpdateDoc.mockRejectedValueOnce(err);
+
+    // Must NOT reject — the canonical pause/resume/deactivate calls
+    // never block on the mirror. A `not-found` here is benign (entry
+    // was deleted between the canonical write and this mirror), so
+    // logError + swallow is the correct posture.
+    await expect(
+      mirrorPlcAssignmentStatus(PLC_ID, 'asn-1', 'inactive')
+    ).resolves.toBeUndefined();
+    expect(mockLogError).toHaveBeenCalledWith(
+      'mirrorPlcAssignmentStatus.write',
+      err,
+      { plcId: PLC_ID, assignmentId: 'asn-1', status: 'inactive' }
     );
   });
 });

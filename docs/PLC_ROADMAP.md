@@ -27,8 +27,8 @@ This roadmap is designed to be **executed in independent chunks across multiple 
 ## Status
 
 - [x] **Phase 1** — Dashboard shell + feature toggles + completed-assignments tab _(PR #1537)_
-- [x] **Phase 2** — PLC Quiz Library (share-with-PLC, collaborative editing, sync-or-copy import) _(this PR)_
-- [ ] **Phase 3** — PLC-authored Assignments tab + auto-bubble-up from personal assignments
+- [x] **Phase 2** — PLC Quiz Library (share-with-PLC, collaborative editing, sync-or-copy import) _(PR #1547)_
+- [x] **Phase 3** — PLC-authored Assignments tab + auto-bubble-up from personal assignments _(this PR)_
 - [ ] **Phase 4** — Video Activities (extend with `PlcLinkage` + dashboard surface)
 - [x] **Phase 5** — Notes + To-Do list (collaborative shared docs) _(bundled with Overview/Bento — see Phase 1.5 below)_
 - [ ] **Phase 6** — Shared Boards surface
@@ -159,37 +159,64 @@ These were surfaced in the final review pass and intentionally deferred to keep 
 
 ---
 
-## Phase 3 — PLC-authored Assignments tab
+## Phase 3 — PLC-authored Assignments tab _(SHIPPED)_
 
-**Goal:** members can author assignments at the PLC level (so all teammates pick them up), AND any personal assignment that opts into PLC mode auto-bubbles up to the PLC dashboard.
+**Status:** Shipped via this PR into `dev-paul` (branch `claude/plc-assignments-subtabs-mxR1V`).
 
-### Scope
+**Goal:** members can author assignments at the PLC level (so all teammates pick them up), AND any personal assignment that opts into PLC mode auto-bubbles up to the PLC dashboard. Three sub-tabs scope assignment views by lifecycle: Library / In-progress / Completed.
 
-- New `plcs/{plcId}/assignments/{assignmentId}` subcollection. PLC-level assignments differ from the personal `quiz_assignments` collection: they're created without a teacher's class targeting, and members opt in by importing them onto their own board.
-- New `PlcAssignmentsTab.tsx` (replaces the placeholder, distinct from `PlcCompletedAssignmentsTab`):
-  - **Top half:** PLC-authored assignments awaiting member pickup. Each row has "Add to my board" (sync-or-copy picker).
-  - **Bottom half:** the existing completed-assignments index (or move it into a sub-tab here — TBD).
-- The reverse path: when a member toggles "PLC" inside the personal `QuizAssignmentSettingsModal`, the assignment auto-creates a corresponding PLC-level entry too. (Phase 1 already writes to `assignment_index` for the completed view; Phase 3 extends this with a "live assignment" entry for the authoring tab.)
+### What landed
 
-### Architectural notes
+- `components/plc/tabs/PlcAssignmentsTab.tsx` — container with three pill-style sub-tabs (Library / In-progress / Completed). Default is Library. Replaces the Phase 1 placeholder.
+- `components/plc/tabs/PlcAssignmentsLibrarySubTab.tsx` — lists `plcs/{plcId}/assignments/` templates. "Add to my board" opens the sync-or-copy picker. "Unshare" removes the template (PLC-owned model — any member can unshare; teammates' already-imported personal assignments keep running).
+- `components/plc/tabs/PlcAssignmentsInProgressSubTab.tsx` — filters `plcs/{plcId}/assignment_index` to `status in ['active','paused']`. Renders rows with green Active / amber Paused status pill.
+- `components/plc/tabs/PlcAssignmentsCompletedSubTab.tsx` — filters the same index to `status === 'inactive'`. Identical row UX to the pre-Phase-3 top-level "Completed Assignments" tab.
+- `components/plc/tabs/PlcAssignmentIndexRow.tsx` — shared row component used by In-progress and Completed (icon, title, owner, date, sheet link with `isSafeHttpUrl`, optional status pill).
+- `components/plc/PlcAssignmentImportModal.tsx` — sync-or-copy picker. Mirrors `PlcQuizImportModal.tsx` exactly with assignment-specific copy.
+- `hooks/usePlcAssignments.ts` (new) — live subscription + `shareAssignmentTemplate` / `deleteAssignmentTemplate` mutators + standalone `writePlcAssignmentTemplate(plcId, uid, input)` for fire-and-forget bubble-up.
+- `hooks/usePlcAssignmentIndex.ts` — extended:
+  - `parseEntry` now reads `status` and defaults missing/invalid values to `'active'` (legacy entries surface in In-progress until their owner deactivates them).
+  - New `mirrorPlcAssignmentStatus(plcId, assignmentId, status)` helper — fire-and-forget `updateDoc({status})` on the index entry. Logs + swallows on error so the canonical pause/deactivate/reopen never blocks on the mirror.
+- `hooks/useQuizAssignments.ts` — extended:
+  - `createAssignment` now stamps `status: initialStatus` in the PLC index write AND fires a fire-and-forget template write to `plcs/{plcId}/assignments/` when `settings.plc` is set, the source quiz has a resolvable `syncGroupId` (via `options.plcTemplateSyncGroupId` or `options.syncedFrom`), and `options.skipPlcTemplateWrite !== true`. The skip flag is the contract that prevents the Library "Add to my board" import from recursively authoring another template.
+  - `setStatus` and `reopenAssignment` now mirror the new status onto the PLC index via `mirrorPlcAssignmentStatus`. Lookups read `settings.plc.id` from a `useRef` mirror of the live `assignments` snapshot so callbacks stay stable.
+- `hooks/useSyncedQuizGroups.ts` — new `callJoinPlcAssignmentSyncGroup(plcId, plcAssignmentId)` callable wrapper for the Phase 3 Cloud Function.
+- `functions/src/plcAssignmentSyncJoin.ts` — new Cloud Function `joinPlcAssignmentSyncGroup`. Mirrors `plcQuizSyncJoin.ts` shape but resolves `syncGroupId` via the `plcs/{plcId}/assignments/` subcollection. Verifies caller is a current PLC member via Admin SDK before joining the canonical synced group. **Requires `firebase deploy --only functions:joinPlcAssignmentSyncGroup`** before the Sync import path will work in staging or production environments; until then, Copy mode still works without the Cloud Function.
+- `firestore.rules`:
+  - `plcs/{plcId}/assignment_index/{assignmentId}` widened with required `status` field (`in ['active','paused','inactive']`); `keys().hasOnly([...])` updated on both create and update branches; identity fields (`id`/`ownerUid`/`createdAt`) still immutable on update.
+  - New `plcs/{plcId}/assignments/{plcAssignmentId}` block with full schema lock-down. Same posture as Phase 2's `quizzes/` block: any member can create / update mirrored fields / delete; identity + attribution fields are immutable.
+- `types.ts` — `PlcAssignmentIndexEntry` gains `status: QuizAssignmentStatus`; new `PlcAssignmentTemplate` interface for the new subcollection.
+- `components/plc/PlcDashboard.tsx`:
+  - **Removed** the top-level `'completed'` tab (Phase 1's `PlcCompletedAssignmentsTab` is deleted; the same content folds into PLC Assignments → Completed sub-tab).
+  - The `'assignments'` placeholder is replaced with a real render: `<PlcAssignmentsTab plc={plc} />`.
+- `components/plc/overview/tiles/CompletedAssignmentsTile.tsx` — overview bento tile's "View all" button now navigates to `'assignments'` instead of `'completed'`.
+- `locales/en.json` — new keys `plcDashboard.assignmentsSubTabs.*`, `plcDashboard.assignmentsLibrary.*`, `plcDashboard.assignmentsInProgress.*`. The `completedAssignments.*` block stays (re-used by the new Completed sub-tab).
+- Tests: `tests/hooks/usePlcAssignmentIndex.test.ts` extended (status parsing, legacy default, status pill data, `mirrorPlcAssignmentStatus`); `tests/hooks/useQuizAssignments.test.ts` extended (initial status mirror, template write side-effect, `skipPlcTemplateWrite` skip path, no-syncGroupId skip path); `tests/rules/plcAssignmentIndex.test.ts` updated to include the required `status` field in the canonical valid-entry payload.
 
-- A PLC-level assignment is essentially a parameterized template: quiz reference, session options, attempt limit, `sessionMode`. It does NOT carry `classIds` / `rosterIds` (those are per-importer).
-- The "Add to my board" action calls the existing `createAssignment` with the PLC template's settings, then either joins the synced group (sync) or creates a fresh sync group (copy).
-- The reverse-bubble-up should write to BOTH the existing `assignment_index` (already done in Phase 1) AND the new `assignments` subcollection. Document the difference: `assignment_index` is the read-only history; `assignments` is the live "available for pickup" template list.
+### Resolved decisions (this PR)
 
-### Out of scope for Phase 3
-
-- Per-member completion tracking (already covered by the assignment_index + Google Sheet aggregation).
-- Notifications when a PLC-level assignment is added.
-
-### Open questions
-
-- Does the "PLC option" in the personal assignment modal create a brand-new PLC-level assignment, or surface the personal one with a `forkable: true` flag? Recommend: **brand-new PLC-level assignment** (cleaner separation; personal assignment stays personal). Confirm.
-- If a PLC member deletes the PLC-level assignment, what happens to any in-flight imports on members' boards? Recommend: **imports keep running** (they're independent assignment+session docs after import). Confirm.
+- **Personal PLC toggle behavior:** creates a brand-new PLC-level template (clean separation; personal assignment stays personal). The `useQuizAssignments.createAssignment` reverse-bubble-up implements this via `writePlcAssignmentTemplate`.
+- **Template deletion semantics:** orphan-tolerant. Deleting a Library template does NOT cascade — already-imported personal assignments on teammates' boards keep running.
+- **Sub-tab structure (TBD answered):** three sub-tabs (Library / In-progress / Completed) inside PLC Assignments. Pre-Phase-3 top-level "Completed Assignments" tab folded into Completed sub-tab and removed from `PlcDashboard`. Disabling the `assignments` feature flag now hides the entire tab — including completed history — by design.
+- **In-progress signal:** `status` field on `PlcAssignmentIndexEntry`; mirrored fire-and-forget on every status mutation. In-progress = `status in ['active','paused']`; Completed = `status === 'inactive'`.
 
 ### Notes from implementation
 
-_(Fill in after shipping.)_
+- **Cloud Function deploy required for Sync mode.** The `joinPlcAssignmentSyncGroup` function must be deployed before the Library "Add to my board → Sync" path works against a real Firebase project. Copy mode works without the Cloud Function. Deploy command: `firebase deploy --only functions:joinPlcAssignmentSyncGroup`.
+- **Bubble-up is conditional on a synced-group pointer.** `useQuizAssignments.createAssignment` writes a template ONLY when the source quiz already participates in a synced group (via `quiz.sync.groupId` surfaced via the new `options.plcTemplateSyncGroupId`, or via the `options.syncedFrom` linkage). The hook does NOT promote a Drive-only quiz to a synced group at this layer — promotion needs Drive content the hook doesn't have in scope. The follow-up below documents wiring the QuizWidget's settings modal toggle to call `createSyncedQuizGroup` first; for now, only quizzes that have already been shared (Phase 2) or imported via sync auto-bubble templates.
+- **Status mirror via `useRef`.** The status mutators look up `settings.plc.id` from a `useRef<QuizAssignment[]>` updated via `useEffect`. Direct ref-during-render is blocked by the `react-hooks/refs` lint rule; the effect path is what passes lint while still avoiding the callback-recreation churn.
+- **Legacy index entries default to `'active'`.** Pre-Phase-3 entries lack the `status` field. The parser coerces missing/invalid values to `'active'` so they surface in the In-progress sub-tab. There is no admin sweep; the owner can deactivate the source assignment to migrate the entry to Completed naturally.
+- **Top-level Completed tab removal is deliberate.** Per the user-confirmed design, disabling the `assignments` feature flag now hides the completed history along with everything else assignment-related. Documented as a behavior change.
+- **`PlcAssignmentsTab` does NOT use the lazy WidgetRegistry pattern** — it's a single component (with three sub-components) imported directly from `PlcDashboard.tsx`. This matches the rest of the PLC tabs (Quiz Library, Notes, Todos) and keeps the routing simple.
+- **Verification gap:** this environment lacks Firebase project access, so manual smoke tests against a real project did not run. Type-check + lint + Prettier + 2173 unit tests + 193 functions tests + production build + functions build all pass. Verification falls to the dev preview URL and the human reviewer per the Phase 2 precedent.
+
+### Phase 3 follow-ups (not blockers; track separately)
+
+- **Bubble-up for Drive-only PLC quizzes.** The reverse-path template write only fires when the source quiz already has a sync group. Wiring the personal assignment-settings modal's "Share with PLC" toggle to call `createSyncedQuizGroup` first (mirroring `Widget.tsx → handleShareWithPlc`) would let every PLC-mode personal assignment author a template, even if the source quiz isn't already shared.
+- **Cloud Function unit tests.** `joinPlcAssignmentSyncGroup` (`functions/src/plcAssignmentSyncJoin.ts`) has no `*.test.ts` sibling. Same gap as Phase 2's `joinPlcQuizSyncGroup`.
+- **Modal i18n.** `PlcAssignmentImportModal.tsx` uses hardcoded English (matches the sibling `PlcQuizImportModal.tsx` and `QuizAssignmentImportModeModal.tsx`). Localize all three together when the locale sweep happens.
+- **Library template editing.** Today the Library shows templates but no inline edit — the importer pulls the template's settings, then customizes on their own board. A future iteration could allow editing the canonical template (similar to PLC Quiz Library's edit-via-synced-group flow); not in scope here.
+- **`status` field on the `assignments` template subcollection.** Templates currently have no lifecycle status — they're either present (pickup-able) or absent (unshared). If we want "this template is no longer being run" without unsharing it, that's a future schema extension.
 
 ---
 
@@ -360,8 +387,6 @@ logError('writePlcAssignmentIndexEntry.write', err, { plcId, entryId });
 
 _(Add new ones here as they come up. Resolve before starting the affected phase.)_
 
-- **Phase 3:** does the personal "PLC option" toggle create a brand-new PLC-level assignment template, or fork from the personal one?
-- **Phase 3:** what happens to in-flight imports if the PLC-level template is deleted?
 - **Phase 6:** read-only vs. editable for PLC-shared boards.
 
 Resolved:
@@ -369,7 +394,36 @@ Resolved:
 - ~~**Phase 2:** orphan behavior when sharer deletes their personal copy of a synced PLC quiz.~~ → PLC copy stays (orphan-tolerant). See Phase 2 "Notes from implementation".
 - ~~**Phase 5:** single shared notepad vs. multiple notes per PLC.~~ → Multi-note. Shipped.
 - ~~**Phase 5:** are todos PLC-owned or per-member?~~ → PLC-owned, optional `assignedTo` deferred. Shipped.
+- ~~**Phase 3:** does the personal "PLC option" toggle create a brand-new PLC-level assignment template, or fork from the personal one?~~ → Brand-new template. Shipped.
+- ~~**Phase 3:** what happens to in-flight imports if the PLC-level template is deleted?~~ → Imports keep running (orphan-tolerant). Shipped.
+- ~~**Phase 3 (TBD):** bottom-half of the PLC Assignments tab — completed-assignments index here vs. its own top-level tab.~~ → Folded into a Completed sub-tab; pre-Phase-3 top-level tab removed. Shipped.
 
 ---
 
-**Last updated:** 2026-05-08 (Phase 2 shipped — PLC Quiz Library: share-with-PLC, sync-or-copy import, collaborative edits via synced_quizzes)
+## Phase 4 starter — for the next agent
+
+**Goal (recap from the Phase 4 section above):** extend video activities with the same PLC linkage + dashboard surface that quizzes already have.
+
+**What's already in place after Phase 3 (use these — don't reinvent):**
+
+- `PlcAssignmentIndexEntry.kind` discriminator already accepts `'video-activity'`. The Phase 1 widening + Phase 3 status field cover the schema; Phase 4 just needs `useVideoActivityAssignments.createAssignment` to start writing entries with `kind: 'video-activity'` and the appropriate `status`.
+- `mirrorPlcAssignmentStatus(plcId, assignmentId, status)` from `hooks/usePlcAssignmentIndex.ts` is generic (no quiz-specific assumptions). Phase 4's VA status mutators should call it the same way `useQuizAssignments` does — fire-and-forget when `settings.plc` is set on a VA assignment. The In-progress / Completed sub-tabs in PLC Assignments will then surface VA entries automatically alongside quizzes (status mirroring is the only wiring needed).
+- The PLC Assignments **Library** sub-tab is quiz-template-specific today (`plcs/{plcId}/assignments/` carries `quizId` / `quizTitle`). Phase 4 has two paths: (a) add a `kind` discriminator to `PlcAssignmentTemplate` and let the Library list mixed quiz + VA templates, or (b) add a separate `plcs/{plcId}/video_activity_templates/` subcollection mirroring this one. Recommend (b) — it keeps the schemas independent and matches the Phase 4 plan's existing scope (`plcs/{plcId}/video_activities/` subcollection).
+- The Phase 2 + Phase 3 Cloud Functions follow the same pattern. Phase 4 will likely need a `joinPlcVideoActivitySyncGroup` sibling resolving via `plcs/{plcId}/video_activities/`.
+- `firestore.rules` Phase 3 `assignments/` block is the closest template — copy it, swap field names, and pin VA-specific session-shape constraints if any.
+
+**Files to touch (likely):**
+
+- `types.ts` — add `PlcVideoActivityTemplate` (mirror `PlcAssignmentTemplate`); add `plc?: PlcLinkage` to `VideoActivityAssignmentSettings`.
+- `hooks/useVideoActivityAssignments.ts` — extend `createAssignment` to write `assignment_index` entries with `kind: 'video-activity'` and (optionally) a video activity template; add status mirroring on pause/end mutations.
+- `hooks/usePlcVideoActivities.ts` (new) — mirror `hooks/usePlcAssignments.ts`.
+- `components/plc/tabs/PlcVideoActivitiesTab.tsx` — replace placeholder; same shape as `PlcQuizLibraryTab.tsx`.
+- `firestore.rules` — new `match /plcs/{plcId}/video_activities/{...}` block.
+- `functions/src/plcVideoActivitySyncJoin.ts` (new) — mirror `plcAssignmentSyncJoin.ts`.
+- Tests: hook + rules suites mirroring Phase 3.
+
+**Branch convention:** open `claude/plc-phase-4-<slug>` off `dev-paul`.
+
+---
+
+**Last updated:** 2026-05-08 (Phase 3 shipped — PLC-authored Assignments tab with Library / In-progress / Completed sub-tabs; auto-bubble-up from personal PLC-mode assignments; status mirroring on the assignment_index)

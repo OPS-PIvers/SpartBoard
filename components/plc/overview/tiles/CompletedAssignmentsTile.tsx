@@ -96,7 +96,7 @@ export const CompletedAssignmentsTile: React.FC<
 
       <button
         type="button"
-        onClick={() => onNavigateTab('completed')}
+        onClick={() => onNavigateTab('assignments')}
         className="flex items-center justify-center gap-1.5 px-4 py-2.5 border-t border-slate-100 text-xxs font-bold uppercase tracking-wider text-brand-blue-primary hover:bg-brand-blue-lighter/30 transition-colors"
       >
         {t('plcDashboard.overview.tiles.completedAssignments.viewAll', {
