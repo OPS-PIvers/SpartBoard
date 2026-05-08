@@ -2418,6 +2418,46 @@ export interface QuizResponse {
 }
 
 /**
+ * Per-roster, non-PII PIN index. Stored at
+ * `/users/{teacherUid}/rosters/{rosterId}/pin_index/{indexKey}`.
+ *
+ * Bridges PIN-joining students into the same identity space as SSO
+ * (`studentLoginV1`) joiners. The index maps `(period, pin)` → the same
+ * HMAC pseudonym uid `studentLoginV1` would mint for the student, so a
+ * PIN client can sign in via `pinLoginV1` with a custom token whose uid
+ * matches the SSO uid. Result: one student, one response doc per
+ * session, regardless of which auth path they took. Closes the
+ * mixed-auth duplicate path (Hypothesis E in the attempt-cap fix).
+ *
+ * Non-PII by design: the doc holds only opaque hashes and ids. PIN
+ * values are SpartBoard-internal join codes and don't identify a person
+ * without the (private) roster.
+ *
+ * Index key (`indexKey`):
+ *   `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`
+ * — same encoder Quiz response docs use, so the shape is consistent
+ * across PIN-related collections.
+ *
+ * Populated by `commitRosterPinIndexV1` (callable, teacher-only). Read
+ * via `admin SDK` inside `pinLoginV1` (callable, public). Client clients
+ * never read or write these docs directly.
+ */
+export interface RosterPinIndexEntry {
+  /** HMAC(STUDENT_PSEUDONYM_HMAC_SECRET, `sid:${classlinkSourcedId}`). */
+  pseudonym: string;
+  /**
+   * The student's ClassLink class `sourcedId`. Written into the minted
+   * custom token's `classIds` claim so the student passes
+   * `passesStudentClassGate` on the session's responses.
+   */
+  classId: string;
+  /** Raw period name. Diagnostic only — `indexKey` carries the encoded form. */
+  period: string;
+  /** Server-time ms of the most recent index rebuild for this entry. */
+  updatedAt: number;
+}
+
+/**
  * Cross-launch attempt ledger. Stored at the top level
  * `/quiz_attempt_ledger/{ledgerId}` where `ledgerId = ${quizId}__${studentUid}`.
  *

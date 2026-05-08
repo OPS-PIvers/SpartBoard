@@ -30,8 +30,9 @@ import {
   runTransaction,
   type DocumentSnapshot,
 } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
-import { signInAnonymously } from 'firebase/auth';
+import { db, auth, functions } from '../config/firebase';
+import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
   QuizSessionStatus,
@@ -1066,10 +1067,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }
-        const currentUser = auth.currentUser;
+        // `let` because the Phase 3 PIN→SSO bridge below may swap the
+        // signed-in user via `signInWithCustomToken`, after which we
+        // re-bind `studentUid` / `isAnonymous` to the new identity.
+        let currentUser = auth.currentUser;
         if (!currentUser)
           throw new Error('Anonymous auth failed — no current user.');
-        const studentUid = currentUser.uid;
+        let studentUid = currentUser.uid;
+        let isAnonymous = currentUser.isAnonymous;
 
         // Contract: PIN is required iff the caller is an anonymous Firebase
         // user. Anonymous joiners arrived via the public `/join` /
@@ -1080,7 +1085,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // response doc by that uid, and Firestore rules are the source of
         // truth for whether the uid is actually allowed to write.
         const sanitizedPin = (pin ?? '').trim().substring(0, 10);
-        if (currentUser.isAnonymous && !sanitizedPin) {
+        if (isAnonymous && !sanitizedPin) {
           throw new Error('PIN is required');
         }
 
@@ -1093,7 +1098,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           logQuizJoinFirestoreError('lookup-sessions', err, {
             codeNorm: normCode,
             studentUid,
-            isAnonymous: currentUser.isAnonymous,
+            isAnonymous,
           })
         );
         if (snap.empty) throw new Error('No active quiz found with that code.');
@@ -1120,6 +1125,57 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const sessionDoc = joinable[0];
         const sessionData = sessionDoc.data() as QuizSession;
 
+        // Phase 3 — PIN→SSO identity bridge. When an anonymous PIN
+        // joiner lands on a rostered session (the typical case for
+        // ClassLink schools), try to upgrade them to a custom-token
+        // sign-in whose uid matches what `studentLoginV1` would mint
+        // for the same physical student over SSO. After this swap the
+        // PIN-side and SSO-side response docs converge on the same key
+        // and the per-session attempt cap holds across both auth paths.
+        //
+        // On any failure (no rosterIds on the session, no pin_index
+        // entry, callable error) we silently fall through to the
+        // legacy anonymous PIN flow. The legacy doc-key path
+        // (pin-{period}-{pin}) still gives per-session enforcement and
+        // the user-visible behavior matches today.
+        const sessionHasRosters =
+          Array.isArray(sessionData.rosterIds) &&
+          sessionData.rosterIds.length > 0;
+        if (isAnonymous && sanitizedPin && sessionHasRosters) {
+          try {
+            const callable = httpsCallable<
+              {
+                kind: 'quiz';
+                code: string;
+                pin: string;
+                period?: string;
+              },
+              { matched: boolean; customToken?: string; reason?: string }
+            >(functions, 'pinLoginV1');
+            const res = await callable({
+              kind: 'quiz',
+              code: normCode,
+              pin: sanitizedPin,
+              period: classPeriod,
+            });
+            if (res.data.matched && res.data.customToken) {
+              await signInWithCustomToken(auth, res.data.customToken);
+              const refreshed = auth.currentUser;
+              if (refreshed) {
+                currentUser = refreshed;
+                studentUid = refreshed.uid;
+                isAnonymous = refreshed.isAnonymous;
+              }
+            }
+          } catch (err) {
+            // Swallow — fall through to anonymous flow. Logging the
+            // class-of-failure is fine; we deliberately don't surface
+            // an error toast because the user-visible behavior is
+            // unchanged from pre-Phase-3 in this fallback path.
+            console.warn('[useQuizSession] pinLoginV1 bridge failed:', err);
+          }
+        }
+
         // Deterministic doc key: stable per-roster-student for PIN auth so
         // the attempt limit can't be bypassed by clearing storage / switching
         // device. studentRole users still key by their auth uid (stable per
@@ -1127,7 +1183,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // for anonymous students rejoining pre-deterministic-keying sessions.
         const deterministicKey = computeResponseKey(
           studentUid,
-          currentUser.isAnonymous,
+          isAnonymous,
           sanitizedPin,
           classPeriod
         );
@@ -1135,7 +1191,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           await findExistingResponseDoc(
             sessionDoc.id,
             studentUid,
-            currentUser.isAnonymous,
+            isAnonymous,
             deterministicKey
           );
 
@@ -1171,7 +1227,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // covers PIN joiners.
         let ledgerCompleted = 0;
         if (
-          !currentUser.isAnonymous &&
+          !isAnonymous &&
           typeof sessionData.quizId === 'string' &&
           sessionData.quizId.length > 0
         ) {
@@ -1249,7 +1305,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 responseKey,
                 studentUid,
                 existingStudentUid: existing.studentUid,
-                isAnonymous: currentUser.isAnonymous,
+                isAnonymous,
                 hasPin: !!sanitizedPin,
                 hasClassPeriod: !!classPeriod,
               })
@@ -1265,7 +1321,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                   responseKey,
                   studentUid,
                   existingStudentUid: existing.studentUid,
-                  isAnonymous: currentUser.isAnonymous,
+                  isAnonymous,
                 })
             );
           }
@@ -1308,7 +1364,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // map shapes (Firestore type drift); the teacher-side enrichment
         // in QuizResults remains as the legacy fallback.
         let resolvedPeriodName: string | undefined;
-        if (!currentUser.isAnonymous && !classPeriod) {
+        if (!isAnonymous && !classPeriod) {
           try {
             const tokenResult = await currentUser.getIdTokenResult();
             const claimClassIds = tokenResult.claims?.classIds;
@@ -1390,7 +1446,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               sessionId: sessionDoc.id,
               responseKey,
               studentUid,
-              isAnonymous: currentUser.isAnonymous,
+              isAnonymous,
               hasPin: !!sanitizedPin,
               hasClassPeriod: !!finalClassPeriod,
               hasResolvedClassId: !!resolvedClassId,
@@ -1432,7 +1488,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 existingClassPeriod: existing.classPeriod,
                 resolvedClassId,
                 resolvedPeriodName,
-                isAnonymous: currentUser.isAnonymous,
+                isAnonymous,
               })
             );
           }

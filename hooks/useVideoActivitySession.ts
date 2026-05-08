@@ -25,7 +25,9 @@ import {
   where,
   orderBy,
 } from 'firebase/firestore';
-import { db, auth } from '@/config/firebase';
+import { signInWithCustomToken } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import {
   computeResponseKey,
@@ -561,14 +563,18 @@ export const useVideoActivitySessionStudent =
 
           const sessionData = sessionSnap.data() as VideoActivitySession;
 
-          const currentUser = auth.currentUser;
+          // `let` because the Phase 3 PIN→SSO bridge below may swap the
+          // signed-in user via `signInWithCustomToken`, after which we
+          // re-bind `currentUser` and `isAnonymous` to the new identity
+          // before the rest of the function reads them.
+          let currentUser = auth.currentUser;
           if (!currentUser) {
             setJoinStatus('error');
             setError('Authentication required. Please refresh and try again.');
             return;
           }
 
-          const isAnonymous = currentUser.isAnonymous;
+          let isAnonymous = currentUser.isAnonymous;
 
           // Anonymous (PIN) joiners must supply a PIN and pass the allowedPins
           // gate. SSO joiners (studentRole custom-token users) skip both checks
@@ -604,6 +610,57 @@ export const useVideoActivitySessionStudent =
               'This activity has expired. Contact your teacher for a new link.'
             );
             return;
+          }
+
+          // Phase 3 — PIN→SSO identity bridge. Mirrors `useQuizSession`.
+          // When an anonymous PIN joiner lands on a rostered VA session,
+          // upgrade them to a custom-token sign-in whose uid matches the
+          // SSO pseudonym. After the swap, the per-session response key
+          // converges with the SSO key for the same student. Falls
+          // through silently to the legacy anonymous PIN flow on any
+          // miss (no pin_index entry, callable error).
+          const sessionHasRosters =
+            Array.isArray(sessionData.rosterIds) &&
+            sessionData.rosterIds.length > 0;
+          if (
+            isAnonymous &&
+            studentPin &&
+            studentPin.length > 0 &&
+            sessionHasRosters
+          ) {
+            try {
+              const callable = httpsCallable<
+                {
+                  kind: 'video-activity';
+                  sessionId: string;
+                  pin: string;
+                  period?: string;
+                },
+                { matched: boolean; customToken?: string; reason?: string }
+              >(functions, 'pinLoginV1');
+              const res = await callable({
+                kind: 'video-activity',
+                sessionId: targetSessionId,
+                pin: studentPin,
+                period: classPeriod,
+              });
+              if (res.data.matched && res.data.customToken) {
+                await signInWithCustomToken(auth, res.data.customToken);
+                const refreshed = auth.currentUser;
+                if (refreshed) {
+                  currentUser = refreshed;
+                  isAnonymous = refreshed.isAnonymous;
+                }
+              }
+            } catch (err) {
+              logError(
+                'useVideoActivitySessionStudent.pinLoginBridge',
+                err as Error,
+                {
+                  sessionId: targetSessionId,
+                }
+              );
+            }
           }
 
           // Compute the deterministic response-doc key. Anonymous joiners get

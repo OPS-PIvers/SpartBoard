@@ -10,11 +10,61 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { deleteField } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 import { User } from 'firebase/auth';
 import { ClassRoster, ClassRosterMeta, Student } from '../types';
-import { db, isAuthBypass } from '../config/firebase';
+import { db, functions, isAuthBypass } from '../config/firebase';
 import { useGoogleDrive } from './useGoogleDrive';
 import { getLocalIsoDate } from '../utils/localDate';
+
+/**
+ * Phase 3 — rebuild the per-roster pin_index sidecar after a roster save.
+ *
+ * Posts every (period, pin, classlinkSourcedId) tuple from the saved
+ * student list to `commitRosterPinIndexV1`, which writes the non-PII
+ * `/users/{uid}/rosters/{rosterId}/pin_index/*` docs that pinLoginV1
+ * later reads to bridge a PIN-joining student into the same uid space
+ * SSO produces. Skips silently for local rosters (no
+ * classLinkSourcedId on any student); the cloud function also short-
+ * circuits there. Best-effort: a failure logs and returns — the roster
+ * save itself has already succeeded, and the next save will retry.
+ */
+async function syncRosterPinIndex(
+  rosterId: string,
+  rosterName: string,
+  students: Student[]
+): Promise<void> {
+  const entries = students
+    .filter(
+      (s) =>
+        typeof s.classLinkSourcedId === 'string' &&
+        s.classLinkSourcedId.length > 0 &&
+        typeof s.pin === 'string' &&
+        s.pin.length > 0
+    )
+    .map((s) => ({
+      period: rosterName,
+      pin: s.pin,
+      classlinkSourcedId: s.classLinkSourcedId as string,
+    }));
+
+  if (entries.length === 0) {
+    // Local rosters — no SSO bridge possible. The function itself
+    // tolerates an empty `entries` and a missing classlinkClassId,
+    // but skipping the round-trip is cheaper.
+    return;
+  }
+
+  try {
+    const callable = httpsCallable<
+      { rosterId: string; entries: typeof entries },
+      { wrote: number; deleted: number; skippedReason?: string }
+    >(functions, 'commitRosterPinIndexV1');
+    await callable({ rosterId, entries });
+  } catch (err) {
+    console.warn('[useRosters] commitRosterPinIndexV1 failed:', err);
+  }
+}
 
 /**
  * Assigns zero-padded sequential PINs to students that don't have one yet.
@@ -575,6 +625,11 @@ export const useRosters = (user: User | null) => {
         studentsCacheRef.current.set(ref.id, withPins);
       }
 
+      // Phase 3 — bridge PIN students into the SSO uid space by writing
+      // the per-roster pin_index sidecar. Best-effort: a failure logs
+      // and continues; the roster is already saved.
+      void syncRosterPinIndex(ref.id, name, withPins);
+
       return ref.id;
     },
     [user, driveService, uploadStudentsToDrive]
@@ -625,6 +680,16 @@ export const useRosters = (user: User | null) => {
               driveFileId,
               studentCount: withPins.length,
             });
+            // Phase 3 — refresh the pin_index sidecar after a successful
+            // Drive write. Uses the post-update name when the caller
+            // renamed the roster, otherwise the existing meta's name.
+            const rosterName =
+              typeof metaUpdates.name === 'string' && metaUpdates.name
+                ? metaUpdates.name
+                : (existingMeta?.name ?? '');
+            if (rosterName) {
+              void syncRosterPinIndex(id, rosterName, withPins);
+            }
           } catch (err) {
             console.error('Failed to upload updated roster to Drive:', err);
             // Revert optimistic updates

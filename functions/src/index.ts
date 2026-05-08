@@ -3567,3 +3567,391 @@ export const getPseudonymsForAssignmentV1 = onCall(
     }
   }
 );
+
+// ─── PIN → SSO identity unification (Phase 3) ────────────────────────────────
+//
+// `pinLoginV1` lets a PIN-joining student authenticate with a custom token
+// whose uid is the same HMAC pseudonym `studentLoginV1` would mint for them
+// if they came in via SSO. Once they sign in with that token, the per-session
+// response doc keys by their `auth.uid` (= the SSO uid), so a student who
+// joins one launch via SSO and another via PIN converges on the same response
+// doc and the per-session attempt cap holds across both auth paths.
+//
+// `commitRosterPinIndexV1` is the teacher-side companion: when a teacher saves
+// a ClassLink-origin roster, the client posts the (period, pin, sourcedId)
+// tuples and this function writes the non-PII pin_index sidecar that
+// pinLoginV1 reads. PII (names, emails) never leaves Drive — the index holds
+// only opaque hashes and ids.
+
+const PIN_INDEX_SUBCOLLECTION = 'pin_index';
+const PIN_INDEX_MAX_ENTRIES = 200;
+
+/**
+ * Mirror of `encodeResponseKeySegment` in `useQuizSession.ts`. Duplicated
+ * server-side rather than imported because the functions package has its own
+ * tsconfig + emit and the client hook lives outside it. The client + server
+ * encoders MUST stay in lockstep — a divergence would produce mismatched
+ * `indexKey`s and silently break the PIN→SSO lookup.
+ */
+function encodeResponseKeySegment(value: string | undefined): string {
+  const trimmed = (value ?? '').trim();
+  if (!trimmed) return 'default';
+  const normalized = trimmed.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+  const stripped = normalized.replace(/^_+|_+$/g, '');
+  return stripped || 'default';
+}
+
+function pinIndexKey(period: string, pin: string): string {
+  return `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`;
+}
+
+interface CommitRosterPinIndexEntry {
+  period: string;
+  pin: string;
+  classlinkSourcedId: string;
+}
+
+/**
+ * commitRosterPinIndexV1
+ *
+ * Input:
+ *   {
+ *     rosterId: string,
+ *     entries: Array<{ period, pin, classlinkSourcedId }>
+ *   }
+ *
+ * The caller MUST be the teacher who owns the roster (the function checks
+ * `users/{auth.uid}/rosters/{rosterId}` exists). The full set of entries
+ * replaces the existing pin_index for the roster — entries dropped from the
+ * input list have their corresponding index docs deleted in the same batch,
+ * so a student removed from the roster automatically loses their
+ * pin_index entry.
+ *
+ * The function reads the roster doc to recover `classlinkClassId` (used as
+ * the index entry's `classId`) and `classlinkOrgId` (used for telemetry —
+ * not written into the index). Only ClassLink-origin rosters with a
+ * `classlinkClassId` produce an index; legacy local rosters skip silently
+ * (no error) so the client's "build the index after every save" hook is
+ * idempotent across both kinds.
+ */
+export const commitRosterPinIndexV1 = onCall(
+  {
+    memory: '256MiB',
+    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    invoker: 'public',
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', 'Sign in required.');
+    }
+    // Students cannot rebuild a teacher's index. The client-side caller is
+    // always the teacher who saved the roster.
+    if (request.auth.token.studentRole === true) {
+      throw new HttpsError('permission-denied', 'Teacher role required.');
+    }
+
+    const rawData = (request.data ?? {}) as {
+      rosterId?: unknown;
+      entries?: unknown;
+    };
+    const rosterId =
+      typeof rawData.rosterId === 'string' ? rawData.rosterId : '';
+    if (!rosterId) {
+      throw new HttpsError('invalid-argument', 'rosterId is required.');
+    }
+    if (!Array.isArray(rawData.entries)) {
+      throw new HttpsError('invalid-argument', 'entries must be an array.');
+    }
+    if (rawData.entries.length > PIN_INDEX_MAX_ENTRIES) {
+      throw new HttpsError(
+        'invalid-argument',
+        `entries exceeds the max of ${PIN_INDEX_MAX_ENTRIES}.`
+      );
+    }
+
+    const entries: CommitRosterPinIndexEntry[] = [];
+    for (const e of rawData.entries) {
+      if (typeof e !== 'object' || e === null) continue;
+      const period = (e as { period?: unknown }).period;
+      const pin = (e as { pin?: unknown }).pin;
+      const sourcedId = (e as { classlinkSourcedId?: unknown })
+        .classlinkSourcedId;
+      if (
+        typeof period !== 'string' ||
+        typeof pin !== 'string' ||
+        typeof sourcedId !== 'string' ||
+        period.length === 0 ||
+        pin.length === 0 ||
+        sourcedId.length === 0
+      ) {
+        // Skip malformed entries; don't fail the whole rebuild.
+        continue;
+      }
+      entries.push({ period, pin, classlinkSourcedId: sourcedId });
+    }
+
+    const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+    if (!hmacSecret) {
+      throw new HttpsError('internal', 'Server configuration missing.');
+    }
+
+    const db = admin.firestore();
+    const rosterRef = db
+      .collection('users')
+      .doc(request.auth.uid)
+      .collection('rosters')
+      .doc(rosterId);
+    const rosterSnap = await rosterRef.get();
+    if (!rosterSnap.exists) {
+      throw new HttpsError('not-found', 'Roster not found.');
+    }
+    const rosterData = rosterSnap.data() ?? {};
+    const classlinkClassId =
+      typeof rosterData.classlinkClassId === 'string' &&
+      rosterData.classlinkClassId.length > 0
+        ? rosterData.classlinkClassId
+        : null;
+    if (!classlinkClassId) {
+      // Local rosters have no ClassLink class id and so can't bridge into
+      // the SSO uid space. Returning success (with `wrote: 0`) keeps the
+      // client's "save then commit index" hook idempotent across roster
+      // types — it doesn't have to special-case origin.
+      return { wrote: 0, deleted: 0, skippedReason: 'no-classlink-class-id' };
+    }
+
+    // Compute the desired set of (indexKey -> doc payload) tuples.
+    const desired = new Map<
+      string,
+      {
+        pseudonym: string;
+        classId: string;
+        period: string;
+        updatedAt: number;
+      }
+    >();
+    const now = Date.now();
+    for (const entry of entries) {
+      const key = pinIndexKey(entry.period, entry.pin);
+      // Last-write-wins on intra-batch dupes (same encoded period+pin).
+      desired.set(key, {
+        pseudonym: computeStudentUid(entry.classlinkSourcedId, hmacSecret),
+        classId: classlinkClassId,
+        period: entry.period,
+        updatedAt: now,
+      });
+    }
+
+    // Read the current index so we know which docs to delete (entries that
+    // existed before but are not in `desired`). Bounded by
+    // PIN_INDEX_MAX_ENTRIES via `.limit()` — a roster with more entries
+    // would have been rejected on the input side already.
+    const pinIndexCollection = rosterRef.collection(PIN_INDEX_SUBCOLLECTION);
+    const existingSnap = await pinIndexCollection
+      .limit(PIN_INDEX_MAX_ENTRIES + 1)
+      .get();
+
+    const batch = db.batch();
+    let deleted = 0;
+    for (const docSnap of existingSnap.docs) {
+      if (!desired.has(docSnap.id)) {
+        batch.delete(docSnap.ref);
+        deleted++;
+      }
+    }
+
+    let wrote = 0;
+    for (const [key, payload] of desired) {
+      batch.set(pinIndexCollection.doc(key), payload);
+      wrote++;
+    }
+
+    await batch.commit();
+    return { wrote, deleted };
+  }
+);
+
+interface PinLoginRequestData {
+  kind?: unknown;
+  sessionId?: unknown;
+  code?: unknown;
+  pin?: unknown;
+  period?: unknown;
+}
+
+/**
+ * pinLoginV1
+ *
+ * Input:
+ *   {
+ *     kind: 'quiz' | 'video-activity',
+ *     sessionId?: string,    // required for video-activity
+ *     code?: string,         // required for quiz
+ *     pin: string,
+ *     period?: string,       // optional, picks one when the session has
+ *                            // multiple rosters and the pin is ambiguous
+ *   }
+ *
+ * Resolves the (session, period, pin) tuple to a roster-bound student
+ * identity by reading the teacher's pin_index sidecar (built by
+ * `commitRosterPinIndexV1`). On success returns a custom token whose uid
+ * matches the same HMAC pseudonym `studentLoginV1` would mint for that
+ * student over SSO, plus `studentRole: true` and `classIds: [classId]`
+ * so the student passes the response-rule class gate.
+ *
+ * On no-match returns `{ matched: false }` so the client can fall back
+ * to the existing anonymous PIN flow (legacy non-rostered sessions, or
+ * rosters whose index hasn't been built yet).
+ *
+ * No PII logging — only class-of-failure counters.
+ */
+export const pinLoginV1 = onCall(
+  {
+    memory: '256MiB',
+    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    invoker: 'public',
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as PinLoginRequestData;
+    const kind =
+      data.kind === 'quiz' || data.kind === 'video-activity' ? data.kind : null;
+    const pin = typeof data.pin === 'string' ? data.pin.trim() : '';
+    const period = typeof data.period === 'string' ? data.period : '';
+    if (!kind) {
+      throw new HttpsError('invalid-argument', 'kind is required.');
+    }
+    if (!pin) {
+      throw new HttpsError('invalid-argument', 'pin is required.');
+    }
+
+    const db = admin.firestore();
+
+    // Resolve the session.
+    let sessionRef: admin.firestore.DocumentReference;
+    if (kind === 'quiz') {
+      const code =
+        typeof data.code === 'string'
+          ? data.code
+              .trim()
+              .replace(/[^a-zA-Z0-9]/g, '')
+              .toUpperCase()
+          : '';
+      if (!code) {
+        throw new HttpsError('invalid-argument', 'code is required for quiz.');
+      }
+      const codeMatch = await db
+        .collection('quiz_sessions')
+        .where('code', '==', code)
+        .limit(5)
+        .get();
+      const joinable = codeMatch.docs.find((d) => {
+        const s = (d.data() as { status?: unknown }).status;
+        return s === 'waiting' || s === 'active' || s === 'paused';
+      });
+      if (!joinable) {
+        return { matched: false, reason: 'no-joinable-session' };
+      }
+      sessionRef = joinable.ref;
+    } else {
+      const sessionId =
+        typeof data.sessionId === 'string' ? data.sessionId : '';
+      if (!sessionId) {
+        throw new HttpsError(
+          'invalid-argument',
+          'sessionId is required for video-activity.'
+        );
+      }
+      sessionRef = db.collection('video_activity_sessions').doc(sessionId);
+    }
+
+    const sessionSnap = await sessionRef.get();
+    if (!sessionSnap.exists) {
+      return { matched: false, reason: 'session-not-found' };
+    }
+    const sessionData = sessionSnap.data() ?? {};
+    const teacherUid =
+      typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
+    if (!teacherUid) {
+      return { matched: false, reason: 'session-missing-teacher' };
+    }
+    const rosterIds = Array.isArray(sessionData.rosterIds)
+      ? sessionData.rosterIds.filter(
+          (r: unknown): r is string => typeof r === 'string' && r.length > 0
+        )
+      : [];
+    if (rosterIds.length === 0) {
+      // No roster on the session — can't bridge. Fall through to the
+      // legacy anonymous PIN flow on the client.
+      return { matched: false, reason: 'no-rosters-on-session' };
+    }
+
+    const indexKey = pinIndexKey(period, pin);
+
+    // Probe each roster's pin_index for the indexKey. A multi-class
+    // session (multiple rosters) will typically have only one match
+    // because PIN+encoded-period uniquely identifies a student in
+    // practice. If multiple rosters happen to match (PIN collision
+    // across periods with a missing/default period), prefer the first
+    // hit — same behavior the legacy PIN response-key resolution
+    // documents at `quizScoreboard.ts` `resolvePinName`.
+    let matched: { pseudonym: string; classId: string } | null = null;
+    for (const rosterId of rosterIds) {
+      const indexRef = db
+        .collection('users')
+        .doc(teacherUid)
+        .collection('rosters')
+        .doc(rosterId)
+        .collection(PIN_INDEX_SUBCOLLECTION)
+        .doc(indexKey);
+      const indexSnap = await indexRef.get();
+      if (indexSnap.exists) {
+        const entry = indexSnap.data() ?? {};
+        const pseudonym =
+          typeof entry.pseudonym === 'string' ? entry.pseudonym : '';
+        const classId = typeof entry.classId === 'string' ? entry.classId : '';
+        if (pseudonym && classId) {
+          matched = { pseudonym, classId };
+          break;
+        }
+      }
+    }
+
+    if (!matched) {
+      return { matched: false, reason: 'no-index-entry' };
+    }
+
+    // Recover orgId from the matched roster for the token claim. Best-
+    // effort — the response-rule class gate uses classIds, not orgId,
+    // so an empty orgId is harmless for cap enforcement (only
+    // surfaces in the classlink directory UI).
+    let orgId = '';
+    try {
+      const orgRosterSnap = await db
+        .collectionGroup('rosters')
+        .where('classlinkClassId', '==', matched.classId)
+        .limit(1)
+        .get();
+      if (!orgRosterSnap.empty) {
+        const orgIdMaybe = (
+          orgRosterSnap.docs[0].data() as { classlinkOrgId?: unknown }
+        ).classlinkOrgId;
+        if (typeof orgIdMaybe === 'string') orgId = orgIdMaybe;
+      }
+    } catch (err) {
+      console.warn('[pinLoginV1] orgId lookup failed:', err);
+    }
+
+    let customToken: string;
+    try {
+      customToken = await admin.auth().createCustomToken(matched.pseudonym, {
+        studentRole: true,
+        orgId,
+        classIds: [matched.classId],
+      });
+    } catch (err) {
+      console.error('[pinLoginV1] createCustomToken failed:', err);
+      throw new HttpsError('internal', 'Failed to mint auth token.');
+    }
+
+    return { matched: true, customToken };
+  }
+);
