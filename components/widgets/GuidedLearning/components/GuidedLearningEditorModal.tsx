@@ -1,9 +1,9 @@
 /**
- * GuidedLearningEditorModal — full-screen modal wrapping the existing
- * GuidedLearningEditor in headless mode. Adds EditorModalShell chrome
- * (sticky header/footer, dirty-guard, save spinner) while delegating
- * the complex editor body (image viewport, hotspot placement, step
- * editing) to the existing component unchanged.
+ * GuidedLearningEditorModal — full-screen editor for a Guided Learning set.
+ *
+ * Wraps the two-pane EditorWorkspace: left context pane has the image canvas
+ * and hotspot placement; right detail pane has the always-visible step editor
+ * for the currently-selected hotspot.
  */
 
 import React, { useCallback, useMemo, useState } from 'react';
@@ -16,12 +16,16 @@ import {
   GuidedLearningStep,
   LibraryFolder,
 } from '@/types';
-import { EditorModalShell } from '@/components/common/EditorModalShell';
+import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
 import {
-  GuidedLearningEditor,
-  GuidedLearningEditorState,
+  GuidedLearningEditorContextPane,
+  GuidedLearningEditorDetailPane,
 } from './GuidedLearningEditor';
+import {
+  GuidedLearningEditorState,
+  useGuidedLearningEditorState,
+} from './useGuidedLearningEditorState';
 import { GuidedLearningAIGenerator } from './GuidedLearningAIGenerator';
 
 interface GuidedLearningEditorModalProps {
@@ -126,7 +130,6 @@ export const GuidedLearningEditorModal: React.FC<
   onFolderChange,
 }) => {
   const { isAdmin, canAccessFeature } = useAuth();
-  // Track live state from the headless editor via onStateChange callback
   const [liveState, setLiveState] = useState<GuidedLearningEditorState | null>(
     null
   );
@@ -158,12 +161,19 @@ export const GuidedLearningEditorModal: React.FC<
     setShowAiGen(false);
   }
 
-  // Stable callback for the editor
   const handleStateChange = useCallback((state: GuidedLearningEditorState) => {
     setLiveState(state);
   }, []);
 
-  // Dirty check
+  const editorState = useGuidedLearningEditorState({
+    existingSet: set,
+    existingMeta: meta,
+    onStateChange: handleStateChange,
+    folders,
+    folderId,
+    onFolderChange,
+  });
+
   const isDirty = useMemo(() => {
     if (!liveState) return false;
     return (
@@ -182,7 +192,6 @@ export const GuidedLearningEditorModal: React.FC<
     originalSteps,
   ]);
 
-  // Save
   const handleSave = async () => {
     if (!set || !liveState) return;
     setSaving(true);
@@ -207,7 +216,6 @@ export const GuidedLearningEditorModal: React.FC<
     }
   };
 
-  // Derive modal title from live state
   const displayTitle = liveState?.title.trim()
     ? liveState.title.trim()
     : originalTitle
@@ -216,56 +224,47 @@ export const GuidedLearningEditorModal: React.FC<
 
   const stepCount = liveState?.steps.length ?? set?.steps.length ?? 0;
 
+  if (!set) return null;
+
   return (
-    <EditorModalShell
-      isOpen={isOpen}
-      title={displayTitle}
-      subtitle={
-        <span>
-          {stepCount} {stepCount === 1 ? 'step' : 'steps'}
-        </span>
-      }
-      isDirty={isDirty}
-      isSaving={saving}
-      onSave={handleSave}
-      onClose={onClose}
-      saveLabel="Save Set"
-      saveDisabled={
-        !liveState ||
-        !liveState.title.trim() ||
-        liveState.imageUrls.length === 0 ||
-        liveState.uploading
-      }
-      footerExtras={
-        canUseAi ? (
-          <button
-            onClick={() => setShowAiGen(true)}
-            className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
-            title="Generate with AI (Admin)"
-          >
-            <Sparkles className="w-4 h-4" />
-            Draft with AI
-          </button>
-        ) : null
-      }
-      className="h-[90vh]"
-      bodyClassName="p-0 relative"
-    >
-      {set && (
-        <GuidedLearningEditor
-          key={set.id}
-          existingSet={set}
-          existingMeta={meta}
-          onSave={onSave}
-          onCancel={onClose}
-          saving={saving}
-          headless
-          onStateChange={handleStateChange}
-          folders={folders}
-          folderId={folderId}
-          onFolderChange={onFolderChange}
-        />
-      )}
+    <>
+      <EditorWorkspace
+        key={set.id}
+        isOpen={isOpen}
+        title={displayTitle}
+        subtitle={
+          <span>
+            {stepCount} {stepCount === 1 ? 'step' : 'steps'}
+          </span>
+        }
+        isDirty={isDirty}
+        isSaving={saving}
+        onSave={handleSave}
+        onClose={onClose}
+        saveLabel="Save Set"
+        saveDisabled={
+          !liveState ||
+          !liveState.title.trim() ||
+          liveState.imageUrls.length === 0 ||
+          liveState.uploading
+        }
+        footerExtras={
+          canUseAi ? (
+            <button
+              onClick={() => setShowAiGen(true)}
+              className="h-[36px] px-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-sm transition-colors flex items-center gap-2 active:scale-95"
+              title="Generate with AI (Admin)"
+            >
+              <Sparkles className="w-4 h-4" />
+              Draft with AI
+            </button>
+          ) : null
+        }
+        className="h-[90vh]"
+        contextRatio={58}
+        contextPane={<GuidedLearningEditorContextPane state={editorState} />}
+        detailPane={<GuidedLearningEditorDetailPane state={editorState} />}
+      />
       {showAiGen && canUseAi && (
         <GuidedLearningAIGenerator
           onClose={() => setShowAiGen(false)}
@@ -275,6 +274,6 @@ export const GuidedLearningEditorModal: React.FC<
           }}
         />
       )}
-    </EditorModalShell>
+    </>
   );
 };
