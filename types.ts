@@ -2417,6 +2417,100 @@ export interface QuizResponse {
   preSyncVersion?: number;
 }
 
+/**
+ * Per-roster, non-PII PIN index. Stored at
+ * `/users/{teacherUid}/rosters/{rosterId}/pin_index/{indexKey}`.
+ *
+ * Bridges PIN-joining students into the same identity space as SSO
+ * (`studentLoginV1`) joiners. The index maps `(period, pin)` → the same
+ * HMAC pseudonym uid `studentLoginV1` would mint for the student, so a
+ * PIN client can sign in via `pinLoginV1` with a custom token whose uid
+ * matches the SSO uid. Result: one student, one response doc per
+ * session, regardless of which auth path they took. Closes the
+ * mixed-auth duplicate path (Hypothesis E in the attempt-cap fix).
+ *
+ * Non-PII by design: the doc holds only opaque hashes and ids. PIN
+ * values are SpartBoard-internal join codes and don't identify a person
+ * without the (private) roster.
+ *
+ * Index key (`indexKey`):
+ *   `${encodeResponseKeySegment(period)}__${encodeResponseKeySegment(pin)}`
+ * — same encoder Quiz response docs use, so the shape is consistent
+ * across PIN-related collections.
+ *
+ * Populated by `commitRosterPinIndexV1` (callable, teacher-only). Read
+ * via `admin SDK` inside `pinLoginV1` (callable, public). Clients never
+ * read or write these docs directly.
+ */
+export interface RosterPinIndexEntry {
+  /** HMAC(STUDENT_PSEUDONYM_HMAC_SECRET, `sid:${classlinkSourcedId}`). */
+  pseudonym: string;
+  /**
+   * The student's ClassLink class `sourcedId`. Written into the minted
+   * custom token's `classIds` claim so the student passes
+   * `passesStudentClassGate` on the session's responses.
+   */
+  classId: string;
+  /**
+   * ClassLink organization id (from the parent roster's `classlinkOrgId`).
+   * Stored on each pin_index entry so `pinLoginV1` can mint the custom
+   * token with the right `orgId` claim using a single doc read per
+   * roster probe — without it, the function would have to fan out a
+   * `collectionGroup('rosters').where('classlinkClassId'…)` lookup on
+   * every PIN login (a hot path: every PIN-bridged join). Empty string
+   * for rosters whose roster doc is missing the field.
+   */
+  orgId: string;
+  /** Raw period name. Diagnostic only — `indexKey` carries the encoded form. */
+  period: string;
+  /** Server-time ms of the most recent index rebuild for this entry. */
+  updatedAt: number;
+}
+
+/**
+ * Cross-launch attempt ledger. Stored at the top level
+ * `/quiz_attempt_ledger/{ledgerId}` where `ledgerId = ${quizId}__${studentUid}`.
+ *
+ * Per-session response docs are scoped under the session and reset every time
+ * a teacher launches a new session for the same quiz, so the per-session
+ * `completedAttempts` counter cannot enforce "1 attempt for this quiz, ever"
+ * across re-launches. The ledger sits above sessions and accumulates a
+ * student's attempts on a specific quiz regardless of how many times the
+ * teacher launches it.
+ *
+ * Identity: keyed by the student's auth.uid, which for SSO joiners is the
+ * stable HMAC pseudonym minted by `studentLoginV1`. PIN joiners' anonymous
+ * auth uids rotate per device, so the ledger only enforces meaningfully for
+ * SSO joiners — until Phase 3's `pinLoginV1` unifies the PIN flow onto the
+ * same uid space, at which point the ledger covers PIN joiners too without
+ * any change to this shape.
+ */
+export interface QuizAttemptLedger {
+  /** Matches `QuizSession.quizId`. Half of the deterministic ledger key. */
+  quizId: string;
+  /** Matches `auth.uid`. Other half of the deterministic ledger key. */
+  studentUid: string;
+  /**
+   * UID of the teacher who owns the quiz. Carried so Firestore rules can
+   * authorize the teacher's reset action without a second `get()` to look
+   * up the parent quiz; also supports admin-only repair flows.
+   */
+  teacherUid: string;
+  /**
+   * Monotonic counter — incremented inside the same transaction that flips
+   * a session's response doc to `status: 'completed'`. The teacher reset
+   * path (see `removeStudent`) sets this back to 0.
+   */
+  completedAttempts: number;
+  /** Server-time `Date.now()` of the most recent successful completion. */
+  lastAttemptAt: number;
+  /**
+   * Session id of the most recent successful completion. Diagnostic
+   * breadcrumb only — never read for enforcement.
+   */
+  lastSessionId?: string;
+}
+
 /** Global admin configuration for the Quiz widget */
 export interface QuizGlobalConfig {
   dockDefaults?: Record<string, boolean>;
@@ -3157,6 +3251,27 @@ export interface VideoActivityResponse {
    * publishes scores; mirrors `VideoActivityScoreVisibility`.
    */
   scoreVisibility?: VideoActivityScoreVisibility;
+}
+
+/**
+ * Cross-launch attempt ledger for Video Activity. Mirrors
+ * `QuizAttemptLedger` exactly — see that type's docs for the rationale.
+ * Stored at `/video_activity_attempt_ledger/{ledgerId}` where
+ * `ledgerId = ${activityId}__${studentUid}`.
+ */
+export interface VideoActivityAttemptLedger {
+  /** Matches `VideoActivitySession.activityId`. */
+  activityId: string;
+  /** Matches `auth.uid`. */
+  studentUid: string;
+  /** UID of the teacher who owns the activity. */
+  teacherUid: string;
+  /** Monotonic counter; reset to 0 by the teacher's removeStudent action. */
+  completedAttempts: number;
+  /** Server-time `Date.now()` of the most recent successful completion. */
+  lastAttemptAt: number;
+  /** Diagnostic breadcrumb — most recent session id; not used for enforcement. */
+  lastSessionId?: string;
 }
 
 export interface TalkingToolConfig {

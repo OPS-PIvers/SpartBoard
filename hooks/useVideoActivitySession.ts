@@ -18,23 +18,28 @@ import {
   onSnapshot,
   updateDoc,
   arrayUnion,
+  increment,
   runTransaction,
   Unsubscribe,
   query,
   where,
   orderBy,
 } from 'firebase/firestore';
-import { db, auth } from '@/config/firebase';
+import { signInWithCustomToken } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
+import { db, auth, functions } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import {
   computeResponseKey,
   encodeResponseKeySegment,
+  AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import {
   AssignmentMode,
   VideoActivitySession,
   VideoActivityResponse,
+  VideoActivityAttemptLedger,
   VideoActivityData,
   VideoActivityAnswer,
   VideoActivitySessionSettings,
@@ -43,6 +48,20 @@ import {
 
 const SESSIONS_COLLECTION = 'video_activity_sessions';
 const RESPONSES_SUBCOLLECTION = 'responses';
+/**
+ * Top-level cross-launch attempt ledger for Video Activity. Mirrors the
+ * Quiz ledger collection — see `QUIZ_ATTEMPT_LEDGER_COLLECTION` in
+ * `useQuizSession.ts` for the rationale and key shape.
+ */
+const VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION =
+  'video_activity_attempt_ledger';
+
+function videoActivityLedgerKey(
+  activityId: string,
+  studentUid: string
+): string {
+  return `${activityId}__${studentUid}`;
+}
 
 const normalizeSession = (
   sessionId: string,
@@ -544,14 +563,18 @@ export const useVideoActivitySessionStudent =
 
           const sessionData = sessionSnap.data() as VideoActivitySession;
 
-          const currentUser = auth.currentUser;
+          // `let` because the Phase 3 PIN→SSO bridge below may swap the
+          // signed-in user via `signInWithCustomToken`, after which we
+          // re-bind `currentUser` and `isAnonymous` to the new identity
+          // before the rest of the function reads them.
+          let currentUser = auth.currentUser;
           if (!currentUser) {
             setJoinStatus('error');
             setError('Authentication required. Please refresh and try again.');
             return;
           }
 
-          const isAnonymous = currentUser.isAnonymous;
+          let isAnonymous = currentUser.isAnonymous;
 
           // Anonymous (PIN) joiners must supply a PIN and pass the allowedPins
           // gate. SSO joiners (studentRole custom-token users) skip both checks
@@ -587,6 +610,83 @@ export const useVideoActivitySessionStudent =
               'This activity has expired. Contact your teacher for a new link.'
             );
             return;
+          }
+
+          // Phase 3 — PIN→SSO identity bridge. Mirrors `useQuizSession`.
+          // When an anonymous PIN joiner lands on a rostered VA session,
+          // upgrade them to a custom-token sign-in whose uid matches the
+          // SSO pseudonym. After the swap, the per-session response key
+          // converges with the SSO key for the same student. Falls
+          // through silently to the legacy anonymous PIN flow on any
+          // miss (no pin_index entry, callable error).
+          const sessionHasRosters =
+            Array.isArray(sessionData.rosterIds) &&
+            sessionData.rosterIds.length > 0;
+          if (
+            isAnonymous &&
+            studentPin &&
+            studentPin.length > 0 &&
+            sessionHasRosters
+          ) {
+            try {
+              const callable = httpsCallable<
+                {
+                  kind: 'video-activity';
+                  sessionId: string;
+                  pin: string;
+                  period?: string;
+                },
+                { matched: boolean; customToken?: string; reason?: string }
+              >(functions, 'pinLoginV1');
+              const res = await callable({
+                kind: 'video-activity',
+                sessionId: targetSessionId,
+                pin: studentPin,
+                period: classPeriod,
+              });
+              if (res.data.matched && res.data.customToken) {
+                await signInWithCustomToken(auth, res.data.customToken);
+                const refreshed = auth.currentUser;
+                if (refreshed) {
+                  currentUser = refreshed;
+                  isAnonymous = refreshed.isAnonymous;
+                }
+              }
+            } catch (err) {
+              // The bridge is best-effort by design — falling through to
+              // the legacy anonymous PIN flow preserves PIN-only sessions
+              // and rosters whose pin_index hasn't been built yet.
+              // However we still want to LOUDLY surface unexpected
+              // failures so a misconfigured production (rules typo,
+              // function outage) doesn't silently re-open the duplicate-
+              // doc bypass. `not-found` and `unavailable` are the
+              // expected "fall through" codes; everything else gets
+              // logged at error level so it shows up in monitoring.
+              const code =
+                err && typeof err === 'object' && 'code' in err
+                  ? (err as { code?: unknown }).code
+                  : undefined;
+              const expected = code === 'not-found' || code === 'unavailable';
+              const safeErr =
+                err instanceof Error ? err : new Error(String(err));
+              if (expected) {
+                logError(
+                  'useVideoActivitySessionStudent.pinLoginBridge.expected',
+                  safeErr,
+                  { sessionId: targetSessionId, code: String(code) }
+                );
+              } else {
+                console.error(
+                  '[useVideoActivitySessionStudent.pinLoginBridge] unexpected failure — falling back to anonymous PIN flow:',
+                  safeErr
+                );
+                logError(
+                  'useVideoActivitySessionStudent.pinLoginBridge.unexpected',
+                  safeErr,
+                  { sessionId: targetSessionId }
+                );
+              }
+            }
           }
 
           // Compute the deterministic response-doc key. Anonymous joiners get
@@ -656,7 +756,82 @@ export const useVideoActivitySessionStudent =
             }
           }
 
-          if (!existingSnap.exists()) {
+          // Cross-launch attempt cap (Phase 2). Only meaningful for
+          // non-anonymous (SSO/studentRole) joiners — see the matching
+          // comment in `useQuizSession.joinQuizSession` for the rationale.
+          let ledgerCompleted = 0;
+          if (
+            !isAnonymous &&
+            typeof sessionData.activityId === 'string' &&
+            sessionData.activityId.length > 0
+          ) {
+            const ledgerRef = doc(
+              db,
+              VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
+              videoActivityLedgerKey(sessionData.activityId, currentUser.uid)
+            );
+            const ledgerSnap = await getDoc(ledgerRef).catch((err: unknown) => {
+              logError(
+                'useVideoActivitySessionStudent.ledgerRead',
+                err as Error,
+                {
+                  activityId: sessionData.activityId,
+                  studentUid: currentUser.uid,
+                }
+              );
+              return null;
+            });
+            if (ledgerSnap?.exists()) {
+              const ledger = ledgerSnap.data() as VideoActivityAttemptLedger;
+              ledgerCompleted = ledger.completedAttempts ?? 0;
+            }
+          }
+
+          const limit = sessionData.sessionOptions?.attemptLimit ?? null;
+
+          if (existingSnap.exists()) {
+            const existing = existingSnap.data() as VideoActivityResponse;
+            // Attempt-limit enforcement on rejoin.
+            //   - `attemptLimit == null/undefined` means unlimited.
+            //   - VA tracks completion via `completedAt != null` (no
+            //     `status` field), so any prior completion is treated as
+            //     ≥1 completed attempt even if the counter literally reads
+            //     0 (legacy docs that submitted before the counter was
+            //     wired up).
+            //   - The ledger augments this with cross-launch state: a
+            //     student who completed an earlier launch shows up here
+            //     with `ledgerCompleted >= limit` even though the new
+            //     session's response doc is fresh.
+            //   - Under the cap, reset the doc to a fresh attempt
+            //     (`completedAt: null, answers: []`); preserve
+            //     `completedAttempts` so future joins still see the cap.
+            if (existing.completedAt != null) {
+              const completed = Math.max(
+                existing.completedAttempts ?? 0,
+                ledgerCompleted,
+                1
+              );
+              if (limit !== null && completed >= limit) {
+                throw new AttemptLimitReachedError();
+              }
+              await updateDoc(effectiveResponseRef, {
+                completedAt: null,
+                answers: [],
+                ...(classPeriod && existing.classPeriod !== classPeriod
+                  ? { classPeriod }
+                  : {}),
+              });
+            }
+          } else if (limit !== null && ledgerCompleted >= limit) {
+            // No response doc for this session yet, but the ledger says
+            // the student is already at/past the cap. This is the SSO
+            // student who completed an earlier launch and has now opened
+            // a new launch — without this branch the create path below
+            // would give them a fresh response and the per-session
+            // counter would let them submit again. See the Quiz mirror
+            // in `useQuizSession.joinQuizSession`.
+            throw new AttemptLimitReachedError();
+          } else {
             // Initialize `completedAttempts` and `tabSwitchWarnings` to 0 so
             // the Firestore rules' monotonic-growth check on update has a
             // concrete prior value to compare against (otherwise
@@ -690,7 +865,15 @@ export const useVideoActivitySessionStudent =
             sessionId: targetSessionId,
           });
           setJoinStatus('error');
-          setError('Failed to join the session. Please try again.');
+          // Preserve the cap-reached message so students know to ask the
+          // teacher rather than seeing the generic "try again" copy.
+          // Branched on the typed sentinel (not the message) so future
+          // copy edits don't silently break the discrimination.
+          if (err instanceof AttemptLimitReachedError) {
+            setError(err.message);
+          } else {
+            setError('Failed to join the session. Please try again.');
+          }
         }
       },
       []
@@ -739,10 +922,77 @@ export const useVideoActivitySessionStudent =
         responseDocId
       );
 
-      await updateDoc(responseRef, {
-        completedAt: Date.now(),
+      // Resolve the cross-launch ledger ref (Phase 2). Same identity
+      // caveat as the Quiz hook — only meaningful for non-anonymous
+      // joiners until Phase 3 unifies the PIN flow's uid space.
+      const studentUid = auth.currentUser?.uid ?? null;
+      const isAnonymous = auth.currentUser?.isAnonymous ?? true;
+      const activityId = session?.activityId ?? null;
+      const teacherUid = session?.teacherUid ?? null;
+      const writeLedger =
+        !isAnonymous &&
+        typeof studentUid === 'string' &&
+        studentUid.length > 0 &&
+        typeof activityId === 'string' &&
+        activityId.length > 0 &&
+        typeof teacherUid === 'string' &&
+        teacherUid.length > 0;
+      const ledgerRef = writeLedger
+        ? doc(
+            db,
+            VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
+            videoActivityLedgerKey(activityId, studentUid)
+          )
+        : null;
+
+      // Wrap completion in a transaction so the "already-completed?"
+      // check, the response timestamp/counter writes, and the ledger
+      // increment are all atomic. Two concurrent completeActivity calls
+      // (rapid double-click, two browser tabs) would otherwise both write
+      // `completedAt` and double-increment both counters, bypassing the
+      // cap. If the doc is already completed, no-op (idempotent — VA
+      // student-side has no error toast for repeated completes).
+      //
+      // Ledger atomicity: same trade-off as `completeQuiz` — the ledger
+      // write is NOT best-effort. A ledger-rule failure rolls the whole
+      // transaction back so we never accept a submit without recording
+      // the attempt against the cross-launch cap.
+      await runTransaction(db, async (tx) => {
+        const snap = await tx.get(responseRef);
+        if (!snap.exists()) return;
+        const existing = snap.data() as VideoActivityResponse;
+        if (existing.completedAt != null) return;
+
+        // All reads before all writes (Firestore transaction rule).
+        const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
+
+        const completedAt = Date.now();
+        tx.update(responseRef, {
+          completedAt,
+          completedAttempts: increment(1),
+        });
+
+        if (ledgerRef && ledgerSnap) {
+          if (ledgerSnap.exists()) {
+            tx.update(ledgerRef, {
+              completedAttempts: increment(1),
+              lastAttemptAt: completedAt,
+              lastSessionId: sessionId,
+            });
+          } else {
+            const newLedger: VideoActivityAttemptLedger = {
+              activityId: activityId as string,
+              studentUid: studentUid as string,
+              teacherUid: teacherUid as string,
+              completedAttempts: 1,
+              lastAttemptAt: completedAt,
+              lastSessionId: sessionId,
+            };
+            tx.set(ledgerRef, newLedger);
+          }
+        }
       });
-    }, [sessionId, responseDocId]);
+    }, [sessionId, responseDocId, session?.activityId, session?.teacherUid]);
 
     return {
       session,

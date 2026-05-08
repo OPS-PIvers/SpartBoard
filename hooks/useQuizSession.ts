@@ -22,16 +22,17 @@ import {
   updateDoc,
   getDocs,
   getDoc,
-  deleteDoc,
   query,
   where,
   writeBatch,
   increment,
   deleteField,
+  runTransaction,
   type DocumentSnapshot,
 } from 'firebase/firestore';
-import { db, auth } from '../config/firebase';
-import { signInAnonymously } from 'firebase/auth';
+import { db, auth, functions } from '@/config/firebase';
+import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
+import { httpsCallable } from 'firebase/functions';
 import {
   QuizSession,
   QuizSessionStatus,
@@ -39,9 +40,10 @@ import {
   QuizResponseAnswer,
   QuizQuestion,
   QuizPublicQuestion,
+  QuizAttemptLedger,
   GradeResult,
-} from '../types';
-import { resolvePeriodNames } from '../utils/periodCompat';
+} from '@/types';
+import { resolvePeriodNames } from '@/utils/periodCompat';
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
@@ -49,6 +51,28 @@ export type { QuizSessionOptions } from '../types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
 export const RESPONSES_COLLECTION = 'responses';
+/**
+ * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
+ * and accumulates a student's completed-attempt count across every session
+ * the teacher creates for the same quiz. Without this collection, the
+ * per-session counter on `responses/{key}` resets every launch and a
+ * teacher's "1 attempt" intent is bypassed by relaunching the quiz.
+ *
+ * Doc id: `${quizId}__${studentUid}` (see `quizLedgerKey`). Schema:
+ * `QuizAttemptLedger` in types.ts.
+ */
+export const QUIZ_ATTEMPT_LEDGER_COLLECTION = 'quiz_attempt_ledger';
+
+/**
+ * Deterministic ledger doc id. Two underscores keep us safe even if a
+ * future quizId or studentUid contains a single underscore (Firestore
+ * doc ids allow underscores). HMAC pseudonyms are hex, current quizIds
+ * are UUIDs, so collisions are not realistic, but the separator is
+ * cheap insurance.
+ */
+export function quizLedgerKey(quizId: string, studentUid: string): string {
+  return `${quizId}__${studentUid}`;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -564,9 +588,15 @@ export const useQuizSessionTeacher = (
     snap.docs.forEach((d) => {
       const data = d.data() as QuizResponse;
       if (data.status === 'in-progress' || data.status === 'joined') {
+        // Bump `completedAttempts` so the join-side cap check sees this
+        // forced finalize as a real completed attempt. Without the bump,
+        // the doc lands at `status: 'completed', completedAttempts: 0`
+        // and a later rejoin's `completed >= limit` check reads 0,
+        // letting the student through under the cap.
         batch.update(d.ref, {
           status: 'completed',
           submittedAt: Date.now(),
+          completedAttempts: increment(1),
         });
         count++;
       }
@@ -579,6 +609,17 @@ export const useQuizSessionTeacher = (
   const removeStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) return;
+      // Look up the response in the snapshot-driven `responses` list to
+      // recover the studentUid + quizId we need for the ledger reset
+      // (Phase 2). The teacher's existing UX for `removeStudent` is
+      // "free the student up to retake" — which today only freed the
+      // per-session counter. After Phase 2 the cross-launch ledger
+      // would still cap them, so the reset must clear the ledger entry
+      // too. Falls back to a response-only delete when the response
+      // isn't in the snapshot list (race with a stale UI click).
+      const target = responses.find(
+        (r) => (r._responseKey ?? r.studentUid) === responseKey
+      );
       const responseRef = doc(
         db,
         QUIZ_SESSIONS_COLLECTION,
@@ -586,9 +627,25 @@ export const useQuizSessionTeacher = (
         RESPONSES_COLLECTION,
         responseKey
       );
-      await deleteDoc(responseRef);
+
+      const ledgerRef =
+        target && session?.quizId
+          ? doc(
+              db,
+              QUIZ_ATTEMPT_LEDGER_COLLECTION,
+              quizLedgerKey(session.quizId, target.studentUid)
+            )
+          : null;
+
+      // Delete in a batch so the response and ledger reset are atomic
+      // from a UI perspective (no half-state where the response is
+      // gone but the cap still blocks rejoin).
+      const batch = writeBatch(db);
+      batch.delete(responseRef);
+      if (ledgerRef) batch.delete(ledgerRef);
+      await batch.commit();
     },
-    [sessionId]
+    [sessionId, responses, session?.quizId]
   );
 
   const revealAnswer = useCallback(
@@ -820,6 +877,13 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // (see computeResponseKey) so an attempt limit survives device/storage
   // resets. Historically named `studentUidRef`.
   const responseKeyRef = useRef<string | null>(null);
+  // Snapshotted at join time for use by `completeQuiz` (writes the ledger
+  // entry inside the same transaction as the response status flip).
+  // Without these refs, completeQuiz would have to re-read the session doc
+  // mid-transaction just to get the quiz/teacher ids — which is correct
+  // but adds a per-submit round-trip.
+  const quizIdRef = useRef<string | null>(null);
+  const teacherUidRef = useRef<string | null>(null);
   // Keep a ref to current answers to avoid stale closure issues
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
@@ -988,10 +1052,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }
-        const currentUser = auth.currentUser;
+        // `let` because the Phase 3 PIN→SSO bridge below may swap the
+        // signed-in user via `signInWithCustomToken`, after which we
+        // re-bind `studentUid` / `isAnonymous` to the new identity.
+        let currentUser = auth.currentUser;
         if (!currentUser)
           throw new Error('Anonymous auth failed — no current user.');
-        const studentUid = currentUser.uid;
+        let studentUid = currentUser.uid;
+        let isAnonymous = currentUser.isAnonymous;
 
         // Contract: PIN is required iff the caller is an anonymous Firebase
         // user. Anonymous joiners arrived via the public `/join` /
@@ -1002,7 +1070,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // response doc by that uid, and Firestore rules are the source of
         // truth for whether the uid is actually allowed to write.
         const sanitizedPin = (pin ?? '').trim().substring(0, 10);
-        if (currentUser.isAnonymous && !sanitizedPin) {
+        if (isAnonymous && !sanitizedPin) {
           throw new Error('PIN is required');
         }
 
@@ -1015,7 +1083,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           logQuizJoinFirestoreError('lookup-sessions', err, {
             codeNorm: normCode,
             studentUid,
-            isAnonymous: currentUser.isAnonymous,
+            isAnonymous,
           })
         );
         if (snap.empty) throw new Error('No active quiz found with that code.');
@@ -1042,6 +1110,74 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const sessionDoc = joinable[0];
         const sessionData = sessionDoc.data() as QuizSession;
 
+        // Phase 3 — PIN→SSO identity bridge. When an anonymous PIN
+        // joiner lands on a rostered session (the typical case for
+        // ClassLink schools), try to upgrade them to a custom-token
+        // sign-in whose uid matches what `studentLoginV1` would mint
+        // for the same physical student over SSO. After this swap the
+        // PIN-side and SSO-side response docs converge on the same key
+        // and the per-session attempt cap holds across both auth paths.
+        //
+        // On any failure (no rosterIds on the session, no pin_index
+        // entry, callable error) we silently fall through to the
+        // legacy anonymous PIN flow. The legacy doc-key path
+        // (pin-{period}-{pin}) still gives per-session enforcement and
+        // the user-visible behavior matches today.
+        const sessionHasRosters =
+          Array.isArray(sessionData.rosterIds) &&
+          sessionData.rosterIds.length > 0;
+        if (isAnonymous && sanitizedPin && sessionHasRosters) {
+          try {
+            const callable = httpsCallable<
+              {
+                kind: 'quiz';
+                code: string;
+                pin: string;
+                period?: string;
+              },
+              { matched: boolean; customToken?: string; reason?: string }
+            >(functions, 'pinLoginV1');
+            const res = await callable({
+              kind: 'quiz',
+              code: normCode,
+              pin: sanitizedPin,
+              period: classPeriod,
+            });
+            if (res.data.matched && res.data.customToken) {
+              await signInWithCustomToken(auth, res.data.customToken);
+              const refreshed = auth.currentUser;
+              if (refreshed) {
+                currentUser = refreshed;
+                studentUid = refreshed.uid;
+                isAnonymous = refreshed.isAnonymous;
+              }
+            }
+          } catch (err) {
+            // The bridge is best-effort by design — falling through to
+            // the legacy anonymous PIN flow preserves PIN-only sessions
+            // and rosters whose pin_index hasn't been built yet.
+            // However we still want to LOUDLY surface unexpected
+            // failures so a misconfigured production (rules typo,
+            // function outage) doesn't silently re-open the duplicate-
+            // doc bypass. `not-found` and `unavailable` are the
+            // expected "fall through" codes; everything else gets
+            // logged at error level so it shows up in monitoring.
+            const code = getErrorCode(err);
+            const expected = code === 'not-found' || code === 'unavailable';
+            if (expected) {
+              console.warn('[useQuizSession] pinLoginV1 bridge fell through:', {
+                code,
+                err,
+              });
+            } else {
+              console.error(
+                '[useQuizSession] pinLoginV1 bridge unexpected failure — falling back to anonymous PIN flow:',
+                err
+              );
+            }
+          }
+        }
+
         // Deterministic doc key: stable per-roster-student for PIN auth so
         // the attempt limit can't be bypassed by clearing storage / switching
         // device. studentRole users still key by their auth uid (stable per
@@ -1049,7 +1185,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // for anonymous students rejoining pre-deterministic-keying sessions.
         const deterministicKey = computeResponseKey(
           studentUid,
-          currentUser.isAnonymous,
+          isAnonymous,
           sanitizedPin,
           classPeriod
         );
@@ -1057,12 +1193,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           await findExistingResponseDoc(
             sessionDoc.id,
             studentUid,
-            currentUser.isAnonymous,
+            isAnonymous,
             deterministicKey
           );
 
         sessionIdRef.current = sessionDoc.id;
         responseKeyRef.current = responseKey;
+        quizIdRef.current = sessionData.quizId ?? null;
+        teacherUidRef.current = sessionData.teacherUid ?? null;
         // Reset warning count before activating snapshot listeners so a
         // late-arriving snapshot from a previous session can't race with
         // the finally-block reset and leave the counter stuck at 0.
@@ -1077,21 +1215,70 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           responseKey
         );
 
+        // Cross-launch attempt cap (Phase 2).
+        //
+        // Read the per-quiz ledger BEFORE the per-session cap check so a
+        // student who already exhausted their attempts in an earlier
+        // session of the same quiz is rejected here — the per-session
+        // counter on `responseRef` is fresh on every launch and would
+        // otherwise let them through. The ledger is only meaningful for
+        // non-anonymous (SSO/studentRole) joiners today; anonymous PIN
+        // joiners get a rotating uid, so their ledger doc churns and
+        // never accumulates. Phase 3's `pinLoginV1` unifies PIN onto the
+        // same uid space, at which point this same code automatically
+        // covers PIN joiners.
+        let ledgerCompleted = 0;
+        if (
+          !isAnonymous &&
+          typeof sessionData.quizId === 'string' &&
+          sessionData.quizId.length > 0
+        ) {
+          const ledgerRef = doc(
+            db,
+            QUIZ_ATTEMPT_LEDGER_COLLECTION,
+            quizLedgerKey(sessionData.quizId, studentUid)
+          );
+          const ledgerSnap = await getDoc(ledgerRef).catch((err: unknown) => {
+            // Ledger reads can fail with permission-denied for legacy
+            // students whose ledger doc predates the rule changes; that
+            // shouldn't block the join. Treat as "no ledger" and rely on
+            // the per-session counter + the (post-deploy) write path to
+            // populate the ledger forward.
+            if (getErrorCode(err) === 'permission-denied') {
+              console.warn(
+                '[useQuizSession] permission-denied reading ledger; treating as 0',
+                { quizId: sessionData.quizId, studentUid, err }
+              );
+              return null;
+            }
+            throw err;
+          });
+          if (ledgerSnap?.exists()) {
+            const ledger = ledgerSnap.data() as QuizAttemptLedger;
+            ledgerCompleted = ledger.completedAttempts ?? 0;
+          }
+        }
+
         // Attempt-limit enforcement.
         //   - `attemptLimit == null/undefined` means unlimited (legacy).
-        //   - Limit is compared against `completedAttempts` (counter field).
-        //   - Legacy docs with `status === 'completed'` but no counter are
-        //     treated as 1 completed attempt so pre-upgrade submissions still
-        //     count against the cap.
+        //   - Limit is compared against the MAX of:
+        //       a) per-session response `completedAttempts`
+        //       b) per-quiz `ledgerCompleted` (Phase 2 cross-launch)
+        //       c) 1, when the per-session response is `status === 'completed'`
+        //          (legacy / finalize-zeroed docs)
         //   - If the student is under the limit, reset the completed doc to
         //     a fresh 'joined' state so the next join starts a new attempt,
-        //     preserving `completedAttempts` to enforce the cap on future
-        //     submissions.
+        //     preserving `completedAttempts` (and the ledger entry) to
+        //     enforce the cap on future submissions.
         const limit = sessionData.attemptLimit ?? null;
         if (existingSnap?.exists()) {
           const existing = existingSnap.data() as QuizResponse;
           if (existing.status === 'completed') {
-            const completed = existing.completedAttempts ?? 1;
+            const completed = Math.max(
+              existing.completedAttempts ?? 0,
+              ledgerCompleted,
+              1
+            );
             if (limit !== null && completed >= limit) {
               throw new AttemptLimitReachedError();
             }
@@ -1120,7 +1307,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 responseKey,
                 studentUid,
                 existingStudentUid: existing.studentUid,
-                isAnonymous: currentUser.isAnonymous,
+                isAnonymous,
                 hasPin: !!sanitizedPin,
                 hasClassPeriod: !!classPeriod,
               })
@@ -1136,10 +1323,20 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                   responseKey,
                   studentUid,
                   existingStudentUid: existing.studentUid,
-                  isAnonymous: currentUser.isAnonymous,
+                  isAnonymous,
                 })
             );
           }
+        } else if (limit !== null && ledgerCompleted >= limit) {
+          // No response doc yet for this session, but the cross-launch
+          // ledger says the student is already at/past the cap. This is
+          // the SSO student who took an earlier launch of the same quiz,
+          // then opened the new launch from /my-assignments. Without
+          // this branch, the existing fall-through would create a fresh
+          // response for them and the per-session cap would let them
+          // submit once more. The ledger is the only state that survives
+          // the new launch, so we gate on it directly here.
+          throw new AttemptLimitReachedError();
         }
 
         setSessionIdState(sessionDoc.id);
@@ -1169,7 +1366,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // map shapes (Firestore type drift); the teacher-side enrichment
         // in QuizResults remains as the legacy fallback.
         let resolvedPeriodName: string | undefined;
-        if (!currentUser.isAnonymous && !classPeriod) {
+        if (!isAnonymous && !classPeriod) {
           try {
             const tokenResult = await currentUser.getIdTokenResult();
             const claimClassIds = tokenResult.claims?.classIds;
@@ -1251,7 +1448,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               sessionId: sessionDoc.id,
               responseKey,
               studentUid,
-              isAnonymous: currentUser.isAnonymous,
+              isAnonymous,
               hasPin: !!sanitizedPin,
               hasClassPeriod: !!finalClassPeriod,
               hasResolvedClassId: !!resolvedClassId,
@@ -1293,7 +1490,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 existingClassPeriod: existing.classPeriod,
                 resolvedClassId,
                 resolvedPeriodName,
-                isAnonymous: currentUser.isAnonymous,
+                isAnonymous,
               })
             );
           }
@@ -1389,26 +1586,109 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const completeQuiz = useCallback(async () => {
     const sessionId = sessionIdRef.current;
     const responseKey = responseKeyRef.current;
+    const quizId = quizIdRef.current;
+    const teacherUid = teacherUidRef.current;
     if (!sessionId || !responseKey) return;
 
-    // Score is computed from gradeAnswer() by the teacher/results view,
-    // not written by the student, to prevent client-side forgery of the score field.
-    // Increment `completedAttempts` so the attempt-limit check on the next
-    // join can count this submission (and block once the cap is reached).
-    await updateDoc(
-      doc(
-        db,
-        QUIZ_SESSIONS_COLLECTION,
-        sessionId,
-        RESPONSES_COLLECTION,
-        responseKey
-      ),
-      {
-        status: 'completed',
-        submittedAt: Date.now(),
-        completedAttempts: increment(1),
-      }
+    const responseRef = doc(
+      db,
+      QUIZ_SESSIONS_COLLECTION,
+      sessionId,
+      RESPONSES_COLLECTION,
+      responseKey
     );
+
+    // Resolve the cross-launch ledger doc ref (Phase 2). Only meaningful
+    // for non-anonymous (SSO/studentRole) joiners — anonymous PIN
+    // joiners' uids rotate per device, so their ledger entry would be
+    // useless. Phase 3 unifies the PIN flow onto the SSO uid space and
+    // this same code starts covering PIN joiners automatically.
+    const studentUid = auth.currentUser?.uid ?? null;
+    const isAnonymous = auth.currentUser?.isAnonymous ?? true;
+    const writeLedger =
+      !isAnonymous &&
+      typeof studentUid === 'string' &&
+      studentUid.length > 0 &&
+      typeof quizId === 'string' &&
+      quizId.length > 0 &&
+      typeof teacherUid === 'string' &&
+      teacherUid.length > 0;
+    const ledgerRef = writeLedger
+      ? doc(
+          db,
+          QUIZ_ATTEMPT_LEDGER_COLLECTION,
+          quizLedgerKey(quizId, studentUid)
+        )
+      : null;
+
+    // Wrap submit in a transaction so the "already-completed?" check, the
+    // response status flip, and the cross-launch ledger increment are all
+    // atomic. Without the transaction, two concurrent submits (rapid
+    // double-click, two browser tabs) both read `status !== 'completed'`,
+    // both write `status: 'completed'`, and the `increment(1)` runs twice
+    // on both the response and the ledger — bypassing a 1-attempt cap.
+    // Score is computed from gradeAnswer() by the teacher/results view,
+    // not written by the student, to prevent client-side forgery.
+    //
+    // Ledger atomicity: the ledger write is intentionally NOT best-effort
+    // — if the rules deny the ledger update (e.g. a ledger-rule typo or
+    // schema drift) the entire transaction rolls back and the student's
+    // submit fails with a visible error. That's the right call: a silent
+    // "submit accepted but cap not recorded" would re-open the cross-
+    // launch bypass without any signal. Production rule changes against
+    // this collection MUST be deployed with care.
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(responseRef);
+      if (!snap.exists()) return;
+      const existing = snap.data() as QuizResponse;
+      if (existing.status === 'completed') {
+        // Idempotent no-op: the doc was already finalized by an earlier
+        // completeQuiz call (other tab, retry, rapid double-click). We
+        // intentionally `return` instead of throwing — callers
+        // (handleSubmitAndAdvance, handleAutoSubmit, the auto-complete
+        // branch in handleAnswer) all `await onComplete()`, sometimes
+        // without a try/catch, so a thrown sentinel would surface as an
+        // unhandled rejection / wrong "submit failed" toast even though
+        // the submit actually succeeded earlier. Returning early
+        // mirrors `completeActivity` in `useVideoActivitySession`.
+        return;
+      }
+
+      // Read the ledger inside the same transaction so the increment
+      // can't double-write under concurrency. Firestore requires all
+      // reads to precede all writes within a transaction.
+      const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
+
+      const submittedAt = Date.now();
+      tx.update(responseRef, {
+        status: 'completed',
+        submittedAt,
+        completedAttempts: increment(1),
+      });
+
+      if (ledgerRef && ledgerSnap) {
+        if (ledgerSnap.exists()) {
+          tx.update(ledgerRef, {
+            completedAttempts: increment(1),
+            lastAttemptAt: submittedAt,
+            lastSessionId: sessionId,
+          });
+        } else {
+          // First completion for this (quiz, student) pair. The cast
+          // pins the shape so a future ledger-schema drift surfaces as
+          // a TS error here rather than as a silent rule-denied write.
+          const newLedger: QuizAttemptLedger = {
+            quizId: quizId as string,
+            studentUid: studentUid as string,
+            teacherUid: teacherUid as string,
+            completedAttempts: 1,
+            lastAttemptAt: submittedAt,
+            lastSessionId: sessionId,
+          };
+          tx.set(ledgerRef, newLedger);
+        }
+      }
+    });
   }, []);
 
   const reportTabSwitch = useCallback(async (): Promise<number> => {
