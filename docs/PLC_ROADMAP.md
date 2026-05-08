@@ -212,11 +212,18 @@ These were surfaced in the final review pass and intentionally deferred to keep 
 
 ### Phase 3 follow-ups (not blockers; track separately)
 
-- **Bubble-up for Drive-only PLC quizzes.** The reverse-path template write only fires when the source quiz already has a sync group. Wiring the personal assignment-settings modal's "Share with PLC" toggle to call `createSyncedQuizGroup` first (mirroring `Widget.tsx → handleShareWithPlc`) would let every PLC-mode personal assignment author a template, even if the source quiz isn't already shared.
+- ~~**Bubble-up for Drive-only PLC quizzes.**~~ **Shipped (PR #1557).** `Widget.tsx → onAssign` now promotes Drive-only quizzes to a synced group ahead of `createAssignment` when `plcLinkage` is set and `meta.sync` is missing — mirrors `handleShareWithPlc` for the create-group + attach-linkage + leave-on-failure rollback shape. Result: every PLC-mode personal assignment authors a Library template, regardless of whether the source quiz was already shared.
 - **Cloud Function unit tests.** `joinPlcAssignmentSyncGroup` (`functions/src/plcAssignmentSyncJoin.ts`) has no `*.test.ts` sibling. Same gap as Phase 2's `joinPlcQuizSyncGroup`.
 - **Modal i18n.** `PlcAssignmentImportModal.tsx` uses hardcoded English (matches the sibling `PlcQuizImportModal.tsx` and `QuizAssignmentImportModeModal.tsx`). Localize all three together when the locale sweep happens.
-- **Library template editing.** Today the Library shows templates but no inline edit — the importer pulls the template's settings, then customizes on their own board. A future iteration could allow editing the canonical template (similar to PLC Quiz Library's edit-via-synced-group flow); not in scope here.
+- ~~**Library template editing.**~~ **Shipped via the Quiz Library tab (PR #1557).** Edit affordance landed on `PlcQuizLibraryTab` rather than the assignment-template Library sub-tab — the underlying canonical (the synced group) is the same, so editing from the Quiz Library propagates to teammates AND to anyone who imported the assignment template. The assignment-template Library sub-tab still has no inline edit; a future iteration could surface the same affordance there for symmetry, but it'd hit the same canonical, so it's a UX-only improvement.
 - **`status` field on the `assignments` template subcollection.** Templates currently have no lifecycle status — they're either present (pickup-able) or absent (unshared). If we want "this template is no longer being run" without unsharing it, that's a future schema extension.
+
+### Notes from PR #1557 (closing two follow-ups)
+
+- **Promote-on-assign mirrors `handleShareWithPlc` shape.** Same create → attach-linkage → leave-on-failure rollback. Skips the `plcs/{plcId}/quizzes/{plcQuizId}` header write — bubble-up is about the assignment template, not a discoverable shared-quiz entry. Best-effort: any failure logs via `logError` and falls through; the assignment still creates and the In-progress index entry still surfaces.
+- **Edit-in-place leans entirely on Phase 2 sync-group machinery.** The Edit button on `PlcQuizLibraryTab` rows resolves a personal copy (auto-importing via Sync if missing), then opens the existing `QuizEditorModal`. Saves go through `useQuiz.saveQuiz`, which already publishes to `synced_quizzes/{groupId}` via the existing LWW infrastructure. **No fork of `QuizEditorModal`, no Drive-less editor surface** — confirms the locked decision "Lean on existing `synced_quizzes/{groupId}` machinery" was the right call.
+- **Auto-import edge case (deferred).** If the user has the quiz only as a Copy (no `sync.groupId`), Edit creates a SECOND personal copy that's synced. Acceptable trade-off — retroactively switching a Copy to Sync without losing local edits is a separate problem.
+- **Drive-disconnected guard.** Edit button is disabled when `isDriveConnected` is false; the existing amber Drive-disconnected banner already covers messaging.
 
 ---
 
@@ -426,4 +433,4 @@ Resolved:
 
 ---
 
-**Last updated:** 2026-05-08 (Phase 3 shipped — PLC-authored Assignments tab with Library / In-progress / Completed sub-tabs; auto-bubble-up from personal PLC-mode assignments; status mirroring on the assignment_index)
+**Last updated:** 2026-05-08 (PR #1557 closed two Phase 3 follow-ups — Drive-only PLC bubble-up so every PLC-mode personal assignment authors a Library template, and Edit-in-place from `PlcQuizLibraryTab` leveraging the existing synced-group LWW infrastructure)
