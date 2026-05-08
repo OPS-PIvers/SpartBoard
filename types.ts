@@ -822,6 +822,13 @@ export interface RandomConfig {
   autoStartTimer?: boolean;
   visualStyle?: 'flash' | 'slots' | 'wheel';
   externalTrigger?: number;
+  /** Jigsaw mode: original home groups (each student's "home base"). */
+  jigsawHomeGroups?: RandomGroup[];
+  /** Jigsaw mode: expert groups derived by transposing home groups
+   *  (position N from each home group becomes expert group N). */
+  jigsawExpertGroups?: RandomGroup[];
+  /** Jigsaw mode: which view is currently shown on the front face. */
+  jigsawView?: 'home' | 'expert';
 }
 
 export interface DiceConfig {

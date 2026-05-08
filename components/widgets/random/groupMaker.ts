@@ -60,6 +60,32 @@ export function makeRestrictedGroups(
 }
 
 /**
+ * Build expert groups for the Jigsaw cooperative-learning structure: take
+ * position N from each home group and combine those students into expert
+ * group N. Home groups can be uneven; missing positions are simply skipped.
+ */
+export function makeJigsawExpertGroups(
+  homeGroups: RandomGroup[]
+): RandomGroup[] {
+  if (homeGroups.length === 0) return [];
+  const maxSize = homeGroups.reduce(
+    (max, g) => Math.max(max, g.names.length),
+    0
+  );
+  const expertGroups: RandomGroup[] = [];
+  for (let pos = 0; pos < maxSize; pos++) {
+    const names: string[] = [];
+    for (const home of homeGroups) {
+      if (pos < home.names.length) names.push(home.names[pos]);
+    }
+    if (names.length > 0) {
+      expertGroups.push({ id: crypto.randomUUID(), names });
+    }
+  }
+  return expertGroups;
+}
+
+/**
  * Plain chunking used for custom-names mode, where we have strings only
  * (no IDs, so no restriction lookup). Matches the pre-existing behavior.
  */

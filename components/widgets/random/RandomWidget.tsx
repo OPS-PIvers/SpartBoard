@@ -22,10 +22,18 @@ import {
   RotateCcw,
   Trophy,
   UserX,
+  UserPlus,
+  Puzzle,
+  Home,
+  Sparkles,
 } from 'lucide-react';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 import { getLocalIsoDate } from '@/utils/localDate';
-import { makeNameGroups, makeRestrictedGroups } from './groupMaker';
+import {
+  makeJigsawExpertGroups,
+  makeNameGroups,
+  makeRestrictedGroups,
+} from './groupMaker';
 
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { RandomWheel } from './RandomWheel';
@@ -56,6 +64,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     autoStartTimer = false,
     visualStyle = 'flash',
     groupSize = 3,
+    jigsawHomeGroups,
+    jigsawExpertGroups,
+    jigsawView = 'home',
   } = config;
 
   const remainingStudents = Array.isArray(config.remainingStudents)
@@ -113,6 +124,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           ...config,
           lastResult: null,
           remainingStudents: [],
+          jigsawHomeGroups: null,
+          jigsawExpertGroups: null,
+          jigsawView: 'home',
         },
       });
     }
@@ -186,11 +200,49 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       config: {
         remainingStudents: [],
         lastResult: null,
+        jigsawHomeGroups: null,
+        jigsawExpertGroups: null,
+        jigsawView: 'home',
       } as unknown as WidgetConfig,
     });
     setDisplayResult('');
     setRotation(0);
   };
+
+  const MODE_CYCLE: { id: string; label: string; icon: typeof UserPlus }[] = [
+    { id: 'single', label: 'Pick One', icon: UserPlus },
+    { id: 'shuffle', label: 'Shuffle', icon: Layers },
+    { id: 'groups', label: 'Groups', icon: Users },
+    { id: 'jigsaw', label: 'Jigsaw', icon: Puzzle },
+  ];
+  const currentModeMeta =
+    MODE_CYCLE.find((m) => m.id === mode) ?? MODE_CYCLE[0];
+  const ModeIcon = currentModeMeta.icon;
+
+  const cycleMode = () => {
+    const idx = MODE_CYCLE.findIndex((m) => m.id === mode);
+    const next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        mode: next.id,
+        lastResult: null,
+        jigsawHomeGroups: null,
+        jigsawExpertGroups: null,
+        jigsawView: 'home',
+      },
+    });
+  };
+
+  const setJigsawView = (view: 'home' | 'expert') => {
+    if (jigsawView === view) return;
+    updateWidget(widget.id, {
+      config: { ...config, jigsawView: view },
+    });
+  };
+
+  const hasJigsawGroups =
+    Array.isArray(jigsawHomeGroups) && jigsawHomeGroups.length > 0;
 
   const handleSendToScoreboard = () => {
     // 1. Normalize current groups from displayResult
@@ -447,6 +499,58 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }, 100);
       }
+    } else if (mode === 'jigsaw') {
+      setTimeout(() => {
+        let homeGroups: RandomGroup[];
+        if (rosterMode === 'class' && activeRoster) {
+          const { groups, unsatisfied } = makeRestrictedGroups(
+            presentClassStudents,
+            groupSize
+          );
+          homeGroups = groups;
+          if (unsatisfied > 0) {
+            addToast(
+              t('widgets.random.restrictionsUnsatisfied', {
+                defaultValue:
+                  "Couldn't satisfy all restrictions — try again or adjust group size.",
+              }),
+              'warning'
+            );
+          }
+        } else {
+          homeGroups = makeNameGroups(students, groupSize);
+        }
+        const expertGroups = makeJigsawExpertGroups(homeGroups);
+
+        setDisplayResult(homeGroups);
+        if (soundEnabled) playWinner();
+        setIsSpinning(false);
+
+        try {
+          const newSharedGroups: SharedGroup[] = homeGroups.map((g, i) => ({
+            id: g.id ?? '',
+            name: `Home Group ${i + 1}`,
+          }));
+          const existing = activeDashboard?.sharedGroups ?? [];
+          const uniqueNew = newSharedGroups.filter(
+            (n) => n.id && !existing.some((e) => e.id === n.id)
+          );
+          if (uniqueNew.length > 0) {
+            updateDashboard({ sharedGroups: [...existing, ...uniqueNew] });
+          }
+
+          updateWidget(widget.id, {
+            config: {
+              jigsawHomeGroups: homeGroups,
+              jigsawExpertGroups: expertGroups,
+              jigsawView: 'home',
+              lastResult: homeGroups,
+            } as unknown as WidgetConfig,
+          });
+        } catch (err) {
+          console.error('Randomizer Jigsaw Sync Error:', err);
+        }
+      }, 500);
     } else {
       setTimeout(() => {
         let result: string[] | RandomGroup[];
@@ -655,6 +759,33 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className="flex items-center"
               style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
             >
+              <button
+                type="button"
+                onClick={cycleMode}
+                disabled={isSpinning}
+                className="flex items-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                  height: 'min(32px, 8cqmin)',
+                }}
+                aria-label={`Operation mode: ${currentModeMeta.label}. Tap to change.`}
+                title={`Mode: ${currentModeMeta.label} — tap to cycle`}
+              >
+                <ModeIcon
+                  className="text-brand-blue-primary shrink-0"
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+                <span
+                  className="font-black uppercase text-brand-blue-primary truncate min-w-0 tracking-widest"
+                  style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+                >
+                  {currentModeMeta.label}
+                </span>
+              </button>
               {mode === 'single' && (
                 <>
                   <button
@@ -711,6 +842,20 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           >
             {mode === 'single' ? (
               renderSinglePick()
+            ) : mode === 'jigsaw' ? (
+              <div
+                className="w-full flex-1 min-h-0 flex flex-col"
+                style={{ padding: '0 min(8px, 2cqmin)' }}
+              >
+                <RandomGroups
+                  displayResult={
+                    jigsawView === 'expert'
+                      ? (jigsawExpertGroups ?? null)
+                      : (jigsawHomeGroups ?? null)
+                  }
+                  sharedGroups={activeDashboard?.sharedGroups}
+                />
+              </div>
             ) : (
               <div
                 className="w-full flex-1 min-h-0 flex flex-col"
@@ -799,6 +944,80 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               gap: 'clamp(6px, 2cqmin, 14px)',
             }}
           >
+            {mode === 'jigsaw' && hasJigsawGroups && (
+              <>
+                <Button
+                  variant={jigsawView === 'expert' ? 'primary' : 'secondary'}
+                  shape="pill"
+                  size="md"
+                  onClick={() => setJigsawView('expert')}
+                  className="flex-1"
+                  style={{
+                    height: 'clamp(40px, 10cqmin, 72px)',
+                    paddingLeft: 'clamp(10px, 3cqmin, 24px)',
+                    paddingRight: 'clamp(10px, 3cqmin, 24px)',
+                  }}
+                  aria-label={t('widgets.random.launchJigsaw', {
+                    defaultValue: 'Launch Jigsaw',
+                  })}
+                  title={t('widgets.random.launchJigsawHint', {
+                    defaultValue: 'Show expert groups',
+                  })}
+                  icon={
+                    <Sparkles
+                      style={{
+                        width: 'clamp(16px, 4.5cqmin, 32px)',
+                        height: 'clamp(16px, 4.5cqmin, 32px)',
+                      }}
+                    />
+                  }
+                >
+                  <span
+                    className="font-black uppercase tracking-wider truncate"
+                    style={{ fontSize: 'clamp(11px, 3cqmin, 18px)' }}
+                  >
+                    {t('widgets.random.launchJigsaw', {
+                      defaultValue: 'Launch Jigsaw',
+                    })}
+                  </span>
+                </Button>
+                <Button
+                  variant={jigsawView === 'home' ? 'primary' : 'secondary'}
+                  shape="pill"
+                  size="md"
+                  onClick={() => setJigsawView('home')}
+                  className="flex-1"
+                  style={{
+                    height: 'clamp(40px, 10cqmin, 72px)',
+                    paddingLeft: 'clamp(10px, 3cqmin, 24px)',
+                    paddingRight: 'clamp(10px, 3cqmin, 24px)',
+                  }}
+                  aria-label={t('widgets.random.launchHomeGroup', {
+                    defaultValue: 'Launch Home Group',
+                  })}
+                  title={t('widgets.random.launchHomeGroupHint', {
+                    defaultValue: 'Return to home groups',
+                  })}
+                  icon={
+                    <Home
+                      style={{
+                        width: 'clamp(16px, 4.5cqmin, 32px)',
+                        height: 'clamp(16px, 4.5cqmin, 32px)',
+                      }}
+                    />
+                  }
+                >
+                  <span
+                    className="font-black uppercase tracking-wider truncate"
+                    style={{ fontSize: 'clamp(11px, 3cqmin, 18px)' }}
+                  >
+                    {t('widgets.random.launchHomeGroup', {
+                      defaultValue: 'Launch Home Group',
+                    })}
+                  </span>
+                </Button>
+              </>
+            )}
             {mode === 'groups' &&
               Array.isArray(displayResult) &&
               displayResult.length > 0 &&
