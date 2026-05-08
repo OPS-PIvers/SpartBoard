@@ -1,4 +1,11 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+} from 'react';
+import { createPortal } from 'react-dom';
 import {
   Upload,
   ImageIcon,
@@ -13,9 +20,44 @@ import {
 import { GuidedLearningMode } from '@/types';
 import { SortableList } from '@/components/common/SortableList';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { Z_INDEX } from '@/config/zIndex';
 import { GuidedLearningStepEditor } from './GuidedLearningStepEditor';
 import { calculateImageFootprint } from '../utils/imageUtils';
 import type { GuidedLearningEditorController } from './useGuidedLearningEditorState';
+
+/**
+ * Compute viewport-relative coordinates for a popover anchored under a
+ * trigger button. Clamped 8px in from the right edge so the popover
+ * never tucks under the modal close button on tight widths.
+ */
+const usePopoverPosition = (
+  open: boolean,
+  triggerRef: React.RefObject<HTMLButtonElement | null>,
+  width: number
+): { top: number; left: number } | null => {
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  useLayoutEffect(() => {
+    if (!open || !triggerRef.current) return;
+    const update = () => {
+      const rect = triggerRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      const viewportW =
+        typeof window !== 'undefined' ? window.innerWidth : rect.right;
+      const left = Math.max(8, Math.min(rect.left, viewportW - width - 8));
+      setPos({ top: rect.bottom + 4, left });
+    };
+    update();
+    // Reposition on resize / scroll so the popover stays anchored if the
+    // user resizes the modal or scrolls the chip into view.
+    window.addEventListener('resize', update);
+    window.addEventListener('scroll', update, true);
+    return () => {
+      window.removeEventListener('resize', update);
+      window.removeEventListener('scroll', update, true);
+    };
+  }, [open, triggerRef, width]);
+  return pos;
+};
 
 const MODE_OPTIONS: {
   value: GuidedLearningMode;
@@ -96,6 +138,8 @@ interface SettingChipProps<T extends string> {
  * vertical space than the choice deserves (e.g. set-level display
  * settings the teacher tweaks once and forgets).
  */
+const SETTING_CHIP_POPOVER_WIDTH = 220;
+
 function SettingChip<T extends string>({
   label,
   value,
@@ -103,15 +147,21 @@ function SettingChip<T extends string>({
   onChange,
 }: SettingChipProps<T>) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  // Click-outside listens on both the chip container AND the portal'd
+  // popover so clicks inside the popover don't dismiss it.
+  useClickOutside(containerRef, () => setOpen(false), [popoverRef]);
 
   const current = options.find((o) => o.value === value);
   const currentLabel = current?.label ?? value;
+  const pos = usePopoverPosition(open, triggerRef, SETTING_CHIP_POPOVER_WIDTH);
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <div ref={containerRef} className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         title={current?.desc}
@@ -129,37 +179,54 @@ function SettingChip<T extends string>({
         <span>{currentLabel}</span>
         <ChevronDown className="w-3 h-3 text-slate-400" />
       </button>
-      {open && (
-        <div
-          role="menu"
-          className="absolute left-0 top-full z-10 mt-1 min-w-[200px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
-        >
-          {options.map((opt) => {
-            const isCurrent = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                role="menuitem"
-                type="button"
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors ${
-                  isCurrent
-                    ? 'bg-brand-blue-lighter/40 text-brand-blue-dark'
-                    : 'text-slate-700 hover:bg-slate-100'
-                }`}
-              >
-                <span className="font-bold text-xs">{opt.label}</span>
-                <span className="text-xxs text-slate-500 leading-snug">
-                  {opt.desc}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {open &&
+        pos &&
+        typeof document !== 'undefined' &&
+        // Portal'd to document.body so the popover escapes the modal
+        // body's `overflow-hidden` and the chip row's `overflow-x-auto`.
+        // Without this the menu was being clipped by ancestor scroll
+        // containers and inaccessible.
+        createPortal(
+          <div
+            ref={popoverRef}
+            role="menu"
+            data-click-outside-ignore="true"
+            className="overflow-hidden rounded-xl border border-slate-200 bg-white py-1 text-sm shadow-lg"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: SETTING_CHIP_POPOVER_WIDTH,
+              zIndex: Z_INDEX.modalContent,
+            }}
+          >
+            {options.map((opt) => {
+              const isCurrent = opt.value === value;
+              return (
+                <button
+                  key={opt.value}
+                  role="menuitem"
+                  type="button"
+                  onClick={() => {
+                    onChange(opt.value);
+                    setOpen(false);
+                  }}
+                  className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors ${
+                    isCurrent
+                      ? 'bg-brand-blue-lighter/40 text-brand-blue-dark'
+                      : 'text-slate-700 hover:bg-slate-100'
+                  }`}
+                >
+                  <span className="font-bold text-xs">{opt.label}</span>
+                  <span className="text-xxs text-slate-500 leading-snug">
+                    {opt.desc}
+                  </span>
+                </button>
+              );
+            })}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -180,6 +247,8 @@ interface WelcomeChipProps {
  * textarea in a popover lets the editor body stay short — the image
  * canvas keeps its real estate even when a welcome message is set.
  */
+const WELCOME_CHIP_POPOVER_WIDTH = 320;
+
 const WelcomeChip: React.FC<WelcomeChipProps> = ({
   enabled,
   message,
@@ -187,18 +256,22 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
   onMessageChange,
 }) => {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-  useClickOutside(ref, () => setOpen(false));
+  const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
+  useClickOutside(containerRef, () => setOpen(false), [popoverRef]);
 
   const trimmed = message.trim();
   // The chip's status mirrors what the student app actually does at
   // render time: an enabled toggle without content falls back to the
   // default subtitle, so we surface it as "Off" here too.
   const status = enabled && trimmed.length > 0 ? 'On' : 'Off';
+  const pos = usePopoverPosition(open, triggerRef, WELCOME_CHIP_POPOVER_WIDTH);
 
   return (
-    <div ref={ref} className="relative shrink-0">
+    <div ref={containerRef} className="relative shrink-0">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((v) => !v)}
         title="Customize the welcome screen students see before they start."
@@ -216,38 +289,53 @@ const WelcomeChip: React.FC<WelcomeChipProps> = ({
         <span>{status}</span>
         <ChevronDown className="w-3 h-3 text-slate-400" />
       </button>
-      {open && (
-        <div
-          role="dialog"
-          aria-label="Welcome screen settings"
-          className="absolute left-0 top-full z-10 mt-1 w-[320px] rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
-        >
-          <label className="flex items-start gap-2 text-sm text-slate-700">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(e) => onEnabledChange(e.target.checked)}
-              className="accent-brand-blue-primary w-4 h-4 mt-0.5"
-            />
-            <span>
-              <span className="font-bold text-xs">Show welcome screen</span>
-              <span className="block text-xxs font-medium text-slate-500 mt-0.5 leading-snug">
-                Replaces the default mode/step subtitle on the student start
-                screen with your custom message and changes the Start button to
-                &quot;Get started&quot;.
+      {open &&
+        pos &&
+        typeof document !== 'undefined' &&
+        // Portal'd to document.body so the popover escapes the modal
+        // body's `overflow-hidden` and the chip row's `overflow-x-auto`.
+        createPortal(
+          <div
+            ref={popoverRef}
+            role="dialog"
+            aria-label="Welcome screen settings"
+            data-click-outside-ignore="true"
+            className="rounded-xl border border-slate-200 bg-white p-3 shadow-lg"
+            style={{
+              position: 'fixed',
+              top: pos.top,
+              left: pos.left,
+              width: WELCOME_CHIP_POPOVER_WIDTH,
+              zIndex: Z_INDEX.modalContent,
+            }}
+          >
+            <label className="flex items-start gap-2 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={enabled}
+                onChange={(e) => onEnabledChange(e.target.checked)}
+                className="accent-brand-blue-primary w-4 h-4 mt-0.5"
+              />
+              <span>
+                <span className="font-bold text-xs">Show welcome screen</span>
+                <span className="block text-xxs font-medium text-slate-500 mt-0.5 leading-snug">
+                  Replaces the default mode/step subtitle on the student start
+                  screen with your custom message and changes the Start button
+                  to &quot;Get started&quot;.
+                </span>
               </span>
-            </span>
-          </label>
-          <textarea
-            value={message}
-            onChange={(e) => onMessageChange(e.target.value)}
-            disabled={!enabled}
-            rows={3}
-            placeholder="e.g. Welcome to the Civil War tour. Click pins to explore each station."
-            className="mt-2 w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
-          />
-        </div>
-      )}
+            </label>
+            <textarea
+              value={message}
+              onChange={(e) => onMessageChange(e.target.value)}
+              disabled={!enabled}
+              rows={3}
+              placeholder="e.g. Welcome to the Civil War tour. Click pins to explore each station."
+              className="mt-2 w-full bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary px-3 py-2 text-sm resize-none disabled:bg-slate-50 disabled:text-slate-400"
+            />
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
@@ -380,10 +468,10 @@ export const GuidedLearningEditorContextPane: React.FC<PaneProps> = ({
           placeholder="Add a description (optional)"
           className="w-full bg-transparent border-0 text-slate-600 placeholder:text-slate-400 focus:outline-none text-sm p-0"
         />
-        {/* Single row, never wraps. Mode pills + display chips share one
-            line; if the modal is too narrow to fit them all the row scrolls
-            horizontally instead of breaking onto multiple rows. */}
-        <div className="flex flex-nowrap gap-1.5 items-center overflow-x-auto custom-scrollbar -mx-1 px-1">
+        {/* Single row, never wraps. Chip popovers are portal'd to body
+            so they can't be clipped by an overflow ancestor — the row
+            itself can stay overflow-visible without a stray scrollbar. */}
+        <div className="flex flex-nowrap gap-1.5 items-center">
           {MODE_OPTIONS.map((opt) => (
             <button
               key={opt.value}
