@@ -1,14 +1,12 @@
 /**
- * Smoke-level coverage for QuizLiveMonitor — the file is ~2400 lines after
- * PR #1449 and previously had zero tests. Focus is the structural pieces
- * the diff introduces: the `RosterToolbar` cluster (period filter / Colors /
- * score-display cycle), the `filteredResponses` narrowing that drives the
- * roster + KPIs, and the leaderboard-broadcast invariant that the filter
- * must NOT touch the student-facing leaderboard.
+ * Smoke-level coverage for QuizLiveMonitor — focuses on the privacy
+ * gate around score reveal, the chip-style class-period filter, and
+ * the leaderboard-broadcast invariant that filtering must NOT touch
+ * the student-facing leaderboard.
  *
- * Heavy mocking style mirrors `QuizResults.regenerate.test.tsx`: every hook
- * the component reaches into is stubbed at module-scope so the test stays
- * self-contained.
+ * Heavy mocking style mirrors `QuizResults.regenerate.test.tsx`: every
+ * hook the component reaches into is stubbed at module-scope so the
+ * test stays self-contained.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -192,10 +190,6 @@ function buildTree(opts: RenderOpts) {
     periodNames: session.periodNames,
     ...opts.config,
   });
-  // PeriodSelector inside the toolbar filters its checkbox list to rosters
-  // whose `name` matches one of the session's targeted periods. Default to
-  // a roster per period so the selector is exercisable in tests that open
-  // it.
   const rosters: ClassRoster[] =
     opts.rosters ?? (session.periodNames ?? []).map(makeRoster);
   return (
@@ -222,12 +216,24 @@ function renderMonitor(opts: RenderOpts = {}) {
   return Object.assign(result, { rerenderSame });
 }
 
-// Open the roster (so the toolbar with the period filter / Colors / score
-// buttons is mounted) and return the matching toolbar buttons.
-function openRoster() {
-  const rosterToggle = screen.getByText(/^Roster · /).closest('button');
-  if (!rosterToggle) throw new Error('Roster toggle not found');
-  fireEvent.click(rosterToggle);
+// Approve the privacy gate that hides scores/colors by default. After
+// approval, the persisted account preference takes effect. Helpers below
+// click a toggle once with the confirm dialog auto-resolving true, then
+// reset mocks so the test only sees calls from the action under test.
+async function approveScoreReveal() {
+  showConfirm.mockResolvedValueOnce(true);
+  // Click the Colors button: turning ON triggers the confirm. With stored
+  // colors=true, no preference write happens — the click only flips the
+  // session-local approval flag.
+  fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  vi.clearAllMocks();
+  // Restore the default-deny showConfirm so subsequent prompts (e.g. END)
+  // don't accidentally fire in tests that don't expect a dialog.
+  showConfirm.mockResolvedValue(false);
 }
 
 describe('QuizLiveMonitor', () => {
@@ -257,77 +263,77 @@ describe('QuizLiveMonitor', () => {
     );
   });
 
-  it('hides the period-filter button when the assignment targets a single period', () => {
+  it('hides the period chip filter when the assignment targets a single period', () => {
     renderMonitor({
       session: { periodNames: ['Period 1'] },
       responses: [makeResponse({ pin: '1111', classPeriod: 'Period 1' })],
     });
-    openRoster();
     expect(
-      screen.queryByRole('button', { name: /Filter by class period/i })
+      screen.queryByRole('group', { name: /Filter monitor by class period/i })
     ).not.toBeInTheDocument();
   });
 
-  it('renders the period-filter button labeled "All Periods" when 2+ periods are targeted', () => {
+  it('renders one chip per period plus an "All" chip when 2+ periods are targeted, defaulting to the first period', () => {
     renderMonitor({
       session: { periodNames: ['P1', 'P2', 'P3'] },
-      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
+      responses: [
+        makeResponse({ pin: '1111', classPeriod: 'P1' }),
+        makeResponse({ pin: '2222', classPeriod: 'P2' }),
+        makeResponse({ pin: '3333', classPeriod: 'P3' }),
+      ],
     });
-    openRoster();
-    const filterBtn = screen.getByRole('button', {
-      name: /Filter by class period/i,
-    });
-    expect(filterBtn).toBeInTheDocument();
-    expect(filterBtn).toHaveTextContent('All Periods');
+    expect(
+      screen.getByRole('group', { name: /Filter monitor by class period/i })
+    ).toBeInTheDocument();
+    const p1 = screen.getByRole('button', { name: 'P1' });
+    const p2 = screen.getByRole('button', { name: 'P2' });
+    const p3 = screen.getByRole('button', { name: 'P3' });
+    const all = screen.getByRole('button', { name: 'All' });
+    // Default selection narrows to the first targeted period.
+    expect(p1).toHaveAttribute('aria-pressed', 'true');
+    expect(p2).toHaveAttribute('aria-pressed', 'false');
+    expect(p3).toHaveAttribute('aria-pressed', 'false');
+    expect(all).toHaveAttribute('aria-pressed', 'false');
+    // KPI roster reflects the narrowed default — only P1's response shows.
+    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
   });
 
-  it('toggling a period off narrows the KPI counts and roster, and updates the filter label', () => {
+  it('clicking a period chip narrows the KPI counts and roster exclusively to that period', () => {
     renderMonitor({
       session: { periodNames: ['P1', 'P2'] },
       responses: [
-        makeResponse({
-          pin: '1111',
-          classPeriod: 'P1',
-          status: 'completed',
-        }),
-        makeResponse({
-          pin: '2222',
-          classPeriod: 'P2',
-          status: 'completed',
-        }),
+        makeResponse({ pin: '1111', classPeriod: 'P1', status: 'completed' }),
+        makeResponse({ pin: '2222', classPeriod: 'P2', status: 'completed' }),
       ],
     });
-    openRoster();
-    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 2');
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Filter by class period/i })
-    );
-    // Selector dialog renders one checkbox per period. Untick P2 (it starts
-    // selected because the default mirrors the session's targeted periods).
-    const checkboxes = screen.getAllByRole('checkbox');
-    const p2Box = checkboxes.find((b) =>
-      (b as HTMLInputElement).parentElement?.textContent?.includes('P2')
-    );
-    if (!p2Box) throw new Error('P2 checkbox not found');
-    fireEvent.click(p2Box);
-
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-
-    // Roster row count drops to 1.
+    // Default narrows to P1 only.
     expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
-    // Filter button label flips to "selected/total".
-    expect(
-      screen.getByRole('button', { name: /Filter by class period/i })
-    ).toHaveTextContent('1/2');
+    // Switch to P2 — exclusive selection.
+    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
+    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
+    expect(screen.getByRole('button', { name: 'P2' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: 'P1' })).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    // All widens back out.
+    fireEvent.click(screen.getByRole('button', { name: 'All' }));
+    expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 2');
+    expect(screen.getByRole('button', { name: 'All' })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
-  it('cycles the score-display preference percent → count → hidden → percent', async () => {
+  it('cycles the score-display preference percent → count → hidden → percent after the privacy gate is approved', async () => {
     const { rerenderSame } = renderMonitor({
       session: { periodNames: ['P1'] },
       responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
     });
-    openRoster();
+    await approveScoreReveal();
     const cycleBtn = () =>
       screen.getByRole('button', { name: /Cycle score display/i });
 
@@ -343,7 +349,8 @@ describe('QuizLiveMonitor', () => {
       await Promise.resolve();
     });
     rerenderSame();
-    // Click 3: hidden → percent
+    // Click 3: hidden → percent (back through the gate, which is already
+    // approved for this session so no second confirm dialog appears)
     fireEvent.click(cycleBtn());
     await act(async () => {
       await Promise.resolve();
@@ -361,19 +368,42 @@ describe('QuizLiveMonitor', () => {
     });
   });
 
-  it('Colors toggle persists the inverted value via updateAccountPreferences', () => {
+  it('Colors toggle requires the privacy gate before persisting a flip', async () => {
+    // Start with stored colors OFF so a click after approval produces a
+    // visible "turn ON → persist true" call.
+    authState.quizMonitorColorsEnabled = false;
     renderMonitor({
       session: { periodNames: ['P1'] },
       responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
     });
-    openRoster();
 
+    // First click: triggers the privacy confirm. With showConfirm → true,
+    // approval is granted and the stored preference flips on.
+    showConfirm.mockResolvedValueOnce(true);
     fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
-
-    expect(updateAccountPreferences).toHaveBeenCalledTimes(1);
-    expect(updateAccountPreferences).toHaveBeenCalledWith({
-      quizMonitorColorsEnabled: false,
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
     });
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+    expect(updateAccountPreferences).toHaveBeenCalledWith({
+      quizMonitorColorsEnabled: true,
+    });
+  });
+
+  it('cancelling the privacy gate keeps scores hidden and writes nothing', async () => {
+    renderMonitor({
+      session: { periodNames: ['P1'] },
+      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
+    });
+    showConfirm.mockResolvedValueOnce(false);
+    fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+    expect(updateAccountPreferences).not.toHaveBeenCalled();
   });
 
   it('shows the empty-state and Clear filter button when the active filter narrows to zero rows', () => {
@@ -381,21 +411,9 @@ describe('QuizLiveMonitor', () => {
       session: { periodNames: ['P1', 'P2'] },
       responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
     });
-    openRoster();
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Filter by class period/i })
-    );
-    // The selector starts with both ['P1','P2'] selected. Untick P1 so only
-    // P2 remains — the lone response is in P1, so filteredResponses → [].
-    const checkboxes = screen.getAllByRole('checkbox');
-    const p1Box = checkboxes.find((b) =>
-      (b as HTMLInputElement).parentElement?.textContent?.includes('P1')
-    );
-    if (!p1Box) throw new Error('P1 checkbox not found');
-    fireEvent.click(p1Box);
-    fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-
+    // Default selects P1; switching to P2 (which has no responses) yields
+    // the empty state. The Clear filter button widens back out.
+    fireEvent.click(screen.getByRole('button', { name: 'P2' }));
     expect(
       screen.getByText(/No students match the active class-period filter\./i)
     ).toBeInTheDocument();
@@ -433,7 +451,9 @@ describe('QuizLiveMonitor', () => {
         ],
       });
 
-      // Initial broadcast — debounced 300ms.
+      // Initial broadcast — debounced 300ms. The chip filter defaults to
+      // P1 only on the monitor side; the leaderboard MUST still see both
+      // responses.
       act(() => {
         vi.advanceTimersByTime(400);
       });
@@ -451,34 +471,20 @@ describe('QuizLiveMonitor', () => {
       expect(Array.isArray(initialEntries)).toBe(true);
       expect(initialEntries).toHaveLength(2);
 
-      // Now narrow the filter via the UI. Switch to real timers briefly so
-      // jsdom event handlers can fire the way fireEvent expects.
+      // Sanity: the visible roster on the monitor is narrowed to 1 row by
+      // the chip-filter default while the leaderboard above stayed at 2.
       vi.useRealTimers();
-      openRoster();
-      fireEvent.click(
-        screen.getByRole('button', { name: /Filter by class period/i })
-      );
-      const checkboxes = screen.getAllByRole('checkbox');
-      const p2Box = checkboxes.find((b) =>
-        (b as HTMLInputElement).parentElement?.textContent?.includes('P2')
-      );
-      if (!p2Box) throw new Error('P2 checkbox not found');
-      fireEvent.click(p2Box);
-      fireEvent.click(screen.getByRole('button', { name: /Save/i }));
-
-      // Sanity: the visible roster narrowed to 1 row.
       expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
 
-      // Re-arm fake timers to drive the (potentially) re-fired broadcast.
+      // Switch the chip to P2 and re-arm the broadcast — same invariant.
+      fireEvent.click(screen.getByRole('button', { name: 'P2' }));
+      expect(screen.getByText(/^Roster · /)).toHaveTextContent('Roster · 1');
+
       vi.useFakeTimers();
       act(() => {
         vi.advanceTimersByTime(400);
       });
 
-      // Every leaderboard payload — initial OR post-filter — must contain
-      // BOTH responses. The diff explicitly comments on this invariant
-      // (filter narrows roster/KPIs only; the student-facing leaderboard
-      // stays on the unfiltered `responses`).
       const leaderboardCalls = updateDocMock.mock.calls.filter(
         (c) =>
           typeof c[1] === 'object' &&
@@ -497,6 +503,9 @@ describe('QuizLiveMonitor', () => {
   });
 
   it('surfaces a toast when updateAccountPreferences rejects on the Colors toggle', async () => {
+    // Start with stored colors OFF so the post-approval branch will issue
+    // an updateAccountPreferences write that we can reject.
+    authState.quizMonitorColorsEnabled = false;
     // The handler logs the error before toasting; silence it here so the
     // expected rejection doesn't pollute test output.
     const errorSpy = vi
@@ -507,13 +516,14 @@ describe('QuizLiveMonitor', () => {
       session: { periodNames: ['P1'] },
       responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
     });
-    openRoster();
 
+    showConfirm.mockResolvedValueOnce(true);
     fireEvent.click(screen.getByRole('button', { name: /Colors/i }));
 
     // The catch handler is async — flush microtasks so the rejection
     // settles before we assert.
     await act(async () => {
+      await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
     });
