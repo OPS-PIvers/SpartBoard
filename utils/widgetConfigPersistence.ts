@@ -56,6 +56,13 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'activeNotebookId',
   'lastResult',
 
+  // Randomizer Jigsaw mode: per-pick group state (jigsaw*Groups also contain
+  // student names in custom-roster mode, so they must never be saved as a
+  // global default).
+  'jigsawHomeGroups',
+  'jigsawExpertGroups',
+  'jigsawView',
+
   // Large instance data / per-session game state
   'paths',
   'furniture',

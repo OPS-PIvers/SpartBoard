@@ -823,10 +823,10 @@ export interface RandomConfig {
   visualStyle?: 'flash' | 'slots' | 'wheel';
   externalTrigger?: number;
   /** Jigsaw mode: original home groups (each student's "home base"). */
-  jigsawHomeGroups?: RandomGroup[];
+  jigsawHomeGroups?: RandomGroup[] | null;
   /** Jigsaw mode: expert groups derived by transposing home groups
    *  (position N from each home group becomes expert group N). */
-  jigsawExpertGroups?: RandomGroup[];
+  jigsawExpertGroups?: RandomGroup[] | null;
   /** Jigsaw mode: which view is currently shown on the front face. */
   jigsawView?: 'home' | 'expert';
 }

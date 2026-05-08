@@ -23,16 +23,19 @@ vi.mock('./audioUtils', () => ({
   playWinner: vi.fn(),
 }));
 
-// Mock WidgetLayout to render content and footer
+// Mock WidgetLayout to render header, content, and footer
 vi.mock('../WidgetLayout', () => ({
   WidgetLayout: ({
+    header,
     content,
     footer,
   }: {
+    header?: React.ReactNode;
     content: React.ReactNode;
     footer: React.ReactNode;
   }) => (
     <div data-testid="widget-layout">
+      {header && <div data-testid="header">{header}</div>}
       <div data-testid="content">{content}</div>
       <div data-testid="footer">{footer}</div>
     </div>
@@ -113,6 +116,149 @@ describe('RandomWidget', () => {
     // Default group names
     expect(screen.getByText('Group 1')).toBeInTheDocument();
     expect(screen.getByText('Group 2')).toBeInTheDocument();
+  });
+
+  describe('Jigsaw mode', () => {
+    const jigsawWidget = (
+      override: Partial<RandomConfig> = {}
+    ): WidgetData => ({
+      id: 'test-id',
+      type: 'random',
+      config: {
+        firstNames: 'A\nB\nC\nD\nE\nF',
+        mode: 'jigsaw',
+        rosterMode: 'custom',
+        groupSize: 2,
+        jigsawHomeGroups: [
+          { id: 'h1', names: ['A', 'B'] },
+          { id: 'h2', names: ['C', 'D'] },
+          { id: 'h3', names: ['E', 'F'] },
+        ],
+        jigsawExpertGroups: [
+          { id: 'e1', names: ['A', 'C', 'E'] },
+          { id: 'e2', names: ['B', 'D', 'F'] },
+        ],
+        jigsawView: 'home',
+        ...override,
+      } as RandomConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    });
+
+    it('renders home groups when jigsawView is "home"', () => {
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+      expect(screen.getByText('A')).toBeInTheDocument();
+      expect(screen.getByText('Group 1')).toBeInTheDocument();
+      // Footer launch buttons present
+      expect(
+        screen.getByRole('button', { name: /Launch Jigsaw/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Launch Home Group/i })
+      ).toBeInTheDocument();
+    });
+
+    it('renders expert groups when jigsawView is "expert"', () => {
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'expert' })} />);
+      // Expert group 1 has [A, C, E] together (one student per home group at
+      // position 0). Asserting on the expert-specific composition rules out
+      // that we accidentally rendered the home view.
+      expect(screen.getByText('A')).toBeInTheDocument();
+      expect(screen.getByText('C')).toBeInTheDocument();
+      expect(screen.getByText('E')).toBeInTheDocument();
+    });
+
+    it('toggles jigsawView when Launch Jigsaw is clicked', () => {
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+      fireEvent.click(screen.getByRole('button', { name: /Launch Jigsaw/i }));
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'test-id',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            jigsawView: 'expert',
+          }) as unknown,
+        })
+      );
+    });
+
+    it('toggles jigsawView when Launch Home Group is clicked', () => {
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'expert' })} />);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Launch Home Group/i })
+      );
+
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'test-id',
+        expect.objectContaining({
+          config: expect.objectContaining({
+            jigsawView: 'home',
+          }) as unknown,
+        })
+      );
+    });
+
+    it('does not show Launch buttons before any pick has happened', () => {
+      render(
+        <RandomWidget
+          widget={jigsawWidget({
+            jigsawHomeGroups: null,
+            jigsawExpertGroups: null,
+          })}
+        />
+      );
+      expect(
+        screen.queryByRole('button', { name: /Launch Jigsaw/i })
+      ).not.toBeInTheDocument();
+    });
+  });
+
+  describe('Mode-cycle chip', () => {
+    const widgetWithMode = (mode: string): WidgetData => ({
+      id: 'test-id',
+      type: 'random',
+      config: {
+        firstNames: 'Alice\nBob',
+        mode,
+        rosterMode: 'custom',
+      } as RandomConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    });
+
+    it('cycles single → shuffle when tapped', () => {
+      render(<RandomWidget widget={widgetWithMode('single')} />);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Operation mode: Pick One/i })
+      );
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'test-id',
+        expect.objectContaining({
+          config: expect.objectContaining({ mode: 'shuffle' }) as unknown,
+        })
+      );
+    });
+
+    it('wraps from jigsaw back to single', () => {
+      render(<RandomWidget widget={widgetWithMode('jigsaw')} />);
+      fireEvent.click(
+        screen.getByRole('button', { name: /Operation mode: Jigsaw/i })
+      );
+      expect(mockUpdateWidget).toHaveBeenCalledWith(
+        'test-id',
+        expect.objectContaining({
+          config: expect.objectContaining({ mode: 'single' }) as unknown,
+        })
+      );
+    });
   });
 
   it('sends groups to scoreboard when button is clicked (New Connection)', () => {

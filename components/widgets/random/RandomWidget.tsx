@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 import { getLocalIsoDate } from '@/utils/localDate';
+import { logError } from '@/utils/logError';
 import {
   makeJigsawExpertGroups,
   makeNameGroups,
@@ -548,7 +549,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             } as unknown as WidgetConfig,
           });
         } catch (err) {
-          console.error('Randomizer Jigsaw Sync Error:', err);
+          logError('RandomWidget.jigsawSync', err, { widgetId: widget.id });
         }
       }, 500);
     } else {
