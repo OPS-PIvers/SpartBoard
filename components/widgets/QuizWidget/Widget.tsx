@@ -23,7 +23,12 @@ import {
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useFolders } from '@/hooks/useFolders';
-import { useSyncedQuizGroupsByIds } from '@/hooks/useSyncedQuizGroups';
+import {
+  createSyncedQuizGroup,
+  useSyncedQuizGroupsByIds,
+} from '@/hooks/useSyncedQuizGroups';
+import { writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
+import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
 import { QuizManager, PlcOptions } from './components/QuizManager';
 import { ImportWizard } from '@/components/common/library/importer';
 import { createQuizImportAdapter } from './adapters/quizImportAdapter';
@@ -107,6 +112,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     shareQuiz,
     pullSyncedQuiz,
     detachSyncedQuiz,
+    attachSyncLinkage,
     isDriveConnected,
   } = useQuiz(user?.uid);
 
@@ -200,6 +206,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [editingQuiz, setEditingQuiz] = useState<QuizData | null>(null);
   const [editingMeta, setEditingMeta] = useState<QuizMetadata | null>(null);
 
+  // "Share with PLC" target — when set, the PlcShareTargetModal is open
+  // for this quiz. Phase 2.
+  const [shareWithPlcTarget, setShareWithPlcTarget] =
+    useState<QuizMetadata | null>(null);
+
   const setView = useCallback(
     (view: QuizConfig['view']) => {
       updateWidget(widget.id, { config: { ...config, view } as QuizConfig });
@@ -225,6 +236,68 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     },
     [loadQuizData, addToast]
+  );
+
+  /**
+   * Phase 2 — share an existing personal quiz with a chosen PLC.
+   *
+   * Order of operations:
+   *   1. Load the quiz content from Drive (needed to seed the canonical
+   *      synced group on first share).
+   *   2. If the quiz isn't yet part of a synced group, mint a fresh group
+   *      with `plcId` set, then attach the linkage to the local
+   *      `quiz_metadata` so subsequent edits publish (LWW) for every
+   *      member who imports.
+   *   3. Write the `plcs/{plcId}/quizzes/{plcQuizId}` header. Doc id is a
+   *      fresh uuid so the same quiz can be shared with multiple PLCs
+   *      without doc-id collisions.
+   *
+   * Failures at any step toast the error and abort. The synced group +
+   * sync linkage are intentionally NOT rolled back if the PLC subcoll
+   * write fails — the canonical doc is shared with the user's other
+   * library cards as the "Synced" pill, which is still useful, and the
+   * PR description documents this trade-off.
+   */
+  const handleShareWithPlc = useCallback(
+    async (quizMeta: QuizMetadata, plcId: string): Promise<void> => {
+      if (!user) throw new Error('Not authenticated.');
+      const plc = plcs.find((p) => p.id === plcId);
+      if (!plc) {
+        throw new Error('That PLC is no longer available.');
+      }
+      const data = await loadQuizData(quizMeta.driveFileId);
+
+      let syncGroupId: string;
+      if (quizMeta.sync) {
+        syncGroupId = quizMeta.sync.groupId;
+      } else {
+        syncGroupId = crypto.randomUUID();
+        await createSyncedQuizGroup({
+          groupId: syncGroupId,
+          uid: user.uid,
+          title: data.title,
+          questions: data.questions,
+          plcId,
+        });
+        await attachSyncLinkage(quizMeta.id, {
+          groupId: syncGroupId,
+          lastSyncedVersion: 1,
+        });
+      }
+
+      const ownerEmailLower =
+        plc.memberEmails?.[user.uid] ??
+        (user.email ? user.email.toLowerCase() : '');
+      await writePlcQuizEntry(plcId, user.uid, {
+        plcQuizId: crypto.randomUUID(),
+        syncGroupId,
+        title: data.title,
+        questionCount: data.questions.length,
+        sharedByName: user.displayName ?? '',
+        sharedByEmail: ownerEmailLower,
+      });
+    },
+    [attachSyncLinkage, loadQuizData, plcs, user]
   );
 
   // Drop any pending import-setup prompt when the QuizWidget unmounts.
@@ -1128,6 +1201,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             addToast(`Share link: ${url}`, 'info');
           }
         }}
+        onShareWithPlc={(meta) => {
+          if (plcs.length === 0) {
+            addToast(
+              'Join a PLC from the My PLCs sidebar to share quizzes with teammates.',
+              'info'
+            );
+            return;
+          }
+          setShareWithPlcTarget(meta);
+        }}
         onCreateViewOnlyShare={async (meta) => {
           // View-only Quiz share — bypasses the AssignModal/picker/PLC flow
           // entirely. Creates a minimal assignment with view-only mode so
@@ -1786,6 +1869,30 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             />
           );
         })()}
+      {shareWithPlcTarget && (
+        <PlcShareTargetModal
+          plcs={plcs}
+          quizTitle={shareWithPlcTarget.title}
+          onConfirm={async (plcId) => {
+            try {
+              await handleShareWithPlc(shareWithPlcTarget, plcId);
+              const plcName =
+                plcs.find((p) => p.id === plcId)?.name ?? 'your PLC';
+              addToast(`Shared with ${plcName}.`, 'success');
+              setShareWithPlcTarget(null);
+            } catch (err) {
+              logError('QuizWidget.shareWithPlc', err, {
+                plcId,
+                quizId: shareWithPlcTarget.id,
+              });
+              throw err instanceof Error
+                ? err
+                : new Error('Share with PLC failed.');
+            }
+          }}
+          onClose={() => setShareWithPlcTarget(null)}
+        />
+      )}
     </>
   );
 };

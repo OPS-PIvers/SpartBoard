@@ -47,6 +47,7 @@ import {
   CheckSquare,
   Cloud,
   CloudOff,
+  Users2,
 } from 'lucide-react';
 import {
   AssignmentMode,
@@ -288,6 +289,14 @@ interface QuizManagerProps {
    */
   onBulkDelete?: (quizzes: QuizMetadata[]) => Promise<boolean>;
   onShare: (quiz: QuizMetadata) => void;
+  /**
+   * Phase 2 — "Share with PLC". Invoked when the teacher picks the new
+   * kebab item on a library card. The Widget owns the modal + the actual
+   * share write (creating the synced group + the PLC subcoll doc); this
+   * surface only triggers it. Kebab item is hidden when this prop is
+   * omitted (e.g. test harnesses).
+   */
+  onShareWithPlc?: (quiz: QuizMetadata) => void;
   rosters: ClassRoster[];
   config: QuizConfig;
 
@@ -455,6 +464,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onDelete,
   onBulkDelete,
   onShare,
+  onShareWithPlc,
   rosters,
   config,
   managerTab = 'library',
@@ -754,6 +764,14 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         disabled: !userId,
       })
     );
+    if (onShareWithPlc) {
+      actions.push({
+        id: 'share-with-plc',
+        label: 'Share with PLC',
+        icon: Users2,
+        onClick: () => onShareWithPlc(quiz),
+      });
+    }
     actions.push({
       id: 'delete',
       label: 'Delete',

@@ -988,6 +988,79 @@ service cloud.firestore {
           && request.auth.uid == resource.data.ownerUid;
       }
 
+      // PLC Quiz Library (Phase 2). Lightweight headers pointing at
+      // canonical `/synced_quizzes/{groupId}` docs — questions live there,
+      // not here. Any current PLC member can share a new quiz, edit any
+      // shared quiz's mirrored header (title/questionCount), or unshare.
+      // The orphan policy is "PLC copy stays" — deleting your personal
+      // copy of the source quiz does NOT cascade-delete the PLC entry.
+      //
+      // Schema lock-down (`keys().hasOnly([...])`) keeps the doc shape
+      // closed. Identity fields (`id`, `syncGroupId`, `sharedBy`,
+      // `sharedByEmail`, `sharedByName`, `sharedAt`) are immutable post-
+      // create so a different member can't quietly retarget the entry to
+      // a different sync group or rewrite attribution.
+      match /quizzes/{plcQuizId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Create: any member, doc id pinned, sharedBy must equal caller.
+        // No content (questions) on this doc — those live in the synced
+        // group, which has its own rule layer.
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'questionCount', 'syncGroupId',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && plcQuizId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.questionCount >= 0
+          && request.resource.data.syncGroupId is string
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.updatedAt is int;
+
+        // Update: any member can mirror title/questionCount/updatedAt
+        // (e.g. after a peer publishes an edit). Identity + attribution
+        // fields are immutable so stale-mirror writes can't quietly
+        // retarget the entry or rewrite who shared it.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'questionCount', 'syncGroupId',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.title is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.questionCount >= 0
+          && request.resource.data.updatedAt is int;
+
+        // Any member can unshare. Matches the "PLC-owned" model — a quiz
+        // shared with the PLC belongs to the PLC, not the original sharer.
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
       // PLC shared notes (Phase 5). Lightweight collaborative notebook —
       // any current member can CRUD any note. LWW on edits via the
       // `lastEditedBy` / `lastEditedAt` snapshot on each write. Schema

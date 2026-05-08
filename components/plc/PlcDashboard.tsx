@@ -22,6 +22,7 @@ import { PlcCompletedAssignmentsTab } from './tabs/PlcCompletedAssignmentsTab';
 import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { PlcNotesTab } from './tabs/PlcNotesTab';
 import { PlcTodosTab } from './tabs/PlcTodosTab';
+import { PlcQuizLibraryTab } from './tabs/PlcQuizLibraryTab';
 import { PlcPlaceholderTab } from './tabs/PlcPlaceholderTab';
 
 interface PlcDashboardProps {
@@ -73,11 +74,6 @@ const TABS: readonly TabDef[] = [
     labelKey: 'plcDashboard.tabs.quizzes',
     labelDefault: 'Quiz Library',
     feature: 'quizzes',
-    placeholder: {
-      titleDefault: 'PLC Quiz Library',
-      descriptionDefault:
-        'Share quizzes with the PLC, edit collaboratively, and let teammates sync or copy them into their own libraries.',
-    },
   },
   {
     id: 'assignments',
@@ -203,6 +199,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     }
     if (tab.id === 'todos') {
       return <PlcTodosTab plc={plc} />;
+    }
+    if (tab.id === 'quizzes') {
+      return <PlcQuizLibraryTab plc={plc} />;
     }
     if (tab.id === 'settings') {
       return <PlcSettingsTab plc={plc} />;
