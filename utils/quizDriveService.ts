@@ -18,7 +18,7 @@ import {
 import { gradeAnswer } from '../hooks/useQuizSession';
 import { APP_NAME } from '../config/constants';
 import { authError } from './driveAuthErrors';
-import { resolvePinName } from '../components/widgets/QuizWidget/utils/quizScoreboard';
+import { buildResultsSheetData as buildResultsSheetDataShared } from './assignmentExportShared';
 
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
@@ -37,16 +37,6 @@ const QUIZ_FOLDER_NAME = 'Quizzes';
 /** Escape single quotes in Drive API q-string values (single-quote is the delimiter). */
 function driveQueryEscape(s: string): string {
   return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-}
-
-/**
- * Format a points value for export to a Google Sheet cell. Whole numbers
- * stay as integers; fractional partial-credit values render with up to
- * 2 decimals (trailing zeros stripped).
- */
-function formatExportPoints(points: number): string {
-  if (Number.isInteger(points)) return String(points);
-  return (Math.round(points * 100) / 100).toString();
 }
 
 /**
@@ -511,9 +501,10 @@ export class QuizDriveService {
 
   /**
    * Build the headers + data rows for the results sheet WITHOUT touching
-   * the network. Shared between `exportResultsToSheet` (initial export +
-   * append) and `regeneratePlcSheet` (clear-then-rewrite) so the column
-   * shape stays in lock-step across all three flows. Side-effect-free.
+   * the network. Delegates to the shared `buildResultsSheetData` helper.
+   * Used internally by `regeneratePlcSheet`; `exportResultsToSheet` calls
+   * the shared helper directly so it can thread the grader through.
+   * Side-effect-free.
    */
   private buildResultsSheetData(
     responses: QuizResponse[],
@@ -524,83 +515,12 @@ export class QuizDriveService {
       teacherName?: string;
     }
   ): { headers: string[]; dataRows: string[][] } {
-    const pinToName = options?.pinToName ?? {};
-    const byStudentUid = options?.byStudentUid;
-    const teacherName =
-      (options?.teacherName?.trim() ? options.teacherName.trim() : null) ??
-      'Unknown Teacher';
-    const timestamp = new Date().toISOString();
-
-    const resolveStudent = (r: QuizResponse): string => {
-      const sso = byStudentUid?.get(r.studentUid);
-      if (sso) {
-        const full = `${sso.givenName ?? ''} ${sso.familyName ?? ''}`.trim();
-        if (full) return full;
-      }
-      if (r.pin) {
-        const name = resolvePinName(pinToName, r.classPeriod, r.pin);
-        return name ?? `Student (PIN: ${r.pin})`;
-      }
-      return 'Student';
-    };
-
-    const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
-    const headers = [
-      'Timestamp',
-      'Teacher',
-      'Class Period',
-      'Student',
-      'PIN',
-      'Status',
-      'Score (%)',
-      'Points Earned',
-      'Max Points',
-      'Warnings',
-      'Submitted At',
-      ...questions.map(
-        (q, i) => `Q${i + 1} (${q.points ?? 1}pt): ${q.text.substring(0, 40)}`
-      ),
-    ];
-
-    const dataRows = responses.map((r) => {
-      const submitted = r.submittedAt
-        ? new Date(r.submittedAt).toLocaleString()
-        : '';
-      const warnings = r.tabSwitchWarnings?.toString() ?? '0';
-      const answerMap = new Map(r.answers.map((a) => [a.questionId, a]));
-      const answerCols = questions.map((q) => {
-        const ans = answerMap.get(q.id);
-        if (!ans) return '';
-        const grade = gradeAnswer(q, ans.answer);
-        return formatExportPoints(grade.pointsEarned);
-      });
-      const earnedPoints = questions.reduce((sum, q) => {
-        const ans = answerMap.get(q.id);
-        if (!ans) return sum;
-        return sum + gradeAnswer(q, ans.answer).pointsEarned;
-      }, 0);
-      const scoreDisplay =
-        r.status === 'completed' && maxPoints > 0
-          ? `${Math.round((earnedPoints / maxPoints) * 100)}%`
-          : '';
-      return [
-        timestamp,
-        teacherName,
-        r.classPeriod ?? '',
-        resolveStudent(r),
-        r.pin ?? '',
-        r.status,
-        scoreDisplay,
-        formatExportPoints(earnedPoints),
-        String(maxPoints),
-        warnings,
-        submitted,
-        ...answerCols,
-      ];
-    });
-
-    dataRows.sort((a, b) => a[3].localeCompare(b[3]));
-    return { headers, dataRows };
+    return buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
+      responses,
+      questions,
+      gradeAnswer,
+      options
+    );
   }
 
   /**
@@ -701,13 +621,21 @@ export class QuizDriveService {
       teacherName?: string;
       plcMode?: boolean;
       plcSheetUrl?: string;
+      /**
+       * Optional grader override. Defaults to Quiz's `gradeAnswer`. Video
+       * Activity passes `gradeVideoActivityAnswer` so MA / FIB-with-variants
+       * grade correctly in the export — Quiz's grader has no `'MA'` case
+       * and otherwise returns 0 points for those columns. Fixes the TODO
+       * PR2a left at `Results.tsx:170`.
+       */
+      gradeFn?: typeof gradeAnswer;
     }
   ): Promise<string> {
-    const { headers, dataRows } = this.buildResultsSheetData(
-      responses,
-      questions,
-      options
-    );
+    const gradeFn = options?.gradeFn ?? gradeAnswer;
+    const { headers, dataRows } = buildResultsSheetDataShared<
+      QuizQuestion,
+      QuizResponse
+    >(responses, questions, gradeFn, options);
 
     // PLC mode: append to existing shared sheet
     if (options?.plcMode) {
@@ -752,7 +680,7 @@ export class QuizDriveService {
         if (!q) continue;
 
         answeredSet.add(a.questionId);
-        if (gradeAnswer(q, a.answer).isCorrect) {
+        if (gradeFn(q, a.answer).isCorrect) {
           correctSet.add(a.questionId);
         }
       }
