@@ -52,7 +52,7 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
-import { useQuiz } from '@/hooks/useQuiz';
+import { SyncedQuizVersionConflictError, useQuiz } from '@/hooks/useQuiz';
 import {
   callJoinPlcQuizSyncGroup,
   callLeaveSyncedQuizGroup,
@@ -104,6 +104,7 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
     deleteQuiz,
     attachSyncLinkage,
     loadQuizData,
+    pullSyncedQuiz,
     isDriveConnected,
   } = useQuiz(user?.uid);
 
@@ -113,10 +114,11 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
   // user's personal copy (auto-imported via Sync if missing). Saving
   // calls `saveQuiz` which auto-publishes to the synced group via the
   // existing LWW infrastructure, so teammates' synced copies update too.
+  // We hold the full QuizMetadata so a peer-publish conflict on save can
+  // auto-pull the canonical via `pullSyncedQuiz(meta)`.
   const [editing, setEditing] = useState<{
     quiz: QuizData;
-    quizMetaId: string;
-    driveFileId: string;
+    meta: QuizMetadata;
   } | null>(null);
 
   // Map of syncGroupId → personal quiz metadata that already carries this
@@ -347,8 +349,7 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
         const quizData = await loadQuizData(personalMeta.driveFileId);
         setEditing({
           quiz: quizData,
-          quizMetaId: personalMeta.id,
-          driveFileId: personalMeta.driveFileId,
+          meta: personalMeta,
         });
         if (autoImported) {
           addToast(
@@ -417,15 +418,45 @@ export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
   const handleSaveEdit = useCallback(
     async (updated: QuizData) => {
       if (!editing) return;
-      await saveQuiz(updated, editing.driveFileId);
-      addToast(
-        t('plcDashboard.quizLibrary.editSaved', {
-          defaultValue: 'Quiz saved — teammates will sync on next refresh.',
-        }),
-        'success'
-      );
+      try {
+        await saveQuiz(updated, editing.meta.driveFileId);
+        addToast(
+          t('plcDashboard.quizLibrary.editSaved', {
+            defaultValue: 'Quiz saved — teammates will sync on next refresh.',
+          }),
+          'success'
+        );
+      } catch (err) {
+        // Mirrors `Widget.tsx` onSave (lines 1793-1822): a peer publish
+        // landed between the editor opening and Save being clicked. Auto-
+        // pull the canonical so the local Drive replica is coherent and
+        // close the editor — the pull-affordance pill is unreachable
+        // behind the modal, so leaving the modal open would strand the
+        // user. Their unsaved edits ARE lost; toast tells them so.
+        if (err instanceof SyncedQuizVersionConflictError) {
+          try {
+            await pullSyncedQuiz(editing.meta);
+          } catch (pullErr) {
+            logError('PlcQuizLibraryTab.handleSaveEdit.autoPull', pullErr, {
+              plcId: plc.id,
+              quizId: editing.meta.id,
+              syncGroupId: editing.meta.sync?.groupId ?? null,
+            });
+          }
+          setEditing(null);
+          addToast(
+            t('plcDashboard.quizLibrary.editConflict', {
+              defaultValue:
+                'Another teacher published an update to this quiz. We pulled their changes; your unsaved edits were not saved. Reopen the quiz to re-apply.',
+            }),
+            'warning'
+          );
+          return;
+        }
+        throw err;
+      }
     },
-    [addToast, editing, saveQuiz, t]
+    [addToast, editing, plc.id, pullSyncedQuiz, saveQuiz, t]
   );
 
   const handleUnshare = useCallback(
