@@ -27,6 +27,10 @@ export { resetOrganizationUserPassword } from './organizationResetPassword';
 export { getOrgUserActivity } from './organizationUserActivity';
 export { plcInvitationEmail } from './plcInviteEmails';
 export { joinSyncedQuizGroup, leaveSyncedQuizGroup } from './syncedQuizGroups';
+export {
+  joinSyncedVideoActivityGroup,
+  leaveSyncedVideoActivityGroup,
+} from './syncedVideoActivityGroups';
 
 setGlobalOptions({ region: 'us-central1' });
 

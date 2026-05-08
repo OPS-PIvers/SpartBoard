@@ -33,6 +33,7 @@ import {
   PlayCircle,
   Plus,
   RotateCcw,
+  Share2,
   Trash2,
 } from 'lucide-react';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
@@ -159,6 +160,14 @@ export interface VideoActivityManagerProps {
   onArchiveReactivate?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveDelete?: (assignment: VideoActivityAssignment) => Promise<void>;
   onArchiveResults?: (assignment: VideoActivityAssignment) => void;
+  /**
+   * PR3 PLC sharing — invoked when the teacher picks "Share with PLC" on an
+   * assignment's kebab menu. Implementation lives in `Widget.tsx` and calls
+   * `useVideoActivityAssignments.shareAssignment` after hydrating the
+   * activity from Drive. The handler is responsible for copying the
+   * resulting share URL to the clipboard and surfacing toasts.
+   */
+  onArchiveShare?: (assignment: VideoActivityAssignment) => Promise<void>;
   /**
    * Open the live teacher monitor for an active assignment. Surfaced as the
    * In Progress tab's primary CTA when wired; mirrors the Quiz manager.
@@ -386,6 +395,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveReactivate,
   onArchiveDelete,
   onArchiveResults,
+  onArchiveShare,
   onArchiveMonitor,
   initialLibraryViewMode,
   onLibraryViewModeChange,
@@ -963,6 +973,18 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
           },
         });
       }
+      // PR3 PLC sharing — only meaningful on submission assignments where
+      // peer teachers can collect parallel responses to the same activity.
+      if (onArchiveShare && !assignmentIsViewOnly) {
+        actions.push({
+          id: 'share-with-plc',
+          label: 'Share with PLC',
+          icon: Share2,
+          onClick: () => {
+            void onArchiveShare(assignment);
+          },
+        });
+      }
     }
 
     // Reactivate is view-only-only, archive-only — flips status back to
@@ -1302,7 +1324,7 @@ function buildDefaultPolicyOptions(): VideoActivitySessionOptions {
     attemptLimit: 1,
     rewindOnIncorrectSeconds: 0,
     pointPenaltyOnIncorrect: 0,
-    scoreVisibility: 'score_only',
+    scoreVisibility: 'score-only',
   };
 }
 
@@ -1326,17 +1348,17 @@ const SCORE_VISIBILITY_OPTIONS: {
     hint: "Students see 'Submitted' only — no score.",
   },
   {
-    value: 'score_only',
+    value: 'score-only',
     label: 'Score',
     hint: 'Students see their final score, no per-question detail.',
   },
   {
-    value: 'score_and_responses',
+    value: 'score-and-responses',
     label: 'Score + responses',
     hint: 'Students see their score and which questions they got right/wrong.',
   },
   {
-    value: 'score_responses_and_answers',
+    value: 'score-responses-and-answers',
     label: 'Full review',
     hint: 'Students see their score, right/wrong, and the correct answers.',
   },
@@ -1359,7 +1381,7 @@ const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
   const rewind = options.rewindOnIncorrectSeconds ?? 0;
   const penalty = options.pointPenaltyOnIncorrect ?? 0;
   const visibility: VideoActivityScoreVisibility =
-    options.scoreVisibility ?? 'score_only';
+    options.scoreVisibility ?? 'score-only';
 
   return (
     <div className="space-y-3 pt-1">
