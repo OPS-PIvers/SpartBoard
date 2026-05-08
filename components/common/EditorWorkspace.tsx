@@ -32,6 +32,12 @@ interface EditorWorkspaceProps {
   contextPaneClassName?: string;
   /** Optional className for the detail pane wrapper (background, padding). */
   detailPaneClassName?: string;
+  /**
+   * Optional content rendered absolutely over both panes — for editor-scoped
+   * overlays like an AI generator prompt that should cover the workspace
+   * but not the modal chrome (header/footer).
+   */
+  overlay?: React.ReactNode;
 }
 
 /**
@@ -52,6 +58,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
   contextPaneClassName = 'bg-slate-50 border-r border-slate-200',
   detailPaneClassName = 'bg-white',
   className = 'h-[85vh]',
+  overlay,
   ...shellProps
 }) => {
   const ctxFr = Math.max(1, Math.min(99, contextRatio));
@@ -61,7 +68,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
     <EditorModalShell
       {...shellProps}
       className={className}
-      bodyClassName="!p-0 !overflow-hidden"
+      bodyClassName="!p-0 !overflow-hidden relative"
     >
       <div
         className="grid h-full w-full"
@@ -80,6 +87,7 @@ export const EditorWorkspace: React.FC<EditorWorkspaceProps> = ({
           {detailPane}
         </div>
       </div>
+      {overlay}
     </EditorModalShell>
   );
 };
