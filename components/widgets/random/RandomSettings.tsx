@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { WidgetData, RandomConfig, RandomGroup, StationsConfig } from '@/types';
@@ -28,6 +29,7 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
+  const { t } = useTranslation();
   const { updateWidget, activeDashboard, rosters, activeRosterId, addToast } =
     useDashboard();
   const { showConfirm } = useDialog();
@@ -386,7 +388,11 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
           <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
             <Hash className="w-3 h-3" />{' '}
-            {mode === 'jigsaw' ? 'Home Group Size' : 'Group Size'}
+            {mode === 'jigsaw'
+              ? t('widgets.random.homeGroupSize', {
+                  defaultValue: 'Home Group Size',
+                })
+              : t('widgets.random.groupSize', { defaultValue: 'Group Size' })}
           </label>
           <div className="flex items-center gap-4">
             <input

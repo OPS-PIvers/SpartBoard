@@ -378,7 +378,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       try {
         await ctx.resume();
       } catch (e) {
-        console.error('Audio resume failed', e);
+        logError('RandomWidget.audioResume', e, { widgetId: widget.id });
       }
     }
 
@@ -463,7 +463,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }
       } catch (err) {
-        console.error('Randomizer Sync Error:', err);
+        logError('RandomWidget.pickSync', err, { widgetId: widget.id });
       }
     };
 
@@ -578,6 +578,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           homeGroups = makeNameGroups(students, groupSize);
         }
         const expertGroups = makeJigsawExpertGroups(homeGroups);
+
+        // With < 2 home groups, "expert groups" degenerate into 1-person
+        // singletons (each has nobody to compare notes with). Surface a toast
+        // so the teacher knows to lower the group size.
+        if (homeGroups.length < 2) {
+          addToast(
+            t('widgets.random.jigsawNeedsMultipleGroups', {
+              defaultValue:
+                'Jigsaw needs at least 2 home groups — lower the group size or add more students.',
+            }),
+            'warning'
+          );
+        }
 
         setDisplayResult(homeGroups);
         if (soundEnabled) playWinner();

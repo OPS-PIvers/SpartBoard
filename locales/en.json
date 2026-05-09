@@ -642,6 +642,9 @@
       "launchJigsawHint": "Show expert groups",
       "launchHomeGroup": "Launch Home Group",
       "launchHomeGroupHint": "Return to home groups",
+      "groupSize": "Group Size",
+      "homeGroupSize": "Home Group Size",
+      "jigsawNeedsMultipleGroups": "Jigsaw needs at least 2 home groups — lower the group size or add more students.",
       "absent": {
         "buttonLabel": "Mark absent students",
         "ariaLabel": "Open attendance — {{count}} marked absent today",
