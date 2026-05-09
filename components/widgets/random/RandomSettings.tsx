@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { WidgetData, RandomConfig, RandomGroup, StationsConfig } from '@/types';
@@ -20,6 +21,7 @@ import {
   Clock,
   RefreshCw,
   Send,
+  Puzzle,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -27,6 +29,7 @@ import { SettingsLabel } from '@/components/common/SettingsLabel';
 export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
+  const { t } = useTranslation();
   const { updateWidget, activeDashboard, rosters, activeRosterId, addToast } =
     useDashboard();
   const { showConfirm } = useDialog();
@@ -133,12 +136,14 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     firstNames = '',
     lastNames = '',
     mode = 'single',
-    groupSize = 3,
+    groupSize: configGroupSize,
     soundEnabled = true,
     rosterMode = 'class',
     autoStartTimer = false,
     visualStyle = 'flash',
   } = config;
+  // Mirror RandomWidget: jigsaw defaults to 4, others to 3, explicit choice wins.
+  const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
 
   const [localFirstNames, setLocalFirstNames] = useState(firstNames);
   const [localLastNames, setLocalLastNames] = useState(lastNames);
@@ -205,6 +210,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     { id: 'single', label: 'Pick One', icon: UserPlus },
     { id: 'shuffle', label: 'Shuffle', icon: Layers },
     { id: 'groups', label: 'Groups', icon: Users },
+    { id: 'jigsaw', label: 'Jigsaw', icon: Puzzle },
   ];
 
   const styles = [
@@ -320,13 +326,20 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block">
           Operation Mode
         </label>
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {modes.map((m) => (
             <button
               key={m.id}
               onClick={() =>
                 updateWidget(widget.id, {
-                  config: { ...config, mode: m.id, lastResult: null },
+                  config: {
+                    ...config,
+                    mode: m.id,
+                    lastResult: null,
+                    jigsawHomeGroups: null,
+                    jigsawExpertGroups: null,
+                    jigsawView: 'home',
+                  },
                 })
               }
               className={`flex flex-col items-center gap-1.5 p-3 rounded-2xl border-2 transition-all ${
@@ -373,10 +386,15 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       )}
 
-      {mode === 'groups' && (
+      {(mode === 'groups' || mode === 'jigsaw') && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
           <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <Hash className="w-3 h-3" /> Group Size
+            <Hash className="w-3 h-3" />{' '}
+            {mode === 'jigsaw'
+              ? t('widgets.random.homeGroupSize', {
+                  defaultValue: 'Home Group Size',
+                })
+              : t('widgets.random.groupSize', { defaultValue: 'Group Size' })}
           </label>
           <div className="flex items-center gap-4">
             <input
