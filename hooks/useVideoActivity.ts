@@ -75,11 +75,11 @@ export const useVideoActivity = (
   // Real-time listener for activity metadata from Firestore
   useEffect(() => {
     if (!userId) {
-      setTimeout(() => {
+      const tid = setTimeout(() => {
         setActivities([]);
         setLoading(false);
       }, 0);
-      return;
+      return () => clearTimeout(tid);
     }
 
     const q = query(

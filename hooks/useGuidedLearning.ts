@@ -65,11 +65,11 @@ export const useGuidedLearning = (
   // Real-time listener for personal set metadata
   useEffect(() => {
     if (!userId) {
-      setTimeout(() => {
+      const tid = setTimeout(() => {
         setSets([]);
         setLoading(false);
       }, 0);
-      return;
+      return () => clearTimeout(tid);
     }
 
     const q = query(

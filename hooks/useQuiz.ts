@@ -118,11 +118,11 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   // Real-time listener for quiz metadata from Firestore
   useEffect(() => {
     if (!userId) {
-      setTimeout(() => {
+      const tid = setTimeout(() => {
         setQuizzes([]);
         setLoading(false);
       }, 0);
-      return;
+      return () => clearTimeout(tid);
     }
 
     const q = query(

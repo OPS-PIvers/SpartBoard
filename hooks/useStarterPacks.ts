@@ -15,15 +15,15 @@ export function useStarterPacks(userId?: string | null) {
 
   useEffect(() => {
     if (isAuthBypass) {
-      setTimeout(() => {
+      const tid = setTimeout(() => {
         setPublicPacks([]);
         setUserPacks([]);
         setLoading(false);
       }, 0);
-      return;
+      return () => clearTimeout(tid);
     }
 
-    setTimeout(() => setLoading(true), 0);
+    const loadingTid = setTimeout(() => setLoading(true), 0);
 
     let isPublicLoaded = false;
     let isUserLoaded = !userId;
@@ -89,11 +89,16 @@ export function useStarterPacks(userId?: string | null) {
           checkLoading();
         }
       );
-    } else {
-      setTimeout(() => setUserPacks([]), 0);
+    }
+
+    let userPacksTid: ReturnType<typeof setTimeout> | undefined;
+    if (!userId) {
+      userPacksTid = setTimeout(() => setUserPacks([]), 0);
     }
 
     return () => {
+      clearTimeout(loadingTid);
+      if (userPacksTid !== undefined) clearTimeout(userPacksTid);
       unsubPublic();
       if (unsubUser) unsubUser();
     };
