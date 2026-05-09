@@ -369,6 +369,36 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
+  // Collect this widget's prior-pick RandomGroup IDs so we can drop them
+  // from dashboard.sharedGroups before adding the new ones — otherwise the
+  // collection grows unboundedly across re-picks. Downstream consumers
+  // (e.g. ScoreboardTeam.linkedGroupId) keep their own name field, so
+  // dropping the link gracefully degrades to "name only" rather than
+  // erroring.
+  const collectPriorGroupIds = (): Set<string> => {
+    const ids = new Set<string>();
+    const fields: unknown[] = [
+      config.lastResult,
+      config.jigsawHomeGroups,
+      config.jigsawExpertGroups,
+    ];
+    for (const field of fields) {
+      if (!Array.isArray(field)) continue;
+      for (const item of field) {
+        if (
+          item &&
+          typeof item === 'object' &&
+          'id' in item &&
+          typeof (item as RandomGroup).id === 'string' &&
+          (item as RandomGroup).id
+        ) {
+          ids.add((item as RandomGroup).id as string);
+        }
+      }
+    }
+    return ids;
+  };
+
   const handlePick = async () => {
     if (students.length === 0) return;
 
@@ -420,12 +450,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }));
 
           const existing = activeDashboard?.sharedGroups ?? [];
+          const dropIds = collectPriorGroupIds();
+          const filtered = dropIds.size
+            ? existing.filter((g) => !dropIds.has(g.id))
+            : existing;
           const uniqueNew = newSharedGroups.filter(
-            (n) => !existing.some((e) => e.id === n.id)
+            (n) => n.id && !filtered.some((e) => e.id === n.id)
           );
 
-          if (uniqueNew.length > 0) {
-            updateDashboard({ sharedGroups: [...existing, ...uniqueNew] });
+          if (uniqueNew.length > 0 || filtered.length !== existing.length) {
+            updateDashboard({ sharedGroups: [...filtered, ...uniqueNew] });
           }
         }
 
@@ -606,11 +640,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             name: `Expert Group ${i + 1}`,
           }));
           const existing = activeDashboard?.sharedGroups ?? [];
+          const dropIds = collectPriorGroupIds();
+          const filtered = dropIds.size
+            ? existing.filter((g) => !dropIds.has(g.id))
+            : existing;
           const uniqueNew = [...newHomeShared, ...newExpertShared].filter(
-            (n) => n.id && !existing.some((e) => e.id === n.id)
+            (n) => n.id && !filtered.some((e) => e.id === n.id)
           );
-          if (uniqueNew.length > 0) {
-            updateDashboard({ sharedGroups: [...existing, ...uniqueNew] });
+          if (uniqueNew.length > 0 || filtered.length !== existing.length) {
+            updateDashboard({ sharedGroups: [...filtered, ...uniqueNew] });
           }
 
           updateWidget(widget.id, {
@@ -1141,12 +1179,27 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               shape="pill"
               onClick={handlePick}
               disabled={isSpinning}
-              className="flex-1"
-              style={{
-                height: 'clamp(40px, 10cqmin, 72px)',
-                paddingLeft: 'clamp(16px, 4cqmin, 40px)',
-                paddingRight: 'clamp(16px, 4cqmin, 40px)',
-              }}
+              className={
+                mode === 'jigsaw' && hasJigsawGroups
+                  ? 'flex-shrink-0'
+                  : 'flex-1'
+              }
+              style={
+                mode === 'jigsaw' && hasJigsawGroups
+                  ? {
+                      // Jigsaw shows two large Launch buttons already; collapse
+                      // Randomize to a square icon-only button so the footer
+                      // doesn't cram three flex-1 children at narrow widths.
+                      width: 'clamp(40px, 10cqmin, 72px)',
+                      height: 'clamp(40px, 10cqmin, 72px)',
+                      padding: 0,
+                    }
+                  : {
+                      height: 'clamp(40px, 10cqmin, 72px)',
+                      paddingLeft: 'clamp(16px, 4cqmin, 40px)',
+                      paddingRight: 'clamp(16px, 4cqmin, 40px)',
+                    }
+              }
               aria-label={isSpinning ? 'Picking' : 'Randomize'}
               title={isSpinning ? 'Picking...' : 'Randomize'}
               icon={
