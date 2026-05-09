@@ -592,7 +592,12 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       e.target instanceof Element
         ? e.target
         : ((e.target as Node).parentElement ?? null);
-    return Boolean(target?.closest('[role="dialog"]'));
+    // Match both `role="dialog"` (modals, sheets) and `role="menu"`
+    // (popovers, dropdowns rendered via portals such as the GL editor's
+    // SettingChip menus). Without `role="menu"`, every popover option
+    // selection would re-trigger `bringToFront` on the host widget and
+    // start the touch long-press screenshot timer.
+    return Boolean(target?.closest('[role="dialog"], [role="menu"]'));
   };
 
   const handlePointerDown = (e: React.PointerEvent) => {

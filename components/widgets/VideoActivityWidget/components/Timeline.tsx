@@ -57,6 +57,15 @@ export interface TimelineProps {
   activeQuestionId?: string;
 }
 
+/**
+ * Maximum re-attempts for the YT player init when the placeholder div
+ * hasn't yet been committed to the DOM. Each retry waits 50ms, so the
+ * worst-case wall-clock cost is ~250ms — generous enough for normal
+ * mount races but bounded so a permanently-missing element can't pin the
+ * effect in a setTimeout/setState loop.
+ */
+const MAX_PLAYER_INIT_RETRIES = 5;
+
 /** Format seconds as M:SS or H:MM:SS for the playhead label. */
 function formatHms(seconds: number): string {
   const safe = Math.max(0, Math.floor(seconds));
@@ -174,6 +183,12 @@ export const Timeline: React.FC<TimelineProps> = ({
         // chance once React commits the placeholder div. Without this
         // retry, racing the YT API against React mount could leave the
         // user stuck on the "Loading player…" placeholder forever.
+        // Cap the retry count so a permanently-missing placeholder (DOM
+        // teardown, exotic mount conditions) can't pin us in a 50ms
+        // setTimeout / setState / re-effect storm. After the cap, give up
+        // gracefully — the placeholder div renders the "Loading player…"
+        // copy as a visible terminal state.
+        if (initRetryToken >= MAX_PLAYER_INIT_RETRIES) return;
         window.setTimeout(() => {
           if (!cancelled) setInitRetryToken((n) => n + 1);
         }, 50);

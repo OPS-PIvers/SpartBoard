@@ -45,6 +45,26 @@ describe('gradeVideoActivityAnswer — MC', () => {
     );
     expect(result).toEqual({ isCorrect: false, pointsEarned: 0, pointsMax: 5 });
   });
+
+  it('fails closed when correctAnswer is empty (un-authored stub)', () => {
+    // A blank `correctAnswer` is a misconfigured question. Without the
+    // guard, an empty student submission would normalize to '' and grade
+    // as correct, awarding undeserved points.
+    const blankSubmission = gradeVideoActivityAnswer(
+      q({ type: 'MC', correctAnswer: '', points: 3 }),
+      ''
+    );
+    expect(blankSubmission).toEqual({
+      isCorrect: false,
+      pointsEarned: 0,
+      pointsMax: 3,
+    });
+    const realSubmission = gradeVideoActivityAnswer(
+      q({ type: 'MC', correctAnswer: '', points: 3 }),
+      'Mars'
+    );
+    expect(realSubmission.isCorrect).toBe(false);
+  });
 });
 
 describe('gradeVideoActivityAnswer — FIB', () => {
@@ -86,6 +106,14 @@ describe('gradeVideoActivityAnswer — FIB', () => {
       'photosynthesis'
     );
     expect(result.isCorrect).toBe(true);
+  });
+
+  it('fails closed when canonical and variants are all blank', () => {
+    const result = gradeVideoActivityAnswer(
+      q({ type: 'FIB', correctAnswer: '', acceptableVariants: ['', '   '] }),
+      ''
+    );
+    expect(result).toEqual({ isCorrect: false, pointsEarned: 0, pointsMax: 1 });
   });
 });
 
