@@ -265,7 +265,22 @@ export function useVideoActivityEditorState({
    */
   const reorderQuestions = useCallback(
     (next: VideoActivityQuestion[]) => {
-      setQuestions(() => {
+      // Identify the moved question by largest absolute index delta.
+      // Tiebreakers (e.g. swap-of-two) resolve to the item whose new index
+      // moved later in the list, which matches the typical drag intent.
+      let movedId = '';
+      setQuestions((prev) => {
+        let maxDelta = -1;
+        for (let i = 0; i < next.length; i++) {
+          const oldIndex = prev.findIndex((q) => q.id === next[i].id);
+          if (oldIndex < 0) continue;
+          const delta = Math.abs(oldIndex - i);
+          if (delta > maxDelta) {
+            maxDelta = delta;
+            movedId = next[i].id;
+          }
+        }
+
         const adjusted: VideoActivityQuestion[] = [];
         for (let i = 0; i < next.length; i++) {
           const q = next[i];
@@ -284,9 +299,24 @@ export function useVideoActivityEditorState({
           }
           adjusted.push({ ...q, timestamp: ts });
         }
+        // Final monotonicity pass: when neighbors leave no integer room
+        // (e.g. prev=5, following=6) the +1 fallback above can equal
+        // followingTs, producing a duplicate. Bump any non-strictly-
+        // increasing timestamp by 1 — the cascade always resolves
+        // because Firestore `orderBy('timestamp')` requires unique-ish
+        // values for stable ordering, and the array's last item has no
+        // hard upper bound.
+        for (let i = 1; i < adjusted.length; i++) {
+          if (adjusted[i].timestamp <= adjusted[i - 1].timestamp) {
+            adjusted[i] = {
+              ...adjusted[i],
+              timestamp: adjusted[i - 1].timestamp + 1,
+            };
+          }
+        }
         // Sync the visible MM:SS inputs.
-        setTimestampInputs((prev) => {
-          const out = { ...prev };
+        setTimestampInputs((tsPrev) => {
+          const out = { ...tsPrev };
           adjusted.forEach((q) => {
             out[q.id] = secondsToMmSs(q.timestamp);
           });
@@ -294,7 +324,7 @@ export function useVideoActivityEditorState({
         });
         return adjusted;
       });
-      flashReorderHint(next[next.length - 1]?.id ?? '');
+      flashReorderHint(movedId || next[next.length - 1]?.id || '');
     },
     [flashReorderHint]
   );
