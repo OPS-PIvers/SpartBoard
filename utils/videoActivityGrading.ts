@@ -28,9 +28,7 @@ import { normalizeAnswer as quizNormalizeAnswer } from '@/hooks/useQuizSession';
  * pair-equality behavior unchanged.
  */
 function normalizeAnswer(s: string): string {
-  return quizNormalizeAnswer(s)
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '');
+  return quizNormalizeAnswer(s).normalize('NFD').replace(/[̀-ͯ]/g, '');
 }
 
 /**
