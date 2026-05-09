@@ -69,18 +69,24 @@ export const useVideoActivity = (
   const { googleAccessToken } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [activities, setActivities] = useState<VideoActivityMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!userId);
   const [error, setError] = useState<string | null>(null);
+  const [prevUserId, setPrevUserId] = useState(userId);
+
+  // Adjusting-state-while-rendering: synchronously reset on userId transitions.
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    if (!userId) {
+      setActivities([]);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
 
   // Real-time listener for activity metadata from Firestore
   useEffect(() => {
-    if (!userId) {
-      setTimeout(() => {
-        setActivities([]);
-        setLoading(false);
-      }, 0);
-      return;
-    }
+    if (!userId) return;
 
     const q = query(
       collection(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION),
