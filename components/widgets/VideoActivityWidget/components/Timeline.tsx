@@ -81,6 +81,14 @@ export const Timeline: React.FC<TimelineProps> = ({
   const playerRef = useRef<YTPlayer | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const [duration, setDuration] = useState(0);
+  // Mirror `duration` into a ref so long-lived event handlers (the marker
+  // drag pointermove, in particular) can read the current value without
+  // capturing it in their pointer-down closure. Without this, a marker
+  // drag started before the YT player reports its duration would compute
+  // every drop position against `duration = 0`.
+  const durationRef = useRef(0);
+  // eslint-disable-next-line react-hooks/refs
+  durationRef.current = duration;
   const [playhead, setPlayhead] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
   /** Per-marker drag overlay: id → seconds being previewed. Cleared on pointer-up. */
@@ -96,6 +104,10 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [playerElementId] = useState(
     () => `va-timeline-player-${crypto.randomUUID().slice(0, 8)}`
   );
+  // Bumped when the player-init effect bails because the placeholder
+  // element hasn't been committed yet. Listed in the effect deps so the
+  // bump retriggers the same effect cleanly.
+  const [initRetryToken, setInitRetryToken] = useState(0);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current != null) {
@@ -157,8 +169,14 @@ export const Timeline: React.FC<TimelineProps> = ({
       // because manual createElement() can race React's reconciliation when
       // the component re-renders.
       if (!document.getElementById(playerElementId)) {
-        // JSX hasn't flushed yet on this render; bail and let the next
-        // videoId-effect tick recreate the player.
+        // JSX hasn't flushed yet on this render. Bumping `initRetryToken`
+        // re-triggers this effect on the next tick so we get a second
+        // chance once React commits the placeholder div. Without this
+        // retry, racing the YT API against React mount could leave the
+        // user stuck on the "Loading player…" placeholder forever.
+        window.setTimeout(() => {
+          if (!cancelled) setInitRetryToken((n) => n + 1);
+        }, 50);
         return;
       }
       playerRef.current = new window.YT.Player(playerElementId, {
@@ -207,7 +225,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       cancelled = true;
       teardown();
     };
-  }, [videoId, playerElementId, startPolling, stopPolling]);
+  }, [videoId, playerElementId, startPolling, stopPolling, initRetryToken]);
 
   // Render markers and playhead.
   const safeDuration = duration > 0 ? duration : 1;
@@ -315,11 +333,12 @@ export const Timeline: React.FC<TimelineProps> = ({
               let lastSec = q.timestamp;
 
               const computeSec = (clientX: number) => {
-                if (!trackEl || duration <= 0) return q.timestamp;
+                const liveDuration = durationRef.current;
+                if (!trackEl || liveDuration <= 0) return q.timestamp;
                 const rect = trackEl.getBoundingClientRect();
                 const ratio = (clientX - rect.left) / rect.width;
                 const clamped = Math.max(0, Math.min(1, ratio));
-                return Math.round(clamped * duration);
+                return Math.round(clamped * liveDuration);
               };
 
               const onMoveEvt = (ev: PointerEvent) => {

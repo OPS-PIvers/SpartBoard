@@ -56,7 +56,7 @@ export interface VideoActivityEditorController {
   addQuestion: () => void;
   addQuestionAtTime: (seconds: number) => void;
   deleteQuestion: (id: string) => void;
-  reorderQuestions: (next: VideoActivityQuestion[]) => void;
+  reorderQuestions: (next: VideoActivityQuestion[], movedId?: string) => void;
   /** Recently-reordered question id (for a transient inline hint). null when no hint shown. */
   reorderHintFor: string | null;
   // AI generation
@@ -261,23 +261,33 @@ export function useVideoActivityEditorState({
    * Apply a SortableList reorder by recomputing each question's timestamp
    * to the midpoint of its new neighbors. Falls back to a +1s nudge if
    * neighbors are equal or missing. The list itself stays in the dropped
-   * order so the visual position matches what the user moved.
+   * order so the visual position matches what the user moved. After the
+   * midpoint pass we run a final monotonic sweep so adjacent items can
+   * never collide on the same second (e.g. when neighbours are 5s and 6s,
+   * the midpoint floors to 5 and would otherwise duplicate the previous
+   * timestamp). When `movedId` is supplied (from SortableList) we flash the
+   * hint on that exact row instead of guessing the last item.
    */
   const reorderQuestions = useCallback(
-    (next: VideoActivityQuestion[]) => {
-      // Identify the moved question by largest absolute index delta.
-      // Tiebreakers (e.g. swap-of-two) resolve to the item whose new index
-      // moved later in the list, which matches the typical drag intent.
-      let movedId = '';
+    (next: VideoActivityQuestion[], movedId?: string) => {
+      // When the caller (SortableList) hands us the dragged id, use it
+      // verbatim — that's the authoritative source. Otherwise (any future
+      // caller that bypasses the SortableList API), recover the moved
+      // question by largest absolute index delta. Tiebreakers (e.g. a
+      // swap-of-two) resolve to the item whose new index moved later in
+      // the list, which matches typical drag intent.
+      let resolvedMovedId = movedId ?? '';
       setQuestions((prev) => {
-        let maxDelta = -1;
-        for (let i = 0; i < next.length; i++) {
-          const oldIndex = prev.findIndex((q) => q.id === next[i].id);
-          if (oldIndex < 0) continue;
-          const delta = Math.abs(oldIndex - i);
-          if (delta > maxDelta) {
-            maxDelta = delta;
-            movedId = next[i].id;
+        if (!resolvedMovedId) {
+          let maxDelta = -1;
+          for (let i = 0; i < next.length; i++) {
+            const oldIndex = prev.findIndex((q) => q.id === next[i].id);
+            if (oldIndex < 0) continue;
+            const delta = Math.abs(oldIndex - i);
+            if (delta > maxDelta) {
+              maxDelta = delta;
+              resolvedMovedId = next[i].id;
+            }
           }
         }
 
@@ -302,10 +312,8 @@ export function useVideoActivityEditorState({
         // Final monotonicity pass: when neighbors leave no integer room
         // (e.g. prev=5, following=6) the +1 fallback above can equal
         // followingTs, producing a duplicate. Bump any non-strictly-
-        // increasing timestamp by 1 — the cascade always resolves
-        // because Firestore `orderBy('timestamp')` requires unique-ish
-        // values for stable ordering, and the array's last item has no
-        // hard upper bound.
+        // increasing timestamp by 1 — the cascade always resolves because
+        // the array's last item has no hard upper bound.
         for (let i = 1; i < adjusted.length; i++) {
           if (adjusted[i].timestamp <= adjusted[i - 1].timestamp) {
             adjusted[i] = {
@@ -324,7 +332,8 @@ export function useVideoActivityEditorState({
         });
         return adjusted;
       });
-      flashReorderHint(movedId || next[next.length - 1]?.id || '');
+      const hintId = resolvedMovedId || next[next.length - 1]?.id;
+      if (hintId) flashReorderHint(hintId);
     },
     [flashReorderHint]
   );
