@@ -448,25 +448,42 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   const sessionIdRef = useRef(session.id);
   sessionIdRef.current = session.id;
 
-  const requestScoreReveal = useCallback(async () => {
-    if (scoreRevealApproved) return true;
+  // Share the in-flight reveal prompt across concurrent callers. Both
+  // `handleToggleColors` and `handleCycleScoreDisplay` can call
+  // `requestScoreReveal`, and rapid clicks would otherwise stack two
+  // confirm dialogs for the same approval. Returning the same Promise
+  // keeps the UX to a single dialog while letting both call sites await
+  // the answer.
+  const revealRequestRef = useRef<Promise<boolean> | null>(null);
+
+  const requestScoreReveal = useCallback((): Promise<boolean> => {
+    if (scoreRevealApproved) return Promise.resolve(true);
+    if (revealRequestRef.current) return revealRequestRef.current;
     // Capture the session this prompt belongs to. If the active session
     // changes mid-await, the resolution must NOT apply approval to the
     // fresh session — that would silently bypass the gate on a session
     // the teacher never agreed to reveal.
     const sessionAtRequest = sessionIdRef.current;
-    const ok = await showConfirm(
-      "Heads up — this monitor may be projected to the class. Confirm only if it's appropriate to display student performance on the current screen.",
-      {
-        title: 'Reveal student results?',
-        variant: 'warning',
-        confirmLabel: 'Yes, reveal',
-        cancelLabel: 'Keep hidden',
+    const inFlight = (async () => {
+      try {
+        const ok = await showConfirm(
+          "Heads up — this monitor may be projected to the class. Confirm only if it's appropriate to display student performance on the current screen.",
+          {
+            title: 'Reveal student results?',
+            variant: 'warning',
+            confirmLabel: 'Yes, reveal',
+            cancelLabel: 'Keep hidden',
+          }
+        );
+        if (sessionIdRef.current !== sessionAtRequest) return false;
+        if (ok) setScoreRevealApproved(true);
+        return ok;
+      } finally {
+        revealRequestRef.current = null;
       }
-    );
-    if (sessionIdRef.current !== sessionAtRequest) return false;
-    if (ok) setScoreRevealApproved(true);
-    return ok;
+    })();
+    revealRequestRef.current = inFlight;
+    return inFlight;
   }, [scoreRevealApproved, showConfirm]);
 
   // Single seam for the "preference write failed" pattern. Routes the error
@@ -569,6 +586,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     setPrevSessionId(session.id);
     lastLeaderboardFingerprintRef.current = null;
     hasClearedLeaderboardRef.current = false;
+    revealRequestRef.current = null;
     setScoreRevealApproved(false);
   }
 
