@@ -116,16 +116,24 @@ export function buildResultsSheetData<
       : '';
     const warnings = r.tabSwitchWarnings?.toString() ?? '0';
     const answerMap = new Map(r.answers.map((a) => [a.questionId, a]));
-    const answerCols = questions.map((q) => {
+    // Grade once per question per response, cached by question id. The
+    // previous shape called `gradeFn` twice (once for the answer column,
+    // once for the row sum) which doubled normalization/regex work on
+    // exports and is wasted effort even for cheap graders.
+    const grades = new Map<string, ReturnType<typeof gradeFn>>();
+    for (const q of questions) {
       const ans = answerMap.get(q.id);
-      if (!ans) return '';
-      const grade = gradeFn(q, ans.answer);
+      if (!ans) continue;
+      grades.set(q.id, gradeFn(q, ans.answer));
+    }
+    const answerCols = questions.map((q) => {
+      const grade = grades.get(q.id);
+      if (!grade) return '';
       return formatExportPoints(grade.pointsEarned);
     });
     const earnedPoints = questions.reduce((sum, q) => {
-      const ans = answerMap.get(q.id);
-      if (!ans) return sum;
-      return sum + gradeFn(q, ans.answer).pointsEarned;
+      const grade = grades.get(q.id);
+      return grade ? sum + grade.pointsEarned : sum;
     }, 0);
     const scoreDisplay =
       r.status === 'completed' && maxPoints > 0

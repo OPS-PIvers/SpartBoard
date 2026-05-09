@@ -102,6 +102,9 @@ export async function handleJoinSyncedVideoActivityGroup(
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {
         participants,
+        // updatedAt tracks any server-side touch; updatedBy is intentionally
+        // left at the last content-writer's uid so attribution doesn't
+        // flicker on membership changes. Mirrors `syncedQuizGroups.ts`.
         updatedAt: now,
       });
     }
