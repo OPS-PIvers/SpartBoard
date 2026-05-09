@@ -144,6 +144,7 @@ describe('SortableList', () => {
       { id: 'c', label: 'Charlie' },
       { id: 'a', label: 'Alpha' },
     ]);
+    expect(onReorder.mock.calls[0][1]).toBe('a');
   });
 
   it('does nothing when dropped over its own position', () => {
