@@ -152,6 +152,39 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setDisplayResult(normalizeLastResult(config.lastResult));
   }
 
+  // Local jigsaw groups state: render falls back to this when config hasn't
+  // round-tripped yet (the gap between setIsSpinning(false) and the Firestore
+  // listener replay) or when updateWidget is a no-op (e.g. view-only board).
+  // Without it the UI stays empty after a Pick on view-only boards because
+  // the jigsaw render reads exclusively from config.
+  const [localJigsaw, setLocalJigsaw] = useState<{
+    home: RandomGroup[];
+    expert: RandomGroup[];
+  } | null>(() => {
+    const h = config.jigsawHomeGroups;
+    const e = config.jigsawExpertGroups;
+    if (Array.isArray(h) && h.length > 0) {
+      return { home: h, expert: Array.isArray(e) ? e : [] };
+    }
+    return null;
+  });
+
+  // Adjust localJigsaw when the config-side jigsaw groups change (mode swap,
+  // roster swap, manual reset). Reference equality is sufficient because
+  // updateWidget rewrites the array on every change.
+  const [prevJigsawHome, setPrevJigsawHome] = useState(jigsawHomeGroups);
+  if (jigsawHomeGroups !== prevJigsawHome) {
+    setPrevJigsawHome(jigsawHomeGroups);
+    if (Array.isArray(jigsawHomeGroups) && jigsawHomeGroups.length > 0) {
+      setLocalJigsaw({
+        home: jigsawHomeGroups,
+        expert: Array.isArray(jigsawExpertGroups) ? jigsawExpertGroups : [],
+      });
+    } else {
+      setLocalJigsaw(null);
+    }
+  }
+
   // Track active roster to only clear when it actually changes
   const lastRosterRef = useRef<{ id: string | null; mode: string }>({
     id: activeRosterId,
@@ -183,6 +216,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           jigsawView: 'home',
         };
         updateWidget(widget.id, { config: update as WidgetConfig });
+        setLocalJigsaw(null);
       }
     }
   }, [activeRosterId, widget.id, updateWidget, config, rosterMode]);
@@ -260,6 +294,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       jigsawView: 'home',
     };
     updateWidget(widget.id, { config: update as WidgetConfig });
+    setLocalJigsaw(null);
     setDisplayResult('');
     setRotation(0);
   };
@@ -283,6 +318,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       jigsawView: 'home',
     };
     updateWidget(widget.id, { config: update as WidgetConfig });
+    setLocalJigsaw(null);
   };
 
   const setJigsawView = (view: 'home' | 'expert') => {
@@ -292,8 +328,25 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
+  // Render-side jigsaw groups: prefer config (the source of truth that
+  // survives reload) but fall back to localJigsaw so the UI never goes blank
+  // between a Pick and the Firestore round-trip — and so view-only boards
+  // (where updateWidget is a no-op) still show the picked groups locally.
+  const renderedHomeGroups: RandomGroup[] | null =
+    (Array.isArray(jigsawHomeGroups) && jigsawHomeGroups.length > 0
+      ? jigsawHomeGroups
+      : null) ??
+    localJigsaw?.home ??
+    null;
+  const renderedExpertGroups: RandomGroup[] | null =
+    (Array.isArray(jigsawExpertGroups) && jigsawExpertGroups.length > 0
+      ? jigsawExpertGroups
+      : null) ??
+    localJigsaw?.expert ??
+    null;
   const hasJigsawGroups =
-    Array.isArray(jigsawHomeGroups) && jigsawHomeGroups.length > 0;
+    (renderedHomeGroups?.length ?? 0) > 0 ||
+    (renderedExpertGroups?.length ?? 0) > 0;
 
   const handleSendToScoreboard = () => {
     // 1. Normalize current groups from displayResult
@@ -626,6 +679,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           );
         }
 
+        setLocalJigsaw({ home: homeGroups, expert: expertGroups });
         setDisplayResult(homeGroups);
         if (soundEnabled) playWinner();
         setIsSpinning(false);
@@ -973,8 +1027,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <RandomGroups
                   displayResult={
                     jigsawView === 'expert'
-                      ? (jigsawExpertGroups ?? null)
-                      : (jigsawHomeGroups ?? null)
+                      ? renderedExpertGroups
+                      : renderedHomeGroups
                   }
                   sharedGroups={activeDashboard?.sharedGroups}
                   groupNamePrefix={
