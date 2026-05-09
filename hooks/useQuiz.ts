@@ -112,18 +112,24 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   const { googleAccessToken } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [quizzes, setQuizzes] = useState<QuizMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!userId);
   const [error, setError] = useState<string | null>(null);
+  const [prevUserId, setPrevUserId] = useState(userId);
+
+  // Adjusting-state-while-rendering: synchronously reset on userId transitions.
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    if (!userId) {
+      setQuizzes([]);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
 
   // Real-time listener for quiz metadata from Firestore
   useEffect(() => {
-    if (!userId) {
-      const tid = setTimeout(() => {
-        setQuizzes([]);
-        setLoading(false);
-      }, 0);
-      return () => clearTimeout(tid);
-    }
+    if (!userId) return;
 
     const q = query(
       collection(db, 'users', userId, QUIZZES_COLLECTION),
