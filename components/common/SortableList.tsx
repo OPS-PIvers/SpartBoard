@@ -37,10 +37,11 @@ interface SortableListProps<T> {
   /** Pull a stable id off an item. Required by @dnd-kit. */
   getId: (item: T) => string;
   /**
-   * Called with the reordered items array after a successful drag. Consumers
-   * persist the new order (state update, Firestore write, etc.).
+   * Called with the reordered items array after a successful drag. The
+   * second argument is the id of the item the user moved, so consumers can
+   * highlight that specific row (instead of guessing) when they care.
    */
-  onReorder: (next: T[]) => void;
+  onReorder: (next: T[], movedId: string) => void;
   /**
    * Render the row content. Spread `dragHandle.attributes` and
    * `dragHandle.listeners` on whichever element should act as the drag grip.
@@ -121,7 +122,7 @@ export function SortableList<T>({
     const oldIndex = ids.indexOf(String(active.id));
     const newIndex = ids.indexOf(String(over.id));
     if (oldIndex < 0 || newIndex < 0) return;
-    onReorder(arrayMove(items, oldIndex, newIndex));
+    onReorder(arrayMove(items, oldIndex, newIndex), String(active.id));
   };
 
   return (
