@@ -99,11 +99,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     rosterMode = 'class',
     autoStartTimer = false,
     visualStyle = 'flash',
-    groupSize = 3,
+    groupSize: configGroupSize,
     jigsawHomeGroups,
     jigsawExpertGroups,
     jigsawView = 'home',
   } = config;
+  // Classic jigsaw is "4 home groups of 4 → 4 expert groups of 4", so default
+  // to 4 in jigsaw mode when the user hasn't explicitly set a size. Other
+  // modes keep the historical default of 3. An explicit user choice always
+  // wins (slider writes config.groupSize, which short-circuits the fallback).
+  const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
 
   const remainingStudents = Array.isArray(config.remainingStudents)
     ? config.remainingStudents
@@ -170,15 +175,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         (config.jigsawExpertGroups?.length ?? 0) > 0;
       if (hasTransientState) {
         spinGenRef.current += 1;
-        updateWidget(widget.id, {
-          config: {
-            lastResult: null,
-            remainingStudents: [],
-            jigsawHomeGroups: null,
-            jigsawExpertGroups: null,
-            jigsawView: 'home',
-          } as unknown as WidgetConfig,
-        });
+        const update: Partial<RandomConfig> = {
+          lastResult: null,
+          remainingStudents: [],
+          jigsawHomeGroups: null,
+          jigsawExpertGroups: null,
+          jigsawView: 'home',
+        };
+        updateWidget(widget.id, { config: update as WidgetConfig });
       }
     }
   }, [activeRosterId, widget.id, updateWidget, config, rosterMode]);
@@ -248,15 +252,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const handleReset = () => {
     spinGenRef.current += 1;
-    updateWidget(widget.id, {
-      config: {
-        remainingStudents: [],
-        lastResult: null,
-        jigsawHomeGroups: null,
-        jigsawExpertGroups: null,
-        jigsawView: 'home',
-      } as unknown as WidgetConfig,
-    });
+    const update: Partial<RandomConfig> = {
+      remainingStudents: [],
+      lastResult: null,
+      jigsawHomeGroups: null,
+      jigsawExpertGroups: null,
+      jigsawView: 'home',
+    };
+    updateWidget(widget.id, { config: update as WidgetConfig });
     setDisplayResult('');
     setRotation(0);
   };
@@ -272,15 +275,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     const idx = MODE_CYCLE.findIndex((m) => m.id === mode);
     const next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
     spinGenRef.current += 1;
-    updateWidget(widget.id, {
-      config: {
-        mode: next.id,
-        lastResult: null,
-        jigsawHomeGroups: null,
-        jigsawExpertGroups: null,
-        jigsawView: 'home',
-      } as unknown as WidgetConfig,
-    });
+    const update: Partial<RandomConfig> = {
+      mode: next.id,
+      lastResult: null,
+      jigsawHomeGroups: null,
+      jigsawExpertGroups: null,
+      jigsawView: 'home',
+    };
+    updateWidget(widget.id, { config: update as WidgetConfig });
   };
 
   const setJigsawView = (view: 'home' | 'expert') => {
@@ -472,9 +474,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           updates.remainingStudents = remaining;
         }
 
-        updateWidget(widget.id, {
-          config: updates as unknown as WidgetConfig,
-        });
+        updateWidget(widget.id, { config: updates as WidgetConfig });
 
         // Nexus: Auto-Start Timer Logic
         if (autoStartTimer && activeDashboard && mode === 'single') {
@@ -651,14 +651,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             updateDashboard({ sharedGroups: [...filtered, ...uniqueNew] });
           }
 
-          updateWidget(widget.id, {
-            config: {
-              jigsawHomeGroups: homeGroups,
-              jigsawExpertGroups: expertGroups,
-              jigsawView: 'home',
-              lastResult: homeGroups,
-            } as unknown as WidgetConfig,
-          });
+          const update: Partial<RandomConfig> = {
+            jigsawHomeGroups: homeGroups,
+            jigsawExpertGroups: expertGroups,
+            jigsawView: 'home',
+            lastResult: homeGroups,
+          };
+          updateWidget(widget.id, { config: update as WidgetConfig });
         } catch (err) {
           logError('RandomWidget.jigsawSync', err, { widgetId: widget.id });
         }

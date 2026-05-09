@@ -63,6 +63,12 @@ export function makeRestrictedGroups(
  * Build expert groups for the Jigsaw cooperative-learning structure: take
  * position N from each home group and combine those students into expert
  * group N. Home groups can be uneven; missing positions are simply skipped.
+ *
+ * If the transpose produces a size-1 "expert group" (no peer to compare
+ * notes with) AND a larger expert group exists, merge the orphan into the
+ * smallest larger group so every expert has at least one peer. When every
+ * expert group is size 1 the caller's degenerate-jigsaw warning toast
+ * handles communication; we don't artificially merge in that case.
  */
 export function makeJigsawExpertGroups(
   homeGroups: RandomGroup[]
@@ -82,7 +88,16 @@ export function makeJigsawExpertGroups(
       expertGroups.push({ id: crypto.randomUUID(), names });
     }
   }
-  return expertGroups;
+
+  const balanced = expertGroups.filter((g) => g.names.length > 1);
+  const orphans = expertGroups.filter((g) => g.names.length === 1);
+  if (balanced.length === 0 || orphans.length === 0) return expertGroups;
+
+  for (const orphan of orphans) {
+    balanced.sort((a, b) => a.names.length - b.names.length);
+    balanced[0].names.push(...orphan.names);
+  }
+  return balanced;
 }
 
 /**

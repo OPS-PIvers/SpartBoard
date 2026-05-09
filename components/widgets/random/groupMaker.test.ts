@@ -50,11 +50,52 @@ describe('makeJigsawExpertGroups', () => {
 
   it('drops expert positions that would have zero members', () => {
     // Empty home groups in the input must not produce empty expert groups.
+    // Here pos 1 only has A2 (singleton) — orphan merging then folds A2 into
+    // the only larger expert group, ['A1', 'C1'].
     const home = [groupOf('A1', 'A2'), groupOf(), groupOf('C1')];
 
     const expert = makeJigsawExpertGroups(home);
 
-    expect(expert.map((g) => g.names)).toEqual([['A1', 'C1'], ['A2']]);
+    expect(expert.map((g) => g.names.sort())).toEqual([
+      ['A1', 'A2', 'C1'].sort(),
+    ]);
+  });
+
+  it('merges orphan singletons into the smallest non-singleton expert group', () => {
+    // Home group sizes 4 / 1 / 2 ⇒ raw transpose:
+    //   pos 0: A1, B1, C1   (size 3)
+    //   pos 1: A2, C2       (size 2)
+    //   pos 2: A3           (size 1, orphan)
+    //   pos 3: A4           (size 1, orphan)
+    // After merging each orphan into the smallest non-singleton:
+    //   A3 → smallest = [A2, C2] → [A2, C2, A3] (size 3)
+    //   A4 → smallest now ties at size 3 — picks one of them
+    const home = [
+      groupOf('A1', 'A2', 'A3', 'A4'),
+      groupOf('B1'),
+      groupOf('C1', 'C2'),
+    ];
+
+    const expert = makeJigsawExpertGroups(home);
+
+    // No singletons survive
+    expect(expert.every((g) => g.names.length >= 2)).toBe(true);
+    // Total student count is preserved
+    expect(expert.flatMap((g) => g.names).sort()).toEqual(
+      ['A1', 'A2', 'A3', 'A4', 'B1', 'C1', 'C2'].sort()
+    );
+  });
+
+  it('leaves all-singleton expert groups alone (degenerate single-home case)', () => {
+    // Single home group of size N transposes to N singleton expert groups.
+    // There is no larger expert group to fold orphans into, so all stay as
+    // singletons; the caller surfaces a degenerate-jigsaw warning toast
+    // rather than silently merging them all into one big group.
+    const home = [groupOf('A', 'B', 'C')];
+
+    const expert = makeJigsawExpertGroups(home);
+
+    expect(expert.map((g) => g.names)).toEqual([['A'], ['B'], ['C']]);
   });
 
   it('assigns a fresh id to each generated expert group', () => {

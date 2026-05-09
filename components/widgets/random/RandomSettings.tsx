@@ -136,12 +136,14 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     firstNames = '',
     lastNames = '',
     mode = 'single',
-    groupSize = 3,
+    groupSize: configGroupSize,
     soundEnabled = true,
     rosterMode = 'class',
     autoStartTimer = false,
     visualStyle = 'flash',
   } = config;
+  // Mirror RandomWidget: jigsaw defaults to 4, others to 3, explicit choice wins.
+  const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
 
   const [localFirstNames, setLocalFirstNames] = useState(firstNames);
   const [localLastNames, setLocalLastNames] = useState(lastNames);
