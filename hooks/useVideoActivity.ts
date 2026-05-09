@@ -12,6 +12,7 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
+  updateDoc,
   deleteDoc,
   query,
   orderBy,
@@ -230,17 +231,18 @@ export const useVideoActivity = (
       ) {
         return;
       }
-      await setDoc(
-        metaRef,
-        {
-          ...existing,
-          sync: {
-            groupId: linkage.groupId,
-            lastSyncedVersion: linkage.lastSyncedVersion,
-          },
-        } satisfies VideoActivityMetadata,
-        { merge: false }
-      );
+      // Use `updateDoc` with the single mutated field instead of a full
+      // `setDoc` overwrite. Spreading `existing` into a new doc body
+      // re-runs read-modify-write semantics, which would silently drop
+      // any field a concurrent write added between the `getDoc` above
+      // and this commit. The early-return guard above already handles
+      // the idempotent re-attach case.
+      await updateDoc(metaRef, {
+        sync: {
+          groupId: linkage.groupId,
+          lastSyncedVersion: linkage.lastSyncedVersion,
+        },
+      });
     },
     [userId]
   );
