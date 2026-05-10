@@ -528,14 +528,24 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   if (videoEnded || myResponse?.completedAt || atCap) {
     const answeredCount = myResponse?.answers.length ?? 0;
     const totalQuestions = session?.questions.length ?? 0;
+    // Score visibility gates whether the student sees their percentage. The
+    // teacher's Publish Scores flow flips `session.scoreVisibility` from
+    // `'none'` (or absent) to one of the reveal modes. Until then, the
+    // completion screen mirrors Quiz behavior — submitted-only, no score
+    // leak. Without this gate the student sees a percentage even when the
+    // teacher set visibility to `'none'`.
+    const visibility = session?.scoreVisibility ?? 'none';
+    const showScore = visibility !== 'none';
     // Derive correctness via the shared grader so MA / FIB-variants /
     // partial-credit semantics line up with the teacher Results view and
-    // the in-flight QuestionOverlay submit path.
-    const correct =
-      session?.questions.filter((q) => {
-        const a = myResponse?.answers.find((x) => x.questionId === q.id);
-        return a ? gradeVideoActivityAnswer(q, a.answer).isCorrect : false;
-      }).length ?? 0;
+    // the in-flight QuestionOverlay submit path. Only computed when the
+    // visibility gate would actually display the result.
+    const correct = showScore
+      ? (session?.questions.filter((q) => {
+          const a = myResponse?.answers.find((x) => x.questionId === q.id);
+          return a ? gradeVideoActivityAnswer(q, a.answer).isCorrect : false;
+        }).length ?? 0)
+      : 0;
 
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
@@ -551,7 +561,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             <div className="p-6 flex flex-col gap-4">
               <p className="text-slate-600 font-medium">Great work!</p>
 
-              {totalQuestions > 0 && (
+              {showScore && totalQuestions > 0 && (
                 <div className="bg-brand-blue-lighter/30 rounded-2xl p-5">
                   <p className="text-5xl font-black text-brand-blue-dark">
                     {Math.round((correct / totalQuestions) * 100)}%

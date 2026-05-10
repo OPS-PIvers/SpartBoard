@@ -88,6 +88,12 @@ export async function handleJoinPlcAssignmentSyncGroup(
       );
     }
 
+    // PLC assignment templates currently always reference a `synced_quizzes`
+    // doc — `plcs/*/assignments` is the quiz-only flavor. Video-activity
+    // assignments use a sibling subcollection + dedicated cloud function
+    // (see `syncedVideoActivityGroups.ts`). If this collection is ever
+    // widened to host VA templates, switch on `templateData.kind` here
+    // before resolving the group ref.
     const groupRef = db.collection('synced_quizzes').doc(groupId);
     const groupSnap = await tx.get(groupRef);
     if (!groupSnap.exists) {
@@ -109,6 +115,9 @@ export async function handleJoinPlcAssignmentSyncGroup(
       participants[uid] = { joinedAt: now };
       tx.update(groupRef, {
         participants,
+        // updatedAt tracks any server-side touch; updatedBy is intentionally
+        // left at the last content-writer's uid so attribution doesn't
+        // flicker on membership changes. Mirrors `syncedQuizGroups.ts`.
         updatedAt: now,
       });
     }

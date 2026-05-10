@@ -620,7 +620,11 @@ export const useVideoActivityAssignments = (
       } catch (err) {
         if (mintedLinkage) {
           try {
-            await updateDoc(metaRef, { sync: null });
+            // Use `deleteField()` rather than `null` — Firestore would
+            // otherwise persist a literal `null` and any reader using
+            // `'sync' in meta` (or serialization) would see a phantom field
+            // that no longer points anywhere.
+            await updateDoc(metaRef, { sync: deleteField() });
           } catch (rollbackErr) {
             logError(
               'useVideoActivityAssignments.shareAssignment.rollback',

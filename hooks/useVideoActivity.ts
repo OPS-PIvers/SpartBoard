@@ -12,6 +12,7 @@ import {
   getDoc,
   onSnapshot,
   setDoc,
+  updateDoc,
   deleteDoc,
   query,
   orderBy,
@@ -69,18 +70,24 @@ export const useVideoActivity = (
   const { googleAccessToken } = useAuth();
   const { isConnected } = useGoogleDrive();
   const [activities, setActivities] = useState<VideoActivityMetadata[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!userId);
   const [error, setError] = useState<string | null>(null);
+  const [prevUserId, setPrevUserId] = useState(userId);
+
+  // Adjusting-state-while-rendering: synchronously reset on userId transitions.
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    if (!userId) {
+      setActivities([]);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
 
   // Real-time listener for activity metadata from Firestore
   useEffect(() => {
-    if (!userId) {
-      setTimeout(() => {
-        setActivities([]);
-        setLoading(false);
-      }, 0);
-      return;
-    }
+    if (!userId) return;
 
     const q = query(
       collection(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION),
@@ -224,17 +231,18 @@ export const useVideoActivity = (
       ) {
         return;
       }
-      await setDoc(
-        metaRef,
-        {
-          ...existing,
-          sync: {
-            groupId: linkage.groupId,
-            lastSyncedVersion: linkage.lastSyncedVersion,
-          },
-        } satisfies VideoActivityMetadata,
-        { merge: false }
-      );
+      // Use `updateDoc` with the single mutated field instead of a full
+      // `setDoc` overwrite. Spreading `existing` into a new doc body
+      // re-runs read-modify-write semantics, which would silently drop
+      // any field a concurrent write added between the `getDoc` above
+      // and this commit. The early-return guard above already handles
+      // the idempotent re-attach case.
+      await updateDoc(metaRef, {
+        sync: {
+          groupId: linkage.groupId,
+          lastSyncedVersion: linkage.lastSyncedVersion,
+        },
+      });
     },
     [userId]
   );

@@ -146,7 +146,18 @@ export async function searchYouTube(
     searchData = (await (resp.json() as Promise<unknown>)) as RawSearchResponse;
     if (!resp.ok) {
       const reason = searchData.error?.errors?.[0]?.reason;
-      if (resp.status === 403 && reason === 'quotaExceeded') {
+      // YouTube Data API v3 emits multiple distinct quota-exhaustion
+      // reasons under HTTP 403. `quotaExceeded` is the project-wide one;
+      // `dailyLimitExceeded` and `userRateLimitExceeded` cover per-day
+      // and per-user rate caps. All three should surface the same
+      // user-friendly "quota" message rather than the generic search-
+      // failed copy.
+      if (
+        resp.status === 403 &&
+        (reason === 'quotaExceeded' ||
+          reason === 'dailyLimitExceeded' ||
+          reason === 'userRateLimitExceeded')
+      ) {
         throw new YouTubeQuotaError();
       }
       throw new YouTubeSearchError(
@@ -184,7 +195,12 @@ export async function searchYouTube(
     videosData = (await (resp.json() as Promise<unknown>)) as RawVideosResponse;
     if (!resp.ok) {
       const reason = videosData.error?.errors?.[0]?.reason;
-      if (resp.status === 403 && reason === 'quotaExceeded') {
+      if (
+        resp.status === 403 &&
+        (reason === 'quotaExceeded' ||
+          reason === 'dailyLimitExceeded' ||
+          reason === 'userRateLimitExceeded')
+      ) {
         throw new YouTubeQuotaError();
       }
       // Don't fail the whole search if duration lookup partially fails —

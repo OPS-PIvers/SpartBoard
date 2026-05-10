@@ -138,7 +138,7 @@ describe('ActiveClassChip', () => {
     expect(screen.queryByRole('menu')).not.toBeInTheDocument();
   });
 
-  it('closes the menu on outside mousedown', () => {
+  it('closes the menu on outside pointerdown', () => {
     const rosters = [
       makeRoster('r1', 'Period 1'),
       makeRoster('r2', 'Period 2'),

@@ -822,6 +822,13 @@ export interface RandomConfig {
   autoStartTimer?: boolean;
   visualStyle?: 'flash' | 'slots' | 'wheel';
   externalTrigger?: number;
+  /** Jigsaw mode: original home groups (each student's "home base"). */
+  jigsawHomeGroups?: RandomGroup[] | null;
+  /** Jigsaw mode: expert groups derived by transposing home groups
+   *  (position N from each home group becomes expert group N). */
+  jigsawExpertGroups?: RandomGroup[] | null;
+  /** Jigsaw mode: which view is currently shown on the front face. */
+  jigsawView?: 'home' | 'expert';
 }
 
 export interface DiceConfig {
@@ -3178,6 +3185,16 @@ export interface VideoActivitySession {
    * teacher sync-pull.
    */
   sync?: VideoActivitySessionSyncLinkage;
+  /**
+   * Mirror of `VideoActivityAssignmentSettings.scoreVisibility`. Authoritative
+   * for what the student sees on the post-completion screen. Absent /
+   * `'none'` means the teacher hasn't published scores yet — student-side
+   * UI must hide percentages/correct counts in that case (matches Quiz
+   * `'none'` semantics).
+   */
+  scoreVisibility?: VideoActivityScoreVisibility;
+  /** Server-set timestamp for when scores were published. */
+  scorePublishedAt?: number;
 }
 
 /** Per-session sync linkage to `/synced_video_activities/{groupId}`. */

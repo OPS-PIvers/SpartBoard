@@ -56,7 +56,7 @@ export interface VideoActivityEditorController {
   addQuestion: () => void;
   addQuestionAtTime: (seconds: number) => void;
   deleteQuestion: (id: string) => void;
-  reorderQuestions: (next: VideoActivityQuestion[]) => void;
+  reorderQuestions: (next: VideoActivityQuestion[], movedId?: string) => void;
   /** Recently-reordered question id (for a transient inline hint). null when no hint shown. */
   reorderHintFor: string | null;
   // AI generation
@@ -261,10 +261,45 @@ export function useVideoActivityEditorState({
    * Apply a SortableList reorder by recomputing each question's timestamp
    * to the midpoint of its new neighbors. Falls back to a +1s nudge if
    * neighbors are equal or missing. The list itself stays in the dropped
-   * order so the visual position matches what the user moved.
+   * order so the visual position matches what the user moved. After the
+   * midpoint pass we run a final monotonic sweep so adjacent items can
+   * never collide on the same second (e.g. when neighbours are 5s and 6s,
+   * the midpoint floors to 5 and would otherwise duplicate the previous
+   * timestamp). When `movedId` is supplied (from SortableList) we flash the
+   * hint on that exact row instead of guessing the last item.
    */
   const reorderQuestions = useCallback(
-    (next: VideoActivityQuestion[]) => {
+    (next: VideoActivityQuestion[], movedId?: string) => {
+      // When the caller (SortableList) hands us the dragged id, use it
+      // verbatim — that's the authoritative source. Otherwise (any future
+      // caller that bypasses the SortableList API), recover the moved
+      // question by largest absolute index delta. Tiebreakers (e.g. a
+      // swap-of-two) resolve to the item whose new index moved later in
+      // the list, which matches typical drag intent.
+      //
+      // Compute this BEFORE `setQuestions` so the value is available
+      // synchronously for the `flashReorderHint` call below. Mutating it
+      // inside the functional updater would be racy: the updater runs
+      // when React flushes the state update, but the line that consumes
+      // the value (`hintId = resolvedMovedId || …`) executes immediately
+      // after `setQuestions` returns. Reading `questions` from the
+      // outer-render closure is fine — it's the same `prev` the updater
+      // would receive in the no-pending-update case, and any pending
+      // update that beats us to the queue is irrelevant for "which item
+      // did the user just drop".
+      let resolvedMovedId = movedId ?? '';
+      if (!resolvedMovedId) {
+        let maxDelta = -1;
+        for (let i = 0; i < next.length; i++) {
+          const oldIndex = questions.findIndex((q) => q.id === next[i].id);
+          if (oldIndex < 0) continue;
+          const delta = Math.abs(oldIndex - i);
+          if (delta > maxDelta) {
+            maxDelta = delta;
+            resolvedMovedId = next[i].id;
+          }
+        }
+      }
       setQuestions(() => {
         const adjusted: VideoActivityQuestion[] = [];
         for (let i = 0; i < next.length; i++) {
@@ -284,9 +319,22 @@ export function useVideoActivityEditorState({
           }
           adjusted.push({ ...q, timestamp: ts });
         }
+        // Final monotonicity pass: when neighbors leave no integer room
+        // (e.g. prev=5, following=6) the +1 fallback above can equal
+        // followingTs, producing a duplicate. Bump any non-strictly-
+        // increasing timestamp by 1 — the cascade always resolves because
+        // the array's last item has no hard upper bound.
+        for (let i = 1; i < adjusted.length; i++) {
+          if (adjusted[i].timestamp <= adjusted[i - 1].timestamp) {
+            adjusted[i] = {
+              ...adjusted[i],
+              timestamp: adjusted[i - 1].timestamp + 1,
+            };
+          }
+        }
         // Sync the visible MM:SS inputs.
-        setTimestampInputs((prev) => {
-          const out = { ...prev };
+        setTimestampInputs((tsPrev) => {
+          const out = { ...tsPrev };
           adjusted.forEach((q) => {
             out[q.id] = secondsToMmSs(q.timestamp);
           });
@@ -294,9 +342,10 @@ export function useVideoActivityEditorState({
         });
         return adjusted;
       });
-      flashReorderHint(next[next.length - 1]?.id ?? '');
+      const hintId = resolvedMovedId || next[next.length - 1]?.id;
+      if (hintId) flashReorderHint(hintId);
     },
-    [flashReorderHint]
+    [flashReorderHint, questions]
   );
 
   const setTimestampInput = useCallback((id: string, raw: string) => {

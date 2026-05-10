@@ -57,6 +57,15 @@ export interface TimelineProps {
   activeQuestionId?: string;
 }
 
+/**
+ * Maximum re-attempts for the YT player init when the placeholder div
+ * hasn't yet been committed to the DOM. Each retry waits 50ms, so the
+ * worst-case wall-clock cost is ~250ms — generous enough for normal
+ * mount races but bounded so a permanently-missing element can't pin the
+ * effect in a setTimeout/setState loop.
+ */
+const MAX_PLAYER_INIT_RETRIES = 5;
+
 /** Format seconds as M:SS or H:MM:SS for the playhead label. */
 function formatHms(seconds: number): string {
   const safe = Math.max(0, Math.floor(seconds));
@@ -96,6 +105,10 @@ export const Timeline: React.FC<TimelineProps> = ({
   const [playerElementId] = useState(
     () => `va-timeline-player-${crypto.randomUUID().slice(0, 8)}`
   );
+  // Bumped when the player-init effect bails because the placeholder
+  // element hasn't been committed yet. Listed in the effect deps so the
+  // bump retriggers the same effect cleanly.
+  const [initRetryToken, setInitRetryToken] = useState(0);
 
   const stopPolling = useCallback(() => {
     if (pollIntervalRef.current != null) {
@@ -126,6 +139,12 @@ export const Timeline: React.FC<TimelineProps> = ({
     setPlayerReady(false);
     setDuration(0);
     setPlayhead(0);
+    // Reset the init-retry budget so each new video gets a fresh
+    // MAX_PLAYER_INIT_RETRIES window. Without this, a previous video
+    // that maxed out its retries would leave `initRetryToken` at the
+    // cap, and the very first attempt for the new video would bail
+    // immediately — leaving the player stuck on "Loading player…".
+    setInitRetryToken(0);
   }
 
   // (Re)create the player whenever videoId changes.
@@ -157,8 +176,20 @@ export const Timeline: React.FC<TimelineProps> = ({
       // because manual createElement() can race React's reconciliation when
       // the component re-renders.
       if (!document.getElementById(playerElementId)) {
-        // JSX hasn't flushed yet on this render; bail and let the next
-        // videoId-effect tick recreate the player.
+        // JSX hasn't flushed yet on this render. Bumping `initRetryToken`
+        // re-triggers this effect on the next tick so we get a second
+        // chance once React commits the placeholder div. Without this
+        // retry, racing the YT API against React mount could leave the
+        // user stuck on the "Loading player…" placeholder forever.
+        // Cap the retry count so a permanently-missing placeholder (DOM
+        // teardown, exotic mount conditions) can't pin us in a 50ms
+        // setTimeout / setState / re-effect storm. After the cap, give up
+        // gracefully — the placeholder div renders the "Loading player…"
+        // copy as a visible terminal state.
+        if (initRetryToken >= MAX_PLAYER_INIT_RETRIES) return;
+        window.setTimeout(() => {
+          if (!cancelled) setInitRetryToken((n) => n + 1);
+        }, 50);
         return;
       }
       playerRef.current = new window.YT.Player(playerElementId, {
@@ -207,7 +238,7 @@ export const Timeline: React.FC<TimelineProps> = ({
       cancelled = true;
       teardown();
     };
-  }, [videoId, playerElementId, startPolling, stopPolling]);
+  }, [videoId, playerElementId, startPolling, stopPolling, initRetryToken]);
 
   // Render markers and playhead.
   const safeDuration = duration > 0 ? duration : 1;
@@ -315,11 +346,18 @@ export const Timeline: React.FC<TimelineProps> = ({
               let lastSec = q.timestamp;
 
               const computeSec = (clientX: number) => {
-                if (!trackEl || duration <= 0) return q.timestamp;
+                // Read the live duration straight off the YT player — its
+                // imperative handle is already a ref (`playerRef`), so we
+                // sidestep the render-phase ref-sync dance that mirroring
+                // the React state would otherwise require. The player is
+                // the authoritative source anyway; React state was only a
+                // re-render trigger for the surrounding UI.
+                const liveDuration = playerRef.current?.getDuration() ?? 0;
+                if (!trackEl || liveDuration <= 0) return q.timestamp;
                 const rect = trackEl.getBoundingClientRect();
                 const ratio = (clientX - rect.left) / rect.width;
                 const clamped = Math.max(0, Math.min(1, ratio));
-                return Math.round(clamped * duration);
+                return Math.round(clamped * liveDuration);
               };
 
               const onMoveEvt = (ev: PointerEvent) => {

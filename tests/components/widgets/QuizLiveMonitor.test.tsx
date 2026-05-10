@@ -496,6 +496,35 @@ describe('QuizLiveMonitor', () => {
     expect(showConfirm).toHaveBeenCalledTimes(1);
   });
 
+  it('coalesces concurrent reveal requests so rapid Colors clicks only open one confirm dialog', async () => {
+    let resolveConfirm: (value: boolean) => void = () => undefined;
+    showConfirm.mockImplementationOnce(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveConfirm = resolve;
+        })
+    );
+    renderMonitor({
+      session: { periodNames: ['P1'] },
+      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
+    });
+    // Click the same reveal trigger twice rapidly. The second click happens
+    // while the first confirm is still pending; without the in-flight guard
+    // both would invoke `showConfirm`, stacking two dialogs.
+    const colorsBtn = screen.getByRole('button', { name: /Colors/i });
+    fireEvent.click(colorsBtn);
+    fireEvent.click(colorsBtn);
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(showConfirm).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolveConfirm(false);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  });
+
   it('does not apply approval to a fresh session if session.id changes while the confirm dialog is awaiting', async () => {
     // Hold the confirm promise open so we can swap session.id under it.
     let resolveConfirm: (value: boolean) => void = () => undefined;

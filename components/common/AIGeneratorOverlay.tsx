@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Sparkles, X } from 'lucide-react';
+import { AlertTriangle, Loader2, Sparkles, X } from 'lucide-react';
 
 interface AIGeneratorOverlayProps {
   open: boolean;
@@ -52,9 +52,16 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
 }) => {
   if (!open) return null;
   return (
+    // `role="dialog"` advertises the overlay as a dialog landmark for
+    // assistive tech, but we deliberately do NOT set `aria-modal="true"`:
+    // the overlay is a workspace-scoped panel rendered with `inset-0`
+    // inside the editor, not a true modal portal'd to `<body>`, and we
+    // don't enforce a focus trap. Lying about modal semantics would tell
+    // screen readers focus is trapped here when in fact tab order still
+    // walks the editor controls outside the overlay. The parent
+    // EditorModalShell handles the page-level focus boundary.
     <div
       role="dialog"
-      aria-modal="true"
       aria-label={title}
       className="absolute inset-0 z-20 bg-white/95 backdrop-blur-sm flex items-center justify-center p-6 animate-in fade-in duration-200"
       onKeyDown={(e) => {
@@ -87,8 +94,11 @@ export const AIGeneratorOverlay: React.FC<AIGeneratorOverlayProps> = ({
         )}
         {children}
         {error && (
-          <div className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-start gap-2 text-sm text-brand-red-dark font-bold">
-            <Sparkles className="w-4 h-4 shrink-0 mt-0.5" />
+          <div
+            role="alert"
+            className="p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl flex items-start gap-2 text-sm text-brand-red-dark font-bold"
+          >
+            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
             <span className="whitespace-pre-wrap">{error}</span>
           </div>
         )}

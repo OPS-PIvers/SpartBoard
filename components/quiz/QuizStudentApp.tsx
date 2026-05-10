@@ -175,7 +175,18 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       // response doc. Show the picker whenever the assignment declares any
       // periods, even when there is only one. (handleJoin is only reached on
       // the anon path; the SSO auto-join effect short-circuits before render.)
-      const sessionInfo = await lookupSession(joinCode);
+      let sessionInfo: Awaited<ReturnType<typeof lookupSession>>;
+      try {
+        sessionInfo = await lookupSession(joinCode);
+      } catch (err) {
+        // If a previous attempt advanced the form to the period picker and
+        // the next lookup throws (network blip, code re-entered), reset the
+        // form back to the code/PIN screen so the user isn't trapped on a
+        // stale picker showing the hook's `error` text. The hook's own
+        // error state surfaces below the form.
+        setPeriodStep(null);
+        throw err;
+      }
       const periods = sessionInfo?.periodNames ?? [];
       if (periods.length > 0) {
         setPeriodStep(periods);

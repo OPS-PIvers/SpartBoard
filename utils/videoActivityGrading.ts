@@ -22,7 +22,7 @@ import { normalizeAnswer as quizNormalizeAnswer } from '@/hooks/useQuizSession';
 /**
  * VA-specific answer normalization. Applies Quiz's whitespace + case pass
  * AND additionally strips combining diacritical marks (NFD + remove
- * `̀-ͯ`), so that `café` and `cafe`, `naïve` and `naive`, or
+ * `\u0300-\u036f`), so that `café` and `cafe`, `naïve` and `naive`, or
  * `résumé` and `resume` all compare as equivalent. This is a deliberate
  * VA-only forgiveness — Quiz's own grading stays strict to keep Matching
  * pair-equality behavior unchanged.
@@ -55,15 +55,30 @@ export function gradeVideoActivityAnswer(
   const correct = question.correctAnswer ?? '';
 
   if (type === 'MC') {
-    const isCorrect =
-      normalizeAnswer(correct) === normalizeAnswer(studentAnswer);
+    // Misconfigured-question guard: an MC with no `correctAnswer` set is a
+    // stub (un-authored or AI-generated placeholder). Without this guard,
+    // a student who submits an empty string would grade as correct because
+    // `normalize('') === normalize('')`. Fail closed instead.
+    const correctNorm = normalizeAnswer(correct);
+    if (correctNorm.length === 0) {
+      return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+    }
+    const isCorrect = correctNorm === normalizeAnswer(studentAnswer);
     return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
   }
 
   if (type === 'FIB') {
-    const givenNorm = normalizeAnswer(studentAnswer);
+    // Same misconfigured-question guard as MC: an FIB with no canonical
+    // answer + no variants would otherwise mark a blank submission correct.
     const accepted = [correct, ...(question.acceptableVariants ?? [])];
-    const isCorrect = accepted.some((a) => normalizeAnswer(a) === givenNorm);
+    const acceptedNorm = accepted
+      .map(normalizeAnswer)
+      .filter((s) => s.length > 0);
+    if (acceptedNorm.length === 0) {
+      return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+    }
+    const givenNorm = normalizeAnswer(studentAnswer);
+    const isCorrect = acceptedNorm.some((a) => a === givenNorm);
     return { isCorrect, pointsEarned: isCorrect ? max : 0, pointsMax: max };
   }
 

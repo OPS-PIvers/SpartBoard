@@ -22,10 +22,20 @@ import {
   RotateCcw,
   Trophy,
   UserX,
+  UserPlus,
+  Puzzle,
+  Home,
+  Sparkles,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 import { getLocalIsoDate } from '@/utils/localDate';
-import { makeNameGroups, makeRestrictedGroups } from './groupMaker';
+import { logError } from '@/utils/logError';
+import {
+  makeJigsawExpertGroups,
+  makeNameGroups,
+  makeRestrictedGroups,
+} from './groupMaker';
 
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { RandomWheel } from './RandomWheel';
@@ -34,6 +44,40 @@ import { RandomFlash } from './RandomFlash';
 import { RandomGroups } from './RandomGroups';
 
 import { WidgetLayout } from '../WidgetLayout';
+
+interface ModeCycleEntry {
+  id: string;
+  labelKey: string;
+  defaultLabel: string;
+  icon: LucideIcon;
+}
+
+const MODE_CYCLE: readonly ModeCycleEntry[] = [
+  {
+    id: 'single',
+    labelKey: 'widgets.random.modes.single',
+    defaultLabel: 'Pick One',
+    icon: UserPlus,
+  },
+  {
+    id: 'shuffle',
+    labelKey: 'widgets.random.modes.shuffle',
+    defaultLabel: 'Shuffle',
+    icon: Layers,
+  },
+  {
+    id: 'groups',
+    labelKey: 'widgets.random.modes.groups',
+    defaultLabel: 'Groups',
+    icon: Users,
+  },
+  {
+    id: 'jigsaw',
+    labelKey: 'widgets.random.modes.jigsaw',
+    defaultLabel: 'Jigsaw',
+    icon: Puzzle,
+  },
+];
 
 export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { t } = useTranslation();
@@ -55,8 +99,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     rosterMode = 'class',
     autoStartTimer = false,
     visualStyle = 'flash',
-    groupSize = 3,
+    groupSize: configGroupSize,
+    jigsawHomeGroups,
+    jigsawExpertGroups,
+    jigsawView = 'home',
   } = config;
+  // Classic jigsaw is "4 home groups of 4 → 4 expert groups of 4", so default
+  // to 4 in jigsaw mode when the user hasn't explicitly set a size. Other
+  // modes keep the historical default of 3. An explicit user choice always
+  // wins (slider writes config.groupSize, which short-circuits the fallback).
+  const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
 
   const remainingStudents = Array.isArray(config.remainingStudents)
     ? config.remainingStudents
@@ -83,6 +135,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   >(() => normalizeLastResult(config.lastResult));
   const [rotation, setRotation] = useState(0);
 
+  // Monotonic generation counter for in-flight picks. Bumped whenever the
+  // user resets, cycles modes, or the active roster changes mid-spin so the
+  // deferred jigsaw/groups setTimeout can detect that its result is stale
+  // and bail before clobbering the new state.
+  const spinGenRef = useRef(0);
+
   // Sync displayResult when config.lastResult changes (e.g. mode switch clears
   // it) using the "adjusting state while rendering" pattern. Doing this in a
   // useEffect would leave displayResult stale for one render, which crashed
@@ -92,6 +150,39 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   if (config.lastResult !== prevLastResult) {
     setPrevLastResult(config.lastResult);
     setDisplayResult(normalizeLastResult(config.lastResult));
+  }
+
+  // Local jigsaw groups state: render falls back to this when config hasn't
+  // round-tripped yet (the gap between setIsSpinning(false) and the Firestore
+  // listener replay) or when updateWidget is a no-op (e.g. view-only board).
+  // Without it the UI stays empty after a Pick on view-only boards because
+  // the jigsaw render reads exclusively from config.
+  const [localJigsaw, setLocalJigsaw] = useState<{
+    home: RandomGroup[];
+    expert: RandomGroup[];
+  } | null>(() => {
+    const h = config.jigsawHomeGroups;
+    const e = config.jigsawExpertGroups;
+    if (Array.isArray(h) && h.length > 0) {
+      return { home: h, expert: Array.isArray(e) ? e : [] };
+    }
+    return null;
+  });
+
+  // Adjust localJigsaw when the config-side jigsaw groups change (mode swap,
+  // roster swap, manual reset). Reference equality is sufficient because
+  // updateWidget rewrites the array on every change.
+  const [prevJigsawHome, setPrevJigsawHome] = useState(jigsawHomeGroups);
+  if (jigsawHomeGroups !== prevJigsawHome) {
+    setPrevJigsawHome(jigsawHomeGroups);
+    if (Array.isArray(jigsawHomeGroups) && jigsawHomeGroups.length > 0) {
+      setLocalJigsaw({
+        home: jigsawHomeGroups,
+        expert: Array.isArray(jigsawExpertGroups) ? jigsawExpertGroups : [],
+      });
+    } else {
+      setLocalJigsaw(null);
+    }
   }
 
   // Track active roster to only clear when it actually changes
@@ -108,13 +199,25 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
     if (changed) {
       lastRosterRef.current = { id: activeRosterId, mode: rosterMode };
-      updateWidget(widget.id, {
-        config: {
-          ...config,
+      // Only write when there is actually transient state to clear —
+      // otherwise every roster swap costs a Firestore round-trip.
+      const hasTransientState =
+        config.lastResult != null ||
+        (config.remainingStudents?.length ?? 0) > 0 ||
+        (config.jigsawHomeGroups?.length ?? 0) > 0 ||
+        (config.jigsawExpertGroups?.length ?? 0) > 0;
+      if (hasTransientState) {
+        spinGenRef.current += 1;
+        const update: Partial<RandomConfig> = {
           lastResult: null,
           remainingStudents: [],
-        },
-      });
+          jigsawHomeGroups: null,
+          jigsawExpertGroups: null,
+          jigsawView: 'home',
+        };
+        updateWidget(widget.id, { config: update as WidgetConfig });
+        setLocalJigsaw(null);
+      }
     }
   }, [activeRosterId, widget.id, updateWidget, config, rosterMode]);
 
@@ -182,15 +285,68 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   };
 
   const handleReset = () => {
-    updateWidget(widget.id, {
-      config: {
-        remainingStudents: [],
-        lastResult: null,
-      } as unknown as WidgetConfig,
-    });
+    spinGenRef.current += 1;
+    const update: Partial<RandomConfig> = {
+      remainingStudents: [],
+      lastResult: null,
+      jigsawHomeGroups: null,
+      jigsawExpertGroups: null,
+      jigsawView: 'home',
+    };
+    updateWidget(widget.id, { config: update as WidgetConfig });
+    setLocalJigsaw(null);
     setDisplayResult('');
     setRotation(0);
   };
+
+  const currentModeMeta =
+    MODE_CYCLE.find((m) => m.id === mode) ?? MODE_CYCLE[0];
+  const currentModeLabel = t(currentModeMeta.labelKey, {
+    defaultValue: currentModeMeta.defaultLabel,
+  });
+  const ModeIcon = currentModeMeta.icon;
+
+  const cycleMode = () => {
+    const idx = MODE_CYCLE.findIndex((m) => m.id === mode);
+    const next = MODE_CYCLE[(idx + 1) % MODE_CYCLE.length];
+    spinGenRef.current += 1;
+    const update: Partial<RandomConfig> = {
+      mode: next.id,
+      lastResult: null,
+      jigsawHomeGroups: null,
+      jigsawExpertGroups: null,
+      jigsawView: 'home',
+    };
+    updateWidget(widget.id, { config: update as WidgetConfig });
+    setLocalJigsaw(null);
+  };
+
+  const setJigsawView = (view: 'home' | 'expert') => {
+    if (jigsawView === view) return;
+    updateWidget(widget.id, {
+      config: { ...config, jigsawView: view },
+    });
+  };
+
+  // Render-side jigsaw groups: prefer config (the source of truth that
+  // survives reload) but fall back to localJigsaw so the UI never goes blank
+  // between a Pick and the Firestore round-trip — and so view-only boards
+  // (where updateWidget is a no-op) still show the picked groups locally.
+  const renderedHomeGroups: RandomGroup[] | null =
+    (Array.isArray(jigsawHomeGroups) && jigsawHomeGroups.length > 0
+      ? jigsawHomeGroups
+      : null) ??
+    localJigsaw?.home ??
+    null;
+  const renderedExpertGroups: RandomGroup[] | null =
+    (Array.isArray(jigsawExpertGroups) && jigsawExpertGroups.length > 0
+      ? jigsawExpertGroups
+      : null) ??
+    localJigsaw?.expert ??
+    null;
+  const hasJigsawGroups =
+    (renderedHomeGroups?.length ?? 0) > 0 ||
+    (renderedExpertGroups?.length ?? 0) > 0;
 
   const handleSendToScoreboard = () => {
     // 1. Normalize current groups from displayResult
@@ -268,6 +424,36 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   };
 
+  // Collect this widget's prior-pick RandomGroup IDs so we can drop them
+  // from dashboard.sharedGroups before adding the new ones — otherwise the
+  // collection grows unboundedly across re-picks. Downstream consumers
+  // (e.g. ScoreboardTeam.linkedGroupId) keep their own name field, so
+  // dropping the link gracefully degrades to "name only" rather than
+  // erroring.
+  const collectPriorGroupIds = (): Set<string> => {
+    const ids = new Set<string>();
+    const fields: unknown[] = [
+      config.lastResult,
+      config.jigsawHomeGroups,
+      config.jigsawExpertGroups,
+    ];
+    for (const field of fields) {
+      if (!Array.isArray(field)) continue;
+      for (const item of field) {
+        if (
+          item &&
+          typeof item === 'object' &&
+          'id' in item &&
+          typeof (item as RandomGroup).id === 'string' &&
+          (item as RandomGroup).id
+        ) {
+          ids.add((item as RandomGroup).id as string);
+        }
+      }
+    }
+    return ids;
+  };
+
   const handlePick = async () => {
     if (students.length === 0) return;
 
@@ -277,7 +463,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       try {
         await ctx.resume();
       } catch (e) {
-        console.error('Audio resume failed', e);
+        logError('RandomWidget.audioResume', e, { widgetId: widget.id });
       }
     }
 
@@ -319,12 +505,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }));
 
           const existing = activeDashboard?.sharedGroups ?? [];
+          const dropIds = collectPriorGroupIds();
+          const filtered = dropIds.size
+            ? existing.filter((g) => !dropIds.has(g.id))
+            : existing;
           const uniqueNew = newSharedGroups.filter(
-            (n) => !existing.some((e) => e.id === n.id)
+            (n) => n.id && !filtered.some((e) => e.id === n.id)
           );
 
-          if (uniqueNew.length > 0) {
-            updateDashboard({ sharedGroups: [...existing, ...uniqueNew] });
+          if (uniqueNew.length > 0 || filtered.length !== existing.length) {
+            updateDashboard({ sharedGroups: [...filtered, ...uniqueNew] });
           }
         }
 
@@ -337,9 +527,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           updates.remainingStudents = remaining;
         }
 
-        updateWidget(widget.id, {
-          config: updates as unknown as WidgetConfig,
-        });
+        updateWidget(widget.id, { config: updates as WidgetConfig });
 
         // Nexus: Auto-Start Timer Logic
         if (autoStartTimer && activeDashboard && mode === 'single') {
@@ -362,7 +550,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }
       } catch (err) {
-        console.error('Randomizer Sync Error:', err);
+        logError('RandomWidget.pickSync', err, { widgetId: widget.id });
       }
     };
 
@@ -447,8 +635,94 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           }
         }, 100);
       }
-    } else {
+    } else if (mode === 'jigsaw') {
+      const myGen = ++spinGenRef.current;
       setTimeout(() => {
+        // Bail if the user reset / cycled mode / changed class while the
+        // 500 ms timeout was pending — otherwise we'd write home/expert
+        // groups for a mode the user already moved away from.
+        if (myGen !== spinGenRef.current) {
+          setIsSpinning(false);
+          return;
+        }
+        let homeGroups: RandomGroup[];
+        if (rosterMode === 'class' && activeRoster) {
+          const { groups, unsatisfied } = makeRestrictedGroups(
+            presentClassStudents,
+            groupSize
+          );
+          homeGroups = groups;
+          if (unsatisfied > 0) {
+            addToast(
+              t('widgets.random.restrictionsUnsatisfied', {
+                defaultValue:
+                  "Couldn't satisfy all restrictions — try again or adjust group size.",
+              }),
+              'warning'
+            );
+          }
+        } else {
+          homeGroups = makeNameGroups(students, groupSize);
+        }
+        const expertGroups = makeJigsawExpertGroups(homeGroups);
+
+        // With < 2 home groups, "expert groups" degenerate into 1-person
+        // singletons (each has nobody to compare notes with). Surface a toast
+        // so the teacher knows to lower the group size.
+        if (homeGroups.length < 2) {
+          addToast(
+            t('widgets.random.jigsawNeedsMultipleGroups', {
+              defaultValue:
+                'Jigsaw needs at least 2 home groups — lower the group size or add more students.',
+            }),
+            'warning'
+          );
+        }
+
+        setLocalJigsaw({ home: homeGroups, expert: expertGroups });
+        setDisplayResult(homeGroups);
+        if (soundEnabled) playWinner();
+        setIsSpinning(false);
+
+        try {
+          const newHomeShared: SharedGroup[] = homeGroups.map((g, i) => ({
+            id: g.id ?? '',
+            name: `Home Group ${i + 1}`,
+          }));
+          const newExpertShared: SharedGroup[] = expertGroups.map((g, i) => ({
+            id: g.id ?? '',
+            name: `Expert Group ${i + 1}`,
+          }));
+          const existing = activeDashboard?.sharedGroups ?? [];
+          const dropIds = collectPriorGroupIds();
+          const filtered = dropIds.size
+            ? existing.filter((g) => !dropIds.has(g.id))
+            : existing;
+          const uniqueNew = [...newHomeShared, ...newExpertShared].filter(
+            (n) => n.id && !filtered.some((e) => e.id === n.id)
+          );
+          if (uniqueNew.length > 0 || filtered.length !== existing.length) {
+            updateDashboard({ sharedGroups: [...filtered, ...uniqueNew] });
+          }
+
+          const update: Partial<RandomConfig> = {
+            jigsawHomeGroups: homeGroups,
+            jigsawExpertGroups: expertGroups,
+            jigsawView: 'home',
+            lastResult: homeGroups,
+          };
+          updateWidget(widget.id, { config: update as WidgetConfig });
+        } catch (err) {
+          logError('RandomWidget.jigsawSync', err, { widgetId: widget.id });
+        }
+      }, 500);
+    } else {
+      const myGen = ++spinGenRef.current;
+      setTimeout(() => {
+        if (myGen !== spinGenRef.current) {
+          setIsSpinning(false);
+          return;
+        }
         let result: string[] | RandomGroup[];
         if (mode === 'shuffle') {
           result = shuffle(students);
@@ -655,6 +929,40 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className="flex items-center"
               style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
             >
+              <button
+                type="button"
+                onClick={cycleMode}
+                disabled={isSpinning}
+                className="flex items-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2"
+                style={{
+                  gap: 'min(6px, 1.5cqmin)',
+                  padding:
+                    'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
+                  minHeight: 'clamp(32px, 8cqmin, 48px)',
+                }}
+                aria-label={t('widgets.random.modeChipAria', {
+                  mode: currentModeLabel,
+                  defaultValue: 'Operation mode: {{mode}}',
+                })}
+                title={t('widgets.random.modeChipTitle', {
+                  mode: currentModeLabel,
+                  defaultValue: 'Mode: {{mode}} — click to cycle',
+                })}
+              >
+                <ModeIcon
+                  className="text-brand-blue-primary shrink-0"
+                  style={{
+                    width: 'clamp(14px, 4cqmin, 22px)',
+                    height: 'clamp(14px, 4cqmin, 22px)',
+                  }}
+                />
+                <span
+                  className="font-black uppercase text-brand-blue-primary truncate min-w-0 tracking-widest"
+                  style={{ fontSize: 'clamp(11px, 3.5cqmin, 18px)' }}
+                >
+                  {currentModeLabel}
+                </span>
+              </button>
               {mode === 'single' && (
                 <>
                   <button
@@ -711,6 +1019,23 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           >
             {mode === 'single' ? (
               renderSinglePick()
+            ) : mode === 'jigsaw' ? (
+              <div
+                className="w-full flex-1 min-h-0 flex flex-col"
+                style={{ padding: '0 min(8px, 2cqmin)' }}
+              >
+                <RandomGroups
+                  displayResult={
+                    jigsawView === 'expert'
+                      ? renderedExpertGroups
+                      : renderedHomeGroups
+                  }
+                  sharedGroups={activeDashboard?.sharedGroups}
+                  groupNamePrefix={
+                    jigsawView === 'expert' ? 'Expert Group' : 'Home Group'
+                  }
+                />
+              </div>
             ) : (
               <div
                 className="w-full flex-1 min-h-0 flex flex-col"
@@ -799,6 +1124,78 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               gap: 'clamp(6px, 2cqmin, 14px)',
             }}
           >
+            {mode === 'jigsaw' && hasJigsawGroups && (
+              <>
+                <Button
+                  variant={jigsawView === 'expert' ? 'primary' : 'secondary'}
+                  shape="pill"
+                  size="md"
+                  onClick={() => setJigsawView('expert')}
+                  disabled={jigsawView === 'expert'}
+                  aria-pressed={jigsawView === 'expert'}
+                  className="flex-1"
+                  style={{
+                    height: 'clamp(40px, 10cqmin, 72px)',
+                    paddingLeft: 'clamp(10px, 3cqmin, 24px)',
+                    paddingRight: 'clamp(10px, 3cqmin, 24px)',
+                  }}
+                  title={t('widgets.random.launchJigsawHint', {
+                    defaultValue: 'Show expert groups',
+                  })}
+                  icon={
+                    <Sparkles
+                      style={{
+                        width: 'clamp(16px, 4.5cqmin, 32px)',
+                        height: 'clamp(16px, 4.5cqmin, 32px)',
+                      }}
+                    />
+                  }
+                >
+                  <span
+                    className="font-black uppercase tracking-wider truncate"
+                    style={{ fontSize: 'clamp(11px, 3cqmin, 18px)' }}
+                  >
+                    {t('widgets.random.launchJigsaw', {
+                      defaultValue: 'Launch Jigsaw',
+                    })}
+                  </span>
+                </Button>
+                <Button
+                  variant={jigsawView === 'home' ? 'primary' : 'secondary'}
+                  shape="pill"
+                  size="md"
+                  onClick={() => setJigsawView('home')}
+                  disabled={jigsawView === 'home'}
+                  aria-pressed={jigsawView === 'home'}
+                  className="flex-1"
+                  style={{
+                    height: 'clamp(40px, 10cqmin, 72px)',
+                    paddingLeft: 'clamp(10px, 3cqmin, 24px)',
+                    paddingRight: 'clamp(10px, 3cqmin, 24px)',
+                  }}
+                  title={t('widgets.random.launchHomeGroupHint', {
+                    defaultValue: 'Return to home groups',
+                  })}
+                  icon={
+                    <Home
+                      style={{
+                        width: 'clamp(16px, 4.5cqmin, 32px)',
+                        height: 'clamp(16px, 4.5cqmin, 32px)',
+                      }}
+                    />
+                  }
+                >
+                  <span
+                    className="font-black uppercase tracking-wider truncate"
+                    style={{ fontSize: 'clamp(11px, 3cqmin, 18px)' }}
+                  >
+                    {t('widgets.random.launchHomeGroup', {
+                      defaultValue: 'Launch Home Group',
+                    })}
+                  </span>
+                </Button>
+              </>
+            )}
             {mode === 'groups' &&
               Array.isArray(displayResult) &&
               displayResult.length > 0 &&
@@ -835,12 +1232,27 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               shape="pill"
               onClick={handlePick}
               disabled={isSpinning}
-              className="flex-1"
-              style={{
-                height: 'clamp(40px, 10cqmin, 72px)',
-                paddingLeft: 'clamp(16px, 4cqmin, 40px)',
-                paddingRight: 'clamp(16px, 4cqmin, 40px)',
-              }}
+              className={
+                mode === 'jigsaw' && hasJigsawGroups
+                  ? 'flex-shrink-0'
+                  : 'flex-1'
+              }
+              style={
+                mode === 'jigsaw' && hasJigsawGroups
+                  ? {
+                      // Jigsaw shows two large Launch buttons already; collapse
+                      // Randomize to a square icon-only button so the footer
+                      // doesn't cram three flex-1 children at narrow widths.
+                      width: 'clamp(40px, 10cqmin, 72px)',
+                      height: 'clamp(40px, 10cqmin, 72px)',
+                      padding: 0,
+                    }
+                  : {
+                      height: 'clamp(40px, 10cqmin, 72px)',
+                      paddingLeft: 'clamp(16px, 4cqmin, 40px)',
+                      paddingRight: 'clamp(16px, 4cqmin, 40px)',
+                    }
+              }
               aria-label={isSpinning ? 'Picking' : 'Randomize'}
               title={isSpinning ? 'Picking...' : 'Randomize'}
               icon={

@@ -67,7 +67,11 @@ export function useQuizEditorState({
     () => (quiz ? quiz.questions.map((q) => ({ ...q })) : []),
     [quiz]
   );
-  const originalTitle = quiz?.title ?? '';
+  // Memoize alongside `originalQuestions` so a parent re-render that hands
+  // back an equivalent-but-not-referentially-stable value can't churn the
+  // dirty-check `useMemo` in the consumer (`QuizEditorModal`). The only
+  // legitimate source of change is a new `quiz` identity.
+  const originalTitle = useMemo(() => quiz?.title ?? '', [quiz]);
 
   const [title, setTitle] = useState<string>(originalTitle);
   const [questions, setQuestions] = useState<QuizQuestion[]>(originalQuestions);
@@ -164,8 +168,23 @@ export function useQuizEditorState({
 
   const deleteQuestion = useCallback(
     (id: string) => {
-      setQuestions((prev) => prev.filter((q) => q.id !== id));
-      if (selectedId === id) setSelectedId(null);
+      setQuestions((prev) => {
+        const idx = prev.findIndex((q) => q.id === id);
+        const next = prev.filter((q) => q.id !== id);
+        // If the user just deleted the selected question, advance the
+        // selection to the next item (or the new last item, if we deleted
+        // the tail). This avoids the right-pane going blank and forcing
+        // the user to click another question to continue editing.
+        if (selectedId === id) {
+          if (next.length === 0) {
+            setSelectedId(null);
+          } else {
+            const targetIdx = Math.min(idx, next.length - 1);
+            setSelectedId(next[targetIdx]?.id ?? null);
+          }
+        }
+        return next;
+      });
     },
     [selectedId]
   );

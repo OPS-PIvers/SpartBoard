@@ -58,19 +58,25 @@ export const useGuidedLearning = (
   const { isConnected } = useGoogleDrive();
   const [sets, setSets] = useState<GuidedLearningSetMetadata[]>([]);
   const [buildingSets, setBuildingSets] = useState<GuidedLearningSet[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!!userId);
   const [buildingLoading, setBuildingLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prevUserId, setPrevUserId] = useState(userId);
+
+  // Adjusting-state-while-rendering: synchronously reset on userId transitions.
+  if (prevUserId !== userId) {
+    setPrevUserId(userId);
+    if (!userId) {
+      setSets([]);
+      setLoading(false);
+    } else {
+      setLoading(true);
+    }
+  }
 
   // Real-time listener for personal set metadata
   useEffect(() => {
-    if (!userId) {
-      setTimeout(() => {
-        setSets([]);
-        setLoading(false);
-      }, 0);
-      return;
-    }
+    if (!userId) return;
 
     const q = query(
       collection(db, 'users', userId, GL_COLLECTION),

@@ -196,6 +196,10 @@ export const PlcTab: React.FC<PlcTabProps> = ({
     return () => {
       cancelled = true;
     };
+    // `fetchKey` is the template-string concat of the three primitives
+    // above, so listing it is harmless (it changes iff they do) but
+    // mentioning it explicitly removes the lint suppression and makes the
+    // dependency obvious if its derivation ever evolves.
   }, [plcSheetUrl, googleAccessToken, reloadToken, fetchKey]);
 
   // Display state is derived synchronously from `fetchKey` vs the

@@ -19,9 +19,15 @@ import type {
   VideoActivitySessionOptions,
 } from '@/types';
 
+// Sentinel object returned by the mocked `deleteField()` so the
+// rollback test can assert the correct sentinel was passed (rather than
+// a literal `null`, which Firestore would persist as a phantom field).
+const DELETE_FIELD_SENTINEL = { __deleteFieldSentinel: true };
+
 vi.mock('firebase/firestore', () => ({
   addDoc: vi.fn(),
   collection: vi.fn(),
+  deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
   doc: vi.fn(),
   getDoc: vi.fn(),
   getDocs: vi.fn(),
@@ -480,15 +486,18 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     ).rejects.toThrow(/share write denied/);
 
     // updateDoc was called twice: once to attach the freshly-minted linkage,
-    // once to roll it back to null after addDoc failed. Without the rollback
-    // the local meta would carry a `sync.groupId` pointing at a group with
-    // no matching share doc — same race the Quiz hook has documented.
+    // once to roll it back after addDoc failed. The rollback uses Firestore's
+    // `deleteField()` sentinel (not a literal `null`) so the field is
+    // actually removed from the doc — `null` would be persisted as a
+    // phantom value. Without the rollback the local meta would carry a
+    // `sync.groupId` pointing at a group with no matching share doc —
+    // same race the Quiz hook has documented.
     expect(mockUpdateDoc).toHaveBeenCalledTimes(2);
     const rollbackPatch = mockUpdateDoc.mock.calls[1][1] as Record<
       string,
       unknown
     >;
-    expect(rollbackPatch.sync).toBeNull();
+    expect(rollbackPatch.sync).toBe(DELETE_FIELD_SENTINEL);
   });
 
   it('shareAssignment does NOT roll back metadata when source already had a syncGroupId', async () => {

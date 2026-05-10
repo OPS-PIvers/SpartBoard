@@ -11,19 +11,21 @@ const appId =
 export function useStarterPacks(userId?: string | null) {
   const [publicPacks, setPublicPacks] = useState<StarterPack[]>([]);
   const [userPacks, setUserPacks] = useState<StarterPack[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!isAuthBypass);
+  const [prevUserId, setPrevUserId] = useState(userId);
+
+  // Adjusting-state-while-rendering: synchronously reset on userId transitions
+  // (skipped in bypass mode — no subscription, state stays at initial values).
+  if (!isAuthBypass && prevUserId !== userId) {
+    setPrevUserId(userId);
+    setLoading(true);
+    if (!userId) {
+      setUserPacks([]);
+    }
+  }
 
   useEffect(() => {
-    if (isAuthBypass) {
-      setTimeout(() => {
-        setPublicPacks([]);
-        setUserPacks([]);
-        setLoading(false);
-      }, 0);
-      return;
-    }
-
-    setTimeout(() => setLoading(true), 0);
+    if (isAuthBypass) return;
 
     let isPublicLoaded = false;
     let isUserLoaded = !userId;
@@ -89,8 +91,6 @@ export function useStarterPacks(userId?: string | null) {
           checkLoading();
         }
       );
-    } else {
-      setTimeout(() => setUserPacks([]), 0);
     }
 
     return () => {
