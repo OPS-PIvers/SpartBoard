@@ -3185,6 +3185,16 @@ export interface VideoActivitySession {
    * teacher sync-pull.
    */
   sync?: VideoActivitySessionSyncLinkage;
+  /**
+   * Mirror of `VideoActivityAssignmentSettings.scoreVisibility`. Authoritative
+   * for what the student sees on the post-completion screen. Absent /
+   * `'none'` means the teacher hasn't published scores yet — student-side
+   * UI must hide percentages/correct counts in that case (matches Quiz
+   * `'none'` semantics).
+   */
+  scoreVisibility?: VideoActivityScoreVisibility;
+  /** Server-set timestamp for when scores were published. */
+  scorePublishedAt?: number;
 }
 
 /** Per-session sync linkage to `/synced_video_activities/{groupId}`. */

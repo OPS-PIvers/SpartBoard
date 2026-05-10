@@ -276,21 +276,31 @@ export function useVideoActivityEditorState({
       // question by largest absolute index delta. Tiebreakers (e.g. a
       // swap-of-two) resolve to the item whose new index moved later in
       // the list, which matches typical drag intent.
+      //
+      // Compute this BEFORE `setQuestions` so the value is available
+      // synchronously for the `flashReorderHint` call below. Mutating it
+      // inside the functional updater would be racy: the updater runs
+      // when React flushes the state update, but the line that consumes
+      // the value (`hintId = resolvedMovedId || …`) executes immediately
+      // after `setQuestions` returns. Reading `questions` from the
+      // outer-render closure is fine — it's the same `prev` the updater
+      // would receive in the no-pending-update case, and any pending
+      // update that beats us to the queue is irrelevant for "which item
+      // did the user just drop".
       let resolvedMovedId = movedId ?? '';
-      setQuestions((prev) => {
-        if (!resolvedMovedId) {
-          let maxDelta = -1;
-          for (let i = 0; i < next.length; i++) {
-            const oldIndex = prev.findIndex((q) => q.id === next[i].id);
-            if (oldIndex < 0) continue;
-            const delta = Math.abs(oldIndex - i);
-            if (delta > maxDelta) {
-              maxDelta = delta;
-              resolvedMovedId = next[i].id;
-            }
+      if (!resolvedMovedId) {
+        let maxDelta = -1;
+        for (let i = 0; i < next.length; i++) {
+          const oldIndex = questions.findIndex((q) => q.id === next[i].id);
+          if (oldIndex < 0) continue;
+          const delta = Math.abs(oldIndex - i);
+          if (delta > maxDelta) {
+            maxDelta = delta;
+            resolvedMovedId = next[i].id;
           }
         }
-
+      }
+      setQuestions(() => {
         const adjusted: VideoActivityQuestion[] = [];
         for (let i = 0; i < next.length; i++) {
           const q = next[i];
@@ -335,7 +345,7 @@ export function useVideoActivityEditorState({
       const hintId = resolvedMovedId || next[next.length - 1]?.id;
       if (hintId) flashReorderHint(hintId);
     },
-    [flashReorderHint]
+    [flashReorderHint, questions]
   );
 
   const setTimestampInput = useCallback((id: string, raw: string) => {

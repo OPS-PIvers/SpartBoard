@@ -884,6 +884,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   // but adds a per-submit round-trip.
   const quizIdRef = useRef<string | null>(null);
   const teacherUidRef = useRef<string | null>(null);
+  // Snapshot the join-time anonymity flag so `completeQuiz` can decide
+  // whether to write the cross-launch ledger using the value from the
+  // moment the student joined — not whatever `auth.currentUser` reports
+  // at submit time. Without this, a custom-token expiry mid-session that
+  // silently dropped the user back to anonymous (the SDK refresh path)
+  // would skip the ledger write even though the student joined as a
+  // bridged SSO user. `null` means "not yet joined".
+  const isAnonymousRef = useRef<boolean | null>(null);
   // Keep a ref to current answers to avoid stale closure issues
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
@@ -1201,6 +1209,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         responseKeyRef.current = responseKey;
         quizIdRef.current = sessionData.quizId ?? null;
         teacherUidRef.current = sessionData.teacherUid ?? null;
+        // Stamp the join-time anonymity flag (post-bridge if the bridge
+        // succeeded). `completeQuiz` reads this rather than re-querying
+        // `auth.currentUser` so a token refresh between join and submit
+        // can't silently invert the ledger-write decision.
+        isAnonymousRef.current = isAnonymous;
         // Reset warning count before activating snapshot listeners so a
         // late-arriving snapshot from a previous session can't race with
         // the finally-block reset and leave the counter stuck at 0.
@@ -1603,8 +1616,14 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     // joiners' uids rotate per device, so their ledger entry would be
     // useless. Phase 3 unifies the PIN flow onto the SSO uid space and
     // this same code starts covering PIN joiners automatically.
+    //
+    // We read `isAnonymous` from the join-time ref (stamped post-PIN-bridge
+    // in `joinQuizSession`) rather than `auth.currentUser.isAnonymous`. A
+    // mid-session custom-token expiry could otherwise drop the SDK back to
+    // anonymous between join and submit, silently skipping the ledger
+    // write for a student who joined as a bridged SSO user.
     const studentUid = auth.currentUser?.uid ?? null;
-    const isAnonymous = auth.currentUser?.isAnonymous ?? true;
+    const isAnonymous = isAnonymousRef.current ?? true;
     const writeLedger =
       !isAnonymous &&
       typeof studentUid === 'string' &&
