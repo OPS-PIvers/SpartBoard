@@ -196,12 +196,11 @@ export const PlcTab: React.FC<PlcTabProps> = ({
     return () => {
       cancelled = true;
     };
-    // `fetchKey` is intentionally omitted from the dep array — it's the
-    // template-string concat of the three primitives above, so it changes
-    // exactly when they do. Listing it would only confuse a future reader
-    // into thinking it's an independent dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plcSheetUrl, googleAccessToken, reloadToken]);
+    // `fetchKey` is the template-string concat of the three primitives
+    // above, so listing it is harmless (it changes iff they do) but
+    // mentioning it explicitly removes the lint suppression and makes the
+    // dependency obvious if its derivation ever evolves.
+  }, [plcSheetUrl, googleAccessToken, reloadToken, fetchKey]);
 
   // Display state is derived synchronously from `fetchKey` vs the
   // settled state's key. Stale storage from the previous identity is

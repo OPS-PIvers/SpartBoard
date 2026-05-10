@@ -90,14 +90,6 @@ export const Timeline: React.FC<TimelineProps> = ({
   const playerRef = useRef<YTPlayer | null>(null);
   const pollIntervalRef = useRef<number | null>(null);
   const [duration, setDuration] = useState(0);
-  // Mirror `duration` into a ref so long-lived event handlers (the marker
-  // drag pointermove, in particular) can read the current value without
-  // capturing it in their pointer-down closure. Without this, a marker
-  // drag started before the YT player reports its duration would compute
-  // every drop position against `duration = 0`.
-  const durationRef = useRef(0);
-  // eslint-disable-next-line react-hooks/refs
-  durationRef.current = duration;
   const [playhead, setPlayhead] = useState(0);
   const [playerReady, setPlayerReady] = useState(false);
   /** Per-marker drag overlay: id → seconds being previewed. Cleared on pointer-up. */
@@ -348,7 +340,13 @@ export const Timeline: React.FC<TimelineProps> = ({
               let lastSec = q.timestamp;
 
               const computeSec = (clientX: number) => {
-                const liveDuration = durationRef.current;
+                // Read the live duration straight off the YT player — its
+                // imperative handle is already a ref (`playerRef`), so we
+                // sidestep the render-phase ref-sync dance that mirroring
+                // the React state would otherwise require. The player is
+                // the authoritative source anyway; React state was only a
+                // re-render trigger for the surrounding UI.
+                const liveDuration = playerRef.current?.getDuration() ?? 0;
                 if (!trackEl || liveDuration <= 0) return q.timestamp;
                 const rect = trackEl.getBoundingClientRect();
                 const ratio = (clientX - rect.left) / rect.width;
