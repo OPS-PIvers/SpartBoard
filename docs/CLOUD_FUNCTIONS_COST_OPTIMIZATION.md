@@ -31,7 +31,7 @@ On every admin analytics page load, this function:
 
 Even a modestly populated database makes this very slow, and the 4 GiB allocation means each invocation burns up to 2,160 GB-seconds. At ~$0.04 per call, 125 admin page visits over 10 days accounts for ~$5 on its own — matching the observed bill exactly.
 
-**Recommended fix:** Cache computed analytics in a Firestore doc (e.g. `admin_analytics/cached`) with a `computedAt` timestamp. Serve the cached result immediately on page load. Recompute in the background either on a Cloud Scheduler job (hourly) or when the cache is older than the acceptable staleness window. The 4 GiB memory allocation can also be reduced once the unbounded collection scan is removed.
+**Recommended fix:** Cache computed analytics in a per-org Firestore doc (e.g. `organizations/{orgId}/analytics/cached`) with a `computedAt` timestamp. Scoping the cache per org is important — a shared global doc would leak data between organizations. Serve the cached result immediately on page load. Recompute in the background either on a Cloud Scheduler job (hourly) or when the cache is older than the acceptable staleness window. The 4 GiB memory allocation can also be reduced once the unbounded collection scan is removed.
 
 The code itself notes this is a known architectural debt:
 
@@ -41,11 +41,11 @@ The code itself notes this is a known architectural debt:
 
 **Memory: 128 MiB. Cost per call: negligible. Invocation count: potentially very high.**
 
-This function is invoked by the Weather widget. If teachers leave dashboards open and the widget polls on a short interval, a classroom of 50 teachers could generate tens of thousands of invocations over a school day. Each call also hits the OpenWeatherMap external API, consuming that quota.
+This function is called by `AdminWeatherFetcher` (mounted in `App.tsx` only when `isAdmin` is true), not directly by each teacher's Weather widget. The Weather widget reads from `/global_weather/` via Firestore `onSnapshot` — it never calls the proxy itself. This means the high-invocation risk is limited to admin users, not the full teacher population.
 
-The project already has a `/global_weather/` Firestore collection intended as a cache, but if the cache TTL is too short or the cache key doesn't match what the function writes, every widget refresh bypasses the cache and spawns a new function invocation.
+The cost risk here is subtler: if the cache TTL is too short or the cache key doesn't match what the function writes, every admin dashboard load triggers a fresh proxy call. With multiple admins and frequent page refreshes, this can still accumulate.
 
-**Recommended fix:** Audit the weather caching logic end-to-end. Ensure the function reads from `/global_weather/` first and only calls the external API when the cached entry is stale (10–15 minutes is appropriate for weather data). Verify the cache key used when writing matches the key used when reading.
+**Recommended fix:** Audit the weather caching logic end-to-end. Ensure `AdminWeatherFetcher` reads from `/global_weather/` first and only calls the proxy when the cached entry is stale (10–15 minutes is appropriate for weather data). Verify the cache key used when writing matches the key the fetcher uses when deciding whether to refresh.
 
 ### 3. `generateWithAI` — unnecessary Firestore reads on every AI call
 
@@ -82,7 +82,7 @@ No file size validation occurs before downloading from Firebase Storage. A singl
 
 The proxy function streams external API responses back to the caller with no size check. A misbehaving or redirected URL could return a very large response that causes an OOM error on the 128 MiB instance.
 
-**Fix:** Add a `Content-Length` check on the response headers before reading the body, and abort if it exceeds a safe threshold (e.g. 1 MB).
+**Fix:** Use `responseType: 'stream'` in the axios call and check the `Content-Length` response header before consuming the body, aborting the stream if it exceeds a safe threshold (e.g. 1 MB). A simple `axios.get` without streaming already buffers the entire response into memory before headers can be inspected, so the stream approach is required for this guard to be effective. Alternatively, issue a HEAD request first to check the size before fetching.
 
 ---
 
