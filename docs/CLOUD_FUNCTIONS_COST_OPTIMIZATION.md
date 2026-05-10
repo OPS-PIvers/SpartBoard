@@ -13,7 +13,7 @@ Billing is primarily **GB-seconds**: memory allocation × wall-clock runtime. In
 | `transcribeVideoWithGemini` | 1 GiB   | 300 s       | 300         | ~$0.005        |
 | `generateWithAI`            | 512 MiB | ~60 s       | ~30         | ~$0.0005       |
 | `archiveActivityWallPhoto`  | 512 MiB | 120 s       | ~60         | ~$0.001        |
-| `fetchExternalProxy`        | 128 MiB | 30 s        | ~0.25       | ~$0.000005     |
+| `fetchExternalProxy`        | 128 MiB | 30 s        | ~3.75       | ~$0.00007      |
 
 ---
 
@@ -37,15 +37,15 @@ The code itself notes this is a known architectural debt:
 
 > "more scalable (paginated/aggregated) solution [needed]"
 
-### 2. `fetchExternalProxy` — death by a thousand cuts
+### 2. `fetchExternalProxy` — potential broken cache
 
-**Memory: 128 MiB. Cost per call: negligible. Invocation count: potentially very high.**
+**Memory: 128 MiB. Cost per call: low but non-trivial at scale.**
 
-This function is called by `AdminWeatherFetcher` (mounted in `App.tsx` only when `isAdmin` is true), not directly by each teacher's Weather widget. The Weather widget reads from `/global_weather/` via Firestore `onSnapshot` — it never calls the proxy itself. This means the high-invocation risk is limited to admin users, not the full teacher population.
+This function is called by `AdminWeatherFetcher` (mounted in `App.tsx` only when `isAdmin` is true), not directly by each teacher's Weather widget. The Weather widget reads from `/global_weather/` via Firestore `onSnapshot` — it never calls the proxy itself. So the invocation risk is scoped to admin users only; this is not a high-volume concern unless the cache is broken.
 
-The cost risk here is subtler: if the cache TTL is too short or the cache key doesn't match what the function writes, every admin dashboard load triggers a fresh proxy call. With multiple admins and frequent page refreshes, this can still accumulate.
+**Check invocation counts first.** If `fetchExternalProxy` shows only a few dozen calls per day in Firebase Console → Functions → Usage, the cache is working and this is a low priority. If it shows thousands, the cache TTL or cache key is mismatched and every admin page load is hitting the external API.
 
-**Recommended fix:** Audit the weather caching logic end-to-end. Ensure `AdminWeatherFetcher` reads from `/global_weather/` first and only calls the proxy when the cached entry is stale (10–15 minutes is appropriate for weather data). Verify the cache key used when writing matches the key the fetcher uses when deciding whether to refresh.
+**Recommended fix (if cache is broken):** Audit the weather caching logic end-to-end. Ensure `AdminWeatherFetcher` reads from `/global_weather/` first and only calls the proxy when the cached entry is stale (10–15 minutes is appropriate for weather data). Verify the cache key used when writing matches the key the fetcher uses when deciding whether to refresh.
 
 ### 3. `generateWithAI` — unnecessary Firestore reads on every AI call
 
@@ -60,7 +60,7 @@ Every AI generation call performs 4–6 Firestore reads before the Gemini API ca
 
 These docs change rarely. Reading them fresh on every invocation wastes both latency and Firestore read quota.
 
-**Recommended fix:** Store `global_permissions` and model config in module-level variables with a short TTL (e.g. 5 minutes). Cloud Functions instances are reused across warm invocations, so a module-level cache is effective and requires no external infrastructure.
+**Recommended fix:** Store `global_permissions` and model config in module-level variables with a short TTL (e.g. 5 minutes). Cloud Functions instances are reused across warm invocations, so a module-level cache is effective and requires no external infrastructure. The pattern is: store the value and a `cachedAt` timestamp; at the top of each invocation check `Date.now() - cachedAt > TTL` and refresh only when stale.
 
 ---
 
@@ -89,7 +89,7 @@ The proxy function streams external API responses back to the caller with no siz
 ## Recommended action order
 
 1. **Cache `adminAnalytics` output** — highest ROI, likely eliminates the majority of the bill.
-2. **Audit and fix weather caching** — check invocation counts in Firebase Console → Functions → Usage; if `fetchExternalProxy` shows 50 k+ calls/10 days, the cache is not working.
+2. **Audit weather caching** — check `fetchExternalProxy` invocation counts in Firebase Console → Functions → Usage. Dozens/day is expected (admin users only); hundreds/day suggests the Firestore cache is not working.
 3. **Add module-level caching to `generateWithAI`** — easy win, saves Firestore reads with no behavioral change.
 4. **Reduce `adminAnalytics` memory** — after caching is in place, drop from 4 GiB to 512 MiB.
 5. **Add file size guard to `archiveActivityWallPhoto`**.
