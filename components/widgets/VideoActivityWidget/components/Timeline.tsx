@@ -139,6 +139,12 @@ export const Timeline: React.FC<TimelineProps> = ({
     setPlayerReady(false);
     setDuration(0);
     setPlayhead(0);
+    // Reset the init-retry budget so each new video gets a fresh
+    // MAX_PLAYER_INIT_RETRIES window. Without this, a previous video
+    // that maxed out its retries would leave `initRetryToken` at the
+    // cap, and the very first attempt for the new video would bail
+    // immediately — leaving the player stuck on "Loading player…".
+    setInitRetryToken(0);
   }
 
   // (Re)create the player whenever videoId changes.
