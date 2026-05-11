@@ -11,14 +11,17 @@
 
 import React, { useCallback, useMemo, useState } from 'react';
 import {
+  AlertTriangle,
   ArrowLeft,
   CheckCircle2,
   Circle,
   Clock,
   Loader2,
+  Lock,
   Pause,
   Play,
   Square,
+  Unlock,
   Users,
   XCircle,
 } from 'lucide-react';
@@ -29,11 +32,13 @@ import {
 } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
 import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
+import { logError } from '@/utils/logError';
 
 interface VideoActivityLiveMonitorProps {
   session: VideoActivitySession;
@@ -47,6 +52,11 @@ interface VideoActivityLiveMonitorProps {
   onPause?: () => Promise<void>;
   /** Resume a paused assignment. */
   onResume?: () => Promise<void>;
+  /**
+   * Unlock a student's locked/auto-submitted attempt so they can resume.
+   * Pass the response's `_responseKey`, not `studentUid`.
+   */
+  onUnlockStudent?: (sessionId: string, responseKey: string) => Promise<void>;
   /** Navigate back to the manager (In Progress tab) without ending. */
   onBack?: () => void;
 }
@@ -63,6 +73,15 @@ interface StudentRowProps {
    * back through `response.name` and finally `response.pin`.
    */
   byStudentUid: Map<string, { givenName: string; familyName: string }>;
+  /** When true, show the per-row tab-switch warning count badge. */
+  showTabWarnings: boolean;
+  /** Session attempt cap; null/undefined = unlimited. Drives the lock UI. */
+  attemptLimit: number | null | undefined;
+  /**
+   * Invoked when the teacher taps the lock chip. Receives the resolved
+   * display name so the confirmation dialog can name the student.
+   */
+  onUnlock?: (displayName: string) => void;
 }
 
 /**
@@ -90,7 +109,12 @@ const StudentRow: React.FC<StudentRowProps> = ({
   response,
   questions,
   byStudentUid,
+  showTabWarnings,
+  attemptLimit,
+  onUnlock,
 }) => {
+  const warnings = response.tabSwitchWarnings ?? 0;
+  const displayName = pickDisplayLabel(response, byStudentUid) ?? '—';
   const correctAnswerById = useMemo(() => {
     const m = new Map<string, string>();
     for (const q of questions) m.set(q.id, q.correctAnswer);
@@ -152,7 +176,7 @@ const StudentRow: React.FC<StudentRowProps> = ({
             className="font-bold text-slate-800 truncate"
             style={{ fontSize: 'min(13px, 4cqmin)' }}
           >
-            {pickDisplayLabel(response, byStudentUid) ?? '—'}
+            {displayName}
           </p>
           {response.classPeriod && (
             <span
@@ -186,6 +210,84 @@ const StudentRow: React.FC<StudentRowProps> = ({
               In progress
             </span>
           )}
+          {showTabWarnings && warnings > 0 && (
+            <span
+              className="flex items-center gap-0.5 bg-red-100 text-red-700 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
+              style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+              title={`${warnings} Tab Switch Warning(s)`}
+            >
+              <AlertTriangle
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+              {warnings}
+            </span>
+          )}
+          {(() => {
+            if (!onUnlock) return null;
+            const isAutoSubmittedByWarnings =
+              completed && warnings >= 3 && !response.unlocked;
+            const completedCount = response.completedAttempts ?? 0;
+            const hitAttemptCap =
+              typeof attemptLimit === 'number' &&
+              attemptLimit > 0 &&
+              completedCount >= attemptLimit &&
+              !response.unlocked;
+            const isLocked = isAutoSubmittedByWarnings || hitAttemptCap;
+            if (isLocked) {
+              return (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onUnlock(displayName);
+                  }}
+                  className="flex items-center gap-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded uppercase font-black shrink-0 transition-colors"
+                  style={{
+                    fontSize: 'min(9px, 2.5cqmin)',
+                    padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                  }}
+                  title={
+                    isAutoSubmittedByWarnings
+                      ? 'Auto-submitted from tab-switch warnings — click to allow resume'
+                      : 'Attempt limit reached — click to allow resume'
+                  }
+                  aria-label={`Unlock ${displayName}'s attempt`}
+                >
+                  <Lock
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  />
+                  Locked
+                </button>
+              );
+            }
+            if (response.unlocked && !completed) {
+              return (
+                <span
+                  className="flex items-center gap-0.5 bg-emerald-100 text-emerald-800 rounded uppercase font-black shrink-0"
+                  style={{
+                    fontSize: 'min(9px, 2.5cqmin)',
+                    padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                  }}
+                  title="Unlocked — one more tab-switch will finalize the attempt"
+                >
+                  <Unlock
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  />
+                  Resumed
+                </span>
+              );
+            }
+            return null;
+          })()}
         </div>
         <p
           className="text-slate-400"
@@ -308,9 +410,52 @@ const StatTile: React.FC<StatTileProps> = ({ label, value, icon, color }) => {
 
 export const VideoActivityLiveMonitor: React.FC<
   VideoActivityLiveMonitorProps
-> = ({ session, responses, onEnd, onPause, onResume, onBack }) => {
+> = ({
+  session,
+  responses,
+  onEnd,
+  onPause,
+  onResume,
+  onUnlockStudent,
+  onBack,
+}) => {
   const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
   const { orgId } = useAuth();
+  // Toggle for showing per-row tab-switch warning counts. Off by default
+  // so projector-friendly mode keeps the roster uncluttered; the teacher
+  // flips it on when triaging a locked student. Mirrors the Quiz pattern.
+  const [showTabWarnings, setShowTabWarnings] = useState(false);
+
+  const handleUnlock = useCallback(
+    async (responseKey: string, displayName: string) => {
+      if (!onUnlockStudent) return;
+      const ok = await showConfirm(
+        `Reopen ${displayName}'s attempt so they can resume? Their previous answers will be kept. The next time they leave the activity tab, their work will be submitted automatically.`,
+        {
+          title: 'Unlock attempt?',
+          variant: 'warning',
+          confirmLabel: 'Unlock',
+          cancelLabel: 'Cancel',
+        }
+      );
+      if (!ok) return;
+      try {
+        await onUnlockStudent(session.id, responseKey);
+        addToast(
+          `${displayName}'s attempt is unlocked — they can resume now.`,
+          'success'
+        );
+      } catch (err) {
+        logError('VideoActivityLiveMonitor.unlockStudent', err);
+        addToast(
+          `Could not unlock ${displayName}'s attempt — try again or check your connection.`,
+          'error'
+        );
+      }
+    },
+    [onUnlockStudent, session.id, showConfirm, addToast]
+  );
   // SSO `studentRole` responses carry no PIN or self-typed name; resolve
   // their roster identities here so the monitor row labels stay populated.
   // Use the multi-class variant — `session.classId` is a transitional
@@ -608,12 +753,42 @@ export const VideoActivityLiveMonitor: React.FC<
               >
                 Roster · {responses.length}
               </span>
-              <span
-                className="text-slate-400"
-                style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+              <div
+                className="flex items-center"
+                style={{ gap: 'min(8px, 2cqmin)' }}
               >
-                {totalAnswers} total answer{totalAnswers === 1 ? '' : 's'}
-              </span>
+                {session.sessionOptions?.tabWarningsEnabled !== false && (
+                  <button
+                    type="button"
+                    onClick={() => setShowTabWarnings((v) => !v)}
+                    className={`flex items-center gap-1 rounded-md font-bold transition-colors ${
+                      showTabWarnings
+                        ? 'bg-red-100 text-red-700'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                    style={{
+                      fontSize: 'min(9px, 2.5cqmin)',
+                      padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                    }}
+                    title="Show/hide tab switch warnings in roster"
+                  >
+                    <AlertTriangle
+                      style={{
+                        width: 'min(11px, 3cqmin)',
+                        height: 'min(11px, 3cqmin)',
+                      }}
+                    />
+                    Warnings
+                  </button>
+                )}
+                <span
+                  className="text-slate-400"
+                  style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+                >
+                  {totalAnswers} total answer
+                  {totalAnswers === 1 ? '' : 's'}
+                </span>
+              </div>
             </div>
 
             {responses.length === 0 ? (
@@ -627,14 +802,28 @@ export const VideoActivityLiveMonitor: React.FC<
                 className="flex flex-col"
                 style={{ gap: 'min(6px, 1.5cqmin)' }}
               >
-                {sortedResponses.map((r) => (
-                  <StudentRow
-                    key={r.studentUid}
-                    response={r}
-                    questions={questions}
-                    byStudentUid={byStudentUid}
-                  />
-                ))}
+                {sortedResponses.map((r) => {
+                  const rowKey = r._responseKey ?? r.studentUid;
+                  return (
+                    <StudentRow
+                      key={rowKey}
+                      response={r}
+                      questions={questions}
+                      byStudentUid={byStudentUid}
+                      showTabWarnings={
+                        showTabWarnings &&
+                        session.sessionOptions?.tabWarningsEnabled !== false
+                      }
+                      attemptLimit={session.sessionOptions?.attemptLimit}
+                      onUnlock={
+                        onUnlockStudent
+                          ? (displayName) =>
+                              void handleUnlock(rowKey, displayName)
+                          : undefined
+                      }
+                    />
+                  );
+                })}
               </div>
             )}
           </div>

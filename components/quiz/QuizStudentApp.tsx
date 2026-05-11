@@ -39,6 +39,8 @@ import {
   Zap,
   X as XIcon,
   Check,
+  Unlock as UnlockIcon,
+  ShieldAlert,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -659,6 +661,27 @@ const ActiveQuiz: React.FC<{
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
+  // Show the "Your teacher unlocked your attempt" modal whenever the
+  // student's response carries `unlocked: true` and they haven't yet
+  // dismissed the prompt in this ActiveQuiz instance. The student keeps
+  // their place and prior answers — dismissing simply reveals the
+  // already-mounted quiz UI underneath.
+  const [showResumeModal, setShowResumeModal] = useState(
+    () => !!myResponse?.unlocked
+  );
+  const wasUnlockedRef = useRef<boolean>(!!myResponse?.unlocked);
+
+  useEffect(() => {
+    const isUnlockedNow = !!myResponse?.unlocked;
+    // Edge case: the teacher unlocks while the student is sitting on the
+    // ActiveQuiz screen (e.g. they were mid-flight when the auto-submit
+    // hadn't fired yet, or they bounced back via the rejoin path). When
+    // the flag flips false → true we re-show the prompt.
+    if (isUnlockedNow && !wasUnlockedRef.current) {
+      setShowResumeModal(true);
+    }
+    wasUnlockedRef.current = isUnlockedNow;
+  }, [myResponse?.unlocked]);
 
   const isWarningShowingRef = useRef<boolean>(false);
   const lastReportTimeRef = useRef<number>(0);
@@ -701,9 +724,19 @@ const ActiveQuiz: React.FC<{
 
         try {
           const newTotal = await reportTabSwitch();
-          setShowCheatWarning(true);
 
-          // Auto-submit if they breach the threshold (e.g., 3 strikes)
+          // Teacher-unlocked attempts skip the "Warning N of 3" modal —
+          // the student has already been told the next strike finalizes
+          // their work, so any further tab-switch auto-submits
+          // immediately (no warning, no delay).
+          const wasUnlocked = !!myResponse?.unlocked;
+          if (wasUnlocked) {
+            setShowCheatWarning(false);
+            void handleAutoSubmit();
+            return;
+          }
+
+          setShowCheatWarning(true);
           if (newTotal >= 3) {
             // Use a slight delay so the UI can update before the dialog
             setTimeout(() => void handleAutoSubmit(), 100);
@@ -737,6 +770,7 @@ const ActiveQuiz: React.FC<{
     reportTabSwitch,
     handleAutoSubmit,
     myResponse?.status,
+    myResponse?.unlocked,
   ]);
 
   // For student-paced mode, the student maintains their own local index
@@ -1221,7 +1255,47 @@ const ActiveQuiz: React.FC<{
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col relative">
-      {/* 🔴 NEW: The Cheating Warning Modal */}
+      {/* The "your teacher unlocked your attempt" prompt — covers the quiz
+          UI on first render after a teacher unlock so the student knows
+          what happened before they touch anything. */}
+      {showResumeModal && (
+        <div className="absolute inset-0 z-overlay bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+          <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
+          <h2 className="text-4xl font-black text-white mb-4">
+            Attempt Unlocked
+          </h2>
+          <p className="text-emerald-100 text-lg max-w-md mb-2">
+            Your teacher reopened your attempt. Your previous answers are still
+            here — pick up where you left off.
+          </p>
+          <p className="text-amber-200 text-sm max-w-md mb-8">
+            ⚠ The next time you leave this tab or open the quiz in another
+            window, your work will be submitted automatically. No further
+            warnings.
+          </p>
+          <button
+            onClick={() => setShowResumeModal(false)}
+            className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
+          >
+            Resume Quiz
+          </button>
+        </div>
+      )}
+
+      {/* Persistent "one strike and you're out" banner — visible for the
+          duration of the resumed attempt so the rule stays top-of-mind. */}
+      {myResponse?.unlocked && !showResumeModal && (
+        <div className="flex items-start gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs">
+          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            Your teacher unlocked your attempt.{' '}
+            <strong>Leaving this tab once more will submit your quiz</strong> —
+            no further warnings.
+          </span>
+        </div>
+      )}
+
+      {/* 🔴 The Cheating Warning Modal */}
       {showCheatWarning && (
         <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />

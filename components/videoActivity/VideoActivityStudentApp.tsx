@@ -22,7 +22,10 @@ import {
   CheckCircle2,
   ClipboardList,
   Trophy,
+  Unlock as UnlockIcon,
+  ShieldAlert,
 } from 'lucide-react';
+import { useDialog } from '@/context/useDialog';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
@@ -158,6 +161,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     joinSession,
     submitAnswer,
     completeActivity,
+    reportTabSwitch,
   } = useVideoActivitySessionStudent();
 
   const isViewOnly = session?.mode === 'view-only';
@@ -342,6 +346,126 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     if (isViewOnly) return;
     await completeActivity();
   }, [completeActivity, isViewOnly]);
+
+  // ── Tab-switch warning system (mirrors QuizStudentApp) ──────────────────
+  const { showAlert } = useDialog();
+  const [showCheatWarning, setShowCheatWarning] = useState(false);
+  const [warningCount, setWarningCount] = useState(
+    () => myResponse?.tabSwitchWarnings ?? 0
+  );
+  const [showResumeModal, setShowResumeModal] = useState(
+    () => !!myResponse?.unlocked
+  );
+  const wasUnlockedRef = useRef<boolean>(!!myResponse?.unlocked);
+  const isWarningShowingRef = useRef<boolean>(false);
+  const lastReportTimeRef = useRef<number>(0);
+  const didInitialCheckRef = useRef(false);
+
+  useEffect(() => {
+    if (myResponse?.tabSwitchWarnings != null) {
+      setWarningCount((prev) =>
+        Math.max(prev, myResponse.tabSwitchWarnings ?? 0)
+      );
+    }
+  }, [myResponse?.tabSwitchWarnings]);
+
+  useEffect(() => {
+    const isUnlockedNow = !!myResponse?.unlocked;
+    // Re-show the resume prompt whenever the teacher flips the flag back on
+    // (e.g. the student was sitting on the post-submit screen when unlock
+    // fired and the parent re-renders the active view).
+    if (isUnlockedNow && !wasUnlockedRef.current) {
+      setShowResumeModal(true);
+    }
+    wasUnlockedRef.current = isUnlockedNow;
+  }, [myResponse?.unlocked]);
+
+  const handleAutoSubmit = useCallback(async () => {
+    await showAlert(
+      'You have left the activity 3 times. Your activity is being auto-submitted.',
+      { title: 'Activity Auto-Submitted', variant: 'warning' }
+    );
+    await completeActivity();
+  }, [showAlert, completeActivity]);
+
+  const tabWarningsEnabled =
+    session?.sessionOptions?.tabWarningsEnabled !== false;
+
+  useEffect(() => {
+    if (!tabWarningsEnabled) return;
+    if (joinStatus !== 'joined') return;
+    if (session?.status !== 'active') return;
+    if (isViewOnly) return;
+
+    const handleVisibilityChange = async () => {
+      // Skip while a warning is already showing, while a question overlay
+      // is active (the player blurs to render it), and once the student
+      // has finished.
+      if (isWarningShowingRef.current || myResponse?.completedAt != null) {
+        return;
+      }
+
+      const now = Date.now();
+      if (now - lastReportTimeRef.current < 1000) return;
+
+      const isPageHidden = document.visibilityState === 'hidden';
+      const isWindowBlurred = !document.hasFocus();
+
+      if (isPageHidden || isWindowBlurred) {
+        lastReportTimeRef.current = now;
+        isWarningShowingRef.current = true;
+
+        try {
+          const newTotal = await reportTabSwitch();
+          setWarningCount(newTotal);
+
+          // Teacher-unlocked attempts skip the warning modal — any
+          // further strike finalizes the attempt instantly.
+          const wasUnlocked = !!myResponse?.unlocked;
+          if (wasUnlocked) {
+            setShowCheatWarning(false);
+            void handleAutoSubmit();
+            return;
+          }
+
+          setShowCheatWarning(true);
+          if (newTotal >= 3) {
+            setTimeout(() => void handleAutoSubmit(), 100);
+          }
+        } catch (err) {
+          logError('VideoActivityStudentApp.reportTabSwitch', err, {
+            sessionId,
+          });
+          setShowCheatWarning(true);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('blur', handleVisibilityChange);
+
+    if (!didInitialCheckRef.current) {
+      didInitialCheckRef.current = true;
+      if (document.visibilityState === 'hidden') {
+        void handleVisibilityChange();
+      }
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('blur', handleVisibilityChange);
+    };
+  }, [
+    tabWarningsEnabled,
+    joinStatus,
+    session?.status,
+    isViewOnly,
+    reportTabSwitch,
+    handleAutoSubmit,
+    myResponse?.completedAt,
+    myResponse?.unlocked,
+    sessionId,
+  ]);
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
 
@@ -578,6 +702,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 </p>
               )}
 
+              {(myResponse?.tabSwitchWarnings ?? 0) >= 3 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
+                  Auto-submitted because you left the activity tab 3 times.
+                </div>
+              )}
+
               <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-bold">
                 <CheckCircle2 className="w-4 h-4" />
                 Results submitted to your teacher
@@ -595,7 +725,78 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const totalQuestions = sortedQuestions.length;
 
   return (
-    <div className="h-screen h-dvh overflow-hidden bg-slate-950 flex flex-col">
+    <div className="h-screen h-dvh overflow-hidden bg-slate-950 flex flex-col relative">
+      {/* Resume prompt — covers the player on first render after a teacher
+          unlock so the student knows what happened before they touch
+          anything. */}
+      {showResumeModal && (
+        <div className="absolute inset-0 z-50 bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+          <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
+          <h2 className="text-4xl font-black text-white mb-4">
+            Attempt Unlocked
+          </h2>
+          <p className="text-emerald-100 text-lg max-w-md mb-2">
+            Your teacher reopened your attempt. Your previous answers are still
+            here — pick up where you left off.
+          </p>
+          <p className="text-amber-200 text-sm max-w-md mb-8">
+            ⚠ The next time you leave this tab or open the activity in another
+            window, your work will be submitted automatically. No further
+            warnings.
+          </p>
+          <button
+            onClick={() => setShowResumeModal(false)}
+            className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
+          >
+            Resume Activity
+          </button>
+        </div>
+      )}
+
+      {/* Tab-switch warning modal — same red full-screen style as the
+          Quiz cheat warning. Hidden for teacher-unlocked attempts, which
+          finalize on the next strike instead. */}
+      {showCheatWarning && (
+        <div className="absolute inset-0 z-50 bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+          <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
+          <h2 className="text-4xl font-black text-white mb-4">
+            TAB SWITCH DETECTED
+          </h2>
+          <p className="text-red-200 text-lg max-w-md mb-8">
+            You navigated away from the activity. This incident has been logged.
+            <br />
+            <br />
+            <strong>Warning {warningCount} of 3.</strong> If you reach 3
+            warnings, your activity will automatically submit.
+          </p>
+          <button
+            onClick={() => {
+              setShowCheatWarning(false);
+              isWarningShowingRef.current = false;
+            }}
+            className="px-8 py-4 bg-white text-red-900 font-bold rounded-xl active:scale-95 transition-transform"
+          >
+            I Understand, Return to Activity
+          </button>
+        </div>
+      )}
+
+      {/* Persistent "one strike and you're out" banner for unlocked
+          attempts. Sits above the top bar so it's visible alongside the
+          progress counter. */}
+      {myResponse?.unlocked && !showResumeModal && (
+        <div className="flex items-start gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs shrink-0">
+          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            Your teacher unlocked your attempt.{' '}
+            <strong>
+              Leaving this tab once more will submit your activity
+            </strong>{' '}
+            — no further warnings.
+          </span>
+        </div>
+      )}
+
       {/* Top bar */}
       <div className="bg-slate-900 px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">

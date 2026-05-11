@@ -2422,6 +2422,22 @@ export interface QuizResponse {
    * v{N+1} update." Absent on responses written outside synced mode.
    */
   preSyncVersion?: number;
+  /**
+   * True when a teacher has manually unlocked an auto-submitted or
+   * attempt-limit-locked response so the student can resume. The hooks
+   * preserve `answers` on the next rejoin and skip the "Warning N of 3"
+   * modal — any further tab-switch finalizes the attempt immediately.
+   * Cleared back to false on the student's next completion.
+   */
+  unlocked?: boolean;
+  /** Server timestamp (ms) when the teacher unlocked the attempt. */
+  unlockedAt?: number;
+  /**
+   * The value of `tabSwitchWarnings` at the moment the teacher unlocked.
+   * The student-side visibility handler treats any
+   * `tabSwitchWarnings > warningsAtUnlock` as an instant-submit trigger.
+   */
+  warningsAtUnlock?: number;
 }
 
 /**
@@ -3227,6 +3243,14 @@ export interface VideoActivityAnswer {
  * Stored at /video_activity_sessions/{sessionId}/responses/{responseKey}
  */
 export interface VideoActivityResponse {
+  /**
+   * The Firestore doc key under /responses. Populated at read time by the
+   * teacher hook from snapshot.doc.id; never persisted as a field. Callers
+   * should use this (rather than `studentUid`) when targeting a specific
+   * response doc, since the key may be pin-derived for anonymous joiners.
+   * Mirrors `QuizResponse._responseKey`.
+   */
+  _responseKey?: string;
   /** Roster PIN — present for anonymous joiners, absent on SSO joiners. */
   pin?: string;
   /**
@@ -3268,6 +3292,21 @@ export interface VideoActivityResponse {
    * publishes scores; mirrors `VideoActivityScoreVisibility`.
    */
   scoreVisibility?: VideoActivityScoreVisibility;
+  /**
+   * True when a teacher has manually unlocked an auto-submitted or
+   * attempt-limit-locked response so the student can resume. The hook
+   * preserves `answers` on rejoin and the student-side visibility handler
+   * skips the warning modal — any further tab-switch finalizes immediately.
+   */
+  unlocked?: boolean;
+  /** Server timestamp (ms) when the teacher unlocked the attempt. */
+  unlockedAt?: number;
+  /**
+   * Value of `tabSwitchWarnings` at the moment of unlock. The visibility
+   * handler treats `tabSwitchWarnings > warningsAtUnlock` as an
+   * instant-submit trigger.
+   */
+  warningsAtUnlock?: number;
 }
 
 /**

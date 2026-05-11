@@ -487,6 +487,15 @@ export interface UseQuizSessionTeacherResult {
    * Deleting the doc also frees the attempt slot so the student can rejoin.
    */
   removeStudent: (responseKey: string) => Promise<void>;
+  /**
+   * Unlock a student's auto-submitted or attempt-limit-locked response so
+   * they can resume. Preserves the existing `answers`, refunds one
+   * `completedAttempts` on the response and the cross-launch ledger, and
+   * sets `unlocked: true` + `warningsAtUnlock` so the student's
+   * visibility handler will finalize the attempt on the next tab-switch
+   * without showing the "Warning N of 3" modal.
+   */
+  unlockStudentAttempt: (responseKey: string) => Promise<void>;
   /** Reveal the correct answer for a question (writes to session doc) */
   revealAnswer: (questionId: string, correctAnswer: string) => Promise<void>;
   /** Hide a previously revealed answer (removes from session doc) */
@@ -648,6 +657,56 @@ export const useQuizSessionTeacher = (
     [sessionId, responses, session?.quizId]
   );
 
+  const unlockStudentAttempt = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) return;
+      const target = responses.find(
+        (r) => (r._responseKey ?? r.studentUid) === responseKey
+      );
+      if (!target) return;
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const ledgerRef = session?.quizId
+        ? doc(
+            db,
+            QUIZ_ATTEMPT_LEDGER_COLLECTION,
+            quizLedgerKey(session.quizId, target.studentUid)
+          )
+        : null;
+      const currentAttempts = target.completedAttempts ?? 0;
+      const refundedAttempts = Math.max(0, currentAttempts - 1);
+      const baselineWarnings = target.tabSwitchWarnings ?? 0;
+
+      const batch = writeBatch(db);
+      batch.update(responseRef, {
+        status: 'in-progress',
+        submittedAt: null,
+        score: null,
+        completedAttempts: refundedAttempts,
+        unlocked: true,
+        unlockedAt: Date.now(),
+        warningsAtUnlock: baselineWarnings,
+      });
+      if (ledgerRef) {
+        // Refund the ledger counter so the cross-launch cap isn't
+        // immediately re-tripped on the student's next join. Use a
+        // floor of 0 to guard against ledgers that already lag.
+        batch.set(
+          ledgerRef,
+          { completedAttempts: Math.max(0, refundedAttempts) },
+          { merge: true }
+        );
+      }
+      await batch.commit();
+    },
+    [sessionId, responses, session?.quizId]
+  );
+
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
       if (!sessionId) return;
@@ -792,6 +851,7 @@ export const useQuizSessionTeacher = (
     advanceQuestion,
     endQuizSession,
     removeStudent,
+    unlockStudentAttempt,
     revealAnswer,
     hideAnswer,
   };
@@ -1286,7 +1346,31 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const limit = sessionData.attemptLimit ?? null;
         if (existingSnap?.exists()) {
           const existing = existingSnap.data() as QuizResponse;
-          if (existing.status === 'completed') {
+          if (existing.status === 'completed' && existing.unlocked) {
+            // Teacher-unlocked: resume the existing attempt with the prior
+            // `answers` intact. Unlock normally already flips status to
+            // 'in-progress', so this branch is a safety net for races
+            // where the student rejoins between unlock's listener emit
+            // and Firestore propagation.
+            await updateDoc(responseRef, {
+              status: 'in-progress',
+              submittedAt: null,
+              score: null,
+              ...(classPeriod && existing.classPeriod !== classPeriod
+                ? { classPeriod }
+                : {}),
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-resume-unlocked', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                existingStudentUid: existing.studentUid,
+                isAnonymous,
+                hasPin: !!sanitizedPin,
+                hasClassPeriod: !!classPeriod,
+              })
+            );
+          } else if (existing.status === 'completed') {
             const completed = Math.max(
               existing.completedAttempts ?? 0,
               ledgerCompleted,
@@ -1683,6 +1767,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         status: 'completed',
         submittedAt,
         completedAttempts: increment(1),
+        // Clear any prior teacher-unlock state so the next attempt (if
+        // permitted) starts from a clean baseline.
+        unlocked: false,
       });
 
       if (ledgerRef && ledgerSnap) {

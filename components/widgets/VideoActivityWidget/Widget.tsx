@@ -95,6 +95,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     liveSession,
     subscribeToSession,
     unsubscribeFromSession,
+    unlockStudentAttempt,
   } = useVideoActivitySessionTeacher();
 
   const {
@@ -402,6 +403,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             );
           }
         }}
+        onUnlockStudent={unlockStudentAttempt}
         onBack={() => {
           unsubscribeFromSession();
           setSelectedSession(null);
