@@ -463,7 +463,6 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               onChange={(e) =>
                 updateWidget(widget.id, {
                   config: {
-                    ...config,
                     numExpertGroups: parseInt(e.target.value),
                   },
                 })

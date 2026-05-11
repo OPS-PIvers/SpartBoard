@@ -280,13 +280,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     Math.max(2, Math.ceil(estimatedHomeGroupCount / 2));
 
   const setGroupSize = (next: number) => {
+    // updateWidget merges partial config into existing state — don't spread
+    // ...config here, since it's a closure-captured snapshot that may be stale.
     updateWidget(widget.id, {
-      config: { ...config, groupSize: next } as WidgetConfig,
+      config: { groupSize: next } as WidgetConfig,
     });
   };
   const setNumExpertGroups = (next: number) => {
     updateWidget(widget.id, {
-      config: { ...config, numExpertGroups: next } as WidgetConfig,
+      config: { numExpertGroups: next } as WidgetConfig,
     });
   };
 
