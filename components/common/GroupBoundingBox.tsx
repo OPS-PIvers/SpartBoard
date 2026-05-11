@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import { WidgetData } from '@/types';
-import { widgetRefRegistry } from './widgetRefRegistry';
+import { widgetRefRegistry, setWidgetOverride } from './widgetRefRegistry';
 import { useDashboard } from '@/context/useDashboard';
 import { Z_INDEX } from '@/config/zIndex';
 
@@ -155,7 +155,10 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
           }
           const scale = Math.max(minScale, Math.sqrt(scaleX * scaleY));
 
-          // Apply to each widget via direct DOM manipulation
+          // Apply to each widget via direct DOM manipulation. The DOM write
+          // is the fast path; setWidgetOverride is the correctness path that
+          // survives any React re-render that lands mid-resize (siblings'
+          // DraggableWindow renders from the override instead of widget.x/y).
           for (const w of rs.widgets) {
             const relX = w.startX - rs.anchorX;
             const relY = w.startY - rs.anchorY;
@@ -169,6 +172,12 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
               w.el.style.width = `${newW}px`;
               w.el.style.height = `${newH}px`;
             }
+            setWidgetOverride(w.id, {
+              x: newX,
+              y: newY,
+              w: newW,
+              h: newH,
+            });
           }
         });
       };

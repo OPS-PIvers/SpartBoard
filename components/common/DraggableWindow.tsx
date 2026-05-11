@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -29,7 +30,12 @@ import {
   Unlink,
 } from 'lucide-react';
 
-import { widgetRefRegistry } from './widgetRefRegistry';
+import {
+  widgetRefRegistry,
+  getWidgetOverride,
+  setWidgetOverride,
+  subscribeWidgetOverride,
+} from './widgetRefRegistry';
 import {
   WidgetData,
   WidgetType,
@@ -372,6 +378,45 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       widgetRefRegistry.delete(widget.id);
     };
   }, [widget.id]);
+
+  // Subscribe to transient render-time override set by a group-drag/resize leader.
+  // When this widget is a sibling of an active drag/resize, the leader writes
+  // { x, y, w?, h? } here each frame; the render path below uses these in place
+  // of widget.x/y so React re-renders (e.g. bringToFront raising every group
+  // member's z) don't snap us back to the stale prop position.
+  const overrideSubscribe = useCallback(
+    (cb: () => void) => subscribeWidgetOverride(widget.id, cb),
+    [widget.id]
+  );
+  const overrideSnapshot = useCallback(
+    () => getWidgetOverride(widget.id),
+    [widget.id]
+  );
+  const overrideServerSnapshot = useCallback(() => undefined, []);
+  const override = useSyncExternalStore(
+    overrideSubscribe,
+    overrideSnapshot,
+    overrideServerSnapshot
+  );
+
+  // Self-clear the override once widget.x/y/w/h has caught up with what we
+  // were rendering. The leader's pointerup calls updateWidgets(...) which
+  // updates props; this layout effect runs synchronously after commit, sees
+  // prop ≈ override, and clears. Avoids a flicker between "override cleared"
+  // and "new prop committed" without coupling the leader to sibling cleanup.
+  useLayoutEffect(() => {
+    const o = getWidgetOverride(widget.id);
+    if (!o) return;
+    const close = (a: number, b: number) => Math.abs(a - b) < 0.5;
+    if (
+      close(o.x, widget.x) &&
+      close(o.y, widget.y) &&
+      (o.w === undefined || close(o.w, widget.w)) &&
+      (o.h === undefined || close(o.h, widget.h))
+    ) {
+      setWidgetOverride(widget.id, null);
+    }
+  }, [widget.id, widget.x, widget.y, widget.w, widget.h]);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const snapMenuRef = useRef<HTMLDivElement>(null);
@@ -991,7 +1036,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         // Move group siblings via direct DOM manipulation, each clamped to
         // world bounds independently of the leader so a sibling near the edge
-        // doesn't drag the whole group off-camera.
+        // doesn't drag the whole group off-camera. The DOM write is the
+        // fast path for re-render-free frames; the override write is the
+        // correctness path so siblings render at the right spot even when
+        // React re-renders mid-drag (bringToFront, server sync, etc.).
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
           for (const sib of groupSiblingsRef.current) {
@@ -1005,6 +1053,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             );
             sib.el.style.left = `${sibX}px`;
             sib.el.style.top = `${sibY}px`;
+            setWidgetOverride(sib.id, { x: sibX, y: sibY });
           }
         }
       });
@@ -1809,22 +1858,22 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           ? 0
           : shouldUseDragState && dragState.current
             ? dragState.current.x
-            : widget.x,
+            : (override?.x ?? widget.x),
         top: isMaximized
           ? 0
           : shouldUseDragState && dragState.current
             ? dragState.current.y
-            : widget.y,
+            : (override?.y ?? widget.y),
         width: isMaximized
           ? '100vw'
           : shouldUseDragState && dragState.current
             ? dragState.current.w
-            : widget.w,
+            : (override?.w ?? widget.w),
         height: isMaximized
           ? '100vh'
           : shouldUseDragState && dragState.current
             ? dragState.current.h
-            : widget.h,
+            : (override?.h ?? widget.h),
         zIndex: isMaximized ? Z_INDEX.maximized : widget.z,
         display: 'flex',
         flexDirection: 'column',
