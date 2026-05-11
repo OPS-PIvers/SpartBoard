@@ -453,3 +453,20 @@ _Automated nightly review by claude-opus-4-6_
     - #1513 / #1517 — overlapping PLC tests; recommend #1513
     - #1504 / #1516 — overlapping `isCustomBackground` test additions on `dev-paul`; coordinate to avoid test-file conflicts
   - Branch-safety: PR #1507 head `scheduled-tasks` is the current branch (review-only). All other open PRs have non-`main` / non-`dev-*` head branches; no pushes were required this run.
+
+## 2026-05-11
+
+- PRs reviewed: 2 open PRs
+  - #1571 — Audit Cloud Functions for cost optimization and add link shortener (head `dev-paul` → base `main`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (head `docs/line-endings-normalization-plan` → base `main`)
+- Comments processed:
+  - PR #1571: 13 unresolved inline review threads (9 from copilot bot, 4 from gemini bot) — all on the read-only `dev-paul` head. Per the branch-safety rule, no automated push to `dev-*`. Findings are summarized in the Phase 2 review on the PR rather than replied to individually, to keep noise down.
+  - PR #1366: 6 inline review threads — all marked `is_outdated:true` with author replies from prior cycles. 3 PR-level (issue) comments from prior automated review passes (2026-05-09 and 2026-05-10) remain unaddressed.
+- Fixes pushed: 0
+  - Prepared a doc edit on `docs/line-endings-normalization-plan` addressing the 3 unaddressed PR-level comments on #1366 (Step 5 conflict-free rebase refresh, Step 2 empty-commit handling, Rollback hash lookup). Verified with `prettier --check`. Push to the branch returned HTTP 403 four times across exponential backoff retries (2s/4s/8s/16s) — the automation environment's git proxy blocked pushes to this branch. Local commit was discarded; the fixes are described in the #1366 review so a human can apply them.
+- Reviews posted: 2
+  - PR #1571: Needs changes (small) — flagged `lastClickedAt` upper-bound on the anonymous Firestore update rule, `generateRandomCode` silently truncating when `length > 32`, `logError` consistency, `setTimeout` cleanup pattern in `LinkShortenerManager`, `deleteField()` for empty-label harmonization, missing unit tests for `utils/shortLinkValidation.ts` and rules tests for `short_links`. Architecture and security posture are sound; findings are tightening, not redesign.
+  - PR #1366: Ready with minor notes — three doc edits prepared (described above) but blocked from pushing.
+- Notes:
+  - PR count is sharply lower this run (2 vs 23 last Tuesday) — the dev-\* branch cleanup between cycles closed most of last week's test-addition PRs.
+  - Branch-safety enforced: PR #1571 head `dev-paul` is read-only by policy → no automated push attempted. PR #1366 head `docs/line-endings-normalization-plan` is normally pushable but blocked by the automation environment in this run.
