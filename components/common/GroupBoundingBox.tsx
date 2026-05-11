@@ -229,7 +229,15 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
         }
         const finalScale = Math.max(minFinalScale, (fScaleX + fScaleY) / 2);
 
-        // Commit all positions+dimensions in one batch
+        // Commit all positions+dimensions in one batch, then clear each
+        // widget's transient override. Explicit clear avoids relying on
+        // tolerance comparison between the move-frame (geometric-mean) and
+        // commit (arithmetic-mean) scales — they differ for non-uniform
+        // diagonal drags so post-commit props would not match the last
+        // override within a small epsilon, leaving widgets stuck at the
+        // mid-resize size. Clearing unconditionally also makes read-only
+        // boards (where updateWidgets no-ops) fail loudly: widgets snap
+        // back to their original size instead of silently appearing resized.
         updateWidgets(
           rs.widgets.map((w) => {
             const relX = w.startX - rs.anchorX;
@@ -245,6 +253,9 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
             };
           })
         );
+        for (const w of rs.widgets) {
+          setWidgetOverride(w.id, null);
+        }
         resizeState.current = null;
         resizeCleanupRef.current = null;
       };
@@ -253,13 +264,21 @@ export const GroupBoundingBox: React.FC<GroupBoundingBoxProps> = ({
       window.addEventListener('pointerup', onUp);
       window.addEventListener('pointercancel', onUp);
 
-      // Store cleanup so unmount can remove listeners
+      // Store cleanup so unmount can remove listeners. Also clear any
+      // overrides written by an in-flight resize so they don't outlive
+      // the GroupBoundingBox (the per-DraggableWindow unmount cleanup
+      // only fires when the widget itself unmounts).
       resizeCleanupRef.current = () => {
         if (animFrame !== null) cancelAnimationFrame(animFrame);
         document.body.classList.remove('is-dragging-widget');
         window.removeEventListener('pointermove', onMove);
         window.removeEventListener('pointerup', onUp);
         window.removeEventListener('pointercancel', onUp);
+        if (resizeState.current) {
+          for (const w of resizeState.current.widgets) {
+            setWidgetOverride(w.id, null);
+          }
+        }
         resizeState.current = null;
       };
     },

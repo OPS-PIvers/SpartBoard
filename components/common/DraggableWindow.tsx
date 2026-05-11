@@ -370,20 +370,25 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   const windowRef = useRef<HTMLDivElement>(null);
 
-  // Register this widget's DOM element in the shared registry for group operations
+  // Register this widget's DOM element in the shared registry for group
+  // operations. Also clear any transient override on unmount so a widget that
+  // disappears mid-drag/resize can't leave a stale entry in the override map.
   useEffect(() => {
     const el = windowRef.current;
     if (el) widgetRefRegistry.set(widget.id, el);
     return () => {
       widgetRefRegistry.delete(widget.id);
+      setWidgetOverride(widget.id, null);
     };
   }, [widget.id]);
 
-  // Subscribe to transient render-time override set by a group-drag/resize leader.
-  // When this widget is a sibling of an active drag/resize, the leader writes
-  // { x, y, w?, h? } here each frame; the render path below uses these in place
-  // of widget.x/y so React re-renders (e.g. bringToFront raising every group
-  // member's z) don't snap us back to the stale prop position.
+  // Subscribe to transient render-time override set by a group-drag/resize
+  // leader. When this widget is a sibling of an active gesture, the leader
+  // writes { x, y, w?, h? } here each frame and clears it explicitly on
+  // commit; the render path below reads override before widget.x/y so any
+  // React re-render during the gesture (e.g. bringToFront raising every
+  // group member's z on pointer-down) doesn't snap us back to the stale
+  // prop position.
   const overrideSubscribe = useCallback(
     (cb: () => void) => subscribeWidgetOverride(widget.id, cb),
     [widget.id]
@@ -398,25 +403,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     overrideSnapshot,
     overrideServerSnapshot
   );
-
-  // Self-clear the override once widget.x/y/w/h has caught up with what we
-  // were rendering. The leader's pointerup calls updateWidgets(...) which
-  // updates props; this layout effect runs synchronously after commit, sees
-  // prop ≈ override, and clears. Avoids a flicker between "override cleared"
-  // and "new prop committed" without coupling the leader to sibling cleanup.
-  useLayoutEffect(() => {
-    const o = getWidgetOverride(widget.id);
-    if (!o) return;
-    const close = (a: number, b: number) => Math.abs(a - b) < 0.5;
-    if (
-      close(o.x, widget.x) &&
-      close(o.y, widget.y) &&
-      (o.w === undefined || close(o.w, widget.w)) &&
-      (o.h === undefined || close(o.h, widget.h))
-    ) {
-      setWidgetOverride(widget.id, null);
-    }
-  }, [widget.id, widget.x, widget.y, widget.w, widget.h]);
 
   const menuRef = useRef<HTMLDivElement>(null);
   const snapMenuRef = useRef<HTMLDivElement>(null);
@@ -1108,7 +1094,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       // Commit group sibling positions via batch update — clamp each sibling
       // to world bounds independently so a sibling near the edge stays inside
-      // even if the leader's delta would have pushed it past.
+      // even if the leader's delta would have pushed it past. Clear each
+      // sibling's transient override explicitly after the commit so the next
+      // render uses the freshly-committed widget.x/y (or, on a read-only
+      // board where updateWidgets no-ops, snaps back to the pre-drag prop
+      // value — a visible, "loud" failure instead of a stale override).
       if (groupSiblingsRef.current.length > 0) {
         const { x: deltaX, y: deltaY } = groupDragDeltaRef.current;
         const vw = window.innerWidth;
@@ -1126,6 +1116,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             return { id: sib.id, changes: { x: c.x, y: c.y } };
           })
         );
+        for (const sib of groupSiblingsRef.current) {
+          setWidgetOverride(sib.id, null);
+        }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
       }
