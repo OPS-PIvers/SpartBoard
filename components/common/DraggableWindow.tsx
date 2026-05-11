@@ -915,7 +915,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const initialMouseX = e.clientX;
     const initialMouseY = e.clientY;
 
-    // Use pointer capture to ensure we get events even if pointer leaves the element
+    // Use pointer capture to ensure we get events even if pointer leaves the
+    // element. Listeners are attached to the capturing element (not window) so
+    // that an unmount mid-gesture detaches the DOM node and lets the listeners
+    // — along with their closures over dragState/groupSiblingsRef/etc. — get
+    // garbage-collected. Pointer capture redirects all subsequent
+    // pointermove/pointerup/pointercancel events to this element regardless of
+    // where the pointer goes, so window listeners are unnecessary.
     const targetElement = e.currentTarget as HTMLElement;
     try {
       targetElement.setPointerCapture(e.pointerId);
@@ -1054,9 +1060,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       setIsDragging(false);
       document.body.classList.remove('is-dragging-widget');
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener('pointermove', onPointerMove);
+      targetElement.removeEventListener('pointerup', onPointerUp);
+      targetElement.removeEventListener('pointercancel', onPointerUp);
 
       try {
         if (targetElement.hasPointerCapture(e.pointerId)) {
@@ -1124,9 +1130,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       }
     };
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+    targetElement.addEventListener('pointermove', onPointerMove);
+    targetElement.addEventListener('pointerup', onPointerUp);
+    targetElement.addEventListener('pointercancel', onPointerUp);
   };
 
   /** Inner edge drag zones sit on top of widget content. Before starting a drag,
@@ -1238,6 +1244,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const minW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
     const minH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
 
+    // See handleDragStart for the rationale: pointer capture routes all
+    // subsequent pointer events to this element, and attaching listeners here
+    // (not on window) lets an unmount mid-resize clean up the closures via
+    // normal DOM-node garbage collection.
     const targetElement = e.currentTarget as HTMLElement;
     try {
       targetElement.setPointerCapture(e.pointerId);
@@ -1344,9 +1354,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       setIsResizing(false);
       document.body.classList.remove('is-dragging-widget');
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener('pointermove', onPointerMove);
+      targetElement.removeEventListener('pointerup', onPointerUp);
+      targetElement.removeEventListener('pointercancel', onPointerUp);
 
       try {
         if (targetElement.hasPointerCapture(e.pointerId)) {
@@ -1374,9 +1384,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       }
     };
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+    targetElement.addEventListener('pointermove', onPointerMove);
+    targetElement.addEventListener('pointerup', onPointerUp);
+    targetElement.addEventListener('pointercancel', onPointerUp);
   };
 
   // Force 100% opacity when spotlighted so it stands out against the dimming overlay
