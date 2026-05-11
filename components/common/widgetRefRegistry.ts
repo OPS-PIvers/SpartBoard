@@ -14,13 +14,15 @@ export const widgetRefRegistry = new Map<string, HTMLDivElement>();
  *
  * Identity invariant: every set() replaces the Override object rather than
  * mutating it in place, so useSyncExternalStore snapshot equality works.
+ *
+ * Shape invariant: w/h must be set together (group resize) or both omitted
+ * (group drag — position-only). The discriminated union prevents callers
+ * from accidentally setting one dimension without the other, which would
+ * break aspect ratio with no runtime signal.
  */
-export type WidgetOverride = {
-  x: number;
-  y: number;
-  w?: number;
-  h?: number;
-};
+export type WidgetOverride =
+  | { x: number; y: number; w?: undefined; h?: undefined }
+  | { x: number; y: number; w: number; h: number };
 
 const overrides = new Map<string, WidgetOverride>();
 const listeners = new Map<string, Set<() => void>>();
