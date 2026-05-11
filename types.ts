@@ -838,9 +838,11 @@ export interface RandomConfig {
    *  for backward compatibility with widgets that pre-date this field —
    *  earlier builds derived home-group COUNT indirectly from `groupSize`
    *  (members per group), which felt unintuitive when the sibling EXPERT
-   *  stepper meant a count. Stored as a target count; at pick time we
-   *  distribute students round-robin into exactly this many buckets via
-   *  `makeNameGroupsByCount` / `makeRestrictedGroupsByCount`. */
+   *  stepper meant a count. Stored as a target count; at pick time
+   *  students get distributed into exactly this many buckets via
+   *  `makeNameGroupsByCount` (round-robin) for custom-names mode, or
+   *  `makeRestrictedGroupsByCount` (greedy smallest-safe-bucket) for
+   *  class mode where restriction-aware placement matters. */
   numHomeGroups?: number;
 }
 

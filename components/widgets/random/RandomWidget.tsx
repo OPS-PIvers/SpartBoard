@@ -278,13 +278,22 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     1,
     Math.ceil(students.length / Math.max(1, groupSize))
   );
-  const displayNumExpertGroups =
-    configNumExpertGroups ??
-    Math.max(2, Math.ceil(estimatedHomeGroupCount / 2));
   // Jigsaw HOME stepper drives a target home-group COUNT (parallel to the
   // EXPERT stepper). Fall back to the count implied by `groupSize` for
-  // widgets created before `numHomeGroups` existed.
-  const displayNumHomeGroups = configNumHomeGroups ?? estimatedHomeGroupCount;
+  // widgets created before `numHomeGroups` existed. Clamp to >= 2 so the
+  // stepper/slider min (also 2) and the displayed value can never disagree
+  // on tiny inputs (1 student, or groupSize > students).
+  const displayNumHomeGroups = Math.max(
+    2,
+    configNumHomeGroups ?? estimatedHomeGroupCount
+  );
+  // EXPERT default is "2 home groups per expert group". Base it on the
+  // home-group count the widget will actually use at pick time
+  // (`displayNumHomeGroups`), not on the legacy `estimatedHomeGroupCount`
+  // — otherwise an explicit `numHomeGroups` change wouldn't shift the
+  // EXPERT default in sync.
+  const displayNumExpertGroups =
+    configNumExpertGroups ?? Math.max(2, Math.ceil(displayNumHomeGroups / 2));
 
   const setGroupSize = (next: number) => {
     // updateWidget merges partial config into existing state — don't spread
@@ -711,13 +720,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         );
 
         // With < 2 home groups, "expert groups" degenerate into 1-person
-        // singletons (each has nobody to compare notes with). Surface a toast
-        // so the teacher knows to lower the group size.
+        // singletons (each has nobody to compare notes with). With the
+        // count-based HOME control, this only happens when the class itself
+        // has fewer than 2 students — adjusting Number of Home Groups can't
+        // help, so the message points at the only remedy.
         if (homeGroups.length < 2) {
           addToast(
             t('widgets.random.jigsawNeedsMultipleGroups', {
               defaultValue:
-                'Jigsaw needs at least 2 home groups — lower the group size or add more students.',
+                'Jigsaw needs at least 2 students to form home groups — add more students.',
             }),
             'warning'
           );

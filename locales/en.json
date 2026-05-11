@@ -655,7 +655,7 @@
       "shuffleHint": "Click Randomize to Shuffle",
       "stepperDecrease": "Decrease {{name}}",
       "stepperIncrease": "Increase {{name}}",
-      "jigsawNeedsMultipleGroups": "Jigsaw needs at least 2 home groups — lower the group size or add more students.",
+      "jigsawNeedsMultipleGroups": "Jigsaw needs at least 2 students to form home groups — add more students.",
       "absent": {
         "buttonLabel": "Mark absent students",
         "ariaLabel": "Open attendance — {{count}} marked absent today",

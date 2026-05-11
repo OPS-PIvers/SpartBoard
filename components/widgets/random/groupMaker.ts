@@ -170,15 +170,18 @@ export function makeNameGroupsByCount(
 }
 
 /**
- * Round-robin restriction-aware group maker that produces EXACTLY
- * `numGroups` buckets. Equivalent to {@link makeRestrictedGroups} but
- * driven by a target group count instead of a target group size. Used by
- * jigsaw mode where the home-group count is the natural UI parameter.
+ * Restriction-aware group maker that produces EXACTLY `numGroups`
+ * buckets. Equivalent to {@link makeRestrictedGroups} but driven by a
+ * target group count instead of a target group size. Used by jigsaw
+ * mode where the home-group count is the natural UI parameter.
  *
- * Strategy mirrors {@link makeRestrictedGroups}: shuffle students, then
- * for each student prefer the smallest bucket with no restricted peer;
- * fall back to any smallest bucket if no conflict-free option exists and
- * count those fallback placements so the caller can surface a warning.
+ * Strategy mirrors {@link makeRestrictedGroups} — greedy "smallest safe
+ * bucket": shuffle students, then for each student prefer the smallest
+ * bucket with no restricted peer, falling back to the overall smallest
+ * bucket if no conflict-free option exists. Fallback placements are
+ * counted so the caller can surface a warning. This is NOT pure
+ * round-robin — restrictions can push placements off the cyclic order
+ * — but the smallest-bucket bias keeps group sizes balanced within 1.
  *
  * If `numGroups` exceeds `students.length` we clamp to `students.length`
  * so no empty groups are returned.

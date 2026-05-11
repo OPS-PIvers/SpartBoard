@@ -175,11 +175,15 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     1,
     Math.ceil(estimatedStudentCount / Math.max(1, groupSize))
   );
-  const numExpertGroups =
-    configNumExpertGroups ?? Math.max(2, Math.ceil(estimatedHomeGroups / 2));
   // Jigsaw home-group COUNT (parallel to numExpertGroups). Falls back to the
   // count implied by `groupSize` for widgets that pre-date `numHomeGroups`.
-  const numHomeGroups = configNumHomeGroups ?? estimatedHomeGroups;
+  // Clamp to >= 2 to match the slider min and the widget-face stepper.
+  const numHomeGroups = Math.max(2, configNumHomeGroups ?? estimatedHomeGroups);
+  // EXPERT default mirrors the widget face: base it on the home-group count
+  // we'll actually use at pick time (`numHomeGroups`), not on the legacy
+  // `estimatedHomeGroups` derived from `groupSize`.
+  const numExpertGroups =
+    configNumExpertGroups ?? Math.max(2, Math.ceil(numHomeGroups / 2));
 
   const [localFirstNames, setLocalFirstNames] = useState(firstNames);
   const [localLastNames, setLocalLastNames] = useState(lastNames);
