@@ -30,6 +30,11 @@ const MobileRemoteApp = lazy(() =>
     default: module.MobileRemoteView,
   }))
 );
+const ShortLinkRedirect = lazy(() =>
+  import('./components/common/ShortLinkRedirect').then((module) => ({
+    default: module.ShortLinkRedirect,
+  }))
+);
 const StudentApp = lazy(() =>
   import('./components/student/StudentApp').then((module) => ({
     default: module.StudentApp,
@@ -256,6 +261,9 @@ const App: React.FC = () => {
   // Simple routing for Student View
   const pathname = window.location.pathname;
   const isMiniAppRoute = pathname.startsWith('/miniapp/');
+  // Catch `/r`, `/r/`, and `/r/:code` so typos hit the resolver's
+  // not-found UI instead of mounting the full teacher app + providers.
+  const isShortLinkRoute = pathname === '/r' || pathname.startsWith('/r/');
   const isStudentRoute = pathname === '/join' || pathname.startsWith('/join/');
   const isQuizRoute = pathname === '/quiz' || pathname.startsWith('/quiz/');
   const isNextUpRoute =
@@ -272,6 +280,18 @@ const App: React.FC = () => {
     pathname === '/student/login' || pathname.startsWith('/student/login/');
   const isMyAssignmentsRoute =
     pathname === '/my-assignments' || pathname.startsWith('/my-assignments/');
+
+  // Short-link resolver. Runs outside every provider so anonymous visitors
+  // can follow admin-created /r/:code links without triggering Firebase
+  // Auth, dashboard listeners, or any other heavy setup. The resolver does
+  // a single Firestore lookup + client-side redirect.
+  if (isShortLinkRoute) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ShortLinkRedirect />
+      </Suspense>
+    );
+  }
 
   // MiniApp student route — anonymous entry, no teacher auth needed.
   // StudentIdleTimeoutGuard is a no-op unless a studentRole (ClassLink-via-

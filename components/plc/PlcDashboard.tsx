@@ -189,7 +189,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       return <PlcQuizLibraryTab plc={plc} />;
     }
     if (tab.id === 'assignments') {
-      return <PlcAssignmentsTab plc={plc} />;
+      return <PlcAssignmentsTab plc={plc} onCloseDashboard={onClose} />;
     }
     if (tab.id === 'settings') {
       return <PlcSettingsTab plc={plc} />;

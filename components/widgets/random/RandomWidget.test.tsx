@@ -216,6 +216,45 @@ describe('RandomWidget', () => {
       );
     });
 
+    it('HOME stepper increments numHomeGroups (not groupSize or numExpertGroups)', () => {
+      // HOME stepper drives a target count of home groups, parallel to the
+      // EXPERT stepper's count. It must NOT write `groupSize` (members per
+      // group) — that asymmetry was the original UX bug.
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+      const homeStepper = screen.getByRole('group', {
+        name: /Number of Home Groups/i,
+      });
+      const plus = homeStepper.querySelector(
+        'button[aria-label*="Increase"]'
+      ) as HTMLButtonElement;
+      fireEvent.click(plus);
+      const calls = mockUpdateWidget.mock.calls;
+      const lastConfig = (
+        calls[calls.length - 1][1] as { config: Record<string, unknown> }
+      ).config;
+      expect(lastConfig).toHaveProperty('numHomeGroups');
+      expect(lastConfig).not.toHaveProperty('groupSize');
+      expect(lastConfig).not.toHaveProperty('numExpertGroups');
+    });
+
+    it('EXPERT stepper increments numExpertGroups (not numHomeGroups or groupSize)', () => {
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+      const expertStepper = screen.getByRole('group', {
+        name: /Number of Expert Groups/i,
+      });
+      const plus = expertStepper.querySelector(
+        'button[aria-label*="Increase"]'
+      ) as HTMLButtonElement;
+      fireEvent.click(plus);
+      const calls = mockUpdateWidget.mock.calls;
+      const lastConfig = (
+        calls[calls.length - 1][1] as { config: Record<string, unknown> }
+      ).config;
+      expect(lastConfig).toHaveProperty('numExpertGroups');
+      expect(lastConfig).not.toHaveProperty('numHomeGroups');
+      expect(lastConfig).not.toHaveProperty('groupSize');
+    });
+
     it('does not show Launch buttons before any pick has happened', () => {
       render(
         <RandomWidget
@@ -228,6 +267,69 @@ describe('RandomWidget', () => {
       expect(
         screen.queryByRole('button', { name: /Launch Jigsaw/i })
       ).not.toBeInTheDocument();
+    });
+
+    it('renders the post-pick footer as two rows with all 5 controls visible (no cutoff)', () => {
+      // Regression guard: when both Launch buttons + both steppers + the
+      // Randomize button shared a single horizontal row, the trailing items
+      // overflowed the widget's right edge and were clipped. The footer is
+      // now a vertical stack of two rows so every control stays reachable.
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+
+      // Both Launch buttons.
+      expect(
+        screen.getByRole('button', { name: /Launch Jigsaw/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /Launch Home Group/i })
+      ).toBeInTheDocument();
+
+      // Both steppers (group role + aria-label set on GroupSizeStepper).
+      expect(
+        screen.getByRole('group', { name: /Number of Expert Groups/i })
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole('group', { name: /Number of Home Groups/i })
+      ).toBeInTheDocument();
+
+      // Randomize button still reachable from this view.
+      expect(
+        screen.getByRole('button', { name: /Randomize|Picking/i })
+      ).toBeInTheDocument();
+
+      // Footer is a flex column whose direct children are the two rows.
+      const footer = screen.getByTestId('footer');
+      const stack = footer.firstElementChild as HTMLElement | null;
+      expect(stack).not.toBeNull();
+      expect(stack?.className).toMatch(/\bflex-col\b/);
+      expect(stack?.children.length).toBe(2);
+
+      // Row 1 must contain the Expert stepper, the Launch Jigsaw button, and
+      // the Randomize button. Row 2 must contain the Home stepper, the Launch
+      // Home Group button, and an aria-hidden spacer for visual alignment.
+      const row1 = stack?.children[0] as HTMLElement;
+      const row2 = stack?.children[1] as HTMLElement;
+      const launchJigsaw = screen.getByRole('button', {
+        name: /Launch Jigsaw/i,
+      });
+      const launchHome = screen.getByRole('button', {
+        name: /Launch Home Group/i,
+      });
+      const randomize = screen.getByRole('button', {
+        name: /^Randomize$|^Picking$/,
+      });
+      const expertStepper = screen.getByRole('group', {
+        name: /Number of Expert Groups/i,
+      });
+      const homeStepper = screen.getByRole('group', {
+        name: /Number of Home Groups/i,
+      });
+      expect(row1.contains(expertStepper)).toBe(true);
+      expect(row1.contains(launchJigsaw)).toBe(true);
+      expect(row1.contains(randomize)).toBe(true);
+      expect(row2.contains(homeStepper)).toBe(true);
+      expect(row2.contains(launchHome)).toBe(true);
+      expect(row2.querySelector('[aria-hidden="true"]')).not.toBeNull();
     });
   });
 

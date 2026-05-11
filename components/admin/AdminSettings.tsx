@@ -10,6 +10,7 @@ import {
   Building2,
   BarChart,
   LayoutTemplate,
+  Link2,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -20,6 +21,7 @@ import { AnnouncementsManager } from './Announcements';
 import { OrganizationPanel } from './Organization/OrganizationPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
 import { DashboardTemplatesManager } from './DashboardTemplatesManager';
+import { LinkShortenerManager } from './LinkShortenerManager';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -67,6 +69,12 @@ const TABS = [
     label: 'Templates',
     icon: LayoutTemplate,
     component: DashboardTemplatesManager,
+  },
+  {
+    id: 'links',
+    label: 'Links',
+    icon: Link2,
+    component: LinkShortenerManager,
   },
 ] as const;
 

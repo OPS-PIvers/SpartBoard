@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Cast, Snowflake, X, Trash2 } from 'lucide-react';
+import { Cast, Snowflake, X, Trash2, Eye } from 'lucide-react';
 import { LiveStudent } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { Z_INDEX } from '@/config/zIndex';
+import { withPreviewFlag } from '@/utils/urlHelpers';
 
 interface LiveControlProps {
   isLive: boolean;
@@ -204,6 +205,17 @@ export const LiveControl: React.FC<LiveControlProps> = ({
               <div className="text-xxs text-indigo-400">
                 {joinUrl?.replace(/^https?:\/\//, '')}
               </div>
+              {joinUrl && (
+                <a
+                  href={withPreviewFlag(joinUrl)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="mt-2 inline-flex items-center gap-1.5 px-2.5 py-1 bg-white text-indigo-600 border border-indigo-200 rounded-md text-xxs font-bold uppercase tracking-wider hover:bg-indigo-100 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-400 focus-visible:ring-offset-1 focus-visible:ring-offset-indigo-50"
+                  title="Preview the student view without touching your teacher session"
+                >
+                  <Eye size={12} /> Preview
+                </a>
+              )}
             </div>
           )}
 

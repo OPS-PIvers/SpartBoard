@@ -548,6 +548,36 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Admin-created short links resolved by the client at /r/:code.
+    // - Public `get`: anyone (incl. anonymous) can follow a known shortlink.
+    // - Admin-only `list`: prevents anonymous enumeration of every short
+    //   code + destination, which `allow read: if true` would otherwise
+    //   permit via a collection-level scan.
+    // - Admin-only create/edit/delete: only admins manage links.
+    // - Narrow anonymous update: the resolver bumps `clicks` by exactly 1
+    //   and stamps `lastClickedAt`. Restricting the diff prevents resetting
+    //   or inflating the counter — without these clauses an attacker could
+    //   set `clicks` to any value while still passing `affectedKeys`.
+    // - `lastClickedAt` is additionally clamped to a ±5 minute drift
+    //   window around server time. Without that bound an attacker could
+    //   stamp a far-future timestamp (e.g. year 2286) and poison any
+    //   "recently clicked" ordering or last-active analytics built on the
+    //   field. 5 minutes is generous enough to absorb realistic client
+    //   clock skew while still bounding the field tightly.
+    match /short_links/{code} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        || (request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['clicks', 'lastClickedAt'])
+            && request.resource.data.clicks == resource.data.get('clicks', 0) + 1
+            && request.resource.data.lastClickedAt is int
+            && request.resource.data.lastClickedAt <= request.time.toMillis() + 300000
+            && request.resource.data.lastClickedAt >= request.time.toMillis() - 300000);
+      allow delete: if isAdmin();
+    }
+
     // Global permissions - all authenticated users can read, only admins can write
     match /global_permissions/{featureId=**} {
       allow read: if request.auth != null;
@@ -1068,6 +1098,90 @@ service cloud.firestore {
           && request.auth.uid == resource.data.ownerUid;
       }
 
+      // PLC cross-teacher results aggregate. Replaces the
+      // Google-Sheet-backed `readPlcSheet` aggregation. Each (quiz, teacher)
+      // pair has exactly one contribution doc — auto-published by
+      // QuizResults when the owning teacher views her results. The PlcTab
+      // subscribes to this subcollection rather than reading the shared
+      // sheet, so a teacher's data shows up in the aggregate as soon as
+      // her client publishes, without an explicit "export" step.
+      //
+      // Doc id is `{quizId}_{teacherUid}` — the publishing teacher's
+      // *local* quizId (different across members for synced quizzes).
+      // Cross-teacher grouping happens via the `syncGroupId` field, not
+      // the key. Schema is locked with `keys().hasOnly([...])` so future
+      // readers can rely on the field set without defensive parsing.
+      match /contributions/{contribId} {
+        function isPlcMember() {
+          return request.auth != null
+            && request.auth.uid in get(
+                 /databases/$(database)/documents/plcs/$(plcId)
+               ).data.memberUids;
+        }
+
+        // Any current member can read every member's contribution — that's
+        // the whole point of the aggregate view.
+        allow read: if isPlcMember();
+
+        // Only the contributing teacher writes her own doc. Doc id is
+        // pinned to `{quizId}_{teacherUid}` so a member can't masquerade
+        // as another teacher by writing a doc with someone else's uid.
+        allow create: if isPlcMember()
+          && request.auth.uid == request.resource.data.teacherUid
+          && contribId == request.resource.data.quizId + '_' + request.auth.uid
+          && request.resource.data.keys().hasOnly([
+               'id', 'schemaVersion', 'quizId', 'syncGroupId',
+               'teacherUid', 'teacherName', 'questionsSnapshot',
+               'responses', 'updatedAt'
+             ])
+          && request.resource.data.schemaVersion == 1
+          && request.resource.data.id == contribId
+          && request.resource.data.quizId is string
+          && (request.resource.data.syncGroupId == null
+              || request.resource.data.syncGroupId is string)
+          && request.resource.data.teacherName is string
+          && request.resource.data.questionsSnapshot is list
+          && request.resource.data.responses is list
+          && request.resource.data.updatedAt is number;
+
+        // Identity fields are immutable post-create. `quizId`,
+        // `syncGroupId`, and `teacherUid` are the keys the aggregate
+        // groups on — letting a teacher silently retarget her existing
+        // contribution to a different quiz would corrupt every viewer's
+        // aggregate. Mutable: questionsSnapshot, responses, teacherName,
+        // updatedAt.
+        allow update: if isPlcMember()
+          && request.auth.uid == resource.data.teacherUid
+          && request.auth.uid == request.resource.data.teacherUid
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.quizId == resource.data.quizId
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.schemaVersion == resource.data.schemaVersion
+          && request.resource.data.keys().hasOnly([
+               'id', 'schemaVersion', 'quizId', 'syncGroupId',
+               'teacherUid', 'teacherName', 'questionsSnapshot',
+               'responses', 'updatedAt'
+             ])
+          && request.resource.data.teacherName is string
+          && request.resource.data.questionsSnapshot is list
+          && request.resource.data.responses is list
+          && request.resource.data.updatedAt is number;
+
+        // A teacher can withdraw her own contribution (e.g. if she
+        // deletes the source assignment). Membership-gated to keep the
+        // policy consistent with read/create/update — every write to
+        // this subcollection requires the caller to currently be in the
+        // PLC. The doc-id pin (`{quizId}_{teacherUid}`) is asserted for
+        // defense-in-depth so a doc whose id doesn't match the canonical
+        // pattern (e.g. a migration-script write or an admin-tool entry)
+        // can't be deleted by a teacher whose uid happens to appear in
+        // `teacherUid`. Removed-member cleanup is the responsibility of
+        // the PLC removal flow, not the removed member's client.
+        allow delete: if isPlcMember()
+          && request.auth.uid == resource.data.teacherUid
+          && contribId == resource.data.quizId + '_' + resource.data.teacherUid;
+      }
+
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at
       // canonical `/synced_quizzes/{groupId}` docs — questions live there,
       // not here. Any current PLC member can share a new quiz, edit any
@@ -1571,7 +1685,13 @@ service cloud.firestore {
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preSyncVersion']) ||
             request.resource.data.preSyncVersion == 0) &&
            request.resource.data.diff(resource.data)
-             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion']) &&
+             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked']) &&
+           // Students may only ever CLEAR the unlock flag (write `false`)
+           // — never set it to true. The teacher's unlock action sets
+           // `unlocked: true`; `completeQuiz` clears it back to false
+           // when the resumed attempt is finalized.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['unlocked']) ||
+            request.resource.data.get('unlocked', false) == false) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
@@ -1675,12 +1795,20 @@ service cloud.firestore {
          request.resource.data.completedAttempts == resource.data.completedAttempts + 1 &&
          request.resource.data.lastAttemptAt is number)
         ||
-        // Teacher reset branch — set completedAttempts back to 0.
+        // Teacher reset/refund branch — decrease completedAttempts.
+        // Used by `removeStudent` (effectively resets to 0 via batch
+        // delete, kept here for compatibility) and `unlockStudentAttempt`
+        // (refunds one attempt so the student isn't immediately re-blocked
+        // by the cap on resume). The teacher may only DECREASE the
+        // counter, never inflate it — this preserves the cap as an
+        // anti-cheating defense while permitting deliberate refunds.
         (request.auth.uid == resource.data.teacherUid &&
          request.resource.data.studentUid == resource.data.studentUid &&
          request.resource.data.quizId == resource.data.quizId &&
          request.resource.data.teacherUid == resource.data.teacherUid &&
-         request.resource.data.completedAttempts == 0)
+         request.resource.data.get('completedAttempts', 0) >= 0 &&
+         request.resource.data.get('completedAttempts', 0) <=
+           resource.data.get('completedAttempts', 0))
         ||
         isAdmin()
       );
@@ -1717,11 +1845,17 @@ service cloud.firestore {
          request.resource.data.completedAttempts == resource.data.completedAttempts + 1 &&
          request.resource.data.lastAttemptAt is number)
         ||
+        // Teacher reset/refund branch — see quiz_attempt_ledger above.
+        // The teacher may only DECREASE completedAttempts; this supports
+        // both the legacy `removeStudent` reset-to-0 and the new
+        // `unlockStudentAttempt` refund-by-one flow.
         (request.auth.uid == resource.data.teacherUid &&
          request.resource.data.studentUid == resource.data.studentUid &&
          request.resource.data.activityId == resource.data.activityId &&
          request.resource.data.teacherUid == resource.data.teacherUid &&
-         request.resource.data.completedAttempts == 0)
+         request.resource.data.get('completedAttempts', 0) >= 0 &&
+         request.resource.data.get('completedAttempts', 0) <=
+           resource.data.get('completedAttempts', 0))
         ||
         isAdmin()
       );
@@ -1930,8 +2064,14 @@ service cloud.firestore {
               'completedAt',
               'tabSwitchWarnings',
               'completedAttempts',
-              'classPeriod'
+              'classPeriod',
+              'unlocked'
             ]) &&
+            // Students may only ever CLEAR the unlock flag — never set
+            // it. The teacher sets `unlocked: true`; `completeActivity`
+            // clears it back to false on submission of a resumed attempt.
+            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['unlocked']) ||
+             request.resource.data.get('unlocked', false) == false) &&
             request.resource.data.answers is list &&
             // Append-only on answers, EXCEPT during a rejoin-reset for a
             // new attempt under the cap. The reset path writes

@@ -58,10 +58,18 @@ const SUB_TABS: readonly SubTabDef[] = [
 
 interface PlcAssignmentsTabProps {
   plc: Plc;
+  /**
+   * Closes the entire PLC dashboard. Forwarded to the Library sub-tab so
+   * its "Edit all settings…" hand-off from the post-import class-period
+   * picker can dismiss the dashboard before the QuizWidget opens the
+   * full assignment editor.
+   */
+  onCloseDashboard: () => void;
 }
 
 export const PlcAssignmentsTab: React.FC<PlcAssignmentsTabProps> = ({
   plc,
+  onCloseDashboard,
 }) => {
   const { t } = useTranslation();
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('library');
@@ -101,7 +109,10 @@ export const PlcAssignmentsTab: React.FC<PlcAssignmentsTabProps> = ({
       </div>
       <div className="flex-1 min-h-0">
         {activeSubTab === 'library' && (
-          <PlcAssignmentsLibrarySubTab plc={plc} />
+          <PlcAssignmentsLibrarySubTab
+            plc={plc}
+            onCloseDashboard={onCloseDashboard}
+          />
         )}
         {activeSubTab === 'inProgress' && (
           <PlcAssignmentsInProgressSubTab plc={plc} />

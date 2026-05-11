@@ -109,6 +109,28 @@ vi.mock('@/hooks/usePlcAssignments', () => ({
   ) => writePlcAssignmentTemplateMock(plcId, uid, input),
 }));
 
+// PLC contribution cleanup — `deleteAssignment` and
+// `updateAssignmentSettings({plc: undefined})` call this so orphan
+// contribution docs don't keep distorting teammates' PlcTab aggregates.
+// Tests assert it's invoked with the right args; we don't need a real
+// Firestore write here.
+const deletePlcContributionMock = vi
+  .fn<
+    (args: {
+      plcId: string;
+      quizId: string;
+      teacherUid: string;
+    }) => Promise<void>
+  >()
+  .mockResolvedValue(undefined);
+vi.mock('@/utils/plcContributions', () => ({
+  deletePlcContribution: (args: {
+    plcId: string;
+    quizId: string;
+    teacherUid: string;
+  }) => deletePlcContributionMock(args),
+}));
+
 const mockCollection = collection as Mock;
 const mockDeleteField = deleteField as Mock;
 const mockDoc = doc as Mock;

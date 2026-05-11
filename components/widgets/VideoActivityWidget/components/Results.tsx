@@ -15,7 +15,6 @@ import {
   Users,
   CheckCircle2,
   XCircle,
-  Share2,
 } from 'lucide-react';
 import {
   PlcLinkage,
@@ -32,16 +31,19 @@ import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
-import { PlcTab } from '@/components/common/library/PlcTab';
 
 interface ResultsProps {
   session: VideoActivitySession;
   responses: VideoActivityResponse[];
   onBack: () => void;
   /**
-   * PLC linkage for this assignment, if any. Set → render the 4th tab
-   * ("PLC") that aggregates across every PLC peer's exports against the
-   * shared sheet. Absent → tab is hidden.
+   * PLC linkage for this assignment, if any. Currently unused at render
+   * time — kept on the props shape so callers don't have to drop the
+   * prop, and so the VA-side auto-publish work can pick this up directly
+   * when it lands. The PLC tab is intentionally hidden in VA Results
+   * until the VA-side publish path exists (otherwise PlcTab would
+   * cross-contaminate VA's view with Quiz contributions from the same
+   * PLC). See the tab-strip and panel comments below.
    */
   plc?: PlcLinkage;
 }
@@ -50,7 +52,7 @@ export const Results: React.FC<ResultsProps> = ({
   session,
   responses,
   onBack,
-  plc,
+  plc: _plc,
 }) => {
   const { googleAccessToken, orgId } = useAuth();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -330,9 +332,12 @@ export const Results: React.FC<ResultsProps> = ({
             { id: 'overview', icon: <BarChart3 />, label: 'Overview' },
             { id: 'questions', icon: <Clock />, label: 'Questions' },
             { id: 'students', icon: <Users />, label: 'Students' },
-            ...(plc?.sheetUrl
-              ? [{ id: 'plc' as const, icon: <Share2 />, label: 'PLC' }]
-              : []),
+            // PLC tab intentionally hidden for Video Activity until the
+            // VA-side auto-publish path lands. The Quiz path writes its
+            // contributions to `/plcs/{plcId}/contributions/`; if we
+            // rendered PlcTab here it would aggregate quiz responses
+            // under VA question labels (cross-contamination). Re-enable
+            // alongside the VA `publishPlcContribution` wiring.
           ] as const
         ).map((tab) => (
           <button
@@ -586,13 +591,8 @@ export const Results: React.FC<ResultsProps> = ({
           </div>
         )}
 
-        {activeTab === 'plc' && plc?.sheetUrl && (
-          <PlcTab
-            plcSheetUrl={plc.sheetUrl}
-            googleAccessToken={googleAccessToken}
-            questions={questions}
-          />
-        )}
+        {/* PLC tab intentionally not rendered for Video Activity — see
+            tab-strip comment above for the cross-contamination reason. */}
       </div>
     </div>
   );

@@ -271,6 +271,88 @@ export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
  * Phase 1 does not mirror later edits. The doc id matches the source
  * assignment's id for easy join-back.
  */
+/**
+ * One question's identity at the moment a teacher published her PLC
+ * contribution. Stored on each `PlcContribution` so the cross-teacher
+ * aggregate view can detect schema drift (one teammate ahead of another
+ * on a synced quiz, or copy-mode divergence) and render the warning
+ * instead of silently misaligning columns.
+ */
+export interface PlcContributionQuestion {
+  id: string;
+  text: string;
+  points: number;
+}
+
+/**
+ * One student's response within a teacher's PLC contribution. This is the
+ * Firestore-native replacement for a row of the shared Google Sheet —
+ * carries everything the PlcTab needs to render aggregates without
+ * re-running the grader at view time. `pointsByQuestionId` is keyed by
+ * question id (not array index) so a missing entry means "unanswered"
+ * unambiguously and survives reordering.
+ */
+export interface PlcContributionResponse {
+  studentDisplayName: string;
+  pin: string | null;
+  classPeriod: string;
+  status: 'completed' | 'in-progress';
+  /** Whole-number percent (0-100). `null` when status !== 'completed'. */
+  scorePercent: number | null;
+  pointsEarned: number;
+  maxPoints: number;
+  tabSwitchWarnings: number;
+  /** ms timestamp; `null` when status !== 'completed'. */
+  submittedAt: number | null;
+  /**
+   * Per-question points earned, keyed by question id. Absent keys = not
+   * answered. Value `0` = answered incorrectly. Value `> 0` = correct or
+   * partial credit (matches `gradeAnswer().pointsEarned` semantics).
+   */
+  pointsByQuestionId: Record<string, number>;
+}
+
+/**
+ * One teacher's contribution to a PLC's cross-teacher results aggregate.
+ * Replaces the Google-Sheet-based aggregation that lived in
+ * `quizDriveService.readPlcSheet`. Each (quiz, teacher) pair has exactly
+ * one contribution doc at `/plcs/{plcId}/contributions/{quizId}_{teacherUid}`.
+ *
+ * The viewing teacher's PlcTab subscribes to the parent collection and
+ * groups contributions by `syncGroupId` (when set) or `quizId` (legacy
+ * unsynced quizzes) — that's how it identifies "the same logical quiz"
+ * across teachers who each have their own local quiz doc.
+ *
+ * Auto-published from QuizResults.tsx when the owning teacher views her
+ * results — no manual export needed for the PLC tab to see her data.
+ */
+export interface PlcContribution {
+  id: string;
+  schemaVersion: 1;
+  /** The publishing teacher's *local* quizId — different across members for synced quizzes. */
+  quizId: string;
+  /**
+   * Cross-teacher identifier for synced quizzes — read from `quiz.sync.groupId`.
+   * `null` for unsynced quizzes (legacy). Stored as a forward-compatibility
+   * hook: today's PlcTab groups contributions by exact question-id sequence
+   * rather than syncGroupId, because in practice `pullSyncedQuiz` keeps
+   * synced teammates' question ids identical anyway. If we ever let local
+   * question ids drift while staying logically synced, swap the grouping
+   * key in PlcTab to use this field.
+   */
+  syncGroupId: string | null;
+  /** Publishing teacher's UID. Must equal `request.auth.uid` on write. */
+  teacherUid: string;
+  /** Display name snapshot — survives later display-name changes. */
+  teacherName: string;
+  /** Question identities at publish time — used by PlcTab to detect schema drift. */
+  questionsSnapshot: PlcContributionQuestion[];
+  /** One entry per student response captured at publish time. */
+  responses: PlcContributionResponse[];
+  /** ms timestamp; the only mutable identity field on update. */
+  updatedAt: number;
+}
+
 export interface PlcAssignmentIndexEntry {
   id: string;
   /**
@@ -824,11 +906,26 @@ export interface RandomConfig {
   externalTrigger?: number;
   /** Jigsaw mode: original home groups (each student's "home base"). */
   jigsawHomeGroups?: RandomGroup[] | null;
-  /** Jigsaw mode: expert groups derived by transposing home groups
-   *  (position N from each home group becomes expert group N). */
+  /** Jigsaw mode: expert groups derived from home groups via round-robin
+   *  assignment with rotating offset across `numExpertGroups` buckets. */
   jigsawExpertGroups?: RandomGroup[] | null;
   /** Jigsaw mode: which view is currently shown on the front face. */
   jigsawView?: 'home' | 'expert';
+  /** Jigsaw mode: explicit number of expert groups. When unset, defaults to
+   *  max(2, ceil(numHomeGroups / 2)) — i.e. "2 home groups per expert group",
+   *  clamped to a minimum of 2 to match the settings/stepper slider range. */
+  numExpertGroups?: number;
+  /** Jigsaw mode: explicit number of home groups (parallel to
+   *  `numExpertGroups`). When unset, defaults to ceil(students / groupSize)
+   *  for backward compatibility with widgets that pre-date this field —
+   *  earlier builds derived home-group COUNT indirectly from `groupSize`
+   *  (members per group), which felt unintuitive when the sibling EXPERT
+   *  stepper meant a count. Stored as a target count; at pick time
+   *  students get distributed into exactly this many buckets via
+   *  `makeNameGroupsByCount` (round-robin) for custom-names mode, or
+   *  `makeRestrictedGroupsByCount` (greedy smallest-safe-bucket) for
+   *  class mode where restriction-aware placement matters. */
+  numHomeGroups?: number;
 }
 
 export interface DiceConfig {
@@ -2422,6 +2519,16 @@ export interface QuizResponse {
    * v{N+1} update." Absent on responses written outside synced mode.
    */
   preSyncVersion?: number;
+  /**
+   * True when a teacher has manually unlocked an auto-submitted or
+   * attempt-limit-locked response so the student can resume. The hooks
+   * preserve `answers` on the next rejoin and skip the "Warning N of 3"
+   * modal — any further tab-switch finalizes the attempt immediately.
+   * Cleared back to false on the student's next completion.
+   */
+  unlocked?: boolean;
+  /** Client timestamp (ms) when the teacher unlocked the attempt. */
+  unlockedAt?: number;
 }
 
 /**
@@ -3227,6 +3334,14 @@ export interface VideoActivityAnswer {
  * Stored at /video_activity_sessions/{sessionId}/responses/{responseKey}
  */
 export interface VideoActivityResponse {
+  /**
+   * The Firestore doc key under /responses. Populated at read time by the
+   * teacher hook from snapshot.doc.id; never persisted as a field. Callers
+   * should use this (rather than `studentUid`) when targeting a specific
+   * response doc, since the key may be pin-derived for anonymous joiners.
+   * Mirrors `QuizResponse._responseKey`.
+   */
+  _responseKey?: string;
   /** Roster PIN — present for anonymous joiners, absent on SSO joiners. */
   pin?: string;
   /**
@@ -3268,6 +3383,15 @@ export interface VideoActivityResponse {
    * publishes scores; mirrors `VideoActivityScoreVisibility`.
    */
   scoreVisibility?: VideoActivityScoreVisibility;
+  /**
+   * True when a teacher has manually unlocked an auto-submitted or
+   * attempt-limit-locked response so the student can resume. The hook
+   * preserves `answers` on rejoin and the student-side visibility handler
+   * skips the warning modal — any further tab-switch finalizes immediately.
+   */
+  unlocked?: boolean;
+  /** Client timestamp (ms) when the teacher unlocked the attempt. */
+  unlockedAt?: number;
 }
 
 /**
@@ -5453,4 +5577,31 @@ export interface LibraryFolder {
   createdAt: number;
   /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
   updatedAt?: number;
+}
+
+/**
+ * Admin-created short link, stored at `/short_links/{code}`. The doc id is
+ * the public-facing code (e.g. `lesson-1`); the URL `${origin}/r/${code}`
+ * resolves client-side via `ShortLinkRedirect` and bumps the `clicks`
+ * counter atomically before redirecting the browser to `destination`.
+ */
+export interface ShortLink {
+  /** Doc id and URL path segment. Lowercased, slug-safe, unique. */
+  code: string;
+  /** Absolute http(s) URL to redirect to. */
+  destination: string;
+  /** Creator uid (for table display + audit). */
+  createdBy: string;
+  /** Creator email at create time (snapshot — not kept in sync). */
+  createdByEmail: string;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last edit. */
+  updatedAt: number;
+  /** Total resolved clicks. Incremented atomically by the resolver. */
+  clicks: number;
+  /** Epoch ms of the most recent click, or null if never clicked. */
+  lastClickedAt: number | null;
+  /** Optional human-readable name shown in the admin table. */
+  label?: string;
 }

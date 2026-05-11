@@ -22,6 +22,7 @@ import React, { StrictMode } from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
+import { signInAnonymously } from 'firebase/auth';
 
 // vi.mock is hoisted above imports, so any external references inside the
 // factory must be declared via vi.hoisted (otherwise we hit the classic
@@ -269,6 +270,34 @@ describe('QuizStudentApp — SSO studentRole auto-join', () => {
 
     // And we should not be stuck on the "Joining quiz…" loader.
     expect(screen.queryByText(/Joining quiz…/i)).not.toBeInTheDocument();
+  });
+
+  it('preview-mode short-circuits to a static lobby — no signInAnonymously, no auto-join, banner visible', async () => {
+    // A teacher arrives at /quiz?code=ABC&preview=1 via the Preview button.
+    // Even with a non-anonymous (teacher) session already present and a code
+    // in the URL, the auth-init effect and the SSO auto-join effect must
+    // both no-op so the teacher's session isn't replaced or contaminated.
+    mockAuth.currentUser = mintUser({
+      uid: 'teacher-uid-preview',
+      isAnonymous: false,
+      studentRole: false,
+    });
+    setSearch('?code=ABC123&preview=1');
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText(/Teacher preview/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /Join Quiz/i })
+    ).toBeInTheDocument();
+
+    expect(vi.mocked(signInAnonymously)).not.toHaveBeenCalled();
+    expect(mockJoinQuizSession).not.toHaveBeenCalled();
+    expect(mockLookupSession).not.toHaveBeenCalled();
+
+    // `usePreviewMode` strips the flag on mount so a teacher copying the URL
+    // from the address bar gets the real student URL.
+    expect(window.location.search).toBe('?code=ABC123');
   });
 
   it('uses a generic fallback message when the rejected value is not an Error', async () => {

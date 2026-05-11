@@ -37,6 +37,8 @@ import {
   Pause,
   Play,
   ArrowLeft,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { deleteField, doc, updateDoc } from 'firebase/firestore';
 import {
@@ -72,6 +74,7 @@ import {
   playQuizCompleteCelebration,
 } from '@/utils/quizAudio';
 import { logError } from '@/utils/logError';
+import { withPreviewFlag } from '@/utils/urlHelpers';
 
 interface QuizLiveMonitorProps {
   session: QuizSession;
@@ -98,6 +101,11 @@ interface QuizLiveMonitorProps {
    * NOT the `studentUid` field.
    */
   onRemoveStudent?: (responseKey: string) => Promise<void>;
+  /**
+   * Unlock a student's locked/auto-submitted attempt so they can resume.
+   * Pass `response._responseKey` (snapshot doc id), NOT `studentUid`.
+   */
+  onUnlockStudent?: (responseKey: string) => Promise<void>;
   onRevealAnswer?: (questionId: string, correctAnswer: string) => Promise<void>;
   onHideAnswer?: (questionId: string) => Promise<void>;
   /** Navigate back to the manager view without ending the quiz. */
@@ -270,6 +278,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   rosters,
   onUpdateConfig,
   onRemoveStudent,
+  onUnlockStudent,
   onRevealAnswer,
   onHideAnswer,
   onBack,
@@ -503,6 +512,36 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     [addToast]
   );
 
+  const handleUnlockStudent = useCallback(
+    async (responseKey: string, displayName: string) => {
+      if (!onUnlockStudent) return;
+      const ok = await showConfirm(
+        `Reopen ${displayName}'s attempt so they can resume? Their previous answers will be kept. The next time they leave the quiz tab, their work will be submitted automatically.`,
+        {
+          title: 'Unlock attempt?',
+          variant: 'warning',
+          confirmLabel: 'Unlock',
+          cancelLabel: 'Cancel',
+        }
+      );
+      if (!ok) return;
+      try {
+        await onUnlockStudent(responseKey);
+        addToast(
+          `${displayName}'s attempt is unlocked — they can resume now.`,
+          'success'
+        );
+      } catch (err) {
+        logError('QuizLiveMonitor.unlockStudent', err);
+        addToast(
+          `Could not unlock ${displayName}'s attempt — try again or check your connection.`,
+          'error'
+        );
+      }
+    },
+    [onUnlockStudent, showConfirm, addToast]
+  );
+
   const handleToggleColors = useCallback(() => {
     void (async () => {
       // Turning ON requires confirmation while results are still gated.
@@ -726,7 +765,16 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   }, [session.status, session.soundEffectsEnabled, soundMuted]);
 
   const isActive = session.status === 'active';
-  const joinUrl = `${window.location.origin}/quiz?code=${session.code}`;
+  // Don't construct URLs until the session has a code — otherwise the
+  // OPEN / PREVIEW links point at `?code=` (empty), which renders a broken
+  // lobby. `hasCode` gates rendering of both buttons below.
+  const hasCode = Boolean(session.code);
+  const joinUrl = hasCode
+    ? `${window.location.origin}/quiz?code=${session.code}`
+    : '';
+  // Built via `withPreviewFlag` so it stays well-formed if `joinUrl` ever
+  // gains additional query parameters.
+  const previewUrl = hasCode ? withPreviewFlag(joinUrl) : '';
 
   const handleCopy = () => {
     void navigator.clipboard.writeText(joinUrl).then(() => {
@@ -1396,25 +1444,49 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   )}
                   {copied ? 'COPIED' : 'COPY'}
                 </button>
-                <a
-                  href={joinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
-                  style={{
-                    gap: 'min(3px, 0.7cqmin)',
-                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                    fontSize: 'min(9px, 2.5cqmin)',
-                  }}
-                >
-                  <ExternalLink
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                  OPEN
-                </a>
+                {hasCode && (
+                  <>
+                    <a
+                      href={joinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(3px, 0.7cqmin)',
+                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        fontSize: 'min(9px, 2.5cqmin)',
+                      }}
+                    >
+                      <ExternalLink
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
+                      OPEN
+                    </a>
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(3px, 0.7cqmin)',
+                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        fontSize: 'min(9px, 2.5cqmin)',
+                      }}
+                      title="Preview the student view without touching your teacher session"
+                    >
+                      <Eye
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
+                      PREVIEW
+                    </a>
+                  </>
+                )}
                 {/* Sound mute toggle */}
                 {session.soundEffectsEnabled && (
                   <button
@@ -1595,6 +1667,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                 showTabWarnings &&
                                 session.tabWarningsEnabled !== false
                               }
+                              attemptLimit={session.attemptLimit}
                               confirmRemove={confirmRemove === rowKey}
                               onConfirmRemoveToggle={() =>
                                 setConfirmRemove(
@@ -1610,6 +1683,15 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                         .then(() => setConfirmRemove(null))
                                         .catch(() => undefined);
                                     }
+                                  : undefined
+                              }
+                              onUnlock={
+                                onUnlockStudent
+                                  ? (displayName) =>
+                                      void handleUnlockStudent(
+                                        rowKey,
+                                        displayName
+                                      )
                                   : undefined
                               }
                               pinToName={pinToName}
@@ -1671,25 +1753,49 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   )}
                   {copied ? 'COPIED' : 'COPY'}
                 </button>
-                <a
-                  href={joinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
-                  style={{
-                    gap: 'min(4px, 1cqmin)',
-                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                    fontSize: 'min(10px, 3cqmin)',
-                  }}
-                >
-                  <ExternalLink
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                  OPEN
-                </a>
+                {hasCode && (
+                  <>
+                    <a
+                      href={joinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(4px, 1cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                        fontSize: 'min(10px, 3cqmin)',
+                      }}
+                    >
+                      <ExternalLink
+                        style={{
+                          width: 'min(14px, 3.5cqmin)',
+                          height: 'min(14px, 3.5cqmin)',
+                        }}
+                      />
+                      OPEN
+                    </a>
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(4px, 1cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                        fontSize: 'min(10px, 3cqmin)',
+                      }}
+                      title="Preview the student view without touching your teacher session"
+                    >
+                      <Eye
+                        style={{
+                          width: 'min(14px, 3.5cqmin)',
+                          height: 'min(14px, 3.5cqmin)',
+                        }}
+                      />
+                      PREVIEW
+                    </a>
+                  </>
+                )}
                 {session.soundEffectsEnabled && (
                   <button
                     onClick={() => setSoundMuted((m) => !m)}
@@ -1980,6 +2086,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                 showTabWarnings &&
                                 session.tabWarningsEnabled !== false
                               }
+                              attemptLimit={session.attemptLimit}
                               confirmRemove={confirmRemove === rowKey}
                               onConfirmRemoveToggle={() =>
                                 setConfirmRemove(
@@ -1995,6 +2102,15 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                         .then(() => setConfirmRemove(null))
                                         .catch(() => undefined);
                                     }
+                                  : undefined
+                              }
+                              onUnlock={
+                                onUnlockStudent
+                                  ? (displayName) =>
+                                      void handleUnlockStudent(
+                                        rowKey,
+                                        displayName
+                                      )
                                   : undefined
                               }
                               pinToName={pinToName}
@@ -2429,9 +2545,14 @@ const StudentRow: React.FC<{
   /** Right-column score pill content. */
   scoreDisplay: 'percent' | 'count' | 'hidden';
   showTabWarnings: boolean;
+  /** Session-configured attempt cap; null/undefined = unlimited. */
+  attemptLimit: number | null | undefined;
   confirmRemove: boolean;
   onConfirmRemoveToggle: () => void;
   onRemove?: () => void;
+  /** Invoked with the resolved roster display name so the confirm dialog
+      can use a friendly phrasing without re-resolving inside the row. */
+  onUnlock?: (displayName: string) => void;
   pinToName: Record<string, string>;
   byStudentUid?: Map<
     string,
@@ -2445,9 +2566,11 @@ const StudentRow: React.FC<{
   colorsEnabled,
   scoreDisplay,
   showTabWarnings,
+  attemptLimit,
   confirmRemove,
   onConfirmRemoveToggle,
   onRemove,
+  onUnlock,
   pinToName,
   byStudentUid,
 }) => {
@@ -2619,6 +2742,81 @@ const StudentRow: React.FC<{
             {warnings}
           </span>
         )}
+
+        {/* Lock indicator + unlock action. A row is "locked" when the
+            student's attempt was auto-submitted by the tab-switch
+            tripwire (3+ warnings on a completed response) or when they
+            hit the cross-launch attempt cap. The teacher clicks to
+            reopen the attempt — the underlying answers are preserved
+            and the next strike will finalize immediately. */}
+        {(() => {
+          if (!onUnlock) return null;
+          const isAutoSubmittedByWarnings =
+            response.status === 'completed' &&
+            warnings >= 3 &&
+            !response.unlocked;
+          const completedCount = response.completedAttempts ?? 0;
+          const hitAttemptCap =
+            typeof attemptLimit === 'number' &&
+            attemptLimit > 0 &&
+            completedCount >= attemptLimit &&
+            !response.unlocked;
+          const isLocked = isAutoSubmittedByWarnings || hitAttemptCap;
+          if (isLocked) {
+            return (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUnlock(displayName);
+                }}
+                className="flex items-center gap-0.5 bg-amber-100 hover:bg-amber-200 text-amber-800 rounded uppercase font-black shrink-0 transition-colors"
+                style={{
+                  fontSize: 'min(9px, 2.5cqmin)',
+                  padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                }}
+                title={
+                  isAutoSubmittedByWarnings
+                    ? 'Auto-submitted from tab-switch warnings — click to allow resume'
+                    : 'Attempt limit reached — click to allow resume'
+                }
+                aria-label={`Unlock ${displayName}'s attempt`}
+              >
+                <Lock
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+                Locked
+              </button>
+            );
+          }
+          if (
+            response.unlocked &&
+            (response.status === 'in-progress' || response.status === 'joined')
+          ) {
+            return (
+              <span
+                className="flex items-center gap-0.5 bg-emerald-100 text-emerald-800 rounded uppercase font-black shrink-0"
+                style={{
+                  fontSize: 'min(9px, 2.5cqmin)',
+                  padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+                }}
+                title="Unlocked — one more tab-switch will finalize the attempt"
+              >
+                <Unlock
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+                Resumed
+              </span>
+            );
+          }
+          return null;
+        })()}
       </span>
       {pillText !== null && (
         <span

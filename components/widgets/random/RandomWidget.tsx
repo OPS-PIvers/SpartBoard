@@ -34,7 +34,9 @@ import { logError } from '@/utils/logError';
 import {
   makeJigsawExpertGroups,
   makeNameGroups,
+  makeNameGroupsByCount,
   makeRestrictedGroups,
+  makeRestrictedGroupsByCount,
 } from './groupMaker';
 
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
@@ -42,6 +44,7 @@ import { RandomWheel } from './RandomWheel';
 import { RandomSlots } from './RandomSlots';
 import { RandomFlash } from './RandomFlash';
 import { RandomGroups } from './RandomGroups';
+import { GroupSizeStepper } from './GroupSizeStepper';
 
 import { WidgetLayout } from '../WidgetLayout';
 
@@ -103,6 +106,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     jigsawHomeGroups,
     jigsawExpertGroups,
     jigsawView = 'home',
+    numExpertGroups: configNumExpertGroups,
+    numHomeGroups: configNumHomeGroups,
   } = config;
   // Classic jigsaw is "4 home groups of 4 → 4 expert groups of 4", so default
   // to 4 in jigsaw mode when the user hasn't explicitly set a size. Other
@@ -266,6 +271,48 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     return combined;
   }, [firstNames, lastNames, activeRoster, rosterMode, presentClassStudents]);
 
+  // Inline stepper display: mirror the call-site default so the on-widget
+  // controls show what Pick will actually use until the user sets explicit
+  // values. groupSize already has its own default applied above.
+  const estimatedHomeGroupCount = Math.max(
+    1,
+    Math.ceil(students.length / Math.max(1, groupSize))
+  );
+  // Jigsaw HOME stepper drives a target home-group COUNT (parallel to the
+  // EXPERT stepper). Fall back to the count implied by `groupSize` for
+  // widgets created before `numHomeGroups` existed. Clamp to >= 2 so the
+  // stepper/slider min (also 2) and the displayed value can never disagree
+  // on tiny inputs (1 student, or groupSize > students).
+  const displayNumHomeGroups = Math.max(
+    2,
+    configNumHomeGroups ?? estimatedHomeGroupCount
+  );
+  // EXPERT default is "2 home groups per expert group". Base it on the
+  // home-group count the widget will actually use at pick time
+  // (`displayNumHomeGroups`), not on the legacy `estimatedHomeGroupCount`
+  // — otherwise an explicit `numHomeGroups` change wouldn't shift the
+  // EXPERT default in sync.
+  const displayNumExpertGroups =
+    configNumExpertGroups ?? Math.max(2, Math.ceil(displayNumHomeGroups / 2));
+
+  const setGroupSize = (next: number) => {
+    // updateWidget merges partial config into existing state — don't spread
+    // ...config here, since it's a closure-captured snapshot that may be stale.
+    updateWidget(widget.id, {
+      config: { groupSize: next } as WidgetConfig,
+    });
+  };
+  const setNumExpertGroups = (next: number) => {
+    updateWidget(widget.id, {
+      config: { numExpertGroups: next } as WidgetConfig,
+    });
+  };
+  const setNumHomeGroups = (next: number) => {
+    updateWidget(widget.id, {
+      config: { numHomeGroups: next } as WidgetConfig,
+    });
+  };
+
   const absentCount = useMemo(() => {
     if (rosterMode !== 'class' || !activeRoster) return 0;
     const today = getLocalIsoDate();
@@ -324,7 +371,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const setJigsawView = (view: 'home' | 'expert') => {
     if (jigsawView === view) return;
     updateWidget(widget.id, {
-      config: { ...config, jigsawView: view },
+      config: { jigsawView: view },
     });
   };
 
@@ -647,9 +694,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
         let homeGroups: RandomGroup[];
         if (rosterMode === 'class' && activeRoster) {
-          const { groups, unsatisfied } = makeRestrictedGroups(
+          const { groups, unsatisfied } = makeRestrictedGroupsByCount(
             presentClassStudents,
-            groupSize
+            displayNumHomeGroups
           );
           homeGroups = groups;
           if (unsatisfied > 0) {
@@ -662,18 +709,59 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         } else {
-          homeGroups = makeNameGroups(students, groupSize);
+          homeGroups = makeNameGroupsByCount(students, displayNumHomeGroups);
         }
-        const expertGroups = makeJigsawExpertGroups(homeGroups);
+        const numExpertGroups =
+          configNumExpertGroups ??
+          Math.max(2, Math.ceil(homeGroups.length / 2));
+        const expertGroups = makeJigsawExpertGroups(
+          homeGroups,
+          numExpertGroups
+        );
 
         // With < 2 home groups, "expert groups" degenerate into 1-person
-        // singletons (each has nobody to compare notes with). Surface a toast
-        // so the teacher knows to lower the group size.
+        // singletons (each has nobody to compare notes with). With the
+        // count-based HOME control, this only happens when the class itself
+        // has fewer than 2 students — adjusting Number of Home Groups can't
+        // help, so the message points at the only remedy.
         if (homeGroups.length < 2) {
           addToast(
             t('widgets.random.jigsawNeedsMultipleGroups', {
               defaultValue:
-                'Jigsaw needs at least 2 home groups — lower the group size or add more students.',
+                'Jigsaw needs at least 2 students to form home groups — add more students.',
+            }),
+            'warning'
+          );
+        } else if (
+          configNumHomeGroups != null &&
+          homeGroups.length < configNumHomeGroups
+        ) {
+          // User requested more home groups than the class can fill —
+          // makeNameGroupsByCount / makeRestrictedGroupsByCount clamp to
+          // students.length to avoid empty groups, so surface the discrepancy.
+          addToast(
+            t('widgets.random.homeGroupCountReduced', {
+              count: homeGroups.length,
+              requested: configNumHomeGroups,
+              defaultValue:
+                'Only {{count}} home groups fit this class — lower the Number of Home Groups setting or add more students.',
+            }),
+            'warning'
+          );
+        } else if (
+          configNumExpertGroups != null &&
+          expertGroups.length < configNumExpertGroups
+        ) {
+          // The user explicitly set numExpertGroups too high for this class
+          // size — the algorithm filtered empty buckets / merged singletons
+          // and produced fewer groups than requested. Surface this so the
+          // stepper value doesn't silently disagree with the visible result.
+          addToast(
+            t('widgets.random.expertGroupCountReduced', {
+              count: expertGroups.length,
+              requested: configNumExpertGroups,
+              defaultValue:
+                'Only {{count}} expert groups fit this class — lower the Number of Expert Groups setting or add more students.',
             }),
             'warning'
           );
@@ -1042,70 +1130,90 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 style={{ padding: '0 min(8px, 2cqmin)' }}
               >
                 {mode === 'shuffle' ? (
-                  <div
-                    className="flex-1 overflow-hidden w-full flex flex-col min-h-0"
-                    style={{
-                      padding: 'min(4px, 1cqmin) 0',
-                      gap: 'min(4px, 1cqmin)',
-                    }}
-                  >
-                    {(Array.isArray(displayResult) &&
-                    (displayResult.length === 0 ||
-                      !Array.isArray(displayResult[0]))
-                      ? (displayResult as string[])
-                      : []
-                    ).map((name: string, i: number) => (
-                      <div
-                        key={i}
-                        className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm min-h-0 overflow-hidden"
-                        style={{
-                          flex: '1 1 0',
-                          gap: 'min(12px, 4cqmin)',
-                          padding: '0 min(12px, 3cqmin)',
-                          containerType: 'size',
-                        }}
-                      >
-                        <span
-                          className="font-mono font-black text-slate-400 flex-shrink-0"
-                          style={{ fontSize: 'clamp(12px, 25cqmin, 28px)' }}
-                        >
-                          {i + 1}
-                        </span>
-                        <span
-                          className="leading-none font-bold text-slate-700 truncate min-w-0"
-                          style={{ fontSize: 'clamp(16px, 60cqmin, 80px)' }}
-                        >
-                          {name}
-                        </span>
-                      </div>
-                    ))}
-                    {(!displayResult ||
-                      !Array.isArray(displayResult) ||
-                      (displayResult.length > 0 &&
-                        Array.isArray(displayResult[0]))) && (
-                      <div
-                        className="flex-1 flex flex-col items-center justify-center text-slate-300 italic"
-                        style={{
-                          padding: 'min(40px, 8cqmin) 0',
-                          gap: 'min(8px, 2cqmin)',
-                        }}
-                      >
-                        <Layers
-                          className="opacity-20"
+                  (() => {
+                    const shuffleNames =
+                      Array.isArray(displayResult) &&
+                      (displayResult.length === 0 ||
+                        !Array.isArray(displayResult[0]))
+                        ? (displayResult as string[])
+                        : [];
+                    if (shuffleNames.length === 0) {
+                      return (
+                        <div
+                          className="flex-1 flex flex-col items-center justify-center text-slate-300 italic"
                           style={{
-                            width: 'min(32px, 8cqmin)',
-                            height: 'min(32px, 8cqmin)',
+                            padding: 'min(40px, 8cqmin) 0',
+                            gap: 'min(8px, 2cqmin)',
                           }}
-                        />
-                        <span
-                          className="font-bold"
-                          style={{ fontSize: 'min(14px, 3.5cqmin)' }}
                         >
-                          Click Randomize to Shuffle
-                        </span>
+                          <Layers
+                            className="opacity-20"
+                            style={{
+                              width: 'min(32px, 8cqmin)',
+                              height: 'min(32px, 8cqmin)',
+                            }}
+                          />
+                          <span
+                            className="font-bold"
+                            style={{ fontSize: 'min(14px, 3.5cqmin)' }}
+                          >
+                            {t('widgets.random.shuffleHint', {
+                              defaultValue: 'Click Randomize to Shuffle',
+                            })}
+                          </span>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div
+                        className="flex-1 overflow-y-auto overflow-x-hidden w-full"
+                        style={{
+                          // CSS multi-column layout: browser fits as many ~200px
+                          // columns as the container allows. column-fill: auto
+                          // fills column 1 top-to-bottom, then column 2, etc. —
+                          // the column-first reading order we want for a numbered
+                          // list. Vertical overflow scrolls; breakInside on each
+                          // row keeps cards intact across column boundaries.
+                          columnWidth: 'clamp(160px, 36cqmin, 240px)',
+                          columnFill: 'auto',
+                          columnGap: 'clamp(6px, 1.5cqmin, 12px)',
+                          padding: 'clamp(2px, 1cqmin, 6px) 0',
+                        }}
+                      >
+                        {shuffleNames.map((name: string, i: number) => (
+                          <div
+                            key={i}
+                            className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
+                            style={{
+                              gap: 'clamp(8px, 2.5cqmin, 14px)',
+                              padding:
+                                'clamp(4px, 1.2cqmin, 10px) clamp(10px, 2.5cqmin, 16px)',
+                              marginBottom: 'clamp(3px, 1cqmin, 8px)',
+                              minHeight: 'clamp(28px, 6cqmin, 48px)',
+                              breakInside: 'avoid',
+                            }}
+                          >
+                            <span
+                              className="font-mono font-black text-slate-400 flex-shrink-0 tabular-nums"
+                              style={{
+                                fontSize: 'clamp(11px, 3.2cqmin, 18px)',
+                              }}
+                            >
+                              {i + 1}
+                            </span>
+                            <span
+                              className="leading-tight font-bold text-slate-700 truncate min-w-0"
+                              style={{
+                                fontSize: 'clamp(13px, 4cqmin, 22px)',
+                              }}
+                            >
+                              {name}
+                            </span>
+                          </div>
+                        ))}
                       </div>
-                    )}
-                  </div>
+                    );
+                  })()
                 ) : (
                   <RandomGroups
                     displayResult={displayResult}
@@ -1117,15 +1225,28 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         }
         footer={
-          <div
-            className="w-full flex"
-            style={{
-              padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
-              gap: 'clamp(6px, 2cqmin, 14px)',
-            }}
-          >
-            {mode === 'jigsaw' && hasJigsawGroups && (
-              <>
+          mode === 'jigsaw' && hasJigsawGroups ? (
+            <div
+              className="w-full flex flex-col"
+              style={{
+                padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
+                gap: 'clamp(6px, 1.5cqmin, 12px)',
+              }}
+            >
+              <div
+                className="flex w-full items-stretch"
+                style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
+              >
+                <GroupSizeStepper
+                  value={displayNumExpertGroups}
+                  onChange={setNumExpertGroups}
+                  label={t('widgets.random.expertLabelShort', {
+                    defaultValue: 'EXPERT',
+                  })}
+                  title={t('widgets.random.expertGroupCount', {
+                    defaultValue: 'Number of Expert Groups',
+                  })}
+                />
                 <Button
                   variant={jigsawView === 'expert' ? 'primary' : 'secondary'}
                   shape="pill"
@@ -1161,6 +1282,45 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   </span>
                 </Button>
                 <Button
+                  variant="hero"
+                  size="md"
+                  shape="pill"
+                  onClick={handlePick}
+                  disabled={isSpinning}
+                  className="flex-shrink-0"
+                  style={{
+                    width: 'clamp(40px, 10cqmin, 72px)',
+                    height: 'clamp(40px, 10cqmin, 72px)',
+                    padding: 0,
+                  }}
+                  aria-label={isSpinning ? 'Picking' : 'Randomize'}
+                  title={isSpinning ? 'Picking...' : 'Randomize'}
+                  icon={
+                    <RefreshCw
+                      className={isSpinning ? 'animate-spin' : ''}
+                      style={{
+                        width: 'clamp(20px, 6cqmin, 44px)',
+                        height: 'clamp(20px, 6cqmin, 44px)',
+                      }}
+                    />
+                  }
+                />
+              </div>
+              <div
+                className="flex w-full items-stretch"
+                style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
+              >
+                <GroupSizeStepper
+                  value={displayNumHomeGroups}
+                  onChange={setNumHomeGroups}
+                  label={t('widgets.random.homeLabelShort', {
+                    defaultValue: 'HOME',
+                  })}
+                  title={t('widgets.random.homeGroupCount', {
+                    defaultValue: 'Number of Home Groups',
+                  })}
+                />
+                <Button
                   variant={jigsawView === 'home' ? 'primary' : 'secondary'}
                   shape="pill"
                   size="md"
@@ -1194,78 +1354,113 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     })}
                   </span>
                 </Button>
-              </>
-            )}
-            {mode === 'groups' &&
-              Array.isArray(displayResult) &&
-              displayResult.length > 0 &&
-              ((typeof displayResult[0] === 'object' &&
-                displayResult[0] !== null &&
-                'names' in displayResult[0]) ||
-                Array.isArray(displayResult[0])) && (
-                <Button
-                  variant="secondary"
-                  shape="pill"
-                  onClick={handleSendToScoreboard}
-                  aria-label={t('widgets.random.sendToScoreboard')}
+                <div
+                  aria-hidden="true"
+                  className="flex-shrink-0"
                   style={{
                     width: 'clamp(40px, 10cqmin, 72px)',
                     height: 'clamp(40px, 10cqmin, 72px)',
-                    padding: 0,
                   }}
-                  className="flex-shrink-0"
-                  title={t('widgets.random.sendToScoreboard')}
-                  icon={
-                    <Trophy
-                      style={{
-                        width: 'clamp(20px, 5cqmin, 36px)',
-                        height: 'clamp(20px, 5cqmin, 36px)',
-                      }}
-                      className="text-amber-500"
-                    />
-                  }
                 />
-              )}
-            <Button
-              variant="hero"
-              size="md"
-              shape="pill"
-              onClick={handlePick}
-              disabled={isSpinning}
-              className={
-                mode === 'jigsaw' && hasJigsawGroups
-                  ? 'flex-shrink-0'
-                  : 'flex-1'
-              }
-              style={
-                mode === 'jigsaw' && hasJigsawGroups
-                  ? {
-                      // Jigsaw shows two large Launch buttons already; collapse
-                      // Randomize to a square icon-only button so the footer
-                      // doesn't cram three flex-1 children at narrow widths.
+              </div>
+            </div>
+          ) : (
+            <div
+              className="w-full flex"
+              style={{
+                padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
+                gap: 'clamp(6px, 2cqmin, 14px)',
+              }}
+            >
+              {mode === 'groups' &&
+                Array.isArray(displayResult) &&
+                displayResult.length > 0 &&
+                ((typeof displayResult[0] === 'object' &&
+                  displayResult[0] !== null &&
+                  'names' in displayResult[0]) ||
+                  Array.isArray(displayResult[0])) && (
+                  <Button
+                    variant="secondary"
+                    shape="pill"
+                    onClick={handleSendToScoreboard}
+                    aria-label={t('widgets.random.sendToScoreboard')}
+                    style={{
                       width: 'clamp(40px, 10cqmin, 72px)',
                       height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
+                    }}
+                    className="flex-shrink-0"
+                    title={t('widgets.random.sendToScoreboard')}
+                    icon={
+                      <Trophy
+                        style={{
+                          width: 'clamp(20px, 5cqmin, 36px)',
+                          height: 'clamp(20px, 5cqmin, 36px)',
+                        }}
+                        className="text-amber-500"
+                      />
                     }
-                  : {
-                      height: 'clamp(40px, 10cqmin, 72px)',
-                      paddingLeft: 'clamp(16px, 4cqmin, 40px)',
-                      paddingRight: 'clamp(16px, 4cqmin, 40px)',
-                    }
-              }
-              aria-label={isSpinning ? 'Picking' : 'Randomize'}
-              title={isSpinning ? 'Picking...' : 'Randomize'}
-              icon={
-                <RefreshCw
-                  className={isSpinning ? 'animate-spin' : ''}
-                  style={{
-                    width: 'clamp(20px, 6cqmin, 44px)',
-                    height: 'clamp(20px, 6cqmin, 44px)',
-                  }}
+                  />
+                )}
+              {mode === 'groups' && (
+                <GroupSizeStepper
+                  value={groupSize}
+                  onChange={setGroupSize}
+                  title={t('widgets.random.groupSize', {
+                    defaultValue: 'Group Size',
+                  })}
                 />
-              }
-            />
-          </div>
+              )}
+              {mode === 'jigsaw' && !hasJigsawGroups && (
+                <>
+                  <GroupSizeStepper
+                    value={displayNumHomeGroups}
+                    onChange={setNumHomeGroups}
+                    label={t('widgets.random.homeLabelShort', {
+                      defaultValue: 'HOME',
+                    })}
+                    title={t('widgets.random.homeGroupCount', {
+                      defaultValue: 'Number of Home Groups',
+                    })}
+                  />
+                  <GroupSizeStepper
+                    value={displayNumExpertGroups}
+                    onChange={setNumExpertGroups}
+                    label={t('widgets.random.expertLabelShort', {
+                      defaultValue: 'EXPERT',
+                    })}
+                    title={t('widgets.random.expertGroupCount', {
+                      defaultValue: 'Number of Expert Groups',
+                    })}
+                  />
+                </>
+              )}
+              <Button
+                variant="hero"
+                size="md"
+                shape="pill"
+                onClick={handlePick}
+                disabled={isSpinning}
+                className="flex-1"
+                style={{
+                  height: 'clamp(40px, 10cqmin, 72px)',
+                  paddingLeft: 'clamp(16px, 4cqmin, 40px)',
+                  paddingRight: 'clamp(16px, 4cqmin, 40px)',
+                }}
+                aria-label={isSpinning ? 'Picking' : 'Randomize'}
+                title={isSpinning ? 'Picking...' : 'Randomize'}
+                icon={
+                  <RefreshCw
+                    className={isSpinning ? 'animate-spin' : ''}
+                    style={{
+                      width: 'clamp(20px, 6cqmin, 44px)',
+                      height: 'clamp(20px, 6cqmin, 44px)',
+                    }}
+                  />
+                }
+              />
+            </div>
+          )
         }
       />
       {absentModal}

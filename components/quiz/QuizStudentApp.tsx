@@ -39,6 +39,8 @@ import {
   Zap,
   X as XIcon,
   Check,
+  Unlock as UnlockIcon,
+  ShieldAlert,
 } from 'lucide-react';
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
@@ -59,6 +61,8 @@ import { StudentLeaderboard } from './StudentLeaderboard';
 import { QuizPausedPlaceholder } from './QuizPausedPlaceholder';
 import { MatchingResponseInput } from './MatchingResponseInput';
 import { OrderingResponseInput } from './OrderingResponseInput';
+import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
+import { usePreviewMode } from '@/hooks/usePreviewMode';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -73,6 +77,9 @@ import {
 // ─── Root component ───────────────────────────────────────────────────────────
 
 export const QuizStudentApp: React.FC = () => {
+  // preview mode — see hooks/usePreviewMode
+  const previewMode = usePreviewMode();
+
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
   // True iff `auth.currentUser` carries the `studentRole: true` custom claim
@@ -85,6 +92,7 @@ export const QuizStudentApp: React.FC = () => {
   // user we must keep. This satisfies Firestore security rules
   // (`request.auth != null`) for direct `/quiz?code=…` visitors.
   useEffect(() => {
+    if (previewMode) return;
     const init = async () => {
       try {
         if (!auth.currentUser) {
@@ -106,7 +114,11 @@ export const QuizStudentApp: React.FC = () => {
       }
     };
     void init();
-  }, []);
+  }, [previewMode]);
+
+  if (previewMode) {
+    return <QuizPreviewLobby />;
+  }
 
   if (!authReady) {
     return <FullPageLoader message="Loading…" />;
@@ -124,6 +136,68 @@ export const QuizStudentApp: React.FC = () => {
   }
 
   return <QuizJoinFlow isStudentRole={isStudentRole} />;
+};
+
+// ─── Preview lobby ────────────────────────────────────────────────────────────
+
+/** Static read-only preview of the quiz join form — no hooks, no auth, no
+ * submission. Mounted when the URL carries `?preview=1` so a teacher can
+ * verify what students will see without their Firebase Auth session being
+ * touched by `signInAnonymously` or the SSO auto-join path. */
+const QuizPreviewLobby: React.FC = () => {
+  const urlCode =
+    typeof window === 'undefined'
+      ? ''
+      : (new URLSearchParams(window.location.search).get('code') ?? '');
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col">
+      <TeacherPreviewBanner />
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-center mb-8">
+            <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
+            <span className="text-sm text-slate-300 font-semibold">
+              Student Quiz
+            </span>
+          </div>
+
+          <h1 className="text-2xl font-black text-white mb-2 text-center">
+            Join Quiz
+          </h1>
+          <p className="text-slate-400 text-sm text-center mb-6">
+            Enter the code and your PIN from your teacher.
+          </p>
+
+          <div className="space-y-4" aria-hidden="true">
+            <input
+              type="text"
+              value={urlCode}
+              readOnly
+              tabIndex={-1}
+              placeholder="Quiz Code (XXXXXX)"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-none cursor-default"
+            />
+            <input
+              type="text"
+              readOnly
+              tabIndex={-1}
+              placeholder="Your PIN"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-none cursor-default"
+            />
+            <button
+              type="button"
+              disabled
+              tabIndex={-1}
+              className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
+            >
+              Join <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ─── Join flow ────────────────────────────────────────────────────────────────
@@ -659,18 +733,46 @@ const ActiveQuiz: React.FC<{
 }) => {
   const { showAlert } = useDialog();
   const [showCheatWarning, setShowCheatWarning] = useState(false);
+  // Show the "Your teacher unlocked your attempt" modal whenever the
+  // student's response carries `unlocked: true` and they haven't yet
+  // dismissed the prompt in this ActiveQuiz instance. The student keeps
+  // their place and prior answers — dismissing simply reveals the
+  // already-mounted quiz UI underneath.
+  const [showResumeModal, setShowResumeModal] = useState(
+    () => !!myResponse?.unlocked
+  );
+  // Track the previous unlocked value in state (not a ref) so we can
+  // adjust state during render — the CLAUDE.md-blessed alternative to
+  // an effect that watches a prop and calls a setter. Detects the
+  // false→true edge so the prompt re-opens when the teacher unlocks
+  // while the student is still on the active quiz screen.
+  const isUnlockedNow = !!myResponse?.unlocked;
+  const [prevUnlocked, setPrevUnlocked] = useState(isUnlockedNow);
+  if (prevUnlocked !== isUnlockedNow) {
+    setPrevUnlocked(isUnlockedNow);
+    if (isUnlockedNow && !prevUnlocked) {
+      setShowResumeModal(true);
+    }
+  }
 
   const isWarningShowingRef = useRef<boolean>(false);
   const lastReportTimeRef = useRef<number>(0);
   const didInitialCheckRef = useRef(false);
 
-  const handleAutoSubmit = useCallback(async () => {
-    await showAlert(
-      'You have left the quiz 3 times. Your quiz is being auto-submitted.',
-      { title: 'Quiz Auto-Submitted', variant: 'warning' }
-    );
-    await onComplete();
-  }, [showAlert, onComplete]);
+  const handleAutoSubmit = useCallback(
+    async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
+      const message =
+        reason === 'post-unlock'
+          ? 'Your unlocked attempt is being submitted now.'
+          : 'You have left the quiz 3 times. Your quiz is being auto-submitted.';
+      await showAlert(message, {
+        title: 'Quiz Auto-Submitted',
+        variant: 'warning',
+      });
+      await onComplete();
+    },
+    [showAlert, onComplete]
+  );
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
@@ -701,9 +803,24 @@ const ActiveQuiz: React.FC<{
 
         try {
           const newTotal = await reportTabSwitch();
-          setShowCheatWarning(true);
 
-          // Auto-submit if they breach the threshold (e.g., 3 strikes)
+          // Teacher-unlocked attempts skip the "Warning N of 3" modal —
+          // the student has already been told the next strike finalizes
+          // their work, so any further tab-switch auto-submits
+          // immediately (no warning, no delay).
+          const wasUnlocked = !!myResponse?.unlocked;
+          if (wasUnlocked) {
+            setShowCheatWarning(false);
+            // Fire-and-forget — but use a finally so a failed submit
+            // (e.g. Firestore offline) doesn't leave the listener
+            // permanently armed-off via `isWarningShowingRef`.
+            void handleAutoSubmit('post-unlock').finally(() => {
+              isWarningShowingRef.current = false;
+            });
+            return;
+          }
+
+          setShowCheatWarning(true);
           if (newTotal >= 3) {
             // Use a slight delay so the UI can update before the dialog
             setTimeout(() => void handleAutoSubmit(), 100);
@@ -737,6 +854,7 @@ const ActiveQuiz: React.FC<{
     reportTabSwitch,
     handleAutoSubmit,
     myResponse?.status,
+    myResponse?.unlocked,
   ]);
 
   // For student-paced mode, the student maintains their own local index
@@ -1221,7 +1339,47 @@ const ActiveQuiz: React.FC<{
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col relative">
-      {/* 🔴 NEW: The Cheating Warning Modal */}
+      {/* The "your teacher unlocked your attempt" prompt — covers the quiz
+          UI on first render after a teacher unlock so the student knows
+          what happened before they touch anything. */}
+      {showResumeModal && (
+        <div className="absolute inset-0 z-overlay bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+          <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
+          <h2 className="text-4xl font-black text-white mb-4">
+            Attempt Unlocked
+          </h2>
+          <p className="text-emerald-100 text-lg max-w-md mb-2">
+            Your teacher reopened your attempt. Your previous answers are still
+            here — pick up where you left off.
+          </p>
+          <p className="text-amber-200 text-sm max-w-md mb-8">
+            ⚠ The next time you leave this tab or open the quiz in another
+            window, your work will be submitted automatically. No further
+            warnings.
+          </p>
+          <button
+            onClick={() => setShowResumeModal(false)}
+            className="px-8 py-4 bg-white text-emerald-900 font-bold rounded-xl active:scale-95 transition-transform"
+          >
+            Resume Quiz
+          </button>
+        </div>
+      )}
+
+      {/* Persistent "one strike and you're out" banner — visible for the
+          duration of the resumed attempt so the rule stays top-of-mind. */}
+      {myResponse?.unlocked && !showResumeModal && (
+        <div className="flex items-start gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs">
+          <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
+          <span>
+            Your teacher unlocked your attempt.{' '}
+            <strong>Leaving this tab once more will submit your quiz</strong> —
+            no further warnings.
+          </span>
+        </div>
+      )}
+
+      {/* 🔴 The Cheating Warning Modal */}
       {showCheatWarning && (
         <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />

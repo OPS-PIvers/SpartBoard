@@ -34,6 +34,19 @@ export const getJoinUrl = (): string => {
 };
 
 /**
+ * Append `?preview=1` to a student-facing URL using URLSearchParams so the
+ * result is well-formed regardless of whether `baseUrl` already carries
+ * query parameters. Used by the live-monitor widgets' Preview buttons.
+ */
+export const withPreviewFlag = (baseUrl: string): string => {
+  const fallbackOrigin =
+    typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  const url = new URL(baseUrl, fallbackOrigin);
+  url.searchParams.set('preview', '1');
+  return url.toString();
+};
+
+/**
  * Ensures a URL string has a protocol prefix (http:// or https://).
  * Defaults to https:// if missing.
  * @param url The original URL to check

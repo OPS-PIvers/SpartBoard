@@ -674,6 +674,56 @@ describe('QuizLiveMonitor', () => {
     }
   });
 
+  it('renders an OPEN and a PREVIEW link in every join-code bar when session.code is set', () => {
+    // The component renders the join-code bar in two layout variants (compact
+    // and full); both should expose an OPEN link to the bare student URL and
+    // a PREVIEW link with `preview=1` appended. Mocking `window.location.origin`
+    // makes the assertions independent of where the test happens to run.
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      writable: true,
+      value: { origin: 'https://app.school.com' },
+    });
+    renderMonitor({
+      session: { code: 'ABC123', periodNames: ['P1'] },
+      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
+    });
+
+    const openLinks = screen.getAllByRole('link', { name: /^OPEN$/ });
+    const previewLinks = screen.getAllByRole('link', { name: /PREVIEW/ });
+
+    // Two layout variants each render the pair, so we expect ≥ 1 of each
+    // and the same count.
+    expect(openLinks.length).toBeGreaterThan(0);
+    expect(openLinks.length).toBe(previewLinks.length);
+
+    openLinks.forEach((a) => {
+      expect(a).toHaveAttribute(
+        'href',
+        'https://app.school.com/quiz?code=ABC123'
+      );
+    });
+    previewLinks.forEach((a) => {
+      expect(a).toHaveAttribute(
+        'href',
+        'https://app.school.com/quiz?code=ABC123&preview=1'
+      );
+    });
+  });
+
+  it('omits the OPEN and PREVIEW links entirely when session.code is empty', () => {
+    renderMonitor({
+      session: { code: '', periodNames: ['P1'] },
+      responses: [makeResponse({ pin: '1111', classPeriod: 'P1' })],
+    });
+    expect(
+      screen.queryByRole('link', { name: /^OPEN$/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /PREVIEW/ })
+    ).not.toBeInTheDocument();
+  });
+
   it('surfaces a toast when updateAccountPreferences rejects on the Colors toggle', async () => {
     // Start with stored colors OFF so the post-approval branch will issue
     // an updateAccountPreferences write that we can reject.
