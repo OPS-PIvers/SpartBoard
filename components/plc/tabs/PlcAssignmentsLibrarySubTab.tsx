@@ -96,8 +96,7 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
 > = ({ plc, onCloseDashboard }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { addToast, rosters } = useDashboard();
-  const { setPendingAssignmentEdit } = useDashboard();
+  const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
   const { showConfirm } = useDialog();
   const { templates, loading, deleteAssignmentTemplate } = usePlcAssignments(
     plc.id
@@ -394,8 +393,12 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
             });
           const isBusy = busyRowId === template.id;
           // Disable every row's add/unshare actions while any import is
-          // in flight — matches the early-return guard in handleImport.
-          const anyImportBusy = busyRowId !== null;
+          // in flight OR while the post-import class-period picker is open.
+          // Without the pendingSetup guard a teacher could click a second
+          // "Add to my board" while the picker is still showing; the second
+          // import's setPendingSetup call would silently replace the picker
+          // and leave the first assignment unassigned.
+          const anyImportBusy = busyRowId !== null || pendingSetup !== null;
           return (
             <div
               key={template.id}
