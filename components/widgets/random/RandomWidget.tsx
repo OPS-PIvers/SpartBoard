@@ -1186,15 +1186,18 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         }
         footer={
-          <div
-            className="w-full flex"
-            style={{
-              padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
-              gap: 'clamp(6px, 2cqmin, 14px)',
-            }}
-          >
-            {mode === 'jigsaw' && hasJigsawGroups && (
-              <>
+          mode === 'jigsaw' && hasJigsawGroups ? (
+            <div
+              className="w-full flex flex-col"
+              style={{
+                padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
+                gap: 'clamp(6px, 1.5cqmin, 12px)',
+              }}
+            >
+              <div
+                className="flex w-full items-stretch"
+                style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
+              >
                 <GroupSizeStepper
                   value={displayNumExpertGroups}
                   onChange={setNumExpertGroups}
@@ -1239,6 +1242,35 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     })}
                   </span>
                 </Button>
+                <Button
+                  variant="hero"
+                  size="md"
+                  shape="pill"
+                  onClick={handlePick}
+                  disabled={isSpinning}
+                  className="flex-shrink-0"
+                  style={{
+                    width: 'clamp(40px, 10cqmin, 72px)',
+                    height: 'clamp(40px, 10cqmin, 72px)',
+                    padding: 0,
+                  }}
+                  aria-label={isSpinning ? 'Picking' : 'Randomize'}
+                  title={isSpinning ? 'Picking...' : 'Randomize'}
+                  icon={
+                    <RefreshCw
+                      className={isSpinning ? 'animate-spin' : ''}
+                      style={{
+                        width: 'clamp(20px, 6cqmin, 44px)',
+                        height: 'clamp(20px, 6cqmin, 44px)',
+                      }}
+                    />
+                  }
+                />
+              </div>
+              <div
+                className="flex w-full items-stretch"
+                style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
+              >
                 <GroupSizeStepper
                   value={groupSize}
                   onChange={setGroupSize}
@@ -1283,111 +1315,113 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     })}
                   </span>
                 </Button>
-              </>
-            )}
-            {mode === 'groups' &&
-              Array.isArray(displayResult) &&
-              displayResult.length > 0 &&
-              ((typeof displayResult[0] === 'object' &&
-                displayResult[0] !== null &&
-                'names' in displayResult[0]) ||
-                Array.isArray(displayResult[0])) && (
-                <Button
-                  variant="secondary"
-                  shape="pill"
-                  onClick={handleSendToScoreboard}
-                  aria-label={t('widgets.random.sendToScoreboard')}
+                <div
+                  aria-hidden="true"
+                  className="flex-shrink-0"
                   style={{
                     width: 'clamp(40px, 10cqmin, 72px)',
                     height: 'clamp(40px, 10cqmin, 72px)',
-                    padding: 0,
                   }}
-                  className="flex-shrink-0"
-                  title={t('widgets.random.sendToScoreboard')}
-                  icon={
-                    <Trophy
-                      style={{
-                        width: 'clamp(20px, 5cqmin, 36px)',
-                        height: 'clamp(20px, 5cqmin, 36px)',
-                      }}
-                      className="text-amber-500"
-                    />
-                  }
                 />
-              )}
-            {mode === 'groups' && (
-              <GroupSizeStepper
-                value={groupSize}
-                onChange={setGroupSize}
-                title={t('widgets.random.groupSize', {
-                  defaultValue: 'Group Size',
-                })}
-              />
-            )}
-            {mode === 'jigsaw' && !hasJigsawGroups && (
-              <>
-                <GroupSizeStepper
-                  value={groupSize}
-                  onChange={setGroupSize}
-                  label={t('widgets.random.homeLabelShort', {
-                    defaultValue: 'HOME',
-                  })}
-                  title={t('widgets.random.homeGroupSize', {
-                    defaultValue: 'Home Group Size',
-                  })}
-                />
-                <GroupSizeStepper
-                  value={displayNumExpertGroups}
-                  onChange={setNumExpertGroups}
-                  label={t('widgets.random.expertLabelShort', {
-                    defaultValue: 'EXPERT',
-                  })}
-                  title={t('widgets.random.expertGroupCount', {
-                    defaultValue: 'Number of Expert Groups',
-                  })}
-                />
-              </>
-            )}
-            <Button
-              variant="hero"
-              size="md"
-              shape="pill"
-              onClick={handlePick}
-              disabled={isSpinning}
-              className={
-                mode === 'jigsaw' && hasJigsawGroups
-                  ? 'flex-shrink-0'
-                  : 'flex-1'
-              }
-              style={
-                mode === 'jigsaw' && hasJigsawGroups
-                  ? {
-                      // Jigsaw shows two large Launch buttons already; collapse
-                      // Randomize to a square icon-only button so the footer
-                      // doesn't cram three flex-1 children at narrow widths.
+              </div>
+            </div>
+          ) : (
+            <div
+              className="w-full flex"
+              style={{
+                padding: 'clamp(6px, 1.5cqmin, 14px) clamp(8px, 2cqmin, 16px)',
+                gap: 'clamp(6px, 2cqmin, 14px)',
+              }}
+            >
+              {mode === 'groups' &&
+                Array.isArray(displayResult) &&
+                displayResult.length > 0 &&
+                ((typeof displayResult[0] === 'object' &&
+                  displayResult[0] !== null &&
+                  'names' in displayResult[0]) ||
+                  Array.isArray(displayResult[0])) && (
+                  <Button
+                    variant="secondary"
+                    shape="pill"
+                    onClick={handleSendToScoreboard}
+                    aria-label={t('widgets.random.sendToScoreboard')}
+                    style={{
                       width: 'clamp(40px, 10cqmin, 72px)',
                       height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
+                    }}
+                    className="flex-shrink-0"
+                    title={t('widgets.random.sendToScoreboard')}
+                    icon={
+                      <Trophy
+                        style={{
+                          width: 'clamp(20px, 5cqmin, 36px)',
+                          height: 'clamp(20px, 5cqmin, 36px)',
+                        }}
+                        className="text-amber-500"
+                      />
                     }
-                  : {
-                      height: 'clamp(40px, 10cqmin, 72px)',
-                      paddingLeft: 'clamp(16px, 4cqmin, 40px)',
-                      paddingRight: 'clamp(16px, 4cqmin, 40px)',
-                    }
-              }
-              aria-label={isSpinning ? 'Picking' : 'Randomize'}
-              title={isSpinning ? 'Picking...' : 'Randomize'}
-              icon={
-                <RefreshCw
-                  className={isSpinning ? 'animate-spin' : ''}
-                  style={{
-                    width: 'clamp(20px, 6cqmin, 44px)',
-                    height: 'clamp(20px, 6cqmin, 44px)',
-                  }}
+                  />
+                )}
+              {mode === 'groups' && (
+                <GroupSizeStepper
+                  value={groupSize}
+                  onChange={setGroupSize}
+                  title={t('widgets.random.groupSize', {
+                    defaultValue: 'Group Size',
+                  })}
                 />
-              }
-            />
-          </div>
+              )}
+              {mode === 'jigsaw' && !hasJigsawGroups && (
+                <>
+                  <GroupSizeStepper
+                    value={groupSize}
+                    onChange={setGroupSize}
+                    label={t('widgets.random.homeLabelShort', {
+                      defaultValue: 'HOME',
+                    })}
+                    title={t('widgets.random.homeGroupSize', {
+                      defaultValue: 'Home Group Size',
+                    })}
+                  />
+                  <GroupSizeStepper
+                    value={displayNumExpertGroups}
+                    onChange={setNumExpertGroups}
+                    label={t('widgets.random.expertLabelShort', {
+                      defaultValue: 'EXPERT',
+                    })}
+                    title={t('widgets.random.expertGroupCount', {
+                      defaultValue: 'Number of Expert Groups',
+                    })}
+                  />
+                </>
+              )}
+              <Button
+                variant="hero"
+                size="md"
+                shape="pill"
+                onClick={handlePick}
+                disabled={isSpinning}
+                className="flex-1"
+                style={{
+                  height: 'clamp(40px, 10cqmin, 72px)',
+                  paddingLeft: 'clamp(16px, 4cqmin, 40px)',
+                  paddingRight: 'clamp(16px, 4cqmin, 40px)',
+                }}
+                aria-label={isSpinning ? 'Picking' : 'Randomize'}
+                title={isSpinning ? 'Picking...' : 'Randomize'}
+                icon={
+                  <RefreshCw
+                    className={isSpinning ? 'animate-spin' : ''}
+                    style={{
+                      width: 'clamp(20px, 6cqmin, 44px)',
+                      height: 'clamp(20px, 6cqmin, 44px)',
+                    }}
+                  />
+                }
+              />
+            </div>
+          )
         }
       />
       {absentModal}
