@@ -36,7 +36,13 @@ interface QuizAssignmentImportSetupModalProps {
   assignment: QuizAssignment;
   rosters: ClassRoster[];
   onSave: (targets: SessionTargets) => Promise<void> | void;
-  onEditAllSettings: () => void;
+  /**
+   * Optional. When omitted (e.g. the PLC import flow, where the modal is
+   * rendered inside the PLC dashboard and there's no convenient way to
+   * hand off to the full settings editor), the "Edit all settings…" link
+   * is hidden — Save / Skip stay as the only actions.
+   */
+  onEditAllSettings?: () => void;
   onClose: () => void;
 }
 
@@ -89,7 +95,7 @@ export const QuizAssignmentImportSetupModal: React.FC<
     onClose();
   };
   const handleEditAllSettings = () => {
-    if (saving) return;
+    if (saving || !onEditAllSettings) return;
     onEditAllSettings();
   };
 
@@ -128,14 +134,18 @@ export const QuizAssignmentImportSetupModal: React.FC<
       }
       footer={
         <div className="flex items-center justify-between gap-3">
-          <button
-            type="button"
-            onClick={handleEditAllSettings}
-            disabled={saving}
-            className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            Edit all settings…
-          </button>
+          {onEditAllSettings ? (
+            <button
+              type="button"
+              onClick={handleEditAllSettings}
+              disabled={saving}
+              className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Edit all settings…
+            </button>
+          ) : (
+            <span />
+          )}
           <div className="flex items-center gap-2">
             <button
               type="button"

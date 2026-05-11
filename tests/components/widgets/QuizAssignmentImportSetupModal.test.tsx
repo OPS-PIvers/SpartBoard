@@ -160,6 +160,25 @@ describe('QuizAssignmentImportSetupModal', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
+  it('omits the "Edit all settings…" button when onEditAllSettings is not provided', () => {
+    render(
+      <QuizAssignmentImportSetupModal
+        assignment={assignment}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Edit all settings/i })
+    ).not.toBeInTheDocument();
+    // Save / Skip remain present so the import-prompt UX still functions.
+    expect(screen.getByRole('button', { name: /^Save$/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Skip for now/i })
+    ).toBeInTheDocument();
+  });
+
   it('"Skip for now" closes without invoking onSave', () => {
     const onSave = vi.fn();
     const onClose = vi.fn();

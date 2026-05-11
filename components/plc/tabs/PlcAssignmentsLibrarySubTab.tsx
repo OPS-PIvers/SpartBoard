@@ -55,6 +55,7 @@ import {
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
+import { QuizAssignmentImportSetupModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportSetupModal';
 
 interface PlcAssignmentsLibrarySubTabProps {
   plc: Plc;
@@ -87,7 +88,7 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
 > = ({ plc }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { addToast } = useDashboard();
+  const { addToast, rosters } = useDashboard();
   const { showConfirm } = useDialog();
   const { templates, loading, deleteAssignmentTemplate } = usePlcAssignments(
     plc.id
@@ -95,10 +96,18 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
   const { saveQuiz, deleteQuiz, attachSyncLinkage, isDriveConnected } = useQuiz(
     user?.uid
   );
-  const { createAssignment } = useQuizAssignments(user?.uid);
+  const { assignments, createAssignment, setAssignmentRosters } =
+    useQuizAssignments(user?.uid);
 
   const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
+  // Tracks the freshly-imported assignment that still needs class-period
+  // targeting. Cleared when the teacher saves rosters or dismisses the
+  // setup prompt. Without this, imports land paused with no targeting and
+  // teachers silently never assign classes to the quiz.
+  const [pendingSetupAssignmentId, setPendingSetupAssignmentId] = useState<
+    string | null
+  >(null);
 
   const handleImport = useCallback(
     async (target: ImportTarget, mode: SharedAssignmentImportMode) => {
@@ -159,7 +168,7 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
         // PLC linkage is intentionally NOT set here — the importer can
         // toggle "Share with PLC" via the assignment settings modal post-
         // import if they want results to flow into the PLC's sheet.
-        await createAssignment(
+        const created = await createAssignment(
           {
             id: savedMeta.id,
             title: savedMeta.title,
@@ -198,6 +207,12 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
               }),
           'success'
         );
+
+        // Chain straight into the class-period picker so teachers don't
+        // forget to assign this quiz to their classes. Without this they
+        // had to dig into the QuizWidget's per-assignment settings to set
+        // periods, and most never did — leaving the quiz unassignable.
+        setPendingSetupAssignmentId(created.id);
       } catch (err) {
         logError('PlcAssignmentsLibrarySubTab.import', err, {
           plcId: plc.id,
@@ -461,6 +476,46 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
           onClose={() => setImportTarget(null)}
         />
       )}
+      {pendingSetupAssignmentId &&
+        (() => {
+          // Wait for the assignments listener snapshot to surface the
+          // freshly-created doc before rendering the picker — same race
+          // QuizWidget guards against on its post-import setup prompt.
+          const newlyImported = assignments.find(
+            (a) => a.id === pendingSetupAssignmentId
+          );
+          if (!newlyImported) return null;
+          return (
+            <QuizAssignmentImportSetupModal
+              assignment={newlyImported}
+              rosters={rosters}
+              onSave={async (targets) => {
+                try {
+                  await setAssignmentRosters(pendingSetupAssignmentId, targets);
+                  addToast(
+                    t('plcDashboard.assignmentsLibrary.assignedToClasses', {
+                      count: targets.rosterIds.length,
+                      defaultValue: 'Assigned to {{count}} class.',
+                      defaultValue_other: 'Assigned to {{count}} classes.',
+                    }),
+                    'success'
+                  );
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : t('plcDashboard.assignmentsLibrary.assignFailed', {
+                          defaultValue: 'Failed to save class selection.',
+                        }),
+                    'error'
+                  );
+                  throw err;
+                }
+              }}
+              onClose={() => setPendingSetupAssignmentId(null)}
+            />
+          );
+        })()}
     </div>
   );
 };
