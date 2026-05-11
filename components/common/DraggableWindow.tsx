@@ -382,6 +382,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     };
   }, [widget.id]);
 
+  // Gesture listeners are attached to the pointer-capture target (see
+  // handleDragStart / handleResizeStart) so that DOM-node detachment GC's
+  // them on unmount. The capture target removal should also synthesize a
+  // pointercancel per the Pointer Events spec, which runs onPointerUp's
+  // teardown — but spec compliance is browser-dependent. As defense-in-depth,
+  // each gesture registers an unmount cleanup here so the global
+  // `is-dragging-widget` body class and any group-sibling overrides are
+  // guaranteed to clear if the host component is destroyed mid-gesture
+  // (Firestore-driven delete, dashboard switch, admin force-remove, etc.).
+  const activeGestureCleanupRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    return () => {
+      activeGestureCleanupRef.current?.();
+      activeGestureCleanupRef.current = null;
+    };
+  }, []);
+
   // Subscribe to transient render-time override set by a group-drag/resize
   // leader. When this widget is a sibling of an active gesture, the leader
   // writes { x, y, w?, h? } here each frame and clears it explicitly on
@@ -931,6 +948,24 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     let dragAnimationFrame: number | null = null;
 
+    // Unmount-cleanup hook: clears DOM/module-level state that survives this
+    // component if the host is destroyed mid-gesture. Cleared in onPointerUp
+    // once the gesture completes normally.
+    activeGestureCleanupRef.current = () => {
+      if (dragAnimationFrame !== null) {
+        cancelAnimationFrame(dragAnimationFrame);
+        dragAnimationFrame = null;
+      }
+      document.body.classList.remove('is-dragging-widget');
+      if (groupSiblingsRef.current.length > 0) {
+        for (const sib of groupSiblingsRef.current) {
+          setWidgetOverride(sib.id, null);
+        }
+        groupSiblingsRef.current = [];
+        groupDragDeltaRef.current = { x: 0, y: 0 };
+      }
+    };
+
     const onPointerMove = (moveEvent: PointerEvent) => {
       // Only process the same pointer that started the drag
       if (moveEvent.pointerId !== e.pointerId) return;
@@ -1128,6 +1163,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
       }
+
+      // Gesture finished normally — disarm the unmount cleanup.
+      activeGestureCleanupRef.current = null;
     };
 
     targetElement.addEventListener('pointermove', onPointerMove);
@@ -1257,6 +1295,17 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     let resizeAnimationFrame: number | null = null;
 
+    // Unmount-cleanup hook: clears global body class and pending RAF if the
+    // host component is destroyed mid-resize. Cleared in onPointerUp once the
+    // gesture completes normally.
+    activeGestureCleanupRef.current = () => {
+      if (resizeAnimationFrame !== null) {
+        cancelAnimationFrame(resizeAnimationFrame);
+        resizeAnimationFrame = null;
+      }
+      document.body.classList.remove('is-dragging-widget');
+    };
+
     const onPointerMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== e.pointerId) return;
 
@@ -1382,6 +1431,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           y: dragState.current.y,
         });
       }
+
+      // Gesture finished normally — disarm the unmount cleanup.
+      activeGestureCleanupRef.current = null;
     };
 
     targetElement.addEventListener('pointermove', onPointerMove);

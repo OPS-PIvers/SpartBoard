@@ -371,6 +371,37 @@ describe('DraggableWindow', () => {
     });
   });
 
+  // Regression: if the host component unmounts mid-drag (Firestore-driven
+  // delete, dashboard switch, admin force-remove), the global
+  // `is-dragging-widget` body class — used to suppress hover/cursor styles
+  // app-wide — must not remain stuck on the body. Gesture listeners live on
+  // the capture target, so onPointerUp can't run after the node detaches;
+  // the unmount cleanup effect is the only guarantee.
+  it('clears global drag-state body class when host unmounts mid-gesture', () => {
+    const { unmount } = renderComponent();
+
+    const dragSurface = screen.getByTestId(
+      'drag-surface'
+    ) as unknown as HTMLElementWithCapture;
+    dragSurface.setPointerCapture = vi.fn();
+    dragSurface.hasPointerCapture = vi.fn().mockReturnValue(true);
+    dragSurface.releasePointerCapture = vi.fn();
+
+    document.body.classList.remove('is-dragging-widget');
+
+    fireEvent.pointerDown(dragSurface, {
+      clientX: 110,
+      clientY: 110,
+      pointerId: 1,
+    });
+    expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
+
+    // Unmount before pointerup arrives.
+    unmount();
+
+    expect(document.body.classList.contains('is-dragging-widget')).toBe(false);
+  });
+
   it('minimizes on Escape key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
