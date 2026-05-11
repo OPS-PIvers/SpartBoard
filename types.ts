@@ -271,6 +271,88 @@ export function getPlcFeatures(plc: Plc): PlcFeatureSettings {
  * Phase 1 does not mirror later edits. The doc id matches the source
  * assignment's id for easy join-back.
  */
+/**
+ * One question's identity at the moment a teacher published her PLC
+ * contribution. Stored on each `PlcContribution` so the cross-teacher
+ * aggregate view can detect schema drift (one teammate ahead of another
+ * on a synced quiz, or copy-mode divergence) and render the warning
+ * instead of silently misaligning columns.
+ */
+export interface PlcContributionQuestion {
+  id: string;
+  text: string;
+  points: number;
+}
+
+/**
+ * One student's response within a teacher's PLC contribution. This is the
+ * Firestore-native replacement for a row of the shared Google Sheet —
+ * carries everything the PlcTab needs to render aggregates without
+ * re-running the grader at view time. `pointsByQuestionId` is keyed by
+ * question id (not array index) so a missing entry means "unanswered"
+ * unambiguously and survives reordering.
+ */
+export interface PlcContributionResponse {
+  studentDisplayName: string;
+  pin: string | null;
+  classPeriod: string;
+  status: 'completed' | 'in-progress';
+  /** Whole-number percent (0-100). `null` when status !== 'completed'. */
+  scorePercent: number | null;
+  pointsEarned: number;
+  maxPoints: number;
+  tabSwitchWarnings: number;
+  /** ms timestamp; `null` when status !== 'completed'. */
+  submittedAt: number | null;
+  /**
+   * Per-question points earned, keyed by question id. Absent keys = not
+   * answered. Value `0` = answered incorrectly. Value `> 0` = correct or
+   * partial credit (matches `gradeAnswer().pointsEarned` semantics).
+   */
+  pointsByQuestionId: Record<string, number>;
+}
+
+/**
+ * One teacher's contribution to a PLC's cross-teacher results aggregate.
+ * Replaces the Google-Sheet-based aggregation that lived in
+ * `quizDriveService.readPlcSheet`. Each (quiz, teacher) pair has exactly
+ * one contribution doc at `/plcs/{plcId}/contributions/{quizId}_{teacherUid}`.
+ *
+ * The viewing teacher's PlcTab subscribes to the parent collection and
+ * groups contributions by `syncGroupId` (when set) or `quizId` (legacy
+ * unsynced quizzes) — that's how it identifies "the same logical quiz"
+ * across teachers who each have their own local quiz doc.
+ *
+ * Auto-published from QuizResults.tsx when the owning teacher views her
+ * results — no manual export needed for the PLC tab to see her data.
+ */
+export interface PlcContribution {
+  id: string;
+  schemaVersion: 1;
+  /** The publishing teacher's *local* quizId — different across members for synced quizzes. */
+  quizId: string;
+  /**
+   * Cross-teacher identifier for synced quizzes — read from `quiz.sync.groupId`.
+   * `null` for unsynced quizzes (legacy). Stored as a forward-compatibility
+   * hook: today's PlcTab groups contributions by exact question-id sequence
+   * rather than syncGroupId, because in practice `pullSyncedQuiz` keeps
+   * synced teammates' question ids identical anyway. If we ever let local
+   * question ids drift while staying logically synced, swap the grouping
+   * key in PlcTab to use this field.
+   */
+  syncGroupId: string | null;
+  /** Publishing teacher's UID. Must equal `request.auth.uid` on write. */
+  teacherUid: string;
+  /** Display name snapshot — survives later display-name changes. */
+  teacherName: string;
+  /** Question identities at publish time — used by PlcTab to detect schema drift. */
+  questionsSnapshot: PlcContributionQuestion[];
+  /** One entry per student response captured at publish time. */
+  responses: PlcContributionResponse[];
+  /** ms timestamp; the only mutable identity field on update. */
+  updatedAt: number;
+}
+
 export interface PlcAssignmentIndexEntry {
   id: string;
   /**

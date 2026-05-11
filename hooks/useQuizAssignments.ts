@@ -33,6 +33,7 @@ import {
   writePlcAssignmentIndexEntry,
 } from './usePlcAssignmentIndex';
 import { writePlcAssignmentTemplate } from './usePlcAssignments';
+import { deletePlcContribution } from '@/utils/plcContributions';
 import type {
   AssignmentMode,
   PlcLinkage,
@@ -986,6 +987,18 @@ export const useQuizAssignments = (
     async (assignmentId) => {
       if (!userId) throw new Error('Not authenticated');
 
+      // Capture the PLC linkage + quizId BEFORE we delete the assignment
+      // doc so we can clean up this teacher's row in the PLC aggregate.
+      // Without this the contribution at
+      // `/plcs/{plcId}/contributions/{quizId}_{teacherUid}` would linger
+      // and keep distorting every teammate's PlcTab averages with stale
+      // data the owning teacher no longer has access to.
+      const priorAssignment = assignmentsRef.current.find(
+        (a) => a.id === assignmentId
+      );
+      const priorPlcId = priorAssignment?.plc?.id ?? null;
+      const priorQuizId = priorAssignment?.quizId ?? null;
+
       // Delete all response documents first (batched)
       const responsesSnap = await getDocs(
         collection(
@@ -1011,6 +1024,25 @@ export const useQuizAssignments = (
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId)
       );
       await batch.commit();
+
+      // Best-effort PLC contribution cleanup. Runs AFTER the canonical
+      // delete so a failure here doesn't roll back the assignment delete;
+      // the worst case is a stale contribution row that gets cleaned up
+      // the next time we run the migration / sweep script.
+      if (priorPlcId && priorQuizId) {
+        try {
+          await deletePlcContribution({
+            plcId: priorPlcId,
+            quizId: priorQuizId,
+            teacherUid: userId,
+          });
+        } catch (err) {
+          console.error(
+            '[useQuizAssignments] failed to delete PLC contribution after assignment delete:',
+            err
+          );
+        }
+      }
     },
     [userId]
   );
@@ -1032,12 +1064,23 @@ export const useQuizAssignments = (
         ...patch,
         updatedAt: now,
       };
-      if (
+      const clearingPlc =
         Object.prototype.hasOwnProperty.call(patch, 'plc') &&
-        patch.plc === undefined
-      ) {
+        patch.plc === undefined;
+      if (clearingPlc) {
         assignmentPatch.plc = deleteField();
       }
+      // Capture the PLC linkage we're about to drop so we can sweep this
+      // teacher's contribution doc out of the now-orphaned PLC aggregate.
+      // Looked up before the batch.commit so the local snapshot is still
+      // accurate.
+      const priorAssignment = assignmentsRef.current.find(
+        (a) => a.id === assignmentId
+      );
+      const priorPlcId = clearingPlc
+        ? (priorAssignment?.plc?.id ?? null)
+        : null;
+      const priorQuizId = priorAssignment?.quizId ?? null;
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, QUIZ_ASSIGNMENTS_COLLECTION, assignmentId),
@@ -1082,6 +1125,23 @@ export const useQuizAssignments = (
         );
       }
       await batch.commit();
+
+      // Sweep the orphaned PLC contribution after the canonical update
+      // succeeds — same best-effort pattern as `deleteAssignment`.
+      if (priorPlcId && priorQuizId) {
+        try {
+          await deletePlcContribution({
+            plcId: priorPlcId,
+            quizId: priorQuizId,
+            teacherUid: userId,
+          });
+        } catch (err) {
+          console.error(
+            '[useQuizAssignments] failed to delete PLC contribution after plc unlink:',
+            err
+          );
+        }
+      }
     },
     [userId]
   );

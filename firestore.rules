@@ -1098,6 +1098,90 @@ service cloud.firestore {
           && request.auth.uid == resource.data.ownerUid;
       }
 
+      // PLC cross-teacher results aggregate. Replaces the
+      // Google-Sheet-backed `readPlcSheet` aggregation. Each (quiz, teacher)
+      // pair has exactly one contribution doc — auto-published by
+      // QuizResults when the owning teacher views her results. The PlcTab
+      // subscribes to this subcollection rather than reading the shared
+      // sheet, so a teacher's data shows up in the aggregate as soon as
+      // her client publishes, without an explicit "export" step.
+      //
+      // Doc id is `{quizId}_{teacherUid}` — the publishing teacher's
+      // *local* quizId (different across members for synced quizzes).
+      // Cross-teacher grouping happens via the `syncGroupId` field, not
+      // the key. Schema is locked with `keys().hasOnly([...])` so future
+      // readers can rely on the field set without defensive parsing.
+      match /contributions/{contribId} {
+        function isPlcMember() {
+          return request.auth != null
+            && request.auth.uid in get(
+                 /databases/$(database)/documents/plcs/$(plcId)
+               ).data.memberUids;
+        }
+
+        // Any current member can read every member's contribution — that's
+        // the whole point of the aggregate view.
+        allow read: if isPlcMember();
+
+        // Only the contributing teacher writes her own doc. Doc id is
+        // pinned to `{quizId}_{teacherUid}` so a member can't masquerade
+        // as another teacher by writing a doc with someone else's uid.
+        allow create: if isPlcMember()
+          && request.auth.uid == request.resource.data.teacherUid
+          && contribId == request.resource.data.quizId + '_' + request.auth.uid
+          && request.resource.data.keys().hasOnly([
+               'id', 'schemaVersion', 'quizId', 'syncGroupId',
+               'teacherUid', 'teacherName', 'questionsSnapshot',
+               'responses', 'updatedAt'
+             ])
+          && request.resource.data.schemaVersion == 1
+          && request.resource.data.id == contribId
+          && request.resource.data.quizId is string
+          && (request.resource.data.syncGroupId == null
+              || request.resource.data.syncGroupId is string)
+          && request.resource.data.teacherName is string
+          && request.resource.data.questionsSnapshot is list
+          && request.resource.data.responses is list
+          && request.resource.data.updatedAt is number;
+
+        // Identity fields are immutable post-create. `quizId`,
+        // `syncGroupId`, and `teacherUid` are the keys the aggregate
+        // groups on — letting a teacher silently retarget her existing
+        // contribution to a different quiz would corrupt every viewer's
+        // aggregate. Mutable: questionsSnapshot, responses, teacherName,
+        // updatedAt.
+        allow update: if isPlcMember()
+          && request.auth.uid == resource.data.teacherUid
+          && request.auth.uid == request.resource.data.teacherUid
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.quizId == resource.data.quizId
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.schemaVersion == resource.data.schemaVersion
+          && request.resource.data.keys().hasOnly([
+               'id', 'schemaVersion', 'quizId', 'syncGroupId',
+               'teacherUid', 'teacherName', 'questionsSnapshot',
+               'responses', 'updatedAt'
+             ])
+          && request.resource.data.teacherName is string
+          && request.resource.data.questionsSnapshot is list
+          && request.resource.data.responses is list
+          && request.resource.data.updatedAt is number;
+
+        // A teacher can withdraw her own contribution (e.g. if she
+        // deletes the source assignment). Membership-gated to keep the
+        // policy consistent with read/create/update — every write to
+        // this subcollection requires the caller to currently be in the
+        // PLC. The doc-id pin (`{quizId}_{teacherUid}`) is asserted for
+        // defense-in-depth so a doc whose id doesn't match the canonical
+        // pattern (e.g. a migration-script write or an admin-tool entry)
+        // can't be deleted by a teacher whose uid happens to appear in
+        // `teacherUid`. Removed-member cleanup is the responsibility of
+        // the PLC removal flow, not the removed member's client.
+        allow delete: if isPlcMember()
+          && request.auth.uid == resource.data.teacherUid
+          && contribId == resource.data.quizId + '_' + resource.data.teacherUid;
+      }
+
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at
       // canonical `/synced_quizzes/{groupId}` docs — questions live there,
       // not here. Any current PLC member can share a new quiz, edit any

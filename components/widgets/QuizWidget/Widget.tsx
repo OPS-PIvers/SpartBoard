@@ -835,6 +835,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }}
         initialExportUrl={activeAssignment?.exportUrl ?? null}
         plcSheetUrl={activeAssignment?.plc?.sheetUrl ?? null}
+        plcId={activeAssignment?.plc?.id ?? null}
+        syncGroupId={activeAssignment?.sync?.groupId ?? null}
         onExportUrlSaved={
           activeAssignmentId
             ? (url) => setAssignmentExportUrl(activeAssignmentId, url)
