@@ -141,9 +141,34 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     rosterMode = 'class',
     autoStartTimer = false,
     visualStyle = 'flash',
+    numExpertGroups: configNumExpertGroups,
   } = config;
   // Mirror RandomWidget: jigsaw defaults to 4, others to 3, explicit choice wins.
   const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
+
+  // Mirror RandomWidget's default — "2 home groups per expert group" —
+  // computed from an estimate of the home group count so the panel
+  // displays what Pick would actually use. Slider clamps to >= 2.
+  const estimatedStudentCount = (() => {
+    if (rosterMode === 'class' && activeRoster) {
+      return activeRoster.students.length;
+    }
+    const firsts = firstNames
+      .split('\n')
+      .map((n) => n.trim())
+      .filter(Boolean).length;
+    const lasts = lastNames
+      .split('\n')
+      .map((n) => n.trim())
+      .filter(Boolean).length;
+    return Math.max(firsts, lasts);
+  })();
+  const estimatedHomeGroups = Math.max(
+    1,
+    Math.ceil(estimatedStudentCount / Math.max(1, groupSize))
+  );
+  const numExpertGroups =
+    configNumExpertGroups ?? Math.max(2, Math.ceil(estimatedHomeGroups / 2));
 
   const [localFirstNames, setLocalFirstNames] = useState(firstNames);
   const [localLastNames, setLocalLastNames] = useState(lastNames);
@@ -415,6 +440,38 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
             />
             <span className="w-10 text-center font-mono  text-slate-700 text-sm">
               {groupSize}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {mode === 'jigsaw' && (
+        <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+          <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+            <Puzzle className="w-3 h-3" />{' '}
+            {t('widgets.random.expertGroupCount', {
+              defaultValue: 'Number of Expert Groups',
+            })}
+          </label>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="2"
+              max="20"
+              step="1"
+              value={numExpertGroups}
+              onChange={(e) =>
+                updateWidget(widget.id, {
+                  config: {
+                    ...config,
+                    numExpertGroups: parseInt(e.target.value),
+                  },
+                })
+              }
+              className="flex-1 accent-brand-blue-primary h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <span className="w-10 text-center font-mono  text-slate-700 text-sm">
+              {numExpertGroups}
             </span>
           </div>
         </div>
