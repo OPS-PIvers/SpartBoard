@@ -128,14 +128,31 @@ export const validateDestination = (
 };
 
 /**
- * Generate a random short code. Uses crypto.randomUUID (already used
- * throughout the codebase) sliced to a manageable length. The dash from
- * the UUID is stripped so the resulting code is alphanumeric.
+ * Generate a random short code from cryptographically strong randomness.
+ * Uses `crypto.randomUUID()` when available and falls back to
+ * `crypto.getRandomValues()` — never `Math.random()`, which is predictable
+ * and unsuitable for code generation in a security-sensitive context
+ * (short codes are public URLs that map to admin-curated destinations).
  */
 export const generateRandomCode = (
   length: number = RANDOM_CODE_LENGTH
 ): string => {
-  const uuid =
-    globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`;
-  return uuid.replace(/-/g, '').slice(0, length).toLowerCase();
+  const cryptoObj = globalThis.crypto;
+  if (cryptoObj?.randomUUID) {
+    return cryptoObj
+      .randomUUID()
+      .replace(/-/g, '')
+      .slice(0, length)
+      .toLowerCase();
+  }
+  if (cryptoObj?.getRandomValues) {
+    const bytes = new Uint8Array(Math.ceil(length / 2));
+    cryptoObj.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0'))
+      .join('')
+      .slice(0, length);
+  }
+  throw new Error(
+    'No secure random source available — Web Crypto API is required to generate short codes.'
+  );
 };

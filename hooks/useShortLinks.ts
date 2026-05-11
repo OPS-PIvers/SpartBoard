@@ -13,6 +13,7 @@ import {
   getDoc,
   getDocs,
   increment,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -31,6 +32,10 @@ import {
 
 const COLLECTION = 'short_links';
 const MAX_CODE_GENERATION_RETRIES = 5;
+// Cap admin listings — keeps the read quota predictable and the table
+// responsive once a district has hundreds of links. Pagination/search UI
+// for larger sets is a phase 2 concern.
+const ADMIN_LIST_LIMIT = 100;
 
 interface CreateShortLinkInput {
   destination: string;
@@ -109,7 +114,11 @@ export const useShortLinks = (): UseShortLinksResult => {
     }
 
     setLoading(true);
-    const q = query(collection(db, COLLECTION), orderBy('createdAt', 'desc'));
+    const q = query(
+      collection(db, COLLECTION),
+      orderBy('createdAt', 'desc'),
+      limit(ADMIN_LIST_LIMIT)
+    );
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
@@ -136,7 +145,11 @@ export const useShortLinks = (): UseShortLinksResult => {
     try {
       setLoading(true);
       const snapshot = await getDocs(
-        query(collection(db, COLLECTION), orderBy('createdAt', 'desc'))
+        query(
+          collection(db, COLLECTION),
+          orderBy('createdAt', 'desc'),
+          limit(ADMIN_LIST_LIMIT)
+        )
       );
       const next: ShortLink[] = [];
       snapshot.forEach((docSnap) => next.push(docSnap.data() as ShortLink));

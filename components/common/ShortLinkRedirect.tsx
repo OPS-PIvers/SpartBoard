@@ -5,7 +5,6 @@ import React, { useEffect, useState } from 'react';
 import { Loader2, LinkIcon } from 'lucide-react';
 
 import { recordShortLinkClick, resolveShortLink } from '@/hooks/useShortLinks';
-import { SHORT_LINK_PREFIX } from '@/utils/shortLinkValidation';
 
 type ResolveState =
   | { status: 'resolving' }
@@ -15,8 +14,11 @@ type ResolveState =
 
 export const ShortLinkRedirect: React.FC = () => {
   // Parse the code once during render; an empty path segment goes straight
-  // to the not-found UI without ever scheduling an effect.
-  const code = window.location.pathname.slice(SHORT_LINK_PREFIX.length);
+  // to the not-found UI without ever scheduling an effect. Splitting on
+  // `/` is robust against trailing slashes (`/r/code/`) and stray
+  // sub-segments (`/r/code/extra`) — we always take the first segment
+  // after `/r/`.
+  const code = window.location.pathname.split('/')[2] ?? '';
   const [state, setState] = useState<ResolveState>(() =>
     code ? { status: 'resolving' } : { status: 'not-found' }
   );
