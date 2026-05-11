@@ -40,6 +40,7 @@ import {
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
 import { publishPlcContribution } from '@/utils/plcContributions';
+import { logError } from '@/utils/logError';
 import {
   gradeAnswer,
   getResponseDocKey,
@@ -362,10 +363,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           });
           autoPublishErrorToastedRef.current = false;
         } catch (err) {
-          console.error(
-            '[QuizResults] auto-publish PLC contribution failed:',
-            err
-          );
+          logError('QuizResults.autoPublishPlcContribution', err, {
+            plcId,
+            quizId: quiz.id,
+            teacherUid: user.uid,
+          });
           const code =
             typeof err === 'object' && err !== null && 'code' in err
               ? (err as { code?: unknown }).code

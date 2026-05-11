@@ -14,6 +14,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import type {
   PlcContribution,
   PlcContributionQuestion,
@@ -26,6 +27,80 @@ interface UsePlcContributionsResult {
   error: string | null;
 }
 
+/**
+ * Parse a single nested question entry. Returns null on any malformed
+ * field so the outer parser can reject the whole contribution rather
+ * than silently dropping a single bad question (which would change the
+ * schema key and mis-group the contribution).
+ */
+function parseQuestion(q: unknown): PlcContributionQuestion | null {
+  if (!q || typeof q !== 'object') return null;
+  const rec = q as Record<string, unknown>;
+  if (
+    typeof rec.id !== 'string' ||
+    typeof rec.text !== 'string' ||
+    typeof rec.points !== 'number'
+  ) {
+    return null;
+  }
+  return { id: rec.id, text: rec.text, points: rec.points };
+}
+
+/**
+ * Parse a single nested response entry. Returns null on any malformed
+ * field so the outer parser can reject the whole contribution rather
+ * than silently dropping a row (which would skew the aggregate without
+ * any signal).
+ */
+function parseResponse(r: unknown): PlcContributionResponse | null {
+  if (!r || typeof r !== 'object') return null;
+  const rec = r as Record<string, unknown>;
+  const status =
+    rec.status === 'completed' || rec.status === 'in-progress'
+      ? rec.status
+      : null;
+  if (status === null) return null;
+  const pointsByQuestionId: Record<string, number> = {};
+  if (rec.pointsByQuestionId && typeof rec.pointsByQuestionId === 'object') {
+    for (const [qid, val] of Object.entries(
+      rec.pointsByQuestionId as Record<string, unknown>
+    )) {
+      if (typeof val !== 'number') return null;
+      pointsByQuestionId[qid] = val;
+    }
+  }
+  return {
+    studentDisplayName:
+      typeof rec.studentDisplayName === 'string'
+        ? rec.studentDisplayName
+        : 'Student',
+    pin: typeof rec.pin === 'string' ? rec.pin : null,
+    classPeriod: typeof rec.classPeriod === 'string' ? rec.classPeriod : '',
+    status,
+    scorePercent:
+      typeof rec.scorePercent === 'number' ? rec.scorePercent : null,
+    pointsEarned: typeof rec.pointsEarned === 'number' ? rec.pointsEarned : 0,
+    maxPoints: typeof rec.maxPoints === 'number' ? rec.maxPoints : 0,
+    tabSwitchWarnings:
+      typeof rec.tabSwitchWarnings === 'number' ? rec.tabSwitchWarnings : 0,
+    submittedAt: typeof rec.submittedAt === 'number' ? rec.submittedAt : null,
+    pointsByQuestionId,
+  };
+}
+
+/**
+ * Parse a Firestore contribution doc into the typed shape PlcTab renders.
+ * Returns null and logs if anything fails — the whole doc is rejected
+ * rather than partially parsed, because (a) a malformed question silently
+ * changes the schema-key sequence and would mis-group the contribution,
+ * and (b) a malformed response silently skews the aggregate. Better to
+ * drop the doc with a loud log so the next admin investigating "why is
+ * X's data missing?" has a breadcrumb.
+ *
+ * Schema-version mismatches are also a reject — if a future client
+ * writes `schemaVersion: 2` with an incompatible shape, parsing it with
+ * the v1 parser would produce wrong aggregates without any signal.
+ */
 function parseContribution(
   id: string,
   data: Record<string, unknown>
@@ -35,14 +110,10 @@ function parseContribution(
     typeof data.teacherUid !== 'string' ||
     typeof data.teacherName !== 'string' ||
     typeof data.updatedAt !== 'number' ||
+    data.schemaVersion !== 1 ||
     !Array.isArray(data.questionsSnapshot) ||
     !Array.isArray(data.responses)
   ) {
-    // Identity-field parse miss — this contribution disappears from the
-    // aggregate entirely. Log so an admin investigating "why is Sarah's
-    // data missing from the PLC tab?" has a breadcrumb. Silent filter
-    // was masking real bugs (e.g. an older client writing a doc with a
-    // mistyped field).
     console.warn(
       '[usePlcContributions] dropped malformed contribution doc:',
       id,
@@ -52,61 +123,30 @@ function parseContribution(
   }
   const syncGroupId =
     typeof data.syncGroupId === 'string' ? data.syncGroupId : null;
-  const questionsSnapshot = (data.questionsSnapshot as unknown[])
-    .map((q): PlcContributionQuestion | null => {
-      if (!q || typeof q !== 'object') return null;
-      const rec = q as Record<string, unknown>;
-      if (
-        typeof rec.id !== 'string' ||
-        typeof rec.text !== 'string' ||
-        typeof rec.points !== 'number'
-      ) {
-        return null;
-      }
-      return { id: rec.id, text: rec.text, points: rec.points };
-    })
-    .filter((q): q is PlcContributionQuestion => q !== null);
-  const responses = (data.responses as unknown[])
-    .map((r): PlcContributionResponse | null => {
-      if (!r || typeof r !== 'object') return null;
-      const rec = r as Record<string, unknown>;
-      const status =
-        rec.status === 'completed' || rec.status === 'in-progress'
-          ? rec.status
-          : null;
-      if (status === null) return null;
-      const pointsByQuestionId: Record<string, number> = {};
-      if (
-        rec.pointsByQuestionId &&
-        typeof rec.pointsByQuestionId === 'object'
-      ) {
-        for (const [qid, val] of Object.entries(
-          rec.pointsByQuestionId as Record<string, unknown>
-        )) {
-          if (typeof val === 'number') pointsByQuestionId[qid] = val;
-        }
-      }
-      return {
-        studentDisplayName:
-          typeof rec.studentDisplayName === 'string'
-            ? rec.studentDisplayName
-            : 'Student',
-        pin: typeof rec.pin === 'string' ? rec.pin : null,
-        classPeriod: typeof rec.classPeriod === 'string' ? rec.classPeriod : '',
-        status,
-        scorePercent:
-          typeof rec.scorePercent === 'number' ? rec.scorePercent : null,
-        pointsEarned:
-          typeof rec.pointsEarned === 'number' ? rec.pointsEarned : 0,
-        maxPoints: typeof rec.maxPoints === 'number' ? rec.maxPoints : 0,
-        tabSwitchWarnings:
-          typeof rec.tabSwitchWarnings === 'number' ? rec.tabSwitchWarnings : 0,
-        submittedAt:
-          typeof rec.submittedAt === 'number' ? rec.submittedAt : null,
-        pointsByQuestionId,
-      };
-    })
-    .filter((r): r is PlcContributionResponse => r !== null);
+  const questionsSnapshot: PlcContributionQuestion[] = [];
+  for (const raw of data.questionsSnapshot as unknown[]) {
+    const parsed = parseQuestion(raw);
+    if (!parsed) {
+      console.warn(
+        '[usePlcContributions] rejected contribution doc — malformed question entry:',
+        id
+      );
+      return null;
+    }
+    questionsSnapshot.push(parsed);
+  }
+  const responses: PlcContributionResponse[] = [];
+  for (const raw of data.responses as unknown[]) {
+    const parsed = parseResponse(raw);
+    if (!parsed) {
+      console.warn(
+        '[usePlcContributions] rejected contribution doc — malformed response entry:',
+        id
+      );
+      return null;
+    }
+    responses.push(parsed);
+  }
 
   return {
     id,
@@ -168,7 +208,7 @@ export function usePlcContributions(
       (err) => {
         // Permission-denied is expected if the caller leaves the PLC
         // mid-session — surface the message but don't blow up the UI.
-        console.error('[usePlcContributions] snapshot error:', err);
+        logError('usePlcContributions.snapshot', err, { plcId });
         setError(err.message);
         setLoading(false);
       }

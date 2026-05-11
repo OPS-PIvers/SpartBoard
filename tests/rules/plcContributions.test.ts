@@ -266,4 +266,33 @@ describe('plcs/{plcId}/contributions — delete', () => {
       )
     );
   });
+
+  it('a non-member cannot delete contributions (membership-gate on delete)', async () => {
+    // Consistent with read/create/update — every write to this
+    // subcollection requires current PLC membership. Removed-member
+    // cleanup is the PLC removal flow's responsibility, not the removed
+    // member's client.
+    await assertFails(
+      deleteDoc(
+        doc(asNonMember(), `plcs/${PLC_ID}/contributions/${CONTRIB_ID_A}`)
+      )
+    );
+  });
+
+  it('doc id pinned to `{quizId}_{teacherUid}` is enforced on delete (defense-in-depth)', async () => {
+    // Seed a doc whose id doesn't match the canonical pattern (simulates
+    // a migration-script write or an admin-tool entry). Even though
+    // Member A's uid matches the `teacherUid` field, the mismatched id
+    // blocks the delete.
+    const oddId = 'arbitrary-legacy-id';
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), `plcs/${PLC_ID}/contributions/${oddId}`),
+        validContribution({ id: oddId })
+      );
+    });
+    await assertFails(
+      deleteDoc(doc(asMemberA(), `plcs/${PLC_ID}/contributions/${oddId}`))
+    );
+  });
 });

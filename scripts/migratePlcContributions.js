@@ -179,8 +179,16 @@ function buildContribution(args) {
 
 async function loadQuestions(db, assignment) {
   // Prefer synced quiz canonical questions — that's where modern PLC
-  // quizzes keep their schema. Falls back to the member's local quiz
-  // doc, but that field is often empty (questions live in Drive).
+  // quizzes keep their schema.
+  //
+  // For unsynced (copy-mode) assignments the migration can't recover the
+  // questions from Firestore — each teacher's `users/{uid}/quizzes/{quizId}`
+  // doc is metadata only; the actual question list lives in Drive (only
+  // reachable with the teacher's OAuth token, which this admin script
+  // doesn't have). Those assignments are skipped with reason
+  // `'no-questions-available'`; their PLC contributions get bootstrapped
+  // the next time the owning teacher opens her Results screen and the
+  // auto-publish path fires.
   const syncGroupId = assignment.sync?.groupId ?? null;
   if (syncGroupId) {
     const syncDoc = await db

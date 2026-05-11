@@ -1138,10 +1138,18 @@ service cloud.firestore {
           && request.resource.data.updatedAt is number;
 
         // A teacher can withdraw her own contribution (e.g. if she
-        // deletes the source assignment). No lead-override — leads who
-        // want to clean up stale rows ask the owner.
-        allow delete: if request.auth != null
-          && request.auth.uid == resource.data.teacherUid;
+        // deletes the source assignment). Membership-gated to keep the
+        // policy consistent with read/create/update — every write to
+        // this subcollection requires the caller to currently be in the
+        // PLC. The doc-id pin (`{quizId}_{teacherUid}`) is asserted for
+        // defense-in-depth so a doc whose id doesn't match the canonical
+        // pattern (e.g. a migration-script write or an admin-tool entry)
+        // can't be deleted by a teacher whose uid happens to appear in
+        // `teacherUid`. Removed-member cleanup is the responsibility of
+        // the PLC removal flow, not the removed member's client.
+        allow delete: if isPlcMember()
+          && request.auth.uid == resource.data.teacherUid
+          && contribId == resource.data.quizId + '_' + resource.data.teacherUid;
       }
 
       // PLC Quiz Library (Phase 2). Lightweight headers pointing at
