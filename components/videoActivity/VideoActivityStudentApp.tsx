@@ -31,6 +31,8 @@ import { VideoActivityQuestion, VideoActivitySession } from '@/types';
 import { gradeVideoActivityAnswer } from '@/utils/videoActivityGrading';
 import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
+import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
+import { usePreviewMode } from '@/hooks/usePreviewMode';
 
 /**
  * Resolve the SSO student's class period from the session's
@@ -65,6 +67,13 @@ function resolveSsoClassPeriod(
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export const VideoActivityStudentApp: React.FC = () => {
+  // `?preview=1` — teachers verifying the student URL. Render a static lobby
+  // preview and skip auth init so the teacher's signed-in session isn't
+  // replaced by `signInAnonymously` and the SSO auto-join doesn't fire with
+  // a stale `studentRole: true` token. The hook also strips the flag from
+  // the URL bar so the teacher's address-bar copy is the real student URL.
+  const previewMode = usePreviewMode();
+
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
   // True iff `auth.currentUser` carries the `studentRole: true` custom claim
@@ -76,6 +85,7 @@ export const VideoActivityStudentApp: React.FC = () => {
   const [ssoClassIds, setSsoClassIds] = useState<string[]>([]);
 
   useEffect(() => {
+    if (previewMode) return;
     const init = async () => {
       try {
         // Sign in anonymously only when nobody is signed in — SSO students
@@ -109,7 +119,11 @@ export const VideoActivityStudentApp: React.FC = () => {
       }
     };
     void init();
-  }, []);
+  }, [previewMode]);
+
+  if (previewMode) {
+    return <VideoActivityPreviewLobby />;
+  }
 
   if (!authReady) {
     return <FullPageLoader message="Loading…" />;
@@ -125,6 +139,49 @@ export const VideoActivityStudentApp: React.FC = () => {
     <JoinAndPlay isStudentRole={isStudentRole} ssoClassIds={ssoClassIds} />
   );
 };
+
+// ─── Preview lobby ────────────────────────────────────────────────────────────
+
+/** Static read-only preview of the activity join form for teachers. Renders
+ * the lobby UI without mounting any hooks that would touch Firebase Auth or
+ * Firestore — pasting the `?preview=1` URL into a tab is safe regardless of
+ * what auth state that browser profile already carries. */
+const VideoActivityPreviewLobby: React.FC = () => (
+  <div className="min-h-screen bg-slate-900 flex flex-col">
+    <TeacherPreviewBanner />
+    <div className="flex-1 flex flex-col items-center justify-center p-6">
+      <div className="w-full max-w-sm">
+        <div className="flex items-center justify-center mb-8">
+          <PlayCircle className="w-5 h-5 text-violet-400 mr-2" />
+          <span className="text-sm text-slate-300 font-semibold">
+            Video Activity
+          </span>
+        </div>
+        <h1 className="text-2xl font-black text-white mb-2 text-center">
+          Join Activity
+        </h1>
+        <p className="text-slate-400 text-sm text-center mb-6">
+          Enter your PIN from your teacher.
+        </p>
+        <div className="space-y-4">
+          <input
+            type="text"
+            readOnly
+            placeholder="Your PIN"
+            className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-none cursor-default"
+          />
+          <button
+            type="button"
+            disabled
+            className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
+          >
+            Join <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
 
 // ─── Join + Play ───────────────────────────────────────────────────────────────
 

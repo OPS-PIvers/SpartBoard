@@ -727,6 +727,10 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
 
   const isActive = session.status === 'active';
   const joinUrl = `${window.location.origin}/quiz?code=${session.code}`;
+  // `?preview=1` variant for the "Preview" button — opens the student lobby
+  // in a static read-only form so a teacher can verify the URL without
+  // their teacher Firebase Auth session being touched.
+  const previewUrl = `${joinUrl}&preview=1`;
 
   const handleCopy = () => {
     void navigator.clipboard.writeText(joinUrl).then(() => {
@@ -1415,6 +1419,26 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   />
                   OPEN
                 </a>
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                  style={{
+                    gap: 'min(3px, 0.7cqmin)',
+                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                    fontSize: 'min(9px, 2.5cqmin)',
+                  }}
+                  title="Preview the student view without touching your teacher session"
+                >
+                  <Eye
+                    style={{
+                      width: 'min(12px, 3cqmin)',
+                      height: 'min(12px, 3cqmin)',
+                    }}
+                  />
+                  PREVIEW
+                </a>
                 {/* Sound mute toggle */}
                 {session.soundEffectsEnabled && (
                   <button
@@ -1689,6 +1713,26 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                     }}
                   />
                   OPEN
+                </a>
+                <a
+                  href={previewUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                  style={{
+                    gap: 'min(4px, 1cqmin)',
+                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                    fontSize: 'min(10px, 3cqmin)',
+                  }}
+                  title="Preview the student view without touching your teacher session"
+                >
+                  <Eye
+                    style={{
+                      width: 'min(14px, 3.5cqmin)',
+                      height: 'min(14px, 3.5cqmin)',
+                    }}
+                  />
+                  PREVIEW
                 </a>
                 {session.soundEffectsEnabled && (
                   <button

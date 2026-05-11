@@ -3,10 +3,12 @@ import { signInAnonymously, signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { StudentLobby } from './StudentLobby';
+import { TeacherPreviewBanner } from './TeacherPreviewBanner';
 import { WidgetRenderer } from '../widgets/WidgetRenderer';
 import { Snowflake, Radio } from 'lucide-react';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, LiveSession } from '@/types';
 import { getDefaultWidgetConfig } from '@/utils/widgetHelpers';
+import { usePreviewMode } from '@/hooks/usePreviewMode';
 
 const noop = () => undefined;
 const asyncNoop = async () => {
@@ -24,6 +26,28 @@ const asyncNoopSession = (): Promise<LiveSession> =>
   });
 
 export const StudentApp = () => {
+  // `?preview=1` — teachers verifying the student URL. Render a static
+  // lobby preview and skip `signInAnonymously` so the teacher's signed-in
+  // session in other tabs isn't replaced via the cross-tab BroadcastChannel.
+  // The hook also strips the flag from the URL bar so the teacher's
+  // address-bar copy is the real student URL.
+  const previewMode = usePreviewMode();
+
+  if (previewMode) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex flex-col">
+        <TeacherPreviewBanner />
+        <div className="flex-1">
+          <StudentLobby onJoin={() => undefined} isLoading={false} />
+        </div>
+      </div>
+    );
+  }
+
+  return <StudentAppInner />;
+};
+
+const StudentAppInner: React.FC = () => {
   const [joinedCode, setJoinedCode] = useState<string | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
