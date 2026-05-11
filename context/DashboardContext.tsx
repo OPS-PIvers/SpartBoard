@@ -300,6 +300,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setPendingAssignmentSetup(null);
   }, []);
 
+  // Tracks an assignment whose full settings editor should be opened by
+  // the QuizWidget. Used by the PLC post-import "Edit all settings…"
+  // hand-off so the teacher can reach attempt limits / timer / etc.
+  // without having to manually navigate to the widget and find the row.
+  const [pendingAssignmentEditId, setPendingAssignmentEdit] = useState<
+    string | null
+  >(null);
+
+  const clearPendingAssignmentEdit = useCallback(() => {
+    setPendingAssignmentEdit(null);
+  }, []);
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
   // Keep a ref to account-level remote control so the Firestore snapshot
@@ -4255,6 +4267,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
+      pendingAssignmentEditId,
+      setPendingAssignmentEdit,
+      clearPendingAssignmentEdit,
       zoom,
       setZoom,
       annotationActive,
@@ -4356,6 +4371,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentSetupId,
       setPendingAssignmentSetup,
       clearPendingAssignmentSetup,
+      pendingAssignmentEditId,
+      setPendingAssignmentEdit,
+      clearPendingAssignmentEdit,
       zoom,
       setZoom,
       annotationActive,

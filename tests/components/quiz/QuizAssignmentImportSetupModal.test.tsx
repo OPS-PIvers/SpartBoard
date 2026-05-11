@@ -1,7 +1,7 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { QuizAssignmentImportSetupModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportSetupModal';
+import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import type { ClassRoster, QuizAssignment } from '@/types';
 
 // Stub AssignClassPicker to a controlled checkbox list. The real
@@ -158,6 +158,25 @@ describe('QuizAssignmentImportSetupModal', () => {
     fireEvent.click(screen.getByRole('button', { name: /Edit all settings/i }));
     expect(onEditAllSettings).toHaveBeenCalledTimes(1);
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('omits the "Edit all settings…" button when onEditAllSettings is not provided', () => {
+    render(
+      <QuizAssignmentImportSetupModal
+        assignment={assignment}
+        rosters={rosters}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('button', { name: /Edit all settings/i })
+    ).not.toBeInTheDocument();
+    // Save / Skip remain present so the import-prompt UX still functions.
+    expect(screen.getByRole('button', { name: /^Save$/ })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /Skip for now/i })
+    ).toBeInTheDocument();
   });
 
   it('"Skip for now" closes without invoking onSave', () => {
