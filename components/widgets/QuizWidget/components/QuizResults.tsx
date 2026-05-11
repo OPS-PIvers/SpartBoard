@@ -35,6 +35,7 @@ import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import {
   PlcSheetMissingError,
+  PlcSheetSchemaMismatchError,
   QuizDriveService,
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
@@ -58,6 +59,51 @@ import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
 import { PlcTab } from '@/components/common/library/PlcTab';
+
+/**
+ * Export-error banner state. Generic errors render as a plain message; a
+ * schema mismatch carries the header arrays from PlcSheetSchemaMismatchError
+ * so the banner can show *which* column drifted and offer a
+ * "export to my own sheet instead" recovery without touching the
+ * assignment doc's PLC exportUrl.
+ */
+type ExportErrorState =
+  | { kind: 'generic'; message: string }
+  | {
+      kind: 'schemaMismatch';
+      message: string;
+      existingHeaders: string[];
+      expectedHeaders: string[];
+      /** Set after a successful recovery export — render an "Open My Sheet" link. */
+      recoveryUrl?: string;
+    };
+
+/**
+ * Translate a PLC schema-mismatch into a human-readable diff. Length drift
+ * (new question added/removed in the lead's copy after the sheet was first
+ * written) is the common case; a single-column rename is the second. Anything
+ * else falls back to a generic message — the user still has the recovery
+ * button.
+ */
+function buildSchemaMismatchMessage(
+  existing: string[],
+  expected: string[]
+): string {
+  if (existing.length !== expected.length) {
+    return (
+      `The shared sheet has ${existing.length} columns but your quiz produces ${expected.length}. ` +
+      'The lead probably edited the quiz after the sheet was created — your local copy is out of sync.'
+    );
+  }
+  const idx = existing.findIndex((cell, i) => cell !== expected[i]);
+  if (idx === -1) {
+    return 'The shared sheet and your quiz produce identical headers, but the schema check still failed.';
+  }
+  return (
+    `Column ${idx + 1} differs: the shared sheet has "${existing[idx]}", your quiz produces "${expected[idx]}". ` +
+    'The lead probably edited the quiz after the sheet was created.'
+  );
+}
 
 interface QuizResultsProps {
   quiz: QuizData;
@@ -173,7 +219,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     );
   }
   const [updatingSheet, setUpdatingSheet] = useState(false);
-  const [exportError, setExportError] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<ExportErrorState | null>(null);
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students' | 'plc'
   >('overview');
@@ -436,9 +482,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
   const handleExport = async () => {
     if (!googleAccessToken) {
-      setExportError(
-        'Google access token not available. Please sign in again.'
-      );
+      setExportError({
+        kind: 'generic',
+        message: 'Google access token not available. Please sign in again.',
+      });
       return;
     }
     setExporting(true);
@@ -519,8 +566,79 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         addToast('Results exported to shared PLC sheet', 'success');
       }
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Export failed';
-      setExportError(msg);
+      if (err instanceof PlcSheetSchemaMismatchError) {
+        setExportError({
+          kind: 'schemaMismatch',
+          message: buildSchemaMismatchMessage(
+            err.existingHeaders,
+            err.expectedHeaders
+          ),
+          existingHeaders: err.existingHeaders,
+          expectedHeaders: err.expectedHeaders,
+        });
+        // Short toast — the diff itself lives in the banner so it's visible
+        // alongside the recovery button rather than fading away.
+        addToast(
+          'Export blocked: the shared sheet was built from a different version of this quiz.',
+          'error'
+        );
+      } else {
+        const msg = err instanceof Error ? err.message : 'Export failed';
+        setExportError({ kind: 'generic', message: msg });
+        addToast(msg, 'error');
+      }
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /**
+   * Schema-mismatch escape hatch: when the shared PLC sheet's header row
+   * doesn't match what the current quiz produces, the regular append refuses
+   * to write to avoid column-shifted rows. This handler re-runs the export
+   * with `plcMode: false` so the service goes through the solo branch and
+   * mints a fresh personal sheet the teacher owns — same workflow Tatum used
+   * when her assignment couldn't append to Jen's sheet. The teacher then
+   * copy/pastes rows into the shared sheet manually.
+   *
+   * Intentionally does NOT call `onExportUrlSaved`. That callback writes to
+   * the assignment doc's `exportUrl`, which is reserved for the PLC sheet.
+   * Overwriting it would (a) break UPDATE SHEET (it'd start updating the
+   * personal sheet instead of the PLC one) and (b) cause future sessions to
+   * rehydrate from the throwaway sheet, masking the underlying PLC mismatch.
+   */
+  const handleSchemaMismatchRecovery = async () => {
+    if (!googleAccessToken) {
+      addToast(
+        'Google access token not available. Please sign in again.',
+        'error'
+      );
+      return;
+    }
+    setExporting(true);
+    try {
+      const svc = new QuizDriveService(googleAccessToken);
+      const url = await svc.exportResultsToSheet(
+        quiz.title,
+        responses,
+        quiz.questions,
+        {
+          pinToName: exportPinToName,
+          byStudentUid,
+          teacherName: config.teacherName,
+          plcMode: false,
+          plcSheetUrl: undefined,
+        }
+      );
+      setExportError((prev) =>
+        prev?.kind === 'schemaMismatch' ? { ...prev, recoveryUrl: url } : prev
+      );
+      addToast(
+        'Exported to a personal sheet — open it to copy rows into the shared sheet manually.',
+        'success'
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Recovery export failed';
       addToast(msg, 'error');
     } finally {
       setExporting(false);
@@ -551,9 +669,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const handleUpdateSheet = async () => {
     if (!exportUrl) return;
     if (!googleAccessToken) {
-      setExportError(
-        'Google access token not available. Please sign in again.'
-      );
+      setExportError({
+        kind: 'generic',
+        message: 'Google access token not available. Please sign in again.',
+      });
       return;
     }
     setUpdatingSheet(true);
@@ -675,9 +794,30 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         'success'
       );
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Update failed';
-      setExportError(msg);
-      addToast(msg, 'error');
+      // UPDATE SHEET hits a sheet that previously appended cleanly, so a
+      // schema-mismatch here is far less likely than on initial EXPORT —
+      // but it's possible if the lead edited the quiz after this teacher's
+      // first append. Route it through the same banner so the recovery
+      // button is available.
+      if (err instanceof PlcSheetSchemaMismatchError) {
+        setExportError({
+          kind: 'schemaMismatch',
+          message: buildSchemaMismatchMessage(
+            err.existingHeaders,
+            err.expectedHeaders
+          ),
+          existingHeaders: err.existingHeaders,
+          expectedHeaders: err.expectedHeaders,
+        });
+        addToast(
+          'Update blocked: the shared sheet was built from a different version of this quiz.',
+          'error'
+        );
+      } else {
+        const msg = err instanceof Error ? err.message : 'Update failed';
+        setExportError({ kind: 'generic', message: msg });
+        addToast(msg, 'error');
+      }
     } finally {
       setUpdatingSheet(false);
     }
@@ -919,10 +1059,34 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
       {exportError && (
         <div
-          className="mx-4 mt-3 p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl text-brand-red-dark font-bold text-center"
+          className="mx-4 mt-3 p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl text-brand-red-dark"
           style={{ fontSize: 'min(11px, 3.5cqmin)' }}
         >
-          {exportError}
+          <div className="font-bold text-center">{exportError.message}</div>
+          {exportError.kind === 'schemaMismatch' && (
+            <div className="mt-2 flex items-center justify-center gap-3">
+              {exportError.recoveryUrl ? (
+                <a
+                  href={exportError.recoveryUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-bold inline-flex items-center gap-1"
+                >
+                  Open My Sheet
+                  <ExternalLink style={{ width: '1em', height: '1em' }} />
+                </a>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleSchemaMismatchRecovery}
+                  disabled={exporting}
+                  className="bg-brand-red-primary hover:bg-brand-red-dark disabled:bg-brand-gray-lighter text-white font-bold rounded-lg px-3 py-1.5 transition active:scale-95"
+                >
+                  Export to my own sheet instead
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 
