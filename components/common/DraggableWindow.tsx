@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useLayoutEffect,
   useMemo,
+  useSyncExternalStore,
 } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
@@ -29,7 +30,12 @@ import {
   Unlink,
 } from 'lucide-react';
 
-import { widgetRefRegistry } from './widgetRefRegistry';
+import {
+  widgetRefRegistry,
+  getWidgetOverride,
+  setWidgetOverride,
+  subscribeWidgetOverride,
+} from './widgetRefRegistry';
 import {
   WidgetData,
   WidgetType,
@@ -364,14 +370,39 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
   const windowRef = useRef<HTMLDivElement>(null);
 
-  // Register this widget's DOM element in the shared registry for group operations
+  // Register this widget's DOM element in the shared registry for group
+  // operations. Also clear any transient override on unmount so a widget that
+  // disappears mid-drag/resize can't leave a stale entry in the override map.
   useEffect(() => {
     const el = windowRef.current;
     if (el) widgetRefRegistry.set(widget.id, el);
     return () => {
       widgetRefRegistry.delete(widget.id);
+      setWidgetOverride(widget.id, null);
     };
   }, [widget.id]);
+
+  // Subscribe to transient render-time override set by a group-drag/resize
+  // leader. When this widget is a sibling of an active gesture, the leader
+  // writes { x, y, w?, h? } here each frame and clears it explicitly on
+  // commit; the render path below reads override before widget.x/y so any
+  // React re-render during the gesture (e.g. bringToFront raising every
+  // group member's z on pointer-down) doesn't snap us back to the stale
+  // prop position.
+  const overrideSubscribe = useCallback(
+    (cb: () => void) => subscribeWidgetOverride(widget.id, cb),
+    [widget.id]
+  );
+  const overrideSnapshot = useCallback(
+    () => getWidgetOverride(widget.id),
+    [widget.id]
+  );
+  const overrideServerSnapshot = useCallback(() => undefined, []);
+  const override = useSyncExternalStore(
+    overrideSubscribe,
+    overrideSnapshot,
+    overrideServerSnapshot
+  );
 
   const menuRef = useRef<HTMLDivElement>(null);
   const snapMenuRef = useRef<HTMLDivElement>(null);
@@ -991,7 +1022,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
         // Move group siblings via direct DOM manipulation, each clamped to
         // world bounds independently of the leader so a sibling near the edge
-        // doesn't drag the whole group off-camera.
+        // doesn't drag the whole group off-camera. The DOM write is the
+        // fast path for re-render-free frames; the override write is the
+        // correctness path so siblings render at the right spot even when
+        // React re-renders mid-drag (bringToFront, server sync, etc.).
         if (groupSiblingsRef.current.length > 0) {
           groupDragDeltaRef.current = { x: deltaX, y: deltaY };
           for (const sib of groupSiblingsRef.current) {
@@ -1005,6 +1039,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             );
             sib.el.style.left = `${sibX}px`;
             sib.el.style.top = `${sibY}px`;
+            setWidgetOverride(sib.id, { x: sibX, y: sibY });
           }
         }
       });
@@ -1059,7 +1094,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       // Commit group sibling positions via batch update — clamp each sibling
       // to world bounds independently so a sibling near the edge stays inside
-      // even if the leader's delta would have pushed it past.
+      // even if the leader's delta would have pushed it past. Clear each
+      // sibling's transient override explicitly after the commit so the next
+      // render uses the freshly-committed widget.x/y (or, on a read-only
+      // board where updateWidgets no-ops, snaps back to the pre-drag prop
+      // value — a visible, "loud" failure instead of a stale override).
       if (groupSiblingsRef.current.length > 0) {
         const { x: deltaX, y: deltaY } = groupDragDeltaRef.current;
         const vw = window.innerWidth;
@@ -1077,6 +1116,9 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
             return { id: sib.id, changes: { x: c.x, y: c.y } };
           })
         );
+        for (const sib of groupSiblingsRef.current) {
+          setWidgetOverride(sib.id, null);
+        }
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
       }
@@ -1809,22 +1851,22 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           ? 0
           : shouldUseDragState && dragState.current
             ? dragState.current.x
-            : widget.x,
+            : (override?.x ?? widget.x),
         top: isMaximized
           ? 0
           : shouldUseDragState && dragState.current
             ? dragState.current.y
-            : widget.y,
+            : (override?.y ?? widget.y),
         width: isMaximized
           ? '100vw'
           : shouldUseDragState && dragState.current
             ? dragState.current.w
-            : widget.w,
+            : (override?.w ?? widget.w),
         height: isMaximized
           ? '100vh'
           : shouldUseDragState && dragState.current
             ? dragState.current.h
-            : widget.h,
+            : (override?.h ?? widget.h),
         zIndex: isMaximized ? Z_INDEX.maximized : widget.z,
         display: 'flex',
         flexDirection: 'column',
