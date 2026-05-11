@@ -37,6 +37,7 @@ import {
 } from 'lucide-react';
 import type {
   Plc,
+  QuizAssignment,
   QuizData,
   QuizSessionMode,
   QuizSessionOptions,
@@ -55,10 +56,17 @@ import {
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
-import { QuizAssignmentImportSetupModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportSetupModal';
+import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 
 interface PlcAssignmentsLibrarySubTabProps {
   plc: Plc;
+  /**
+   * Closes the PLC dashboard overlay. Invoked when the post-import
+   * "Edit all settings…" link is clicked so the teacher can be handed
+   * off to the QuizWidget's full assignment editor without the PLC
+   * dashboard staying open behind it.
+   */
+  onCloseDashboard: () => void;
 }
 
 interface ImportTarget {
@@ -85,10 +93,11 @@ function formatDate(ms: number): string {
 
 export const PlcAssignmentsLibrarySubTab: React.FC<
   PlcAssignmentsLibrarySubTabProps
-> = ({ plc }) => {
+> = ({ plc, onCloseDashboard }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast, rosters } = useDashboard();
+  const { setPendingAssignmentEdit } = useDashboard();
   const { showConfirm } = useDialog();
   const { templates, loading, deleteAssignmentTemplate } = usePlcAssignments(
     plc.id
@@ -102,16 +111,24 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
   const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   // Tracks the freshly-imported assignment that still needs class-period
-  // targeting. Cleared when the teacher saves rosters or dismisses the
-  // setup prompt. Without this, imports land paused with no targeting and
-  // teachers silently never assign classes to the quiz.
-  const [pendingSetupAssignmentId, setPendingSetupAssignmentId] = useState<
-    string | null
-  >(null);
+  // targeting. Holds enough data to render the picker before the
+  // assignments snapshot surfaces the new doc (snapshot lag would
+  // otherwise drop the prompt silently — the assignment is already
+  // created in Firestore, so `setAssignmentRosters` works against the id
+  // regardless of local listener state).
+  const [pendingSetup, setPendingSetup] = useState<{
+    id: string;
+    quizTitle: string;
+  } | null>(null);
 
   const handleImport = useCallback(
     async (target: ImportTarget, mode: SharedAssignmentImportMode) => {
       if (!user) return;
+      // Block parallel imports across rows. Without this, two rapid
+      // clicks on different templates race; whichever createAssignment
+      // resolves second wins setPendingSetup and the first import's
+      // class-period picker is silently dropped.
+      if (busyRowId) return;
       if (!isDriveConnected) {
         addToast(
           t('plcDashboard.assignmentsLibrary.driveRequired', {
@@ -212,7 +229,9 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
         // forget to assign this quiz to their classes. Without this they
         // had to dig into the QuizWidget's per-assignment settings to set
         // periods, and most never did — leaving the quiz unassignable.
-        setPendingSetupAssignmentId(created.id);
+        // Cache title here so the modal can render before the assignments
+        // snapshot surfaces the new doc.
+        setPendingSetup({ id: created.id, quizTitle: target.quizTitle });
       } catch (err) {
         logError('PlcAssignmentsLibrarySubTab.import', err, {
           plcId: plc.id,
@@ -260,6 +279,7 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
     [
       addToast,
       attachSyncLinkage,
+      busyRowId,
       createAssignment,
       deleteQuiz,
       isDriveConnected,
@@ -373,6 +393,9 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
               defaultValue: 'a teammate',
             });
           const isBusy = busyRowId === template.id;
+          // Disable every row's add/unshare actions while any import is
+          // in flight — matches the early-return guard in handleImport.
+          const anyImportBusy = busyRowId !== null;
           return (
             <div
               key={template.id}
@@ -415,7 +438,7 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
                       attemptLimit: template.attemptLimit,
                     })
                   }
-                  disabled={isBusy}
+                  disabled={anyImportBusy}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40"
                   title={t('plcDashboard.assignmentsLibrary.addToMyBoard', {
                     defaultValue: 'Add to my board',
@@ -437,7 +460,7 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
                   onClick={() =>
                     void handleUnshare(template.id, template.quizTitle)
                   }
-                  disabled={isBusy}
+                  disabled={anyImportBusy}
                   aria-label={t(
                     'plcDashboard.assignmentsLibrary.unshareAction',
                     {
@@ -476,22 +499,27 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
           onClose={() => setImportTarget(null)}
         />
       )}
-      {pendingSetupAssignmentId &&
+      {pendingSetup &&
         (() => {
-          // Wait for the assignments listener snapshot to surface the
-          // freshly-created doc before rendering the picker — same race
-          // QuizWidget guards against on its post-import setup prompt.
-          const newlyImported = assignments.find(
-            (a) => a.id === pendingSetupAssignmentId
-          );
-          if (!newlyImported) return null;
+          // Prefer the live snapshot's assignment record once available
+          // (carries more accurate metadata, e.g. PLC-corrected title)
+          // but fall back to the stub built from import-time data so a
+          // slow Firestore snapshot doesn't drop the prompt. The id is
+          // authoritative either way; `setAssignmentRosters` writes
+          // against it directly and doesn't depend on local listener
+          // state.
+          const live = assignments.find((a) => a.id === pendingSetup.id);
+          const stub = {
+            id: pendingSetup.id,
+            quizTitle: pendingSetup.quizTitle,
+          } as unknown as QuizAssignment;
           return (
             <QuizAssignmentImportSetupModal
-              assignment={newlyImported}
+              assignment={live ?? stub}
               rosters={rosters}
               onSave={async (targets) => {
                 try {
-                  await setAssignmentRosters(pendingSetupAssignmentId, targets);
+                  await setAssignmentRosters(pendingSetup.id, targets);
                   addToast(
                     t('plcDashboard.assignmentsLibrary.assignedToClasses', {
                       count: targets.rosterIds.length,
@@ -512,7 +540,18 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
                   throw err;
                 }
               }}
-              onClose={() => setPendingSetupAssignmentId(null)}
+              onEditAllSettings={() => {
+                // Hand off to the QuizWidget's full settings editor.
+                // The PLC dashboard closes first so the editor isn't
+                // buried under the dashboard overlay; the QuizWidget
+                // picks up `pendingAssignmentEditId` from context and
+                // opens `editingAssignment` once its snapshot surfaces
+                // the same doc.
+                setPendingAssignmentEdit(pendingSetup.id);
+                setPendingSetup(null);
+                onCloseDashboard();
+              }}
+              onClose={() => setPendingSetup(null)}
             />
           );
         })()}

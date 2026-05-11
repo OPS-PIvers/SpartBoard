@@ -37,7 +37,7 @@ import { QuizEditorModal } from './components/QuizEditorModal';
 import { QuizPreview } from './components/QuizPreview';
 import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
-import { QuizAssignmentImportSetupModal } from './components/QuizAssignmentImportSetupModal';
+import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import type { QuizAssignment } from '@/types';
 import {
@@ -94,6 +94,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     activeDashboard,
     pendingAssignmentSetupId,
     clearPendingAssignmentSetup,
+    pendingAssignmentEditId,
+    clearPendingAssignmentEdit,
   } = useDashboard();
   const { user, googleAccessToken, orgId, getAssignmentMode } = useAuth();
   const quizAssignmentMode = getAssignmentMode('quiz');
@@ -326,12 +328,26 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // set on DashboardContext indefinitely — the prompt would re-surface
   // the next time any QuizWidget mounts on any board, against an
   // assignment the user already walked away from. Closing the widget is
-  // an implicit dismiss.
+  // an implicit dismiss. Same applies to the edit-handoff state.
   React.useEffect(() => {
     return () => {
       clearPendingAssignmentSetup();
+      clearPendingAssignmentEdit();
     };
-  }, [clearPendingAssignmentSetup]);
+  }, [clearPendingAssignmentSetup, clearPendingAssignmentEdit]);
+
+  // Honor an external "open the full settings editor for this assignment"
+  // request from another surface (the PLC dashboard's post-import "Edit
+  // all settings…" link). We wait until the assignments snapshot
+  // surfaces the doc, then open the editor and clear the handoff state
+  // so refresh / re-mount doesn't keep re-opening the modal.
+  React.useEffect(() => {
+    if (!pendingAssignmentEditId) return;
+    const target = assignments.find((a) => a.id === pendingAssignmentEditId);
+    if (!target) return;
+    setEditingAssignment(target);
+    clearPendingAssignmentEdit();
+  }, [pendingAssignmentEditId, assignments, clearPendingAssignmentEdit]);
 
   // Auto-load quiz data if we are in monitor view or have an active session, but data is missing
   // This allows for seamless resumption after page reload.

@@ -174,6 +174,17 @@ export interface DashboardContextValue {
   pendingAssignmentSetupId: string | null;
   setPendingAssignmentSetup: (assignmentId: string | null) => void;
   clearPendingAssignmentSetup: () => void;
+  /**
+   * Set when an external surface (e.g. the PLC dashboard's post-import
+   * "Edit all settings…" link) wants to open the QuizWidget's full
+   * assignment-settings editor for a specific assignment. The QuizWidget
+   * reads this, opens the editor, and clears it. Distinct from
+   * `pendingAssignmentSetupId` — that opens the "pick classes" prompt;
+   * this skips the prompt and goes straight to the full editor.
+   */
+  pendingAssignmentEditId: string | null;
+  setPendingAssignmentEdit: (assignmentId: string | null) => void;
+  clearPendingAssignmentEdit: () => void;
 
   // Roster system
   rosters: ClassRoster[];
