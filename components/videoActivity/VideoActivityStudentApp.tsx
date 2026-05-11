@@ -356,29 +356,33 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const [showResumeModal, setShowResumeModal] = useState(
     () => !!myResponse?.unlocked
   );
-  const wasUnlockedRef = useRef<boolean>(!!myResponse?.unlocked);
   const isWarningShowingRef = useRef<boolean>(false);
   const lastReportTimeRef = useRef<number>(0);
   const didInitialCheckRef = useRef(false);
 
-  useEffect(() => {
-    if (myResponse?.tabSwitchWarnings != null) {
-      setWarningCount((prev) =>
-        Math.max(prev, myResponse.tabSwitchWarnings ?? 0)
-      );
+  // Track the previous `tabSwitchWarnings` value via state-during-render
+  // so we can sync the local counter without an extra effect pass.
+  const serverWarnings = myResponse?.tabSwitchWarnings ?? 0;
+  const [prevServerWarnings, setPrevServerWarnings] = useState(serverWarnings);
+  if (prevServerWarnings !== serverWarnings) {
+    setPrevServerWarnings(serverWarnings);
+    if (serverWarnings > warningCount) {
+      setWarningCount(serverWarnings);
     }
-  }, [myResponse?.tabSwitchWarnings]);
+  }
 
-  useEffect(() => {
-    const isUnlockedNow = !!myResponse?.unlocked;
-    // Re-show the resume prompt whenever the teacher flips the flag back on
-    // (e.g. the student was sitting on the post-submit screen when unlock
-    // fired and the parent re-renders the active view).
-    if (isUnlockedNow && !wasUnlockedRef.current) {
+  // Same render-time pattern for the unlock-edge detector: when the
+  // teacher flips `unlocked` from false → true (e.g. the student was
+  // sitting on the post-submit screen when unlock fired) re-open the
+  // resume prompt without an effect/setState round-trip.
+  const isUnlockedNow = !!myResponse?.unlocked;
+  const [prevUnlocked, setPrevUnlocked] = useState(isUnlockedNow);
+  if (prevUnlocked !== isUnlockedNow) {
+    setPrevUnlocked(isUnlockedNow);
+    if (isUnlockedNow && !prevUnlocked) {
       setShowResumeModal(true);
     }
-    wasUnlockedRef.current = isUnlockedNow;
-  }, [myResponse?.unlocked]);
+  }
 
   const handleAutoSubmit = useCallback(async () => {
     await showAlert(
@@ -424,7 +428,12 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           const wasUnlocked = !!myResponse?.unlocked;
           if (wasUnlocked) {
             setShowCheatWarning(false);
-            void handleAutoSubmit();
+            // Always release the visibility lock — a failed submit
+            // (Firestore offline) must not leave the handler
+            // permanently armed-off.
+            void handleAutoSubmit().finally(() => {
+              isWarningShowingRef.current = false;
+            });
             return;
           }
 

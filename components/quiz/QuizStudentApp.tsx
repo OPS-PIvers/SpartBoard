@@ -669,19 +669,19 @@ const ActiveQuiz: React.FC<{
   const [showResumeModal, setShowResumeModal] = useState(
     () => !!myResponse?.unlocked
   );
-  const wasUnlockedRef = useRef<boolean>(!!myResponse?.unlocked);
-
-  useEffect(() => {
-    const isUnlockedNow = !!myResponse?.unlocked;
-    // Edge case: the teacher unlocks while the student is sitting on the
-    // ActiveQuiz screen (e.g. they were mid-flight when the auto-submit
-    // hadn't fired yet, or they bounced back via the rejoin path). When
-    // the flag flips false → true we re-show the prompt.
-    if (isUnlockedNow && !wasUnlockedRef.current) {
+  // Track the previous unlocked value in state (not a ref) so we can
+  // adjust state during render — the CLAUDE.md-blessed alternative to
+  // an effect that watches a prop and calls a setter. Detects the
+  // false→true edge so the prompt re-opens when the teacher unlocks
+  // while the student is still on the active quiz screen.
+  const isUnlockedNow = !!myResponse?.unlocked;
+  const [prevUnlocked, setPrevUnlocked] = useState(isUnlockedNow);
+  if (prevUnlocked !== isUnlockedNow) {
+    setPrevUnlocked(isUnlockedNow);
+    if (isUnlockedNow && !prevUnlocked) {
       setShowResumeModal(true);
     }
-    wasUnlockedRef.current = isUnlockedNow;
-  }, [myResponse?.unlocked]);
+  }
 
   const isWarningShowingRef = useRef<boolean>(false);
   const lastReportTimeRef = useRef<number>(0);
@@ -732,7 +732,12 @@ const ActiveQuiz: React.FC<{
           const wasUnlocked = !!myResponse?.unlocked;
           if (wasUnlocked) {
             setShowCheatWarning(false);
-            void handleAutoSubmit();
+            // Fire-and-forget — but use a finally so a failed submit
+            // (e.g. Firestore offline) doesn't leave the listener
+            // permanently armed-off via `isWarningShowingRef`.
+            void handleAutoSubmit().finally(() => {
+              isWarningShowingRef.current = false;
+            });
             return;
           }
 

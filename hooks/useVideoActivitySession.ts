@@ -399,12 +399,18 @@ export const useVideoActivitySessionTeacher =
           responseKey
         );
         const snap = await getDoc(responseRef);
-        if (!snap.exists()) return;
+        if (!snap.exists()) {
+          // Snapshot races: the row was already removed by the time the
+          // teacher clicked. Surface as an error so the monitor can
+          // toast — silent success would be misleading.
+          throw new Error(
+            'Student response not found — they may have already been removed or rejoined.'
+          );
+        }
         const existing = snap.data() as VideoActivityResponse;
 
         const currentAttempts = existing.completedAttempts ?? 0;
         const refundedAttempts = Math.max(0, currentAttempts - 1);
-        const baselineWarnings = existing.tabSwitchWarnings ?? 0;
 
         const sessionSnap = await getDoc(
           doc(db, SESSIONS_COLLECTION, sessionId)
@@ -412,6 +418,12 @@ export const useVideoActivitySessionTeacher =
         const activityId =
           (sessionSnap.data() as Partial<VideoActivitySession> | undefined)
             ?.activityId ?? null;
+        // Probe the ledger BEFORE writing so we don't blindly create a
+        // partial doc via `set(merge:true)` on a missing ledger entry
+        // (which would land without the required `activityId`/
+        // `studentUid`/`teacherUid` identity fields). For anonymous-PIN
+        // students or any student whose cross-launch ledger hasn't been
+        // touched yet there's simply nothing to refund.
         const ledgerRef =
           activityId && existing.studentUid
             ? doc(
@@ -420,25 +432,27 @@ export const useVideoActivitySessionTeacher =
                 videoActivityLedgerKey(activityId, existing.studentUid)
               )
             : null;
+        const ledgerSnap = ledgerRef ? await getDoc(ledgerRef) : null;
 
         const batch = writeBatch(db);
+        // `completedAt: null` is the canonical "not finished" signal for
+        // VA. Without this the student-side visibility handler bails
+        // out on `myResponse?.completedAt != null` and the
+        // instant-finalize-on-next-strike rule never engages.
         batch.update(responseRef, {
           completedAt: null,
           score: null,
           completedAttempts: refundedAttempts,
           unlocked: true,
           unlockedAt: Date.now(),
-          warningsAtUnlock: baselineWarnings,
         });
-        if (ledgerRef) {
-          // Refund the cross-launch ledger counter in lockstep with the
-          // response so the student isn't immediately re-blocked by the
-          // cap on rejoin.
-          batch.set(
-            ledgerRef,
-            { completedAttempts: refundedAttempts },
-            { merge: true }
-          );
+        if (ledgerRef && ledgerSnap?.exists()) {
+          const ledgerCurrent =
+            (ledgerSnap.data() as VideoActivityAttemptLedger | undefined)
+              ?.completedAttempts ?? 0;
+          batch.update(ledgerRef, {
+            completedAttempts: Math.max(0, ledgerCurrent - 1),
+          });
         }
         await batch.commit();
       },
@@ -906,7 +920,17 @@ export const useVideoActivitySessionStudent =
                 ...(classPeriod && existing.classPeriod !== classPeriod
                   ? { classPeriod }
                   : {}),
-              });
+              }).catch((err: unknown) =>
+                logError(
+                  'useVideoActivitySessionStudent.update-resume-unlocked',
+                  err as Error,
+                  {
+                    sessionId: targetSessionId,
+                    responseDocId: responseDocKey,
+                    studentUid: existing.studentUid,
+                  }
+                )
+              );
             } else if (existing.completedAt != null) {
               const completed = Math.max(
                 existing.completedAttempts ?? 0,
@@ -1132,10 +1156,17 @@ export const useVideoActivitySessionStudent =
           tabSwitchWarnings: increment(1),
         });
       } catch (err) {
+        // Re-throw (matching `useQuizSession.reportTabSwitch`) so the
+        // caller's catch handles it without silently advancing the
+        // local counter into a server-divergent state. Without this,
+        // a chain of failed writes would push the local count to ≥3
+        // and trigger an auto-submit while the server still shows 0
+        // warnings.
         logError('useVideoActivitySessionStudent.reportTabSwitch', err, {
           sessionId,
           responseDocId,
         });
+        throw err;
       }
       const newCount = baseCount + 1;
       warningCountRef.current = newCount;

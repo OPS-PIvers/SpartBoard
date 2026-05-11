@@ -659,11 +659,20 @@ export const useQuizSessionTeacher = (
 
   const unlockStudentAttempt = useCallback(
     async (responseKey: string) => {
-      if (!sessionId) return;
+      if (!sessionId) {
+        throw new Error('No active session — cannot unlock.');
+      }
       const target = responses.find(
         (r) => (r._responseKey ?? r.studentUid) === responseKey
       );
-      if (!target) return;
+      if (!target) {
+        // Snapshot races: the row was already removed by the time the
+        // teacher clicked. Surface as an error so the monitor can
+        // toast — silent success would be misleading.
+        throw new Error(
+          'Student response not found — they may have already been removed or rejoined.'
+        );
+      }
       const responseRef = doc(
         db,
         QUIZ_SESSIONS_COLLECTION,
@@ -680,7 +689,13 @@ export const useQuizSessionTeacher = (
         : null;
       const currentAttempts = target.completedAttempts ?? 0;
       const refundedAttempts = Math.max(0, currentAttempts - 1);
-      const baselineWarnings = target.tabSwitchWarnings ?? 0;
+
+      // Probe the ledger BEFORE the batch so we don't blindly create a
+      // partial doc via `set(merge:true)` on a missing ledger entry
+      // (which would land without the required identity fields and
+      // fail the create rule anyway). PIN-keyed anonymous students
+      // never write a ledger entry, so this is a no-op for them.
+      const ledgerSnap = ledgerRef ? await getDoc(ledgerRef) : null;
 
       const batch = writeBatch(db);
       batch.update(responseRef, {
@@ -690,17 +705,14 @@ export const useQuizSessionTeacher = (
         completedAttempts: refundedAttempts,
         unlocked: true,
         unlockedAt: Date.now(),
-        warningsAtUnlock: baselineWarnings,
       });
-      if (ledgerRef) {
-        // Refund the ledger counter so the cross-launch cap isn't
-        // immediately re-tripped on the student's next join. Use a
-        // floor of 0 to guard against ledgers that already lag.
-        batch.set(
-          ledgerRef,
-          { completedAttempts: Math.max(0, refundedAttempts) },
-          { merge: true }
-        );
+      if (ledgerRef && ledgerSnap?.exists()) {
+        const ledgerCurrent =
+          (ledgerSnap.data() as QuizAttemptLedger | undefined)
+            ?.completedAttempts ?? 0;
+        batch.update(ledgerRef, {
+          completedAttempts: Math.max(0, ledgerCurrent - 1),
+        });
       }
       await batch.commit();
     },

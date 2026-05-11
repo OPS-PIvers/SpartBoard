@@ -2430,14 +2430,8 @@ export interface QuizResponse {
    * Cleared back to false on the student's next completion.
    */
   unlocked?: boolean;
-  /** Server timestamp (ms) when the teacher unlocked the attempt. */
+  /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
-  /**
-   * The value of `tabSwitchWarnings` at the moment the teacher unlocked.
-   * The student-side visibility handler treats any
-   * `tabSwitchWarnings > warningsAtUnlock` as an instant-submit trigger.
-   */
-  warningsAtUnlock?: number;
 }
 
 /**
@@ -3299,14 +3293,8 @@ export interface VideoActivityResponse {
    * skips the warning modal — any further tab-switch finalizes immediately.
    */
   unlocked?: boolean;
-  /** Server timestamp (ms) when the teacher unlocked the attempt. */
+  /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
-  /**
-   * Value of `tabSwitchWarnings` at the moment of unlock. The visibility
-   * handler treats `tabSwitchWarnings > warningsAtUnlock` as an
-   * instant-submit trigger.
-   */
-  warningsAtUnlock?: number;
 }
 
 /**
