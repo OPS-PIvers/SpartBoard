@@ -72,6 +72,7 @@ import {
   playQuizCompleteCelebration,
 } from '@/utils/quizAudio';
 import { logError } from '@/utils/logError';
+import { withPreviewFlag } from '@/utils/urlHelpers';
 
 interface QuizLiveMonitorProps {
   session: QuizSession;
@@ -726,11 +727,16 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   }, [session.status, session.soundEffectsEnabled, soundMuted]);
 
   const isActive = session.status === 'active';
-  const joinUrl = `${window.location.origin}/quiz?code=${session.code}`;
-  // `?preview=1` variant for the "Preview" button — opens the student lobby
-  // in a static read-only form so a teacher can verify the URL without
-  // their teacher Firebase Auth session being touched.
-  const previewUrl = `${joinUrl}&preview=1`;
+  // Don't construct URLs until the session has a code — otherwise the
+  // OPEN / PREVIEW links point at `?code=` (empty), which renders a broken
+  // lobby. `hasCode` gates rendering of both buttons below.
+  const hasCode = Boolean(session.code);
+  const joinUrl = hasCode
+    ? `${window.location.origin}/quiz?code=${session.code}`
+    : '';
+  // Built via `withPreviewFlag` so it stays well-formed if `joinUrl` ever
+  // gains additional query parameters.
+  const previewUrl = hasCode ? withPreviewFlag(joinUrl) : '';
 
   const handleCopy = () => {
     void navigator.clipboard.writeText(joinUrl).then(() => {
@@ -1400,45 +1406,49 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   )}
                   {copied ? 'COPIED' : 'COPY'}
                 </button>
-                <a
-                  href={joinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
-                  style={{
-                    gap: 'min(3px, 0.7cqmin)',
-                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                    fontSize: 'min(9px, 2.5cqmin)',
-                  }}
-                >
-                  <ExternalLink
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                  OPEN
-                </a>
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
-                  style={{
-                    gap: 'min(3px, 0.7cqmin)',
-                    padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-                    fontSize: 'min(9px, 2.5cqmin)',
-                  }}
-                  title="Preview the student view without touching your teacher session"
-                >
-                  <Eye
-                    style={{
-                      width: 'min(12px, 3cqmin)',
-                      height: 'min(12px, 3cqmin)',
-                    }}
-                  />
-                  PREVIEW
-                </a>
+                {hasCode && (
+                  <>
+                    <a
+                      href={joinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(3px, 0.7cqmin)',
+                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        fontSize: 'min(9px, 2.5cqmin)',
+                      }}
+                    >
+                      <ExternalLink
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
+                      OPEN
+                    </a>
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(3px, 0.7cqmin)',
+                        padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                        fontSize: 'min(9px, 2.5cqmin)',
+                      }}
+                      title="Preview the student view without touching your teacher session"
+                    >
+                      <Eye
+                        style={{
+                          width: 'min(12px, 3cqmin)',
+                          height: 'min(12px, 3cqmin)',
+                        }}
+                      />
+                      PREVIEW
+                    </a>
+                  </>
+                )}
                 {/* Sound mute toggle */}
                 {session.soundEffectsEnabled && (
                   <button
@@ -1695,45 +1705,49 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                   )}
                   {copied ? 'COPIED' : 'COPY'}
                 </button>
-                <a
-                  href={joinUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
-                  style={{
-                    gap: 'min(4px, 1cqmin)',
-                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                    fontSize: 'min(10px, 3cqmin)',
-                  }}
-                >
-                  <ExternalLink
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                  OPEN
-                </a>
-                <a
-                  href={previewUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
-                  style={{
-                    gap: 'min(4px, 1cqmin)',
-                    padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                    fontSize: 'min(10px, 3cqmin)',
-                  }}
-                  title="Preview the student view without touching your teacher session"
-                >
-                  <Eye
-                    style={{
-                      width: 'min(14px, 3.5cqmin)',
-                      height: 'min(14px, 3.5cqmin)',
-                    }}
-                  />
-                  PREVIEW
-                </a>
+                {hasCode && (
+                  <>
+                    <a
+                      href={joinUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(4px, 1cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                        fontSize: 'min(10px, 3cqmin)',
+                      }}
+                    >
+                      <ExternalLink
+                        style={{
+                          width: 'min(14px, 3.5cqmin)',
+                          height: 'min(14px, 3.5cqmin)',
+                        }}
+                      />
+                      OPEN
+                    </a>
+                    <a
+                      href={previewUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold rounded-lg transition-all shadow-sm active:scale-95"
+                      style={{
+                        gap: 'min(4px, 1cqmin)',
+                        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                        fontSize: 'min(10px, 3cqmin)',
+                      }}
+                      title="Preview the student view without touching your teacher session"
+                    >
+                      <Eye
+                        style={{
+                          width: 'min(14px, 3.5cqmin)',
+                          height: 'min(14px, 3.5cqmin)',
+                        }}
+                      />
+                      PREVIEW
+                    </a>
+                  </>
+                )}
                 {session.soundEffectsEnabled && (
                   <button
                     onClick={() => setSoundMuted((m) => !m)}

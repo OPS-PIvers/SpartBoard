@@ -75,13 +75,7 @@ import {
 // ─── Root component ───────────────────────────────────────────────────────────
 
 export const QuizStudentApp: React.FC = () => {
-  // `?preview=1` — teachers verifying the student URL from QuizLiveMonitor's
-  // Preview button. Render a non-functional lobby preview and skip auth init
-  // so the teacher's signed-in session in other tabs isn't replaced by
-  // `signInAnonymously` (which would cascade through cross-tab broadcast and
-  // a `studentRole: true` token contaminating the SSO auto-join below). The
-  // hook also strips the flag from the URL bar so a teacher copying the URL
-  // from the address bar gets the real student URL.
+  // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
 
   const [authReady, setAuthReady] = useState(false);
@@ -149,10 +143,10 @@ export const QuizStudentApp: React.FC = () => {
  * verify what students will see without their Firebase Auth session being
  * touched by `signInAnonymously` or the SSO auto-join path. */
 const QuizPreviewLobby: React.FC = () => {
-  const urlCode = useMemo(() => {
-    if (typeof window === 'undefined') return '';
-    return new URLSearchParams(window.location.search).get('code') ?? '';
-  }, []);
+  const urlCode =
+    typeof window === 'undefined'
+      ? ''
+      : (new URLSearchParams(window.location.search).get('code') ?? '');
 
   return (
     <div className="min-h-screen bg-slate-900 flex flex-col">

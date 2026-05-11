@@ -67,11 +67,7 @@ function resolveSsoClassPeriod(
 // ─── Root ──────────────────────────────────────────────────────────────────────
 
 export const VideoActivityStudentApp: React.FC = () => {
-  // `?preview=1` — teachers verifying the student URL. Render a static lobby
-  // preview and skip auth init so the teacher's signed-in session isn't
-  // replaced by `signInAnonymously` and the SSO auto-join doesn't fire with
-  // a stale `studentRole: true` token. The hook also strips the flag from
-  // the URL bar so the teacher's address-bar copy is the real student URL.
+  // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
 
   const [authReady, setAuthReady] = useState(false);

@@ -4,6 +4,7 @@ import {
   getJoinUrl,
   convertToEmbedUrl,
   extractGoogleFileId,
+  withPreviewFlag,
 } from './urlHelpers';
 
 describe('urlHelpers', () => {
@@ -97,6 +98,32 @@ describe('urlHelpers', () => {
       delete global.window;
 
       expect(getJoinUrl()).toBe('/join');
+    });
+  });
+
+  describe('withPreviewFlag', () => {
+    it('appends ?preview=1 to a URL with no existing query', () => {
+      expect(withPreviewFlag('https://myschool.com/join')).toBe(
+        'https://myschool.com/join?preview=1'
+      );
+    });
+
+    it('uses & when the URL already carries query params', () => {
+      expect(withPreviewFlag('https://myschool.com/quiz?code=ABC')).toBe(
+        'https://myschool.com/quiz?code=ABC&preview=1'
+      );
+    });
+
+    it('preserves a fragment', () => {
+      expect(withPreviewFlag('https://myschool.com/quiz?code=ABC#frag')).toBe(
+        'https://myschool.com/quiz?code=ABC&preview=1#frag'
+      );
+    });
+
+    it('overwrites an existing preview=0 to preview=1', () => {
+      expect(withPreviewFlag('https://myschool.com/quiz?preview=0')).toBe(
+        'https://myschool.com/quiz?preview=1'
+      );
     });
   });
 
