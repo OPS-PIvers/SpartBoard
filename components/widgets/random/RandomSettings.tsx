@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
+import { getLocalIsoDate } from '@/utils/localDate';
 
 export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -124,14 +125,13 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
     updateWidget(widget.id, {
       config: {
-        ...config,
         firstNames: newFirstNames,
         lastNames: newLastNames,
         lastResult: null,
         remainingStudents: [],
       },
     });
-  }, [activeRoster, config, updateWidget, widget.id]);
+  }, [activeRoster, updateWidget, widget.id]);
   const {
     firstNames = '',
     lastNames = '',
@@ -141,9 +141,41 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     rosterMode = 'class',
     autoStartTimer = false,
     visualStyle = 'flash',
+    numExpertGroups: configNumExpertGroups,
   } = config;
   // Mirror RandomWidget: jigsaw defaults to 4, others to 3, explicit choice wins.
   const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
+
+  // Mirror RandomWidget's default — "2 home groups per expert group" —
+  // computed from an estimate of the home group count so the panel
+  // displays what Pick would actually use. Slider clamps to >= 2.
+  // Match the widget's absent-student filter in class mode so the panel
+  // doesn't drift from the live stepper on days with absences.
+  const estimatedStudentCount = (() => {
+    if (rosterMode === 'class' && activeRoster) {
+      const today = getLocalIsoDate();
+      const absentCount =
+        activeRoster.absent?.date === today
+          ? activeRoster.absent.studentIds.length
+          : 0;
+      return Math.max(0, activeRoster.students.length - absentCount);
+    }
+    const firsts = firstNames
+      .split('\n')
+      .map((n) => n.trim())
+      .filter(Boolean).length;
+    const lasts = lastNames
+      .split('\n')
+      .map((n) => n.trim())
+      .filter(Boolean).length;
+    return Math.max(firsts, lasts);
+  })();
+  const estimatedHomeGroups = Math.max(
+    1,
+    Math.ceil(estimatedStudentCount / Math.max(1, groupSize))
+  );
+  const numExpertGroups =
+    configNumExpertGroups ?? Math.max(2, Math.ceil(estimatedHomeGroups / 2));
 
   const [localFirstNames, setLocalFirstNames] = useState(firstNames);
   const [localLastNames, setLocalLastNames] = useState(lastNames);
@@ -180,10 +212,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     const timer = setTimeout(() => {
       if (localFirstNames !== firstNames) {
         updateWidgetRef.current(widget.id, {
-          config: {
-            ...configRef.current,
-            firstNames: localFirstNames,
-          },
+          config: { firstNames: localFirstNames },
         });
       }
     }, 1000);
@@ -195,10 +224,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     const timer = setTimeout(() => {
       if (localLastNames !== lastNames) {
         updateWidgetRef.current(widget.id, {
-          config: {
-            ...configRef.current,
-            lastNames: localLastNames,
-          },
+          config: { lastNames: localLastNames },
         });
       }
     }, 1000);
@@ -225,7 +251,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         rosterMode={rosterMode}
         onModeChange={(mode) =>
           updateWidget(widget.id, {
-            config: { ...config, rosterMode: mode },
+            config: { rosterMode: mode },
           })
         }
       />
@@ -254,7 +280,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
           checked={soundEnabled}
           onChange={() =>
             updateWidget(widget.id, {
-              config: { ...config, soundEnabled: !soundEnabled },
+              config: { soundEnabled: !soundEnabled },
             })
           }
           size="md"
@@ -283,7 +309,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
             checked={autoStartTimer ?? false}
             onChange={() =>
               updateWidget(widget.id, {
-                config: { ...config, autoStartTimer: !autoStartTimer },
+                config: { autoStartTimer: !autoStartTimer },
               })
             }
             size="md"
@@ -323,7 +349,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       )}
 
       <div>
-        <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block">
+        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block">
           Operation Mode
         </label>
         <div className="grid grid-cols-4 gap-2">
@@ -333,7 +359,6 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               onClick={() =>
                 updateWidget(widget.id, {
                   config: {
-                    ...config,
                     mode: m.id,
                     lastResult: null,
                     jigsawHomeGroups: null,
@@ -349,7 +374,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               }`}
             >
               <m.icon className="w-5 h-5" />
-              <span className="text-xxxs  uppercase">{m.label}</span>
+              <span className="text-xxxs uppercase">{m.label}</span>
             </button>
           ))}
         </div>
@@ -357,7 +382,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'single' && (
         <div>
-          <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block">
+          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block">
             Animation Style
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -367,7 +392,6 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
                 onClick={() =>
                   updateWidget(widget.id, {
                     config: {
-                      ...config,
                       visualStyle: s.id as 'flash' | 'slots' | 'wheel',
                     },
                   })
@@ -379,7 +403,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
                 }`}
               >
                 <s.icon className="w-5 h-5" />
-                <span className="text-xxxs  uppercase">{s.label}</span>
+                <span className="text-xxxs uppercase">{s.label}</span>
               </button>
             ))}
           </div>
@@ -388,7 +412,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {(mode === 'groups' || mode === 'jigsaw') && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
             <Hash className="w-3 h-3" />{' '}
             {mode === 'jigsaw'
               ? t('widgets.random.homeGroupSize', {
@@ -403,18 +427,48 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               max="20"
               step="1"
               value={groupSize}
-              onChange={(e) =>
+              onChange={(e) => {
+                const next = parseInt(e.target.value, 10);
+                if (!Number.isFinite(next)) return;
                 updateWidget(widget.id, {
-                  config: {
-                    ...config,
-                    groupSize: parseInt(e.target.value),
-                  },
-                })
-              }
+                  config: { groupSize: next },
+                });
+              }}
               className="flex-1 accent-brand-blue-primary h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
             />
-            <span className="w-10 text-center font-mono  text-slate-700 text-sm">
+            <span className="w-10 text-center font-mono text-slate-700 text-sm">
               {groupSize}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {mode === 'jigsaw' && (
+        <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+            <Puzzle className="w-3 h-3" />{' '}
+            {t('widgets.random.expertGroupCount', {
+              defaultValue: 'Number of Expert Groups',
+            })}
+          </label>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="2"
+              max="20"
+              step="1"
+              value={numExpertGroups}
+              onChange={(e) => {
+                const next = parseInt(e.target.value, 10);
+                if (!Number.isFinite(next)) return;
+                updateWidget(widget.id, {
+                  config: { numExpertGroups: next },
+                });
+              }}
+              className="flex-1 accent-brand-blue-primary h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <span className="w-10 text-center font-mono text-slate-700 text-sm">
+              {numExpertGroups}
             </span>
           </div>
         </div>
@@ -446,7 +500,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-2 block">
+              <label className="text-xxs text-slate-400 uppercase tracking-widest mb-2 block">
                 First Names
               </label>
               <textarea
@@ -460,10 +514,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
                   }
                   if (localFirstNames !== firstNames) {
                     updateWidgetRef.current(widget.id, {
-                      config: {
-                        ...configRef.current,
-                        firstNames: localFirstNames,
-                      },
+                      config: { firstNames: localFirstNames },
                     });
                   }
                 }}
@@ -472,7 +523,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               />
             </div>
             <div>
-              <label className="text-xxs  text-slate-400 uppercase tracking-widest mb-2 block">
+              <label className="text-xxs text-slate-400 uppercase tracking-widest mb-2 block">
                 Last Names
               </label>
               <textarea
@@ -486,10 +537,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
                   }
                   if (localLastNames !== lastNames) {
                     updateWidgetRef.current(widget.id, {
-                      config: {
-                        ...configRef.current,
-                        lastNames: localLastNames,
-                      },
+                      config: { lastNames: localLastNames },
                     });
                   }
                 }}
@@ -512,7 +560,6 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               if (confirmed) {
                 updateWidget(widget.id, {
                   config: {
-                    ...config,
                     firstNames: '',
                     lastNames: '',
                     lastResult: null,
@@ -521,7 +568,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
                 });
               }
             }}
-            className="w-full py-3 flex items-center justify-center gap-2 text-red-500 text-xxs  uppercase tracking-widest hover:bg-red-50 rounded-xl transition-colors border-2 border-dashed border-red-100"
+            className="w-full py-3 flex items-center justify-center gap-2 text-red-500 text-xxs uppercase tracking-widest hover:bg-red-50 rounded-xl transition-colors border-2 border-dashed border-red-100"
           >
             <Trash2 className="w-4 h-4" /> Clear Custom Names
           </button>

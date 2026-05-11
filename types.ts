@@ -824,11 +824,15 @@ export interface RandomConfig {
   externalTrigger?: number;
   /** Jigsaw mode: original home groups (each student's "home base"). */
   jigsawHomeGroups?: RandomGroup[] | null;
-  /** Jigsaw mode: expert groups derived by transposing home groups
-   *  (position N from each home group becomes expert group N). */
+  /** Jigsaw mode: expert groups derived from home groups via round-robin
+   *  assignment with rotating offset across `numExpertGroups` buckets. */
   jigsawExpertGroups?: RandomGroup[] | null;
   /** Jigsaw mode: which view is currently shown on the front face. */
   jigsawView?: 'home' | 'expert';
+  /** Jigsaw mode: explicit number of expert groups. When unset, defaults to
+   *  max(2, ceil(numHomeGroups / 2)) — i.e. "2 home groups per expert group",
+   *  clamped to a minimum of 2 to match the settings/stepper slider range. */
+  numExpertGroups?: number;
 }
 
 export interface DiceConfig {

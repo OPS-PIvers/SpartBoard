@@ -60,34 +60,51 @@ export function makeRestrictedGroups(
 }
 
 /**
- * Build expert groups for the Jigsaw cooperative-learning structure: take
- * position N from each home group and combine those students into expert
- * group N. Home groups can be uneven; missing positions are simply skipped.
+ * Build expert groups for the Jigsaw cooperative-learning structure.
  *
- * If the transpose produces a size-1 "expert group" (no peer to compare
- * notes with) AND a larger expert group exists, merge the orphan into the
+ * Distributes each home group's members across `numExpertGroups` buckets
+ * via round-robin assignment with a rotating offset per home group. The
+ * offset rotation prevents any single expert group from consistently
+ * absorbing the "extra" student when numExpertGroups does not evenly
+ * divide the home group size — collisions get spread evenly instead.
+ *
+ * When `numExpertGroups` equals the home group size this reduces to a
+ * straight transpose (position N from each home group → expert N), which
+ * is the classic jigsaw structure. When it is smaller, expert groups grow
+ * by absorbing wrapped positions; when larger, some expert groups receive
+ * fewer members.
+ *
+ * Home groups are shuffled at creation, so positional assignment is
+ * already random — no extra shuffle is needed here.
+ *
+ * If the result contains a size-1 "expert group" (no peer to compare notes
+ * with) AND a larger expert group exists, the orphan is merged into the
  * smallest larger group so every expert has at least one peer. When every
  * expert group is size 1 the caller's degenerate-jigsaw warning toast
  * handles communication; we don't artificially merge in that case.
  */
 export function makeJigsawExpertGroups(
-  homeGroups: RandomGroup[]
+  homeGroups: RandomGroup[],
+  numExpertGroups: number
 ): RandomGroup[] {
   if (homeGroups.length === 0) return [];
-  const maxSize = homeGroups.reduce(
-    (max, g) => Math.max(max, g.names.length),
-    0
-  );
-  const expertGroups: RandomGroup[] = [];
-  for (let pos = 0; pos < maxSize; pos++) {
-    const names: string[] = [];
-    for (const home of homeGroups) {
-      if (pos < home.names.length) names.push(home.names[pos]);
+  // Math.max(1, NaN) returns NaN, which then makes Array.from({length: NaN})
+  // return [], silently yielding zero expert groups. Guard explicitly.
+  const safeK = Number.isFinite(numExpertGroups) ? numExpertGroups : 1;
+  const k = Math.max(1, Math.floor(safeK));
+
+  const buckets: string[][] = Array.from({ length: k }, () => []);
+  let offset = 0;
+  for (const home of homeGroups) {
+    for (let i = 0; i < home.names.length; i++) {
+      buckets[(i + offset) % k].push(home.names[i]);
     }
-    if (names.length > 0) {
-      expertGroups.push({ id: crypto.randomUUID(), names });
-    }
+    offset = (offset + 1) % k;
   }
+
+  const expertGroups: RandomGroup[] = buckets
+    .filter((names) => names.length > 0)
+    .map((names) => ({ id: crypto.randomUUID(), names }));
 
   const balanced = expertGroups.filter((g) => g.names.length > 1);
   const orphans = expertGroups.filter((g) => g.names.length === 1);
