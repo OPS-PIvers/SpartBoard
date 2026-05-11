@@ -645,6 +645,7 @@
       "groupSize": "Group Size",
       "homeGroupSize": "Home Group Size",
       "expertGroupCount": "Number of Expert Groups",
+      "expertGroupCountReduced": "Only {{count}} expert groups fit this class — lower the Number of Expert Groups setting or add more students.",
       "homeLabelShort": "HOME",
       "expertLabelShort": "EXPERT",
       "jigsawNeedsMultipleGroups": "Jigsaw needs at least 2 home groups — lower the group size or add more students.",

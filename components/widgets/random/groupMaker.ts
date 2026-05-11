@@ -88,7 +88,10 @@ export function makeJigsawExpertGroups(
   numExpertGroups: number
 ): RandomGroup[] {
   if (homeGroups.length === 0) return [];
-  const k = Math.max(1, Math.floor(numExpertGroups));
+  // Math.max(1, NaN) returns NaN, which then makes Array.from({length: NaN})
+  // return [], silently yielding zero expert groups. Guard explicitly.
+  const safeK = Number.isFinite(numExpertGroups) ? numExpertGroups : 1;
+  const k = Math.max(1, Math.floor(safeK));
 
   const buckets: string[][] = Array.from({ length: k }, () => []);
   let offset = 0;

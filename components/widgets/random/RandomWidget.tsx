@@ -350,7 +350,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const setJigsawView = (view: 'home' | 'expert') => {
     if (jigsawView === view) return;
     updateWidget(widget.id, {
-      config: { ...config, jigsawView: view },
+      config: { jigsawView: view },
     });
   };
 
@@ -706,6 +706,23 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             t('widgets.random.jigsawNeedsMultipleGroups', {
               defaultValue:
                 'Jigsaw needs at least 2 home groups — lower the group size or add more students.',
+            }),
+            'warning'
+          );
+        } else if (
+          configNumExpertGroups != null &&
+          expertGroups.length < configNumExpertGroups
+        ) {
+          // The user explicitly set numExpertGroups too high for this class
+          // size — the algorithm filtered empty buckets / merged singletons
+          // and produced fewer groups than requested. Surface this so the
+          // stepper value doesn't silently disagree with the visible result.
+          addToast(
+            t('widgets.random.expertGroupCountReduced', {
+              count: expertGroups.length,
+              requested: configNumExpertGroups,
+              defaultValue:
+                'Only {{count}} expert groups fit this class — lower the Number of Expert Groups setting or add more students.',
             }),
             'warning'
           );
@@ -1111,10 +1128,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                         className="flex-1 overflow-y-auto overflow-x-hidden w-full"
                         style={{
                           // CSS multi-column layout: browser fits as many ~200px
-                          // columns as the container allows. column-fill: balance
-                          // (the default) distributes items evenly across the
-                          // chosen column count, and vertical overflow scrolls.
+                          // columns as the container allows. column-fill: auto
+                          // fills column 1 top-to-bottom, then column 2, etc. —
+                          // the column-first reading order we want for a numbered
+                          // list. Vertical overflow scrolls; breakInside on each
+                          // row keeps cards intact across column boundaries.
                           columnWidth: 'clamp(160px, 36cqmin, 240px)',
+                          columnFill: 'auto',
                           columnGap: 'clamp(6px, 1.5cqmin, 12px)',
                           padding: 'clamp(2px, 1cqmin, 6px) 0',
                         }}

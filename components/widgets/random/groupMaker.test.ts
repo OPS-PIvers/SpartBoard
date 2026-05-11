@@ -175,6 +175,18 @@ describe('makeJigsawExpertGroups', () => {
     expect(expert[0].names.sort()).toEqual(['A1', 'A2', 'B1', 'B2'].sort());
   });
 
+  it('treats NaN numExpertGroups as 1 (no silent empty output)', () => {
+    const home = [groupOf('A1', 'A2'), groupOf('B1', 'B2')];
+
+    const expert = makeJigsawExpertGroups(home, NaN);
+
+    // Without the Number.isFinite guard, Math.max(1, NaN) returns NaN and
+    // Array.from({length: NaN}) returns [] — yielding zero expert groups
+    // silently. Verify we land on the K=1 fallback instead.
+    expect(expert.length).toBe(1);
+    expect(expert[0].names.sort()).toEqual(['A1', 'A2', 'B1', 'B2'].sort());
+  });
+
   it('assigns a fresh id to each generated expert group', () => {
     const home = [groupOf('A1', 'A2'), groupOf('B1', 'B2')];
     const expert = makeJigsawExpertGroups(home, 2);
