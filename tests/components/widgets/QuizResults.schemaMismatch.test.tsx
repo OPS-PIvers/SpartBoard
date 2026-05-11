@@ -268,6 +268,17 @@ describe('QuizResults — PLC schema mismatch recovery', () => {
       expect(link).toHaveAttribute('href', RECOVERY_SHEET_URL);
     });
 
+    // The red error banner must NOT still be visible alongside the success
+    // link — the original implementation left both on screen, which made
+    // it unclear whether the recovery worked. After recovery we render a
+    // success-styled banner instead.
+    expect(
+      screen.queryByRole('button', { name: /export to my own sheet/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/exported to a personal sheet/i)
+    ).toBeInTheDocument();
+
     // Assignment doc's PLC export URL stays untouched.
     expect(onExportUrlSaved).not.toHaveBeenCalled();
   });

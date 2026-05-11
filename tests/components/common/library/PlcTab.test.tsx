@@ -67,6 +67,27 @@ describe('PlcTab', () => {
     expect(screen.getByText(/waiting for plc results/i)).toBeInTheDocument();
   });
 
+  it('renders the in-progress state when contributions exist but every response is in-progress', () => {
+    mockContributions.mockReturnValue([
+      makeContribution({
+        teacherUid: 'jen',
+        teacherName: 'Jen Ivers',
+        questions: [{ id: 'q1', text: 'Q1' }],
+        responses: [
+          { score: null, pointsPerQuestion: {}, status: 'in-progress' },
+          { score: null, pointsPerQuestion: {}, status: 'in-progress' },
+        ],
+      }),
+    ]);
+    render(<PlcTab plcId="plc-1" />);
+    // Distinct copy from "waiting" — the user can tell the difference
+    // between "nobody published yet" and "data is in flight."
+    expect(screen.getByText(/sessions still in progress/i)).toBeInTheDocument();
+    expect(
+      screen.queryByText(/waiting for plc results/i)
+    ).not.toBeInTheDocument();
+  });
+
   it('renders a unified aggregate when all contributions share the same question schema', () => {
     mockContributions.mockReturnValue([
       makeContribution({

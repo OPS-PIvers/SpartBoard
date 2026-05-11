@@ -233,7 +233,14 @@ export const PlcTab: React.FC<PlcTabProps> = ({ plcId }) => {
     );
   }
 
-  if (groups.length === 0 || totalCompletedAcrossGroups === 0) {
+  // Three empty-state cases worth disambiguating for the teacher:
+  //   1. No contributions yet — nobody's opened her Results screen.
+  //   2. Contributions exist but every response is still in-progress —
+  //      peers ran sessions and saw their results but no kid has finished
+  //      yet (the aggregate only reflects completed responses).
+  //   3. Should-not-happen (contributions exist, completed > 0, but the
+  //      group-aggregate still reports 0) — defensive; folds into case 1.
+  if (groups.length === 0) {
     return (
       <div className="bg-white border border-brand-blue-primary/10 rounded-2xl p-8 text-center shadow-sm">
         <Users
@@ -252,6 +259,37 @@ export const PlcTab: React.FC<PlcTabProps> = ({ plcId }) => {
         >
           Once your PLC peers run their classes and view their results, their
           data will appear here automatically.
+        </p>
+      </div>
+    );
+  }
+  if (totalCompletedAcrossGroups === 0) {
+    const inProgressContributors = new Set(
+      groups
+        .flatMap((g) => g.contributions)
+        .filter((c) => c.responses.length > 0)
+        .map((c) => c.teacherUid)
+    );
+    return (
+      <div className="bg-white border border-brand-blue-primary/10 rounded-2xl p-8 text-center shadow-sm">
+        <Users
+          className="text-brand-blue-primary/30 mx-auto mb-3"
+          style={{ width: 'min(40px, 10cqmin)', height: 'min(40px, 10cqmin)' }}
+        />
+        <p
+          className="font-black text-brand-blue-dark uppercase tracking-widest"
+          style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+        >
+          PLC sessions still in progress
+        </p>
+        <p
+          className="text-brand-blue-primary/60 mt-2"
+          style={{ fontSize: 'min(13px, 4cqmin)' }}
+        >
+          {inProgressContributors.size}{' '}
+          {inProgressContributors.size === 1 ? 'teacher has' : 'teachers have'}{' '}
+          run sessions but no students have finished yet — aggregates appear
+          once the first completion lands.
         </p>
       </div>
     );
@@ -281,9 +319,11 @@ export const PlcTab: React.FC<PlcTabProps> = ({ plcId }) => {
               className="text-amber-900/80"
               style={{ fontSize: 'min(12px, 4cqmin)' }}
             >
-              Aggregates are computed per version below. To merge, ask everyone
-              to re-sync the quiz from the PLC library so they share the same
-              questions.
+              Aggregates are computed per version below. The quiz schema
+              diverged across members (added / removed / renamed questions). To
+              merge into a single aggregate, members on the older version need
+              to re-import the quiz from the PLC library and re-run the affected
+              sessions on the current schema.
             </p>
           </div>
         </div>

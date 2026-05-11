@@ -237,6 +237,25 @@ async function migrateAssignment(db, plcId, memberUid, assignment, report) {
     });
     return;
   }
+  // The naive grader scores MA/Matching/Ordering as 0 (see naiveGrade above).
+  // Surface this so the operator knows which assignments will have wrong
+  // per-question stats until each teacher re-opens her Results screen
+  // (which triggers auto-publish + canonical grader).
+  const ungradeableTypes = new Set();
+  for (const q of questions) {
+    if (q.type === 'MA' || q.type === 'Matching' || q.type === 'Ordering') {
+      ungradeableTypes.add(q.type);
+    }
+  }
+  if (ungradeableTypes.size > 0) {
+    report.partialGrading.push({
+      plcId,
+      memberUid,
+      assignmentId,
+      quizId,
+      ungradeableTypes: Array.from(ungradeableTypes),
+    });
+  }
   const responses = await loadResponses(db, assignmentId);
   if (responses.length === 0) {
     report.skipped.push({
@@ -298,6 +317,14 @@ async function main() {
     written: [],
     wouldWrite: [],
     skipped: [],
+    /**
+     * Assignments containing MA / Matching / Ordering questions, which the
+     * naive grader writes as 0. Listed here so the operator can decide
+     * whether to wait for teachers to re-open their Results screens (the
+     * auto-publish path will overwrite with the canonical grader) or to
+     * follow up manually.
+     */
+    partialGrading: [],
     errors: [],
   };
 
@@ -372,6 +399,21 @@ async function main() {
   console.log(
     `Summary: ${report.plcs} PLCs, ${report.members} members visited, ${report.assignments} assignments touched, ${report.written.length} written, ${report.wouldWrite.length} would-write, ${report.skipped.length} skipped, ${report.errors.length} errors.`
   );
+  if (report.partialGrading.length > 0) {
+    console.warn(
+      `\n⚠ ${report.partialGrading.length} assignment(s) contain MA/Matching/Ordering questions — the migration bootstrapped those at 0 points each. Teachers re-opening Results will overwrite with canonical grading via the auto-publish path. See report.partialGrading for the list.`
+    );
+  }
+  // Exit non-zero on errors so CI / cron / `&&`-chained shell scripts
+  // don't conclude "success" from a partially-failed migration. The
+  // report file is still written, so the operator can diff and decide
+  // whether to re-run with --plc=<id> to retry just the failed slice.
+  if (report.errors.length > 0) {
+    console.error(
+      `\nFAILED: ${report.errors.length} error(s) — see report at ${outPath}.`
+    );
+    process.exit(1);
+  }
 }
 
 main().catch((err) => {

@@ -38,6 +38,16 @@ function parseContribution(
     !Array.isArray(data.questionsSnapshot) ||
     !Array.isArray(data.responses)
   ) {
+    // Identity-field parse miss — this contribution disappears from the
+    // aggregate entirely. Log so an admin investigating "why is Sarah's
+    // data missing from the PLC tab?" has a breadcrumb. Silent filter
+    // was masking real bugs (e.g. an older client writing a doc with a
+    // mistyped field).
+    console.warn(
+      '[usePlcContributions] dropped malformed contribution doc:',
+      id,
+      Object.keys(data)
+    );
     return null;
   }
   const syncGroupId =
@@ -149,6 +159,11 @@ export function usePlcContributions(
         });
         setContributions(next);
         setLoading(false);
+        // Clear any prior error so a transient network blip doesn't pin
+        // the red "Couldn't load PLC results" banner forever once the
+        // listener recovers. Without this, the next successful snapshot
+        // silently arrived but the banner stayed.
+        setError(null);
       },
       (err) => {
         // Permission-denied is expected if the caller leaves the PLC

@@ -151,10 +151,12 @@ interface QuizResultsProps {
    */
   plcId?: string | null;
   /**
-   * `assignment.sync?.groupId` — the cross-teacher identifier for synced
-   * quizzes. Used as the PLC contribution's `syncGroupId` so the PlcTab
-   * can group contributions across members whose local quizIds differ.
-   * `null` for unsynced (legacy) quizzes.
+   * `assignment.sync?.groupId` — persisted on the published contribution
+   * for forward compatibility. PlcTab today groups contributions by exact
+   * question-id sequence, which works for synced quizzes because
+   * `pullSyncedQuiz` keeps question ids identical across members. The
+   * `syncGroupId` field is the hook for a future "logical quiz id" grouping
+   * if id parity ever stops being a safe assumption.
    */
   syncGroupId?: string | null;
   /**
@@ -332,29 +334,56 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // deletions) so the aggregate stays fresh while the teacher is sitting
   // on the Results screen. The setDoc overwrites the same doc id, so
   // there's no history pile-up.
+  //
+  // Permission-denied is silently ignored (expected when the teacher has
+  // been removed from the PLC mid-session). Every other failure mode —
+  // quota-exceeded on large response arrays, schema rejection from a
+  // future rules-vs-client version skew, transient network failure —
+  // toasts ONCE per failure streak so the teacher knows her contribution
+  // isn't reaching teammates' aggregates. The toast doesn't repeat on
+  // subsequent failed retries (would be spammy) but a clean recovery
+  // resets the flag so the next failure can toast again.
+  const autoPublishErrorToastedRef = useRef(false);
   useEffect(() => {
     if (!plcId || !user || !config.teacherName) return;
     if (responses.length === 0) return;
     const handle = setTimeout(() => {
-      void publishPlcContribution({
-        plcId,
-        teacherUid: user.uid,
-        teacherName: config.teacherName ?? '',
-        quiz,
-        responses,
-        syncGroupId: syncGroupId ?? null,
-        pinToName: exportPinToName,
-        byStudentUid,
-      }).catch((err: unknown) => {
-        // Permission-denied is expected if the caller leaves the PLC
-        // mid-session; we don't want to noisily toast every transient
-        // network blip either. Log and move on — the next responses
-        // update will retry.
-        console.error(
-          '[QuizResults] auto-publish PLC contribution failed:',
-          err
-        );
-      });
+      void (async () => {
+        try {
+          await publishPlcContribution({
+            plcId,
+            teacherUid: user.uid,
+            teacherName: config.teacherName ?? '',
+            quiz,
+            responses,
+            syncGroupId: syncGroupId ?? null,
+            pinToName: exportPinToName,
+            byStudentUid,
+          });
+          autoPublishErrorToastedRef.current = false;
+        } catch (err) {
+          console.error(
+            '[QuizResults] auto-publish PLC contribution failed:',
+            err
+          );
+          const code =
+            typeof err === 'object' && err !== null && 'code' in err
+              ? (err as { code?: unknown }).code
+              : undefined;
+          const isPermissionDenied = code === 'permission-denied';
+          if (!isPermissionDenied && !autoPublishErrorToastedRef.current) {
+            autoPublishErrorToastedRef.current = true;
+            const msg =
+              err instanceof Error
+                ? err.message
+                : 'Unknown error publishing PLC contribution.';
+            addToast(
+              `Your results aren't reaching the PLC view: ${msg}`,
+              'error'
+            );
+          }
+        }
+      })();
     }, 1500);
     return () => clearTimeout(handle);
   }, [
@@ -366,6 +395,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     responses,
     exportPinToName,
     byStudentUid,
+    addToast,
   ]);
 
   // Per-period filtering — uses classPeriod set on each response at join time.
@@ -1122,36 +1152,53 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         )}
       </div>
 
-      {exportError && (
-        <div
-          className="mx-4 mt-3 p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl text-brand-red-dark"
-          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
-        >
-          <div className="font-bold text-center">{exportError.message}</div>
-          {exportError.kind === 'schemaMismatch' && (
-            <div className="mt-2 flex items-center justify-center gap-3">
-              {exportError.recoveryUrl ? (
-                <a
-                  href={exportError.recoveryUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="underline font-bold inline-flex items-center gap-1"
-                >
-                  Open My Sheet
-                  <ExternalLink style={{ width: '1em', height: '1em' }} />
-                </a>
-              ) : (
+      {exportError &&
+        !(exportError.kind === 'schemaMismatch' && exportError.recoveryUrl) && (
+          <div
+            className="mx-4 mt-3 p-3 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-xl text-brand-red-dark"
+            style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+          >
+            <div className="font-bold text-center">{exportError.message}</div>
+            {exportError.kind === 'schemaMismatch' && (
+              <div className="mt-2 flex items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={handleSchemaMismatchRecovery}
+                  onClick={() => void handleSchemaMismatchRecovery()}
                   disabled={exporting}
                   className="bg-brand-red-primary hover:bg-brand-red-dark disabled:bg-brand-gray-lighter text-white font-bold rounded-lg px-3 py-1.5 transition active:scale-95"
                 >
                   Export to my own sheet instead
                 </button>
-              )}
-            </div>
-          )}
+              </div>
+            )}
+          </div>
+        )}
+
+      {/* After a successful schema-mismatch recovery, swap the red error
+          banner for a success banner with the personal-sheet link. Keeps
+          the user out of the "did the recovery work?" ambiguity that the
+          original implementation left them in (the red banner stayed up
+          alongside the new link). */}
+      {exportError?.kind === 'schemaMismatch' && exportError.recoveryUrl && (
+        <div
+          className="mx-4 mt-3 p-3 bg-emerald-50 border border-emerald-300 rounded-xl text-emerald-900"
+          style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+        >
+          <div className="font-bold text-center">
+            Exported to a personal sheet. Open and copy rows into the shared PLC
+            sheet manually.
+          </div>
+          <div className="mt-2 flex items-center justify-center gap-3">
+            <a
+              href={exportError.recoveryUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline font-bold inline-flex items-center gap-1"
+            >
+              Open My Sheet
+              <ExternalLink style={{ width: '1em', height: '1em' }} />
+            </a>
+          </div>
         </div>
       )}
 

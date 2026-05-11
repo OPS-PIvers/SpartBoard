@@ -333,8 +333,12 @@ export interface PlcContribution {
   quizId: string;
   /**
    * Cross-teacher identifier for synced quizzes — read from `quiz.sync.groupId`.
-   * `null` for unsynced quizzes (legacy). PlcTab aggregates contributions
-   * with matching `syncGroupId` (preferred) or falls back to matching `quizId`.
+   * `null` for unsynced quizzes (legacy). Stored as a forward-compatibility
+   * hook: today's PlcTab groups contributions by exact question-id sequence
+   * rather than syncGroupId, because in practice `pullSyncedQuiz` keeps
+   * synced teammates' question ids identical anyway. If we ever let local
+   * question ids drift while staying logically synced, swap the grouping
+   * key in PlcTab to use this field.
    */
   syncGroupId: string | null;
   /** Publishing teacher's UID. Must equal `request.auth.uid` on write. */
