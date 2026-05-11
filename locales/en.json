@@ -648,6 +648,9 @@
       "expertGroupCountReduced": "Only {{count}} expert groups fit this class — lower the Number of Expert Groups setting or add more students.",
       "homeLabelShort": "HOME",
       "expertLabelShort": "EXPERT",
+      "shuffleHint": "Click Randomize to Shuffle",
+      "stepperDecrease": "Decrease {{name}}",
+      "stepperIncrease": "Increase {{name}}",
       "jigsawNeedsMultipleGroups": "Jigsaw needs at least 2 home groups — lower the group size or add more students.",
       "absent": {
         "buttonLabel": "Mark absent students",

@@ -830,7 +830,8 @@ export interface RandomConfig {
   /** Jigsaw mode: which view is currently shown on the front face. */
   jigsawView?: 'home' | 'expert';
   /** Jigsaw mode: explicit number of expert groups. When unset, defaults to
-   *  ceil(numHomeGroups / 2) — i.e. "2 home groups per expert group". */
+   *  max(2, ceil(numHomeGroups / 2)) — i.e. "2 home groups per expert group",
+   *  clamped to a minimum of 2 to match the settings/stepper slider range. */
   numExpertGroups?: number;
 }
 

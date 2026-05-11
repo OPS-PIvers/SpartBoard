@@ -1118,7 +1118,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                             className="font-bold"
                             style={{ fontSize: 'min(14px, 3.5cqmin)' }}
                           >
-                            Click Randomize to Shuffle
+                            {t('widgets.random.shuffleHint', {
+                              defaultValue: 'Click Randomize to Shuffle',
+                            })}
                           </span>
                         </div>
                       );

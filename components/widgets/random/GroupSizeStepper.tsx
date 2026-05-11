@@ -1,5 +1,6 @@
 import React from 'react';
 import { Minus, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 interface GroupSizeStepperProps {
   value: number;
@@ -20,6 +21,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
   label,
   title,
 }) => {
+  const { t } = useTranslation();
   const decrement = () => onChange(Math.max(min, value - 1));
   const increment = () => onChange(Math.min(max, value + 1));
   const atMin = value <= min;
@@ -41,7 +43,10 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
         style={{
           width: 'clamp(28px, 7cqmin, 44px)',
         }}
-        aria-label={`Decrease ${title}`}
+        aria-label={t('widgets.random.stepperDecrease', {
+          name: title,
+          defaultValue: 'Decrease {{name}}',
+        })}
       >
         <Minus
           style={{
@@ -81,7 +86,10 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
         style={{
           width: 'clamp(28px, 7cqmin, 44px)',
         }}
-        aria-label={`Increase ${title}`}
+        aria-label={t('widgets.random.stepperIncrease', {
+          name: title,
+          defaultValue: 'Increase {{name}}',
+        })}
       >
         <Plus
           style={{
