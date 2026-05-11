@@ -39,6 +39,7 @@ import {
   QuizDriveService,
 } from '@/utils/quizDriveService';
 import { getPlcTeammateEmails } from '@/utils/plc';
+import { publishPlcContribution } from '@/utils/plcContributions';
 import {
   gradeAnswer,
   getResponseDocKey,
@@ -143,6 +144,20 @@ interface QuizResultsProps {
    */
   plcSheetUrl?: string | null;
   /**
+   * Active assignment's PLC linkage id (`assignment.plc.id`). Drives both
+   * the PLC tab visibility and the auto-publish of this teacher's quiz
+   * contributions to `/plcs/{plcId}/contributions/*`. Passing `null`
+   * disables both — the tab is hidden and no contribution is published.
+   */
+  plcId?: string | null;
+  /**
+   * `assignment.sync?.groupId` — the cross-teacher identifier for synced
+   * quizzes. Used as the PLC contribution's `syncGroupId` so the PlcTab
+   * can group contributions across members whose local quizIds differ.
+   * `null` for unsynced (legacy) quizzes.
+   */
+  syncGroupId?: string | null;
+  /**
    * Persist a fresh export URL back to the assignment doc so it survives
    * QuizResults remounts (the parent remounts it on Results re-entry to
    * recompute aggregate stats) and full tab reloads.
@@ -175,6 +190,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   onPlcSheetUrlReplaced,
   initialExportUrl,
   plcSheetUrl: assignmentPlcSheetUrl,
+  plcId,
+  syncGroupId,
   onExportUrlSaved,
   initialExportedResponseIds,
   onExportedResponseIdsSaved,
@@ -302,6 +319,54 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     [rosters, resolvedPeriods]
   );
   const hasNames = Object.keys(pinToName).length > 0;
+
+  // Auto-publish this teacher's contribution to the PLC results aggregate.
+  // Replaces the old "everyone must export to a shared Google Sheet" dance:
+  // as soon as the teacher views her results, her contribution is written
+  // to /plcs/{plcId}/contributions/{quizId}_{teacherUid} and every teammate's
+  // PlcTab snapshots-update in real time. Debounced so we don't write on
+  // every keystroke of an in-flight responses stream — the publish coalesces
+  // ~1.5s after the responses array settles.
+  //
+  // Intentionally re-runs on response changes (new submissions, edits,
+  // deletions) so the aggregate stays fresh while the teacher is sitting
+  // on the Results screen. The setDoc overwrites the same doc id, so
+  // there's no history pile-up.
+  useEffect(() => {
+    if (!plcId || !user || !config.teacherName) return;
+    if (responses.length === 0) return;
+    const handle = setTimeout(() => {
+      void publishPlcContribution({
+        plcId,
+        teacherUid: user.uid,
+        teacherName: config.teacherName ?? '',
+        quiz,
+        responses,
+        syncGroupId: syncGroupId ?? null,
+        pinToName: exportPinToName,
+        byStudentUid,
+      }).catch((err: unknown) => {
+        // Permission-denied is expected if the caller leaves the PLC
+        // mid-session; we don't want to noisily toast every transient
+        // network blip either. Log and move on — the next responses
+        // update will retry.
+        console.error(
+          '[QuizResults] auto-publish PLC contribution failed:',
+          err
+        );
+      });
+    }, 1500);
+    return () => clearTimeout(handle);
+  }, [
+    plcId,
+    syncGroupId,
+    user,
+    config.teacherName,
+    quiz,
+    responses,
+    exportPinToName,
+    byStudentUid,
+  ]);
 
   // Per-period filtering — uses classPeriod set on each response at join time.
   const [periodFilter, setPeriodFilter] = useState<string>('all');
@@ -1158,7 +1223,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 'overview',
                 'questions',
                 'students',
-                ...(config.plcMode ? (['plc'] as const) : []),
+                ...(plcId ? (['plc'] as const) : []),
               ] as const
             ).map((tab) => (
               <button
@@ -1210,17 +1275,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 addToast={addToast}
               />
             )}
-            {activeTab === 'plc' &&
-              config.plcMode &&
-              (assignmentPlcSheetUrl ?? config.plcSheetUrl) && (
-                <PlcTab
-                  plcSheetUrl={
-                    (assignmentPlcSheetUrl ?? config.plcSheetUrl) as string
-                  }
-                  googleAccessToken={googleAccessToken}
-                  questions={quiz.questions}
-                />
-              )}
+            {activeTab === 'plc' && plcId && <PlcTab plcId={plcId} />}
           </div>
         </>
       )}

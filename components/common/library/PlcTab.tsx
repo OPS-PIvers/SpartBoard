@@ -1,27 +1,20 @@
 /**
- * PlcTab — cross-teacher aggregate view of a PLC's assignment results.
+ * PlcTab — cross-teacher aggregate view of a PLC's results.
  *
- * Renders only when the active assignment is in PLC mode (Share-with-PLC
- * enabled). The teacher's own class data lives in the Overview / Questions /
- * Students tabs; this tab is the consolidated view across every PLC peer
- * who exported to the same shared sheet, so a teacher can compare their
- * own class average and per-question accuracy against the PLC-wide numbers.
+ * Reads `/plcs/{plcId}/contributions/*` via Firestore `onSnapshot`. Each
+ * PLC member's `QuizResults` auto-publishes a contribution doc the first
+ * time she views her results — no Google Sheet roundtrip, no manual
+ * export step, no schema-mismatch error. Real-time across all members.
  *
- * Data source is the shared Google Sheet itself (via `readPlcSheet`), not
- * Firestore — every peer's exports already land there, and reading it
- * directly avoids a separate cross-tenant aggregation channel. Per-teacher
- * and per-period filtering is intentionally NOT exposed here: if a teacher
- * needs that level of detail, they open the sheet itself. This tab keeps
- * the focus on aggregate signal.
- *
- * Generic over the assignment kind: works for both Quiz and Video Activity
- * because both exporters write the same column shape (PR3b lifted
- * `buildResultsSheetData` into a shared helper). The `questions` prop only
- * needs `id` + `text`; `QuizQuestion` and `VideoActivityQuestion` both
- * satisfy `PlcTabQuestion` structurally.
+ * When teammates are on different versions of a synced quiz (or copy-mode
+ * divergence has left their local question lists out of sync), the tab
+ * groups contributions by exact question-id sequence and renders one
+ * aggregate card per version with a "members are on different versions"
+ * banner. That's option (a) from the design discussion — show the data
+ * side-by-side instead of trying to merge mismatched columns.
  */
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import {
   Trophy,
   Users,
@@ -30,21 +23,14 @@ import {
   XCircle,
   Loader2,
   AlertCircle,
-  ExternalLink,
-  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
-import { QuizDriveService, type PlcSheetRow } from '@/utils/quizDriveService';
-
-/** Minimal question shape this tab renders. */
-export interface PlcTabQuestion {
-  id: string;
-  text: string;
-}
+import type { PlcContribution, PlcContributionQuestion } from '@/types';
+import { usePlcContributions } from '@/hooks/usePlcContributions';
 
 interface PlcTabProps {
-  plcSheetUrl: string;
-  googleAccessToken: string | null;
-  questions: PlcTabQuestion[];
+  /** PLC doc id; null disables the tab (caller should not render in that case). */
+  plcId: string;
 }
 
 interface PlcAggregate {
@@ -63,6 +49,15 @@ interface PlcAggregate {
     correct: number;
     percent: number;
   }[];
+}
+
+interface SchemaGroup {
+  /** Stable key (joined question ids) — drives React reconciliation. */
+  schemaKey: string;
+  questions: PlcContributionQuestion[];
+  teachers: { uid: string; name: string }[];
+  contributions: PlcContribution[];
+  aggregate: PlcAggregate;
 }
 
 const SCORE_BUCKETS = [
@@ -92,134 +87,103 @@ const SCORE_BUCKETS = [
   },
 ] as const;
 
-function aggregate(
-  rows: PlcSheetRow[],
-  questions: PlcTabQuestion[]
+/**
+ * Aggregate one schema group's contributions into the stats the cards
+ * render. Per-question stats are indexed positionally against the group's
+ * `questions` — safe because all contributions in the group share the
+ * exact same question-id sequence (that's the grouping invariant).
+ */
+function aggregateGroup(
+  contributions: PlcContribution[],
+  questions: PlcContributionQuestion[]
 ): PlcAggregate {
-  const completed = rows.filter((r) => r.status === 'completed');
-  const teachers = new Set<string>();
+  const teacherUids = new Set<string>();
+  let totalCompleted = 0;
   let scoreSum = 0;
   let scoreCount = 0;
   const bucketCounts = SCORE_BUCKETS.map(() => 0);
+  const perQuestion = questions.map(() => ({ answered: 0, correct: 0 }));
 
-  for (const r of completed) {
-    if (r.teacher) teachers.add(r.teacher);
-    // scorePercent is rendered as "67%"; parse leniently — a missing or
-    // malformed cell drops out of the average rather than poisoning it.
-    const numeric = parseInt(r.scorePercent.replace('%', '').trim(), 10);
-    if (Number.isFinite(numeric)) {
-      scoreSum += numeric;
-      scoreCount++;
-      const bucketIdx = SCORE_BUCKETS.findIndex(
-        (b) => numeric >= b.min && numeric <= b.max
-      );
-      if (bucketIdx >= 0) bucketCounts[bucketIdx]++;
+  for (const c of contributions) {
+    teacherUids.add(c.teacherUid);
+    for (const r of c.responses) {
+      if (r.status !== 'completed') continue;
+      totalCompleted++;
+      const score = r.scorePercent;
+      if (typeof score === 'number') {
+        scoreSum += score;
+        scoreCount++;
+        const idx = SCORE_BUCKETS.findIndex(
+          (b) => score >= b.min && score <= b.max
+        );
+        if (idx >= 0) bucketCounts[idx]++;
+      }
+      questions.forEach((q, qi) => {
+        const points = r.pointsByQuestionId[q.id];
+        if (points === undefined) return;
+        perQuestion[qi].answered++;
+        if (points > 0) perQuestion[qi].correct++;
+      });
     }
   }
 
-  const perQuestion = questions.map((_q, qi) => {
-    let answered = 0;
-    let correct = 0;
-    for (const r of completed) {
-      const cell = r.questionAnswers[qi] ?? '';
-      if (cell === '') continue;
-      answered++;
-      // The export writes '0' for incorrect and the points value for
-      // correct, so anything non-empty and non-'0' is a correct answer.
-      if (cell !== '0') correct++;
-    }
-    const percent = answered > 0 ? Math.round((correct / answered) * 100) : 0;
-    return { answered, correct, percent };
-  });
-
   return {
-    totalCompleted: completed.length,
-    totalTeachers: teachers.size,
+    totalCompleted,
+    totalTeachers: teacherUids.size,
     averageScore: scoreCount > 0 ? Math.round(scoreSum / scoreCount) : null,
     buckets: SCORE_BUCKETS.map((b, i) => ({ ...b, count: bucketCounts[i] })),
-    perQuestion,
+    perQuestion: perQuestion.map((p) => ({
+      ...p,
+      percent: p.answered > 0 ? Math.round((p.correct / p.answered) * 100) : 0,
+    })),
   };
 }
 
-export const PlcTab: React.FC<PlcTabProps> = ({
-  plcSheetUrl,
-  googleAccessToken,
-  questions,
-}) => {
-  // Bumped on Retry; combined with the URL into the fetch identity below.
-  const [reloadToken, setReloadToken] = useState(0);
-  const fetchKey = `${plcSheetUrl}::${googleAccessToken ?? ''}::${reloadToken}`;
-
-  // Single state object with the fetch key embedded, so we can detect
-  // stale data at render time without setState-during-render. When
-  // `fetchState.key !== fetchKey`, the effect hasn't completed for the
-  // current identity yet — render the loading state synchronously and
-  // ignore the stale rows/error in the stored value.
-  const [fetchState, setFetchState] = useState<{
-    key: string;
-    rows: PlcSheetRow[] | null;
-    error: string | null;
-    settled: boolean;
-  }>({ key: fetchKey, rows: null, error: null, settled: false });
-
-  useEffect(() => {
-    // No token = nothing to fetch. Render derives the auth-prompt error
-    // and `loading=false` from the missing token directly, so we don't
-    // need to write any state here.
-    if (!googleAccessToken) return;
-    let cancelled = false;
-    const svc = new QuizDriveService(googleAccessToken);
-    svc
-      .readPlcSheet(plcSheetUrl)
-      .then((res) => {
-        if (cancelled) return;
-        setFetchState({
-          key: fetchKey,
-          rows: res.rows,
-          error: null,
-          settled: true,
-        });
-      })
-      .catch((err: unknown) => {
-        if (cancelled) return;
-        const message =
-          err instanceof Error
-            ? err.message
-            : 'Could not load PLC results from the shared sheet.';
-        setFetchState({
-          key: fetchKey,
-          rows: null,
-          error: message,
-          settled: true,
-        });
-      });
-    return () => {
-      cancelled = true;
+/**
+ * Bucket contributions by exact question-id sequence — that's the
+ * alignment-by-position invariant the per-question stats rely on. Two
+ * teammates whose synced quiz drifted by even one question id end up in
+ * separate groups, so we can render them side-by-side with a banner
+ * instead of silently misaligning columns.
+ */
+function groupBySchema(contributions: PlcContribution[]): SchemaGroup[] {
+  const groups = new Map<string, PlcContribution[]>();
+  for (const c of contributions) {
+    const key = c.questionsSnapshot.map((q) => q.id).join('|') || '∅';
+    const existing = groups.get(key);
+    if (existing) existing.push(c);
+    else groups.set(key, [c]);
+  }
+  // Sort groups by contributor count (desc) — the "majority schema" reads
+  // top so the most representative aggregate is what the eye lands on
+  // first.
+  const sorted = Array.from(groups.entries()).sort(
+    (a, b) => b[1].length - a[1].length
+  );
+  return sorted.map(([schemaKey, members]) => {
+    const teachers = Array.from(
+      new Map(members.map((m) => [m.teacherUid, m.teacherName])).entries()
+    )
+      .map(([uid, name]) => ({ uid, name }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+    const questions = members[0]?.questionsSnapshot ?? [];
+    return {
+      schemaKey,
+      questions,
+      teachers,
+      contributions: members,
+      aggregate: aggregateGroup(members, questions),
     };
-    // `fetchKey` is the template-string concat of the three primitives
-    // above, so listing it is harmless (it changes iff they do) but
-    // mentioning it explicitly removes the lint suppression and makes the
-    // dependency obvious if its derivation ever evolves.
-  }, [plcSheetUrl, googleAccessToken, reloadToken, fetchKey]);
+  });
+}
 
-  // Display state is derived synchronously from `fetchKey` vs the
-  // settled state's key. Stale storage from the previous identity is
-  // ignored until the effect catches up — no setState during render.
-  const isFresh = fetchState.key === fetchKey && fetchState.settled;
-  const loading = !!googleAccessToken && !isFresh;
-  const rows = isFresh ? fetchState.rows : null;
-  const fetchError = isFresh ? fetchState.error : null;
+export const PlcTab: React.FC<PlcTabProps> = ({ plcId }) => {
+  const { contributions, loading, error } = usePlcContributions(plcId);
 
-  // A missing OAuth token is a synchronous "we can't fetch" condition,
-  // not effect-driven state — surface it inline so the auth-prompt
-  // renders from mount.
-  const error = !googleAccessToken
-    ? 'Sign in with Google to load PLC results.'
-    : fetchError;
-
-  const data = useMemo(
-    () => (rows ? aggregate(rows, questions) : null),
-    [rows, questions]
+  const groups = useMemo(() => groupBySchema(contributions), [contributions]);
+  const totalCompletedAcrossGroups = useMemo(
+    () => groups.reduce((sum, g) => sum + g.aggregate.totalCompleted, 0),
+    [groups]
   );
 
   if (loading) {
@@ -243,20 +207,12 @@ export const PlcTab: React.FC<PlcTabProps> = ({
   }
 
   if (error) {
-    const iconSize = {
-      width: 'min(20px, 5cqmin)',
-      height: 'min(20px, 5cqmin)',
-    };
-    const ctaIconSize = {
-      width: 'min(12px, 3cqmin)',
-      height: 'min(12px, 3cqmin)',
-    };
     return (
       <div className="bg-white border border-brand-red-primary/20 rounded-2xl p-6 shadow-sm">
         <div className="flex items-start gap-3">
           <AlertCircle
             className="text-brand-red-primary flex-shrink-0 mt-0.5"
-            style={iconSize}
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
           />
           <div className="flex-1">
             <p
@@ -271,33 +227,13 @@ export const PlcTab: React.FC<PlcTabProps> = ({
             >
               {error}
             </p>
-            <div className="flex items-center gap-3 mt-4">
-              <button
-                onClick={() => setReloadToken((t) => t + 1)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary text-white font-bold rounded-lg hover:bg-brand-blue-dark transition-colors"
-                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-              >
-                <RefreshCw style={ctaIconSize} />
-                Retry
-              </button>
-              <a
-                href={plcSheetUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 text-brand-blue-primary font-bold hover:underline"
-                style={{ fontSize: 'min(12px, 3.5cqmin)' }}
-              >
-                Open sheet
-                <ExternalLink style={ctaIconSize} />
-              </a>
-            </div>
           </div>
         </div>
       </div>
     );
   }
 
-  if (!data || data.totalCompleted === 0) {
+  if (groups.length === 0 || totalCompletedAcrossGroups === 0) {
     return (
       <div className="bg-white border border-brand-blue-primary/10 rounded-2xl p-8 text-center shadow-sm">
         <Users
@@ -314,16 +250,89 @@ export const PlcTab: React.FC<PlcTabProps> = ({
           className="text-brand-blue-primary/60 mt-2"
           style={{ fontSize: 'min(13px, 4cqmin)' }}
         >
-          Once your PLC peers run their classes, their results will land in the
-          shared sheet and appear here automatically.
+          Once your PLC peers run their classes and view their results, their
+          data will appear here automatically.
         </p>
       </div>
     );
   }
 
+  const hasSchemaDrift = groups.length > 1;
+
   return (
     <div className="flex flex-col" style={{ gap: 'min(20px, 5cqmin)' }}>
-      {/* Hero — PLC-wide totals */}
+      {hasSchemaDrift && (
+        <div
+          className="bg-amber-50 border border-amber-300 rounded-2xl p-4 shadow-sm flex items-start gap-3"
+          role="alert"
+        >
+          <AlertTriangle
+            className="text-amber-600 flex-shrink-0 mt-0.5"
+            style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
+          />
+          <div className="flex-1">
+            <p
+              className="font-black text-amber-900 uppercase tracking-widest mb-1"
+              style={{ fontSize: 'min(11px, 3.5cqmin)' }}
+            >
+              Members are on different versions of this quiz
+            </p>
+            <p
+              className="text-amber-900/80"
+              style={{ fontSize: 'min(12px, 4cqmin)' }}
+            >
+              Aggregates are computed per version below. To merge, ask everyone
+              to re-sync the quiz from the PLC library so they share the same
+              questions.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {groups.map((group, groupIdx) => (
+        <PlcAggregateSection
+          key={group.schemaKey}
+          group={group}
+          showHeader={hasSchemaDrift}
+          groupNumber={groupIdx + 1}
+        />
+      ))}
+    </div>
+  );
+};
+
+interface PlcAggregateSectionProps {
+  group: SchemaGroup;
+  showHeader: boolean;
+  groupNumber: number;
+}
+
+const PlcAggregateSection: React.FC<PlcAggregateSectionProps> = ({
+  group,
+  showHeader,
+  groupNumber,
+}) => {
+  const { aggregate, questions, teachers } = group;
+  return (
+    <section className="flex flex-col" style={{ gap: 'min(16px, 4cqmin)' }}>
+      {showHeader && (
+        <header
+          className="bg-white border border-brand-blue-primary/10 rounded-2xl p-3 shadow-sm"
+          style={{ fontSize: 'min(12px, 4cqmin)' }}
+        >
+          <p
+            className="font-black text-brand-blue-primary uppercase tracking-widest mb-1"
+            style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+          >
+            Version {groupNumber} · {questions.length} question
+            {questions.length === 1 ? '' : 's'}
+          </p>
+          <p className="text-brand-blue-dark/80 font-bold">
+            {teachers.map((t) => t.name).join(', ')}
+          </p>
+        </header>
+      )}
+
       <div className="grid grid-cols-3 gap-4">
         <div className="bg-white border-2 border-brand-blue-primary/10 rounded-2xl p-4 text-center shadow-sm relative overflow-hidden group">
           <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
@@ -335,7 +344,9 @@ export const PlcTab: React.FC<PlcTabProps> = ({
             className="font-black text-brand-blue-dark leading-none"
             style={{ fontSize: 'min(28px, 9cqmin)' }}
           >
-            {data.averageScore !== null ? `${data.averageScore}%` : '—'}
+            {aggregate.averageScore !== null
+              ? `${aggregate.averageScore}%`
+              : '—'}
           </p>
           <p
             className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
@@ -354,7 +365,7 @@ export const PlcTab: React.FC<PlcTabProps> = ({
             className="font-black text-brand-blue-dark leading-none"
             style={{ fontSize: 'min(28px, 9cqmin)' }}
           >
-            {data.totalCompleted}
+            {aggregate.totalCompleted}
           </p>
           <p
             className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
@@ -373,18 +384,17 @@ export const PlcTab: React.FC<PlcTabProps> = ({
             className="font-black text-brand-blue-dark leading-none"
             style={{ fontSize: 'min(28px, 9cqmin)' }}
           >
-            {data.totalTeachers}
+            {aggregate.totalTeachers}
           </p>
           <p
             className="text-brand-blue-primary/60 font-black uppercase tracking-widest mt-1"
             style={{ fontSize: 'min(10px, 3cqmin)' }}
           >
-            {data.totalTeachers === 1 ? 'Teacher' : 'Teachers'}
+            {aggregate.totalTeachers === 1 ? 'Teacher' : 'Teachers'}
           </p>
         </div>
       </div>
 
-      {/* Distribution Chart — same buckets/colors as OverviewTab for visual continuity */}
       <div className="bg-white border border-brand-blue-primary/10 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center gap-2 mb-4">
           <Target
@@ -399,10 +409,10 @@ export const PlcTab: React.FC<PlcTabProps> = ({
           </span>
         </div>
         <div className="space-y-4">
-          {data.buckets.map((b) => {
+          {aggregate.buckets.map((b) => {
             const pct =
-              data.totalCompleted > 0
-                ? Math.round((b.count / data.totalCompleted) * 100)
+              aggregate.totalCompleted > 0
+                ? Math.round((b.count / aggregate.totalCompleted) * 100)
                 : 0;
             return (
               <div key={b.label}>
@@ -427,7 +437,6 @@ export const PlcTab: React.FC<PlcTabProps> = ({
         </div>
       </div>
 
-      {/* Per-question breakdown — same card visual as QuestionsTab */}
       <div className="space-y-3">
         <div className="flex items-center gap-2 px-1">
           <Target
@@ -442,7 +451,7 @@ export const PlcTab: React.FC<PlcTabProps> = ({
           </span>
         </div>
         {questions.map((q, i) => {
-          const stats = data.perQuestion[i];
+          const stats = aggregate.perQuestion[i];
           return (
             <div
               key={q.id}
@@ -504,6 +513,6 @@ export const PlcTab: React.FC<PlcTabProps> = ({
           );
         })}
       </div>
-    </div>
+    </section>
   );
 };

@@ -330,7 +330,7 @@ export const Results: React.FC<ResultsProps> = ({
             { id: 'overview', icon: <BarChart3 />, label: 'Overview' },
             { id: 'questions', icon: <Clock />, label: 'Questions' },
             { id: 'students', icon: <Users />, label: 'Students' },
-            ...(plc?.sheetUrl
+            ...(plc?.id
               ? [{ id: 'plc' as const, icon: <Share2 />, label: 'PLC' }]
               : []),
           ] as const
@@ -586,13 +586,7 @@ export const Results: React.FC<ResultsProps> = ({
           </div>
         )}
 
-        {activeTab === 'plc' && plc?.sheetUrl && (
-          <PlcTab
-            plcSheetUrl={plc.sheetUrl}
-            googleAccessToken={googleAccessToken}
-            questions={questions}
-          />
-        )}
+        {activeTab === 'plc' && plc?.id && <PlcTab plcId={plc.id} />}
       </div>
     </div>
   );
