@@ -53,7 +53,11 @@ export const PlcBentoTile: React.FC<PlcBentoTileProps> = ({
     isDragging,
   } = sortable;
 
-  const span = TILE_GRID_SPANS[tile.size];
+  // `tile.size` is optional on the type (v2 grid uses `coords` instead) but
+  // this v1 component is only rendered behind the legacy code path where
+  // size is always populated by `parseTile`/`mergeLayout`. Defensive fallback.
+  const size = tile.size ?? 'sm';
+  const span = TILE_GRID_SPANS[size];
 
   const baseStyle: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
@@ -93,7 +97,7 @@ export const PlcBentoTile: React.FC<PlcBentoTileProps> = ({
         editMode ? 'ring-1 ring-brand-blue-primary/20' : 'hover:shadow-md'
       }`}
       data-tile-kind={tile.kind}
-      data-tile-size={tile.size}
+      data-tile-size={size}
     >
       {/* Edit-mode chrome */}
       {editMode && (
@@ -137,11 +141,11 @@ export const PlcBentoTile: React.FC<PlcBentoTileProps> = ({
             className="absolute bottom-2 right-2 z-10 p-1.5 bg-white/95 hover:bg-brand-blue-lighter rounded-md text-slate-400 hover:text-brand-blue-primary transition-colors shadow-sm border border-slate-200"
             aria-label={t('plcDashboard.overview.resizeTile', {
               defaultValue: 'Resize tile (current: {{size}})',
-              size: tile.size,
+              size,
             })}
             title={t('plcDashboard.overview.resizeTile', {
               defaultValue: 'Resize tile (current: {{size}})',
-              size: tile.size,
+              size,
             })}
           >
             <Maximize2 className="w-3.5 h-3.5" />

@@ -9,8 +9,10 @@ import {
   PlcBentoTile,
   PlcBentoTileKind,
   PlcBentoTileSize,
+  PlcGridCoords,
   PlcOverviewLayout,
 } from '@/types';
+import { migrateLayoutToCoords } from '@/components/plc/grid/tileGridMath';
 import { logError } from '@/utils/logError';
 
 const USERS_COLLECTION = 'users';
@@ -28,18 +30,45 @@ interface UsePlcOverviewLayoutResult {
   resetLayout: () => Promise<void>;
 }
 
+function parseCoords(raw: unknown): PlcGridCoords | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const obj = raw as Record<string, unknown>;
+  const { x, y, w, h } = obj;
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof w !== 'number' ||
+    typeof h !== 'number'
+  ) {
+    return undefined;
+  }
+  return { x, y, w, h };
+}
+
 function parseTile(raw: unknown): PlcBentoTile | null {
   if (!raw || typeof raw !== 'object') return null;
   const obj = raw as Record<string, unknown>;
   const kind = obj.kind;
-  const size = obj.size;
-  if (typeof kind !== 'string' || typeof size !== 'string') return null;
+  if (typeof kind !== 'string') return null;
   if (!PLC_BENTO_TILE_KINDS.includes(kind as PlcBentoTileKind)) return null;
-  if (!PLC_BENTO_TILE_SIZES.includes(size as PlcBentoTileSize)) return null;
-  const tile: PlcBentoTile = {
-    kind: kind as PlcBentoTileKind,
-    size: size as PlcBentoTileSize,
-  };
+
+  const tile: PlcBentoTile = { kind: kind as PlcBentoTileKind };
+
+  // Legacy v1 size is optional now — kept on the tile for back-compat
+  // until a future cleanup pass.
+  if (typeof obj.size === 'string') {
+    if (PLC_BENTO_TILE_SIZES.includes(obj.size as PlcBentoTileSize)) {
+      tile.size = obj.size as PlcBentoTileSize;
+    }
+  }
+
+  const coords = parseCoords(obj.coords);
+  if (coords) tile.coords = coords;
+
+  // A tile must carry at least ONE of {size, coords} so the migrator can
+  // derive grid placement. Drop tiles that have neither (corrupted doc).
+  if (!tile.size && !tile.coords) return null;
+
   if (typeof obj.hidden === 'boolean') tile.hidden = obj.hidden;
   return tile;
 }
@@ -74,10 +103,11 @@ function parseLayout(data: Record<string, unknown>): PlcOverviewLayout {
     if (parsed) tiles.push(parsed);
   }
   const updatedAt = typeof data.updatedAt === 'number' ? data.updatedAt : 0;
-  return {
-    tiles: mergeLayout(tiles),
-    updatedAt,
-  };
+  // Stamp every tile with `coords` (derived from legacy `size` if needed)
+  // so v2 grid renderers can rely on them without a per-render fallback.
+  // The first write-back persists these — see `updateLayout`.
+  const merged = migrateLayoutToCoords(mergeLayout(tiles));
+  return { tiles: merged, updatedAt };
 }
 
 /**

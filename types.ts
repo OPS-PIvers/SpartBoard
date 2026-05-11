@@ -518,9 +518,37 @@ export type PlcBentoTileKind =
   | 'videoActivities'
   | 'sharedBoards';
 
+/**
+ * Free-form grid coordinates for the v2 PLC overview grid (Phase 1 of the
+ * dashboard overhaul). Columns are zero-based; widths/heights are spans in
+ * cells. The grid is 12 columns wide on desktop and collapses to 1 column
+ * on mobile (`< 768px`) where coords are ignored in favor of array order.
+ *
+ * Bounds enforced both client-side (`tileGridMath.clampCoords`) and in
+ * Firestore rules: `x` in [0, GRID_COLS-1], `w` in [1, GRID_COLS-x],
+ * `y` in [0, GRID_MAX_Y], `h` in [1, GRID_MAX_H].
+ */
+export interface PlcGridCoords {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface PlcBentoTile {
   kind: PlcBentoTileKind;
-  size: PlcBentoTileSize;
+  /**
+   * Legacy preset size (v1 grid). Kept for backward compatibility — old
+   * persisted layouts won't have `coords`, so the loader derives one from
+   * `size` on read. New writes always include `coords`.
+   */
+  size?: PlcBentoTileSize;
+  /**
+   * v2 grid coordinates (12-column free-form grid). Optional during
+   * migration; populated by `usePlcOverviewLayout`'s loader for legacy
+   * docs and stamped on every write going forward.
+   */
+  coords?: PlcGridCoords;
   /** When true the tile sits in the "Hidden tiles" tray instead of the grid. */
   hidden?: boolean;
 }
