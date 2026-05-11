@@ -301,8 +301,9 @@ describe('DraggableWindow', () => {
       pointerId: 1,
     });
 
-    // Move pointer to (160, 160)
-    fireEvent.pointerMove(window, {
+    // Move pointer to (160, 160). Listeners are attached to the capture target
+    // (the drag surface), not window — see DraggableWindow handleDragStart.
+    fireEvent.pointerMove(dragSurface, {
       clientX: 160,
       clientY: 160,
       pointerId: 1,
@@ -319,7 +320,7 @@ describe('DraggableWindow', () => {
     });
 
     // Clean up (Pointer Up)
-    fireEvent.pointerUp(window, { pointerId: 1 });
+    fireEvent.pointerUp(dragSurface, { pointerId: 1 });
 
     // NOW updateWidget should be called with final position
     await waitFor(() => {
@@ -355,7 +356,7 @@ describe('DraggableWindow', () => {
       pointerId: 1,
     });
 
-    fireEvent.pointerMove(window, {
+    fireEvent.pointerMove(dragSurface, {
       clientX: 110,
       clientY: 110,
       pointerId: 1,
@@ -651,7 +652,7 @@ describe('DraggableWindow', () => {
       // elementsFromPoint pass-through must be skipped in the priority zone.
       expect(elementsFromPointMock).not.toHaveBeenCalled();
 
-      fireEvent.pointerUp(window, { pointerId: 1 });
+      fireEvent.pointerUp(seHandle, { pointerId: 1 });
     });
 
     it('passes through to interactive element when click is outside priority zone', () => {
@@ -690,7 +691,7 @@ describe('DraggableWindow', () => {
       expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
       expect(elementsFromPointMock).not.toHaveBeenCalled();
 
-      fireEvent.pointerUp(window, { pointerId: 1 });
+      fireEvent.pointerUp(seHandle, { pointerId: 1 });
     });
   });
 });
