@@ -711,13 +711,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         );
 
         // With < 2 home groups, "expert groups" degenerate into 1-person
-        // singletons (each has nobody to compare notes with). Surface a toast
-        // so the teacher knows to lower the group size.
+        // singletons (each has nobody to compare notes with). This can only
+        // happen when the class has < 2 students (the stepper min is 2).
         if (homeGroups.length < 2) {
           addToast(
             t('widgets.random.jigsawNeedsMultipleGroups', {
               defaultValue:
-                'Jigsaw needs at least 2 home groups — lower the group size or add more students.',
+                'Jigsaw needs at least 2 home groups — add more students.',
             }),
             'warning'
           );
