@@ -261,7 +261,9 @@ const App: React.FC = () => {
   // Simple routing for Student View
   const pathname = window.location.pathname;
   const isMiniAppRoute = pathname.startsWith('/miniapp/');
-  const isShortLinkRoute = pathname.startsWith('/r/') && pathname.length > 3;
+  // Catch `/r`, `/r/`, and `/r/:code` so typos hit the resolver's
+  // not-found UI instead of mounting the full teacher app + providers.
+  const isShortLinkRoute = pathname === '/r' || pathname.startsWith('/r/');
   const isStudentRoute = pathname === '/join' || pathname.startsWith('/join/');
   const isQuizRoute = pathname === '/quiz' || pathname.startsWith('/quiz/');
   const isNextUpRoute =

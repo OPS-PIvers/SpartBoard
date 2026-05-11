@@ -1,9 +1,8 @@
-// CRUD + resolve helpers for the admin link-shortener feature.
+// Admin-side CRUD hook for short links.
 //
-// Reads/writes go to the top-level `short_links` Firestore collection. Doc
-// ids are the public short codes. Security rules (`firestore.rules`)
-// constrain creates/edits/deletes to admins and allow public reads + a
-// narrow anonymous click-counter update.
+// The public resolve/click helpers live in `utils/shortLinksApi.ts` so the
+// `/r/:code` resolver doesn't have to import `useAuth` or any React hook
+// machinery. This file is React-only — admin management surface.
 
 import { useCallback, useEffect, useState } from 'react';
 import {
@@ -12,30 +11,47 @@ import {
   doc,
   getDoc,
   getDocs,
-  increment,
   limit,
   onSnapshot,
   orderBy,
   query,
-  setDoc,
+  runTransaction,
   updateDoc,
 } from 'firebase/firestore';
 
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { ShortLink } from '@/types';
+import { SHORT_LINKS_COLLECTION } from '@/utils/shortLinksApi';
 import {
   generateRandomCode,
   validateDestination,
   validateSlug,
 } from '@/utils/shortLinkValidation';
 
-const COLLECTION = 'short_links';
+// Re-export the public helpers so existing call sites keep working. The
+// implementations live in the non-React module to keep the resolver bundle
+// lean.
+export { resolveShortLink, recordShortLinkClick } from '@/utils/shortLinksApi';
+
+const COLLECTION = SHORT_LINKS_COLLECTION;
 const MAX_CODE_GENERATION_RETRIES = 5;
 // Cap admin listings — keeps the read quota predictable and the table
 // responsive once a district has hundreds of links. Pagination/search UI
 // for larger sets is a phase 2 concern.
 const ADMIN_LIST_LIMIT = 100;
+
+/**
+ * Thrown inside the create transaction when the target slug already
+ * exists. Using a typed Error (rather than a sentinel symbol) keeps the
+ * lint rule against non-Error throws happy.
+ */
+class CodeTakenError extends Error {
+  constructor() {
+    super('CODE_TAKEN');
+    this.name = 'CodeTakenError';
+  }
+}
 
 interface CreateShortLinkInput {
   destination: string;
@@ -56,33 +72,6 @@ export type UpdateResult =
   | { ok: true; link: ShortLink }
   | { ok: false; reason: string };
 
-/**
- * Look up a short link by code. Public read — no auth required. Used by the
- * resolver, so it deliberately avoids any cached/listened state.
- */
-export const resolveShortLink = async (
-  code: string
-): Promise<ShortLink | null> => {
-  const ref = doc(db, COLLECTION, code);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) return null;
-  return snap.data() as ShortLink;
-};
-
-/**
- * Atomic counter bump used by the resolver. Allowed for anonymous users by
- * the security rule because it touches only `clicks` and `lastClickedAt`.
- * Failure here is swallowed at the call site so a counter glitch never
- * blocks the redirect itself.
- */
-export const recordShortLinkClick = async (code: string): Promise<void> => {
-  const ref = doc(db, COLLECTION, code);
-  await updateDoc(ref, {
-    clicks: increment(1),
-    lastClickedAt: Date.now(),
-  });
-};
-
 interface UseShortLinksResult {
   links: ShortLink[];
   loading: boolean;
@@ -95,6 +84,33 @@ interface UseShortLinksResult {
   deleteShortLink: (code: string) => Promise<void>;
   refresh: () => Promise<void>;
 }
+
+/**
+ * Atomic "claim this code" write. Inside the transaction we read the doc
+ * and bail (via a sentinel) if it already exists, so concurrent admins
+ * creating the same slug can't clobber each other's links.
+ */
+const createShortLinkAtomic = async (
+  code: string,
+  link: ShortLink
+): Promise<{ ok: true } | { ok: false; reason: 'taken' }> => {
+  try {
+    await runTransaction(db, async (transaction) => {
+      const ref = doc(db, COLLECTION, code);
+      const existing = await transaction.get(ref);
+      if (existing.exists()) {
+        throw new CodeTakenError();
+      }
+      transaction.set(ref, link);
+    });
+    return { ok: true };
+  } catch (err) {
+    if (err instanceof CodeTakenError) {
+      return { ok: false, reason: 'taken' };
+    }
+    throw err;
+  }
+};
 
 /**
  * Admin-side hook. Subscribes to all short links (small collection,
@@ -163,11 +179,6 @@ export const useShortLinks = (): UseShortLinksResult => {
     }
   }, [isAdmin]);
 
-  const codeIsTaken = useCallback(async (code: string): Promise<boolean> => {
-    const existing = await getDoc(doc(db, COLLECTION, code));
-    return existing.exists();
-  }, []);
-
   const createShortLink = useCallback(
     async (input: CreateShortLinkInput): Promise<CreateResult> => {
       if (!user) {
@@ -179,43 +190,9 @@ export const useShortLinks = (): UseShortLinksResult => {
         return { ok: false, reason: destinationResult.reason };
       }
 
-      let code: string;
-      if (input.slug && input.slug.trim()) {
-        const slugResult = validateSlug(input.slug);
-        if (!slugResult.ok) {
-          return { ok: false, reason: slugResult.reason };
-        }
-        if (await codeIsTaken(slugResult.slug)) {
-          return {
-            ok: false,
-            reason: `"${slugResult.slug}" is already taken.`,
-          };
-        }
-        code = slugResult.slug;
-      } else {
-        // Random code — retry on the (very unlikely) collision.
-        let candidate = '';
-        for (
-          let attempt = 0;
-          attempt < MAX_CODE_GENERATION_RETRIES;
-          attempt++
-        ) {
-          candidate = generateRandomCode();
-          if (!(await codeIsTaken(candidate))) break;
-          candidate = '';
-        }
-        if (!candidate) {
-          return {
-            ok: false,
-            reason: 'Could not generate a unique code. Try again.',
-          };
-        }
-        code = candidate;
-      }
-
       const now = Date.now();
       const label = input.label?.trim();
-      const link: ShortLink = {
+      const buildLink = (code: string): ShortLink => ({
         code,
         destination: destinationResult.url,
         createdBy: user.uid,
@@ -225,17 +202,64 @@ export const useShortLinks = (): UseShortLinksResult => {
         clicks: 0,
         lastClickedAt: null,
         ...(label ? { label } : {}),
-      };
+      });
 
       try {
-        await setDoc(doc(db, COLLECTION, code), link);
-        return { ok: true, link };
+        // Custom slug: validate once, then try to claim atomically. A
+        // collision means another admin grabbed the slug between us
+        // validating and writing — surface the error so they pick again.
+        if (input.slug && input.slug.trim()) {
+          const slugResult = validateSlug(input.slug);
+          if (!slugResult.ok) {
+            return { ok: false, reason: slugResult.reason };
+          }
+          const result = await createShortLinkAtomic(
+            slugResult.slug,
+            buildLink(slugResult.slug)
+          );
+          if (!result.ok) {
+            return {
+              ok: false,
+              reason: `"${slugResult.slug}" is already taken.`,
+            };
+          }
+          return { ok: true, link: buildLink(slugResult.slug) };
+        }
+
+        // Random code: spin up to N candidates and try each transactionally.
+        // A "taken" outcome means we lost the race; just regenerate and
+        // try again until we either succeed or exhaust retries.
+        for (
+          let attempt = 0;
+          attempt < MAX_CODE_GENERATION_RETRIES;
+          attempt++
+        ) {
+          const candidate = generateRandomCode();
+          const result = await createShortLinkAtomic(
+            candidate,
+            buildLink(candidate)
+          );
+          if (result.ok) {
+            return { ok: true, link: buildLink(candidate) };
+          }
+        }
+        return {
+          ok: false,
+          reason: 'Could not generate a unique code. Try again.',
+        };
       } catch (err) {
+        // Anything else (network, permission, quota) lands here so the
+        // form sees a clean `{ ok: false, reason }` instead of an
+        // unhandled rejection.
         console.error('[useShortLinks] create error:', err);
-        return { ok: false, reason: 'Failed to save short link.' };
+        return {
+          ok: false,
+          reason:
+            'Failed to save short link. Check your connection and try again.',
+        };
       }
     },
-    [user, codeIsTaken]
+    [user]
   );
 
   const updateShortLink = useCallback(
@@ -243,34 +267,38 @@ export const useShortLinks = (): UseShortLinksResult => {
       code: string,
       patch: UpdateShortLinkInput
     ): Promise<UpdateResult> => {
-      const ref = doc(db, COLLECTION, code);
-      const snap = await getDoc(ref);
-      if (!snap.exists()) {
-        return { ok: false, reason: 'Short link no longer exists.' };
-      }
-      const existing = snap.data() as ShortLink;
-
-      const updates: Partial<ShortLink> = { updatedAt: Date.now() };
-
-      if (patch.destination !== undefined) {
-        const result = validateDestination(patch.destination);
-        if (!result.ok) {
-          return { ok: false, reason: result.reason };
-        }
-        updates.destination = result.url;
-      }
-
-      if (patch.label !== undefined) {
-        const trimmed = patch.label.trim();
-        updates.label = trimmed || '';
-      }
-
       try {
+        const ref = doc(db, COLLECTION, code);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) {
+          return { ok: false, reason: 'Short link no longer exists.' };
+        }
+        const existing = snap.data() as ShortLink;
+
+        const updates: Partial<ShortLink> = { updatedAt: Date.now() };
+
+        if (patch.destination !== undefined) {
+          const result = validateDestination(patch.destination);
+          if (!result.ok) {
+            return { ok: false, reason: result.reason };
+          }
+          updates.destination = result.url;
+        }
+
+        if (patch.label !== undefined) {
+          const trimmed = patch.label.trim();
+          updates.label = trimmed || '';
+        }
+
         await updateDoc(ref, updates);
         return { ok: true, link: { ...existing, ...updates } as ShortLink };
       } catch (err) {
         console.error('[useShortLinks] update error:', err);
-        return { ok: false, reason: 'Failed to save changes.' };
+        return {
+          ok: false,
+          reason:
+            'Failed to save changes. Check your connection and try again.',
+        };
       }
     },
     []

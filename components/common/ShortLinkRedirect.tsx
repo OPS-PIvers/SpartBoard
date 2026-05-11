@@ -4,7 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, LinkIcon } from 'lucide-react';
 
-import { recordShortLinkClick, resolveShortLink } from '@/hooks/useShortLinks';
+import { recordShortLinkClick, resolveShortLink } from '@/utils/shortLinksApi';
 
 type ResolveState =
   | { status: 'resolving' }
