@@ -105,9 +105,16 @@ function aggregateGroup(
   const perQuestion = questions.map(() => ({ answered: 0, correct: 0 }));
 
   for (const c of contributions) {
-    teacherUids.add(c.teacherUid);
     for (const r of c.responses) {
       if (r.status !== 'completed') continue;
+      // Only count teachers who actually contributed *completed* data to
+      // this aggregate. Counting at the contribution-doc level would
+      // inflate "X teachers" for any teacher who auto-published a doc
+      // with all-in-progress (or zero) responses — the rest of the
+      // aggregate (totalCompleted / averageScore / per-question stats)
+      // already excludes those rows, so the headline count would be
+      // inconsistent with the body.
+      teacherUids.add(c.teacherUid);
       totalCompleted++;
       const score = r.scorePercent;
       if (typeof score === 'number') {
@@ -146,10 +153,21 @@ function aggregateGroup(
  * separate groups, so we can render them side-by-side with a banner
  * instead of silently misaligning columns.
  */
+// Use NUL as the join separator rather than a printable character so
+// the schema key is collision-free regardless of how question IDs are
+// formed. Today's IDs are UUIDs (no separator chars), but the old `|`
+// separator would silently merge `['a|b', 'c']` with `['a', 'b|c']` if
+// the ID format ever changes (numeric, slug, etc.). Firestore field
+// names don't permit NUL bytes, so this can't collide with a real ID.
+const SCHEMA_KEY_SEPARATOR = '\x00';
+const EMPTY_SCHEMA_KEY = '__empty__';
+
 function groupBySchema(contributions: PlcContribution[]): SchemaGroup[] {
   const groups = new Map<string, PlcContribution[]>();
   for (const c of contributions) {
-    const key = c.questionsSnapshot.map((q) => q.id).join('|') || '∅';
+    const key =
+      c.questionsSnapshot.map((q) => q.id).join(SCHEMA_KEY_SEPARATOR) ||
+      EMPTY_SCHEMA_KEY;
     const existing = groups.get(key);
     if (existing) existing.push(c);
     else groups.set(key, [c]);

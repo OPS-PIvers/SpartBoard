@@ -171,4 +171,91 @@ describe('PlcTab', () => {
     // The added question only renders inside the second group
     expect(screen.getByText('Q3 text (added)')).toBeInTheDocument();
   });
+
+  it('totalTeachers does not count contributors whose responses are all in-progress', () => {
+    // Jen + Tatum: completed data. Sarah: published her contribution
+    // (auto-publish fires regardless of completion status) but every
+    // response is still in-progress. The headline count should read
+    // "2 Teachers", not "3" — counting Sarah here would be inconsistent
+    // with `totalCompleted` and `averageScore` which already exclude her
+    // rows.
+    mockContributions.mockReturnValue([
+      makeContribution({
+        teacherUid: 'jen',
+        teacherName: 'Jen Ivers',
+        questions: [{ id: 'q1', text: 'Q1' }],
+        responses: [{ score: 100, pointsPerQuestion: { q1: 1 } }],
+      }),
+      makeContribution({
+        teacherUid: 'tatum',
+        teacherName: 'Tatum Erickson',
+        questions: [{ id: 'q1', text: 'Q1' }],
+        responses: [{ score: 100, pointsPerQuestion: { q1: 1 } }],
+      }),
+      makeContribution({
+        teacherUid: 'sarah',
+        teacherName: 'Sarah Cole',
+        questions: [{ id: 'q1', text: 'Q1' }],
+        responses: [
+          { score: null, pointsPerQuestion: {}, status: 'in-progress' },
+        ],
+      }),
+    ]);
+
+    render(<PlcTab plcId="plc-1" />);
+
+    // The "Teachers" tile renders the count in a sibling <p> above the
+    // label. Locate the label, walk up to the tile, then read the count
+    // out of the count element. With the bug, this would render "3"
+    // because Sarah's contribution doc was counted despite contributing
+    // zero completed rows.
+    const teachersLabel = screen.getByText('Teachers');
+    const teachersTile = teachersLabel.closest('div');
+    expect(teachersTile).not.toBeNull();
+    const countNode = teachersTile?.querySelector('p:first-of-type');
+    expect(countNode?.textContent).toBe('2');
+
+    // Sanity: schemas match so the drift banner does not render.
+    expect(
+      screen.queryByText(/members are on different versions/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('groupBySchema does not collide when question ids contain the legacy separator character', () => {
+    // Pre-fix the schema key was `ids.join('|')`. Two structurally
+    // different schemas could collapse into one group if any id ever
+    // contained `|`. Today's UUID ids don't, but the NUL-separator fix
+    // makes the grouping safe for any future id format. Verify by
+    // crafting ids that WOULD have collided under the old separator —
+    // they should now produce two groups.
+    mockContributions.mockReturnValue([
+      makeContribution({
+        teacherUid: 'jen',
+        teacherName: 'Jen Ivers',
+        questions: [
+          { id: 'a|b', text: 'A-pipe-B' },
+          { id: 'c', text: 'C' },
+        ],
+        responses: [{ score: 100, pointsPerQuestion: { 'a|b': 1, c: 1 } }],
+      }),
+      makeContribution({
+        teacherUid: 'tatum',
+        teacherName: 'Tatum Erickson',
+        questions: [
+          { id: 'a', text: 'A' },
+          { id: 'b|c', text: 'B-pipe-C' },
+        ],
+        responses: [{ score: 100, pointsPerQuestion: { a: 1, 'b|c': 1 } }],
+      }),
+    ]);
+
+    render(<PlcTab plcId="plc-1" />);
+
+    // If the two schemas had collided into one group, the drift banner
+    // wouldn't render. With the NUL separator they correctly bucket
+    // into two groups.
+    expect(
+      screen.getByText(/members are on different versions/i)
+    ).toBeInTheDocument();
+  });
 });
