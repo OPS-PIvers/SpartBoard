@@ -25,12 +25,14 @@ import {
   SlidersHorizontal,
   Users,
   Users2,
+  Link2,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { AdminSettings } from '@/components/admin/AdminSettings';
+import { ShortLinkQuickCreate } from '@/components/admin/ShortLinkQuickCreate';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
@@ -182,6 +184,8 @@ export const Sidebar: React.FC = () => {
   }, []);
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
+  const [showShortLinkQuickCreate, setShowShortLinkQuickCreate] =
+    useState(false);
 
   // The currently-open PLC dashboard tracks against the live `plcs` array so
   // a feature toggle by another member shows up immediately. If the PLC
@@ -233,6 +237,16 @@ export const Sidebar: React.FC = () => {
             onClick={() => setShowAdminSettings(true)}
             icon={<Settings className="w-5 h-5" />}
             label={t('sidebar.header.adminSettings')}
+            variant="brand-ghost"
+            size="md"
+          />
+        )}
+
+        {isAdmin && (
+          <IconButton
+            onClick={() => setShowShortLinkQuickCreate(true)}
+            icon={<Link2 className="w-5 h-5" />}
+            label="Shorten URL"
             variant="brand-ghost"
             size="md"
           />
@@ -302,6 +316,12 @@ export const Sidebar: React.FC = () => {
 
       {showAdminSettings && (
         <AdminSettings onClose={() => setShowAdminSettings(false)} />
+      )}
+
+      {showShortLinkQuickCreate && (
+        <ShortLinkQuickCreate
+          onClose={() => setShowShortLinkQuickCreate(false)}
+        />
       )}
 
       {openPlcDashboardPlc && (
