@@ -384,13 +384,20 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
   }
 
-  const handleAutoSubmit = useCallback(async () => {
-    await showAlert(
-      'You have left the activity 3 times. Your activity is being auto-submitted.',
-      { title: 'Activity Auto-Submitted', variant: 'warning' }
-    );
-    await completeActivity();
-  }, [showAlert, completeActivity]);
+  const handleAutoSubmit = useCallback(
+    async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
+      const message =
+        reason === 'post-unlock'
+          ? 'Your unlocked attempt is being submitted now.'
+          : 'You have left the activity 3 times. Your activity is being auto-submitted.';
+      await showAlert(message, {
+        title: 'Activity Auto-Submitted',
+        variant: 'warning',
+      });
+      await completeActivity();
+    },
+    [showAlert, completeActivity]
+  );
 
   const tabWarningsEnabled =
     session?.sessionOptions?.tabWarningsEnabled !== false;
@@ -431,7 +438,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             // Always release the visibility lock — a failed submit
             // (Firestore offline) must not leave the handler
             // permanently armed-off.
-            void handleAutoSubmit().finally(() => {
+            void handleAutoSubmit('post-unlock').finally(() => {
               isWarningShowingRef.current = false;
             });
             return;

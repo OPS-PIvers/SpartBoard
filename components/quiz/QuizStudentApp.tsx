@@ -687,13 +687,20 @@ const ActiveQuiz: React.FC<{
   const lastReportTimeRef = useRef<number>(0);
   const didInitialCheckRef = useRef(false);
 
-  const handleAutoSubmit = useCallback(async () => {
-    await showAlert(
-      'You have left the quiz 3 times. Your quiz is being auto-submitted.',
-      { title: 'Quiz Auto-Submitted', variant: 'warning' }
-    );
-    await onComplete();
-  }, [showAlert, onComplete]);
+  const handleAutoSubmit = useCallback(
+    async (reason: 'three-strikes' | 'post-unlock' = 'three-strikes') => {
+      const message =
+        reason === 'post-unlock'
+          ? 'Your unlocked attempt is being submitted now.'
+          : 'You have left the quiz 3 times. Your quiz is being auto-submitted.';
+      await showAlert(message, {
+        title: 'Quiz Auto-Submitted',
+        variant: 'warning',
+      });
+      await onComplete();
+    },
+    [showAlert, onComplete]
+  );
 
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
@@ -735,7 +742,7 @@ const ActiveQuiz: React.FC<{
             // Fire-and-forget — but use a finally so a failed submit
             // (e.g. Firestore offline) doesn't leave the listener
             // permanently armed-off via `isWarningShowingRef`.
-            void handleAutoSubmit().finally(() => {
+            void handleAutoSubmit('post-unlock').finally(() => {
               isWarningShowingRef.current = false;
             });
             return;
