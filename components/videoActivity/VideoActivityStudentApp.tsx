@@ -801,7 +801,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           unlock so the student knows what happened before they touch
           anything. */}
       {showResumeModal && (
-        <div className="absolute inset-0 z-50 bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="absolute inset-0 z-overlay bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
             Attempt Unlocked
@@ -828,7 +828,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           Quiz cheat warning. Hidden for teacher-unlocked attempts, which
           finalize on the next strike instead. */}
       {showCheatWarning && (
-        <div className="absolute inset-0 z-50 bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED

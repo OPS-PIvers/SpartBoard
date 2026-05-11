@@ -173,7 +173,7 @@ export interface UseVideoActivitySessionTeacherResult {
    * Unlock a student's locked/auto-submitted response so they can resume
    * the in-flight attempt. Preserves `answers`, refunds one
    * `completedAttempts` on both the response and the cross-launch
-   * ledger, and stamps `unlocked: true` + `warningsAtUnlock` so the
+   * ledger, and stamps `unlocked: true` + `unlockedAt` so the
    * student-side visibility handler finalizes the attempt on the next
    * tab-switch without showing the "Warning N of 3" modal.
    *
@@ -1135,14 +1135,14 @@ export const useVideoActivitySessionStudent =
     const myResponseRef = useRef<VideoActivityResponse | null>(null);
     myResponseRef.current = myResponse;
     const warningCountRef = useRef(0);
-
-    useEffect(() => {
-      const serverCount = myResponse?.tabSwitchWarnings ?? 0;
-      // Server-side counter is the source of truth; clamp to the higher
-      // of the two so a stale snapshot in flight doesn't roll back the
-      // local view briefly.
-      warningCountRef.current = Math.max(warningCountRef.current, serverCount);
-    }, [myResponse?.tabSwitchWarnings]);
+    // Server-side counter is the source of truth; clamp to the higher
+    // of the two so a stale snapshot in flight doesn't roll back the
+    // local view briefly. Idempotent across re-renders, so we mutate the
+    // ref directly in the render body instead of paying for an effect.
+    warningCountRef.current = Math.max(
+      warningCountRef.current,
+      myResponse?.tabSwitchWarnings ?? 0
+    );
 
     const reportTabSwitch = useCallback(async (): Promise<number> => {
       if (!sessionId || !responseDocId) return warningCountRef.current;

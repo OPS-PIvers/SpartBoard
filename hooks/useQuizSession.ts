@@ -491,7 +491,7 @@ export interface UseQuizSessionTeacherResult {
    * Unlock a student's auto-submitted or attempt-limit-locked response so
    * they can resume. Preserves the existing `answers`, refunds one
    * `completedAttempts` on the response and the cross-launch ledger, and
-   * sets `unlocked: true` + `warningsAtUnlock` so the student's
+   * sets `unlocked: true` + `unlockedAt` so the student's
    * visibility handler will finalize the attempt on the next tab-switch
    * without showing the "Warning N of 3" modal.
    */

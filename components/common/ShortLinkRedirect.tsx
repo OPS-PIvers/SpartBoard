@@ -6,6 +6,7 @@ import { Loader2, LinkIcon } from 'lucide-react';
 
 import { logError } from '@/utils/logError';
 import { recordShortLinkClick, resolveShortLink } from '@/utils/shortLinksApi';
+import { validateDestination } from '@/utils/shortLinkValidation';
 
 type ResolveState =
   | { status: 'resolving' }
@@ -36,7 +37,28 @@ export const ShortLinkRedirect: React.FC = () => {
           setState({ status: 'not-found' });
           return;
         }
-        setState({ status: 'redirecting', destination: link.destination });
+        // Defense in depth: even though `createShortLink` /
+        // `updateShortLink` validate the destination scheme, re-check
+        // on read so an out-of-band write (Firestore console,
+        // Admin SDK) can never coerce an anonymous visitor into a
+        // `javascript:` / `data:` URL via window.location.replace.
+        const destinationCheck = validateDestination(link.destination);
+        if (!destinationCheck.ok) {
+          logError(
+            'ShortLinkRedirect.invalidDestination',
+            new Error(destinationCheck.reason),
+            { code }
+          );
+          setState({
+            status: 'error',
+            message: 'This short link points to an unsupported destination.',
+          });
+          return;
+        }
+        setState({
+          status: 'redirecting',
+          destination: destinationCheck.url,
+        });
         // Fire-and-forget — never block the redirect on the counter write.
         // The security rule explicitly permits this update from anonymous
         // sessions.
@@ -45,7 +67,7 @@ export const ShortLinkRedirect: React.FC = () => {
           // any future Sentry/Bugsnag wiring catches it.
           logError('ShortLinkRedirect.clickCounter', err, { code });
         });
-        window.location.replace(link.destination);
+        window.location.replace(destinationCheck.url);
       } catch (err) {
         if (cancelled) return;
         logError('ShortLinkRedirect.resolve', err, { code });
