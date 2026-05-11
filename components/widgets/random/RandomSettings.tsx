@@ -142,6 +142,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     autoStartTimer = false,
     visualStyle = 'flash',
     numExpertGroups: configNumExpertGroups,
+    numHomeGroups: configNumHomeGroups,
   } = config;
   // Mirror RandomWidget: jigsaw defaults to 4, others to 3, explicit choice wins.
   const groupSize = configGroupSize ?? (mode === 'jigsaw' ? 4 : 3);
@@ -174,8 +175,15 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
     1,
     Math.ceil(estimatedStudentCount / Math.max(1, groupSize))
   );
+  // Jigsaw home-group COUNT (parallel to numExpertGroups). Falls back to the
+  // count implied by `groupSize` for widgets that pre-date `numHomeGroups`.
+  // Clamp to >= 2 to match the slider min and the widget-face stepper.
+  const numHomeGroups = Math.max(2, configNumHomeGroups ?? estimatedHomeGroups);
+  // EXPERT default mirrors the widget face: base it on the home-group count
+  // we'll actually use at pick time (`numHomeGroups`), not on the legacy
+  // `estimatedHomeGroups` derived from `groupSize`.
   const numExpertGroups =
-    configNumExpertGroups ?? Math.max(2, Math.ceil(estimatedHomeGroups / 2));
+    configNumExpertGroups ?? Math.max(2, Math.ceil(numHomeGroups / 2));
 
   const [localFirstNames, setLocalFirstNames] = useState(firstNames);
   const [localLastNames, setLocalLastNames] = useState(lastNames);
@@ -410,15 +418,11 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         </div>
       )}
 
-      {(mode === 'groups' || mode === 'jigsaw') && (
+      {mode === 'groups' && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
           <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
             <Hash className="w-3 h-3" />{' '}
-            {mode === 'jigsaw'
-              ? t('widgets.random.homeGroupSize', {
-                  defaultValue: 'Home Group Size',
-                })
-              : t('widgets.random.groupSize', { defaultValue: 'Group Size' })}
+            {t('widgets.random.groupSize', { defaultValue: 'Group Size' })}
           </label>
           <div className="flex items-center gap-4">
             <input
@@ -438,6 +442,36 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
             />
             <span className="w-10 text-center font-mono text-slate-700 text-sm">
               {groupSize}
+            </span>
+          </div>
+        </div>
+      )}
+      {mode === 'jigsaw' && (
+        <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
+          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
+            <Hash className="w-3 h-3" />{' '}
+            {t('widgets.random.homeGroupCount', {
+              defaultValue: 'Number of Home Groups',
+            })}
+          </label>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min="2"
+              max="20"
+              step="1"
+              value={numHomeGroups}
+              onChange={(e) => {
+                const next = parseInt(e.target.value, 10);
+                if (!Number.isFinite(next)) return;
+                updateWidget(widget.id, {
+                  config: { numHomeGroups: next },
+                });
+              }}
+              className="flex-1 accent-brand-blue-primary h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <span className="w-10 text-center font-mono text-slate-700 text-sm">
+              {numHomeGroups}
             </span>
           </div>
         </div>

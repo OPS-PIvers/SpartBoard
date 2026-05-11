@@ -833,6 +833,17 @@ export interface RandomConfig {
    *  max(2, ceil(numHomeGroups / 2)) — i.e. "2 home groups per expert group",
    *  clamped to a minimum of 2 to match the settings/stepper slider range. */
   numExpertGroups?: number;
+  /** Jigsaw mode: explicit number of home groups (parallel to
+   *  `numExpertGroups`). When unset, defaults to ceil(students / groupSize)
+   *  for backward compatibility with widgets that pre-date this field —
+   *  earlier builds derived home-group COUNT indirectly from `groupSize`
+   *  (members per group), which felt unintuitive when the sibling EXPERT
+   *  stepper meant a count. Stored as a target count; at pick time
+   *  students get distributed into exactly this many buckets via
+   *  `makeNameGroupsByCount` (round-robin) for custom-names mode, or
+   *  `makeRestrictedGroupsByCount` (greedy smallest-safe-bucket) for
+   *  class mode where restriction-aware placement matters. */
+  numHomeGroups?: number;
 }
 
 export interface DiceConfig {

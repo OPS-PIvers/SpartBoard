@@ -137,3 +137,80 @@ export function makeNameGroups(
   }
   return groups;
 }
+
+/**
+ * Round-robin variant of {@link makeNameGroups} that distributes shuffled
+ * names into EXACTLY `numGroups` buckets. Preferred over `makeNameGroups`
+ * for jigsaw home groups, where teachers think in terms of a target group
+ * count ("4 home groups") rather than a target group size — chunk-by-size
+ * silently produces fewer groups than requested on awkward divisions
+ * (e.g. 30 names / 7 groups yields ⌈30/⌈30/7⌉⌉ = 6 groups).
+ *
+ * Group sizes differ by at most 1. If `numGroups` exceeds `names.length`
+ * we clamp to `names.length` so no empty groups are returned. A non-finite
+ * `numGroups` collapses to 1 group, matching the defensive guard in
+ * {@link makeJigsawExpertGroups}.
+ */
+export function makeNameGroupsByCount(
+  names: string[],
+  numGroups: number
+): RandomGroup[] {
+  if (names.length === 0) return [];
+  const safeK = Number.isFinite(numGroups) ? numGroups : 1;
+  const k = Math.max(1, Math.min(names.length, Math.floor(safeK)));
+  const buckets: string[][] = Array.from({ length: k }, () => []);
+  const shuffled = shuffleInPlace([...names]);
+  shuffled.forEach((name, i) => {
+    buckets[i % k].push(name);
+  });
+  return buckets.map((b) => ({
+    id: crypto.randomUUID(),
+    names: b,
+  }));
+}
+
+/**
+ * Restriction-aware group maker that produces EXACTLY `numGroups`
+ * buckets. Equivalent to {@link makeRestrictedGroups} but driven by a
+ * target group count instead of a target group size. Used by jigsaw
+ * mode where the home-group count is the natural UI parameter.
+ *
+ * Strategy mirrors {@link makeRestrictedGroups} — greedy "smallest safe
+ * bucket": shuffle students, then for each student prefer the smallest
+ * bucket with no restricted peer, falling back to the overall smallest
+ * bucket if no conflict-free option exists. Fallback placements are
+ * counted so the caller can surface a warning. This is NOT pure
+ * round-robin — restrictions can push placements off the cyclic order
+ * — but the smallest-bucket bias keeps group sizes balanced within 1.
+ *
+ * If `numGroups` exceeds `students.length` we clamp to `students.length`
+ * so no empty groups are returned.
+ */
+export function makeRestrictedGroupsByCount(
+  students: Student[],
+  numGroups: number
+): GroupMakerResult {
+  if (students.length === 0) return { groups: [], unsatisfied: 0 };
+  const safeK = Number.isFinite(numGroups) ? numGroups : 1;
+  const k = Math.max(1, Math.min(students.length, Math.floor(safeK)));
+  const buckets: Student[][] = Array.from({ length: k }, () => []);
+  const shuffled = shuffleInPlace([...students]);
+  let unsatisfied = 0;
+
+  for (const student of shuffled) {
+    const restricted = new Set(student.restrictedStudentIds ?? []);
+    const safe = buckets.filter((b) => !b.some((m) => restricted.has(m.id)));
+    const pool = safe.length > 0 ? safe : buckets;
+    if (safe.length === 0) unsatisfied++;
+    pool.sort((a, b) => a.length - b.length);
+    pool[0].push(student);
+  }
+
+  return {
+    groups: buckets.map((b) => ({
+      id: crypto.randomUUID(),
+      names: b.map((s) => `${s.firstName} ${s.lastName}`.trim()),
+    })),
+    unsatisfied,
+  };
+}

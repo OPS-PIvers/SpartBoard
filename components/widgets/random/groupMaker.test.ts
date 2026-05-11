@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
-import { RandomGroup } from '@/types';
-import { makeJigsawExpertGroups, makeNameGroups } from './groupMaker';
+import { RandomGroup, Student } from '@/types';
+import {
+  makeJigsawExpertGroups,
+  makeNameGroups,
+  makeNameGroupsByCount,
+  makeRestrictedGroupsByCount,
+} from './groupMaker';
 
 const groupOf = (...names: string[]): RandomGroup => ({
   id: crypto.randomUUID(),
@@ -205,5 +210,120 @@ describe('makeNameGroups (regression — used by Jigsaw home-group fallback)', (
     expect(groups.length).toBe(3);
     expect(groups[0].names.length).toBe(2);
     expect(groups[2].names.length).toBe(1);
+  });
+});
+
+describe('makeNameGroupsByCount', () => {
+  it('returns an empty array when no names are supplied', () => {
+    expect(makeNameGroupsByCount([], 4)).toEqual([]);
+  });
+
+  it('produces exactly the requested number of groups when count divides evenly', () => {
+    const groups = makeNameGroupsByCount(
+      ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'],
+      4
+    );
+    expect(groups.length).toBe(4);
+    for (const g of groups) expect(g.names.length).toBe(2);
+    expect(groups.flatMap((g) => g.names).sort()).toEqual([
+      'a',
+      'b',
+      'c',
+      'd',
+      'e',
+      'f',
+      'g',
+      'h',
+    ]);
+  });
+
+  it('produces exactly the requested number of groups even on awkward divisions (30 students ÷ 7 groups)', () => {
+    // This is the core motivation: chunk-by-size silently produces ⌈30/⌈30/7⌉⌉ =
+    // 6 groups instead of the 7 the user asked for. Round-robin distribution
+    // honors the request exactly.
+    const names = Array.from({ length: 30 }, (_, i) => `s${i}`);
+    const groups = makeNameGroupsByCount(names, 7);
+    expect(groups.length).toBe(7);
+    const total = groups.reduce((sum, g) => sum + g.names.length, 0);
+    expect(total).toBe(30);
+    // Group sizes should differ by at most 1.
+    const sizes = groups.map((g) => g.names.length).sort();
+    expect(sizes[sizes.length - 1] - sizes[0]).toBeLessThanOrEqual(1);
+  });
+
+  it('clamps numGroups to names.length when asked for more groups than names', () => {
+    const groups = makeNameGroupsByCount(['a', 'b', 'c'], 7);
+    expect(groups.length).toBe(3);
+    for (const g of groups) expect(g.names.length).toBe(1);
+  });
+
+  it('handles a non-finite count by collapsing to 1 group', () => {
+    const groups = makeNameGroupsByCount(['a', 'b', 'c'], Number.NaN);
+    expect(groups.length).toBe(1);
+    expect(groups[0].names.length).toBe(3);
+  });
+
+  it('gives every group a unique id', () => {
+    const groups = makeNameGroupsByCount(['a', 'b', 'c', 'd'], 2);
+    const ids = groups.map((g) => g.id);
+    expect(new Set(ids).size).toBe(ids.length);
+  });
+});
+
+describe('makeRestrictedGroupsByCount', () => {
+  const student = (
+    id: string,
+    firstName: string,
+    restrictedStudentIds: string[] = []
+  ): Student => ({
+    id,
+    firstName,
+    lastName: '',
+    pin: '00',
+    restrictedStudentIds,
+  });
+
+  it('returns empty result when no students are supplied', () => {
+    const { groups, unsatisfied } = makeRestrictedGroupsByCount([], 4);
+    expect(groups).toEqual([]);
+    expect(unsatisfied).toBe(0);
+  });
+
+  it('produces exactly the requested number of groups', () => {
+    const students = Array.from({ length: 12 }, (_, i) =>
+      student(`s${i}`, `name${i}`)
+    );
+    const { groups } = makeRestrictedGroupsByCount(students, 5);
+    expect(groups.length).toBe(5);
+    const total = groups.reduce((sum, g) => sum + g.names.length, 0);
+    expect(total).toBe(12);
+  });
+
+  it('honors restrictions when a conflict-free placement is available', () => {
+    // 6 students, 2 with mutual restriction. With 3 groups they should land
+    // in different groups since 3 groups easily accommodate the conflict.
+    const a = student('a', 'A', ['b']);
+    const b = student('b', 'B', ['a']);
+    const others = [
+      student('c', 'C'),
+      student('d', 'D'),
+      student('e', 'E'),
+      student('f', 'F'),
+    ];
+    const { groups, unsatisfied } = makeRestrictedGroupsByCount(
+      [a, b, ...others],
+      3
+    );
+    expect(groups.length).toBe(3);
+    expect(unsatisfied).toBe(0);
+    const aGroup = groups.find((g) => g.names.includes('A'));
+    const bGroup = groups.find((g) => g.names.includes('B'));
+    expect(aGroup).not.toBe(bGroup);
+  });
+
+  it('clamps numGroups to students.length when asked for more groups than students', () => {
+    const students = [student('a', 'A'), student('b', 'B')];
+    const { groups } = makeRestrictedGroupsByCount(students, 7);
+    expect(groups.length).toBe(2);
   });
 });
