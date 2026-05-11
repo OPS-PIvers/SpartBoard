@@ -154,4 +154,27 @@ describe('LiveControl', () => {
 
     expect(screen.queryByText('Classroom (2)')).not.toBeInTheDocument();
   });
+
+  it('renders Preview link with preview=1 appended when joinUrl is present', () => {
+    renderLiveControl();
+    fireEvent.click(screen.getByLabelText(/connected students/));
+
+    const previewLink = screen.getByRole('link', { name: /preview/i });
+    expect(previewLink).toBeInTheDocument();
+    expect(previewLink).toHaveAttribute(
+      'href',
+      'https://app.school.com/join?preview=1'
+    );
+    // Plain joinUrl text is shown unchanged elsewhere in the menu.
+    expect(screen.getByText('app.school.com/join')).toBeInTheDocument();
+  });
+
+  it('does not render the Preview link when joinUrl is absent', () => {
+    renderLiveControl({ joinUrl: undefined });
+    fireEvent.click(screen.getByLabelText(/connected students/));
+
+    expect(
+      screen.queryByRole('link', { name: /preview/i })
+    ).not.toBeInTheDocument();
+  });
 });

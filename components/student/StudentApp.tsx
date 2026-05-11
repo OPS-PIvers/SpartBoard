@@ -3,10 +3,12 @@ import { signInAnonymously, signOut } from 'firebase/auth';
 import { auth } from '@/config/firebase';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { StudentLobby } from './StudentLobby';
+import { TeacherPreviewBanner } from './TeacherPreviewBanner';
 import { WidgetRenderer } from '../widgets/WidgetRenderer';
-import { Snowflake, Radio } from 'lucide-react';
+import { Cast, Snowflake, Radio } from 'lucide-react';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, LiveSession } from '@/types';
 import { getDefaultWidgetConfig } from '@/utils/widgetHelpers';
+import { usePreviewMode } from '@/hooks/usePreviewMode';
 
 const noop = () => undefined;
 const asyncNoop = async () => {
@@ -24,6 +26,58 @@ const asyncNoopSession = (): Promise<LiveSession> =>
   });
 
 export const StudentApp = () => {
+  // preview mode — see hooks/usePreviewMode
+  const previewMode = usePreviewMode();
+  if (previewMode) return <StudentPreviewLobby />;
+  return <StudentAppInner />;
+};
+
+/** Static read-only preview of the live-session join lobby for teachers.
+ * Mirrors the visual structure of `StudentLobby` but with inert inputs and
+ * a disabled button so a curious user can't enter a code/PIN that silently
+ * goes nowhere. */
+const StudentPreviewLobby: React.FC = () => (
+  <div className="min-h-screen bg-slate-900 flex flex-col">
+    <TeacherPreviewBanner />
+    <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-200">
+      <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 shadow-xl ring-1 ring-slate-700">
+        <Cast className="text-indigo-500 w-8 h-8" />
+      </div>
+      <h1 className="text-3xl font-black text-white mb-2 tracking-tight">
+        Classroom Live
+      </h1>
+      <p className="text-slate-400 text-sm mb-8">
+        Join your teacher&apos;s session
+      </p>
+      <div className="w-full max-w-sm space-y-4" aria-hidden="true">
+        <input
+          type="text"
+          readOnly
+          tabIndex={-1}
+          placeholder="Teacher ID / Room Code"
+          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none font-mono text-center tracking-widest uppercase cursor-default"
+        />
+        <input
+          type="text"
+          readOnly
+          tabIndex={-1}
+          placeholder="Your PIN"
+          className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none text-center font-mono tracking-widest cursor-default"
+        />
+        <button
+          type="button"
+          disabled
+          tabIndex={-1}
+          className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-900/50 disabled:opacity-50 cursor-not-allowed mt-4"
+        >
+          Join Session
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+const StudentAppInner: React.FC = () => {
   const [joinedCode, setJoinedCode] = useState<string | null>(null);
   const [authInitialized, setAuthInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);

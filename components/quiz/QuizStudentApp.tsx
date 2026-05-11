@@ -59,6 +59,8 @@ import { StudentLeaderboard } from './StudentLeaderboard';
 import { QuizPausedPlaceholder } from './QuizPausedPlaceholder';
 import { MatchingResponseInput } from './MatchingResponseInput';
 import { OrderingResponseInput } from './OrderingResponseInput';
+import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
+import { usePreviewMode } from '@/hooks/usePreviewMode';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -73,6 +75,9 @@ import {
 // ─── Root component ───────────────────────────────────────────────────────────
 
 export const QuizStudentApp: React.FC = () => {
+  // preview mode — see hooks/usePreviewMode
+  const previewMode = usePreviewMode();
+
   const [authReady, setAuthReady] = useState(false);
   const [authFailed, setAuthFailed] = useState(false);
   // True iff `auth.currentUser` carries the `studentRole: true` custom claim
@@ -85,6 +90,7 @@ export const QuizStudentApp: React.FC = () => {
   // user we must keep. This satisfies Firestore security rules
   // (`request.auth != null`) for direct `/quiz?code=…` visitors.
   useEffect(() => {
+    if (previewMode) return;
     const init = async () => {
       try {
         if (!auth.currentUser) {
@@ -106,7 +112,11 @@ export const QuizStudentApp: React.FC = () => {
       }
     };
     void init();
-  }, []);
+  }, [previewMode]);
+
+  if (previewMode) {
+    return <QuizPreviewLobby />;
+  }
 
   if (!authReady) {
     return <FullPageLoader message="Loading…" />;
@@ -124,6 +134,68 @@ export const QuizStudentApp: React.FC = () => {
   }
 
   return <QuizJoinFlow isStudentRole={isStudentRole} />;
+};
+
+// ─── Preview lobby ────────────────────────────────────────────────────────────
+
+/** Static read-only preview of the quiz join form — no hooks, no auth, no
+ * submission. Mounted when the URL carries `?preview=1` so a teacher can
+ * verify what students will see without their Firebase Auth session being
+ * touched by `signInAnonymously` or the SSO auto-join path. */
+const QuizPreviewLobby: React.FC = () => {
+  const urlCode =
+    typeof window === 'undefined'
+      ? ''
+      : (new URLSearchParams(window.location.search).get('code') ?? '');
+
+  return (
+    <div className="min-h-screen bg-slate-900 flex flex-col">
+      <TeacherPreviewBanner />
+      <div className="flex-1 flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-center mb-8">
+            <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
+            <span className="text-sm text-slate-300 font-semibold">
+              Student Quiz
+            </span>
+          </div>
+
+          <h1 className="text-2xl font-black text-white mb-2 text-center">
+            Join Quiz
+          </h1>
+          <p className="text-slate-400 text-sm text-center mb-6">
+            Enter the code and your PIN from your teacher.
+          </p>
+
+          <div className="space-y-4" aria-hidden="true">
+            <input
+              type="text"
+              value={urlCode}
+              readOnly
+              tabIndex={-1}
+              placeholder="Quiz Code (XXXXXX)"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-none cursor-default"
+            />
+            <input
+              type="text"
+              readOnly
+              tabIndex={-1}
+              placeholder="Your PIN"
+              className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-none cursor-default"
+            />
+            <button
+              type="button"
+              disabled
+              tabIndex={-1}
+              className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
+            >
+              Join <ArrowRight className="w-5 h-5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 // ─── Join flow ────────────────────────────────────────────────────────────────
