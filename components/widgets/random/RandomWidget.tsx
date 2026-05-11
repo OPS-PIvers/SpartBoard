@@ -34,7 +34,9 @@ import { logError } from '@/utils/logError';
 import {
   makeJigsawExpertGroups,
   makeNameGroups,
+  makeNameGroupsByCount,
   makeRestrictedGroups,
+  makeRestrictedGroupsByCount,
 } from './groupMaker';
 
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
@@ -105,6 +107,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     jigsawExpertGroups,
     jigsawView = 'home',
     numExpertGroups: configNumExpertGroups,
+    numHomeGroups: configNumHomeGroups,
   } = config;
   // Classic jigsaw is "4 home groups of 4 → 4 expert groups of 4", so default
   // to 4 in jigsaw mode when the user hasn't explicitly set a size. Other
@@ -278,6 +281,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const displayNumExpertGroups =
     configNumExpertGroups ??
     Math.max(2, Math.ceil(estimatedHomeGroupCount / 2));
+  // Jigsaw HOME stepper drives a target home-group COUNT (parallel to the
+  // EXPERT stepper). Fall back to the count implied by `groupSize` for
+  // widgets created before `numHomeGroups` existed.
+  const displayNumHomeGroups = configNumHomeGroups ?? estimatedHomeGroupCount;
 
   const setGroupSize = (next: number) => {
     // updateWidget merges partial config into existing state — don't spread
@@ -289,6 +296,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const setNumExpertGroups = (next: number) => {
     updateWidget(widget.id, {
       config: { numExpertGroups: next } as WidgetConfig,
+    });
+  };
+  const setNumHomeGroups = (next: number) => {
+    updateWidget(widget.id, {
+      config: { numHomeGroups: next } as WidgetConfig,
     });
   };
 
@@ -673,9 +685,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         }
         let homeGroups: RandomGroup[];
         if (rosterMode === 'class' && activeRoster) {
-          const { groups, unsatisfied } = makeRestrictedGroups(
+          const { groups, unsatisfied } = makeRestrictedGroupsByCount(
             presentClassStudents,
-            groupSize
+            displayNumHomeGroups
           );
           homeGroups = groups;
           if (unsatisfied > 0) {
@@ -688,7 +700,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         } else {
-          homeGroups = makeNameGroups(students, groupSize);
+          homeGroups = makeNameGroupsByCount(students, displayNumHomeGroups);
         }
         const numExpertGroups =
           configNumExpertGroups ??
@@ -706,6 +718,22 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             t('widgets.random.jigsawNeedsMultipleGroups', {
               defaultValue:
                 'Jigsaw needs at least 2 home groups — lower the group size or add more students.',
+            }),
+            'warning'
+          );
+        } else if (
+          configNumHomeGroups != null &&
+          homeGroups.length < configNumHomeGroups
+        ) {
+          // User requested more home groups than the class can fill —
+          // makeNameGroupsByCount / makeRestrictedGroupsByCount clamp to
+          // students.length to avoid empty groups, so surface the discrepancy.
+          addToast(
+            t('widgets.random.homeGroupCountReduced', {
+              count: homeGroups.length,
+              requested: configNumHomeGroups,
+              defaultValue:
+                'Only {{count}} home groups fit this class — lower the Number of Home Groups setting or add more students.',
             }),
             'warning'
           );
@@ -1272,13 +1300,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
               >
                 <GroupSizeStepper
-                  value={groupSize}
-                  onChange={setGroupSize}
+                  value={displayNumHomeGroups}
+                  onChange={setNumHomeGroups}
                   label={t('widgets.random.homeLabelShort', {
                     defaultValue: 'HOME',
                   })}
-                  title={t('widgets.random.homeGroupSize', {
-                    defaultValue: 'Home Group Size',
+                  title={t('widgets.random.homeGroupCount', {
+                    defaultValue: 'Number of Home Groups',
                   })}
                 />
                 <Button
@@ -1375,13 +1403,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               {mode === 'jigsaw' && !hasJigsawGroups && (
                 <>
                   <GroupSizeStepper
-                    value={groupSize}
-                    onChange={setGroupSize}
+                    value={displayNumHomeGroups}
+                    onChange={setNumHomeGroups}
                     label={t('widgets.random.homeLabelShort', {
                       defaultValue: 'HOME',
                     })}
-                    title={t('widgets.random.homeGroupSize', {
-                      defaultValue: 'Home Group Size',
+                    title={t('widgets.random.homeGroupCount', {
+                      defaultValue: 'Number of Home Groups',
                     })}
                   />
                   <GroupSizeStepper

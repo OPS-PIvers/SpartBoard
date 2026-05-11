@@ -216,6 +216,45 @@ describe('RandomWidget', () => {
       );
     });
 
+    it('HOME stepper increments numHomeGroups (not groupSize or numExpertGroups)', () => {
+      // HOME stepper drives a target count of home groups, parallel to the
+      // EXPERT stepper's count. It must NOT write `groupSize` (members per
+      // group) — that asymmetry was the original UX bug.
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+      const homeStepper = screen.getByRole('group', {
+        name: /Number of Home Groups/i,
+      });
+      const plus = homeStepper.querySelector(
+        'button[aria-label*="Increase"]'
+      ) as HTMLButtonElement;
+      fireEvent.click(plus);
+      const calls = mockUpdateWidget.mock.calls;
+      const lastConfig = (
+        calls[calls.length - 1][1] as { config: Record<string, unknown> }
+      ).config;
+      expect(lastConfig).toHaveProperty('numHomeGroups');
+      expect(lastConfig).not.toHaveProperty('groupSize');
+      expect(lastConfig).not.toHaveProperty('numExpertGroups');
+    });
+
+    it('EXPERT stepper increments numExpertGroups (not numHomeGroups or groupSize)', () => {
+      render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
+      const expertStepper = screen.getByRole('group', {
+        name: /Number of Expert Groups/i,
+      });
+      const plus = expertStepper.querySelector(
+        'button[aria-label*="Increase"]'
+      ) as HTMLButtonElement;
+      fireEvent.click(plus);
+      const calls = mockUpdateWidget.mock.calls;
+      const lastConfig = (
+        calls[calls.length - 1][1] as { config: Record<string, unknown> }
+      ).config;
+      expect(lastConfig).toHaveProperty('numExpertGroups');
+      expect(lastConfig).not.toHaveProperty('numHomeGroups');
+      expect(lastConfig).not.toHaveProperty('groupSize');
+    });
+
     it('does not show Launch buttons before any pick has happened', () => {
       render(
         <RandomWidget
@@ -250,7 +289,7 @@ describe('RandomWidget', () => {
         screen.getByRole('group', { name: /Number of Expert Groups/i })
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('group', { name: /Home Group Size/i })
+        screen.getByRole('group', { name: /Number of Home Groups/i })
       ).toBeInTheDocument();
 
       // Randomize button still reachable from this view.
@@ -283,7 +322,7 @@ describe('RandomWidget', () => {
         name: /Number of Expert Groups/i,
       });
       const homeStepper = screen.getByRole('group', {
-        name: /Home Group Size/i,
+        name: /Number of Home Groups/i,
       });
       expect(row1.contains(expertStepper)).toBe(true);
       expect(row1.contains(launchJigsaw)).toBe(true);
