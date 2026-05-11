@@ -1775,14 +1775,23 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
       const submittedAt = Date.now();
-      tx.update(responseRef, {
+      // Only clear `unlocked` when the response actually carries the flag.
+      // Production deploys land hosting before rules (see
+      // .github/workflows/firebase-deploy.yml), so during the deploy gap
+      // the rules' `hasOnly([...])` allowlist may not yet include
+      // `unlocked` — and a write that includes the field would be
+      // rejected, silently failing the submit. Legacy responses (and
+      // every fresh attempt) have `unlocked === undefined`, so the field
+      // stays out of the payload until a teacher unlock actually sets it.
+      const responseUpdates: Record<string, unknown> = {
         status: 'completed',
         submittedAt,
         completedAttempts: increment(1),
-        // Clear any prior teacher-unlock state so the next attempt (if
-        // permitted) starts from a clean baseline.
-        unlocked: false,
-      });
+      };
+      if (existing.unlocked) {
+        responseUpdates.unlocked = false;
+      }
+      tx.update(responseRef, responseUpdates);
 
       if (ledgerRef && ledgerSnap) {
         if (ledgerSnap.exists()) {

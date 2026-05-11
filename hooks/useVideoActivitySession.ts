@@ -1093,13 +1093,19 @@ export const useVideoActivitySessionStudent =
         const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
         const completedAt = Date.now();
-        tx.update(responseRef, {
+        // Same deploy-gap defense as `completeQuiz`: include `unlocked`
+        // in the payload only when the doc actually carries the flag,
+        // so submissions land successfully during the hosting-deployed-
+        // before-rules window in production
+        // (.github/workflows/firebase-deploy.yml).
+        const responseUpdates: Record<string, unknown> = {
           completedAt,
           completedAttempts: increment(1),
-          // Clear any prior teacher-unlock state so the next attempt
-          // (if permitted) starts from a clean baseline.
-          unlocked: false,
-        });
+        };
+        if (existing.unlocked) {
+          responseUpdates.unlocked = false;
+        }
+        tx.update(responseRef, responseUpdates);
 
         if (ledgerRef && ledgerSnap) {
           if (ledgerSnap.exists()) {
