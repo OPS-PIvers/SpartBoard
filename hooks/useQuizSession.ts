@@ -487,6 +487,15 @@ export interface UseQuizSessionTeacherResult {
    * Deleting the doc also frees the attempt slot so the student can rejoin.
    */
   removeStudent: (responseKey: string) => Promise<void>;
+  /**
+   * Unlock a student's auto-submitted or attempt-limit-locked response so
+   * they can resume. Preserves the existing `answers`, refunds one
+   * `completedAttempts` on the response and the cross-launch ledger, and
+   * sets `unlocked: true` + `warningsAtUnlock` so the student's
+   * visibility handler will finalize the attempt on the next tab-switch
+   * without showing the "Warning N of 3" modal.
+   */
+  unlockStudentAttempt: (responseKey: string) => Promise<void>;
   /** Reveal the correct answer for a question (writes to session doc) */
   revealAnswer: (questionId: string, correctAnswer: string) => Promise<void>;
   /** Hide a previously revealed answer (removes from session doc) */
@@ -648,6 +657,68 @@ export const useQuizSessionTeacher = (
     [sessionId, responses, session?.quizId]
   );
 
+  const unlockStudentAttempt = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) {
+        throw new Error('No active session — cannot unlock.');
+      }
+      const target = responses.find(
+        (r) => (r._responseKey ?? r.studentUid) === responseKey
+      );
+      if (!target) {
+        // Snapshot races: the row was already removed by the time the
+        // teacher clicked. Surface as an error so the monitor can
+        // toast — silent success would be misleading.
+        throw new Error(
+          'Student response not found — they may have already been removed or rejoined.'
+        );
+      }
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const ledgerRef = session?.quizId
+        ? doc(
+            db,
+            QUIZ_ATTEMPT_LEDGER_COLLECTION,
+            quizLedgerKey(session.quizId, target.studentUid)
+          )
+        : null;
+      const currentAttempts = target.completedAttempts ?? 0;
+      const refundedAttempts = Math.max(0, currentAttempts - 1);
+
+      // Probe the ledger BEFORE the batch so we don't blindly create a
+      // partial doc via `set(merge:true)` on a missing ledger entry
+      // (which would land without the required identity fields and
+      // fail the create rule anyway). PIN-keyed anonymous students
+      // never write a ledger entry, so this is a no-op for them.
+      const ledgerSnap = ledgerRef ? await getDoc(ledgerRef) : null;
+
+      const batch = writeBatch(db);
+      batch.update(responseRef, {
+        status: 'in-progress',
+        submittedAt: null,
+        score: null,
+        completedAttempts: refundedAttempts,
+        unlocked: true,
+        unlockedAt: Date.now(),
+      });
+      if (ledgerRef && ledgerSnap?.exists()) {
+        const ledgerCurrent =
+          (ledgerSnap.data() as QuizAttemptLedger | undefined)
+            ?.completedAttempts ?? 0;
+        batch.update(ledgerRef, {
+          completedAttempts: Math.max(0, ledgerCurrent - 1),
+        });
+      }
+      await batch.commit();
+    },
+    [sessionId, responses, session?.quizId]
+  );
+
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
       if (!sessionId) return;
@@ -792,6 +863,7 @@ export const useQuizSessionTeacher = (
     advanceQuestion,
     endQuizSession,
     removeStudent,
+    unlockStudentAttempt,
     revealAnswer,
     hideAnswer,
   };
@@ -1286,7 +1358,31 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         const limit = sessionData.attemptLimit ?? null;
         if (existingSnap?.exists()) {
           const existing = existingSnap.data() as QuizResponse;
-          if (existing.status === 'completed') {
+          if (existing.status === 'completed' && existing.unlocked) {
+            // Teacher-unlocked: resume the existing attempt with the prior
+            // `answers` intact. Unlock normally already flips status to
+            // 'in-progress', so this branch is a safety net for races
+            // where the student rejoins between unlock's listener emit
+            // and Firestore propagation.
+            await updateDoc(responseRef, {
+              status: 'in-progress',
+              submittedAt: null,
+              score: null,
+              ...(classPeriod && existing.classPeriod !== classPeriod
+                ? { classPeriod }
+                : {}),
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-resume-unlocked', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                existingStudentUid: existing.studentUid,
+                isAnonymous,
+                hasPin: !!sanitizedPin,
+                hasClassPeriod: !!classPeriod,
+              })
+            );
+          } else if (existing.status === 'completed') {
             const completed = Math.max(
               existing.completedAttempts ?? 0,
               ledgerCompleted,
@@ -1679,11 +1775,23 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
       const submittedAt = Date.now();
-      tx.update(responseRef, {
+      // Only clear `unlocked` when the response actually carries the flag.
+      // Production deploys land hosting before rules (see
+      // .github/workflows/firebase-deploy.yml), so during the deploy gap
+      // the rules' `hasOnly([...])` allowlist may not yet include
+      // `unlocked` — and a write that includes the field would be
+      // rejected, silently failing the submit. Legacy responses (and
+      // every fresh attempt) have `unlocked === undefined`, so the field
+      // stays out of the payload until a teacher unlock actually sets it.
+      const responseUpdates: Record<string, unknown> = {
         status: 'completed',
         submittedAt,
         completedAttempts: increment(1),
-      });
+      };
+      if (existing.unlocked) {
+        responseUpdates.unlocked = false;
+      }
+      tx.update(responseRef, responseUpdates);
 
       if (ledgerRef && ledgerSnap) {
         if (ledgerSnap.exists()) {

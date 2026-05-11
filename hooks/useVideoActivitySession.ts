@@ -24,6 +24,7 @@ import {
   query,
   where,
   orderBy,
+  writeBatch,
 } from 'firebase/firestore';
 import { signInWithCustomToken } from 'firebase/auth';
 import { httpsCallable } from 'firebase/functions';
@@ -168,6 +169,21 @@ export interface UseVideoActivitySessionTeacherResult {
   subscribeToSession: (sessionId: string) => void;
   /** Unsubscribe from the current session listeners. */
   unsubscribeFromSession: () => void;
+  /**
+   * Unlock a student's locked/auto-submitted response so they can resume
+   * the in-flight attempt. Preserves `answers`, refunds one
+   * `completedAttempts` on both the response and the cross-launch
+   * ledger, and stamps `unlocked: true` + `warningsAtUnlock` so the
+   * student-side visibility handler finalizes the attempt on the next
+   * tab-switch without showing the "Warning N of 3" modal.
+   *
+   * `responseKey` is the Firestore doc key — pass the row's
+   * `_responseKey` (snapshot doc id), not `studentUid`.
+   */
+  unlockStudentAttempt: (
+    sessionId: string,
+    responseKey: string
+  ) => Promise<void>;
   loading: boolean;
 }
 
@@ -327,7 +343,17 @@ export const useVideoActivitySessionTeacher =
       unsubRef.current = onSnapshot(
         collection(db, SESSIONS_COLLECTION, sessionId, RESPONSES_SUBCOLLECTION),
         (snap) => {
-          const list = snap.docs.map((d) => d.data() as VideoActivityResponse);
+          // Carry the Firestore doc id through as `_responseKey` so the
+          // live monitor can target the actual response doc when invoking
+          // teacher actions (e.g. unlock) — for PIN joiners the key is
+          // `pin-{period}-{pin}` and differs from `studentUid`.
+          const list = snap.docs.map(
+            (d) =>
+              ({
+                ...(d.data() as VideoActivityResponse),
+                _responseKey: d.id,
+              }) as VideoActivityResponse
+          );
           setResponses(list);
           setLoading(false);
         },
@@ -362,6 +388,76 @@ export const useVideoActivitySessionTeacher =
         }
       );
     }, []);
+
+    const unlockStudentAttempt = useCallback(
+      async (sessionId: string, responseKey: string): Promise<void> => {
+        const responseRef = doc(
+          db,
+          SESSIONS_COLLECTION,
+          sessionId,
+          RESPONSES_SUBCOLLECTION,
+          responseKey
+        );
+        const snap = await getDoc(responseRef);
+        if (!snap.exists()) {
+          // Snapshot races: the row was already removed by the time the
+          // teacher clicked. Surface as an error so the monitor can
+          // toast — silent success would be misleading.
+          throw new Error(
+            'Student response not found — they may have already been removed or rejoined.'
+          );
+        }
+        const existing = snap.data() as VideoActivityResponse;
+
+        const currentAttempts = existing.completedAttempts ?? 0;
+        const refundedAttempts = Math.max(0, currentAttempts - 1);
+
+        const sessionSnap = await getDoc(
+          doc(db, SESSIONS_COLLECTION, sessionId)
+        );
+        const activityId =
+          (sessionSnap.data() as Partial<VideoActivitySession> | undefined)
+            ?.activityId ?? null;
+        // Probe the ledger BEFORE writing so we don't blindly create a
+        // partial doc via `set(merge:true)` on a missing ledger entry
+        // (which would land without the required `activityId`/
+        // `studentUid`/`teacherUid` identity fields). For anonymous-PIN
+        // students or any student whose cross-launch ledger hasn't been
+        // touched yet there's simply nothing to refund.
+        const ledgerRef =
+          activityId && existing.studentUid
+            ? doc(
+                db,
+                VIDEO_ACTIVITY_ATTEMPT_LEDGER_COLLECTION,
+                videoActivityLedgerKey(activityId, existing.studentUid)
+              )
+            : null;
+        const ledgerSnap = ledgerRef ? await getDoc(ledgerRef) : null;
+
+        const batch = writeBatch(db);
+        // `completedAt: null` is the canonical "not finished" signal for
+        // VA. Without this the student-side visibility handler bails
+        // out on `myResponse?.completedAt != null` and the
+        // instant-finalize-on-next-strike rule never engages.
+        batch.update(responseRef, {
+          completedAt: null,
+          score: null,
+          completedAttempts: refundedAttempts,
+          unlocked: true,
+          unlockedAt: Date.now(),
+        });
+        if (ledgerRef && ledgerSnap?.exists()) {
+          const ledgerCurrent =
+            (ledgerSnap.data() as VideoActivityAttemptLedger | undefined)
+              ?.completedAttempts ?? 0;
+          batch.update(ledgerRef, {
+            completedAttempts: Math.max(0, ledgerCurrent - 1),
+          });
+        }
+        await batch.commit();
+      },
+      []
+    );
 
     const unsubscribeFromSession = useCallback(() => {
       if (unsubRef.current) {
@@ -406,6 +502,7 @@ export const useVideoActivitySessionTeacher =
       liveSession,
       subscribeToSession,
       unsubscribeFromSession,
+      unlockStudentAttempt,
       loading,
     };
   };
@@ -454,6 +551,13 @@ export interface UseVideoActivitySessionStudentResult {
   ) => Promise<void>;
   submitAnswer: (questionId: string, answer: string) => Promise<void>;
   completeActivity: () => Promise<void>;
+  /**
+   * Atomically increment the student's `tabSwitchWarnings` counter on
+   * the response doc and return the new total. The student-side
+   * visibility tracker calls this from the `visibilitychange` / `blur`
+   * handler. Mirrors `useQuizSession.reportTabSwitch`.
+   */
+  reportTabSwitch: () => Promise<number>;
 }
 
 export const useVideoActivitySessionStudent =
@@ -805,7 +909,29 @@ export const useVideoActivitySessionStudent =
             //   - Under the cap, reset the doc to a fresh attempt
             //     (`completedAt: null, answers: []`); preserve
             //     `completedAttempts` so future joins still see the cap.
-            if (existing.completedAt != null) {
+            if (existing.completedAt != null && existing.unlocked) {
+              // Teacher-unlocked: resume the existing attempt with the
+              // prior `answers` intact. The unlock action already clears
+              // `completedAt`, so this branch handles the safety-net
+              // case where a Firestore propagation lag leaves the
+              // student's tab seeing the old `completedAt` value.
+              await updateDoc(effectiveResponseRef, {
+                completedAt: null,
+                ...(classPeriod && existing.classPeriod !== classPeriod
+                  ? { classPeriod }
+                  : {}),
+              }).catch((err: unknown) =>
+                logError(
+                  'useVideoActivitySessionStudent.update-resume-unlocked',
+                  err as Error,
+                  {
+                    sessionId: targetSessionId,
+                    responseDocId: responseDocKey,
+                    studentUid: existing.studentUid,
+                  }
+                )
+              );
+            } else if (existing.completedAt != null) {
               const completed = Math.max(
                 existing.completedAttempts ?? 0,
                 ledgerCompleted,
@@ -967,10 +1093,19 @@ export const useVideoActivitySessionStudent =
         const ledgerSnap = ledgerRef ? await tx.get(ledgerRef) : null;
 
         const completedAt = Date.now();
-        tx.update(responseRef, {
+        // Same deploy-gap defense as `completeQuiz`: include `unlocked`
+        // in the payload only when the doc actually carries the flag,
+        // so submissions land successfully during the hosting-deployed-
+        // before-rules window in production
+        // (.github/workflows/firebase-deploy.yml).
+        const responseUpdates: Record<string, unknown> = {
           completedAt,
           completedAttempts: increment(1),
-        });
+        };
+        if (existing.unlocked) {
+          responseUpdates.unlocked = false;
+        }
+        tx.update(responseRef, responseUpdates);
 
         if (ledgerRef && ledgerSnap) {
           if (ledgerSnap.exists()) {
@@ -994,6 +1129,56 @@ export const useVideoActivitySessionStudent =
       });
     }, [sessionId, responseDocId, session?.activityId, session?.teacherUid]);
 
+    // Track the latest response value in a ref so `reportTabSwitch` can
+    // read the current counter without re-binding (and re-attaching the
+    // visibility listener on every snapshot).
+    const myResponseRef = useRef<VideoActivityResponse | null>(null);
+    myResponseRef.current = myResponse;
+    const warningCountRef = useRef(0);
+
+    useEffect(() => {
+      const serverCount = myResponse?.tabSwitchWarnings ?? 0;
+      // Server-side counter is the source of truth; clamp to the higher
+      // of the two so a stale snapshot in flight doesn't roll back the
+      // local view briefly.
+      warningCountRef.current = Math.max(warningCountRef.current, serverCount);
+    }, [myResponse?.tabSwitchWarnings]);
+
+    const reportTabSwitch = useCallback(async (): Promise<number> => {
+      if (!sessionId || !responseDocId) return warningCountRef.current;
+      const responseRef = doc(
+        db,
+        SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_SUBCOLLECTION,
+        responseDocId
+      );
+      const baseCount = Math.max(
+        warningCountRef.current,
+        myResponseRef.current?.tabSwitchWarnings ?? 0
+      );
+      try {
+        await updateDoc(responseRef, {
+          tabSwitchWarnings: increment(1),
+        });
+      } catch (err) {
+        // Re-throw (matching `useQuizSession.reportTabSwitch`) so the
+        // caller's catch handles it without silently advancing the
+        // local counter into a server-divergent state. Without this,
+        // a chain of failed writes would push the local count to ≥3
+        // and trigger an auto-submit while the server still shows 0
+        // warnings.
+        logError('useVideoActivitySessionStudent.reportTabSwitch', err, {
+          sessionId,
+          responseDocId,
+        });
+        throw err;
+      }
+      const newCount = baseCount + 1;
+      warningCountRef.current = newCount;
+      return newCount;
+    }, [sessionId, responseDocId]);
+
     return {
       session,
       myResponse,
@@ -1003,5 +1188,6 @@ export const useVideoActivitySessionStudent =
       joinSession,
       submitAnswer,
       completeActivity,
+      reportTabSwitch,
     };
   };

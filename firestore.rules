@@ -1593,7 +1593,13 @@ service cloud.firestore {
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preSyncVersion']) ||
             request.resource.data.preSyncVersion == 0) &&
            request.resource.data.diff(resource.data)
-             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion']) &&
+             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked']) &&
+           // Students may only ever CLEAR the unlock flag (write `false`)
+           // — never set it to true. The teacher's unlock action sets
+           // `unlocked: true`; `completeQuiz` clears it back to false
+           // when the resumed attempt is finalized.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['unlocked']) ||
+            request.resource.data.get('unlocked', false) == false) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['tabSwitchWarnings']) ||
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
@@ -1697,12 +1703,20 @@ service cloud.firestore {
          request.resource.data.completedAttempts == resource.data.completedAttempts + 1 &&
          request.resource.data.lastAttemptAt is number)
         ||
-        // Teacher reset branch — set completedAttempts back to 0.
+        // Teacher reset/refund branch — decrease completedAttempts.
+        // Used by `removeStudent` (effectively resets to 0 via batch
+        // delete, kept here for compatibility) and `unlockStudentAttempt`
+        // (refunds one attempt so the student isn't immediately re-blocked
+        // by the cap on resume). The teacher may only DECREASE the
+        // counter, never inflate it — this preserves the cap as an
+        // anti-cheating defense while permitting deliberate refunds.
         (request.auth.uid == resource.data.teacherUid &&
          request.resource.data.studentUid == resource.data.studentUid &&
          request.resource.data.quizId == resource.data.quizId &&
          request.resource.data.teacherUid == resource.data.teacherUid &&
-         request.resource.data.completedAttempts == 0)
+         request.resource.data.get('completedAttempts', 0) >= 0 &&
+         request.resource.data.get('completedAttempts', 0) <=
+           resource.data.get('completedAttempts', 0))
         ||
         isAdmin()
       );
@@ -1739,11 +1753,17 @@ service cloud.firestore {
          request.resource.data.completedAttempts == resource.data.completedAttempts + 1 &&
          request.resource.data.lastAttemptAt is number)
         ||
+        // Teacher reset/refund branch — see quiz_attempt_ledger above.
+        // The teacher may only DECREASE completedAttempts; this supports
+        // both the legacy `removeStudent` reset-to-0 and the new
+        // `unlockStudentAttempt` refund-by-one flow.
         (request.auth.uid == resource.data.teacherUid &&
          request.resource.data.studentUid == resource.data.studentUid &&
          request.resource.data.activityId == resource.data.activityId &&
          request.resource.data.teacherUid == resource.data.teacherUid &&
-         request.resource.data.completedAttempts == 0)
+         request.resource.data.get('completedAttempts', 0) >= 0 &&
+         request.resource.data.get('completedAttempts', 0) <=
+           resource.data.get('completedAttempts', 0))
         ||
         isAdmin()
       );
@@ -1952,8 +1972,14 @@ service cloud.firestore {
               'completedAt',
               'tabSwitchWarnings',
               'completedAttempts',
-              'classPeriod'
+              'classPeriod',
+              'unlocked'
             ]) &&
+            // Students may only ever CLEAR the unlock flag — never set
+            // it. The teacher sets `unlocked: true`; `completeActivity`
+            // clears it back to false on submission of a resumed attempt.
+            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['unlocked']) ||
+             request.resource.data.get('unlocked', false) == false) &&
             request.resource.data.answers is list &&
             // Append-only on answers, EXCEPT during a rejoin-reset for a
             // new attempt under the cap. The reset path writes
