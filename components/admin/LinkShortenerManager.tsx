@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Link2,
   Plus,
@@ -16,6 +16,7 @@ import {
 import { useShortLinks } from '@/hooks/useShortLinks';
 import { useDialog } from '@/context/useDialog';
 import { Toast } from '@/components/common/Toast';
+import { logError } from '@/utils/logError';
 import { SHORT_LINK_PREFIX } from '@/utils/shortLinkValidation';
 import { ShortLink } from '@/types';
 
@@ -93,11 +94,20 @@ export const ShortLinkCreateForm: React.FC<CreateFormProps> = ({
     }
   };
 
+  // Reset the "Copied" pill 1.5s after a successful copy. Using an effect
+  // (instead of `setTimeout` inside the handler) lets React clear the
+  // timer if the form unmounts before it fires, so we never call
+  // `setCopied` on an unmounted component.
+  useEffect(() => {
+    if (!copied) return;
+    const timerId = window.setTimeout(() => setCopied(false), 1500);
+    return () => window.clearTimeout(timerId);
+  }, [copied]);
+
   const handleCopy = async (url: string) => {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
     } catch (err) {
       console.warn('[ShortLinkCreateForm] clipboard failed:', err);
     }
@@ -252,6 +262,7 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
       className="fixed inset-0 z-modal-nested bg-black/50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="edit-short-link-title"
     >
       <form
         onSubmit={handleSave}
@@ -259,7 +270,10 @@ const EditModal: React.FC<EditModalProps> = ({ link, onClose, onSaved }) => {
       >
         <div className="flex items-start justify-between">
           <div>
-            <h3 className="text-lg font-bold text-slate-800">
+            <h3
+              id="edit-short-link-title"
+              className="text-lg font-bold text-slate-800"
+            >
               Edit short link
             </h3>
             <p className="text-sm text-slate-500 font-mono mt-1">
@@ -363,16 +377,30 @@ export const LinkShortenerManager: React.FC = () => {
     });
   }, [links, search]);
 
+  // Toast and "copied" pills auto-dismiss after a delay. Both timers are
+  // owned by effects so React clears them on unmount, avoiding state
+  // updates on an unmounted component if the admin closes the panel
+  // mid-animation.
+  useEffect(() => {
+    if (!toast) return;
+    const timerId = window.setTimeout(() => setToast(null), 3000);
+    return () => window.clearTimeout(timerId);
+  }, [toast]);
+
+  useEffect(() => {
+    if (!copiedCode) return;
+    const timerId = window.setTimeout(() => setCopiedCode(null), 1500);
+    return () => window.clearTimeout(timerId);
+  }, [copiedCode]);
+
   const showToast = (type: 'success' | 'error', text: string) => {
     setToast({ type, text });
-    window.setTimeout(() => setToast(null), 3000);
   };
 
   const handleCopy = async (code: string) => {
     try {
       await navigator.clipboard.writeText(buildShortUrl(code));
       setCopiedCode(code);
-      window.setTimeout(() => setCopiedCode(null), 1500);
     } catch (err) {
       console.warn('[LinkShortenerManager] clipboard failed:', err);
       showToast('error', 'Could not copy to clipboard');
@@ -393,7 +421,7 @@ export const LinkShortenerManager: React.FC = () => {
       await deleteShortLink(link.code);
       showToast('success', 'Short link deleted');
     } catch (err) {
-      console.error('[LinkShortenerManager] delete error:', err);
+      logError('LinkShortenerManager.delete', err, { code: link.code });
       showToast('error', 'Failed to delete short link');
     }
   };

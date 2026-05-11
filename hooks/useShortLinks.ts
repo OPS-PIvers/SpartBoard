@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   getDocs,
@@ -17,11 +18,13 @@ import {
   query,
   runTransaction,
   updateDoc,
+  type FieldValue,
 } from 'firebase/firestore';
 
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { ShortLink } from '@/types';
+import { logError } from '@/utils/logError';
 import { SHORT_LINKS_COLLECTION } from '@/utils/shortLinksApi';
 import {
   generateRandomCode,
@@ -126,6 +129,9 @@ export const useShortLinks = (): UseShortLinksResult => {
     if (!isAdmin) {
       setLinks([]);
       setLoading(false);
+      // Clear any stale admin-only error so it doesn't linger after a
+      // sign-out / role drop.
+      setError(null);
       return;
     }
 
@@ -147,7 +153,7 @@ export const useShortLinks = (): UseShortLinksResult => {
         setError(null);
       },
       (err) => {
-        console.error('[useShortLinks] snapshot error:', err);
+        logError('useShortLinks.snapshot', err);
         setError('Failed to load short links.');
         setLoading(false);
       }
@@ -172,7 +178,7 @@ export const useShortLinks = (): UseShortLinksResult => {
       setLinks(next);
       setError(null);
     } catch (err) {
-      console.error('[useShortLinks] refresh error:', err);
+      logError('useShortLinks.refresh', err);
       setError('Failed to load short links.');
     } finally {
       setLoading(false);
@@ -183,6 +189,12 @@ export const useShortLinks = (): UseShortLinksResult => {
     async (input: CreateShortLinkInput): Promise<CreateResult> => {
       if (!user) {
         return { ok: false, reason: 'You must be signed in.' };
+      }
+      // Fail fast for non-admins. Firestore rules would also reject this,
+      // but a clean, immediate error message beats a confusing
+      // permission-denied in the console.
+      if (!isAdmin) {
+        return { ok: false, reason: 'Only admins can create short links.' };
       }
 
       const destinationResult = validateDestination(input.destination);
@@ -251,7 +263,7 @@ export const useShortLinks = (): UseShortLinksResult => {
         // Anything else (network, permission, quota) lands here so the
         // form sees a clean `{ ok: false, reason }` instead of an
         // unhandled rejection.
-        console.error('[useShortLinks] create error:', err);
+        logError('useShortLinks.create', err);
         return {
           ok: false,
           reason:
@@ -259,7 +271,7 @@ export const useShortLinks = (): UseShortLinksResult => {
         };
       }
     },
-    [user]
+    [user, isAdmin]
   );
 
   const updateShortLink = useCallback(
@@ -267,6 +279,9 @@ export const useShortLinks = (): UseShortLinksResult => {
       code: string,
       patch: UpdateShortLinkInput
     ): Promise<UpdateResult> => {
+      if (!isAdmin) {
+        return { ok: false, reason: 'Only admins can edit short links.' };
+      }
       try {
         const ref = doc(db, COLLECTION, code);
         const snap = await getDoc(ref);
@@ -275,7 +290,12 @@ export const useShortLinks = (): UseShortLinksResult => {
         }
         const existing = snap.data() as ShortLink;
 
-        const updates: Partial<ShortLink> = { updatedAt: Date.now() };
+        // Mixed type: most fields are plain values, but `label` may carry
+        // a Firestore `FieldValue` sentinel (`deleteField()`) when an
+        // admin clears the label — Firestore's `updateDoc` accepts that
+        // mixed shape but `Partial<ShortLink>` alone does not.
+        const updates: { [K in keyof ShortLink]?: ShortLink[K] | FieldValue } =
+          { updatedAt: Date.now() };
 
         if (patch.destination !== undefined) {
           const result = validateDestination(patch.destination);
@@ -287,13 +307,34 @@ export const useShortLinks = (): UseShortLinksResult => {
 
         if (patch.label !== undefined) {
           const trimmed = patch.label.trim();
-          updates.label = trimmed || '';
+          // Match `createShortLink`: an empty label is treated as "no
+          // label". Using `deleteField()` removes the property entirely
+          // instead of leaving a `label: ''` ghost field, which keeps
+          // the two write paths semantically symmetric.
+          updates.label = trimmed ? trimmed : deleteField();
         }
 
         await updateDoc(ref, updates);
-        return { ok: true, link: { ...existing, ...updates } as ShortLink };
+        // For the returned link we drop the FieldValue sentinel and
+        // surface the resolved shape (label removed) for the caller.
+        const resolved: ShortLink = {
+          ...existing,
+          updatedAt: updates.updatedAt as number,
+          ...(updates.destination !== undefined
+            ? { destination: updates.destination as string }
+            : {}),
+        };
+        if (patch.label !== undefined) {
+          const trimmed = patch.label.trim();
+          if (trimmed) {
+            resolved.label = trimmed;
+          } else {
+            delete resolved.label;
+          }
+        }
+        return { ok: true, link: resolved };
       } catch (err) {
-        console.error('[useShortLinks] update error:', err);
+        logError('useShortLinks.update', err);
         return {
           ok: false,
           reason:
@@ -301,12 +342,18 @@ export const useShortLinks = (): UseShortLinksResult => {
         };
       }
     },
-    []
+    [isAdmin]
   );
 
-  const deleteShortLink = useCallback(async (code: string): Promise<void> => {
-    await deleteDoc(doc(db, COLLECTION, code));
-  }, []);
+  const deleteShortLink = useCallback(
+    async (code: string): Promise<void> => {
+      if (!isAdmin) {
+        throw new Error('Only admins can delete short links.');
+      }
+      await deleteDoc(doc(db, COLLECTION, code));
+    },
+    [isAdmin]
+  );
 
   return {
     links,

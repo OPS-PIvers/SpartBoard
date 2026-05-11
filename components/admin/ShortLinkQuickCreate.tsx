@@ -28,6 +28,7 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
       className="fixed inset-0 z-modal bg-black/50 flex items-center justify-center p-4"
       role="dialog"
       aria-modal="true"
+      aria-labelledby="short-link-quick-create-title"
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose();
       }}
@@ -38,7 +39,12 @@ export const ShortLinkQuickCreate: React.FC<ShortLinkQuickCreateProps> = ({
             <div className="bg-brand-blue-lighter text-brand-blue-primary p-2 rounded-lg">
               <Link2 className="w-4 h-4" />
             </div>
-            <h3 className="text-lg font-bold text-slate-800">Shorten a URL</h3>
+            <h3
+              id="short-link-quick-create-title"
+              className="text-lg font-bold text-slate-800"
+            >
+              Shorten a URL
+            </h3>
           </div>
           <button
             type="button"

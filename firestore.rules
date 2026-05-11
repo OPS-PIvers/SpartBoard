@@ -558,6 +558,12 @@ service cloud.firestore {
     //   and stamps `lastClickedAt`. Restricting the diff prevents resetting
     //   or inflating the counter — without these clauses an attacker could
     //   set `clicks` to any value while still passing `affectedKeys`.
+    // - `lastClickedAt` is additionally clamped to a ±5 minute drift
+    //   window around server time. Without that bound an attacker could
+    //   stamp a far-future timestamp (e.g. year 2286) and poison any
+    //   "recently clicked" ordering or last-active analytics built on the
+    //   field. 5 minutes is generous enough to absorb realistic client
+    //   clock skew while still bounding the field tightly.
     match /short_links/{code} {
       allow get: if true;
       allow list: if isAdmin();
@@ -566,7 +572,9 @@ service cloud.firestore {
         || (request.resource.data.diff(resource.data).affectedKeys()
               .hasOnly(['clicks', 'lastClickedAt'])
             && request.resource.data.clicks == resource.data.get('clicks', 0) + 1
-            && request.resource.data.lastClickedAt is int);
+            && request.resource.data.lastClickedAt is int
+            && request.resource.data.lastClickedAt <= request.time.toMillis() + 300000
+            && request.resource.data.lastClickedAt >= request.time.toMillis() - 300000);
       allow delete: if isAdmin();
     }
 

@@ -134,11 +134,18 @@ export const validateDestination = (
  * and unsuitable for code generation in a security-sensitive context
  * (short codes are public URLs that map to admin-curated destinations).
  */
+// A stripped UUID is exactly 32 hex characters, so the fast UUID path can
+// only honor the `length` contract for `length <= 32`. For anything longer
+// we fall through to `getRandomValues`, which produces an arbitrary number
+// of bytes — preserving the "result.length === length" guarantee callers
+// rely on.
+const UUID_HEX_LENGTH = 32;
+
 export const generateRandomCode = (
   length: number = RANDOM_CODE_LENGTH
 ): string => {
   const cryptoObj = globalThis.crypto;
-  if (cryptoObj?.randomUUID) {
+  if (cryptoObj?.randomUUID && length <= UUID_HEX_LENGTH) {
     return cryptoObj
       .randomUUID()
       .replace(/-/g, '')

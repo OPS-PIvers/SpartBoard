@@ -4,6 +4,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2, LinkIcon } from 'lucide-react';
 
+import { logError } from '@/utils/logError';
 import { recordShortLinkClick, resolveShortLink } from '@/utils/shortLinksApi';
 
 type ResolveState =
@@ -40,12 +41,14 @@ export const ShortLinkRedirect: React.FC = () => {
         // The security rule explicitly permits this update from anonymous
         // sessions.
         recordShortLinkClick(code).catch((err) => {
-          console.warn('[ShortLinkRedirect] click counter failed:', err);
+          // Counter failure is non-fatal — log via the shared seam so
+          // any future Sentry/Bugsnag wiring catches it.
+          logError('ShortLinkRedirect.clickCounter', err, { code });
         });
         window.location.replace(link.destination);
       } catch (err) {
         if (cancelled) return;
-        console.error('[ShortLinkRedirect] resolve error:', err);
+        logError('ShortLinkRedirect.resolve', err, { code });
         setState({
           status: 'error',
           message: 'Could not resolve this link. Try again later.',
