@@ -548,6 +548,28 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Admin-created short links resolved by the client at /r/:code.
+    // - Public `get`: anyone (incl. anonymous) can follow a known shortlink.
+    // - Admin-only `list`: prevents anonymous enumeration of every short
+    //   code + destination, which `allow read: if true` would otherwise
+    //   permit via a collection-level scan.
+    // - Admin-only create/edit/delete: only admins manage links.
+    // - Narrow anonymous update: the resolver bumps `clicks` by exactly 1
+    //   and stamps `lastClickedAt`. Restricting the diff prevents resetting
+    //   or inflating the counter — without these clauses an attacker could
+    //   set `clicks` to any value while still passing `affectedKeys`.
+    match /short_links/{code} {
+      allow get: if true;
+      allow list: if isAdmin();
+      allow create: if isAdmin();
+      allow update: if isAdmin()
+        || (request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['clicks', 'lastClickedAt'])
+            && request.resource.data.clicks == resource.data.get('clicks', 0) + 1
+            && request.resource.data.lastClickedAt is int);
+      allow delete: if isAdmin();
+    }
+
     // Global permissions - all authenticated users can read, only admins can write
     match /global_permissions/{featureId=**} {
       allow read: if request.auth != null;

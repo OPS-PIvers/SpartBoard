@@ -5454,3 +5454,30 @@ export interface LibraryFolder {
   /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
   updatedAt?: number;
 }
+
+/**
+ * Admin-created short link, stored at `/short_links/{code}`. The doc id is
+ * the public-facing code (e.g. `lesson-1`); the URL `${origin}/r/${code}`
+ * resolves client-side via `ShortLinkRedirect` and bumps the `clicks`
+ * counter atomically before redirecting the browser to `destination`.
+ */
+export interface ShortLink {
+  /** Doc id and URL path segment. Lowercased, slug-safe, unique. */
+  code: string;
+  /** Absolute http(s) URL to redirect to. */
+  destination: string;
+  /** Creator uid (for table display + audit). */
+  createdBy: string;
+  /** Creator email at create time (snapshot — not kept in sync). */
+  createdByEmail: string;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last edit. */
+  updatedAt: number;
+  /** Total resolved clicks. Incremented atomically by the resolver. */
+  clicks: number;
+  /** Epoch ms of the most recent click, or null if never clicked. */
+  lastClickedAt: number | null;
+  /** Optional human-readable name shown in the admin table. */
+  label?: string;
+}
