@@ -25,8 +25,8 @@ import {
   BarChart2,
   ChevronDown,
   ChevronUp,
+  Clock,
   LayoutGrid,
-  RefreshCw,
   School,
   Search,
   Users,
@@ -102,6 +102,15 @@ interface AnalyticsData {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  // Snapshot freshness metadata returned alongside the payload. The server
+  // computes the analytics once a day; these timestamps drive the
+  // "Last updated · Next update at" badge so the admin understands they're
+  // looking at a cached read rather than a live aggregate.
+  meta?: {
+    computedAt: number;
+    nextRecomputeAt: number;
+    computeDurationMs: number;
+  };
 }
 
 type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users';
@@ -113,6 +122,57 @@ const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   },
   {} as Record<string, string>
 );
+
+/**
+ * "Updated 4h ago · Next update at 5:00 AM" badge that replaces the previous
+ * manual Refresh button. Analytics are now computed once daily by a Cloud
+ * Scheduler job; a client-driven recompute would defeat the cache and reopen
+ * the unbounded-Firestore-reads cost path. The badge makes the cached nature
+ * of the data legible to the admin so they don't wonder why a recent change
+ * isn't reflected yet.
+ *
+ * `meta` is optional because page-load races and the `not-yet-computed` cold
+ * start can both arrive at the badge before the server has any snapshot to
+ * report on. In those cases the badge stays hidden — the surrounding error
+ * banner already carries the "Analytics ready at 5:00 AM Central" copy.
+ */
+const SnapshotFreshnessBadge: React.FC<{
+  meta?: { computedAt: number; nextRecomputeAt: number };
+}> = ({ meta }) => {
+  if (!meta) return null;
+  const updated = formatRelativeTimeAgo(meta.computedAt);
+  const nextAt = new Date(meta.nextRecomputeAt).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return (
+    <div
+      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600"
+      title={`Computed ${new Date(meta.computedAt).toLocaleString()} · Next refresh ${new Date(meta.nextRecomputeAt).toLocaleString()}`}
+    >
+      <Clock className="w-3.5 h-3.5 text-slate-400" />
+      <span>
+        Updated {updated} · Next update at {nextAt}
+      </span>
+    </div>
+  );
+};
+
+/**
+ * Returns a short relative-time string ("2h ago", "just now", "3d ago").
+ * Uses `Intl.RelativeTimeFormat` so the unit choice is locale-correct.
+ */
+function formatRelativeTimeAgo(timestampMs: number): string {
+  const diffMs = Date.now() - timestampMs;
+  const minutes = Math.round(diffMs / 60_000);
+  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  if (minutes < 1) return fmt.format(0, 'minute');
+  if (minutes < 60) return fmt.format(-minutes, 'minute');
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return fmt.format(-hours, 'hour');
+  const days = Math.round(hours / 24);
+  return fmt.format(-days, 'day');
+}
 
 /**
  * Folds a record keyed by raw building IDs into a record keyed by canonical
@@ -1477,6 +1537,11 @@ export const AnalyticsManager: React.FC = () => {
           message?: string;
           error?: string;
         };
+        // 503 + `not-yet-computed` is the server's signal for "this org has
+        // no snapshot yet — wait for the next scheduled refresh." Surface it
+        // verbatim so the admin sees a clear "not ready" state rather than
+        // a generic error banner; the message body already contains the
+        // user-facing copy ("ready at 5:00 AM Central daily").
         const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
         throw new Error(msg);
       }
@@ -1516,6 +1581,7 @@ export const AnalyticsManager: React.FC = () => {
           avgDailyCallsPerUser: raw.api?.avgDailyCallsPerUser ?? 0,
           byFeature: raw.api?.byFeature ?? {},
         },
+        meta: raw.meta,
       };
 
       if (!isMountedRef.current || requestId !== requestSequenceRef.current) {
@@ -1720,15 +1786,7 @@ export const AnalyticsManager: React.FC = () => {
           </select>
         </div>
 
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void fetchAnalytics()}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <SnapshotFreshnessBadge meta={data?.meta} />
       </div>
 
       <div
