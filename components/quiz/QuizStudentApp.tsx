@@ -167,23 +167,26 @@ const QuizPreviewLobby: React.FC = () => {
             Enter the code and your PIN from your teacher.
           </p>
 
-          <div className="space-y-4">
+          <div className="space-y-4" aria-hidden="true">
             <input
               type="text"
               value={urlCode}
               readOnly
+              tabIndex={-1}
               placeholder="Quiz Code (XXXXXX)"
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center uppercase placeholder-slate-600 focus:outline-none cursor-default"
             />
             <input
               type="text"
               readOnly
+              tabIndex={-1}
               placeholder="Your PIN"
               className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-none cursor-default"
             />
             <button
               type="button"
               disabled
+              tabIndex={-1}
               className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
             >
               Join <ArrowRight className="w-5 h-5" />

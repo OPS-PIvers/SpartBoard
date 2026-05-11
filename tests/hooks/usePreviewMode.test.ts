@@ -1,3 +1,4 @@
+import React, { StrictMode } from 'react';
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { renderHook } from '@testing-library/react';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
@@ -85,5 +86,25 @@ describe('usePreviewMode', () => {
     setLocation('');
     rerender();
     expect(result.current).toBe(true);
+  });
+
+  it('returns true and strips the URL under React.StrictMode (initializer purity)', () => {
+    // StrictMode double-invokes useState initializers in dev to surface
+    // accidental impurities. The hook's initializer is pure (a plain read);
+    // the side effect lives in useLayoutEffect, which is idempotent under
+    // re-fire. Both invariants must hold for the production behavior to
+    // survive StrictMode dev tooling.
+    setLocation('?code=ABC&preview=1');
+    const { result } = renderHook(() => usePreviewMode(), {
+      wrapper: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(StrictMode, null, children),
+    });
+    expect(result.current).toBe(true);
+    expect(replaceStateSpy).toHaveBeenCalled();
+    expect(replaceStateSpy).toHaveBeenLastCalledWith(
+      null,
+      '',
+      '/quiz?code=ABC'
+    );
   });
 });

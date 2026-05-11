@@ -8,8 +8,11 @@ import { Eye } from 'lucide-react';
  * via the SSO auto-join path. Pure visual — reads no auth state.
  */
 export const TeacherPreviewBanner: React.FC = () => (
-  <div className="w-full bg-indigo-500/15 border-b border-indigo-400/30 px-4 py-3 flex items-center justify-center gap-2 text-indigo-200 text-sm font-semibold backdrop-blur-sm">
-    <Eye className="w-4 h-4 shrink-0" />
+  <div
+    role="status"
+    className="w-full bg-indigo-500/15 border-b border-indigo-400/30 px-4 py-3 flex items-center justify-center gap-2 text-indigo-200 text-sm font-semibold backdrop-blur-sm"
+  >
+    <Eye className="w-4 h-4 shrink-0" aria-hidden="true" />
     <span>Teacher preview — students will see this exact screen.</span>
   </div>
 );

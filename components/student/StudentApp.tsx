@@ -49,22 +49,25 @@ const StudentPreviewLobby: React.FC = () => (
       <p className="text-slate-400 text-sm mb-8">
         Join your teacher&apos;s session
       </p>
-      <div className="w-full max-w-sm space-y-4">
+      <div className="w-full max-w-sm space-y-4" aria-hidden="true">
         <input
           type="text"
           readOnly
+          tabIndex={-1}
           placeholder="Teacher ID / Room Code"
           className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none font-mono text-center tracking-widest uppercase cursor-default"
         />
         <input
           type="text"
           readOnly
+          tabIndex={-1}
           placeholder="Your PIN"
           className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white placeholder-slate-500 focus:outline-none text-center font-mono tracking-widest cursor-default"
         />
         <button
           type="button"
           disabled
+          tabIndex={-1}
           className="w-full py-4 bg-indigo-600 text-white rounded-xl font-bold text-lg shadow-lg shadow-indigo-900/50 disabled:opacity-50 cursor-not-allowed mt-4"
         >
           Join Session
