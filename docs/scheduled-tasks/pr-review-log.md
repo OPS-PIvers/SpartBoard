@@ -4,6 +4,30 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-12
+
+- PRs reviewed:
+  - #1585 — fix(deps): pin protobufjs >=7.5.6 to close CRITICAL CVE via firebase-functions (base `dev-paul`)
+  - #1584 — audit(tuesday): scheduled audit journals — 2026-05-12 (base `dev-paul`)
+  - #1582 — feat(plc): drag-resize grid + live tile bodies + cross-PLC analytics + shared library primitives + members invite (Phases 1–4, 6) (base `dev-paul`)
+  - #1580 — fix(draggable-window): attach gesture listeners to capture target, not window (base `dev-paul`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`)
+- Comments processed: 10 unresolved comment threads across the 5 PRs — 1 fixed by code change, 4 explained as no-fix-needed (architectural/out-of-scope/ambiguous), 5 already addressed by author with replies on PR #1580 (no further action needed).
+- Fixes pushed:
+  - `20637623` on `claude/improve-plc-dashboard-Z1HvH` (PR #1582) — clarified `LibraryPreviewPane` docstring to accurately describe unmount-on-close behavior (no exit animation; slide-in classes reused on each open). `pnpm type-check` ✓, `pnpm lint --max-warnings 0` ✓.
+- Reviews posted: 5
+  - PR #1585 protobufjs pin: Ready — textbook security patch with single-version lockfile evidence and `pnpm test` 2301/2301 + functions test 209/209 verification.
+  - PR #1584 Tuesday audit: Ready — markdown-only journal updates; net positive in surfacing the new hono 4.12.15→4.12.18 CVE pair.
+  - PR #1582 PLC overhaul: Ready with minor notes — opt-in flag limits blast radius; flagged Firestore-rules emulator gate, `types.ts` +86 line surface, and missing `commitTileCoords` unit-test coverage as merge gates.
+  - PR #1580 DraggableWindow listener leak: Ready — pointer-capture-target binding + unmount cleanup ref is the right fix; new regression test (`clears global drag-state body class when host unmounts mid-gesture`) locks in the behavior.
+  - PR #1366 Line-endings doc: Ready — doc-only; all 6 prior reviewer comments are already addressed; execution correctly deferred per the plan's own "all open PRs merged or closed" precondition.
+- Notes:
+  - Branch safety: today's run pushed only to `claude/improve-plc-dashboard-Z1HvH` (matches neither `main` nor `dev-*`). No writes to `main` or `dev-paul`.
+  - PR #1580 review threads (5 total) were all already replied to by the author citing commit 7c84765 — skipped duplicate "already addressed" replies to avoid noise.
+  - One cross-PR finding: `@ungap/structured-clone@1.3.0` deprecation (CWE-502, fix in 1.3.1) surfaces in the PR #1585 lockfile diff. Gemini-code-assist flagged it; replied that it belongs in the next scheduled-tasks audit cycle rather than this PR's narrow protobufjs scope.
+
+---
+
 ## 2026-05-07
 
 - PRs reviewed:
