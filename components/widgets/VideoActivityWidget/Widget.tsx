@@ -25,7 +25,16 @@ import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
+import { usePlcs } from '@/hooks/usePlcs';
+import {
+  callLeaveSyncedVideoActivityGroup,
+  createSyncedVideoActivityGroup,
+} from '@/hooks/useSyncedVideoActivityGroups';
+import { writePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
+import { PlcShareTargetModal } from '@/components/plc/PlcShareTargetModal';
+import { logError } from '@/utils/logError';
 import { VideoActivityManager } from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
 import { Results } from './components/Results';
@@ -85,9 +94,13 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     saveActivity,
     loadActivityData,
     deleteActivity,
+    duplicateActivity,
+    attachSyncLinkage,
     createTemplateSheet,
     isDriveConnected,
   } = useVideoActivity(user?.uid);
+
+  const { plcs } = usePlcs();
 
   const {
     createSession,
@@ -113,6 +126,12 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const [publishingAssignment, setPublishingAssignment] =
     useState<VideoActivityAssignment | null>(null);
 
+  // PLC share target — set when the teacher picks "Share with PLC" on a
+  // library row. The `PlcShareTargetModal` is rendered as a sibling and
+  // gates the actual `handleShareWithPlc` call on PLC selection.
+  const [shareWithPlcTarget, setShareWithPlcTarget] =
+    useState<VideoActivityMetadata | null>(null);
+
   const [loadingActivity, setLoadingActivity] = useState(false);
   const [selectedSession, setSelectedSession] =
     useState<VideoActivitySession | null>(null);
@@ -127,6 +146,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
   const [editingMeta, setEditingMeta] = useState<VideoActivityMetadata | null>(
     null
   );
+
+  // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
+  const duplicateBusy = useBusyIdSet();
 
   const { folders: videoActivityFolders, moveItem: moveVideoActivityItem } =
     useFolders(user?.uid, 'video_activity');
@@ -212,6 +234,88 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     widget.id,
     config,
   ]);
+
+  /**
+   * Share a video activity with a PLC. Mirrors `QuizWidget.handleShareWithPlc`:
+   *   1. Load Drive content for the activity.
+   *   2. Promote to a synced group (if not already synced).
+   *      - Mint `synced_video_activities/{groupId}` via
+   *        `createSyncedVideoActivityGroup`.
+   *      - Attach the sync linkage to the local Firestore metadata so the
+   *        library card thereafter surfaces the "Synced" pill.
+   *      - On linkage failure, best-effort leave the just-minted group so
+   *        we don't leak a phantom participant.
+   *   3. Write the `plcs/{plcId}/video_activities/{uuid}` header doc via
+   *      `writePlcVideoActivityEntry`.
+   *
+   * If step 3 fails after step 2 succeeded, the synced group + sync
+   * linkage stay in place — the local library card still shows the
+   * "Synced" pill (self-only group), and a retry of "Share with PLC"
+   * reuses the existing groupId rather than minting a new one. Idempotent
+   * on retry.
+   */
+  const handleShareWithPlc = useCallback(
+    async (
+      activityMeta: VideoActivityMetadata,
+      plcId: string
+    ): Promise<void> => {
+      if (!user) throw new Error('Not authenticated.');
+      const plc = plcs.find((p) => p.id === plcId);
+      if (!plc) {
+        throw new Error('That PLC is no longer available.');
+      }
+      const data = await loadActivityData(activityMeta.driveFileId);
+
+      let syncGroupId: string;
+      if (activityMeta.sync) {
+        syncGroupId = activityMeta.sync.groupId;
+      } else {
+        syncGroupId = crypto.randomUUID();
+        await createSyncedVideoActivityGroup({
+          groupId: syncGroupId,
+          uid: user.uid,
+          title: data.title,
+          youtubeUrl: data.youtubeUrl,
+          questions: data.questions,
+          plcId,
+        });
+        try {
+          await attachSyncLinkage(activityMeta.id, {
+            groupId: syncGroupId,
+            lastSyncedVersion: 1,
+          });
+        } catch (linkageErr) {
+          // Best-effort rollback so the freshly-minted group doesn't
+          // dangle with a phantom participant pointing at a local
+          // library that never recorded the linkage.
+          try {
+            await callLeaveSyncedVideoActivityGroup(syncGroupId);
+          } catch (leaveErr) {
+            logError(
+              'VideoActivityWidget.shareWithPlc.rollbackLeave',
+              leaveErr,
+              { plcId, syncGroupId }
+            );
+          }
+          throw linkageErr;
+        }
+      }
+
+      const ownerEmailLower =
+        plc.memberEmails?.[user.uid] ??
+        (user.email ? user.email.toLowerCase() : '');
+      await writePlcVideoActivityEntry(plcId, user.uid, {
+        plcVideoActivityId: crypto.randomUUID(),
+        syncGroupId,
+        title: data.title,
+        youtubeUrl: data.youtubeUrl,
+        questionCount: data.questions.length,
+        sharedByName: user.displayName ?? '',
+        sharedByEmail: ownerEmailLower,
+      });
+    },
+    [attachSyncLinkage, loadActivityData, plcs, user]
+  );
 
   // ─── Guards ────────────────────────────────────────────────────────────────
 
@@ -525,6 +629,20 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             );
           }
         }}
+        onDuplicate={(meta) =>
+          void duplicateBusy.run(meta.id, async () => {
+            try {
+              const copy = await duplicateActivity(meta);
+              addToast(`Duplicated as "${copy.title}".`, 'success');
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Duplicate failed',
+                'error'
+              );
+            }
+          })
+        }
+        isDuplicating={duplicateBusy.isBusy}
         assignments={assignments}
         assignmentsLoading={assignmentsLoading}
         onArchiveCopyUrl={(assignment) => {
@@ -726,6 +844,16 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             config: { ...config, libraryViewMode: mode } as VideoActivityConfig,
           });
         }}
+        onShareWithPlc={(meta) => {
+          if (plcs.length === 0) {
+            addToast(
+              'Join a PLC from the My PLCs sidebar to share video activities with teammates.',
+              'info'
+            );
+            return;
+          }
+          setShareWithPlcTarget(meta);
+        }}
       />
       {publishingAssignment && (
         <PublishScoresModal
@@ -823,6 +951,30 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           );
         }}
       />
+      {shareWithPlcTarget && (
+        <PlcShareTargetModal
+          plcs={plcs}
+          quizTitle={shareWithPlcTarget.title}
+          onConfirm={async (plcId) => {
+            try {
+              await handleShareWithPlc(shareWithPlcTarget, plcId);
+              const plcName =
+                plcs.find((p) => p.id === plcId)?.name ?? 'your PLC';
+              addToast(`Shared with ${plcName}.`, 'success');
+              setShareWithPlcTarget(null);
+            } catch (err) {
+              logError('VideoActivityWidget.shareWithPlc', err, {
+                plcId,
+                activityId: shareWithPlcTarget.id,
+              });
+              throw err instanceof Error
+                ? err
+                : new Error('Share with PLC failed.');
+            }
+          }}
+          onClose={() => setShareWithPlcTarget(null)}
+        />
+      )}
     </>
   );
 };

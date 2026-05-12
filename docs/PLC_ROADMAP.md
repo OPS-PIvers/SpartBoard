@@ -28,13 +28,17 @@ This roadmap is designed to be **executed in independent chunks across multiple 
 
 - [x] **Phase 1** — Dashboard shell + feature toggles + completed-assignments tab _(PR #1537)_
 - [x] **Phase 2** — PLC Quiz Library (share-with-PLC, collaborative editing, sync-or-copy import) _(PR #1547)_
-- [x] **Phase 3** — PLC-authored Assignments tab + auto-bubble-up from personal assignments _(this PR)_
-- [ ] **Phase 4** — Video Activities (extend with `PlcLinkage` + dashboard surface)
+- [x] **Phase 3** — PLC-authored Assignments tab + auto-bubble-up from personal assignments _(PR #1556)_
+- [x] **Phase 4** — Video Activities (`PlcLinkage` + library + dashboard surface) _(fully-fledged PR)_
 - [x] **Phase 5** — Notes + To-Do list (collaborative shared docs) _(bundled with Overview/Bento — see Phase 1.5 below)_
-- [ ] **Phase 6** — Shared Boards surface
+- [x] **Phase 6** — Shared Boards surface _(fully-fledged PR)_
 - [x] **Phase 1.5 (out-of-band)** — PLC Overview tab with per-user customizable bento grid + sidebar kebab UX
+- [ ] **Phase 7 (proposed)** — Mini-apps PLC integration _(not in original roadmap)_
+- [ ] **Phase 8 (proposed)** — Guided Learning PLC integration _(not in original roadmap)_
 
-> **Phase 1.5 deviation note:** Phase 5 (Notes + To-Dos) was pulled forward and shipped alongside the Overview tab + bento grid + sidebar kebab refactor in a single PR. This deviates from the "one phase per PR" rule because the Overview tab's bento tiles needed real content for Notes and To-Dos on day one — placeholder tiles linking to placeholder tabs would have felt empty. Phases 2/3/4/6 remain stubbed with "coming soon" tiles that swap to live data when those phases ship; the layout doesn't have to change.
+> **Phase 1.5 deviation note:** Phase 5 (Notes + To-Dos) was pulled forward and shipped alongside the Overview tab + bento grid + sidebar kebab refactor in a single PR. This deviates from the "one phase per PR" rule because the Overview tab's bento tiles needed real content for Notes and To-Dos on day one — placeholder tiles linking to placeholder tabs would have felt empty.
+>
+> **Fully-fledged PR deviation:** Phases 4 and 6 plus the in-flight roadmap follow-ups shipped together in a single multi-commit PR (`claude/plc-fully-fledged`) at the user's explicit request after noticing the dashboard still showed "Coming soon" placeholders for activeAssignments / videoActivities / sharedBoards. This deviates from "one phase per PR" too — the trade-off was reviewer load vs. user-visible coherence. The follow-up polish PR (`claude/plc-polish`) deleted `ComingSoonTile` outright — Phase 7/8 will write their own live tiles rather than ship behind a placeholder.
 
 Branch convention: each phase opens a `claude/plc-phase-N-<slug>` branch off `dev-paul`. Do **not** target `main` directly.
 
@@ -227,30 +231,41 @@ These were surfaced in the final review pass and intentionally deferred to keep 
 
 ---
 
-## Phase 4 — Video Activities
+## Phase 4 — Video Activities _(SHIPPED)_
+
+**Status:** Shipped via the fully-fledged PR into `dev-paul` (branch `claude/plc-fully-fledged`).
 
 **Goal:** extend video activities with the same PLC linkage + dashboard surface that quizzes already have.
 
-### Scope
+### What landed
 
-- Add `plc?: PlcLinkage` to `VideoActivityAssignmentSettings` (mirror `QuizAssignmentSettings`).
-- `useVideoActivityAssignments.createAssignment` writes to the PLC index (extend `PlcAssignmentIndexEntry.kind` union to include `'video-activity'` — the discriminator slot is already there in Phase 1).
-- New `plcs/{plcId}/video_activities/{activityId}` subcollection mirroring Phase 2's quiz library pattern.
-- `PlcVideoActivitiesTab.tsx` replaces the placeholder.
-
-### Architectural notes
-
-- Video activities use a binary status (active/ended) instead of quiz's active/paused/inactive — doesn't affect the index entry shape.
-- `kind` discriminator widening: this is the first phase that meaningfully exercises the union. Update `parseEntry` in `usePlcAssignmentIndex.ts` to accept `'video-activity'` AND update the rules' `kind in ['quiz', 'video-activity']` check. The Phase 1 test (`normalizes 'kind' to 'quiz' even for legacy or wrong values`) needs to be revisited once the union widens.
-
-### Out of scope for Phase 4
-
-- Activity Wall (it's not a true assignment type — it's a collaborative student space).
-- Mini-apps (separate phase, not currently planned for PLC integration).
+- `types.ts` — new `PlcVideoActivityEntry` (lightweight header for `plcs/{plcId}/video_activities/{plcVideoActivityId}`). Carries `youtubeUrl` in addition to the quiz-entry fields so the tile + tab can render a thumbnail without loading the full content blob.
+- `hooks/usePlcVideoActivities.ts` (new) — live subscription + `shareVideoActivityWithPlc` / `mirrorPlcVideoActivityHeader` / `unshareVideoActivityFromPlc` mutators. Standalone `writePlcVideoActivityEntry` for the share-from-widget path. Mirrors `usePlcQuizzes` exactly.
+- `hooks/useVideoActivityAssignments.ts` — `createAssignment` now persists `settings.plc` onto the assignment doc (was being dropped pre-PR; the spread missed the field — silent regression caught while wiring this phase). Writes a fire-and-forget `writePlcAssignmentIndexEntry({kind: 'video-activity'})` when `settings.plc` is set. Status mutators (`pauseAssignment` / `resumeAssignment` / `deactivateAssignment` / `reactivateAssignment`) now call `mirrorPlcAssignmentStatus` via a `useRef<VideoActivityAssignment[]>` lookup mirror (mirrors the Phase 3 `useQuizAssignments` pattern).
+- `functions/src/plcVideoActivitySyncJoin.ts` (new) — `joinPlcVideoActivitySyncGroup` Cloud Function. Mirrors `plcQuizSyncJoin.ts` but resolves the synced group via `plcs/{plcId}/video_activities/{...}` and joins `synced_video_activities/{groupId}` (different sync collection than quizzes). Admin-SDK membership check before participant write. **Requires `firebase deploy --only functions:joinPlcVideoActivitySyncGroup`** before Sync-import works in real Firebase; Copy mode works without it.
+- `hooks/useSyncedVideoActivityGroups.ts` — new `callJoinPlcVideoActivitySyncGroup(plcId, plcVideoActivityId)` callable wrapper.
+- `firestore.rules` — new `match /plcs/{plcId}/video_activities/{plcVideoActivityId}` block. Same `keys().hasOnly([...])` lockdown as the Phase 2 quiz library block, plus a `youtubeUrl is string` constraint. Identity + attribution fields (`id`, `syncGroupId`, `sharedBy`, `sharedByEmail`, `sharedByName`, `sharedAt`) immutable on update.
+- `components/plc/PlcVideoActivityImportModal.tsx` (new) — sync-or-copy picker, mirror of `PlcQuizImportModal`.
+- `components/plc/bodies/PlcVideoActivitiesBody.tsx` (new) — full list + import modal + inline editor. Mirrors `PlcQuizLibraryBody` shape with one deliberate divergence: no version-conflict auto-pull on save (`useVideoActivity.saveActivity` doesn't detect synced-group version conflicts at save time — documented in the file header).
+- `components/plc/tabs/PlcVideoActivitiesTab.tsx` (new) — tab-mode shim.
+- `components/plc/overview/tiles/VideoActivitiesTile.tsx` (new) — replaces the `ComingSoonTile` placeholder for `videoActivities`.
+- `components/plc/PlcDashboard.tsx` — removed the `placeholder` block on the `videoActivities` tab def, routes the tab to `PlcVideoActivitiesTab`, adds the fullscreen-expansion case for the bento tile.
+- `components/widgets/VideoActivityWidget/Widget.tsx` — new `handleShareWithPlc` (load Drive content → mint synced group if not synced → attach linkage → write PLC subcoll doc; same rollback shape as `QuizWidget`). Adds `usePlcs()`, `PlcShareTargetModal`, and a `shareWithPlcTarget` state.
+- `components/widgets/VideoActivityWidget/components/VideoActivityManager.tsx` — new `onShareWithPlc` prop + library-row kebab item, hidden when the prop is omitted (matches the QuizManager test-harness pattern).
 
 ### Notes from implementation
 
-_(Fill in after shipping.)_
+- **`settings.plc` was being dropped on VA assignment create.** The `createAssignment` spread had `className`, `sessionSettings`, `sessionOptions`, `scoreVisibility`, `periodNames`, `rosterIds` but not `plc`. This meant any VA assignment authored with PLC mode had its PLC linkage silently stripped — the assignment ran, but PLC index entries had no source linkage and status mirroring never fired. Spread `settings.plc` onto the assignment doc to fix; this is a real bug regression that pre-dates this PR and only surfaces once the index-write path exists to consume it. No backfill — pre-existing VA assignments that intended PLC mode are stranded.
+- **Status mirror uses `useRef`-mirrored snapshot.** The status mutators look up `plc.id` from a `useRef<VideoActivityAssignment[]>` synced via effect (matches the Phase 3 `useQuizAssignments` pattern). The direct-ref pattern is blocked by `react-hooks/refs` lint here for the same reason as the quiz hook; the effect path is the workaround.
+- **No version-conflict UX on edit save.** `useVideoActivity.saveActivity` writes through to Drive + Firestore unconditionally — there's no `SyncedVideoActivityVersionConflictError` analogue to `SyncedQuizVersionConflictError`. A teammate publishing concurrently to the same group loses to last-writer-wins on `synced_video_activities/{groupId}`. The canonical doesn't tear (the synced-group publish path is debounced LWW per field), but the local `lastSyncedVersion` may briefly lag until the next pull. Acceptable for v1; a future iteration could surface a "Refresh from PLC" affordance in the editor.
+- **VA assignment template subcollection deferred.** The roadmap mentioned two paths in "Phase 4 starter": (a) widen `PlcAssignmentTemplate` with a `kind` discriminator, or (b) add a separate `plcs/{plcId}/video_activity_templates/`. Neither shipped — the PR opted to surface VAs through the **library** (`plcs/{plcId}/video_activities/`) only, not via assignment templates. Teachers create personal VA assignments with PLC mode → the assignment-index entry surfaces on the In-progress sub-tab, but there's no template equivalent in the Library sub-tab yet. A future iteration can add VA templates if the demand materializes.
+- **Cloud Function unit tests not added in this PR.** Mirrors the Phase 2/3 gap. A combined backfill PR for `joinPlcQuizSyncGroup` + `joinPlcAssignmentSyncGroup` + `joinPlcVideoActivitySyncGroup` is the natural follow-up.
+
+### Phase 4 follow-ups (not blockers; track separately)
+
+- **VA assignment-template subcollection.** See "Notes" above — current PR ships library-only.
+- **Version-conflict UX on inline edit.** Mirror `SyncedQuizVersionConflictError` for VAs.
+- **Modal i18n.** `PlcVideoActivityImportModal` uses hardcoded English. Same gap as Phase 2/3 modals.
 
 ---
 
@@ -289,8 +304,8 @@ Shipped together with Phase 1.5 (Overview + bento grid + sidebar kebab). See "Ph
 - `components/plc/tabs/PlcOverviewTab.tsx` — new default landing tab. Wraps the bento grid with an Edit Layout / Reset toggle.
 - `components/plc/overview/PlcBentoGrid.tsx` — dnd-kit `SortableContext` + `DragOverlay` + closest-center collision detection. Mirrors `components/common/library/LibraryGrid.tsx` exactly (the canonical sortable pattern in this codebase — do not invent a new shape).
 - `components/plc/overview/PlcBentoTile.tsx` — sortable tile wrapper. Drag handle scoped to a grip icon (so tile content stays interactive when not dragging). Resize button cycles `sm → md-wide → md-tall → lg`. Hide button moves the tile into a "Hidden tiles" tray below the grid.
-- `components/plc/overview/tileRegistry.tsx` — central switchboard for tile content, keyed by `PlcBentoTileKind`. Adding a new tile = a new case here + a new union member in `types.ts`. The "coming soon" tiles for Phases 2/3/4/6 route through `ComingSoonTile`; swap the case for the real component when each phase ships.
-- `components/plc/overview/tiles/*` — live tile content for Members, PlcInfo, CompletedAssignments, Notes, Todos, SharedSheet, QuickActions, plus `ComingSoonTile` for the four still-stubbed phases.
+- `components/plc/overview/tileRegistry.tsx` — central switchboard for tile content, keyed by `PlcBentoTileKind`. Adding a new tile = a new case here + a new union member in `types.ts`. (Originally each unshipped phase routed through a shared `ComingSoonTile`; that file was removed once Phases 2–4 + 6 all shipped live tiles.)
+- `components/plc/overview/tiles/*` — live tile content for every shipped `PlcBentoTileKind`.
 - `hooks/usePlcOverviewLayout.ts` — per-user layout persistence at `users/{uid}/plc_layouts/{plcId}`. Optimistic local state with debounced (~500ms) writes; `lastWrittenAt` guard so an in-flight snapshot doesn't clobber a fresher local rearrangement; pending write flushes on unmount.
 - `firestore.rules` — new `match /users/{userId}/plc_layouts/{plcId}` block (owner-only, schema lock-down via `keys().hasOnly([...])`).
 - `components/layout/sidebar/SidebarPlcs.tsx` — refactored. Each PLC card is now a single click target (backdrop button + layered visible content with `pointer-events-none`); secondary actions (edit/view, delete/leave) live in a kebab popover. Whole-card hover state and chevron-right affordance.
@@ -330,27 +345,38 @@ Shipped together with Phase 1.5 (Overview + bento grid + sidebar kebab). See "Ph
 
 ---
 
-## Phase 6 — Shared Boards surface
+## Phase 6 — Shared Boards surface _(SHIPPED)_
+
+**Status:** Shipped via the fully-fledged PR into `dev-paul` (branch `claude/plc-fully-fledged`).
 
 **Goal:** surface dashboards (boards) that have been shared with a PLC.
 
-### Scope
+### What landed
 
-- Today, board sharing is per-user (`shared_boards/{shareId}`). Add a `plcId?: string` field so a board can be shared with an entire PLC.
-- New `PlcSharedBoardsTab.tsx` lists all boards shared with this PLC. Each row has "Open" (read-only view) and "Copy to my dashboards".
-
-### Architectural notes
-
-- This is the smallest phase. The infrastructure already exists; we're just adding a `plcId` filter and a tab.
-- The existing `shared_boards` rules will need a new branch: members of the PLC can read shares where `plcId == this PLC` even if they aren't the shareTarget.
-
-### Open questions
-
-- Can a member edit a PLC-shared board, or is it always read-only/copy? Recommend: **read-only/copy** for simplicity. Editing shared boards multi-teacher would need its own LWW infrastructure (out of scope for Phase 6).
+- `hooks/useFirestore.ts` — `shareDashboard(dashboard, intendedMode?, hostDisplayName?, plcId?)` now writes `plcId` onto the `/shared_boards/{shareId}` doc when set.
+- `context/DashboardContext.tsx` — `shareDashboard(dashboard, intendedMode?, plcId?)` plumbs the new arg. When `plcId` is set, the Drive-fallback path is intentionally bypassed (Drive-only shares wouldn't be visible to the PLC tab's Firestore query).
+- `context/DashboardContextValue.ts` — public `shareDashboard` signature widened.
+- `hooks/usePlcSharedBoards.ts` (new) — live subscription to `shared_boards where plcId == plcId`, sorted newest-edit-first. Returns a lightweight `PlcSharedBoardEntry` slice (id, name, originalAuthor, originalAuthorName, intendedMode, widgetCount, timestamps) rather than the full share-doc payload.
+- `firestore.rules` — collaborator-update branch on `/shared_boards/{shareId}` now pins `plcId` immutable. Host updates can still change it (matches the existing posture: host = full content + metadata mutability except `intendedMode`).
+- `components/plc/bodies/PlcSharedBoardsBody.tsx` (new) — list with per-row "Open share" link routing to `/share/{shareId}` (deep-links into the existing share-import flow; recipient gets the host's chosen `intendedMode` picker).
+- `components/plc/tabs/PlcSharedBoardsTab.tsx` (new) — tab-mode shim.
+- `components/plc/overview/tiles/SharedBoardsTile.tsx` (new) — replaces the last `ComingSoonTile` usage (sharedBoards). Rows are non-clickable previews; "Open boards" footer navigates to the tab.
+- `components/plc/PlcDashboard.tsx` — removed `placeholder` block on the `sharedBoards` tab def, routes the tab to `PlcSharedBoardsTab`, adds the fullscreen-expansion case.
+- `components/share/ShareLinkCreatorModal.tsx` — optional "Also share with a PLC" dropdown (rendered only when the user has ≥1 PLC memberships). Selecting a PLC plumbs `plcId` through `shareDashboard`.
 
 ### Notes from implementation
 
-_(Fill in after shipping.)_
+- **No new rule branch needed for reads.** The existing `/shared_boards` rule already grants read to any authenticated user — PLC scoping happens client-side via the `where plcId == ...` query filter. This is a convenience pivot, not a security boundary; a hostile client could list arbitrary shares by removing the filter (matches the pre-Phase-6 status quo).
+- **Drive-fallback bypass when `plcId` is set.** Non-admin Drive shares are one-time exports that wouldn't appear in the PLC tab; we skip the Drive path entirely when the caller scoped to a PLC.
+- **Host can re-scope, collaborator cannot.** The rules pin `plcId` immutable on the collaborator-update branch (so a teammate who joined a non-PLC share can't silently retarget someone else's share at an arbitrary PLC, or strip the PLC scope from a PLC-shared board). The host-update branch leaves `plcId` mutable so the originalAuthor can un-scope a share they regret tagging.
+- **PLC scope picker is opt-in.** The dropdown defaults to "Don't scope to a PLC" — the existing flow (send link directly to a colleague) keeps working exactly as before. Only teachers who actively pick a PLC get the new behavior.
+- **Resolved open question (read-only vs editable).** As recommended in the original roadmap, PLC-shared boards are surfaced read-only / copy. Editing is reserved for the existing `/share/:id` flow where the recipient picks Synced (joins as collaborator) or Copy (snapshot). No new multi-teacher LWW infrastructure was needed.
+
+### Phase 6 follow-ups (not blockers; track separately)
+
+- **Tile-level "Copy to my dashboards" action.** Currently the only action on the tile and tab is "Open share" → standard import picker. An inline "Copy" affordance would shortcut the picker to copy mode for the common "I just want a snapshot" case.
+- **PLC scope visible in Sidebar.** When the host re-opens the share modal on an already-shared board, the PLC scope isn't displayed back — the modal always defaults to "Don't scope to a PLC." A round-trip on the current share state would let the host see (and remove) the scope without resharing.
+- **Modal copy.** "Also share with a PLC (optional)" is hardcoded English. Group with the Phase 2/3/4 modal i18n sweep when that lands.
 
 ---
 
@@ -407,30 +433,81 @@ Resolved:
 
 ---
 
-## Phase 4 starter — for the next agent
+## Phase 7 starter — Mini-apps PLC integration (proposed)
 
-**Goal (recap from the Phase 4 section above):** extend video activities with the same PLC linkage + dashboard surface that quizzes already have.
+**Status:** Not in the original roadmap. Proposed during the fully-fledged PR design pass — the user wanted mini-apps to participate in PLC sharing like quizzes and video activities do. The Phase 4 work (`/plcs/{plcId}/video_activities/`) is the closest pattern; mirror it.
 
-**What's already in place after Phase 3 (use these — don't reinvent):**
+**Goal:** members can share a personal mini-app with their PLC, edit it collaboratively, and import it (sync-or-copy) into their personal mini-app library. Mini-app assignments authored with `settings.plc` set should also surface on the In-progress / Completed sub-tabs.
 
-- `PlcAssignmentIndexEntry.kind` discriminator already accepts `'video-activity'`. The Phase 1 widening + Phase 3 status field cover the schema; Phase 4 just needs `useVideoActivityAssignments.createAssignment` to start writing entries with `kind: 'video-activity'` and the appropriate `status`.
-- `mirrorPlcAssignmentStatus(plcId, assignmentId, status)` from `hooks/usePlcAssignmentIndex.ts` is generic (no quiz-specific assumptions). Phase 4's VA status mutators should call it the same way `useQuizAssignments` does — fire-and-forget when `settings.plc` is set on a VA assignment. The In-progress / Completed sub-tabs in PLC Assignments will then surface VA entries automatically alongside quizzes (status mirroring is the only wiring needed).
-- The PLC Assignments **Library** sub-tab is quiz-template-specific today (`plcs/{plcId}/assignments/` carries `quizId` / `quizTitle`). Phase 4 has two paths: (a) add a `kind` discriminator to `PlcAssignmentTemplate` and let the Library list mixed quiz + VA templates, or (b) add a separate `plcs/{plcId}/video_activity_templates/` subcollection mirroring this one. Recommend (b) — it keeps the schemas independent and matches the Phase 4 plan's existing scope (`plcs/{plcId}/video_activities/` subcollection).
-- The Phase 2 + Phase 3 Cloud Functions follow the same pattern. Phase 4 will likely need a `joinPlcVideoActivitySyncGroup` sibling resolving via `plcs/{plcId}/video_activities/`.
-- `firestore.rules` Phase 3 `assignments/` block is the closest template — copy it, swap field names, and pin VA-specific session-shape constraints if any.
+**What's already in place (use these — don't reinvent):**
+
+- `PlcAssignmentIndexEntry.kind` is a string discriminator. The rule + parser currently accept `'quiz'` and `'video-activity'`; widen the union to `'mini-app'` in `usePlcAssignmentIndex.parseEntry` AND the rule's `kind in [...]` check.
+- `mirrorPlcAssignmentStatus` from `usePlcAssignmentIndex.ts` is generic — call it the same way `useQuizAssignments` / `useVideoActivityAssignments` do.
+- The Phase 4 sync-join Cloud Function (`plcVideoActivitySyncJoin.ts`) is the closest template — resolve the synced-group id via `plcs/{plcId}/mini_apps/{plcMiniAppId}` and join the canonical `/synced_mini_apps/{groupId}` group (this group collection may need to be added if it doesn't exist yet).
+- `firestore.rules` Phase 4 `video_activities/` block is the closest template — copy it, swap field names.
 
 **Files to touch (likely):**
 
-- `types.ts` — add `PlcVideoActivityTemplate` (mirror `PlcAssignmentTemplate`); add `plc?: PlcLinkage` to `VideoActivityAssignmentSettings`.
-- `hooks/useVideoActivityAssignments.ts` — extend `createAssignment` to write `assignment_index` entries with `kind: 'video-activity'` and (optionally) a video activity template; add status mirroring on pause/end mutations.
-- `hooks/usePlcVideoActivities.ts` (new) — mirror `hooks/usePlcAssignments.ts`.
-- `components/plc/tabs/PlcVideoActivitiesTab.tsx` — replace placeholder; same shape as `PlcQuizLibraryTab.tsx`.
-- `firestore.rules` — new `match /plcs/{plcId}/video_activities/{...}` block.
-- `functions/src/plcVideoActivitySyncJoin.ts` (new) — mirror `plcAssignmentSyncJoin.ts`.
-- Tests: hook + rules suites mirroring Phase 3.
+- `types.ts` — new `PlcMiniAppEntry` (mirror `PlcVideoActivityEntry`); ensure `MiniAppAssignmentSettings` carries `plc?: PlcLinkage`.
+- `hooks/useMiniApps.ts` (or whichever hook owns mini-app metadata) — add `attachSyncLinkage` if not present.
+- `hooks/usePlcMiniApps.ts` (new) — mirror `hooks/usePlcVideoActivities.ts`.
+- `hooks/useMiniAppAssignments.ts` — extend `createAssignment` to write `assignment_index` entries with `kind: 'mini-app'`; status mirroring on pause/end.
+- `firestore.rules` — new `match /plcs/{plcId}/mini_apps/{plcMiniAppId}` block + widen `assignment_index.kind` to include `'mini-app'`.
+- `functions/src/plcMiniAppSyncJoin.ts` (new) — mirror `plcVideoActivitySyncJoin.ts`.
+- `hooks/useSyncedMiniAppGroups.ts` — add `callJoinPlcMiniAppSyncGroup` (and create the file + Cloud Function if synced mini-apps don't exist yet — bigger scope).
+- `components/plc/bodies/PlcMiniAppsBody.tsx` + `tabs/PlcMiniAppsTab.tsx` + `overview/tiles/MiniAppsTile.tsx` (new).
+- `components/widgets/MiniApp/...` — add the share-with-PLC kebab + `handleShareWithPlc` mirroring `VideoActivityWidget.Widget.tsx`.
+- `components/plc/PlcDashboard.tsx` — add `'miniApps'` to the `PlcDashboardTabId` union + `TABS` array, route the tab.
+- `components/plc/overview/tileRegistry.tsx` — add the `'miniApps'` case.
 
-**Branch convention:** open `claude/plc-phase-4-<slug>` off `dev-paul`.
+**Branch convention:** open `claude/plc-phase-7-<slug>` off `dev-paul`.
+
+**Wildcard:** mini-apps may NOT yet have a synced-groups infrastructure (`synced_mini_apps/{groupId}`). Quiz + VA both had it before their PLC phases started. If absent, Phase 7 needs to stand it up (mirror `syncedVideoActivityGroups.ts`) — that's the bigger lift in this phase, not the PLC plumbing on top.
 
 ---
 
-**Last updated:** 2026-05-08 (PR #1557 closed two Phase 3 follow-ups — Drive-only PLC bubble-up so every PLC-mode personal assignment authors a Library template, and Edit-in-place from `PlcQuizLibraryTab` leveraging the existing synced-group LWW infrastructure)
+## Phase 8 starter — Guided Learning PLC integration (proposed)
+
+**Status:** Not in the original roadmap. Proposed during the fully-fledged PR design pass alongside Phase 7. Same pattern as Phase 4/7.
+
+**Goal:** mirror Phase 7 for Guided Learning sets — members share, sync-edit, and import collaboratively.
+
+**Files to touch (likely):**
+
+- `types.ts` — new `PlcGuidedLearningEntry`; ensure `GuidedLearningAssignmentSettings` carries `plc?: PlcLinkage`.
+- `hooks/useGuidedLearning.ts` — `attachSyncLinkage` if not present.
+- `hooks/usePlcGuidedLearning.ts` (new).
+- `hooks/useGuidedLearningAssignments.ts` — PLC index writes with `kind: 'guided-learning'`; status mirroring.
+- `firestore.rules` — new `match /plcs/{plcId}/guided_learning/{plcGuidedLearningId}` block + widen `assignment_index.kind`.
+- `functions/src/plcGuidedLearningSyncJoin.ts` (new).
+- `hooks/useSyncedGuidedLearningGroups.ts` — add `callJoinPlcGuidedLearningSyncGroup`.
+- `components/plc/bodies/PlcGuidedLearningBody.tsx` + `tabs/PlcGuidedLearningTab.tsx` + `overview/tiles/GuidedLearningTile.tsx` (new).
+- `components/widgets/GuidedLearning/...` — share-with-PLC kebab.
+- `PlcDashboard.tsx` + `tileRegistry.tsx` — wire the new tab + tile.
+
+**Branch convention:** open `claude/plc-phase-8-<slug>` off `dev-paul`.
+
+**Wildcard:** same as Phase 7 — verify a `synced_guided_learning/{groupId}` collection exists before assuming the LWW infrastructure is in place.
+
+---
+
+## Cross-cutting follow-ups (not blockers; track separately)
+
+These surfaced across multiple phases and are deliberately deferred:
+
+**Resolved in `claude/plc-polish` follow-up PR:**
+
+- ~~**ComingSoonTile cleanup.**~~ File deleted; comments referencing it cleaned up in `tileRegistry.tsx`, `ActiveAssignmentsTile.tsx`, and `SharedBoardsTile.tsx`.
+- ~~**Rich tile actions (Phase 2+ kebabs).**~~ `QuizLibraryTile` and `VideoActivitiesTile` rows now expose a `TileRowKebab` popover with **Open in tab** + **Unshare from PLC** actions. The unshare path uses a deliberately small shared hook (`usePlcLibraryActions`) that bundles confirm + toast + busy-spinner plumbing; the hook takes the kind-specific unshare fn as a parameter so it does not re-open the Firestore subscription the tile already owns. **Deliberate scope cut:** import + edit deliberately stay tab-only because they require `useQuiz` / `useVideoActivity` subscriptions and the editor modal infrastructure; surfacing them in the tile would duplicate those listeners per grid render with no first-order win over the tab. Re-evaluate if/when usage data shows teachers wanting inline editing.
+- ~~**In-tab "+ Share with this PLC" affordance.**~~ `PlcQuizLibraryBody` and `PlcVideoActivitiesBody` now show a "+ Share a quiz / video activity with this PLC" CTA — both in the empty state and beside the count badge on the populated state. Clicking opens `PlcSharePickerModal`, a reusable picker that lists the teacher's personal library (filtered with an inline search) with an "Already shared" pill on rows whose `sync.groupId` already lives in this PLC's subcollection. Picking an item runs the same flow the Quiz / Video-Activity widgets use from their kebab — load Drive content, mint a synced group if needed, attach sync linkage, write the PLC subcoll header — with the same rollback-on-linkage-failure path. **Deliberate scope cut:** the picker is not yet wired into `PlcAssignmentsBody.Library` because the "+ New PLC Assignment" flow needs roster + period selection on top of the share, which is a fuller workflow than this picker is shaped for. Tracked as a separate follow-up.
+- ~~**Modal i18n sweep.**~~ `PlcShareTargetModal`, `PlcQuizImportModal`, `PlcAssignmentImportModal`, `QuizAssignmentImportSetupModal`, and the rest of `ShareLinkCreatorModal` (the parts the fully-fledged PR didn't already cover) now route through `t(key, { defaultValue })`. New keys land with English `defaultValue` only — translators pick them up via the standard locale-extraction sweep.
+- ~~**Cloud Function unit tests.**~~ `functions/src/plcQuizSyncJoin.test.ts` and `plcVideoActivitySyncJoin.test.ts` added (22 new tests). Mirror `plcAssignmentSyncJoin.test.ts` (membership gate + data-shape gates + join semantics + idempotency invariants). All three `joinPlc*SyncGroup` handlers now have direct unit-test coverage.
+
+**Still open:**
+
+- **In-tab "+ New PLC Assignment" affordance.** The Quiz / Video Activity library bodies now have a "+ Share with this PLC" CTA (see resolved item above), but the PLC Assignments → Library sub-tab still doesn't. Adding it requires a roster + period picker on top of the share — closer to `AssignClassPicker` than to `PlcSharePickerModal`. Treat as its own PR.
+- **Share-write rollback gap.** `PlcQuizLibraryBody.handleShareFromPicker` and `PlcVideoActivitiesBody.handleShareFromPicker` follow the same shape as `QuizWidget.handleShareWithPlc` (the pre-existing kebab flow): if `writePlcQuizEntry` / `writePlcVideoActivityEntry` rejects AFTER `createSyncedQuizGroup` + `attachSyncLinkage` have already succeeded, the local quiz keeps the sync linkage and the canonical synced group stays in place with the user as sole participant — a "self-only" sync. The next "Share" retry sees `meta.sync` and skips group creation, so no duplicate groups; but if the snapshot hasn't caught up the picker won't yet show "Already shared" and the retry uses a fresh `plcQuizId`, which can produce two PLC headers pointing at one synced group. Documented inline in `handleShareFromPicker` and tagged with a distinctive `logError` code so ops can find orphans. Full rollback would require a `detachSyncLinkage` API that doesn't exist yet — extracting one is the obvious next step.
+
+---
+
+**Last updated:** 2026-05-12 (fully-fledged PR — Phase 4 + Phase 6 shipped together with the `activeAssignments` tile bug fix and the rich-tile read-side polish; Phase 7/8 added as proposed extensions)

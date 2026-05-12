@@ -32,6 +32,17 @@ const mockFirestoreState = {
   users: [] as MockDocInput[],
   dashboards: [] as MockDocInput[],
   aiUsage: [] as MockDocInput[],
+  // Map of path → doc data for `db.doc(path).get()` mocks. Used by the
+  // adminAnalytics snapshot read tests (path:
+  // `organizations/{orgId}/analytics/snapshot`) and any future test that
+  // needs a deterministic doc fetch. Unset paths return `{ exists: false }`
+  // via the default `mockFirestore.doc` fallback.
+  docs: new Map<string, Record<string, unknown>>(),
+  // Org records for the scheduled `recomputeAdminAnalytics` job. Each entry
+  // is treated as a doc under `/organizations/{id}` with the given `status`.
+  // The scheduler iterates this collection and only recomputes for orgs
+  // with status in {active, trial}.
+  organizations: [] as { id: string; status: string }[],
 };
 
 const toDocSnapshot = (doc: MockDocInput) => ({
@@ -58,10 +69,67 @@ interface MockDocRef {
   path: string;
 }
 
+// Hoisted so cache tests can assert exact call counts across multiple
+// invocations within a single test. Without this every `collection('admins')`
+// call would build a fresh `vi.fn` and the count would always reset.
+const adminDocGet = vi.fn((id: string) =>
+  Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
+);
+
+// Hoisted for the same reason — the `gemini-functions` config read is the
+// other target of the `generateWithAI` cache and needs a stable mock.
+const geminiConfigDocGet = vi.fn(() =>
+  Promise.resolve({
+    exists: false,
+    data: () => undefined as Record<string, unknown> | undefined,
+  })
+);
+
+// Storage mocks for archiveActivityWallPhoto size-guard tests. Each
+// stub is independently resettable so tests can install different
+// metadata responses without rebuilding the whole storage tree.
+const storageFileGetMetadata = vi.fn(() =>
+  Promise.resolve([{ size: '0', contentType: 'image/jpeg' }])
+);
+const storageFileDownload = vi.fn(() => Promise.resolve([Buffer.from('test')]));
+const storageFileDelete = vi.fn(() => Promise.resolve());
+const mockStorageBucket = {
+  file: vi.fn(() => ({
+    getMetadata: storageFileGetMetadata,
+    download: storageFileDownload,
+    delete: storageFileDelete,
+  })),
+};
+
+// Submission ref mocks for archiveActivityWallPhoto. The handler chains
+// `db.collection('activity_wall_sessions').doc(...).collection('submissions').doc(...)`
+// then calls `.set()` and `.get()` on the leaf.
+const submissionRefGet = vi.fn(() =>
+  Promise.resolve({
+    exists: true,
+    data: () => ({ storagePath: 'activity-wall/test.jpg' }),
+  })
+);
+const submissionRefSet = vi.fn(() => Promise.resolve());
+const submissionDoc = {
+  get: submissionRefGet,
+  set: submissionRefSet,
+};
+
 const mockFirestore = {
   doc: vi.fn((path: string) => ({
     path,
-    get: vi.fn(() => Promise.resolve({ exists: false })),
+    get: vi.fn(() => {
+      const stashed = mockFirestoreState.docs.get(path);
+      if (stashed) {
+        return Promise.resolve({ exists: true, data: () => stashed });
+      }
+      return Promise.resolve({ exists: false });
+    }),
+    set: vi.fn((data: Record<string, unknown>) => {
+      mockFirestoreState.docs.set(path, data);
+      return Promise.resolve();
+    }),
   })),
   getAll: vi.fn((...refs: MockDocRef[]) => {
     return Promise.resolve(
@@ -71,11 +139,30 @@ const mockFirestore = {
   collection: vi.fn((name: string) => {
     if (name === 'admins') {
       return {
-        doc: vi.fn((id: string) => ({
-          get: vi.fn(() =>
-            Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
-          ),
-        })),
+        doc: (id: string) => ({
+          get: () => adminDocGet(id),
+        }),
+      };
+    }
+
+    if (name === 'global_permissions') {
+      return {
+        doc: (id: string) => ({
+          get: () =>
+            id === 'gemini-functions'
+              ? geminiConfigDocGet()
+              : Promise.resolve({ exists: false }),
+        }),
+      };
+    }
+
+    if (name === 'activity_wall_sessions') {
+      return {
+        doc: () => ({
+          collection: () => ({
+            doc: () => submissionDoc,
+          }),
+        }),
       };
     }
 
@@ -137,6 +224,21 @@ const mockFirestore = {
       };
     }
 
+    // Top-level `organizations` collection — used by the scheduled
+    // `recomputeAdminAnalytics` job to iterate every non-archived org.
+    if (name === 'organizations') {
+      return {
+        get: vi.fn(() =>
+          Promise.resolve({
+            docs: mockFirestoreState.organizations.map((o) => ({
+              id: o.id,
+              data: () => ({ status: o.status }),
+            })),
+          })
+        ),
+      };
+    }
+
     return {
       select: vi.fn(() => ({
         stream: vi.fn(() => toAsyncStream([])),
@@ -168,6 +270,12 @@ vi.mock('firebase-admin', () => {
     FieldPath: {
       documentId: vi.fn(() => '__name__'),
     },
+    // Sentinels — we don't assert their payload values, but the code
+    // under test references them so they must exist.
+    FieldValue: {
+      delete: vi.fn(() => '__FV_DELETE__'),
+      serverTimestamp: vi.fn(() => '__FV_SERVER_TIMESTAMP__'),
+    },
   });
 
   const apps: unknown[] = [];
@@ -177,6 +285,9 @@ vi.mock('firebase-admin', () => {
       if (apps.length === 0) apps.push({ name: '[DEFAULT]' });
     }),
     firestore: firestoreFn,
+    storage: vi.fn(() => ({
+      bucket: vi.fn(() => mockStorageBucket),
+    })),
     auth: vi.fn(() => ({
       verifyIdToken: vi.fn().mockResolvedValue({ email: 'admin@school.org' }),
       listUsers: vi.fn().mockImplementation(() => {
@@ -245,6 +356,13 @@ vi.mock('firebase-functions/v2', () => ({
   setGlobalOptions: vi.fn(),
 }));
 
+// Mock firebase-functions/v2/scheduler — `onSchedule` returns the handler
+// directly so tests can invoke the recompute job by calling
+// `recomputeAdminAnalytics()` like a plain async function.
+vi.mock('firebase-functions/v2/scheduler', () => ({
+  onSchedule: (_options: unknown, handler: () => Promise<void>) => handler,
+}));
+
 // Mock firebase-functions/params (defineSecret)
 vi.mock('firebase-functions/params', () => ({
   defineSecret: (name: string) => ({
@@ -262,7 +380,18 @@ import {
   checkUrlCompatibility,
   adminAnalytics,
   getPseudonymsForAssignmentV1,
+  archiveActivityWallPhoto,
+  __getCachedAdminStatus,
+  __getGeminiModelConfig,
+  __resetGenerateWithAICaches,
 } from './index';
+import * as admin from 'firebase-admin';
+import { computeAnalyticsForOrg } from './adminAnalyticsCompute';
+import {
+  SNAPSHOT_SCHEMA_VERSION,
+  recomputeAdminAnalytics,
+  type AnalyticsSnapshotDoc,
+} from './adminAnalyticsSnapshot';
 
 describe('fetchExternalProxy', () => {
   beforeEach(() => {
@@ -324,7 +453,8 @@ describe('fetchExternalProxy', () => {
     );
 
     expect(mockGet).toHaveBeenCalledWith(
-      'https://api.openweathermap.org/data/2.5/weather?q=London'
+      'https://api.openweathermap.org/data/2.5/weather?q=London',
+      expect.any(Object)
     );
     expect(result).toEqual({ temp: 72 });
   });
@@ -345,7 +475,8 @@ describe('fetchExternalProxy', () => {
     );
 
     expect(mockGet).toHaveBeenCalledWith(
-      'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx?si=BLLST'
+      'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx?si=BLLST',
+      expect.any(Object)
     );
     expect(result).toEqual({ o: { t: 72, ic: 0 } });
   });
@@ -364,6 +495,72 @@ describe('fetchExternalProxy', () => {
         { auth: { uid: '123' } }
       )
     ).rejects.toThrow('Network error');
+  });
+
+  it('passes a 1 MB response-size cap to axios', async () => {
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: {} });
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await handler(
+      { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+      { auth: { uid: '123' } }
+    );
+
+    expect(mockGet).toHaveBeenCalledWith(
+      'https://api.openweathermap.org/data/2.5/weather?q=London',
+      expect.objectContaining({
+        maxContentLength: 1_048_576,
+        maxBodyLength: 1_048_576,
+      })
+    );
+  });
+
+  it('disables axios redirects so the allowlist stays load-bearing under 3xx', async () => {
+    // SSRF guard: the allowlist check only validates the initial URL.
+    // If axios followed redirects, an allowlisted host could 302 to an
+    // arbitrary off-allowlist host and the proxy would happily fetch it.
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: {} });
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await handler(
+      { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+      { auth: { uid: '123' } }
+    );
+
+    expect(mockGet).toHaveBeenCalledWith(
+      'https://api.openweathermap.org/data/2.5/weather?q=London',
+      expect.objectContaining({ maxRedirects: 0 })
+    );
+  });
+
+  it('translates an axios maxContentLength error into a resource-exhausted HttpsError', async () => {
+    const mockGet = vi.mocked(axios.get);
+    // Axios's actual message format when the limit is exceeded. `vi.mock('axios')`
+    // auto-mocks `isAxiosError` to a fn that returns undefined; force it to
+    // return true so the size-limit branch is reached.
+    vi.mocked(axios.isAxiosError).mockReturnValueOnce(true);
+    mockGet.mockRejectedValue(
+      new Error('maxContentLength size of 1048576 exceeded')
+    );
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(
+      handler(
+        { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+        { auth: { uid: '123' } }
+      )
+    ).rejects.toThrow(/exceeded the .* KB proxy limit/);
   });
 });
 
@@ -497,6 +694,7 @@ describe('adminAnalytics', () => {
     mockFirestoreState.users = [];
     mockFirestoreState.dashboards = [];
     mockFirestoreState.aiUsage = [];
+    mockFirestoreState.docs = new Map();
   });
 
   it('aggregates users by domain and building, including no-building users', async () => {
@@ -546,32 +744,7 @@ describe('adminAnalytics', () => {
       { id: 'uid2_smart-poll_2026-03-30', data: { count: 99 } },
     ];
 
-    const handler = adminAnalytics;
-
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
-    const resPromise = new Promise<any>((resolve) => {
-      const mockRes = {
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn().mockImplementation((data) => {
-          resolve(data);
-          return data;
-        }),
-        setHeader: vi.fn().mockReturnThis(),
-        getHeader: vi.fn().mockReturnValue(''),
-      };
-
-      const mockReq = {
-        headers: {
-          origin: 'http://localhost',
-          authorization: 'Bearer mock-token',
-        },
-        body: { orgId: 'orono' },
-      };
-
-      (handler as any)(mockReq, mockRes);
-    });
-
-    const capturedData = await resPromise;
+    const capturedData = await computeAnalyticsForOrg('orono');
 
     expect(capturedData.users.total).toBe(3);
     expect(capturedData.users.monthly).toBe(2);
@@ -597,7 +770,6 @@ describe('adminAnalytics', () => {
       daily: 0,
     });
     expect(capturedData.api.totalCalls).toBe(10);
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
   it('returns topUsers with resolved email and unknown fallback', async () => {
@@ -624,32 +796,7 @@ describe('adminAnalytics', () => {
       { id: 'uid_b_2026-03-30', data: { count: 3 } },
     ];
 
-    const handler = adminAnalytics;
-
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
-    const resPromise = new Promise<any>((resolve) => {
-      const mockRes = {
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn().mockImplementation((data) => {
-          resolve(data);
-          return data;
-        }),
-        setHeader: vi.fn().mockReturnThis(),
-        getHeader: vi.fn().mockReturnValue(''),
-      };
-
-      const mockReq = {
-        headers: {
-          origin: 'http://localhost',
-          authorization: 'Bearer mock-token',
-        },
-        body: { orgId: 'orono' },
-      };
-
-      (handler as any)(mockReq, mockRes);
-    });
-
-    const capturedData = await resPromise;
+    const capturedData = await computeAnalyticsForOrg('orono');
 
     expect(capturedData.api.topUsers[0]).toEqual({
       uid: 'uid_a',
@@ -661,7 +808,6 @@ describe('adminAnalytics', () => {
       count: 3,
       email: 'Unknown (uid_b)',
     });
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
   it('returns usersByType with correct count and resolved emails', async () => {
@@ -712,28 +858,7 @@ describe('adminAnalytics', () => {
       },
     ];
 
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
-    const resPromise = new Promise<any>((resolve) => {
-      const mockRes = {
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn().mockImplementation((data) => {
-          resolve(data);
-          return data;
-        }),
-        setHeader: vi.fn().mockReturnThis(),
-        getHeader: vi.fn().mockReturnValue(''),
-      };
-      const mockReq = {
-        headers: {
-          origin: 'http://localhost',
-          authorization: 'Bearer mock-token',
-        },
-        body: { orgId: 'orono' },
-      };
-      (adminAnalytics as any)(mockReq, mockRes);
-    });
-
-    const capturedData = await resPromise;
+    const capturedData = await computeAnalyticsForOrg('orono');
 
     // clock: 2 distinct users (alice counted once despite 2 dashboards)
     expect(capturedData.widgets.usersByType.clock.count).toBe(2);
@@ -750,7 +875,6 @@ describe('adminAnalytics', () => {
     expect(capturedData.widgets.usersByType.timer.emails).toEqual([
       'alice@district.org',
     ]);
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
   it('caps usersByType emails at 20 and reports accurate count up to 100', async () => {
@@ -770,34 +894,12 @@ describe('adminAnalytics', () => {
       data: { updatedAt: Date.now(), widgets: [{ type: 'clock' }] },
     }));
 
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
-    const resPromise = new Promise<any>((resolve) => {
-      const mockRes = {
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn().mockImplementation((data) => {
-          resolve(data);
-          return data;
-        }),
-        setHeader: vi.fn().mockReturnThis(),
-        getHeader: vi.fn().mockReturnValue(''),
-      };
-      const mockReq = {
-        headers: {
-          origin: 'http://localhost',
-          authorization: 'Bearer mock-token',
-        },
-        body: { orgId: 'orono' },
-      };
-      (adminAnalytics as any)(mockReq, mockRes);
-    });
-
-    const capturedData = await resPromise;
+    const capturedData = await computeAnalyticsForOrg('orono');
 
     // All 25 distinct users tracked (well within the 100-cap)
     expect(capturedData.widgets.usersByType.clock.count).toBe(25);
     // Emails preview capped at 20
     expect(capturedData.widgets.usersByType.clock.emails).toHaveLength(20);
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
   });
 
   it('excludes anonymous auth users from all analytics metrics', async () => {
@@ -853,28 +955,7 @@ describe('adminAnalytics', () => {
       { id: 'uid_anon1_2026-03-30', data: { count: 10 } },
     ];
 
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
-    const resPromise = new Promise<any>((resolve) => {
-      const mockRes = {
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn().mockImplementation((data) => {
-          resolve(data);
-          return data;
-        }),
-        setHeader: vi.fn().mockReturnThis(),
-        getHeader: vi.fn().mockReturnValue(''),
-      };
-      const mockReq = {
-        headers: {
-          origin: 'http://localhost',
-          authorization: 'Bearer mock-token',
-        },
-        body: { orgId: 'orono' },
-      };
-      (adminAnalytics as any)(mockReq, mockRes);
-    });
-
-    const capturedData = await resPromise;
+    const capturedData = await computeAnalyticsForOrg('orono');
 
     // Only the teacher should be counted — anonymous users excluded
     expect(capturedData.users.total).toBe(1);
@@ -896,7 +977,6 @@ describe('adminAnalytics', () => {
 
     // Only teacher's AI usage counted
     expect(capturedData.api.totalCalls).toBe(5);
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
   });
 
   it('excludes signed-in auth users who are not members of the requested org', async () => {
@@ -977,28 +1057,7 @@ describe('adminAnalytics', () => {
       { id: 'uid_uninvited_same_domain_2026-03-30', data: { count: 42 } },
     ];
 
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
-    const resPromise = new Promise<any>((resolve) => {
-      const mockRes = {
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn().mockImplementation((data) => {
-          resolve(data);
-          return data;
-        }),
-        setHeader: vi.fn().mockReturnThis(),
-        getHeader: vi.fn().mockReturnValue(''),
-      };
-      const mockReq = {
-        headers: {
-          origin: 'http://localhost',
-          authorization: 'Bearer mock-token',
-        },
-        body: { orgId: 'orono' },
-      };
-      (adminAnalytics as any)(mockReq, mockRes);
-    });
-
-    const capturedData = await resPromise;
+    const capturedData = await computeAnalyticsForOrg('orono');
 
     // Only the invited member counts toward totals.
     expect(capturedData.users.total).toBe(1);
@@ -1034,7 +1093,6 @@ describe('adminAnalytics', () => {
       (u: { email: string }) => u.email === 'uninvited@school.org'
     );
     expect(uninvitedRow).toBeUndefined();
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
   });
 
   it('counts invited-but-never-signed-in members toward totals with zero engagement', async () => {
@@ -1072,28 +1130,7 @@ describe('adminAnalytics', () => {
       },
     ];
 
-    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
-    const resPromise = new Promise<any>((resolve) => {
-      const mockRes = {
-        status: vi.fn().mockReturnThis(),
-        json: vi.fn().mockImplementation((data) => {
-          resolve(data);
-          return data;
-        }),
-        setHeader: vi.fn().mockReturnThis(),
-        getHeader: vi.fn().mockReturnValue(''),
-      };
-      const mockReq = {
-        headers: {
-          origin: 'http://localhost',
-          authorization: 'Bearer mock-token',
-        },
-        body: { orgId: 'orono' },
-      };
-      (adminAnalytics as any)(mockReq, mockRes);
-    });
-
-    const capturedData = await resPromise;
+    const capturedData = await computeAnalyticsForOrg('orono');
 
     // Totals include the invited member.
     expect(capturedData.users.total).toBe(2);
@@ -1117,9 +1154,10 @@ describe('adminAnalytics', () => {
 
     // Per-user drilldown: the invited member is present with zero engagement.
     const invitedRow = capturedData.users.userList.find(
-      (u: { email: string }) => u.email === 'invited@district.org'
+      (u) => u.email === 'invited@district.org'
     );
     expect(invitedRow).toBeDefined();
+    if (!invitedRow) throw new Error('unreachable');
     expect(invitedRow.lastSignInMs).toBe(0);
     expect(invitedRow.lastEditMs).toBe(0);
     expect(invitedRow.hasDashboard).toBe(false);
@@ -1129,7 +1167,6 @@ describe('adminAnalytics', () => {
     // Only the active member owns a dashboard.
     expect(capturedData.users.withDashboards).toBe(1);
     expect(capturedData.dashboards.total).toBe(1);
-    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call */
   });
 
   it('returns 400 when orgId is missing from the request body', async () => {
@@ -1336,6 +1373,311 @@ describe('adminAnalytics', () => {
       collectionSpy.mockRestore();
     }
     /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
+  });
+
+  it('returns 503 when no analytics snapshot exists yet for the org', async () => {
+    // Cold-start contract: a brand-new org has no entry at
+    // `organizations/{orgId}/analytics/snapshot` until the scheduled
+    // `recomputeAdminAnalytics` job has run at least once. The HTTP handler
+    // must return a deterministic 503 with `error: 'not-yet-computed'` so
+    // the UI can show "Analytics ready after the next scheduled refresh"
+    // rather than spinning forever or surfacing a generic error.
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+    const statusSpy = vi.fn().mockReturnThis();
+    const jsonSpy = vi.fn().mockReturnThis();
+    const setHeaderSpy = vi.fn().mockReturnThis();
+    const mockRes = {
+      status: statusSpy,
+      json: jsonSpy,
+      setHeader: setHeaderSpy,
+      getHeader: vi.fn().mockReturnValue(''),
+    };
+
+    const mockReq = {
+      headers: {
+        origin: 'http://localhost',
+        authorization: 'Bearer mock-token',
+      },
+      body: { orgId: 'orono' },
+    };
+
+    await (adminAnalytics as any)(mockReq, mockRes);
+
+    expect(statusSpy).toHaveBeenCalledWith(503);
+    const jsonCall = jsonSpy.mock.calls[0]?.[0] as
+      | { error?: string; message?: string }
+      | undefined;
+    expect(jsonCall?.error).toBe('not-yet-computed');
+    expect(jsonCall?.message ?? '').toMatch(/scheduled refresh/i);
+
+    // Crucially: the snapshot-only hot path must not have hit either of the
+    // unbounded streaming reads that the old inline-compute implementation
+    // did. Verifies the cost-saving invariant — if a regression reintroduces
+    // the streams, this assertion catches it.
+    expect(mockFirestore.collectionGroup).not.toHaveBeenCalled();
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+  });
+
+  it('returns the cached snapshot payload + meta when one exists', async () => {
+    // Seed a snapshot doc at the canonical path. The hot path should read
+    // this verbatim and round-trip the payload to the caller alongside the
+    // freshness metadata the UI badge consumes.
+    const computedAt = Date.now() - 60 * 60 * 1000; // 1 hour ago
+    const nextRecomputeAt = computedAt + 24 * 60 * 60 * 1000;
+    const seedSnapshot: AnalyticsSnapshotDoc = {
+      schemaVersion: SNAPSHOT_SCHEMA_VERSION,
+      computedAt,
+      nextRecomputeAt,
+      computeDurationMs: 42_000,
+      payload: {
+        users: {
+          total: 7,
+          registered: 7,
+          registeredIsFallback: false,
+          monthly: 5,
+          daily: 2,
+          withDashboards: 6,
+          domains: { 'district.org': { total: 7, monthly: 5, daily: 2 } },
+          buildings: { north: { total: 7, monthly: 5, daily: 2 } },
+          domainBuilding: {},
+          userList: [],
+        },
+        widgets: { totalInstances: {}, activeInstances: {}, usersByType: {} },
+        dashboards: { total: 6, avgWidgetsPerDashboard: 3.5 },
+        api: {
+          totalCalls: 123,
+          activeUsers: 4,
+          topUsers: [],
+          avgDailyCalls: 41,
+          avgDailyCallsPerUser: 10.25,
+          byFeature: {},
+        },
+      },
+    };
+    mockFirestoreState.docs.set(
+      'organizations/orono/analytics/snapshot',
+      seedSnapshot as unknown as Record<string, unknown>
+    );
+
+    /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+    let captured: unknown;
+    const statusSpy = vi.fn().mockReturnThis();
+    const jsonSpy = vi.fn().mockImplementation((data: unknown) => {
+      captured = data;
+      return data;
+    });
+    const mockRes = {
+      status: statusSpy,
+      json: jsonSpy,
+      setHeader: vi.fn().mockReturnThis(),
+      getHeader: vi.fn().mockReturnValue(''),
+    };
+
+    const mockReq = {
+      headers: {
+        origin: 'http://localhost',
+        authorization: 'Bearer mock-token',
+      },
+      body: { orgId: 'orono' },
+    };
+
+    await (adminAnalytics as any)(mockReq, mockRes);
+    /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call */
+
+    // 200 (no explicit status call — Express defaults to 200 when only
+    // `res.json` is invoked).
+    expect(statusSpy).not.toHaveBeenCalledWith(503);
+    expect(statusSpy).not.toHaveBeenCalledWith(500);
+
+    const body = captured as {
+      users?: { total?: number };
+      dashboards?: { total?: number };
+      meta?: { computedAt?: number; nextRecomputeAt?: number };
+    };
+    expect(body.users?.total).toBe(7);
+    expect(body.dashboards?.total).toBe(6);
+    expect(body.meta?.computedAt).toBe(computedAt);
+    expect(body.meta?.nextRecomputeAt).toBe(nextRecomputeAt);
+
+    // No streaming reads on the cached path.
+    expect(mockFirestore.collectionGroup).not.toHaveBeenCalled();
+  });
+});
+
+describe('recomputeAdminAnalytics (scheduled)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    mockFirestoreState.users = [];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [];
+    mockFirestoreState.docs = new Map();
+    mockFirestoreState.organizations = [];
+  });
+
+  it('writes a snapshot doc only for orgs with status active or trial; skips archived', async () => {
+    // Mix of statuses across three orgs. The scheduler must recompute for
+    // the active + trial ones and explicitly skip the archived org so a
+    // legacy/deactivated tenant doesn't waste compute on every run.
+    mockFirestoreState.organizations = [
+      { id: 'orono', status: 'active' },
+      { id: 'demo-school', status: 'trial' },
+      { id: 'legacy-school', status: 'archived' },
+    ];
+
+    // Seed a single member so `computeAnalyticsForOrg` has a roster to iterate.
+    // Reused across orgs since `mockFirestoreState.users` is global to the
+    // mock; the per-org `members` collection lookup returns the same list,
+    // which is fine for the org-filtering assertion this test is about.
+    mockFirestoreState.users = [
+      {
+        id: 'uid-1',
+        data: {
+          email: 'teacher@orono.k12.mn.us',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+
+    // The test mock for `firebase-functions/v2/scheduler` returns the inner
+    // handler directly, so the type-system view (a `ScheduleFunction` taking
+    // event + context) doesn't match the actual runtime shape (a thunk).
+    // Cast to a no-arg async function for the call.
+    await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+    // The two active/trial orgs each got a snapshot written; the archived
+    // org did not. Verifies the `ACTIVE_ORG_STATUSES` filter at the top of
+    // the scheduler — a regression that recomputes archived orgs would
+    // immediately get caught here.
+    expect(
+      mockFirestoreState.docs.get('organizations/orono/analytics/snapshot')
+    ).toBeDefined();
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/demo-school/analytics/snapshot'
+      )
+    ).toBeDefined();
+    expect(
+      mockFirestoreState.docs.get(
+        'organizations/legacy-school/analytics/snapshot'
+      )
+    ).toBeUndefined();
+
+    // Snapshot shape: schemaVersion + computedAt + nextRecomputeAt (24h
+    // delta) + payload. Lock in the contract the reader at
+    // `readAnalyticsSnapshot` enforces.
+    const written = mockFirestoreState.docs.get(
+      'organizations/orono/analytics/snapshot'
+    ) as unknown as AnalyticsSnapshotDoc;
+    expect(written.schemaVersion).toBe(SNAPSHOT_SCHEMA_VERSION);
+    expect(typeof written.computedAt).toBe('number');
+    expect(written.nextRecomputeAt).toBe(
+      written.computedAt + 24 * 60 * 60 * 1000
+    );
+    expect(written.payload.users.total).toBe(1);
+  });
+
+  it('survives a per-org compute failure and continues to the next org', async () => {
+    // Pin the failure: the first org's member-roster read rejects, while
+    // the second org's read succeeds. The scheduler must log the failure,
+    // skip writing a snapshot for the failing org, and still complete the
+    // recompute for the healthy one. Without this resilience, a single
+    // misconfigured org would starve every other tenant of fresh analytics.
+    mockFirestoreState.organizations = [
+      { id: 'broken-org', status: 'active' },
+      { id: 'healthy-org', status: 'active' },
+    ];
+    mockFirestoreState.users = [
+      {
+        id: 'uid-2',
+        data: {
+          email: 'teacher@healthy.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+
+    // Force the first call to `collection('organizations/broken-org/members')`
+    // to reject. Subsequent calls (healthy-org) use the normal mock path.
+    //
+    // Direct property replacement rather than `vi.spyOn` because spying on a
+    // property that's already a `vi.fn()` collapses identities — the captured
+    // "original" reference ends up being the spy itself, and a delegating
+    // impl that calls `original(name)` infinite-loops. Swapping the property
+    // with a fresh wrapper and calling the saved original breaks the cycle.
+    const originalCollection = mockFirestore.collection;
+    const wrappedCollection = vi.fn((name: string) => {
+      if (name === 'organizations/broken-org/members') {
+        return {
+          get: vi.fn(() =>
+            Promise.reject(new Error('synthetic failure: roster read'))
+          ),
+        } as unknown as ReturnType<typeof originalCollection>;
+      }
+      return originalCollection(name);
+    });
+    mockFirestore.collection =
+      wrappedCollection as unknown as typeof originalCollection;
+
+    try {
+      // The test mock for `firebase-functions/v2/scheduler` returns the inner
+      // handler directly, so the type-system view (a `ScheduleFunction` taking
+      // event + context) doesn't match the actual runtime shape (a thunk).
+      // Cast to a no-arg async function for the call.
+      await (recomputeAdminAnalytics as unknown as () => Promise<void>)();
+
+      expect(
+        mockFirestoreState.docs.get(
+          'organizations/broken-org/analytics/snapshot'
+        )
+      ).toBeUndefined();
+      expect(
+        mockFirestoreState.docs.get(
+          'organizations/healthy-org/analytics/snapshot'
+        )
+      ).toBeDefined();
+    } finally {
+      mockFirestore.collection = originalCollection;
+    }
+  });
+
+  it('throws when every active org fails so Cloud Scheduler marks the run failed', async () => {
+    // Mixed-results path is silent so a single misconfigured org doesn't spam
+    // alerts (covered by the test above). But if every active org fails,
+    // there's nothing to log-alert on per-org and the scheduler run looks
+    // healthy by default — the throw is what tells Cloud Scheduler to mark
+    // the run failed so the next-run-failure alarm fires.
+    mockFirestoreState.organizations = [
+      { id: 'broken-org-1', status: 'active' },
+      { id: 'broken-org-2', status: 'active' },
+    ];
+
+    const originalCollection = mockFirestore.collection;
+    const wrappedCollection = vi.fn((name: string) => {
+      if (
+        name === 'organizations/broken-org-1/members' ||
+        name === 'organizations/broken-org-2/members'
+      ) {
+        return {
+          get: vi.fn(() =>
+            Promise.reject(new Error('synthetic failure: roster read'))
+          ),
+        } as unknown as ReturnType<typeof originalCollection>;
+      }
+      return originalCollection(name);
+    });
+    mockFirestore.collection =
+      wrappedCollection as unknown as typeof originalCollection;
+
+    try {
+      await expect(
+        (recomputeAdminAnalytics as unknown as () => Promise<void>)()
+      ).rejects.toThrow(/all 2 org\(s\) failed/);
+    } finally {
+      mockFirestore.collection = originalCollection;
+    }
   });
 });
 
@@ -1747,4 +2089,259 @@ describe('getPseudonymsForAssignmentV1', () => {
   });
 
   /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+});
+
+describe('getClassLinkRosterV1 chunked fan-out', () => {
+  // Without batching, a teacher with N classes triggers N simultaneous HTTP
+  // requests at ClassLink — audit item #5. The chunk size is 15 so peak
+  // in-flight student requests must never exceed 15.
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('caps concurrent student requests at 15 even with 50 classes', async () => {
+    const classes = Array.from({ length: 50 }, (_, i) => ({
+      sourcedId: `class-${i}`,
+      title: `Class ${i}`,
+    }));
+
+    let inFlight = 0;
+    let peakInFlight = 0;
+    let studentCalls = 0;
+
+    vi.mocked(axios.get).mockImplementation((url: string) => {
+      if (url.endsWith('/users')) {
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'teacher-sid' }] },
+        });
+      }
+      if (url.endsWith('/teacher-sid/classes')) {
+        return Promise.resolve({ data: { classes } });
+      }
+      // Student fetches — track concurrency.
+      studentCalls += 1;
+      inFlight += 1;
+      peakInFlight = Math.max(peakInFlight, inFlight);
+      return new Promise((resolve) => {
+        // Defer resolution to the next microtask so multiple in-flight
+        // requests overlap if (and only if) the handler kicks them off
+        // in parallel within a batch.
+        setImmediate(() => {
+          inFlight -= 1;
+          resolve({ data: { users: [] } });
+        });
+      });
+    });
+
+    const { getClassLinkRosterV1: handler } = await import('./index');
+    const result = await (
+      handler as unknown as (
+        req: unknown,
+        ctx: unknown
+      ) => Promise<{ classes: unknown[] }>
+    )(
+      {},
+      {
+        auth: {
+          uid: 'teacher-uid',
+          token: { email: 'teacher@school.org' },
+        },
+      }
+    );
+
+    expect(result.classes).toHaveLength(50);
+    expect(studentCalls).toBe(50);
+    expect(peakInFlight).toBeLessThanOrEqual(15);
+    // 50 classes / 15 chunk size = 4 sequential batches (15 + 15 + 15 + 5).
+    // Peak in-flight should equal the chunk size for the first three.
+    expect(peakInFlight).toBeGreaterThan(1);
+  });
+});
+
+describe('archiveActivityWallPhoto size guard', () => {
+  // The handler buffers the full Storage object into the 512MiB function
+  // instance's memory via `file.download()`. Without a size check before
+  // the download, a misbehaving client could OOM the function. Audit
+  // item #4 — the guard must read metadata first and abort if the file
+  // is over 50 MB.
+  const UID = 'teacher-uid';
+  const SESSION_ID = `${UID}_session1`;
+  const validRequest = {
+    accessToken: 'token',
+    sessionId: SESSION_ID,
+    submissionId: 'sub1',
+    activityId: 'act1',
+    status: 'approved' as const,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    submissionRefGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ storagePath: 'activity-wall/test.jpg' }),
+    });
+    submissionRefSet.mockResolvedValue(undefined);
+  });
+
+  it('rejects photos over 50 MB before calling download()', async () => {
+    storageFileGetMetadata.mockResolvedValueOnce([
+      { size: String(60 * 1024 * 1024), contentType: 'image/jpeg' },
+    ]);
+
+    const handler = archiveActivityWallPhoto as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler(validRequest, { auth: { uid: UID, token: { email: 'a@b.c' } } })
+    ).rejects.toThrow(/50 MB/);
+
+    expect(storageFileGetMetadata).toHaveBeenCalledTimes(1);
+    expect(storageFileDownload).not.toHaveBeenCalled();
+  });
+
+  it('proceeds past the size guard when metadata reports a small file', async () => {
+    storageFileGetMetadata.mockResolvedValueOnce([
+      { size: String(100 * 1024), contentType: 'image/jpeg' },
+    ]);
+    // We want the handler to reach `download()` to prove the guard
+    // doesn't reject small files. Once download is called, the test's
+    // contract is satisfied; we let the rest of the flow fail naturally
+    // (no real Drive client) and assert via the spy.
+    storageFileDownload.mockRejectedValueOnce(new Error('drive client absent'));
+
+    const handler = archiveActivityWallPhoto as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler(validRequest, { auth: { uid: UID, token: { email: 'a@b.c' } } })
+    ).rejects.toThrow();
+
+    expect(storageFileGetMetadata).toHaveBeenCalledTimes(1);
+    expect(storageFileDownload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('generateWithAI read caching', () => {
+  // Cloud Functions 2nd-gen reuses warm instances, so the module-scope
+  // caches in index.ts should turn repeat reads into no-ops within a
+  // single warm instance (audit doc item #3). These tests pin that
+  // contract — without them, a future refactor could silently restore
+  // the per-invocation Firestore reads.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+  });
+
+  it('caches admin status across warm-instance reads (same email = one Firestore read)', async () => {
+    const db = admin.firestore();
+    mockFirestoreState.admins.add('user@school.org');
+
+    const first = await __getCachedAdminStatus(db, 'user@school.org');
+    const second = await __getCachedAdminStatus(db, 'user@school.org');
+
+    expect(first).toBe(true);
+    expect(second).toBe(true);
+    expect(adminDocGet).toHaveBeenCalledTimes(1);
+    expect(adminDocGet).toHaveBeenCalledWith('user@school.org');
+  });
+
+  it('caches by email — different emails each trigger their own read', async () => {
+    const db = admin.firestore();
+    mockFirestoreState.admins.add('admin@school.org');
+
+    await __getCachedAdminStatus(db, 'admin@school.org');
+    await __getCachedAdminStatus(db, 'user@school.org');
+    await __getCachedAdminStatus(db, 'admin@school.org');
+
+    // First call for each email reads; the third call (repeat) is cached.
+    expect(adminDocGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('resetting caches forces a re-read on next call', async () => {
+    const db = admin.firestore();
+    await __getCachedAdminStatus(db, 'user@school.org');
+    __resetGenerateWithAICaches();
+    await __getCachedAdminStatus(db, 'user@school.org');
+
+    expect(adminDocGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('evicts the oldest entry when the admin cache exceeds its bound', async () => {
+    // Pins the size-cap contract — a warm instance that sees many distinct
+    // callers must not grow the Map unboundedly. Insertion order is FIFO,
+    // so after filling beyond the cap and probing the very first email
+    // again, that email must be a cache miss (re-reads Firestore).
+    const db = admin.firestore();
+    // The implementation cap is 500; fill past it with unique emails.
+    // Reading 510 distinct emails forces 10 evictions starting from the
+    // oldest insertions.
+    for (let i = 0; i < 510; i++) {
+      await __getCachedAdminStatus(db, `bulk-${i}@school.org`);
+    }
+    expect(adminDocGet).toHaveBeenCalledTimes(510);
+
+    // The first 10 should have been evicted. A re-probe of bulk-0 must
+    // miss the cache and trigger another Firestore read.
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+
+    // bulk-509 (the most recent) is still cached.
+    await __getCachedAdminStatus(db, 'bulk-509@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+  });
+
+  it('caches gemini-functions model config across warm-instance reads', async () => {
+    const db = admin.firestore();
+    geminiConfigDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        config: {
+          advancedModel: 'gemini-2.5-pro',
+          standardModel: 'gemini-2.5-flash',
+        },
+      }),
+    });
+
+    const first = await __getGeminiModelConfig(db);
+    const second = await __getGeminiModelConfig(db);
+
+    expect(first).toEqual({
+      advancedModel: 'gemini-2.5-pro',
+      standardModel: 'gemini-2.5-flash',
+    });
+    expect(second).toEqual(first);
+    // The second call must NOT hit Firestore.
+    expect(geminiConfigDocGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache the fallback when the gemini-functions read throws', async () => {
+    const db = admin.firestore();
+    // Transient Firestore error — generateWithAI should not pin defaults
+    // for the full TTL after a one-off blip.
+    geminiConfigDocGet.mockRejectedValueOnce(
+      new Error('Firestore unavailable')
+    );
+    geminiConfigDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        config: {
+          advancedModel: 'gemini-2.5-pro',
+          standardModel: 'gemini-2.5-flash',
+        },
+      }),
+    });
+
+    const first = await __getGeminiModelConfig(db);
+    const second = await __getGeminiModelConfig(db);
+
+    // First returns defaults (caught), second retries and succeeds.
+    expect(first.advancedModel).not.toBe('gemini-2.5-pro');
+    expect(second.advancedModel).toBe('gemini-2.5-pro');
+    expect(geminiConfigDocGet).toHaveBeenCalledTimes(2);
+  });
 });

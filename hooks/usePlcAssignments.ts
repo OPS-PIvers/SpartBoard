@@ -16,6 +16,7 @@ import {
   QuizSessionOptions,
 } from '@/types';
 import { logError } from '@/utils/logError';
+import { notifyPlcWriteFailure } from '@/utils/plcWriteNotifications';
 
 const PLCS_COLLECTION = 'plcs';
 const ASSIGNMENTS_SUBCOLLECTION = 'assignments';
@@ -50,6 +51,12 @@ interface ShareAssignmentTemplateInput {
 interface UsePlcAssignmentsResult {
   templates: PlcAssignmentTemplate[];
   loading: boolean;
+  /**
+   * Snapshot subscription error. Non-null means the empty `templates`
+   * array is "couldn't load," not "no items yet" — consumers should
+   * distinguish so the UI doesn't render a misleading empty state.
+   */
+  error: Error | null;
   /**
    * Write a new PLC-authored assignment template. Caller must have first
    * stood up the canonical `synced_quizzes/{syncGroupId}` doc — typically
@@ -129,12 +136,14 @@ export const usePlcAssignments = (
   const { user } = useAuth();
   const [templates, setTemplates] = useState<PlcAssignmentTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const [prevPlcId, setPrevPlcId] = useState(plcId);
   if (plcId !== prevPlcId) {
     setPrevPlcId(plcId);
     setTemplates([]);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -164,10 +173,12 @@ export const usePlcAssignments = (
         });
         setTemplates(list);
         setLoading(false);
+        setError(null);
       },
       (err) => {
         logError('usePlcAssignments.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsub();
@@ -225,10 +236,17 @@ export const usePlcAssignments = (
     () => ({
       templates,
       loading,
+      error,
       shareAssignmentTemplate,
       deleteAssignmentTemplate,
     }),
-    [templates, loading, shareAssignmentTemplate, deleteAssignmentTemplate]
+    [
+      templates,
+      loading,
+      error,
+      shareAssignmentTemplate,
+      deleteAssignmentTemplate,
+    ]
   );
 };
 
@@ -238,7 +256,8 @@ export const usePlcAssignments = (
  * site isn't subscribed to that PLC's `usePlcAssignments`. Mirrors the
  * `writePlcQuizEntry` shape (Phase 2). Failures are non-fatal here too —
  * called fire-and-forget so the canonical assignment commit doesn't get
- * blocked.
+ * blocked — but they dispatch `spartboard:plc-write-failed` so the UI
+ * layer can surface a toast.
  */
 export async function writePlcAssignmentTemplate(
   plcId: string,
@@ -276,5 +295,6 @@ export async function writePlcAssignmentTemplate(
       plcId,
       plcAssignmentId: input.plcAssignmentId,
     });
+    notifyPlcWriteFailure({ scope: 'assignmentTemplate', plcId });
   }
 }

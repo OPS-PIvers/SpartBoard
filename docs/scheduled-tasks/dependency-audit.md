@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-05_
-_Last action: 2026-04-30_
+_Last audited: 2026-05-12_
+_Last action: 2026-05-12_
 
 ---
 
@@ -16,6 +16,16 @@ _Nothing currently in progress._
 
 ## Open
 
+### MEDIUM `hono@4.12.15` has two MODERATE CVEs — patched in >=4.12.18
+
+- **Detected:** 2026-05-12
+- **File:** package.json (devDependency + pnpm.overrides)
+- **Detail:** Two new moderate CVEs affect `hono` >=4.12.15 <4.12.18 that were not present when hono was upgraded to 4.12.15 (2026-04-28 completed item):
+  - **GHSA-qp7p-654g-cw7p** (moderate): CSS Declaration Injection via Style Object Values in JSX SSR — unsafe CSS values can leak from attacker-controlled object properties when using `hono/jsx` SSR with style objects.
+  - **GHSA-p77w-8qqv-26rm** (moderate): Cache Middleware ignores `Vary: Authorization` / `Vary: Cookie` headers, leading to cross-user cache leakage — a cached response for one user can be served to a different user if cache keys don't account for auth headers.
+    `pnpm outdated` confirms current is 4.12.15, latest is 4.12.18. The `pnpm.overrides.hono` entry is what pins this across the dep graph.
+- **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` from `^4.12.14` → `^4.12.18`, then run `pnpm install`. Verify `pnpm audit` no longer reports hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
+
 ### MEDIUM `axios@1.15.0` still has two MODERATE CVEs — patched in >=1.15.1
 
 - **Detected:** 2026-05-05
@@ -25,13 +35,6 @@ _Nothing currently in progress._
   - **GHSA-xx6v-rp6x-q39c** (moderate): XSRF Token Cross-Origin Leakage via Prototype Pollution gadget in `withXSRFToken` Boolean coercion. Patched in `>=1.15.1`.
     The previous upgrade to `1.15.0` (2026-04-14 completed item) patched the three CRITICAL CVEs. These two MODERATE CVEs are distinct advisories with `>=1.15.1` patch requirement. `pnpm outdated` shows latest is `1.16.0`.
 - **Fix:** `pnpm up axios@^1.16.0` in root and `pnpm -C functions up axios@^1.16.0` in functions/. Both advisories are patched in `>=1.15.1`; upgrading to `1.16.0` (latest) addresses both. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
-
-### HIGH `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path — unresolved
-
-- **Detected:** 2026-05-05
-- **File:** package.json (via `firebase-functions@7.0.5 > protobufjs`), functions/package.json (same path)
-- **Detail:** `pnpm audit` shows a CRITICAL advisory for `protobufjs <7.5.5` (GHSA-xq3m-2v4x-88gg — arbitrary code execution) with path `.>firebase-functions>protobufjs` in both root and functions/ audits. The 2026-04-30 completed item fixed the `@google/genai > protobufjs` path (now resolved to `protobufjs@7.5.6`), but explicitly noted: "A separate `protobufjs@7.5.4` resolution still exists via `firebase-functions@7.0.5` chain (untouched by this fix)." That secondary CRITICAL path was never followed up with an open item. `pnpm outdated` shows `firebase-functions` at `7.0.5`, latest `7.2.5`. The functions/ package shows `firebase-functions@7.2.3` current, latest `7.2.5`.
-- **Fix:** In root: `pnpm up firebase-functions@^7.2.5`. In functions/: `pnpm -C functions up firebase-functions@^7.2.5`. Verify whether `firebase-functions@7.2.x` upgrades its `protobufjs` transitive dep to `>=7.5.5`. If not, add `"protobufjs": ">=7.5.5"` to `pnpm.overrides` in root `package.json`. Verify `pnpm type-check:all`, `pnpm lint`, `pnpm test`, and `pnpm build:all` pass.
 
 ### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
 
@@ -43,8 +46,8 @@ _Nothing currently in progress._
   - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs
   - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption
     All via firebase-tools devDependency chain. These do not affect production runtime.
-    Current: 15.8.0, Latest: 15.16.0 — updating may resolve several transitively. (Updated: Latest moved from 15.15.0 → 15.16.0 as of 2026-05-05.)
-- **Fix:** `pnpm up firebase-tools@^15.16.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
+    Current: 15.8.0, Latest: 15.17.0 — updating may resolve several transitively. (Updated: Latest moved from 15.16.0 → 15.17.0 as of 2026-05-12.)
+- **Fix:** `pnpm up firebase-tools@^15.17.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
 
 ### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
 
@@ -60,8 +63,8 @@ _Nothing currently in progress._
     - **HIGH** signature forgery in Ed25519 (<1.4.0)
     - **HIGH** DoS via Infinite Loop (<1.4.0)
     - **HIGH** RSA-PKCS signature forgery (<1.4.0)
-      Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest 13.8.0.
-- **Fix:** Update `firebase` in root to latest (12.12.0) and `firebase-admin` in functions/ to 13.8.0. Check if newer versions pin fixed transitive versions. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
+      Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest 13.9.0. `firebase` root: 12.8.0, latest 12.13.0. (Updated: firebase-admin latest moved from 13.8.0 → 13.9.0; firebase latest moved from 12.12.0 → 12.13.0 as of 2026-05-12.)
+- **Fix:** Update `firebase` in root to latest (12.13.0) and `firebase-admin` in functions/ to 13.9.0. Check if newer versions pin fixed transitive versions. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
 
 ### MEDIUM `@modelcontextprotocol/sdk` cross-client data leak (still resolves to 1.25.2 after `@google/genai` upgrade)
 
@@ -93,27 +96,37 @@ _Nothing currently in progress._
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-05-05
+- **Updated:** 2026-05-12
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
-  - `tailwindcss`: 3.4.19 → **4.2.4** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.0.10** (2 majors ahead; focus on patching within v6 first)
+  - `tailwindcss`: 3.4.19 → **4.3.0** (major — config format changed completely)
+  - `vite`: 6.4.2 → **8.0.12** (2 majors ahead; focus on patching within v6 first)
   - `eslint`: 9.39.2 → **10.3.0** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
   - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes)
-  - `i18next`: 25.8.13 → **26.0.8** (major — API changes)
-  - `react-i18next`: 16.5.4 → **17.0.6** (paired with i18next)
+  - `i18next`: 25.8.13 → **26.1.0** (major — API changes)
+  - `react-i18next`: 16.5.4 → **17.0.7** (paired with i18next)
   - `lucide-react`: 0.563.0 → **1.14.0** (first stable major — icon API changes possible)
   - `@vitejs/plugin-react`: 5.1.2 → **6.0.1** (major)
-  - `@types/node`: 24.12.2 → **25.6.0** (major — verify Node 24 compat)
+  - `@types/node`: 24.12.2 → **25.7.0** (major — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only)
-    Also notable minor updates: `react`/`react-dom` 19.2.4 → 19.2.5, `firebase-tools` 15.8.0 → 15.16.0, `firebase` 12.8.0 → 12.12.1, `firebase-admin` 13.6.0 → 13.8.0.
+  - `lint-staged`: 16.2.7 → **17.0.4** (major — check husky integration compatibility)
+  - `@google/genai`: 1.51.0 → **2.0.1** (major — AI API surface may have breaking changes; test all generation flows after upgrade)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.6, `firebase-tools` 15.8.0 → 15.17.0, `firebase` 12.8.0 → 12.13.0, `firebase-admin` 13.6.0 → 13.9.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.59.3, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.6.
     These should not be done in a single commit — each needs its own migration PR with testing.
-- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix.
+- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.).
 
 ---
 
 ## Completed
+
+### HIGH `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path
+
+- **Detected:** 2026-05-05
+- **Completed:** 2026-05-12
+- **File:** package.json (devDependency `firebase-functions` + `pnpm.overrides.protobufjs`), functions/package.json (dependency `firebase-functions` + `pnpm.overrides.protobufjs`)
+- **Detail:** GHSA-xq3m-2v4x-88gg (CRITICAL): `protobufjs <7.5.5` allows arbitrary code execution. The 2026-04-30 fix resolved the `@google/genai > protobufjs` path, but a separate `protobufjs@7.5.4` resolution survived via the `firebase-functions@7.0.5 (root) / 7.2.3 (functions) > @google-cloud/firestore / @grpc/proto-loader > protobufjs` chains. Both root and functions/ `pnpm audit` reported the advisory.
+- **Resolution:** Upgraded `firebase-functions` from `^7.0.5` → `^7.2.5` in root (devDependency) and from `^7.2.3` → `^7.2.5` in functions/ (dependency). Because `firebase-functions@7.2.5` declares `protobufjs: ^7.2.2` (a broad range that still permits the vulnerable 7.5.4), added a `pnpm.overrides` entry `"protobufjs": "^7.5.6"` to both root `package.json` and functions/ `package.json` to pin all transitive resolutions. After `pnpm install` + `pnpm -C functions install`, `pnpm why protobufjs` now reports a single `protobufjs@7.5.6` in both workspaces (`Found 1 version of protobufjs`). `pnpm audit --json` filtered for protobufjs returns empty in both root and functions/. Verified clean: `pnpm type-check` (root + functions) 0 errors; `pnpm lint --max-warnings 0` 0 errors/warnings; `pnpm format:check` clean; `pnpm test` 2301/2301 across 221 files; `pnpm -C functions test` 209/209 across 11 files; `pnpm build` (~43s) and `pnpm -C functions build` both succeed.
 
 ### HIGH `protobufjs <7.5.5` — CRITICAL arbitrary code execution via `@google/genai`
 

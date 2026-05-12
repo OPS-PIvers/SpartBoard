@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
+import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
 
 // Phase 4 — organization invitations + membership write-through.
 // These modules initialize their own `admin.initializeApp()` guarded by
@@ -33,6 +34,8 @@ export {
 } from './syncedVideoActivityGroups';
 export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
+export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
+export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 
 setGlobalOptions({ region: 'us-central1' });
 
@@ -117,41 +120,165 @@ function normalizeModelName(raw: unknown): string | undefined {
   return trimmed;
 }
 
+/**
+ * Splits an array into fixed-size chunks (last chunk may be short).
+ * Used to bound fan-out parallelism — both for Firestore `in` queries
+ * (10-item limit per query) and for external HTTP fan-outs (ClassLink,
+ * etc.) where unbounded `Promise.all` can OOM the function instance or
+ * hammer the upstream API.
+ */
+function chunk<T>(arr: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 interface GeminiModelConfig {
   advancedModel?: string;
   standardModel?: string;
 }
 
+// Module-scope read caches for `generateWithAI`. Cloud Functions 2nd-gen
+// reuses warm instances, so caching across invocations within a warm
+// instance materially cuts Firestore reads for high-traffic AI features
+// (audit doc, item #3 — was 4–6 reads per call, now 2 transactional reads
+// on warm hits). 5-minute TTL keeps admin demotions and model-config
+// overrides propagating within an acceptable window.
+//
+// NOT cached: `ai_usage/*` counter reads and the in-transaction
+// `global_permissions/*` reads. Those gate rate-limit enforcement and
+// must be transactional to prevent races.
+const READ_CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface ModelConfigCacheEntry {
+  value: { advancedModel: string; standardModel: string };
+  cachedAt: number;
+}
+let cachedModelConfig: ModelConfigCacheEntry | null = null;
+
+interface AdminStatusCacheEntry {
+  isAdmin: boolean;
+  cachedAt: number;
+}
+const cachedAdminStatus = new Map<string, AdminStatusCacheEntry>();
+
+// Bound on `cachedAdminStatus` size. A warm Cloud Functions instance that
+// sees many distinct callers across its lifetime would otherwise grow this
+// Map unboundedly. At school-district scale this is firmly in "won't
+// matter" territory (low thousands of admins org-wide), but a hard cap
+// closes the long-tail memory growth path that two independent reviewers
+// flagged on PR #1590. JS Maps preserve insertion order, so deleting the
+// first key is FIFO eviction — close enough to LRU for a small, mostly
+// read-hot cache.
+const ADMIN_STATUS_CACHE_MAX = 500;
+
+/**
+ * Test-only: reset the module-scope read caches so tests can observe a
+ * cold-start read sequence. Underscored prefix makes it obvious this is
+ * not a production API.
+ */
+export function __resetGenerateWithAICaches(): void {
+  cachedModelConfig = null;
+  cachedAdminStatus.clear();
+}
+
 /**
  * Reads the admin-configured model overrides from the `gemini-functions`
  * global permissions document. Returns validated model names (or defaults).
+ * Memoized with a 5-minute TTL — see `READ_CACHE_TTL_MS` above.
  */
 async function getGeminiModelConfig(
   db: admin.firestore.Firestore
 ): Promise<{ advancedModel: string; standardModel: string }> {
+  const now = Date.now();
+  if (
+    cachedModelConfig &&
+    now - cachedModelConfig.cachedAt < READ_CACHE_TTL_MS
+  ) {
+    return cachedModelConfig.value;
+  }
   try {
     const doc = await db
       .collection('global_permissions')
       .doc('gemini-functions')
       .get();
     const cfg = doc.data()?.config as GeminiModelConfig | undefined;
-    return {
+    const value = {
       advancedModel:
         normalizeModelName(cfg?.advancedModel) ?? DEFAULT_ADVANCED_MODEL,
       standardModel:
         normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL,
     };
+    cachedModelConfig = { value, cachedAt: now };
+    return value;
   } catch (error) {
     console.warn(
       'Failed to read Gemini model config from Firestore; using defaults.',
       error
     );
+    // Do not cache the fallback — a transient Firestore error shouldn't
+    // pin the function to defaults for 5 minutes.
     return {
       advancedModel: DEFAULT_ADVANCED_MODEL,
       standardModel: DEFAULT_STANDARD_MODEL,
     };
   }
 }
+
+/**
+ * Memoized admin lookup. The `admins/{email}` doc rarely changes during a
+ * single warm-instance lifetime, so caching for 5 minutes saves one
+ * Firestore read per warm `generateWithAI` call. Key is the lowercased
+ * email (matches the production read).
+ *
+ * Trade-offs: TTL bounds both admin demotion lag (cached `true` survives
+ * a demotion for up to 5 min — they keep elevated quota briefly) and
+ * promotion lag (cached `false` survives a promotion for up to 5 min —
+ * they see old limits briefly). Both are acceptable.
+ *
+ * No try/catch here on purpose. A Firestore failure must throw up to the
+ * caller — caching a wrong answer would either grant non-admins admin
+ * quotas (false positive) or strip admins of their quotas (false
+ * negative), both worse than a temporary 5xx that the client retries.
+ */
+async function getCachedAdminStatus(
+  db: admin.firestore.Firestore,
+  emailLower: string
+): Promise<boolean> {
+  const now = Date.now();
+  const cached = cachedAdminStatus.get(emailLower);
+  if (cached) {
+    if (now - cached.cachedAt < READ_CACHE_TTL_MS) {
+      return cached.isAdmin;
+    }
+    // Prune stale entries so a long-lived warm instance that sees many
+    // unique callers doesn't accumulate dead Map entries.
+    cachedAdminStatus.delete(emailLower);
+  }
+  const doc = await db.collection('admins').doc(emailLower).get();
+  const isAdmin = doc.exists;
+  // Evict the oldest entry if we're at the cap. Map iteration order is
+  // insertion order, so `keys().next().value` gives the oldest key —
+  // FIFO eviction. Sufficient for a cache that's expected to be small
+  // (school district size) and dominated by hot keys.
+  if (cachedAdminStatus.size >= ADMIN_STATUS_CACHE_MAX) {
+    const oldest = cachedAdminStatus.keys().next().value;
+    if (oldest !== undefined) cachedAdminStatus.delete(oldest);
+  }
+  cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
+  return isAdmin;
+}
+
+// Test-only re-exports so the cache contract can be verified without
+// driving through the full `generateWithAI` pipeline (which would require
+// mocking `@google/genai`). The `__` prefix makes the test-only status
+// grep-able.
+export {
+  getCachedAdminStatus as __getCachedAdminStatus,
+  getGeminiModelConfig as __getGeminiModelConfig,
+};
 
 interface ArchiveActivityWallPhotoData {
   accessToken?: string;
@@ -337,6 +464,7 @@ export const getClassLinkRosterV1 = onCall(
       CLASSLINK_TENANT_URL,
     ],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -415,26 +543,45 @@ export const getClassLinkRosterV1 = onCall(
 
       const studentsByClass: Record<string, ClassLinkStudent[]> = {};
 
-      await Promise.all(
-        classes.map(async (cls: ClassLinkClass) => {
-          const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
-          const studentsHeaders = getOAuthHeaders(
-            studentsUrl,
-            {},
-            'GET',
-            clientId,
-            clientSecret
-          );
-          try {
-            const studentsResponse = await axios.get<{
-              users: ClassLinkStudent[];
-            }>(studentsUrl, { headers: { ...studentsHeaders } });
-            studentsByClass[cls.sourcedId] = studentsResponse.data.users ?? [];
-          } catch {
-            studentsByClass[cls.sourcedId] = [];
-          }
-        })
-      );
+      // Chunk the per-class student lookups so a teacher with 100+ classes
+      // doesn't fire 100+ simultaneous HTTP requests at ClassLink. Audit
+      // item #5. Batch size 15 is the mid-point of the audit's 10-20 range.
+      const CLASSLINK_FANOUT_CHUNK = 15;
+      for (const classBatch of chunk(classes, CLASSLINK_FANOUT_CHUNK)) {
+        await Promise.all(
+          classBatch.map(async (cls: ClassLinkClass) => {
+            const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
+            const studentsHeaders = getOAuthHeaders(
+              studentsUrl,
+              {},
+              'GET',
+              clientId,
+              clientSecret
+            );
+            try {
+              const studentsResponse = await axios.get<{
+                users: ClassLinkStudent[];
+              }>(studentsUrl, { headers: { ...studentsHeaders } });
+              studentsByClass[cls.sourcedId] =
+                studentsResponse.data.users ?? [];
+            } catch (err) {
+              // Single-class failures aren't fatal (the teacher's other
+              // classes should still load), but they must be visible —
+              // an empty `[]` here without a log makes ClassLink auth
+              // expiry or per-class permission issues silently look like
+              // "this class has no students" to the teacher.
+              console.warn(
+                '[getClassLinkRosterV1] students fetch failed for class',
+                {
+                  classId: cls.sourcedId,
+                  error: err instanceof Error ? err.message : String(err),
+                }
+              );
+              studentsByClass[cls.sourcedId] = [];
+            }
+          })
+        );
+      }
 
       return {
         classes,
@@ -457,6 +604,7 @@ export const generateWithAI = onCall(
   {
     memory: '512MiB',
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as AIData;
@@ -479,12 +627,8 @@ export const generateWithAI = onCall(
 
     const db = admin.firestore();
 
-    // Check if user is an admin
-    const adminDoc = await db
-      .collection('admins')
-      .doc(email.toLowerCase())
-      .get();
-    const isAdmin = adminDoc.exists;
+    // Check if user is an admin (cached for 5 minutes per warm instance).
+    const isAdmin = await getCachedAdminStatus(db, email.toLowerCase());
 
     // 1. Determine specific feature ID if applicable
     let specificFeatureId: string | null = null;
@@ -1035,8 +1179,9 @@ Output JSON ONLY in this exact shape:
 
 export const fetchExternalProxy = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     timeoutSeconds: 30,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as { url: string };
@@ -1064,11 +1209,43 @@ export const fetchExternalProxy = onCall(
       );
     }
 
+    // 1 MB cap on upstream responses. Audit item #6 — without this a
+    // misbehaving upstream could buffer an arbitrary-sized body into the
+    // 128MiB function instance and OOM us. We pass both maxContentLength
+    // and maxBodyLength so the limit is enforced regardless of whether
+    // upstream advertises Content-Length or streams chunked.
+    const MAX_RESPONSE_BYTES = 1_048_576;
+
     try {
-      const response = await axios.get<unknown>(data.url);
+      const response = await axios.get<unknown>(data.url, {
+        maxContentLength: MAX_RESPONSE_BYTES,
+        maxBodyLength: MAX_RESPONSE_BYTES,
+        // SSRF guard: the allowlist check above only validates the
+        // initial URL. Axios follows up to 5 redirects by default, so
+        // an allowlisted host could 302 to an arbitrary off-allowlist
+        // host and we'd happily proxy the response. Disabling redirects
+        // forces 3xx to surface as a request error and keeps the
+        // allowlist load-bearing.
+        maxRedirects: 0,
+      });
       return response.data;
     } catch (error: unknown) {
       console.error('External Proxy Error:', error);
+      // Translate axios's size-limit message into an explicit
+      // resource-exhausted HttpsError so the client can distinguish "the
+      // upstream is too chatty" from a generic network blip. Gating on
+      // `axios.isAxiosError` matches the pattern used elsewhere in this
+      // file and avoids matching on unrelated errors that happen to
+      // contain "maxContentLength" in their message.
+      if (
+        axios.isAxiosError(error) &&
+        /maxContentLength|maxBodyLength/i.test(error.message ?? '')
+      ) {
+        throw new HttpsError(
+          'resource-exhausted',
+          `Upstream response exceeded the ${MAX_RESPONSE_BYTES / 1024} KB proxy limit.`
+        );
+      }
       const msg =
         error instanceof Error ? error.message : 'External fetch failed';
       throw new HttpsError('internal', msg);
@@ -1080,6 +1257,7 @@ export const archiveActivityWallPhoto = onCall(
   {
     memory: '512MiB',
     timeoutSeconds: 120,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as ArchiveActivityWallPhotoData;
@@ -1147,8 +1325,26 @@ export const archiveActivityWallPhoto = onCall(
 
       const bucket = admin.storage().bucket();
       const file = bucket.file(storagePath);
-      const [fileBuffer] = await file.download();
+
+      // Size guard — `file.download()` buffers the entire object into the
+      // 512MiB function instance's memory, so a misbehaving client could
+      // OOM us with a giant photo. Audit doc item #4. Storage metadata
+      // returns `size` as a string in some SDK versions, hence the coerce.
+      // Fail closed on missing/non-numeric size — `NaN > limit` is `false`,
+      // which would bypass the guard and reopen the OOM path.
       const [metadata] = await file.getMetadata();
+      const sizeBytes = Number(metadata.size);
+      const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
+      if (!Number.isFinite(sizeBytes) || sizeBytes > MAX_PHOTO_BYTES) {
+        throw new HttpsError(
+          'invalid-argument',
+          Number.isFinite(sizeBytes)
+            ? `Photo exceeds the 50 MB archive limit (${Math.round(sizeBytes / 1024 / 1024)} MB).`
+            : 'Photo size unknown; cannot safely archive.'
+        );
+      }
+
+      const [fileBuffer] = await file.download();
       const mimeType = metadata.contentType || 'image/jpeg';
       const extension =
         mimeType === 'image/png'
@@ -1205,6 +1401,14 @@ export const archiveActivityWallPhoto = onCall(
         { merge: true }
       );
 
+      // Preserve HttpsError codes so the client can distinguish
+      // user-actionable failures (e.g. `invalid-argument` from the size
+      // guard) from genuine server errors. Wrapping every error as
+      // `internal` would tell a teacher whose photo is too large that
+      // SpartBoard is broken when the real fix is to shrink the photo.
+      if (error instanceof HttpsError) {
+        throw error;
+      }
       throw new HttpsError('internal', message);
     }
   }
@@ -1212,8 +1416,9 @@ export const archiveActivityWallPhoto = onCall(
 
 export const checkUrlCompatibility = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     timeoutSeconds: 20,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as { url: string };
@@ -1339,6 +1544,7 @@ export const generateVideoActivity = onCall(
     memory: '1GiB',
     timeoutSeconds: 300,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
     const data = request.data as VideoActivityRequestData;
@@ -1569,6 +1775,7 @@ export const transcribeVideoWithGemini = onCall(
     memory: '1GiB',
     timeoutSeconds: 300,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
     const data = request.data as AudioTranscriptionRequestData;
@@ -1853,6 +2060,7 @@ export const generateGuidedLearning = onCall(
     memory: '512MiB',
     timeoutSeconds: 120,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as {
@@ -2061,30 +2269,27 @@ Guidelines:
   }
 );
 
-interface DashboardData {
-  updatedAt?: number;
-  widgets?: { type: string }[];
-}
-
-interface EngagementCounts {
-  total: number;
-  monthly: number;
-  daily: number;
-}
-
-// registeredUsersCache removed – Auth data is now collected in a single
-// listUsers pass that also provides MAU/DAU, so a separate cache is unnecessary.
-
 /**
  * Cloud Function to fetch administrative analytics.
- * Uses onRequest with explicit CORS to avoid preflight issues with onCall.
- * Bumps memory and timeout to handle unbounded collection reads
- * while a more scalable (paginated/aggregated) solution is developed.
+ *
+ * Read-only hot path: returns the snapshot at
+ * `/organizations/{orgId}/analytics/snapshot` (written nightly by
+ * `recomputeAdminAnalytics`). The previous implementation computed the
+ * payload inline on every call, doing two unbounded reads
+ * (`collectionGroup('dashboards').stream()` + `collection('ai_usage').stream()`)
+ * that dominated the bill once user counts grew. The compute helper itself
+ * still lives in `adminAnalyticsCompute.ts`; it now runs once a day from the
+ * scheduled job in `adminAnalyticsSnapshot.ts` instead of on every page load.
+ *
+ * Memory is held at 1 GiB rather than the legacy 4 GiB because no streaming
+ * reads happen here anymore — only the snapshot doc read plus the auth/authz
+ * doc reads. Could probably drop further; leaving headroom for the JSON
+ * serialization of large snapshots.
  */
 export const adminAnalytics = onRequest(
   {
-    memory: '4GiB',
-    timeoutSeconds: 540,
+    memory: '1GiB',
+    timeoutSeconds: 30,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
@@ -2172,514 +2377,48 @@ export const adminAnalytics = onRequest(
     }
 
     try {
-      const now = Date.now();
-      // 3a. Load the org's members as the authoritative user roster. This
-      // replaces the previous global `listUsers()` scan, which pulled in every
-      // Firebase Auth account regardless of org and caused foreign-domain
-      // users to show up in a different org's analytics.
+      // Hot path is now snapshot-only. The compute logic that used to live
+      // here (~500 LOC) has moved to `adminAnalyticsCompute.ts` and runs
+      // once a day from the scheduled job in `adminAnalyticsSnapshot.ts`.
       //
-      // For each member we need auth metadata (lastSignInTime) to compute
-      // engagement. Members without a `uid` (invited but never signed in)
-      // still count toward totals but have zero engagement.
-      interface MemberLite {
-        email: string;
-        uid: string | null;
-        buildingIds: string[];
-      }
-      const members: MemberLite[] = [];
-      const membersSnap = await db
-        .collection(`organizations/${orgId}/members`)
-        .get();
-      for (const doc of membersSnap.docs) {
-        const data = doc.data() as {
-          email?: unknown;
-          uid?: unknown;
-          buildingIds?: unknown;
-        };
-        const memberEmail =
-          typeof data.email === 'string' ? data.email.toLowerCase() : doc.id;
-        const uid = typeof data.uid === 'string' && data.uid ? data.uid : null;
-        const buildingIds = Array.isArray(data.buildingIds)
-          ? data.buildingIds.filter(
-              (id): id is string => typeof id === 'string' && id.length > 0
-            )
-          : [];
-        members.push({ email: memberEmail, uid, buildingIds });
-      }
-
-      // Resolve Firebase Auth metadata for members that have a linked uid.
-      // `getUsers()` tolerates up to 100 identifiers per call and silently
-      // drops uids that no longer exist in Auth, which is the right behavior
-      // for a member doc whose uid was revoked.
-      const authUsersMap = new Map<
-        string,
-        { email: string; lastSignInMs: number }
-      >();
-      const uidsToResolve = members
-        .map((m) => m.uid)
-        .filter((uid): uid is string => uid !== null);
-      const chunks: { uid: string }[][] = [];
-      for (let i = 0; i < uidsToResolve.length; i += 100) {
-        chunks.push(uidsToResolve.slice(i, i + 100).map((uid) => ({ uid })));
-      }
-
-      await Promise.all(
-        chunks.map(async (chunk) => {
-          try {
-            const result = await admin.auth().getUsers(chunk);
-            for (const u of result.users) {
-              const lastSignIn = u.metadata.lastSignInTime
-                ? new Date(u.metadata.lastSignInTime).getTime()
-                : 0;
-              authUsersMap.set(u.uid, {
-                email: u.email ?? '',
-                lastSignInMs: lastSignIn,
-              });
-            }
-          } catch (err) {
-            console.warn('[getAdminAnalytics] auth().getUsers() chunk failed', {
-              requestId,
-              orgId,
-              chunkSize: chunk.length,
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        })
-      );
-
-      // 3b. Build a uid → member lookup so downstream dashboard/AI filters can
-      // scope to org members without being gated on a successful
-      // `auth().getUsers()` round-trip. `authUsersMap` is only used to join
-      // lastSignIn metadata; an auth lookup failure must not silently drop a
-      // real member's dashboards or AI usage from the totals.
-      const memberUids = new Set<string>();
-      for (const m of members) {
-        if (m.uid) memberUids.add(m.uid);
-      }
-
-      // 3c. Time constants & helpers (engagement computed after dashboard
-      //     stream so we can use last-edit timestamps instead of last-login)
-      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-      const oneDayMs = 24 * 60 * 60 * 1000;
-
-      const increment = (
-        bucket: Record<string, EngagementCounts>,
-        key: string,
-        isMonthlyActive: boolean,
-        isDailyActive: boolean
-      ) => {
-        if (!bucket[key]) {
-          bucket[key] = { total: 0, monthly: 0, daily: 0 };
-        }
-        bucket[key].total += 1;
-        if (isMonthlyActive) bucket[key].monthly += 1;
-        if (isDailyActive) bucket[key].daily += 1;
-      };
-      // 4. Fetch Dashboards for Widget Stats
-      let totalDashboards = 0;
-      const totalWidgetCounts: Record<string, number> = {};
-      const activeWidgetCounts: Record<string, number> = {};
-      const allDashboardOwnerUids = new Set<string>();
-      let totalWidgetInstances = 0;
-      // Bounded at MAX_WIDGET_USER_TRACK UIDs per type: memory is
-      // O(widget_types × limit) instead of O(widget_types × all_users).
-      // count = Set.size is exact up to the cap; above the cap it means "≥ cap".
-      const MAX_WIDGET_USER_TRACK = 100;
-      const widgetToUserUids: Record<string, Set<string>> = {};
-      const activeThreshold = now - 30 * 24 * 60 * 60 * 1000; // 30 days
-      // Track most recent dashboard edit per user for edit-based DAU/MAU
-      const lastEditByUser = new Map<string, number>();
-
-      const dashboardsStream = db
-        .collectionGroup('dashboards')
-        .select('widgets', 'updatedAt')
-        .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-
-      for await (const dashDoc of dashboardsStream) {
-        if (!dashDoc.exists) continue;
-        const dashData = dashDoc.data() as DashboardData;
-        const updatedAt =
-          typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
-        const isActive = updatedAt > activeThreshold;
-
-        // Extract owner UID from path: users/{uid}/dashboards/{dashId}
-        const ownerUid: string | null = dashDoc.ref.parent.parent?.id ?? null;
-
-        // Skip dashboards not owned by a member of this org. Use the member
-        // roster (not `authUsersMap`) so a transient `auth().getUsers()`
-        // failure doesn't silently drop real members' dashboards from totals.
-        if (!ownerUid || !memberUids.has(ownerUid)) continue;
-
-        totalDashboards++;
-        allDashboardOwnerUids.add(ownerUid);
-
-        // Track the most recent edit across all of this user's dashboards
-        const prevEdit = lastEditByUser.get(ownerUid) ?? 0;
-        if (updatedAt > prevEdit) {
-          lastEditByUser.set(ownerUid, updatedAt);
-        }
-
-        const widgetCount = Array.isArray(dashData.widgets)
-          ? dashData.widgets.length
-          : 0;
-        totalWidgetInstances += widgetCount;
-
-        if (dashData.widgets && Array.isArray(dashData.widgets)) {
-          dashData.widgets.forEach((w: { type: string }) => {
-            if (w && w.type) {
-              totalWidgetCounts[w.type] = (totalWidgetCounts[w.type] || 0) + 1;
-              if (isActive) {
-                activeWidgetCounts[w.type] =
-                  (activeWidgetCounts[w.type] || 0) + 1;
-              }
-              if (ownerUid) {
-                if (!widgetToUserUids[w.type]) {
-                  widgetToUserUids[w.type] = new Set<string>();
-                }
-                const uidSet = widgetToUserUids[w.type];
-                // Only grow the Set while under the cap (or if already present)
-                if (
-                  uidSet.size < MAX_WIDGET_USER_TRACK ||
-                  uidSet.has(ownerUid)
-                ) {
-                  uidSet.add(ownerUid);
-                }
-              }
-            }
-          });
-        }
-      }
-
-      // 4b. Compute engagement using last-edit timestamps (not last-login)
-      //     A user is "active" if they edited a dashboard within the window.
-      const usersByDomain: Record<string, EngagementCounts> = {};
-      const usersByBuilding: Record<string, EngagementCounts> = {};
-      const usersByDomainAndBuilding: Record<
-        string,
-        Record<string, EngagementCounts>
-      > = {};
-      const totalEngagement: EngagementCounts = {
-        total: 0,
-        monthly: 0,
-        daily: 0,
-      };
-
-      // Iterate the org member roster (not just the auth-resolved subset) so
-      // invited-but-never-signed-in members count toward totals/domain/building
-      // buckets with zero engagement, matching the "totals come from the
-      // member roster; engagement is joined from Auth when available" contract.
-      for (const member of members) {
-        const userEmail = member.email;
-        const domain = userEmail.includes('@')
-          ? userEmail.split('@')[1]
-          : 'unknown';
-        const lastEditMs = member.uid
-          ? (lastEditByUser.get(member.uid) ?? 0)
-          : 0;
-        const isMonthlyActive =
-          lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs;
-        const isDailyActive = lastEditMs > 0 && now - lastEditMs <= oneDayMs;
-
-        totalEngagement.total += 1;
-        if (isMonthlyActive) totalEngagement.monthly += 1;
-        if (isDailyActive) totalEngagement.daily += 1;
-
-        increment(usersByDomain, domain, isMonthlyActive, isDailyActive);
-
-        const buildings = member.buildingIds;
-        if (buildings.length === 0) {
-          increment(usersByBuilding, 'none', isMonthlyActive, isDailyActive);
-          if (!usersByDomainAndBuilding[domain]) {
-            usersByDomainAndBuilding[domain] = {};
-          }
-          increment(
-            usersByDomainAndBuilding[domain],
-            'none',
-            isMonthlyActive,
-            isDailyActive
-          );
-        } else {
-          for (const building of buildings) {
-            increment(
-              usersByBuilding,
-              building,
-              isMonthlyActive,
-              isDailyActive
-            );
-            if (!usersByDomainAndBuilding[domain]) {
-              usersByDomainAndBuilding[domain] = {};
-            }
-            increment(
-              usersByDomainAndBuilding[domain],
-              building,
-              isMonthlyActive,
-              isDailyActive
-            );
-          }
-        }
-      }
-
-      // 4c. Build per-user detail list for KPI drilldowns. Same rule: iterate
-      // the member roster, join Auth metadata when a uid is present.
-      const userList = members.map((member) => {
-        const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
-        const lastSignInMs = authInfo?.lastSignInMs ?? 0;
-        const lastEditMs = member.uid
-          ? (lastEditByUser.get(member.uid) ?? 0)
-          : 0;
-        return {
-          email: member.email,
-          buildings: member.buildingIds,
-          lastSignInMs,
-          lastEditMs,
-          hasDashboard: member.uid
-            ? allDashboardOwnerUids.has(member.uid)
-            : false,
-          isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
-          isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
-        };
-      });
-
-      // Auth data was already collected in step 3a – no separate scan needed
-      const totalRegisteredUsers = authUsersMap.size;
-      const registeredIsFallback = false;
-
-      // Resolve widget UIDs to emails (cap at 200 unique UIDs total)
-      const allWidgetUids = new Set<string>();
-      outer: for (const uids of Object.values(widgetToUserUids)) {
-        for (const uid of uids) {
-          if (allWidgetUids.size >= 200) break outer;
-          allWidgetUids.add(uid);
-        }
-      }
-
-      const widgetUserEmails: Record<string, string> = {};
-      const resolveUserEmailsViaAuthFallback = async (
-        uids: string[],
-        targetMap: Record<string, string>,
-        warningContext: string
-      ): Promise<void> => {
-        const identifiers = uids.map((uid) => ({ uid }));
-        const chunks: { uid: string }[][] = [];
-        for (let i = 0; i < identifiers.length; i += 100) {
-          chunks.push(identifiers.slice(i, i + 100));
-        }
-
-        await Promise.all(
-          chunks.map(async (chunk, chunkIdx) => {
-            try {
-              const result = await admin.auth().getUsers(chunk);
-              result.users.forEach((u) => {
-                if (u.email) {
-                  targetMap[u.uid] = u.email;
-                }
-              });
-            } catch (error) {
-              console.warn(
-                `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
-                {
-                  requestId,
-                  chunkSize: chunk.length,
-                  chunkStart: chunkIdx * 100,
-                  totalIdentifiers: identifiers.length,
-                  totalUids: uids.length,
-                  error: error instanceof Error ? error.message : String(error),
-                }
-              );
-            }
-          })
-        );
-      };
-      const allWidgetUidArray = Array.from(allWidgetUids);
-      for (let i = 0; i < allWidgetUidArray.length; i += 30) {
-        const uidChunk = allWidgetUidArray.slice(i, i + 30);
-        if (uidChunk.length === 0) continue;
-        const snapshot = await db
-          .collection('users')
-          .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-          .select('email')
-          .get();
-        snapshot.docs.forEach((d) => {
-          const userData = d.data();
-          if (
-            typeof userData['email'] === 'string' &&
-            userData['email'].length > 0
-          ) {
-            widgetUserEmails[d.id] = userData['email'];
-          }
+      // Three reads total at this point: admin doc, member doc (both fetched
+      // above for the authz gate), and the snapshot doc. Compared to the
+      // pre-cache implementation this skips a `collectionGroup('dashboards')`
+      // stream over every dashboard in the database plus an `ai_usage`
+      // stream over every per-user counter — the two reads that were
+      // dominating the bill.
+      const snapshot = await readAnalyticsSnapshot(orgId);
+      if (!snapshot) {
+        // No snapshot yet — either a brand-new org pre-first-scheduled-run,
+        // or the snapshot was written under an older schemaVersion that the
+        // reader rejects. Either way, surface a 503 with a deterministic
+        // payload shape so the UI can show "Analytics will be ready after
+        // the next scheduled refresh" rather than spinning forever.
+        console.log('[getAdminAnalytics] no snapshot available', {
+          requestId,
+          orgId,
         });
-      }
-      const unresolvedWidgetUids = allWidgetUidArray.filter(
-        (uid) => !widgetUserEmails[uid]
-      );
-      if (unresolvedWidgetUids.length > 0) {
-        await resolveUserEmailsViaAuthFallback(
-          unresolvedWidgetUids,
-          widgetUserEmails,
-          'widget drilldowns'
-        );
+        res.status(503).json({
+          error: 'not-yet-computed',
+          message:
+            'Analytics for this organization have not been computed yet. The next scheduled refresh runs at 5:00 AM Central daily.',
+          requestId,
+        });
+        return;
       }
 
-      const usersByType: Record<string, { count: number; emails: string[] }> =
-        {};
-      for (const [widgetType, uidSet] of Object.entries(widgetToUserUids)) {
-        usersByType[widgetType] = {
-          count: uidSet.size,
-          emails: Array.from(uidSet)
-            .slice(0, 20)
-            .map((uid) => widgetUserEmails[uid] ?? `Unknown (${uid})`)
-            .sort(),
-        };
-      }
-      // 5. Fetch AI Usage
-      let totalAiCalls = 0;
-      const callsPerUser: Record<string, number> = {};
-      const dailyCallCounts: Record<string, number> = {};
-      const aiCallsByFeature: Record<string, number> = {};
-
-      const GEMINI_SPECIFIC_FEATURES = [
-        'smart-poll',
-        'embed-mini-app',
-        'video-activity-audio-transcription',
-        'quiz',
-        'ocr',
-        'guided-learning',
-      ];
-
-      const aiUsageStream = db
-        .collection('ai_usage')
-        .select('count')
-        .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-
-      for await (const usageDoc of aiUsageStream) {
-        if (!usageDoc.exists) continue;
-        const idParts = usageDoc.id.split('_');
-        if (idParts.length < 2) continue;
-
-        const datePart = idParts[idParts.length - 1];
-        const secondToLast = idParts[idParts.length - 2];
-        const isSpecificFeature =
-          GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
-
-        // Exclude the feature ID and date to get the original UID
-        const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
-        const uid = uidParts.join('_');
-
-        if (!uid || !datePart) continue;
-
-        // Skip AI usage not attributed to a member of this org. Scope by the
-        // member roster rather than `authUsersMap` so auth lookup failures
-        // don't silently drop members' AI calls from the totals.
-        if (!memberUids.has(uid)) continue;
-
-        const usageData = usageDoc.data();
-        const count = typeof usageData.count === 'number' ? usageData.count : 0;
-
-        if (isSpecificFeature) {
-          aiCallsByFeature[secondToLast] =
-            (aiCallsByFeature[secondToLast] ?? 0) + count;
-        }
-
-        // ONLY count the "overall" records for total analytics to avoid double counting
-        // (Specific feature records are for enforcement, overall records track everything)
-        if (!isSpecificFeature) {
-          totalAiCalls += count;
-          callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
-          dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
-        }
-      }
-
-      const uniqueDays = Object.keys(dailyCallCounts).length || 1;
-      const avgDailyCalls = Math.round(totalAiCalls / uniqueDays);
-      const activeAiUsers = Object.keys(callsPerUser).length || 1;
-      const avgDailyCallsPerUser =
-        Math.round((avgDailyCalls / activeAiUsers) * 10) / 10;
-      const topUserUids = Object.entries(callsPerUser)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 25)
-        .map(([uid]) => uid);
-      const topUserEmails: Record<string, string> = {};
-
-      const uidChunks: string[][] = [];
-      for (let i = 0; i < topUserUids.length; i += 10) {
-        uidChunks.push(topUserUids.slice(i, i + 10));
-      }
-
-      await Promise.all(
-        uidChunks.map(async (uidChunk) => {
-          if (uidChunk.length === 0) return;
-          const usersSnapshot = await db
-            .collection('users')
-            .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-            .select('email')
-            .get();
-
-          usersSnapshot.docs.forEach((doc) => {
-            const userData = doc.data();
-            if (
-              typeof userData.email === 'string' &&
-              userData.email.length > 0
-            ) {
-              topUserEmails[doc.id] = userData.email;
-            }
-          });
-        })
-      );
-      const unresolvedTopUserUids = topUserUids.filter(
-        (uid) => !topUserEmails[uid]
-      );
-      if (unresolvedTopUserUids.length > 0) {
-        await resolveUserEmailsViaAuthFallback(
-          unresolvedTopUserUids,
-          topUserEmails,
-          'AI top users'
-        );
-      }
-
-      const topUsers = Object.entries(callsPerUser)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 25)
-        .map(([uid, count]) => ({
-          uid,
-          count,
-          email: topUserEmails[uid] ?? `Unknown (${uid})`,
-        }));
+      const { meta: payloadMeta, ...payloadWithoutMeta } = snapshot.payload;
       res.json({
-        users: {
-          total: totalEngagement.total,
-          registered: totalRegisteredUsers,
-          registeredIsFallback,
-          monthly: totalEngagement.monthly,
-          daily: totalEngagement.daily,
-          withDashboards: allDashboardOwnerUids.size,
-          domains: usersByDomain,
-          buildings: usersByBuilding,
-          domainBuilding: usersByDomainAndBuilding,
-          userList,
-        },
-        widgets: {
-          totalInstances: totalWidgetCounts,
-          activeInstances: activeWidgetCounts,
-          usersByType,
-        },
-        dashboards: {
-          total: totalDashboards,
-          avgWidgetsPerDashboard:
-            totalDashboards > 0
-              ? Math.round((totalWidgetInstances / totalDashboards) * 10) / 10
-              : 0,
-        },
-        api: {
-          totalCalls: totalAiCalls,
-          activeUsers: Object.keys(callsPerUser).length,
-          topUsers,
-          avgDailyCalls,
-          avgDailyCallsPerUser,
-          byFeature: aiCallsByFeature,
+        ...payloadWithoutMeta,
+        meta: {
+          ...(payloadMeta ?? {}),
+          computedAt: snapshot.computedAt,
+          nextRecomputeAt: snapshot.nextRecomputeAt,
+          computeDurationMs: snapshot.computeDurationMs,
         },
       });
     } catch (err: unknown) {
-      console.error('[getAdminAnalytics] Error fetching analytics', {
+      console.error('[getAdminAnalytics] Error reading snapshot', {
         requestId,
         orgId,
         error: err instanceof Error ? err.message : String(err),
@@ -2687,7 +2426,7 @@ export const adminAnalytics = onRequest(
       const errorMessage =
         err instanceof Error
           ? err.message
-          : 'An internal error occurred fetching analytics.';
+          : 'An internal error occurred reading analytics.';
       res
         .status(500)
         .json({ error: 'internal', message: errorMessage, requestId });
@@ -2807,6 +2546,7 @@ export const studentLoginV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -3027,9 +2767,10 @@ export const studentLoginV1 = onCall(
  */
 export const getAssignmentPseudonymV1 = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   (request) => {
     if (!request.auth) {
@@ -3091,6 +2832,7 @@ export const getStudentClassDirectoryV1 = onCall(
   {
     memory: '256MiB',
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -3153,13 +2895,6 @@ export const getStudentClassDirectoryV1 = onCall(
     // 30; we chunk at 10 to stay safely under the limit and to fit the
     // typical `STUDENT_LOGIN_CLASS_IDS_MAX = 20` payload in 2 chunks.
     const FIRESTORE_IN_CHUNK_SIZE = 10;
-    const chunk = <T>(arr: readonly T[], size: number): T[][] => {
-      const chunks: T[][] = [];
-      for (let i = 0; i < arr.length; i += size) {
-        chunks.push(arr.slice(i, i + size));
-      }
-      return chunks;
-    };
 
     /**
      * Run `collectionGroup('rosters').where(field, 'in', chunk)` for every
@@ -3306,6 +3041,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -3639,6 +3375,7 @@ export const commitRosterPinIndexV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -3838,6 +3575,7 @@ export const pinLoginV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = (request.data ?? {}) as PinLoginRequestData;

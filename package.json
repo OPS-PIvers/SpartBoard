@@ -38,7 +38,8 @@
       "diff": "^8.0.3",
       "tar": "^7.5.4",
       "lodash": "^4.17.23",
-      "rollup": "^4.59.0"
+      "rollup": "^4.59.0",
+      "protobufjs": "^7.5.6"
     }
   },
   "dependencies": {
@@ -98,7 +99,7 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.26",
     "firebase-admin": "^13.6.0",
-    "firebase-functions": "^7.0.5",
+    "firebase-functions": "^7.2.5",
     "firebase-functions-test": "^3.4.1",
     "firebase-tools": "^15.8.0",
     "globals": "^17.2.0",

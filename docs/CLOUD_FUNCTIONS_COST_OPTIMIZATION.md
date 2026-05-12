@@ -10,12 +10,15 @@ The "GB-sec/call" column below is the **worst case per call** (memory × max tim
 
 | Function                    | Memory  | Max timeout    | GB-sec/call (max) | Est. cost/call (max) |
 | --------------------------- | ------- | -------------- | ----------------- | -------------------- |
-| `adminAnalytics`            | 4 GiB   | 540 s          | 2,160             | ~$0.039              |
+| `adminAnalytics` (hot path) | 1 GiB   | 30 s           | 30                | ~$0.0005             |
+| `recomputeAdminAnalytics`   | 4 GiB   | 540 s (1/day)  | 2,160             | ~$0.039              |
 | `generateVideoActivity`     | 1 GiB   | 300 s          | 300               | ~$0.005              |
 | `transcribeVideoWithGemini` | 1 GiB   | 300 s          | 300               | ~$0.005              |
 | `generateWithAI`            | 512 MiB | 60 s (default) | ~30               | ~$0.0005             |
 | `archiveActivityWallPhoto`  | 512 MiB | 120 s          | ~60               | ~$0.001              |
-| `fetchExternalProxy`        | 128 MiB | 30 s           | ~3.75             | ~$0.00007            |
+| `fetchExternalProxy`        | 256 MiB | 30 s           | ~7.5              | ~$0.00014            |
+
+The `adminAnalytics` row now reflects the post-2026-05-11 snapshot-read implementation. The 4 GiB / 540 s ceiling moved to the once-a-day scheduled `recomputeAdminAnalytics` job, so the per-call cost of admin page loads dropped by ~98% even before counting the Firestore reads that were eliminated.
 
 ---
 
@@ -91,12 +94,11 @@ The proxy function streams external API responses back to the caller with no siz
 
 ## Recommended action order
 
-1. **Cache `adminAnalytics` output per org** — highest ROI; eliminates both unbounded Firestore scans on the hot path and is what's likely driving the bulk of the bill.
+1. ~~**Cache `adminAnalytics` output per org**~~ — **Done** (2026-05-11). Replaced with a once-daily scheduled recompute (`recomputeAdminAnalytics`, 5 AM Central) that writes `/organizations/{orgId}/analytics/snapshot`. The hot-path HTTP handler now reads that snapshot doc and returns it; the two unbounded streams (`collectionGroup('dashboards')` + `collection('ai_usage')`) are gone from the per-call path entirely. Hot-path memory dropped from 4 GiB to 1 GiB, timeout from 540 s to 30 s. UI shows a "Updated Xh ago · Next update at 5:00 AM" badge instead of a Refresh button — analytics are explicitly a luxury daily read, and a manual recompute button would just reintroduce the cost path that this change amortizes. Compute helper extracted to `functions/src/adminAnalyticsCompute.ts`; the scheduled job and snapshot reader live in `functions/src/adminAnalyticsSnapshot.ts`. Per-org failures in the recompute don't abort the batch.
 2. **Verify `fetchExternalProxy` invocation counts** in Firebase Console → Functions → Usage. A few hundred/day across the admin pool is expected; thousands/day means too many admin tabs or a misconfigured refresh interval.
 3. **Add module-level caching to `generateWithAI`** — easy win, saves Firestore reads with no behavioral change.
-4. **Reduce `adminAnalytics` memory** — after caching is in place, drop from 4 GiB to 512 MiB.
-5. **Add file size guard to `archiveActivityWallPhoto`**.
-6. **Batch ClassLink roster fetches**.
+4. **Add file size guard to `archiveActivityWallPhoto`**.
+5. **Batch ClassLink roster fetches**.
 
 ## How to monitor going forward
 

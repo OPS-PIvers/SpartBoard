@@ -1,36 +1,28 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, ClipboardList, Loader2 } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { Plc } from '@/types';
-import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
-import type { PlcDashboardTabId } from '../../PlcDashboard';
+import { PlcAnalyticsBody } from '../../bodies/PlcAnalyticsBody';
 
 interface CompletedAssignmentsTileProps {
   plc: Plc;
-  onNavigateTab: (tabId: PlcDashboardTabId) => void;
 }
 
-const PREVIEW_LIMIT = 4;
-
-function formatDate(ms: number): string {
-  if (!ms) return '';
-  try {
-    return new Date(ms).toLocaleDateString(undefined, {
-      month: 'short',
-      day: 'numeric',
-    });
-  } catch {
-    return '';
-  }
-}
-
+/**
+ * Tile-mode preview of cross-PLC analytics. Renders `PlcAnalyticsBody` in
+ * compact mode (top-N quiz cards, headline numbers only). The fullscreen
+ * expand affordance — wired by `PlcGridLayout` for the
+ * `completedAssignments` kind — opens the same body without the compact
+ * cap so teachers can drill into the per-quiz schema-drift breakdown.
+ *
+ * The legacy navigate-to-tab footer button is gone. Phase 2's fullscreen
+ * expansion replaces it; the v1 tab still renders the same body via
+ * `PlcAssignmentsTab` for backward compat.
+ */
 export const CompletedAssignmentsTile: React.FC<
   CompletedAssignmentsTileProps
-> = ({ plc, onNavigateTab }) => {
+> = ({ plc }) => {
   const { t } = useTranslation();
-  const { entries, loading } = usePlcAssignmentIndex(plc.id);
-  const preview = entries.slice(0, PREVIEW_LIMIT);
-
   return (
     <div className="h-full flex flex-col">
       <div className="flex items-center gap-2 px-4 pt-4 pb-2">
@@ -39,71 +31,13 @@ export const CompletedAssignmentsTile: React.FC<
         </div>
         <h4 className="text-xxs font-bold uppercase tracking-widest text-slate-500">
           {t('plcDashboard.overview.tiles.completedAssignments.heading', {
-            defaultValue: 'Recent results',
+            defaultValue: 'PLC Analytics',
           })}
         </h4>
-        {entries.length > 0 && (
-          <span className="ml-auto text-xs font-bold text-slate-700">
-            {entries.length}
-          </span>
-        )}
       </div>
-
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4">
-        {loading ? (
-          <div className="flex items-center justify-center h-full text-slate-400">
-            <Loader2 className="w-4 h-4 animate-spin" />
-          </div>
-        ) : preview.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-xs text-slate-500 py-4">
-            <ClipboardList className="w-6 h-6 text-slate-300 mb-2" />
-            <p className="font-semibold text-slate-600">
-              {t('plcDashboard.overview.tiles.completedAssignments.empty', {
-                defaultValue: 'No assignments run yet',
-              })}
-            </p>
-            <p className="text-xxs text-slate-400 mt-1">
-              {t(
-                'plcDashboard.overview.tiles.completedAssignments.emptySubtitle',
-                {
-                  defaultValue: 'Quizzes you run with PLC mode appear here.',
-                }
-              )}
-            </p>
-          </div>
-        ) : (
-          <ul className="space-y-1.5 py-1">
-            {preview.map((entry) => (
-              <li
-                key={entry.id}
-                className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-slate-50 transition-colors"
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="text-xs font-bold text-slate-800 truncate">
-                    {entry.title}
-                  </div>
-                  <div className="text-xxs text-slate-500 truncate">
-                    {entry.ownerName?.trim() || entry.ownerEmail || '—'}
-                    {' • '}
-                    {formatDate(entry.createdAt)}
-                  </div>
-                </div>
-              </li>
-            ))}
-          </ul>
-        )}
+      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar px-4 pb-3">
+        <PlcAnalyticsBody plc={plc} compact previewLimit={4} />
       </div>
-
-      <button
-        type="button"
-        onClick={() => onNavigateTab('assignments')}
-        className="flex items-center justify-center gap-1.5 px-4 py-2.5 border-t border-slate-100 text-xxs font-bold uppercase tracking-wider text-brand-blue-primary hover:bg-brand-blue-lighter/30 transition-colors"
-      >
-        {t('plcDashboard.overview.tiles.completedAssignments.viewAll', {
-          defaultValue: 'View all',
-        })}
-        <ChevronRight className="w-3 h-3" />
-      </button>
     </div>
   );
 };

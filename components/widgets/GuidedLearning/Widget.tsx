@@ -16,6 +16,7 @@ import { useGuidedLearning } from '@/hooks/useGuidedLearning';
 import { useGuidedLearningSessionTeacher } from '@/hooks/useGuidedLearningSession';
 import { useGuidedLearningAssignments } from '@/hooks/useGuidedLearningAssignments';
 import { useFolders } from '@/hooks/useFolders';
+import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { AssignModal, ViewOnlyShareModal } from '@/components/common/library';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -78,8 +79,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     saveSet,
     loadSetData,
     deleteSet,
+    duplicateSet,
     saveBuildingSet,
     deleteBuildingSet,
+    duplicateBuildingSet,
   } = useGuidedLearning(user?.uid);
 
   const { createSession } = useGuidedLearningSessionTeacher(user?.uid);
@@ -105,6 +108,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     'guided_learning'
   );
   const [showAIGen, setShowAIGen] = useState(false);
+  // Shared rapid-click guards (personal sets + admin building sets).
+  // See `hooks/useBusyIdSet.ts`.
+  const personalDuplicateBusy = useBusyIdSet();
+  const buildingDuplicateBusy = useBusyIdSet();
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
   >({});
@@ -638,6 +645,45 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 onDeletePersonal={(setId, driveFileId) => {
                   void handleDelete(setId, driveFileId);
                 }}
+                onDuplicatePersonal={(setId, _driveFileId) => {
+                  // `_driveFileId` is part of the manager's signature
+                  // (mirrors onDeletePersonal) but we don't need it —
+                  // `duplicateSet` reads driveFileId off the resolved
+                  // source metadata.
+                  const source = sets.find((s) => s.id === setId);
+                  if (!source) return;
+                  void personalDuplicateBusy.run(setId, async () => {
+                    try {
+                      const copy = await duplicateSet(source);
+                      addToast(`Duplicated as "${copy.title}".`, 'success');
+                    } catch (err) {
+                      addToast(
+                        err instanceof Error ? err.message : 'Duplicate failed',
+                        'error'
+                      );
+                    }
+                  });
+                }}
+                isDuplicatingPersonal={personalDuplicateBusy.isBusy}
+                onDuplicateBuilding={(setId) => {
+                  const source = buildingSets.find((s) => s.id === setId);
+                  if (!source) return;
+                  void buildingDuplicateBusy.run(setId, async () => {
+                    try {
+                      const copy = await duplicateBuildingSet(source);
+                      addToast(
+                        `Duplicated building set as "${copy.title}".`,
+                        'success'
+                      );
+                    } catch (err) {
+                      addToast(
+                        err instanceof Error ? err.message : 'Duplicate failed',
+                        'error'
+                      );
+                    }
+                  });
+                }}
+                isDuplicatingBuilding={buildingDuplicateBusy.isBusy}
                 onDeleteBuilding={(setId) => {
                   void handleDeleteBuilding(setId);
                 }}

@@ -270,13 +270,34 @@ export const useNutrislice = ({
     } catch (err) {
       logError('useNutrislice.fetchNutrislice', err, { widgetId });
 
+      const stamp = new Date().toISOString();
+      const errCode = (err as { code?: string } | null)?.code;
+
+      // Upstream returned 404 (no menu published for this date). Treat as a
+      // benign "no menu today" — install an empty menu and skip the toast so
+      // users on non-instructional days aren't spammed with errors.
+      if (errCode === 'functions/not-found') {
+        updateWidget(widgetId, {
+          config: {
+            ...configRef.current,
+            cachedMenu: buildEmptyMenu(
+              t('widgets.lunchCount.noHotLunch'),
+              t('widgets.lunchCount.noBentoBox'),
+              stamp
+            ),
+            syncError: null,
+            lastSyncDate: stamp,
+          },
+        });
+        return;
+      }
+
       // If we were trying to migrate a legacy-shape cache and the fetch
       // failed, install a non-legacy stub so the migration check flips to
       // false. Otherwise hasLegacyShape stays true and the effect would
       // re-fire fetchNutrislice on the next render — pegging the proxy
       // until the network recovers.
       const wasLegacy = isLegacyCachedMenu(configRef.current.cachedMenu);
-      const stamp = new Date().toISOString();
       updateWidget(widgetId, {
         config: {
           ...configRef.current,

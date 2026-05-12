@@ -6,14 +6,29 @@
  * recent N PLC-shared quizzes (newest-edit first) with an attribution
  * line and question count. Empty state nudges teammates to share their
  * first quiz from the QuizWidget kebab.
+ *
+ * Each row exposes an inline kebab popover (`TileRowKebab`) with quick
+ * actions — "Open in tab" and "Unshare from PLC" — so the tile is not
+ * limited to a single navigate-on-click affordance. Heavier actions
+ * (import + edit) deliberately stay in the tab body where the personal-
+ * library subscription (`useQuiz`) already lives; the tile would
+ * otherwise duplicate that Firestore listener for every grid render.
  */
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  BookOpen,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  Trash2,
+} from 'lucide-react';
 import { Plc } from '@/types';
 import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
+import { usePlcLibraryActions } from '@/hooks/usePlcLibraryActions';
 import type { PlcDashboardTabId } from '../../PlcDashboard';
+import { TileRowKebab, type TileRowKebabAction } from './TileRowKebab';
 
 interface QuizLibraryTileProps {
   plc: Plc;
@@ -27,7 +42,12 @@ export const QuizLibraryTile: React.FC<QuizLibraryTileProps> = ({
   onNavigateTab,
 }) => {
   const { t } = useTranslation();
-  const { quizzes, loading } = usePlcQuizzes(plc.id);
+  const { quizzes, loading, unshareQuizFromPlc } = usePlcQuizzes(plc.id);
+  const { unshare, busyId } = usePlcLibraryActions({
+    plcId: plc.id,
+    kind: 'quiz',
+    unshareFn: unshareQuizFromPlc,
+  });
   const preview = quizzes.slice(0, PREVIEW_LIMIT);
 
   return (
@@ -70,33 +90,84 @@ export const QuizLibraryTile: React.FC<QuizLibraryTileProps> = ({
           </div>
         ) : (
           <ul className="space-y-2 py-1">
-            {preview.map((quiz) => (
-              <li
-                key={quiz.id}
-                className="px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 transition-colors"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="text-xs font-bold text-slate-800 truncate">
-                    {quiz.title}
+            {preview.map((quiz) => {
+              const rowBusy = busyId === quiz.id;
+              const kebabActions: TileRowKebabAction[] = [
+                {
+                  id: 'open',
+                  label: t(
+                    'plcDashboard.overview.tiles.quizLibrary.openInTab',
+                    { defaultValue: 'Open in tab' }
+                  ),
+                  Icon: ExternalLink,
+                  onClick: () => onNavigateTab('quizzes'),
+                },
+                {
+                  id: 'unshare',
+                  label: t('plcDashboard.overview.tiles.quizLibrary.unshare', {
+                    defaultValue: 'Unshare from PLC',
+                  }),
+                  Icon: Trash2,
+                  destructive: true,
+                  disabled: rowBusy,
+                  onClick: () => void unshare(quiz.id, quiz.title),
+                },
+              ];
+              return (
+                <li key={quiz.id} className="relative">
+                  <div className="flex items-stretch gap-1 group">
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab('quizzes')}
+                      className="flex-1 min-w-0 text-left px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 focus-visible:bg-brand-blue-lighter/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 transition-colors"
+                      title={t(
+                        'plcDashboard.overview.tiles.quizLibrary.rowTooltip',
+                        { defaultValue: 'Open in PLC Quiz Library tab' }
+                      )}
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5">
+                          {rowBusy && (
+                            <Loader2
+                              className="w-3 h-3 animate-spin text-slate-400 shrink-0"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <span className="truncate">{quiz.title}</span>
+                        </div>
+                        <span className="shrink-0 text-xxs text-slate-400">
+                          {t(
+                            'plcDashboard.overview.tiles.quizLibrary.questionCount',
+                            {
+                              count: quiz.questionCount,
+                              defaultValue: '{{count}} q',
+                            }
+                          )}
+                        </span>
+                      </div>
+                      <p className="text-xxs text-slate-500 truncate mt-0.5">
+                        {t('plcDashboard.overview.tiles.quizLibrary.bySharer', {
+                          name: quiz.sharedByName || quiz.sharedByEmail || '—',
+                          defaultValue: 'shared by {{name}}',
+                        })}
+                      </p>
+                    </button>
+                    <div className="self-center pr-1">
+                      <TileRowKebab
+                        ariaLabel={t(
+                          'plcDashboard.overview.tiles.quizLibrary.kebabAriaLabel',
+                          {
+                            title: quiz.title,
+                            defaultValue: 'Actions for {{title}}',
+                          }
+                        )}
+                        actions={kebabActions}
+                      />
+                    </div>
                   </div>
-                  <span className="shrink-0 text-xxs text-slate-400">
-                    {t(
-                      'plcDashboard.overview.tiles.quizLibrary.questionCount',
-                      {
-                        count: quiz.questionCount,
-                        defaultValue: '{{count}} q',
-                      }
-                    )}
-                  </span>
-                </div>
-                <p className="text-xxs text-slate-500 truncate mt-0.5">
-                  {t('plcDashboard.overview.tiles.quizLibrary.bySharer', {
-                    name: quiz.sharedByName || quiz.sharedByEmail || '—',
-                    defaultValue: 'shared by {{name}}',
-                  })}
-                </p>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>

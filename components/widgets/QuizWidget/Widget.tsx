@@ -22,6 +22,7 @@ import {
   type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import {
   callLeaveSyncedQuizGroup,
@@ -109,6 +110,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     saveQuiz,
     loadQuizData,
     deleteQuiz,
+    duplicateQuiz,
     importFromSheet,
     importFromCSV,
     createQuizTemplate,
@@ -192,6 +194,11 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [loadedQuizData, setLoadedQuizData] = useState<QuizData | null>(null);
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
+
+  // Rapid-double-click guard for the Duplicate kebab. The shared hook
+  // owns the set, the `run()` wrapper, and the no-op-on-busy semantics
+  // so the four library widgets stay in lockstep.
+  const duplicateBusy = useBusyIdSet();
 
   // Bump a token whenever the user navigates INTO the results view so the
   // QuizResults consumer remounts with fresh memos over the current live
@@ -1382,6 +1389,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
+        onDuplicate={(meta) =>
+          void duplicateBusy.run(meta.id, async () => {
+            try {
+              const copy = await duplicateQuiz(meta);
+              addToast(`Duplicated as "${copy.title}".`, 'success');
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Duplicate failed',
+                'error'
+              );
+            }
+          })
+        }
+        isDuplicating={duplicateBusy.isBusy}
         onBulkDelete={async (metas): Promise<boolean> => {
           // Aggregated variant of the single-quiz onDelete handler above.
           // Partitions targets into:

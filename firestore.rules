@@ -384,6 +384,22 @@ service cloud.firestore {
       match /testClasses/{classId} {
         allow read, write: if isSuperAdmin() || isDomainAdmin(orgId);
       }
+
+      // Cached analytics snapshot, written nightly by the
+      // `recomputeAdminAnalytics` scheduled function (Admin SDK, bypasses
+      // rules) and read by the `adminAnalytics` HTTP function. Surfaced here
+      // so the client can read it directly in future iterations without going
+      // through the HTTP handler; today the HTTP handler is still the only
+      // reader, but a client-direct read path would be a strict cost win.
+      // Read is gated to org admins (any tier) since the snapshot carries
+      // per-member emails and engagement data. All writes are blocked — no
+      // client should ever write here; the scheduler is the sole writer.
+      match /analytics/{document} {
+        allow read: if isSuperAdmin() ||
+                    isDomainAdmin(orgId) ||
+                    isBuildingAdmin(orgId);
+        allow write: if false;
+      }
     }
 
     // Admins collection
@@ -665,21 +681,48 @@ service cloud.firestore {
     match /shared_boards/{shareId} {
       allow read: if request.auth != null;
 
+      // Host writes their own share, and if they tag it with a `plcId`,
+      // they must be a current member of that PLC. Defense-in-depth on top
+      // of the client-side PLC picker — a hostile client could otherwise
+      // surface their share on any PLC's tab.
       allow create: if request.auth != null &&
-        request.resource.data.originalAuthor == request.auth.uid;
+        request.resource.data.originalAuthor == request.auth.uid &&
+        (
+          request.resource.data.get('plcId', null) == null ||
+          request.auth.uid in get(
+            /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
+          ).data.memberUids
+        );
 
       // Host or admin: full update power (content + participants), but
-      // intendedMode is locked to its create-time value.
+      // intendedMode is locked to its create-time value AND any change to
+      // `plcId` (set or retarget) requires the writer to be a current
+      // member of the target PLC. Allowed plcId transitions: unchanged,
+      // un-scoping (→ null), or scoping to a PLC the writer belongs to.
+      // Admins bypass the membership check, matching the existing
+      // ownership-bypass elsewhere in this block.
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
-        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null);
+        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null) &&
+        (
+          request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
+          || request.resource.data.get('plcId', null) == null
+          || isAdmin()
+          || request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
+             ).data.memberUids
+        );
 
       // Collaborator (Synced participant): may update content but must not
       // change participants map, originalAuthor, originalAuthorName,
-      // sharedAt, or intendedMode. originalAuthorName in particular is the
-      // host display name shown in the import-picker / banner UI for every
-      // participant, so a collaborator who could rewrite it would be able
-      // to spoof the host's identity to other peers.
+      // sharedAt, intendedMode, or plcId. originalAuthorName in particular
+      // is the host display name shown in the import-picker / banner UI
+      // for every participant, so a collaborator who could rewrite it
+      // would be able to spoof the host's identity to other peers.
+      // plcId pins the share's PLC scope — a collaborator (a teammate
+      // who joined a non-PLC share) shouldn't be able to silently retarget
+      // someone else's share at an arbitrary PLC, and conversely shouldn't
+      // be able to strip the PLC scope from a PLC-shared board.
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.get('participants', {}) &&
         resource.data.participants[request.auth.uid].get('role', '') == 'collaborator' &&
@@ -687,7 +730,8 @@ service cloud.firestore {
         request.resource.data.originalAuthor == resource.data.originalAuthor &&
         request.resource.data.get('originalAuthorName', null) == resource.data.get('originalAuthorName', null) &&
         request.resource.data.get('sharedAt', null) == resource.data.get('sharedAt', null) &&
-        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null);
+        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null) &&
+        request.resource.data.get('plcId', null) == resource.data.get('plcId', null);
 
       // Self-join: any authed user may add ONLY their own uid to participants
       // without changing any other field. Used by importers picking Synced
@@ -1253,6 +1297,81 @@ service cloud.firestore {
 
         // Any member can unshare. Matches the "PLC-owned" model — a quiz
         // shared with the PLC belongs to the PLC, not the original sharer.
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
+      // PLC Video Activity Library (Phase 4). Mirrors the Phase 2 quiz
+      // library above — lightweight headers pointing at canonical
+      // `/synced_video_activities/{groupId}` docs. Any current member can
+      // share / edit-mirror / unshare. Orphan policy: deleting your
+      // personal copy does NOT cascade-delete the PLC entry.
+      //
+      // Extra field over the quiz block: `youtubeUrl` (mirrored from
+      // source; used for tile thumbnail rendering). All other identity +
+      // attribution invariants are identical.
+      match /video_activities/{plcVideoActivityId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Create: any member, doc id pinned, sharedBy must equal caller.
+        // Questions live in the synced group, not on this doc.
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && plcVideoActivityId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.youtubeUrl is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.questionCount >= 0
+          && request.resource.data.syncGroupId is string
+          // Guard against an empty `syncGroupId` smuggling a broken stub.
+          // The Cloud Function rejects empty strings server-side too;
+          // pinning at the rule layer is defense-in-depth.
+          && request.resource.data.syncGroupId.size() > 0
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.updatedAt is int;
+
+        // Update: any member can mirror title/questionCount/youtubeUrl/
+        // updatedAt. Identity + attribution fields are immutable so
+        // stale-mirror writes can't retarget the entry or rewrite who
+        // shared it.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.title is string
+          && request.resource.data.youtubeUrl is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.questionCount >= 0
+          && request.resource.data.updatedAt is int;
+
+        // Any member can unshare. Matches the PLC-owned model — once
+        // shared, the entry belongs to the PLC, not the original sharer.
         allow delete: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)

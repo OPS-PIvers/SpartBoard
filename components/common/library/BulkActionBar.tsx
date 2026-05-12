@@ -1,22 +1,48 @@
 /**
  * BulkActionBar — floating contextual bar shown above the grid when one or
- * more library items are selected. Surfaces count + Move-to-folder + Delete
- * + Clear. Rendered by each manager above its LibraryGrid so the shell
- * stays agnostic of selection state.
+ * more library items are selected. Surfaces count + per-action buttons +
+ * Clear. Rendered by each manager above its LibraryGrid so the shell stays
+ * agnostic of selection state.
+ *
+ * v2 (Phase 4): the `actions: BulkAction[]` prop lets callers compose
+ * arbitrary multi-action toolbars (delete, duplicate, move, archive,
+ * etc.). The legacy `folders + onMove + onDelete` props remain supported
+ * for back-compat — they're synthesized into actions internally.
  */
 
 import React, { useState } from 'react';
-import { FolderInput, Trash2, X } from 'lucide-react';
+import { FolderInput, Trash2, X, type LucideIcon } from 'lucide-react';
 import type { LibraryFolder } from '@/types';
 import { FolderPickerPopover } from './FolderPickerPopover';
+
+/**
+ * A single bulk action surfaced in the toolbar. The toolbar renders these
+ * left-to-right between the count and the Clear button. Use `destructive`
+ * for the danger styling that delete used to get exclusively.
+ */
+export interface BulkAction {
+  id: string;
+  label: string;
+  icon?: LucideIcon;
+  onClick: () => void | Promise<void>;
+  destructive?: boolean;
+  /** Disables this individual action (in addition to the toolbar-wide busy). */
+  disabled?: boolean;
+}
 
 export interface BulkActionBarProps {
   count: number;
   onClear: () => void;
-  /** Folder picker data. When omitted, the "Move" button is hidden. */
+  /**
+   * v2 multi-action API. When provided, takes precedence over the legacy
+   * folders/onMove/onDelete props; mixing both is allowed and they
+   * concatenate (legacy actions append after `actions`).
+   */
+  actions?: BulkAction[];
+  /** Folder picker data. When omitted, the legacy "Move" button is hidden. */
   folders?: LibraryFolder[];
   onMove?: (folderId: string | null) => void | Promise<void>;
-  /** Delete handler. When omitted, the "Delete" button is hidden. */
+  /** Delete handler. When omitted, the legacy "Delete" button is hidden. */
   onDelete?: () => void | Promise<void>;
   /** Optional busy flag that disables actions while a batch is in-flight. */
   busy?: boolean;
@@ -25,6 +51,7 @@ export interface BulkActionBarProps {
 export const BulkActionBar: React.FC<BulkActionBarProps> = ({
   count,
   onClear,
+  actions,
   folders,
   onMove,
   onDelete,
@@ -45,6 +72,34 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
       </span>
 
       <div className="ml-auto flex items-center gap-2">
+        {/* New multi-action API: render in declaration order. */}
+        {actions?.map((action) => {
+          const Icon = action.icon;
+          // Either the toolbar-wide `busy` or the action's own `disabled`
+          // flag should disable the button. Logical OR (not ??) — both are
+          // booleans where `true` should win.
+          const disabled = Boolean(busy) || Boolean(action.disabled);
+          return (
+            <button
+              key={action.id}
+              type="button"
+              onClick={() => {
+                if (!disabled) void action.onClick();
+              }}
+              disabled={disabled}
+              className={`inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                action.destructive
+                  ? 'text-brand-red-dark ring-1 ring-brand-red-primary/20 hover:bg-brand-red-lighter/30 hover:ring-brand-red-primary/40'
+                  : 'text-brand-blue-dark hover:bg-brand-blue-lighter/40'
+              }`}
+            >
+              {Icon && <Icon className="h-3.5 w-3.5" />}
+              {action.label}
+            </button>
+          );
+        })}
+
+        {/* Legacy folders + onMove API. */}
         {folders && onMove && (
           <div className="relative">
             <button
@@ -72,6 +127,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
           </div>
         )}
 
+        {/* Legacy onDelete API. */}
         {onDelete && (
           <button
             type="button"

@@ -12,6 +12,7 @@ import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { PlcAssignmentIndexEntry, QuizAssignmentStatus } from '@/types';
 import { logError } from '@/utils/logError';
+import { notifyPlcWriteFailure } from '@/utils/plcWriteNotifications';
 
 const PLCS_COLLECTION = 'plcs';
 const ASSIGNMENT_INDEX_SUBCOLLECTION = 'assignment_index';
@@ -19,6 +20,12 @@ const ASSIGNMENT_INDEX_SUBCOLLECTION = 'assignment_index';
 interface UsePlcAssignmentIndexResult {
   entries: PlcAssignmentIndexEntry[];
   loading: boolean;
+  /**
+   * Snapshot subscription error. Non-null means the empty `entries`
+   * array is "couldn't load," not "no items yet" — consumers should
+   * distinguish so the UI doesn't render a misleading empty state.
+   */
+  error: Error | null;
 }
 
 const VALID_STATUSES: ReadonlySet<QuizAssignmentStatus> = new Set([
@@ -79,6 +86,7 @@ export const usePlcAssignmentIndex = (
   const { user } = useAuth();
   const [entries, setEntries] = useState<PlcAssignmentIndexEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Reset state when the target PLC changes so the UI never flashes the
   // previous PLC's entries while the new snapshot is in flight. This is the
@@ -90,6 +98,7 @@ export const usePlcAssignmentIndex = (
     setPrevPlcId(plcId);
     setEntries([]);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -118,16 +127,21 @@ export const usePlcAssignmentIndex = (
         });
         setEntries(list);
         setLoading(false);
+        setError(null);
       },
       (err) => {
         logError('usePlcAssignmentIndex.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsub();
   }, [plcId, user]);
 
-  return useMemo(() => ({ entries, loading }), [entries, loading]);
+  return useMemo(
+    () => ({ entries, loading, error }),
+    [entries, loading, error]
+  );
 };
 
 /**
@@ -135,7 +149,9 @@ export const usePlcAssignmentIndex = (
  * creation flow when the new assignment opts into PLC mode. Failures are
  * non-fatal — the assignment itself has already committed; the dashboard
  * can recover via a manual reindex later. We log + swallow so a transient
- * Firestore hiccup doesn't break the user's "Assign" action.
+ * Firestore hiccup doesn't break the user's "Assign" action — but a
+ * `spartboard:plc-write-failed` event is dispatched so the UI layer can
+ * surface a toast.
  */
 export async function writePlcAssignmentIndexEntry(
   plcId: string,
@@ -151,6 +167,7 @@ export async function writePlcAssignmentIndexEntry(
       plcId,
       entryId: entry.id,
     });
+    notifyPlcWriteFailure({ scope: 'assignmentIndex', plcId });
   }
 }
 
@@ -183,10 +200,21 @@ export async function mirrorPlcAssignmentStatus(
       { status }
     );
   } catch (err) {
+    // `not-found` here is part of the documented benign-state contract
+    // (entry was deleted between canonical write and mirror); don't toast
+    // for that case to avoid spurious noise. Genuine permission/network
+    // failures still surface.
+    const code =
+      err instanceof Error && 'code' in err
+        ? (err as { code?: string }).code
+        : undefined;
     logError('mirrorPlcAssignmentStatus.write', err, {
       plcId,
       assignmentId,
       status,
     });
+    if (code !== 'not-found') {
+      notifyPlcWriteFailure({ scope: 'assignmentStatusMirror', plcId });
+    }
   }
 }

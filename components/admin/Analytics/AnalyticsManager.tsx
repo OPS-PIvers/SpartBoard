@@ -19,20 +19,23 @@ import {
 import { auth } from '@/config/firebase';
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowDownUp,
   ArrowUp,
   ArrowDown,
   BarChart2,
   ChevronDown,
   ChevronUp,
+  Clock,
+  Info,
   LayoutGrid,
-  RefreshCw,
   School,
   Search,
   Users,
   WandSparkles,
   Zap,
 } from 'lucide-react';
+import { logError } from '@/utils/logError';
 import { Modal } from '@/components/common/Modal';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useAuth } from '@/context/useAuth';
@@ -102,7 +105,32 @@ interface AnalyticsData {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  // Snapshot freshness metadata returned alongside the payload. The server
+  // computes the analytics once a day; these timestamps drive the
+  // "Last updated · Next update at" badge so the admin understands they're
+  // looking at a cached read rather than a live aggregate.
+  //
+  // `partial` is set when one or more chunks of `auth().getUsers()` failed
+  // during compute; the counts that depend on email/uid resolution will be
+  // lower than reality. Admins need to see this signal before drawing
+  // conclusions from a daily snapshot.
+  meta?: {
+    computedAt: number;
+    nextRecomputeAt: number;
+    computeDurationMs: number;
+    partial?: boolean;
+  };
 }
+
+/**
+ * Failure shape returned by the `/api/admin-analytics` endpoint. The
+ * `cold-start` kind is a benign state (the daily scheduler hasn't run for
+ * this org yet) and renders as a calm informational notice; `fatal` is a
+ * real error and renders as a red banner.
+ */
+type AnalyticsErrorState =
+  | { kind: 'cold-start'; message: string }
+  | { kind: 'fatal'; message: string };
 
 type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users';
 
@@ -113,6 +141,65 @@ const WIDGET_LABELS: Record<string, string> = TOOLS.reduce(
   },
   {} as Record<string, string>
 );
+
+/**
+ * "Updated 4h ago · Next update at 5:00 AM" badge that replaces the previous
+ * manual Refresh button. Analytics are now computed once daily by a Cloud
+ * Scheduler job; a client-driven recompute would defeat the cache and reopen
+ * the unbounded-Firestore-reads cost path. The badge makes the cached nature
+ * of the data legible to the admin so they don't wonder why a recent change
+ * isn't reflected yet.
+ *
+ * `meta` is optional because page-load races and the `not-yet-computed` cold
+ * start can both arrive at the badge before the server has any snapshot to
+ * report on. In those cases the badge stays hidden — the surrounding error
+ * banner already carries the "Analytics ready at 5:00 AM Central" copy.
+ */
+const SnapshotFreshnessBadge: React.FC<{
+  meta?: { computedAt: number; nextRecomputeAt: number };
+}> = ({ meta }) => {
+  if (!meta) return null;
+  const updated = formatRelativeTimeAgo(meta.computedAt);
+  const nextAt = new Date(meta.nextRecomputeAt).toLocaleTimeString([], {
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+  return (
+    <div
+      className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs text-slate-600"
+      title={`Computed ${new Date(meta.computedAt).toLocaleString()} · Next refresh ${new Date(meta.nextRecomputeAt).toLocaleString()}`}
+    >
+      <Clock className="w-3.5 h-3.5 text-slate-400" />
+      <span>
+        Updated {updated} · Next update at {nextAt}
+      </span>
+    </div>
+  );
+};
+
+/**
+ * Returns a short relative-time string ("2h ago", "just now", "3d ago").
+ * Uses `Intl.RelativeTimeFormat` so the unit choice is locale-correct.
+ *
+ * Uses `Math.floor` (not `Math.round`) to truncate to the largest unit the
+ * elapsed time has actually crossed. Rounding would promote 59 min to "1
+ * hour ago" and 23.5 hours to "1 day ago" — those displays misrepresent the
+ * freshness of the snapshot in the direction that's worse for the user
+ * (claiming staler data than reality). Truncation always under-states the
+ * elapsed time by less than one unit, which is the right error direction
+ * for a "this data is up to X old" indicator.
+ */
+function formatRelativeTimeAgo(timestampMs: number): string {
+  const diffMs = Date.now() - timestampMs;
+  const minutes = Math.floor(diffMs / 60_000);
+  const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
+  if (minutes < 1) return fmt.format(0, 'minute');
+  if (minutes < 60) return fmt.format(-minutes, 'minute');
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return fmt.format(-hours, 'hour');
+  const days = Math.floor(hours / 24);
+  return fmt.format(-days, 'day');
+}
 
 /**
  * Folds a record keyed by raw building IDs into a record keyed by canonical
@@ -1415,7 +1502,7 @@ export const AnalyticsManager: React.FC = () => {
   const { orgId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AnalyticsErrorState | null>(null);
   const [selectedTab, setSelectedTab] = useState<AnalyticsTab>('overview');
   const [selectedDomain, setSelectedDomain] = useState('all');
   const [selectedBuilding, setSelectedBuilding] = useState('all');
@@ -1446,9 +1533,11 @@ export const AnalyticsManager: React.FC = () => {
       if (isMountedRef.current) {
         setLoading(false);
         setData(null);
-        setError(
-          'No organization selected. Analytics require an active organization.'
-        );
+        setError({
+          kind: 'fatal',
+          message:
+            'No organization selected. Analytics require an active organization.',
+        });
       }
       return;
     }
@@ -1477,7 +1566,25 @@ export const AnalyticsManager: React.FC = () => {
           message?: string;
           error?: string;
         };
+        // 503 is the server's signal for "this org has no snapshot yet —
+        // wait for the next scheduled refresh." This is a benign state for
+        // a freshly-onboarded org; render a calm "scheduled refresh is on
+        // its way" notice instead of the red error banner. We accept the
+        // status alone because the body parse can fail (intermediary
+        // truncation, gzip error) and we'd rather misclassify a malformed
+        // 503 as cold-start than as a fatal error — the recompute
+        // scheduler will resolve either way and the UI is non-destructive.
         const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
+        if (response.status === 503) {
+          if (
+            isMountedRef.current &&
+            requestId === requestSequenceRef.current
+          ) {
+            setData(null);
+            setError({ kind: 'cold-start', message: msg });
+          }
+          return;
+        }
         throw new Error(msg);
       }
 
@@ -1516,6 +1623,7 @@ export const AnalyticsManager: React.FC = () => {
           avgDailyCallsPerUser: raw.api?.avgDailyCallsPerUser ?? 0,
           byFeature: raw.api?.byFeature ?? {},
         },
+        meta: raw.meta,
       };
 
       if (!isMountedRef.current || requestId !== requestSequenceRef.current) {
@@ -1523,15 +1631,17 @@ export const AnalyticsManager: React.FC = () => {
       }
       setData(normalized);
     } catch (err: unknown) {
-      console.error('Failed to load analytics', err);
+      logError('AnalyticsManager.fetch', err, { orgId });
       if (!isMountedRef.current || requestId !== requestSequenceRef.current) {
         return;
       }
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'An error occurred loading analytics data'
-      );
+      setError({
+        kind: 'fatal',
+        message:
+          err instanceof Error
+            ? err.message
+            : 'An error occurred loading analytics data',
+      });
     } finally {
       if (isMountedRef.current && requestId === requestSequenceRef.current) {
         setLoading(false);
@@ -1672,12 +1782,29 @@ export const AnalyticsManager: React.FC = () => {
   }
 
   if (error) {
+    if (error.kind === 'cold-start') {
+      // Benign state — the daily scheduler hasn't computed a snapshot for
+      // this org yet. The server's message already contains the user-facing
+      // copy ("ready at 5:00 AM Central daily"); render it in a calm slate
+      // surface, not red.
+      return (
+        <div className="bg-slate-50 border border-slate-200 text-slate-700 p-6 rounded-2xl flex items-start gap-3">
+          <Info className="w-6 h-6 shrink-0 mt-0.5 text-slate-400" />
+          <div>
+            <h3 className="font-bold mb-1 text-slate-900">
+              Analytics not ready yet
+            </h3>
+            <p className="text-sm">{error.message}</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-start gap-3">
         <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
         <div>
           <h3 className="font-bold mb-1">Failed to Load Analytics</h3>
-          <p className="text-sm">{error}</p>
+          <p className="text-sm">{error.message}</p>
         </div>
       </div>
     );
@@ -1687,6 +1814,27 @@ export const AnalyticsManager: React.FC = () => {
 
   return (
     <div className="space-y-5 pb-12">
+      {data.meta?.partial && (
+        // Amber banner — counts are real but the compute hit one or more
+        // chunks where `auth().getUsers()` failed, so engagement totals
+        // are under-counted. Admins need to know this before drawing
+        // conclusions from the snapshot. The next scheduled refresh will
+        // re-run the auth lookups and (hopefully) clear the flag.
+        <div
+          role="status"
+          className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl flex items-start gap-3"
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" />
+          <div>
+            <h3 className="font-semibold mb-0.5">Partial data</h3>
+            <p className="text-sm">
+              Some user data couldn&apos;t be loaded during the last compute.
+              Counts may be lower than actual. The next scheduled refresh should
+              clear this.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <select
@@ -1720,15 +1868,7 @@ export const AnalyticsManager: React.FC = () => {
           </select>
         </div>
 
-        <button
-          type="button"
-          disabled={loading}
-          onClick={() => void fetchAnalytics()}
-          className="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 shadow-sm disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          Refresh
-        </button>
+        <SnapshotFreshnessBadge meta={data?.meta} />
       </div>
 
       <div

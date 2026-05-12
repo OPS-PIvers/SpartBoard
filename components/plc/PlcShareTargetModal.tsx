@@ -10,6 +10,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Loader2, Users2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { Plc } from '@/types';
@@ -29,6 +30,7 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
   onConfirm,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const initialSelected = plcs.length === 1 ? plcs[0].id : '';
   const [selectedId, setSelectedId] = useState<string>(initialSelected);
   const [submitting, setSubmitting] = useState(false);
@@ -43,7 +45,13 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
     try {
       await onConfirm(selectedId);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Share failed.');
+      setError(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.shareTargetModal.shareFailed', {
+              defaultValue: 'Share failed.',
+            })
+      );
       setSubmitting(false);
     }
   };
@@ -52,7 +60,9 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
     <Modal
       isOpen
       onClose={submitting ? () => undefined : onClose}
-      ariaLabel="Pick a PLC to share with"
+      ariaLabel={t('plcDashboard.shareTargetModal.ariaLabel', {
+        defaultValue: 'Pick a PLC to share with',
+      })}
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
@@ -63,7 +73,9 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Share with PLC
+                {t('plcDashboard.shareTargetModal.title', {
+                  defaultValue: 'Share with PLC',
+                })}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
                 {quizTitle}
@@ -74,7 +86,9 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             type="button"
             onClick={onClose}
             disabled={submitting}
-            aria-label="Close"
+            aria-label={t('plcDashboard.shareTargetModal.close', {
+              defaultValue: 'Close',
+            })}
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors disabled:opacity-40"
           >
             <X className="w-5 h-5" />
@@ -84,8 +98,10 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
     >
       <div className="px-5 pb-5 pt-4 space-y-4">
         <p className="text-xs text-slate-600">
-          Pick which PLC should receive this quiz. Teammates can sync or copy it
-          into their own libraries.
+          {t('plcDashboard.shareTargetModal.prompt', {
+            defaultValue:
+              'Pick which PLC should receive this quiz. Teammates can sync or copy it into their own libraries.',
+          })}
         </p>
 
         <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar -mx-1 px-1">
@@ -113,8 +129,11 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
                   {plc.name}
                 </div>
                 <div className="text-xxs text-slate-500">
-                  {plc.memberUids.length}{' '}
-                  {plc.memberUids.length === 1 ? 'member' : 'members'}
+                  {t('plcDashboard.shareTargetModal.memberCount', {
+                    count: plc.memberUids.length,
+                    defaultValue: '{{count}} member',
+                    defaultValue_other: '{{count}} members',
+                  })}
                 </div>
               </div>
             </label>
@@ -134,7 +153,9 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             disabled={submitting}
             className="px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-100 rounded-lg transition-colors disabled:opacity-40"
           >
-            Cancel
+            {t('plcDashboard.shareTargetModal.cancel', {
+              defaultValue: 'Cancel',
+            })}
           </button>
           <button
             type="button"
@@ -143,7 +164,9 @@ export const PlcShareTargetModal: React.FC<PlcShareTargetModalProps> = ({
             className="px-4 py-2 text-xs font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors flex items-center gap-2"
           >
             {submitting && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-            Share
+            {t('plcDashboard.shareTargetModal.submit', {
+              defaultValue: 'Share',
+            })}
           </button>
         </div>
       </div>

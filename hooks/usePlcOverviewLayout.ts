@@ -9,8 +9,10 @@ import {
   PlcBentoTile,
   PlcBentoTileKind,
   PlcBentoTileSize,
+  PlcGridCoords,
   PlcOverviewLayout,
 } from '@/types';
+import { migrateLayoutToCoords } from '@/components/plc/grid/tileGridMath';
 import { logError } from '@/utils/logError';
 
 const USERS_COLLECTION = 'users';
@@ -22,24 +24,66 @@ interface UsePlcOverviewLayoutResult {
   /** The merged layout — defaults overlaid with any persisted user customization. */
   layout: PlcOverviewLayout;
   loading: boolean;
+  /**
+   * Snapshot or write error. Non-null means the displayed layout may be the
+   * default placeholder (not the user's real saved layout); consumers should
+   * surface a banner so the user knows their edits won't persist.
+   */
+  error: Error | null;
   /** Replace the full layout. Debounced (~500ms) — successive calls coalesce. */
   updateLayout: (next: PlcOverviewLayout) => void;
   /** Reset to defaults. Writes immediately, no debounce. */
   resetLayout: () => Promise<void>;
 }
 
+function parseCoords(raw: unknown): PlcGridCoords | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const obj = raw as Record<string, unknown>;
+  const { x, y, w, h } = obj;
+  if (
+    typeof x !== 'number' ||
+    typeof y !== 'number' ||
+    typeof w !== 'number' ||
+    typeof h !== 'number'
+  ) {
+    return undefined;
+  }
+  return { x, y, w, h };
+}
+
 function parseTile(raw: unknown): PlcBentoTile | null {
   if (!raw || typeof raw !== 'object') return null;
   const obj = raw as Record<string, unknown>;
   const kind = obj.kind;
-  const size = obj.size;
-  if (typeof kind !== 'string' || typeof size !== 'string') return null;
+  if (typeof kind !== 'string') return null;
   if (!PLC_BENTO_TILE_KINDS.includes(kind as PlcBentoTileKind)) return null;
-  if (!PLC_BENTO_TILE_SIZES.includes(size as PlcBentoTileSize)) return null;
-  const tile: PlcBentoTile = {
-    kind: kind as PlcBentoTileKind,
-    size: size as PlcBentoTileSize,
-  };
+
+  const tile: PlcBentoTile = { kind: kind as PlcBentoTileKind };
+
+  // Legacy v1 size is optional now — kept on the tile for back-compat
+  // until a future cleanup pass.
+  if (typeof obj.size === 'string') {
+    if (PLC_BENTO_TILE_SIZES.includes(obj.size as PlcBentoTileSize)) {
+      tile.size = obj.size as PlcBentoTileSize;
+    }
+  }
+
+  const coords = parseCoords(obj.coords);
+  if (coords) tile.coords = coords;
+
+  // A tile must carry at least ONE of {size, coords} so the migrator can
+  // derive grid placement. For a known kind (one we ship a default for)
+  // we recover by stamping the default size from `DEFAULT_PLC_OVERVIEW_LAYOUT`
+  // — the user's hidden/customized tile shouldn't vanish just because its
+  // shape got truncated. Unknown kinds are dropped.
+  if (!tile.size && !tile.coords) {
+    const defaultEntry = DEFAULT_PLC_OVERVIEW_LAYOUT.tiles.find(
+      (t) => t.kind === tile.kind
+    );
+    if (!defaultEntry?.size) return null;
+    tile.size = defaultEntry.size;
+  }
+
   if (typeof obj.hidden === 'boolean') tile.hidden = obj.hidden;
   return tile;
 }
@@ -74,10 +118,11 @@ function parseLayout(data: Record<string, unknown>): PlcOverviewLayout {
     if (parsed) tiles.push(parsed);
   }
   const updatedAt = typeof data.updatedAt === 'number' ? data.updatedAt : 0;
-  return {
-    tiles: mergeLayout(tiles),
-    updatedAt,
-  };
+  // Stamp every tile with `coords` (derived from legacy `size` if needed)
+  // so v2 grid renderers can rely on them without a per-render fallback.
+  // The first write-back persists these — see `updateLayout`.
+  const merged = migrateLayoutToCoords(mergeLayout(tiles));
+  return { tiles: merged, updatedAt };
 }
 
 /**
@@ -99,11 +144,19 @@ export const usePlcOverviewLayout = (
     DEFAULT_PLC_OVERVIEW_LAYOUT
   );
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Track local writes so an in-flight snapshot doesn't clobber a tile
   // the user just rearranged. We compare timestamps before accepting a
   // remote snapshot — only newer (or equal+different content) wins.
   const lastLocalWriteRef = useRef<number>(0);
+
+  // Has the listener returned at least one successful snapshot (either
+  // doc-exists or doc-missing)? Until then, the on-screen layout is the
+  // hardcoded default — issuing a debounced write would overwrite the
+  // user's real saved layout with the default. Read inside `updateLayout`
+  // (and `resetLayout`) to gate writes.
+  const hasInitialSnapshotRef = useRef(false);
 
   // Debounce timer for `updateLayout`. Ref-held so a re-render doesn't
   // restart the clock unintentionally; cleared on unmount or PLC change.
@@ -120,6 +173,7 @@ export const usePlcOverviewLayout = (
     setPrevPlcId(plcId);
     setLayout(DEFAULT_PLC_OVERVIEW_LAYOUT);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -127,6 +181,10 @@ export const usePlcOverviewLayout = (
       const t = setTimeout(() => {
         setLayout(DEFAULT_PLC_OVERVIEW_LAYOUT);
         setLoading(false);
+        // No real backend in bypass / no-plc paths — treat the initial
+        // "snapshot" as having arrived so consumer-side writes are not
+        // suppressed.
+        hasInitialSnapshotRef.current = true;
       }, 0);
       return () => clearTimeout(t);
     }
@@ -140,6 +198,8 @@ export const usePlcOverviewLayout = (
     const unsub = onSnapshot(
       ref,
       (snap) => {
+        hasInitialSnapshotRef.current = true;
+        setError(null);
         if (!snap.exists()) {
           setLayout(DEFAULT_PLC_OVERVIEW_LAYOUT);
           setLoading(false);
@@ -157,6 +217,7 @@ export const usePlcOverviewLayout = (
       (err) => {
         logError('usePlcOverviewLayout.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     // Cleanup on unmount OR plcId/user change: tear down the listener AND
@@ -171,7 +232,10 @@ export const usePlcOverviewLayout = (
         debounceTimerRef.current = null;
       }
       const pending = pendingWriteRef.current;
-      if (pending && !isAuthBypass) {
+      // Only flush if we received the initial snapshot — otherwise `pending`
+      // may have been derived from the default placeholder layout and a
+      // flush would overwrite the user's real saved layout.
+      if (pending && !isAuthBypass && hasInitialSnapshotRef.current) {
         // Fire-and-forget — cleanup can't await. The `void` is intentional.
         void setDoc(ref, pending).catch((err: unknown) => {
           logError('usePlcOverviewLayout.flush', err, { plcId });
@@ -179,6 +243,7 @@ export const usePlcOverviewLayout = (
       }
       pendingWriteRef.current = null;
       lastLocalWriteRef.current = 0;
+      hasInitialSnapshotRef.current = false;
     };
   }, [plcId, user]);
 
@@ -188,8 +253,13 @@ export const usePlcOverviewLayout = (
         tiles: next.tiles,
         updatedAt: Date.now(),
       };
-      lastLocalWriteRef.current = stamped.updatedAt;
+      // Always update the in-memory layout for instant visual feedback,
+      // but only stage a Firestore write if we've confirmed we're reading
+      // real data. Otherwise the user's drag would persist DEFAULT-derived
+      // coordinates on top of an unread real layout.
       setLayout(stamped);
+      if (!hasInitialSnapshotRef.current) return;
+      lastLocalWriteRef.current = stamped.updatedAt;
       pendingWriteRef.current = stamped;
 
       if (!plcId || !user || isAuthBypass) return;
@@ -210,6 +280,7 @@ export const usePlcOverviewLayout = (
         );
         void setDoc(ref, pending).catch((err: unknown) => {
           logError('usePlcOverviewLayout.write', err, { plcId });
+          setError(err instanceof Error ? err : new Error(String(err)));
         });
       }, DEBOUNCE_MS);
     },
@@ -220,6 +291,12 @@ export const usePlcOverviewLayout = (
     if (!plcId || !user || isAuthBypass) {
       setLayout(DEFAULT_PLC_OVERVIEW_LAYOUT);
       return;
+    }
+    // Reset is an explicit user action — refuse it if we never read the
+    // saved layout. Otherwise this would silently write defaults on top of
+    // a layout we couldn't load.
+    if (!hasInitialSnapshotRef.current) {
+      throw error ?? new Error('Layout not loaded; cannot reset.');
     }
     if (debounceTimerRef.current) {
       clearTimeout(debounceTimerRef.current);
@@ -243,12 +320,13 @@ export const usePlcOverviewLayout = (
       await setDoc(ref, stamped);
     } catch (err) {
       logError('usePlcOverviewLayout.reset', err, { plcId });
+      setError(err instanceof Error ? err : new Error(String(err)));
       throw err;
     }
-  }, [plcId, user]);
+  }, [plcId, user, error]);
 
   return useMemo(
-    () => ({ layout, loading, updateLayout, resetLayout }),
-    [layout, loading, updateLayout, resetLayout]
+    () => ({ layout, loading, error, updateLayout, resetLayout }),
+    [layout, loading, error, updateLayout, resetLayout]
   );
 };

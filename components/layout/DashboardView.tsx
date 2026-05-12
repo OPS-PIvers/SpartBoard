@@ -22,6 +22,10 @@ import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/c
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
 import { logError } from '@/utils/logError';
+import {
+  PLC_WRITE_FAILED_EVENT,
+  type PlcWriteFailureDetail,
+} from '@/utils/plcWriteNotifications';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useStorage, MAX_PDF_SIZE_BYTES } from '@/hooks/useStorage';
 import { Sidebar } from './sidebar/Sidebar';
@@ -189,6 +193,33 @@ export const DashboardView: React.FC = () => {
   const { importSharedAssignment: importSharedVideoActivityAssignment } =
     useVideoActivityAssignments(user?.uid);
   const { plcs, loading: plcsLoading } = usePlcs();
+
+  // Surface fire-and-forget PLC sync failures as a toast. Helpers
+  // (`writePlcAssignment*`, `mirrorPlcAssignmentStatus`) log+swallow so
+  // the canonical assignment commit isn't blocked, then dispatch this
+  // event — see `utils/plcWriteNotifications.ts`. We coalesce by scope
+  // so a burst of failures during one Firestore brownout shows one toast
+  // per scope, not one per write.
+  const lastPlcToastRef = React.useRef<Map<string, number>>(new Map());
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<PlcWriteFailureDetail>).detail;
+      if (!detail) return;
+      const now = Date.now();
+      const last = lastPlcToastRef.current.get(detail.scope) ?? 0;
+      if (now - last < 10_000) return;
+      lastPlcToastRef.current.set(detail.scope, now);
+      addToast(
+        t('plcDashboard.shareSyncFailed', {
+          defaultValue:
+            "Couldn't sync to your PLC. Your assignment is saved — retry from the assignment kebab.",
+        }),
+        'error'
+      );
+    };
+    window.addEventListener(PLC_WRITE_FAILED_EVENT, handler);
+    return () => window.removeEventListener(PLC_WRITE_FAILED_EVENT, handler);
+  }, [addToast, t]);
 
   // Mode picker state — populated when a synced share is detected; null
   // means no picker is open. We hold the shareId + a snapshot of the

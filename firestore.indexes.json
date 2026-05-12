@@ -265,6 +265,14 @@
           "order": "DESCENDING"
         }
       ]
+    },
+    {
+      "collectionGroup": "shared_boards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "plcId", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
