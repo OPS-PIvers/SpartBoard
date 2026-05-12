@@ -476,24 +476,42 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
    * Mirrors `VideoActivityWidget.handleShareWithPlc`: load Drive
    * content, mint a synced group if one doesn't exist yet, attach sync
    * linkage, then write the PLC subcoll header.
+   *
+   * Failure modes mirror `PlcQuizLibraryBody.handleShareFromPicker`
+   * exactly — see that handler's docstring for the full enumeration. In
+   * particular: if `writePlcVideoActivityEntry` fails after group +
+   * linkage succeeded, the local activity keeps a self-only sync linkage
+   * and is tagged as
+   * `shareFromPicker.orphanedGroup` in monitoring.
+   *
+   * The caller (`PlcSharePickerModal.handlePick`) does NOT re-throw —
+   * surfacing the failure via toast inside the catch is enough, and
+   * re-throwing would leave a dangling unhandled-rejection on the React
+   * event handler.
    */
   const handleShareFromPicker = useCallback(
     async (personalActivityId: string): Promise<void> => {
-      if (!user) throw new Error('Not authenticated.');
-      const meta = personalActivities.find((a) => a.id === personalActivityId);
-      if (!meta) throw new Error('Video activity no longer in your library.');
-      if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
-        addToast(
-          t('plcDashboard.videoActivities.sharePicker.alreadySharedToast', {
-            title: meta.title,
-            defaultValue: '"{{title}}" is already shared with this PLC.',
-          }),
-          'info'
-        );
-        setSharePickerOpen(false);
-        return;
-      }
+      let groupCreatedAndLinked: { syncGroupId: string } | null = null;
       try {
+        if (!user) throw new Error('Not authenticated.');
+        const meta = personalActivities.find(
+          (a) => a.id === personalActivityId
+        );
+        if (!meta) {
+          throw new Error('Video activity no longer in your library.');
+        }
+        if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
+          addToast(
+            t('plcDashboard.videoActivities.sharePicker.alreadySharedToast', {
+              title: meta.title,
+              defaultValue: '"{{title}}" is already shared with this PLC.',
+            }),
+            'info'
+          );
+          setSharePickerOpen(false);
+          return;
+        }
+
         const data = await loadActivityData(meta.driveFileId);
         let syncGroupId: string;
         if (meta.sync) {
@@ -513,6 +531,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
               groupId: syncGroupId,
               lastSyncedVersion: 1,
             });
+            groupCreatedAndLinked = { syncGroupId };
           } catch (linkageErr) {
             try {
               await callLeaveSyncedVideoActivityGroup(syncGroupId);
@@ -549,9 +568,15 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         );
         setSharePickerOpen(false);
       } catch (err) {
-        logError('PlcVideoActivitiesBody.shareFromPicker', err, {
+        const code = groupCreatedAndLinked
+          ? 'PlcVideoActivitiesBody.shareFromPicker.orphanedGroup'
+          : 'PlcVideoActivitiesBody.shareFromPicker';
+        logError(code, err, {
           plcId: plc.id,
           personalActivityId,
+          ...(groupCreatedAndLinked
+            ? { syncGroupId: groupCreatedAndLinked.syncGroupId }
+            : {}),
         });
         addToast(
           err instanceof Error
@@ -561,7 +586,6 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
               }),
           'error'
         );
-        throw err;
       }
     },
     [

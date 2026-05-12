@@ -450,28 +450,54 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
    * teacher's personal quiz id and the caller closes the modal on
    * success.
    *
-   * If `attachSyncLinkage` fails after `createSyncedQuizGroup` succeeds,
-   * we best-effort `callLeaveSyncedQuizGroup` so we don't leave a phantom
-   * participant entry — the empty group itself stays (synced_quizzes
-   * rules intentionally don't allow client deletes).
+   * Failure modes and what each leaves behind:
+   *
+   *   - `loadQuizData` fails → nothing written. Toast surfaced, picker
+   *     stays open for retry.
+   *   - `createSyncedQuizGroup` fails → nothing written. Same.
+   *   - `attachSyncLinkage` fails after group exists → best-effort
+   *     `callLeaveSyncedQuizGroup` so we don't leave a phantom
+   *     participant. The empty group doc itself stays (synced_quizzes
+   *     rules intentionally don't allow client deletes). If the rollback
+   *     itself fails it's logged with a distinctive code so ops can find
+   *     the orphan; the user only sees the original linkage error toast.
+   *   - `writePlcQuizEntry` fails after group + linkage succeeded →
+   *     **known gap**. The local quiz keeps the sync linkage; the synced
+   *     group sits with the user as sole participant ("self-only sync").
+   *     A retry sees `meta.sync` and skips group creation, so no duplicate
+   *     groups are minted. The PLC header gets a fresh `plcQuizId` per
+   *     attempt; if the snapshot hasn't caught up the picker won't yet
+   *     show "Already shared", which can produce two PLC headers pointing
+   *     at one synced group across multiple successful retries. A full
+   *     rollback would require detaching the sync linkage; no
+   *     `detachSyncLinkage` API exists yet. Tagged with
+   *     `shareFromPicker.orphanedGroup` so the orphan rate is observable
+   *     in monitoring.
+   *
+   * The caller (`PlcSharePickerModal.handlePick`) does NOT re-throw —
+   * surfacing the failure via toast inside the catch is enough, and
+   * re-throwing would leave a dangling unhandled-rejection on the React
+   * event handler.
    */
   const handleShareFromPicker = useCallback(
     async (personalQuizId: string): Promise<void> => {
-      if (!user) throw new Error('Not authenticated.');
-      const meta = personalQuizzes.find((q) => q.id === personalQuizId);
-      if (!meta) throw new Error('Quiz no longer in your library.');
-      if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
-        addToast(
-          t('plcDashboard.quizLibrary.sharePicker.alreadySharedToast', {
-            title: meta.title,
-            defaultValue: '"{{title}}" is already shared with this PLC.',
-          }),
-          'info'
-        );
-        setSharePickerOpen(false);
-        return;
-      }
+      let groupCreatedAndLinked: { syncGroupId: string } | null = null;
       try {
+        if (!user) throw new Error('Not authenticated.');
+        const meta = personalQuizzes.find((q) => q.id === personalQuizId);
+        if (!meta) throw new Error('Quiz no longer in your library.');
+        if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
+          addToast(
+            t('plcDashboard.quizLibrary.sharePicker.alreadySharedToast', {
+              title: meta.title,
+              defaultValue: '"{{title}}" is already shared with this PLC.',
+            }),
+            'info'
+          );
+          setSharePickerOpen(false);
+          return;
+        }
+
         const data = await loadQuizData(meta.driveFileId);
         let syncGroupId: string;
         if (meta.sync) {
@@ -490,6 +516,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
               groupId: syncGroupId,
               lastSyncedVersion: 1,
             });
+            groupCreatedAndLinked = { syncGroupId };
           } catch (linkageErr) {
             try {
               await callLeaveSyncedQuizGroup(syncGroupId);
@@ -525,9 +552,19 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         );
         setSharePickerOpen(false);
       } catch (err) {
-        logError('PlcQuizLibraryBody.shareFromPicker', err, {
+        // Tag with a distinctive code when the failure happened AFTER the
+        // synced group + linkage are in place — this is the orphan case
+        // documented above. Searchable in monitoring as
+        // `shareFromPicker.orphanedGroup`.
+        const code = groupCreatedAndLinked
+          ? 'PlcQuizLibraryBody.shareFromPicker.orphanedGroup'
+          : 'PlcQuizLibraryBody.shareFromPicker';
+        logError(code, err, {
           plcId: plc.id,
           personalQuizId,
+          ...(groupCreatedAndLinked
+            ? { syncGroupId: groupCreatedAndLinked.syncGroupId }
+            : {}),
         });
         addToast(
           err instanceof Error
@@ -537,7 +574,6 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
               }),
           'error'
         );
-        throw err;
       }
     },
     [

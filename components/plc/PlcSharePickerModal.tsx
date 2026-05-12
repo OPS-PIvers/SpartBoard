@@ -15,7 +15,7 @@
  * than a disabled CTA button.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Search, Share2, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -64,6 +64,12 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
+  // Ref-based reentry guard. `busyId` state alone is not enough — a
+  // synchronous double-click on the same row fires the second handler
+  // before React commits the `setBusyId` from the first, so the state
+  // check still reads `null`. The ref flips synchronously so the
+  // second invocation early-returns.
+  const busyRef = useRef(false);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -72,11 +78,13 @@ export const PlcSharePickerModal: React.FC<PlcSharePickerModalProps> = ({
   }, [items, query]);
 
   const handlePick = async (itemId: string) => {
-    if (busyId) return;
+    if (busyRef.current) return;
+    busyRef.current = true;
     setBusyId(itemId);
     try {
       await onPick(itemId);
     } finally {
+      busyRef.current = false;
       setBusyId(null);
     }
   };
