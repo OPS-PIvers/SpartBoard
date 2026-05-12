@@ -153,6 +153,16 @@ export interface GuidedLearningManagerProps {
    * whose duplicate is currently in-flight.
    */
   isDuplicatingPersonal?: (setId: string) => boolean;
+  /**
+   * Phase 5 follow-up — admin-only Duplicate kebab item on building
+   * sets. Sibling of `onDuplicatePersonal`. Building sets live in the
+   * `building_guided_learning` collection; the hook's
+   * `duplicateBuildingSet` owns the actual write. When omitted (or
+   * when the current user is not admin), the entry is hidden.
+   */
+  onDuplicateBuilding?: (setId: string) => void | Promise<void>;
+  /** Busy-state probe for the building-set Duplicate kebab. */
+  isDuplicatingBuilding?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
@@ -332,6 +342,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onDeletePersonal,
   onDuplicatePersonal,
   isDuplicatingPersonal,
+  onDuplicateBuilding,
+  isDuplicatingBuilding,
   onDeleteBuilding,
   onCreateNewPersonal,
   onCreateNewBuilding,
@@ -652,10 +664,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
 
     if (entry.source === 'personal') {
-      // Phase 5 — Duplicate only for personal sets (building sets are
-      // admin-authored and not part of the teacher library duplicate
-      // flow). Stacked between Edit/Results and Move/Delete so the
-      // destructive action stays last.
+      // Phase 5 — Duplicate. Stacked between Edit/Results and Move/Delete
+      // so the destructive action stays last.
       if (onDuplicatePersonal && entry.driveFileId) {
         const fileId = entry.driveFileId;
         secondary.push(
@@ -679,6 +689,20 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             }),
           disabled: !userId,
         })
+      );
+    } else if (entry.source === 'building' && isAdmin && onDuplicateBuilding) {
+      // Admin-only Duplicate for building sets. Mirrors the personal
+      // entry's Duplicate; building sets have no folder concept so the
+      // Move-to-folder action is skipped.
+      secondary.push(
+        buildDuplicateAction(
+          { id: rawId, title: entry.title },
+          () => void onDuplicateBuilding(rawId),
+          {
+            disabled: isDuplicatingBuilding?.(rawId),
+            disabledReason: 'Duplicating…',
+          }
+        )
       );
     }
 

@@ -81,6 +81,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     duplicateSet,
     saveBuildingSet,
     deleteBuildingSet,
+    duplicateBuildingSet,
   } = useGuidedLearning(user?.uid);
 
   const { createSession } = useGuidedLearningSessionTeacher(user?.uid);
@@ -108,6 +109,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [showAIGen, setShowAIGen] = useState(false);
   // In-flight Duplicate kebab guard — see QuizWidget for the rationale.
   const [duplicatingSetIds, setDuplicatingSetIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
+  // Same guard for building-set duplicates (admin-only).
+  const [duplicatingBuildingSetIds, setDuplicatingBuildingSetIds] = useState<
     ReadonlySet<string>
   >(() => new Set());
   const [recentSessionIds, setRecentSessionIds] = useState<
@@ -674,6 +679,38 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   }
                 }}
                 isDuplicatingPersonal={(setId) => duplicatingSetIds.has(setId)}
+                onDuplicateBuilding={async (setId) => {
+                  if (duplicatingBuildingSetIds.has(setId)) return;
+                  const source = buildingSets.find((s) => s.id === setId);
+                  if (!source) return;
+                  setDuplicatingBuildingSetIds((prev) => {
+                    const next = new Set(prev);
+                    next.add(setId);
+                    return next;
+                  });
+                  try {
+                    const copy = await duplicateBuildingSet(source);
+                    addToast(
+                      `Duplicated building set as "${copy.title}".`,
+                      'success'
+                    );
+                  } catch (err) {
+                    addToast(
+                      err instanceof Error ? err.message : 'Duplicate failed',
+                      'error'
+                    );
+                  } finally {
+                    setDuplicatingBuildingSetIds((prev) => {
+                      if (!prev.has(setId)) return prev;
+                      const next = new Set(prev);
+                      next.delete(setId);
+                      return next;
+                    });
+                  }
+                }}
+                isDuplicatingBuilding={(setId) =>
+                  duplicatingBuildingSetIds.has(setId)
+                }
                 onDeleteBuilding={(setId) => {
                   void handleDeleteBuilding(setId);
                 }}

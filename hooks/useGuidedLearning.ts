@@ -62,6 +62,17 @@ export interface UseGuidedLearningResult {
   saveBuildingSet: (set: GuidedLearningSet) => Promise<void>;
   /** Delete an admin building set from Firestore */
   deleteBuildingSet: (setId: string) => Promise<void>;
+  /**
+   * Duplicate an admin building set. Mirrors `duplicateSet` for the
+   * Firestore-only building-set collection: clones the source's
+   * `GuidedLearningSet` directly into a new doc with a fresh id and a
+   * suggested title. No Drive involvement (building sets store full
+   * data inline in Firestore). Storage image refs are shared with the
+   * source — matches `duplicateSet`'s personal-set policy.
+   */
+  duplicateBuildingSet: (
+    source: GuidedLearningSet
+  ) => Promise<GuidedLearningSet>;
 }
 
 export const useGuidedLearning = (
@@ -288,6 +299,29 @@ export const useGuidedLearning = (
     [isAdmin]
   );
 
+  /**
+   * Building-set duplicate. Firestore-only — no Drive rollback path
+   * needed because the failure mode is a single `setDoc` rejection
+   * with no orphan to clean up.
+   */
+  const duplicateBuildingSet = useCallback(
+    async (source: GuidedLearningSet): Promise<GuidedLearningSet> => {
+      if (!isAdmin) throw new Error('Admin access required');
+      const now = Date.now();
+      const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
+        ...source,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(source.title),
+        isBuilding: true,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
+      return fresh;
+    },
+    [isAdmin]
+  );
+
   const deleteBuildingSet = useCallback(
     async (setId: string): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
@@ -307,6 +341,7 @@ export const useGuidedLearning = (
     loadSetData,
     deleteSet,
     duplicateSet,
+    duplicateBuildingSet,
     saveBuildingSet,
     deleteBuildingSet,
   };
