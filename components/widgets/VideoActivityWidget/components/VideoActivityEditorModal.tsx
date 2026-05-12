@@ -226,21 +226,16 @@ export const VideoActivityEditorModal: React.FC<
         ) : null
       }
       contextRatio={56}
+      contextPaneClassName="bg-slate-50 border-r border-slate-200 overflow-hidden"
       contextPane={
         <VideoActivityEditorContextPane
           state={editorState}
-          canUseAi={canUseAi}
           folders={folders}
           folderId={folderId}
           onFolderChange={onFolderChange}
         />
       }
-      detailPane={
-        <VideoActivityEditorDetailPane
-          state={editorState}
-          canUseAi={canUseAi}
-        />
-      }
+      detailPane={<VideoActivityEditorDetailPane state={editorState} />}
       overlay={<VideoActivityAiOverlay state={editorState} />}
     />
   );
