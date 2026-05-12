@@ -33,6 +33,8 @@ import {
   SyncedQuizVersionConflictError,
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { logError } from '@/utils/logError';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -62,6 +64,19 @@ export interface UseQuizResult {
   loadQuizData: (driveFileId: string) => Promise<QuizData>;
   /** Delete a quiz from Drive and Firestore */
   deleteQuiz: (quizId: string, driveFileId: string) => Promise<void>;
+  /**
+   * Duplicate an existing quiz. Loads the source quiz content from Drive,
+   * mints a fresh id + Drive file, applies `suggestDuplicateTitle()`, and
+   * writes a new `quiz_metadata` doc. The copy is intentionally NOT
+   * synced — even when the source is a participant of a synced group,
+   * the duplicate becomes a standalone copy (one `(Copy)` collides with
+   * "shared with PLC" semantics, and a teacher who duplicates is asking
+   * for a private fork).
+   *
+   * Returns the new quiz metadata so callers can navigate to it (or
+   * surface the new title in a toast).
+   */
+  duplicateQuiz: (sourceMeta: QuizMetadata) => Promise<QuizMetadata>;
   /** Parse a Google Sheet URL and return quiz questions */
   importFromSheet: (sheetUrl: string, title: string) => Promise<QuizData>;
   /** Parse a CSV string and return quiz questions */
@@ -438,6 +453,68 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     return drive.createQuizTemplate();
   }, [getDriveService]);
 
+  /**
+   * Duplicate a quiz. Loads canonical content from the source's Drive
+   * file, then writes a fresh quiz (new id, new Drive file, new title
+   * suffix). Does NOT inherit `folderId` or `sync` linkage — duplicates
+   * land at the library root as a standalone copy. Callers can pass the
+   * returned metadata to a follow-up `moveQuizToFolder` if they want to
+   * preserve folder placement.
+   *
+   * The write is hand-rolled (not via `saveQuiz`) so we can observe the
+   * freshly-created `driveFileId` and roll it back if the Firestore
+   * metadata write fails. `saveQuiz`'s contract returns metadata only
+   * on success and would leak the Drive id in a Firestore-failure
+   * window — leaving an orphan Drive file the teacher would never see
+   * but would still count against their Drive quota. Reviewer flag from
+   * PR #1587.
+   */
+  const duplicateQuiz = useCallback(
+    async (sourceMeta: QuizMetadata): Promise<QuizMetadata> => {
+      if (!userId) throw new Error('Not authenticated');
+      const drive = getDriveService();
+      const sourceData = await drive.loadQuiz(sourceMeta.driveFileId);
+      const now = Date.now();
+      const fresh: QuizData = {
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(sourceData.title || sourceMeta.title),
+        questions: sourceData.questions,
+        createdAt: now,
+        updatedAt: now,
+      };
+      let createdDriveFileId: string | undefined;
+      try {
+        createdDriveFileId = await drive.saveQuiz(fresh);
+        const metadata: QuizMetadata = {
+          id: fresh.id,
+          title: fresh.title,
+          driveFileId: createdDriveFileId,
+          questionCount: fresh.questions.length,
+          createdAt: fresh.createdAt,
+          updatedAt: fresh.updatedAt,
+        };
+        await setDoc(
+          doc(db, 'users', userId, QUIZZES_COLLECTION, fresh.id),
+          metadata
+        );
+        return metadata;
+      } catch (err) {
+        if (createdDriveFileId) {
+          try {
+            await drive.deleteQuizFile(createdDriveFileId);
+          } catch (rollbackErr) {
+            logError('useQuiz.duplicateQuiz.rollback', rollbackErr, {
+              sourceQuizId: sourceMeta.id,
+              orphanDriveFileId: createdDriveFileId,
+            });
+          }
+        }
+        throw err;
+      }
+    },
+    [userId, getDriveService]
+  );
+
   const shareQuiz = useCallback(
     async (quizMeta: QuizMetadata): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
@@ -482,6 +559,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     saveQuiz,
     loadQuizData,
     deleteQuiz,
+    duplicateQuiz,
     importFromSheet,
     importFromCSV,
     createQuizTemplate,

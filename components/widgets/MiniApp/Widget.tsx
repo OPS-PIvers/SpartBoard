@@ -24,6 +24,8 @@ import {
   QrCode,
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { logError } from '@/utils/logError';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -749,6 +751,41 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
     }
   };
 
+  /**
+   * Phase 5 — duplicate a mini-app. MiniApps are Firestore-only (no
+   * Drive backing), so this is a simple deep-clone + new id + suggested
+   * title. Ordering uses the same "new items go to the front" rule that
+   * `handleCreate` uses, so the duplicate appears at the top of the
+   * personal library where the teacher just acted.
+   */
+  const handleDuplicate = async (app: MiniAppItem) => {
+    if (!user) return;
+    try {
+      const copy: MiniAppItem = {
+        ...app,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(app.title),
+        createdAt: Date.now(),
+        order:
+          library.length > 0
+            ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
+            : 0,
+      };
+      const appsRef = collection(db, 'users', user.uid, 'miniapps');
+      await setDoc(doc(appsRef, copy.id), copy);
+      addToast(`Duplicated as "${copy.title}".`, 'success');
+    } catch (err) {
+      logError('MiniAppWidget.handleDuplicate', err, {
+        userId: user.uid,
+        sourceAppId: app.id,
+      });
+      addToast(
+        err instanceof Error ? err.message : 'Duplicate failed',
+        'error'
+      );
+    }
+  };
+
   const saveMiniApp = async (updated: MiniAppItem) => {
     if (!user) throw new Error('Not authenticated');
     const existing = library.find((a) => a.id === updated.id);
@@ -1285,6 +1322,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onCreate={handleCreate}
               onEdit={handleEdit}
               onDelete={(app) => void handleDelete(app.id)}
+              onDuplicate={(app) => void handleDuplicate(app)}
               onRun={handleRun}
               onAssign={handleOpenAssign}
               onShowAssignments={handleOpenAssignments}

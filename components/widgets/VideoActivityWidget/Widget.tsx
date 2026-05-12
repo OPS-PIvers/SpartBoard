@@ -85,6 +85,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     saveActivity,
     loadActivityData,
     deleteActivity,
+    duplicateActivity,
     createTemplateSheet,
     isDriveConnected,
   } = useVideoActivity(user?.uid);
@@ -521,6 +522,17 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Delete failed',
+              'error'
+            );
+          }
+        }}
+        onDuplicate={async (meta) => {
+          try {
+            const copy = await duplicateActivity(meta);
+            addToast(`Duplicated as "${copy.title}".`, 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Duplicate failed',
               'error'
             );
           }

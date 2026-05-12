@@ -78,6 +78,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     saveSet,
     loadSetData,
     deleteSet,
+    duplicateSet,
     saveBuildingSet,
     deleteBuildingSet,
   } = useGuidedLearning(user?.uid);
@@ -637,6 +638,23 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 }}
                 onDeletePersonal={(setId, driveFileId) => {
                   void handleDelete(setId, driveFileId);
+                }}
+                onDuplicatePersonal={async (setId, _driveFileId) => {
+                  // `_driveFileId` is part of the manager's signature
+                  // (mirrors onDeletePersonal) but we don't need it —
+                  // `duplicateSet` reads driveFileId off the resolved
+                  // source metadata.
+                  const source = sets.find((s) => s.id === setId);
+                  if (!source) return;
+                  try {
+                    const copy = await duplicateSet(source);
+                    addToast(`Duplicated as "${copy.title}".`, 'success');
+                  } catch (err) {
+                    addToast(
+                      err instanceof Error ? err.message : 'Duplicate failed',
+                      'error'
+                    );
+                  }
                 }}
                 onDeleteBuilding={(setId) => {
                   void handleDeleteBuilding(setId);

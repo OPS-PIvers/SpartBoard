@@ -109,6 +109,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     saveQuiz,
     loadQuizData,
     deleteQuiz,
+    duplicateQuiz,
     importFromSheet,
     importFromCSV,
     createQuizTemplate,
@@ -1378,6 +1379,17 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           } catch (err) {
             addToast(
               err instanceof Error ? err.message : 'Delete failed',
+              'error'
+            );
+          }
+        }}
+        onDuplicate={async (meta) => {
+          try {
+            const copy = await duplicateQuiz(meta);
+            addToast(`Duplicated as "${copy.title}".`, 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Duplicate failed',
               'error'
             );
           }

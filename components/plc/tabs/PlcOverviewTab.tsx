@@ -11,17 +11,26 @@ import type { PlcDashboardTabId } from '../PlcDashboard';
 const GRID_V2_FLAG_KEY = 'spart.plcDashboard.gridV2';
 
 /**
- * Resolve the gridV2 feature flag. Phase 1 ships the new drag-resizable
- * grid behind this flag so the v1 bento path stays the default while we
- * dogfood the new behavior. Toggle by setting
- * `localStorage.setItem('spart.plcDashboard.gridV2', 'true')`.
+ * Resolve the gridV2 feature flag. Phase 5 (post-dogfooding) flipped the
+ * default to ON, turning the localStorage flag into an opt-OUT: only the
+ * literal string `'false'` suppresses v2. Any other value — including
+ * unset, `'true'`, or junk left over from QA — yields v2. This keeps the
+ * `'storage'` event-driven live-toggle working so QA can flip it in
+ * another tab without a reload.
  */
 function isGridV2Enabled(): boolean {
-  if (typeof window === 'undefined') return false;
+  // SSR / no-window environments (vitest jsdom-less paths, future SSR):
+  // converge on the same default as a successful localStorage read so a
+  // test that doesn't set up a window doesn't silently exercise the v1
+  // path. Phase 5 default is ON; only the explicit string `'false'`
+  // opts out.
+  if (typeof window === 'undefined') return true;
   try {
-    return window.localStorage.getItem(GRID_V2_FLAG_KEY) === 'true';
+    return window.localStorage.getItem(GRID_V2_FLAG_KEY) !== 'false';
   } catch {
-    return false;
+    // localStorage access can throw in sandboxed iframes / private mode
+    // restrictions — fall back to the same default.
+    return true;
   }
 }
 
@@ -49,8 +58,9 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
   );
   const [editMode, setEditMode] = useState(false);
 
-  // Phase 1: gridV2 flag, opt-in via localStorage. Live-update when the
-  // flag toggles in another tab so QA doesn't need to reload.
+  // Phase 5: gridV2 defaults to ON; localStorage `'false'` is the only
+  // opt-out. Live-update when the flag toggles in another tab so QA
+  // doesn't need to reload.
   const [gridV2, setGridV2] = useState(isGridV2Enabled);
   useEffect(() => {
     const onStorage = (e: StorageEvent) => {

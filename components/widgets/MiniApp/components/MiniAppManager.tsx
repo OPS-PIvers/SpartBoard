@@ -81,6 +81,7 @@ import type {
   LibraryPrimaryAction,
   AssignmentStatusBadge,
 } from '@/components/common/library/types';
+import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
@@ -106,6 +107,11 @@ export interface MiniAppManagerProps {
   onCreate: () => void;
   onEdit: (app: MiniAppItem) => void;
   onDelete: (app: MiniAppItem) => void | Promise<void>;
+  /**
+   * Phase 5 — duplicate kebab item. Owns the actual write (the widget
+   * already has Firestore access). Optional so test harnesses can omit.
+   */
+  onDuplicate?: (app: MiniAppItem) => void | Promise<void>;
   onRun: (app: MiniAppItem) => void;
   onAssign: (app: MiniAppItem) => void;
   onShowAssignments: (app: MiniAppItem) => void;
@@ -275,6 +281,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onCreate,
   onEdit,
   onDelete,
+  onDuplicate,
   onRun,
   onAssign,
   onShowAssignments,
@@ -555,6 +562,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             icon: Pencil,
             onClick: () => onEdit(app),
           },
+          // Phase 5 — Duplicate is offered in both view-only and
+          // submissions modes; mini-apps are personal HTML blobs and the
+          // duplicate semantics don't depend on assignment shape.
+          ...(onDuplicate
+            ? [buildDuplicateAction(app, () => void onDuplicate(app))]
+            : []),
           buildMoveToFolderAction({
             onOpenPicker: () =>
               setFolderPickerTarget({
@@ -591,6 +604,9 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             icon: Pencil,
             onClick: () => onEdit(app),
           },
+          ...(onDuplicate
+            ? [buildDuplicateAction(app, () => void onDuplicate(app))]
+            : []),
           buildMoveToFolderAction({
             onOpenPicker: () =>
               setFolderPickerTarget({
