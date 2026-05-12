@@ -75,6 +75,7 @@ import {
   LibraryToolbar,
   LibraryGrid,
   LibraryItemCard,
+  LibraryPreviewPane,
   AssignModal,
   AssignmentSettingsToggleGroup,
   ToggleRow,
@@ -641,6 +642,10 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Phase 5 follow-up — preview pane state. Single-click on a card sets
+  // this; double-click bypasses to the editor directly. The pane lives
+  // beside the grid in a flex-row layout when set.
+  const [previewQuiz, setPreviewQuiz] = useState<QuizMetadata | null>(null);
   // Exit selection mode if the user leaves the library tab
   const [prevManagerTab, setPrevManagerTab] = useState(managerTab);
   if (prevManagerTab !== managerTab) {
@@ -1476,6 +1481,9 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onBulkMove={handleBulkMove}
           onBulkDelete={handleBulkDelete}
           primaryActionLabel={primaryActionLabel}
+          previewQuiz={previewQuiz}
+          onPreviewQuiz={setPreviewQuiz}
+          onOpenFullPreview={onPreview}
         />
       )}
 
@@ -1631,6 +1639,20 @@ const LibraryTabContent: React.FC<{
   onBulkMove: (folderId: string | null) => Promise<void>;
   onBulkDelete: () => void | Promise<void>;
   primaryActionLabel: string;
+  /**
+   * Phase 5 follow-up — preview pane state. `previewQuiz` is the
+   * currently-shown item (or null); single-click on a card sets it,
+   * double-click on a card opens the editor directly. When set, a
+   * `LibraryPreviewPane` renders as a right-side sibling of the grid.
+   */
+  previewQuiz: QuizMetadata | null;
+  onPreviewQuiz: (quiz: QuizMetadata | null) => void;
+  /**
+   * Heavyweight full-screen QuizPreview entry point — the same callback
+   * the kebab's `Preview` item already uses. Surfaced from the pane as
+   * a secondary "Full preview" action.
+   */
+  onOpenFullPreview: (quiz: QuizMetadata) => void;
 }> = ({
   error,
   orderedItems,
@@ -1651,6 +1673,9 @@ const LibraryTabContent: React.FC<{
   onBulkMove,
   onBulkDelete,
   primaryActionLabel,
+  previewQuiz,
+  onPreviewQuiz,
+  onOpenFullPreview,
 }) => {
   const emptyState =
     totalCount === 0 ? (
@@ -1682,77 +1707,161 @@ const LibraryTabContent: React.FC<{
     );
 
   return (
-    <>
-      {error && (
-        <div className="mb-4 flex items-center gap-2 bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl text-brand-red-dark px-3 py-2 text-sm font-medium">
-          <AlertCircle className="w-4 h-4 shrink-0" />
-          {error}
-        </div>
-      )}
-
-      {selectionMode && selection.count > 0 && (
-        <div className="mb-3">
-          <BulkActionBar
-            count={selection.count}
-            onClear={() => selection.clear()}
-            folders={folders}
-            onMove={onBulkMove}
-            onDelete={onBulkDelete}
-            busy={bulkBusy}
-          />
-        </div>
-      )}
-
-      <LibraryGrid<QuizMetadata>
-        items={orderedItems}
-        getId={(q) => q.id}
-        dragDisabled={!enableCardDrag}
-        // Quiz has no manual reorder, so reorderLocked is noise; only surface
-        // it when drag is fully disabled so the existing lock tooltip still
-        // works on grids without folder drag.
-        reorderLocked={enableCardDrag ? false : reorderLocked}
-        reorderLockedReason={enableCardDrag ? undefined : reorderLockedReason}
-        layout={viewMode}
-        emptyState={emptyState}
-        useExternalDndContext={enableCardDrag}
-        renderCard={(quiz) => (
-          <LibraryItemCard<QuizMetadata>
-            key={quiz.id}
-            id={quiz.id}
-            title={quiz.title}
-            subtitle={
-              <span className="flex items-center gap-2">
-                <span className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded px-1.5 text-[10px] uppercase">
-                  {quiz.questionCount} Qs
-                </span>
-                <span>
-                  Updated{' '}
-                  {new Date(
-                    quiz.updatedAt || quiz.createdAt
-                  ).toLocaleDateString()}
-                </span>
-              </span>
-            }
-            primaryAction={{
-              label: primaryActionLabel,
-              icon: Play,
-              onClick: () => onAssignClick(quiz),
-            }}
-            secondaryActions={buildSecondaryActions(quiz)}
-            badges={buildBadges?.(quiz)}
-            onClick={() => onEdit(quiz)}
-            viewMode={viewMode}
-            sortable={enableCardDrag}
-            meta={quiz}
-            selectionMode={selectionMode}
-            selected={selection.isSelected(quiz.id)}
-            onSelectionToggle={() => selection.toggle(quiz.id)}
-          />
+    <div className="flex h-full min-h-0 gap-3">
+      <div className="flex-1 min-w-0 flex flex-col">
+        {error && (
+          <div className="mb-4 flex items-center gap-2 bg-brand-red-lighter/40 border border-brand-red-primary/30 rounded-xl text-brand-red-dark px-3 py-2 text-sm font-medium">
+            <AlertCircle className="w-4 h-4 shrink-0" aria-hidden="true" />
+            {error}
+          </div>
         )}
-      />
-    </>
+
+        {selectionMode && selection.count > 0 && (
+          <div className="mb-3">
+            <BulkActionBar
+              count={selection.count}
+              onClear={() => selection.clear()}
+              folders={folders}
+              onMove={onBulkMove}
+              onDelete={onBulkDelete}
+              busy={bulkBusy}
+            />
+          </div>
+        )}
+
+        <LibraryGrid<QuizMetadata>
+          items={orderedItems}
+          getId={(q) => q.id}
+          dragDisabled={!enableCardDrag}
+          // Quiz has no manual reorder, so reorderLocked is noise; only surface
+          // it when drag is fully disabled so the existing lock tooltip still
+          // works on grids without folder drag.
+          reorderLocked={enableCardDrag ? false : reorderLocked}
+          reorderLockedReason={enableCardDrag ? undefined : reorderLockedReason}
+          layout={viewMode}
+          emptyState={emptyState}
+          useExternalDndContext={enableCardDrag}
+          renderCard={(quiz) => (
+            <LibraryItemCard<QuizMetadata>
+              key={quiz.id}
+              id={quiz.id}
+              title={quiz.title}
+              subtitle={
+                <span className="flex items-center gap-2">
+                  <span className="bg-brand-blue-lighter text-brand-blue-primary font-bold rounded px-1.5 text-[10px] uppercase">
+                    {quiz.questionCount} Qs
+                  </span>
+                  <span>
+                    Updated{' '}
+                    {new Date(
+                      quiz.updatedAt || quiz.createdAt
+                    ).toLocaleDateString()}
+                  </span>
+                </span>
+              }
+              primaryAction={{
+                label: primaryActionLabel,
+                icon: Play,
+                onClick: () => onAssignClick(quiz),
+              }}
+              secondaryActions={buildSecondaryActions(quiz)}
+              badges={buildBadges?.(quiz)}
+              // Phase 5 follow-up — single-click opens the preview pane,
+              // double-click opens the editor directly. The 250ms
+              // delay-and-cancel coordination is owned by
+              // `LibraryItemCard`.
+              onClick={() => onPreviewQuiz(quiz)}
+              onDoubleClick={() => onEdit(quiz)}
+              viewMode={viewMode}
+              sortable={enableCardDrag}
+              meta={quiz}
+              selectionMode={selectionMode}
+              selected={selection.isSelected(quiz.id)}
+              onSelectionToggle={() => selection.toggle(quiz.id)}
+            />
+          )}
+        />
+      </div>
+      {previewQuiz && (
+        <LibraryPreviewPane
+          isOpen={true}
+          onClose={() => onPreviewQuiz(null)}
+          title={previewQuiz.title}
+          subtitle={
+            <>
+              {previewQuiz.questionCount}{' '}
+              {previewQuiz.questionCount === 1 ? 'question' : 'questions'}
+              {previewQuiz.updatedAt
+                ? ` · Updated ${new Date(previewQuiz.updatedAt).toLocaleDateString()}`
+                : ''}
+            </>
+          }
+          primaryAction={{
+            label: 'Open editor',
+            icon: Edit2,
+            onClick: () => {
+              const q = previewQuiz;
+              onPreviewQuiz(null);
+              onEdit(q);
+            },
+          }}
+          secondaryActions={[
+            {
+              label: 'Full preview',
+              icon: Eye,
+              onClick: () => {
+                const q = previewQuiz;
+                onPreviewQuiz(null);
+                onOpenFullPreview(q);
+              },
+            },
+          ]}
+        >
+          <QuizPreviewPaneContent quiz={previewQuiz} />
+        </LibraryPreviewPane>
+      )}
+    </div>
   );
 };
+
+/**
+ * Lightweight preview pane content for the QuizManager. Renders only
+ * metadata that's already on the `QuizMetadata` doc — no Drive load,
+ * so the pane is responsive on click. For interactive question-by-
+ * question preview, the pane's secondary action routes to the existing
+ * heavyweight `onOpenFullPreview` flow.
+ */
+const QuizPreviewPaneContent: React.FC<{ quiz: QuizMetadata }> = ({ quiz }) => {
+  const created = quiz.createdAt
+    ? new Date(quiz.createdAt).toLocaleDateString()
+    : null;
+  const updated = quiz.updatedAt
+    ? new Date(quiz.updatedAt).toLocaleDateString()
+    : null;
+  return (
+    <div className="flex flex-col gap-3 text-sm text-slate-700">
+      <div className="grid grid-cols-2 gap-3">
+        <Stat label="Questions" value={String(quiz.questionCount)} />
+        {created && <Stat label="Created" value={created} />}
+        {updated && <Stat label="Last updated" value={updated} />}
+        {quiz.sync && <Stat label="Sync group" value="Active" />}
+      </div>
+      <p className="text-xxs text-slate-500 leading-relaxed mt-1">
+        Open the editor to see questions, or use “Full preview” to walk through
+        this quiz the way students will.
+      </p>
+    </div>
+  );
+};
+
+const Stat: React.FC<{ label: string; value: string }> = ({ label, value }) => (
+  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+    <div className="text-xxs font-bold uppercase tracking-wider text-slate-400">
+      {label}
+    </div>
+    <div className="text-sm font-semibold text-slate-800 mt-0.5">{value}</div>
+  </div>
+);
 
 /* ─── AssignmentsList (for active + archive tabs) ────────────────────────── */
 

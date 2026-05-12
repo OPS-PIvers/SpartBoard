@@ -67,6 +67,7 @@ import { useLibraryView } from '@/components/common/library/useLibraryView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
+import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
 import {
   countItemsByFolder,
   filterByFolder,
@@ -322,6 +323,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Phase 5 follow-up — preview pane state (see QuizManager).
+  // Holds the row, not just the item, so the pane can render different
+  // chrome for personal vs global apps.
+  const [previewRow, setPreviewRow] = useState<UnifiedRow | null>(null);
   const [prevTab, setPrevTab] = useState(tab);
   if (prevTab !== tab) {
     setPrevTab(tab);
@@ -686,7 +691,10 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             : undefined
         }
         secondaryActions={secondary}
-        onClick={() => onEdit(app)}
+        // Phase 5 follow-up — single-click opens preview pane,
+        // double-click opens editor.
+        onClick={() => setPreviewRow(row)}
+        onDoubleClick={() => onEdit(app)}
         sortable={!selectionMode}
         viewMode={view.state.viewMode}
         selectionMode={selectionMode}
@@ -775,8 +783,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             : undefined
         }
         secondaryActions={secondary}
-        // No onClick for global items — they are read-only here; clicking the
-        // body would imply "edit", which is admin-only.
+        // Global apps are read-only here. Single-click still opens the
+        // preview pane (so teachers can inspect what they'd be saving
+        // before clicking "Save to my library"); no double-click for
+        // editor because there is no editor for global apps from this
+        // surface.
+        onClick={() => setPreviewRow(row)}
         sortable={false}
         viewMode={view.state.viewMode}
       />
@@ -1020,41 +1032,53 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
     // the shared `LibraryDndContext` below), so a non-manual sort won't persist
     // a new order.
     tabContent = (
-      <>
-        {selectionMode && selection.count > 0 && (
-          <div className="mb-3">
-            <BulkActionBar
-              count={selection.count}
-              onClear={() => {
-                selection.clear();
-                setSelectionMode(false);
-              }}
-              folders={folderState.folders}
-              onMove={handleBulkMove}
-              onDelete={handleBulkDelete}
-              busy={bulkBusy}
-            />
-          </div>
+      <div className="flex h-full min-h-0 gap-3">
+        <div className="flex-1 min-w-0 flex flex-col">
+          {selectionMode && selection.count > 0 && (
+            <div className="mb-3">
+              <BulkActionBar
+                count={selection.count}
+                onClear={() => {
+                  selection.clear();
+                  setSelectionMode(false);
+                }}
+                folders={folderState.folders}
+                onMove={handleBulkMove}
+                onDelete={handleBulkDelete}
+                busy={bulkBusy}
+              />
+            </div>
+          )}
+          <LibraryGrid<UnifiedRow>
+            items={view.visibleItems}
+            getId={getRowId}
+            renderCard={renderCard}
+            onReorder={
+              isGlobalView ? undefined : (ids) => reorderHook.handleReorder(ids)
+            }
+            dragDisabled={isGlobalView || selectionMode}
+            reorderLocked={
+              enableCardDrag ? false : !isGlobalView && view.reorderLocked
+            }
+            reorderLockedReason={
+              enableCardDrag ? undefined : view.reorderLockedReason
+            }
+            layout={view.state.viewMode}
+            useExternalDndContext={enableCardDrag}
+            emptyState={empty}
+          />
+        </div>
+        {previewRow && (
+          <MiniAppPreviewPane
+            row={previewRow}
+            onClose={() => setPreviewRow(null)}
+            onEdit={onEdit}
+            onSaveGlobalToLibrary={onSaveGlobalToLibrary}
+            savingGlobalId={savingGlobalId}
+            isViewOnly={isViewOnly}
+          />
         )}
-        <LibraryGrid<UnifiedRow>
-          items={view.visibleItems}
-          getId={getRowId}
-          renderCard={renderCard}
-          onReorder={
-            isGlobalView ? undefined : (ids) => reorderHook.handleReorder(ids)
-          }
-          dragDisabled={isGlobalView || selectionMode}
-          reorderLocked={
-            enableCardDrag ? false : !isGlobalView && view.reorderLocked
-          }
-          reorderLockedReason={
-            enableCardDrag ? undefined : view.reorderLockedReason
-          }
-          layout={view.state.viewMode}
-          useExternalDndContext={enableCardDrag}
-          emptyState={empty}
-        />
-      </>
+      </div>
     );
   }
 
@@ -1198,5 +1222,84 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
       {shell}
       {folderPickerDialog}
     </>
+  );
+};
+
+/**
+ * Preview pane content for the MiniAppManager. Renders the app's HTML
+ * inside a sandboxed iframe so the teacher can see what the app looks
+ * like before opening the editor. The iframe `sandbox` attribute
+ * isolates the app from the host (no parent access, no top-level
+ * navigation), and `allow-scripts` is the only capability granted —
+ * matches the runtime player's sandbox shape so the preview is a
+ * faithful glance at what students will see.
+ */
+const MiniAppPreviewPane: React.FC<{
+  row: UnifiedRow;
+  onClose: () => void;
+  onEdit: (app: MiniAppItem) => void;
+  onSaveGlobalToLibrary: (app: GlobalMiniAppItem) => void;
+  savingGlobalId: string | null;
+  isViewOnly: boolean;
+}> = ({
+  row,
+  onClose,
+  onEdit,
+  onSaveGlobalToLibrary,
+  savingGlobalId,
+  isViewOnly,
+}) => {
+  const app = row.item;
+  const isPersonal = row.kind === 'personal';
+  const saving = !isPersonal && savingGlobalId === app.id;
+  return (
+    <LibraryPreviewPane
+      isOpen={true}
+      onClose={onClose}
+      title={app.title}
+      subtitle={
+        <span className="font-mono">
+          {(app.html.length / 1024).toFixed(1)} KB
+        </span>
+      }
+      primaryAction={
+        isPersonal && !isViewOnly
+          ? {
+              label: 'Open editor',
+              icon: Pencil,
+              onClick: () => {
+                const a = app;
+                onClose();
+                onEdit(a as MiniAppItem);
+              },
+            }
+          : !isPersonal
+            ? {
+                label: saving ? 'Saving…' : 'Save to my library',
+                icon: Pencil,
+                disabled: saving,
+                onClick: () => {
+                  const a = app as GlobalMiniAppItem;
+                  onSaveGlobalToLibrary(a);
+                },
+              }
+            : undefined
+      }
+    >
+      {/*
+        Sandbox notes: `allow-scripts` is required for almost every mini-
+        app (no scripts = nothing happens). We deliberately do NOT grant
+        `allow-same-origin`, which keeps the iframe in a null origin and
+        prevents reading the parent's cookies/storage/DOM. `srcDoc`
+        avoids needing a real URL — the HTML is inlined directly.
+      */}
+      <iframe
+        title={`Preview of ${app.title}`}
+        srcDoc={app.html}
+        sandbox="allow-scripts"
+        className="w-full aspect-[4/3] rounded-lg border border-slate-200 bg-white"
+        loading="lazy"
+      />
+    </LibraryPreviewPane>
   );
 };

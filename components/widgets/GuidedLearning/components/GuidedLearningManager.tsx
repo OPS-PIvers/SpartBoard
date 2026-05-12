@@ -57,6 +57,7 @@ import { useLibraryView } from '@/components/common/library/useLibraryView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
+import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
 import {
   countItemsByFolder,
   filterSourcedEntriesByFolder,
@@ -368,6 +369,10 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = React.useState(false);
   const [bulkBusy, setBulkBusy] = React.useState(false);
+  // Phase 5 follow-up — preview pane state (see QuizManager).
+  const [previewEntry, setPreviewEntry] = React.useState<LibraryEntry | null>(
+    null
+  );
   const [prevTab, setPrevTab] = React.useState(tab);
   if (prevTab !== tab) {
     setPrevTab(tab);
@@ -762,7 +767,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
           onClick: () => onAssign(rawId, entry.driveFileId, entry.buildingSet),
         }}
         secondaryActions={secondary}
-        onClick={
+        // Phase 5 follow-up — single-click opens preview pane, double-
+        // click opens the editor (when the user can edit; for read-only
+        // building cards seen by non-admins, single-click still opens
+        // preview but double-click is a no-op).
+        onClick={() => setPreviewEntry(entry)}
+        onDoubleClick={
           canEdit
             ? () => onEdit(rawId, entry.driveFileId, entry.buildingSet)
             : undefined
@@ -943,57 +953,76 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
 
     return (
-      <>
-        {showDriveBanner && (
-          <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-            Your personal sets are saved to Google Drive. Sign out and sign back
-            in to grant Drive access. Building sets are still available below.
-          </div>
-        )}
+      <div className="flex h-full min-h-0 gap-3">
+        <div className="flex-1 min-w-0 flex flex-col">
+          {showDriveBanner && (
+            <div className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+              Your personal sets are saved to Google Drive. Sign out and sign
+              back in to grant Drive access. Building sets are still available
+              below.
+            </div>
+          )}
 
-        {selectionMode && selection.count > 0 && (
-          <div className="mb-3">
-            <BulkActionBar
-              count={selection.count}
-              onClear={() => {
-                selection.clear();
-                setSelectionMode(false);
-              }}
-              folders={folderState.folders}
-              onMove={handleBulkMove}
-              onDelete={handleBulkDelete}
-              busy={bulkBusy}
-            />
-          </div>
-        )}
+          {selectionMode && selection.count > 0 && (
+            <div className="mb-3">
+              <BulkActionBar
+                count={selection.count}
+                onClear={() => {
+                  selection.clear();
+                  setSelectionMode(false);
+                }}
+                folders={folderState.folders}
+                onMove={handleBulkMove}
+                onDelete={handleBulkDelete}
+                busy={bulkBusy}
+              />
+            </div>
+          )}
 
-        <LibraryGrid<LibraryEntry>
-          items={reorder.orderedItems}
-          getId={(e) => e.id}
-          renderCard={renderLibraryCard}
-          onReorder={handleReorderDrop}
-          dragDisabled={!enableCardDrag}
-          reorderLocked={reorderDragActive ? view.reorderLocked : false}
-          reorderLockedReason={
-            reorderDragActive ? view.reorderLockedReason : undefined
-          }
-          layout={view.state.viewMode}
-          useExternalDndContext={Boolean(userId)}
-          emptyState={
-            <ScaledEmptyState
-              icon={BookOpen}
-              title="No sets yet"
-              subtitle={
-                isBuildingFiltered
-                  ? isAdmin
-                    ? 'Use "New Building Set" or "AI" to add a building-level experience.'
-                    : 'No building sets have been created yet.'
-                  : 'Click "New Set" to create your first guided experience.'
-              }
-            />
-          }
-        />
-      </>
+          <LibraryGrid<LibraryEntry>
+            items={reorder.orderedItems}
+            getId={(e) => e.id}
+            renderCard={renderLibraryCard}
+            onReorder={handleReorderDrop}
+            dragDisabled={!enableCardDrag}
+            reorderLocked={reorderDragActive ? view.reorderLocked : false}
+            reorderLockedReason={
+              reorderDragActive ? view.reorderLockedReason : undefined
+            }
+            layout={view.state.viewMode}
+            useExternalDndContext={Boolean(userId)}
+            emptyState={
+              <ScaledEmptyState
+                icon={BookOpen}
+                title="No sets yet"
+                subtitle={
+                  isBuildingFiltered
+                    ? isAdmin
+                      ? 'Use "New Building Set" or "AI" to add a building-level experience.'
+                      : 'No building sets have been created yet.'
+                    : 'Click "New Set" to create your first guided experience.'
+                }
+              />
+            }
+          />
+        </div>
+        {previewEntry && (
+          <GuidedLearningPreviewPane
+            entry={previewEntry}
+            onClose={() => setPreviewEntry(null)}
+            onEdit={(e) => {
+              const target = e;
+              setPreviewEntry(null);
+              const id =
+                target.source === 'personal'
+                  ? target.id.slice('personal:'.length)
+                  : target.id.slice('building:'.length);
+              onEdit(id, target.driveFileId, target.buildingSet);
+            }}
+            canEdit={previewEntry.source === 'building' ? isAdmin : true}
+          />
+        )}
+      </div>
     );
   };
 
@@ -1192,5 +1221,66 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       {shell}
       {folderPickerDialog}
     </>
+  );
+};
+
+/**
+ * Preview pane content for the GuidedLearningManager. Renders the
+ * first image (when present) and a step-count summary — matches the
+ * spec's "first image + step hotspots" intent at a lightweight level
+ * without requiring a full Drive load of the set's steps.
+ */
+const GuidedLearningPreviewPane: React.FC<{
+  entry: LibraryEntry;
+  onClose: () => void;
+  onEdit: (entry: LibraryEntry) => void;
+  canEdit: boolean;
+}> = ({ entry, onClose, onEdit, canEdit }) => {
+  return (
+    <LibraryPreviewPane
+      isOpen={true}
+      onClose={onClose}
+      title={entry.title}
+      subtitle={
+        <>
+          {entry.stepCount} {entry.stepCount === 1 ? 'step' : 'steps'}
+          {' · '}
+          {entry.source === 'personal' ? 'Personal' : 'Building'}
+        </>
+      }
+      primaryAction={
+        canEdit
+          ? {
+              label: 'Open editor',
+              icon: Pencil,
+              onClick: () => onEdit(entry),
+            }
+          : undefined
+      }
+    >
+      <div className="flex flex-col gap-3 text-sm text-slate-700">
+        {entry.imageUrl ? (
+          <img
+            src={entry.imageUrl}
+            alt=""
+            className="w-full rounded-lg border border-slate-200 bg-slate-100 object-cover"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+            No preview image
+          </div>
+        )}
+        {entry.description && (
+          <p className="text-xs leading-relaxed text-slate-600">
+            {entry.description}
+          </p>
+        )}
+        <div className="text-xxs text-slate-500">
+          Mode:{' '}
+          <span className="font-semibold text-slate-700">{entry.mode}</span>
+        </div>
+      </div>
+    </LibraryPreviewPane>
   );
 };

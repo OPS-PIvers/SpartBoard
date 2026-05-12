@@ -268,8 +268,21 @@ export interface LibraryItemCardProps<TMeta = unknown> {
   iconActions?: LibraryIconAction[];
   /** Overflow-menu actions (Edit, Duplicate, Share, Delete...). */
   secondaryActions?: LibraryMenuAction[];
-  /** Default click handler for the card body. Typically opens the editor. */
+  /**
+   * Default click handler for the card body. Typically opens preview or
+   * editor depending on the host's `onDoubleClick` wiring (see below).
+   */
   onClick?: () => void;
+  /**
+   * Phase 5 follow-up — when provided, the card distinguishes single
+   * vs double click on the body via a 250ms delay-and-cancel timer:
+   * a double-click fires `onDoubleClick` immediately and suppresses
+   * the pending single-click. Use this when single-click should open
+   * a preview pane and double-click should open the editor. Omitting
+   * it preserves the legacy "single-click runs onClick immediately"
+   * behavior.
+   */
+  onDoubleClick?: () => void;
   /** Default true. Disabled via `LibraryGrid.dragDisabled` for read-only views. */
   sortable?: boolean;
   /** Passthrough for consumer — typed via the generic. */
