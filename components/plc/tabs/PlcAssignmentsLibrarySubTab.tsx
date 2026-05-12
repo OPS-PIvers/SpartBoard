@@ -79,6 +79,15 @@ interface PlcAssignmentsLibrarySubTabProps {
   onNewQuizAssignment?: () => void;
   /** Mirror of `onNewQuizAssignment` for the video-activity wizard. */
   onNewVideoActivityAssignment?: () => void;
+  /**
+   * If present, the corresponding empty-state CTA renders disabled with
+   * this string as its tooltip + aria-describedby content. Matches the
+   * body-level CTA pattern so the empty-state and populated-state CTAs
+   * stay in lockstep (e.g. Drive disconnected on both, library empty on
+   * both). When undefined, the CTA is enabled.
+   */
+  newQuizDisabledReason?: string;
+  newVideoActivityDisabledReason?: string;
 }
 
 interface ImportTarget {
@@ -110,6 +119,8 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
   onCloseDashboard,
   onNewQuizAssignment,
   onNewVideoActivityAssignment,
+  newQuizDisabledReason,
+  newVideoActivityDisabledReason,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
@@ -386,7 +397,15 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
               <button
                 type="button"
                 onClick={onNewQuizAssignment}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors"
+                disabled={newQuizDisabledReason !== undefined}
+                title={
+                  newQuizDisabledReason ??
+                  t('plcDashboard.newAssignment.quiz.ctaTooltip', {
+                    defaultValue:
+                      'Create a PLC quiz assignment from your personal library.',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Plus className="w-3.5 h-3.5" aria-hidden="true" />
                 {t('plcDashboard.newAssignment.quiz.ctaLabel', {
@@ -398,7 +417,15 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
               <button
                 type="button"
                 onClick={onNewVideoActivityAssignment}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors"
+                disabled={newVideoActivityDisabledReason !== undefined}
+                title={
+                  newVideoActivityDisabledReason ??
+                  t('plcDashboard.newAssignment.video.ctaTooltip', {
+                    defaultValue:
+                      'Create a PLC video activity assignment from your personal library.',
+                  })
+                }
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <PlayCircle className="w-3.5 h-3.5" aria-hidden="true" />
                 {t('plcDashboard.newAssignment.video.ctaLabel', {

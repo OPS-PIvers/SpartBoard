@@ -32,6 +32,8 @@ import {
 } from 'lucide-react';
 import { Plc } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useQuiz } from '@/hooks/useQuiz';
+import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { PlcAssignmentsLibrarySubTab } from '../tabs/PlcAssignmentsLibrarySubTab';
 import { PlcAssignmentsInProgressSubTab } from '../tabs/PlcAssignmentsInProgressSubTab';
 import { PlcAssignmentsCompletedSubTab } from '../tabs/PlcAssignmentsCompletedSubTab';
@@ -84,7 +86,7 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
   onCloseDashboard,
 }) => {
   const { t } = useTranslation();
-  const { getAssignmentMode } = useAuth();
+  const { user, getAssignmentMode } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('library');
   // Wizard modal state. Two distinct entry points (per the design call
   // landed in this PR's brief): the teacher picks "+ Assign Quiz" or
@@ -93,6 +95,18 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
   // other so we don't fight Modal's focus-trap.
   const [newQuizOpen, setNewQuizOpen] = useState(false);
   const [newVideoOpen, setNewVideoOpen] = useState(false);
+
+  // Library counts + Drive-connect status feed the CTA disabled state.
+  // Matches the `shareCta` pattern from `PlcQuizLibraryBody` (PR #1595):
+  // a teacher with an empty personal library or no Drive connection sees
+  // the button disabled with a tooltip explaining why, rather than
+  // clicking through to an empty picker. Subscribing to these hooks
+  // here adds two listeners to the dashboard, but they only activate
+  // when the user is authenticated — anonymous students never reach
+  // this surface.
+  const { quizzes, isDriveConnected: quizDriveConnected } = useQuiz(user?.uid);
+  const { activities, isDriveConnected: videoDriveConnected } =
+    useVideoActivity(user?.uid);
 
   const openQuizWizard = useCallback(() => {
     setNewVideoOpen(false);
@@ -110,6 +124,32 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
   // values feed into wizards that the teacher actively opens.
   const quizAssignmentMode = getAssignmentMode('quiz');
   const videoAssignmentMode = getAssignmentMode('videoActivity');
+
+  // CTA disabled-reason resolution. Drive-disconnect outranks empty
+  // library because reconnecting Drive is a single action the teacher
+  // can take immediately; the empty-library state requires authoring
+  // content first. Returning a tooltip string (or undefined when the
+  // CTA is enabled) keeps the render-time JSX simple.
+  const quizCtaDisabledReason: string | undefined = !quizDriveConnected
+    ? t('plcDashboard.newAssignment.quiz.ctaDisabledDrive', {
+        defaultValue: 'Connect Google Drive to assign a quiz.',
+      })
+    : quizzes.length === 0
+      ? t('plcDashboard.newAssignment.quiz.ctaDisabledEmpty', {
+          defaultValue:
+            'You have no quizzes in your personal library yet. Create one in the Quiz widget first.',
+        })
+      : undefined;
+  const videoCtaDisabledReason: string | undefined = !videoDriveConnected
+    ? t('plcDashboard.newAssignment.video.ctaDisabledDrive', {
+        defaultValue: 'Connect Google Drive to assign a video activity.',
+      })
+    : activities.length === 0
+      ? t('plcDashboard.newAssignment.video.ctaDisabledEmpty', {
+          defaultValue:
+            'You have no video activities in your personal library yet. Create one in the Video Activity widget first.',
+        })
+      : undefined;
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -151,11 +191,15 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
             <button
               type="button"
               onClick={openQuizWizard}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors"
-              title={t('plcDashboard.newAssignment.quiz.ctaTooltip', {
-                defaultValue:
-                  'Create a PLC quiz assignment from your personal library.',
-              })}
+              disabled={quizCtaDisabledReason !== undefined}
+              title={
+                quizCtaDisabledReason ??
+                t('plcDashboard.newAssignment.quiz.ctaTooltip', {
+                  defaultValue:
+                    'Create a PLC quiz assignment from your personal library.',
+                })
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Plus className="w-3.5 h-3.5" aria-hidden="true" />
               {t('plcDashboard.newAssignment.quiz.ctaLabel', {
@@ -165,11 +209,15 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
             <button
               type="button"
               onClick={openVideoWizard}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors"
-              title={t('plcDashboard.newAssignment.video.ctaTooltip', {
-                defaultValue:
-                  'Create a PLC video activity assignment from your personal library.',
-              })}
+              disabled={videoCtaDisabledReason !== undefined}
+              title={
+                videoCtaDisabledReason ??
+                t('plcDashboard.newAssignment.video.ctaTooltip', {
+                  defaultValue:
+                    'Create a PLC video activity assignment from your personal library.',
+                })
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <PlayCircle className="w-3.5 h-3.5" aria-hidden="true" />
               {t('plcDashboard.newAssignment.video.ctaLabel', {
@@ -186,6 +234,8 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
             onCloseDashboard={onCloseDashboard}
             onNewQuizAssignment={openQuizWizard}
             onNewVideoActivityAssignment={openVideoWizard}
+            newQuizDisabledReason={quizCtaDisabledReason}
+            newVideoActivityDisabledReason={videoCtaDisabledReason}
           />
         )}
         {activeSubTab === 'inProgress' && (
