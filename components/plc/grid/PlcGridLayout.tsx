@@ -47,7 +47,26 @@ interface PlcGridLayoutProps {
   editMode: boolean;
   onLayoutChange: (next: PlcOverviewLayout) => void;
   onNavigateTab: (tabId: PlcDashboardTabId) => void;
+  /**
+   * Optional fullscreen-expand handler. When provided, tiles whose kind
+   * has a real fullscreen body (notes, todos, quizLibrary, assignments)
+   * surface an expand affordance.
+   */
+  onExpandTile?: (kind: PlcBentoTileKind) => void;
 }
+
+/**
+ * Tile kinds with a known fullscreen body. Tiles outside this set won't
+ * surface an expand button — they're previews-only (plcInfo,
+ * sharedSheet) or future placeholders.
+ */
+const EXPANDABLE_KINDS = new Set<PlcBentoTileKind>([
+  'notes',
+  'todos',
+  'quizLibrary',
+  'activeAssignments',
+  'completedAssignments',
+]);
 
 /** Pixel height of a single grid row on desktop. Chosen so a 3×2 tile
  *  (the v1 `sm` analog) is ~200px tall — comparable to v1's 180px rows
@@ -78,6 +97,7 @@ export const PlcGridLayout: React.FC<PlcGridLayoutProps> = ({
   editMode,
   onLayoutChange,
   onNavigateTab,
+  onExpandTile,
 }) => {
   const { t } = useTranslation();
   const features = useMemo(() => getPlcFeatures(plc), [plc]);
@@ -279,6 +299,11 @@ export const PlcGridLayout: React.FC<PlcGridLayoutProps> = ({
                 onResizePreview={handleResizePreview}
                 onResizeCommit={handleResizeCommit}
                 onToggleHide={handleToggleHide}
+                onExpand={
+                  onExpandTile && EXPANDABLE_KINDS.has(tile.kind)
+                    ? onExpandTile
+                    : undefined
+                }
               >
                 {renderTileContent(tile.kind, { plc, onNavigateTab })}
               </PlcGridTile>

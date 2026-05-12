@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Pencil, RotateCcw, Check } from 'lucide-react';
-import { Plc } from '@/types';
+import { Plc, PlcBentoTileKind } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { usePlcOverviewLayout } from '@/hooks/usePlcOverviewLayout';
 import { PlcBentoGrid } from '../overview/PlcBentoGrid';
@@ -28,6 +28,8 @@ function isGridV2Enabled(): boolean {
 interface PlcOverviewTabProps {
   plc: Plc;
   onNavigateTab: (tabId: PlcDashboardTabId) => void;
+  /** v2 grid only: fullscreen-expand a single tile. */
+  onExpandTile?: (kind: PlcBentoTileKind) => void;
 }
 
 /**
@@ -38,6 +40,7 @@ interface PlcOverviewTabProps {
 export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
   plc,
   onNavigateTab,
+  onExpandTile,
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
@@ -154,6 +157,7 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
           editMode={editMode}
           onLayoutChange={updateLayout}
           onNavigateTab={onNavigateTab}
+          onExpandTile={onExpandTile}
         />
       ) : (
         <PlcBentoGrid

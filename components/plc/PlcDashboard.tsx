@@ -15,7 +15,12 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-import { Plc, PlcFeatureSettings, getPlcFeatures } from '@/types';
+import {
+  Plc,
+  PlcBentoTileKind,
+  PlcFeatureSettings,
+  getPlcFeatures,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { PlcOverviewTab } from './tabs/PlcOverviewTab';
 import { PlcAssignmentsTab } from './tabs/PlcAssignmentsTab';
@@ -24,6 +29,8 @@ import { PlcNotesTab } from './tabs/PlcNotesTab';
 import { PlcTodosTab } from './tabs/PlcTodosTab';
 import { PlcQuizLibraryTab } from './tabs/PlcQuizLibraryTab';
 import { PlcPlaceholderTab } from './tabs/PlcPlaceholderTab';
+import { NotesBody } from './bodies/NotesBody';
+import { TodosBody } from './bodies/TodosBody';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -131,15 +138,29 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<PlcDashboardTabId>('overview');
   const [showMobileMenu, setShowMobileMenu] = useState(true);
+  // Phase 2: fullscreen expansion of a single tile from the v2 grid.
+  // When set, the dashboard body renders the tile's full editor over the
+  // tab content with a Back button. Escape clears it before closing the
+  // dashboard itself.
+  const [expandedTile, setExpandedTile] = useState<PlcBentoTileKind | null>(
+    null
+  );
 
-  // Close on Escape — same UX contract as AdminSettings.
+  // Close on Escape — same UX contract as AdminSettings. Escape first
+  // closes a fullscreen tile if open; only when no tile is expanded does
+  // it close the dashboard.
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key !== 'Escape') return;
+      if (expandedTile) {
+        setExpandedTile(null);
+      } else {
+        onClose();
+      }
     };
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
-  }, [onClose]);
+  }, [onClose, expandedTile]);
 
   const features = useMemo(() => getPlcFeatures(plc), [plc]);
   const visibleTabs = useMemo(
@@ -177,7 +198,13 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
 
   const renderTabContent = (tab: TabDef) => {
     if (tab.id === 'overview') {
-      return <PlcOverviewTab plc={plc} onNavigateTab={handleNavigateTab} />;
+      return (
+        <PlcOverviewTab
+          plc={plc}
+          onNavigateTab={handleNavigateTab}
+          onExpandTile={setExpandedTile}
+        />
+      );
     }
     if (tab.id === 'notes') {
       return <PlcNotesTab plc={plc} />;
@@ -208,6 +235,40 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       );
     }
     return null;
+  };
+
+  const renderExpandedBody = (kind: PlcBentoTileKind): React.ReactNode => {
+    switch (kind) {
+      case 'notes':
+        return <NotesBody plc={plc} />;
+      case 'todos':
+        return <TodosBody plc={plc} />;
+      case 'quizLibrary':
+        return <PlcQuizLibraryTab plc={plc} />;
+      case 'activeAssignments':
+      case 'completedAssignments':
+        return <PlcAssignmentsTab plc={plc} onCloseDashboard={onClose} />;
+      default:
+        return null;
+    }
+  };
+
+  const expandedLabel = (kind: PlcBentoTileKind): string => {
+    switch (kind) {
+      case 'notes':
+        return t('plcDashboard.tabs.notes', { defaultValue: 'Notes' });
+      case 'todos':
+        return t('plcDashboard.tabs.todos', { defaultValue: 'To-Do List' });
+      case 'quizLibrary':
+        return t('plcDashboard.tabs.quizzes', { defaultValue: 'Quiz Library' });
+      case 'activeAssignments':
+      case 'completedAssignments':
+        return t('plcDashboard.tabs.assignments', {
+          defaultValue: 'PLC Assignments',
+        });
+      default:
+        return '';
+    }
   };
 
   return (
@@ -309,48 +370,80 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto overscroll-none touch-pan-y bg-slate-50">
-          {/* Mobile menu */}
-          <div className={`md:hidden ${showMobileMenu ? 'block' : 'hidden'}`}>
-            <div className="flex flex-col py-2">
-              {visibleTabs.map((tab) => (
+          {expandedTile ? (
+            <div className="h-full flex flex-col">
+              {/* Fullscreen tile header — back button + tile label. */}
+              <div className="bg-white border-b border-slate-200 px-4 md:px-6 py-2 flex items-center gap-3 shrink-0">
                 <button
-                  key={tab.id}
-                  onClick={() => {
-                    setActiveTab(tab.id);
-                    setShowMobileMenu(false);
-                  }}
-                  className="flex items-center justify-between p-4 min-h-[60px] hover:bg-slate-100 active:bg-slate-200 transition-colors border-b border-slate-100 last:border-b-0 w-full text-left"
+                  type="button"
+                  onClick={() => setExpandedTile(null)}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1.5 hover:bg-slate-100 text-slate-700 text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
+                  aria-label={t('plcDashboard.overview.collapseTile', {
+                    defaultValue: 'Back to overview',
+                  })}
                 >
-                  <div className="flex items-center gap-4">
-                    <div className="bg-slate-100 p-2.5 rounded-xl text-slate-600">
-                      <tab.icon className="w-5 h-5" />
-                    </div>
-                    <span className="font-semibold text-slate-700 text-base">
-                      {t(tab.labelKey, { defaultValue: tab.labelDefault })}
-                    </span>
-                  </div>
-                  <ChevronRight className="w-5 h-5 text-slate-400" />
+                  <ChevronLeft className="w-3.5 h-3.5" />
+                  {t('plcDashboard.overview.backToOverview', {
+                    defaultValue: 'Overview',
+                  })}
                 </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Active panel */}
-          <div
-            className={`${
-              !showMobileMenu ? 'block' : 'hidden md:block'
-            } p-4 md:p-6 h-full`}
-          >
-            {activeTabDef && (
-              <div
-                key={activeTabDef.id}
-                role="tabpanel"
-                className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
-              >
-                {renderTabContent(activeTabDef)}
+                <span className="text-slate-300">•</span>
+                <span className="text-xs font-bold text-slate-700">
+                  {expandedLabel(expandedTile)}
+                </span>
               </div>
-            )}
-          </div>
+              <div className="flex-1 overflow-y-auto p-4 md:p-6 animate-in fade-in slide-in-from-bottom-2 duration-200">
+                {renderExpandedBody(expandedTile)}
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Mobile menu */}
+              <div
+                className={`md:hidden ${showMobileMenu ? 'block' : 'hidden'}`}
+              >
+                <div className="flex flex-col py-2">
+                  {visibleTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => {
+                        setActiveTab(tab.id);
+                        setShowMobileMenu(false);
+                      }}
+                      className="flex items-center justify-between p-4 min-h-[60px] hover:bg-slate-100 active:bg-slate-200 transition-colors border-b border-slate-100 last:border-b-0 w-full text-left"
+                    >
+                      <div className="flex items-center gap-4">
+                        <div className="bg-slate-100 p-2.5 rounded-xl text-slate-600">
+                          <tab.icon className="w-5 h-5" />
+                        </div>
+                        <span className="font-semibold text-slate-700 text-base">
+                          {t(tab.labelKey, { defaultValue: tab.labelDefault })}
+                        </span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-400" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Active panel */}
+              <div
+                className={`${
+                  !showMobileMenu ? 'block' : 'hidden md:block'
+                } p-4 md:p-6 h-full`}
+              >
+                {activeTabDef && (
+                  <div
+                    key={activeTabDef.id}
+                    role="tabpanel"
+                    className="animate-in fade-in slide-in-from-bottom-2 duration-300 h-full"
+                  >
+                    {renderTabContent(activeTabDef)}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

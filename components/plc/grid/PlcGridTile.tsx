@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
-import { Eye, EyeOff, GripVertical } from 'lucide-react';
+import { Eye, EyeOff, GripVertical, Maximize2 } from 'lucide-react';
 import type { PlcBentoTile as PlcBentoTileData, PlcGridCoords } from '@/types';
 import { useTileResize, type ResizeDirection } from './useTileResize';
 
@@ -23,6 +23,14 @@ interface PlcGridTileProps {
     next: PlcGridCoords
   ) => void;
   onToggleHide?: (kind: PlcBentoTileData['kind']) => void;
+  /**
+   * Optional fullscreen-expand handler. When provided AND the tile is not
+   * in edit mode, a top-right expand button appears on hover/focus.
+   * Wired only for tiles whose kind has a real fullscreen body (notes,
+   * todos, quizLibrary, etc.); preview-only tiles (plcInfo, sharedSheet)
+   * leave it undefined and skip the button entirely.
+   */
+  onExpand?: (kind: PlcBentoTileData['kind']) => void;
   children: React.ReactNode;
 }
 
@@ -58,6 +66,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
   onResizePreview,
   onResizeCommit,
   onToggleHide,
+  onExpand,
   children,
 }) => {
   const { t } = useTranslation();
@@ -120,7 +129,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
     <div
       ref={setNodeRef}
       style={{ ...dragStyle, ...gridStyle }}
-      className={`relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-shadow ${
+      className={`group relative bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col transition-shadow ${
         editMode ? 'ring-1 ring-brand-blue-primary/20' : 'hover:shadow-md'
       }`}
       data-tile-kind={tile.kind}
@@ -190,6 +199,31 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
             />
           ))}
         </>
+      )}
+
+      {/*
+        Non-edit-mode "expand" affordance. Surfaces a fullscreen view of
+        the tile body so users with a small layout can focus on one tile
+        without rearranging. Visible on hover/focus only to keep the
+        glanceable preview state uncluttered.
+      */}
+      {!editMode && onExpand && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onExpand(tile.kind);
+          }}
+          className="absolute top-2 right-2 z-20 p-1.5 bg-white/95 hover:bg-brand-blue-lighter rounded-md text-slate-400 hover:text-brand-blue-primary transition-colors shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          aria-label={t('plcDashboard.overview.expandTile', {
+            defaultValue: 'Expand tile',
+          })}
+          title={t('plcDashboard.overview.expandTile', {
+            defaultValue: 'Expand tile',
+          })}
+        >
+          <Maximize2 className="w-3.5 h-3.5" />
+        </button>
       )}
     </div>
   );
