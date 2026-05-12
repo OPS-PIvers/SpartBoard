@@ -43,6 +43,7 @@ import {
   Film,
   Loader2,
   Pencil,
+  Plus,
   Trash2,
   Users2,
 } from 'lucide-react';
@@ -50,7 +51,10 @@ import type { Plc, VideoActivityData, VideoActivityMetadata } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import { usePlcVideoActivities } from '@/hooks/usePlcVideoActivities';
+import {
+  usePlcVideoActivities,
+  writePlcVideoActivityEntry,
+} from '@/hooks/usePlcVideoActivities';
 import {
   SyncedVideoActivityVersionConflictError,
   useVideoActivity,
@@ -59,10 +63,15 @@ import type { SharedVideoActivityImportMode } from '@/hooks/useVideoActivityAssi
 import {
   callJoinPlcVideoActivitySyncGroup,
   callLeaveSyncedVideoActivityGroup,
+  createSyncedVideoActivityGroup,
   pullSyncedVideoActivityContent,
 } from '@/hooks/useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
 import { PlcVideoActivityImportModal } from '../PlcVideoActivityImportModal';
+import {
+  PlcSharePickerModal,
+  type PlcSharePickerItem,
+} from '../PlcSharePickerModal';
 import { VideoActivityEditorModal } from '@/components/widgets/VideoActivityWidget/components/VideoActivityEditorModal';
 
 interface PlcVideoActivitiesBodyProps {
@@ -116,6 +125,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     activity: VideoActivityData;
     meta: VideoActivityMetadata;
   } | null>(null);
+  const [sharePickerOpen, setSharePickerOpen] = useState(false);
 
   const personalBySyncGroup = useMemo(() => {
     const map = new Map<string, VideoActivityMetadata>();
@@ -124,6 +134,35 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     }
     return map;
   }, [personalActivities]);
+
+  // SyncGroupIds already shared with THIS PLC, so the picker can flag
+  // duplicates without writing a second PLC subcollection header for the
+  // same canonical group.
+  const plcSyncGroupIds = useMemo(
+    () => new Set(plcEntries.map((a) => a.syncGroupId)),
+    [plcEntries]
+  );
+
+  const sharePickerItems = useMemo<PlcSharePickerItem[]>(
+    () =>
+      personalActivities
+        .slice()
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((meta) => ({
+          id: meta.id,
+          title: meta.title,
+          metaLine: t('plcDashboard.videoActivities.sharePicker.itemMeta', {
+            count: meta.questionCount,
+            date: formatDate(meta.updatedAt),
+            defaultValue: '{{count}} question · {{date}}',
+            defaultValue_other: '{{count}} questions · {{date}}',
+          }),
+          alreadyShared: meta.sync?.groupId
+            ? plcSyncGroupIds.has(meta.sync.groupId)
+            : false,
+        })),
+    [personalActivities, plcSyncGroupIds, t]
+  );
 
   const handleImport = useCallback(
     async (target: ImportTarget, mode: SharedVideoActivityImportMode) => {
@@ -432,6 +471,112 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     [addToast, editing, plc.id, pullSyncedVideoActivity, saveActivity, t]
   );
 
+  /**
+   * Phase 4 "Share with this PLC" — invoked from the in-tab picker.
+   * Mirrors `VideoActivityWidget.handleShareWithPlc`: load Drive
+   * content, mint a synced group if one doesn't exist yet, attach sync
+   * linkage, then write the PLC subcoll header.
+   */
+  const handleShareFromPicker = useCallback(
+    async (personalActivityId: string): Promise<void> => {
+      if (!user) throw new Error('Not authenticated.');
+      const meta = personalActivities.find((a) => a.id === personalActivityId);
+      if (!meta) throw new Error('Video activity no longer in your library.');
+      if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
+        addToast(
+          t('plcDashboard.videoActivities.sharePicker.alreadySharedToast', {
+            title: meta.title,
+            defaultValue: '"{{title}}" is already shared with this PLC.',
+          }),
+          'info'
+        );
+        setSharePickerOpen(false);
+        return;
+      }
+      try {
+        const data = await loadActivityData(meta.driveFileId);
+        let syncGroupId: string;
+        if (meta.sync) {
+          syncGroupId = meta.sync.groupId;
+        } else {
+          syncGroupId = crypto.randomUUID();
+          await createSyncedVideoActivityGroup({
+            groupId: syncGroupId,
+            uid: user.uid,
+            title: data.title,
+            youtubeUrl: data.youtubeUrl,
+            questions: data.questions,
+            plcId: plc.id,
+          });
+          try {
+            await attachSyncLinkage(meta.id, {
+              groupId: syncGroupId,
+              lastSyncedVersion: 1,
+            });
+          } catch (linkageErr) {
+            try {
+              await callLeaveSyncedVideoActivityGroup(syncGroupId);
+            } catch (leaveErr) {
+              logError(
+                'PlcVideoActivitiesBody.shareFromPicker.rollbackLeave',
+                leaveErr,
+                { plcId: plc.id, syncGroupId }
+              );
+            }
+            throw linkageErr;
+          }
+        }
+
+        const ownerEmailLower =
+          plc.memberEmails?.[user.uid] ??
+          (user.email ? user.email.toLowerCase() : '');
+        await writePlcVideoActivityEntry(plc.id, user.uid, {
+          plcVideoActivityId: crypto.randomUUID(),
+          syncGroupId,
+          title: data.title,
+          youtubeUrl: data.youtubeUrl,
+          questionCount: data.questions.length,
+          sharedByName: user.displayName ?? '',
+          sharedByEmail: ownerEmailLower,
+        });
+
+        addToast(
+          t('plcDashboard.videoActivities.sharePicker.sharedToast', {
+            title: meta.title,
+            defaultValue: '"{{title}}" shared with this PLC.',
+          }),
+          'success'
+        );
+        setSharePickerOpen(false);
+      } catch (err) {
+        logError('PlcVideoActivitiesBody.shareFromPicker', err, {
+          plcId: plc.id,
+          personalActivityId,
+        });
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.videoActivities.sharePicker.shareFailed', {
+                defaultValue: 'Failed to share video activity with this PLC.',
+              }),
+          'error'
+        );
+        throw err;
+      }
+    },
+    [
+      addToast,
+      attachSyncLinkage,
+      loadActivityData,
+      personalActivities,
+      plc.id,
+      plc.memberEmails,
+      plcSyncGroupIds,
+      t,
+      user,
+    ]
+  );
+
   const handleUnshare = useCallback(
     async (plcVideoActivityId: string, title: string) => {
       const confirmed = await showConfirm(
@@ -489,24 +634,76 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     );
   }
 
+  const shareCta = (
+    <button
+      type="button"
+      onClick={() => setSharePickerOpen(true)}
+      disabled={!isDriveConnected || personalActivities.length === 0}
+      title={
+        !isDriveConnected
+          ? t('plcDashboard.videoActivities.shareCta.driveDisconnected', {
+              defaultValue: 'Connect Google Drive to share a video activity.',
+            })
+          : personalActivities.length === 0
+            ? t('plcDashboard.videoActivities.shareCta.noActivities', {
+                defaultValue: 'No personal video activities to share yet.',
+              })
+            : t('plcDashboard.videoActivities.shareCta.tooltip', {
+                defaultValue:
+                  'Pick a video activity from your personal library to share with this PLC.',
+              })
+      }
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+      {t('plcDashboard.videoActivities.shareCta.label', {
+        defaultValue: 'Share a video activity with this PLC',
+      })}
+    </button>
+  );
+
+  const sharePickerModal = sharePickerOpen ? (
+    <PlcSharePickerModal
+      title={t('plcDashboard.videoActivities.sharePicker.title', {
+        defaultValue: 'Share a video activity with this PLC',
+      })}
+      subtitle={plc.name}
+      prompt={t('plcDashboard.videoActivities.sharePicker.prompt', {
+        defaultValue:
+          'Pick a video activity from your personal library. Teammates will then be able to import it from this tab.',
+      })}
+      emptyMessage={t('plcDashboard.videoActivities.sharePicker.empty', {
+        defaultValue:
+          'You have no video activities in your personal library yet.',
+      })}
+      items={sharePickerItems}
+      onPick={handleShareFromPicker}
+      onClose={() => setSharePickerOpen(false)}
+    />
+  ) : null;
+
   if (plcEntries.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[300px] px-6 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
-          <Film className="w-7 h-7 text-slate-400" aria-hidden="true" />
+      <>
+        <div className="flex flex-col items-center justify-center h-full min-h-[300px] px-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
+            <Film className="w-7 h-7 text-slate-400" aria-hidden="true" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-700 mb-2">
+            {t('plcDashboard.videoActivities.emptyTitle', {
+              defaultValue: 'No shared video activities yet',
+            })}
+          </h3>
+          <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
+            {t('plcDashboard.videoActivities.emptySubtitle', {
+              defaultValue:
+                'Open the Video Activity widget in your dashboard, click the kebab on any activity, and choose "Share with PLC" to add it here.',
+            })}
+          </p>
+          {shareCta}
         </div>
-        <h3 className="text-lg font-bold text-slate-700 mb-2">
-          {t('plcDashboard.videoActivities.emptyTitle', {
-            defaultValue: 'No shared video activities yet',
-          })}
-        </h3>
-        <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          {t('plcDashboard.videoActivities.emptySubtitle', {
-            defaultValue:
-              'Open the Video Activity widget in your dashboard, click the kebab on any activity, and choose "Share with PLC" to add it here.',
-          })}
-        </p>
-      </div>
+        {sharePickerModal}
+      </>
     );
   }
 
@@ -518,13 +715,16 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             defaultValue: 'Shared Video Activities',
           })}
         </h3>
-        <span className="text-xxs text-slate-400">
-          {t('plcDashboard.videoActivities.count', {
-            count: plcEntries.length,
-            defaultValue: '{{count}} activity',
-            defaultValue_other: '{{count}} activities',
-          })}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xxs text-slate-400">
+            {t('plcDashboard.videoActivities.count', {
+              count: plcEntries.length,
+              defaultValue: '{{count}} activity',
+              defaultValue_other: '{{count}} activities',
+            })}
+          </span>
+          {shareCta}
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         {plcEntries.map((activity) => {
@@ -711,6 +911,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
         onClose={() => setEditing(null)}
         onSave={handleSaveEdit}
       />
+      {sharePickerModal}
     </div>
   );
 };

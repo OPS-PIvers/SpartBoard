@@ -48,6 +48,7 @@ import {
   ExternalLink,
   Loader2,
   Pencil,
+  Plus,
   Trash2,
   Users2,
 } from 'lucide-react';
@@ -55,16 +56,21 @@ import type { Plc, QuizData, QuizMetadata } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
-import { usePlcQuizzes } from '@/hooks/usePlcQuizzes';
+import { usePlcQuizzes, writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { SyncedQuizVersionConflictError, useQuiz } from '@/hooks/useQuiz';
 import {
   callJoinPlcQuizSyncGroup,
   callLeaveSyncedQuizGroup,
+  createSyncedQuizGroup,
   pullSyncedQuizContent,
 } from '@/hooks/useSyncedQuizGroups';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { PlcQuizImportModal } from '../PlcQuizImportModal';
+import {
+  PlcSharePickerModal,
+  type PlcSharePickerItem,
+} from '../PlcSharePickerModal';
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 
 interface PlcQuizLibraryBodyProps {
@@ -118,6 +124,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     quiz: QuizData;
     meta: QuizMetadata;
   } | null>(null);
+  const [sharePickerOpen, setSharePickerOpen] = useState(false);
 
   const personalBySyncGroup = useMemo(() => {
     const map = new Map<string, QuizMetadata>();
@@ -126,6 +133,35 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     }
     return map;
   }, [personalQuizzes]);
+
+  // SyncGroupIds already shared with THIS PLC, so the picker can flag
+  // duplicates without writing a second `plcs/{plcId}/quizzes/{...}`
+  // header for the same canonical group.
+  const plcSyncGroupIds = useMemo(
+    () => new Set(plcQuizzes.map((q) => q.syncGroupId)),
+    [plcQuizzes]
+  );
+
+  const sharePickerItems = useMemo<PlcSharePickerItem[]>(
+    () =>
+      personalQuizzes
+        .slice()
+        .sort((a, b) => b.updatedAt - a.updatedAt)
+        .map((meta) => ({
+          id: meta.id,
+          title: meta.title,
+          metaLine: t('plcDashboard.quizLibrary.sharePicker.itemMeta', {
+            count: meta.questionCount,
+            date: formatDate(meta.updatedAt),
+            defaultValue: '{{count}} question · {{date}}',
+            defaultValue_other: '{{count}} questions · {{date}}',
+          }),
+          alreadyShared: meta.sync?.groupId
+            ? plcSyncGroupIds.has(meta.sync.groupId)
+            : false,
+        })),
+    [personalQuizzes, plcSyncGroupIds, t]
+  );
 
   const handleImport = useCallback(
     async (target: ImportTarget, mode: SharedAssignmentImportMode) => {
@@ -405,6 +441,118 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     [addToast, editing, plc.id, pullSyncedQuiz, saveQuiz, t]
   );
 
+  /**
+   * Phase 2 "Share with this PLC" — invoked from the in-tab picker.
+   * Mirrors `QuizWidget.handleShareWithPlc`: load Drive content, mint a
+   * synced group if one doesn't exist yet, attach sync linkage so the
+   * teacher's own copy stays in lockstep with the shared canonical, then
+   * write the PLC subcoll header. The picker calls this with the
+   * teacher's personal quiz id and the caller closes the modal on
+   * success.
+   *
+   * If `attachSyncLinkage` fails after `createSyncedQuizGroup` succeeds,
+   * we best-effort `callLeaveSyncedQuizGroup` so we don't leave a phantom
+   * participant entry — the empty group itself stays (synced_quizzes
+   * rules intentionally don't allow client deletes).
+   */
+  const handleShareFromPicker = useCallback(
+    async (personalQuizId: string): Promise<void> => {
+      if (!user) throw new Error('Not authenticated.');
+      const meta = personalQuizzes.find((q) => q.id === personalQuizId);
+      if (!meta) throw new Error('Quiz no longer in your library.');
+      if (meta.sync?.groupId && plcSyncGroupIds.has(meta.sync.groupId)) {
+        addToast(
+          t('plcDashboard.quizLibrary.sharePicker.alreadySharedToast', {
+            title: meta.title,
+            defaultValue: '"{{title}}" is already shared with this PLC.',
+          }),
+          'info'
+        );
+        setSharePickerOpen(false);
+        return;
+      }
+      try {
+        const data = await loadQuizData(meta.driveFileId);
+        let syncGroupId: string;
+        if (meta.sync) {
+          syncGroupId = meta.sync.groupId;
+        } else {
+          syncGroupId = crypto.randomUUID();
+          await createSyncedQuizGroup({
+            groupId: syncGroupId,
+            uid: user.uid,
+            title: data.title,
+            questions: data.questions,
+            plcId: plc.id,
+          });
+          try {
+            await attachSyncLinkage(meta.id, {
+              groupId: syncGroupId,
+              lastSyncedVersion: 1,
+            });
+          } catch (linkageErr) {
+            try {
+              await callLeaveSyncedQuizGroup(syncGroupId);
+            } catch (leaveErr) {
+              logError(
+                'PlcQuizLibraryBody.shareFromPicker.rollbackLeave',
+                leaveErr,
+                { plcId: plc.id, syncGroupId }
+              );
+            }
+            throw linkageErr;
+          }
+        }
+
+        const ownerEmailLower =
+          plc.memberEmails?.[user.uid] ??
+          (user.email ? user.email.toLowerCase() : '');
+        await writePlcQuizEntry(plc.id, user.uid, {
+          plcQuizId: crypto.randomUUID(),
+          syncGroupId,
+          title: data.title,
+          questionCount: data.questions.length,
+          sharedByName: user.displayName ?? '',
+          sharedByEmail: ownerEmailLower,
+        });
+
+        addToast(
+          t('plcDashboard.quizLibrary.sharePicker.sharedToast', {
+            title: meta.title,
+            defaultValue: '"{{title}}" shared with this PLC.',
+          }),
+          'success'
+        );
+        setSharePickerOpen(false);
+      } catch (err) {
+        logError('PlcQuizLibraryBody.shareFromPicker', err, {
+          plcId: plc.id,
+          personalQuizId,
+        });
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.quizLibrary.sharePicker.shareFailed', {
+                defaultValue: 'Failed to share quiz with this PLC.',
+              }),
+          'error'
+        );
+        throw err;
+      }
+    },
+    [
+      addToast,
+      attachSyncLinkage,
+      loadQuizData,
+      personalQuizzes,
+      plc.id,
+      plc.memberEmails,
+      plcSyncGroupIds,
+      t,
+      user,
+    ]
+  );
+
   const handleUnshare = useCallback(
     async (plcQuizId: string, title: string) => {
       const confirmed = await showConfirm(
@@ -462,24 +610,73 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     );
   }
 
+  const shareCta = (
+    <button
+      type="button"
+      onClick={() => setSharePickerOpen(true)}
+      disabled={!isDriveConnected || personalQuizzes.length === 0}
+      title={
+        !isDriveConnected
+          ? t('plcDashboard.quizLibrary.shareCta.driveDisconnected', {
+              defaultValue: 'Connect Google Drive to share a quiz.',
+            })
+          : personalQuizzes.length === 0
+            ? t('plcDashboard.quizLibrary.shareCta.noQuizzes', {
+                defaultValue: 'No personal quizzes to share yet.',
+              })
+            : t('plcDashboard.quizLibrary.shareCta.tooltip', {
+                defaultValue:
+                  'Pick a quiz from your personal library to share with this PLC.',
+              })
+      }
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+    >
+      <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+      {t('plcDashboard.quizLibrary.shareCta.label', {
+        defaultValue: 'Share a quiz with this PLC',
+      })}
+    </button>
+  );
+
   if (plcQuizzes.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full min-h-[300px] px-6 text-center">
-        <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
-          <BookOpen className="w-7 h-7 text-slate-400" aria-hidden="true" />
+      <>
+        <div className="flex flex-col items-center justify-center h-full min-h-[300px] px-6 text-center">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mb-5">
+            <BookOpen className="w-7 h-7 text-slate-400" aria-hidden="true" />
+          </div>
+          <h3 className="text-lg font-bold text-slate-700 mb-2">
+            {t('plcDashboard.quizLibrary.emptyTitle', {
+              defaultValue: 'No shared quizzes yet',
+            })}
+          </h3>
+          <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-4">
+            {t('plcDashboard.quizLibrary.emptySubtitle', {
+              defaultValue:
+                'Open the Quiz widget in your dashboard, click the kebab on any quiz, and choose "Share with PLC" to add it here.',
+            })}
+          </p>
+          {shareCta}
         </div>
-        <h3 className="text-lg font-bold text-slate-700 mb-2">
-          {t('plcDashboard.quizLibrary.emptyTitle', {
-            defaultValue: 'No shared quizzes yet',
-          })}
-        </h3>
-        <p className="text-sm text-slate-500 max-w-md leading-relaxed">
-          {t('plcDashboard.quizLibrary.emptySubtitle', {
-            defaultValue:
-              'Open the Quiz widget in your dashboard, click the kebab on any quiz, and choose "Share with PLC" to add it here.',
-          })}
-        </p>
-      </div>
+        {sharePickerOpen && (
+          <PlcSharePickerModal
+            title={t('plcDashboard.quizLibrary.sharePicker.title', {
+              defaultValue: 'Share a quiz with this PLC',
+            })}
+            subtitle={plc.name}
+            prompt={t('plcDashboard.quizLibrary.sharePicker.prompt', {
+              defaultValue:
+                'Pick a quiz from your personal library. Teammates will then be able to import it from this tab.',
+            })}
+            emptyMessage={t('plcDashboard.quizLibrary.sharePicker.empty', {
+              defaultValue: 'You have no quizzes in your personal library yet.',
+            })}
+            items={sharePickerItems}
+            onPick={handleShareFromPicker}
+            onClose={() => setSharePickerOpen(false)}
+          />
+        )}
+      </>
     );
   }
 
@@ -491,13 +688,16 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
             defaultValue: 'Shared Quizzes',
           })}
         </h3>
-        <span className="text-xxs text-slate-400">
-          {t('plcDashboard.quizLibrary.count', {
-            count: plcQuizzes.length,
-            defaultValue: '{{count}} quiz',
-            defaultValue_other: '{{count}} quizzes',
-          })}
-        </span>
+        <div className="flex items-center gap-3">
+          <span className="text-xxs text-slate-400">
+            {t('plcDashboard.quizLibrary.count', {
+              count: plcQuizzes.length,
+              defaultValue: '{{count}} quiz',
+              defaultValue_other: '{{count}} quizzes',
+            })}
+          </span>
+          {shareCta}
+        </div>
       </div>
       <div className="flex flex-col gap-2">
         {plcQuizzes.map((quiz) => {
@@ -679,6 +879,24 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         onClose={() => setEditing(null)}
         onSave={handleSaveEdit}
       />
+      {sharePickerOpen && (
+        <PlcSharePickerModal
+          title={t('plcDashboard.quizLibrary.sharePicker.title', {
+            defaultValue: 'Share a quiz with this PLC',
+          })}
+          subtitle={plc.name}
+          prompt={t('plcDashboard.quizLibrary.sharePicker.prompt', {
+            defaultValue:
+              'Pick a quiz from your personal library. Teammates will then be able to import it from this tab.',
+          })}
+          emptyMessage={t('plcDashboard.quizLibrary.sharePicker.empty', {
+            defaultValue: 'You have no quizzes in your personal library yet.',
+          })}
+          items={sharePickerItems}
+          onPick={handleShareFromPicker}
+          onClose={() => setSharePickerOpen(false)}
+        />
+      )}
     </div>
   );
 };
