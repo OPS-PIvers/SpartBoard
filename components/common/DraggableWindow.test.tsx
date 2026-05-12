@@ -301,8 +301,9 @@ describe('DraggableWindow', () => {
       pointerId: 1,
     });
 
-    // Move pointer to (160, 160)
-    fireEvent.pointerMove(window, {
+    // Move pointer to (160, 160). Listeners are attached to the capture target
+    // (the drag surface), not window — see DraggableWindow handleDragStart.
+    fireEvent.pointerMove(dragSurface, {
       clientX: 160,
       clientY: 160,
       pointerId: 1,
@@ -319,7 +320,7 @@ describe('DraggableWindow', () => {
     });
 
     // Clean up (Pointer Up)
-    fireEvent.pointerUp(window, { pointerId: 1 });
+    fireEvent.pointerUp(dragSurface, { pointerId: 1 });
 
     // NOW updateWidget should be called with final position
     await waitFor(() => {
@@ -355,7 +356,7 @@ describe('DraggableWindow', () => {
       pointerId: 1,
     });
 
-    fireEvent.pointerMove(window, {
+    fireEvent.pointerMove(dragSurface, {
       clientX: 110,
       clientY: 110,
       pointerId: 1,
@@ -368,6 +369,37 @@ describe('DraggableWindow', () => {
         expect.objectContaining({ x: 110, y: 110 })
       );
     });
+  });
+
+  // Regression: if the host component unmounts mid-drag (Firestore-driven
+  // delete, dashboard switch, admin force-remove), the global
+  // `is-dragging-widget` body class — used to suppress hover/cursor styles
+  // app-wide — must not remain stuck on the body. Gesture listeners live on
+  // the capture target, so onPointerUp can't run after the node detaches;
+  // the unmount cleanup effect is the only guarantee.
+  it('clears global drag-state body class when host unmounts mid-gesture', () => {
+    const { unmount } = renderComponent();
+
+    const dragSurface = screen.getByTestId(
+      'drag-surface'
+    ) as unknown as HTMLElementWithCapture;
+    dragSurface.setPointerCapture = vi.fn();
+    dragSurface.hasPointerCapture = vi.fn().mockReturnValue(true);
+    dragSurface.releasePointerCapture = vi.fn();
+
+    document.body.classList.remove('is-dragging-widget');
+
+    fireEvent.pointerDown(dragSurface, {
+      clientX: 110,
+      clientY: 110,
+      pointerId: 1,
+    });
+    expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
+
+    // Unmount before pointerup arrives.
+    unmount();
+
+    expect(document.body.classList.contains('is-dragging-widget')).toBe(false);
   });
 
   it('minimizes on Escape key press', () => {
@@ -651,7 +683,7 @@ describe('DraggableWindow', () => {
       // elementsFromPoint pass-through must be skipped in the priority zone.
       expect(elementsFromPointMock).not.toHaveBeenCalled();
 
-      fireEvent.pointerUp(window, { pointerId: 1 });
+      fireEvent.pointerUp(seHandle, { pointerId: 1 });
     });
 
     it('passes through to interactive element when click is outside priority zone', () => {
@@ -690,7 +722,7 @@ describe('DraggableWindow', () => {
       expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
       expect(elementsFromPointMock).not.toHaveBeenCalled();
 
-      fireEvent.pointerUp(window, { pointerId: 1 });
+      fireEvent.pointerUp(seHandle, { pointerId: 1 });
     });
   });
 });
