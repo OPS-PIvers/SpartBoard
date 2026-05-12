@@ -445,6 +445,7 @@ export const getClassLinkRosterV1 = onCall(
       CLASSLINK_TENANT_URL,
     ],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -584,6 +585,7 @@ export const generateWithAI = onCall(
   {
     memory: '512MiB',
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as AIData;
@@ -1158,8 +1160,9 @@ Output JSON ONLY in this exact shape:
 
 export const fetchExternalProxy = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     timeoutSeconds: 30,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as { url: string };
@@ -1228,6 +1231,7 @@ export const archiveActivityWallPhoto = onCall(
   {
     memory: '512MiB',
     timeoutSeconds: 120,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as ArchiveActivityWallPhotoData;
@@ -1386,8 +1390,9 @@ export const archiveActivityWallPhoto = onCall(
 
 export const checkUrlCompatibility = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     timeoutSeconds: 20,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as { url: string };
@@ -1513,6 +1518,7 @@ export const generateVideoActivity = onCall(
     memory: '1GiB',
     timeoutSeconds: 300,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
     const data = request.data as VideoActivityRequestData;
@@ -1743,6 +1749,7 @@ export const transcribeVideoWithGemini = onCall(
     memory: '1GiB',
     timeoutSeconds: 300,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
     const data = request.data as AudioTranscriptionRequestData;
@@ -2027,6 +2034,7 @@ export const generateGuidedLearning = onCall(
     memory: '512MiB',
     timeoutSeconds: 120,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as {
@@ -2373,9 +2381,11 @@ export const adminAnalytics = onRequest(
         return;
       }
 
+      const { meta: payloadMeta, ...payloadWithoutMeta } = snapshot.payload;
       res.json({
-        ...snapshot.payload,
+        ...payloadWithoutMeta,
         meta: {
+          ...(payloadMeta ?? {}),
           computedAt: snapshot.computedAt,
           nextRecomputeAt: snapshot.nextRecomputeAt,
           computeDurationMs: snapshot.computeDurationMs,
@@ -2510,6 +2520,7 @@ export const studentLoginV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -2730,9 +2741,10 @@ export const studentLoginV1 = onCall(
  */
 export const getAssignmentPseudonymV1 = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   (request) => {
     if (!request.auth) {
@@ -2794,6 +2806,7 @@ export const getStudentClassDirectoryV1 = onCall(
   {
     memory: '256MiB',
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -3002,6 +3015,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -3335,6 +3349,7 @@ export const commitRosterPinIndexV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -3534,6 +3549,7 @@ export const pinLoginV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = (request.data ?? {}) as PinLoginRequestData;
