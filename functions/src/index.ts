@@ -1077,43 +1077,52 @@ export const fetchExternalProxy = onCall(
       const response = await axios.get<unknown>(data.url, { maxRedirects: 0 });
       return response.data;
     } catch (error: unknown) {
-      const axiosError = error as {
-        response?: { status?: number; data?: unknown };
-        message?: string;
-      };
-      const status = axiosError.response?.status;
-      // Summarise the response body instead of dumping it: upstream HTML
-      // error pages can be large and may contain sensitive content.
-      const rawBody = axiosError.response?.data;
-      const bodyPreview =
-        rawBody === undefined
-          ? undefined
-          : ((): { type: string; size: number; preview: string } => {
-              const str =
-                typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
-              return {
-                type: typeof rawBody,
-                size: str.length,
-                preview: str.slice(0, 200),
-              };
-            })();
-      console.error('External Proxy Error:', {
-        url: data.url,
-        status,
-        message: axiosError.message,
-        body: bodyPreview,
-      });
-      if (status === 404) {
+      if (axios.isAxiosError(error)) {
+        const status = error.response?.status;
+        // Summarise the response body instead of dumping it: upstream HTML
+        // error pages can be large and may contain sensitive content.
+        // AxiosResponse.data is typed `any`; narrow to `unknown` before use.
+        const rawBody: unknown = error.response?.data;
+        const bodyPreview =
+          rawBody === undefined
+            ? undefined
+            : ((): { type: string; size: number; preview: string } => {
+                const str =
+                  typeof rawBody === 'string'
+                    ? rawBody
+                    : JSON.stringify(rawBody);
+                return {
+                  type: typeof rawBody,
+                  size: str.length,
+                  preview: str.slice(0, 200),
+                };
+              })();
+        console.error('External Proxy Error:', {
+          url: data.url,
+          status,
+          message: error.message,
+          body: bodyPreview,
+        });
+        if (status === 404) {
+          throw new HttpsError(
+            'not-found',
+            `Upstream returned 404 for ${data.url}`
+          );
+        }
         throw new HttpsError(
-          'not-found',
-          `Upstream returned 404 for ${data.url}`
+          'internal',
+          `Upstream ${status ?? 'unknown'}: ${error.message}`
         );
       }
-      const msg = axiosError.message ?? 'External fetch failed';
-      throw new HttpsError(
-        'internal',
-        `Upstream ${status ?? 'unknown'}: ${msg}`
-      );
+
+      // Non-axios path: e.g. invalid response coercion, code defect, or
+      // anything thrown before/after the request itself.
+      const msg = error instanceof Error ? error.message : String(error);
+      console.error('External Proxy Error (non-axios):', {
+        url: data.url,
+        message: msg,
+      });
+      throw new HttpsError('internal', `Proxy failed: ${msg}`);
     }
   }
 );
