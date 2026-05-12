@@ -3,16 +3,27 @@
  * Library. Mirrors `QuizLibraryTile` rhythm: small heading + count
  * badge, scrollable preview list (4 most recent), "Open library" footer.
  *
- * The "Coming soon" placeholder previously occupying this slot is now
- * routed away in `tileRegistry.tsx`.
+ * Each row exposes an inline kebab popover (`TileRowKebab`) with quick
+ * actions — "Open in tab" and "Unshare from PLC" — so the tile is not
+ * limited to a single navigate-on-click affordance. Heavier actions
+ * (import + edit) stay in the tab body where the personal-library
+ * subscription (`useVideoActivity`) already lives.
  */
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronRight, Film, Loader2 } from 'lucide-react';
+import {
+  ChevronRight,
+  ExternalLink,
+  Film,
+  Loader2,
+  Trash2,
+} from 'lucide-react';
 import { Plc } from '@/types';
 import { usePlcVideoActivities } from '@/hooks/usePlcVideoActivities';
+import { usePlcLibraryActions } from '@/hooks/usePlcLibraryActions';
 import type { PlcDashboardTabId } from '../../PlcDashboard';
+import { TileRowKebab, type TileRowKebabAction } from './TileRowKebab';
 
 interface VideoActivitiesTileProps {
   plc: Plc;
@@ -26,7 +37,13 @@ export const VideoActivitiesTile: React.FC<VideoActivitiesTileProps> = ({
   onNavigateTab,
 }) => {
   const { t } = useTranslation();
-  const { videoActivities, loading } = usePlcVideoActivities(plc.id);
+  const { videoActivities, loading, unshareVideoActivityFromPlc } =
+    usePlcVideoActivities(plc.id);
+  const { unshare, busyId } = usePlcLibraryActions({
+    plcId: plc.id,
+    kind: 'videoActivity',
+    unshareFn: unshareVideoActivityFromPlc,
+  });
   const preview = videoActivities.slice(0, PREVIEW_LIMIT);
 
   return (
@@ -69,43 +86,93 @@ export const VideoActivitiesTile: React.FC<VideoActivitiesTileProps> = ({
           </div>
         ) : (
           <ul className="space-y-2 py-1">
-            {preview.map((activity) => (
-              <li key={activity.id}>
-                <button
-                  type="button"
-                  onClick={() => onNavigateTab('videoActivities')}
-                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 focus-visible:bg-brand-blue-lighter/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 transition-colors"
-                  title={t(
-                    'plcDashboard.overview.tiles.videoActivities.rowTooltip',
-                    {
-                      defaultValue: 'Open in PLC Video Activities tab',
-                    }
-                  )}
-                >
-                  <div className="flex items-baseline justify-between gap-2">
-                    <div className="text-xs font-bold text-slate-800 truncate">
-                      {activity.title}
-                    </div>
-                    <span className="shrink-0 text-xxs text-slate-400">
-                      {t(
-                        'plcDashboard.overview.tiles.videoActivities.questionCount',
+            {preview.map((activity) => {
+              const rowBusy = busyId === activity.id;
+              const kebabActions: TileRowKebabAction[] = [
+                {
+                  id: 'open',
+                  label: t(
+                    'plcDashboard.overview.tiles.videoActivities.openInTab',
+                    { defaultValue: 'Open in tab' }
+                  ),
+                  Icon: ExternalLink,
+                  onClick: () => onNavigateTab('videoActivities'),
+                },
+                {
+                  id: 'unshare',
+                  label: t(
+                    'plcDashboard.overview.tiles.videoActivities.unshare',
+                    { defaultValue: 'Unshare from PLC' }
+                  ),
+                  Icon: Trash2,
+                  destructive: true,
+                  disabled: rowBusy,
+                  onClick: () => void unshare(activity.id, activity.title),
+                },
+              ];
+              return (
+                <li key={activity.id} className="relative">
+                  <div className="flex items-stretch gap-1 group">
+                    <button
+                      type="button"
+                      onClick={() => onNavigateTab('videoActivities')}
+                      className="flex-1 min-w-0 text-left px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 focus-visible:bg-brand-blue-lighter/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 transition-colors"
+                      title={t(
+                        'plcDashboard.overview.tiles.videoActivities.rowTooltip',
                         {
-                          count: activity.questionCount,
-                          defaultValue: '{{count}} q',
+                          defaultValue: 'Open in PLC Video Activities tab',
                         }
                       )}
-                    </span>
+                    >
+                      <div className="flex items-baseline justify-between gap-2">
+                        <div className="text-xs font-bold text-slate-800 truncate flex items-center gap-1.5">
+                          {rowBusy && (
+                            <Loader2
+                              className="w-3 h-3 animate-spin text-slate-400 shrink-0"
+                              aria-hidden="true"
+                            />
+                          )}
+                          <span className="truncate">{activity.title}</span>
+                        </div>
+                        <span className="shrink-0 text-xxs text-slate-400">
+                          {t(
+                            'plcDashboard.overview.tiles.videoActivities.questionCount',
+                            {
+                              count: activity.questionCount,
+                              defaultValue: '{{count}} q',
+                            }
+                          )}
+                        </span>
+                      </div>
+                      <p className="text-xxs text-slate-500 truncate mt-0.5">
+                        {t(
+                          'plcDashboard.overview.tiles.videoActivities.bySharer',
+                          {
+                            name:
+                              activity.sharedByName ||
+                              activity.sharedByEmail ||
+                              '—',
+                            defaultValue: 'shared by {{name}}',
+                          }
+                        )}
+                      </p>
+                    </button>
+                    <div className="self-center pr-1">
+                      <TileRowKebab
+                        ariaLabel={t(
+                          'plcDashboard.overview.tiles.videoActivities.kebabAriaLabel',
+                          {
+                            title: activity.title,
+                            defaultValue: 'Actions for {{title}}',
+                          }
+                        )}
+                        actions={kebabActions}
+                      />
+                    </div>
                   </div>
-                  <p className="text-xxs text-slate-500 truncate mt-0.5">
-                    {t('plcDashboard.overview.tiles.videoActivities.bySharer', {
-                      name:
-                        activity.sharedByName || activity.sharedByEmail || '—',
-                      defaultValue: 'shared by {{name}}',
-                    })}
-                  </p>
-                </button>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
