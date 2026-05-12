@@ -5,12 +5,6 @@
  * count badge and an "Open assignments" footer that routes to the full
  * tab.
  *
- * **Why this tile exists:** Phase 3 shipped the In-progress sub-tab but
- * left the Overview bento tile pointing at the Phase-1 `ComingSoonTile`
- * (`tileRegistry.tsx`, pre-fix). Members landed on the dashboard and saw
- * a "Phase 3 · soon" badge even though the underlying tab was live. This
- * tile closes that gap so the Overview reflects the shipped feature set.
- *
  * Mirrors `QuizLibraryTile`'s rhythm (small heading + scrollable preview
  * + footer link) rather than `CompletedAssignmentsTile`'s analytics-body
  * embed — the In-progress view is a real-time list, not an aggregation.
