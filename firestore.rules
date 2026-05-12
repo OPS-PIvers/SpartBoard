@@ -384,6 +384,22 @@ service cloud.firestore {
       match /testClasses/{classId} {
         allow read, write: if isSuperAdmin() || isDomainAdmin(orgId);
       }
+
+      // Cached analytics snapshot, written nightly by the
+      // `recomputeAdminAnalytics` scheduled function (Admin SDK, bypasses
+      // rules) and read by the `adminAnalytics` HTTP function. Surfaced here
+      // so the client can read it directly in future iterations without going
+      // through the HTTP handler; today the HTTP handler is still the only
+      // reader, but a client-direct read path would be a strict cost win.
+      // Read is gated to org admins (any tier) since the snapshot carries
+      // per-member emails and engagement data. All writes are blocked — no
+      // client should ever write here; the scheduler is the sole writer.
+      match /analytics/{document} {
+        allow read: if isSuperAdmin() ||
+                    isDomainAdmin(orgId) ||
+                    isBuildingAdmin(orgId);
+        allow write: if false;
+      }
     }
 
     // Admins collection

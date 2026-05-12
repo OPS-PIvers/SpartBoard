@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
+import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
 
 // Phase 4 — organization invitations + membership write-through.
 // These modules initialize their own `admin.initializeApp()` guarded by
@@ -33,6 +34,7 @@ export {
 } from './syncedVideoActivityGroups';
 export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
+export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 
 setGlobalOptions({ region: 'us-central1' });
 
@@ -2061,30 +2063,27 @@ Guidelines:
   }
 );
 
-interface DashboardData {
-  updatedAt?: number;
-  widgets?: { type: string }[];
-}
-
-interface EngagementCounts {
-  total: number;
-  monthly: number;
-  daily: number;
-}
-
-// registeredUsersCache removed – Auth data is now collected in a single
-// listUsers pass that also provides MAU/DAU, so a separate cache is unnecessary.
-
 /**
  * Cloud Function to fetch administrative analytics.
- * Uses onRequest with explicit CORS to avoid preflight issues with onCall.
- * Bumps memory and timeout to handle unbounded collection reads
- * while a more scalable (paginated/aggregated) solution is developed.
+ *
+ * Read-only hot path: returns the snapshot at
+ * `/organizations/{orgId}/analytics/snapshot` (written nightly by
+ * `recomputeAdminAnalytics`). The previous implementation computed the
+ * payload inline on every call, doing two unbounded reads
+ * (`collectionGroup('dashboards').stream()` + `collection('ai_usage').stream()`)
+ * that dominated the bill once user counts grew. The compute helper itself
+ * still lives in `adminAnalyticsCompute.ts`; it now runs once a day from the
+ * scheduled job in `adminAnalyticsSnapshot.ts` instead of on every page load.
+ *
+ * Memory is held at 1 GiB rather than the legacy 4 GiB because no streaming
+ * reads happen here anymore — only the snapshot doc read plus the auth/authz
+ * doc reads. Could probably drop further; leaving headroom for the JSON
+ * serialization of large snapshots.
  */
 export const adminAnalytics = onRequest(
   {
-    memory: '4GiB',
-    timeoutSeconds: 540,
+    memory: '1GiB',
+    timeoutSeconds: 30,
     cors: ALLOWED_ORIGINS,
     invoker: 'public',
   },
@@ -2172,514 +2171,46 @@ export const adminAnalytics = onRequest(
     }
 
     try {
-      const now = Date.now();
-      // 3a. Load the org's members as the authoritative user roster. This
-      // replaces the previous global `listUsers()` scan, which pulled in every
-      // Firebase Auth account regardless of org and caused foreign-domain
-      // users to show up in a different org's analytics.
+      // Hot path is now snapshot-only. The compute logic that used to live
+      // here (~500 LOC) has moved to `adminAnalyticsCompute.ts` and runs
+      // once a day from the scheduled job in `adminAnalyticsSnapshot.ts`.
       //
-      // For each member we need auth metadata (lastSignInTime) to compute
-      // engagement. Members without a `uid` (invited but never signed in)
-      // still count toward totals but have zero engagement.
-      interface MemberLite {
-        email: string;
-        uid: string | null;
-        buildingIds: string[];
-      }
-      const members: MemberLite[] = [];
-      const membersSnap = await db
-        .collection(`organizations/${orgId}/members`)
-        .get();
-      for (const doc of membersSnap.docs) {
-        const data = doc.data() as {
-          email?: unknown;
-          uid?: unknown;
-          buildingIds?: unknown;
-        };
-        const memberEmail =
-          typeof data.email === 'string' ? data.email.toLowerCase() : doc.id;
-        const uid = typeof data.uid === 'string' && data.uid ? data.uid : null;
-        const buildingIds = Array.isArray(data.buildingIds)
-          ? data.buildingIds.filter(
-              (id): id is string => typeof id === 'string' && id.length > 0
-            )
-          : [];
-        members.push({ email: memberEmail, uid, buildingIds });
-      }
-
-      // Resolve Firebase Auth metadata for members that have a linked uid.
-      // `getUsers()` tolerates up to 100 identifiers per call and silently
-      // drops uids that no longer exist in Auth, which is the right behavior
-      // for a member doc whose uid was revoked.
-      const authUsersMap = new Map<
-        string,
-        { email: string; lastSignInMs: number }
-      >();
-      const uidsToResolve = members
-        .map((m) => m.uid)
-        .filter((uid): uid is string => uid !== null);
-      const chunks: { uid: string }[][] = [];
-      for (let i = 0; i < uidsToResolve.length; i += 100) {
-        chunks.push(uidsToResolve.slice(i, i + 100).map((uid) => ({ uid })));
-      }
-
-      await Promise.all(
-        chunks.map(async (chunk) => {
-          try {
-            const result = await admin.auth().getUsers(chunk);
-            for (const u of result.users) {
-              const lastSignIn = u.metadata.lastSignInTime
-                ? new Date(u.metadata.lastSignInTime).getTime()
-                : 0;
-              authUsersMap.set(u.uid, {
-                email: u.email ?? '',
-                lastSignInMs: lastSignIn,
-              });
-            }
-          } catch (err) {
-            console.warn('[getAdminAnalytics] auth().getUsers() chunk failed', {
-              requestId,
-              orgId,
-              chunkSize: chunk.length,
-              error: err instanceof Error ? err.message : String(err),
-            });
-          }
-        })
-      );
-
-      // 3b. Build a uid → member lookup so downstream dashboard/AI filters can
-      // scope to org members without being gated on a successful
-      // `auth().getUsers()` round-trip. `authUsersMap` is only used to join
-      // lastSignIn metadata; an auth lookup failure must not silently drop a
-      // real member's dashboards or AI usage from the totals.
-      const memberUids = new Set<string>();
-      for (const m of members) {
-        if (m.uid) memberUids.add(m.uid);
-      }
-
-      // 3c. Time constants & helpers (engagement computed after dashboard
-      //     stream so we can use last-edit timestamps instead of last-login)
-      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
-      const oneDayMs = 24 * 60 * 60 * 1000;
-
-      const increment = (
-        bucket: Record<string, EngagementCounts>,
-        key: string,
-        isMonthlyActive: boolean,
-        isDailyActive: boolean
-      ) => {
-        if (!bucket[key]) {
-          bucket[key] = { total: 0, monthly: 0, daily: 0 };
-        }
-        bucket[key].total += 1;
-        if (isMonthlyActive) bucket[key].monthly += 1;
-        if (isDailyActive) bucket[key].daily += 1;
-      };
-      // 4. Fetch Dashboards for Widget Stats
-      let totalDashboards = 0;
-      const totalWidgetCounts: Record<string, number> = {};
-      const activeWidgetCounts: Record<string, number> = {};
-      const allDashboardOwnerUids = new Set<string>();
-      let totalWidgetInstances = 0;
-      // Bounded at MAX_WIDGET_USER_TRACK UIDs per type: memory is
-      // O(widget_types × limit) instead of O(widget_types × all_users).
-      // count = Set.size is exact up to the cap; above the cap it means "≥ cap".
-      const MAX_WIDGET_USER_TRACK = 100;
-      const widgetToUserUids: Record<string, Set<string>> = {};
-      const activeThreshold = now - 30 * 24 * 60 * 60 * 1000; // 30 days
-      // Track most recent dashboard edit per user for edit-based DAU/MAU
-      const lastEditByUser = new Map<string, number>();
-
-      const dashboardsStream = db
-        .collectionGroup('dashboards')
-        .select('widgets', 'updatedAt')
-        .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-
-      for await (const dashDoc of dashboardsStream) {
-        if (!dashDoc.exists) continue;
-        const dashData = dashDoc.data() as DashboardData;
-        const updatedAt =
-          typeof dashData.updatedAt === 'number' ? dashData.updatedAt : 0;
-        const isActive = updatedAt > activeThreshold;
-
-        // Extract owner UID from path: users/{uid}/dashboards/{dashId}
-        const ownerUid: string | null = dashDoc.ref.parent.parent?.id ?? null;
-
-        // Skip dashboards not owned by a member of this org. Use the member
-        // roster (not `authUsersMap`) so a transient `auth().getUsers()`
-        // failure doesn't silently drop real members' dashboards from totals.
-        if (!ownerUid || !memberUids.has(ownerUid)) continue;
-
-        totalDashboards++;
-        allDashboardOwnerUids.add(ownerUid);
-
-        // Track the most recent edit across all of this user's dashboards
-        const prevEdit = lastEditByUser.get(ownerUid) ?? 0;
-        if (updatedAt > prevEdit) {
-          lastEditByUser.set(ownerUid, updatedAt);
-        }
-
-        const widgetCount = Array.isArray(dashData.widgets)
-          ? dashData.widgets.length
-          : 0;
-        totalWidgetInstances += widgetCount;
-
-        if (dashData.widgets && Array.isArray(dashData.widgets)) {
-          dashData.widgets.forEach((w: { type: string }) => {
-            if (w && w.type) {
-              totalWidgetCounts[w.type] = (totalWidgetCounts[w.type] || 0) + 1;
-              if (isActive) {
-                activeWidgetCounts[w.type] =
-                  (activeWidgetCounts[w.type] || 0) + 1;
-              }
-              if (ownerUid) {
-                if (!widgetToUserUids[w.type]) {
-                  widgetToUserUids[w.type] = new Set<string>();
-                }
-                const uidSet = widgetToUserUids[w.type];
-                // Only grow the Set while under the cap (or if already present)
-                if (
-                  uidSet.size < MAX_WIDGET_USER_TRACK ||
-                  uidSet.has(ownerUid)
-                ) {
-                  uidSet.add(ownerUid);
-                }
-              }
-            }
-          });
-        }
-      }
-
-      // 4b. Compute engagement using last-edit timestamps (not last-login)
-      //     A user is "active" if they edited a dashboard within the window.
-      const usersByDomain: Record<string, EngagementCounts> = {};
-      const usersByBuilding: Record<string, EngagementCounts> = {};
-      const usersByDomainAndBuilding: Record<
-        string,
-        Record<string, EngagementCounts>
-      > = {};
-      const totalEngagement: EngagementCounts = {
-        total: 0,
-        monthly: 0,
-        daily: 0,
-      };
-
-      // Iterate the org member roster (not just the auth-resolved subset) so
-      // invited-but-never-signed-in members count toward totals/domain/building
-      // buckets with zero engagement, matching the "totals come from the
-      // member roster; engagement is joined from Auth when available" contract.
-      for (const member of members) {
-        const userEmail = member.email;
-        const domain = userEmail.includes('@')
-          ? userEmail.split('@')[1]
-          : 'unknown';
-        const lastEditMs = member.uid
-          ? (lastEditByUser.get(member.uid) ?? 0)
-          : 0;
-        const isMonthlyActive =
-          lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs;
-        const isDailyActive = lastEditMs > 0 && now - lastEditMs <= oneDayMs;
-
-        totalEngagement.total += 1;
-        if (isMonthlyActive) totalEngagement.monthly += 1;
-        if (isDailyActive) totalEngagement.daily += 1;
-
-        increment(usersByDomain, domain, isMonthlyActive, isDailyActive);
-
-        const buildings = member.buildingIds;
-        if (buildings.length === 0) {
-          increment(usersByBuilding, 'none', isMonthlyActive, isDailyActive);
-          if (!usersByDomainAndBuilding[domain]) {
-            usersByDomainAndBuilding[domain] = {};
-          }
-          increment(
-            usersByDomainAndBuilding[domain],
-            'none',
-            isMonthlyActive,
-            isDailyActive
-          );
-        } else {
-          for (const building of buildings) {
-            increment(
-              usersByBuilding,
-              building,
-              isMonthlyActive,
-              isDailyActive
-            );
-            if (!usersByDomainAndBuilding[domain]) {
-              usersByDomainAndBuilding[domain] = {};
-            }
-            increment(
-              usersByDomainAndBuilding[domain],
-              building,
-              isMonthlyActive,
-              isDailyActive
-            );
-          }
-        }
-      }
-
-      // 4c. Build per-user detail list for KPI drilldowns. Same rule: iterate
-      // the member roster, join Auth metadata when a uid is present.
-      const userList = members.map((member) => {
-        const authInfo = member.uid ? authUsersMap.get(member.uid) : undefined;
-        const lastSignInMs = authInfo?.lastSignInMs ?? 0;
-        const lastEditMs = member.uid
-          ? (lastEditByUser.get(member.uid) ?? 0)
-          : 0;
-        return {
-          email: member.email,
-          buildings: member.buildingIds,
-          lastSignInMs,
-          lastEditMs,
-          hasDashboard: member.uid
-            ? allDashboardOwnerUids.has(member.uid)
-            : false,
-          isMonthlyActive: lastEditMs > 0 && now - lastEditMs <= thirtyDaysMs,
-          isDailyActive: lastEditMs > 0 && now - lastEditMs <= oneDayMs,
-        };
-      });
-
-      // Auth data was already collected in step 3a – no separate scan needed
-      const totalRegisteredUsers = authUsersMap.size;
-      const registeredIsFallback = false;
-
-      // Resolve widget UIDs to emails (cap at 200 unique UIDs total)
-      const allWidgetUids = new Set<string>();
-      outer: for (const uids of Object.values(widgetToUserUids)) {
-        for (const uid of uids) {
-          if (allWidgetUids.size >= 200) break outer;
-          allWidgetUids.add(uid);
-        }
-      }
-
-      const widgetUserEmails: Record<string, string> = {};
-      const resolveUserEmailsViaAuthFallback = async (
-        uids: string[],
-        targetMap: Record<string, string>,
-        warningContext: string
-      ): Promise<void> => {
-        const identifiers = uids.map((uid) => ({ uid }));
-        const chunks: { uid: string }[][] = [];
-        for (let i = 0; i < identifiers.length; i += 100) {
-          chunks.push(identifiers.slice(i, i + 100));
-        }
-
-        await Promise.all(
-          chunks.map(async (chunk, chunkIdx) => {
-            try {
-              const result = await admin.auth().getUsers(chunk);
-              result.users.forEach((u) => {
-                if (u.email) {
-                  targetMap[u.uid] = u.email;
-                }
-              });
-            } catch (error) {
-              console.warn(
-                `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
-                {
-                  requestId,
-                  chunkSize: chunk.length,
-                  chunkStart: chunkIdx * 100,
-                  totalIdentifiers: identifiers.length,
-                  totalUids: uids.length,
-                  error: error instanceof Error ? error.message : String(error),
-                }
-              );
-            }
-          })
-        );
-      };
-      const allWidgetUidArray = Array.from(allWidgetUids);
-      for (let i = 0; i < allWidgetUidArray.length; i += 30) {
-        const uidChunk = allWidgetUidArray.slice(i, i + 30);
-        if (uidChunk.length === 0) continue;
-        const snapshot = await db
-          .collection('users')
-          .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-          .select('email')
-          .get();
-        snapshot.docs.forEach((d) => {
-          const userData = d.data();
-          if (
-            typeof userData['email'] === 'string' &&
-            userData['email'].length > 0
-          ) {
-            widgetUserEmails[d.id] = userData['email'];
-          }
+      // Three reads total at this point: admin doc, member doc (both fetched
+      // above for the authz gate), and the snapshot doc. Compared to the
+      // pre-cache implementation this skips a `collectionGroup('dashboards')`
+      // stream over every dashboard in the database plus an `ai_usage`
+      // stream over every per-user counter — the two reads that were
+      // dominating the bill.
+      const snapshot = await readAnalyticsSnapshot(orgId);
+      if (!snapshot) {
+        // No snapshot yet — either a brand-new org pre-first-scheduled-run,
+        // or the snapshot was written under an older schemaVersion that the
+        // reader rejects. Either way, surface a 503 with a deterministic
+        // payload shape so the UI can show "Analytics will be ready after
+        // the next scheduled refresh" rather than spinning forever.
+        console.log('[getAdminAnalytics] no snapshot available', {
+          requestId,
+          orgId,
         });
-      }
-      const unresolvedWidgetUids = allWidgetUidArray.filter(
-        (uid) => !widgetUserEmails[uid]
-      );
-      if (unresolvedWidgetUids.length > 0) {
-        await resolveUserEmailsViaAuthFallback(
-          unresolvedWidgetUids,
-          widgetUserEmails,
-          'widget drilldowns'
-        );
+        res.status(503).json({
+          error: 'not-yet-computed',
+          message:
+            'Analytics for this organization have not been computed yet. The next scheduled refresh runs at 5:00 AM Central daily.',
+          requestId,
+        });
+        return;
       }
 
-      const usersByType: Record<string, { count: number; emails: string[] }> =
-        {};
-      for (const [widgetType, uidSet] of Object.entries(widgetToUserUids)) {
-        usersByType[widgetType] = {
-          count: uidSet.size,
-          emails: Array.from(uidSet)
-            .slice(0, 20)
-            .map((uid) => widgetUserEmails[uid] ?? `Unknown (${uid})`)
-            .sort(),
-        };
-      }
-      // 5. Fetch AI Usage
-      let totalAiCalls = 0;
-      const callsPerUser: Record<string, number> = {};
-      const dailyCallCounts: Record<string, number> = {};
-      const aiCallsByFeature: Record<string, number> = {};
-
-      const GEMINI_SPECIFIC_FEATURES = [
-        'smart-poll',
-        'embed-mini-app',
-        'video-activity-audio-transcription',
-        'quiz',
-        'ocr',
-        'guided-learning',
-      ];
-
-      const aiUsageStream = db
-        .collection('ai_usage')
-        .select('count')
-        .stream() as unknown as AsyncIterable<admin.firestore.QueryDocumentSnapshot>;
-
-      for await (const usageDoc of aiUsageStream) {
-        if (!usageDoc.exists) continue;
-        const idParts = usageDoc.id.split('_');
-        if (idParts.length < 2) continue;
-
-        const datePart = idParts[idParts.length - 1];
-        const secondToLast = idParts[idParts.length - 2];
-        const isSpecificFeature =
-          GEMINI_SPECIFIC_FEATURES.includes(secondToLast);
-
-        // Exclude the feature ID and date to get the original UID
-        const uidParts = idParts.slice(0, isSpecificFeature ? -2 : -1);
-        const uid = uidParts.join('_');
-
-        if (!uid || !datePart) continue;
-
-        // Skip AI usage not attributed to a member of this org. Scope by the
-        // member roster rather than `authUsersMap` so auth lookup failures
-        // don't silently drop members' AI calls from the totals.
-        if (!memberUids.has(uid)) continue;
-
-        const usageData = usageDoc.data();
-        const count = typeof usageData.count === 'number' ? usageData.count : 0;
-
-        if (isSpecificFeature) {
-          aiCallsByFeature[secondToLast] =
-            (aiCallsByFeature[secondToLast] ?? 0) + count;
-        }
-
-        // ONLY count the "overall" records for total analytics to avoid double counting
-        // (Specific feature records are for enforcement, overall records track everything)
-        if (!isSpecificFeature) {
-          totalAiCalls += count;
-          callsPerUser[uid] = (callsPerUser[uid] ?? 0) + count;
-          dailyCallCounts[datePart] = (dailyCallCounts[datePart] ?? 0) + count;
-        }
-      }
-
-      const uniqueDays = Object.keys(dailyCallCounts).length || 1;
-      const avgDailyCalls = Math.round(totalAiCalls / uniqueDays);
-      const activeAiUsers = Object.keys(callsPerUser).length || 1;
-      const avgDailyCallsPerUser =
-        Math.round((avgDailyCalls / activeAiUsers) * 10) / 10;
-      const topUserUids = Object.entries(callsPerUser)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 25)
-        .map(([uid]) => uid);
-      const topUserEmails: Record<string, string> = {};
-
-      const uidChunks: string[][] = [];
-      for (let i = 0; i < topUserUids.length; i += 10) {
-        uidChunks.push(topUserUids.slice(i, i + 10));
-      }
-
-      await Promise.all(
-        uidChunks.map(async (uidChunk) => {
-          if (uidChunk.length === 0) return;
-          const usersSnapshot = await db
-            .collection('users')
-            .where(admin.firestore.FieldPath.documentId(), 'in', uidChunk)
-            .select('email')
-            .get();
-
-          usersSnapshot.docs.forEach((doc) => {
-            const userData = doc.data();
-            if (
-              typeof userData.email === 'string' &&
-              userData.email.length > 0
-            ) {
-              topUserEmails[doc.id] = userData.email;
-            }
-          });
-        })
-      );
-      const unresolvedTopUserUids = topUserUids.filter(
-        (uid) => !topUserEmails[uid]
-      );
-      if (unresolvedTopUserUids.length > 0) {
-        await resolveUserEmailsViaAuthFallback(
-          unresolvedTopUserUids,
-          topUserEmails,
-          'AI top users'
-        );
-      }
-
-      const topUsers = Object.entries(callsPerUser)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 25)
-        .map(([uid, count]) => ({
-          uid,
-          count,
-          email: topUserEmails[uid] ?? `Unknown (${uid})`,
-        }));
       res.json({
-        users: {
-          total: totalEngagement.total,
-          registered: totalRegisteredUsers,
-          registeredIsFallback,
-          monthly: totalEngagement.monthly,
-          daily: totalEngagement.daily,
-          withDashboards: allDashboardOwnerUids.size,
-          domains: usersByDomain,
-          buildings: usersByBuilding,
-          domainBuilding: usersByDomainAndBuilding,
-          userList,
-        },
-        widgets: {
-          totalInstances: totalWidgetCounts,
-          activeInstances: activeWidgetCounts,
-          usersByType,
-        },
-        dashboards: {
-          total: totalDashboards,
-          avgWidgetsPerDashboard:
-            totalDashboards > 0
-              ? Math.round((totalWidgetInstances / totalDashboards) * 10) / 10
-              : 0,
-        },
-        api: {
-          totalCalls: totalAiCalls,
-          activeUsers: Object.keys(callsPerUser).length,
-          topUsers,
-          avgDailyCalls,
-          avgDailyCallsPerUser,
-          byFeature: aiCallsByFeature,
+        ...snapshot.payload,
+        meta: {
+          computedAt: snapshot.computedAt,
+          nextRecomputeAt: snapshot.nextRecomputeAt,
+          computeDurationMs: snapshot.computeDurationMs,
         },
       });
     } catch (err: unknown) {
-      console.error('[getAdminAnalytics] Error fetching analytics', {
+      console.error('[getAdminAnalytics] Error reading snapshot', {
         requestId,
         orgId,
         error: err instanceof Error ? err.message : String(err),
@@ -2687,7 +2218,7 @@ export const adminAnalytics = onRequest(
       const errorMessage =
         err instanceof Error
           ? err.message
-          : 'An internal error occurred fetching analytics.';
+          : 'An internal error occurred reading analytics.';
       res
         .status(500)
         .json({ error: 'internal', message: errorMessage, requestId });
