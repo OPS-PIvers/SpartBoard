@@ -521,7 +521,10 @@ describe('fetchExternalProxy', () => {
 
   it('translates an axios maxContentLength error into a resource-exhausted HttpsError', async () => {
     const mockGet = vi.mocked(axios.get);
-    // Axios's actual message format when the limit is exceeded.
+    // Axios's actual message format when the limit is exceeded. `vi.mock('axios')`
+    // auto-mocks `isAxiosError` to a fn that returns undefined; force it to
+    // return true so the size-limit branch is reached.
+    vi.mocked(axios.isAxiosError).mockReturnValueOnce(true);
     mockGet.mockRejectedValue(
       new Error('maxContentLength size of 1048576 exceeded')
     );

@@ -221,6 +221,16 @@ async function getGeminiModelConfig(
  * single warm-instance lifetime, so caching for 5 minutes saves one
  * Firestore read per warm `generateWithAI` call. Key is the lowercased
  * email (matches the production read).
+ *
+ * Trade-offs: TTL bounds both admin demotion lag (cached `true` survives
+ * a demotion for up to 5 min — they keep elevated quota briefly) and
+ * promotion lag (cached `false` survives a promotion for up to 5 min —
+ * they see old limits briefly). Both are acceptable.
+ *
+ * No try/catch here on purpose. A Firestore failure must throw up to the
+ * caller — caching a wrong answer would either grant non-admins admin
+ * quotas (false positive) or strip admins of their quotas (false
+ * negative), both worse than a temporary 5xx that the client retries.
  */
 async function getCachedAdminStatus(
   db: admin.firestore.Firestore,
@@ -228,8 +238,13 @@ async function getCachedAdminStatus(
 ): Promise<boolean> {
   const now = Date.now();
   const cached = cachedAdminStatus.get(emailLower);
-  if (cached && now - cached.cachedAt < READ_CACHE_TTL_MS) {
-    return cached.isAdmin;
+  if (cached) {
+    if (now - cached.cachedAt < READ_CACHE_TTL_MS) {
+      return cached.isAdmin;
+    }
+    // Prune stale entries so a long-lived warm instance that sees many
+    // unique callers doesn't accumulate dead Map entries.
+    cachedAdminStatus.delete(emailLower);
   }
   const doc = await db.collection('admins').doc(emailLower).get();
   const isAdmin = doc.exists;
@@ -529,7 +544,19 @@ export const getClassLinkRosterV1 = onCall(
               }>(studentsUrl, { headers: { ...studentsHeaders } });
               studentsByClass[cls.sourcedId] =
                 studentsResponse.data.users ?? [];
-            } catch {
+            } catch (err) {
+              // Single-class failures aren't fatal (the teacher's other
+              // classes should still load), but they must be visible —
+              // an empty `[]` here without a log makes ClassLink auth
+              // expiry or per-class permission issues silently look like
+              // "this class has no students" to the teacher.
+              console.warn(
+                '[getClassLinkRosterV1] students fetch failed for class',
+                {
+                  classId: cls.sourcedId,
+                  error: err instanceof Error ? err.message : String(err),
+                }
+              );
               studentsByClass[cls.sourcedId] = [];
             }
           })
@@ -1177,10 +1204,13 @@ export const fetchExternalProxy = onCall(
       console.error('External Proxy Error:', error);
       // Translate axios's size-limit message into an explicit
       // resource-exhausted HttpsError so the client can distinguish "the
-      // upstream is too chatty" from a generic network blip.
+      // upstream is too chatty" from a generic network blip. Gating on
+      // `axios.isAxiosError` matches the pattern used elsewhere in this
+      // file and avoids matching on unrelated errors that happen to
+      // contain "maxContentLength" in their message.
       if (
-        error instanceof Error &&
-        /maxContentLength|maxBodyLength/i.test(error.message)
+        axios.isAxiosError(error) &&
+        /maxContentLength|maxBodyLength/i.test(error.message ?? '')
       ) {
         throw new HttpsError(
           'resource-exhausted',
@@ -1270,13 +1300,17 @@ export const archiveActivityWallPhoto = onCall(
       // 512MiB function instance's memory, so a misbehaving client could
       // OOM us with a giant photo. Audit doc item #4. Storage metadata
       // returns `size` as a string in some SDK versions, hence the coerce.
+      // Fail closed on missing/non-numeric size — `NaN > limit` is `false`,
+      // which would bypass the guard and reopen the OOM path.
       const [metadata] = await file.getMetadata();
-      const sizeBytes = Number(metadata.size ?? 0);
+      const sizeBytes = Number(metadata.size);
       const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
-      if (sizeBytes > MAX_PHOTO_BYTES) {
+      if (!Number.isFinite(sizeBytes) || sizeBytes > MAX_PHOTO_BYTES) {
         throw new HttpsError(
           'invalid-argument',
-          `Photo exceeds the 50 MB archive limit (${Math.round(sizeBytes / 1024 / 1024)} MB).`
+          Number.isFinite(sizeBytes)
+            ? `Photo exceeds the 50 MB archive limit (${Math.round(sizeBytes / 1024 / 1024)} MB).`
+            : 'Photo size unknown; cannot safely archive.'
         );
       }
 
@@ -1337,6 +1371,14 @@ export const archiveActivityWallPhoto = onCall(
         { merge: true }
       );
 
+      // Preserve HttpsError codes so the client can distinguish
+      // user-actionable failures (e.g. `invalid-argument` from the size
+      // guard) from genuine server errors. Wrapping every error as
+      // `internal` would tell a teacher whose photo is too large that
+      // SpartBoard is broken when the real fix is to shrink the photo.
+      if (error instanceof HttpsError) {
+        throw error;
+      }
       throw new HttpsError('internal', message);
     }
   }
