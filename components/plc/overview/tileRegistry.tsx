@@ -11,7 +11,7 @@ import { QuickActionsTile } from './tiles/QuickActionsTile';
 import { QuizLibraryTile } from './tiles/QuizLibraryTile';
 import { ActiveAssignmentsTile } from './tiles/ActiveAssignmentsTile';
 import { VideoActivitiesTile } from './tiles/VideoActivitiesTile';
-import { ComingSoonTile } from './tiles/ComingSoonTile';
+import { SharedBoardsTile } from './tiles/SharedBoardsTile';
 
 export interface TileContext {
   plc: Plc;
@@ -93,11 +93,7 @@ export function renderTileContent(
       );
     case 'sharedBoards':
       return (
-        <ComingSoonTile
-          kind="sharedBoards"
-          phase={6}
-          onNavigateTab={() => ctx.onNavigateTab('sharedBoards')}
-        />
+        <SharedBoardsTile plc={ctx.plc} onNavigateTab={ctx.onNavigateTab} />
       );
   }
 }
