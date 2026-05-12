@@ -161,16 +161,24 @@ const SnapshotFreshnessBadge: React.FC<{
 /**
  * Returns a short relative-time string ("2h ago", "just now", "3d ago").
  * Uses `Intl.RelativeTimeFormat` so the unit choice is locale-correct.
+ *
+ * Uses `Math.floor` (not `Math.round`) to truncate to the largest unit the
+ * elapsed time has actually crossed. Rounding would promote 59 min to "1
+ * hour ago" and 23.5 hours to "1 day ago" — those displays misrepresent the
+ * freshness of the snapshot in the direction that's worse for the user
+ * (claiming staler data than reality). Truncation always under-states the
+ * elapsed time by less than one unit, which is the right error direction
+ * for a "this data is up to X old" indicator.
  */
 function formatRelativeTimeAgo(timestampMs: number): string {
   const diffMs = Date.now() - timestampMs;
-  const minutes = Math.round(diffMs / 60_000);
+  const minutes = Math.floor(diffMs / 60_000);
   const fmt = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
   if (minutes < 1) return fmt.format(0, 'minute');
   if (minutes < 60) return fmt.format(-minutes, 'minute');
-  const hours = Math.round(minutes / 60);
+  const hours = Math.floor(minutes / 60);
   if (hours < 24) return fmt.format(-hours, 'hour');
-  const days = Math.round(hours / 24);
+  const days = Math.floor(hours / 24);
   return fmt.format(-days, 'day');
 }
 
