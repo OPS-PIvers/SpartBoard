@@ -22,13 +22,10 @@ export class BoundedLruMap<K, V> {
   }
 
   get(key: K): V | undefined {
-    const value = this.map.get(key);
-    if (value === undefined) {
-      // `has` would be more correct for `V = undefined`, but the extra
-      // lookup isn't worth it for the cache values we actually store
-      // (objects, primitives that callers wrap in objects).
+    if (!this.map.has(key)) {
       return undefined;
     }
+    const value = this.map.get(key) as V;
     // Promote to most-recently-used by re-inserting at the tail.
     this.map.delete(key);
     this.map.set(key, value);
@@ -39,8 +36,11 @@ export class BoundedLruMap<K, V> {
     if (this.map.has(key)) {
       this.map.delete(key);
     } else if (this.map.size >= this.maxSize) {
-      const oldest = this.map.keys().next().value;
-      if (oldest !== undefined) this.map.delete(oldest);
+      // Use the iterator's `done` sentinel rather than checking the key
+      // for `undefined`, so eviction still fires when `K = undefined` is
+      // a legal key in the map.
+      const { value: oldest, done } = this.map.keys().next();
+      if (!done) this.map.delete(oldest);
     }
     this.map.set(key, value);
   }
