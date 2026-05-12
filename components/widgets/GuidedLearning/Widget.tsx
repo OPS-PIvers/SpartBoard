@@ -639,7 +639,11 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 onDeletePersonal={(setId, driveFileId) => {
                   void handleDelete(setId, driveFileId);
                 }}
-                onDuplicatePersonal={async (setId, driveFileId) => {
+                onDuplicatePersonal={async (setId, _driveFileId) => {
+                  // `_driveFileId` is part of the manager's signature
+                  // (mirrors onDeletePersonal) but we don't need it —
+                  // `duplicateSet` reads driveFileId off the resolved
+                  // source metadata.
                   const source = sets.find((s) => s.id === setId);
                   if (!source) return;
                   try {
@@ -651,10 +655,6 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       'error'
                     );
                   }
-                  // driveFileId param kept to match the signature — the
-                  // hook reads it off `source.driveFileId` so we don't
-                  // need to pass it through.
-                  void driveFileId;
                 }}
                 onDeleteBuilding={(setId) => {
                   void handleDeleteBuilding(setId);

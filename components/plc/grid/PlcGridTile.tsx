@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, GripVertical, Maximize2 } from 'lucide-react';
 import type { PlcBentoTile as PlcBentoTileData, PlcGridCoords } from '@/types';
 import { useTileResize, type ResizeDirection } from './useTileResize';
-import { GRID_COLS, GRID_MAX_H, GRID_MIN_H, GRID_MIN_W } from './tileGridMath';
+import { clampCoords } from './tileGridMath';
 
 interface PlcGridTileProps {
   tile: PlcBentoTileData;
@@ -183,20 +183,19 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
       }
       e.preventDefault();
       e.stopPropagation();
-      // Clamp to the same bounds the pointer-drag resize uses
-      // (see `clampCoords` in `tileGridMath.ts`). `x` is held fixed so
-      // horizontal resize anchors to the left edge; widening past the
-      // right edge clamps to `GRID_COLS - x`.
-      const maxW = GRID_COLS - coords.x;
-      const nextW = Math.min(maxW, Math.max(GRID_MIN_W, coords.w + dw));
-      const nextH = Math.min(GRID_MAX_H, Math.max(GRID_MIN_H, coords.h + dh));
-      if (nextW === coords.w && nextH === coords.h) return;
-      onResizeCommit?.(tile.kind, {
+      // Run the proposed dimensions through the same clamp helper the
+      // pointer-drag resize uses, so the keyboard path can't drift from
+      // the rest of the grid's bounds. `x`/`y` are held fixed —
+      // horizontal resize anchors to the left edge, vertical to the
+      // top; widening past the right edge clamps to `GRID_COLS - x`.
+      const next = clampCoords({
         x: coords.x,
         y: coords.y,
-        w: nextW,
-        h: nextH,
+        w: coords.w + dw,
+        h: coords.h + dh,
       });
+      if (next.w === coords.w && next.h === coords.h) return;
+      onResizeCommit?.(tile.kind, next);
     },
     [coords, onResizeCommit, tile.kind]
   );
