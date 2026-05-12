@@ -241,6 +241,10 @@ export const useVideoActivity = (
           questionCount: fresh.questions.length,
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,
+          // Preserve folder placement on duplicate.
+          ...(source.folderId !== undefined
+            ? { folderId: source.folderId }
+            : {}),
         };
         await setDoc(
           doc(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION, fresh.id),

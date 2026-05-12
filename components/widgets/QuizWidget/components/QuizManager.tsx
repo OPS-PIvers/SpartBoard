@@ -287,6 +287,15 @@ interface QuizManagerProps {
    */
   onDuplicate?: (quiz: QuizMetadata) => void | Promise<void>;
   /**
+   * Optional busy-state probe. When provided, the Duplicate kebab item
+   * disables itself for any quiz id whose duplicate is currently
+   * in-flight. Prevents the rapid double-click pattern that previously
+   * fired the duplicate twice — both attempts computed the same
+   * `suggestDuplicateTitle()` output and burned 2x Drive API quota for
+   * one teacher intent.
+   */
+  isDuplicating?: (quizId: string) => boolean;
+  /**
    * Optional batch delete that bypasses the per-quiz confirmation/toasts
    * fired by `onDelete` (see QuizWidget's `onDelete` wiring, which prompts
    * per-quiz when archived assignments exist). Receives every selected
@@ -471,6 +480,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onResults,
   onDelete,
   onDuplicate,
+  isDuplicating,
   onBulkDelete,
   onShare,
   onShareWithPlc,
@@ -731,7 +741,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       // the menu. Hidden when no `onDuplicate` is wired (view-only and
       // test harnesses).
       ...(onDuplicate
-        ? [buildDuplicateAction(quiz, () => void onDuplicate(quiz))]
+        ? [
+            buildDuplicateAction(quiz, () => void onDuplicate(quiz), {
+              disabled: isDuplicating?.(quiz.id),
+              disabledReason: 'Duplicating…',
+            }),
+          ]
         : []),
       {
         id: 'stats',

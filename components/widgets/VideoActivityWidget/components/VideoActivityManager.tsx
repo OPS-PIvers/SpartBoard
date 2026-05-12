@@ -112,6 +112,12 @@ export interface VideoActivityManagerProps {
    */
   onDuplicate?: (activity: VideoActivityMetadata) => void | Promise<void>;
   /**
+   * Optional busy-state probe. When provided, the Duplicate kebab item
+   * disables itself for any activity id whose duplicate is currently
+   * in-flight. Prevents rapid double-click → two identical copies.
+   */
+  isDuplicating?: (activityId: string) => boolean;
+  /**
    * Optional per-activity results view. New work prefers the assignment-
    * archive tab; kept for backwards-compatibility while the legacy Widget
    * still wires a per-activity session history modal.
@@ -399,6 +405,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onEdit,
   onDelete,
   onDuplicate,
+  isDuplicating,
   onResults,
   onAssign,
   onReorderActivities,
@@ -833,7 +840,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
               ? [
                   buildDuplicateAction(
                     activity,
-                    () => void onDuplicate(activity)
+                    () => void onDuplicate(activity),
+                    {
+                      disabled: isDuplicating?.(activity.id),
+                      disabledReason: 'Duplicating…',
+                    }
                   ),
                 ]
               : []),

@@ -248,6 +248,10 @@ export const useGuidedLearning = (
           driveFileId: createdDriveFileId,
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,
+          // Preserve folder placement on duplicate.
+          ...(source.folderId !== undefined
+            ? { folderId: source.folderId }
+            : {}),
         };
         await setDoc(
           doc(db, 'users', userId, GL_COLLECTION, fresh.id),

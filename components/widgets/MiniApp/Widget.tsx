@@ -308,6 +308,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [managerTab, setManagerTab] = useState<LibraryTab>('library');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
   const [showImportWizard, setShowImportWizard] = useState(false);
+  // In-flight Duplicate kebab guard — see QuizWidget for the rationale.
+  const [duplicatingAppIds, setDuplicatingAppIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
 
   // Per-teacher MiniApp assignment archive — populates the In Progress /
   // Archive tabs. Lives in `/users/{uid}/miniapp_assignments/`.
@@ -760,6 +764,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
    */
   const handleDuplicate = async (app: MiniAppItem) => {
     if (!user) return;
+    if (duplicatingAppIds.has(app.id)) return;
+    setDuplicatingAppIds((prev) => {
+      const next = new Set(prev);
+      next.add(app.id);
+      return next;
+    });
     try {
       const copy: MiniAppItem = {
         ...app,
@@ -783,6 +793,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
         err instanceof Error ? err.message : 'Duplicate failed',
         'error'
       );
+    } finally {
+      setDuplicatingAppIds((prev) => {
+        if (!prev.has(app.id)) return prev;
+        const next = new Set(prev);
+        next.delete(app.id);
+        return next;
+      });
     }
   };
 
@@ -1323,6 +1340,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onEdit={handleEdit}
               onDelete={(app) => void handleDelete(app.id)}
               onDuplicate={(app) => void handleDuplicate(app)}
+              isDuplicating={(appId) => duplicatingAppIds.has(appId)}
               onRun={handleRun}
               onAssign={handleOpenAssign}
               onShowAssignments={handleOpenAssignments}

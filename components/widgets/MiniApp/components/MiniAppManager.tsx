@@ -112,6 +112,12 @@ export interface MiniAppManagerProps {
    * already has Firestore access). Optional so test harnesses can omit.
    */
   onDuplicate?: (app: MiniAppItem) => void | Promise<void>;
+  /**
+   * Optional busy-state probe. When provided, the Duplicate kebab item
+   * disables itself for any app id whose duplicate is currently
+   * in-flight. Prevents rapid double-click → two identical copies.
+   */
+  isDuplicating?: (appId: string) => boolean;
   onRun: (app: MiniAppItem) => void;
   onAssign: (app: MiniAppItem) => void;
   onShowAssignments: (app: MiniAppItem) => void;
@@ -282,6 +288,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   onEdit,
   onDelete,
   onDuplicate,
+  isDuplicating,
   onRun,
   onAssign,
   onShowAssignments,
@@ -566,7 +573,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           // submissions modes; mini-apps are personal HTML blobs and the
           // duplicate semantics don't depend on assignment shape.
           ...(onDuplicate
-            ? [buildDuplicateAction(app, () => void onDuplicate(app))]
+            ? [
+                buildDuplicateAction(app, () => void onDuplicate(app), {
+                  disabled: isDuplicating?.(app.id),
+                  disabledReason: 'Duplicating…',
+                }),
+              ]
             : []),
           buildMoveToFolderAction({
             onOpenPicker: () =>
@@ -605,7 +617,12 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             onClick: () => onEdit(app),
           },
           ...(onDuplicate
-            ? [buildDuplicateAction(app, () => void onDuplicate(app))]
+            ? [
+                buildDuplicateAction(app, () => void onDuplicate(app), {
+                  disabled: isDuplicating?.(app.id),
+                  disabledReason: 'Duplicating…',
+                }),
+              ]
             : []),
           buildMoveToFolderAction({
             onOpenPicker: () =>

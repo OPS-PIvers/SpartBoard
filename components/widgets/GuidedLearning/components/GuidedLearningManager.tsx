@@ -147,6 +147,12 @@ export interface GuidedLearningManagerProps {
     setId: string,
     driveFileId: string
   ) => void | Promise<void>;
+  /**
+   * Optional busy-state probe for the Duplicate kebab. Mirrors the
+   * Quiz/VA/MiniApp managers — disables the kebab item for any set id
+   * whose duplicate is currently in-flight.
+   */
+  isDuplicatingPersonal?: (setId: string) => boolean;
   onDeleteBuilding: (setId: string) => void | Promise<void>;
   onCreateNewPersonal: () => void;
   onCreateNewBuilding: () => void;
@@ -325,6 +331,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssign,
   onDeletePersonal,
   onDuplicatePersonal,
+  isDuplicatingPersonal,
   onDeleteBuilding,
   onCreateNewPersonal,
   onCreateNewBuilding,
@@ -654,7 +661,11 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         secondary.push(
           buildDuplicateAction(
             { id: rawId, title: entry.title },
-            () => void onDuplicatePersonal(rawId, fileId)
+            () => void onDuplicatePersonal(rawId, fileId),
+            {
+              disabled: isDuplicatingPersonal?.(rawId),
+              disabledReason: 'Duplicating…',
+            }
           )
         );
       }

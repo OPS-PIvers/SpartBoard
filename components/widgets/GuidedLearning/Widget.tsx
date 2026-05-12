@@ -106,6 +106,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     'guided_learning'
   );
   const [showAIGen, setShowAIGen] = useState(false);
+  // In-flight Duplicate kebab guard — see QuizWidget for the rationale.
+  const [duplicatingSetIds, setDuplicatingSetIds] = useState<
+    ReadonlySet<string>
+  >(() => new Set());
   const [recentSessionIds, setRecentSessionIds] = useState<
     Record<string, string>
   >({});
@@ -644,8 +648,14 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   // (mirrors onDeletePersonal) but we don't need it —
                   // `duplicateSet` reads driveFileId off the resolved
                   // source metadata.
+                  if (duplicatingSetIds.has(setId)) return;
                   const source = sets.find((s) => s.id === setId);
                   if (!source) return;
+                  setDuplicatingSetIds((prev) => {
+                    const next = new Set(prev);
+                    next.add(setId);
+                    return next;
+                  });
                   try {
                     const copy = await duplicateSet(source);
                     addToast(`Duplicated as "${copy.title}".`, 'success');
@@ -654,8 +664,16 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                       err instanceof Error ? err.message : 'Duplicate failed',
                       'error'
                     );
+                  } finally {
+                    setDuplicatingSetIds((prev) => {
+                      if (!prev.has(setId)) return prev;
+                      const next = new Set(prev);
+                      next.delete(setId);
+                      return next;
+                    });
                   }
                 }}
+                isDuplicatingPersonal={(setId) => duplicatingSetIds.has(setId)}
                 onDeleteBuilding={(setId) => {
                   void handleDeleteBuilding(setId);
                 }}
