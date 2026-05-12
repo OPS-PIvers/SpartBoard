@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-05-12_
-_Last action: 2026-04-30_
+_Last action: 2026-05-12_
 
 ---
 
@@ -35,13 +35,6 @@ _Nothing currently in progress._
   - **GHSA-xx6v-rp6x-q39c** (moderate): XSRF Token Cross-Origin Leakage via Prototype Pollution gadget in `withXSRFToken` Boolean coercion. Patched in `>=1.15.1`.
     The previous upgrade to `1.15.0` (2026-04-14 completed item) patched the three CRITICAL CVEs. These two MODERATE CVEs are distinct advisories with `>=1.15.1` patch requirement. `pnpm outdated` shows latest is `1.16.0`.
 - **Fix:** `pnpm up axios@^1.16.0` in root and `pnpm -C functions up axios@^1.16.0` in functions/. Both advisories are patched in `>=1.15.1`; upgrading to `1.16.0` (latest) addresses both. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
-
-### HIGH `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path — unresolved
-
-- **Detected:** 2026-05-05
-- **File:** package.json (via `firebase-functions@7.0.5 > protobufjs`), functions/package.json (same path)
-- **Detail:** `pnpm audit` shows a CRITICAL advisory for `protobufjs <7.5.5` (GHSA-xq3m-2v4x-88gg — arbitrary code execution) with path `.>firebase-functions>protobufjs` in both root and functions/ audits. The 2026-04-30 completed item fixed the `@google/genai > protobufjs` path (now resolved to `protobufjs@7.5.6`), but explicitly noted: "A separate `protobufjs@7.5.4` resolution still exists via `firebase-functions@7.0.5` chain (untouched by this fix)." That secondary CRITICAL path was never followed up with an open item. `pnpm outdated` shows `firebase-functions` at `7.0.5`, latest `7.2.5`. The functions/ package shows `firebase-functions@7.2.3` current, latest `7.2.5`.
-- **Fix:** In root: `pnpm up firebase-functions@^7.2.5`. In functions/: `pnpm -C functions up firebase-functions@^7.2.5`. Verify whether `firebase-functions@7.2.x` upgrades its `protobufjs` transitive dep to `>=7.5.5`. If not, add `"protobufjs": ">=7.5.5"` to `pnpm.overrides` in root `package.json`. Verify `pnpm type-check:all`, `pnpm lint`, `pnpm test`, and `pnpm build:all` pass.
 
 ### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
 
@@ -126,6 +119,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### HIGH `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path
+
+- **Detected:** 2026-05-05
+- **Completed:** 2026-05-12
+- **File:** package.json (devDependency `firebase-functions` + `pnpm.overrides.protobufjs`), functions/package.json (dependency `firebase-functions` + `pnpm.overrides.protobufjs`)
+- **Detail:** GHSA-xq3m-2v4x-88gg (CRITICAL): `protobufjs <7.5.5` allows arbitrary code execution. The 2026-04-30 fix resolved the `@google/genai > protobufjs` path, but a separate `protobufjs@7.5.4` resolution survived via the `firebase-functions@7.0.5 (root) / 7.2.3 (functions) > @google-cloud/firestore / @grpc/proto-loader > protobufjs` chains. Both root and functions/ `pnpm audit` reported the advisory.
+- **Resolution:** Upgraded `firebase-functions` from `^7.0.5` → `^7.2.5` in root (devDependency) and from `^7.2.3` → `^7.2.5` in functions/ (dependency). Because `firebase-functions@7.2.5` declares `protobufjs: ^7.2.2` (a broad range that still permits the vulnerable 7.5.4), added a `pnpm.overrides` entry `"protobufjs": "^7.5.6"` to both root `package.json` and functions/ `package.json` to pin all transitive resolutions. After `pnpm install` + `pnpm -C functions install`, `pnpm why protobufjs` now reports a single `protobufjs@7.5.6` in both workspaces (`Found 1 version of protobufjs`). `pnpm audit --json` filtered for protobufjs returns empty in both root and functions/. Verified clean: `pnpm type-check` (root + functions) 0 errors; `pnpm lint --max-warnings 0` 0 errors/warnings; `pnpm format:check` clean; `pnpm test` 2301/2301 across 221 files; `pnpm -C functions test` 209/209 across 11 files; `pnpm build` (~43s) and `pnpm -C functions build` both succeed.
 
 ### HIGH `protobufjs <7.5.5` — CRITICAL arbitrary code execution via `@google/genai`
 
