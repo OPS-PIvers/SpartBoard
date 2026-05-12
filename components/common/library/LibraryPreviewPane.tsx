@@ -20,8 +20,9 @@ interface LibraryPreviewPaneProps {
   /** The preview body (rendered question list, mini-app runner, etc.). */
   children: React.ReactNode;
   /**
-   * Width of the pane in pixels at desktop sizes. Mobile (≤640px) ignores
-   * this and renders full-width as a bottom-sheet-style overlay.
+   * Width of the pane in pixels at desktop sizes. Bounded by the parent
+   * manager's flex row so the pane never starves the grid on narrow widget
+   * widths — see `style.width` below.
    */
   widthPx?: number;
 }
@@ -101,7 +102,13 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
       role="complementary"
       aria-label="Item preview"
       className="bg-white border-l border-slate-200 shadow-lg flex flex-col h-full shrink-0 motion-safe:animate-in motion-safe:slide-in-from-right-2 motion-safe:duration-200"
-      style={{ width: `min(${widthPx}px, 90vw)` }}
+      // Container-relative cap (`50%`) replaces the previous viewport cap
+      // (`90vw`). The pane lives inside the widget's container, so a
+      // narrow widget (e.g. 480px wide) used to give the pane 360px and
+      // collapse the grid to ~108px. `50%` keeps the grid usable at any
+      // widget width while still letting the pane reach `widthPx` on a
+      // wide manager.
+      style={{ width: `min(${widthPx}px, 50%)` }}
     >
       <header className="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100 shrink-0">
         <div className="min-w-0 flex-1">

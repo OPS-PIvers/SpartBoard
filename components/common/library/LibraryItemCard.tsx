@@ -39,6 +39,15 @@ import type {
   LibraryMenuAction,
 } from './types';
 
+/**
+ * Window for treating two body-clicks as a double-click rather than two
+ * single-clicks. 250ms is tight for users with slower motor control (OS
+ * defaults are typically 500ms on Windows and macOS), but anything longer
+ * makes the preview pane feel laggy on quick single clicks. Bump if user
+ * reports come in.
+ */
+export const DBLCLICK_DELAY_MS = 250;
+
 /* ─── Badge tone styles ───────────────────────────────────────────────────── */
 
 const BADGE_TONE_STYLES: Record<
@@ -361,10 +370,10 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   // Single-click vs double-click coordination. The browser fires
   // `onClick` AND `onDoubleClick` on a real dblclick; without a delay
   // the preview pane would flash open before the editor lands. Standard
-  // pattern: start a 250ms timer on the first click and cancel it if a
-  // second click arrives within the window. Refs avoid the render
-  // churn of useState while still surviving across re-renders of the
-  // memoized card.
+  // pattern: start a DBLCLICK_DELAY_MS timer on the first click and
+  // cancel it if a second click arrives within the window. Refs avoid
+  // the render churn of useState while still surviving across re-renders
+  // of the memoized card.
   const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     return () => {
@@ -395,7 +404,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     clickTimerRef.current = setTimeout(() => {
       clickTimerRef.current = null;
       onClick?.();
-    }, 250);
+    }, DBLCLICK_DELAY_MS);
   };
 
   return (
