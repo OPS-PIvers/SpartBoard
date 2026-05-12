@@ -13,21 +13,15 @@
  *     pull canonical and save a fresh personal copy (no sync linkage).
  *
  *   - "Edit" — opens `VideoActivityEditorModal` against the user's
- *     personal copy. If the user doesn't yet have one, we auto-import via
- *     Sync mode first so the editor has a Drive-backed canonical to
- *     write into. Saving calls `saveActivity`, which writes to Drive +
- *     mirrors header onto Firestore.
- *
- *     NOTE — unlike `useQuiz.saveQuiz`, `useVideoActivity.saveActivity`
- *     does NOT detect synced-group version conflicts at save time. A
- *     teammate publishing concurrently to the same group will lose to
- *     last-writer-wins on `synced_video_activities/{groupId}`. The
- *     synced-group publish itself is debounced LWW per field via
- *     `useSyncedVideoActivityGroups`, so the canonical doesn't tear; the
- *     local copy's `lastSyncedVersion` may briefly lag until the next
- *     sync-aware pull. This is consistent with the Phase 4 scope ("LWW
- *     matches every other surface in the app") and the cost of building
- *     version-conflict UX is reserved for a future iteration.
+ *     personal copy. If the user doesn't yet have one, we auto-import
+ *     via Sync mode first so the editor has a Drive-backed canonical
+ *     to write into. Saving calls `saveActivity`, which publishes the
+ *     edit to the canonical `synced_video_activities/{groupId}` (when
+ *     `meta.sync` is set) BEFORE the Drive replica write, with a
+ *     `version` invariant — concurrent peer publishes throw
+ *     `SyncedVideoActivityVersionConflictError`, caught below to auto-
+ *     pull the peer's content and surface a "your edits weren't saved"
+ *     warning. Mirrors the quiz body's conflict UX.
  *
  *   - "Unshare" — any current member can remove a PLC video activity
  *     entry (PLC-owned model). The canonical synced group doc is left in
@@ -57,7 +51,10 @@ import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
 import { usePlcVideoActivities } from '@/hooks/usePlcVideoActivities';
-import { useVideoActivity } from '@/hooks/useVideoActivity';
+import {
+  SyncedVideoActivityVersionConflictError,
+  useVideoActivity,
+} from '@/hooks/useVideoActivity';
 import type { SharedVideoActivityImportMode } from '@/hooks/useVideoActivityAssignments';
 import {
   callJoinPlcVideoActivitySyncGroup,
@@ -109,6 +106,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
     deleteActivity,
     attachSyncLinkage,
     loadActivityData,
+    pullSyncedVideoActivity,
     isDriveConnected,
   } = useVideoActivity(user?.uid);
 
@@ -388,22 +386,50 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
   const handleSaveEdit = useCallback(
     async (updated: VideoActivityData) => {
       if (!editing) return;
-      // `saveActivity` writes to Drive + Firestore unconditionally. The
-      // synced-group publish (if `meta.sync` is set) happens via
-      // `useSyncedVideoActivityGroups` LWW machinery downstream — that
-      // layer handles per-field debouncing and concurrent edits across
-      // teammates. We deliberately don't surface version-conflict UX
-      // here; see the file header for the rationale.
-      await saveActivity(updated, editing.meta.driveFileId);
-      addToast(
-        t('plcDashboard.videoActivities.editSaved', {
-          defaultValue:
-            'Video activity saved — teammates will sync on next refresh.',
-        }),
-        'success'
-      );
+      try {
+        await saveActivity(updated, editing.meta.driveFileId);
+        addToast(
+          t('plcDashboard.videoActivities.editSaved', {
+            defaultValue:
+              'Video activity saved — teammates will sync on next refresh.',
+          }),
+          'success'
+        );
+      } catch (err) {
+        // Mirror the quiz body's conflict UX: a teammate published mid-
+        // edit, the canonical's `expectedVersion` check failed, our
+        // Drive replica is untouched. Auto-pull the canonical so the
+        // local copy catches up; the editor stays closed because the
+        // teacher's unsaved edits are stale relative to the new
+        // canonical. They can reopen + re-apply.
+        if (err instanceof SyncedVideoActivityVersionConflictError) {
+          try {
+            await pullSyncedVideoActivity(editing.meta);
+          } catch (pullErr) {
+            logError(
+              'PlcVideoActivitiesBody.handleSaveEdit.autoPull',
+              pullErr,
+              {
+                plcId: plc.id,
+                activityId: editing.meta.id,
+                syncGroupId: editing.meta.sync?.groupId ?? null,
+              }
+            );
+          }
+          setEditing(null);
+          addToast(
+            t('plcDashboard.videoActivities.editConflict', {
+              defaultValue:
+                'Another teacher published an update to this video activity. We pulled their changes; your unsaved edits were not saved. Reopen the activity to re-apply.',
+            }),
+            'warning'
+          );
+          return;
+        }
+        throw err;
+      }
     },
-    [addToast, editing, saveActivity, t]
+    [addToast, editing, plc.id, pullSyncedVideoActivity, saveActivity, t]
   );
 
   const handleUnshare = useCallback(
