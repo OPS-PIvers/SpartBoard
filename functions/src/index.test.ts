@@ -69,6 +69,53 @@ interface MockDocRef {
   path: string;
 }
 
+// Hoisted so cache tests can assert exact call counts across multiple
+// invocations within a single test. Without this every `collection('admins')`
+// call would build a fresh `vi.fn` and the count would always reset.
+const adminDocGet = vi.fn((id: string) =>
+  Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
+);
+
+// Hoisted for the same reason — the `gemini-functions` config read is the
+// other target of the `generateWithAI` cache and needs a stable mock.
+const geminiConfigDocGet = vi.fn(() =>
+  Promise.resolve({
+    exists: false,
+    data: () => undefined as Record<string, unknown> | undefined,
+  })
+);
+
+// Storage mocks for archiveActivityWallPhoto size-guard tests. Each
+// stub is independently resettable so tests can install different
+// metadata responses without rebuilding the whole storage tree.
+const storageFileGetMetadata = vi.fn(() =>
+  Promise.resolve([{ size: '0', contentType: 'image/jpeg' }])
+);
+const storageFileDownload = vi.fn(() => Promise.resolve([Buffer.from('test')]));
+const storageFileDelete = vi.fn(() => Promise.resolve());
+const mockStorageBucket = {
+  file: vi.fn(() => ({
+    getMetadata: storageFileGetMetadata,
+    download: storageFileDownload,
+    delete: storageFileDelete,
+  })),
+};
+
+// Submission ref mocks for archiveActivityWallPhoto. The handler chains
+// `db.collection('activity_wall_sessions').doc(...).collection('submissions').doc(...)`
+// then calls `.set()` and `.get()` on the leaf.
+const submissionRefGet = vi.fn(() =>
+  Promise.resolve({
+    exists: true,
+    data: () => ({ storagePath: 'activity-wall/test.jpg' }),
+  })
+);
+const submissionRefSet = vi.fn(() => Promise.resolve());
+const submissionDoc = {
+  get: submissionRefGet,
+  set: submissionRefSet,
+};
+
 const mockFirestore = {
   doc: vi.fn((path: string) => ({
     path,
@@ -92,11 +139,30 @@ const mockFirestore = {
   collection: vi.fn((name: string) => {
     if (name === 'admins') {
       return {
-        doc: vi.fn((id: string) => ({
-          get: vi.fn(() =>
-            Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
-          ),
-        })),
+        doc: (id: string) => ({
+          get: () => adminDocGet(id),
+        }),
+      };
+    }
+
+    if (name === 'global_permissions') {
+      return {
+        doc: (id: string) => ({
+          get: () =>
+            id === 'gemini-functions'
+              ? geminiConfigDocGet()
+              : Promise.resolve({ exists: false }),
+        }),
+      };
+    }
+
+    if (name === 'activity_wall_sessions') {
+      return {
+        doc: () => ({
+          collection: () => ({
+            doc: () => submissionDoc,
+          }),
+        }),
       };
     }
 
@@ -204,6 +270,12 @@ vi.mock('firebase-admin', () => {
     FieldPath: {
       documentId: vi.fn(() => '__name__'),
     },
+    // Sentinels — we don't assert their payload values, but the code
+    // under test references them so they must exist.
+    FieldValue: {
+      delete: vi.fn(() => '__FV_DELETE__'),
+      serverTimestamp: vi.fn(() => '__FV_SERVER_TIMESTAMP__'),
+    },
   });
 
   const apps: unknown[] = [];
@@ -213,6 +285,9 @@ vi.mock('firebase-admin', () => {
       if (apps.length === 0) apps.push({ name: '[DEFAULT]' });
     }),
     firestore: firestoreFn,
+    storage: vi.fn(() => ({
+      bucket: vi.fn(() => mockStorageBucket),
+    })),
     auth: vi.fn(() => ({
       verifyIdToken: vi.fn().mockResolvedValue({ email: 'admin@school.org' }),
       listUsers: vi.fn().mockImplementation(() => {
@@ -305,7 +380,12 @@ import {
   checkUrlCompatibility,
   adminAnalytics,
   getPseudonymsForAssignmentV1,
+  archiveActivityWallPhoto,
+  __getCachedAdminStatus,
+  __getGeminiModelConfig,
+  __resetGenerateWithAICaches,
 } from './index';
+import * as admin from 'firebase-admin';
 import { computeAnalyticsForOrg } from './adminAnalyticsCompute';
 import {
   SNAPSHOT_SCHEMA_VERSION,
@@ -374,7 +454,7 @@ describe('fetchExternalProxy', () => {
 
     expect(mockGet).toHaveBeenCalledWith(
       'https://api.openweathermap.org/data/2.5/weather?q=London',
-      { maxRedirects: 0 }
+      expect.any(Object)
     );
     expect(result).toEqual({ temp: 72 });
   });
@@ -396,7 +476,7 @@ describe('fetchExternalProxy', () => {
 
     expect(mockGet).toHaveBeenCalledWith(
       'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx?si=BLLST',
-      { maxRedirects: 0 }
+      expect.any(Object)
     );
     expect(result).toEqual({ o: { t: 72, ic: 0 } });
   });
@@ -415,6 +495,72 @@ describe('fetchExternalProxy', () => {
         { auth: { uid: '123' } }
       )
     ).rejects.toThrow('Network error');
+  });
+
+  it('passes a 1 MB response-size cap to axios', async () => {
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: {} });
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await handler(
+      { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+      { auth: { uid: '123' } }
+    );
+
+    expect(mockGet).toHaveBeenCalledWith(
+      'https://api.openweathermap.org/data/2.5/weather?q=London',
+      expect.objectContaining({
+        maxContentLength: 1_048_576,
+        maxBodyLength: 1_048_576,
+      })
+    );
+  });
+
+  it('disables axios redirects so the allowlist stays load-bearing under 3xx', async () => {
+    // SSRF guard: the allowlist check only validates the initial URL.
+    // If axios followed redirects, an allowlisted host could 302 to an
+    // arbitrary off-allowlist host and the proxy would happily fetch it.
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: {} });
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await handler(
+      { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+      { auth: { uid: '123' } }
+    );
+
+    expect(mockGet).toHaveBeenCalledWith(
+      'https://api.openweathermap.org/data/2.5/weather?q=London',
+      expect.objectContaining({ maxRedirects: 0 })
+    );
+  });
+
+  it('translates an axios maxContentLength error into a resource-exhausted HttpsError', async () => {
+    const mockGet = vi.mocked(axios.get);
+    // Axios's actual message format when the limit is exceeded. `vi.mock('axios')`
+    // auto-mocks `isAxiosError` to a fn that returns undefined; force it to
+    // return true so the size-limit branch is reached.
+    vi.mocked(axios.isAxiosError).mockReturnValueOnce(true);
+    mockGet.mockRejectedValue(
+      new Error('maxContentLength size of 1048576 exceeded')
+    );
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await expect(
+      handler(
+        { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+        { auth: { uid: '123' } }
+      )
+    ).rejects.toThrow(/exceeded the .* KB proxy limit/);
   });
 });
 
@@ -1943,4 +2089,259 @@ describe('getPseudonymsForAssignmentV1', () => {
   });
 
   /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+});
+
+describe('getClassLinkRosterV1 chunked fan-out', () => {
+  // Without batching, a teacher with N classes triggers N simultaneous HTTP
+  // requests at ClassLink — audit item #5. The chunk size is 15 so peak
+  // in-flight student requests must never exceed 15.
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('caps concurrent student requests at 15 even with 50 classes', async () => {
+    const classes = Array.from({ length: 50 }, (_, i) => ({
+      sourcedId: `class-${i}`,
+      title: `Class ${i}`,
+    }));
+
+    let inFlight = 0;
+    let peakInFlight = 0;
+    let studentCalls = 0;
+
+    vi.mocked(axios.get).mockImplementation((url: string) => {
+      if (url.endsWith('/users')) {
+        return Promise.resolve({
+          data: { users: [{ sourcedId: 'teacher-sid' }] },
+        });
+      }
+      if (url.endsWith('/teacher-sid/classes')) {
+        return Promise.resolve({ data: { classes } });
+      }
+      // Student fetches — track concurrency.
+      studentCalls += 1;
+      inFlight += 1;
+      peakInFlight = Math.max(peakInFlight, inFlight);
+      return new Promise((resolve) => {
+        // Defer resolution to the next microtask so multiple in-flight
+        // requests overlap if (and only if) the handler kicks them off
+        // in parallel within a batch.
+        setImmediate(() => {
+          inFlight -= 1;
+          resolve({ data: { users: [] } });
+        });
+      });
+    });
+
+    const { getClassLinkRosterV1: handler } = await import('./index');
+    const result = await (
+      handler as unknown as (
+        req: unknown,
+        ctx: unknown
+      ) => Promise<{ classes: unknown[] }>
+    )(
+      {},
+      {
+        auth: {
+          uid: 'teacher-uid',
+          token: { email: 'teacher@school.org' },
+        },
+      }
+    );
+
+    expect(result.classes).toHaveLength(50);
+    expect(studentCalls).toBe(50);
+    expect(peakInFlight).toBeLessThanOrEqual(15);
+    // 50 classes / 15 chunk size = 4 sequential batches (15 + 15 + 15 + 5).
+    // Peak in-flight should equal the chunk size for the first three.
+    expect(peakInFlight).toBeGreaterThan(1);
+  });
+});
+
+describe('archiveActivityWallPhoto size guard', () => {
+  // The handler buffers the full Storage object into the 512MiB function
+  // instance's memory via `file.download()`. Without a size check before
+  // the download, a misbehaving client could OOM the function. Audit
+  // item #4 — the guard must read metadata first and abort if the file
+  // is over 50 MB.
+  const UID = 'teacher-uid';
+  const SESSION_ID = `${UID}_session1`;
+  const validRequest = {
+    accessToken: 'token',
+    sessionId: SESSION_ID,
+    submissionId: 'sub1',
+    activityId: 'act1',
+    status: 'approved' as const,
+  };
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    submissionRefGet.mockResolvedValue({
+      exists: true,
+      data: () => ({ storagePath: 'activity-wall/test.jpg' }),
+    });
+    submissionRefSet.mockResolvedValue(undefined);
+  });
+
+  it('rejects photos over 50 MB before calling download()', async () => {
+    storageFileGetMetadata.mockResolvedValueOnce([
+      { size: String(60 * 1024 * 1024), contentType: 'image/jpeg' },
+    ]);
+
+    const handler = archiveActivityWallPhoto as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler(validRequest, { auth: { uid: UID, token: { email: 'a@b.c' } } })
+    ).rejects.toThrow(/50 MB/);
+
+    expect(storageFileGetMetadata).toHaveBeenCalledTimes(1);
+    expect(storageFileDownload).not.toHaveBeenCalled();
+  });
+
+  it('proceeds past the size guard when metadata reports a small file', async () => {
+    storageFileGetMetadata.mockResolvedValueOnce([
+      { size: String(100 * 1024), contentType: 'image/jpeg' },
+    ]);
+    // We want the handler to reach `download()` to prove the guard
+    // doesn't reject small files. Once download is called, the test's
+    // contract is satisfied; we let the rest of the flow fail naturally
+    // (no real Drive client) and assert via the spy.
+    storageFileDownload.mockRejectedValueOnce(new Error('drive client absent'));
+
+    const handler = archiveActivityWallPhoto as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler(validRequest, { auth: { uid: UID, token: { email: 'a@b.c' } } })
+    ).rejects.toThrow();
+
+    expect(storageFileGetMetadata).toHaveBeenCalledTimes(1);
+    expect(storageFileDownload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('generateWithAI read caching', () => {
+  // Cloud Functions 2nd-gen reuses warm instances, so the module-scope
+  // caches in index.ts should turn repeat reads into no-ops within a
+  // single warm instance (audit doc item #3). These tests pin that
+  // contract — without them, a future refactor could silently restore
+  // the per-invocation Firestore reads.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+  });
+
+  it('caches admin status across warm-instance reads (same email = one Firestore read)', async () => {
+    const db = admin.firestore();
+    mockFirestoreState.admins.add('user@school.org');
+
+    const first = await __getCachedAdminStatus(db, 'user@school.org');
+    const second = await __getCachedAdminStatus(db, 'user@school.org');
+
+    expect(first).toBe(true);
+    expect(second).toBe(true);
+    expect(adminDocGet).toHaveBeenCalledTimes(1);
+    expect(adminDocGet).toHaveBeenCalledWith('user@school.org');
+  });
+
+  it('caches by email — different emails each trigger their own read', async () => {
+    const db = admin.firestore();
+    mockFirestoreState.admins.add('admin@school.org');
+
+    await __getCachedAdminStatus(db, 'admin@school.org');
+    await __getCachedAdminStatus(db, 'user@school.org');
+    await __getCachedAdminStatus(db, 'admin@school.org');
+
+    // First call for each email reads; the third call (repeat) is cached.
+    expect(adminDocGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('resetting caches forces a re-read on next call', async () => {
+    const db = admin.firestore();
+    await __getCachedAdminStatus(db, 'user@school.org');
+    __resetGenerateWithAICaches();
+    await __getCachedAdminStatus(db, 'user@school.org');
+
+    expect(adminDocGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('evicts the oldest entry when the admin cache exceeds its bound', async () => {
+    // Pins the size-cap contract — a warm instance that sees many distinct
+    // callers must not grow the Map unboundedly. Insertion order is FIFO,
+    // so after filling beyond the cap and probing the very first email
+    // again, that email must be a cache miss (re-reads Firestore).
+    const db = admin.firestore();
+    // The implementation cap is 500; fill past it with unique emails.
+    // Reading 510 distinct emails forces 10 evictions starting from the
+    // oldest insertions.
+    for (let i = 0; i < 510; i++) {
+      await __getCachedAdminStatus(db, `bulk-${i}@school.org`);
+    }
+    expect(adminDocGet).toHaveBeenCalledTimes(510);
+
+    // The first 10 should have been evicted. A re-probe of bulk-0 must
+    // miss the cache and trigger another Firestore read.
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+
+    // bulk-509 (the most recent) is still cached.
+    await __getCachedAdminStatus(db, 'bulk-509@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+  });
+
+  it('caches gemini-functions model config across warm-instance reads', async () => {
+    const db = admin.firestore();
+    geminiConfigDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        config: {
+          advancedModel: 'gemini-2.5-pro',
+          standardModel: 'gemini-2.5-flash',
+        },
+      }),
+    });
+
+    const first = await __getGeminiModelConfig(db);
+    const second = await __getGeminiModelConfig(db);
+
+    expect(first).toEqual({
+      advancedModel: 'gemini-2.5-pro',
+      standardModel: 'gemini-2.5-flash',
+    });
+    expect(second).toEqual(first);
+    // The second call must NOT hit Firestore.
+    expect(geminiConfigDocGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache the fallback when the gemini-functions read throws', async () => {
+    const db = admin.firestore();
+    // Transient Firestore error — generateWithAI should not pin defaults
+    // for the full TTL after a one-off blip.
+    geminiConfigDocGet.mockRejectedValueOnce(
+      new Error('Firestore unavailable')
+    );
+    geminiConfigDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        config: {
+          advancedModel: 'gemini-2.5-pro',
+          standardModel: 'gemini-2.5-flash',
+        },
+      }),
+    });
+
+    const first = await __getGeminiModelConfig(db);
+    const second = await __getGeminiModelConfig(db);
+
+    // First returns defaults (caught), second retries and succeeds.
+    expect(first.advancedModel).not.toBe('gemini-2.5-pro');
+    expect(second.advancedModel).toBe('gemini-2.5-pro');
+    expect(geminiConfigDocGet).toHaveBeenCalledTimes(2);
+  });
 });
