@@ -297,6 +297,7 @@ export const PlcGridLayout: React.FC<PlcGridLayoutProps> = ({
                 coords={resolveCoords(tile)}
                 editMode={editMode}
                 showResizeHandles={editMode && !isMobile}
+                touchResizeHandles={editMode && isMobile}
                 getCellMetrics={getCellMetrics}
                 onResizePreview={handleResizePreview}
                 onResizeCommit={handleResizeCommit}

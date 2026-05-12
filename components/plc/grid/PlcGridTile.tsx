@@ -1,10 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { Eye, EyeOff, GripVertical, Maximize2 } from 'lucide-react';
 import type { PlcBentoTile as PlcBentoTileData, PlcGridCoords } from '@/types';
 import { useTileResize, type ResizeDirection } from './useTileResize';
+import { GRID_COLS, GRID_MAX_H, GRID_MIN_H, GRID_MIN_W } from './tileGridMath';
 
 interface PlcGridTileProps {
   tile: PlcBentoTileData;
@@ -18,11 +19,23 @@ interface PlcGridTileProps {
    */
   editMode: boolean;
   /**
-   * Whether to render the 8 resize handles. Decoupled from `editMode` so
-   * mobile can keep reorder-only while desktop gets both reorder + resize.
-   * Defaults to true when `editMode` is on; callers gate to false on touch.
+   * Whether to render the desktop 8-handle resize chrome (thin edges +
+   * small corners). Decoupled from `editMode` so mobile can keep
+   * reorder-only while desktop gets both reorder + resize. Defaults to
+   * true when `editMode` is on; callers gate to false on touch.
    */
   showResizeHandles?: boolean;
+  /**
+   * Phase 5 mobile resize: when true (and `showResizeHandles` is false),
+   * render four 44×44 corner-only touch targets in place of the desktop
+   * 8-handle chrome. WCAG 2.5.5 — the desktop handles are 6px thick and
+   * unusable with a finger; the touch variant gives a stable corner grab
+   * area at the platform-recommended minimum. Edges are deliberately
+   * omitted on touch: the 6px edges remained too thin to surface even at
+   * 44px, and the cardinal-direction case is rarely needed when corner
+   * drags can change both axes simultaneously.
+   */
+  touchResizeHandles?: boolean;
   /** Live cell metrics getter — passed from `PlcGridLayout`'s ResizeObserver. */
   getCellMetrics: () => { cellW: number; cellH: number };
   inTray?: boolean;
@@ -57,6 +70,15 @@ const ALL_DIRECTIONS: readonly ResizeDirection[] = [
   'sw',
 ];
 
+type TouchResizeDirection = 'nw' | 'ne' | 'sw' | 'se';
+
+const TOUCH_CORNER_DIRECTIONS: readonly TouchResizeDirection[] = [
+  'nw',
+  'ne',
+  'sw',
+  'se',
+];
+
 /**
  * v2 PLC grid tile chrome. Differences from v1 `PlcBentoTile`:
  *
@@ -74,6 +96,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
   coords,
   editMode,
   showResizeHandles = true,
+  touchResizeHandles = false,
   getCellMetrics,
   inTray = false,
   onResizePreview,
@@ -121,6 +144,63 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
         gridRowEnd: `span ${coords.h}`,
       };
 
+  /**
+   * Keyboard resize on the grip handle. Shift+Arrow grows/shrinks the
+   * tile by one cell along the axis; plain Arrow keys reorder (handled
+   * by @dnd-kit's KeyboardSensor at the DndContext level — we don't
+   * intercept those). Right-edge growth is preferred over left for
+   * horizontal resize so `x` stays stable when possible; vertical
+   * resize grows downward. This mirrors the way a mouse drag-resize
+   * typically anchors the opposite corner.
+   *
+   * The grip already spreads `{...listeners} {...attributes}` from
+   * `useSortable`. We attach this onKeyDown AFTER the spread so it runs
+   * alongside the sortable handler; the `stopPropagation` + `preventDefault`
+   * combo blocks dnd-kit from reading Shift+Arrow as a sortable move.
+   * (dnd-kit's KeyboardSensor activates on Space first, so plain Arrows
+   * only matter once a sortable drag is active.)
+   */
+  const handleGripKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLButtonElement>) => {
+      if (!e.shiftKey) return;
+      let dw = 0;
+      let dh = 0;
+      switch (e.key) {
+        case 'ArrowLeft':
+          dw = -1;
+          break;
+        case 'ArrowRight':
+          dw = 1;
+          break;
+        case 'ArrowUp':
+          dh = -1;
+          break;
+        case 'ArrowDown':
+          dh = 1;
+          break;
+        default:
+          return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      // Clamp to the same bounds the pointer-drag resize uses
+      // (see `clampCoords` in `tileGridMath.ts`). `x` is held fixed so
+      // horizontal resize anchors to the left edge; widening past the
+      // right edge clamps to `GRID_COLS - x`.
+      const maxW = GRID_COLS - coords.x;
+      const nextW = Math.min(maxW, Math.max(GRID_MIN_W, coords.w + dw));
+      const nextH = Math.min(GRID_MAX_H, Math.max(GRID_MIN_H, coords.h + dh));
+      if (nextW === coords.w && nextH === coords.h) return;
+      onResizeCommit?.(tile.kind, {
+        x: coords.x,
+        y: coords.y,
+        w: nextW,
+        h: nextH,
+      });
+    },
+    [coords, onResizeCommit, tile.kind]
+  );
+
   if (inTray) {
     return (
       <button
@@ -132,7 +212,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
           kind: tile.kind,
         })}
       >
-        <Eye className="w-3.5 h-3.5" />
+        <Eye className="w-3.5 h-3.5" aria-hidden="true" />
         <span className="capitalize">{tile.kind}</span>
       </button>
     );
@@ -173,15 +253,20 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
             type="button"
             {...listeners}
             {...attributes}
+            onKeyDown={(e) => {
+              // Shift+Arrow → resize. Plain Arrow keys fall through to
+              // dnd-kit's KeyboardSensor handler installed by `listeners`.
+              handleGripKeyDown(e);
+            }}
             className="absolute top-2 left-2 z-20 p-1.5 bg-white/95 hover:bg-brand-blue-lighter rounded-md text-slate-400 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing transition-colors shadow-sm border border-slate-200"
             aria-label={t('plcDashboard.overview.dragHandle', {
-              defaultValue: 'Drag to reorder',
+              defaultValue: 'Drag to reorder · Shift+Arrow keys to resize',
             })}
             title={t('plcDashboard.overview.dragHandle', {
-              defaultValue: 'Drag to reorder',
+              defaultValue: 'Drag to reorder · Shift+Arrow keys to resize',
             })}
           >
-            <GripVertical className="w-3.5 h-3.5" />
+            <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
 
           {/* Top-right hide button. */}
@@ -196,14 +281,14 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
               defaultValue: 'Hide tile',
             })}
           >
-            <EyeOff className="w-3.5 h-3.5" />
+            <EyeOff className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
 
-          {/* 8 resize handles. The corner handles overlap the edges and
-              take priority via higher z-index. Hidden when
+          {/* Desktop: 8 resize handles. The corner handles overlap the edges
+              and take priority via higher z-index. Hidden when
               `showResizeHandles` is false (mobile in edit mode keeps
-              reorder via the grip but suppresses resize because the
-              handles aren't touch-friendly at 6px thick). */}
+              reorder via the grip but suppresses the desktop 6px chrome
+              because it isn't touch-friendly). */}
           {showResizeHandles &&
             ALL_DIRECTIONS.map((dir) => (
               <div
@@ -214,6 +299,35 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
                 className={`absolute z-10 ${HANDLE_CLASSES[dir]}`}
                 style={HANDLE_STYLES[dir]}
               />
+            ))}
+
+          {/* Mobile: 4 corner-only touch handles, 44×44px (WCAG 2.5.5).
+              Sized for fingers, transparent visual but with a small
+              visible diamond marker so users discover them; tap+drag
+              from any corner resizes both axes. Renders only when the
+              desktop chrome is suppressed so we never double-up. */}
+          {!showResizeHandles &&
+            touchResizeHandles &&
+            TOUCH_CORNER_DIRECTIONS.map((dir) => (
+              <div
+                key={`touch-${dir}`}
+                onPointerDown={onResizePointerDown(dir)}
+                data-resize-handle={dir}
+                data-resize-touch
+                role="presentation"
+                className={`absolute z-10 flex items-end justify-end ${HANDLE_CLASSES[dir]}`}
+                style={TOUCH_HANDLE_STYLES[dir]}
+              >
+                <div
+                  // Small visible marker so the touch hit-area is
+                  // discoverable. Anchored to the corner of the 44×44
+                  // hit-box so the marker sits at the tile corner where
+                  // the user expects to "grab".
+                  className="w-2.5 h-2.5 m-1 rounded-sm bg-brand-blue-primary/60 shadow-sm"
+                  aria-hidden="true"
+                  style={TOUCH_MARKER_ANCHOR[dir]}
+                />
+              </div>
             ))}
         </>
       )}
@@ -268,6 +382,8 @@ const HANDLE_CLASSES: Record<ResizeDirection, string> = {
 
 const EDGE_THICKNESS = 6;
 const CORNER_SIZE = 14;
+/** WCAG 2.5.5 minimum touch target. */
+const TOUCH_CORNER_SIZE = 44;
 
 const HANDLE_STYLES: Record<ResizeDirection, React.CSSProperties> = {
   n: {
@@ -298,4 +414,44 @@ const HANDLE_STYLES: Record<ResizeDirection, React.CSSProperties> = {
   nw: { top: 0, left: 0, width: CORNER_SIZE, height: CORNER_SIZE },
   se: { bottom: 0, right: 0, width: CORNER_SIZE, height: CORNER_SIZE },
   sw: { bottom: 0, left: 0, width: CORNER_SIZE, height: CORNER_SIZE },
+};
+
+const TOUCH_HANDLE_STYLES: Record<TouchResizeDirection, React.CSSProperties> = {
+  nw: {
+    top: 0,
+    left: 0,
+    width: TOUCH_CORNER_SIZE,
+    height: TOUCH_CORNER_SIZE,
+  },
+  ne: {
+    top: 0,
+    right: 0,
+    width: TOUCH_CORNER_SIZE,
+    height: TOUCH_CORNER_SIZE,
+  },
+  sw: {
+    bottom: 0,
+    left: 0,
+    width: TOUCH_CORNER_SIZE,
+    height: TOUCH_CORNER_SIZE,
+  },
+  se: {
+    bottom: 0,
+    right: 0,
+    width: TOUCH_CORNER_SIZE,
+    height: TOUCH_CORNER_SIZE,
+  },
+};
+
+/**
+ * Anchor the small visible marker inside each 44×44 touch hit-box to the
+ * tile corner the handle represents. The wrapping div uses
+ * `flex items-end justify-end` for `se`, and these overrides pull the
+ * marker to the correct corner for the other three directions.
+ */
+const TOUCH_MARKER_ANCHOR: Record<TouchResizeDirection, React.CSSProperties> = {
+  nw: { marginLeft: 0, marginTop: 0, alignSelf: 'flex-start' },
+  ne: { marginRight: 0, marginTop: 0, alignSelf: 'flex-start' },
+  sw: { marginLeft: 0, marginBottom: 0, alignSelf: 'flex-end' },
+  se: { marginRight: 0, marginBottom: 0, alignSelf: 'flex-end' },
 };
