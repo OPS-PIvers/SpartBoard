@@ -33,6 +33,8 @@ import { NotesBody } from './bodies/NotesBody';
 import { TodosBody } from './bodies/TodosBody';
 import { PlcAnalyticsBody } from './bodies/PlcAnalyticsBody';
 import { MembersBody } from './bodies/MembersBody';
+import { PlcQuizLibraryBody } from './bodies/PlcQuizLibraryBody';
+import { PlcAssignmentsBody } from './bodies/PlcAssignmentsBody';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -246,9 +248,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       case 'todos':
         return <TodosBody plc={plc} />;
       case 'quizLibrary':
-        return <PlcQuizLibraryTab plc={plc} />;
+        return <PlcQuizLibraryBody plc={plc} />;
       case 'activeAssignments':
-        return <PlcAssignmentsTab plc={plc} onCloseDashboard={onClose} />;
+        return <PlcAssignmentsBody plc={plc} onCloseDashboard={onClose} />;
       case 'completedAssignments':
         return <PlcAnalyticsBody plc={plc} />;
       case 'members':
