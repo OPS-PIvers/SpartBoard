@@ -32,6 +32,8 @@ import {
   Download,
   ExternalLink,
   Loader2,
+  PlayCircle,
+  Plus,
   Trash2,
   Users2,
 } from 'lucide-react';
@@ -67,6 +69,16 @@ interface PlcAssignmentsLibrarySubTabProps {
    * dashboard staying open behind it.
    */
   onCloseDashboard: () => void;
+  /**
+   * Open the parent body's "+ Assign Quiz" wizard. Surfaced from the
+   * empty-state CTA so a brand-new PLC isn't a dead end — the teacher
+   * can author the first PLC assignment without leaving the tab. The
+   * populated-state CTAs live on the body's header row, so the
+   * sub-tab's own header doesn't double up.
+   */
+  onNewQuizAssignment?: () => void;
+  /** Mirror of `onNewQuizAssignment` for the video-activity wizard. */
+  onNewVideoActivityAssignment?: () => void;
 }
 
 interface ImportTarget {
@@ -93,7 +105,12 @@ function formatDate(ms: number): string {
 
 export const PlcAssignmentsLibrarySubTab: React.FC<
   PlcAssignmentsLibrarySubTabProps
-> = ({ plc, onCloseDashboard }) => {
+> = ({
+  plc,
+  onCloseDashboard,
+  onNewQuizAssignment,
+  onNewVideoActivityAssignment,
+}) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
@@ -357,12 +374,40 @@ export const PlcAssignmentsLibrarySubTab: React.FC<
             defaultValue: 'No assignment templates yet',
           })}
         </h3>
-        <p className="text-sm text-slate-500 max-w-md leading-relaxed">
+        <p className="text-sm text-slate-500 max-w-md leading-relaxed mb-5">
           {t('plcDashboard.assignmentsLibrary.emptySubtitle', {
             defaultValue:
               'Toggle "Share with PLC" on any quiz assignment you create — it\'ll show up here so teammates can pick it up onto their own boards.',
           })}
         </p>
+        {(onNewQuizAssignment ?? onNewVideoActivityAssignment) && (
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            {onNewQuizAssignment && (
+              <button
+                type="button"
+                onClick={onNewQuizAssignment}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors"
+              >
+                <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+                {t('plcDashboard.newAssignment.quiz.ctaLabel', {
+                  defaultValue: 'Assign Quiz',
+                })}
+              </button>
+            )}
+            {onNewVideoActivityAssignment && (
+              <button
+                type="button"
+                onClick={onNewVideoActivityAssignment}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors"
+              >
+                <PlayCircle className="w-3.5 h-3.5" aria-hidden="true" />
+                {t('plcDashboard.newAssignment.video.ctaLabel', {
+                  defaultValue: 'Assign Video',
+                })}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     );
   }
