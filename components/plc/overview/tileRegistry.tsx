@@ -52,10 +52,6 @@ export function tileFeatureGate(
  * Switchboard for tile content. Each tile kind maps to a small component
  * that renders inside `PlcBentoTile`'s content slot. Adding a new tile =
  * a new case here + an entry in `PLC_BENTO_TILE_KINDS` (`types.ts`).
- *
- * "Coming soon" placeholders for unshipped phases route through
- * `ComingSoonTile` — when those phases ship, swap the case for the real
- * tile component and the layout doesn't have to change.
  */
 export function renderTileContent(
   kind: PlcBentoTileKind,
