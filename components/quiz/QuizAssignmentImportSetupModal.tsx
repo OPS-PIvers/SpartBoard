@@ -19,6 +19,7 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ClipboardList, X } from 'lucide-react';
 import type { ClassRoster, QuizAssignment } from '@/types';
 import { Modal } from '@/components/common/Modal';
@@ -49,6 +50,7 @@ interface QuizAssignmentImportSetupModalProps {
 export const QuizAssignmentImportSetupModal: React.FC<
   QuizAssignmentImportSetupModalProps
 > = ({ assignment, rosters, onSave, onEditAllSettings, onClose }) => {
+  const { t } = useTranslation();
   const [pickerValue, setPickerValue] =
     useState<AssignClassPickerValue>(makeEmptyPickerValue);
   const [saving, setSaving] = useState(false);
@@ -103,7 +105,9 @@ export const QuizAssignmentImportSetupModal: React.FC<
     <Modal
       isOpen
       onClose={guardedClose}
-      ariaLabel="Set up imported assignment"
+      ariaLabel={t('quizAssignmentImportSetupModal.ariaLabel', {
+        defaultValue: 'Set up imported assignment',
+      })}
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
@@ -114,7 +118,9 @@ export const QuizAssignmentImportSetupModal: React.FC<
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Set up imported assignment
+                {t('quizAssignmentImportSetupModal.title', {
+                  defaultValue: 'Set up imported assignment',
+                })}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[18rem]">
                 {assignment.quizTitle}
@@ -126,7 +132,9 @@ export const QuizAssignmentImportSetupModal: React.FC<
             onClick={guardedClose}
             disabled={saving}
             className="text-slate-400 hover:text-slate-600 p-1 -m-1 disabled:opacity-50 disabled:cursor-not-allowed"
-            aria-label="Close"
+            aria-label={t('quizAssignmentImportSetupModal.close', {
+              defaultValue: 'Close',
+            })}
           >
             <X className="w-4 h-4" />
           </button>
@@ -141,7 +149,9 @@ export const QuizAssignmentImportSetupModal: React.FC<
               disabled={saving}
               className="text-xs font-medium text-indigo-600 hover:text-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Edit all settings…
+              {t('quizAssignmentImportSetupModal.editAllSettings', {
+                defaultValue: 'Edit all settings…',
+              })}
             </button>
           ) : (
             <span />
@@ -153,7 +163,9 @@ export const QuizAssignmentImportSetupModal: React.FC<
               disabled={saving}
               className="px-3 py-1.5 text-sm font-medium text-slate-600 hover:text-slate-800 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Skip for now
+              {t('quizAssignmentImportSetupModal.skip', {
+                defaultValue: 'Skip for now',
+              })}
             </button>
             <button
               type="button"
@@ -161,7 +173,13 @@ export const QuizAssignmentImportSetupModal: React.FC<
               onClick={() => void handleSave()}
               className="px-4 py-1.5 text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 disabled:cursor-not-allowed rounded-lg transition-colors"
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving
+                ? t('quizAssignmentImportSetupModal.saving', {
+                    defaultValue: 'Saving…',
+                  })
+                : t('quizAssignmentImportSetupModal.save', {
+                    defaultValue: 'Save',
+                  })}
             </button>
           </div>
         </div>
@@ -171,15 +189,25 @@ export const QuizAssignmentImportSetupModal: React.FC<
       <div className="px-5 py-4 space-y-4">
         {noRosters ? (
           <p className="text-sm text-slate-600 rounded-lg border border-dashed border-slate-200 bg-slate-50 px-3 py-3">
-            You don&apos;t have any classes yet. Add a class in{' '}
-            <span className="font-bold">My Classes</span> first, then come back
-            to assign this quiz.
+            {t('quizAssignmentImportSetupModal.noRostersPrefix', {
+              defaultValue: "You don't have any classes yet. Add a class in ",
+            })}
+            <span className="font-bold">
+              {t('quizAssignmentImportSetupModal.myClasses', {
+                defaultValue: 'My Classes',
+              })}
+            </span>
+            {t('quizAssignmentImportSetupModal.noRostersSuffix', {
+              defaultValue: ' first, then come back to assign this quiz.',
+            })}
           </p>
         ) : (
           <>
             <p className="text-sm text-slate-600">
-              Pick the classes that should take this quiz. Students will pick
-              their period after entering the join code.
+              {t('quizAssignmentImportSetupModal.prompt', {
+                defaultValue:
+                  'Pick the classes that should take this quiz. Students will pick their period after entering the join code.',
+              })}
             </p>
             <AssignClassPicker
               rosters={rosters}
