@@ -78,10 +78,7 @@ import {
   type PlcSharePickerItem,
 } from './PlcSharePickerModal';
 import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
-import {
-  formatRelativeDate,
-  isPlcSheetUrlInvalid,
-} from './newAssignmentHelpers';
+import { formatShortDate, isPlcSheetUrlInvalid } from './newAssignmentHelpers';
 
 interface PlcNewQuizAssignmentModalProps {
   plc: Plc;
@@ -216,7 +213,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
         title: quiz.title,
         metaLine: t('plcDashboard.newAssignment.quiz.metaLine', {
           count: quiz.questionCount ?? 0,
-          date: formatRelativeDate(quiz.updatedAt ?? quiz.createdAt ?? 0),
+          date: formatShortDate(quiz.updatedAt ?? quiz.createdAt ?? 0),
           defaultValue: '{{count}} questions · {{date}}',
         }),
       })),

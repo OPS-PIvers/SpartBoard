@@ -7,7 +7,7 @@
  */
 
 /** Locale-aware short date for the picker `metaLine`. Returns `''` on bad input. */
-export function formatRelativeDate(ms: number): string {
+export function formatShortDate(ms: number): string {
   try {
     return new Date(ms).toLocaleDateString(undefined, {
       year: 'numeric',
