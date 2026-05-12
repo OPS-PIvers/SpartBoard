@@ -66,8 +66,17 @@ function parseTile(raw: unknown): PlcBentoTile | null {
   if (coords) tile.coords = coords;
 
   // A tile must carry at least ONE of {size, coords} so the migrator can
-  // derive grid placement. Drop tiles that have neither (corrupted doc).
-  if (!tile.size && !tile.coords) return null;
+  // derive grid placement. For a known kind (one we ship a default for)
+  // we recover by stamping the default size from `DEFAULT_PLC_OVERVIEW_LAYOUT`
+  // — the user's hidden/customized tile shouldn't vanish just because its
+  // shape got truncated. Unknown kinds are dropped.
+  if (!tile.size && !tile.coords) {
+    const defaultEntry = DEFAULT_PLC_OVERVIEW_LAYOUT.tiles.find(
+      (t) => t.kind === tile.kind
+    );
+    if (!defaultEntry?.size) return null;
+    tile.size = defaultEntry.size;
+  }
 
   if (typeof obj.hidden === 'boolean') tile.hidden = obj.hidden;
   return tile;

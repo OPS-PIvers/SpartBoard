@@ -175,13 +175,29 @@ export const PlcGridLayout: React.FC<PlcGridLayoutProps> = ({
       setActiveKind(null);
       const { active, over } = event;
       if (!over || active.id === over.id) return;
-      const activeIdx = layout.tiles.findIndex((t) => t.kind === active.id);
-      const overIdx = layout.tiles.findIndex((t) => t.kind === over.id);
-      if (activeIdx === -1 || overIdx === -1) return;
-      const next = [...layout.tiles];
-      const [moved] = next.splice(activeIdx, 1);
-      if (!moved) return;
-      next.splice(overIdx, 0, moved);
+
+      const activeKindId = active.id as PlcBentoTileKind;
+      const overKindId = over.id as PlcBentoTileKind;
+      const activeTileData = layout.tiles.find((t) => t.kind === activeKindId);
+      const overTileData = layout.tiles.find((t) => t.kind === overKindId);
+      if (!activeTileData || !overTileData) return;
+
+      // Coords drive grid placement (not array order), so a pure array
+      // splice would be a visual no-op. Swap the dragged tile into the
+      // drop target's position and let `commitTileCoords` push-down the
+      // rest of the layout to fill the vacated slot.
+      const dropCoords =
+        overTileData.coords ?? deriveCoordsFromLegacy(overTileData);
+      const draggedW =
+        activeTileData.coords?.w ?? deriveCoordsFromLegacy(activeTileData).w;
+      const draggedH =
+        activeTileData.coords?.h ?? deriveCoordsFromLegacy(activeTileData).h;
+      const next = commitTileCoords(layout.tiles, activeKindId, {
+        x: dropCoords.x,
+        y: dropCoords.y,
+        w: draggedW,
+        h: draggedH,
+      });
       onLayoutChange({ tiles: next, updatedAt: Date.now() });
     },
     [layout, onLayoutChange]

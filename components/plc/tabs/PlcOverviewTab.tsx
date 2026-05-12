@@ -102,7 +102,7 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
             <p className="text-xxs text-slate-500 mt-1">
               {t('plcDashboard.overview.editHint', {
                 defaultValue:
-                  'Drag tiles by the grip, click the corner to resize, click the eye to hide.',
+                  'Drag tiles by the grip, drag the corners or edges to resize, click the eye to hide.',
               })}
             </p>
           )}

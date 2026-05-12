@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import {
   GRID_COLS,
   GRID_MIN_H,
@@ -52,6 +52,29 @@ export function useTileResize({
   onCommit,
 }: UseTileResizeArgs) {
   const activePointerIdRef = useRef<number | null>(null);
+  // Cleanup hook for the in-flight gesture, populated on pointerdown so
+  // an unmount mid-gesture (PLC switch, flag toggle, parent re-render)
+  // can detach the window listeners and reset body classes. Without this
+  // the window-level pointermove/up handlers leak past component
+  // lifetime.
+  const inFlightCleanupRef = useRef<(() => void) | null>(null);
+
+  // Capture stable refs to the latest preview callback so the unmount
+  // path can clear the parent's preview Map even if the gesture is in
+  // flight. (The pointerdown closure also captures these but we want
+  // unmount-time cleanup to use the most-recent callback.)
+  const onPreviewRef = useRef(onPreview);
+  onPreviewRef.current = onPreview;
+
+  useEffect(() => {
+    return () => {
+      if (inFlightCleanupRef.current) {
+        inFlightCleanupRef.current();
+        inFlightCleanupRef.current = null;
+        onPreviewRef.current(null);
+      }
+    };
+  }, []);
 
   const onResizePointerDown = useCallback(
     (direction: ResizeDirection) => (e: React.PointerEvent<HTMLElement>) => {
@@ -158,6 +181,7 @@ export function useTileResize({
         window.removeEventListener('pointercancel', onCancel);
         document.body.classList.remove('is-resizing-plc-tile');
         activePointerIdRef.current = null;
+        inFlightCleanupRef.current = null;
         try {
           if (target.hasPointerCapture(pointerId)) {
             target.releasePointerCapture(pointerId);
@@ -166,6 +190,7 @@ export function useTileResize({
           // Pointer capture release errors are non-fatal.
         }
       };
+      inFlightCleanupRef.current = cleanup;
 
       const onUp = (upEvent: PointerEvent) => {
         if (upEvent.pointerId !== pointerId) return;

@@ -129,8 +129,20 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
       data-tile-w={coords.w}
       data-tile-h={coords.h}
     >
-      {/* Tile content (always interactive — drag/resize is gated to chrome). */}
-      <div className="flex-1 min-h-0 relative">{children}</div>
+      {/*
+        Tile content (always interactive — drag/resize is gated to chrome).
+        In edit mode we inset the content so it doesn't sit underneath the
+        corner resize handles or the grip/hide chrome buttons (which would
+        otherwise cover content placed flush to the corners — see e.g.
+        QuickActionsTile's header icon, NotesTile's footer button).
+      */}
+      <div
+        className={`flex-1 min-h-0 relative ${
+          editMode ? 'p-2 pt-10 pb-10' : ''
+        }`}
+      >
+        {children}
+      </div>
 
       {editMode && (
         <>

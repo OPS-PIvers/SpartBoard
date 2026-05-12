@@ -242,6 +242,32 @@ describe('plcLayoutMigration', () => {
       const plcInfo = next.find((t) => t.kind === 'plcInfo');
       expect(plcInfo?.coords?.w).toBe(GRID_COLS);
     });
+
+    it('moves a dragged tile into another tile’s position and repacks', () => {
+      // Reorder-by-grip semantics: dragging tile B onto tile A's slot
+      // claims A's coords and pushes A to the next free spot. Verifies
+      // the fix for the v1 sortable-reorder no-op (where array-only
+      // shuffles never moved tiles visually).
+      const tiles: PlcBentoTile[] = [
+        { kind: 'plcInfo', coords: { x: 0, y: 0, w: 6, h: 2 } },
+        { kind: 'quickActions', coords: { x: 6, y: 0, w: 6, h: 2 } },
+      ];
+      const next = commitTileCoords(tiles, 'quickActions', {
+        x: 0,
+        y: 0,
+        w: 6,
+        h: 2,
+      });
+      const quickActions = next.find((t) => t.kind === 'quickActions');
+      const plcInfo = next.find((t) => t.kind === 'plcInfo');
+      expect(quickActions?.coords).toEqual({ x: 0, y: 0, w: 6, h: 2 });
+      expect(plcInfo?.coords).toBeDefined();
+      // plcInfo should NOT still be at (0,0) — packTiles pushes it out.
+      expect(plcInfo?.coords?.x !== 0 || (plcInfo?.coords?.y ?? 0) > 0).toBe(
+        true
+      );
+      expect(hasOverlap(next)).toBe(false);
+    });
   });
 });
 
