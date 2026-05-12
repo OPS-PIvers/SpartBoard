@@ -519,6 +519,28 @@ describe('fetchExternalProxy', () => {
     );
   });
 
+  it('disables axios redirects so the allowlist stays load-bearing under 3xx', async () => {
+    // SSRF guard: the allowlist check only validates the initial URL.
+    // If axios followed redirects, an allowlisted host could 302 to an
+    // arbitrary off-allowlist host and the proxy would happily fetch it.
+    const mockGet = vi.mocked(axios.get);
+    mockGet.mockResolvedValue({ data: {} });
+
+    const handler = fetchExternalProxy as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+    await handler(
+      { url: 'https://api.openweathermap.org/data/2.5/weather?q=London' },
+      { auth: { uid: '123' } }
+    );
+
+    expect(mockGet).toHaveBeenCalledWith(
+      'https://api.openweathermap.org/data/2.5/weather?q=London',
+      expect.objectContaining({ maxRedirects: 0 })
+    );
+  });
+
   it('translates an axios maxContentLength error into a resource-exhausted HttpsError', async () => {
     const mockGet = vi.mocked(axios.get);
     // Axios's actual message format when the limit is exceeded. `vi.mock('axios')`

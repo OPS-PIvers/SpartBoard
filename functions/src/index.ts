@@ -1219,6 +1219,13 @@ export const fetchExternalProxy = onCall(
       const response = await axios.get<unknown>(data.url, {
         maxContentLength: MAX_RESPONSE_BYTES,
         maxBodyLength: MAX_RESPONSE_BYTES,
+        // SSRF guard: the allowlist check above only validates the
+        // initial URL. Axios follows up to 5 redirects by default, so
+        // an allowlisted host could 302 to an arbitrary off-allowlist
+        // host and we'd happily proxy the response. Disabling redirects
+        // forces 3xx to surface as a request error and keeps the
+        // allowlist load-bearing.
+        maxRedirects: 0,
       });
       return response.data;
     } catch (error: unknown) {
