@@ -32,6 +32,7 @@ import { PlcPlaceholderTab } from './tabs/PlcPlaceholderTab';
 import { NotesBody } from './bodies/NotesBody';
 import { TodosBody } from './bodies/TodosBody';
 import { PlcAnalyticsBody } from './bodies/PlcAnalyticsBody';
+import { MembersBody } from './bodies/MembersBody';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -250,6 +251,8 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         return <PlcAssignmentsTab plc={plc} onCloseDashboard={onClose} />;
       case 'completedAssignments':
         return <PlcAnalyticsBody plc={plc} />;
+      case 'members':
+        return <MembersBody plc={plc} />;
       default:
         return null;
     }
@@ -270,6 +273,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       case 'completedAssignments':
         return t('plcDashboard.tabs.analytics', {
           defaultValue: 'PLC Analytics',
+        });
+      case 'members':
+        return t('plcDashboard.tabs.members', {
+          defaultValue: 'Members',
         });
       default:
         return '';

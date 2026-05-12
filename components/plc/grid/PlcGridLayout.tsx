@@ -66,6 +66,7 @@ const EXPANDABLE_KINDS = new Set<PlcBentoTileKind>([
   'quizLibrary',
   'activeAssignments',
   'completedAssignments',
+  'members',
 ]);
 
 /** Pixel height of a single grid row on desktop. Chosen so a 3×2 tile
