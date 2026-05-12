@@ -49,9 +49,12 @@ export function useBusyIdSet(): UseBusyIdSetResult {
   const [, forceSnapshot] = useState<ReadonlySet<string>>(busyRef.current);
 
   const commit = useCallback(() => {
-    // Replace the ref with a new Set instance so `isBusy` getter (which
-    // closes over the current snapshot) sees a fresh reference; React's
-    // re-render commits the state mirror.
+    // Replace the ref with a NEW Set instance before calling
+    // `forceSnapshot`. `useState` short-circuits on `Object.is` equality —
+    // passing the same Set reference wouldn't trigger the re-render that
+    // we need so consumers' `isBusy(id)` calls return the updated value.
+    // The clone is purely a re-render trigger; `isBusy` itself reads
+    // `busyRef.current` directly and doesn't depend on the snapshot.
     busyRef.current = new Set(busyRef.current);
     forceSnapshot(busyRef.current);
   }, []);

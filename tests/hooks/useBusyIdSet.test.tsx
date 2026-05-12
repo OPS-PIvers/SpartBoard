@@ -42,7 +42,7 @@ describe('useBusyIdSet', () => {
     expect(result.current.isBusy('a')).toBe(false);
   });
 
-  it('rejects a concurrent run(id) call as a no-op (returns undefined, skips op)', async () => {
+  it('treats a concurrent run(id) call as a no-op — returns undefined without invoking op (does NOT reject)', async () => {
     const { result } = renderHook(() => useBusyIdSet());
     let resolveFirst!: () => void;
     const first = vi.fn(
