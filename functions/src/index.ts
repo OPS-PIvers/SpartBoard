@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
+import { BoundedLruMap } from './utils/boundedLruMap';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
 
 // Phase 4 — organization invitations + membership write-through.
@@ -162,17 +163,20 @@ interface AdminStatusCacheEntry {
   isAdmin: boolean;
   cachedAt: number;
 }
-const cachedAdminStatus = new Map<string, AdminStatusCacheEntry>();
 
 // Bound on `cachedAdminStatus` size. A warm Cloud Functions instance that
 // sees many distinct callers across its lifetime would otherwise grow this
 // Map unboundedly. At school-district scale this is firmly in "won't
 // matter" territory (low thousands of admins org-wide), but a hard cap
 // closes the long-tail memory growth path that two independent reviewers
-// flagged on PR #1590. JS Maps preserve insertion order, so deleting the
-// first key is FIFO eviction — close enough to LRU for a small, mostly
-// read-hot cache.
+// flagged on PR #1590. `BoundedLruMap` promotes on read so frequently-hit
+// keys survive eviction pressure from one-off callers — this becomes
+// load-bearing once the same pattern is reused on a higher-cardinality key
+// space (e.g. the student-pseudonym path).
 const ADMIN_STATUS_CACHE_MAX = 500;
+const cachedAdminStatus = new BoundedLruMap<string, AdminStatusCacheEntry>(
+  ADMIN_STATUS_CACHE_MAX
+);
 
 /**
  * Test-only: reset the module-scope read caches so tests can observe a
@@ -259,14 +263,6 @@ async function getCachedAdminStatus(
   }
   const doc = await db.collection('admins').doc(emailLower).get();
   const isAdmin = doc.exists;
-  // Evict the oldest entry if we're at the cap. Map iteration order is
-  // insertion order, so `keys().next().value` gives the oldest key —
-  // FIFO eviction. Sufficient for a cache that's expected to be small
-  // (school district size) and dominated by hot keys.
-  if (cachedAdminStatus.size >= ADMIN_STATUS_CACHE_MAX) {
-    const oldest = cachedAdminStatus.keys().next().value;
-    if (oldest !== undefined) cachedAdminStatus.delete(oldest);
-  }
   cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
   return isAdmin;
 }
