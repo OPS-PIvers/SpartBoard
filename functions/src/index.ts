@@ -163,6 +163,16 @@ interface AdminStatusCacheEntry {
 }
 const cachedAdminStatus = new Map<string, AdminStatusCacheEntry>();
 
+// Bound on `cachedAdminStatus` size. A warm Cloud Functions instance that
+// sees many distinct callers across its lifetime would otherwise grow this
+// Map unboundedly. At school-district scale this is firmly in "won't
+// matter" territory (low thousands of admins org-wide), but a hard cap
+// closes the long-tail memory growth path that two independent reviewers
+// flagged on PR #1590. JS Maps preserve insertion order, so deleting the
+// first key is FIFO eviction — close enough to LRU for a small, mostly
+// read-hot cache.
+const ADMIN_STATUS_CACHE_MAX = 500;
+
 /**
  * Test-only: reset the module-scope read caches so tests can observe a
  * cold-start read sequence. Underscored prefix makes it obvious this is
@@ -248,6 +258,14 @@ async function getCachedAdminStatus(
   }
   const doc = await db.collection('admins').doc(emailLower).get();
   const isAdmin = doc.exists;
+  // Evict the oldest entry if we're at the cap. Map iteration order is
+  // insertion order, so `keys().next().value` gives the oldest key —
+  // FIFO eviction. Sufficient for a cache that's expected to be small
+  // (school district size) and dominated by hot keys.
+  if (cachedAdminStatus.size >= ADMIN_STATUS_CACHE_MAX) {
+    const oldest = cachedAdminStatus.keys().next().value;
+    if (oldest !== undefined) cachedAdminStatus.delete(oldest);
+  }
   cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
   return isAdmin;
 }

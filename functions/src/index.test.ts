@@ -2249,6 +2249,30 @@ describe('generateWithAI read caching', () => {
     expect(adminDocGet).toHaveBeenCalledTimes(2);
   });
 
+  it('evicts the oldest entry when the admin cache exceeds its bound', async () => {
+    // Pins the size-cap contract — a warm instance that sees many distinct
+    // callers must not grow the Map unboundedly. Insertion order is FIFO,
+    // so after filling beyond the cap and probing the very first email
+    // again, that email must be a cache miss (re-reads Firestore).
+    const db = admin.firestore();
+    // The implementation cap is 500; fill past it with unique emails.
+    // Reading 510 distinct emails forces 10 evictions starting from the
+    // oldest insertions.
+    for (let i = 0; i < 510; i++) {
+      await __getCachedAdminStatus(db, `bulk-${i}@school.org`);
+    }
+    expect(adminDocGet).toHaveBeenCalledTimes(510);
+
+    // The first 10 should have been evicted. A re-probe of bulk-0 must
+    // miss the cache and trigger another Firestore read.
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+
+    // bulk-509 (the most recent) is still cached.
+    await __getCachedAdminStatus(db, 'bulk-509@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+  });
+
   it('caches gemini-functions model config across warm-instance reads', async () => {
     const db = admin.firestore();
     geminiConfigDocGet.mockResolvedValueOnce({
