@@ -1275,6 +1275,81 @@ service cloud.firestore {
              ).data.memberUids;
       }
 
+      // PLC Video Activity Library (Phase 4). Mirrors the Phase 2 quiz
+      // library above — lightweight headers pointing at canonical
+      // `/synced_video_activities/{groupId}` docs. Any current member can
+      // share / edit-mirror / unshare. Orphan policy: deleting your
+      // personal copy does NOT cascade-delete the PLC entry.
+      //
+      // Extra field over the quiz block: `youtubeUrl` (mirrored from
+      // source; used for tile thumbnail rendering). All other identity +
+      // attribution invariants are identical.
+      match /video_activities/{plcVideoActivityId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        // Create: any member, doc id pinned, sharedBy must equal caller.
+        // Questions live in the synced group, not on this doc.
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && plcVideoActivityId == request.resource.data.id
+          && request.resource.data.sharedBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.youtubeUrl is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.questionCount >= 0
+          && request.resource.data.syncGroupId is string
+          // Guard against an empty `syncGroupId` smuggling a broken stub.
+          // The Cloud Function rejects empty strings server-side too;
+          // pinning at the rule layer is defense-in-depth.
+          && request.resource.data.syncGroupId.size() > 0
+          && request.resource.data.sharedByEmail is string
+          && request.resource.data.sharedByName is string
+          && request.resource.data.sharedAt is int
+          && request.resource.data.updatedAt is int;
+
+        // Update: any member can mirror title/questionCount/youtubeUrl/
+        // updatedAt. Identity + attribution fields are immutable so
+        // stale-mirror writes can't retarget the entry or rewrite who
+        // shared it.
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'youtubeUrl', 'questionCount', 'syncGroupId',
+               'sharedBy', 'sharedByEmail', 'sharedByName',
+               'sharedAt', 'updatedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.syncGroupId == resource.data.syncGroupId
+          && request.resource.data.sharedBy == resource.data.sharedBy
+          && request.resource.data.sharedByEmail == resource.data.sharedByEmail
+          && request.resource.data.sharedByName == resource.data.sharedByName
+          && request.resource.data.sharedAt == resource.data.sharedAt
+          && request.resource.data.title is string
+          && request.resource.data.youtubeUrl is string
+          && request.resource.data.questionCount is int
+          && request.resource.data.questionCount >= 0
+          && request.resource.data.updatedAt is int;
+
+        // Any member can unshare. Matches the PLC-owned model — once
+        // shared, the entry belongs to the PLC, not the original sharer.
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
       // PLC-authored Assignments (Phase 3). Templates that any member can
       // pick up onto their own board. Each template points at a canonical
       // `synced_quizzes/{groupId}` doc (importers pull content from there
