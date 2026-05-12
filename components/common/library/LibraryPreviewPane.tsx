@@ -20,8 +20,9 @@ interface LibraryPreviewPaneProps {
   /** The preview body (rendered question list, mini-app runner, etc.). */
   children: React.ReactNode;
   /**
-   * Width of the pane in pixels at desktop sizes. Mobile (≤640px) ignores
-   * this and renders full-width as a bottom-sheet-style overlay.
+   * Width of the pane in pixels at desktop sizes. Bounded by the parent
+   * manager's flex row so the pane never starves the grid on narrow widget
+   * widths — see `style.width` below.
    */
   widthPx?: number;
 }
@@ -96,12 +97,29 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
 
   if (!isOpen) return null;
 
+  // Fall back to the default if the caller passes a non-finite or
+  // non-positive number — `width: clamp(240px, 50%, 0px)` would collapse
+  // to the floor (240px) but exposes the grid to the same starve risk we
+  // just fixed, and `width: clamp(..., NaNpx)` invalidates the rule
+  // entirely (browser drops the declaration, pane flexes to content). The
+  // clamp's 240px floor keeps the pane usable on narrow widgets at the
+  // cost of squeezing the grid, which is the right trade-off when the
+  // user has explicitly opened a preview.
+  const safeWidthPx = Number.isFinite(widthPx) && widthPx > 0 ? widthPx : 360;
+
   return (
     <aside
       role="complementary"
       aria-label="Item preview"
       className="bg-white border-l border-slate-200 shadow-lg flex flex-col h-full shrink-0 motion-safe:animate-in motion-safe:slide-in-from-right-2 motion-safe:duration-200"
-      style={{ width: `min(${widthPx}px, 90vw)` }}
+      // Container-relative cap (`50%`) replaces the previous viewport cap
+      // (`90vw`). The pane lives inside the widget's container, so a
+      // narrow widget (e.g. 480px wide) used to give the pane 360px and
+      // collapse the grid to ~108px. The 240px floor (via clamp) keeps
+      // the pane usable even on very narrow widgets, at the cost of
+      // squeezing the grid below 50% in that case — the right trade-off
+      // when the user has explicitly opened a preview.
+      style={{ width: `clamp(240px, 50%, ${safeWidthPx}px)` }}
     >
       <header className="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100 shrink-0">
         <div className="min-w-0 flex-1">

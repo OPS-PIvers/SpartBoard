@@ -275,8 +275,9 @@ export interface LibraryItemCardProps<TMeta = unknown> {
   onClick?: () => void;
   /**
    * Phase 5 follow-up — when provided, the card distinguishes single
-   * vs double click on the body via a 250ms delay-and-cancel timer:
-   * a double-click fires `onDoubleClick` immediately and suppresses
+   * vs double click on the body via a `DBLCLICK_DELAY_MS` (see
+   * `LibraryItemCard`) delay-and-cancel timer: a double-click fires
+   * `onDoubleClick` immediately and suppresses
    * the pending single-click. Use this when single-click should open
    * a preview pane and double-click should open the editor. Omitting
    * it preserves the legacy "single-click runs onClick immediately"

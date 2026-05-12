@@ -30,11 +30,14 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
 
-import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
+import {
+  LibraryItemCard,
+  DBLCLICK_DELAY_MS,
+} from '@/components/common/library/LibraryItemCard';
 
 beforeAll(() => {
   // The card uses real timers via setTimeout; vitest's fake timers let
-  // us assert the 250ms boundary without flaky `await new Promise`.
+  // us assert the DBLCLICK_DELAY_MS boundary without flaky `await new Promise`.
   vi.useFakeTimers();
 });
 
@@ -80,7 +83,7 @@ function clickBody() {
 }
 
 describe('LibraryItemCard onDoubleClick delay-and-cancel', () => {
-  it('fires single onClick after the 250ms window', () => {
+  it('fires single onClick after the DBLCLICK_DELAY_MS window', () => {
     const onClick = vi.fn();
     const onDoubleClick = vi.fn();
     renderCard({ onClick, onDoubleClick });
@@ -89,7 +92,7 @@ describe('LibraryItemCard onDoubleClick delay-and-cancel', () => {
     expect(onClick).not.toHaveBeenCalled(); // Pending the timer.
 
     act(() => {
-      vi.advanceTimersByTime(249);
+      vi.advanceTimersByTime(DBLCLICK_DELAY_MS - 1);
     });
     expect(onClick).not.toHaveBeenCalled();
 
@@ -100,23 +103,24 @@ describe('LibraryItemCard onDoubleClick delay-and-cancel', () => {
     expect(onDoubleClick).not.toHaveBeenCalled();
   });
 
-  it('cancels the pending onClick and fires onDoubleClick on a second click within 250ms', () => {
+  it('cancels the pending onClick and fires onDoubleClick on a second click within the window', () => {
     const onClick = vi.fn();
     const onDoubleClick = vi.fn();
     renderCard({ onClick, onDoubleClick });
 
     clickBody();
     act(() => {
-      vi.advanceTimersByTime(100);
+      // Halfway through the window — well inside the dblclick zone.
+      vi.advanceTimersByTime(Math.floor(DBLCLICK_DELAY_MS / 2));
     });
     clickBody();
 
     expect(onDoubleClick).toHaveBeenCalledOnce();
     expect(onClick).not.toHaveBeenCalled();
 
-    // Advance past the original window — onClick should remain unfired.
+    // Advance well past the original window — onClick should remain unfired.
     act(() => {
-      vi.advanceTimersByTime(500);
+      vi.advanceTimersByTime(DBLCLICK_DELAY_MS * 2);
     });
     expect(onClick).not.toHaveBeenCalled();
   });
@@ -142,7 +146,7 @@ describe('LibraryItemCard onDoubleClick delay-and-cancel', () => {
     expect(onClick).not.toHaveBeenCalled();
 
     act(() => {
-      vi.advanceTimersByTime(250);
+      vi.advanceTimersByTime(DBLCLICK_DELAY_MS);
     });
     expect(onClick).toHaveBeenCalledOnce();
   });

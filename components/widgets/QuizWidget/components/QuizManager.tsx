@@ -1777,9 +1777,9 @@ const LibraryTabContent: React.FC<{
               secondaryActions={buildSecondaryActions(quiz)}
               badges={buildBadges?.(quiz)}
               // Phase 5 follow-up — single-click opens the preview pane,
-              // double-click opens the editor directly. The 250ms
-              // delay-and-cancel coordination is owned by
-              // `LibraryItemCard`.
+              // double-click opens the editor directly. The
+              // delay-and-cancel coordination (`DBLCLICK_DELAY_MS`) is
+              // owned by `LibraryItemCard`.
               onClick={() => onPreviewQuiz(quiz)}
               onDoubleClick={() => onEdit(quiz)}
               viewMode={viewMode}
