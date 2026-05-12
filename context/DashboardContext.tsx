@@ -490,7 +490,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       );
     });
-    return () => setAiModelConfigFallbackHandler(null);
+    return () => {
+      setAiModelConfigFallbackHandler(null);
+      // Reset the module-level latch on teardown so a re-mounted provider
+      // (e.g. user signs out and a different user signs in without a full
+      // page reload) still surfaces the toast on the next stale-config
+      // attempt. Otherwise the latch would stay sticky across sessions.
+      resetAiModelConfigFallbackLatch();
+    };
   }, [addToast]);
 
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>(() => {

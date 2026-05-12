@@ -45,10 +45,11 @@ interface AIResponseData {
   /** `video-activity-recommend`: one-sentence reason this video fits the topic. */
   rationale?: string;
   /**
-   * `true` when the Cloud Function couldn't read admin-configured Gemini
-   * model overrides from Firestore and fell back to hardcoded defaults.
-   * Reported to the user via `reportAiModelConfigFallback` so admins get a
-   * one-time signal that overrides were silently ignored.
+   * Transport-only flag set by the Cloud Function when admin-configured
+   * Gemini model overrides couldn't be read from Firestore. The shared
+   * `callAI` helper reports it via `reportAiModelConfigFallback` and then
+   * deletes the property before returning, so callers never observe it on
+   * the resolved payload.
    */
   _modelConfigUsedFallback?: boolean;
 }
@@ -74,9 +75,11 @@ export interface GeneratedVideoActivity {
   title: string;
   questions: GeneratedVideoQuestion[];
   /**
-   * Optional flag returned by the Cloud Function when admin model overrides
-   * couldn't be loaded from Firestore. Consumed and stripped by callers via
-   * `reportAiModelConfigFallback`.
+   * Transport-only flag returned by the Cloud Function when admin model
+   * overrides couldn't be loaded from Firestore. `generateVideoActivity`
+   * passes it to `reportAiModelConfigFallback` (which fires a one-time
+   * toast) and then strips the property before returning, so callers
+   * never observe it on the resolved payload.
    */
   _modelConfigUsedFallback?: boolean;
 }
@@ -110,6 +113,12 @@ async function callAI(
 
     const result = await generateWithAI(payload);
     reportAiModelConfigFallback(result.data?._modelConfigUsedFallback);
+    // Strip the transport flag before handing the payload back to callers
+    // so it doesn't get serialized into Firestore by anything that spreads
+    // or persists the response object.
+    if (result.data && '_modelConfigUsedFallback' in result.data) {
+      delete result.data._modelConfigUsedFallback;
+    }
     return result.data;
   } catch (error) {
     console.error('AI Generation Error:', error);
@@ -302,7 +311,12 @@ export async function generateVideoActivity(
       );
     }
 
-    return result.data;
+    // Strip the transport flag so a caller that spreads / persists this
+    // object (the editor saves activities to Firestore) never round-trips
+    // `_modelConfigUsedFallback` into stored content.
+    const { _modelConfigUsedFallback: _omit, ...payload } = result.data;
+    void _omit;
+    return payload;
   } catch (error) {
     console.error('Video Activity Generation Error:', error);
     if (isFunctionsDeadlineExceededError(error)) {
