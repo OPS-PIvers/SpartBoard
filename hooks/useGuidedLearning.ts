@@ -62,6 +62,17 @@ export interface UseGuidedLearningResult {
   saveBuildingSet: (set: GuidedLearningSet) => Promise<void>;
   /** Delete an admin building set from Firestore */
   deleteBuildingSet: (setId: string) => Promise<void>;
+  /**
+   * Duplicate an admin building set. Mirrors `duplicateSet` for the
+   * Firestore-only building-set collection: clones the source's
+   * `GuidedLearningSet` directly into a new doc with a fresh id and a
+   * suggested title. No Drive involvement (building sets store full
+   * data inline in Firestore). Storage image refs are shared with the
+   * source — matches `duplicateSet`'s personal-set policy.
+   */
+  duplicateBuildingSet: (
+    source: GuidedLearningSet
+  ) => Promise<GuidedLearningSet>;
 }
 
 export const useGuidedLearning = (
@@ -248,6 +259,10 @@ export const useGuidedLearning = (
           driveFileId: createdDriveFileId,
           createdAt: fresh.createdAt,
           updatedAt: fresh.updatedAt,
+          // Preserve folder placement on duplicate.
+          ...(source.folderId !== undefined
+            ? { folderId: source.folderId }
+            : {}),
         };
         await setDoc(
           doc(db, 'users', userId, GL_COLLECTION, fresh.id),
@@ -284,6 +299,39 @@ export const useGuidedLearning = (
     [isAdmin]
   );
 
+  /**
+   * Building-set duplicate. Firestore-only — no Drive rollback path
+   * needed because the failure mode is a single `setDoc` rejection
+   * with no orphan to clean up.
+   *
+   * Re-attributes `authorUid` to the current admin. The spread of
+   * `...source` would otherwise carry the original author's uid into
+   * the copy, which mis-attributes the audit trail and (since the
+   * project's user-deletion sweep checks authorUid) makes the copy
+   * appear as content owned by a possibly-since-deleted author.
+   * Storage image refs are shared with the source — matches the
+   * personal-set policy in `duplicateSet`.
+   */
+  const duplicateBuildingSet = useCallback(
+    async (source: GuidedLearningSet): Promise<GuidedLearningSet> => {
+      if (!isAdmin) throw new Error('Admin access required');
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
+        ...source,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(source.title),
+        isBuilding: true,
+        authorUid: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
+      return fresh;
+    },
+    [isAdmin, userId]
+  );
+
   const deleteBuildingSet = useCallback(
     async (setId: string): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
@@ -303,6 +351,7 @@ export const useGuidedLearning = (
     loadSetData,
     deleteSet,
     duplicateSet,
+    duplicateBuildingSet,
     saveBuildingSet,
     deleteBuildingSet,
   };

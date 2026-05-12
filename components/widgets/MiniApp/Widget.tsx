@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
+import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import {
   AssignmentMode,
   MiniAppItem,
@@ -308,6 +309,8 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   const [managerTab, setManagerTab] = useState<LibraryTab>('library');
   const [savingGlobalId, setSavingGlobalId] = useState<string | null>(null);
   const [showImportWizard, setShowImportWizard] = useState(false);
+  // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
+  const duplicateBusy = useBusyIdSet();
 
   // Per-teacher MiniApp assignment archive — populates the In Progress /
   // Archive tabs. Lives in `/users/{uid}/miniapp_assignments/`.
@@ -758,32 +761,34 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
    * `handleCreate` uses, so the duplicate appears at the top of the
    * personal library where the teacher just acted.
    */
-  const handleDuplicate = async (app: MiniAppItem) => {
+  const handleDuplicate = (app: MiniAppItem) => {
     if (!user) return;
-    try {
-      const copy: MiniAppItem = {
-        ...app,
-        id: crypto.randomUUID(),
-        title: suggestDuplicateTitle(app.title),
-        createdAt: Date.now(),
-        order:
-          library.length > 0
-            ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
-            : 0,
-      };
-      const appsRef = collection(db, 'users', user.uid, 'miniapps');
-      await setDoc(doc(appsRef, copy.id), copy);
-      addToast(`Duplicated as "${copy.title}".`, 'success');
-    } catch (err) {
-      logError('MiniAppWidget.handleDuplicate', err, {
-        userId: user.uid,
-        sourceAppId: app.id,
-      });
-      addToast(
-        err instanceof Error ? err.message : 'Duplicate failed',
-        'error'
-      );
-    }
+    void duplicateBusy.run(app.id, async () => {
+      try {
+        const copy: MiniAppItem = {
+          ...app,
+          id: crypto.randomUUID(),
+          title: suggestDuplicateTitle(app.title),
+          createdAt: Date.now(),
+          order:
+            library.length > 0
+              ? library.reduce((min, a) => Math.min(min, a.order ?? 0), 0) - 1
+              : 0,
+        };
+        const appsRef = collection(db, 'users', user.uid, 'miniapps');
+        await setDoc(doc(appsRef, copy.id), copy);
+        addToast(`Duplicated as "${copy.title}".`, 'success');
+      } catch (err) {
+        logError('MiniAppWidget.handleDuplicate', err, {
+          userId: user.uid,
+          sourceAppId: app.id,
+        });
+        addToast(
+          err instanceof Error ? err.message : 'Duplicate failed',
+          'error'
+        );
+      }
+    });
   };
 
   const saveMiniApp = async (updated: MiniAppItem) => {
@@ -1323,6 +1328,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
               onEdit={handleEdit}
               onDelete={(app) => void handleDelete(app.id)}
               onDuplicate={(app) => void handleDuplicate(app)}
+              isDuplicating={duplicateBusy.isBusy}
               onRun={handleRun}
               onAssign={handleOpenAssign}
               onShowAssignments={handleOpenAssignments}

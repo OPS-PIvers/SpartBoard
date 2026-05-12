@@ -60,6 +60,7 @@ import { useLibraryView } from '@/components/common/library/useLibraryView';
 import { useLibrarySelection } from '@/components/common/library/useLibrarySelection';
 import { useSortableReorder } from '@/components/common/library/useSortableReorder';
 import { BulkActionBar } from '@/components/common/library/BulkActionBar';
+import { LibraryPreviewPane } from '@/components/common/library/LibraryPreviewPane';
 import {
   countItemsByFolder,
   filterByFolder,
@@ -91,6 +92,7 @@ import {
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
 import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
+import { extractYouTubeId } from '@/utils/youtube';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -111,6 +113,12 @@ export interface VideoActivityManagerProps {
    * harnesses).
    */
   onDuplicate?: (activity: VideoActivityMetadata) => void | Promise<void>;
+  /**
+   * Optional busy-state probe. When provided, the Duplicate kebab item
+   * disables itself for any activity id whose duplicate is currently
+   * in-flight. Prevents rapid double-click → two identical copies.
+   */
+  isDuplicating?: (activityId: string) => boolean;
   /**
    * Optional per-activity results view. New work prefers the assignment-
    * archive tab; kept for backwards-compatibility while the legacy Widget
@@ -399,6 +407,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onEdit,
   onDelete,
   onDuplicate,
+  isDuplicating,
   onResults,
   onAssign,
   onReorderActivities,
@@ -509,6 +518,16 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
+  // Phase 5 follow-up — preview pane state. Stores id only so the pane
+  // always reflects the latest snapshot in `activities` (subagent
+  // review flag on PR #1588).
+  const [previewActivityId, setPreviewActivityId] = useState<string | null>(
+    null
+  );
+  const previewActivity =
+    previewActivityId != null
+      ? (activities.find((a) => a.id === previewActivityId) ?? null)
+      : null;
   const [prevManagerTab, setPrevManagerTab] = useState(tab);
   if (prevManagerTab !== tab) {
     setPrevManagerTab(tab);
@@ -776,129 +795,165 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     (useExternalDnd || Boolean(onReorderActivities)) && !selectionMode;
 
   const renderLibraryTab = (): React.ReactElement => (
-    <>
-      {error && (
-        <div className="mb-3 flex items-center gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
-          <AlertCircle className="h-4 w-4 shrink-0" />
-          {error}
-        </div>
-      )}
+    <div className="flex h-full min-h-0 gap-3">
+      <div className="flex-1 min-w-0 flex flex-col">
+        {error && (
+          <div className="mb-3 flex items-center gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            {error}
+          </div>
+        )}
 
-      {selectionMode && selection.count > 0 && (
-        <div className="mb-3">
-          <BulkActionBar
-            count={selection.count}
-            onClear={() => selection.clear()}
-            folders={folderState.folders}
-            onMove={handleBulkMove}
-            onDelete={handleBulkDelete}
-            busy={bulkBusy}
-          />
-        </div>
-      )}
+        {selectionMode && selection.count > 0 && (
+          <div className="mb-3">
+            <BulkActionBar
+              count={selection.count}
+              onClear={() => selection.clear()}
+              folders={folderState.folders}
+              onMove={handleBulkMove}
+              onDelete={handleBulkDelete}
+              busy={bulkBusy}
+            />
+          </div>
+        )}
 
-      <LibraryGrid<VideoActivityMetadata>
-        items={reorder.orderedItems}
-        getId={(a) => a.id}
-        onReorder={reorder.handleReorder}
-        dragDisabled={!cardDragEnabled}
-        reorderLocked={useExternalDnd ? false : libraryView.reorderLocked}
-        reorderLockedReason={
-          useExternalDnd ? undefined : libraryView.reorderLockedReason
-        }
-        layout={libraryView.state.viewMode}
-        emptyState={libraryEmptyState}
-        useExternalDndContext={useExternalDnd}
-        renderCard={(activity) => {
-          const secondaryActions: LibraryMenuAction[] = [
-            {
-              id: 'edit',
-              label: 'Edit',
-              icon: Edit2,
-              onClick: () => onEdit(activity),
-            },
-            ...(onResults
-              ? [
-                  {
-                    id: 'results',
-                    label: 'Results',
-                    icon: BarChart3,
-                    onClick: () => onResults(activity),
-                  } satisfies LibraryMenuAction,
-                ]
-              : []),
-            // Phase 5 — Duplicate. Stacked below Edit (and Results when
-            // wired) so the destructive Delete remains the last entry.
-            ...(onDuplicate
-              ? [
-                  buildDuplicateAction(
-                    activity,
-                    () => void onDuplicate(activity)
-                  ),
-                ]
-              : []),
-            buildMoveToFolderAction({
-              onOpenPicker: () => setFolderPickerTarget(activity),
-              disabled: !userId,
-            }),
-            {
-              id: 'delete',
-              label:
-                confirmDeleteActivityId === activity.id
-                  ? 'Confirm delete'
-                  : 'Delete',
-              icon: Trash2,
-              destructive: true,
-              onClick: () => {
-                if (confirmDeleteActivityId === activity.id) {
-                  setConfirmDeleteActivityId(null);
-                  void onDelete(activity);
-                } else {
-                  setConfirmDeleteActivityId(activity.id);
-                }
+        <LibraryGrid<VideoActivityMetadata>
+          items={reorder.orderedItems}
+          getId={(a) => a.id}
+          onReorder={reorder.handleReorder}
+          dragDisabled={!cardDragEnabled}
+          reorderLocked={useExternalDnd ? false : libraryView.reorderLocked}
+          reorderLockedReason={
+            useExternalDnd ? undefined : libraryView.reorderLockedReason
+          }
+          layout={libraryView.state.viewMode}
+          emptyState={libraryEmptyState}
+          useExternalDndContext={useExternalDnd}
+          renderCard={(activity) => {
+            const secondaryActions: LibraryMenuAction[] = [
+              {
+                id: 'edit',
+                label: 'Edit',
+                icon: Edit2,
+                onClick: () => onEdit(activity),
               },
-            },
-          ];
-          return (
-            <LibraryItemCard<VideoActivityMetadata>
-              key={activity.id}
-              id={activity.id}
-              title={activity.title}
-              subtitle={
-                <span className="truncate">
-                  Updated{' '}
-                  {new Date(
-                    activity.updatedAt || activity.createdAt
-                  ).toLocaleDateString()}
-                </span>
-              }
-              badges={activityBadges(activity)}
-              primaryAction={{
-                label: primaryActionLabel,
-                icon: Link2,
+              ...(onResults
+                ? [
+                    {
+                      id: 'results',
+                      label: 'Results',
+                      icon: BarChart3,
+                      onClick: () => onResults(activity),
+                    } satisfies LibraryMenuAction,
+                  ]
+                : []),
+              // Phase 5 — Duplicate. Stacked below Edit (and Results when
+              // wired) so the destructive Delete remains the last entry.
+              ...(onDuplicate
+                ? [
+                    buildDuplicateAction(
+                      activity,
+                      () => void onDuplicate(activity),
+                      {
+                        disabled: isDuplicating?.(activity.id),
+                        disabledReason: 'Duplicating…',
+                      }
+                    ),
+                  ]
+                : []),
+              buildMoveToFolderAction({
+                onOpenPicker: () => setFolderPickerTarget(activity),
+                disabled: !userId,
+              }),
+              {
+                id: 'delete',
+                label:
+                  confirmDeleteActivityId === activity.id
+                    ? 'Confirm delete'
+                    : 'Delete',
+                icon: Trash2,
+                destructive: true,
                 onClick: () => {
-                  if (isViewOnly) {
-                    // View-only: skip the AssignModal/picker flow entirely.
-                    setViewOnlyShareTarget(activity);
-                    setViewOnlyShareLink(null);
-                    setViewOnlyShareError(null);
+                  if (confirmDeleteActivityId === activity.id) {
+                    setConfirmDeleteActivityId(null);
+                    void onDelete(activity);
                   } else {
-                    setAssignTarget(activity);
+                    setConfirmDeleteActivityId(activity.id);
                   }
                 },
-              }}
-              secondaryActions={secondaryActions}
-              onClick={() => onEdit(activity)}
-              viewMode={libraryView.state.viewMode}
-              meta={activity}
-              selectionMode={selectionMode}
-              selected={selection.isSelected(activity.id)}
-              onSelectionToggle={() => selection.toggle(activity.id)}
-            />
-          );
-        }}
-      />
-    </>
+              },
+            ];
+            return (
+              <LibraryItemCard<VideoActivityMetadata>
+                key={activity.id}
+                id={activity.id}
+                title={activity.title}
+                subtitle={
+                  <span className="truncate">
+                    Updated{' '}
+                    {new Date(
+                      activity.updatedAt || activity.createdAt
+                    ).toLocaleDateString()}
+                  </span>
+                }
+                badges={activityBadges(activity)}
+                primaryAction={{
+                  label: primaryActionLabel,
+                  icon: Link2,
+                  onClick: () => {
+                    if (isViewOnly) {
+                      // View-only: skip the AssignModal/picker flow entirely.
+                      setViewOnlyShareTarget(activity);
+                      setViewOnlyShareLink(null);
+                      setViewOnlyShareError(null);
+                    } else {
+                      setAssignTarget(activity);
+                    }
+                  },
+                }}
+                secondaryActions={secondaryActions}
+                // Phase 5 follow-up — single-click opens preview pane,
+                // double-click opens editor. See QuizManager for rationale.
+                onClick={() => setPreviewActivityId(activity.id)}
+                onDoubleClick={() => onEdit(activity)}
+                viewMode={libraryView.state.viewMode}
+                meta={activity}
+                selectionMode={selectionMode}
+                selected={selection.isSelected(activity.id)}
+                onSelectionToggle={() => selection.toggle(activity.id)}
+              />
+            );
+          }}
+        />
+      </div>
+      {previewActivity && (
+        <LibraryPreviewPane
+          isOpen={true}
+          onClose={() => setPreviewActivityId(null)}
+          title={previewActivity.title}
+          subtitle={
+            <>
+              {previewActivity.questionCount}{' '}
+              {previewActivity.questionCount === 1 ? 'question' : 'questions'}
+              {previewActivity.updatedAt
+                ? ` · Updated ${new Date(previewActivity.updatedAt).toLocaleDateString()}`
+                : ''}
+            </>
+          }
+          primaryAction={{
+            label: 'Open editor',
+            icon: Edit2,
+            onClick: () => {
+              const a = previewActivity;
+              setPreviewActivityId(null);
+              onEdit(a);
+            },
+          }}
+        >
+          <VideoActivityPreviewPaneContent activity={previewActivity} />
+        </LibraryPreviewPane>
+      )}
+    </div>
   );
 
   /* ─── In Progress / Archive tab content ──────────────────────────────── */
@@ -1540,3 +1595,61 @@ const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
     </div>
   );
 };
+
+/**
+ * Lightweight preview pane content for the VideoActivityManager.
+ * Renders metadata + an embedded YouTube thumbnail. Activity authoring
+ * uses Google Drive for the full question data, which would require a
+ * Drive load to render here — keeping the pane to metadata-only keeps
+ * it responsive on click.
+ */
+const VideoActivityPreviewPaneContent: React.FC<{
+  activity: VideoActivityMetadata;
+}> = ({ activity }) => {
+  const created = activity.createdAt
+    ? new Date(activity.createdAt).toLocaleDateString()
+    : null;
+  const updated = activity.updatedAt
+    ? new Date(activity.updatedAt).toLocaleDateString()
+    : null;
+  // Reuse the canonical YouTube-URL helper so the pane recognises the
+  // full URL set the Creator path accepts (watch?v=, youtu.be/, embed/,
+  // v/, shorts/, watch?…&v=). Returns null on anything else — pane
+  // falls back to a neutral placeholder.
+  const youtubeId = activity.youtubeUrl
+    ? extractYouTubeId(activity.youtubeUrl)
+    : null;
+  return (
+    <div className="flex flex-col gap-3 text-sm text-slate-700">
+      {youtubeId ? (
+        <img
+          src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
+          alt=""
+          className="w-full rounded-lg border border-slate-200 bg-slate-100"
+          loading="lazy"
+        />
+      ) : (
+        <div className="flex aspect-video items-center justify-center rounded-lg border border-dashed border-slate-300 bg-slate-50 text-xs text-slate-400">
+          No video preview
+        </div>
+      )}
+      <div className="grid grid-cols-2 gap-3">
+        <VAStat label="Questions" value={String(activity.questionCount)} />
+        {created && <VAStat label="Created" value={created} />}
+        {updated && <VAStat label="Last updated" value={updated} />}
+      </div>
+    </div>
+  );
+};
+
+const VAStat: React.FC<{ label: string; value: string }> = ({
+  label,
+  value,
+}) => (
+  <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
+    <div className="text-xxs font-bold uppercase tracking-wider text-slate-400">
+      {label}
+    </div>
+    <div className="text-sm font-semibold text-slate-800 mt-0.5">{value}</div>
+  </div>
+);
