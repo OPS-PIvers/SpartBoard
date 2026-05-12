@@ -157,4 +157,32 @@ describe('PlcGridTile keyboard resize', () => {
     fireEvent.keyDown(grip(), { key: 'Enter', shiftKey: true });
     expect(onResizeCommit).not.toHaveBeenCalled();
   });
+
+  // The merged onKeyDown forwards to dnd-kit's listener iff our resize
+  // handler did NOT call preventDefault. These two tests pin down that
+  // contract so the forward-to-dnd-kit fix from PR review can't silently
+  // regress: a Shift+Arrow that commits a resize must mark the event as
+  // handled; everything else must leave it untouched.
+  it('calls preventDefault on a handled Shift+Arrow (so dnd-kit listener is skipped)', () => {
+    renderTile({});
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      shiftKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    grip().dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('does NOT call preventDefault on plain Arrow keys (so dnd-kit reorder still runs)', () => {
+    renderTile({});
+    const event = new KeyboardEvent('keydown', {
+      key: 'ArrowRight',
+      bubbles: true,
+      cancelable: true,
+    });
+    grip().dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+  });
 });

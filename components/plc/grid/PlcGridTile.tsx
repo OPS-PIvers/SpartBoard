@@ -254,9 +254,18 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
             {...listeners}
             {...attributes}
             onKeyDown={(e) => {
-              // Shift+Arrow → resize. Plain Arrow keys fall through to
-              // dnd-kit's KeyboardSensor handler installed by `listeners`.
+              // Order matters: we run our resize handler first. If it
+              // consumed the keystroke (Shift+Arrow) it calls
+              // `preventDefault()`, so we skip dnd-kit's listener.
+              // Otherwise we forward to the listener spread above so
+              // @dnd-kit's KeyboardSensor still gets plain Arrow / Space
+              // / Enter for sortable reorder — without this forward the
+              // spread's `onKeyDown` was being clobbered by ours (a
+              // React last-prop-wins issue flagged in PR review).
               handleGripKeyDown(e);
+              if (!e.defaultPrevented) {
+                listeners?.onKeyDown?.(e);
+              }
             }}
             className="absolute top-2 left-2 z-20 p-1.5 bg-white/95 hover:bg-brand-blue-lighter rounded-md text-slate-400 hover:text-brand-blue-primary cursor-grab active:cursor-grabbing transition-colors shadow-sm border border-slate-200"
             aria-label={t('plcDashboard.overview.dragHandle', {
@@ -303,9 +312,16 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
 
           {/* Mobile: 4 corner-only touch handles, 44×44px (WCAG 2.5.5).
               Sized for fingers, transparent visual but with a small
-              visible diamond marker so users discover them; tap+drag
+              visible square marker so users discover them; tap+drag
               from any corner resizes both axes. Renders only when the
-              desktop chrome is suppressed so we never double-up. */}
+              desktop chrome is suppressed so we never double-up.
+
+              The marker is positioned absolutely inside the handle so
+              its corner matches the resize direction (nw marker in the
+              nw corner of the nw handle, etc.). An earlier `flex` +
+              per-direction `align-self` overrides path was flagged as
+              inconsistent across directions in PR review; absolute
+              positioning is simpler and reliable. */}
           {!showResizeHandles &&
             touchResizeHandles &&
             TOUCH_CORNER_DIRECTIONS.map((dir) => (
@@ -315,15 +331,11 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
                 data-resize-handle={dir}
                 data-resize-touch
                 role="presentation"
-                className={`absolute z-10 flex items-end justify-end ${HANDLE_CLASSES[dir]}`}
+                className={`absolute z-10 ${HANDLE_CLASSES[dir]}`}
                 style={TOUCH_HANDLE_STYLES[dir]}
               >
                 <div
-                  // Small visible marker so the touch hit-area is
-                  // discoverable. Anchored to the corner of the 44×44
-                  // hit-box so the marker sits at the tile corner where
-                  // the user expects to "grab".
-                  className="w-2.5 h-2.5 m-1 rounded-sm bg-brand-blue-primary/60 shadow-sm"
+                  className="absolute w-2.5 h-2.5 rounded-sm bg-brand-blue-primary/60 shadow-sm"
                   aria-hidden="true"
                   style={TOUCH_MARKER_ANCHOR[dir]}
                 />
@@ -445,13 +457,14 @@ const TOUCH_HANDLE_STYLES: Record<TouchResizeDirection, React.CSSProperties> = {
 
 /**
  * Anchor the small visible marker inside each 44×44 touch hit-box to the
- * tile corner the handle represents. The wrapping div uses
- * `flex items-end justify-end` for `se`, and these overrides pull the
- * marker to the correct corner for the other three directions.
+ * tile corner the handle represents. Pixel offsets (not container-query
+ * units) — these are chrome on a fixed-size touch target, not widget
+ * front-face content, so they shouldn't scale with the tile.
  */
+const TOUCH_MARKER_INSET = 4;
 const TOUCH_MARKER_ANCHOR: Record<TouchResizeDirection, React.CSSProperties> = {
-  nw: { marginLeft: 0, marginTop: 0, alignSelf: 'flex-start' },
-  ne: { marginRight: 0, marginTop: 0, alignSelf: 'flex-start' },
-  sw: { marginLeft: 0, marginBottom: 0, alignSelf: 'flex-end' },
-  se: { marginRight: 0, marginBottom: 0, alignSelf: 'flex-end' },
+  nw: { top: TOUCH_MARKER_INSET, left: TOUCH_MARKER_INSET },
+  ne: { top: TOUCH_MARKER_INSET, right: TOUCH_MARKER_INSET },
+  sw: { bottom: TOUCH_MARKER_INSET, left: TOUCH_MARKER_INSET },
+  se: { bottom: TOUCH_MARKER_INSET, right: TOUCH_MARKER_INSET },
 };
