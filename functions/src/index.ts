@@ -2255,9 +2255,11 @@ export const adminAnalytics = onRequest(
         return;
       }
 
+      const { meta: payloadMeta, ...payloadWithoutMeta } = snapshot.payload;
       res.json({
-        ...snapshot.payload,
+        ...payloadWithoutMeta,
         meta: {
+          ...(payloadMeta ?? {}),
           computedAt: snapshot.computedAt,
           nextRecomputeAt: snapshot.nextRecomputeAt,
           computeDurationMs: snapshot.computeDurationMs,

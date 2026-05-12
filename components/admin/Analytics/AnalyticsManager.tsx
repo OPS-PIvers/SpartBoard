@@ -19,6 +19,7 @@ import {
 import { auth } from '@/config/firebase';
 import {
   AlertCircle,
+  AlertTriangle,
   ArrowDownUp,
   ArrowUp,
   ArrowDown,
@@ -26,6 +27,7 @@ import {
   ChevronDown,
   ChevronUp,
   Clock,
+  Info,
   LayoutGrid,
   School,
   Search,
@@ -33,6 +35,7 @@ import {
   WandSparkles,
   Zap,
 } from 'lucide-react';
+import { logError } from '@/utils/logError';
 import { Modal } from '@/components/common/Modal';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useAuth } from '@/context/useAuth';
@@ -106,12 +109,28 @@ interface AnalyticsData {
   // computes the analytics once a day; these timestamps drive the
   // "Last updated · Next update at" badge so the admin understands they're
   // looking at a cached read rather than a live aggregate.
+  //
+  // `partial` is set when one or more chunks of `auth().getUsers()` failed
+  // during compute; the counts that depend on email/uid resolution will be
+  // lower than reality. Admins need to see this signal before drawing
+  // conclusions from a daily snapshot.
   meta?: {
     computedAt: number;
     nextRecomputeAt: number;
     computeDurationMs: number;
+    partial?: boolean;
   };
 }
+
+/**
+ * Failure shape returned by the `/api/admin-analytics` endpoint. The
+ * `cold-start` kind is a benign state (the daily scheduler hasn't run for
+ * this org yet) and renders as a calm informational notice; `fatal` is a
+ * real error and renders as a red banner.
+ */
+type AnalyticsErrorState =
+  | { kind: 'cold-start'; message: string }
+  | { kind: 'fatal'; message: string };
 
 type AnalyticsTab = 'overview' | 'widgets' | 'ai' | 'users';
 
@@ -1483,7 +1502,7 @@ export const AnalyticsManager: React.FC = () => {
   const { orgId } = useAuth();
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState<AnalyticsData | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AnalyticsErrorState | null>(null);
   const [selectedTab, setSelectedTab] = useState<AnalyticsTab>('overview');
   const [selectedDomain, setSelectedDomain] = useState('all');
   const [selectedBuilding, setSelectedBuilding] = useState('all');
@@ -1514,9 +1533,11 @@ export const AnalyticsManager: React.FC = () => {
       if (isMountedRef.current) {
         setLoading(false);
         setData(null);
-        setError(
-          'No organization selected. Analytics require an active organization.'
-        );
+        setError({
+          kind: 'fatal',
+          message:
+            'No organization selected. Analytics require an active organization.',
+        });
       }
       return;
     }
@@ -1546,11 +1567,20 @@ export const AnalyticsManager: React.FC = () => {
           error?: string;
         };
         // 503 + `not-yet-computed` is the server's signal for "this org has
-        // no snapshot yet — wait for the next scheduled refresh." Surface it
-        // verbatim so the admin sees a clear "not ready" state rather than
-        // a generic error banner; the message body already contains the
-        // user-facing copy ("ready at 5:00 AM Central daily").
+        // no snapshot yet — wait for the next scheduled refresh." This is a
+        // benign state for a freshly-onboarded org; render a calm "scheduled
+        // refresh is on its way" notice instead of the red error banner.
         const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
+        if (response.status === 503 && body.error === 'not-yet-computed') {
+          if (
+            isMountedRef.current &&
+            requestId === requestSequenceRef.current
+          ) {
+            setData(null);
+            setError({ kind: 'cold-start', message: msg });
+          }
+          return;
+        }
         throw new Error(msg);
       }
 
@@ -1597,15 +1627,17 @@ export const AnalyticsManager: React.FC = () => {
       }
       setData(normalized);
     } catch (err: unknown) {
-      console.error('Failed to load analytics', err);
+      logError('AnalyticsManager.fetch', err, { orgId });
       if (!isMountedRef.current || requestId !== requestSequenceRef.current) {
         return;
       }
-      setError(
-        err instanceof Error
-          ? err.message
-          : 'An error occurred loading analytics data'
-      );
+      setError({
+        kind: 'fatal',
+        message:
+          err instanceof Error
+            ? err.message
+            : 'An error occurred loading analytics data',
+      });
     } finally {
       if (isMountedRef.current && requestId === requestSequenceRef.current) {
         setLoading(false);
@@ -1746,12 +1778,29 @@ export const AnalyticsManager: React.FC = () => {
   }
 
   if (error) {
+    if (error.kind === 'cold-start') {
+      // Benign state — the daily scheduler hasn't computed a snapshot for
+      // this org yet. The server's message already contains the user-facing
+      // copy ("ready at 5:00 AM Central daily"); render it in a calm slate
+      // surface, not red.
+      return (
+        <div className="bg-slate-50 border border-slate-200 text-slate-700 p-6 rounded-2xl flex items-start gap-3">
+          <Info className="w-6 h-6 shrink-0 mt-0.5 text-slate-400" />
+          <div>
+            <h3 className="font-bold mb-1 text-slate-900">
+              Analytics not ready yet
+            </h3>
+            <p className="text-sm">{error.message}</p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl flex items-start gap-3">
         <AlertCircle className="w-6 h-6 shrink-0 mt-0.5" />
         <div>
           <h3 className="font-bold mb-1">Failed to Load Analytics</h3>
-          <p className="text-sm">{error}</p>
+          <p className="text-sm">{error.message}</p>
         </div>
       </div>
     );
@@ -1761,6 +1810,27 @@ export const AnalyticsManager: React.FC = () => {
 
   return (
     <div className="space-y-5 pb-12">
+      {data.meta?.partial && (
+        // Amber banner — counts are real but the compute hit one or more
+        // chunks where `auth().getUsers()` failed, so engagement totals
+        // are under-counted. Admins need to know this before drawing
+        // conclusions from the snapshot. The next scheduled refresh will
+        // re-run the auth lookups and (hopefully) clear the flag.
+        <div
+          role="status"
+          className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl flex items-start gap-3"
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5 text-amber-600" />
+          <div>
+            <h3 className="font-semibold mb-0.5">Partial data</h3>
+            <p className="text-sm">
+              Some user data couldn&apos;t be loaded during the last compute.
+              Counts may be lower than actual. The next scheduled refresh should
+              clear this.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap gap-2">
           <select
