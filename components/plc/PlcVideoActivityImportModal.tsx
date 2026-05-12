@@ -17,6 +17,7 @@
  */
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cloud, Copy, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import type { SharedVideoActivityImportMode } from '@/hooks/useVideoActivityAssignments';
@@ -36,6 +37,7 @@ interface ModeOptionProps {
   body: string;
   Icon: React.ComponentType<{ className?: string }>;
   recommended?: boolean;
+  recommendedLabel: string;
   onPick: (mode: SharedVideoActivityImportMode) => void;
 }
 
@@ -45,6 +47,7 @@ const ModeOption: React.FC<ModeOptionProps> = ({
   body,
   Icon,
   recommended,
+  recommendedLabel,
   onPick,
 }) => (
   <button
@@ -61,7 +64,7 @@ const ModeOption: React.FC<ModeOptionProps> = ({
           <h3 className="font-bold text-slate-900 text-sm">{title}</h3>
           {recommended && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
-              Recommended for PLCs
+              {recommendedLabel}
             </span>
           )}
         </div>
@@ -74,11 +77,14 @@ const ModeOption: React.FC<ModeOptionProps> = ({
 export const PlcVideoActivityImportModal: React.FC<
   PlcVideoActivityImportModalProps
 > = ({ activityTitle, sharedByName, onPick, onClose }) => {
+  const { t } = useTranslation();
   return (
     <Modal
       isOpen
       onClose={onClose}
-      ariaLabel="Choose how to import this video activity"
+      ariaLabel={t('plcDashboard.videoActivityImportModal.ariaLabel', {
+        defaultValue: 'Choose how to import this video activity',
+      })}
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
@@ -89,18 +95,30 @@ export const PlcVideoActivityImportModal: React.FC<
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                Add to my library
+                {t('plcDashboard.videoActivityImportModal.title', {
+                  defaultValue: 'Add to my library',
+                })}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
-                {activityTitle}
-                {sharedByName ? ` · shared by ${sharedByName}` : ''}
+                {sharedByName
+                  ? t(
+                      'plcDashboard.videoActivityImportModal.subtitleWithSharer',
+                      {
+                        title: activityTitle,
+                        name: sharedByName,
+                        defaultValue: '{{title}} · shared by {{name}}',
+                      }
+                    )
+                  : activityTitle}
               </p>
             </div>
           </div>
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('plcDashboard.videoActivityImportModal.close', {
+              defaultValue: 'Close',
+            })}
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -110,21 +128,39 @@ export const PlcVideoActivityImportModal: React.FC<
     >
       <div className="px-5 pb-5 pt-4 space-y-3">
         <p className="text-xs text-slate-600">
-          How should this video activity be imported into your library?
+          {t('plcDashboard.videoActivityImportModal.prompt', {
+            defaultValue:
+              'How should this video activity be imported into your library?',
+          })}
         </p>
         <ModeOption
           mode="sync"
-          title="Synced"
-          body="Stay connected to the PLC version. Any teacher in the synced group can edit, and changes show up on everyone's library card with a Sync available pill."
+          title={t('plcDashboard.videoActivityImportModal.syncTitle', {
+            defaultValue: 'Synced',
+          })}
+          body={t('plcDashboard.videoActivityImportModal.syncBody', {
+            defaultValue:
+              "Stay connected to the PLC version. Any teacher in the synced group can edit, and changes show up on everyone's library card with a Sync available pill.",
+          })}
           Icon={Cloud}
           recommended
+          recommendedLabel={t(
+            'plcDashboard.videoActivityImportModal.recommendedLabel',
+            { defaultValue: 'Recommended for PLCs' }
+          )}
           onPick={onPick}
         />
         <ModeOption
           mode="copy"
-          title="Make a copy"
-          body="Take a frozen snapshot. Future edits by other PLC members will not appear in your copy, and your edits stay private."
+          title={t('plcDashboard.videoActivityImportModal.copyTitle', {
+            defaultValue: 'Make a copy',
+          })}
+          body={t('plcDashboard.videoActivityImportModal.copyBody', {
+            defaultValue:
+              'Take a frozen snapshot. Future edits by other PLC members will not appear in your copy, and your edits stay private.',
+          })}
           Icon={Copy}
+          recommendedLabel=""
           onPick={onPick}
         />
       </div>
