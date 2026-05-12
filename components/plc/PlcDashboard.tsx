@@ -31,6 +31,7 @@ import { PlcQuizLibraryTab } from './tabs/PlcQuizLibraryTab';
 import { PlcPlaceholderTab } from './tabs/PlcPlaceholderTab';
 import { NotesBody } from './bodies/NotesBody';
 import { TodosBody } from './bodies/TodosBody';
+import { PlcAnalyticsBody } from './bodies/PlcAnalyticsBody';
 
 interface PlcDashboardProps {
   plc: Plc;
@@ -246,8 +247,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       case 'quizLibrary':
         return <PlcQuizLibraryTab plc={plc} />;
       case 'activeAssignments':
-      case 'completedAssignments':
         return <PlcAssignmentsTab plc={plc} onCloseDashboard={onClose} />;
+      case 'completedAssignments':
+        return <PlcAnalyticsBody plc={plc} />;
       default:
         return null;
     }
@@ -262,9 +264,12 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       case 'quizLibrary':
         return t('plcDashboard.tabs.quizzes', { defaultValue: 'Quiz Library' });
       case 'activeAssignments':
-      case 'completedAssignments':
         return t('plcDashboard.tabs.assignments', {
           defaultValue: 'PLC Assignments',
+        });
+      case 'completedAssignments':
+        return t('plcDashboard.tabs.analytics', {
+          defaultValue: 'PLC Analytics',
         });
       default:
         return '';

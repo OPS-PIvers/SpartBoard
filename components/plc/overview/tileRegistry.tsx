@@ -65,12 +65,7 @@ export function renderTileContent(
     case 'members':
       return <MembersTile plc={ctx.plc} />;
     case 'completedAssignments':
-      return (
-        <CompletedAssignmentsTile
-          plc={ctx.plc}
-          onNavigateTab={ctx.onNavigateTab}
-        />
-      );
+      return <CompletedAssignmentsTile plc={ctx.plc} />;
     case 'notes':
       return <NotesTile plc={ctx.plc} onNavigateTab={ctx.onNavigateTab} />;
     case 'todos':
