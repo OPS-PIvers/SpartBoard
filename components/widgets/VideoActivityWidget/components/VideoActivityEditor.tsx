@@ -27,7 +27,9 @@ import {
   type VideoActivityEditorController,
 } from './useVideoActivityEditorState';
 
-const TYPE_BADGE: Record<string, { label: string; className: string }> = {
+type QuestionType = NonNullable<VideoActivityQuestion['type']>;
+
+const TYPE_BADGE: Record<QuestionType, { label: string; className: string }> = {
   MC: { label: 'MC', className: 'bg-blue-100 text-blue-700' },
   FIB: { label: 'FIB', className: 'bg-amber-100 text-amber-800' },
   MA: { label: 'MA', className: 'bg-emerald-100 text-emerald-700' },
@@ -158,82 +160,94 @@ const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
           Drag to reorder · click to edit
         </span>
       </div>
-      <SortableList
-        items={questions}
-        getId={(q) => q.id}
-        onReorder={onReorder}
-        renderItem={(q, handle) => {
-          const idx = questions.findIndex((x) => x.id === q.id);
-          const isSelected = q.id === selectedId;
-          const showReorderHint = q.id === reorderHintFor;
-          const type = q.type ?? 'MC';
-          const badge = TYPE_BADGE[type];
-          return (
-            <div
-              {...handle.attributes}
-              onPointerDown={
-                handle.listeners?.onPointerDown as
-                  | React.PointerEventHandler<HTMLDivElement>
-                  | undefined
-              }
-              onClick={() => onSelect(q.id)}
-              role="button"
-              tabIndex={0}
-              aria-pressed={isSelected}
-              aria-label={`Question ${idx + 1} at ${secondsToMmSs(q.timestamp)}${q.text ? `: ${q.text}` : ''}`}
-              title={q.text?.trim() ? q.text : `Question ${idx + 1}`}
-              className={`group shrink-0 cursor-grab active:cursor-grabbing touch-none flex items-center gap-1.5 pl-2 pr-1 py-1 rounded-md text-xs font-bold border transition-colors ${
-                isSelected
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
-                  : 'bg-white border-slate-300 text-slate-700 hover:border-slate-400'
-              }`}
-            >
-              <span className="font-mono">{idx + 1}</span>
-              <span
-                className={`flex items-center gap-0.5 font-mono rounded px-1 py-0.5 text-xxs ${
+      <div className="max-h-[7.5rem] overflow-y-auto custom-scrollbar -mx-1 px-1">
+        <SortableList
+          items={questions}
+          getId={(q) => q.id}
+          onReorder={onReorder}
+          layout="grid"
+          renderItem={(q, handle) => {
+            const idx = questions.findIndex((x) => x.id === q.id);
+            const isSelected = q.id === selectedId;
+            const showReorderHint = q.id === reorderHintFor;
+            const type = (q.type ?? 'MC') as QuestionType;
+            const badge = TYPE_BADGE[type];
+            return (
+              <div
+                className={`group inline-flex shrink-0 items-stretch rounded-md border transition-colors ${
                   isSelected
-                    ? 'bg-brand-blue-dark text-white/90'
-                    : 'bg-slate-100 text-slate-600'
+                    ? 'bg-brand-blue-primary border-brand-blue-primary'
+                    : 'bg-white border-slate-300 hover:border-slate-400'
                 }`}
               >
-                <Clock className="w-3 h-3" />
-                {secondsToMmSs(q.timestamp)}
-              </span>
-              <span
-                className={`px-1 py-0.5 rounded text-xxs uppercase tracking-wider ${
-                  isSelected
-                    ? 'bg-brand-blue-dark text-white/90'
-                    : badge.className
-                }`}
-              >
-                {badge.label}
-              </span>
-              {showReorderHint && (
-                <span className="text-xxs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1 py-0.5 animate-in fade-in duration-200">
-                  Reordered
-                </span>
-              )}
-              <button
-                type="button"
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onDelete(q.id);
-                }}
-                aria-label={`Delete question ${idx + 1}`}
-                className={`rounded p-0.5 transition-colors ${
-                  isSelected
-                    ? 'text-white/70 hover:text-white hover:bg-white/15'
-                    : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100'
-                }`}
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-          );
-        }}
-        className="flex flex-wrap gap-1.5"
-      />
+                <button
+                  type="button"
+                  {...handle.attributes}
+                  onPointerDown={
+                    handle.listeners?.onPointerDown as
+                      | React.PointerEventHandler<HTMLButtonElement>
+                      | undefined
+                  }
+                  onClick={() => onSelect(q.id)}
+                  aria-current={isSelected ? 'true' : undefined}
+                  aria-label={`Question ${idx + 1} at ${secondsToMmSs(q.timestamp)}${q.text ? `: ${q.text}` : ''}`}
+                  title={q.text?.trim() ? q.text : `Question ${idx + 1}`}
+                  className={`cursor-grab active:cursor-grabbing touch-none flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-l-md text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-blue-primary ${
+                    isSelected ? 'text-white' : 'text-slate-700'
+                  }`}
+                >
+                  <span className="font-mono min-w-[1.25ch] text-center">
+                    {idx + 1}
+                  </span>
+                  <span
+                    className={`flex items-center gap-0.5 font-mono rounded px-1 py-0.5 text-xxs ${
+                      isSelected
+                        ? 'bg-brand-blue-dark text-white/90'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" />
+                    {secondsToMmSs(q.timestamp)}
+                  </span>
+                  <span
+                    className={`px-1 py-0.5 rounded text-xxs uppercase tracking-wider ${
+                      isSelected
+                        ? 'bg-brand-blue-dark text-white/90'
+                        : badge.className
+                    }`}
+                  >
+                    {badge.label}
+                  </span>
+                  {showReorderHint && (
+                    <span
+                      className={`text-xxs font-bold rounded px-1 py-0.5 animate-in fade-in duration-200 ${
+                        isSelected
+                          ? 'bg-amber-300 text-amber-900'
+                          : 'bg-amber-50 border border-amber-200 text-amber-700'
+                      }`}
+                    >
+                      Reordered
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(q.id)}
+                  aria-label={`Delete question ${idx + 1}`}
+                  className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
+                    isSelected
+                      ? 'text-white/70 hover:text-white hover:bg-white/15'
+                      : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          }}
+          className="flex flex-wrap gap-1.5"
+        />
+      </div>
     </div>
   );
 };
@@ -286,7 +300,7 @@ export const VideoActivityEditorDetailPane: React.FC<PaneProps> = ({
           </h4>
           <p className="text-sm max-w-xs">
             {questions.length === 0
-              ? 'Use "+ Add at [time]" below the timeline to drop a question at the current playhead.'
+              ? 'Click "Add at MM:SS" under the timeline to drop a question at the current playhead — or use Draft with AI in the footer to generate a set.'
               : 'Click a pill above (or a green marker on the timeline) to edit it here.'}
           </p>
         </div>

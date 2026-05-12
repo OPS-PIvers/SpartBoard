@@ -226,7 +226,7 @@ export const VideoActivityEditorModal: React.FC<
         ) : null
       }
       contextRatio={56}
-      contextPaneClassName="bg-slate-50 border-r border-slate-200 overflow-hidden"
+      contextPaneClassName="bg-slate-50 border-r border-slate-200 !overflow-hidden"
       contextPane={
         <VideoActivityEditorContextPane
           state={editorState}

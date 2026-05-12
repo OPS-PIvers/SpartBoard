@@ -38,6 +38,7 @@ vi.mock('@dnd-kit/sortable', () => ({
   ),
   sortableKeyboardCoordinates: vi.fn(),
   verticalListSortingStrategy: vi.fn(),
+  rectSortingStrategy: vi.fn(),
   arrayMove: vi.fn(<T,>(arr: T[], from: number, to: number) => {
     const result = [...arr];
     result.splice(to, 0, result.splice(from, 1)[0]);
