@@ -68,30 +68,40 @@ export const SharedBoardsTile: React.FC<SharedBoardsTileProps> = ({
         ) : (
           <ul className="space-y-2 py-1">
             {preview.map((board) => (
-              <li
-                key={board.id}
-                className="px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 transition-colors"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="text-xs font-bold text-slate-800 truncate">
-                    {board.name ||
-                      t('plcDashboard.overview.tiles.sharedBoards.untitled', {
-                        defaultValue: 'Untitled dashboard',
-                      })}
+              <li key={board.id}>
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('sharedBoards')}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 focus-visible:bg-brand-blue-lighter/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 transition-colors"
+                  title={t(
+                    'plcDashboard.overview.tiles.sharedBoards.rowTooltip',
+                    { defaultValue: 'Open in PLC Shared Boards tab' }
+                  )}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="text-xs font-bold text-slate-800 truncate">
+                      {board.name ||
+                        t('plcDashboard.overview.tiles.sharedBoards.untitled', {
+                          defaultValue: 'Untitled dashboard',
+                        })}
+                    </div>
+                    <span className="shrink-0 text-xxs text-slate-400">
+                      {t(
+                        'plcDashboard.overview.tiles.sharedBoards.widgetCount',
+                        {
+                          count: board.widgetCount,
+                          defaultValue: '{{count}} w',
+                        }
+                      )}
+                    </span>
                   </div>
-                  <span className="shrink-0 text-xxs text-slate-400">
-                    {t('plcDashboard.overview.tiles.sharedBoards.widgetCount', {
-                      count: board.widgetCount,
-                      defaultValue: '{{count}} w',
+                  <p className="text-xxs text-slate-500 truncate mt-0.5">
+                    {t('plcDashboard.overview.tiles.sharedBoards.bySharer', {
+                      name: board.originalAuthorName || '—',
+                      defaultValue: 'shared by {{name}}',
                     })}
-                  </span>
-                </div>
-                <p className="text-xxs text-slate-500 truncate mt-0.5">
-                  {t('plcDashboard.overview.tiles.sharedBoards.bySharer', {
-                    name: board.originalAuthorName || '—',
-                    defaultValue: 'shared by {{name}}',
-                  })}
-                </p>
+                  </p>
+                </button>
               </li>
             ))}
           </ul>

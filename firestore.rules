@@ -681,14 +681,37 @@ service cloud.firestore {
     match /shared_boards/{shareId} {
       allow read: if request.auth != null;
 
+      // Host writes their own share, and if they tag it with a `plcId`,
+      // they must be a current member of that PLC. Defense-in-depth on top
+      // of the client-side PLC picker — a hostile client could otherwise
+      // surface their share on any PLC's tab.
       allow create: if request.auth != null &&
-        request.resource.data.originalAuthor == request.auth.uid;
+        request.resource.data.originalAuthor == request.auth.uid &&
+        (
+          request.resource.data.get('plcId', null) == null ||
+          request.auth.uid in get(
+            /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
+          ).data.memberUids
+        );
 
       // Host or admin: full update power (content + participants), but
-      // intendedMode is locked to its create-time value.
+      // intendedMode is locked to its create-time value AND any change to
+      // `plcId` (set or retarget) requires the writer to be a current
+      // member of the target PLC. Allowed plcId transitions: unchanged,
+      // un-scoping (→ null), or scoping to a PLC the writer belongs to.
+      // Admins bypass the membership check, matching the existing
+      // ownership-bypass elsewhere in this block.
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
-        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null);
+        request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null) &&
+        (
+          request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
+          || request.resource.data.get('plcId', null) == null
+          || isAdmin()
+          || request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(request.resource.data.plcId)
+             ).data.memberUids
+        );
 
       // Collaborator (Synced participant): may update content but must not
       // change participants map, originalAuthor, originalAuthorName,

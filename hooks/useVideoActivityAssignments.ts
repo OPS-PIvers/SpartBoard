@@ -450,6 +450,18 @@ export const useVideoActivityAssignments = (
           assignmentId,
           vaStatusToIndexStatus(assignmentStatus)
         );
+      } else if (!live) {
+        // Edge case: status mutation called before the snapshot has
+        // landed (rapid programmatic flow after createAssignment, or
+        // ref synced lazily). Log so the rare "stranded paused VA on
+        // PLC dashboard" symptom is observable in production — without
+        // this signal the silent no-op below is invisible. Reviewer
+        // flag from PR #1593 silent-failure hunt.
+        logError(
+          'useVideoActivityAssignments.setStatus.assignmentMissing',
+          new Error(`No live assignment ${assignmentId} in ref`),
+          { assignmentId, assignmentStatus }
+        );
       }
     },
     [userId]
