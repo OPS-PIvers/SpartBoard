@@ -28,12 +28,14 @@ import { PlcSettingsTab } from './tabs/PlcSettingsTab';
 import { PlcNotesTab } from './tabs/PlcNotesTab';
 import { PlcTodosTab } from './tabs/PlcTodosTab';
 import { PlcQuizLibraryTab } from './tabs/PlcQuizLibraryTab';
+import { PlcVideoActivitiesTab } from './tabs/PlcVideoActivitiesTab';
 import { PlcPlaceholderTab } from './tabs/PlcPlaceholderTab';
 import { NotesBody } from './bodies/NotesBody';
 import { TodosBody } from './bodies/TodosBody';
 import { PlcAnalyticsBody } from './bodies/PlcAnalyticsBody';
 import { MembersBody } from './bodies/MembersBody';
 import { PlcQuizLibraryBody } from './bodies/PlcQuizLibraryBody';
+import { PlcVideoActivitiesBody } from './bodies/PlcVideoActivitiesBody';
 import { PlcAssignmentsBody } from './bodies/PlcAssignmentsBody';
 
 interface PlcDashboardProps {
@@ -92,11 +94,6 @@ const TABS: readonly TabDef[] = [
     labelKey: 'plcDashboard.tabs.videoActivities',
     labelDefault: 'Video Activities',
     feature: 'videoActivities',
-    placeholder: {
-      titleDefault: 'PLC Video Activities',
-      descriptionDefault:
-        'Share video-based activities with your PLC and aggregate completion data alongside quizzes.',
-    },
   },
   {
     id: 'notes',
@@ -219,6 +216,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     if (tab.id === 'quizzes') {
       return <PlcQuizLibraryTab plc={plc} />;
     }
+    if (tab.id === 'videoActivities') {
+      return <PlcVideoActivitiesTab plc={plc} />;
+    }
     if (tab.id === 'assignments') {
       return <PlcAssignmentsTab plc={plc} onCloseDashboard={onClose} />;
     }
@@ -249,6 +249,8 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         return <TodosBody plc={plc} />;
       case 'quizLibrary':
         return <PlcQuizLibraryBody plc={plc} />;
+      case 'videoActivities':
+        return <PlcVideoActivitiesBody plc={plc} />;
       case 'activeAssignments':
         return <PlcAssignmentsBody plc={plc} onCloseDashboard={onClose} />;
       case 'completedAssignments':
@@ -268,6 +270,10 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
         return t('plcDashboard.tabs.todos', { defaultValue: 'To-Do List' });
       case 'quizLibrary':
         return t('plcDashboard.tabs.quizzes', { defaultValue: 'Quiz Library' });
+      case 'videoActivities':
+        return t('plcDashboard.tabs.videoActivities', {
+          defaultValue: 'Video Activities',
+        });
       case 'activeAssignments':
         return t('plcDashboard.tabs.assignments', {
           defaultValue: 'PLC Assignments',

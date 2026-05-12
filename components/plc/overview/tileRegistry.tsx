@@ -10,6 +10,7 @@ import { SharedSheetTile } from './tiles/SharedSheetTile';
 import { QuickActionsTile } from './tiles/QuickActionsTile';
 import { QuizLibraryTile } from './tiles/QuizLibraryTile';
 import { ActiveAssignmentsTile } from './tiles/ActiveAssignmentsTile';
+import { VideoActivitiesTile } from './tiles/VideoActivitiesTile';
 import { ComingSoonTile } from './tiles/ComingSoonTile';
 
 export interface TileContext {
@@ -88,11 +89,7 @@ export function renderTileContent(
       );
     case 'videoActivities':
       return (
-        <ComingSoonTile
-          kind="videoActivities"
-          phase={4}
-          onNavigateTab={() => ctx.onNavigateTab('videoActivities')}
-        />
+        <VideoActivitiesTile plc={ctx.plc} onNavigateTab={ctx.onNavigateTab} />
       );
     case 'sharedBoards':
       return (
