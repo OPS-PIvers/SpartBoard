@@ -80,11 +80,13 @@ interface PlcAssignmentsLibrarySubTabProps {
   /** Mirror of `onNewQuizAssignment` for the video-activity wizard. */
   onNewVideoActivityAssignment?: () => void;
   /**
-   * If present, the corresponding empty-state CTA renders disabled with
-   * this string as its tooltip + aria-describedby content. Matches the
-   * body-level CTA pattern so the empty-state and populated-state CTAs
-   * stay in lockstep (e.g. Drive disconnected on both, library empty on
-   * both). When undefined, the CTA is enabled.
+   * If present, the corresponding empty-state CTA renders disabled and
+   * uses this string as its `title` (hover tooltip + screen-reader
+   * accessible-name fallback that ATs read on the focused disabled
+   * button). Mirrors the body-level CTA pattern so the empty-state and
+   * populated-state CTAs stay in lockstep — Drive disconnected on
+   * both, library empty on both. When undefined, the CTA is enabled
+   * and uses the default ctaTooltip string.
    */
   newQuizDisabledReason?: string;
   newVideoActivityDisabledReason?: string;

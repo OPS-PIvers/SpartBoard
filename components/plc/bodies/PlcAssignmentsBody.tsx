@@ -100,13 +100,21 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
   // Matches the `shareCta` pattern from `PlcQuizLibraryBody` (PR #1595):
   // a teacher with an empty personal library or no Drive connection sees
   // the button disabled with a tooltip explaining why, rather than
-  // clicking through to an empty picker. Subscribing to these hooks
-  // here adds two listeners to the dashboard, but they only activate
-  // when the user is authenticated — anonymous students never reach
-  // this surface.
-  const { quizzes, isDriveConnected: quizDriveConnected } = useQuiz(user?.uid);
+  // clicking through to an empty picker.
+  //
+  // Gated on `activeSubTab === 'library'` so the personal-library
+  // Firestore listeners (and Drive-token snapshots) only mount when the
+  // teacher is actually looking at the Library sub-tab — In-progress
+  // and Completed don't render the CTAs, so paying for the listeners
+  // there is wasted reads. The hooks early-return when `userId` is
+  // undefined (`useQuiz.ts` / `useVideoActivity.ts` both check this),
+  // so passing `undefined` is the documented "off" switch.
+  const ctasActive = activeSubTab === 'library';
+  const { quizzes, isDriveConnected: quizDriveConnected } = useQuiz(
+    ctasActive ? user?.uid : undefined
+  );
   const { activities, isDriveConnected: videoDriveConnected } =
-    useVideoActivity(user?.uid);
+    useVideoActivity(ctasActive ? user?.uid : undefined);
 
   const openQuizWizard = useCallback(() => {
     setNewVideoOpen(false);
