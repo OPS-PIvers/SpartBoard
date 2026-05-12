@@ -98,12 +98,13 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
   if (!isOpen) return null;
 
   // Fall back to the default if the caller passes a non-finite or
-  // non-positive number — `width: min(0px, 50%)` would collapse the pane
-  // and `width: min(NaNpx, 50%)` invalidates the rule entirely (browser
-  // drops the declaration, pane flexes to content). The clamp's 240px
-  // floor keeps the pane usable on narrow widgets at the cost of
-  // squeezing the grid, which is the right trade-off when the user has
-  // explicitly opened a preview.
+  // non-positive number — `width: clamp(240px, 50%, 0px)` would collapse
+  // to the floor (240px) but exposes the grid to the same starve risk we
+  // just fixed, and `width: clamp(..., NaNpx)` invalidates the rule
+  // entirely (browser drops the declaration, pane flexes to content). The
+  // clamp's 240px floor keeps the pane usable on narrow widgets at the
+  // cost of squeezing the grid, which is the right trade-off when the
+  // user has explicitly opened a preview.
   const safeWidthPx = Number.isFinite(widthPx) && widthPx > 0 ? widthPx : 360;
 
   return (
