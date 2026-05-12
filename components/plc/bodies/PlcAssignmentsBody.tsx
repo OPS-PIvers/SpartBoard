@@ -207,6 +207,16 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
           plc={plc}
           assignmentMode={videoAssignmentMode}
           onClose={() => setNewVideoOpen(false)}
+          onCreated={() => {
+            // VA assignments don't have a Library template writer today
+            // — only Quiz does (see `useQuizAssignments.createAssignment`'s
+            // `writePlcAssignmentTemplate` call). Without this nudge the
+            // teacher would land back on the Library sub-tab and see
+            // "No assignment templates yet" with no visible change, even
+            // though `assignment_index` now carries the new row. Jump
+            // to In-progress so they see the freshly-created entry.
+            setActiveSubTab('inProgress');
+          }}
         />
       )}
     </div>

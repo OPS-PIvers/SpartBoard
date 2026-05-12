@@ -96,26 +96,9 @@ interface PlcNewQuizAssignmentModalProps {
   onCreated?: (info: { assignmentId: string; quizTitle: string }) => void;
 }
 
-const QUIZ_MODES: AssignModeOption[] = [
-  {
-    id: 'teacher',
-    label: 'Teacher-paced',
-    description: 'You control when to move to the next question.',
-    icon: User,
-  },
-  {
-    id: 'auto',
-    label: 'Auto-progress',
-    description: 'Moves automatically once everyone has answered.',
-    icon: Zap,
-  },
-  {
-    id: 'student',
-    label: 'Self-paced',
-    description: 'Students move through questions at their own speed.',
-    icon: Clock,
-  },
-];
+// `QUIZ_MODES` is built inside the component via `useMemo` so the labels
+// + descriptions can route through `t()`. A module-scope literal would
+// freeze the English strings at import time.
 
 interface QuizAssignOptions {
   tabWarningsEnabled: boolean;
@@ -190,6 +173,48 @@ export const PlcNewQuizAssignmentModal: React.FC<
   // can fire two submit handlers before React commits the first
   // setState. See `PlcSharePickerModal.handlePick` for the same pattern.
   const submittingRef = useRef(false);
+
+  const quizModes = useMemo<AssignModeOption[]>(
+    () => [
+      {
+        id: 'teacher',
+        label: t('plcDashboard.newAssignment.quiz.modeTeacherLabel', {
+          defaultValue: 'Teacher-paced',
+        }),
+        description: t(
+          'plcDashboard.newAssignment.quiz.modeTeacherDescription',
+          {
+            defaultValue: 'You control when to move to the next question.',
+          }
+        ),
+        icon: User,
+      },
+      {
+        id: 'auto',
+        label: t('plcDashboard.newAssignment.quiz.modeAutoLabel', {
+          defaultValue: 'Auto-progress',
+        }),
+        description: t('plcDashboard.newAssignment.quiz.modeAutoDescription', {
+          defaultValue: 'Moves automatically once everyone has answered.',
+        }),
+        icon: Zap,
+      },
+      {
+        id: 'student',
+        label: t('plcDashboard.newAssignment.quiz.modeStudentLabel', {
+          defaultValue: 'Self-paced',
+        }),
+        description: t(
+          'plcDashboard.newAssignment.quiz.modeStudentDescription',
+          {
+            defaultValue: 'Students move through questions at their own speed.',
+          }
+        ),
+        icon: Clock,
+      },
+    ],
+    [t]
+  );
 
   const pickerItems: PlcSharePickerItem[] = useMemo(
     () =>
@@ -509,7 +534,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
       isOpen
       onClose={onClose}
       itemTitle={pickedQuiz.title}
-      modes={QUIZ_MODES}
+      modes={quizModes}
       selectedMode={selectedMode ?? undefined}
       onModeChange={(id) => setSelectedMode(id as QuizSessionMode)}
       options={options}
@@ -540,28 +565,50 @@ export const PlcNewQuizAssignmentModal: React.FC<
             // primitive renders a "self-paced only" hint when disabled.
             shuffleQuestionsAvailable={selectedMode === 'student'}
             trailingSlot={
-              <CollapsibleSection label="Gamification">
+              <CollapsibleSection
+                label={t('plcDashboard.newAssignment.quiz.gamification.title', {
+                  defaultValue: 'Gamification',
+                })}
+              >
                 <ToggleRow
                   compact
-                  label="Speed Bonus Points"
+                  label={t(
+                    'plcDashboard.newAssignment.quiz.gamification.speedBonusLabel',
+                    { defaultValue: 'Speed Bonus Points' }
+                  )}
                   checked={options.speedBonusEnabled}
                   onChange={(v) =>
                     setOptions((p) => ({ ...p, speedBonusEnabled: v }))
                   }
-                  hint="Up to 50% bonus for fast answers"
+                  hint={t(
+                    'plcDashboard.newAssignment.quiz.gamification.speedBonusHint',
+                    { defaultValue: 'Up to 50% bonus for fast answers' }
+                  )}
                 />
                 <ToggleRow
                   compact
-                  label="Streak Bonuses"
+                  label={t(
+                    'plcDashboard.newAssignment.quiz.gamification.streakLabel',
+                    { defaultValue: 'Streak Bonuses' }
+                  )}
                   checked={options.streakBonusEnabled}
                   onChange={(v) =>
                     setOptions((p) => ({ ...p, streakBonusEnabled: v }))
                   }
-                  hint="Multiplier for consecutive correct answers"
+                  hint={t(
+                    'plcDashboard.newAssignment.quiz.gamification.streakHint',
+                    {
+                      defaultValue:
+                        'Multiplier for consecutive correct answers',
+                    }
+                  )}
                 />
                 <ToggleRow
                   compact
-                  label="Podium Between Questions"
+                  label={t(
+                    'plcDashboard.newAssignment.quiz.gamification.podiumLabel',
+                    { defaultValue: 'Podium Between Questions' }
+                  )}
                   checked={options.showPodiumBetweenQuestions}
                   onChange={(v) =>
                     setOptions((p) => ({
@@ -569,16 +616,31 @@ export const PlcNewQuizAssignmentModal: React.FC<
                       showPodiumBetweenQuestions: v,
                     }))
                   }
-                  hint="Show top 3 leaderboard after each question"
+                  hint={t(
+                    'plcDashboard.newAssignment.quiz.gamification.podiumHint',
+                    {
+                      defaultValue:
+                        'Show top 3 leaderboard after each question',
+                    }
+                  )}
                 />
                 <ToggleRow
                   compact
-                  label="Sound Effects"
+                  label={t(
+                    'plcDashboard.newAssignment.quiz.gamification.soundLabel',
+                    { defaultValue: 'Sound Effects' }
+                  )}
                   checked={options.soundEffectsEnabled}
                   onChange={(v) =>
                     setOptions((p) => ({ ...p, soundEffectsEnabled: v }))
                   }
-                  hint="Chimes, ticks, and fanfares during the quiz"
+                  hint={t(
+                    'plcDashboard.newAssignment.quiz.gamification.soundHint',
+                    {
+                      defaultValue:
+                        'Chimes, ticks, and fanfares during the quiz',
+                    }
+                  )}
                 />
               </CollapsibleSection>
             }

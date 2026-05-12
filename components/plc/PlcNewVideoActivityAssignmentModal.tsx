@@ -118,38 +118,22 @@ function buildDefaultVaOptions(defaultTeacherName?: string): VaAssignOptions {
   };
 }
 
-const REWIND_OPTIONS: { label: string; value: number }[] = [
-  { label: 'Off', value: 0 },
-  { label: '15s', value: 15 },
-  { label: '30s', value: 30 },
-  { label: '60s', value: 60 },
-];
+// `REWIND_OPTIONS` and `SCORE_VISIBILITY_OPTIONS` are built inside the
+// component via `useMemo` so their labels / hints route through `t()`.
+// Module-scope literals would freeze the English strings at import time.
 
-const SCORE_VISIBILITY_OPTIONS: {
-  value: VideoActivityScoreVisibility;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: 'none',
-    label: 'Hidden',
-    hint: "Students see 'Submitted' only — no score.",
-  },
-  {
-    value: 'score-only',
-    label: 'Score',
-    hint: 'Students see their final score, no per-question detail.',
-  },
-  {
-    value: 'score-and-responses',
-    label: 'Score + responses',
-    hint: 'Students see their score and which questions they got right/wrong.',
-  },
-  {
-    value: 'score-responses-and-answers',
-    label: 'Full review',
-    hint: 'Students see their score, right/wrong, and the correct answers.',
-  },
+/** Rewind-second values, label-free. The label is `t()`-derived per render. */
+const REWIND_SECONDS: readonly number[] = [0, 15, 30, 60];
+
+/**
+ * The selectable score-visibility levels in display order. The label and hint
+ * for each level live in the component's `t()`-built memo below.
+ */
+const SCORE_VISIBILITY_VALUES: readonly VideoActivityScoreVisibility[] = [
+  'none',
+  'score-only',
+  'score-and-responses',
+  'score-responses-and-answers',
 ];
 
 function formatRelativeDate(ms: number): string {
@@ -195,6 +179,95 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
         }),
       })),
     [activities, t]
+  );
+
+  // Memos must live above the early `return null` / picker-step branches
+  // below to satisfy the rules-of-hooks ordering constraint.
+  const rewindOptions = useMemo<{ label: string; value: number }[]>(
+    () =>
+      REWIND_SECONDS.map((value) => ({
+        value,
+        label:
+          value === 0
+            ? t('plcDashboard.newAssignment.video.rewindOff', {
+                defaultValue: 'Off',
+              })
+            : t('plcDashboard.newAssignment.video.rewindSeconds', {
+                seconds: value,
+                defaultValue: '{{seconds}}s',
+              }),
+      })),
+    [t]
+  );
+
+  const scoreVisibilityOptions = useMemo<
+    { value: VideoActivityScoreVisibility; label: string; hint: string }[]
+  >(
+    () =>
+      SCORE_VISIBILITY_VALUES.map((value) => {
+        switch (value) {
+          case 'none':
+            return {
+              value,
+              label: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.noneLabel',
+                { defaultValue: 'Hidden' }
+              ),
+              hint: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.noneHint',
+                {
+                  defaultValue: "Students see 'Submitted' only — no score.",
+                }
+              ),
+            };
+          case 'score-only':
+            return {
+              value,
+              label: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.scoreOnlyLabel',
+                { defaultValue: 'Score' }
+              ),
+              hint: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.scoreOnlyHint',
+                {
+                  defaultValue:
+                    'Students see their final score, no per-question detail.',
+                }
+              ),
+            };
+          case 'score-and-responses':
+            return {
+              value,
+              label: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.scoreAndResponsesLabel',
+                { defaultValue: 'Score + responses' }
+              ),
+              hint: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.scoreAndResponsesHint',
+                {
+                  defaultValue:
+                    'Students see their score and which questions they got right/wrong.',
+                }
+              ),
+            };
+          case 'score-responses-and-answers':
+            return {
+              value,
+              label: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.fullReviewLabel',
+                { defaultValue: 'Full review' }
+              ),
+              hint: t(
+                'plcDashboard.newAssignment.video.scoreVisibility.fullReviewHint',
+                {
+                  defaultValue:
+                    'Students see their score, right/wrong, and the correct answers.',
+                }
+              ),
+            };
+        }
+      }),
+    [t]
   );
 
   const plcSheetUrlInvalid =
@@ -353,6 +426,18 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           className: options.className.trim() || pickedActivity.title,
           sessionSettings: options.sessionSettings,
           sessionOptions: options.sessionOptions,
+          // Mirror the score-visibility selection onto the top-level
+          // `settings.scoreVisibility` field that the assignment doc
+          // actually persists — the hook reads this field, not
+          // `sessionOptions.scoreVisibility`, when writing the
+          // assignment / session docs. (Per-review thread on PR #1598.)
+          // Once the teacher runs Publish Scores, the session doc's
+          // `scoreVisibility` field is what gates the student grading
+          // path; this top-level write is what the publish flow reads
+          // back as the default level.
+          ...(options.sessionOptions.scoreVisibility
+            ? { scoreVisibility: options.sessionOptions.scoreVisibility }
+            : {}),
           periodNames: derived.periodNames,
           periodName: derived.periodNames[0],
           teacherName: options.teacherName.trim() || undefined,
@@ -509,10 +594,21 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
           />
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 space-y-3">
-            <SectionHeader label="Player Behavior" />
+            <SectionHeader
+              label={t(
+                'plcDashboard.newAssignment.video.playerBehavior.title',
+                { defaultValue: 'Player Behavior' }
+              )}
+            />
             <ToggleRow
-              label="Auto-Play"
-              hint="Start video automatically after join"
+              label={t(
+                'plcDashboard.newAssignment.video.playerBehavior.autoPlayLabel',
+                { defaultValue: 'Auto-Play' }
+              )}
+              hint={t(
+                'plcDashboard.newAssignment.video.playerBehavior.autoPlayHint',
+                { defaultValue: 'Start video automatically after join' }
+              )}
               checked={options.sessionSettings.autoPlay}
               onChange={(v) =>
                 setOptions((p) => ({
@@ -522,8 +618,14 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
               }
             />
             <ToggleRow
-              label="Require Correct Answers"
-              hint="Incorrect answers rewind to section start"
+              label={t(
+                'plcDashboard.newAssignment.video.playerBehavior.requireCorrectLabel',
+                { defaultValue: 'Require Correct Answers' }
+              )}
+              hint={t(
+                'plcDashboard.newAssignment.video.playerBehavior.requireCorrectHint',
+                { defaultValue: 'Incorrect answers rewind to section start' }
+              )}
               checked={options.sessionSettings.requireCorrectAnswer}
               onChange={(v) =>
                 setOptions((p) => ({
@@ -536,8 +638,14 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
               }
             />
             <ToggleRow
-              label="Allow Skipping"
-              hint="Let students scrub ahead"
+              label={t(
+                'plcDashboard.newAssignment.video.playerBehavior.allowSkippingLabel',
+                { defaultValue: 'Allow Skipping' }
+              )}
+              hint={t(
+                'plcDashboard.newAssignment.video.playerBehavior.allowSkippingHint',
+                { defaultValue: 'Let students scrub ahead' }
+              )}
               checked={options.sessionSettings.allowSkipping}
               onChange={(v) =>
                 setOptions((p) => ({
@@ -579,26 +687,45 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
                 sessionOptions: { ...p.sessionOptions, attemptLimit: v },
               }))
             }
-            attemptLimitHint="Limit how many times each student can complete the activity. Reset by removing them from the live monitor."
-            integritySectionLabel="Activity Integrity"
+            attemptLimitHint={t(
+              'plcDashboard.newAssignment.video.attemptLimitHint',
+              {
+                defaultValue:
+                  'Limit how many times each student can complete the activity. Reset by removing them from the live monitor.',
+              }
+            )}
+            integritySectionLabel={t(
+              'plcDashboard.newAssignment.video.integritySectionLabel',
+              { defaultValue: 'Activity Integrity' }
+            )}
             trailingSlot={
               <div className="space-y-3 pt-1">
-                <SectionHeader label="Scoring & Penalties" />
+                <SectionHeader
+                  label={t('plcDashboard.newAssignment.video.scoring.title', {
+                    defaultValue: 'Scoring & Penalties',
+                  })}
+                />
                 <div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-bold text-brand-blue-dark">
-                      Rewind on Incorrect
+                      {t(
+                        'plcDashboard.newAssignment.video.scoring.rewindLabel',
+                        { defaultValue: 'Rewind on Incorrect' }
+                      )}
                     </span>
                     <div
                       role="group"
-                      aria-label="Rewind seconds on incorrect answer"
+                      aria-label={t(
+                        'plcDashboard.newAssignment.video.scoring.rewindAriaLabel',
+                        { defaultValue: 'Rewind seconds on incorrect answer' }
+                      )}
                       className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
                     >
-                      {REWIND_OPTIONS.map((opt) => {
+                      {rewindOptions.map((opt) => {
                         const active = rewind === opt.value;
                         return (
                           <button
-                            key={opt.label}
+                            key={opt.value}
                             type="button"
                             aria-pressed={active}
                             onClick={() =>
@@ -624,14 +751,19 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
                     </div>
                   </div>
                   <p className="text-xxs text-slate-500 mt-0.5">
-                    Send the video back this many seconds when a student answers
-                    wrong.
+                    {t('plcDashboard.newAssignment.video.scoring.rewindHint', {
+                      defaultValue:
+                        'Send the video back this many seconds when a student answers wrong.',
+                    })}
                   </p>
                 </div>
                 <div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-bold text-brand-blue-dark">
-                      Point Penalty per Incorrect
+                      {t(
+                        'plcDashboard.newAssignment.video.scoring.penaltyLabel',
+                        { defaultValue: 'Point Penalty per Incorrect' }
+                      )}
                     </span>
                     <input
                       type="number"
@@ -654,14 +786,19 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
                     />
                   </div>
                   <p className="text-xxs text-slate-500 mt-0.5">
-                    Subtract this many points each time a student answers wrong.
-                    0 = off.
+                    {t('plcDashboard.newAssignment.video.scoring.penaltyHint', {
+                      defaultValue:
+                        'Subtract this many points each time a student answers wrong. 0 = off.',
+                    })}
                   </p>
                 </div>
                 <div>
                   <div className="flex items-center justify-between gap-3">
                     <span className="text-sm font-bold text-brand-blue-dark">
-                      Score Visibility
+                      {t(
+                        'plcDashboard.newAssignment.video.scoring.visibilityLabel',
+                        { defaultValue: 'Score Visibility' }
+                      )}
                     </span>
                     <select
                       value={visibility}
@@ -677,7 +814,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
                       }
                       className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
                     >
-                      {SCORE_VISIBILITY_OPTIONS.map((opt) => (
+                      {scoreVisibilityOptions.map((opt) => (
                         <option key={opt.value} value={opt.value}>
                           {opt.label}
                         </option>
@@ -685,9 +822,8 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
                     </select>
                   </div>
                   <p className="text-xxs text-slate-500 mt-0.5">
-                    {SCORE_VISIBILITY_OPTIONS.find(
-                      (o) => o.value === visibility
-                    )?.hint ?? ''}
+                    {scoreVisibilityOptions.find((o) => o.value === visibility)
+                      ?.hint ?? ''}
                   </p>
                 </div>
               </div>
