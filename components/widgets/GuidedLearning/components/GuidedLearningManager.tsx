@@ -369,8 +369,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = React.useState(false);
   const [bulkBusy, setBulkBusy] = React.useState(false);
-  // Phase 5 follow-up — preview pane state (see QuizManager).
-  const [previewEntry, setPreviewEntry] = React.useState<LibraryEntry | null>(
+  // Phase 5 follow-up — preview pane state. Stores the entry's
+  // composite id (`personal:abc` / `building:xyz`); the live entry is
+  // derived from `reorder.orderedItems` at render time so the pane
+  // tracks Firestore updates and auto-closes on deletion (subagent
+  // review flag on PR #1588).
+  const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(
     null
   );
   const [prevTab, setPrevTab] = React.useState(tab);
@@ -771,7 +775,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         // click opens the editor (when the user can edit; for read-only
         // building cards seen by non-admins, single-click still opens
         // preview but double-click is a no-op).
-        onClick={() => setPreviewEntry(entry)}
+        onClick={() => setPreviewEntryId(entry.id)}
         onDoubleClick={
           canEdit
             ? () => onEdit(rawId, entry.driveFileId, entry.buildingSet)
@@ -1006,22 +1010,29 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
             }
           />
         </div>
-        {previewEntry && (
-          <GuidedLearningPreviewPane
-            entry={previewEntry}
-            onClose={() => setPreviewEntry(null)}
-            onEdit={(e) => {
-              const target = e;
-              setPreviewEntry(null);
-              const id =
-                target.source === 'personal'
-                  ? target.id.slice('personal:'.length)
-                  : target.id.slice('building:'.length);
-              onEdit(id, target.driveFileId, target.buildingSet);
-            }}
-            canEdit={previewEntry.source === 'building' ? isAdmin : true}
-          />
-        )}
+        {(() => {
+          const livePreviewEntry = previewEntryId
+            ? (reorder.orderedItems.find((e) => e.id === previewEntryId) ??
+              null)
+            : null;
+          if (!livePreviewEntry) return null;
+          return (
+            <GuidedLearningPreviewPane
+              entry={livePreviewEntry}
+              onClose={() => setPreviewEntryId(null)}
+              onEdit={(e) => {
+                const target = e;
+                setPreviewEntryId(null);
+                const id =
+                  target.source === 'personal'
+                    ? target.id.slice('personal:'.length)
+                    : target.id.slice('building:'.length);
+                onEdit(id, target.driveFileId, target.buildingSet);
+              }}
+              canEdit={livePreviewEntry.source === 'building' ? isAdmin : true}
+            />
+          );
+        })()}
       </div>
     );
   };

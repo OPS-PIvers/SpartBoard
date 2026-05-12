@@ -92,6 +92,7 @@ import {
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
 import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
+import { extractYouTubeId } from '@/utils/youtube';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -517,9 +518,16 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
-  // Phase 5 follow-up — preview pane state (see QuizManager).
-  const [previewActivity, setPreviewActivity] =
-    useState<VideoActivityMetadata | null>(null);
+  // Phase 5 follow-up — preview pane state. Stores id only so the pane
+  // always reflects the latest snapshot in `activities` (subagent
+  // review flag on PR #1588).
+  const [previewActivityId, setPreviewActivityId] = useState<string | null>(
+    null
+  );
+  const previewActivity =
+    previewActivityId != null
+      ? (activities.find((a) => a.id === previewActivityId) ?? null)
+      : null;
   const [prevManagerTab, setPrevManagerTab] = useState(tab);
   if (prevManagerTab !== tab) {
     setPrevManagerTab(tab);
@@ -906,7 +914,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 secondaryActions={secondaryActions}
                 // Phase 5 follow-up — single-click opens preview pane,
                 // double-click opens editor. See QuizManager for rationale.
-                onClick={() => setPreviewActivity(activity)}
+                onClick={() => setPreviewActivityId(activity.id)}
                 onDoubleClick={() => onEdit(activity)}
                 viewMode={libraryView.state.viewMode}
                 meta={activity}
@@ -921,7 +929,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       {previewActivity && (
         <LibraryPreviewPane
           isOpen={true}
-          onClose={() => setPreviewActivity(null)}
+          onClose={() => setPreviewActivityId(null)}
           title={previewActivity.title}
           subtitle={
             <>
@@ -937,7 +945,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
             icon: Edit2,
             onClick: () => {
               const a = previewActivity;
-              setPreviewActivity(null);
+              setPreviewActivityId(null);
               onEdit(a);
             },
           }}
@@ -1604,10 +1612,13 @@ const VideoActivityPreviewPaneContent: React.FC<{
   const updated = activity.updatedAt
     ? new Date(activity.updatedAt).toLocaleDateString()
     : null;
-  // Extract the YouTube video id from common URL shapes (watch?v=…, youtu.be/…)
-  // so we can show the standard thumbnail. Returns null on anything we
-  // don't recognise — pane falls back to a neutral placeholder.
-  const youtubeId = extractYouTubeId(activity.youtubeUrl);
+  // Reuse the canonical YouTube-URL helper so the pane recognises the
+  // full URL set the Creator path accepts (watch?v=, youtu.be/, embed/,
+  // v/, shorts/, watch?…&v=). Returns null on anything else — pane
+  // falls back to a neutral placeholder.
+  const youtubeId = activity.youtubeUrl
+    ? extractYouTubeId(activity.youtubeUrl)
+    : null;
   return (
     <div className="flex flex-col gap-3 text-sm text-slate-700">
       {youtubeId ? (
@@ -1630,20 +1641,6 @@ const VideoActivityPreviewPaneContent: React.FC<{
     </div>
   );
 };
-
-function extractYouTubeId(url: string | undefined): string | null {
-  if (!url) return null;
-  try {
-    const u = new URL(url);
-    if (u.hostname === 'youtu.be') return u.pathname.slice(1) || null;
-    if (u.hostname.endsWith('youtube.com')) {
-      return u.searchParams.get('v');
-    }
-  } catch {
-    return null;
-  }
-  return null;
-}
 
 const VAStat: React.FC<{ label: string; value: string }> = ({
   label,

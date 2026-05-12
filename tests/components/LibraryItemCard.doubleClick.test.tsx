@@ -17,7 +17,15 @@
  */
 
 import React from 'react';
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeAll,
+  afterAll,
+  afterEach,
+} from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { DndContext } from '@dnd-kit/core';
 import { SortableContext } from '@dnd-kit/sortable';
@@ -28,6 +36,14 @@ beforeAll(() => {
   // The card uses real timers via setTimeout; vitest's fake timers let
   // us assert the 250ms boundary without flaky `await new Promise`.
   vi.useFakeTimers();
+});
+
+afterAll(() => {
+  // Defensive — Vitest defaults to per-file isolation today so the
+  // beforeAll fake-timer install is automatically torn down between
+  // files, but if isolation is ever disabled for performance this
+  // explicit reset prevents fake timers from leaking into other suites.
+  vi.useRealTimers();
 });
 
 afterEach(() => {

@@ -323,10 +323,15 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
-  // Phase 5 follow-up — preview pane state (see QuizManager).
-  // Holds the row, not just the item, so the pane can render different
-  // chrome for personal vs global apps.
-  const [previewRow, setPreviewRow] = useState<UnifiedRow | null>(null);
+  // Phase 5 follow-up — preview pane state. Stores the row's composite
+  // id (e.g. `personal:abc`/`global:xyz`); deriving the live row from
+  // the current `view.visibleItems` on every render means the pane
+  // always shows the latest Firestore snapshot and auto-closes when an
+  // admin republishes a global app or a teacher's library shifts the
+  // row away (subagent review flag on PR #1588: the previous
+  // object-pinned state could have routed "Save to my library" against
+  // the stale HTML of a republished global app).
+  const [previewRowId, setPreviewRowId] = useState<string | null>(null);
   const [prevTab, setPrevTab] = useState(tab);
   if (prevTab !== tab) {
     setPrevTab(tab);
@@ -693,7 +698,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         secondaryActions={secondary}
         // Phase 5 follow-up — single-click opens preview pane,
         // double-click opens editor.
-        onClick={() => setPreviewRow(row)}
+        onClick={() => setPreviewRowId(getRowId(row))}
         onDoubleClick={() => onEdit(app)}
         sortable={!selectionMode}
         viewMode={view.state.viewMode}
@@ -788,7 +793,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
         // before clicking "Save to my library"); no double-click for
         // editor because there is no editor for global apps from this
         // surface.
-        onClick={() => setPreviewRow(row)}
+        onClick={() => setPreviewRowId(getRowId(row))}
         sortable={false}
         viewMode={view.state.viewMode}
       />
@@ -1068,16 +1073,23 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
             emptyState={empty}
           />
         </div>
-        {previewRow && (
-          <MiniAppPreviewPane
-            row={previewRow}
-            onClose={() => setPreviewRow(null)}
-            onEdit={onEdit}
-            onSaveGlobalToLibrary={onSaveGlobalToLibrary}
-            savingGlobalId={savingGlobalId}
-            isViewOnly={isViewOnly}
-          />
-        )}
+        {(() => {
+          const livePreviewRow = previewRowId
+            ? (view.visibleItems.find((r) => getRowId(r) === previewRowId) ??
+              null)
+            : null;
+          if (!livePreviewRow) return null;
+          return (
+            <MiniAppPreviewPane
+              row={livePreviewRow}
+              onClose={() => setPreviewRowId(null)}
+              onEdit={onEdit}
+              onSaveGlobalToLibrary={onSaveGlobalToLibrary}
+              savingGlobalId={savingGlobalId}
+              isViewOnly={isViewOnly}
+            />
+          );
+        })()}
       </div>
     );
   }
@@ -1228,11 +1240,24 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
 /**
  * Preview pane content for the MiniAppManager. Renders the app's HTML
  * inside a sandboxed iframe so the teacher can see what the app looks
- * like before opening the editor. The iframe `sandbox` attribute
- * isolates the app from the host (no parent access, no top-level
- * navigation), and `allow-scripts` is the only capability granted —
- * matches the runtime player's sandbox shape so the preview is a
- * faithful glance at what students will see.
+ * like before opening the editor.
+ *
+ * Security note — the preview sandbox is DELIBERATELY tighter than the
+ * runtime player's:
+ *
+ *   preview:  sandbox="allow-scripts"
+ *   runtime:  sandbox="allow-scripts allow-forms allow-popups allow-modals
+ *                      allow-same-origin"
+ *
+ * The runtime grants `allow-same-origin` so apps can use localStorage /
+ * postMessage origin checks. In preview we keep the iframe at a null
+ * origin so a teacher inspecting a malicious global app (review path)
+ * can't have it reach `parent.window` and read the host DOM. That makes
+ * the preview a strict subset of what students will see: apps that rely
+ * on `allow-same-origin`, forms POST, `window.open`, or
+ * `alert/confirm/prompt` will look broken in preview yet work at
+ * runtime. The trade-off favors safety on the inspection surface; the
+ * runtime is the source of truth.
  */
 const MiniAppPreviewPane: React.FC<{
   row: UnifiedRow;
@@ -1287,11 +1312,8 @@ const MiniAppPreviewPane: React.FC<{
       }
     >
       {/*
-        Sandbox notes: `allow-scripts` is required for almost every mini-
-        app (no scripts = nothing happens). We deliberately do NOT grant
-        `allow-same-origin`, which keeps the iframe in a null origin and
-        prevents reading the parent's cookies/storage/DOM. `srcDoc`
-        avoids needing a real URL — the HTML is inlined directly.
+        See the component header for the sandbox security trade-off.
+        `srcDoc` inlines the HTML directly so no real URL is needed.
       */}
       <iframe
         title={`Preview of ${app.title}`}

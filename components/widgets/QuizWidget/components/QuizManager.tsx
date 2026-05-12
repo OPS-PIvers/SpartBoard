@@ -642,10 +642,12 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   const selection = useLibrarySelection();
   const [selectionMode, setSelectionMode] = useState(false);
   const [bulkBusy, setBulkBusy] = useState(false);
-  // Phase 5 follow-up — preview pane state. Single-click on a card sets
-  // this; double-click bypasses to the editor directly. The pane lives
-  // beside the grid in a flex-row layout when set.
-  const [previewQuiz, setPreviewQuiz] = useState<QuizMetadata | null>(null);
+  // Phase 5 follow-up — preview pane state. We store the id (not the
+  // metadata object) so the pane always reflects the latest Firestore
+  // snapshot for the previewed quiz. Storing the object pinned the pane
+  // to a stale copy and routed the "Open editor" primary action to a
+  // possibly-deleted quiz id (subagent review flag on PR #1588).
+  const [previewQuizId, setPreviewQuizId] = useState<string | null>(null);
   // Exit selection mode if the user leaves the library tab
   const [prevManagerTab, setPrevManagerTab] = useState(managerTab);
   if (prevManagerTab !== managerTab) {
@@ -1481,8 +1483,16 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           onBulkMove={handleBulkMove}
           onBulkDelete={handleBulkDelete}
           primaryActionLabel={primaryActionLabel}
-          previewQuiz={previewQuiz}
-          onPreviewQuiz={setPreviewQuiz}
+          // Derive the live snapshot from `quizzes` so Firestore updates
+          // (rename / question edit / sync push) flow through the pane.
+          // When the previewed quiz is deleted upstream, `find` returns
+          // undefined and the pane unmounts.
+          previewQuiz={
+            previewQuizId
+              ? (quizzes.find((q) => q.id === previewQuizId) ?? null)
+              : null
+          }
+          onPreviewQuiz={(quiz) => setPreviewQuizId(quiz ? quiz.id : null)}
           onOpenFullPreview={onPreview}
         />
       )}

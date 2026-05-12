@@ -22,6 +22,7 @@ import {
   type QuizSessionOptions,
 } from '@/hooks/useQuizSession';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import {
   callLeaveSyncedQuizGroup,
@@ -194,13 +195,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [loadingQuizData, setLoadingQuizData] = useState(false);
   const [dataError, setDataError] = useState<string | null>(null);
 
-  // Tracks quiz ids whose duplicate is currently in-flight. Used to
-  // disable the Duplicate kebab on a per-row basis so a rapid
-  // double-click doesn't create two identical-titled copies + burn 2x
-  // Drive API calls. Empty set → no in-flight duplicates.
-  const [duplicatingQuizIds, setDuplicatingQuizIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
+  // Rapid-double-click guard for the Duplicate kebab. The shared hook
+  // owns the set, the `run()` wrapper, and the no-op-on-busy semantics
+  // so the four library widgets stay in lockstep.
+  const duplicateBusy = useBusyIdSet();
 
   // Bump a token whenever the user navigates INTO the results view so the
   // QuizResults consumer remounts with fresh memos over the current live
@@ -1391,35 +1389,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         }}
-        onDuplicate={async (meta) => {
-          // Guard against rapid double-clicks: the kebab also disables
-          // itself via `isDuplicating`, but the manager renders the
-          // disabled-state on the NEXT React commit so a 60-fps user can
-          // still squeeze through two clicks before the disable lands.
-          if (duplicatingQuizIds.has(meta.id)) return;
-          setDuplicatingQuizIds((prev) => {
-            const next = new Set(prev);
-            next.add(meta.id);
-            return next;
-          });
-          try {
-            const copy = await duplicateQuiz(meta);
-            addToast(`Duplicated as "${copy.title}".`, 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Duplicate failed',
-              'error'
-            );
-          } finally {
-            setDuplicatingQuizIds((prev) => {
-              if (!prev.has(meta.id)) return prev;
-              const next = new Set(prev);
-              next.delete(meta.id);
-              return next;
-            });
-          }
-        }}
-        isDuplicating={(quizId) => duplicatingQuizIds.has(quizId)}
+        onDuplicate={(meta) =>
+          void duplicateBusy.run(meta.id, async () => {
+            try {
+              const copy = await duplicateQuiz(meta);
+              addToast(`Duplicated as "${copy.title}".`, 'success');
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Duplicate failed',
+                'error'
+              );
+            }
+          })
+        }
+        isDuplicating={duplicateBusy.isBusy}
         onBulkDelete={async (metas): Promise<boolean> => {
           // Aggregated variant of the single-quiz onDelete handler above.
           // Partitions targets into:

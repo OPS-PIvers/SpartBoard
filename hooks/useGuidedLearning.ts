@@ -303,23 +303,33 @@ export const useGuidedLearning = (
    * Building-set duplicate. Firestore-only — no Drive rollback path
    * needed because the failure mode is a single `setDoc` rejection
    * with no orphan to clean up.
+   *
+   * Re-attributes `authorUid` to the current admin. The spread of
+   * `...source` would otherwise carry the original author's uid into
+   * the copy, which mis-attributes the audit trail and (since the
+   * project's user-deletion sweep checks authorUid) makes the copy
+   * appear as content owned by a possibly-since-deleted author.
+   * Storage image refs are shared with the source — matches the
+   * personal-set policy in `duplicateSet`.
    */
   const duplicateBuildingSet = useCallback(
     async (source: GuidedLearningSet): Promise<GuidedLearningSet> => {
       if (!isAdmin) throw new Error('Admin access required');
+      if (!userId) throw new Error('Not authenticated');
       const now = Date.now();
       const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
         ...source,
         id: crypto.randomUUID(),
         title: suggestDuplicateTitle(source.title),
         isBuilding: true,
+        authorUid: userId,
         createdAt: now,
         updatedAt: now,
       });
       await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
       return fresh;
     },
-    [isAdmin]
+    [isAdmin, userId]
   );
 
   const deleteBuildingSet = useCallback(

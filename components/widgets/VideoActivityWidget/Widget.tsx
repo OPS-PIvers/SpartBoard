@@ -25,6 +25,7 @@ import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivitySessionTeacher } from '@/hooks/useVideoActivitySession';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { useFolders } from '@/hooks/useFolders';
 import { VideoActivityManager } from './components/VideoActivityManager';
 import { Creator } from './components/Creator';
@@ -129,10 +130,8 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     null
   );
 
-  // In-flight Duplicate kebab guard — see QuizWidget for the rationale.
-  const [duplicatingActivityIds, setDuplicatingActivityIds] = useState<
-    ReadonlySet<string>
-  >(() => new Set());
+  // Shared rapid-click guard. See `hooks/useBusyIdSet.ts`.
+  const duplicateBusy = useBusyIdSet();
 
   const { folders: videoActivityFolders, moveItem: moveVideoActivityItem } =
     useFolders(user?.uid, 'video_activity');
@@ -531,31 +530,20 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             );
           }
         }}
-        onDuplicate={async (meta) => {
-          if (duplicatingActivityIds.has(meta.id)) return;
-          setDuplicatingActivityIds((prev) => {
-            const next = new Set(prev);
-            next.add(meta.id);
-            return next;
-          });
-          try {
-            const copy = await duplicateActivity(meta);
-            addToast(`Duplicated as "${copy.title}".`, 'success');
-          } catch (err) {
-            addToast(
-              err instanceof Error ? err.message : 'Duplicate failed',
-              'error'
-            );
-          } finally {
-            setDuplicatingActivityIds((prev) => {
-              if (!prev.has(meta.id)) return prev;
-              const next = new Set(prev);
-              next.delete(meta.id);
-              return next;
-            });
-          }
-        }}
-        isDuplicating={(activityId) => duplicatingActivityIds.has(activityId)}
+        onDuplicate={(meta) =>
+          void duplicateBusy.run(meta.id, async () => {
+            try {
+              const copy = await duplicateActivity(meta);
+              addToast(`Duplicated as "${copy.title}".`, 'success');
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Duplicate failed',
+                'error'
+              );
+            }
+          })
+        }
+        isDuplicating={duplicateBusy.isBusy}
         assignments={assignments}
         assignmentsLoading={assignmentsLoading}
         onArchiveCopyUrl={(assignment) => {
