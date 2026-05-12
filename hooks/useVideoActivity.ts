@@ -33,6 +33,7 @@ import {
 } from '@/utils/mockQuizDriveService';
 import type { QuizData } from '@/types';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { logError } from '@/utils/logError';
 
 const VIDEO_ACTIVITIES_COLLECTION = 'video_activities';
 
@@ -207,9 +208,17 @@ export const useVideoActivity = (
     [userId, getDriveService]
   );
 
+  /**
+   * Hand-rolled write (not via `saveActivity`) so we can observe the
+   * freshly-created Drive file id and roll it back on Firestore failure
+   * — `saveActivity` only surfaces the id on success and would leak an
+   * orphan Drive file otherwise. Mirrors the rollback path in
+   * `useQuiz.duplicateQuiz`. Reviewer flag from PR #1587.
+   */
   const duplicateActivity = useCallback(
     async (source: VideoActivityMetadata): Promise<VideoActivityMetadata> => {
       if (!userId) throw new Error('Not authenticated');
+      const drive = getDriveService();
       const sourceData = await loadActivityData(source.driveFileId);
       const now = Date.now();
       const fresh: VideoActivityData = {
@@ -219,9 +228,44 @@ export const useVideoActivity = (
         createdAt: now,
         updatedAt: now,
       };
-      return saveActivity(fresh);
+      let createdDriveFileId: string | undefined;
+      try {
+        // The Drive service is reused from the quiz path — it stores
+        // arbitrary JSON, so the cast is structural.
+        createdDriveFileId = await drive.saveQuiz(fresh as unknown as QuizData);
+        const metadata: VideoActivityMetadata = {
+          id: fresh.id,
+          title: fresh.title,
+          youtubeUrl: fresh.youtubeUrl,
+          driveFileId: createdDriveFileId,
+          questionCount: fresh.questions.length,
+          createdAt: fresh.createdAt,
+          updatedAt: fresh.updatedAt,
+        };
+        await setDoc(
+          doc(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION, fresh.id),
+          metadata
+        );
+        return metadata;
+      } catch (err) {
+        if (createdDriveFileId) {
+          try {
+            await drive.deleteQuizFile(createdDriveFileId);
+          } catch (rollbackErr) {
+            logError(
+              'useVideoActivity.duplicateActivity.rollback',
+              rollbackErr,
+              {
+                sourceActivityId: source.id,
+                orphanDriveFileId: createdDriveFileId,
+              }
+            );
+          }
+        }
+        throw err;
+      }
     },
-    [userId, loadActivityData, saveActivity]
+    [userId, getDriveService, loadActivityData]
   );
 
   const createTemplateSheet = useCallback(

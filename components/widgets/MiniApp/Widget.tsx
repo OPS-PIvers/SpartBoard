@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { logError } from '@/utils/logError';
 import { WidgetLayout } from '../WidgetLayout';
 import { useAuth } from '@/context/useAuth';
 import { useMiniAppSessionTeacher } from '@/hooks/useMiniAppSession';
@@ -774,7 +775,10 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
       await setDoc(doc(appsRef, copy.id), copy);
       addToast(`Duplicated as "${copy.title}".`, 'success');
     } catch (err) {
-      console.error(err);
+      logError('MiniAppWidget.handleDuplicate', err, {
+        userId: user.uid,
+        sourceAppId: app.id,
+      });
       addToast(
         err instanceof Error ? err.message : 'Duplicate failed',
         'error'

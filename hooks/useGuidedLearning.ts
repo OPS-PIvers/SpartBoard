@@ -26,6 +26,7 @@ import {
 } from '@/utils/mockGuidedLearningDriveService';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { logError } from '@/utils/logError';
 
 const GL_COLLECTION = 'guided_learning';
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
@@ -209,14 +210,22 @@ export const useGuidedLearning = (
     [userId, getDriveService]
   );
 
+  /**
+   * Hand-rolled write (not via `saveSet`) so we can observe the
+   * freshly-created Drive file id and roll it back on Firestore
+   * failure — `saveSet` only surfaces the id on success and would
+   * leak an orphan Drive file otherwise. Mirrors `useQuiz.duplicateQuiz`.
+   * Reviewer flag from PR #1587.
+   */
   const duplicateSet = useCallback(
     async (
       source: GuidedLearningSetMetadata
     ): Promise<GuidedLearningSetMetadata> => {
       if (!userId) throw new Error('Not authenticated');
+      const drive = getDriveService();
       const sourceData = await loadSetData(source.driveFileId);
       const now = Date.now();
-      const fresh: GuidedLearningSet = {
+      const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
         ...sourceData,
         id: crypto.randomUUID(),
         title: suggestDuplicateTitle(sourceData.title || source.title),
@@ -225,10 +234,41 @@ export const useGuidedLearning = (
         // Storage image refs are shared — see hook header doc. If
         // teachers report stale images after a delete, switch this to a
         // deep copy via the storage-clone helper.
-      };
-      return saveSet(fresh);
+      });
+      let createdDriveFileId: string | undefined;
+      try {
+        createdDriveFileId = await drive.saveSet(fresh);
+        const metadata: GuidedLearningSetMetadata = {
+          id: fresh.id,
+          title: fresh.title,
+          description: fresh.description,
+          stepCount: fresh.steps.length,
+          mode: fresh.mode,
+          imageUrl: fresh.imageUrls[0] ?? '',
+          driveFileId: createdDriveFileId,
+          createdAt: fresh.createdAt,
+          updatedAt: fresh.updatedAt,
+        };
+        await setDoc(
+          doc(db, 'users', userId, GL_COLLECTION, fresh.id),
+          metadata
+        );
+        return metadata;
+      } catch (err) {
+        if (createdDriveFileId) {
+          try {
+            await drive.deleteSetFile(createdDriveFileId);
+          } catch (rollbackErr) {
+            logError('useGuidedLearning.duplicateSet.rollback', rollbackErr, {
+              sourceSetId: source.id,
+              orphanDriveFileId: createdDriveFileId,
+            });
+          }
+        }
+        throw err;
+      }
     },
-    [userId, loadSetData, saveSet]
+    [userId, getDriveService, loadSetData]
   );
 
   const saveBuildingSet = useCallback(

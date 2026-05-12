@@ -19,12 +19,17 @@ const GRID_V2_FLAG_KEY = 'spart.plcDashboard.gridV2';
  * another tab without a reload.
  */
 function isGridV2Enabled(): boolean {
-  if (typeof window === 'undefined') return false;
+  // SSR / no-window environments (vitest jsdom-less paths, future SSR):
+  // converge on the same default as a successful localStorage read so a
+  // test that doesn't set up a window doesn't silently exercise the v1
+  // path. Phase 5 default is ON; only the explicit string `'false'`
+  // opts out.
+  if (typeof window === 'undefined') return true;
   try {
     return window.localStorage.getItem(GRID_V2_FLAG_KEY) !== 'false';
   } catch {
     // localStorage access can throw in sandboxed iframes / private mode
-    // restrictions — fall back to the post-flip default (on).
+    // restrictions — fall back to the same default.
     return true;
   }
 }

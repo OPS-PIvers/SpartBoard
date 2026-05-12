@@ -34,6 +34,7 @@ import {
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { logError } from '@/utils/logError';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -459,6 +460,14 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
    * land at the library root as a standalone copy. Callers can pass the
    * returned metadata to a follow-up `moveQuizToFolder` if they want to
    * preserve folder placement.
+   *
+   * The write is hand-rolled (not via `saveQuiz`) so we can observe the
+   * freshly-created `driveFileId` and roll it back if the Firestore
+   * metadata write fails. `saveQuiz`'s contract returns metadata only
+   * on success and would leak the Drive id in a Firestore-failure
+   * window — leaving an orphan Drive file the teacher would never see
+   * but would still count against their Drive quota. Reviewer flag from
+   * PR #1587.
    */
   const duplicateQuiz = useCallback(
     async (sourceMeta: QuizMetadata): Promise<QuizMetadata> => {
@@ -473,13 +482,37 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         createdAt: now,
         updatedAt: now,
       };
-      // saveQuiz with no existingDriveFileId creates a new Drive file and
-      // a fresh metadata doc keyed off `fresh.id`. Since no prior
-      // metadata exists for that id, no sync linkage is carried over —
-      // the duplicate is a standalone quiz by construction.
-      return saveQuiz(fresh);
+      let createdDriveFileId: string | undefined;
+      try {
+        createdDriveFileId = await drive.saveQuiz(fresh);
+        const metadata: QuizMetadata = {
+          id: fresh.id,
+          title: fresh.title,
+          driveFileId: createdDriveFileId,
+          questionCount: fresh.questions.length,
+          createdAt: fresh.createdAt,
+          updatedAt: fresh.updatedAt,
+        };
+        await setDoc(
+          doc(db, 'users', userId, QUIZZES_COLLECTION, fresh.id),
+          metadata
+        );
+        return metadata;
+      } catch (err) {
+        if (createdDriveFileId) {
+          try {
+            await drive.deleteQuizFile(createdDriveFileId);
+          } catch (rollbackErr) {
+            logError('useQuiz.duplicateQuiz.rollback', rollbackErr, {
+              sourceQuizId: sourceMeta.id,
+              orphanDriveFileId: createdDriveFileId,
+            });
+          }
+        }
+        throw err;
+      }
     },
-    [userId, getDriveService, saveQuiz]
+    [userId, getDriveService]
   );
 
   const shareQuiz = useCallback(
