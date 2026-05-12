@@ -1,18 +1,17 @@
 /**
  * Org-scoped analytics computation.
  *
- * Extracted from the inline body of `adminAnalytics` so the same logic can run
- * from two callers without duplicating it:
- *   - the read-only `adminAnalytics` HTTP callable falls back to it only on a
- *     cold-miss for a newly-created org (one-time per org);
- *   - the scheduled `recomputeAdminAnalytics` job calls it once per active org
- *     at 5 AM Central daily and stores the result at
- *     `/organizations/{orgId}/analytics/snapshot`.
+ * Extracted from the inline body of `adminAnalytics` and now driven only by
+ * the scheduled `recomputeAdminAnalytics` job in `adminAnalyticsSnapshot.ts`,
+ * which calls this once per active org at 5 AM Central daily and stores the
+ * result at `/organizations/{orgId}/analytics/snapshot`. The HTTP handler
+ * reads that snapshot and returns 503 on a cold-miss — it intentionally does
+ * NOT fall back to this helper, because doing so would reintroduce the
+ * unbounded-Firestore-reads cost path the snapshot cache exists to amortize.
  *
  * The function performs two unbounded reads — `collectionGroup('dashboards')`
  * and `collection('ai_usage')` — joined against the org's member roster
- * in-memory. That cost is the reason the snapshot cache exists; the hot path
- * is expected to read the snapshot doc, not call this helper.
+ * in-memory. That cost is the reason the snapshot cache exists.
  */
 
 import * as admin from 'firebase-admin';

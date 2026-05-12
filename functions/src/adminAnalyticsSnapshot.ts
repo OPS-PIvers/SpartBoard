@@ -92,10 +92,25 @@ export const recomputeAdminAnalytics = onSchedule(
     // the org count and risk OOM on the 4 GiB instance.
     for (const orgId of targetOrgs) {
       const orgStartedAt = Date.now();
+      let payload;
       try {
-        const payload = await computeAnalyticsForOrg(orgId, {
-          scheduled: true,
+        payload = await computeAnalyticsForOrg(orgId, { scheduled: true });
+      } catch (err) {
+        failed += 1;
+        // Per-org failures must not abort the batch — a single misconfigured
+        // org shouldn't starve the rest of the fleet of fresh analytics.
+        // `phase` is split from the write branch below so log-based alerts
+        // can distinguish "compute logic is broken" from "Firestore is
+        // flaky on the write path" without parsing error messages.
+        console.error('[recomputeAdminAnalytics] org failed', {
+          orgId,
+          phase: 'compute',
+          error: err instanceof Error ? err.message : String(err),
         });
+        continue;
+      }
+
+      try {
         const computedAt = Date.now();
         const snapshot: AnalyticsSnapshotDoc = {
           schemaVersion: SNAPSHOT_SCHEMA_VERSION,
@@ -108,38 +123,78 @@ export const recomputeAdminAnalytics = onSchedule(
         succeeded += 1;
       } catch (err) {
         failed += 1;
-        // Per-org failures must not abort the batch — a single misconfigured
-        // org shouldn't starve the rest of the fleet of fresh analytics.
         console.error('[recomputeAdminAnalytics] org failed', {
           orgId,
+          phase: 'write',
           error: err instanceof Error ? err.message : String(err),
         });
       }
     }
 
+    // If every org failed there's no point letting Scheduler treat the run
+    // as healthy — throw so the run is marked failed and the next-run alert
+    // fires. Mixed results stay at info-level so a single bad org doesn't
+    // spam alerts when the rest succeeded; the per-org error lines above are
+    // the right hook for "investigate this specific org" log alerts.
+    const totalDurationMs = Date.now() - startedAt;
+    if (failed > 0 && succeeded === 0 && targetOrgs.length > 0) {
+      console.error('[recomputeAdminAnalytics] all orgs failed', {
+        failed,
+        totalDurationMs,
+      });
+      throw new Error(
+        `recomputeAdminAnalytics: all ${failed} org(s) failed; see prior log lines for per-org error details`
+      );
+    }
+
     console.log('[recomputeAdminAnalytics] done', {
       succeeded,
       failed,
-      totalDurationMs: Date.now() - startedAt,
+      totalDurationMs,
     });
   }
 );
 
 /**
- * Read a single org's analytics snapshot. Returns `null` when no snapshot
- * exists yet (new org pre-first-scheduled-run) or when the stored
- * `schemaVersion` doesn't match — both treated as "not yet computed" so the
- * hot path returns a deterministic 503 rather than serving stale or
- * mis-shaped data.
+ * Read a single org's analytics snapshot. Returns `null` when no usable
+ * snapshot exists for any of three reasons. All three collapse into a 503
+ * `not-yet-computed` at the HTTP handler because the user-facing remedy is
+ * the same (wait for the next scheduled refresh), but they log at distinct
+ * severities so Cloud Logging triage can tell them apart:
+ *
+ *   - `missing`          — doc doesn't exist (new org pre-first-run). Quiet
+ *                          path; logged at debug only since this is the
+ *                          expected cold-start state and would otherwise
+ *                          spam logs every page load until the next 5 AM.
+ *   - `stale-schema`     — `schemaVersion` mismatch. Expected for ~24h
+ *                          after a snapshot-shape bump; logs at warn so a
+ *                          spike post-deploy is visible but not alarming.
+ *   - `malformed`        — required fields missing/wrong-typed. Unexpected
+ *                          (the scheduler always writes a valid shape), so
+ *                          logged at error and worth investigating.
  */
 export async function readAnalyticsSnapshot(
   orgId: string
 ): Promise<AnalyticsSnapshotDoc | null> {
   const db = admin.firestore();
   const snap = await db.doc(`organizations/${orgId}/analytics/snapshot`).get();
-  if (!snap.exists) return null;
+  if (!snap.exists) {
+    console.debug('[readAnalyticsSnapshot] missing', { orgId });
+    return null;
+  }
   const data = snap.data() as Partial<AnalyticsSnapshotDoc> | undefined;
-  if (!data || data.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
+  if (!data) {
+    console.error('[readAnalyticsSnapshot] malformed: empty doc data', {
+      orgId,
+    });
+    return null;
+  }
+  if (data.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
+    console.warn('[readAnalyticsSnapshot] stale-schema', {
+      orgId,
+      observedSchemaVersion: data.schemaVersion,
+      expectedSchemaVersion: SNAPSHOT_SCHEMA_VERSION,
+    });
     return null;
   }
   if (
@@ -148,6 +203,13 @@ export async function readAnalyticsSnapshot(
     typeof data.computeDurationMs !== 'number' ||
     !data.payload
   ) {
+    console.error('[readAnalyticsSnapshot] malformed: required fields', {
+      orgId,
+      hasComputedAt: typeof data.computedAt === 'number',
+      hasNextRecomputeAt: typeof data.nextRecomputeAt === 'number',
+      hasComputeDurationMs: typeof data.computeDurationMs === 'number',
+      hasPayload: !!data.payload,
+    });
     return null;
   }
   return data as AnalyticsSnapshotDoc;

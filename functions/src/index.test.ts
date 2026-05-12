@@ -1494,6 +1494,43 @@ describe('recomputeAdminAnalytics (scheduled)', () => {
       mockFirestore.collection = originalCollection;
     }
   });
+
+  it('throws when every active org fails so Cloud Scheduler marks the run failed', async () => {
+    // Mixed-results path is silent so a single misconfigured org doesn't spam
+    // alerts (covered by the test above). But if every active org fails,
+    // there's nothing to log-alert on per-org and the scheduler run looks
+    // healthy by default — the throw is what tells Cloud Scheduler to mark
+    // the run failed so the next-run-failure alarm fires.
+    mockFirestoreState.organizations = [
+      { id: 'broken-org-1', status: 'active' },
+      { id: 'broken-org-2', status: 'active' },
+    ];
+
+    const originalCollection = mockFirestore.collection;
+    const wrappedCollection = vi.fn((name: string) => {
+      if (
+        name === 'organizations/broken-org-1/members' ||
+        name === 'organizations/broken-org-2/members'
+      ) {
+        return {
+          get: vi.fn(() =>
+            Promise.reject(new Error('synthetic failure: roster read'))
+          ),
+        } as unknown as ReturnType<typeof originalCollection>;
+      }
+      return originalCollection(name);
+    });
+    mockFirestore.collection =
+      wrappedCollection as unknown as typeof originalCollection;
+
+    try {
+      await expect(
+        (recomputeAdminAnalytics as unknown as () => Promise<void>)()
+      ).rejects.toThrow(/all 2 org\(s\) failed/);
+    } finally {
+      mockFirestore.collection = originalCollection;
+    }
+  });
 });
 
 describe('getPseudonymsForAssignmentV1', () => {
