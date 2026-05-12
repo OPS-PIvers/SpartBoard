@@ -158,7 +158,10 @@ export const PlcNewAssignmentSharingSlot: React.FC<
               type="text"
               value={plcSheetUrl}
               onChange={(e) => onPlcSheetUrlChange(e.target.value)}
-              placeholder="https://docs.google.com/spreadsheets/d/..."
+              placeholder={t(
+                'plcDashboard.newAssignment.sharing.sheetUrlPlaceholder',
+                { defaultValue: 'https://docs.google.com/spreadsheets/d/...' }
+              )}
               className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
             />
             {plcSheetUrlInvalid && (

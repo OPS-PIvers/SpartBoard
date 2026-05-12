@@ -20,7 +20,7 @@
  *                     Read-only history.
  */
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ClipboardList,
@@ -95,6 +95,13 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
   // other so we don't fight Modal's focus-trap.
   const [newQuizOpen, setNewQuizOpen] = useState(false);
   const [newVideoOpen, setNewVideoOpen] = useState(false);
+  // Stable ids so the screen-reader-only disabled-reason text can be
+  // associated with each CTA via `aria-describedby`. Native `disabled`
+  // strips a button from the tab order, so keyboard / AT users never
+  // surface the `title` hint — we use `aria-disabled` + a click guard
+  // instead so the control stays focusable and announces its reason.
+  const quizCtaReasonId = useId();
+  const videoCtaReasonId = useId();
 
   // Library counts + Drive-connect status feed the CTA disabled state.
   // Matches the `shareCta` pattern from `PlcQuizLibraryBody` (PR #1595):
@@ -198,8 +205,15 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={openQuizWizard}
-              disabled={quizCtaDisabledReason !== undefined}
+              onClick={
+                quizCtaDisabledReason !== undefined ? undefined : openQuizWizard
+              }
+              aria-disabled={quizCtaDisabledReason !== undefined}
+              aria-describedby={
+                quizCtaDisabledReason !== undefined
+                  ? quizCtaReasonId
+                  : undefined
+              }
               title={
                 quizCtaDisabledReason ??
                 t('plcDashboard.newAssignment.quiz.ctaTooltip', {
@@ -207,17 +221,31 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
                     'Create a PLC quiz assignment from your personal library.',
                 })
               }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors aria-disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-brand-blue-primary"
             >
               <Plus className="w-3.5 h-3.5" aria-hidden="true" />
               {t('plcDashboard.newAssignment.quiz.ctaLabel', {
                 defaultValue: 'Assign Quiz',
               })}
             </button>
+            {quizCtaDisabledReason !== undefined && (
+              <span id={quizCtaReasonId} className="sr-only">
+                {quizCtaDisabledReason}
+              </span>
+            )}
             <button
               type="button"
-              onClick={openVideoWizard}
-              disabled={videoCtaDisabledReason !== undefined}
+              onClick={
+                videoCtaDisabledReason !== undefined
+                  ? undefined
+                  : openVideoWizard
+              }
+              aria-disabled={videoCtaDisabledReason !== undefined}
+              aria-describedby={
+                videoCtaDisabledReason !== undefined
+                  ? videoCtaReasonId
+                  : undefined
+              }
               title={
                 videoCtaDisabledReason ??
                 t('plcDashboard.newAssignment.video.ctaTooltip', {
@@ -225,13 +253,18 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
                     'Create a PLC video activity assignment from your personal library.',
                 })
               }
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors aria-disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-brand-blue-primary"
             >
               <PlayCircle className="w-3.5 h-3.5" aria-hidden="true" />
               {t('plcDashboard.newAssignment.video.ctaLabel', {
                 defaultValue: 'Assign Video',
               })}
             </button>
+            {videoCtaDisabledReason !== undefined && (
+              <span id={videoCtaReasonId} className="sr-only">
+                {videoCtaDisabledReason}
+              </span>
+            )}
           </div>
         )}
       </div>

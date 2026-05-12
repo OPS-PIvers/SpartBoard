@@ -71,10 +71,7 @@ import {
   type PlcSharePickerItem,
 } from './PlcSharePickerModal';
 import { PlcNewAssignmentSharingSlot } from './PlcNewAssignmentSharingSlot';
-import {
-  formatRelativeDate,
-  isPlcSheetUrlInvalid,
-} from './newAssignmentHelpers';
+import { formatShortDate, isPlcSheetUrlInvalid } from './newAssignmentHelpers';
 
 interface PlcNewVideoActivityAssignmentModalProps {
   plc: Plc;
@@ -174,7 +171,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
         title: a.title,
         metaLine: t('plcDashboard.newAssignment.video.metaLine', {
           count: a.questionCount ?? 0,
-          date: formatRelativeDate(a.updatedAt ?? a.createdAt ?? 0),
+          date: formatShortDate(a.updatedAt ?? a.createdAt ?? 0),
           defaultValue: '{{count}} questions · {{date}}',
         }),
       })),
