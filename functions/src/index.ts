@@ -119,6 +119,21 @@ function normalizeModelName(raw: unknown): string | undefined {
   return trimmed;
 }
 
+/**
+ * Splits an array into fixed-size chunks (last chunk may be short).
+ * Used to bound fan-out parallelism — both for Firestore `in` queries
+ * (10-item limit per query) and for external HTTP fan-outs (ClassLink,
+ * etc.) where unbounded `Promise.all` can OOM the function instance or
+ * hammer the upstream API.
+ */
+function chunk<T>(arr: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 interface GeminiModelConfig {
   advancedModel?: string;
   standardModel?: string;
@@ -493,26 +508,33 @@ export const getClassLinkRosterV1 = onCall(
 
       const studentsByClass: Record<string, ClassLinkStudent[]> = {};
 
-      await Promise.all(
-        classes.map(async (cls: ClassLinkClass) => {
-          const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
-          const studentsHeaders = getOAuthHeaders(
-            studentsUrl,
-            {},
-            'GET',
-            clientId,
-            clientSecret
-          );
-          try {
-            const studentsResponse = await axios.get<{
-              users: ClassLinkStudent[];
-            }>(studentsUrl, { headers: { ...studentsHeaders } });
-            studentsByClass[cls.sourcedId] = studentsResponse.data.users ?? [];
-          } catch {
-            studentsByClass[cls.sourcedId] = [];
-          }
-        })
-      );
+      // Chunk the per-class student lookups so a teacher with 100+ classes
+      // doesn't fire 100+ simultaneous HTTP requests at ClassLink. Audit
+      // item #5. Batch size 15 is the mid-point of the audit's 10-20 range.
+      const CLASSLINK_FANOUT_CHUNK = 15;
+      for (const classBatch of chunk(classes, CLASSLINK_FANOUT_CHUNK)) {
+        await Promise.all(
+          classBatch.map(async (cls: ClassLinkClass) => {
+            const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
+            const studentsHeaders = getOAuthHeaders(
+              studentsUrl,
+              {},
+              'GET',
+              clientId,
+              clientSecret
+            );
+            try {
+              const studentsResponse = await axios.get<{
+                users: ClassLinkStudent[];
+              }>(studentsUrl, { headers: { ...studentsHeaders } });
+              studentsByClass[cls.sourcedId] =
+                studentsResponse.data.users ?? [];
+            } catch {
+              studentsByClass[cls.sourcedId] = [];
+            }
+          })
+        );
+      }
 
       return {
         classes,
@@ -1138,11 +1160,33 @@ export const fetchExternalProxy = onCall(
       );
     }
 
+    // 1 MB cap on upstream responses. Audit item #6 — without this a
+    // misbehaving upstream could buffer an arbitrary-sized body into the
+    // 128MiB function instance and OOM us. We pass both maxContentLength
+    // and maxBodyLength so the limit is enforced regardless of whether
+    // upstream advertises Content-Length or streams chunked.
+    const MAX_RESPONSE_BYTES = 1_048_576;
+
     try {
-      const response = await axios.get<unknown>(data.url);
+      const response = await axios.get<unknown>(data.url, {
+        maxContentLength: MAX_RESPONSE_BYTES,
+        maxBodyLength: MAX_RESPONSE_BYTES,
+      });
       return response.data;
     } catch (error: unknown) {
       console.error('External Proxy Error:', error);
+      // Translate axios's size-limit message into an explicit
+      // resource-exhausted HttpsError so the client can distinguish "the
+      // upstream is too chatty" from a generic network blip.
+      if (
+        error instanceof Error &&
+        /maxContentLength|maxBodyLength/i.test(error.message)
+      ) {
+        throw new HttpsError(
+          'resource-exhausted',
+          `Upstream response exceeded the ${MAX_RESPONSE_BYTES / 1024} KB proxy limit.`
+        );
+      }
       const msg =
         error instanceof Error ? error.message : 'External fetch failed';
       throw new HttpsError('internal', msg);
@@ -1221,8 +1265,22 @@ export const archiveActivityWallPhoto = onCall(
 
       const bucket = admin.storage().bucket();
       const file = bucket.file(storagePath);
-      const [fileBuffer] = await file.download();
+
+      // Size guard — `file.download()` buffers the entire object into the
+      // 512MiB function instance's memory, so a misbehaving client could
+      // OOM us with a giant photo. Audit doc item #4. Storage metadata
+      // returns `size` as a string in some SDK versions, hence the coerce.
       const [metadata] = await file.getMetadata();
+      const sizeBytes = Number(metadata.size ?? 0);
+      const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
+      if (sizeBytes > MAX_PHOTO_BYTES) {
+        throw new HttpsError(
+          'invalid-argument',
+          `Photo exceeds the 50 MB archive limit (${Math.round(sizeBytes / 1024 / 1024)} MB).`
+        );
+      }
+
+      const [fileBuffer] = await file.download();
       const mimeType = metadata.contentType || 'image/jpeg';
       const extension =
         mimeType === 'image/png'
@@ -2756,13 +2814,6 @@ export const getStudentClassDirectoryV1 = onCall(
     // 30; we chunk at 10 to stay safely under the limit and to fit the
     // typical `STUDENT_LOGIN_CLASS_IDS_MAX = 20` payload in 2 chunks.
     const FIRESTORE_IN_CHUNK_SIZE = 10;
-    const chunk = <T>(arr: readonly T[], size: number): T[][] => {
-      const chunks: T[][] = [];
-      for (let i = 0; i < arr.length; i += size) {
-        chunks.push(arr.slice(i, i + size));
-      }
-      return chunks;
-    };
 
     /**
      * Run `collectionGroup('rosters').where(field, 'in', chunk)` for every
