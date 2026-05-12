@@ -32,10 +32,10 @@ interface LibraryPreviewPaneProps {
  * the pane scoped to the widget's container query so a small widget gets
  * a small pane and a fullscreen widget gets a large one.
  *
- * The pane animates in from the right; closing animates back out (handled
- * by the absent-from-DOM pattern, so React can reuse the slide-in
- * `animate-in` classes on every open). Esc closes; backdrop click does
- * NOT (this isn't a modal — the underlying grid stays interactive).
+ * The pane animates in from the right via `animate-in slide-in-from-right`;
+ * closing unmounts the pane immediately with no exit animation (React keeps
+ * the slide-in classes ready for the next open). Esc closes; backdrop click
+ * does NOT (this isn't a modal — the underlying grid stays interactive).
  *
  * Designed to coexist with a manager's grid: place this and the grid
  * inside a flex row; the pane is `shrink-0` and the grid is `flex-1`.
