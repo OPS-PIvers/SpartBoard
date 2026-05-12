@@ -34,6 +34,7 @@ export {
 } from './syncedVideoActivityGroups';
 export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
+export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 
 setGlobalOptions({ region: 'us-central1' });

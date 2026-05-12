@@ -36,6 +36,7 @@ import {
   Send,
   Share2,
   Trash2,
+  Users2,
 } from 'lucide-react';
 import { LibraryShell } from '@/components/common/library/LibraryShell';
 import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
@@ -113,6 +114,14 @@ export interface VideoActivityManagerProps {
    * harnesses).
    */
   onDuplicate?: (activity: VideoActivityMetadata) => void | Promise<void>;
+  /**
+   * Phase 4 — "Share with PLC". Invoked when the teacher picks the new
+   * kebab item on a library card. The Widget owns the PLC picker modal
+   * + the actual share write (creating the synced group + the PLC
+   * subcoll doc); this prop is the seam. The kebab entry is hidden when
+   * omitted (e.g. test harnesses).
+   */
+  onShareWithPlc?: (activity: VideoActivityMetadata) => void;
   /**
    * Optional busy-state probe. When provided, the Duplicate kebab item
    * disables itself for any activity id whose duplicate is currently
@@ -407,6 +416,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onEdit,
   onDelete,
   onDuplicate,
+  onShareWithPlc,
   isDuplicating,
   onResults,
   onAssign,
@@ -865,6 +875,16 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                 onOpenPicker: () => setFolderPickerTarget(activity),
                 disabled: !userId,
               }),
+              ...(onShareWithPlc
+                ? [
+                    {
+                      id: 'share-with-plc',
+                      label: 'Share with PLC',
+                      icon: Users2,
+                      onClick: () => onShareWithPlc(activity),
+                    } satisfies LibraryMenuAction,
+                  ]
+                : []),
               {
                 id: 'delete',
                 label:

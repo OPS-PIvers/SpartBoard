@@ -789,14 +789,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const handleShareDashboard = useCallback(
     async (
       dashboard: Dashboard,
-      intendedMode?: SharedBoardImportMode
+      intendedMode?: SharedBoardImportMode,
+      plcId?: string
     ): Promise<string> => {
       // MANDATE: Share through Google Drive if available for non-admins.
       // Drive shares are one-time exports — they don't support live sync,
       // and we intentionally don't tag the local dashboard as `owner`.
       // Drive-backed shares are always Copy-mode on the receiving end;
-      // intendedMode is ignored here.
-      if (!isAdmin && driveService) {
+      // intendedMode is ignored here. PLC-scoped shares deliberately
+      // bypass the Drive path — the surfacing surface (PLC Dashboard
+      // Shared Boards tab) reads from Firestore, so a Drive-only share
+      // would be invisible to teammates.
+      if (!plcId && !isAdmin && driveService) {
         try {
           const fileId = await driveService.exportDashboard(dashboard);
           await driveService.makePublic(fileId, userDomain);
@@ -819,7 +823,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const shareId = await shareDashboardFirestore(
         scrubbedSeed,
         intendedMode,
-        hostName
+        hostName,
+        plcId
       );
       // Copy-mode shares are one-time snapshots. Don't tag the local
       // dashboard as a live owner — there's no live sync to wire up.

@@ -33,7 +33,17 @@ import {
 } from '@/utils/mockQuizDriveService';
 import type { QuizData } from '@/types';
 import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import {
+  publishSyncedVideoActivity,
+  pullSyncedVideoActivityContent,
+  SyncedVideoActivityVersionConflictError,
+} from './useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
+
+// Re-export so consumers can catch the version-conflict error without
+// importing from the synced-groups module directly. Mirrors the
+// `SyncedQuizVersionConflictError` re-export from `useQuiz.ts`.
+export { SyncedVideoActivityVersionConflictError };
 
 const VIDEO_ACTIVITIES_COLLECTION = 'video_activities';
 
@@ -69,6 +79,15 @@ export interface UseVideoActivityResult {
     activityId: string,
     linkage: VideoActivityMetadataSyncLinkage
   ) => Promise<void>;
+  /**
+   * Reconcile the local Drive replica with the canonical synced group.
+   * Mirrors `useQuiz.pullSyncedQuiz`. No-op for unsynced activities.
+   * Returns the updated metadata. Used by the editor's auto-pull on
+   * `SyncedVideoActivityVersionConflictError`.
+   */
+  pullSyncedVideoActivity: (
+    activityMeta: VideoActivityMetadata
+  ) => Promise<VideoActivityMetadata>;
   /** Create a template Google Sheet for CSV import. */
   createTemplateSheet: (title: string) => Promise<string>;
   /** Is a Drive service available? */
@@ -146,9 +165,46 @@ export const useVideoActivity = (
       const drive = getDriveService();
       const updated: VideoActivityData = { ...activity, updatedAt: Date.now() };
 
-      // Reuse the quiz drive service — saves JSON to the same Drive folder
-      // Cast to satisfy the method signature (VideoActivityData is structurally
-      // compatible with the JSON blob the service writes).
+      // Read existing metadata so we know whether this activity is part of
+      // a synced group and what version we're publishing on top of.
+      // Mirrors `useQuiz.saveQuiz`. Without this read, the synced-group
+      // publish was missing entirely and any prior `sync` linkage was
+      // silently stripped on every save (the metadata object below would
+      // overwrite without preserving it). Both gaps broke the Phase 4
+      // Sync promise — surfaced by PR review.
+      const metaRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITIES_COLLECTION,
+        activity.id
+      );
+      const existingMetaSnap = await getDoc(metaRef);
+      const existingMeta = existingMetaSnap.exists()
+        ? (existingMetaSnap.data() as VideoActivityMetadata)
+        : null;
+      const existingSync = existingMeta?.sync;
+
+      // Publish to canonical BEFORE writing the Drive replica. If publish
+      // throws (peer beat us → SyncedVideoActivityVersionConflictError,
+      // network blip), the Drive replica is unchanged and the editor can
+      // pull + retry. Once publish succeeds the version invariant
+      // guarantees no peer can land between us and the Drive write.
+      let nextSyncedVersion: number | undefined = undefined;
+      if (existingSync) {
+        const result = await publishSyncedVideoActivity(existingSync.groupId, {
+          title: updated.title,
+          youtubeUrl: updated.youtubeUrl,
+          questions: updated.questions,
+          expectedVersion: existingSync.lastSyncedVersion,
+          uid: userId,
+        });
+        nextSyncedVersion = result.version;
+      }
+
+      // Reuse the quiz drive service — saves JSON to the same Drive folder.
+      // Cast to satisfy the method signature (VideoActivityData is
+      // structurally compatible with the JSON blob the service writes).
       const driveFileId = await drive.saveQuiz(
         updated as unknown as QuizData,
         existingDriveFileId
@@ -162,13 +218,82 @@ export const useVideoActivity = (
         questionCount: activity.questions.length,
         createdAt: activity.createdAt,
         updatedAt: updated.updatedAt,
+        // Preserve folder assignment + synced linkage across saves so
+        // the editor can't accidentally drop them by re-writing the
+        // metadata. Mirrors `useQuiz.saveQuiz`.
+        ...(existingMeta?.folderId !== undefined
+          ? { folderId: existingMeta.folderId }
+          : {}),
+        ...(existingSync
+          ? {
+              sync: {
+                groupId: existingSync.groupId,
+                lastSyncedVersion:
+                  nextSyncedVersion ?? existingSync.lastSyncedVersion,
+              },
+            }
+          : {}),
       };
 
-      await setDoc(
-        doc(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION, activity.id),
-        metadata
+      await setDoc(metaRef, metadata);
+
+      return metadata;
+    },
+    [userId, getDriveService]
+  );
+
+  const pullSyncedVideoActivity = useCallback(
+    async (
+      activityMeta: VideoActivityMetadata
+    ): Promise<VideoActivityMetadata> => {
+      if (!userId) throw new Error('Not authenticated');
+      if (!activityMeta.sync) {
+        // No-op for unsynced activities.
+        return { ...activityMeta };
+      }
+      const drive = getDriveService();
+      const canonical = await pullSyncedVideoActivityContent(
+        activityMeta.sync.groupId
       );
 
+      // Overwrite the local Drive replica with the canonical content. We
+      // keep the local activity `id` + `createdAt` so the library
+      // entry's identity and history don't churn — only the editable
+      // surface (title + youtubeUrl + questions) is replaced.
+      const now = Date.now();
+      const refreshed: VideoActivityData = {
+        id: activityMeta.id,
+        title: canonical.title,
+        youtubeUrl: canonical.youtubeUrl,
+        questions: canonical.questions,
+        createdAt: activityMeta.createdAt,
+        updatedAt: now,
+      };
+      const driveFileId = await drive.saveQuiz(
+        refreshed as unknown as QuizData,
+        activityMeta.driveFileId
+      );
+
+      const metadata: VideoActivityMetadata = {
+        id: activityMeta.id,
+        title: canonical.title,
+        youtubeUrl: canonical.youtubeUrl,
+        driveFileId,
+        questionCount: canonical.questions.length,
+        createdAt: activityMeta.createdAt,
+        updatedAt: now,
+        ...(activityMeta.folderId !== undefined
+          ? { folderId: activityMeta.folderId }
+          : {}),
+        sync: {
+          groupId: activityMeta.sync.groupId,
+          lastSyncedVersion: canonical.version,
+        },
+      };
+      await setDoc(
+        doc(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION, activityMeta.id),
+        metadata
+      );
       return metadata;
     },
     [userId, getDriveService]
@@ -332,6 +457,7 @@ export const useVideoActivity = (
     duplicateActivity,
     createTemplateSheet,
     attachSyncLinkage,
+    pullSyncedVideoActivity,
     isDriveConnected: isAuthBypass || isConnected,
   };
 };

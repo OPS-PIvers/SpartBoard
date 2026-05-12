@@ -12,10 +12,12 @@
  */
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Cloud, Copy, Eye, Check, ExternalLink, X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { usePlcs } from '@/hooks/usePlcs';
 import type { Dashboard } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
 
@@ -82,9 +84,16 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  const { t } = useTranslation();
   const { shareDashboard, addToast } = useDashboard();
   const { canAccessFeature } = useAuth();
+  const { plcs } = usePlcs();
   const [mode, setMode] = useState<SharedBoardImportMode>('synced');
+  // Phase 6 — optional PLC scope. `null` (default) means a plain share
+  // link with no PLC affiliation. Picking a PLC tags the resulting share
+  // doc with `plcId`, surfacing it on that PLC's Shared Boards tab in
+  // addition to whoever the host sends the link to.
+  const [plcId, setPlcId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -93,6 +102,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   React.useEffect(() => {
     if (isOpen) {
       setMode('synced');
+      setPlcId(null);
       setCreating(false);
       setCreatedUrl(null);
       setCopied(false);
@@ -107,7 +117,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
     if (!canShare || creating) return;
     setCreating(true);
     try {
-      const shareId = await shareDashboard(dashboard, mode);
+      const shareId = await shareDashboard(dashboard, mode, plcId ?? undefined);
       const url = `${window.location.origin}/share/${shareId}`;
       setCreatedUrl(url);
       try {
@@ -249,6 +259,46 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             Icon={Copy}
             onPick={setMode}
           />
+          {plcs.length > 0 && (
+            <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 space-y-2">
+              <label
+                htmlFor="share-plc-scope"
+                className="block text-xs font-bold text-slate-700"
+              >
+                {t('shareLinkCreatorModal.plcScope.label', {
+                  defaultValue: 'Also share with a PLC',
+                })}{' '}
+                <span className="text-slate-400 font-normal">
+                  {t('shareLinkCreatorModal.plcScope.optional', {
+                    defaultValue: '(optional)',
+                  })}
+                </span>
+              </label>
+              <p className="text-[11px] text-slate-500 leading-relaxed">
+                {t('shareLinkCreatorModal.plcScope.description', {
+                  defaultValue:
+                    "Tags this share so it shows up on the picked PLC's Shared Boards tab in addition to whoever you send the link to.",
+                })}
+              </p>
+              <select
+                id="share-plc-scope"
+                value={plcId ?? ''}
+                onChange={(e) => setPlcId(e.target.value || null)}
+                className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+              >
+                <option value="">
+                  {t('shareLinkCreatorModal.plcScope.none', {
+                    defaultValue: "Don't scope to a PLC",
+                  })}
+                </option>
+                {plcs.map((plc) => (
+                  <option key={plc.id} value={plc.id}>
+                    {plc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
           <button
             type="button"
             onClick={() => void handleCreate()}

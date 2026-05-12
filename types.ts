@@ -469,6 +469,48 @@ export interface PlcQuizEntry {
 }
 
 /**
+ * One video activity shared with a PLC, stored at
+ * `plcs/{plcId}/video_activities/{plcVideoActivityId}`.
+ *
+ * Mirrors `PlcQuizEntry` in shape and lifecycle:
+ *   - lightweight header pointing at `synced_video_activities/{syncGroupId}`
+ *     (questions + per-question scoring live there, not here)
+ *   - any current PLC member can share / edit-mirror / unshare
+ *   - identity + attribution fields are immutable post-create
+ *
+ * Differences from quizzes:
+ *   - carries `youtubeUrl` so the tile + tab can render a thumbnail without
+ *     loading the full content blob
+ *   - sync collection is `synced_video_activities/`, not `synced_quizzes/`
+ */
+export interface PlcVideoActivityEntry {
+  /** Doc id; matches the document key under `plcs/{plcId}/video_activities/`. */
+  id: string;
+  /** Mirrored from the synced group; used for list rendering. */
+  title: string;
+  /**
+   * Mirrored from the source activity. Empty string if the source lacked a
+   * URL at share time. Tile rendering may use this to fetch the YouTube
+   * thumbnail; downstream consumers should always defend against `''`.
+   */
+  youtubeUrl: string;
+  /** Mirrored from the synced group's questions array length. */
+  questionCount: number;
+  /** Pointer to the canonical `/synced_video_activities/{groupId}` doc. */
+  syncGroupId: string;
+  /** UID of the original sharer. Immutable. */
+  sharedBy: string;
+  /** Lowercased email snapshot for display. Immutable. */
+  sharedByEmail: string;
+  /** Display name snapshot for attribution. Immutable. */
+  sharedByName: string;
+  /** ms timestamp at first share. Immutable. */
+  sharedAt: number;
+  /** ms timestamp; bumped on title/questionCount mirror updates. */
+  updatedAt: number;
+}
+
+/**
  * One shared note in a PLC notebook. Members CRUD freely; LWW on edits.
  */
 export interface PlcNote {
