@@ -970,6 +970,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       // Only process the same pointer that started the drag
       if (moveEvent.pointerId !== e.pointerId) return;
 
+      // Defensive: if the mouse button is no longer pressed, the pointerup we
+      // needed was missed (pointer capture silently dropped, event eaten by
+      // another element, etc.). Synthesize the teardown so the widget doesn't
+      // track the cursor every time it re-enters the drag-surface. Touch/pen
+      // don't expose `buttons` reliably and are covered by pointercancel.
+      if (moveEvent.pointerType === 'mouse' && moveEvent.buttons === 0) {
+        onPointerUp(moveEvent);
+        return;
+      }
+
       if (dragAnimationFrame !== null) {
         cancelAnimationFrame(dragAnimationFrame);
       }
@@ -1098,6 +1108,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       targetElement.removeEventListener('pointermove', onPointerMove);
       targetElement.removeEventListener('pointerup', onPointerUp);
       targetElement.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener(
+        'lostpointercapture',
+        onLostPointerCapture
+      );
 
       try {
         if (targetElement.hasPointerCapture(e.pointerId)) {
@@ -1168,9 +1182,21 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       activeGestureCleanupRef.current = null;
     };
 
+    // Defensive: if pointer capture is dropped mid-gesture (browser-specific:
+    // DOM mutations under the captured element, focus changes, OS interrupts,
+    // overlapping hit surfaces from a sibling widget), our pointerup listener
+    // on targetElement may never fire because subsequent pointer events stop
+    // routing here. Treat lost capture as the end of the gesture and run the
+    // same teardown as pointerup.
+    const onLostPointerCapture = (lostEvent: PointerEvent) => {
+      if (lostEvent.pointerId !== e.pointerId) return;
+      onPointerUp(lostEvent);
+    };
+
     targetElement.addEventListener('pointermove', onPointerMove);
     targetElement.addEventListener('pointerup', onPointerUp);
     targetElement.addEventListener('pointercancel', onPointerUp);
+    targetElement.addEventListener('lostpointercapture', onLostPointerCapture);
   };
 
   /** Inner edge drag zones sit on top of widget content. Before starting a drag,
@@ -1309,6 +1335,15 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const onPointerMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== e.pointerId) return;
 
+      // Defensive: see handleDragStart's onPointerMove. If the mouse button is
+      // no longer pressed, the pointerup we needed was missed; synthesize the
+      // teardown so the widget doesn't resize every time the cursor re-enters
+      // the resize handle.
+      if (moveEvent.pointerType === 'mouse' && moveEvent.buttons === 0) {
+        onPointerUp(moveEvent);
+        return;
+      }
+
       if (resizeAnimationFrame !== null) {
         cancelAnimationFrame(resizeAnimationFrame);
       }
@@ -1406,6 +1441,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       targetElement.removeEventListener('pointermove', onPointerMove);
       targetElement.removeEventListener('pointerup', onPointerUp);
       targetElement.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener(
+        'lostpointercapture',
+        onLostPointerCapture
+      );
 
       try {
         if (targetElement.hasPointerCapture(e.pointerId)) {
@@ -1436,9 +1475,18 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
       activeGestureCleanupRef.current = null;
     };
 
+    // Defensive: see handleDragStart for the rationale. If pointer capture is
+    // dropped mid-resize, run the same teardown as pointerup so the widget
+    // doesn't stay in a "follow the cursor" state after the user releases.
+    const onLostPointerCapture = (lostEvent: PointerEvent) => {
+      if (lostEvent.pointerId !== e.pointerId) return;
+      onPointerUp(lostEvent);
+    };
+
     targetElement.addEventListener('pointermove', onPointerMove);
     targetElement.addEventListener('pointerup', onPointerUp);
     targetElement.addEventListener('pointercancel', onPointerUp);
+    targetElement.addEventListener('lostpointercapture', onLostPointerCapture);
   };
 
   // Force 100% opacity when spotlighted so it stands out against the dimming overlay

@@ -402,6 +402,199 @@ describe('DraggableWindow', () => {
     expect(document.body.classList.contains('is-dragging-widget')).toBe(false);
   });
 
+  // Regression: pointer capture can be silently dropped mid-gesture (browser-
+  // specific — DOM mutations, focus changes, overlapping hit surfaces from a
+  // sibling widget of the same type). When that happens, the user's pointerup
+  // doesn't reach our listener on the capture target. The next pointermove
+  // with buttons=0 must synthesize the teardown so the widget doesn't track
+  // the cursor every time it re-enters the drag-surface.
+  it('synthesizes drag teardown when a mouse pointermove arrives with buttons=0', async () => {
+    renderComponent();
+
+    const dragSurface = screen.getByTestId(
+      'drag-surface'
+    ) as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    dragSurface.setPointerCapture = vi.fn();
+    dragSurface.hasPointerCapture = vi.fn().mockReturnValue(true);
+    dragSurface.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(dragSurface, {
+      clientX: 110,
+      clientY: 110,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
+
+    // Normal drag step: pointer moves with button held.
+    fireEvent.pointerMove(dragSurface, {
+      clientX: 160,
+      clientY: 160,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    await waitFor(() => {
+      expect(windowEl.style.left).toBe('150px');
+    });
+
+    // Pointer button released somewhere we don't see (capture lost), then a
+    // pointermove with buttons=0 arrives on the drag-surface as the cursor
+    // re-enters. Must trigger teardown, not further movement. JSDOM doesn't
+    // reliably propagate `buttons` through PointerEventInit, so patch it onto
+    // the dispatched event explicitly.
+    const dropEvent = new PointerEvent('pointermove', {
+      clientX: 300,
+      clientY: 300,
+      pointerId: 1,
+      pointerType: 'mouse',
+    });
+    Object.defineProperty(dropEvent, 'buttons', { value: 0 });
+    Object.defineProperty(dropEvent, 'pointerType', { value: 'mouse' });
+    fireEvent(dragSurface, dropEvent);
+
+    await waitFor(() => {
+      expect(document.body.classList.contains('is-dragging-widget')).toBe(
+        false
+      );
+    });
+
+    // Subsequent pointermove must NOT move the widget — listener should be
+    // removed by the teardown path.
+    fireEvent.pointerMove(dragSurface, {
+      clientX: 500,
+      clientY: 500,
+      pointerId: 1,
+    });
+    // Position should still reflect the last real drag step, not (500, 500).
+    expect(windowEl.style.left).toBe('150px');
+    expect(windowEl.style.top).toBe('150px');
+  });
+
+  // Regression: a `lostpointercapture` event mid-gesture must run the same
+  // teardown as pointerup so the gesture doesn't get stuck in "follow the
+  // cursor" mode after the browser drops capture.
+  it('runs drag teardown when lostpointercapture fires mid-gesture', async () => {
+    renderComponent();
+
+    const dragSurface = screen.getByTestId(
+      'drag-surface'
+    ) as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    dragSurface.setPointerCapture = vi.fn();
+    dragSurface.hasPointerCapture = vi.fn().mockReturnValue(false);
+    dragSurface.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(dragSurface, {
+      clientX: 110,
+      clientY: 110,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    fireEvent.pointerMove(dragSurface, {
+      clientX: 160,
+      clientY: 160,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    await waitFor(() => {
+      expect(windowEl.style.left).toBe('150px');
+    });
+
+    // Browser drops pointer capture mid-gesture.
+    fireEvent(
+      dragSurface,
+      new PointerEvent('lostpointercapture', { pointerId: 1 })
+    );
+
+    await waitFor(() => {
+      expect(document.body.classList.contains('is-dragging-widget')).toBe(
+        false
+      );
+    });
+
+    // Subsequent pointermove with the same pointerId must not move the widget.
+    fireEvent.pointerMove(dragSurface, {
+      clientX: 500,
+      clientY: 500,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    expect(windowEl.style.left).toBe('150px');
+    expect(windowEl.style.top).toBe('150px');
+  });
+
+  // Resize gesture parallels the drag gesture's listener wiring. A future
+  // refactor that breaks only the resize teardown wouldn't be caught by the
+  // drag-only regression tests above. Cover the buttons=0 path on a resize
+  // handle to lock both code paths down.
+  it('synthesizes resize teardown when a mouse pointermove arrives with buttons=0', async () => {
+    renderComponent();
+
+    const seHandleEl = document.querySelector('.cursor-se-resize');
+    expect(seHandleEl).not.toBeNull();
+    if (!seHandleEl) return;
+    const seHandle = seHandleEl as unknown as HTMLElementWithCapture;
+    const windowEl = screen.getByTestId('draggable-window');
+
+    seHandle.setPointerCapture = vi.fn();
+    seHandle.hasPointerCapture = vi.fn().mockReturnValue(true);
+    seHandle.releasePointerCapture = vi.fn();
+
+    fireEvent.pointerDown(seHandle, {
+      clientX: 200,
+      clientY: 200,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    expect(document.body.classList.contains('is-dragging-widget')).toBe(true);
+
+    fireEvent.pointerMove(seHandle, {
+      clientX: 250,
+      clientY: 250,
+      pointerId: 1,
+      pointerType: 'mouse',
+      buttons: 1,
+    });
+    await waitFor(() => {
+      // 200 (initial w from mockWidget) + 50 = 250
+      expect(windowEl.style.width).toBe('250px');
+    });
+
+    // Missed pointerup — capture lost, next move arrives with buttons=0.
+    const dropEvent = new PointerEvent('pointermove', {
+      clientX: 400,
+      clientY: 400,
+      pointerId: 1,
+      pointerType: 'mouse',
+    });
+    Object.defineProperty(dropEvent, 'buttons', { value: 0 });
+    Object.defineProperty(dropEvent, 'pointerType', { value: 'mouse' });
+    fireEvent(seHandle, dropEvent);
+
+    await waitFor(() => {
+      expect(document.body.classList.contains('is-dragging-widget')).toBe(
+        false
+      );
+    });
+
+    // Subsequent pointermove must NOT resize the widget further.
+    fireEvent.pointerMove(seHandle, {
+      clientX: 600,
+      clientY: 600,
+      pointerId: 1,
+    });
+    expect(windowEl.style.width).toBe('250px');
+  });
+
   it('minimizes on Escape key press', () => {
     renderComponent();
     const windowEl = screen.getByTestId('draggable-window');
