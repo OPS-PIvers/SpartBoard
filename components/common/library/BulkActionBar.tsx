@@ -89,7 +89,7 @@ export const BulkActionBar: React.FC<BulkActionBarProps> = ({
               disabled={disabled}
               className={`inline-flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-xs font-bold uppercase tracking-wider shadow-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
                 action.destructive
-                  ? 'text-brand-red-dark hover:bg-brand-red-lighter/30'
+                  ? 'text-brand-red-dark ring-1 ring-brand-red-primary/20 hover:bg-brand-red-lighter/30 hover:ring-brand-red-primary/40'
                   : 'text-brand-blue-dark hover:bg-brand-blue-lighter/40'
               }`}
             >

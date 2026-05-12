@@ -10,7 +10,19 @@ interface PlcGridTileProps {
   tile: PlcBentoTileData;
   /** Resolved coords for this render. May be a live preview during resize. */
   coords: PlcGridCoords;
+  /**
+   * Edit mode: enables reorder (drag handle visible + sortable active) and
+   * the hide-tile button. Always-on for both mobile and desktop so a
+   * touch user can long-press the grip to reorder even when resize is
+   * hidden.
+   */
   editMode: boolean;
+  /**
+   * Whether to render the 8 resize handles. Decoupled from `editMode` so
+   * mobile can keep reorder-only while desktop gets both reorder + resize.
+   * Defaults to true when `editMode` is on; callers gate to false on touch.
+   */
+  showResizeHandles?: boolean;
   /** Live cell metrics getter — passed from `PlcGridLayout`'s ResizeObserver. */
   getCellMetrics: () => { cellW: number; cellH: number };
   inTray?: boolean;
@@ -61,6 +73,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
   tile,
   coords,
   editMode,
+  showResizeHandles = true,
   getCellMetrics,
   inTray = false,
   onResizePreview,
@@ -187,17 +200,21 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
           </button>
 
           {/* 8 resize handles. The corner handles overlap the edges and
-              take priority via higher z-index. */}
-          {ALL_DIRECTIONS.map((dir) => (
-            <div
-              key={dir}
-              onPointerDown={onResizePointerDown(dir)}
-              data-resize-handle={dir}
-              role="presentation"
-              className={`absolute z-10 ${HANDLE_CLASSES[dir]}`}
-              style={HANDLE_STYLES[dir]}
-            />
-          ))}
+              take priority via higher z-index. Hidden when
+              `showResizeHandles` is false (mobile in edit mode keeps
+              reorder via the grip but suppresses resize because the
+              handles aren't touch-friendly at 6px thick). */}
+          {showResizeHandles &&
+            ALL_DIRECTIONS.map((dir) => (
+              <div
+                key={dir}
+                onPointerDown={onResizePointerDown(dir)}
+                data-resize-handle={dir}
+                role="presentation"
+                className={`absolute z-10 ${HANDLE_CLASSES[dir]}`}
+                style={HANDLE_STYLES[dir]}
+              />
+            ))}
         </>
       )}
 
@@ -208,13 +225,17 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
         glanceable preview state uncluttered.
       */}
       {!editMode && onExpand && (
+        // Always slightly visible (opacity-60) so touch users — who can't
+        // hover — can find the expand affordance. Full opacity on hover/
+        // focus for desktop. Reviewer flagged the previous `opacity-0
+        // group-hover` was invisible on iPad / projector setups.
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             onExpand(tile.kind);
           }}
-          className="absolute top-2 right-2 z-20 p-1.5 bg-white/95 hover:bg-brand-blue-lighter rounded-md text-slate-400 hover:text-brand-blue-primary transition-colors shadow-sm border border-slate-200 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          className="absolute top-2 right-2 z-20 p-1.5 bg-white/95 hover:bg-brand-blue-lighter rounded-md text-slate-400 hover:text-brand-blue-primary transition-all shadow-sm border border-slate-200 opacity-60 group-hover:opacity-100 focus:opacity-100"
           aria-label={t('plcDashboard.overview.expandTile', {
             defaultValue: 'Expand tile',
           })}
@@ -222,7 +243,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
             defaultValue: 'Expand tile',
           })}
         >
-          <Maximize2 className="w-3.5 h-3.5" />
+          <Maximize2 aria-hidden="true" className="w-3.5 h-3.5" />
         </button>
       )}
     </div>

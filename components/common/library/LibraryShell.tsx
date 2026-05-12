@@ -163,6 +163,19 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
       ? allTabs
       : allTabs.filter((tabDef) => visibleTabs.includes(tabDef.key));
 
+  // If the active tab is filtered out by `visibleTabs`, redirect to the
+  // first visible tab so the chrome doesn't render an empty nav with a
+  // mismatched tabpanel below. Adjust state during render — same pattern
+  // we use across the codebase for derived-from-props state.
+  const firstVisibleTab = tabs[0]?.key;
+  if (
+    firstVisibleTab &&
+    visibleTabs != null &&
+    !tabs.some((t) => t.key === tab)
+  ) {
+    onTabChange(firstVisibleTab);
+  }
+
   // Collapse header action labels to icon-only when the widget is narrow so
   // buttons never push off-screen. A crude width threshold based on the number
   // of buttons keeps parity with the inline/overflow logic on library cards.

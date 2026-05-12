@@ -243,6 +243,57 @@ describe('plcLayoutMigration', () => {
       expect(plcInfo?.coords?.w).toBe(GRID_COLS);
     });
 
+    it('push-down: enlarging tile A onto an occupied cell shifts the displaced tile to the next free row', () => {
+      // Grid before: A(6×2)@0,0  B(6×2)@6,0  C(3×2)@0,2  D(3×2)@3,2
+      // Resize A from 6×2 → 12×2 — covers cells (0..11, 0..1) entirely, so
+      // B must move. Expect B at (0, 2) and C/D pushed down a row.
+      const tiles: PlcBentoTile[] = [
+        { kind: 'plcInfo', coords: { x: 0, y: 0, w: 6, h: 2 } },
+        { kind: 'quickActions', coords: { x: 6, y: 0, w: 6, h: 2 } },
+        { kind: 'members', coords: { x: 0, y: 2, w: 3, h: 2 } },
+        { kind: 'sharedSheet', coords: { x: 3, y: 2, w: 3, h: 2 } },
+      ];
+      const next = commitTileCoords(tiles, 'plcInfo', {
+        x: 0,
+        y: 0,
+        w: 12,
+        h: 2,
+      });
+      const plcInfo = next.find((t) => t.kind === 'plcInfo');
+      expect(plcInfo?.coords).toEqual({ x: 0, y: 0, w: 12, h: 2 });
+      expect(hasOverlap(next)).toBe(false);
+      // Everything else is intact (no tile lost) and inside the grid.
+      expect(next).toHaveLength(4);
+      for (const tile of next) {
+        expect(tile.coords).toBeDefined();
+        const c = tile.coords;
+        if (!c) throw new Error('expected coords');
+        expect(c.x).toBeGreaterThanOrEqual(0);
+        expect(c.x + c.w).toBeLessThanOrEqual(GRID_COLS);
+      }
+    });
+
+    it('shrinking a tile leaves neighbors at their original positions', () => {
+      // Resize doesn't always displace — shrinking should just commit the
+      // smaller tile and let the rest of the layout stay put.
+      const tiles: PlcBentoTile[] = [
+        { kind: 'plcInfo', coords: { x: 0, y: 0, w: 6, h: 2 } },
+        { kind: 'quickActions', coords: { x: 6, y: 0, w: 6, h: 2 } },
+      ];
+      const next = commitTileCoords(tiles, 'plcInfo', {
+        x: 0,
+        y: 0,
+        w: 3,
+        h: 2,
+      });
+      const plcInfo = next.find((t) => t.kind === 'plcInfo');
+      const quickActions = next.find((t) => t.kind === 'quickActions');
+      expect(plcInfo?.coords).toEqual({ x: 0, y: 0, w: 3, h: 2 });
+      // quickActions stays at its preferred (6, 0) — not pulled left.
+      expect(quickActions?.coords).toEqual({ x: 6, y: 0, w: 6, h: 2 });
+      expect(hasOverlap(next)).toBe(false);
+    });
+
     it('moves a dragged tile into another tile’s position and repacks', () => {
       // Reorder-by-grip semantics: dragging tile B onto tile A's slot
       // claims A's coords and pushes A to the next free spot. Verifies

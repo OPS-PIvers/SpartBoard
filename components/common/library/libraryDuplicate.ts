@@ -58,9 +58,18 @@ export function buildDuplicateAction(
  * Suggest a "(Copy)" suffix for a duplicated item title. Idempotent — if
  * the title already ends in " (Copy)" or " (Copy N)" it bumps the counter
  * instead of stacking suffixes.
+ *
+ * Edge cases:
+ *   - Empty / whitespace-only titles → "Copy" (no leading space).
+ *   - Nested chains like "Foo (Copy) (Copy)" bump the LAST `(Copy)` to
+ *     "(Copy 2)" — the regex anchors to the trailing suffix only, so
+ *     intermediate `(Copy)` groups are treated as part of the base name.
+ *     This is intentional: bumping the most-recent duplicate produces a
+ *     more obvious filename than walking back to the original.
  */
 export function suggestDuplicateTitle(title: string): string {
   const trimmed = title.trim();
+  if (trimmed === '') return 'Copy';
   const match = trimmed.match(/^(.*?) \(Copy(?: (\d+))?\)$/);
   if (!match) {
     return `${trimmed} (Copy)`;

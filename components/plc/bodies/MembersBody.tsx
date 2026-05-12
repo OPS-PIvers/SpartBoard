@@ -196,22 +196,32 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5 overflow-y-auto custom-scrollbar -m-0.5 p-0.5">
-          {members.map((m) => (
-            <div
-              key={m.uid}
-              className={`relative flex items-center justify-center w-9 h-9 rounded-full text-xxs font-bold shadow-sm border ${
-                m.isYou
-                  ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
-                  : 'bg-white text-slate-600 border-slate-200'
-              }`}
-              title={`${m.email}${m.isLead ? ' (lead)' : ''}${m.isYou ? ' (you)' : ''}`}
-            >
-              {initialsFromEmail(m.email)}
-              {m.isLead && (
-                <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border border-white" />
-              )}
-            </div>
-          ))}
+          {members.map((m) => {
+            // Compose a single accessible label so screen readers get
+            // "alice@school.edu, lead, you" instead of just the initials.
+            const ariaLabel = `${m.email || m.uid}${m.isLead ? ', lead' : ''}${m.isYou ? ', you' : ''}`;
+            return (
+              <div
+                key={m.uid}
+                role="img"
+                aria-label={ariaLabel}
+                className={`relative flex items-center justify-center w-9 h-9 rounded-full text-xxs font-bold shadow-sm border ${
+                  m.isYou
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
+                    : 'bg-white text-slate-600 border-slate-200'
+                }`}
+                title={`${m.email}${m.isLead ? ' (lead)' : ''}${m.isYou ? ' (you)' : ''}`}
+              >
+                <span aria-hidden="true">{initialsFromEmail(m.email)}</span>
+                {m.isLead && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border border-white"
+                  />
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     );
@@ -222,7 +232,10 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
     <div className="space-y-6">
       <section>
         <header className="flex items-center gap-2 mb-3">
-          <Users2 className="w-4 h-4 text-brand-blue-primary" />
+          <Users2
+            aria-hidden="true"
+            className="w-4 h-4 text-brand-blue-primary"
+          />
           <h3 className="text-xs font-bold uppercase tracking-widest text-slate-700">
             {t('plcDashboard.members.heading', {
               defaultValue: 'Members',
@@ -237,6 +250,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
               className="flex items-center gap-3 px-3 py-2 bg-white border border-slate-200 rounded-xl"
             >
               <div
+                aria-hidden="true"
                 className={`flex items-center justify-center w-8 h-8 rounded-full text-xxs font-bold shadow-sm border ${
                   m.isYou
                     ? 'bg-brand-blue-primary text-white border-brand-blue-dark'
@@ -252,7 +266,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                 <div className="flex items-center gap-2 text-xxs text-slate-500 mt-0.5">
                   {m.isLead && (
                     <span className="inline-flex items-center gap-1 text-brand-red-primary font-bold uppercase tracking-wider">
-                      <Crown className="w-3 h-3" />
+                      <Crown aria-hidden="true" className="w-3 h-3" />
                       {t('plcDashboard.members.lead', {
                         defaultValue: 'Lead',
                       })}
@@ -278,7 +292,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                     defaultValue: 'Remove',
                   })}
                 >
-                  <UserMinus className="w-4 h-4" />
+                  <UserMinus aria-hidden="true" className="w-4 h-4" />
                 </button>
               )}
             </li>
@@ -289,7 +303,10 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
       {isLead && (
         <section>
           <header className="flex items-center gap-2 mb-3">
-            <UserPlus className="w-4 h-4 text-brand-blue-primary" />
+            <UserPlus
+              aria-hidden="true"
+              className="w-4 h-4 text-brand-blue-primary"
+            />
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-700">
               {t('plcDashboard.members.inviteHeading', {
                 defaultValue: 'Invite a teacher',
@@ -298,9 +315,14 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
           </header>
           <div className="flex gap-2">
             <div className="flex-1 relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+              <Mail
+                aria-hidden="true"
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+              />
               <input
                 type="email"
+                inputMode="email"
+                autoComplete="email"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 onKeyDown={(e) => {
@@ -312,6 +334,11 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                 placeholder={t('plcDashboard.members.invitePlaceholder', {
                   defaultValue: 'teacher@school.edu',
                 })}
+                aria-label={t('plcDashboard.members.inviteHeading', {
+                  defaultValue: 'Invite a teacher',
+                })}
+                aria-invalid={inviteError != null}
+                aria-describedby="plc-invite-feedback"
                 className="w-full pl-9 pr-3 py-2 bg-white border border-slate-200 focus:border-brand-blue-primary focus:ring-2 focus:ring-brand-blue-primary/20 rounded-lg text-sm text-slate-700 transition-colors"
                 disabled={inviteSubmitting}
               />
@@ -320,9 +347,10 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
               type="button"
               onClick={() => void handleSendInvite()}
               disabled={inviteSubmitting || !inviteEmail.trim()}
+              aria-busy={inviteSubmitting}
               className="inline-flex items-center gap-1.5 px-3 py-2 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-300 disabled:cursor-not-allowed text-white text-xxs font-bold uppercase tracking-wider rounded-lg transition-colors"
             >
-              <Plus className="w-3.5 h-3.5" />
+              <Plus aria-hidden="true" className="w-3.5 h-3.5" />
               {inviteSubmitting
                 ? t('plcDashboard.members.sending', {
                     defaultValue: 'Sending…',
@@ -330,23 +358,36 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                 : t('plcDashboard.members.invite', { defaultValue: 'Invite' })}
             </button>
           </div>
-          {inviteError && (
-            <p className="text-xxs text-brand-red-primary font-semibold mt-2">
-              {inviteError}
-            </p>
-          )}
-          {inviteSuccess && !inviteError && (
-            <p className="text-xxs text-emerald-600 font-semibold mt-2">
-              {inviteSuccess}
-            </p>
-          )}
+          {/* Single live region so error and success messages get announced
+              to screen readers as they appear. `role="status"` covers both
+              transient confirmations and errors; this is intentionally NOT
+              `role="alert"` because the submit handler already gates on
+              client-side validation and we don't want to interrupt the
+              flow for a non-critical email-format complaint. */}
+          <div
+            id="plc-invite-feedback"
+            role="status"
+            aria-live="polite"
+            className="mt-2 min-h-[1rem]"
+          >
+            {inviteError && (
+              <p className="text-xxs text-brand-red-primary font-semibold">
+                {inviteError}
+              </p>
+            )}
+            {inviteSuccess && !inviteError && (
+              <p className="text-xxs text-emerald-600 font-semibold">
+                {inviteSuccess}
+              </p>
+            )}
+          </div>
         </section>
       )}
 
       {isLead && pendingInvitesForThisPlc.length > 0 && (
         <section>
           <header className="flex items-center gap-2 mb-3">
-            <Mail className="w-4 h-4 text-amber-600" />
+            <Mail aria-hidden="true" className="w-4 h-4 text-amber-600" />
             <h3 className="text-xs font-bold uppercase tracking-widest text-slate-700">
               {t('plcDashboard.members.pendingHeading', {
                 defaultValue: 'Pending invitations',
@@ -385,7 +426,7 @@ export const MembersBody: React.FC<MembersBodyProps> = ({
                     defaultValue: 'Revoke',
                   })}
                 >
-                  <X className="w-3 h-3" />
+                  <X aria-hidden="true" className="w-3 h-3" />
                   {t('plcDashboard.members.revoke', {
                     defaultValue: 'Revoke',
                   })}

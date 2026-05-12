@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import type { LibraryPrimaryAction } from './types';
 
@@ -54,19 +54,45 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
   children,
   widthPx = 360,
 }) => {
-  // Esc-to-close. Scoped to the document so the pane closes regardless of
-  // focus location — a click-through-friendly modal pattern.
+  // Esc-to-close. Scoped to the document via capture-phase so the pane
+  // intercepts Esc *before* any ancestor document-level listener (e.g. the
+  // PLC dashboard's fullscreen-tile collapser) sees it. `stopImmediate`
+  // also blocks sibling document listeners on the same capture pass —
+  // otherwise pressing Esc inside a preview opened from an expanded tile
+  // would close BOTH in one keystroke. Without `useCapture` true, sibling
+  // listeners (which don't bubble between each other) can't be blocked.
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        e.stopPropagation();
+        e.stopImmediatePropagation();
         onClose();
       }
     };
-    document.addEventListener('keydown', handler);
-    return () => document.removeEventListener('keydown', handler);
+    document.addEventListener('keydown', handler, true);
+    return () => document.removeEventListener('keydown', handler, true);
   }, [isOpen, onClose]);
+
+  // Restore focus to the previously-focused element on close so a teacher
+  // who tabbed into the preview from a library card returns to that card.
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  useEffect(() => {
+    if (!isOpen) return;
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    // Defer focus until after the slide-in so screen reader announces the
+    // pane title before the close button gets focus.
+    const id = window.setTimeout(() => {
+      closeButtonRef.current?.focus();
+    }, 0);
+    return () => {
+      window.clearTimeout(id);
+      previouslyFocusedRef.current?.focus();
+    };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -74,7 +100,7 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
     <aside
       role="complementary"
       aria-label="Item preview"
-      className="bg-white border-l border-slate-200 shadow-lg flex flex-col h-full shrink-0 animate-in slide-in-from-right-2 duration-200"
+      className="bg-white border-l border-slate-200 shadow-lg flex flex-col h-full shrink-0 motion-safe:animate-in motion-safe:slide-in-from-right-2 motion-safe:duration-200"
       style={{ width: `min(${widthPx}px, 90vw)` }}
     >
       <header className="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100 shrink-0">
@@ -86,13 +112,16 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
             </p>
           )}
         </div>
+        {/* WCAG 2.5.5: 44×44 minimum touch target. `min-w/min-h` ensures the
+            hit area meets the threshold even when the icon itself is small. */}
         <button
+          ref={closeButtonRef}
           type="button"
           onClick={onClose}
           aria-label="Close preview"
-          className="p-1.5 -m-1 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
+          className="inline-flex items-center justify-center min-w-[44px] min-h-[44px] -m-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors shrink-0"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" aria-hidden="true" />
         </button>
       </header>
 
