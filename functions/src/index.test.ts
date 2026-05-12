@@ -2313,6 +2313,7 @@ describe('generateWithAI read caching', () => {
     expect(first).toEqual({
       advancedModel: 'gemini-2.5-pro',
       standardModel: 'gemini-2.5-flash',
+      usedFallback: false,
     });
     expect(second).toEqual(first);
     // The second call must NOT hit Firestore.
@@ -2343,5 +2344,108 @@ describe('generateWithAI read caching', () => {
     expect(first.advancedModel).not.toBe('gemini-2.5-pro');
     expect(second.advancedModel).toBe('gemini-2.5-pro');
     expect(geminiConfigDocGet).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('getGeminiModelConfig usedFallback flag', () => {
+  // Locks in the silent-failure-hunter contract from PR #1597 review: when the
+  // Firestore read for admin model overrides throws (brownout / outage), the
+  // function returns hardcoded defaults AND sets `usedFallback: true` so the
+  // client can surface a one-time admin notice. Without the flag, regressions
+  // in admin-configured AI quality are invisible.
+  //
+  // Uses an isolated `buildDb` rather than the shared scaffolding so the
+  // assertions don't depend on global mock state. Resets the module cache
+  // between cases so a successful read from one case doesn't satisfy the
+  // throw-path read in the next.
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const buildDb = (
+    geminiDocBehavior: 'success-with-overrides' | 'success-empty' | 'throws'
+  ): any => ({
+    collection: vi.fn((name: string) => {
+      if (name !== 'global_permissions') {
+        throw new Error(`Unexpected collection access: ${name}`);
+      }
+      return {
+        doc: vi.fn((docId: string) => {
+          if (docId !== 'gemini-functions') {
+            throw new Error(`Unexpected doc access: ${docId}`);
+          }
+          return {
+            get: vi.fn(() => {
+              if (geminiDocBehavior === 'throws') {
+                return Promise.reject(
+                  new Error('Firestore unavailable (simulated brownout)')
+                );
+              }
+              if (geminiDocBehavior === 'success-with-overrides') {
+                return Promise.resolve({
+                  data: () => ({
+                    config: {
+                      advancedModel: 'gemini-2.5-pro',
+                      standardModel: 'gemini-2.5-flash',
+                    },
+                  }),
+                });
+              }
+              // success-empty: doc exists but has no config
+              return Promise.resolve({ data: () => ({}) });
+            }),
+          };
+        }),
+      };
+    }),
+  });
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  beforeEach(() => {
+    __resetGenerateWithAICaches();
+  });
+
+  it('sets usedFallback=true and returns defaults when the Firestore read throws', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    /* eslint-disable @typescript-eslint/no-unsafe-argument */
+    const result = await __getGeminiModelConfig(buildDb('throws'));
+    /* eslint-enable @typescript-eslint/no-unsafe-argument */
+
+    expect(result.usedFallback).toBe(true);
+    // Defaults must still be valid (non-empty) model names so generation can
+    // proceed — the whole point of the fallback path is to keep AI working
+    // during a Firestore brownout.
+    expect(typeof result.advancedModel).toBe('string');
+    expect(result.advancedModel.length).toBeGreaterThan(0);
+    expect(typeof result.standardModel).toBe('string');
+    expect(result.standardModel.length).toBeGreaterThan(0);
+
+    // The log-only behavior is preserved alongside the new flag.
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
+  it('sets usedFallback=false when admin overrides load successfully', async () => {
+    /* eslint-disable @typescript-eslint/no-unsafe-argument */
+    const result = await __getGeminiModelConfig(
+      buildDb('success-with-overrides')
+    );
+    /* eslint-enable @typescript-eslint/no-unsafe-argument */
+
+    expect(result.usedFallback).toBe(false);
+    expect(result.advancedModel).toBe('gemini-2.5-pro');
+    expect(result.standardModel).toBe('gemini-2.5-flash');
+  });
+
+  it('sets usedFallback=false when the doc exists but carries no overrides', async () => {
+    // No admin has tuned overrides yet — `cfg` is undefined and we fall
+    // through to defaults. This is the steady-state for a fresh install
+    // and must NOT trigger the fallback UI signal (which is reserved for
+    // actual Firestore read failures).
+    /* eslint-disable @typescript-eslint/no-unsafe-argument */
+    const result = await __getGeminiModelConfig(buildDb('success-empty'));
+    /* eslint-enable @typescript-eslint/no-unsafe-argument */
+
+    expect(result.usedFallback).toBe(false);
   });
 });

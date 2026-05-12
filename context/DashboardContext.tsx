@@ -56,6 +56,10 @@ import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import {
+  setAiModelConfigFallbackHandler,
+  resetAiModelConfigFallbackLatch,
+} from '../utils/aiModelConfigFallback';
+import {
   DashboardContext,
   PendingShareImport,
   SharedBoardImportMode,
@@ -465,6 +469,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     return () => setDriveAuthErrorHandler(null);
   }, [addToast, refreshGoogleToken]);
+
+  // Surface a one-time notice when an AI Cloud Function couldn't read the
+  // admin-configured Gemini model overrides from Firestore and fell back to
+  // hardcoded defaults. The flag is plumbed through every AI response payload
+  // via `_modelConfigUsedFallback` and consumed in `utils/ai.ts`. We only
+  // notify on the most recent attempt — the latch in the helper de-dupes
+  // until the user clicks "Reload to retry" (which reloads, re-arming).
+  useEffect(() => {
+    setAiModelConfigFallbackHandler(() => {
+      addToast(
+        'AI is running with default models (admin overrides unavailable). Reload to retry.',
+        'warning',
+        {
+          label: 'Reload',
+          onClick: () => {
+            resetAiModelConfigFallbackLatch();
+            window.location.reload();
+          },
+        }
+      );
+    });
+    return () => setAiModelConfigFallbackHandler(null);
+  }, [addToast]);
 
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>(() => {
     const saved = localStorage.getItem('spartboard_gradeFilter');

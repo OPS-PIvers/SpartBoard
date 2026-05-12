@@ -9,6 +9,7 @@ import {
   GuidedLearningInteractionType,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
+import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
 
 export interface GeneratedMiniApp {
   /** The generated HTML code for the mini-app, including embedded CSS and JS */
@@ -43,6 +44,13 @@ interface AIResponseData {
   videoId?: string;
   /** `video-activity-recommend`: one-sentence reason this video fits the topic. */
   rationale?: string;
+  /**
+   * `true` when the Cloud Function couldn't read admin-configured Gemini
+   * model overrides from Firestore and fell back to hardcoded defaults.
+   * Reported to the user via `reportAiModelConfigFallback` so admins get a
+   * one-time signal that overrides were silently ignored.
+   */
+  _modelConfigUsedFallback?: boolean;
 }
 
 export type AIGenerationType =
@@ -65,6 +73,12 @@ export interface GeneratedVideoQuestion extends GeneratedQuestion {
 export interface GeneratedVideoActivity {
   title: string;
   questions: GeneratedVideoQuestion[];
+  /**
+   * Optional flag returned by the Cloud Function when admin model overrides
+   * couldn't be loaded from Firestore. Consumed and stripped by callers via
+   * `reportAiModelConfigFallback`.
+   */
+  _modelConfigUsedFallback?: boolean;
 }
 
 const VIDEO_ACTIVITY_CALL_TIMEOUT_MS = 300_000;
@@ -95,6 +109,7 @@ async function callAI(
     >(functions, 'generateWithAI');
 
     const result = await generateWithAI(payload);
+    reportAiModelConfigFallback(result.data?._modelConfigUsedFallback);
     return result.data;
   } catch (error) {
     console.error('AI Generation Error:', error);
@@ -275,6 +290,7 @@ export async function generateVideoActivity(
     });
 
     const result = await fn({ url, questionCount });
+    reportAiModelConfigFallback(result.data._modelConfigUsedFallback);
 
     if (
       !result.data.title ||
@@ -431,6 +447,7 @@ interface AIGuidedLearningResponse {
   suggestedTitle?: string;
   suggestedMode?: string;
   steps?: unknown[];
+  _modelConfigUsedFallback?: boolean;
 }
 
 /** One image to send to Gemini for guided-learning generation. */
@@ -468,6 +485,7 @@ export async function generateGuidedLearning(
 
     const result = await fn({ images, prompt });
     const data = result.data;
+    reportAiModelConfigFallback(data._modelConfigUsedFallback);
 
     if (
       !data.suggestedTitle ||

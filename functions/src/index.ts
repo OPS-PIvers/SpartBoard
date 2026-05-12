@@ -153,7 +153,11 @@ interface GeminiModelConfig {
 const READ_CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface ModelConfigCacheEntry {
-  value: { advancedModel: string; standardModel: string };
+  value: {
+    advancedModel: string;
+    standardModel: string;
+    usedFallback: boolean;
+  };
   cachedAt: number;
 }
 let cachedModelConfig: ModelConfigCacheEntry | null = null;
@@ -188,10 +192,19 @@ export function __resetGenerateWithAICaches(): void {
  * Reads the admin-configured model overrides from the `gemini-functions`
  * global permissions document. Returns validated model names (or defaults).
  * Memoized with a 5-minute TTL — see `READ_CACHE_TTL_MS` above.
+ *
+ * `usedFallback` is `true` when the Firestore read threw — meaning the
+ * caller is running with hardcoded defaults rather than whatever overrides
+ * an admin may have configured. Plumb this back to the client so admins
+ * get a one-time UI signal during Firestore brownouts. Cache hits always
+ * return `usedFallback: false` because the catch path deliberately does
+ * NOT populate the cache.
  */
-async function getGeminiModelConfig(
-  db: admin.firestore.Firestore
-): Promise<{ advancedModel: string; standardModel: string }> {
+async function getGeminiModelConfig(db: admin.firestore.Firestore): Promise<{
+  advancedModel: string;
+  standardModel: string;
+  usedFallback: boolean;
+}> {
   const now = Date.now();
   if (
     cachedModelConfig &&
@@ -210,6 +223,7 @@ async function getGeminiModelConfig(
         normalizeModelName(cfg?.advancedModel) ?? DEFAULT_ADVANCED_MODEL,
       standardModel:
         normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL,
+      usedFallback: false,
     };
     cachedModelConfig = { value, cachedAt: now };
     return value;
@@ -223,6 +237,7 @@ async function getGeminiModelConfig(
     return {
       advancedModel: DEFAULT_ADVANCED_MODEL,
       standardModel: DEFAULT_STANDARD_MODEL,
+      usedFallback: true,
     };
   }
 }
@@ -1149,15 +1164,22 @@ Output JSON ONLY in this exact shape:
 
       // blooms-ai returns plain text — wrap in { text } for the generic callAI client
       if (genType === 'blooms-ai') {
-        return { text };
+        return { text, _modelConfigUsedFallback: geminiConfig.usedFallback };
       }
 
       // widget-builder and widget-explainer return plain text — wrap in { result } for the client
       if (genType === 'widget-builder' || genType === 'widget-explainer') {
-        return { result: text };
+        return {
+          result: text,
+          _modelConfigUsedFallback: geminiConfig.usedFallback,
+        };
       }
 
-      return parseGeminiJson<Record<string, unknown>>(text);
+      const parsed = parseGeminiJson<Record<string, unknown>>(text);
+      // Annotate JSON responses with the fallback flag so the client can
+      // surface a one-time admin notice. Underscore-prefixed to make the
+      // marker obvious and avoid colliding with any field Gemini returns.
+      return { ...parsed, _modelConfigUsedFallback: geminiConfig.usedFallback };
     } catch (error: unknown) {
       console.error('AI Generation Error Details:', error);
 
@@ -1533,6 +1555,12 @@ interface GeneratedVideoQuestion {
 interface GeneratedVideoActivity {
   title: string;
   questions: GeneratedVideoQuestion[];
+  /**
+   * Optional: `true` when the Cloud Function couldn't read the admin model
+   * config from Firestore and fell back to hardcoded defaults. Lets the
+   * client surface a one-time admin notice without polluting every call.
+   */
+  _modelConfigUsedFallback?: boolean;
 }
 
 /**
@@ -1724,7 +1752,10 @@ Return JSON in this exact format:
         throw new Error('Invalid response structure from AI');
       }
 
-      return parsed;
+      return {
+        ...parsed,
+        _modelConfigUsedFallback: geminiConfig.usedFallback,
+      };
     } catch (error: unknown) {
       console.error('[generateVideoActivity] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
@@ -2047,6 +2078,8 @@ interface GeneratedGuidedLearning {
   suggestedTitle: string;
   suggestedMode: string;
   steps: GuidedLearningStep[];
+  /** See `GeneratedVideoActivity._modelConfigUsedFallback`. */
+  _modelConfigUsedFallback?: boolean;
 }
 
 interface GuidedLearningImageInput {
@@ -2259,7 +2292,10 @@ Guidelines:
             : 0,
       }));
 
-      return parsed;
+      return {
+        ...parsed,
+        _modelConfigUsedFallback: geminiConfig.usedFallback,
+      };
     } catch (error: unknown) {
       console.error('[generateGuidedLearning] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
