@@ -70,31 +70,40 @@ export const VideoActivitiesTile: React.FC<VideoActivitiesTileProps> = ({
         ) : (
           <ul className="space-y-2 py-1">
             {preview.map((activity) => (
-              <li
-                key={activity.id}
-                className="px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 transition-colors"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="text-xs font-bold text-slate-800 truncate">
-                    {activity.title}
+              <li key={activity.id}>
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('videoActivities')}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 focus-visible:bg-brand-blue-lighter/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 transition-colors"
+                  title={t(
+                    'plcDashboard.overview.tiles.videoActivities.rowTooltip',
+                    {
+                      defaultValue: 'Open in PLC Video Activities tab',
+                    }
+                  )}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="text-xs font-bold text-slate-800 truncate">
+                      {activity.title}
+                    </div>
+                    <span className="shrink-0 text-xxs text-slate-400">
+                      {t(
+                        'plcDashboard.overview.tiles.videoActivities.questionCount',
+                        {
+                          count: activity.questionCount,
+                          defaultValue: '{{count}} q',
+                        }
+                      )}
+                    </span>
                   </div>
-                  <span className="shrink-0 text-xxs text-slate-400">
-                    {t(
-                      'plcDashboard.overview.tiles.videoActivities.questionCount',
-                      {
-                        count: activity.questionCount,
-                        defaultValue: '{{count}} q',
-                      }
-                    )}
-                  </span>
-                </div>
-                <p className="text-xxs text-slate-500 truncate mt-0.5">
-                  {t('plcDashboard.overview.tiles.videoActivities.bySharer', {
-                    name:
-                      activity.sharedByName || activity.sharedByEmail || '—',
-                    defaultValue: 'shared by {{name}}',
-                  })}
-                </p>
+                  <p className="text-xxs text-slate-500 truncate mt-0.5">
+                    {t('plcDashboard.overview.tiles.videoActivities.bySharer', {
+                      name:
+                        activity.sharedByName || activity.sharedByEmail || '—',
+                      defaultValue: 'shared by {{name}}',
+                    })}
+                  </p>
+                </button>
               </li>
             ))}
           </ul>

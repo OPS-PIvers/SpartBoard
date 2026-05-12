@@ -18,11 +18,32 @@
 
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ClipboardList, ChevronRight, Loader2 } from 'lucide-react';
+import {
+  ClipboardList,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+} from 'lucide-react';
 
 import { Plc, PlcAssignmentIndexEntry, QuizAssignmentStatus } from '@/types';
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
 import type { PlcDashboardTabId } from '../../PlcDashboard';
+
+/**
+ * Defense-in-depth: only render the entry's `sheetUrl` as a link if it
+ * parses as an `http:` or `https:` URL. Mirrors the same guard used in
+ * `PlcAssignmentIndexRow` — the rule layer pins `sheetUrl` to the PLC's
+ * canonical `sharedSheetUrl`, but a stale entry shouldn't be able to
+ * smuggle a `javascript:` URL through the tile.
+ */
+function isSafeHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
 
 interface ActiveAssignmentsTileProps {
   plc: Plc;
@@ -115,6 +136,7 @@ const ActiveAssignmentRow: React.FC<{ entry: PlcAssignmentIndexEntry }> = ({
 }) => {
   const { t } = useTranslation();
   const ownerLabel = entry.ownerName?.trim() || entry.ownerEmail || '—';
+  const safeSheetUrl = isSafeHttpUrl(entry.sheetUrl) ? entry.sheetUrl : null;
   return (
     <li className="px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 transition-colors">
       <div className="flex items-baseline justify-between gap-2">
@@ -123,12 +145,37 @@ const ActiveAssignmentRow: React.FC<{ entry: PlcAssignmentIndexEntry }> = ({
         </div>
         <StatusDot status={entry.status} />
       </div>
-      <p className="text-xxs text-slate-500 truncate mt-0.5">
-        {t('plcDashboard.overview.tiles.activeAssignments.byOwner', {
-          name: ownerLabel,
-          defaultValue: 'by {{name}}',
-        })}
-      </p>
+      <div className="flex items-center justify-between gap-2 mt-0.5">
+        <p className="text-xxs text-slate-500 truncate">
+          {t('plcDashboard.overview.tiles.activeAssignments.byOwner', {
+            name: ownerLabel,
+            defaultValue: 'by {{name}}',
+          })}
+        </p>
+        {safeSheetUrl && (
+          <a
+            href={safeSheetUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+            className="shrink-0 inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-brand-blue-primary hover:underline"
+            // Stops bubbling so a future row-click → tab-navigate wiring
+            // (added on QuizLibrary / VideoActivities tiles) doesn't fire
+            // when the user actually wanted to follow the sheet link.
+            onClick={(e) => e.stopPropagation()}
+            title={t(
+              'plcDashboard.overview.tiles.activeAssignments.openSheet',
+              {
+                defaultValue: 'Open results sheet',
+              }
+            )}
+          >
+            <ExternalLink className="w-2.5 h-2.5" aria-hidden="true" />
+            {t('plcDashboard.overview.tiles.activeAssignments.sheet', {
+              defaultValue: 'Sheet',
+            })}
+          </a>
+        )}
+      </div>
     </li>
   );
 };

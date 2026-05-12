@@ -71,30 +71,37 @@ export const QuizLibraryTile: React.FC<QuizLibraryTileProps> = ({
         ) : (
           <ul className="space-y-2 py-1">
             {preview.map((quiz) => (
-              <li
-                key={quiz.id}
-                className="px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 transition-colors"
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <div className="text-xs font-bold text-slate-800 truncate">
-                    {quiz.title}
+              <li key={quiz.id}>
+                <button
+                  type="button"
+                  onClick={() => onNavigateTab('quizzes')}
+                  className="w-full text-left px-2 py-2 rounded-lg hover:bg-brand-blue-lighter/40 focus-visible:bg-brand-blue-lighter/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary/40 transition-colors"
+                  title={t(
+                    'plcDashboard.overview.tiles.quizLibrary.rowTooltip',
+                    { defaultValue: 'Open in PLC Quiz Library tab' }
+                  )}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <div className="text-xs font-bold text-slate-800 truncate">
+                      {quiz.title}
+                    </div>
+                    <span className="shrink-0 text-xxs text-slate-400">
+                      {t(
+                        'plcDashboard.overview.tiles.quizLibrary.questionCount',
+                        {
+                          count: quiz.questionCount,
+                          defaultValue: '{{count}} q',
+                        }
+                      )}
+                    </span>
                   </div>
-                  <span className="shrink-0 text-xxs text-slate-400">
-                    {t(
-                      'plcDashboard.overview.tiles.quizLibrary.questionCount',
-                      {
-                        count: quiz.questionCount,
-                        defaultValue: '{{count}} q',
-                      }
-                    )}
-                  </span>
-                </div>
-                <p className="text-xxs text-slate-500 truncate mt-0.5">
-                  {t('plcDashboard.overview.tiles.quizLibrary.bySharer', {
-                    name: quiz.sharedByName || quiz.sharedByEmail || '—',
-                    defaultValue: 'shared by {{name}}',
-                  })}
-                </p>
+                  <p className="text-xxs text-slate-500 truncate mt-0.5">
+                    {t('plcDashboard.overview.tiles.quizLibrary.bySharer', {
+                      name: quiz.sharedByName || quiz.sharedByEmail || '—',
+                      defaultValue: 'shared by {{name}}',
+                    })}
+                  </p>
+                </button>
               </li>
             ))}
           </ul>
