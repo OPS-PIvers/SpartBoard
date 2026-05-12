@@ -97,6 +97,15 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
 
   if (!isOpen) return null;
 
+  // Fall back to the default if the caller passes a non-finite or
+  // non-positive number — `width: min(0px, 50%)` would collapse the pane
+  // and `width: min(NaNpx, 50%)` invalidates the rule entirely (browser
+  // drops the declaration, pane flexes to content). The clamp's 240px
+  // floor keeps the pane usable on narrow widgets at the cost of
+  // squeezing the grid, which is the right trade-off when the user has
+  // explicitly opened a preview.
+  const safeWidthPx = Number.isFinite(widthPx) && widthPx > 0 ? widthPx : 360;
+
   return (
     <aside
       role="complementary"
@@ -105,10 +114,11 @@ export const LibraryPreviewPane: React.FC<LibraryPreviewPaneProps> = ({
       // Container-relative cap (`50%`) replaces the previous viewport cap
       // (`90vw`). The pane lives inside the widget's container, so a
       // narrow widget (e.g. 480px wide) used to give the pane 360px and
-      // collapse the grid to ~108px. `50%` keeps the grid usable at any
-      // widget width while still letting the pane reach `widthPx` on a
-      // wide manager.
-      style={{ width: `min(${widthPx}px, 50%)` }}
+      // collapse the grid to ~108px. The 240px floor (via clamp) keeps
+      // the pane usable even on very narrow widgets, at the cost of
+      // squeezing the grid below 50% in that case — the right trade-off
+      // when the user has explicitly opened a preview.
+      style={{ width: `clamp(240px, 50%, ${safeWidthPx}px)` }}
     >
       <header className="flex items-start justify-between gap-3 px-4 py-3 border-b border-slate-100 shrink-0">
         <div className="min-w-0 flex-1">
