@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-05_
+_Last audited: 2026-05-12_
 _Last action: 2026-04-30_
 
 ---
@@ -15,6 +15,16 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM `hono@4.12.15` has two MODERATE CVEs — patched in >=4.12.18
+
+- **Detected:** 2026-05-12
+- **File:** package.json (devDependency + pnpm.overrides)
+- **Detail:** Two new moderate CVEs affect `hono` >=4.12.15 <4.12.18 that were not present when hono was upgraded to 4.12.15 (2026-04-28 completed item):
+  - **GHSA-qp7p-654g-cw7p** (moderate): CSS Declaration Injection via Style Object Values in JSX SSR — unsafe CSS values can leak from attacker-controlled object properties when using `hono/jsx` SSR with style objects.
+  - **GHSA-p77w-8qqv-26rm** (moderate): Cache Middleware ignores `Vary: Authorization` / `Vary: Cookie` headers, leading to cross-user cache leakage — a cached response for one user can be served to a different user if cache keys don't account for auth headers.
+    `pnpm outdated` confirms current is 4.12.15, latest is 4.12.18. The `pnpm.overrides.hono` entry is what pins this across the dep graph.
+- **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` from `^4.12.14` → `^4.12.18`, then run `pnpm install`. Verify `pnpm audit` no longer reports hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
 
 ### MEDIUM `axios@1.15.0` still has two MODERATE CVEs — patched in >=1.15.1
 
@@ -43,8 +53,8 @@ _Nothing currently in progress._
   - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs
   - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption
     All via firebase-tools devDependency chain. These do not affect production runtime.
-    Current: 15.8.0, Latest: 15.16.0 — updating may resolve several transitively. (Updated: Latest moved from 15.15.0 → 15.16.0 as of 2026-05-05.)
-- **Fix:** `pnpm up firebase-tools@^15.16.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
+    Current: 15.8.0, Latest: 15.17.0 — updating may resolve several transitively. (Updated: Latest moved from 15.16.0 → 15.17.0 as of 2026-05-12.)
+- **Fix:** `pnpm up firebase-tools@^15.17.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
 
 ### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
 
@@ -60,8 +70,8 @@ _Nothing currently in progress._
     - **HIGH** signature forgery in Ed25519 (<1.4.0)
     - **HIGH** DoS via Infinite Loop (<1.4.0)
     - **HIGH** RSA-PKCS signature forgery (<1.4.0)
-      Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest 13.8.0.
-- **Fix:** Update `firebase` in root to latest (12.12.0) and `firebase-admin` in functions/ to 13.8.0. Check if newer versions pin fixed transitive versions. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
+      Root: firebase-admin is a transitive dep of the `firebase` SDK. Functions: firebase-admin@13.6.0 direct, latest 13.9.0. `firebase` root: 12.8.0, latest 12.13.0. (Updated: firebase-admin latest moved from 13.8.0 → 13.9.0; firebase latest moved from 12.12.0 → 12.13.0 as of 2026-05-12.)
+- **Fix:** Update `firebase` in root to latest (12.13.0) and `firebase-admin` in functions/ to 13.9.0. Check if newer versions pin fixed transitive versions. May not fully resolve if firebase-admin itself hasn't updated @google-cloud/storage.
 
 ### MEDIUM `@modelcontextprotocol/sdk` cross-client data leak (still resolves to 1.25.2 after `@google/genai` upgrade)
 
@@ -93,23 +103,25 @@ _Nothing currently in progress._
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-05-05
+- **Updated:** 2026-05-12
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
-  - `tailwindcss`: 3.4.19 → **4.2.4** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.0.10** (2 majors ahead; focus on patching within v6 first)
+  - `tailwindcss`: 3.4.19 → **4.3.0** (major — config format changed completely)
+  - `vite`: 6.4.2 → **8.0.12** (2 majors ahead; focus on patching within v6 first)
   - `eslint`: 9.39.2 → **10.3.0** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
   - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes)
-  - `i18next`: 25.8.13 → **26.0.8** (major — API changes)
-  - `react-i18next`: 16.5.4 → **17.0.6** (paired with i18next)
+  - `i18next`: 25.8.13 → **26.1.0** (major — API changes)
+  - `react-i18next`: 16.5.4 → **17.0.7** (paired with i18next)
   - `lucide-react`: 0.563.0 → **1.14.0** (first stable major — icon API changes possible)
   - `@vitejs/plugin-react`: 5.1.2 → **6.0.1** (major)
-  - `@types/node`: 24.12.2 → **25.6.0** (major — verify Node 24 compat)
+  - `@types/node`: 24.12.2 → **25.7.0** (major — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only)
-    Also notable minor updates: `react`/`react-dom` 19.2.4 → 19.2.5, `firebase-tools` 15.8.0 → 15.16.0, `firebase` 12.8.0 → 12.12.1, `firebase-admin` 13.6.0 → 13.8.0.
+  - `lint-staged`: 16.2.7 → **17.0.4** (major — check husky integration compatibility)
+  - `@google/genai`: 1.51.0 → **2.0.1** (major — AI API surface may have breaking changes; test all generation flows after upgrade)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.6, `firebase-tools` 15.8.0 → 15.17.0, `firebase` 12.8.0 → 12.13.0, `firebase-admin` 13.6.0 → 13.9.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.59.3, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.6.
     These should not be done in a single commit — each needs its own migration PR with testing.
-- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix.
+- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.).
 
 ---
 

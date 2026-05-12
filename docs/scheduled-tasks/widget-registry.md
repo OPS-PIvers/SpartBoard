@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-06_
+_Last audited: 2026-05-12_
 _Last action: 2026-05-02_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-12: Full audit of all 63 WidgetType values against WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts. Zero new gaps found. All recently added widgets (`stations`, `need-do-put-then`, `blooms-detail`, `blooms-taxonomy`) confirmed in all locations. RevealGrid aliased exports (`Widget`/`Settings` via index.ts re-export) confirmed correct. Two existing LOW open items (stickers and blooms-detail missing from WIDGET_SETTINGS_COMPONENTS) remain valid — see Open section._
 
 _2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_SCALING_CONFIG, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts. No new gaps found. TimeTool ±button additions, URL widget overhaul, and BlendingBoard expansion all correctly registered. `stations`, `need-do-put-then`, `blooms-detail`, `blooms-taxonomy` — all confirmed._
 
