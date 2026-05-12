@@ -373,7 +373,8 @@ describe('fetchExternalProxy', () => {
     );
 
     expect(mockGet).toHaveBeenCalledWith(
-      'https://api.openweathermap.org/data/2.5/weather?q=London'
+      'https://api.openweathermap.org/data/2.5/weather?q=London',
+      { maxRedirects: 0 }
     );
     expect(result).toEqual({ temp: 72 });
   });
@@ -394,7 +395,8 @@ describe('fetchExternalProxy', () => {
     );
 
     expect(mockGet).toHaveBeenCalledWith(
-      'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx?si=BLLST'
+      'https://owc.enterprise.earthnetworks.com/Data/GetData.ashx?si=BLLST',
+      { maxRedirects: 0 }
     );
     expect(result).toEqual({ o: { t: 72, ic: 0 } });
   });

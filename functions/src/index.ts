@@ -1070,7 +1070,11 @@ export const fetchExternalProxy = onCall(
     }
 
     try {
-      const response = await axios.get<unknown>(data.url);
+      // Disable redirects entirely: the URL allowlist check above only
+      // validates the initial host, so a 3xx Location pointing off-allowlist
+      // would otherwise let us fetch arbitrary URLs. None of our three
+      // upstream APIs need redirects in practice.
+      const response = await axios.get<unknown>(data.url, { maxRedirects: 0 });
       return response.data;
     } catch (error: unknown) {
       const axiosError = error as {
@@ -1078,11 +1082,26 @@ export const fetchExternalProxy = onCall(
         message?: string;
       };
       const status = axiosError.response?.status;
+      // Summarise the response body instead of dumping it: upstream HTML
+      // error pages can be large and may contain sensitive content.
+      const rawBody = axiosError.response?.data;
+      const bodyPreview =
+        rawBody === undefined
+          ? undefined
+          : ((): { type: string; size: number; preview: string } => {
+              const str =
+                typeof rawBody === 'string' ? rawBody : JSON.stringify(rawBody);
+              return {
+                type: typeof rawBody,
+                size: str.length,
+                preview: str.slice(0, 200),
+              };
+            })();
       console.error('External Proxy Error:', {
         url: data.url,
         status,
         message: axiosError.message,
-        responseBody: axiosError.response?.data,
+        body: bodyPreview,
       });
       if (status === 404) {
         throw new HttpsError(
@@ -2364,6 +2383,7 @@ export const studentLoginV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -2587,6 +2607,7 @@ export const getAssignmentPseudonymV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   (request) => {
     if (!request.auth) {
@@ -2648,6 +2669,7 @@ export const getStudentClassDirectoryV1 = onCall(
   {
     memory: '256MiB',
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -2863,6 +2885,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -3196,6 +3219,7 @@ export const commitRosterPinIndexV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -3395,6 +3419,7 @@ export const pinLoginV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = (request.data ?? {}) as PinLoginRequestData;
