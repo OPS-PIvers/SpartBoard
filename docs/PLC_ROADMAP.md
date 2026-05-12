@@ -156,9 +156,9 @@ Open these in the first session so you understand the pivot points:
 
 These were surfaced in the final review pass and intentionally deferred to keep this PR focused. None block merge:
 
-- **Modal i18n.** `PlcShareTargetModal` and `PlcQuizImportModal` use hardcoded English. Consistent with the sibling `QuizAssignmentImportModeModal.tsx` pattern — every share/import picker in this codebase is currently English-only. A separate localization sweep should bring all three modals plus the QuizManager kebab labels under `t()` together.
+- ~~**Modal i18n.**~~ Resolved by `claude/plc-polish` (see "Resolved in `claude/plc-polish`" below) — `PlcShareTargetModal` + `PlcQuizImportModal` now route through `t(key, { defaultValue })`.
+- ~~**Cloud Function unit tests.**~~ Resolved by `claude/plc-polish` — `functions/src/plcQuizSyncJoin.test.ts` covers membership gate + data-shape gates + join semantics + idempotency invariants.
 - **Rollback path tests.** `PlcQuizLibraryTab.handleImport` has a 3-stage rollback (leave sync group + delete personal quiz on partial failure) but no integration test exercising it. The shared-assignment importer's analogous path also has unit-only coverage today; adding this would be additive parity.
-- **Cloud Function unit tests.** `joinPlcQuizSyncGroup` (`functions/src/plcQuizSyncJoin.ts`) has no `*.test.ts` sibling. The Firestore rules suite covers the subcollection's permissions, but the Admin-SDK transaction logic itself (membership re-check, idempotent `alreadyJoined`, version-bump invariants) isn't directly exercised. Sibling pattern: `syncedQuizGroups.test.ts` (Phase 1).
 - **Modal title polish.** When the user clicks "Re-import" on an already-synced quiz, the `PlcQuizImportModal` header still reads "Add to my library". Minor UX nit — the import button label updates correctly, but the modal title doesn't acknowledge the re-import context.
 
 ---
@@ -217,8 +217,8 @@ These were surfaced in the final review pass and intentionally deferred to keep 
 ### Phase 3 follow-ups (not blockers; track separately)
 
 - ~~**Bubble-up for Drive-only PLC quizzes.**~~ **Shipped (PR #1557).** `Widget.tsx → onAssign` now promotes Drive-only quizzes to a synced group ahead of `createAssignment` when `plcLinkage` is set and `meta.sync` is missing — mirrors `handleShareWithPlc` for the create-group + attach-linkage + leave-on-failure rollback shape. Result: every PLC-mode personal assignment authors a Library template, regardless of whether the source quiz was already shared.
-- **Cloud Function unit tests.** `joinPlcAssignmentSyncGroup` (`functions/src/plcAssignmentSyncJoin.ts`) has no `*.test.ts` sibling. Same gap as Phase 2's `joinPlcQuizSyncGroup`.
-- **Modal i18n.** `PlcAssignmentImportModal.tsx` uses hardcoded English (matches the sibling `PlcQuizImportModal.tsx` and `QuizAssignmentImportModeModal.tsx`). Localize all three together when the locale sweep happens.
+- ~~**Cloud Function unit tests.**~~ Resolved by `claude/plc-polish` — `plcAssignmentSyncJoin.test.ts` shipped alongside `plcQuizSyncJoin.test.ts` and `plcVideoActivitySyncJoin.test.ts`.
+- ~~**Modal i18n.**~~ Resolved by `claude/plc-polish` — `PlcAssignmentImportModal.tsx` now routes through `t(key, { defaultValue })` (covered in the same i18n sweep that touched `PlcQuizImportModal` and `PlcShareTargetModal`).
 - ~~**Library template editing.**~~ **Shipped via the Quiz Library tab (PR #1557).** Edit affordance landed on `PlcQuizLibraryTab` rather than the assignment-template Library sub-tab — the underlying canonical (the synced group) is the same, so editing from the Quiz Library propagates to teammates AND to anyone who imported the assignment template. The assignment-template Library sub-tab still has no inline edit; a future iteration could surface the same affordance there for symmetry, but it'd hit the same canonical, so it's a UX-only improvement.
 - **`status` field on the `assignments` template subcollection.** Templates currently have no lifecycle status — they're either present (pickup-able) or absent (unshared). If we want "this template is no longer being run" without unsharing it, that's a future schema extension.
 
@@ -263,37 +263,19 @@ These were surfaced in the final review pass and intentionally deferred to keep 
 
 ### Phase 4 follow-ups (not blockers; track separately)
 
-- **VA assignment-template subcollection.** See "Notes" above — current PR ships library-only.
+- **VA assignment-template subcollection.** See "Notes" above — current PR ships library-only. `claude/plc-new-assignment-cta` mitigates the user-visible symptom by switching the active sub-tab to In-progress on successful VA submit so the new row is visible immediately; the proper fix is still a `plcs/{plcId}/video_activity_templates/` (or `kind`-discriminated `plcs/{plcId}/assignments/`) writer so VA templates show in the Library sub-tab alongside quiz templates.
 - **Version-conflict UX on inline edit.** Mirror `SyncedQuizVersionConflictError` for VAs.
-- **Modal i18n.** `PlcVideoActivityImportModal` uses hardcoded English. Same gap as Phase 2/3 modals.
+- ~~**Modal i18n.**~~ Resolved by `claude/plc-polish` — `PlcVideoActivityImportModal` now routes through `t(key, { defaultValue })` (covered in the same Phase 2/3/4 i18n sweep).
 
 ---
 
-## Phase 5 — Notes + To-Do list
-
-**Goal:** lightweight collaborative shared docs at the PLC level.
-
-### Scope
-
-- `plcs/{plcId}/notes/{noteId}` subcollection — shared rich-text notes. Each note has `title`, `body` (markdown or simple HTML), `lastEditedBy`, `lastEditedAt`. Any member can create/edit/delete.
-- `plcs/{plcId}/todos/{todoId}` subcollection — shared task list. Each todo has `text`, `done: boolean`, `createdBy`, `createdAt`, optionally `assignedTo: uid`.
-- `PlcNotesTab.tsx` and `PlcTodosTab.tsx` replace placeholders.
-
-### Architectural notes
-
-- Notes editing: same LWW pattern as synced quizzes (debounced field writes). For Phase 5 we don't need version monotonicity (notes are a single doc, not a structured quiz tree) — last write wins on the whole `body` field is acceptable.
-- For todos, prefer a subcollection (one doc per todo) over a single doc with an array — array writes serialize the whole list and don't scale to dozens of items with concurrent edits.
-
-### Open questions
-
-- Should notes support multiple notes per PLC (e.g. "meeting notes from May 7") or a single shared notepad? Recommend: **multiple notes** (matches the subcollection model). Confirm.
-- Are todos owned by the PLC or per-member? Recommend: **PLC-owned with optional `assignedTo`** so any member can mark any todo complete. Confirm.
-
-### Notes from implementation
-
-Shipped together with Phase 1.5 (Overview + bento grid + sidebar kebab). See "Phase 1.5" below for the details that affect future phases.
-
----
+<!--
+  Phase 5 (Notes + To-Do list) shipped together with Phase 1.5 (Overview tab
+  + bento grid). The originally-planned scope section was superseded by what
+  actually landed — see the SHIPPED entry farther below (just after Phase 1.5)
+  for the canonical record. Originally-open scope questions resolved there +
+  in the "Open questions → Resolved" section at the bottom.
+-->
 
 ## Phase 1.5 — Overview tab + bento grid + sidebar kebab _(SHIPPED)_
 
@@ -376,7 +358,7 @@ Shipped together with Phase 1.5 (Overview + bento grid + sidebar kebab). See "Ph
 
 - **Tile-level "Copy to my dashboards" action.** Currently the only action on the tile and tab is "Open share" → standard import picker. An inline "Copy" affordance would shortcut the picker to copy mode for the common "I just want a snapshot" case.
 - **PLC scope visible in Sidebar.** When the host re-opens the share modal on an already-shared board, the PLC scope isn't displayed back — the modal always defaults to "Don't scope to a PLC." A round-trip on the current share state would let the host see (and remove) the scope without resharing.
-- **Modal copy.** "Also share with a PLC (optional)" is hardcoded English. Group with the Phase 2/3/4 modal i18n sweep when that lands.
+- ~~**Modal copy.**~~ Resolved by `claude/plc-polish` — the "Also share with a PLC (optional)" copy in `ShareLinkCreatorModal` now routes through `t('shareLinkCreatorModal.plcScope.label', …)` and `t('shareLinkCreatorModal.plcScope.optional', …)`.
 
 ---
 
@@ -420,7 +402,7 @@ logError('writePlcAssignmentIndexEntry.write', err, { plcId, entryId });
 
 _(Add new ones here as they come up. Resolve before starting the affected phase.)_
 
-- **Phase 6:** read-only vs. editable for PLC-shared boards.
+_None currently open — every roadmapped question has been answered. New phases (7, 8) carry their own per-phase wildcards in their respective starter sections._
 
 Resolved:
 
@@ -430,6 +412,7 @@ Resolved:
 - ~~**Phase 3:** does the personal "PLC option" toggle create a brand-new PLC-level assignment template, or fork from the personal one?~~ → Brand-new template. Shipped.
 - ~~**Phase 3:** what happens to in-flight imports if the PLC-level template is deleted?~~ → Imports keep running (orphan-tolerant). Shipped.
 - ~~**Phase 3 (TBD):** bottom-half of the PLC Assignments tab — completed-assignments index here vs. its own top-level tab.~~ → Folded into a Completed sub-tab; pre-Phase-3 top-level tab removed. Shipped.
+- ~~**Phase 6:** read-only vs. editable for PLC-shared boards.~~ → Read-only / copy. See Phase 6 "Notes from implementation" (PLC-shared boards reuse the existing `/share/:id` Sync-or-Copy import flow; no new multi-teacher LWW infrastructure).
 
 ---
 
