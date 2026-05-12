@@ -115,6 +115,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
   onTabChange,
   counts,
   tabLabels,
+  visibleTabs,
   primaryAction,
   secondaryActions,
   toolbarSlot,
@@ -132,7 +133,7 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
     if (onFolderPanelModeChange) onFolderPanelModeChange(next);
     else setUncontrolledMode(next);
   };
-  const tabs: TabDef[] = [
+  const allTabs: TabDef[] = [
     {
       key: 'library',
       label: tabLabels?.library ?? 'Library',
@@ -152,6 +153,28 @@ export const LibraryShell: React.FC<LibraryShellProps> = ({
       count: counts?.archive,
     },
   ];
+  // Embedded callers (e.g. PLC dashboard tile) pass `visibleTabs` to drop
+  // chrome they don't need. Empty array would be a footgun (renders no
+  // nav at all), so we treat undefined/null as "show all" but respect
+  // an explicit empty array if a caller really wants to suppress the
+  // tab bar.
+  const tabs =
+    visibleTabs == null
+      ? allTabs
+      : allTabs.filter((tabDef) => visibleTabs.includes(tabDef.key));
+
+  // If the active tab is filtered out by `visibleTabs`, redirect to the
+  // first visible tab so the chrome doesn't render an empty nav with a
+  // mismatched tabpanel below. Adjust state during render — same pattern
+  // we use across the codebase for derived-from-props state.
+  const firstVisibleTab = tabs[0]?.key;
+  if (
+    firstVisibleTab &&
+    visibleTabs != null &&
+    !tabs.some((t) => t.key === tab)
+  ) {
+    onTabChange(firstVisibleTab);
+  }
 
   // Collapse header action labels to icon-only when the widget is narrow so
   // buttons never push off-screen. A crude width threshold based on the number

@@ -518,9 +518,37 @@ export type PlcBentoTileKind =
   | 'videoActivities'
   | 'sharedBoards';
 
+/**
+ * Free-form grid coordinates for the v2 PLC overview grid (Phase 1 of the
+ * dashboard overhaul). Columns are zero-based; widths/heights are spans in
+ * cells. The grid is 12 columns wide on desktop and collapses to 1 column
+ * on mobile (`< 768px`) where coords are ignored in favor of array order.
+ *
+ * Bounds enforced both client-side (`tileGridMath.clampCoords`) and in
+ * Firestore rules: `x` in [0, GRID_COLS-1], `w` in [1, GRID_COLS-x],
+ * `y` in [0, GRID_MAX_Y], `h` in [1, GRID_MAX_H].
+ */
+export interface PlcGridCoords {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
 export interface PlcBentoTile {
   kind: PlcBentoTileKind;
-  size: PlcBentoTileSize;
+  /**
+   * Legacy preset size (v1 grid). Kept for backward compatibility — old
+   * persisted layouts won't have `coords`, so the loader derives one from
+   * `size` on read. New writes always include `coords`.
+   */
+  size?: PlcBentoTileSize;
+  /**
+   * v2 grid coordinates (12-column free-form grid). Optional during
+   * migration; populated by `usePlcOverviewLayout`'s loader for legacy
+   * docs and stamped on every write going forward.
+   */
+  coords?: PlcGridCoords;
   /** When true the tile sits in the "Hidden tiles" tray instead of the grid. */
   hidden?: boolean;
 }
@@ -552,23 +580,67 @@ export const PLC_BENTO_TILE_KINDS: readonly PlcBentoTileKind[] = [
 ] as const;
 
 /**
- * Default tile order + sizes for a brand-new PLC overview. Used when a
+ * Default tile order + layout for a brand-new PLC overview. Used when a
  * member opens the dashboard for the first time and no `plc_layouts` doc
- * exists yet. Live-data tiles come first; "coming soon" placeholders trail.
+ * exists yet.
+ *
+ * v2 grid (12-col) coordinates are the canonical layout; legacy v1 `size`
+ * values are kept alongside so the v1 bento grid (still rendered when the
+ * `gridV2` flag is off) can place tiles correctly without a migrator
+ * round-trip on first paint.
+ *
+ * Layout intent (v2 grid, 12 columns wide):
+ *   Row 0:  [plcInfo 6×2 ]            [quickActions 6×2 ]
+ *   Row 2:  [members 3×2] [todos 3×4][notes 6×2 ]
+ *   Row 4:  [members…  ] [todos…  ][completedAnalytics 6×4 ]
+ *   Row 6:  [sharedSheet 3×2][quizLibrary 3×2][completedAnalytics… ]
+ *   Row 8:  [activeAssignments 3×2][videoActivities 3×2][sharedBoards 6×2]
  */
 export const DEFAULT_PLC_OVERVIEW_LAYOUT: PlcOverviewLayout = {
   tiles: [
-    { kind: 'plcInfo', size: 'md-wide' },
-    { kind: 'quickActions', size: 'md-wide' },
-    { kind: 'members', size: 'sm' },
-    { kind: 'sharedSheet', size: 'sm' },
-    { kind: 'todos', size: 'md-tall' },
-    { kind: 'notes', size: 'md-wide' },
-    { kind: 'completedAssignments', size: 'lg' },
-    { kind: 'quizLibrary', size: 'sm' },
-    { kind: 'activeAssignments', size: 'sm' },
-    { kind: 'videoActivities', size: 'sm' },
-    { kind: 'sharedBoards', size: 'sm' },
+    {
+      kind: 'plcInfo',
+      size: 'md-wide',
+      coords: { x: 0, y: 0, w: 6, h: 2 },
+    },
+    {
+      kind: 'quickActions',
+      size: 'md-wide',
+      coords: { x: 6, y: 0, w: 6, h: 2 },
+    },
+    { kind: 'members', size: 'sm', coords: { x: 0, y: 2, w: 3, h: 4 } },
+    { kind: 'todos', size: 'md-tall', coords: { x: 3, y: 2, w: 3, h: 4 } },
+    { kind: 'notes', size: 'md-wide', coords: { x: 6, y: 2, w: 6, h: 2 } },
+    {
+      kind: 'completedAssignments',
+      size: 'lg',
+      coords: { x: 6, y: 4, w: 6, h: 4 },
+    },
+    {
+      kind: 'sharedSheet',
+      size: 'sm',
+      coords: { x: 0, y: 6, w: 3, h: 2 },
+    },
+    {
+      kind: 'quizLibrary',
+      size: 'sm',
+      coords: { x: 3, y: 6, w: 3, h: 2 },
+    },
+    {
+      kind: 'activeAssignments',
+      size: 'sm',
+      coords: { x: 0, y: 8, w: 3, h: 2 },
+    },
+    {
+      kind: 'videoActivities',
+      size: 'sm',
+      coords: { x: 3, y: 8, w: 3, h: 2 },
+    },
+    {
+      kind: 'sharedBoards',
+      size: 'sm',
+      coords: { x: 6, y: 8, w: 6, h: 2 },
+    },
   ],
   updatedAt: 0,
 };

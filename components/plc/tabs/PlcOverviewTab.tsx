@@ -1,15 +1,35 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Loader2, Pencil, RotateCcw, Check } from 'lucide-react';
-import { Plc } from '@/types';
+import { Plc, PlcBentoTileKind } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { usePlcOverviewLayout } from '@/hooks/usePlcOverviewLayout';
 import { PlcBentoGrid } from '../overview/PlcBentoGrid';
+import { PlcGridLayout } from '../grid/PlcGridLayout';
 import type { PlcDashboardTabId } from '../PlcDashboard';
+
+const GRID_V2_FLAG_KEY = 'spart.plcDashboard.gridV2';
+
+/**
+ * Resolve the gridV2 feature flag. Phase 1 ships the new drag-resizable
+ * grid behind this flag so the v1 bento path stays the default while we
+ * dogfood the new behavior. Toggle by setting
+ * `localStorage.setItem('spart.plcDashboard.gridV2', 'true')`.
+ */
+function isGridV2Enabled(): boolean {
+  if (typeof window === 'undefined') return false;
+  try {
+    return window.localStorage.getItem(GRID_V2_FLAG_KEY) === 'true';
+  } catch {
+    return false;
+  }
+}
 
 interface PlcOverviewTabProps {
   plc: Plc;
   onNavigateTab: (tabId: PlcDashboardTabId) => void;
+  /** v2 grid only: fullscreen-expand a single tile. */
+  onExpandTile?: (kind: PlcBentoTileKind) => void;
 }
 
 /**
@@ -20,6 +40,7 @@ interface PlcOverviewTabProps {
 export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
   plc,
   onNavigateTab,
+  onExpandTile,
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
@@ -27,6 +48,17 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
     plc.id
   );
   const [editMode, setEditMode] = useState(false);
+
+  // Phase 1: gridV2 flag, opt-in via localStorage. Live-update when the
+  // flag toggles in another tab so QA doesn't need to reload.
+  const [gridV2, setGridV2] = useState(isGridV2Enabled);
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === GRID_V2_FLAG_KEY) setGridV2(isGridV2Enabled());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
 
   const handleReset = async () => {
     const confirmed = await showConfirm(
@@ -73,7 +105,7 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
             <p className="text-xxs text-slate-500 mt-1">
               {t('plcDashboard.overview.editHint', {
                 defaultValue:
-                  'Drag tiles by the grip, click the corner to resize, click the eye to hide.',
+                  'Drag tiles by the grip, drag the corners or edges to resize, click the eye to hide.',
               })}
             </p>
           )}
@@ -118,13 +150,24 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
         </div>
       </div>
 
-      <PlcBentoGrid
-        plc={plc}
-        layout={layout}
-        editMode={editMode}
-        onLayoutChange={updateLayout}
-        onNavigateTab={onNavigateTab}
-      />
+      {gridV2 ? (
+        <PlcGridLayout
+          plc={plc}
+          layout={layout}
+          editMode={editMode}
+          onLayoutChange={updateLayout}
+          onNavigateTab={onNavigateTab}
+          onExpandTile={onExpandTile}
+        />
+      ) : (
+        <PlcBentoGrid
+          plc={plc}
+          layout={layout}
+          editMode={editMode}
+          onLayoutChange={updateLayout}
+          onNavigateTab={onNavigateTab}
+        />
+      )}
     </div>
   );
 };

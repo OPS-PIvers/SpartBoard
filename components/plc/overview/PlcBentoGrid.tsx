@@ -125,7 +125,9 @@ export const PlcBentoGrid: React.FC<PlcBentoGridProps> = ({
   const handleResize = useCallback(
     (kind: PlcBentoTileKind) => {
       const next = layout.tiles.map((tile) =>
-        tile.kind === kind ? { ...tile, size: nextSize(tile.size) } : tile
+        tile.kind === kind
+          ? { ...tile, size: nextSize(tile.size ?? 'sm') }
+          : tile
       );
       onLayoutChange({ tiles: next, updatedAt: Date.now() });
     },

@@ -55,7 +55,12 @@ export type { FolderSelectFieldProps } from './FolderSelectField';
 export { useLibrarySelection } from './useLibrarySelection';
 export type { LibrarySelectionApi } from './useLibrarySelection';
 export { BulkActionBar } from './BulkActionBar';
-export type { BulkActionBarProps } from './BulkActionBar';
+export type { BulkActionBarProps, BulkAction } from './BulkActionBar';
+export { LibraryPreviewPane } from './LibraryPreviewPane';
+export {
+  buildDuplicateAction,
+  suggestDuplicateTitle,
+} from './libraryDuplicate';
 export type {
   FolderPanelMode,
   LibraryFolderPanelContextValue,

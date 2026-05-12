@@ -185,6 +185,12 @@ export interface LibraryShellProps {
    * for view-only assignment modes). Missing keys fall back to the default.
    */
   tabLabels?: Partial<Record<LibraryTab, string>>;
+  /**
+   * Restrict which tabs render. Defaults to all three. Used by embedded
+   * surfaces (e.g. PLC dashboard tile) that only need the Library tab and
+   * should hide In Progress / Archive to keep the chrome compact.
+   */
+  visibleTabs?: LibraryTab[];
   /** Header right-side primary CTA, e.g. "+ New Quiz". */
   primaryAction?: LibraryPrimaryAction;
   /** Header right-side secondary buttons, e.g. Import, Export. */
