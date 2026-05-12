@@ -25,6 +25,7 @@ import {
   MockGuidedLearningDriveService,
 } from '@/utils/mockGuidedLearningDriveService';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 const GL_COLLECTION = 'guided_learning';
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
@@ -45,6 +46,17 @@ export interface UseGuidedLearningResult {
   loadSetData: (driveFileId: string) => Promise<GuidedLearningSet>;
   /** Delete a personal set from Drive and Firestore */
   deleteSet: (setId: string, driveFileId: string) => Promise<void>;
+  /**
+   * Duplicate a personal set. Loads the source's JSON from Drive, mints
+   * a new id + Drive file, and writes a fresh metadata doc with a
+   * `(Copy)` title suffix. Firebase Storage image refs are shared with
+   * the source — duplicating doesn't re-upload images, which keeps the
+   * copy cheap and avoids stale image churn. The duplicate is
+   * standalone (no PLC linkage carried over).
+   */
+  duplicateSet: (
+    source: GuidedLearningSetMetadata
+  ) => Promise<GuidedLearningSetMetadata>;
   /** Save an admin building set to Firestore */
   saveBuildingSet: (set: GuidedLearningSet) => Promise<void>;
   /** Delete an admin building set from Firestore */
@@ -197,6 +209,28 @@ export const useGuidedLearning = (
     [userId, getDriveService]
   );
 
+  const duplicateSet = useCallback(
+    async (
+      source: GuidedLearningSetMetadata
+    ): Promise<GuidedLearningSetMetadata> => {
+      if (!userId) throw new Error('Not authenticated');
+      const sourceData = await loadSetData(source.driveFileId);
+      const now = Date.now();
+      const fresh: GuidedLearningSet = {
+        ...sourceData,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(sourceData.title || source.title),
+        createdAt: now,
+        updatedAt: now,
+        // Storage image refs are shared — see hook header doc. If
+        // teachers report stale images after a delete, switch this to a
+        // deep copy via the storage-clone helper.
+      };
+      return saveSet(fresh);
+    },
+    [userId, loadSetData, saveSet]
+  );
+
   const saveBuildingSet = useCallback(
     async (set: GuidedLearningSet): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
@@ -228,6 +262,7 @@ export const useGuidedLearning = (
     saveSet,
     loadSetData,
     deleteSet,
+    duplicateSet,
     saveBuildingSet,
     deleteBuildingSet,
   };

@@ -33,6 +33,7 @@ import {
   SyncedQuizVersionConflictError,
 } from './useSyncedQuizGroups';
 import { migrateQuizMetadataShape } from '../utils/quizSyncMigration';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 const QUIZZES_COLLECTION = 'quizzes';
 
@@ -62,6 +63,19 @@ export interface UseQuizResult {
   loadQuizData: (driveFileId: string) => Promise<QuizData>;
   /** Delete a quiz from Drive and Firestore */
   deleteQuiz: (quizId: string, driveFileId: string) => Promise<void>;
+  /**
+   * Duplicate an existing quiz. Loads the source quiz content from Drive,
+   * mints a fresh id + Drive file, applies `suggestDuplicateTitle()`, and
+   * writes a new `quiz_metadata` doc. The copy is intentionally NOT
+   * synced — even when the source is a participant of a synced group,
+   * the duplicate becomes a standalone copy (one `(Copy)` collides with
+   * "shared with PLC" semantics, and a teacher who duplicates is asking
+   * for a private fork).
+   *
+   * Returns the new quiz metadata so callers can navigate to it (or
+   * surface the new title in a toast).
+   */
+  duplicateQuiz: (sourceMeta: QuizMetadata) => Promise<QuizMetadata>;
   /** Parse a Google Sheet URL and return quiz questions */
   importFromSheet: (sheetUrl: string, title: string) => Promise<QuizData>;
   /** Parse a CSV string and return quiz questions */
@@ -438,6 +452,36 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     return drive.createQuizTemplate();
   }, [getDriveService]);
 
+  /**
+   * Duplicate a quiz. Loads canonical content from the source's Drive
+   * file, then writes a fresh quiz (new id, new Drive file, new title
+   * suffix). Does NOT inherit `folderId` or `sync` linkage — duplicates
+   * land at the library root as a standalone copy. Callers can pass the
+   * returned metadata to a follow-up `moveQuizToFolder` if they want to
+   * preserve folder placement.
+   */
+  const duplicateQuiz = useCallback(
+    async (sourceMeta: QuizMetadata): Promise<QuizMetadata> => {
+      if (!userId) throw new Error('Not authenticated');
+      const drive = getDriveService();
+      const sourceData = await drive.loadQuiz(sourceMeta.driveFileId);
+      const now = Date.now();
+      const fresh: QuizData = {
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(sourceData.title || sourceMeta.title),
+        questions: sourceData.questions,
+        createdAt: now,
+        updatedAt: now,
+      };
+      // saveQuiz with no existingDriveFileId creates a new Drive file and
+      // a fresh metadata doc keyed off `fresh.id`. Since no prior
+      // metadata exists for that id, no sync linkage is carried over —
+      // the duplicate is a standalone quiz by construction.
+      return saveQuiz(fresh);
+    },
+    [userId, getDriveService, saveQuiz]
+  );
+
   const shareQuiz = useCallback(
     async (quizMeta: QuizMetadata): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
@@ -482,6 +526,7 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
     saveQuiz,
     loadQuizData,
     deleteQuiz,
+    duplicateQuiz,
     importFromSheet,
     importFromCSV,
     createQuizTemplate,

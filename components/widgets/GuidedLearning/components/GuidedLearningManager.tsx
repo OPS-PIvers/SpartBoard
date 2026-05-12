@@ -70,6 +70,7 @@ import type {
   LibrarySortOption,
   LibraryTab,
 } from '@/components/common/library/types';
+import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
 
 /* ─── Unified list item ───────────────────────────────────────────────────── */
 
@@ -132,6 +133,17 @@ export interface GuidedLearningManagerProps {
     buildingSet?: GuidedLearningSet
   ) => void;
   onDeletePersonal: (
+    setId: string,
+    driveFileId: string
+  ) => void | Promise<void>;
+  /**
+   * Phase 5 — duplicate a personal set. Owns the actual `duplicateSet`
+   * call; the manager only surfaces the affordance. Optional so the
+   * building-set / view-only paths can omit. Building sets are
+   * intentionally NOT duplicable from the kebab here — admins author
+   * them via the AI authoring dialog or building-set editor.
+   */
+  onDuplicatePersonal?: (
     setId: string,
     driveFileId: string
   ) => void | Promise<void>;
@@ -312,6 +324,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onEdit,
   onAssign,
   onDeletePersonal,
+  onDuplicatePersonal,
   onDeleteBuilding,
   onCreateNewPersonal,
   onCreateNewBuilding,
@@ -632,6 +645,19 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
     }
 
     if (entry.source === 'personal') {
+      // Phase 5 — Duplicate only for personal sets (building sets are
+      // admin-authored and not part of the teacher library duplicate
+      // flow). Stacked between Edit/Results and Move/Delete so the
+      // destructive action stays last.
+      if (onDuplicatePersonal && entry.driveFileId) {
+        const fileId = entry.driveFileId;
+        secondary.push(
+          buildDuplicateAction(
+            { id: rawId, title: entry.title },
+            () => void onDuplicatePersonal(rawId, fileId)
+          )
+        );
+      }
       secondary.push(
         buildMoveToFolderAction({
           onOpenPicker: () =>

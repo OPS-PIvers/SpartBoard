@@ -73,6 +73,7 @@ import type {
   LibrarySortDir,
   LibraryTab,
 } from '@/components/common/library/types';
+import { buildDuplicateAction } from '@/components/common/library/libraryDuplicate';
 import type {
   AssignmentMode,
   ClassRoster,
@@ -104,6 +105,12 @@ export interface VideoActivityManagerProps {
   onImport: () => void;
   onEdit: (activity: VideoActivityMetadata) => void;
   onDelete: (activity: VideoActivityMetadata) => void | Promise<void>;
+  /**
+   * Phase 5 — duplicate kebab item. Owns the actual `duplicateActivity`
+   * call. When omitted, the entry is hidden (view-only / test
+   * harnesses).
+   */
+  onDuplicate?: (activity: VideoActivityMetadata) => void | Promise<void>;
   /**
    * Optional per-activity results view. New work prefers the assignment-
    * archive tab; kept for backwards-compatibility while the legacy Widget
@@ -391,6 +398,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onImport,
   onEdit,
   onDelete,
+  onDuplicate,
   onResults,
   onAssign,
   onReorderActivities,
@@ -817,6 +825,16 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
                     icon: BarChart3,
                     onClick: () => onResults(activity),
                   } satisfies LibraryMenuAction,
+                ]
+              : []),
+            // Phase 5 — Duplicate. Stacked below Edit (and Results when
+            // wired) so the destructive Delete remains the last entry.
+            ...(onDuplicate
+              ? [
+                  buildDuplicateAction(
+                    activity,
+                    () => void onDuplicate(activity)
+                  ),
                 ]
               : []),
             buildMoveToFolderAction({

@@ -32,6 +32,7 @@ import {
   QuizDriveLike,
 } from '@/utils/mockQuizDriveService';
 import type { QuizData } from '@/types';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
 
 const VIDEO_ACTIVITIES_COLLECTION = 'video_activities';
 
@@ -48,6 +49,15 @@ export interface UseVideoActivityResult {
   loadActivityData: (driveFileId: string) => Promise<VideoActivityData>;
   /** Delete an activity from Drive and Firestore. */
   deleteActivity: (activityId: string, driveFileId: string) => Promise<void>;
+  /**
+   * Duplicate an existing activity. Loads the source's JSON from Drive,
+   * mints a new id + Drive file, and writes a fresh metadata doc with a
+   * `(Copy)` suffix. The duplicate is standalone — sync linkage is not
+   * carried over.
+   */
+  duplicateActivity: (
+    source: VideoActivityMetadata
+  ) => Promise<VideoActivityMetadata>;
   /**
    * Patch the synced-group linkage onto an activity's Firestore metadata.
    * Mirrors `useQuiz.attachSyncLinkage`: used by the shared-assignment import
@@ -197,6 +207,23 @@ export const useVideoActivity = (
     [userId, getDriveService]
   );
 
+  const duplicateActivity = useCallback(
+    async (source: VideoActivityMetadata): Promise<VideoActivityMetadata> => {
+      if (!userId) throw new Error('Not authenticated');
+      const sourceData = await loadActivityData(source.driveFileId);
+      const now = Date.now();
+      const fresh: VideoActivityData = {
+        ...sourceData,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(sourceData.title || source.title),
+        createdAt: now,
+        updatedAt: now,
+      };
+      return saveActivity(fresh);
+    },
+    [userId, loadActivityData, saveActivity]
+  );
+
   const createTemplateSheet = useCallback(
     async (title: string): Promise<string> => {
       const drive = getDriveService();
@@ -254,6 +281,7 @@ export const useVideoActivity = (
     saveActivity,
     loadActivityData,
     deleteActivity,
+    duplicateActivity,
     createTemplateSheet,
     attachSyncLinkage,
     isDriveConnected: isAuthBypass || isConnected,

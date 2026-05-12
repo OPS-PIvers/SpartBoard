@@ -90,6 +90,7 @@ import {
   useLibrarySelection,
   useSortableReorder,
   BulkActionBar,
+  buildDuplicateAction,
   type LibraryMenuAction,
   type LibrarySortOption,
   type AssignModeOption,
@@ -279,6 +280,13 @@ interface QuizManagerProps {
   onResults: (quiz: QuizMetadata) => void;
   onDelete: (quiz: QuizMetadata) => void | Promise<void>;
   /**
+   * Phase 5 — duplicate kebab item. Owns the actual `duplicateQuiz` call
+   * (the widget already has the hook). When omitted, the Duplicate entry
+   * is hidden — e.g. view-only / shared library surfaces where the
+   * current user has no library to duplicate into.
+   */
+  onDuplicate?: (quiz: QuizMetadata) => void | Promise<void>;
+  /**
    * Optional batch delete that bypasses the per-quiz confirmation/toasts
    * fired by `onDelete` (see QuizWidget's `onDelete` wiring, which prompts
    * per-quiz when archived assignments exist). Receives every selected
@@ -462,6 +470,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onAssign,
   onResults,
   onDelete,
+  onDuplicate,
   onBulkDelete,
   onShare,
   onShareWithPlc,
@@ -717,6 +726,13 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
         icon: Edit2,
         onClick: () => onEdit(quiz),
       },
+      // Phase 5 — Duplicate. Rendered just below Edit so the visual
+      // weight of the destructive action (Delete) stays at the bottom of
+      // the menu. Hidden when no `onDuplicate` is wired (view-only and
+      // test harnesses).
+      ...(onDuplicate
+        ? [buildDuplicateAction(quiz, () => void onDuplicate(quiz))]
+        : []),
       {
         id: 'stats',
         label: 'Stats',
