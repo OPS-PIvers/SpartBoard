@@ -2111,6 +2111,17 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
 
 /* ─── Assign modal slot components ───────────────────────────────────────── */
 
+// IMPORTANT — drift watch:
+//   `components/plc/PlcNewQuizAssignmentModal.tsx` inlines an equivalent of
+//   `AssignExtraSlot` (gamification CollapsibleSection + AssignmentSettingsToggleGroup
+//   wiring) and `components/plc/PlcNewVideoActivityAssignmentModal.tsx` inlines
+//   an equivalent of `VideoActivityScoringBlock`. When you add / remove /
+//   rename a toggle here (or in `VideoActivityScoringBlock`), edit those
+//   wizards too so the in-tab "+ Assign Quiz / + Assign Video" flow stays in
+//   lockstep with the widget-kebab flow. Promoting these slots to shared
+//   modules (`components/widgets/QuizWidget/components/QuizAssignExtraSlot.tsx`,
+//   etc.) is the proper fix and tracked as a follow-up; until then, manual
+//   parity is the contract.
 const AssignExtraSlot: React.FC<{
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
