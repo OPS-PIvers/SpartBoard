@@ -43,6 +43,12 @@ export interface PlcSharedBoardEntry {
 interface UsePlcSharedBoardsResult {
   boards: PlcSharedBoardEntry[];
   loading: boolean;
+  /**
+   * Snapshot subscription error. Non-null means the empty `boards`
+   * array is "couldn't load," not "no items yet" — consumers should
+   * distinguish so the UI doesn't render a misleading empty state.
+   */
+  error: Error | null;
 }
 
 const VALID_MODES: ReadonlySet<SharedBoardIntendedMode> = new Set([
@@ -105,6 +111,7 @@ export const usePlcSharedBoards = (
   const { user } = useAuth();
   const [boards, setBoards] = useState<PlcSharedBoardEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   // Render-time reset on plcId transitions — same pattern as
   // `usePlcAssignmentIndex` / `usePlcQuizzes`. Avoids flashing the
@@ -114,6 +121,7 @@ export const usePlcSharedBoards = (
     setPrevPlcId(plcId);
     setBoards([]);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -140,14 +148,16 @@ export const usePlcSharedBoards = (
         });
         setBoards(list);
         setLoading(false);
+        setError(null);
       },
       (err) => {
         logError('usePlcSharedBoards.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsub();
   }, [plcId, user]);
 
-  return useMemo(() => ({ boards, loading }), [boards, loading]);
+  return useMemo(() => ({ boards, loading, error }), [boards, loading, error]);
 };

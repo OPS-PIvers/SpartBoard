@@ -38,6 +38,11 @@ interface UsePlcVideoActivitiesResult {
   videoActivities: PlcVideoActivityEntry[];
   loading: boolean;
   /**
+   * Snapshot subscription error. Non-null means the empty
+   * `videoActivities` array is "couldn't load," not "no items yet."
+   */
+  error: Error | null;
+  /**
    * Write a new PLC video activity entry. Caller is responsible for first
    * standing up the canonical `synced_video_activities/{syncGroupId}` doc
    * (via `createSyncedVideoActivityGroup`). Doc id = `plcVideoActivityId`.
@@ -117,12 +122,14 @@ export const usePlcVideoActivities = (
     PlcVideoActivityEntry[]
   >([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const [prevPlcId, setPrevPlcId] = useState(plcId);
   if (plcId !== prevPlcId) {
     setPrevPlcId(plcId);
     setVideoActivities([]);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -149,10 +156,12 @@ export const usePlcVideoActivities = (
         });
         setVideoActivities(list);
         setLoading(false);
+        setError(null);
       },
       (err) => {
         logError('usePlcVideoActivities.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsub();
@@ -242,6 +251,7 @@ export const usePlcVideoActivities = (
     () => ({
       videoActivities,
       loading,
+      error,
       shareVideoActivityWithPlc,
       mirrorPlcVideoActivityHeader,
       unshareVideoActivityFromPlc,
@@ -249,6 +259,7 @@ export const usePlcVideoActivities = (
     [
       videoActivities,
       loading,
+      error,
       shareVideoActivityWithPlc,
       mirrorPlcVideoActivityHeader,
       unshareVideoActivityFromPlc,

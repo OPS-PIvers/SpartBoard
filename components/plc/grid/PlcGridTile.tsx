@@ -303,7 +303,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
                 key={dir}
                 onPointerDown={onResizePointerDown(dir)}
                 data-resize-handle={dir}
-                role="presentation"
+                aria-hidden="true"
                 className={`absolute z-10 ${HANDLE_CLASSES[dir]}`}
                 style={HANDLE_STYLES[dir]}
               />
@@ -329,7 +329,7 @@ export const PlcGridTile: React.FC<PlcGridTileProps> = ({
                 onPointerDown={onResizePointerDown(dir)}
                 data-resize-handle={dir}
                 data-resize-touch
-                role="presentation"
+                aria-hidden="true"
                 className={`absolute z-10 ${HANDLE_CLASSES[dir]}`}
                 style={TOUCH_HANDLE_STYLES[dir]}
               >

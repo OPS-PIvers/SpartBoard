@@ -20,6 +20,11 @@ const NOTES_SUBCOLLECTION = 'notes';
 interface UsePlcNotesResult {
   notes: PlcNote[];
   loading: boolean;
+  /**
+   * Snapshot subscription error. Non-null means the empty `notes` array
+   * is "couldn't load," not "no items yet."
+   */
+  error: Error | null;
   /** Create a new note. Returns the new doc id. */
   createNote: (input: { title: string; body: string }) => Promise<string>;
   /** Patch an existing note's title/body. Stamps `lastEditedBy/At` to the current user. */
@@ -61,12 +66,14 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
   const { user } = useAuth();
   const [notes, setNotes] = useState<PlcNote[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const [prevPlcId, setPrevPlcId] = useState(plcId);
   if (plcId !== prevPlcId) {
     setPrevPlcId(plcId);
     setNotes([]);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -88,10 +95,12 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
         });
         setNotes(list);
         setLoading(false);
+        setError(null);
       },
       (err) => {
         logError('usePlcNotes.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsub();
@@ -159,7 +168,7 @@ export const usePlcNotes = (plcId: string | null): UsePlcNotesResult => {
   );
 
   return useMemo(
-    () => ({ notes, loading, createNote, updateNote, deleteNote }),
-    [notes, loading, createNote, updateNote, deleteNote]
+    () => ({ notes, loading, error, createNote, updateNote, deleteNote }),
+    [notes, loading, error, createNote, updateNote, deleteNote]
   );
 };

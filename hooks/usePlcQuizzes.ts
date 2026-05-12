@@ -36,6 +36,12 @@ interface UsePlcQuizzesResult {
   quizzes: PlcQuizEntry[];
   loading: boolean;
   /**
+   * Snapshot subscription error. Non-null means the empty `quizzes`
+   * array is "couldn't load," not "no items yet" — consumers should
+   * distinguish so the UI doesn't render a misleading empty state.
+   */
+  error: Error | null;
+  /**
    * Write a new PLC quiz entry. Caller is responsible for first standing
    * up the canonical `synced_quizzes/{syncGroupId}` doc (via
    * `createSyncedQuizGroup`). Doc id = `plcQuizId`. The signed-in user is
@@ -97,12 +103,14 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
   const { user } = useAuth();
   const [quizzes, setQuizzes] = useState<PlcQuizEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const [prevPlcId, setPrevPlcId] = useState(plcId);
   if (plcId !== prevPlcId) {
     setPrevPlcId(plcId);
     setQuizzes([]);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -124,10 +132,12 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
         });
         setQuizzes(list);
         setLoading(false);
+        setError(null);
       },
       (err) => {
         logError('usePlcQuizzes.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsub();
@@ -200,6 +210,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     () => ({
       quizzes,
       loading,
+      error,
       shareQuizWithPlc,
       mirrorPlcQuizHeader,
       unshareQuizFromPlc,
@@ -207,6 +218,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
     [
       quizzes,
       loading,
+      error,
       shareQuizWithPlc,
       mirrorPlcQuizHeader,
       unshareQuizFromPlc,

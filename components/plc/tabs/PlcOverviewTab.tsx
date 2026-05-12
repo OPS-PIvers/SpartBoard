@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Loader2, Pencil, RotateCcw, Check } from 'lucide-react';
+import { AlertTriangle, Loader2, Pencil, RotateCcw, Check } from 'lucide-react';
 import { Plc, PlcBentoTileKind } from '@/types';
 import { useDialog } from '@/context/useDialog';
 import { usePlcOverviewLayout } from '@/hooks/usePlcOverviewLayout';
@@ -53,9 +53,8 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
 }) => {
   const { t } = useTranslation();
   const { showConfirm } = useDialog();
-  const { layout, loading, updateLayout, resetLayout } = usePlcOverviewLayout(
-    plc.id
-  );
+  const { layout, loading, error, updateLayout, resetLayout } =
+    usePlcOverviewLayout(plc.id);
   const [editMode, setEditMode] = useState(false);
 
   // Phase 5: gridV2 defaults to ON; localStorage `'false'` is the only
@@ -104,6 +103,20 @@ export const PlcOverviewTab: React.FC<PlcOverviewTabProps> = ({
 
   return (
     <div className="space-y-4">
+      {error && (
+        <div
+          role="alert"
+          className="flex items-start gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+        >
+          <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <span>
+            {t('plcDashboard.overview.layoutLoadError', {
+              defaultValue:
+                "We couldn't load your saved layout. Showing defaults — changes won't be saved until this clears.",
+            })}
+          </span>
+        </div>
+      )}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">

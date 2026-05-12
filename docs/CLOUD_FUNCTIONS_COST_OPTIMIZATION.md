@@ -16,7 +16,7 @@ The "GB-sec/call" column below is the **worst case per call** (memory × max tim
 | `transcribeVideoWithGemini` | 1 GiB   | 300 s          | 300               | ~$0.005              |
 | `generateWithAI`            | 512 MiB | 60 s (default) | ~30               | ~$0.0005             |
 | `archiveActivityWallPhoto`  | 512 MiB | 120 s          | ~60               | ~$0.001              |
-| `fetchExternalProxy`        | 128 MiB | 30 s           | ~3.75             | ~$0.00007            |
+| `fetchExternalProxy`        | 256 MiB | 30 s           | ~7.5              | ~$0.00014            |
 
 The `adminAnalytics` row now reflects the post-2026-05-11 snapshot-read implementation. The 4 GiB / 540 s ceiling moved to the once-a-day scheduled `recomputeAdminAnalytics` job, so the per-call cost of admin page loads dropped by ~98% even before counting the Firestore reads that were eliminated.
 

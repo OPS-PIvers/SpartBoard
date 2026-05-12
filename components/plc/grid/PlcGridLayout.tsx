@@ -118,7 +118,10 @@ export const PlcGridLayout: React.FC<PlcGridLayoutProps> = ({
     cellW: 0,
     cellH: ROW_HEIGHT_PX,
   });
-  const [isMobile, setIsMobile] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () =>
+      typeof window !== 'undefined' && window.innerWidth < MOBILE_BREAKPOINT_PX
+  );
 
   useEffect(() => {
     const el = containerRef.current;

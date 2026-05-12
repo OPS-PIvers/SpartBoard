@@ -20,6 +20,11 @@ const TODOS_SUBCOLLECTION = 'todos';
 interface UsePlcTodosResult {
   todos: PlcTodo[];
   loading: boolean;
+  /**
+   * Snapshot subscription error. Non-null means the empty `todos` array
+   * is "couldn't load," not "no items yet."
+   */
+  error: Error | null;
   createTodo: (text: string) => Promise<string>;
   toggleDone: (todoId: string, done: boolean) => Promise<void>;
   updateText: (todoId: string, text: string) => Promise<void>;
@@ -55,12 +60,14 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
   const { user } = useAuth();
   const [todos, setTodos] = useState<PlcTodo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   const [prevPlcId, setPrevPlcId] = useState(plcId);
   if (plcId !== prevPlcId) {
     setPrevPlcId(plcId);
     setTodos([]);
     setLoading(true);
+    setError(null);
   }
 
   useEffect(() => {
@@ -88,10 +95,12 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
         });
         setTodos(list);
         setLoading(false);
+        setError(null);
       },
       (err) => {
         logError('usePlcTodos.snapshot', err, { plcId });
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsub();
@@ -158,7 +167,15 @@ export const usePlcTodos = (plcId: string | null): UsePlcTodosResult => {
   );
 
   return useMemo(
-    () => ({ todos, loading, createTodo, toggleDone, updateText, deleteTodo }),
-    [todos, loading, createTodo, toggleDone, updateText, deleteTodo]
+    () => ({
+      todos,
+      loading,
+      error,
+      createTodo,
+      toggleDone,
+      updateText,
+      deleteTodo,
+    }),
+    [todos, loading, error, createTodo, toggleDone, updateText, deleteTodo]
   );
 };

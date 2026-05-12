@@ -1566,12 +1566,16 @@ export const AnalyticsManager: React.FC = () => {
           message?: string;
           error?: string;
         };
-        // 503 + `not-yet-computed` is the server's signal for "this org has
-        // no snapshot yet — wait for the next scheduled refresh." This is a
-        // benign state for a freshly-onboarded org; render a calm "scheduled
-        // refresh is on its way" notice instead of the red error banner.
+        // 503 is the server's signal for "this org has no snapshot yet —
+        // wait for the next scheduled refresh." This is a benign state for
+        // a freshly-onboarded org; render a calm "scheduled refresh is on
+        // its way" notice instead of the red error banner. We accept the
+        // status alone because the body parse can fail (intermediary
+        // truncation, gzip error) and we'd rather misclassify a malformed
+        // 503 as cold-start than as a fatal error — the recompute
+        // scheduler will resolve either way and the UI is non-destructive.
         const msg = body.message ?? body.error ?? `HTTP ${response.status}`;
-        if (response.status === 503 && body.error === 'not-yet-computed') {
+        if (response.status === 503) {
           if (
             isMountedRef.current &&
             requestId === requestSequenceRef.current
