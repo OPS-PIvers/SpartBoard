@@ -446,17 +446,16 @@ describe('video activity callables', () => {
     // Pins the doc claim that the flag is transport-only and not observable
     // on the resolved value. Without stripping, a caller that spreads the
     // result into a Firestore write would persist the flag.
-    vi.mocked(httpsCallable).mockImplementationOnce(
-      (_functions, _name, _options) => {
-        return async () => ({
-          data: {
-            title: 'Video Activity',
-            questions: [{ text: 'Q1', timestamp: 5 }],
-            _modelConfigUsedFallback: true,
-          },
-        });
-      }
-    );
+    // `httpsCallable` has a complex return type (callable function with a
+    // `.stream()` method); the tests only exercise the call signature so
+    // cast the mock impl through `unknown` to satisfy the type checker.
+    vi.mocked(httpsCallable).mockImplementationOnce((() => async () => ({
+      data: {
+        title: 'Video Activity',
+        questions: [{ text: 'Q1', timestamp: 5 }],
+        _modelConfigUsedFallback: true,
+      },
+    })) as unknown as typeof httpsCallable);
 
     const result = await generateVideoActivity(
       'https://youtube.com/watch?v=fallbackflagstrip',
@@ -467,7 +466,8 @@ describe('video activity callables', () => {
       questions: [{ text: 'Q1', timestamp: 5 }],
     });
     expect(
-      '_modelConfigUsedFallback' in (result as Record<string, unknown>)
+      '_modelConfigUsedFallback' in
+        (result as unknown as Record<string, unknown>)
     ).toBe(false);
   });
 });
