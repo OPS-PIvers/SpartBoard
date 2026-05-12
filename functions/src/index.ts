@@ -124,36 +124,112 @@ interface GeminiModelConfig {
   standardModel?: string;
 }
 
+// Module-scope read caches for `generateWithAI`. Cloud Functions 2nd-gen
+// reuses warm instances, so caching across invocations within a warm
+// instance materially cuts Firestore reads for high-traffic AI features
+// (audit doc, item #3 — was 4–6 reads per call, now 2 transactional reads
+// on warm hits). 5-minute TTL keeps admin demotions and model-config
+// overrides propagating within an acceptable window.
+//
+// NOT cached: `ai_usage/*` counter reads and the in-transaction
+// `global_permissions/*` reads. Those gate rate-limit enforcement and
+// must be transactional to prevent races.
+const READ_CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface ModelConfigCacheEntry {
+  value: { advancedModel: string; standardModel: string };
+  cachedAt: number;
+}
+let cachedModelConfig: ModelConfigCacheEntry | null = null;
+
+interface AdminStatusCacheEntry {
+  isAdmin: boolean;
+  cachedAt: number;
+}
+const cachedAdminStatus = new Map<string, AdminStatusCacheEntry>();
+
+/**
+ * Test-only: reset the module-scope read caches so tests can observe a
+ * cold-start read sequence. Underscored prefix makes it obvious this is
+ * not a production API.
+ */
+export function __resetGenerateWithAICaches(): void {
+  cachedModelConfig = null;
+  cachedAdminStatus.clear();
+}
+
 /**
  * Reads the admin-configured model overrides from the `gemini-functions`
  * global permissions document. Returns validated model names (or defaults).
+ * Memoized with a 5-minute TTL — see `READ_CACHE_TTL_MS` above.
  */
 async function getGeminiModelConfig(
   db: admin.firestore.Firestore
 ): Promise<{ advancedModel: string; standardModel: string }> {
+  const now = Date.now();
+  if (
+    cachedModelConfig &&
+    now - cachedModelConfig.cachedAt < READ_CACHE_TTL_MS
+  ) {
+    return cachedModelConfig.value;
+  }
   try {
     const doc = await db
       .collection('global_permissions')
       .doc('gemini-functions')
       .get();
     const cfg = doc.data()?.config as GeminiModelConfig | undefined;
-    return {
+    const value = {
       advancedModel:
         normalizeModelName(cfg?.advancedModel) ?? DEFAULT_ADVANCED_MODEL,
       standardModel:
         normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL,
     };
+    cachedModelConfig = { value, cachedAt: now };
+    return value;
   } catch (error) {
     console.warn(
       'Failed to read Gemini model config from Firestore; using defaults.',
       error
     );
+    // Do not cache the fallback — a transient Firestore error shouldn't
+    // pin the function to defaults for 5 minutes.
     return {
       advancedModel: DEFAULT_ADVANCED_MODEL,
       standardModel: DEFAULT_STANDARD_MODEL,
     };
   }
 }
+
+/**
+ * Memoized admin lookup. The `admins/{email}` doc rarely changes during a
+ * single warm-instance lifetime, so caching for 5 minutes saves one
+ * Firestore read per warm `generateWithAI` call. Key is the lowercased
+ * email (matches the production read).
+ */
+async function getCachedAdminStatus(
+  db: admin.firestore.Firestore,
+  emailLower: string
+): Promise<boolean> {
+  const now = Date.now();
+  const cached = cachedAdminStatus.get(emailLower);
+  if (cached && now - cached.cachedAt < READ_CACHE_TTL_MS) {
+    return cached.isAdmin;
+  }
+  const doc = await db.collection('admins').doc(emailLower).get();
+  const isAdmin = doc.exists;
+  cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
+  return isAdmin;
+}
+
+// Test-only re-exports so the cache contract can be verified without
+// driving through the full `generateWithAI` pipeline (which would require
+// mocking `@google/genai`). The `__` prefix makes the test-only status
+// grep-able.
+export {
+  getCachedAdminStatus as __getCachedAdminStatus,
+  getGeminiModelConfig as __getGeminiModelConfig,
+};
 
 interface ArchiveActivityWallPhotoData {
   accessToken?: string;
@@ -481,12 +557,8 @@ export const generateWithAI = onCall(
 
     const db = admin.firestore();
 
-    // Check if user is an admin
-    const adminDoc = await db
-      .collection('admins')
-      .doc(email.toLowerCase())
-      .get();
-    const isAdmin = adminDoc.exists;
+    // Check if user is an admin (cached for 5 minutes per warm instance).
+    const isAdmin = await getCachedAdminStatus(db, email.toLowerCase());
 
     // 1. Determine specific feature ID if applicable
     let specificFeatureId: string | null = null;

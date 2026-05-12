@@ -69,6 +69,22 @@ interface MockDocRef {
   path: string;
 }
 
+// Hoisted so cache tests can assert exact call counts across multiple
+// invocations within a single test. Without this every `collection('admins')`
+// call would build a fresh `vi.fn` and the count would always reset.
+const adminDocGet = vi.fn((id: string) =>
+  Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
+);
+
+// Hoisted for the same reason — the `gemini-functions` config read is the
+// other target of the `generateWithAI` cache and needs a stable mock.
+const geminiConfigDocGet = vi.fn(() =>
+  Promise.resolve({
+    exists: false,
+    data: () => undefined as Record<string, unknown> | undefined,
+  })
+);
+
 const mockFirestore = {
   doc: vi.fn((path: string) => ({
     path,
@@ -92,11 +108,20 @@ const mockFirestore = {
   collection: vi.fn((name: string) => {
     if (name === 'admins') {
       return {
-        doc: vi.fn((id: string) => ({
-          get: vi.fn(() =>
-            Promise.resolve({ exists: mockFirestoreState.admins.has(id) })
-          ),
-        })),
+        doc: (id: string) => ({
+          get: () => adminDocGet(id),
+        }),
+      };
+    }
+
+    if (name === 'global_permissions') {
+      return {
+        doc: (id: string) => ({
+          get: () =>
+            id === 'gemini-functions'
+              ? geminiConfigDocGet()
+              : Promise.resolve({ exists: false }),
+        }),
       };
     }
 
@@ -305,7 +330,11 @@ import {
   checkUrlCompatibility,
   adminAnalytics,
   getPseudonymsForAssignmentV1,
+  __getCachedAdminStatus,
+  __getGeminiModelConfig,
+  __resetGenerateWithAICaches,
 } from './index';
+import * as admin from 'firebase-admin';
 import { computeAnalyticsForOrg } from './adminAnalyticsCompute';
 import {
   SNAPSHOT_SCHEMA_VERSION,
@@ -1941,4 +1970,101 @@ describe('getPseudonymsForAssignmentV1', () => {
   });
 
   /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-return */
+});
+
+describe('generateWithAI read caching', () => {
+  // Cloud Functions 2nd-gen reuses warm instances, so the module-scope
+  // caches in index.ts should turn repeat reads into no-ops within a
+  // single warm instance (audit doc item #3). These tests pin that
+  // contract — without them, a future refactor could silently restore
+  // the per-invocation Firestore reads.
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockFirestoreState.admins = new Set<string>();
+    __resetGenerateWithAICaches();
+  });
+
+  it('caches admin status across warm-instance reads (same email = one Firestore read)', async () => {
+    const db = admin.firestore();
+    mockFirestoreState.admins.add('user@school.org');
+
+    const first = await __getCachedAdminStatus(db, 'user@school.org');
+    const second = await __getCachedAdminStatus(db, 'user@school.org');
+
+    expect(first).toBe(true);
+    expect(second).toBe(true);
+    expect(adminDocGet).toHaveBeenCalledTimes(1);
+    expect(adminDocGet).toHaveBeenCalledWith('user@school.org');
+  });
+
+  it('caches by email — different emails each trigger their own read', async () => {
+    const db = admin.firestore();
+    mockFirestoreState.admins.add('admin@school.org');
+
+    await __getCachedAdminStatus(db, 'admin@school.org');
+    await __getCachedAdminStatus(db, 'user@school.org');
+    await __getCachedAdminStatus(db, 'admin@school.org');
+
+    // First call for each email reads; the third call (repeat) is cached.
+    expect(adminDocGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('resetting caches forces a re-read on next call', async () => {
+    const db = admin.firestore();
+    await __getCachedAdminStatus(db, 'user@school.org');
+    __resetGenerateWithAICaches();
+    await __getCachedAdminStatus(db, 'user@school.org');
+
+    expect(adminDocGet).toHaveBeenCalledTimes(2);
+  });
+
+  it('caches gemini-functions model config across warm-instance reads', async () => {
+    const db = admin.firestore();
+    geminiConfigDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        config: {
+          advancedModel: 'gemini-2.5-pro',
+          standardModel: 'gemini-2.5-flash',
+        },
+      }),
+    });
+
+    const first = await __getGeminiModelConfig(db);
+    const second = await __getGeminiModelConfig(db);
+
+    expect(first).toEqual({
+      advancedModel: 'gemini-2.5-pro',
+      standardModel: 'gemini-2.5-flash',
+    });
+    expect(second).toEqual(first);
+    // The second call must NOT hit Firestore.
+    expect(geminiConfigDocGet).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not cache the fallback when the gemini-functions read throws', async () => {
+    const db = admin.firestore();
+    // Transient Firestore error — generateWithAI should not pin defaults
+    // for the full TTL after a one-off blip.
+    geminiConfigDocGet.mockRejectedValueOnce(
+      new Error('Firestore unavailable')
+    );
+    geminiConfigDocGet.mockResolvedValueOnce({
+      exists: true,
+      data: () => ({
+        config: {
+          advancedModel: 'gemini-2.5-pro',
+          standardModel: 'gemini-2.5-flash',
+        },
+      }),
+    });
+
+    const first = await __getGeminiModelConfig(db);
+    const second = await __getGeminiModelConfig(db);
+
+    // First returns defaults (caught), second retries and succeeds.
+    expect(first.advancedModel).not.toBe('gemini-2.5-pro');
+    expect(second.advancedModel).toBe('gemini-2.5-pro');
+    expect(geminiConfigDocGet).toHaveBeenCalledTimes(2);
+  });
 });
