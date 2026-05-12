@@ -1,6 +1,5 @@
 /**
  * SharedBoardsTile — Phase 6 bento tile for PLC-scoped shared dashboards.
- * Replaces the `ComingSoonTile` placeholder in `tileRegistry.tsx`.
  *
  * Compact preview list — 4 most recent shares — with an "Open boards"
  * footer that drops into the full tab.

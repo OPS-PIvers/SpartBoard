@@ -129,7 +129,12 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       }
     } catch (err) {
       console.error('Share failed:', err);
-      addToast('Failed to create share link', 'error');
+      addToast(
+        t('shareLinkCreatorModal.toast.createFailed', {
+          defaultValue: 'Failed to create share link',
+        }),
+        'error'
+      );
     } finally {
       setCreating(false);
     }
@@ -140,23 +145,39 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
     try {
       await navigator.clipboard.writeText(createdUrl);
       setCopied(true);
-      addToast('Link copied', 'success');
+      addToast(
+        t('shareLinkCreatorModal.toast.copied', {
+          defaultValue: 'Link copied',
+        }),
+        'success'
+      );
     } catch {
       addToast(
-        'Could not copy automatically — select the link to copy manually',
+        t('shareLinkCreatorModal.toast.copyFailed', {
+          defaultValue:
+            'Could not copy automatically — select the link to copy manually',
+        }),
         'error'
       );
     }
   };
 
   const modeLabel =
-    mode === 'synced' ? 'Synced' : mode === 'view-only' ? 'View-Only' : 'Copy';
+    mode === 'synced'
+      ? t('shareLinkCreatorModal.modeLabel.synced', { defaultValue: 'Synced' })
+      : mode === 'view-only'
+        ? t('shareLinkCreatorModal.modeLabel.viewOnly', {
+            defaultValue: 'View-Only',
+          })
+        : t('shareLinkCreatorModal.modeLabel.copy', { defaultValue: 'Copy' });
 
   return (
     <Modal
       isOpen
       onClose={onClose}
-      ariaLabel="Create share link"
+      ariaLabel={t('shareLinkCreatorModal.ariaLabel', {
+        defaultValue: 'Create share link',
+      })}
       maxWidth="max-w-md"
       contentClassName=""
       customHeader={
@@ -167,7 +188,13 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             </div>
             <div>
               <h2 className="text-base font-bold text-slate-900">
-                {createdUrl ? 'Link ready' : 'Share board'}
+                {createdUrl
+                  ? t('shareLinkCreatorModal.titleReady', {
+                      defaultValue: 'Link ready',
+                    })
+                  : t('shareLinkCreatorModal.titleCreate', {
+                      defaultValue: 'Share board',
+                    })}
               </h2>
               <p className="text-xs text-slate-500 mt-0.5 truncate max-w-[20rem]">
                 {dashboard.name}
@@ -177,7 +204,9 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Close"
+            aria-label={t('shareLinkCreatorModal.close', {
+              defaultValue: 'Close',
+            })}
             className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
@@ -188,7 +217,9 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       {createdUrl ? (
         <div className="px-5 pb-5 pt-4 space-y-4">
           <p className="text-xs text-slate-600">
-            Anyone you send this link to will receive it as{' '}
+            {t('shareLinkCreatorModal.receivedAsBefore', {
+              defaultValue: 'Anyone you send this link to will receive it as',
+            })}{' '}
             <span className="font-bold text-slate-800">{modeLabel}</span>.
           </p>
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
@@ -198,7 +229,9 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               value={createdUrl}
               onFocus={(e) => e.currentTarget.select()}
               className="flex-1 bg-transparent text-xs text-slate-700 truncate focus:outline-none"
-              aria-label="Share link URL"
+              aria-label={t('shareLinkCreatorModal.urlAriaLabel', {
+                defaultValue: 'Share link URL',
+              })}
             />
             <button
               type="button"
@@ -212,12 +245,14 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5" />
-                  Copied
+                  {t('shareLinkCreatorModal.copied', {
+                    defaultValue: 'Copied',
+                  })}
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5" />
-                  Copy
+                  {t('shareLinkCreatorModal.copy', { defaultValue: 'Copy' })}
                 </>
               )}
             </button>
@@ -227,35 +262,53 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             onClick={onClose}
             className="w-full rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-sm py-2 transition-colors cursor-pointer"
           >
-            Done
+            {t('shareLinkCreatorModal.done', { defaultValue: 'Done' })}
           </button>
         </div>
       ) : (
         <div className="px-5 pb-5 pt-4 space-y-3">
           <p className="text-xs text-slate-600">
-            How should the people you share with receive this board?
+            {t('shareLinkCreatorModal.prompt', {
+              defaultValue:
+                'How should the people you share with receive this board?',
+            })}
           </p>
           <ModeOption
             mode="synced"
             selected={mode === 'synced'}
-            title="Synced"
-            body="Both of you stay in sync — anything either teacher changes appears on the other's board in real time."
+            title={t('shareLinkCreatorModal.modes.synced.title', {
+              defaultValue: 'Synced',
+            })}
+            body={t('shareLinkCreatorModal.modes.synced.body', {
+              defaultValue:
+                "Both of you stay in sync — anything either teacher changes appears on the other's board in real time.",
+            })}
             Icon={Cloud}
             onPick={setMode}
           />
           <ModeOption
             mode="view-only"
             selected={mode === 'view-only'}
-            title="View-Only"
-            body="They see your live edits but can't change anything. Their copy is removed when you stop sharing."
+            title={t('shareLinkCreatorModal.modes.viewOnly.title', {
+              defaultValue: 'View-Only',
+            })}
+            body={t('shareLinkCreatorModal.modes.viewOnly.body', {
+              defaultValue:
+                "They see your live edits but can't change anything. Their copy is removed when you stop sharing.",
+            })}
             Icon={Eye}
             onPick={setMode}
           />
           <ModeOption
             mode="copy"
             selected={mode === 'copy'}
-            title="Make a copy"
-            body="They get a one-time snapshot. Edits stay private — your boards drift apart immediately."
+            title={t('shareLinkCreatorModal.modes.copy.title', {
+              defaultValue: 'Make a copy',
+            })}
+            body={t('shareLinkCreatorModal.modes.copy.body', {
+              defaultValue:
+                'They get a one-time snapshot. Edits stay private — your boards drift apart immediately.',
+            })}
             Icon={Copy}
             onPick={setMode}
           />
@@ -305,7 +358,13 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             disabled={!canShare || creating}
             className="w-full rounded-lg bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold text-sm py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {creating ? 'Creating link…' : 'Create link'}
+            {creating
+              ? t('shareLinkCreatorModal.creating', {
+                  defaultValue: 'Creating link…',
+                })
+              : t('shareLinkCreatorModal.create', {
+                  defaultValue: 'Create link',
+                })}
           </button>
         </div>
       )}
