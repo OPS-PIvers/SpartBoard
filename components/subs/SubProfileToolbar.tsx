@@ -65,6 +65,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
+        aria-label={`Board menu — ${teacherName}, ${boardName}`}
         className="flex items-center gap-3 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-xl border border-white/25 shadow-lg shadow-black/20 px-3 py-2 transition-all cursor-pointer"
       >
         <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white/80">
