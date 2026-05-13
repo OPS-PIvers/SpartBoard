@@ -49,15 +49,20 @@ export function formatExpiresAt(ts: number, now = Date.now()): string {
     return `Expires in ${mins} min`;
   }
   const d = new Date(ts);
-  const today = new Date();
+  const today = new Date(now);
+  const tomorrow = new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() + 1
+  );
   const isToday =
     d.getFullYear() === today.getFullYear() &&
     d.getMonth() === today.getMonth() &&
     d.getDate() === today.getDate();
   const isTomorrow =
-    d.getFullYear() === today.getFullYear() &&
-    d.getMonth() === today.getMonth() &&
-    d.getDate() === today.getDate() + 1;
+    d.getFullYear() === tomorrow.getFullYear() &&
+    d.getMonth() === tomorrow.getMonth() &&
+    d.getDate() === tomorrow.getDate();
   const timeStr = d.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',

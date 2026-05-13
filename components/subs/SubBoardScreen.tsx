@@ -187,7 +187,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
         </div>
       )}
 
-      {!loading && (!!error || !share) && (
+      {!loading && (!!error || !share || expired) && (
         <ExpiredOrErrorPanel
           message={
             expired ? 'This share has expired.' : (error ?? 'Share not found.')
@@ -196,7 +196,7 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
         />
       )}
 
-      {!loading && share && (
+      {!loading && share && !expired && (
         <main className="pt-24 px-6 pb-10">
           <div
             key={resetKey}
@@ -384,18 +384,15 @@ const TimerPreview: React.FC = () => {
   useEffect(() => {
     if (!running) return;
     const id = window.setInterval(() => {
-      setRemaining((r) => {
-        if (r <= 1) {
-          // Stop the ticker by flipping running false here, off the render
-          // path — avoids the "setState in effect body" lint rule.
-          setRunning(false);
-          return 0;
-        }
-        return r - 1;
-      });
+      setRemaining((r) => Math.max(0, r - 1));
     }, 1000);
     return () => window.clearInterval(id);
   }, [running]);
+  // Adjusting state while rendering — pause the ticker the render after it
+  // hits zero, instead of mutating `running` from inside a state updater.
+  if (running && remaining <= 0) {
+    setRunning(false);
+  }
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
   const ss = String(remaining % 60).padStart(2, '0');
   return (

@@ -12,7 +12,7 @@
  *      substitute shares never live-mirror the host's edits.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Cloud,
@@ -173,9 +173,19 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
 
   const { emails: presetEmails } = usePresetSubEmails(subBuildingId);
 
-  // Reset modal state every time it opens for a new dashboard.
+  // Reset modal state every time it opens for a new dashboard. Gated on the
+  // false→true transition of `isOpen` (and dashboard id change) so an async
+  // resolution of `defaultBuildingId` mid-session doesn't clobber a user's
+  // building pick.
+  const prevOpenRef = useRef(false);
+  const prevDashboardIdRef = useRef<string | null | undefined>(dashboard?.id);
   React.useEffect(() => {
-    if (isOpen) {
+    const justOpened = isOpen && !prevOpenRef.current;
+    const dashboardChanged =
+      isOpen && prevDashboardIdRef.current !== dashboard?.id;
+    prevOpenRef.current = isOpen;
+    prevDashboardIdRef.current = dashboard?.id;
+    if (justOpened || dashboardChanged) {
       setMode('synced');
       setPlcId(null);
       setCreating(false);
@@ -188,6 +198,15 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       setSubEmailError(null);
     }
   }, [isOpen, dashboard?.id, defaultBuildingId]);
+
+  // If the modal is already open and `subBuildingId` is empty (admin
+  // buildings hadn't resolved at open time), seed it from the default once
+  // the default becomes available — without clobbering an existing pick.
+  React.useEffect(() => {
+    if (isOpen && !subBuildingId && defaultBuildingId) {
+      setSubBuildingId(defaultBuildingId);
+    }
+  }, [isOpen, subBuildingId, defaultBuildingId]);
 
   if (!isOpen || !dashboard) return null;
 

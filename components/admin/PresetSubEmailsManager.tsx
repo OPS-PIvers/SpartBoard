@@ -12,7 +12,7 @@
  */
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 import { GraduationCap, Mail, Plus, Save, Trash2 } from 'lucide-react';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -167,7 +167,7 @@ const BuildingPresetEditor: React.FC<{ buildingId: string }> = ({
         doc(db, 'preset_sub_emails', buildingId),
         {
           emails: draftEmails,
-          updatedAt: serverTimestamp(),
+          updatedAt: Date.now(),
           updatedBy: user.uid,
         },
         { merge: true }
