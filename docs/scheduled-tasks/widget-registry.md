@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-12_
+_Last audited: 2026-05-13_
 _Last action: 2026-05-02_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-13: Full audit of all 63 WidgetType values (`stations` confirmed at line 64 of types.ts; prior extractions stopped at line 63 and missed it). All seven registration locations cross-referenced — zero new gaps. WIDGET_SCALING_CONFIG is `Record<WidgetType, ScalingConfig>` enforced exhaustive by TypeScript. StationsAppearanceSettings confirmed registered. RevealGrid aliased exports (`Widget`/`Settings`) correct. Two existing LOW open items remain valid._
 
 _2026-05-12: Full audit of all 63 WidgetType values against WIDGET_COMPONENTS, WIDGET_SETTINGS_COMPONENTS, WIDGET_APPEARANCE_COMPONENTS, WIDGET_SCALING_CONFIG, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts. Zero new gaps found. All recently added widgets (`stations`, `need-do-put-then`, `blooms-detail`, `blooms-taxonomy`) confirmed in all locations. RevealGrid aliased exports (`Widget`/`Settings` via index.ts re-export) confirmed correct. Two existing LOW open items (stickers and blooms-detail missing from WIDGET_SETTINGS_COMPONENTS) remain valid — see Open section._
 
