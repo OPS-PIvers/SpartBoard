@@ -422,13 +422,17 @@ const App: React.FC = () => {
     );
   }
 
-  // Substitute teacher portal — Phase A mockup. No auth, no providers yet.
+  // Substitute teacher portal — Google sign-in required, @orono.k12.mn.us
+  // domain enforced inside SubsApp via a small auth gate. Mounted outside
+  // DashboardProvider so teacher dashboard listeners never fire for subs.
   if (isSubsRoute) {
     return (
       <DialogProvider>
-        <Suspense fallback={<FullPageLoader />}>
-          <SubsApp />
-        </Suspense>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <SubsApp />
+          </Suspense>
+        </AuthProvider>
         <DialogContainer />
       </DialogProvider>
     );
