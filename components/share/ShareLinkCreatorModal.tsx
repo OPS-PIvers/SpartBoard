@@ -31,6 +31,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { usePresetSubEmails } from '@/hooks/usePresetSubEmails';
 import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import type { Dashboard } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
@@ -44,15 +45,6 @@ type ShareMode = SharedBoardImportMode | 'substitute';
 const DEFAULT_SUB_EXPIRATION_HOURS = 48;
 const MAX_SUB_EXPIRATION_MS = 14 * 24 * 60 * 60 * 1000;
 const ORONO_EMAIL_DOMAIN = '@orono.k12.mn.us';
-
-// Building-keyed preset sub accounts. Phase 2 will move this to
-// `/preset_sub_emails/{buildingId}`; mocked here so the UI looks real.
-const MOCK_PRESET_SUB_EMAILS: Record<string, string[]> = {
-  high: ['ohssub@orono.k12.mn.us', 'ohssub2@orono.k12.mn.us'],
-  middle: ['omssub@orono.k12.mn.us'],
-  intermediate: ['oissub@orono.k12.mn.us'],
-  schumann: ['schumannsub@orono.k12.mn.us'],
-};
 
 function formatLocalDateTime(date: Date): string {
   // <input type="datetime-local"> needs `YYYY-MM-DDTHH:mm` in local time.
@@ -173,7 +165,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   const [subEmailDraft, setSubEmailDraft] = useState('');
   const [subEmailError, setSubEmailError] = useState<string | null>(null);
 
-  const presetEmails = MOCK_PRESET_SUB_EMAILS[subBuildingId] ?? [];
+  const { emails: presetEmails } = usePresetSubEmails(subBuildingId);
 
   // Reset modal state every time it opens for a new dashboard.
   React.useEffect(() => {

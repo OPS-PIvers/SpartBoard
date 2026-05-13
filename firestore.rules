@@ -764,6 +764,16 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Preset substitute emails — per-building list of generic sub accounts
+    // (e.g. ohssub@orono.k12.mn.us) that teachers can quickly add when
+    // creating a Substitute (View-Only) share. Admin-managed. Authenticated
+    // users (teachers) read to populate the share modal's preset chip list.
+    // Doc id is the canonical building id (config/buildings.ts).
+    match /preset_sub_emails/{buildingId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     // Shared quizzes - Same pattern as shared_boards.
     match /shared_quizzes/{shareId} {
       allow get: if request.auth != null;
