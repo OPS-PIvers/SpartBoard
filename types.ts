@@ -1267,6 +1267,86 @@ export interface ActivityWallSession {
   updatedAt: number;
   /** See `ActivityWallActivity.classId` — omitted for code/PIN-only launches. */
   classId?: string;
+  /**
+   * When `true`, a `shared_activity_walls/{shareId}` doc references this
+   * session as a view-only gallery. The Firestore rules use this flag to
+   * unlock anonymous read access on submissions so gallery viewers can see
+   * the work without joining the live session.
+   */
+  publiclyShared?: boolean;
+}
+
+/**
+ * Firestore document shape for `shared_activity_walls/{shareId}`.
+ *
+ * Created by the teacher when they want to publish a view-only gallery
+ * link to the submissions of an existing Activity Wall session. The
+ * gallery viewer is unauthenticated (uses anonymous Firebase Auth) so the
+ * doc carries everything the viewer needs to render the page without
+ * touching the owning user's `/users/{uid}/...` collections.
+ */
+export interface SharedActivityWall {
+  id: string;
+  /** Activity wall session id (`${teacherUid}_${activityId}`). */
+  sessionId: string;
+  /** Teacher uid — used to gate update/delete. */
+  originalAuthor: string;
+  /** Snapshot of the activity's title at share time. */
+  title: string;
+  /** Snapshot of the activity's prompt at share time. */
+  prompt: string;
+  mode: ActivityWallMode;
+  /**
+   * Inherited from the parent activity. Gallery commenters identify
+   * themselves the same way the original submitters did.
+   */
+  identificationMode: ActivityWallIdentificationMode;
+  allowComments: boolean;
+  allowCommentResponses: boolean;
+  allowLikes: boolean;
+  /** Millis epoch — `null` means the link never expires. */
+  expiresAt: number | null;
+  createdAt: number;
+  /**
+   * Teacher can revoke a link without deleting the doc, which keeps
+   * existing comments/likes intact in case they want to re-enable later.
+   */
+  revoked?: boolean;
+}
+
+/**
+ * Comment posted by a gallery viewer on a specific submission.
+ * Lives at `shared_activity_walls/{shareId}/comments/{commentId}`.
+ */
+export interface ActivityWallComment {
+  id: string;
+  /** Submission this comment is attached to. */
+  submissionId: string;
+  /**
+   * Parent comment id when this is a reply, or `null` for a top-level
+   * comment. Replies are only allowed when the share has
+   * `allowCommentResponses === true`.
+   */
+  parentCommentId: string | null;
+  content: string;
+  /** Display label built from the share's `identificationMode`. */
+  participantLabel: string;
+  /** Firebase auth uid of the commenter (anonymous uid for viewers). */
+  authorUid: string;
+  createdAt: number;
+}
+
+/**
+ * Like on a submission within a shared gallery. Lives at
+ * `shared_activity_walls/{shareId}/likes/{submissionId}__{authorUid}` —
+ * the deterministic doc id enforces one-like-per-viewer-per-submission
+ * without a separate counter document.
+ */
+export interface ActivityWallLike {
+  id: string;
+  submissionId: string;
+  authorUid: string;
+  createdAt: number;
 }
 
 export interface WebcamConfig {
