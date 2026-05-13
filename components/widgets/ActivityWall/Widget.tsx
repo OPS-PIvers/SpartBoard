@@ -52,7 +52,7 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { Modal } from '@/components/common/Modal';
-import { ActivityWallShareModal } from './ShareModal';
+import { ActivityWallShareModal } from '@/components/widgets/ActivityWall/ShareModal';
 
 const encodeActivityData = (
   activity: ActivityWallActivity,

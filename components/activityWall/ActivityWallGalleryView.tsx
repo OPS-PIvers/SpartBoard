@@ -10,7 +10,7 @@
  * people's work only.
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   CornerDownRight,
   Heart,
@@ -125,6 +125,11 @@ export const ActivityWallGalleryView: React.FC = () => {
   const [submissions, setSubmissions] = useState<ActivityWallSubmission[]>([]);
   const [submissionsReady, setSubmissionsReady] = useState(false);
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+  // Tracks storage paths we've already kicked off a download for, so the
+  // resolver effect can stay off the `photoUrls` dependency (which it
+  // also writes to). On a fetch failure we drop the entry so the path is
+  // eligible for retry when the next submissions snapshot arrives.
+  const inFlightPhotoPathsRef = useRef<Set<string>>(new Set());
   const [likes, setLikes] = useState<ActivityWallLike[]>([]);
   const [comments, setComments] = useState<ActivityWallComment[]>([]);
 
@@ -282,10 +287,12 @@ export const ActivityWallGalleryView: React.FC = () => {
   useEffect(() => {
     if (state.kind !== 'ready' || state.share.mode !== 'photo') return;
     let cancelled = false;
+    const inFlight = inFlightPhotoPathsRef.current;
     const missing = submissions
-      .filter((s) => s.storagePath && !photoUrls[s.storagePath])
+      .filter((s) => s.storagePath && !inFlight.has(s.storagePath))
       .map((s) => s.storagePath as string);
     if (missing.length === 0) return;
+    missing.forEach((path) => inFlight.add(path));
     void (async () => {
       const resolved: Record<string, string> = {};
       await Promise.all(
@@ -299,6 +306,9 @@ export const ActivityWallGalleryView: React.FC = () => {
               path,
               err
             );
+            // Allow a retry on the next submissions tick — keeping the
+            // path in the in-flight set would silently drop the photo.
+            inFlight.delete(path);
           }
         })
       );
@@ -308,7 +318,7 @@ export const ActivityWallGalleryView: React.FC = () => {
     return () => {
       cancelled = true;
     };
-  }, [submissions, state, photoUrls]);
+  }, [submissions, state]);
 
   if (!shareId || state.kind === 'not-found') {
     return (
