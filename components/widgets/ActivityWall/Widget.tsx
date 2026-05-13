@@ -608,13 +608,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             return saveLibraryActivity(entry);
           })
         );
-        // Clear the legacy field. Read the latest config off `widget` so
-        // we don't clobber concurrent updates (e.g. activeActivityId
-        // changes) that landed between mount and this point.
-        const latestConfig = widget.config as ActivityWallConfig;
-        updateWidget(widget.id, {
-          config: { ...latestConfig, activities: [] },
-        });
+        // Clear the legacy field. Pass only the diff — `updateWidget`
+        // merges partial config updates against the LATEST state
+        // (`DashboardContext.updateWidget` does `{ ...w.config,
+        // ...updates.config }`), so a concurrent change to e.g.
+        // `activeActivityId` between mount and now won't be clobbered
+        // by a stale spread of the React-props `widget.config`.
+        updateWidget(widget.id, { config: { activities: [] } });
       } catch (err) {
         // Migration failures are non-fatal: legacy activities stay in
         // config so the user keeps seeing them, and the next mount
