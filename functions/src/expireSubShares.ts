@@ -60,8 +60,9 @@ export const expireSubShares = onSchedule(
     const db = admin.firestore();
     const now = Date.now();
 
-    // Single-field inequality on expiresAt + equality on intendedMode —
-    // no composite index required.
+    // Equality on intendedMode + range on expiresAt — requires a composite
+    // index on (intendedMode ASC, expiresAt ASC); declared in
+    // firestore.indexes.json.
     const snap = await db
       .collection('shared_boards')
       .where('intendedMode', '==', 'substitute')
