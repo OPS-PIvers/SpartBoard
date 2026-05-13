@@ -47,6 +47,15 @@ const COLORS: { id: Color; label: string; swatch: string }[] = [
   { id: 'blue', label: 'Blue highlight', swatch: 'bg-sky-300' },
 ];
 
+// Module-level monotonic counter so back-to-back highlight actions
+// inside the same millisecond can't collide on `id`. `useId()` makes
+// the prefix unique across React component instances, but two
+// annotations in the same modal share the same prefix — without a
+// counter, two clicks within one ms would produce identical ids and
+// silently overwrite each other in `annotationListsEqual`'s id Map
+// and in the renderer's React keys.
+let annotationSeq = 0;
+
 interface BaseProps {
   snapshot: string;
   annotations: WrittenAnswerAnnotation[];
@@ -261,7 +270,7 @@ const EditView: React.FC<EditProps> = ({
   const createAnnotation = useCallback(
     (color: Color, withCommentInput: boolean) => {
       if (!palette) return;
-      const id = `${reactId}-${Date.now()}`;
+      const id = `${reactId}-${Date.now()}-${++annotationSeq}`;
       const next: WrittenAnswerAnnotation = {
         id,
         from: palette.from,
