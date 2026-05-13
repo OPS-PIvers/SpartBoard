@@ -794,11 +794,26 @@ service cloud.firestore {
     match /shared_activity_walls/{shareId} {
       allow read: if request.auth != null;
 
+      // Identity fields (id, sessionId, originalAuthor, createdAt) plus the
+      // sessionId-ownership check below force the share doc to be created by
+      // the teacher who owns the underlying Activity Wall session — a
+      // teacher cannot publish a gallery pointing at another teacher's
+      // submissions. `keys().hasOnly([...])` schema-locks the doc so a
+      // malicious client cannot smuggle in extra fields the rest of the
+      // stack might trust. `revoked` is permitted (but not required) at
+      // create time so a teacher who wants to publish-then-revoke in one
+      // round-trip is not blocked.
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.resource.data.originalAuthor == request.auth.uid &&
-        request.resource.data.id is string &&
+        request.resource.data.id == shareId &&
         request.resource.data.sessionId is string &&
+        request.resource.data.sessionId.matches(request.auth.uid + '_.*') &&
+        request.resource.data.keys().hasOnly([
+          'id', 'sessionId', 'originalAuthor', 'title', 'prompt', 'mode',
+          'identificationMode', 'allowComments', 'allowCommentResponses',
+          'allowLikes', 'createdAt', 'expiresAt', 'revoked'
+        ]) &&
         request.resource.data.title is string &&
         request.resource.data.prompt is string &&
         request.resource.data.mode in ['text', 'photo'] &&
@@ -807,9 +822,21 @@ service cloud.firestore {
         request.resource.data.allowCommentResponses is bool &&
         request.resource.data.allowLikes is bool &&
         request.resource.data.createdAt is int &&
-        (request.resource.data.expiresAt == null || request.resource.data.expiresAt is int);
+        (request.resource.data.expiresAt == null || request.resource.data.expiresAt is int) &&
+        (!('revoked' in request.resource.data) || request.resource.data.revoked is bool);
 
-      allow update, delete: if request.auth != null &&
+      // Identity fields are frozen post-create so a buggy/malicious client
+      // cannot retarget a published share at a different session or hijack
+      // attribution. Toggles (allow*, expiresAt, revoked) remain mutable
+      // for the teacher's revoke-without-delete and toggle-after-publish
+      // flows.
+      allow update: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
+        request.resource.data.id == resource.data.id &&
+        request.resource.data.sessionId == resource.data.sessionId &&
+        request.resource.data.originalAuthor == resource.data.originalAuthor &&
+        request.resource.data.createdAt == resource.data.createdAt;
+      allow delete: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
 
       // Comments — any authenticated viewer (incl. anonymous) can create.
@@ -827,7 +854,11 @@ service cloud.firestore {
             request.resource.data.get('parentCommentId', null) == null ||
             parentShare().get('allowCommentResponses', false) == true
           ) &&
-          request.resource.data.id is string &&
+          request.resource.data.id == commentId &&
+          request.resource.data.keys().hasOnly([
+            'id', 'submissionId', 'content', 'participantLabel', 'authorUid',
+            'createdAt', 'parentCommentId'
+          ]) &&
           request.resource.data.submissionId is string &&
           request.resource.data.content is string &&
           request.resource.data.content.size() > 0 &&
@@ -856,6 +887,9 @@ service cloud.firestore {
         allow create: if request.auth != null &&
           parentShare().get('revoked', false) == false &&
           parentShare().get('allowLikes', false) == true &&
+          request.resource.data.keys().hasOnly([
+            'id', 'submissionId', 'authorUid', 'createdAt'
+          ]) &&
           request.resource.data.submissionId is string &&
           request.resource.data.authorUid == request.auth.uid &&
           request.resource.data.createdAt is int &&
