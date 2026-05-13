@@ -1,12 +1,17 @@
 /**
  * WrittenResponseGrader — teacher-facing modal for manually grading
- * `short` / `essay` quiz responses. Phase 1 surface: prev/next student
- * navigation, points input, optional overall comment.
+ * `short` / `essay` quiz responses.
  *
- * Annotations (Phase 2) and rubric scoring (Phase 3) are out of scope
- * here; the storage shape (`WrittenAnswerGrade.annotations`,
- * `rubricScores`) is already reserved on the type so this component can
- * grow into those features without a schema migration.
+ * Phase 1 shipped points entry, an optional overall comment, and
+ * prev/next student navigation. Phase 2 adds inline highlights + margin
+ * comments via `AnnotatedResponseView`. Annotations are stored as
+ * plaintext offsets into a frozen `gradingSnapshot` of the student's
+ * answer, so highlights stay anchored even if the teacher later unlocks
+ * the attempt and the student edits.
+ *
+ * Rubric scoring (Phase 3) is still out of scope; the storage shape
+ * (`WrittenAnswerGrade.rubricScores`) is already reserved on the type so
+ * this component can grow into it without a schema migration.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -18,8 +23,14 @@ import {
   ShieldAlert,
   X,
 } from 'lucide-react';
-import { QuizData, QuizResponse, WrittenAnswerGrade } from '@/types';
+import {
+  QuizData,
+  QuizResponse,
+  WrittenAnswerAnnotation,
+  WrittenAnswerGrade,
+} from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { AnnotatedResponseView } from './AnnotatedResponseView';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -112,6 +123,9 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const maxPoints = question?.points ?? 1;
   const [pointsInput, setPointsInput] = useState<string>('');
   const [comment, setComment] = useState<string>('');
+  const [draftAnnotations, setDraftAnnotations] = useState<
+    WrittenAnswerAnnotation[]
+  >([]);
   const [hydrationKey, setHydrationKey] = useState<string>('');
 
   const targetKey = `${responseKey ?? ''}::${question?.id ?? ''}`;
@@ -119,6 +133,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     setHydrationKey(targetKey);
     setPointsInput(savedGrade != null ? String(savedGrade.pointsAwarded) : '');
     setComment(savedGrade?.overallComment ?? '');
+    setDraftAnnotations(savedGrade?.annotations ?? []);
     setSaveError(null);
   }
 
@@ -129,7 +144,12 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const savedPointsStr =
     savedGrade != null ? String(savedGrade.pointsAwarded) : '';
   const savedCommentStr = savedGrade?.overallComment ?? '';
-  const isDirty = pointsInput !== savedPointsStr || comment !== savedCommentStr;
+  const savedAnnotationsJSON = JSON.stringify(savedGrade?.annotations ?? []);
+  const draftAnnotationsJSON = JSON.stringify(draftAnnotations);
+  const isDirty =
+    pointsInput !== savedPointsStr ||
+    comment !== savedCommentStr ||
+    draftAnnotationsJSON !== savedAnnotationsJSON;
 
   const confirmDiscardIfDirty = useCallback((): boolean => {
     if (!isDirty) return true;
@@ -205,9 +225,23 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       setSaveError(`Score must be between 0 and ${maxPoints}.`);
       return;
     }
+    // Snapshot the student's answer the first time we save annotations,
+    // and keep that snapshot frozen forever after. This is what makes
+    // annotation offsets stable: even if the teacher later unlocks the
+    // attempt and the student edits, the snapshot the offsets index
+    // into is unchanged.
+    const hasAnnotations = draftAnnotations.length > 0;
+    const existingSnapshot = savedGrade?.gradingSnapshot;
+    const studentAnswerForSnapshot =
+      response.answers.find((a) => a.questionId === question.id)?.answer ?? '';
+    const gradingSnapshot = hasAnnotations
+      ? (existingSnapshot ?? sanitizeQuizResponse(studentAnswerForSnapshot))
+      : existingSnapshot;
     const grade: WrittenAnswerGrade = {
       pointsAwarded: parsed,
       overallComment: comment.trim() || undefined,
+      annotations: hasAnnotations ? draftAnnotations : undefined,
+      gradingSnapshot,
       gradedBy: teacherUid,
       gradedAt: Date.now(),
     };
@@ -234,6 +268,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     pointsInput,
     maxPoints,
     comment,
+    draftAnnotations,
+    savedGrade,
     teacherUid,
     onSaveGrade,
     studentIdx,
@@ -375,11 +411,19 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
             Student response
           </h3>
           {studentAnswer ? (
-            <article
-              className="bg-white border border-slate-200 rounded-lg p-5 text-sm leading-relaxed text-slate-800 prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{
-                __html: sanitizeQuizResponse(studentAnswer),
-              }}
+            <AnnotatedResponseView
+              mode="edit"
+              // Once we've saved annotations, the snapshot is the
+              // source of truth; until then, default to the live
+              // sanitized answer so a teacher can start selecting text
+              // even on a never-graded response.
+              snapshot={
+                savedGrade?.gradingSnapshot ??
+                sanitizeQuizResponse(studentAnswer)
+              }
+              annotations={draftAnnotations}
+              authorUid={teacherUid}
+              onChange={setDraftAnnotations}
             />
           ) : (
             <div className="bg-white border border-slate-200 rounded-lg p-5 text-sm text-slate-500 italic">
@@ -456,8 +500,9 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           </button>
 
           <p className="text-xs text-slate-500 leading-relaxed">
-            ← / → switch students. Esc closes the grader. Phase 2 will add
-            inline highlights and margin comments; Phase 3 adds rubric scoring.
+            ← / → switch students. Esc closes the grader. Select text in the
+            response to add a highlight or margin comment. Rubric scoring is
+            coming in Phase 3.
           </p>
         </aside>
       </div>

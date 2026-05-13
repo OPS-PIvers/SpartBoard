@@ -55,7 +55,9 @@ import {
   shufflePublicQuestions,
   shuffleQuestionForStudent,
 } from '@/utils/quizShuffle';
-import { QuizSession, QuizPublicQuestion } from '@/types';
+import { QuizSession, QuizPublicQuestion, WrittenAnswerGrade } from '@/types';
+import { sanitizeQuizResponse } from '@/utils/security';
+import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { useDialog } from '@/context/useDialog';
 import { StudentLeaderboard } from './StudentLeaderboard';
 import { QuizPausedPlaceholder } from './QuizPausedPlaceholder';
@@ -2463,8 +2465,20 @@ const PublishedScoreReview: React.FC<{
               {(session.publicQuestions ?? []).map((q, idx) => {
                 const ans = answerById.get(q.id);
                 const studentAnswer = ans?.answer ?? '';
-                const isCorrect = ans?.isCorrect === true;
-                const isIncorrect = ans?.isCorrect === false;
+                const isWritten = q.type === 'short' || q.type === 'essay';
+                const writtenGrade = isWritten
+                  ? myResponse.grading?.[q.id]
+                  : undefined;
+                const writtenIsCorrect =
+                  writtenGrade &&
+                  q.points &&
+                  writtenGrade.pointsAwarded === q.points;
+                const isCorrect =
+                  ans?.isCorrect === true || writtenIsCorrect === true;
+                const writtenIsIncorrect =
+                  writtenGrade && writtenGrade.pointsAwarded < (q.points ?? 1);
+                const isIncorrect =
+                  ans?.isCorrect === false || writtenIsIncorrect === true;
                 const correctAnswer = session.revealedAnswers?.[q.id];
                 return (
                   <article
@@ -2484,37 +2498,48 @@ const PublishedScoreReview: React.FC<{
                       <p className="flex-1 text-sm font-semibold text-slate-100">
                         {q.text}
                       </p>
-                      {ans?.isCorrect === true && (
+                      {isCorrect && (
                         <Check className="h-5 w-5 shrink-0 text-emerald-400" />
                       )}
-                      {ans?.isCorrect === false && (
+                      {isIncorrect && (
                         <XIcon className="h-5 w-5 shrink-0 text-red-400" />
                       )}
                     </header>
                     <div className="ml-7 space-y-1.5">
-                      <p className="text-xs text-slate-400">
-                        Your answer:{' '}
-                        <span
-                          className={`font-mono ${
-                            isCorrect
-                              ? 'text-emerald-300'
-                              : isIncorrect
-                                ? 'text-red-300'
-                                : 'text-slate-200'
-                          }`}
-                        >
-                          {studentAnswer
-                            ? formatAnswerForDisplay(studentAnswer, q.type)
-                            : '— no response'}
-                        </span>
-                      </p>
-                      {showAnswers && correctAnswer && (
-                        <p className="text-xs text-slate-400">
-                          Correct answer:{' '}
-                          <span className="font-mono text-emerald-300">
-                            {formatAnswerForDisplay(correctAnswer, q.type)}
-                          </span>
-                        </p>
+                      {isWritten ? (
+                        <WrittenAnswerReview
+                          studentAnswer={studentAnswer}
+                          grade={writtenGrade}
+                          showResponse={showResponses}
+                          maxPoints={q.points ?? 1}
+                        />
+                      ) : (
+                        <>
+                          <p className="text-xs text-slate-400">
+                            Your answer:{' '}
+                            <span
+                              className={`font-mono ${
+                                isCorrect
+                                  ? 'text-emerald-300'
+                                  : isIncorrect
+                                    ? 'text-red-300'
+                                    : 'text-slate-200'
+                              }`}
+                            >
+                              {studentAnswer
+                                ? formatAnswerForDisplay(studentAnswer, q.type)
+                                : '— no response'}
+                            </span>
+                          </p>
+                          {showAnswers && correctAnswer && (
+                            <p className="text-xs text-slate-400">
+                              Correct answer:{' '}
+                              <span className="font-mono text-emerald-300">
+                                {formatAnswerForDisplay(correctAnswer, q.type)}
+                              </span>
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   </article>
@@ -2531,6 +2556,77 @@ const PublishedScoreReview: React.FC<{
           </p>
         )}
       </div>
+    </div>
+  );
+};
+
+/**
+ * Per-question review surface for written-response questions on the
+ * student score-review screen. Shows three things when present:
+ *  1. The teacher's frozen snapshot of the student's answer with
+ *     highlight marks + margin comments (Phase 2).
+ *  2. The points awarded (e.g. "7 / 10").
+ *  3. The teacher's overall comment.
+ *
+ * Falls back to a sanitized render of the student's live answer when
+ * the question hasn't been graded yet — useful for self-paced quizzes
+ * where the teacher publishes scores in chunks.
+ */
+export const WrittenAnswerReview: React.FC<{
+  studentAnswer: string;
+  grade: WrittenAnswerGrade | undefined;
+  showResponse: boolean;
+  maxPoints: number;
+}> = ({ studentAnswer, grade, showResponse, maxPoints }) => {
+  if (!showResponse) {
+    return null;
+  }
+  const hasGrade = !!grade;
+  const hasAnnotations = !!grade?.annotations && grade.annotations.length > 0;
+  const snapshot =
+    grade?.gradingSnapshot ??
+    (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
+  return (
+    <div className="space-y-2">
+      {snapshot ? (
+        hasAnnotations ? (
+          <AnnotatedResponseView
+            mode="read"
+            snapshot={snapshot}
+            annotations={grade?.annotations ?? []}
+          />
+        ) : (
+          <article
+            className="rounded-xl border border-slate-700 bg-slate-800/60 p-3 text-sm leading-relaxed text-slate-100 prose prose-sm prose-invert max-w-none"
+            dangerouslySetInnerHTML={{ __html: snapshot }}
+          />
+        )
+      ) : (
+        <p className="text-xs text-slate-500 italic">— no response</p>
+      )}
+      {hasGrade && (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-slate-400">
+          <span>
+            Score:{' '}
+            <span className="font-mono text-slate-100">
+              {grade.pointsAwarded} / {maxPoints}
+            </span>
+          </span>
+          {grade.overallComment && (
+            <span className="basis-full text-slate-300">
+              <span className="font-bold uppercase tracking-wider text-[10px] text-slate-500">
+                Teacher comment:
+              </span>{' '}
+              {grade.overallComment}
+            </span>
+          )}
+        </div>
+      )}
+      {!hasGrade && (
+        <p className="text-[11px] text-slate-500 italic">
+          Not yet graded by your teacher.
+        </p>
+      )}
     </div>
   );
 };
