@@ -56,6 +56,10 @@ import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import {
+  setAiModelConfigFallbackHandler,
+  resetAiModelConfigFallbackLatch,
+} from '../utils/aiModelConfigFallback';
+import {
   DashboardContext,
   PendingShareImport,
   SharedBoardImportMode,
@@ -465,6 +469,43 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     return () => setDriveAuthErrorHandler(null);
   }, [addToast, refreshGoogleToken]);
+
+  // Surface a one-time notice when an AI Cloud Function couldn't read the
+  // admin-configured Gemini model overrides from Firestore and fell back to
+  // hardcoded defaults. The flag is plumbed through every AI response payload
+  // via `_modelConfigUsedFallback` and consumed in `utils/ai.ts`. We only
+  // notify on the most recent attempt — the latch in the helper de-dupes
+  // until the user clicks "Reload to retry" (which reloads, re-arming).
+  //
+  // Gated to admins: non-admins can't act on the notice (the override is set
+  // in Admin Settings) and the copy explicitly mentions "admin overrides".
+  // Non-admins still get AI generation — they just don't see the warning.
+  useEffect(() => {
+    if (isAdmin !== true) {
+      return;
+    }
+    setAiModelConfigFallbackHandler(() => {
+      addToast(
+        'AI is running with default models (admin overrides unavailable). Reload to retry.',
+        'warning',
+        {
+          label: 'Reload',
+          onClick: () => {
+            resetAiModelConfigFallbackLatch();
+            window.location.reload();
+          },
+        }
+      );
+    });
+    return () => {
+      setAiModelConfigFallbackHandler(null);
+      // Reset the module-level latch on teardown so a re-mounted provider
+      // (e.g. user signs out and a different user signs in without a full
+      // page reload) still surfaces the toast on the next stale-config
+      // attempt. Otherwise the latch would stay sticky across sessions.
+      resetAiModelConfigFallbackLatch();
+    };
+  }, [addToast, isAdmin]);
 
   const [gradeFilter, setGradeFilter] = useState<GradeFilter>(() => {
     const saved = localStorage.getItem('spartboard_gradeFilter');

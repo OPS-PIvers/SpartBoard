@@ -9,6 +9,7 @@ import {
   GuidedLearningInteractionType,
 } from '@/types';
 import { TOOLS } from '@/config/tools';
+import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
 
 export interface GeneratedMiniApp {
   /** The generated HTML code for the mini-app, including embedded CSS and JS */
@@ -43,6 +44,14 @@ interface AIResponseData {
   videoId?: string;
   /** `video-activity-recommend`: one-sentence reason this video fits the topic. */
   rationale?: string;
+  /**
+   * Transport-only flag set by the Cloud Function when admin-configured
+   * Gemini model overrides couldn't be read from Firestore. The shared
+   * `callAI` helper reports it via `reportAiModelConfigFallback` and then
+   * deletes the property before returning, so callers never observe it on
+   * the resolved payload.
+   */
+  _modelConfigUsedFallback?: boolean;
 }
 
 export type AIGenerationType =
@@ -65,6 +74,14 @@ export interface GeneratedVideoQuestion extends GeneratedQuestion {
 export interface GeneratedVideoActivity {
   title: string;
   questions: GeneratedVideoQuestion[];
+  /**
+   * Transport-only flag returned by the Cloud Function when admin model
+   * overrides couldn't be loaded from Firestore. `generateVideoActivity`
+   * passes it to `reportAiModelConfigFallback` (which fires a one-time
+   * toast) and then strips the property before returning, so callers
+   * never observe it on the resolved payload.
+   */
+  _modelConfigUsedFallback?: boolean;
 }
 
 const VIDEO_ACTIVITY_CALL_TIMEOUT_MS = 300_000;
@@ -95,6 +112,13 @@ async function callAI(
     >(functions, 'generateWithAI');
 
     const result = await generateWithAI(payload);
+    reportAiModelConfigFallback(result.data?._modelConfigUsedFallback);
+    // Strip the transport flag before handing the payload back to callers
+    // so it doesn't get serialized into Firestore by anything that spreads
+    // or persists the response object.
+    if (result.data && '_modelConfigUsedFallback' in result.data) {
+      delete result.data._modelConfigUsedFallback;
+    }
     return result.data;
   } catch (error) {
     console.error('AI Generation Error:', error);
@@ -275,6 +299,7 @@ export async function generateVideoActivity(
     });
 
     const result = await fn({ url, questionCount });
+    reportAiModelConfigFallback(result.data._modelConfigUsedFallback);
 
     if (
       !result.data.title ||
@@ -286,7 +311,12 @@ export async function generateVideoActivity(
       );
     }
 
-    return result.data;
+    // Strip the transport flag so a caller that spreads / persists this
+    // object (the editor saves activities to Firestore) never round-trips
+    // `_modelConfigUsedFallback` into stored content.
+    const { _modelConfigUsedFallback: _omit, ...payload } = result.data;
+    void _omit;
+    return payload;
   } catch (error) {
     console.error('Video Activity Generation Error:', error);
     if (isFunctionsDeadlineExceededError(error)) {
@@ -431,6 +461,7 @@ interface AIGuidedLearningResponse {
   suggestedTitle?: string;
   suggestedMode?: string;
   steps?: unknown[];
+  _modelConfigUsedFallback?: boolean;
 }
 
 /** One image to send to Gemini for guided-learning generation. */
@@ -468,6 +499,7 @@ export async function generateGuidedLearning(
 
     const result = await fn({ images, prompt });
     const data = result.data;
+    reportAiModelConfigFallback(data._modelConfigUsedFallback);
 
     if (
       !data.suggestedTitle ||
