@@ -388,139 +388,141 @@ export const ActivityWallStudentApp: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-100 p-4 sm:p-6 flex items-center justify-center">
-      <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden">
-        <div className="bg-brand-blue-primary text-white px-5 py-4">
-          <p className="text-xs uppercase tracking-widest font-bold opacity-90">
-            Activity
-          </p>
-          <h1 className="text-xl font-black">{payload.title}</h1>
-        </div>
+    <div className="h-screen overflow-y-auto bg-slate-100">
+      <div className="min-h-full flex items-center justify-center p-4 sm:p-6">
+        <div className="w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden">
+          <div className="bg-brand-blue-primary text-white px-5 py-4">
+            <p className="text-xs uppercase tracking-widest font-bold opacity-90">
+              Activity
+            </p>
+            <h1 className="text-xl font-black">{payload.title}</h1>
+          </div>
 
-        <div className="p-5 space-y-4">
-          <p className="text-slate-700 font-medium">{payload.prompt}</p>
+          <div className="p-5 space-y-4">
+            <p className="text-slate-700 font-medium">{payload.prompt}</p>
 
-          {!submitted ? (
-            <form className="space-y-3" onSubmit={onSubmit}>
-              {requiresName && (
-                <input
-                  value={name}
-                  onChange={(event) => setName(event.target.value)}
-                  placeholder="Your name"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                />
-              )}
-              {requiresPin && (
-                <input
-                  value={pin}
-                  onChange={(event) => setPin(event.target.value)}
-                  placeholder="PIN"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                />
-              )}
-
-              {payload.mode === 'text' ? (
-                <div className="space-y-1">
-                  <textarea
-                    value={response}
-                    onChange={(event) => setResponse(event.target.value)}
-                    rows={4}
-                    placeholder="Type your response"
+            {!submitted ? (
+              <form className="space-y-3" onSubmit={onSubmit}>
+                {requiresName && (
+                  <input
+                    value={name}
+                    onChange={(event) => setName(event.target.value)}
+                    placeholder="Your name"
                     className="w-full px-3 py-2 border border-slate-300 rounded-xl"
-                    maxLength={5000}
                   />
-                  <p className="text-right text-xs text-slate-400">
-                    {response.length}/5000
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  <label className="block cursor-pointer">
-                    <div
-                      className={`flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl transition-colors ${
-                        selectedFile
-                          ? 'border-emerald-400 bg-emerald-50'
-                          : 'border-slate-300 hover:border-brand-blue-primary'
-                      }`}
-                    >
-                      {safePreviewUrl ? (
-                        <img
-                          src={safePreviewUrl}
-                          alt="Preview"
-                          className="max-h-48 w-full object-contain rounded-lg"
-                        />
-                      ) : (
-                        <>
-                          <div className="flex gap-3 text-slate-400">
-                            <Camera className="w-8 h-8" />
-                            <ImagePlus className="w-8 h-8" />
-                          </div>
-                          <div className="text-center">
-                            <p className="text-sm font-semibold text-brand-blue-primary">
-                              Take or select a photo
-                            </p>
-                            <p className="text-xs text-slate-400 mt-1">
-                              Tap to use your camera or photo library
-                            </p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      aria-label="Choose a photo to upload"
-                      className="sr-only"
-                      onChange={handleFileChange}
-                    />
-                  </label>
-                  {selectedFile && (
-                    <button
-                      type="button"
-                      onClick={clearPhoto}
-                      className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                      Remove photo
-                    </button>
-                  )}
-                </div>
-              )}
-
-              {submitError && (
-                <p className="text-sm text-red-600 font-medium">
-                  {submitError}
-                </p>
-              )}
-
-              <button
-                type="submit"
-                disabled={
-                  submitting ||
-                  (payload.mode === 'photo' && !selectedFile) ||
-                  (payload.mode === 'text' && !response.trim())
-                }
-                className="w-full bg-emerald-600 text-white rounded-xl py-2 font-bold flex items-center justify-center gap-2 disabled:opacity-60"
-              >
-                {submitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : payload.mode === 'text' ? (
-                  <Send className="w-4 h-4" />
-                ) : (
-                  <Camera className="w-4 h-4" />
                 )}
-                {submitting
-                  ? payload.mode === 'photo'
-                    ? 'Uploading…'
-                    : 'Submitting…'
-                  : 'Submit response'}
-              </button>
-            </form>
-          ) : (
-            <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700 text-sm font-medium text-center">
-              Your response has been submitted!
-            </div>
-          )}
+                {requiresPin && (
+                  <input
+                    value={pin}
+                    onChange={(event) => setPin(event.target.value)}
+                    placeholder="PIN"
+                    className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                  />
+                )}
+
+                {payload.mode === 'text' ? (
+                  <div className="space-y-1">
+                    <textarea
+                      value={response}
+                      onChange={(event) => setResponse(event.target.value)}
+                      rows={4}
+                      placeholder="Type your response"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-xl"
+                      maxLength={5000}
+                    />
+                    <p className="text-right text-xs text-slate-400">
+                      {response.length}/5000
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="block cursor-pointer">
+                      <div
+                        className={`flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl transition-colors ${
+                          selectedFile
+                            ? 'border-emerald-400 bg-emerald-50'
+                            : 'border-slate-300 hover:border-brand-blue-primary'
+                        }`}
+                      >
+                        {safePreviewUrl ? (
+                          <img
+                            src={safePreviewUrl}
+                            alt="Preview"
+                            className="max-h-48 w-full object-contain rounded-lg"
+                          />
+                        ) : (
+                          <>
+                            <div className="flex gap-3 text-slate-400">
+                              <Camera className="w-8 h-8" />
+                              <ImagePlus className="w-8 h-8" />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm font-semibold text-brand-blue-primary">
+                                Take or select a photo
+                              </p>
+                              <p className="text-xs text-slate-400 mt-1">
+                                Tap to use your camera or photo library
+                              </p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        aria-label="Choose a photo to upload"
+                        className="sr-only"
+                        onChange={handleFileChange}
+                      />
+                    </label>
+                    {selectedFile && (
+                      <button
+                        type="button"
+                        onClick={clearPhoto}
+                        className="flex items-center gap-1 text-xs text-slate-500 hover:text-red-500 transition-colors"
+                      >
+                        <X className="w-3 h-3" />
+                        Remove photo
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {submitError && (
+                  <p className="text-sm text-red-600 font-medium">
+                    {submitError}
+                  </p>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={
+                    submitting ||
+                    (payload.mode === 'photo' && !selectedFile) ||
+                    (payload.mode === 'text' && !response.trim())
+                  }
+                  className="w-full bg-emerald-600 text-white rounded-xl py-2 font-bold flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {submitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : payload.mode === 'text' ? (
+                    <Send className="w-4 h-4" />
+                  ) : (
+                    <Camera className="w-4 h-4" />
+                  )}
+                  {submitting
+                    ? payload.mode === 'photo'
+                      ? 'Uploading…'
+                      : 'Submitting…'
+                    : 'Submit response'}
+                </button>
+              </form>
+            ) : (
+              <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 text-emerald-700 text-sm font-medium text-center">
+                Your response has been submitted!
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>
