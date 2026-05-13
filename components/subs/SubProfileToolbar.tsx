@@ -9,6 +9,7 @@ import {
   RotateCcw,
   School,
 } from 'lucide-react';
+import { useAuth } from '@/context/useAuth';
 import { formatExpiresAt } from './subsView';
 
 interface SubProfileToolbarProps {
@@ -32,6 +33,7 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
   onBackToDirectory,
   onChangeBuilding,
 }) => {
+  const { user, signOut } = useAuth();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -142,9 +144,12 @@ export const SubProfileToolbar: React.FC<SubProfileToolbarProps> = ({
             <MenuItem
               icon={LogOut}
               label="Sign out"
-              description="ohssub@orono.k12.mn.us"
+              description={user?.email ?? ''}
               danger
-              onClick={() => setOpen(false)}
+              onClick={() => {
+                setOpen(false);
+                void signOut();
+              }}
             />
           </div>
         </div>
