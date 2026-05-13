@@ -22,8 +22,9 @@ import {
   FeaturePermission,
   DrawableObject,
   UserProfile,
+  SubstituteShareDriveGrant,
 } from '../types';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
@@ -1147,28 +1148,45 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // sub directory needs.
       const hostName = user?.displayName ?? user?.email ?? undefined;
       const scrubbedSeed = scrubDashboardPII(input.dashboard);
-      const shareId = await shareSubstituteDashboardFirestore({
-        dashboard: scrubbedSeed,
-        expiresAt: input.expiresAt,
-        buildingId: input.buildingId,
-        subEmails: input.subEmails,
-        hostDisplayName: hostName,
-      });
 
-      // Best-effort Drive grants for the cross-product (subEmails × roster
-      // files). Failures are logged and swallowed — the share is still
-      // useful without rosters; the host just sees the randomizer fall
-      // back to manual-mode names on the sub's screen.
-      const driveGrants: Array<{
-        email: string;
-        fileId: string;
-        permissionId: string;
-      }> = [];
+      // Resolve Drive grants BEFORE writing the share doc so they can be
+      // persisted atomically. Drive's `permissions.create` is idempotent —
+      // calling it twice for the same (fileId, email) returns the SAME
+      // permissionId, which means a naive grant flow would later revoke a
+      // permission that another concurrent substitute share still depends
+      // on. We pre-list the file's permissions and reuse the existing
+      // permissionId when present so the refcounting logic in the reconcile
+      // sweep (`useReconcileExpiredSubShares`) sees the conflict and skips
+      // the revoke if other active shares still reference it.
+      const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
       const fileIds = input.rosterDriveFileIds ?? [];
       if (subEmails.length > 0 && fileIds.length > 0 && driveService) {
         for (const fileId of fileIds) {
+          let existingPerms: Awaited<
+            ReturnType<typeof driveService.listFilePermissions>
+          > = [];
+          try {
+            existingPerms = await driveService.listFilePermissions(fileId);
+          } catch (err) {
+            console.error(
+              `[shareSubstituteDashboard] listFilePermissions(${fileId}) failed; will fall back to grant calls:`,
+              err
+            );
+          }
+
           for (const email of subEmails) {
+            const lower = email.toLowerCase();
+            const existing = existingPerms.find(
+              (p) =>
+                p.type === 'user' &&
+                p.emailAddress?.toLowerCase() === lower &&
+                typeof p.id === 'string'
+            );
+            if (existing) {
+              driveGrants.push({ email, fileId, permissionId: existing.id });
+              continue;
+            }
             try {
               const permissionId = await driveService.grantUserReaderPermission(
                 fileId,
@@ -1183,17 +1201,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             }
           }
         }
-        if (driveGrants.length > 0) {
-          try {
-            await updateDoc(doc(db, 'shared_boards', shareId), { driveGrants });
-          } catch (err) {
-            console.error(
-              '[shareSubstituteDashboard] Failed to persist driveGrants:',
-              err
-            );
-          }
-        }
       }
+
+      const shareId = await shareSubstituteDashboardFirestore({
+        dashboard: scrubbedSeed,
+        expiresAt: input.expiresAt,
+        buildingId: input.buildingId,
+        subEmails: input.subEmails,
+        driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
+        hostDisplayName: hostName,
+      });
 
       // Deliberately DO NOT tag the host's local dashboard with a
       // linkedShareId — substitute shares are frozen snapshots and the host

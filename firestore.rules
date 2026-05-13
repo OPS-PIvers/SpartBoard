@@ -693,8 +693,31 @@ service cloud.firestore {
       // they must be a current member of that PLC. Defense-in-depth on top
       // of the client-side PLC picker — a hostile client could otherwise
       // surface their share on any PLC's tab.
+      //
+      // Substitute-share addendum (`intendedMode == 'substitute'`):
+      // - `buildingId` MUST be a non-empty string. The /subs directory
+      //   query joins on it; a missing/wrong value silently hides the share.
+      // - `expiresAt` MUST be a number strictly in the future. Without this
+      //   the function sweep would delete the doc immediately, but during
+      //   the window between create and sweep the driveGrants[] could be
+      //   queried + abused.
+      // - `initialState` MUST be a list. Subs trust it for the "Reset board"
+      //   action; non-list values break that codepath.
+      // PLC scoping is intentionally NOT allowed for substitute shares —
+      // they don't belong on PLC Shared Boards tabs.
       allow create: if request.auth != null &&
         request.resource.data.originalAuthor == request.auth.uid &&
+        (
+          request.resource.data.get('intendedMode', null) != 'substitute'
+          || (
+            request.resource.data.get('plcId', null) == null
+            && request.resource.data.buildingId is string
+            && request.resource.data.buildingId.size() > 0
+            && request.resource.data.expiresAt is number
+            && request.resource.data.expiresAt > request.time.toMillis()
+            && request.resource.data.initialState is list
+          )
+        ) &&
         (
           request.resource.data.get('plcId', null) == null ||
           request.auth.uid in get(
@@ -761,8 +784,12 @@ service cloud.firestore {
 
       // Self-join: any authed user may add ONLY their own uid to participants
       // without changing any other field. Used by importers picking Synced
-      // or View-Only mode.
+      // or View-Only mode. Explicitly NOT allowed on substitute shares —
+      // subs view via /subs without importing, so any self-join on those
+      // docs would just pollute the participants map and surface as a
+      // phantom collaborator to the host.
       allow update: if request.auth != null &&
+        resource.data.get('intendedMode', null) != 'substitute' &&
         !(request.auth.uid in resource.data.get('participants', {})) &&
         request.auth.uid in request.resource.data.get('participants', {}) &&
         request.resource.data.participants.diff(resource.data.get('participants', {}))
@@ -770,7 +797,10 @@ service cloud.firestore {
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participants']);
 
       // Self-leave: any participant may remove ONLY their own uid from
-      // participants without changing any other field.
+      // participants without changing any other field. Substitute shares
+      // never accept participants in the first place (see self-join rule),
+      // so this rule is effectively a no-op for them — the predicate
+      // `request.auth.uid in participants` would fail.
       allow update: if request.auth != null &&
         request.auth.uid in resource.data.get('participants', {}) &&
         !(request.auth.uid in request.resource.data.get('participants', {})) &&
