@@ -123,6 +123,10 @@ export function toPublicQuestion(q: QuizQuestion): QuizPublicQuestion {
     // a student pop devtools and read off exactly which entries are wrong.
   } else if (q.type === 'Ordering') {
     base.orderingItems = fisherYatesShuffle(q.correctAnswer.split('|'));
+  } else if (q.type === 'short' || q.type === 'essay') {
+    if (q.placeholder) base.placeholder = q.placeholder;
+    if (q.maxWords && q.maxWords > 0) base.maxWords = q.maxWords;
+    if (q.points && q.points > 0) base.points = q.points;
   }
   return base;
 }
@@ -190,10 +194,33 @@ function longestOrderedSubsequenceLength(
 
 export function gradeAnswer(
   question: QuizQuestion,
-  studentAnswer: string
+  studentAnswer: string,
+  /**
+   * Optional teacher-written manual grade for the response — pulled from
+   * `QuizResponse.grading[question.id]`. Only consulted for written
+   * question types (`short`, `essay`); ignored for auto-graded types.
+   */
+  manualGrade?: import('@/types').WrittenAnswerGrade
 ): GradeResult {
   const max = question.points ?? 1;
   const partial = question.allowPartialCredit === true;
+
+  // Written question types are graded manually by the teacher. If no
+  // grade has been entered yet, the answer is reported as "not yet
+  // graded" — zero points awarded, isCorrect=false — so downstream stats
+  // (which weight by isCorrect) don't credit ungraded essays as correct.
+  if (question.type === 'short' || question.type === 'essay') {
+    if (!manualGrade) {
+      return { isCorrect: false, pointsEarned: 0, pointsMax: max };
+    }
+    const awarded = Math.min(max, Math.max(0, manualGrade.pointsAwarded));
+    return {
+      isCorrect: awarded === max && max > 0,
+      pointsEarned: awarded,
+      pointsMax: max,
+    };
+  }
+
   const correct = normalizeAnswer(question.correctAnswer);
   const given = normalizeAnswer(studentAnswer);
 

@@ -43,7 +43,9 @@ const questionsEqual = (a: QuizQuestion[], b: QuizQuestion[]): boolean => {
       qa.timeLimit !== qb.timeLimit ||
       (qa.points ?? 1) !== (qb.points ?? 1) ||
       (qa.allowPartialCredit === true) !== (qb.allowPartialCredit === true) ||
-      qa.incorrectAnswers.length !== qb.incorrectAnswers.length
+      qa.incorrectAnswers.length !== qb.incorrectAnswers.length ||
+      (qa.placeholder ?? '') !== (qb.placeholder ?? '') ||
+      (qa.maxWords ?? 0) !== (qb.maxWords ?? 0)
     ) {
       return false;
     }
@@ -110,7 +112,10 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     if (questions.length === 0) errors.push('Add at least one question');
     questions.forEach((q, i) => {
       if (!q.text.trim()) errors.push(`Question ${i + 1}: text is required`);
-      if (!q.correctAnswer.trim())
+      // Written response types (short/essay) have no correct answer — they
+      // are manually graded by the teacher after the quiz closes.
+      const isWritten = q.type === 'short' || q.type === 'essay';
+      if (!isWritten && !q.correctAnswer.trim())
         errors.push(`Question ${i + 1}: correct answer is required`);
     });
     if (errors.length > 0) {

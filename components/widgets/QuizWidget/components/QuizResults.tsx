@@ -61,6 +61,14 @@ import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
 import { PlcTab } from '@/components/common/library/PlcTab';
+import { WrittenResponseGrader } from './WrittenResponseGrader';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import {
+  QUIZ_SESSIONS_COLLECTION,
+  RESPONSES_COLLECTION,
+} from '@/hooks/useQuizSession';
+import { Pencil } from 'lucide-react';
 
 /**
  * Export-error banner state. Generic errors render as a plain message; a
@@ -240,6 +248,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   }
   const [updatingSheet, setUpdatingSheet] = useState(false);
   const [exportError, setExportError] = useState<ExportErrorState | null>(null);
+  const [showGrader, setShowGrader] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students' | 'plc'
   >('overview');
@@ -322,6 +331,59 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     [rosters, resolvedPeriods]
   );
   const hasNames = Object.keys(pinToName).length > 0;
+
+  // Whether the underlying quiz contains any manual-grade question
+  // types. Used to surface the "Grade Written" entry-point only when
+  // it's actually useful.
+  const hasWrittenQuestions = useMemo(
+    () => quiz.questions.some((q) => q.type === 'short' || q.type === 'essay'),
+    [quiz.questions]
+  );
+
+  // Build a display-name lookup keyed by the response's deterministic
+  // doc key so the grader can show a real student name in its header
+  // rather than the raw uid/pin.
+  const displayNameByResponseKey = useMemo(() => {
+    const m = new Map<string, string>();
+    responses.forEach((r) => {
+      const key = r._responseKey ?? r.studentUid;
+      if (!key) return;
+      const name = resolveResponseDisplayName(r, pinToName, byStudentUid);
+      if (name) m.set(key, name);
+    });
+    return m;
+  }, [responses, pinToName, byStudentUid]);
+
+  // Save a manual grade for a single response/question pair. Uses
+  // Firestore's dotted-field-path syntax so concurrent grades on
+  // different questions of the same response don't clobber each other
+  // (which would happen if we read-modify-wrote the whole `grading`
+  // map). Field-path updates merge atomically at the map-key level on
+  // the server.
+  const saveWrittenGrade = useCallback(
+    async (
+      responseKey: string,
+      questionId: string,
+      grade: import('@/types').WrittenAnswerGrade
+    ) => {
+      const sessionId = session?.id;
+      if (!sessionId) {
+        throw new Error(
+          'Cannot save grade: no active session in scope. Reopen the quiz results and try again.'
+        );
+      }
+      const ref = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      // Bracket-notation field path so Firestore merges this key only.
+      await updateDoc(ref, { [`grading.${questionId}`]: grade });
+    },
+    [session?.id]
+  );
 
   // Auto-publish this teacher's contribution to the PLC results aggregate.
   // Replaces the old "everyone must export to a shared Google Sheet" dance:
@@ -956,6 +1018,27 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           </p>
         </div>
 
+        {hasWrittenQuestions && (
+          <button
+            onClick={() => setShowGrader(true)}
+            className="flex items-center bg-rose-600 hover:bg-rose-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(11px, 3.5cqmin)',
+            }}
+            title="Open the manual grading view for short-answer and essay responses."
+          >
+            <Pencil
+              style={{
+                width: 'min(14px, 4cqmin)',
+                height: 'min(14px, 4cqmin)',
+              }}
+            />
+            GRADE WRITTEN
+          </button>
+        )}
+
         {completed.length > 0 && (
           <div className="relative shrink-0">
             <button
@@ -1328,6 +1411,17 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           </div>
         </>
       )}
+
+      {showGrader && session?.id && user?.uid && (
+        <WrittenResponseGrader
+          quiz={quiz}
+          responses={responses}
+          displayNameByResponseKey={displayNameByResponseKey}
+          teacherUid={user.uid}
+          onSaveGrade={saveWrittenGrade}
+          onClose={() => setShowGrader(false)}
+        />
+      )}
     </div>
   );
 };
@@ -1492,7 +1586,15 @@ const QuestionsTab: React.FC<{
 
         if (qStats && q) {
           qStats.answered++;
-          if (gradeAnswer(q, a.answer).isCorrect) {
+          // Written types pass through `gradeAnswer` with the response's
+          // manual grade (if any) so awarded == max still counts as
+          // correct in the accuracy widget. Ungraded written responses
+          // count toward `answered` but not `correct`.
+          const manualGrade =
+            q.type === 'short' || q.type === 'essay'
+              ? r.grading?.[q.id]
+              : undefined;
+          if (gradeAnswer(q, a.answer, manualGrade).isCorrect) {
             qStats.correct++;
           }
         }
@@ -1523,12 +1625,22 @@ const QuestionsTab: React.FC<{
               >
                 Question {i + 1}
               </div>
-              <div
-                className="font-black text-brand-blue-dark"
-                style={{ fontSize: 'min(12px, 4cqmin)' }}
-              >
-                {pct}% Accuracy
-              </div>
+              {q.type === 'short' || q.type === 'essay' ? (
+                <div
+                  className="font-black text-rose-700 bg-rose-50 border border-rose-200 rounded px-2 py-0.5"
+                  style={{ fontSize: 'min(10px, 3cqmin)' }}
+                  title="Written responses are graded manually by the teacher."
+                >
+                  Manual grading
+                </div>
+              ) : (
+                <div
+                  className="font-black text-brand-blue-dark"
+                  style={{ fontSize: 'min(12px, 4cqmin)' }}
+                >
+                  {pct}% Accuracy
+                </div>
+              )}
             </div>
 
             <p

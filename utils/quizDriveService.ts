@@ -20,6 +20,28 @@ import { APP_NAME } from '../config/constants';
 import { authError } from './driveAuthErrors';
 import { buildResultsSheetData as buildResultsSheetDataShared } from '@/utils/assignmentExportShared';
 
+/**
+ * Quiz's grader wrapper for `buildResultsSheetData`. Routes per-question
+ * manual grades (written types only) from the response's top-level
+ * `grading` map into `gradeAnswer`. Without this, `short`/`essay`
+ * questions would always export as 0 points regardless of what the
+ * teacher graded them.
+ *
+ * Defined at module scope so it has stable identity — `buildResultsSheetData`
+ * is allocation-sensitive on big PLC exports.
+ */
+function quizGradeFnWithManualGrades(
+  question: QuizQuestion,
+  studentAnswer: string,
+  response?: QuizResponse
+) {
+  const manualGrade =
+    (question.type === 'short' || question.type === 'essay') && response
+      ? response.grading?.[question.id]
+      : undefined;
+  return gradeAnswer(question, studentAnswer, manualGrade);
+}
+
 const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3';
 const UPLOAD_API_URL = 'https://www.googleapis.com/upload/drive/v3';
 const SHEETS_API_URL = 'https://sheets.googleapis.com/v4/spreadsheets';
@@ -518,7 +540,7 @@ export class QuizDriveService {
     return buildResultsSheetDataShared<QuizQuestion, QuizResponse>(
       responses,
       questions,
-      gradeAnswer,
+      quizGradeFnWithManualGrades,
       options
     );
   }
@@ -622,16 +644,24 @@ export class QuizDriveService {
       plcMode?: boolean;
       plcSheetUrl?: string;
       /**
-       * Optional grader override. Defaults to Quiz's `gradeAnswer`. Video
+       * Optional grader override. Defaults to Quiz's wrapper that threads
+       * per-response manual grades through (for `short`/`essay`). Video
        * Activity passes `gradeVideoActivityAnswer` so MA / FIB-with-variants
-       * grade correctly in the export — Quiz's grader has no `'MA'` case
-       * and otherwise returns 0 points for those columns. Fixes the TODO
-       * PR2a left at `Results.tsx:170`.
+       * grade correctly in the export — VA's grader signature ignores the
+       * optional third `response` argument it receives.
        */
-      gradeFn?: typeof gradeAnswer;
+      gradeFn?: (
+        question: QuizQuestion,
+        studentAnswer: string,
+        response?: QuizResponse
+      ) => import('../types').GradeResult;
     }
   ): Promise<string> {
-    const gradeFn = options?.gradeFn ?? gradeAnswer;
+    // Quiz's grader threads per-response manual grades through for
+    // `short` / `essay` types; callers that pass their own `gradeFn`
+    // (Video Activity) opt out automatically since their wrapper ignores
+    // the optional third argument.
+    const gradeFn = options?.gradeFn ?? quizGradeFnWithManualGrades;
     const { headers, dataRows } = buildResultsSheetDataShared<
       QuizQuestion,
       QuizResponse
@@ -680,7 +710,7 @@ export class QuizDriveService {
         if (!q) continue;
 
         answeredSet.add(a.questionId);
-        if (gradeFn(q, a.answer).isCorrect) {
+        if (gradeFn(q, a.answer, r).isCorrect) {
           correctSet.add(a.questionId);
         }
       }

@@ -60,6 +60,16 @@ const QUESTION_TYPES: {
     label: 'Ordering',
     hint: 'List items in the correct sequence. Drag rows or use arrows to reorder.',
   },
+  {
+    value: 'short',
+    label: 'Short Answer',
+    hint: 'Single-paragraph written response. Graded manually by the teacher.',
+  },
+  {
+    value: 'essay',
+    label: 'Essay',
+    hint: 'Multi-paragraph written response with rich text. Graded manually.',
+  },
 ];
 
 /** Stable empty array reused as the matchingDistractors fallback. */
@@ -70,6 +80,8 @@ const TYPE_BADGE: Record<QuizQuestionType, string> = {
   FIB: 'bg-amber-100 text-amber-800',
   Matching: 'bg-purple-100 text-purple-700',
   Ordering: 'bg-teal-100 text-teal-700',
+  short: 'bg-rose-100 text-rose-700',
+  essay: 'bg-rose-100 text-rose-700',
 };
 
 const labelClass =
@@ -317,14 +329,19 @@ export const QuizEditorDetailPane: React.FC<PaneProps> = ({ state }) => {
             <label className={labelClass}>Type</label>
             <select
               value={q.type}
-              onChange={(e) =>
+              onChange={(e) => {
+                const nextType = e.target.value as QuizQuestionType;
+                const isWritten = nextType === 'short' || nextType === 'essay';
                 updateQuestion(q.id, {
-                  type: e.target.value as QuizQuestionType,
-                  incorrectAnswers: e.target.value === 'MC' ? ['', ''] : [],
+                  type: nextType,
+                  incorrectAnswers: nextType === 'MC' ? ['', ''] : [],
                   correctAnswer: '',
                   matchingDistractors: undefined,
-                })
-              }
+                  // Reset written-specific fields when switching off written types
+                  placeholder: isWritten ? q.placeholder : undefined,
+                  maxWords: isWritten ? q.maxWords : undefined,
+                });
+              }}
               className={`${inputClass} appearance-none`}
             >
               {QUESTION_TYPES.map((t) => (
@@ -426,6 +443,62 @@ export const QuizEditorDetailPane: React.FC<PaneProps> = ({ state }) => {
               updateQuestion(q.id, { correctAnswer })
             }
           />
+        ) : q.type === 'short' || q.type === 'essay' ? (
+          <div className="space-y-3">
+            <div className="flex gap-2 p-2.5 bg-rose-50 border border-rose-200 text-rose-800 rounded-lg">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <p className="text-xs">
+                {q.type === 'short'
+                  ? 'Students answer in a single short paragraph. '
+                  : 'Students write a multi-paragraph response with rich text. '}
+                Responses are <strong>graded manually</strong> — open the
+                results panel after the quiz ends to award points.
+              </p>
+            </div>
+            <div>
+              <label className={labelClass}>Placeholder (optional)</label>
+              <input
+                type="text"
+                value={q.placeholder ?? ''}
+                onChange={(e) =>
+                  updateQuestion(q.id, {
+                    placeholder: e.target.value || undefined,
+                  })
+                }
+                placeholder="e.g. Cite at least two pieces of evidence."
+                className={inputClass}
+              />
+            </div>
+            <div>
+              <label className={labelClass}>Word Cap (optional)</label>
+              <div className="relative">
+                <input
+                  type="number"
+                  min={0}
+                  max={5000}
+                  value={q.maxWords ?? ''}
+                  onChange={(e) => {
+                    const raw = parseInt(e.target.value, 10);
+                    updateQuestion(q.id, {
+                      maxWords:
+                        Number.isFinite(raw) && raw > 0
+                          ? Math.min(5000, raw)
+                          : undefined,
+                    });
+                  }}
+                  placeholder="No cap"
+                  className={`${inputClass} pr-16`}
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-xxs uppercase tracking-wider">
+                  Words
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-1">
+                Shown to students as a soft warning. Not enforced — students can
+                exceed it.
+              </p>
+            </div>
+          </div>
         ) : (
           <div>
             <label className="block font-bold text-emerald-700 mb-1 text-xs uppercase tracking-wider">
