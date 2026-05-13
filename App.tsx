@@ -2,6 +2,8 @@ import React, { lazy, Suspense, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
+import { useGoogleDrive } from './hooks/useGoogleDrive';
+import { useReconcileExpiredSubShares } from './hooks/useReconcileExpiredSubShares';
 import { CustomWidgetsProvider } from './context/CustomWidgetsContext';
 import { SavedWidgetsProvider } from './context/SavedWidgetsContext';
 import { DashboardProvider } from './context/DashboardContext';
@@ -170,6 +172,7 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 /** Rendered inside DashboardProvider so it can access both auth and dashboard context. */
 const AppContent: React.FC = () => {
   const {
+    user,
     isAdmin,
     profileLoaded,
     setupCompleted,
@@ -179,6 +182,16 @@ const AppContent: React.FC = () => {
     signOut,
   } = useAuth();
   const { loading: dashLoading, activeDashboard } = useDashboard();
+  const { driveService } = useGoogleDrive();
+
+  // Sweep this teacher's expired substitute shares once per session so
+  // Drive permissions get revoked using their existing OAuth token. The
+  // `expireSubShares` cloud function continues to delete share docs as a
+  // fallback when a teacher never returns.
+  useReconcileExpiredSubShares({
+    uid: user?.uid ?? null,
+    driveService,
+  });
 
   // Two paths to "this is a student":
   //   - `isStudentRole` — token carries `studentRole: true`. Real SSO

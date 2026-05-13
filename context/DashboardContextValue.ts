@@ -40,6 +40,15 @@ export interface SubstituteShareInput {
   buildingId: string;
   /** Optional @orono.k12.mn.us emails the host wants to grant Drive access to. */
   subEmails?: string[];
+  /**
+   * Drive file ids that should be shared (read-only) with each `subEmails`
+   * entry — typically the active roster's JSON file. The handler iterates
+   * the cross-product, captures each returned permission id, and persists
+   * `driveGrants[]` back on the share doc for later revocation. Caller is
+   * responsible for resolving which files are relevant (usually the active
+   * roster's `driveFileId`).
+   */
+  rosterDriveFileIds?: string[];
 }
 
 export interface PendingShareImport {

@@ -23,7 +23,7 @@ import {
   DrawableObject,
   UserProfile,
 } from '../types';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
@@ -1230,12 +1230,53 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         subEmails: input.subEmails,
         hostDisplayName: hostName,
       });
+
+      // Best-effort Drive grants for the cross-product (subEmails × roster
+      // files). Failures are logged and swallowed — the share is still
+      // useful without rosters; the host just sees the randomizer fall
+      // back to manual-mode names on the sub's screen.
+      const driveGrants: Array<{
+        email: string;
+        fileId: string;
+        permissionId: string;
+      }> = [];
+      const subEmails = input.subEmails ?? [];
+      const fileIds = input.rosterDriveFileIds ?? [];
+      if (subEmails.length > 0 && fileIds.length > 0 && driveService) {
+        for (const fileId of fileIds) {
+          for (const email of subEmails) {
+            try {
+              const permissionId = await driveService.grantUserReaderPermission(
+                fileId,
+                email
+              );
+              driveGrants.push({ email, fileId, permissionId });
+            } catch (err) {
+              console.error(
+                `[shareSubstituteDashboard] Drive grant failed for ${email} on ${fileId}:`,
+                err
+              );
+            }
+          }
+        }
+        if (driveGrants.length > 0) {
+          try {
+            await updateDoc(doc(db, 'shared_boards', shareId), { driveGrants });
+          } catch (err) {
+            console.error(
+              '[shareSubstituteDashboard] Failed to persist driveGrants:',
+              err
+            );
+          }
+        }
+      }
+
       // Deliberately DO NOT tag the host's local dashboard with a
       // linkedShareId — substitute shares are frozen snapshots and the host
       // continues editing their live board independently.
       return shareId;
     },
-    [shareSubstituteDashboardFirestore, user]
+    [shareSubstituteDashboardFirestore, driveService, user]
   );
 
   const handleLoadSharedDashboard = useCallback(
