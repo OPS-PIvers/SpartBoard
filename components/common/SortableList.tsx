@@ -12,7 +12,9 @@ import { restrictToParentElement } from '@dnd-kit/modifiers';
 import {
   arrayMove,
   SortableContext,
+  SortingStrategy,
   sortableKeyboardCoordinates,
+  rectSortingStrategy,
   verticalListSortingStrategy,
   useSortable,
 } from '@dnd-kit/sortable';
@@ -52,7 +54,18 @@ interface SortableListProps<T> {
   ) => React.ReactNode;
   /** Optional className for the outer list container. */
   className?: string;
+  /**
+   * Layout strategy passed to dnd-kit's `SortableContext`. Defaults to
+   * `'vertical'`. Use `'grid'` for wrap-flow / pill-strip layouts so
+   * hit-testing computes neighbor zones in 2D instead of along the Y axis.
+   */
+  layout?: 'vertical' | 'grid';
 }
+
+const STRATEGY_BY_LAYOUT: Record<'vertical' | 'grid', SortingStrategy> = {
+  vertical: verticalListSortingStrategy,
+  grid: rectSortingStrategy,
+};
 
 interface SortableRowProps {
   id: string;
@@ -108,6 +121,7 @@ export function SortableList<T>({
   onReorder,
   renderItem,
   className,
+  layout = 'vertical',
 }: SortableListProps<T>): React.ReactElement {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -132,7 +146,7 @@ export function SortableList<T>({
       modifiers={[restrictToParentElement]}
       onDragEnd={handleDragEnd}
     >
-      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+      <SortableContext items={ids} strategy={STRATEGY_BY_LAYOUT[layout]}>
         <div className={className}>
           {items.map((item) => {
             const id = getId(item);
