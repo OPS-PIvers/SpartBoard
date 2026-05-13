@@ -164,60 +164,62 @@ export const NextUpStudentApp: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="flex items-center justify-center mb-8 gap-2">
-          <div className="p-2 bg-blue-600 rounded-lg">
-            <ListOrdered className="w-6 h-6 text-white" />
-          </div>
-          <span className="text-xl font-black text-slate-800 tracking-tighter uppercase">
-            Next Up
-          </span>
-        </div>
-
-        <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 shadow-sm">
-          <h1 className="text-2xl font-black text-slate-800 mb-2 text-center">
-            Take a Number
-          </h1>
-          <p className="text-slate-500 text-center mb-8 font-medium italic">
-            Session: {session?.sessionName}
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="text-xxs font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
-                Enter your name
-              </label>
-              <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Alex S."
-                required
-                autoFocus
-                className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-2xl text-xl font-bold text-slate-800 focus:outline-none focus:border-blue-600 transition-colors shadow-inner"
-              />
+    <div className="h-screen overflow-y-auto bg-white">
+      <div className="min-h-full flex flex-col items-center justify-center p-6">
+        <div className="w-full max-w-sm">
+          <div className="flex items-center justify-center mb-8 gap-2">
+            <div className="p-2 bg-blue-600 rounded-lg">
+              <ListOrdered className="w-6 h-6 text-white" />
             </div>
+            <span className="text-xl font-black text-slate-800 tracking-tighter uppercase">
+              Next Up
+            </span>
+          </div>
 
-            <button
-              type="submit"
-              disabled={submitting || !name.trim()}
-              className="w-full py-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black text-lg rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 shadow-blue-200"
-            >
-              {submitting ? (
-                <Loader2 className="w-6 h-6 animate-spin" />
-              ) : (
-                <>
-                  GET IN LINE <UserPlus className="w-6 h-6" />
-                </>
-              )}
-            </button>
-          </form>
+          <div className="bg-slate-50 rounded-3xl p-8 border border-slate-100 shadow-sm">
+            <h1 className="text-2xl font-black text-slate-800 mb-2 text-center">
+              Take a Number
+            </h1>
+            <p className="text-slate-500 text-center mb-8 font-medium italic">
+              Session: {session?.sessionName}
+            </p>
+
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="text-xxs font-black text-slate-400 uppercase tracking-widest ml-1 mb-2 block">
+                  Enter your name
+                </label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Alex S."
+                  required
+                  autoFocus
+                  className="w-full px-6 py-4 bg-white border-2 border-slate-200 rounded-2xl text-xl font-bold text-slate-800 focus:outline-none focus:border-blue-600 transition-colors shadow-inner"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={submitting || !name.trim()}
+                className="w-full py-5 bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-black text-lg rounded-2xl flex items-center justify-center gap-3 transition-all shadow-lg active:scale-95 shadow-blue-200"
+              >
+                {submitting ? (
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                ) : (
+                  <>
+                    GET IN LINE <UserPlus className="w-6 h-6" />
+                  </>
+                )}
+              </button>
+            </form>
+          </div>
+
+          <p className="text-center text-slate-400 text-xs mt-8 font-medium">
+            SpartBoard &bull; Learning in Motion
+          </p>
         </div>
-
-        <p className="text-center text-slate-400 text-xs mt-8 font-medium">
-          SpartBoard &bull; Learning in Motion
-        </p>
       </div>
     </div>
   );
