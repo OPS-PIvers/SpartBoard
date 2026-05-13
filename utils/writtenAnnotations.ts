@@ -105,24 +105,48 @@ const walkPlaintext = (
  */
 export const renderAnnotatedSnapshot = ({
   html,
+  root,
   annotations,
 }: {
-  html: string;
+  /** Raw sanitized HTML. Parsed on every call — prefer `root` in hot paths. */
+  html?: string;
+  /**
+   * Pre-parsed DOM root (typically the wrapping `<div>`). Lets callers
+   * memoize the parse once per snapshot and re-walk on annotation
+   * changes without re-DOMParsing — important for the live editor
+   * where margin-comment keystrokes change `annotations` on every
+   * keypress.
+   */
+  root?: Element | null;
   annotations: WrittenAnswerAnnotation[];
 }): React.ReactNode => {
+  let actualRoot = root ?? null;
+  if (!actualRoot && html) {
+    actualRoot = parseSnapshotRoot(html);
+  }
+  if (!actualRoot) return null;
+
+  const sorted = [...annotations].sort((a, b) => a.from - b.from);
+  const ctx = { offset: 0, atBlockStart: true, keyCounter: 0 };
+
+  return renderChildren(actualRoot, sorted, ctx);
+};
+
+/**
+ * Parse a sanitized snapshot HTML string into the wrapping `<div>`
+ * `Element`. Returns null in non-DOM environments (e.g. SSR). Hot-path
+ * callers should memoize the returned node and pass it back to
+ * `renderAnnotatedSnapshot` as `root` so per-keystroke annotation
+ * changes don't re-DOMParse the whole snapshot.
+ */
+export const parseSnapshotRoot = (html: string): Element | null => {
   if (!html) return null;
   if (typeof DOMParser === 'undefined') return null;
   const doc = new DOMParser().parseFromString(
     `<div>${html}</div>`,
     'text/html'
   );
-  const root = doc.body.firstChild as Element | null;
-  if (!root) return null;
-
-  const sorted = [...annotations].sort((a, b) => a.from - b.from);
-  const ctx = { offset: 0, atBlockStart: true, keyCounter: 0 };
-
-  return renderChildren(root, sorted, ctx);
+  return (doc.body.firstChild as Element | null) ?? null;
 };
 
 interface RenderCtx {
@@ -186,10 +210,11 @@ const renderChildren = (
  * a `<mark>` wrapping a string, depending on which annotations cover it.
  *
  * For overlapping annotations (a fairly uncommon teacher action), the
- * outermost-by-color-priority annotation's id ends up on `data-id`, but
- * all overlapping ids are stored on `data-overlap-ids` so the editing
- * surface can still resolve clicks. Phase 2 ships with a simple "first
- * annotation wins" pick — multi-color overlap UX is a follow-up.
+ * earliest-by-`from` annotation in `active` (the input is sorted by
+ * `from` in the caller) ends up on `data-annotation-id`, and all
+ * overlapping ids are stored on `data-overlap-ids` so the editor
+ * surface can still resolve clicks against any of them. Multi-color
+ * overlap UX (e.g. split-into-N-marks) is a follow-up.
  */
 const sliceTextWithAnnotations = (
   text: string,
@@ -198,10 +223,19 @@ const sliceTextWithAnnotations = (
   annotations: WrittenAnswerAnnotation[],
   ctx: RenderCtx
 ): React.ReactNode[] => {
-  // Collect the offsets where coverage changes within this text node.
-  const boundaries = new Set<number>([start, end]);
+  // Pre-filter annotations that actually overlap this text node, then
+  // do all subsequent work against the smaller set. The previous
+  // implementation re-scanned the full `annotations` array once per
+  // segment, making rendering scale as O(segments × annotations) even
+  // when only one annotation touched the current text node.
+  const local: WrittenAnswerAnnotation[] = [];
   for (const a of annotations) {
     if (a.to <= start || a.from >= end) continue;
+    local.push(a);
+  }
+  // Collect the offsets where coverage changes within this text node.
+  const boundaries = new Set<number>([start, end]);
+  for (const a of local) {
     boundaries.add(Math.max(start, a.from));
     boundaries.add(Math.min(end, a.to));
   }
@@ -213,7 +247,7 @@ const sliceTextWithAnnotations = (
     const segTo = sorted[i + 1];
     if (segFrom === segTo) continue;
     const chunk = text.slice(segFrom - start, segTo - start);
-    const active = annotations.filter((a) => a.from < segTo && a.to > segFrom);
+    const active = local.filter((a) => a.from < segTo && a.to > segFrom);
     if (active.length === 0) {
       out.push(chunk);
       continue;
@@ -285,6 +319,15 @@ export const getPlainTextOffsetFromRange = (
     to: null,
   };
 
+  // Single-pass walk. Both text-node offsets and element-node offsets
+  // (where `range.startOffset` is a child index, e.g. when a user
+  // clicks past the last character of a paragraph) are resolved
+  // inline against the same monotonically-advancing `offset` and
+  // `atBlockStart` state, so block-boundary newlines stay consistent
+  // with `htmlToPlainText`'s projection. The previous version
+  // recomputed preceding-sibling lengths via `htmlToPlainText` per
+  // call — O(N²) and ignored `atBlockStart`, producing off-by-one
+  // offsets near block boundaries.
   let offset = 0;
   let atBlockStart = true;
 
@@ -306,6 +349,12 @@ export const getPlainTextOffsetFromRange = (
     const el = node as Element;
     const tag = el.tagName.toUpperCase();
     if (tag === 'BR') {
+      if (node === range.startContainer && result.from == null) {
+        result.from = offset;
+      }
+      if (node === range.endContainer && result.to == null) {
+        result.to = offset;
+      }
       offset += 1;
       atBlockStart = true;
       return;
@@ -316,28 +365,44 @@ export const getPlainTextOffsetFromRange = (
       }
       atBlockStart = true;
     }
-    // Range may land on an element node (e.g. clicking past the last
-    // character of a paragraph). When that happens, the offset is a
-    // child index — sum the plaintext length of preceding children.
+    // Range may anchor on this element with `range.startOffset` as a
+    // child-index. We resolve it by checking before each child:
+    // if the index equals `i`, the offset point is "just before
+    // child i" and we capture the current cumulative `offset`.
+    const children = el.childNodes;
+    for (let i = 0; i < children.length; i++) {
+      if (
+        node === range.startContainer &&
+        result.from == null &&
+        range.startOffset === i
+      ) {
+        result.from = offset;
+      }
+      if (
+        node === range.endContainer &&
+        result.to == null &&
+        range.endOffset === i
+      ) {
+        result.to = offset;
+      }
+      visit(children[i]);
+      if (result.from != null && result.to != null) return;
+    }
+    // Trailing boundary: range.{start,end}Offset === children.length
+    // means the anchor sits after the last child.
     if (
       node === range.startContainer &&
       result.from == null &&
-      node.nodeType === Node.ELEMENT_NODE
+      range.startOffset === children.length
     ) {
-      const before = childrenPlaintextLength(el, range.startOffset);
-      result.from = offset + before;
+      result.from = offset;
     }
     if (
       node === range.endContainer &&
       result.to == null &&
-      node.nodeType === Node.ELEMENT_NODE
+      range.endOffset === children.length
     ) {
-      const before = childrenPlaintextLength(el, range.endOffset);
-      result.to = offset + before;
-    }
-    for (const child of Array.from(el.childNodes)) {
-      visit(child);
-      if (result.from != null && result.to != null) return;
+      result.to = offset;
     }
   };
   visit(root);
@@ -347,28 +412,4 @@ export const getPlainTextOffsetFromRange = (
   return result.from < result.to
     ? { from: result.from, to: result.to }
     : { from: result.to, to: result.from };
-};
-
-const childrenPlaintextLength = (parent: Element, count: number): number => {
-  let len = 0;
-  const children = Array.from(parent.childNodes).slice(0, count);
-  for (const child of children) {
-    if (child.nodeType === Node.TEXT_NODE) {
-      len += (child.nodeValue ?? '').length;
-    } else if (child.nodeType === Node.ELEMENT_NODE) {
-      const el = child as Element;
-      const tag = el.tagName.toUpperCase();
-      if (tag === 'BR') {
-        len += 1;
-      } else if (BLOCK_TAGS.has(tag)) {
-        len += htmlToPlainText(el.innerHTML).length;
-        // Block boundaries contribute a newline only between blocks. We
-        // don't double-count for a leading block — htmlToPlainText
-        // handles that case the same way.
-      } else {
-        len += htmlToPlainText(el.innerHTML).length;
-      }
-    }
-  }
-  return len;
 };

@@ -144,12 +144,18 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const savedPointsStr =
     savedGrade != null ? String(savedGrade.pointsAwarded) : '';
   const savedCommentStr = savedGrade?.overallComment ?? '';
-  const savedAnnotationsJSON = JSON.stringify(savedGrade?.annotations ?? []);
-  const draftAnnotationsJSON = JSON.stringify(draftAnnotations);
+  // Stable equality on the annotation list. `JSON.stringify` would
+  // false-positive when Firestore-loaded annotations and locally-built
+  // ones disagree on key insertion order, even when the fields match.
+  // Compare the canonical fields explicitly instead.
+  const annotationsEqual = annotationListsEqual(
+    draftAnnotations,
+    savedGrade?.annotations
+  );
   const isDirty =
     pointsInput !== savedPointsStr ||
     comment !== savedCommentStr ||
-    draftAnnotationsJSON !== savedAnnotationsJSON;
+    !annotationsEqual;
 
   const confirmDiscardIfDirty = useCallback((): boolean => {
     if (!isDirty) return true;
@@ -508,6 +514,32 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       </div>
     </ModalShell>
   );
+};
+
+/**
+ * Field-level equality on two annotation lists. Insensitive to key
+ * insertion order (so a Firestore-loaded annotation and a locally-built
+ * one with the same fields compare equal), and treats `undefined` and
+ * `missing` color/comment the same — avoids false-positive dirty
+ * states from `JSON.stringify` ordering quirks.
+ */
+const annotationListsEqual = (
+  a: WrittenAnswerAnnotation[],
+  b: WrittenAnswerAnnotation[] | undefined
+): boolean => {
+  const right = b ?? [];
+  if (a.length !== right.length) return false;
+  for (let i = 0; i < a.length; i++) {
+    const x = a[i];
+    const y = right[i];
+    if (x.id !== y.id) return false;
+    if (x.from !== y.from || x.to !== y.to) return false;
+    if ((x.highlightColor ?? 'yellow') !== (y.highlightColor ?? 'yellow'))
+      return false;
+    if ((x.comment ?? '') !== (y.comment ?? '')) return false;
+    if (x.authorUid !== y.authorUid) return false;
+  }
+  return true;
 };
 
 const ModalShell: React.FC<{

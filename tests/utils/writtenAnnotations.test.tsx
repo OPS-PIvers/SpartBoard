@@ -194,6 +194,51 @@ describe('getPlainTextOffsetFromRange', () => {
     expect(offsets).toBeNull();
   });
 
+  it('resolves element-anchored offsets across block boundaries (regression: PR #1620 review)', () => {
+    // Reviewer flagged: when a Range anchors on an element node with a
+    // child-index offset (e.g. clicking past the last character of a
+    // paragraph), the old `childrenPlaintextLength` helper computed
+    // preceding-sibling lengths in isolation and missed the `\n` that
+    // joins consecutive block elements. This regression test pins the
+    // integrated-walk behavior.
+    const div = document.createElement('div');
+    div.innerHTML = '<p>abc</p><p>def</p>';
+    document.body.appendChild(div);
+    // Anchor range on the outer div with startOffset=0 (before <p>abc</p>)
+    // and endOffset=2 (after both <p> children). Plaintext is "abc\ndef"
+    // so the expected end offset is 7 — every character + the block-
+    // boundary newline.
+    const range = document.createRange();
+    range.setStart(div, 0);
+    range.setEnd(div, 2);
+    const offsets = getPlainTextOffsetFromRange(div, range);
+    document.body.removeChild(div);
+    expect(offsets).toEqual({ from: 0, to: 7 });
+  });
+
+  it('resolves an element-anchored offset that sits between sibling blocks', () => {
+    // startOffset=1 on the outer div means "between <p>abc</p> and
+    // <p>def</p>". In the integrated walk, that anchor is resolved as
+    // "after the first block's text, BEFORE the boundary newline that
+    // joins the next block" — i.e. offset 3, not 4. The newline only
+    // exists in the plaintext projection because two blocks are
+    // adjacent; the DOM has no separate "between blocks" position, so
+    // we collapse the boundary onto its trailing side. Pinned here so
+    // the choice is intentional, not accidental.
+    const div = document.createElement('div');
+    div.innerHTML = '<p>abc</p><p>def</p>';
+    document.body.appendChild(div);
+    const secondP = div.querySelectorAll('p')[1];
+    if (!secondP?.firstChild) throw new Error('Expected second <p> text');
+    const text = secondP.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(div, 1);
+    range.setEnd(text, 3);
+    const offsets = getPlainTextOffsetFromRange(div, range);
+    document.body.removeChild(div);
+    expect(offsets).toEqual({ from: 3, to: 7 });
+  });
+
   it('returns null when the range escapes the root', () => {
     const inside = document.createElement('div');
     inside.innerHTML = '<p>a</p>';

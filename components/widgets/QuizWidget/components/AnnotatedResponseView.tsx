@@ -34,6 +34,7 @@ import type { WrittenAnswerAnnotation } from '@/types';
 import {
   getPlainTextOffsetFromRange,
   highlightClass,
+  parseSnapshotRoot,
   renderAnnotatedSnapshot,
 } from '@/utils/writtenAnnotations';
 
@@ -78,9 +79,14 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
   const articleRef = useRef<HTMLElement | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
+  // Parse the snapshot once per `snapshot` and re-walk only when
+  // `annotations` change. Hover-induced state changes (and the
+  // student's own `setHoveredId` updates) would otherwise re-DOMParse
+  // the whole snapshot on every render.
+  const parsedRoot = useMemo(() => parseSnapshotRoot(snapshot), [snapshot]);
   const tree = useMemo(
-    () => renderAnnotatedSnapshot({ html: snapshot, annotations }),
-    [snapshot, annotations]
+    () => renderAnnotatedSnapshot({ root: parsedRoot, annotations }),
+    [parsedRoot, annotations]
   );
 
   const commented = annotations.filter((a) => a.comment?.trim());
@@ -166,9 +172,15 @@ const EditView: React.FC<EditProps> = ({
   const [activeId, setActiveId] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState<string>('');
 
+  // Same memoization split as ReadOnlyView: parse once per snapshot,
+  // re-walk on annotation changes. Critical in edit mode because the
+  // margin-comment editor calls `onChange` on every keystroke, so
+  // `annotations` mutates per keypress and would otherwise re-
+  // DOMParse the whole snapshot each time.
+  const parsedRoot = useMemo(() => parseSnapshotRoot(snapshot), [snapshot]);
   const tree = useMemo(
-    () => renderAnnotatedSnapshot({ html: snapshot, annotations }),
-    [snapshot, annotations]
+    () => renderAnnotatedSnapshot({ root: parsedRoot, annotations }),
+    [parsedRoot, annotations]
   );
 
   // Compute the rectangle of the current text selection inside the

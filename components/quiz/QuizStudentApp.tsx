@@ -55,7 +55,12 @@ import {
   shufflePublicQuestions,
   shuffleQuestionForStudent,
 } from '@/utils/quizShuffle';
-import { QuizSession, QuizPublicQuestion, WrittenAnswerGrade } from '@/types';
+import {
+  QuizSession,
+  QuizPublicQuestion,
+  WrittenAnswerGrade,
+  isWrittenQuestionType,
+} from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { useDialog } from '@/context/useDialog';
@@ -2465,20 +2470,25 @@ const PublishedScoreReview: React.FC<{
               {(session.publicQuestions ?? []).map((q, idx) => {
                 const ans = answerById.get(q.id);
                 const studentAnswer = ans?.answer ?? '';
-                const isWritten = q.type === 'short' || q.type === 'essay';
+                const isWritten = isWrittenQuestionType(q.type);
                 const writtenGrade = isWritten
                   ? myResponse.grading?.[q.id]
                   : undefined;
+                // Match `gradeAnswer`'s default: a missing `points`
+                // means 1, not 0. The old `q.points &&` short-circuited
+                // when `points` was unset, so a full-credit grade on a
+                // default-points question never showed the ✓.
+                const writtenMaxPoints = q.points ?? 1;
                 const writtenIsCorrect =
-                  writtenGrade &&
-                  q.points &&
-                  writtenGrade.pointsAwarded === q.points;
-                const isCorrect =
-                  ans?.isCorrect === true || writtenIsCorrect === true;
+                  writtenGrade != null &&
+                  writtenMaxPoints > 0 &&
+                  writtenGrade.pointsAwarded === writtenMaxPoints;
+                const isCorrect = ans?.isCorrect === true || writtenIsCorrect;
                 const writtenIsIncorrect =
-                  writtenGrade && writtenGrade.pointsAwarded < (q.points ?? 1);
+                  writtenGrade != null &&
+                  writtenGrade.pointsAwarded < writtenMaxPoints;
                 const isIncorrect =
-                  ans?.isCorrect === false || writtenIsIncorrect === true;
+                  ans?.isCorrect === false || writtenIsIncorrect;
                 const correctAnswer = session.revealedAnswers?.[q.id];
                 return (
                   <article
