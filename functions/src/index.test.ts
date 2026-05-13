@@ -2271,11 +2271,12 @@ describe('generateWithAI read caching', () => {
     expect(adminDocGet).toHaveBeenCalledTimes(2);
   });
 
-  it('evicts the oldest entry when the admin cache exceeds its bound', async () => {
+  it('evicts the least-recently-used entry when the admin cache exceeds its bound', async () => {
     // Pins the size-cap contract — a warm instance that sees many distinct
-    // callers must not grow the Map unboundedly. Insertion order is FIFO,
-    // so after filling beyond the cap and probing the very first email
-    // again, that email must be a cache miss (re-reads Firestore).
+    // callers must not grow the Map unboundedly. The cache is LRU, so
+    // after filling beyond the cap the oldest *by recency* entries are
+    // evicted; entries that were never re-touched stay at the front of
+    // the eviction queue.
     const db = admin.firestore();
     // The implementation cap is 500; fill past it with unique emails.
     // Reading 510 distinct emails forces 10 evictions starting from the
@@ -2292,6 +2293,42 @@ describe('generateWithAI read caching', () => {
 
     // bulk-509 (the most recent) is still cached.
     await __getCachedAdminStatus(db, 'bulk-509@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+  });
+
+  it('LRU: a recently-accessed key survives eviction pressure that would drop it under FIFO', async () => {
+    // The regression this guards against: under FIFO, a frequently-hit
+    // key written early gets evicted by one-off lookups. Under LRU, a
+    // hit promotes the key to the tail and it survives.
+    const db = admin.firestore();
+
+    // Insert bulk-0 first, then fill the cache up to (but not over) the
+    // cap with 499 other distinct keys. After this, bulk-0 is the oldest
+    // by insertion order.
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    for (let i = 1; i < 500; i++) {
+      await __getCachedAdminStatus(db, `bulk-${i}@school.org`);
+    }
+    expect(adminDocGet).toHaveBeenCalledTimes(500);
+
+    // Touch bulk-0 again — under LRU this promotes it to most-recently-used.
+    // No Firestore read because it's still cached.
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(500);
+
+    // Now push 10 brand-new entries past the cap. Under FIFO bulk-0 would
+    // be evicted first; under LRU bulk-1 is now the oldest and gets dropped.
+    for (let i = 500; i < 510; i++) {
+      await __getCachedAdminStatus(db, `bulk-${i}@school.org`);
+    }
+    expect(adminDocGet).toHaveBeenCalledTimes(510);
+
+    // bulk-0 must still be cached (the LRU promotion saved it).
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(510);
+
+    // bulk-1 — never re-touched, oldest by recency — should now be evicted.
+    await __getCachedAdminStatus(db, 'bulk-1@school.org');
     expect(adminDocGet).toHaveBeenCalledTimes(511);
   });
 
@@ -2313,6 +2350,7 @@ describe('generateWithAI read caching', () => {
     expect(first).toEqual({
       advancedModel: 'gemini-2.5-pro',
       standardModel: 'gemini-2.5-flash',
+      usedFallback: false,
     });
     expect(second).toEqual(first);
     // The second call must NOT hit Firestore.
@@ -2343,5 +2381,108 @@ describe('generateWithAI read caching', () => {
     expect(first.advancedModel).not.toBe('gemini-2.5-pro');
     expect(second.advancedModel).toBe('gemini-2.5-pro');
     expect(geminiConfigDocGet).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('getGeminiModelConfig usedFallback flag', () => {
+  // Locks in the silent-failure-hunter contract from PR #1597 review: when the
+  // Firestore read for admin model overrides throws (brownout / outage), the
+  // function returns hardcoded defaults AND sets `usedFallback: true` so the
+  // client can surface a one-time admin notice. Without the flag, regressions
+  // in admin-configured AI quality are invisible.
+  //
+  // Uses an isolated `buildDb` rather than the shared scaffolding so the
+  // assertions don't depend on global mock state. Resets the module cache
+  // between cases so a successful read from one case doesn't satisfy the
+  // throw-path read in the next.
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  const buildDb = (
+    geminiDocBehavior: 'success-with-overrides' | 'success-empty' | 'throws'
+  ): any => ({
+    collection: vi.fn((name: string) => {
+      if (name !== 'global_permissions') {
+        throw new Error(`Unexpected collection access: ${name}`);
+      }
+      return {
+        doc: vi.fn((docId: string) => {
+          if (docId !== 'gemini-functions') {
+            throw new Error(`Unexpected doc access: ${docId}`);
+          }
+          return {
+            get: vi.fn(() => {
+              if (geminiDocBehavior === 'throws') {
+                return Promise.reject(
+                  new Error('Firestore unavailable (simulated brownout)')
+                );
+              }
+              if (geminiDocBehavior === 'success-with-overrides') {
+                return Promise.resolve({
+                  data: () => ({
+                    config: {
+                      advancedModel: 'gemini-2.5-pro',
+                      standardModel: 'gemini-2.5-flash',
+                    },
+                  }),
+                });
+              }
+              // success-empty: doc exists but has no config
+              return Promise.resolve({ data: () => ({}) });
+            }),
+          };
+        }),
+      };
+    }),
+  });
+  /* eslint-enable @typescript-eslint/no-explicit-any */
+
+  beforeEach(() => {
+    __resetGenerateWithAICaches();
+  });
+
+  it('sets usedFallback=true and returns defaults when the Firestore read throws', async () => {
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+    /* eslint-disable @typescript-eslint/no-unsafe-argument */
+    const result = await __getGeminiModelConfig(buildDb('throws'));
+    /* eslint-enable @typescript-eslint/no-unsafe-argument */
+
+    expect(result.usedFallback).toBe(true);
+    // Defaults must still be valid (non-empty) model names so generation can
+    // proceed — the whole point of the fallback path is to keep AI working
+    // during a Firestore brownout.
+    expect(typeof result.advancedModel).toBe('string');
+    expect(result.advancedModel.length).toBeGreaterThan(0);
+    expect(typeof result.standardModel).toBe('string');
+    expect(result.standardModel.length).toBeGreaterThan(0);
+
+    // The log-only behavior is preserved alongside the new flag.
+    expect(warnSpy).toHaveBeenCalled();
+
+    warnSpy.mockRestore();
+  });
+
+  it('sets usedFallback=false when admin overrides load successfully', async () => {
+    /* eslint-disable @typescript-eslint/no-unsafe-argument */
+    const result = await __getGeminiModelConfig(
+      buildDb('success-with-overrides')
+    );
+    /* eslint-enable @typescript-eslint/no-unsafe-argument */
+
+    expect(result.usedFallback).toBe(false);
+    expect(result.advancedModel).toBe('gemini-2.5-pro');
+    expect(result.standardModel).toBe('gemini-2.5-flash');
+  });
+
+  it('sets usedFallback=false when the doc exists but carries no overrides', async () => {
+    // No admin has tuned overrides yet — `cfg` is undefined and we fall
+    // through to defaults. This is the steady-state for a fresh install
+    // and must NOT trigger the fallback UI signal (which is reserved for
+    // actual Firestore read failures).
+    /* eslint-disable @typescript-eslint/no-unsafe-argument */
+    const result = await __getGeminiModelConfig(buildDb('success-empty'));
+    /* eslint-enable @typescript-eslint/no-unsafe-argument */
+
+    expect(result.usedFallback).toBe(false);
   });
 });

@@ -11,11 +11,8 @@ import React, { useState } from 'react';
 import {
   AlertCircle,
   Clock,
-  GripVertical,
   MousePointerClick,
-  Plus,
-  Sparkles,
-  Trash2,
+  X,
   Youtube,
 } from 'lucide-react';
 import { LibraryFolder, VideoActivityQuestion } from '@/types';
@@ -30,10 +27,16 @@ import {
   type VideoActivityEditorController,
 } from './useVideoActivityEditorState';
 
+type QuestionType = NonNullable<VideoActivityQuestion['type']>;
+
+const TYPE_BADGE: Record<QuestionType, { label: string; className: string }> = {
+  MC: { label: 'MC', className: 'bg-blue-100 text-blue-700' },
+  FIB: { label: 'FIB', className: 'bg-amber-100 text-amber-800' },
+  MA: { label: 'MA', className: 'bg-emerald-100 text-emerald-700' },
+};
+
 interface PaneProps {
   state: VideoActivityEditorController;
-  /** YouTube widget-level AI toggle (admin override applies elsewhere). */
-  canUseAi: boolean;
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
@@ -43,7 +46,6 @@ interface PaneProps {
 
 export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
   state,
-  canUseAi,
   folders,
   folderId,
   onFolderChange,
@@ -57,14 +59,8 @@ export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
     selectedId,
     setSelectedId,
     addQuestionAtTime,
-    addQuestion,
-    deleteQuestion,
-    reorderQuestions,
-    reorderHintFor,
     updateQuestion,
     error,
-    showAiPrompt,
-    setShowAiPrompt,
   } = state;
 
   // Memo via inline parse — Timeline only rebuilds when the resolved id changes.
@@ -108,8 +104,8 @@ export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
         )}
       </div>
 
-      {/* Timeline */}
-      <div className="px-5 pt-4 shrink-0 bg-slate-50">
+      {/* Timeline — fills remaining space, never scrolls */}
+      <div className="flex-1 min-h-0 px-5 py-4 bg-slate-50">
         {videoIdForTimeline ? (
           <Timeline
             videoId={videoIdForTimeline}
@@ -131,157 +127,127 @@ export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
           </div>
         )}
       </div>
-
-      {/* Question list */}
-      <div className="flex-1 min-h-0 overflow-y-auto custom-scrollbar bg-slate-50 px-5 pb-5 pt-4">
-        <div className="flex items-center justify-between mb-2">
-          <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-            Questions ({questions.length})
-          </h4>
-          <div className="flex items-center gap-2">
-            {canUseAi && (
-              <button
-                onClick={() => setShowAiPrompt(!showAiPrompt)}
-                disabled={!youtubeUrl.trim()}
-                className="flex items-center gap-1 px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 disabled:opacity-50 disabled:cursor-not-allowed text-slate-700 rounded-lg text-xs font-bold transition-colors"
-                title={
-                  youtubeUrl.trim()
-                    ? 'Generate questions with AI'
-                    : 'Paste a YouTube URL first'
-                }
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                Draft with AI
-              </button>
-            )}
-            <button
-              onClick={addQuestion}
-              className="flex items-center gap-1 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xs font-bold transition-colors"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Add
-            </button>
-          </div>
-        </div>
-
-        {questions.length === 0 ? (
-          <div className="text-center text-slate-500 text-sm py-8 border-2 border-dashed border-slate-300 rounded-lg bg-white">
-            No questions yet. Click <strong>Add</strong> or use the timeline
-            above.
-          </div>
-        ) : (
-          <SortableList
-            items={questions}
-            getId={(q) => q.id}
-            onReorder={reorderQuestions}
-            renderItem={(q, handle) => (
-              <QuestionRow
-                question={q}
-                index={questions.findIndex((x) => x.id === q.id)}
-                isSelected={q.id === selectedId}
-                showReorderHint={q.id === reorderHintFor}
-                onSelect={() => setSelectedId(q.id)}
-                onDelete={() => deleteQuestion(q.id)}
-                dragHandleAttributes={handle.attributes}
-                dragHandleListeners={handle.listeners}
-              />
-            )}
-            className="space-y-1.5"
-          />
-        )}
-      </div>
     </div>
   );
 };
 
-// ─── Question row (inside SortableList) ──────────────────────────────────────
+// ─── Question navigator (sortable pill strip) ────────────────────────────────
 
-interface QuestionRowProps {
-  question: VideoActivityQuestion;
-  index: number;
-  isSelected: boolean;
-  showReorderHint: boolean;
-  onSelect: () => void;
-  onDelete: () => void;
-  dragHandleAttributes: React.HTMLAttributes<HTMLElement>;
-  dragHandleListeners: Record<string, (event: Event) => void> | undefined;
+interface QuestionNavigatorProps {
+  questions: VideoActivityQuestion[];
+  selectedId: string | null;
+  reorderHintFor: string | null;
+  onSelect: (id: string) => void;
+  onReorder: (next: VideoActivityQuestion[]) => void;
+  onDelete: (id: string) => void;
 }
 
-const TYPE_BADGE: Record<string, { label: string; className: string }> = {
-  MC: { label: 'MC', className: 'bg-blue-100 text-blue-700' },
-  FIB: { label: 'FIB', className: 'bg-amber-100 text-amber-800' },
-  MA: { label: 'MA', className: 'bg-emerald-100 text-emerald-700' },
-};
-
-const QuestionRow: React.FC<QuestionRowProps> = ({
-  question,
-  index,
-  isSelected,
-  showReorderHint,
+const QuestionNavigator: React.FC<QuestionNavigatorProps> = ({
+  questions,
+  selectedId,
+  reorderHintFor,
   onSelect,
+  onReorder,
   onDelete,
-  dragHandleAttributes,
-  dragHandleListeners,
 }) => {
-  const type = question.type ?? 'MC';
-  const badge = TYPE_BADGE[type];
-
   return (
-    <div
-      onClick={onSelect}
-      className={`group flex items-center gap-2 px-2.5 py-2 rounded-lg border bg-white cursor-pointer transition-all ${
-        isSelected
-          ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/15'
-          : 'border-slate-200 hover:border-slate-300'
-      }`}
-    >
-      <button
-        type="button"
-        {...dragHandleAttributes}
-        onPointerDown={
-          dragHandleListeners?.onPointerDown as
-            | React.PointerEventHandler<HTMLButtonElement>
-            | undefined
-        }
-        onClick={(e) => e.stopPropagation()}
-        aria-label="Drag to reorder"
-        className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing touch-none p-0.5"
-      >
-        <GripVertical className="w-4 h-4" />
-      </button>
-      <span className="text-slate-400 font-mono font-bold text-xs w-5 shrink-0 text-center">
-        {index + 1}
-      </span>
-      <span className="flex items-center gap-1 bg-slate-100 text-slate-600 font-bold rounded-md shrink-0 px-1.5 py-0.5 text-xxs uppercase tracking-wider">
-        <Clock className="w-3 h-3" />
-        {secondsToMmSs(question.timestamp)}
-      </span>
-      <span
-        className={`shrink-0 px-1.5 py-0.5 rounded text-xxs font-bold uppercase tracking-wider ${badge.className}`}
-      >
-        {badge.label}
-      </span>
-      <span className="flex-1 text-sm text-slate-700 truncate">
-        {question.text || (
-          <span className="italic text-slate-400">Untitled question</span>
-        )}
-      </span>
-      {showReorderHint && (
-        <span className="shrink-0 text-xxs font-bold text-amber-700 bg-amber-50 border border-amber-200 rounded px-1.5 py-0.5 animate-in fade-in duration-200">
-          Reordered
+    <div className="px-4 py-2.5 border-b border-slate-200 bg-white shrink-0">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-xxs font-bold uppercase tracking-wider text-slate-500">
+          Questions ({questions.length})
         </span>
-      )}
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete();
-        }}
-        aria-label="Delete question"
-        className="text-slate-300 hover:text-red-500 hover:bg-red-50 rounded p-1 transition-colors opacity-0 group-hover:opacity-100"
-      >
-        <Trash2 className="w-3.5 h-3.5" />
-      </button>
+        <span className="text-xxs text-slate-400">
+          Drag to reorder · click to edit
+        </span>
+      </div>
+      <div className="max-h-[7.5rem] overflow-y-auto custom-scrollbar -mx-1 px-1">
+        <SortableList
+          items={questions}
+          getId={(q) => q.id}
+          onReorder={onReorder}
+          layout="grid"
+          renderItem={(q, handle) => {
+            const idx = questions.findIndex((x) => x.id === q.id);
+            const isSelected = q.id === selectedId;
+            const showReorderHint = q.id === reorderHintFor;
+            const type = (q.type ?? 'MC') as QuestionType;
+            const badge = TYPE_BADGE[type];
+            return (
+              <div
+                className={`group inline-flex shrink-0 items-stretch rounded-md border transition-colors ${
+                  isSelected
+                    ? 'bg-brand-blue-primary border-brand-blue-primary'
+                    : 'bg-white border-slate-300 hover:border-slate-400'
+                }`}
+              >
+                <button
+                  type="button"
+                  {...handle.attributes}
+                  onPointerDown={
+                    handle.listeners?.onPointerDown as
+                      | React.PointerEventHandler<HTMLButtonElement>
+                      | undefined
+                  }
+                  onClick={() => onSelect(q.id)}
+                  aria-current={isSelected ? 'true' : undefined}
+                  aria-label={`Question ${idx + 1} at ${secondsToMmSs(q.timestamp)}${q.text ? `: ${q.text}` : ''}`}
+                  title={q.text?.trim() ? q.text : `Question ${idx + 1}`}
+                  className={`cursor-grab active:cursor-grabbing touch-none flex items-center gap-1.5 pl-2 pr-1.5 py-1 rounded-l-md text-xs font-bold focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-blue-primary ${
+                    isSelected ? 'text-white' : 'text-slate-700'
+                  }`}
+                >
+                  <span className="font-mono min-w-[1.25ch] text-center">
+                    {idx + 1}
+                  </span>
+                  <span
+                    className={`flex items-center gap-0.5 font-mono rounded px-1 py-0.5 text-xxs ${
+                      isSelected
+                        ? 'bg-brand-blue-dark text-white/90'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}
+                  >
+                    <Clock className="w-3 h-3" />
+                    {secondsToMmSs(q.timestamp)}
+                  </span>
+                  <span
+                    className={`px-1 py-0.5 rounded text-xxs uppercase tracking-wider ${
+                      isSelected
+                        ? 'bg-brand-blue-dark text-white/90'
+                        : badge.className
+                    }`}
+                  >
+                    {badge.label}
+                  </span>
+                  {showReorderHint && (
+                    <span
+                      className={`text-xxs font-bold rounded px-1 py-0.5 animate-in fade-in duration-200 ${
+                        isSelected
+                          ? 'bg-amber-300 text-amber-900'
+                          : 'bg-amber-50 border border-amber-200 text-amber-700'
+                      }`}
+                    >
+                      Reordered
+                    </span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onDelete(q.id)}
+                  aria-label={`Delete question ${idx + 1}`}
+                  className={`flex items-center rounded-r-md pl-1 pr-1.5 transition-opacity focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-brand-red-primary ${
+                    isSelected
+                      ? 'text-white/70 hover:text-white hover:bg-white/15'
+                      : 'text-slate-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100'
+                  }`}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            );
+          }}
+          className="flex flex-wrap gap-1.5"
+        />
+      </div>
     </div>
   );
 };
@@ -300,24 +266,44 @@ export const VideoActivityEditorDetailPane: React.FC<PaneProps> = ({
     selectedQuestion,
     selectedIndex,
     questions,
+    selectedId,
+    setSelectedId,
+    reorderQuestions,
+    reorderHintFor,
+    deleteQuestion,
     timestampInputs,
     setTimestampInput,
     updateQuestion,
     updateIncorrect,
   } = state;
 
+  const navigator =
+    questions.length > 0 ? (
+      <QuestionNavigator
+        questions={questions}
+        selectedId={selectedId}
+        reorderHintFor={reorderHintFor}
+        onSelect={setSelectedId}
+        onReorder={reorderQuestions}
+        onDelete={deleteQuestion}
+      />
+    ) : null;
+
   if (!selectedQuestion) {
     return (
-      <div className="flex flex-col h-full items-center justify-center text-center px-8 py-12 text-slate-500">
-        <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
-        <h4 className="text-base font-bold text-slate-700 mb-1">
-          {questions.length === 0 ? 'No questions yet' : 'Pick a question'}
-        </h4>
-        <p className="text-sm max-w-xs">
-          {questions.length === 0
-            ? 'Add a question from the timeline or the questions list to start editing.'
-            : 'Click a row in the questions list (or a green marker on the timeline) to edit it here.'}
-        </p>
+      <div className="flex flex-col h-full">
+        {navigator}
+        <div className="flex-1 flex flex-col items-center justify-center text-center px-8 py-12 text-slate-500">
+          <MousePointerClick className="w-10 h-10 mb-3 text-slate-400" />
+          <h4 className="text-base font-bold text-slate-700 mb-1">
+            {questions.length === 0 ? 'No questions yet' : 'Pick a question'}
+          </h4>
+          <p className="text-sm max-w-xs">
+            {questions.length === 0
+              ? 'Click "Add at MM:SS" under the timeline to drop a question at the current playhead — or use Draft with AI in the footer to generate a set.'
+              : 'Click a pill above (or a green marker on the timeline) to edit it here.'}
+          </p>
+        </div>
       </div>
     );
   }
@@ -328,7 +314,8 @@ export const VideoActivityEditorDetailPane: React.FC<PaneProps> = ({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="px-5 py-4 border-b border-slate-200 bg-white sticky top-0 z-10">
+      {navigator}
+      <div className="px-5 py-4 border-b border-slate-200 bg-white shrink-0">
         <div className="text-xs uppercase tracking-wider text-slate-500 font-bold">
           Question {selectedIndex + 1} of {questions.length}
           <span className="mx-1.5">·</span>

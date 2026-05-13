@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
+import { BoundedLruMap } from './utils/boundedLruMap';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
 
 // Phase 4 — organization invitations + membership write-through.
@@ -153,7 +154,11 @@ interface GeminiModelConfig {
 const READ_CACHE_TTL_MS = 5 * 60 * 1000;
 
 interface ModelConfigCacheEntry {
-  value: { advancedModel: string; standardModel: string };
+  value: {
+    advancedModel: string;
+    standardModel: string;
+    usedFallback: boolean;
+  };
   cachedAt: number;
 }
 let cachedModelConfig: ModelConfigCacheEntry | null = null;
@@ -162,17 +167,20 @@ interface AdminStatusCacheEntry {
   isAdmin: boolean;
   cachedAt: number;
 }
-const cachedAdminStatus = new Map<string, AdminStatusCacheEntry>();
 
 // Bound on `cachedAdminStatus` size. A warm Cloud Functions instance that
 // sees many distinct callers across its lifetime would otherwise grow this
 // Map unboundedly. At school-district scale this is firmly in "won't
 // matter" territory (low thousands of admins org-wide), but a hard cap
 // closes the long-tail memory growth path that two independent reviewers
-// flagged on PR #1590. JS Maps preserve insertion order, so deleting the
-// first key is FIFO eviction — close enough to LRU for a small, mostly
-// read-hot cache.
+// flagged on PR #1590. `BoundedLruMap` promotes on read so frequently-hit
+// keys survive eviction pressure from one-off callers — this becomes
+// load-bearing once the same pattern is reused on a higher-cardinality key
+// space (e.g. the student-pseudonym path).
 const ADMIN_STATUS_CACHE_MAX = 500;
+const cachedAdminStatus = new BoundedLruMap<string, AdminStatusCacheEntry>(
+  ADMIN_STATUS_CACHE_MAX
+);
 
 /**
  * Test-only: reset the module-scope read caches so tests can observe a
@@ -188,10 +196,19 @@ export function __resetGenerateWithAICaches(): void {
  * Reads the admin-configured model overrides from the `gemini-functions`
  * global permissions document. Returns validated model names (or defaults).
  * Memoized with a 5-minute TTL — see `READ_CACHE_TTL_MS` above.
+ *
+ * `usedFallback` is `true` when the Firestore read threw — meaning the
+ * caller is running with hardcoded defaults rather than whatever overrides
+ * an admin may have configured. Plumb this back to the client so admins
+ * get a one-time UI signal during Firestore brownouts. Cache hits always
+ * return `usedFallback: false` because the catch path deliberately does
+ * NOT populate the cache.
  */
-async function getGeminiModelConfig(
-  db: admin.firestore.Firestore
-): Promise<{ advancedModel: string; standardModel: string }> {
+async function getGeminiModelConfig(db: admin.firestore.Firestore): Promise<{
+  advancedModel: string;
+  standardModel: string;
+  usedFallback: boolean;
+}> {
   const now = Date.now();
   if (
     cachedModelConfig &&
@@ -210,6 +227,7 @@ async function getGeminiModelConfig(
         normalizeModelName(cfg?.advancedModel) ?? DEFAULT_ADVANCED_MODEL,
       standardModel:
         normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL,
+      usedFallback: false,
     };
     cachedModelConfig = { value, cachedAt: now };
     return value;
@@ -223,6 +241,7 @@ async function getGeminiModelConfig(
     return {
       advancedModel: DEFAULT_ADVANCED_MODEL,
       standardModel: DEFAULT_STANDARD_MODEL,
+      usedFallback: true,
     };
   }
 }
@@ -259,14 +278,6 @@ async function getCachedAdminStatus(
   }
   const doc = await db.collection('admins').doc(emailLower).get();
   const isAdmin = doc.exists;
-  // Evict the oldest entry if we're at the cap. Map iteration order is
-  // insertion order, so `keys().next().value` gives the oldest key —
-  // FIFO eviction. Sufficient for a cache that's expected to be small
-  // (school district size) and dominated by hot keys.
-  if (cachedAdminStatus.size >= ADMIN_STATUS_CACHE_MAX) {
-    const oldest = cachedAdminStatus.keys().next().value;
-    if (oldest !== undefined) cachedAdminStatus.delete(oldest);
-  }
   cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
   return isAdmin;
 }
@@ -1149,15 +1160,22 @@ Output JSON ONLY in this exact shape:
 
       // blooms-ai returns plain text — wrap in { text } for the generic callAI client
       if (genType === 'blooms-ai') {
-        return { text };
+        return { text, _modelConfigUsedFallback: geminiConfig.usedFallback };
       }
 
       // widget-builder and widget-explainer return plain text — wrap in { result } for the client
       if (genType === 'widget-builder' || genType === 'widget-explainer') {
-        return { result: text };
+        return {
+          result: text,
+          _modelConfigUsedFallback: geminiConfig.usedFallback,
+        };
       }
 
-      return parseGeminiJson<Record<string, unknown>>(text);
+      const parsed = parseGeminiJson<Record<string, unknown>>(text);
+      // Annotate JSON responses with the fallback flag so the client can
+      // surface a one-time admin notice. Underscore-prefixed to make the
+      // marker obvious and avoid colliding with any field Gemini returns.
+      return { ...parsed, _modelConfigUsedFallback: geminiConfig.usedFallback };
     } catch (error: unknown) {
       console.error('AI Generation Error Details:', error);
 
@@ -1533,6 +1551,12 @@ interface GeneratedVideoQuestion {
 interface GeneratedVideoActivity {
   title: string;
   questions: GeneratedVideoQuestion[];
+  /**
+   * Optional: `true` when the Cloud Function couldn't read the admin model
+   * config from Firestore and fell back to hardcoded defaults. Lets the
+   * client surface a one-time admin notice without polluting every call.
+   */
+  _modelConfigUsedFallback?: boolean;
 }
 
 /**
@@ -1724,7 +1748,10 @@ Return JSON in this exact format:
         throw new Error('Invalid response structure from AI');
       }
 
-      return parsed;
+      return {
+        ...parsed,
+        _modelConfigUsedFallback: geminiConfig.usedFallback,
+      };
     } catch (error: unknown) {
       console.error('[generateVideoActivity] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
@@ -2047,6 +2074,8 @@ interface GeneratedGuidedLearning {
   suggestedTitle: string;
   suggestedMode: string;
   steps: GuidedLearningStep[];
+  /** See `GeneratedVideoActivity._modelConfigUsedFallback`. */
+  _modelConfigUsedFallback?: boolean;
 }
 
 interface GuidedLearningImageInput {
@@ -2259,7 +2288,10 @@ Guidelines:
             : 0,
       }));
 
-      return parsed;
+      return {
+        ...parsed,
+        _modelConfigUsedFallback: geminiConfig.usedFallback,
+      };
     } catch (error: unknown) {
       console.error('[generateGuidedLearning] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';

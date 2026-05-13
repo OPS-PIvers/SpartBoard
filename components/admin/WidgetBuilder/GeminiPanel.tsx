@@ -2,6 +2,7 @@ import React, { useState, useCallback } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { Sparkles, Wrench, Plus, HelpCircle, Loader2 } from 'lucide-react';
+import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
 
 interface GeminiPanelProps {
   onGenerate: (code: string) => void;
@@ -45,9 +46,10 @@ async function callGemini(
 ): Promise<string> {
   const generate = httpsCallable<
     { type: string; prompt: string },
-    { result: string }
+    { result: string; _modelConfigUsedFallback?: boolean }
   >(functions, 'generateWithAI');
   const response = await generate({ type, prompt });
+  reportAiModelConfigFallback(response.data._modelConfigUsedFallback);
   return response.data.result;
 }
 
