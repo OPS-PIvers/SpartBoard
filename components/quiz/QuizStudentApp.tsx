@@ -61,14 +61,6 @@ import { StudentLeaderboard } from './StudentLeaderboard';
 import { QuizPausedPlaceholder } from './QuizPausedPlaceholder';
 import { MatchingResponseInput } from './MatchingResponseInput';
 import { OrderingResponseInput } from './OrderingResponseInput';
-// Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
-// pulled into the initial student-app payload. Loaded on first render of a
-// short/essay question.
-const WrittenResponseEditor = React.lazy(() =>
-  import('./WrittenResponseEditor').then((m) => ({
-    default: m.WrittenResponseEditor,
-  }))
-);
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import {
@@ -81,6 +73,15 @@ import {
   playCountdownTick,
   playStreakSound,
 } from '@/utils/quizAudio';
+
+// Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
+// pulled into the initial student-app payload. Loaded on first render of a
+// short/essay question.
+const WrittenResponseEditor = React.lazy(() =>
+  import('./WrittenResponseEditor').then((m) => ({
+    default: m.WrittenResponseEditor,
+  }))
+);
 
 // ─── Root component ───────────────────────────────────────────────────────────
 
@@ -773,6 +774,13 @@ const ActiveQuiz: React.FC<{
         reason === 'post-unlock'
           ? 'Your unlocked attempt is being submitted now.'
           : 'You have left the quiz 3 times. Your quiz is being auto-submitted.';
+      // Ask the inner question view to flush any pending written-response
+      // autosave before we mark the response complete. Listened for in
+      // `StudentQuestionView`'s flush handler. Without this, a strike-3
+      // auto-submit fired within 500 ms of the student's last keystroke
+      // could finalize the response with the previous (already-written)
+      // draft and silently drop the most recent edits.
+      document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
       await showAlert(message, {
         title: 'Quiz Auto-Submitted',
         variant: 'warning',
@@ -943,6 +951,15 @@ const ActiveQuiz: React.FC<{
   const writtenAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  // Which question id the current `writtenAnswer` belongs to. Used by the
+  // autosave effect to refuse writes during the single render between
+  // `currentQuestion.id` advancing (student-paced submit-and-advance) and
+  // the hydration branch replacing `writtenAnswer` with the new
+  // question's saved value. Without this guard, the diff
+  // `writtenAnswer !== savedAnswerForCurrent` is briefly true on the new
+  // question and would persist the *previous* question's draft against
+  // the new question's id 500 ms later.
+  const writtenAnswerQuestionIdRef = useRef<string | undefined>(undefined);
 
   const [submitted, setSubmitted] = useState(alreadyAnswered);
   const [timeLeft, setTimeLeft] = useState<number | null>(
@@ -1007,12 +1024,16 @@ const ActiveQuiz: React.FC<{
     // Always seed the written-answer slot from any saved response so
     // pause/resume across class periods rehydrates the editor at the
     // exact text the student left behind. Other types get an empty
-    // string here, which the editor branches never read.
+    // string here, which the editor branches never read. The
+    // question-id ref is updated in lockstep so the autosave effect
+    // refuses to write the new question with a draft that's still about
+    // to be replaced (see the autosave effect comment).
     const isWritten =
       currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
     const next = isWritten ? (savedAnswerForCurrent ?? '') : '';
     setWrittenAnswer(next);
     writtenAnswerRef.current = next;
+    writtenAnswerQuestionIdRef.current = currentQuestion?.id;
   };
 
   // Derived state: full reset on question change, narrow update on alreadyAnswered flips.
@@ -1168,6 +1189,14 @@ const ActiveQuiz: React.FC<{
     if (!isWritten || !qid) return;
     if (submitted) return;
 
+    // Race guard: if `currentQuestion.id` has advanced (student-paced
+    // submit-and-advance) but `hydrateAnswerControls` hasn't yet replaced
+    // `writtenAnswer` with the new question's saved value, the draft we
+    // see here is still from the previous question. Refuse to write —
+    // the next render after hydration will re-evaluate this effect with
+    // the correct draft.
+    if (writtenAnswerQuestionIdRef.current !== qid) return;
+
     // Skip the initial-hydration call: if the editor's seeded value
     // matches the saved response, there's nothing to write.
     if (writtenAnswer === (savedAnswerForCurrent ?? '')) return;
@@ -1178,7 +1207,9 @@ const ActiveQuiz: React.FC<{
     const draft = writtenAnswer;
     writtenAutosaveTimer.current = setTimeout(() => {
       void onAnswerRef.current(qid, draft).catch((err: unknown) => {
-        console.error('[QuizStudentApp] written autosave failed:', err);
+        logError('QuizStudentApp.writtenAutosave', err, {
+          questionId: qid,
+        });
       });
     }, 500);
 
@@ -1213,16 +1244,23 @@ const ActiveQuiz: React.FC<{
         writtenAutosaveTimer.current = null;
       }
       void onAnswerRef.current(qid, draft).catch((err: unknown) => {
-        console.error('[QuizStudentApp] written autosave flush failed:', err);
+        logError('QuizStudentApp.writtenAutosaveFlush', err, {
+          questionId: qid,
+        });
       });
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') flush();
     };
+    // Custom event from `ActiveQuiz.handleAutoSubmit` so a strike-3
+    // auto-submit lands the latest essay draft before completing the
+    // response. Internal-only event name; not part of any public API.
     document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('spartboard:quiz:flush-written', flush);
     window.addEventListener('beforeunload', flush);
     return () => {
       document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('spartboard:quiz:flush-written', flush);
       window.removeEventListener('beforeunload', flush);
       flush();
     };
@@ -1845,6 +1883,9 @@ const ActiveQuiz: React.FC<{
                 onChange={(html) => {
                   setWrittenAnswer(html);
                   writtenAnswerRef.current = html;
+                  // Mark the draft as belonging to this question so the
+                  // autosave race guard lets it through.
+                  writtenAnswerQuestionIdRef.current = currentQuestion.id;
                 }}
                 placeholder={currentQuestion.placeholder}
                 maxWords={currentQuestion.maxWords}

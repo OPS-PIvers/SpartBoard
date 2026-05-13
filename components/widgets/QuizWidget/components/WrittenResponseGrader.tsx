@@ -19,7 +19,7 @@ import {
   X,
 } from 'lucide-react';
 import { QuizData, QuizResponse, WrittenAnswerGrade } from '@/types';
-import { sanitizeHtml } from '@/utils/security';
+import { sanitizeQuizResponse } from '@/utils/security';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -87,7 +87,13 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
 
   const response = gradeableResponses[studentIdx];
   const question = writtenQuestions[questionIdx];
-  const responseKey = response?._responseKey;
+  // Match the keying scheme used by the parent's `displayNameByResponseKey`
+  // map and the `saveWrittenGrade` callback (`_responseKey ?? studentUid`).
+  // Without the fallback, any response written before deterministic keying
+  // shipped (where `_responseKey` is missing but `studentUid` is set) would
+  // silently fail to save here while the parent's lookup would have
+  // succeeded.
+  const responseKey = response?._responseKey ?? response?.studentUid;
 
   const studentLabel = useMemo(() => {
     if (!response) return '';
@@ -116,22 +122,45 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     setSaveError(null);
   }
 
+  // Are there unsaved edits in the form? `savedGrade` is the persisted
+  // value; comparing string projections handles the "empty input vs.
+  // never-saved" case correctly. Used to warn the teacher before they
+  // navigate away from a row they were typing into.
+  const savedPointsStr =
+    savedGrade != null ? String(savedGrade.pointsAwarded) : '';
+  const savedCommentStr = savedGrade?.overallComment ?? '';
+  const isDirty = pointsInput !== savedPointsStr || comment !== savedCommentStr;
+
+  const confirmDiscardIfDirty = useCallback((): boolean => {
+    if (!isDirty) return true;
+    // Browser confirm is intentionally minimal — Phase 1 doesn't ship a
+    // custom modal-on-modal flow. Teachers rarely navigate away
+    // mid-edit; the warning is a safety net for accidental clicks.
+    return window.confirm(
+      'You have unsaved grade edits. Discard them and navigate anyway?'
+    );
+  }, [isDirty]);
+
   const goPrevStudent = useCallback(() => {
+    if (!confirmDiscardIfDirty()) return;
     setStudentIdx((i) => Math.max(0, i - 1));
-  }, []);
+  }, [confirmDiscardIfDirty]);
   const goNextStudent = useCallback(() => {
+    if (!confirmDiscardIfDirty()) return;
     setStudentIdx((i) =>
       Math.min(Math.max(0, gradeableResponses.length - 1), i + 1)
     );
-  }, [gradeableResponses.length]);
+  }, [gradeableResponses.length, confirmDiscardIfDirty]);
   const goPrevQuestion = useCallback(() => {
+    if (!confirmDiscardIfDirty()) return;
     setQuestionIdx((i) => Math.max(0, i - 1));
-  }, []);
+  }, [confirmDiscardIfDirty]);
   const goNextQuestion = useCallback(() => {
+    if (!confirmDiscardIfDirty()) return;
     setQuestionIdx((i) =>
       Math.min(Math.max(0, writtenQuestions.length - 1), i + 1)
     );
-  }, [writtenQuestions.length]);
+  }, [writtenQuestions.length, confirmDiscardIfDirty]);
 
   // Keyboard navigation. Only active when no input has focus — we don't
   // want left/right inside the points input to jump students.
@@ -162,7 +191,12 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
 
   const handleSave = useCallback(async () => {
     if (!response || !question || !responseKey) return;
-    const parsed = Number(pointsInput);
+    const trimmed = pointsInput.trim();
+    if (trimmed === '') {
+      setSaveError('Enter a numeric score.');
+      return;
+    }
+    const parsed = Number(trimmed);
     if (!Number.isFinite(parsed)) {
       setSaveError('Enter a numeric score.');
       return;
@@ -241,6 +275,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     response.answers.find((a) => a.questionId === question.id)?.answer ?? '';
   const tabSwitches = response.tabSwitchWarnings ?? 0;
   const fullyGradedForThisQ = !!savedGrade;
+  const isLastStudent = studentIdx >= gradeableResponses.length - 1;
 
   return (
     <ModalShell onClose={onClose}>
@@ -343,7 +378,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
             <article
               className="bg-white border border-slate-200 rounded-lg p-5 text-sm leading-relaxed text-slate-800 prose prose-sm max-w-none"
               dangerouslySetInnerHTML={{
-                __html: sanitizeHtml(studentAnswer),
+                __html: sanitizeQuizResponse(studentAnswer),
               }}
             />
           ) : (
@@ -411,6 +446,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
+            ) : isLastStudent ? (
+              'Save grade'
             ) : (
               <>
                 Save &amp; next <ChevronRight className="w-4 h-4" />
@@ -432,10 +469,20 @@ const ModalShell: React.FC<{
   onClose: () => void;
   children: React.ReactNode;
 }> = ({ onClose, children }) => (
-  <div className="fixed inset-0 z-overlay flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4">
-    <button
-      type="button"
-      aria-label="Close grader backdrop"
+  <div
+    role="dialog"
+    aria-modal="true"
+    aria-label="Grade written responses"
+    className="fixed inset-0 z-overlay flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4"
+  >
+    {/*
+      Backdrop is a non-focusable div so Tab can't escape into it and so a
+      stray Space/Enter while focus is elsewhere doesn't close the modal.
+      Click-to-dismiss is preserved via onClick. Esc-to-close is wired in
+      the modal body's keydown listener.
+    */}
+    <div
+      aria-hidden
       className="absolute inset-0 cursor-default"
       onClick={onClose}
     />

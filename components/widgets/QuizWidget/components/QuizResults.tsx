@@ -354,9 +354,12 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     return m;
   }, [responses, pinToName, byStudentUid]);
 
-  // Save a manual grade for a single response/question pair. Writes the
-  // entire response.grading map (Firestore arrays/maps don't support
-  // partial nested updates without dot-paths and field-path escaping).
+  // Save a manual grade for a single response/question pair. Uses
+  // Firestore's dotted-field-path syntax so concurrent grades on
+  // different questions of the same response don't clobber each other
+  // (which would happen if we read-modify-wrote the whole `grading`
+  // map). Field-path updates merge atomically at the map-key level on
+  // the server.
   const saveWrittenGrade = useCallback(
     async (
       responseKey: string,
@@ -369,16 +372,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
           'Cannot save grade: no active session in scope. Reopen the quiz results and try again.'
         );
       }
-      const target = responses.find(
-        (r) => (r._responseKey ?? r.studentUid) === responseKey
-      );
-      if (!target) {
-        throw new Error('Response no longer exists in this session.');
-      }
-      const nextGrading = {
-        ...(target.grading ?? {}),
-        [questionId]: grade,
-      };
       const ref = doc(
         db,
         QUIZ_SESSIONS_COLLECTION,
@@ -386,9 +379,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         RESPONSES_COLLECTION,
         responseKey
       );
-      await updateDoc(ref, { grading: nextGrading });
+      // Bracket-notation field path so Firestore merges this key only.
+      await updateDoc(ref, { [`grading.${questionId}`]: grade });
     },
-    [responses, session?.id]
+    [session?.id]
   );
 
   // Auto-publish this teacher's contribution to the PLC results aggregate.

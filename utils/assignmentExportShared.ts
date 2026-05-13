@@ -69,7 +69,14 @@ export function buildResultsSheetData<
 >(
   responses: R[],
   questions: Q[],
-  gradeFn: (question: Q, studentAnswer: string) => GradeResult,
+  /**
+   * Per-row grader. Receives the response as the optional third argument so
+   * widget-specific graders that need per-response state (e.g. Quiz's manual
+   * grades for `short`/`essay` questions, read from
+   * `response.grading[questionId]`) can plumb it through. Auto-grading
+   * widgets (or VA's grader) can ignore it.
+   */
+  gradeFn: (question: Q, studentAnswer: string, response?: R) => GradeResult,
   options?: BuildResultsSheetDataOptions
 ): { headers: string[]; dataRows: string[][] } {
   const pinToName = options?.pinToName ?? {};
@@ -124,7 +131,7 @@ export function buildResultsSheetData<
     for (const q of questions) {
       const ans = answerMap.get(q.id);
       if (!ans) continue;
-      grades.set(q.id, gradeFn(q, ans.answer));
+      grades.set(q.id, gradeFn(q, ans.answer, r));
     }
     const answerCols = questions.map((q) => {
       const grade = grades.get(q.id);

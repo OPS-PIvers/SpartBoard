@@ -92,7 +92,16 @@ function buildContributionResponse(
   for (const q of questions) {
     const answer = answerByQuestionId.get(q.id);
     if (answer === undefined) continue;
-    const grade = gradeAnswer(q, answer);
+    // Written types (`short`/`essay`) carry their points on the response's
+    // top-level `grading` map; passing it in here keeps the PLC
+    // contribution's per-question points and aggregate score in sync with
+    // the teacher's manual grading. Ungraded written questions fall back to
+    // zero points until the teacher enters a grade.
+    const manualGrade =
+      q.type === 'short' || q.type === 'essay'
+        ? response.grading?.[q.id]
+        : undefined;
+    const grade = gradeAnswer(q, answer, manualGrade);
     pointsByQuestionId[q.id] = grade.pointsEarned;
     pointsEarned += grade.pointsEarned;
   }

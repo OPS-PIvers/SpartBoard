@@ -5,7 +5,8 @@
  * surface plus a small formatting toolbar — so we don't pay the bundle
  * cost of TipTap/ProseMirror until annotations actually need them
  * (Phase 2). All HTML in and out of the editor passes through the shared
- * `sanitizeHtml` util to keep things safe.
+ * `sanitizeQuizResponse` util to keep things safe and consistent with the
+ * teacher's grading view (which uses the same profile).
  *
  * The editor is intentionally uncontrolled internally: writing to
  * `innerHTML` on every keystroke would blow away the caret. Instead, the
@@ -16,7 +17,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import { Bold, Italic, List, ListOrdered, Underline } from 'lucide-react';
-import { sanitizeHtml } from '@/utils/security';
+import { sanitizeQuizResponse } from '@/utils/security';
 
 interface WrittenResponseEditorProps {
   /** Initial HTML content. Sanitized on render. */
@@ -46,6 +47,17 @@ interface WrittenResponseEditorProps {
 const countWords = (html: string): number => {
   if (!html) return 0;
   // Strip tags, normalize whitespace, count word-ish runs.
+  //
+  // Known limitation (Phase 1): this is a whitespace-delimited token
+  // count. CJK scripts (Chinese / Japanese / Korean) without inter-word
+  // spaces will under-count (a 400-character Mandarin response counts
+  // as 1 "word"), and HTML entities like `&amp;` survive the tag-strip
+  // and inflate the count by one. The word cap is described to teachers
+  // as a "soft suggestion" so the imprecision is acceptable for now —
+  // Phase 2 can swap to `Intl.Segmenter(locale, { granularity: 'word' })`
+  // operating on `editorRef.current.textContent` for proper Unicode
+  // segmentation if non-Latin classrooms surface this as a real
+  // problem.
   const text = html
     .replace(/<[^>]+>/g, ' ')
     .replace(/&nbsp;/g, ' ')
@@ -67,7 +79,7 @@ const WrittenResponseEditorInner: React.FC<
   // change would reset the caret on every keystroke.
   useEffect(() => {
     if (!editorRef.current) return;
-    const initial = sanitizeHtml(value);
+    const initial = sanitizeQuizResponse(value);
     editorRef.current.innerHTML = initial;
     setWordCount(countWords(initial));
     setIsEmpty(!editorRef.current.textContent?.trim());
@@ -79,7 +91,7 @@ const WrittenResponseEditorInner: React.FC<
   const handleInput = () => {
     if (!editorRef.current) return;
     const raw = editorRef.current.innerHTML;
-    const clean = sanitizeHtml(raw);
+    const clean = sanitizeQuizResponse(raw);
     setWordCount(countWords(clean));
     setIsEmpty(!editorRef.current.textContent?.trim());
     onChange(clean);
@@ -167,7 +179,12 @@ const WrittenResponseEditorInner: React.FC<
           role="textbox"
           aria-multiline="true"
           aria-label="Your response"
-          aria-disabled={disabled ?? undefined}
+          aria-placeholder={placeholder}
+          aria-disabled={disabled ? 'true' : 'false'}
+          // contenteditable is not naturally in the tab order; opt in so
+          // keyboard-only users can reach the editor after navigating
+          // past the toolbar buttons.
+          tabIndex={disabled ? -1 : 0}
           contentEditable={!disabled}
           suppressContentEditableWarning
           onInput={handleInput}
@@ -176,7 +193,7 @@ const WrittenResponseEditorInner: React.FC<
           className={`w-full px-5 py-4 bg-slate-800 border-2 border-t-0 ${
             disabled
               ? 'border-slate-700 text-slate-400 cursor-not-allowed'
-              : 'border-slate-700 text-white focus:outline-none focus:border-violet-500'
+              : 'border-slate-700 text-white focus:outline-none focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
           } rounded-b-2xl text-sm leading-relaxed overflow-y-auto ${
             isEssay ? 'min-h-[18rem]' : 'min-h-[6rem]'
           }`}
@@ -219,7 +236,7 @@ const ToolbarButton: React.FC<{
       e.preventDefault();
     }}
     onClick={onClick}
-    className="p-1.5 rounded text-slate-300 hover:bg-slate-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    className="p-1.5 rounded text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
   >
     {children}
   </button>
