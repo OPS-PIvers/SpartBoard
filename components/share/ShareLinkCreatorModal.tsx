@@ -130,7 +130,13 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { shareDashboard, shareSubstituteDashboard, addToast } = useDashboard();
+  const {
+    shareDashboard,
+    shareSubstituteDashboard,
+    rosters,
+    activeRosterId,
+    addToast,
+  } = useDashboard();
   const { canAccessFeature, selectedBuildings } = useAuth();
   const { plcs } = usePlcs();
   const adminBuildings = useAdminBuildings();
@@ -230,6 +236,16 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
         return;
       }
 
+      // Collect Drive file ids for the rosters the host wants to share with
+      // the sub. v1 = just the active roster; if the dashboard's randomizer
+      // pulls from a different one, the host can adjust later. Empty list
+      // is fine — the share still works, just without sub-readable names.
+      const activeRoster = rosters.find((r) => r.id === activeRosterId);
+      const rosterDriveFileIds: string[] = [];
+      if (subEmails.length > 0 && activeRoster?.driveFileId) {
+        rosterDriveFileIds.push(activeRoster.driveFileId);
+      }
+
       setCreating(true);
       try {
         await shareSubstituteDashboard({
@@ -237,6 +253,8 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
           expiresAt: parsedExpiresAt,
           buildingId: subBuildingId,
           subEmails: subEmails.length > 0 ? subEmails : undefined,
+          rosterDriveFileIds:
+            rosterDriveFileIds.length > 0 ? rosterDriveFileIds : undefined,
         });
         // Subs reach this board by browsing /subs filtered to their building —
         // they don't follow a /share/{shareId} link — so the success panel
