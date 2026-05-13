@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-05-04_
+_Last audited: 2026-05-13_
 _Last action: never_
 
 ---
@@ -46,5 +46,7 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+_2026-05-13: Full collection audit. Frontend collections (23 unique names) and functions collections (12 unique names) cross-referenced against match blocks in firestore.rules (2573 lines). All collections verified to have match rules except `admin_audit_log` (confirmed HIGH open item remains unfixed). Default-deny catch-all at line 2569 confirmed present. No new unmatched collections introduced since 2026-05-04. New functions-only collections since last audit: none — functions code stable._
 
 _No completed items yet._

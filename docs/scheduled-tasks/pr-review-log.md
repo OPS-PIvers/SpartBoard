@@ -4,6 +4,55 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-13
+
+- PRs reviewed:
+  - #1606 — refactor(context): extract getAdminBuildingConfig to utils/adminBuildingConfig.ts (base `dev-paul`)
+  - #1605 — chore(audit): scheduled task journals — 2026-05-13 Wednesday (base `main`)
+  - #1602 — Add AI model config fallback, new assignment CTAs, and improve accessibility in PLC (base `main`, from `dev-paul`)
+  - #1600 — refactor(functions): LRU eviction for admin status cache + BoundedLruMap utility (base `dev-paul`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`)
+- Comments processed: 21 unresolved comment threads across the 5 PRs — 1 fixed by code change, 1 attempted-but-blocked by branch protection, 11 explained as no-fix-needed (audit-context / a11y-cross-cut / i18n-sweep / test-refactor / architectural), 5 already-addressed-by-author skipped (PR #1600 × 3, PR #1366 × 6 — author replies on each).
+- Fixes pushed:
+  - `c318bc70` on `claude/charming-ramanujan-AR3BP` (PR #1606) — safely handle undefined `WIDGET_DEFAULTS.nextUp.config` by typing the cast as `NextUpConfig | undefined` and spreading `?? {}`. `pnpm type-check` ✓, `pnpm lint --max-warnings 0` ✓, `tests/utils/adminBuildingConfig.test.ts` 11/11 ✓.
+- Reviews posted: 5
+  - PR #1606 `getAdminBuildingConfig` extraction: Ready — clean seam extraction (-400 lines from `DashboardContext.tsx`), 11 unit tests added, follow-up note on adding fixtures for the 20+ untested switch cases.
+  - PR #1605 Wednesday audit: Ready with minor notes — three doc-consistency points from the gemini reviewer left for human pass; surfaces real `stations` admin-config gap that should land before the next stations-related merge.
+  - PR #1602 PLC CTAs + AI fallback: Ready with minor notes — flagged mixed-scope (PR title scoped to PLC, but AI-fallback work also lands), `void _omit;` cleanup blocked by branch protection, `any`-typed Firestore mock + `eslint-disable` blocks in `functions/src/index.test.ts` worth a dedicated cleanup PR.
+  - PR #1600 LRU cache: Ready — textbook small refactor, every reviewer edge case (K = undefined, V = undefined) addressed with dedicated tests, 244/244 functions tests passing.
+  - PR #1366 Line-endings plan: Ready — doc-only, all 6 prior reviewer comments have author resolutions, execution correctly deferred to a "no other PRs open" window.
+- Notes:
+  - Branch safety: today's run pushed only to `claude/charming-ramanujan-AR3BP` (matches neither `main` nor `dev-*`). One attempted push to `dev-paul` (PR #1602 `void _omit;` cleanup) was rejected by branch protection with HTTP 403 — local commit reset, comment posted explaining the situation.
+  - PR #1606 was already fast-following the HIGH item that #1605's Wednesday audit itself flagged (`DashboardContext.tsx` +937 lines/week). Cross-PR coherence: the audit identified the seam, the extraction PR landed the fix, both reviewed in the same nightly run.
+  - PR #1600 and PR #1366 review threads all had prior author replies acknowledging fixes — skipped duplicate "already addressed" replies to avoid noise.
+  - One cross-PR finding: PR #1605's `stations` admin-config gap (no `StationsConfigurationPanel`, no `FeatureConfigurationPanel` entry, no `getAdminBuildingConfig` case) is the same gap the `admin-widget-config` skill exists to prevent. Now in `utils/adminBuildingConfig.ts` after PR #1606 — surfacing here so the next stations-related merge picks it up.
+
+---
+
+## 2026-05-12
+
+- PRs reviewed:
+  - #1585 — fix(deps): pin protobufjs >=7.5.6 to close CRITICAL CVE via firebase-functions (base `dev-paul`)
+  - #1584 — audit(tuesday): scheduled audit journals — 2026-05-12 (base `dev-paul`)
+  - #1582 — feat(plc): drag-resize grid + live tile bodies + cross-PLC analytics + shared library primitives + members invite (Phases 1–4, 6) (base `dev-paul`)
+  - #1580 — fix(draggable-window): attach gesture listeners to capture target, not window (base `dev-paul`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`)
+- Comments processed: 10 unresolved comment threads across the 5 PRs — 1 fixed by code change, 4 explained as no-fix-needed (architectural/out-of-scope/ambiguous), 5 already addressed by author with replies on PR #1580 (no further action needed).
+- Fixes pushed:
+  - `20637623` on `claude/improve-plc-dashboard-Z1HvH` (PR #1582) — clarified `LibraryPreviewPane` docstring to accurately describe unmount-on-close behavior (no exit animation; slide-in classes reused on each open). `pnpm type-check` ✓, `pnpm lint --max-warnings 0` ✓.
+- Reviews posted: 5
+  - PR #1585 protobufjs pin: Ready — textbook security patch with single-version lockfile evidence and `pnpm test` 2301/2301 + functions test 209/209 verification.
+  - PR #1584 Tuesday audit: Ready — markdown-only journal updates; net positive in surfacing the new hono 4.12.15→4.12.18 CVE pair.
+  - PR #1582 PLC overhaul: Ready with minor notes — opt-in flag limits blast radius; flagged Firestore-rules emulator gate, `types.ts` +86 line surface, and missing `commitTileCoords` unit-test coverage as merge gates.
+  - PR #1580 DraggableWindow listener leak: Ready — pointer-capture-target binding + unmount cleanup ref is the right fix; new regression test (`clears global drag-state body class when host unmounts mid-gesture`) locks in the behavior.
+  - PR #1366 Line-endings doc: Ready — doc-only; all 6 prior reviewer comments are already addressed; execution correctly deferred per the plan's own "all open PRs merged or closed" precondition.
+- Notes:
+  - Branch safety: today's run pushed only to `claude/improve-plc-dashboard-Z1HvH` (matches neither `main` nor `dev-*`). No writes to `main` or `dev-paul`.
+  - PR #1580 review threads (5 total) were all already replied to by the author citing commit 7c84765 — skipped duplicate "already addressed" replies to avoid noise.
+  - One cross-PR finding: `@ungap/structured-clone@1.3.0` deprecation (CWE-502, fix in 1.3.1) surfaces in the PR #1585 lockfile diff. Gemini-code-assist flagged it; replied that it belongs in the next scheduled-tasks audit cycle rather than this PR's narrow protobufjs scope.
+
+---
+
 ## 2026-05-07
 
 - PRs reviewed:

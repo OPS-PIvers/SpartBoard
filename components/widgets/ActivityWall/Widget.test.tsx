@@ -79,6 +79,20 @@ vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => mockUseGoogleDrive(),
 }));
 
+// Tests stage activities on `config.activities`; the library hook is
+// exercised by the widget but doesn't need to surface anything in these
+// fixtures. Returning empty arrays + no-op CRUD keeps the legacy
+// `config.activities` merge path the source of truth for assertions.
+vi.mock('@/hooks/useActivityWallLibrary', () => ({
+  useActivityWallLibrary: () => ({
+    activities: [],
+    loading: false,
+    error: null,
+    saveActivity: vi.fn().mockResolvedValue(undefined),
+    deleteActivity: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 vi.mock('@/config/firebase', () => ({
   db: {},
   functions: {},
@@ -102,6 +116,12 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: mockUpdateDoc,
   deleteDoc: mockDeleteDoc,
   deleteField: vi.fn(() => '__delete__'),
+  // Stubs for the session-based library recovery path. Tests prepopulate
+  // `config.activities`, so the recovery effect short-circuits before
+  // touching these — keep them as no-ops returning empty results.
+  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+  query: vi.fn((ref: unknown) => ref),
+  where: vi.fn(),
 }));
 
 // Phase 3D: the widget fetches ClassLink classes on mount to decide

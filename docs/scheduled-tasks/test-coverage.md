@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
-_Last audited: 2026-05-04_
+_Last audited: 2026-05-13_
 _Last action: 2026-04-29_
 
 ---
@@ -37,21 +37,8 @@ _Nothing currently in progress._
 ### MEDIUM utils/ coverage — 18 of 53 utility files have no tests
 
 - **Detected:** 2026-04-13
-- **Progress (2026-05-04, audit):** Count unchanged at 18 untested but total file count grew from 45 to 53. Since the 2026-04-29 audit, seven new util files were added (`assignmentModesConfig.ts`, `driveAuthErrors.ts`, `logError.ts`, `quizSyncMigration.ts`, `zoomPanMath.ts`, `chunkLoadError.ts`, `quizShuffle.ts`, `zoomMapping.ts`) — five of those eight have tests already (`assignmentModesConfig.test.ts`, `driveAuthErrors.test.ts`, `zoomPanMath.test.ts`, `chunkLoadError.test.ts`, `quizShuffle.test.ts`, `zoomMapping.test.ts`). Good velocity. Still untested as of 2026-05-04:
-  - `logError.ts` — structured error logging wrapper (new since 2026-04-29)
-  - `quizSyncMigration.ts` — pure read-side mapper for synced-quiz doc shape migration (new since 2026-04-29)
-  - `guidedLearningDriveService.ts` — guided learning material sync from Drive
-  - `imageProcessing.ts` — image manipulation (resize, crop, compress)
-  - `pexelsService.ts` — Pexels stock image API integration
-  - `quizAudio.ts` — quiz audio generation utilities
-  - `soundboardConfig.ts` — sound configuration parser
-  - `plc.ts` — PLC utilities
-  - `testClassAccess.ts` — test class access controls
-  - `widgetDragFlag.ts` — widget drag state
-  - `styles.ts` — style utilities
-  - `first5.ts` — First5 widget utilities
-  - `periodCompat.ts` — period compatibility utilities
-  - (+ 5 more utility/service files)
+- **Progress (2026-05-13, audit):** Test suite: 229 files / 2375 tests all passing. utils/ now has 83 files (not mocks/tests). 13 files confirmed untested (compared against both tests/utils/ and colocated \*.test.ts files): `guidedLearningDriveService.ts`, `imageProcessing.ts`, `imageWorker.ts`, `lastActiveThrottle.ts`, `logError.ts`, `periodCompat.ts`, `pexelsService.ts`, `plcWriteNotifications.ts`, `previewMode.ts`, `quizAudio.ts`, `quizSyncMigration.ts`, `shortLinksApi.ts`, `soundboardConfig.ts`. Previously unlisted new additions: `imageWorker.ts` (image processing web worker), `lastActiveThrottle.ts` (auth throttle helper), `plcWriteNotifications.ts` (PLC notification writer), `previewMode.ts` (preview toggle), `shortLinksApi.ts` (short link client API).
+- **Progress (2026-05-04, audit):** Count unchanged at 18 untested but total file count grew from 45 to 53. Since the 2026-04-29 audit, seven new util files were added — five of those eight have tests already. Good velocity. Still untested: `logError.ts`, `quizSyncMigration.ts`, `guidedLearningDriveService.ts`, `imageProcessing.ts`, `pexelsService.ts`, `quizAudio.ts`, `soundboardConfig.ts`, `plc.ts`, `testClassAccess.ts`, `widgetDragFlag.ts`, `styles.ts`, `first5.ts`, `periodCompat.ts`.
 - **Progress (2026-04-29, action):** Added test coverage for `backgrounds.ts` (21 tests) and `slug.ts` (20 tests). Also corrected prior count: `googleCalendarService.ts` already had a test file.
 - **Progress (2026-04-22 → 2026-04-29):** `googleDriveService.ts`, `quizDriveService.ts`, `security.ts`, `widgetHelpers.ts`, `urlHelpers.ts` all gained test files.
 - **File:** utils/ directory

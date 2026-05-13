@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-12_
+_Last audited: 2026-05-13_
 _Last action: 2026-04-25_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fixed icon sizes, and max-h/max-w pixel caps. No new items beyond existing open. New notes: (1) ActivityWall `text-base` at line 1868 is inside a fullscreen modal overlay (not the widget canvas surface) — low impact. (2) RevealGrid `text-xs` at lines 164/170 are in interactive overlay controls inside the widget's container-query context — confirmed as existing open item. (3) Embed `text-xs` at line 446 is in the portaled zoom toolbar — confirmed as existing open item. (4) NumberLine `text-xs` at line 339 hover hint — confirmed existing open item. (5) MiniApp has 22 `text-sm`/`text-xs`/`text-base` occurrences — confirmed as existing open item. No new violations introduced._
 
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 

@@ -493,6 +493,14 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Activity Wall library - per-user reusable activity definitions.
+    // Activities used to live inline on the Activity Wall widget's config;
+    // moving them here lets teachers reuse the same activity across widgets
+    // and survive widget removal. Owner-only.
+    match /users/{userId}/activity_wall_activities/{activityId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
     // Quiz assignments - archive of past/current assignments of a quiz. Per-user.
     // Harden writes so the user can't spoof the embedded teacherUid / id fields —
     // those are relied on by ownership checks elsewhere (session rules, shared

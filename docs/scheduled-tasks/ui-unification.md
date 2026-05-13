@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-05-06_
+_Last audited: 2026-05-13_
 _Last action: never_
 
 ---
@@ -58,6 +58,13 @@ _Nothing currently in progress._
 - **Detail:** The file is the largest admin config panel at 706 lines and contains per-widget building-default forms inline. Many fields it renders (string inputs, number inputs, color pickers, selects, booleans) follow the same pattern that `SchemaDrivenConfigurationPanel` was designed to handle. Only `MagicConfigurationPanel.tsx` and `RecordConfigurationPanel.tsx` currently use `SchemaDrivenConfigurationPanel`. The 18 remaining config panels that don't use it include `FeatureConfigurationPanel`, `SoundboardConfigurationPanel` (593 lines), `ScheduleConfigurationPanel` (538 lines), and `MaterialsConfigurationPanel` (523 lines).
 - **Fix:** Audit `FeatureConfigurationPanel` for schema-driven extraction candidates. For panels whose entire form can be expressed as a field schema (input type + label + key + validation), migrate to `SchemaDrivenConfigurationPanel`. Panels with complex custom UIs (materials catalog, seating-chart layout, specialist schedule) should remain manual. Start with the simplest panels (DiceConfigurationPanel, TrafficLightConfigurationPanel, DrawingConfigurationPanel) as proof-of-concept before tackling the large ones.
 
+### MEDIUM `stations` widget missing from admin `FeatureConfigurationPanel` — no building defaults
+
+- **Detected:** 2026-05-13
+- **File:** components/admin/FeatureConfigurationPanel.tsx, components/admin/ (no StationsConfigurationPanel.tsx)
+- **Detail:** `StationsConfig` in types.ts declares `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` (all appearance fields). `stations` has an `AppearanceSettings` component registered in `WIDGET_APPEARANCE_COMPONENTS`. However, there is no `StationsConfigurationPanel.tsx` in `components/admin/` and no `'stations'` entry in the widget panel map in `FeatureConfigurationPanel.tsx`. The `getAdminBuildingConfig` switch in `DashboardContext.tsx` also has no `'stations'` case. This means admins cannot set per-building appearance defaults for the Stations widget, and the appearance fields cannot be seeded from building config on widget creation.
+- **Fix:** (1) Create `components/admin/StationsConfigurationPanel.tsx` following the pattern of `NeedDoPutThenConfigurationPanel.tsx` — expose `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` using standard primitives. (2) Register it in `FeatureConfigurationPanel.tsx`: `stations: StationsConfigurationPanel as unknown as BuildingConfigPanel`. (3) Add a `'stations'` case in `getAdminBuildingConfig` in `DashboardContext.tsx` that reads the four appearance fields from `raw`.
+
 ### LOW `InstructionalRoutinesWidget` uses hardcoded brand blue hex for numbered step badge
 
 - **Detected:** 2026-05-06
@@ -75,5 +82,7 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+_2026-05-13: Audited all Settings.tsx files under components/widgets/, all \*ConfigurationPanel.tsx under components/admin/, and WIDGET_APPEARANCE_COMPONENTS. New findings: (1) `stations` widget has no `StationsConfigurationPanel` and no entry in `FeatureConfigurationPanel.tsx` — admin building defaults cannot be set for it despite StationsConfig having fontFamily/fontColor/cardColor/cardOpacity. (2) All existing config panels confirmed to use SchemaDrivenConfigurationPanel (except MagicConfigurationPanel and RecordConfigurationPanel which are intentional exceptions). (3) Hardcoded brand hex colors found in NextUpConfigurationPanel.tsx (lines 24, 106-107), StudentPageView.tsx (lines 19-20), NewUserSetup.tsx (line 96), MaterialsWidget/Settings.tsx (line 23), Countdown/Settings.tsx (line 179), Countdown/Widget.tsx (line 44), and AnalyticsManager.tsx (multiple). Existing open items remain valid._
 
 _No completed items yet._
