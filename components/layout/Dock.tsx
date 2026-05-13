@@ -11,7 +11,8 @@ import { LayoutGrid, Puzzle, Users, Cast, Square } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
-  PointerSensor,
+  MouseSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragEndEvent,
@@ -33,6 +34,7 @@ import { useSavedWidgets } from '@/context/useSavedWidgets';
 import { useDialog } from '@/context/useDialog';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { useClickOutside } from '@/hooks/useClickOutside';
+import { useDragScroll } from '@/hooks/useDragScroll';
 import {
   WidgetType,
   WidgetData,
@@ -297,6 +299,12 @@ export const Dock: React.FC = () => {
   );
   const [imagePastePending, setImagePastePending] = useState<File | null>(null);
 
+  // Ref for the GlassCard scroll container — used by the drag-scroll hook.
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  useDragScroll(scrollContainerRef, isVerticalDock ? 'y' : 'x', {
+    disabled: isEditMode,
+  });
+
   // Drag-to-collapse state — `dragOffset` is the magnitude moved along the
   // collapse axis (down for bottom dock, left/right for side docks).
   const [dragOffset, setDragOffset] = useState(0);
@@ -550,10 +558,13 @@ export const Dock: React.FC = () => {
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 15, // Require 15px movement to start drag (better for large touch panels)
-      },
+    useSensor(MouseSensor, {
+      activationConstraint: { distance: 15 },
+    }),
+    useSensor(TouchSensor, {
+      // Require a 250 ms hold before reorder activates on touch, so a quick
+      // horizontal swipe scrolls the dock rather than triggering a drag.
+      activationConstraint: { delay: 250, tolerance: 8 },
     })
   );
 
@@ -962,6 +973,7 @@ export const Dock: React.FC = () => {
 
           {/* Expanded Toolbar with integrated minimize button */}
           <GlassCard
+            ref={scrollContainerRef}
             globalStyle={globalStyle}
             transparency={globalStyle.dockTransparency}
             allowInvisible={true}
