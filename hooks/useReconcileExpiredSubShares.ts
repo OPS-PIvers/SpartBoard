@@ -10,10 +10,28 @@
  * side reuses the teacher's existing browser OAuth session — same scope
  * they granted for normal Drive use, no new attack surface.
  *
+ * Permission refcounting:
+ *   Drive's `permissions.create` is idempotent — granting (file, email)
+ *   twice returns the SAME permissionId. So two overlapping substitute
+ *   shares can both list the same permissionId in their driveGrants[].
+ *   When share A expires first, we MUST NOT revoke a permissionId that
+ *   share B (still active) still references — that would silently strip
+ *   roster access from a sub viewing share B. This module fetches all of
+ *   the host's substitute shares up front and only revokes permissionIds
+ *   that no still-active share references.
+ *
+ * Partial-failure handling:
+ *   - The session throttle (sessionStorage) is set only AFTER a successful
+ *     sweep, so a failed sweep is retried next session.
+ *   - For each expired share: if any per-grant revoke fails, the share
+ *     doc is LEFT IN PLACE so the next session (or the cloud function
+ *     grace-period fallback) gets another shot. Only docs whose revokes
+ *     all succeeded (or had no grants to begin with) get deleted here.
+ *
  * The `expireSubShares` cloud function still runs hourly as a fallback in
- * case the teacher never returns (e.g. left the district). When that
- * happens the share doc gets deleted but the Drive permissions stay; the
- * function logs which permissionIds went unrevoked.
+ * case the teacher never returns (e.g. left the district). It honours a
+ * 7-day grace period for docs that still carry unrevoked grants so this
+ * client-side path has a chance to run first.
  */
 
 import { useEffect, useRef } from 'react';
@@ -49,28 +67,38 @@ export function useReconcileExpiredSubShares({
   useEffect(() => {
     if (!uid || !driveService) return;
     if (didRunRef.current) return;
-
-    // Cap to once per session per uid. The teacher returning after a long
-    // weekend gets one sweep; rapid sign-out/sign-in cycles don't hammer
-    // Firestore.
-    try {
-      const key = `${SESSION_KEY_PREFIX}${uid}`;
-      if (typeof window !== 'undefined' && window.sessionStorage.getItem(key)) {
-        didRunRef.current = true;
-        return;
-      }
-      if (typeof window !== 'undefined') {
-        window.sessionStorage.setItem(key, '1');
-      }
-    } catch {
-      // sessionStorage unavailable (private browsing) — fall through to the
-      // ref guard, which still caps to once per mount.
-    }
     didRunRef.current = true;
 
-    void reconcileExpiredSubShares(uid, driveService).catch((err) => {
-      console.error('[useReconcileExpiredSubShares] sweep failed:', err);
-    });
+    // Cap to once per session per uid. Read the flag up front so we know
+    // whether to even try; SET the flag only on successful completion so
+    // a failed sweep gets retried next session.
+    const storageKey = `${SESSION_KEY_PREFIX}${uid}`;
+    try {
+      if (
+        typeof window !== 'undefined' &&
+        window.sessionStorage.getItem(storageKey)
+      ) {
+        return;
+      }
+    } catch {
+      // sessionStorage unavailable (private browsing) — the per-mount ref
+      // still guards against re-entry within the same component lifecycle.
+    }
+
+    void reconcileExpiredSubShares(uid, driveService)
+      .then(() => {
+        try {
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(storageKey, '1');
+          }
+        } catch {
+          // ignore — the per-mount ref already prevents duplicate runs.
+        }
+      })
+      .catch((err) => {
+        console.error('[useReconcileExpiredSubShares] sweep failed:', err);
+        // No throttle set → retry next session.
+      });
   }, [uid, driveService]);
 }
 
@@ -78,50 +106,95 @@ async function reconcileExpiredSubShares(
   uid: string,
   driveService: GoogleDriveService
 ): Promise<void> {
-  const now = Date.now();
-  const expiredQuery = query(
+  // Pull ALL of the host's substitute shares — both expired (candidates
+  // for cleanup) and active (so we know which permissionIds are still
+  // referenced and must NOT be revoked).
+  const allQuery = query(
     collection(db, 'shared_boards'),
     where('originalAuthor', '==', uid),
-    where('intendedMode', '==', 'substitute'),
-    where('expiresAt', '<=', now)
+    where('intendedMode', '==', 'substitute')
   );
-  const snap = await getDocs(expiredQuery);
+  const snap = await getDocs(allQuery);
   if (snap.empty) return;
+
+  const now = Date.now();
+  const stillReferenced = new Set<string>();
+  const expiredDocs: Array<{
+    ref: import('firebase/firestore').DocumentReference;
+    grants: PersistedGrant[];
+  }> = [];
+
+  for (const docSnap of snap.docs) {
+    const data = docSnap.data() as {
+      expiresAt?: number;
+      driveGrants?: PersistedGrant[];
+    };
+    const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
+    const isExpired = (data.expiresAt ?? 0) <= now;
+
+    if (isExpired) {
+      expiredDocs.push({ ref: docSnap.ref, grants });
+    } else {
+      // Active share — every permissionId it holds is off-limits to revoke.
+      for (const g of grants) {
+        if (g.permissionId) stillReferenced.add(g.permissionId);
+      }
+    }
+  }
+
+  if (expiredDocs.length === 0) return;
 
   let revoked = 0;
   let failed = 0;
-  for (const docSnap of snap.docs) {
-    const data = docSnap.data() as { driveGrants?: PersistedGrant[] };
-    const grants = Array.isArray(data.driveGrants) ? data.driveGrants : [];
 
-    // Best-effort revoke for each persisted permission. A 404 is treated
-    // as "already gone" inside `deletePermission` and resolves silently.
-    for (const grant of grants) {
-      if (!grant.fileId || !grant.permissionId) continue;
+  for (const { ref, grants } of expiredDocs) {
+    let allRevokesOk = true;
+
+    for (const g of grants) {
+      if (!g.fileId || !g.permissionId) continue;
+      if (stillReferenced.has(g.permissionId)) {
+        // Another active substitute share still uses this permission. Skip
+        // — the LAST share to reference it will handle the actual revoke.
+        continue;
+      }
       try {
-        await driveService.deletePermission(grant.fileId, grant.permissionId);
+        await driveService.deletePermission(g.fileId, g.permissionId);
         revoked += 1;
       } catch (err) {
+        allRevokesOk = false;
         failed += 1;
         console.error(
-          `[reconcileExpiredSubShares] revoke failed for ${grant.email} on ${grant.fileId}:`,
+          `[reconcileExpiredSubShares] revoke failed for ${g.email} on ${g.fileId}:`,
           err
         );
       }
     }
 
-    // Whether or not every revoke succeeded, delete the share doc — the
-    // cloud function would do the same on its hourly tick.
-    try {
-      await deleteDoc(docSnap.ref);
-    } catch (err) {
-      console.error('[reconcileExpiredSubShares] doc delete failed:', err);
+    if (allRevokesOk) {
+      // Safe to clean up the share doc — every grant is either revoked
+      // already or owned by another active share.
+      try {
+        await deleteDoc(ref);
+      } catch (err) {
+        console.error('[reconcileExpiredSubShares] doc delete failed:', err);
+        throw err;
+      }
     }
+    // If any revoke failed, leave the doc behind. The throttle won't fire
+    // (sweep throws on the next operation OR returns "partial" — see
+    // below), so next session will try again. After 7 days the cloud
+    // function fallback gives up and deletes the doc with a Cloud Logging
+    // warning about the orphaned permissionIds.
   }
 
   if (failed > 0) {
     console.warn(
-      `[reconcileExpiredSubShares] revoked ${revoked} Drive permissions across ${snap.size} expired shares, ${failed} failures (will retry next session)`
+      `[reconcileExpiredSubShares] revoked ${revoked} Drive permissions across ${expiredDocs.length} expired shares, ${failed} failures (will retry next session)`
+    );
+    // Throw so the caller's .then() doesn't set the throttle — partial
+    // success should still allow a retry next session.
+    throw new Error(
+      `Substitute-share reconciliation partial failure: ${failed} of ${revoked + failed} revokes failed`
     );
   }
 }

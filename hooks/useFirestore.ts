@@ -19,6 +19,7 @@ import {
   Dashboard,
   SharedBoardIntendedMode,
   SharedBoardParticipant,
+  SubstituteShareDriveGrant,
   WidgetData,
 } from '../types';
 
@@ -417,8 +418,16 @@ export const useFirestore = (userId: string | null) => {
   /**
    * Write a substitute-mode share. Distinct from `shareDashboard()` because
    * substitute shares carry extra fields (expiresAt, buildingId, initialState,
-   * subEmails) and have different lifecycle semantics — no live mirror, no
-   * linkedShareId on the host's dashboard, expiration sweeps remove them.
+   * subEmails, driveGrants) and have different lifecycle semantics — no live
+   * mirror, no linkedShareId on the host's dashboard, expiration sweeps
+   * remove them.
+   *
+   * `driveGrants` is passed in here (not added via a follow-up updateDoc)
+   * so the share doc lands with the grants atomically. A crash after Drive
+   * grants succeed but before this write would orphan permissions; the
+   * caller is responsible for ordering: grant first, then call this. Even
+   * with that sequencing, the failure window is one network call instead
+   * of two.
    */
   const shareSubstituteDashboard = useCallback(
     async (params: {
@@ -426,10 +435,17 @@ export const useFirestore = (userId: string | null) => {
       expiresAt: number;
       buildingId: string;
       subEmails?: string[];
+      driveGrants?: SubstituteShareDriveGrant[];
       hostDisplayName?: string;
     }): Promise<string> => {
-      const { dashboard, expiresAt, buildingId, subEmails, hostDisplayName } =
-        params;
+      const {
+        dashboard,
+        expiresAt,
+        buildingId,
+        subEmails,
+        driveGrants,
+        hostDisplayName,
+      } = params;
 
       if (isAuthBypass) {
         return mockSharedStore.add({
@@ -472,6 +488,7 @@ export const useFirestore = (userId: string | null) => {
         buildingId,
         initialState,
         ...(subEmails && subEmails.length > 0 ? { subEmails } : {}),
+        ...(driveGrants && driveGrants.length > 0 ? { driveGrants } : {}),
         participants: {},
         updatedAt: Date.now(),
         updatedBy: userId,
