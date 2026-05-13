@@ -663,6 +663,55 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return tools;
   }, [featurePermissions, selectedBuildings, isAdmin, user]);
 
+  // Auto-recover when a user lands in an "empty dock" state after hydration.
+  // This catches two cases:
+  //   1. The migration bug (fixed in PR #1618) left users with
+  //      `dockInitialized: true` but `dockItems: []` in Firestore — the
+  //      seeding effect below short-circuits on `isDockInitialized`, so
+  //      those users would otherwise be stuck with an empty dock until
+  //      they manually clicked "Reset to defaults" in the Widget Library.
+  //   2. Hydration silently failed (network / transient Firestore error),
+  //      leaving state at its initial empty value with no path to recover.
+  // The ref gates this to once per session so a user who deliberately
+  // clears their dock can keep it cleared.
+  const autoSeededEmptyDockRef = useRef(false);
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!dockHydrated) return;
+    if (dockItems.length > 0) return;
+    if (autoSeededEmptyDockRef.current) return;
+    // Wait for permissions when a building is selected — otherwise we'd
+    // seed using an empty permission set and land on the `['time-tool']`
+    // fallback, which is exactly the empty-feeling state we're trying to
+    // escape from. With no building selected, the function falls back to
+    // "show all accessible tools" and is safe to call immediately.
+    if (
+      selectedBuildings.length > 0 &&
+      (featurePermissions ?? []).length === 0
+    ) {
+      return;
+    }
+    autoSeededEmptyDockRef.current = true;
+    const defaultTools = getDefaultDockTools();
+    if (defaultTools.length === 0) return;
+    const defaultDock = migrateToDockItems(defaultTools);
+    setDockItems(defaultDock);
+    setVisibleTools(defaultTools);
+    setIsDockInitialized(true);
+    localStorage.setItem('classroom_dock_items', JSON.stringify(defaultDock));
+    localStorage.setItem(
+      'classroom_visible_tools',
+      JSON.stringify(defaultTools)
+    );
+    localStorage.setItem('classroom_dock_initialized', 'true');
+  }, [
+    dockHydrated,
+    dockItems.length,
+    selectedBuildings,
+    featurePermissions,
+    getDefaultDockTools,
+  ]);
+
   useEffect(() => {
     if (isDockInitialized) return;
     // Wait for the Firestore hydration to finish so we don't seed default
