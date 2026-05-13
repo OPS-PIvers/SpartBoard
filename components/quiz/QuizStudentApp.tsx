@@ -74,6 +74,15 @@ import {
   playStreakSound,
 } from '@/utils/quizAudio';
 
+// Lazy-load the rich-text editor so the bundle for legacy quiz types isn't
+// pulled into the initial student-app payload. Loaded on first render of a
+// short/essay question.
+const WrittenResponseEditor = React.lazy(() =>
+  import('./WrittenResponseEditor').then((m) => ({
+    default: m.WrittenResponseEditor,
+  }))
+);
+
 // ─── Root component ───────────────────────────────────────────────────────────
 
 export const QuizStudentApp: React.FC = () => {
@@ -765,6 +774,13 @@ const ActiveQuiz: React.FC<{
         reason === 'post-unlock'
           ? 'Your unlocked attempt is being submitted now.'
           : 'You have left the quiz 3 times. Your quiz is being auto-submitted.';
+      // Ask the inner question view to flush any pending written-response
+      // autosave before we mark the response complete. Listened for in
+      // `StudentQuestionView`'s flush handler. Without this, a strike-3
+      // auto-submit fired within 500 ms of the student's last keystroke
+      // could finalize the response with the previous (already-written)
+      // draft and silently drop the most recent edits.
+      document.dispatchEvent(new CustomEvent('spartboard:quiz:flush-written'));
       await showAlert(message, {
         title: 'Quiz Auto-Submitted',
         variant: 'warning',
@@ -927,6 +943,23 @@ const ActiveQuiz: React.FC<{
   const [submitting, setSubmitting] = useState(false);
   const [fibAnswer, setFibAnswer] = useState('');
   const [draftMcAnswer, setDraftMcAnswer] = useState<string | null>(null);
+  // Written-response live draft (sanitized HTML). Hydrated on question
+  // change from any saved response so pause/resume next class period
+  // picks up exactly where the student left off.
+  const [writtenAnswer, setWrittenAnswer] = useState<string>('');
+  const writtenAnswerRef = useRef<string>('');
+  const writtenAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  // Which question id the current `writtenAnswer` belongs to. Used by the
+  // autosave effect to refuse writes during the single render between
+  // `currentQuestion.id` advancing (student-paced submit-and-advance) and
+  // the hydration branch replacing `writtenAnswer` with the new
+  // question's saved value. Without this guard, the diff
+  // `writtenAnswer !== savedAnswerForCurrent` is briefly true on the new
+  // question and would persist the *previous* question's draft against
+  // the new question's id 500 ms later.
+  const writtenAnswerQuestionIdRef = useRef<string | undefined>(undefined);
 
   const [submitted, setSubmitted] = useState(alreadyAnswered);
   const [timeLeft, setTimeLeft] = useState<number | null>(
@@ -988,6 +1021,19 @@ const ActiveQuiz: React.FC<{
       setDraftMcAnswer(null);
       setFibAnswer('');
     }
+    // Always seed the written-answer slot from any saved response so
+    // pause/resume across class periods rehydrates the editor at the
+    // exact text the student left behind. Other types get an empty
+    // string here, which the editor branches never read. The
+    // question-id ref is updated in lockstep so the autosave effect
+    // refuses to write the new question with a draft that's still about
+    // to be replaced (see the autosave effect comment).
+    const isWritten =
+      currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
+    const next = isWritten ? (savedAnswerForCurrent ?? '') : '';
+    setWrittenAnswer(next);
+    writtenAnswerRef.current = next;
+    writtenAnswerQuestionIdRef.current = currentQuestion?.id;
   };
 
   // Derived state: full reset on question change, narrow update on alreadyAnswered flips.
@@ -1061,7 +1107,15 @@ const ActiveQuiz: React.FC<{
     fibAnswerRef.current = fibAnswer;
     draftMcAnswerRef.current = draftMcAnswer;
     onAnswerRef.current = onAnswer;
-  }, [currentQuestion, selectedAnswer, fibAnswer, draftMcAnswer, onAnswer]);
+    writtenAnswerRef.current = writtenAnswer;
+  }, [
+    currentQuestion,
+    selectedAnswer,
+    fibAnswer,
+    draftMcAnswer,
+    onAnswer,
+    writtenAnswer,
+  ]);
 
   // Reset the structured answer ref when the question changes so a stale
   // answer from a previous question can't leak into auto-submit.
@@ -1106,10 +1160,12 @@ const ActiveQuiz: React.FC<{
     const answer =
       question.type === 'Matching' || question.type === 'Ordering'
         ? structuredAnswerRef.current
-        : (selectedAnswerRef.current ??
-          draftMcAnswerRef.current ??
-          fibAnswerRef.current ??
-          '');
+        : question.type === 'short' || question.type === 'essay'
+          ? writtenAnswerRef.current
+          : (selectedAnswerRef.current ??
+            draftMcAnswerRef.current ??
+            fibAnswerRef.current ??
+            '');
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
@@ -1121,6 +1177,99 @@ const ActiveQuiz: React.FC<{
       });
   }, [autoSubmitTriggeredFor]);
 
+  // Written-response autosave. Debounced 500ms to mirror the PLC notes
+  // editor pattern; flushed synchronously on unmount, visibility-hidden,
+  // and when the teacher pauses the session so a student can resume on
+  // a new day without losing typing. Submit/advance also persists the
+  // final state, so the debounce is purely a write-rate optimization.
+  useEffect(() => {
+    const qid = currentQuestion?.id;
+    const isWritten =
+      currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
+    if (!isWritten || !qid) return;
+    if (submitted) return;
+
+    // Race guard: if `currentQuestion.id` has advanced (student-paced
+    // submit-and-advance) but `hydrateAnswerControls` hasn't yet replaced
+    // `writtenAnswer` with the new question's saved value, the draft we
+    // see here is still from the previous question. Refuse to write —
+    // the next render after hydration will re-evaluate this effect with
+    // the correct draft.
+    if (writtenAnswerQuestionIdRef.current !== qid) return;
+
+    // Skip the initial-hydration call: if the editor's seeded value
+    // matches the saved response, there's nothing to write.
+    if (writtenAnswer === (savedAnswerForCurrent ?? '')) return;
+
+    if (writtenAutosaveTimer.current) {
+      clearTimeout(writtenAutosaveTimer.current);
+    }
+    const draft = writtenAnswer;
+    writtenAutosaveTimer.current = setTimeout(() => {
+      void onAnswerRef.current(qid, draft).catch((err: unknown) => {
+        logError('QuizStudentApp.writtenAutosave', err, {
+          questionId: qid,
+        });
+      });
+    }, 500);
+
+    return () => {
+      if (writtenAutosaveTimer.current) {
+        clearTimeout(writtenAutosaveTimer.current);
+      }
+    };
+  }, [
+    writtenAnswer,
+    currentQuestion?.id,
+    currentQuestion?.type,
+    submitted,
+    savedAnswerForCurrent,
+  ]);
+
+  // Flush pending written-response autosave on unmount and on the
+  // visibility-hidden / pause transitions so a closed tab or a teacher
+  // pause never loses in-flight typing. The synchronous Firestore write
+  // can't be awaited inside a unload handler, but kicking it off before
+  // the page tears down is the best-effort flush we can do.
+  useEffect(() => {
+    const flush = () => {
+      const qid = currentQuestionRef.current?.id;
+      const type = currentQuestionRef.current?.type;
+      if (type !== 'short' && type !== 'essay') return;
+      if (!qid) return;
+      const draft = writtenAnswerRef.current;
+      if (draft === (savedAnswerForCurrent ?? '')) return;
+      if (writtenAutosaveTimer.current) {
+        clearTimeout(writtenAutosaveTimer.current);
+        writtenAutosaveTimer.current = null;
+      }
+      void onAnswerRef.current(qid, draft).catch((err: unknown) => {
+        logError('QuizStudentApp.writtenAutosaveFlush', err, {
+          questionId: qid,
+        });
+      });
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    // Custom event from `ActiveQuiz.handleAutoSubmit` so a strike-3
+    // auto-submit lands the latest essay draft before completing the
+    // response. Internal-only event name; not part of any public API.
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    document.addEventListener('spartboard:quiz:flush-written', flush);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      document.removeEventListener('spartboard:quiz:flush-written', flush);
+      window.removeEventListener('beforeunload', flush);
+      flush();
+    };
+    // savedAnswerForCurrent is intentionally not a dep — we flush against
+    // whatever the current saved value is at flush time, not on every
+    // change of saved state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Watch for teacher revealing answers after student already submitted.
   // Uses "adjusting state during render" pattern to avoid setState-in-effect.
   const currentRevealed = currentQuestion
@@ -1130,9 +1279,14 @@ const ActiveQuiz: React.FC<{
 
   if (currentRevealed !== prevRevealed) {
     setPrevRevealed(currentRevealed);
+    // Written question types have no canonical correct answer — they are
+    // manually graded. Skip the reveal/feedback path entirely.
+    const isWritten =
+      currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
     if (
       currentRevealed &&
       submitted &&
+      !isWritten &&
       session.showResultToStudent &&
       answerFeedback === null
     ) {
@@ -1449,7 +1603,9 @@ const ActiveQuiz: React.FC<{
                   ? 'bg-amber-500/20 text-amber-400'
                   : currentQuestion.type === 'Matching'
                     ? 'bg-purple-500/20 text-purple-400'
-                    : 'bg-teal-500/20 text-teal-400'
+                    : currentQuestion.type === 'Ordering'
+                      ? 'bg-teal-500/20 text-teal-400'
+                      : 'bg-rose-500/20 text-rose-400'
             }`}
           >
             {currentQuestion.type === 'MC'
@@ -1458,7 +1614,11 @@ const ActiveQuiz: React.FC<{
                 ? 'Fill in the Blank'
                 : currentQuestion.type === 'Matching'
                   ? 'Matching'
-                  : 'Ordering'}
+                  : currentQuestion.type === 'Ordering'
+                    ? 'Ordering'
+                    : currentQuestion.type === 'short'
+                      ? 'Short Answer'
+                      : 'Essay'}
           </span>
         </div>
 
@@ -1705,6 +1865,92 @@ const ActiveQuiz: React.FC<{
             onNext={handleNext}
             saveError={saveError}
           />
+        )}
+
+        {(currentQuestion.type === 'short' ||
+          currentQuestion.type === 'essay') && (
+          <div className="space-y-4 flex-1">
+            <React.Suspense
+              fallback={
+                <div className="h-48 bg-slate-800 border border-slate-700 rounded-2xl flex items-center justify-center">
+                  <Loader2 className="w-5 h-5 animate-spin text-slate-500" />
+                </div>
+              }
+            >
+              <WrittenResponseEditor
+                questionKey={currentQuestion.id}
+                value={writtenAnswer}
+                onChange={(html) => {
+                  setWrittenAnswer(html);
+                  writtenAnswerRef.current = html;
+                  // Mark the draft as belonging to this question so the
+                  // autosave race guard lets it through.
+                  writtenAnswerQuestionIdRef.current = currentQuestion.id;
+                }}
+                placeholder={currentQuestion.placeholder}
+                maxWords={currentQuestion.maxWords}
+                disabled={submitted && !isStudentPaced}
+                isEssay={currentQuestion.type === 'essay'}
+              />
+            </React.Suspense>
+
+            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
+              {isStudentPaced ? (
+                submitted && currentIndex >= session.totalQuestions - 1 ? (
+                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                    <p className="text-emerald-300 text-sm font-bold">
+                      Quiz complete!
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    {saveError && <SaveErrorBanner message={saveError} />}
+                    <button
+                      onClick={() => void handleSubmitAndAdvance(writtenAnswer)}
+                      disabled={submitting}
+                      className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
+                    >
+                      {submitting ? (
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                      ) : currentIndex >= session.totalQuestions - 1 ? (
+                        <>
+                          {saveError ? 'Retry Submit' : 'SUBMIT'}{' '}
+                          <CheckCircle2 className="w-5 h-5" />
+                        </>
+                      ) : (
+                        <>
+                          {saveError ? 'Retry' : 'NEXT'}{' '}
+                          <ArrowRight className="w-5 h-5" />
+                        </>
+                      )}
+                    </button>
+                  </>
+                )
+              ) : !submitted ? (
+                <button
+                  onClick={() => void handleSubmit(writtenAnswer)}
+                  disabled={submitting}
+                  className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
+                >
+                  {submitting ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    'Submit Response'
+                  )}
+                </button>
+              ) : (
+                <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+                  <p className="text-emerald-300 text-sm font-bold">
+                    {currentIndex < session.totalQuestions - 1
+                      ? 'Waiting for teacher…'
+                      : 'Response submitted — your teacher will grade this.'}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>

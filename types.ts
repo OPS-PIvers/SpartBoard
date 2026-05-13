@@ -1267,6 +1267,86 @@ export interface ActivityWallSession {
   updatedAt: number;
   /** See `ActivityWallActivity.classId` — omitted for code/PIN-only launches. */
   classId?: string;
+  /**
+   * When `true`, a `shared_activity_walls/{shareId}` doc references this
+   * session as a view-only gallery. The Firestore rules use this flag to
+   * unlock anonymous read access on submissions so gallery viewers can see
+   * the work without joining the live session.
+   */
+  publiclyShared?: boolean;
+}
+
+/**
+ * Firestore document shape for `shared_activity_walls/{shareId}`.
+ *
+ * Created by the teacher when they want to publish a view-only gallery
+ * link to the submissions of an existing Activity Wall session. The
+ * gallery viewer is unauthenticated (uses anonymous Firebase Auth) so the
+ * doc carries everything the viewer needs to render the page without
+ * touching the owning user's `/users/{uid}/...` collections.
+ */
+export interface SharedActivityWall {
+  id: string;
+  /** Activity wall session id (`${teacherUid}_${activityId}`). */
+  sessionId: string;
+  /** Teacher uid — used to gate update/delete. */
+  originalAuthor: string;
+  /** Snapshot of the activity's title at share time. */
+  title: string;
+  /** Snapshot of the activity's prompt at share time. */
+  prompt: string;
+  mode: ActivityWallMode;
+  /**
+   * Inherited from the parent activity. Gallery commenters identify
+   * themselves the same way the original submitters did.
+   */
+  identificationMode: ActivityWallIdentificationMode;
+  allowComments: boolean;
+  allowCommentResponses: boolean;
+  allowLikes: boolean;
+  /** Millis epoch — `null` means the link never expires. */
+  expiresAt: number | null;
+  createdAt: number;
+  /**
+   * Teacher can revoke a link without deleting the doc, which keeps
+   * existing comments/likes intact in case they want to re-enable later.
+   */
+  revoked?: boolean;
+}
+
+/**
+ * Comment posted by a gallery viewer on a specific submission.
+ * Lives at `shared_activity_walls/{shareId}/comments/{commentId}`.
+ */
+export interface ActivityWallComment {
+  id: string;
+  /** Submission this comment is attached to. */
+  submissionId: string;
+  /**
+   * Parent comment id when this is a reply, or `null` for a top-level
+   * comment. Replies are only allowed when the share has
+   * `allowCommentResponses === true`.
+   */
+  parentCommentId: string | null;
+  content: string;
+  /** Display label built from the share's `identificationMode`. */
+  participantLabel: string;
+  /** Firebase auth uid of the commenter (anonymous uid for viewers). */
+  authorUid: string;
+  createdAt: number;
+}
+
+/**
+ * Like on a submission within a shared gallery. Lives at
+ * `shared_activity_walls/{shareId}/likes/{submissionId}__{authorUid}` —
+ * the deterministic doc id enforces one-like-per-viewer-per-submission
+ * without a separate counter document.
+ */
+export interface ActivityWallLike {
+  id: string;
+  submissionId: string;
+  authorUid: string;
+  createdAt: number;
 }
 
 export interface WebcamConfig {
@@ -2241,9 +2321,25 @@ export interface RecessGearConfig {
 /**
  * Question types supported in the quiz widget.
  * MC = Multiple Choice, FIB = Fill in the Blank,
- * Matching = Match left to right, Ordering = Place items in correct sequence.
+ * Matching = Match left to right, Ordering = Place items in correct sequence,
+ * short = single-paragraph written response (manually graded),
+ * essay = multi-paragraph written response (manually graded).
  */
-export type QuizQuestionType = 'MC' | 'FIB' | 'Matching' | 'Ordering';
+export type QuizQuestionType =
+  | 'MC'
+  | 'FIB'
+  | 'Matching'
+  | 'Ordering'
+  | 'short'
+  | 'essay';
+
+/**
+ * True iff the question type requires manual teacher grading
+ * (i.e. there is no auto-grader for student responses).
+ */
+export function isWrittenQuestionType(type: QuizQuestionType): boolean {
+  return type === 'short' || type === 'essay';
+}
 
 export interface QuizQuestion {
   id: string;
@@ -2255,6 +2351,7 @@ export interface QuizQuestion {
    * MC/FIB: the correct answer text.
    * Matching: pipe-separated pairs "term1:def1|term2:def2"
    * Ordering: pipe-separated items in correct order "item1|item2|item3"
+   * short/essay: always empty string (no key — graded manually).
    */
   correctAnswer: string;
   /** MC only: up to 4 incorrect answer choices */
@@ -2270,9 +2367,20 @@ export interface QuizQuestion {
   matchingDistractors?: string[];
   /**
    * Per-question opt-in for partial credit on Matching/Ordering. Ignored
-   * for MC/FIB. Defaults to false.
+   * for MC/FIB/short/essay. Defaults to false.
    */
   allowPartialCredit?: boolean;
+  /**
+   * short/essay only. Optional placeholder shown inside the student's
+   * editor (e.g. "Cite at least two pieces of evidence.").
+   */
+  placeholder?: string;
+  /**
+   * short/essay only. Soft cap shown in the editor's word counter.
+   * Not enforced server-side; the student can exceed it. Undefined or 0
+   * means no cap is displayed.
+   */
+  maxWords?: number;
 }
 
 /**
@@ -2405,6 +2513,12 @@ export interface QuizPublicQuestion {
   matchingRight?: string[];
   /** Ordering only: items to sequence, pre-shuffled */
   orderingItems?: string[];
+  /** short/essay only: optional editor placeholder */
+  placeholder?: string;
+  /** short/essay only: optional soft word cap shown in the editor */
+  maxWords?: number;
+  /** short/essay only: max points the teacher can award. */
+  points?: number;
 }
 
 export interface QuizLeaderboardEntry {
@@ -2670,6 +2784,71 @@ export interface QuizResponse {
   unlocked?: boolean;
   /** Client timestamp (ms) when the teacher unlocked the attempt. */
   unlockedAt?: number;
+  /**
+   * Teacher-written manual grades for written question types
+   * (`short`, `essay`). Keyed by `QuizQuestion.id`. Lives outside the
+   * `answers[]` array so teacher writes don't need to rewrite the
+   * student's answer payload, and so Firestore rules can lock students
+   * out of grading via the existing `changedKeys().hasOnly([...])`
+   * whitelist — `grading` is simply not in the list, so any student
+   * write that includes it is rejected.
+   *
+   * Auto-graded question types (MC/FIB/Matching/Ordering) do not use
+   * this map; their correctness is recomputed on the fly by `gradeAnswer`.
+   */
+  grading?: { [questionId: string]: WrittenAnswerGrade };
+}
+
+/**
+ * Per-question manual grade record for written-response questions.
+ * Stored under `QuizResponse.grading[questionId]`.
+ */
+export interface WrittenAnswerGrade {
+  /**
+   * Points awarded. Clamped client-side to `0 <= pointsAwarded <=
+   * (question.points ?? 1)`. Phase 2/3 will add a server-side cap
+   * in Firestore rules once rules can look up the question by id.
+   */
+  pointsAwarded: number;
+  /** Optional summary comment the teacher leaves on the response. */
+  overallComment?: string;
+  /** Phase 2 (annotations). Empty/undefined in Phase 1. */
+  annotations?: WrittenAnswerAnnotation[];
+  /** Phase 3 (rubrics). Empty/undefined in Phase 1. */
+  rubricScores?: WrittenAnswerRubricScore[];
+  /** Teacher's auth uid that wrote the grade. */
+  gradedBy: string;
+  /** Client timestamp (ms) when the grade was saved. */
+  gradedAt: number;
+}
+
+/**
+ * Phase 2 annotation shape. Reserved here so we don't churn the type
+ * later. The exact storage model (marks-in-document vs sidecar offsets)
+ * is an open question deferred to Phase 2 design.
+ */
+export interface WrittenAnswerAnnotation {
+  id: string;
+  /** Inclusive start offset into the sanitized plaintext projection. */
+  from: number;
+  /** Exclusive end offset. */
+  to: number;
+  highlightColor?: 'yellow' | 'green' | 'pink' | 'blue';
+  comment?: string;
+  authorUid: string;
+  createdAt: number;
+}
+
+/**
+ * Phase 3 rubric score shape. Reserved here so we don't churn the type
+ * later.
+ */
+export interface WrittenAnswerRubricScore {
+  criterionId: string;
+  levelId: string;
+  /** Snapshot for resilience against later rubric edits. */
+  points: number;
+  note?: string;
 }
 
 /**

@@ -1875,7 +1875,16 @@ export const useQuizAssignments = (
             void _stale;
             return rest;
           }
-          const result = gradeAnswer(q, a.answer);
+          // Pull manual grades for written types so a teacher's stored
+          // grade survives the archive snapshot. Without this, archiving
+          // a quiz that contained essays would freeze them at 0 points
+          // and the archive would silently disagree with the live results
+          // view forever after.
+          const manualGrade =
+            q.type === 'short' || q.type === 'essay'
+              ? data.grading?.[q.id]
+              : undefined;
+          const result = gradeAnswer(q, a.answer, manualGrade);
           pointsEarned += result.pointsEarned;
           pointsMax += result.pointsMax;
           return { ...a, isCorrect: result.isCorrect };

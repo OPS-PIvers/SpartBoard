@@ -62,7 +62,14 @@ export function getEarnedPoints(
     const q = qMap.get(ans.questionId);
     if (!q) continue;
 
-    const grade = gradeAnswer(q, ans.answer);
+    // Written types (`short`/`essay`) get their points from the response's
+    // top-level `grading` map. Without this thread-through, scoreboard
+    // totals and streaks treat every essay as 0 points / incorrect, which
+    // would break a student's streak any time their quiz mixes auto-graded
+    // and written items.
+    const manualGrade =
+      q.type === 'short' || q.type === 'essay' ? r.grading?.[q.id] : undefined;
+    const grade = gradeAnswer(q, ans.answer, manualGrade);
 
     if (grade.pointsEarned <= 0) {
       streak = 0;
