@@ -55,7 +55,14 @@ import {
   shufflePublicQuestions,
   shuffleQuestionForStudent,
 } from '@/utils/quizShuffle';
-import { QuizSession, QuizPublicQuestion } from '@/types';
+import {
+  QuizSession,
+  QuizPublicQuestion,
+  WrittenAnswerGrade,
+  isWrittenQuestionType,
+} from '@/types';
+import { sanitizeQuizResponse } from '@/utils/security';
+import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import { useDialog } from '@/context/useDialog';
 import { StudentLeaderboard } from './StudentLeaderboard';
 import { QuizPausedPlaceholder } from './QuizPausedPlaceholder';
@@ -2463,8 +2470,25 @@ const PublishedScoreReview: React.FC<{
               {(session.publicQuestions ?? []).map((q, idx) => {
                 const ans = answerById.get(q.id);
                 const studentAnswer = ans?.answer ?? '';
-                const isCorrect = ans?.isCorrect === true;
-                const isIncorrect = ans?.isCorrect === false;
+                const isWritten = isWrittenQuestionType(q.type);
+                const writtenGrade = isWritten
+                  ? myResponse.grading?.[q.id]
+                  : undefined;
+                // Match `gradeAnswer`'s default: a missing `points`
+                // means 1, not 0. The old `q.points &&` short-circuited
+                // when `points` was unset, so a full-credit grade on a
+                // default-points question never showed the ✓.
+                const writtenMaxPoints = q.points ?? 1;
+                const writtenIsCorrect =
+                  writtenGrade != null &&
+                  writtenMaxPoints > 0 &&
+                  writtenGrade.pointsAwarded === writtenMaxPoints;
+                const isCorrect = ans?.isCorrect === true || writtenIsCorrect;
+                const writtenIsIncorrect =
+                  writtenGrade != null &&
+                  writtenGrade.pointsAwarded < writtenMaxPoints;
+                const isIncorrect =
+                  ans?.isCorrect === false || writtenIsIncorrect;
                 const correctAnswer = session.revealedAnswers?.[q.id];
                 return (
                   <article
@@ -2484,37 +2508,48 @@ const PublishedScoreReview: React.FC<{
                       <p className="flex-1 text-sm font-semibold text-slate-100">
                         {q.text}
                       </p>
-                      {ans?.isCorrect === true && (
+                      {isCorrect && (
                         <Check className="h-5 w-5 shrink-0 text-emerald-400" />
                       )}
-                      {ans?.isCorrect === false && (
+                      {isIncorrect && (
                         <XIcon className="h-5 w-5 shrink-0 text-red-400" />
                       )}
                     </header>
                     <div className="ml-7 space-y-1.5">
-                      <p className="text-xs text-slate-400">
-                        Your answer:{' '}
-                        <span
-                          className={`font-mono ${
-                            isCorrect
-                              ? 'text-emerald-300'
-                              : isIncorrect
-                                ? 'text-red-300'
-                                : 'text-slate-200'
-                          }`}
-                        >
-                          {studentAnswer
-                            ? formatAnswerForDisplay(studentAnswer, q.type)
-                            : '— no response'}
-                        </span>
-                      </p>
-                      {showAnswers && correctAnswer && (
-                        <p className="text-xs text-slate-400">
-                          Correct answer:{' '}
-                          <span className="font-mono text-emerald-300">
-                            {formatAnswerForDisplay(correctAnswer, q.type)}
-                          </span>
-                        </p>
+                      {isWritten ? (
+                        <WrittenAnswerReview
+                          studentAnswer={studentAnswer}
+                          grade={writtenGrade}
+                          showResponse={showResponses}
+                          maxPoints={q.points ?? 1}
+                        />
+                      ) : (
+                        <>
+                          <p className="text-xs text-slate-400">
+                            Your answer:{' '}
+                            <span
+                              className={`font-mono ${
+                                isCorrect
+                                  ? 'text-emerald-300'
+                                  : isIncorrect
+                                    ? 'text-red-300'
+                                    : 'text-slate-200'
+                              }`}
+                            >
+                              {studentAnswer
+                                ? formatAnswerForDisplay(studentAnswer, q.type)
+                                : '— no response'}
+                            </span>
+                          </p>
+                          {showAnswers && correctAnswer && (
+                            <p className="text-xs text-slate-400">
+                              Correct answer:{' '}
+                              <span className="font-mono text-emerald-300">
+                                {formatAnswerForDisplay(correctAnswer, q.type)}
+                              </span>
+                            </p>
+                          )}
+                        </>
                       )}
                     </div>
                   </article>
@@ -2531,6 +2566,83 @@ const PublishedScoreReview: React.FC<{
           </p>
         )}
       </div>
+    </div>
+  );
+};
+
+/**
+ * Per-question review surface for written-response questions on the
+ * student score-review screen. Shows three things when present:
+ *  1. The teacher's frozen snapshot of the student's answer with
+ *     highlight marks + margin comments (Phase 2).
+ *  2. The points awarded (e.g. "7 / 10").
+ *  3. The teacher's overall comment.
+ *
+ * Falls back to a sanitized render of the student's live answer when
+ * the question hasn't been graded yet — useful for self-paced quizzes
+ * where the teacher publishes scores in chunks.
+ */
+export const WrittenAnswerReview: React.FC<{
+  studentAnswer: string;
+  grade: WrittenAnswerGrade | undefined;
+  showResponse: boolean;
+  maxPoints: number;
+}> = ({ studentAnswer, grade, showResponse, maxPoints }) => {
+  if (!showResponse) {
+    return null;
+  }
+  const hasGrade = !!grade;
+  const annotations = grade?.annotations ?? [];
+  // When a grade exists, the snapshot is the source of truth — it
+  // froze what the teacher saw. When there's no grade yet, fall back
+  // to the student's live answer so they can still see what they
+  // submitted (and the caption below makes the live-vs-snapshot
+  // distinction explicit).
+  const snapshot = hasGrade
+    ? (grade?.gradingSnapshot ?? '')
+    : studentAnswer
+      ? sanitizeQuizResponse(studentAnswer)
+      : '';
+  const showingLiveAnswer = !hasGrade && !!studentAnswer;
+  return (
+    <div className="space-y-2">
+      {snapshot ? (
+        <AnnotatedResponseView
+          mode="read"
+          snapshot={snapshot}
+          annotations={annotations}
+        />
+      ) : (
+        <p className="text-xs text-slate-500 italic">— no response</p>
+      )}
+      {hasGrade && (
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-slate-400">
+          <span>
+            Score:{' '}
+            <span className="font-mono text-slate-100">
+              {grade.pointsAwarded} / {maxPoints}
+            </span>
+          </span>
+          {grade.overallComment && (
+            <span className="basis-full text-slate-300">
+              <span className="font-bold uppercase tracking-wider text-[10px] text-slate-500">
+                Teacher comment:
+              </span>{' '}
+              {grade.overallComment}
+            </span>
+          )}
+        </div>
+      )}
+      {!hasGrade &&
+        (showingLiveAnswer ? (
+          <p className="text-[11px] text-slate-500 italic">
+            Showing your latest response — not yet graded by your teacher.
+          </p>
+        ) : (
+          <p className="text-[11px] text-slate-500 italic">
+            Not yet graded by your teacher.
+          </p>
+        ))}
     </div>
   );
 };

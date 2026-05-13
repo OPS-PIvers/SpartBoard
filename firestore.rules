@@ -1931,6 +1931,17 @@ service cloud.firestore {
            // tagging, mirroring the create-time constraint above.
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['preSyncVersion']) ||
             request.resource.data.preSyncVersion == 0) &&
+           // NOTE: `grading` (and everything under it — `gradingSnapshot`,
+           // `annotations`, `rubricScores`, `overallComment`, `pointsAwarded`,
+           // `gradedBy`, `gradedAt`) is deliberately ABSENT from this
+           // whitelist. The teacher branch above is unrestricted, so
+           // teachers write `grading.<questionId>` via dotted field
+           // paths; any student write that touches `grading.*` is
+           // rejected by this `hasOnly([...])` check. Phase 2 of the
+           // written-response feature adds annotations and grading
+           // snapshots under the same key — they inherit the same
+           // student-side protection by construction. See
+           // docs/written-response-quiz-questions.md §9.
            request.resource.data.diff(resource.data)
              .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked']) &&
            // Students may only ever CLEAR the unlock flag (write `false`)

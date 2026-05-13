@@ -2812,7 +2812,17 @@ export interface WrittenAnswerGrade {
   pointsAwarded: number;
   /** Optional summary comment the teacher leaves on the response. */
   overallComment?: string;
-  /** Phase 2 (annotations). Empty/undefined in Phase 1. */
+  /**
+   * Phase 2: sanitized HTML snapshot of the student's `answer` captured the
+   * first time the teacher saves a grade carrying annotations. Frozen and
+   * immutable from that point on. Annotation `from`/`to` offsets index into
+   * the plaintext projection of THIS snapshot — not the student's live
+   * `answer` text — so annotations stay anchored even if the teacher later
+   * unlocks the attempt and the student edits. Optional so Phase 1 grades
+   * (no annotations) remain valid.
+   */
+  gradingSnapshot?: string;
+  /** Phase 2 (annotations). Empty/undefined when no highlights were added. */
   annotations?: WrittenAnswerAnnotation[];
   /** Phase 3 (rubrics). Empty/undefined in Phase 1. */
   rubricScores?: WrittenAnswerRubricScore[];

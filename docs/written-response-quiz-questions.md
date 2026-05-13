@@ -194,50 +194,70 @@ path already touches — no new collection needed.
 
 ## 5. Annotations (highlights + margin comments) — Phase 2
 
-> **Open question flagged by Gemini review (2026-05-13):** there is a
-> real technical tension between two of the goals stated below — "marks
-> move with the text" vs. "teacher must not modify the student's
-> `answer` JSON." The pragmatic resolution is one of:
->
-> 1. **Snapshot the document at grading time** to a teacher-owned
->    `gradingSnapshot` field, and store marks _on the snapshot_. The
->    student's `answer` stays untouched. Annotations only travel with
->    the snapshot — fine, because revisions are a Phase 4 concern.
-> 2. **Sidecar offsets** stored under `grading[questionId].annotations`,
->    with a deterministic re-mapping pass if the student ever revises
->    the doc later.
->
-> Phase 2 will pick one. The doc below originally argued for marks-in-
-> document, but that conflicts with the security-first stance that
-> teachers don't rewrite student `answer` text. Decision deferred to
-> Phase 2 design.
+**Design decision (resolved 2026-05-13):** snapshot-at-grading-time +
+sidecar plaintext offsets, rendered to JSX via the shared walker in
+[`utils/writtenAnnotations.ts`](../utils/writtenAnnotations.ts). The
+student's `answer` JSON is **never** mutated. The chosen option mirrors
+proposal (1) from the original Gemini review note.
+
+**Why we picked snapshot-at-grading-time:**
+
+- Phase 1 already guarantees the student's `answer` is never rewritten.
+  Annotations need a stable anchor; a frozen snapshot gives us one
+  without breaking that invariant.
+- The teacher-unlock flow (`unlockStudentAttempt`) lets a student
+  resume and edit after grading. If annotations indexed into the live
+  answer, offsets would silently drift on every edit. The snapshot
+  freezes the document at annotation time so highlights stay anchored.
+- No schema churn for the open question — the existing
+  `WrittenAnswerAnnotation.from`/`to` fields are already documented as
+  plaintext offsets, so we layered on a `gradingSnapshot` field and a
+  shared walker that defines what "plaintext offset" means
+  deterministically.
+- Rejected alternative (marks-in-document) would have required either
+  widening `sanitizeQuizResponse` to allow `<mark data-id="…">`
+  (loosens the Phase 1 anti-styling profile) or rewriting the
+  student's `answer` field (breaks the security stance).
 
 ### Annotation shape
 
+The existing `WrittenAnswerAnnotation` interface (`types.ts:2830`)
+captures everything we need:
+
 ```ts
-type Annotation = {
-  id: string; // uuid
-  range: { from: number; to: number }; // ProseMirror positions in the snapshot doc
-  highlightColor: 'yellow' | 'green' | 'pink' | 'blue';
-  comment?: string; // optional margin note; an annotation can be a bare highlight
+interface WrittenAnswerAnnotation {
+  id: string;
+  /** Inclusive start offset into the snapshot's plaintext projection. */
+  from: number;
+  /** Exclusive end offset. */
+  to: number;
+  highlightColor?: 'yellow' | 'green' | 'pink' | 'blue';
+  comment?: string;
   authorUid: string;
   createdAt: number;
-};
+}
 ```
+
+Plus the new `WrittenAnswerGrade.gradingSnapshot?: string` (Phase 2
+addition): the sanitized HTML the teacher annotated, frozen on first
+save with annotations, immutable afterwards.
 
 Rendered as:
 
-- A `highlight` mark with `data-annotation-id` on the marked text.
-- A right-rail margin column showing comments anchored to their highlights.
-  Hovering a highlight scrolls/focuses the corresponding margin note and
-  vice versa.
+- A `<mark>` wrapper with `data-annotation-id` and `data-color` on the
+  marked text, emitted by `renderAnnotatedSnapshot` directly into a
+  React tree (no HTML string concat, no re-sanitization step).
+- A right-rail margin column showing comments anchored to their
+  highlights. Hovering a highlight cross-highlights the corresponding
+  margin chip and vice versa.
 
 ### Student view of annotations
 
 When the teacher publishes scores (`scoreVisibility` already exists in
-`QuizAssignment`), the student score-review screen renders the same snapshot
-in a **read-only** TipTap instance with highlight marks + margin comments
-visible. No editing surface, no reply (Phase 4 if we want a back-and-forth).
+`QuizAssignment`), the student score-review screen renders the same
+snapshot in `AnnotatedResponseView`'s `mode="read"` surface with
+highlight marks + margin comments visible. No editing surface, no
+reply (Phase 4 if we want a back-and-forth).
 
 ---
 
@@ -472,3 +492,72 @@ the existing teacher-owns-everything model.)
   read-only render shows highlights at correct offsets.
 - **Phase 3**: CSV import round-trips losslessly; rubric snapshot doesn't
   change when source rubric is edited; total points capping works.
+
+---
+
+## 13. Phase 1 — Implementation Log
+
+**Shipped** in commits `b3efd5d5` (`feat(quiz): short-answer and essay
+question types (Phase 1)`) and `fccba247` (`fix(quiz): address PR
+review feedback on written-response Phase 1`), merged via PR #1614 to
+`dev-paul`.
+
+| Area                    | File(s)                                                                                                                                                                                                                                                                                                                   | Notes                                                                                                                                                                                                                                                           |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Question types          | [types.ts:2328-2334](../types.ts)                                                                                                                                                                                                                                                                                         | `'short'` and `'essay'` added to `QuizQuestionType`; helper `isWrittenQuestionType()` at line 2340.                                                                                                                                                             |
+| Top-level `grading` map | [types.ts:2799](../types.ts), [types.ts:2806](../types.ts)                                                                                                                                                                                                                                                                | `QuizResponse.grading?: { [qid]: WrittenAnswerGrade }`; `WrittenAnswerGrade` reserves `annotations`/`rubricScores`/`gradingSnapshot` for future phases.                                                                                                         |
+| Student editor          | [components/quiz/WrittenResponseEditor.tsx](../components/quiz/WrittenResponseEditor.tsx)                                                                                                                                                                                                                                 | `contenteditable` + DOMPurify; bold/italic/underline (+ lists on essay); word counter with soft cap warning; `questionKey` remount handles pause/resume.                                                                                                        |
+| Student app wiring      | [components/quiz/QuizStudentApp.tsx](../components/quiz/QuizStudentApp.tsx)                                                                                                                                                                                                                                               | 500 ms debounced autosave; flush on visibility-hidden, `beforeunload`, unmount, and the `spartboard:quiz:flush-written` event (dispatched before strike-3 tab-switch auto-submit).                                                                              |
+| Builder UI              | [components/widgets/QuizWidget/components/QuizEditor.tsx](../components/widgets/QuizWidget/components/QuizEditor.tsx)                                                                                                                                                                                                     | Type picker exposes both new types; `placeholder` and `maxWords` config fields appear conditionally.                                                                                                                                                            |
+| Manual grader           | [components/widgets/QuizWidget/components/WrittenResponseGrader.tsx](../components/widgets/QuizWidget/components/WrittenResponseGrader.tsx)                                                                                                                                                                               | Modal opened from `QuizResults`; prev/next student nav (←/→/j/k); points entry; overall comment; dirty-tracking + confirm-on-nav prompt; per-question `grading.<qid>` field-path write so concurrent grades on different questions don't clobber.               |
+| Auto-grader awareness   | [hooks/useQuizSession.ts:212-221](../hooks/useQuizSession.ts)                                                                                                                                                                                                                                                             | `gradeAnswer` treats written types as ungraded by default; reads awarded points from `grading[qid]` when present; clamps to `[0, question.points]`.                                                                                                             |
+| Reporting threading     | [components/widgets/QuizWidget/components/QuizResults.tsx:1595](../components/widgets/QuizWidget/components/QuizResults.tsx), [utils/assignmentExportShared.ts](../utils/assignmentExportShared.ts), [utils/plcContributions.ts](../utils/plcContributions.ts), [utils/quizDriveService.ts](../utils/quizDriveService.ts) | Grades surface in stats, PLC contribution publishing, Drive sheet export, scoreboard/streaks, and the assignment archive — without each call site having to know about the new map.                                                                             |
+| Sanitizer               | [utils/security.ts:78-87](../utils/security.ts)                                                                                                                                                                                                                                                                           | New `sanitizeQuizResponse` profile: whitelist `b/strong/i/em/u/p/br/ul/ol/li`, zero attributes, defangs `<font>`/`<span style>` styling that browsers inject from `execCommand`.                                                                                |
+| Firestore rules         | [firestore.rules:1901](../firestore.rules)                                                                                                                                                                                                                                                                                | No new permissive rules. Existing student `changedKeys().hasOnly([...])` whitelist already excludes `grading`; comment added in this round to document that `gradingSnapshot` / `annotations` / `rubricScores` all inherit the same protection by construction. |
+
+**Tests added in this round (Phase 1 §12 gap-fill):**
+
+- [tests/utils/sanitizeQuizResponse.test.ts](../tests/utils/sanitizeQuizResponse.test.ts) — 12 tests covering whitelist, strip cases, idempotency.
+- [tests/components/quiz/WrittenResponseEditor.test.tsx](../tests/components/quiz/WrittenResponseEditor.test.tsx) — 9 tests covering hydration, sanitized onChange, word cap, pause/resume remount, disabled state.
+- [tests/hooks/useQuizSession.gradeAnswer.test.ts](../tests/hooks/useQuizSession.gradeAnswer.test.ts) — 8 tests covering ungraded default, manual-grade pickup, clamping, MC pass-through.
+
+**Carry-overs (still deferred):**
+
+- Firestore rules tests for student-rejection on `grading` writes — would
+  need the emulator suite, gated to a separate CI job; flagged for the
+  Phase 3 PR which already touches rules.
+- Playwright E2E for the pause-then-resume-next-day flow — current
+  Phase 1 unit tests cover the `questionKey` remount mechanism; a true
+  cross-day E2E needs deterministic time-mocking we don't have yet.
+
+---
+
+## 14. Phase 2 — Implementation Log
+
+**Design decision (recorded in §5):** snapshot-at-grading-time +
+sidecar plaintext offsets, rendered to JSX. Highlight `<mark>` elements
+are emitted directly into the React tree rather than being baked into a
+sanitized HTML string, so the Phase 1 sanitizer profile stays exactly
+as-is and the student's `answer` JSON is never mutated.
+
+| Area                 | File(s)                                                                                                                                                    | Notes                                                                                                                                                                                                                                                                                                                                                                        |
+| -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Type                 | [types.ts:2815-2823](../types.ts)                                                                                                                          | Added `WrittenAnswerGrade.gradingSnapshot?: string`. Frozen on first save with annotations; immutable afterwards. Optional so Phase 1 grades remain valid.                                                                                                                                                                                                                   |
+| Offset/render walker | [utils/writtenAnnotations.ts](../utils/writtenAnnotations.ts) (new)                                                                                        | `htmlToPlainText`, `renderAnnotatedSnapshot`, `getPlainTextOffsetFromRange`. One walker drives both directions of the offset math so the teacher's selection → offset conversion and the renderer's offset → DOM mapping can never disagree. Block tags (`<p>`/`<li>`) and `<br>` each contribute exactly one newline character.                                             |
+| Annotation surface   | [components/widgets/QuizWidget/components/AnnotatedResponseView.tsx](../components/widgets/QuizWidget/components/AnnotatedResponseView.tsx) (new)          | Two modes: `edit` (teacher) surfaces a 4-color palette anchored to the live selection rect plus a margin column with delete/edit affordances; `read` (student) renders the same snapshot with comment chips, no palette, no edit handles.                                                                                                                                    |
+| Grader integration   | [components/widgets/QuizWidget/components/WrittenResponseGrader.tsx](../components/widgets/QuizWidget/components/WrittenResponseGrader.tsx)                | Replaces the `dangerouslySetInnerHTML` read-only block with `<AnnotatedResponseView mode="edit">`. Threads `draftAnnotations` through hydration + dirty-tracking. On save: snapshot frozen via `sanitizeQuizResponse(studentAnswer)` the first time annotations land; reused on every subsequent save so a post-unlock student edit can never reshape the teacher's anchors. |
+| Student score-review | [components/quiz/QuizStudentApp.tsx](../components/quiz/QuizStudentApp.tsx) — new `WrittenAnswerReview` sub-component, branching in `PublishedScoreReview` | Written-type questions render the frozen snapshot via `AnnotatedResponseView` (read mode) when annotations exist, or a sanitized HTML rendering of the snapshot when only points/comment exist. Falls back to the live sanitized answer when no grade yet. Visibility-gated by `session.scoreVisibility` like the rest of the review screen.                                 |
+| Firestore rules      | [firestore.rules:1901](../firestore.rules)                                                                                                                 | Comment-only change to make the teacher-only invariant for `grading.*` (including `gradingSnapshot`, `annotations`, `rubricScores`) explicit. No new rule clauses — the existing `hasOnly([...])` whitelist already locks students out by construction.                                                                                                                      |
+
+**Tests added (Phase 2 §12):**
+
+- [tests/utils/writtenAnnotations.test.tsx](../tests/utils/writtenAnnotations.test.tsx) — 15 tests covering plaintext extraction across nested/block/list/`<br>` cases, mark wrapping invariants (single range, partial text node, paragraph-spanning, inline-tag-preservation, multiple non-overlapping), offset round-trip with `htmlToPlainText`, and `getPlainTextOffsetFromRange` behavior (basic, collapsed, escaping the root).
+- [tests/components/quiz/AnnotatedResponseView.test.tsx](../tests/components/quiz/AnnotatedResponseView.test.tsx) — 9 tests covering read mode (no margin column without comments, comment chip rendering, no palette in read mode) and edit mode (empty hint, row hydration, click-to-open editor, comment edit, delete, color change).
+- [tests/components/quiz/WrittenResponseGrader.annotations.test.tsx](../tests/components/quiz/WrittenResponseGrader.annotations.test.tsx) — 3 tests covering: (a) points-only save does NOT bake a `gradingSnapshot`; (b) snapshot stays frozen even when the student's live answer has diverged; (c) saved annotations rehydrate the draft on mount.
+- [tests/components/quiz/PublishedScoreReview.annotations.test.tsx](../tests/components/quiz/PublishedScoreReview.annotations.test.tsx) — 5 tests covering visibility gating, ungraded fallback, snapshot-wins-over-live-answer rendering, mark wrapping on the student side, and "no response" empty state.
+
+**Deferred to follow-ups:**
+
+- **Overlapping annotation UX** — the renderer correctly handles overlap (primary color wins, all overlap ids exposed on `data-overlap-ids`), but the editor surface picks only the primary on click; a "split into N marks" hover affordance is out of scope.
+- **Margin chip vertical anchoring** under reflow — Phase 2 lists comments in author order; pinning chips to the y-coordinate of their highlight (à la Google Docs) is a polish pass.
+- **Phase 4 carry-overs** — revision-aware offset remapping if the snapshot ever needs to be regenerated; anonymous-grading toggle; AI-assisted draft grading; Docs export for long essays.

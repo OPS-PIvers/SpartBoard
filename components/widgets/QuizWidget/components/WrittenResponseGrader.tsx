@@ -1,12 +1,17 @@
 /**
  * WrittenResponseGrader — teacher-facing modal for manually grading
- * `short` / `essay` quiz responses. Phase 1 surface: prev/next student
- * navigation, points input, optional overall comment.
+ * `short` / `essay` quiz responses.
  *
- * Annotations (Phase 2) and rubric scoring (Phase 3) are out of scope
- * here; the storage shape (`WrittenAnswerGrade.annotations`,
- * `rubricScores`) is already reserved on the type so this component can
- * grow into those features without a schema migration.
+ * Phase 1 shipped points entry, an optional overall comment, and
+ * prev/next student navigation. Phase 2 adds inline highlights + margin
+ * comments via `AnnotatedResponseView`. Annotations are stored as
+ * plaintext offsets into a frozen `gradingSnapshot` of the student's
+ * answer, so highlights stay anchored even if the teacher later unlocks
+ * the attempt and the student edits.
+ *
+ * Rubric scoring (Phase 3) is still out of scope; the storage shape
+ * (`WrittenAnswerGrade.rubricScores`) is already reserved on the type so
+ * this component can grow into it without a schema migration.
  */
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
@@ -18,8 +23,14 @@ import {
   ShieldAlert,
   X,
 } from 'lucide-react';
-import { QuizData, QuizResponse, WrittenAnswerGrade } from '@/types';
+import {
+  QuizData,
+  QuizResponse,
+  WrittenAnswerAnnotation,
+  WrittenAnswerGrade,
+} from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
+import { AnnotatedResponseView } from './AnnotatedResponseView';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -112,6 +123,9 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const maxPoints = question?.points ?? 1;
   const [pointsInput, setPointsInput] = useState<string>('');
   const [comment, setComment] = useState<string>('');
+  const [draftAnnotations, setDraftAnnotations] = useState<
+    WrittenAnswerAnnotation[]
+  >([]);
   const [hydrationKey, setHydrationKey] = useState<string>('');
 
   const targetKey = `${responseKey ?? ''}::${question?.id ?? ''}`;
@@ -119,6 +133,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     setHydrationKey(targetKey);
     setPointsInput(savedGrade != null ? String(savedGrade.pointsAwarded) : '');
     setComment(savedGrade?.overallComment ?? '');
+    setDraftAnnotations(savedGrade?.annotations ?? []);
     setSaveError(null);
   }
 
@@ -129,7 +144,18 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const savedPointsStr =
     savedGrade != null ? String(savedGrade.pointsAwarded) : '';
   const savedCommentStr = savedGrade?.overallComment ?? '';
-  const isDirty = pointsInput !== savedPointsStr || comment !== savedCommentStr;
+  // Stable equality on the annotation list. `JSON.stringify` would
+  // false-positive when Firestore-loaded annotations and locally-built
+  // ones disagree on key insertion order, even when the fields match.
+  // Compare the canonical fields explicitly instead.
+  const annotationsEqual = annotationListsEqual(
+    draftAnnotations,
+    savedGrade?.annotations
+  );
+  const isDirty =
+    pointsInput !== savedPointsStr ||
+    comment !== savedCommentStr ||
+    !annotationsEqual;
 
   const confirmDiscardIfDirty = useCallback((): boolean => {
     if (!isDirty) return true;
@@ -141,26 +167,34 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     );
   }, [isDirty]);
 
+  // Gate all navigation on `saving` to prevent a race: an in-flight
+  // `onSaveGrade` reads the captured `studentIdx` and auto-advances on
+  // resolve, so if the teacher manually navigates while the save is
+  // pending the auto-advance can jump past where they expected to land.
   const goPrevStudent = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setStudentIdx((i) => Math.max(0, i - 1));
-  }, [confirmDiscardIfDirty]);
+  }, [confirmDiscardIfDirty, saving]);
   const goNextStudent = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setStudentIdx((i) =>
       Math.min(Math.max(0, gradeableResponses.length - 1), i + 1)
     );
-  }, [gradeableResponses.length, confirmDiscardIfDirty]);
+  }, [gradeableResponses.length, confirmDiscardIfDirty, saving]);
   const goPrevQuestion = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setQuestionIdx((i) => Math.max(0, i - 1));
-  }, [confirmDiscardIfDirty]);
+  }, [confirmDiscardIfDirty, saving]);
   const goNextQuestion = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setQuestionIdx((i) =>
       Math.min(Math.max(0, writtenQuestions.length - 1), i + 1)
     );
-  }, [writtenQuestions.length, confirmDiscardIfDirty]);
+  }, [writtenQuestions.length, confirmDiscardIfDirty, saving]);
 
   // Keyboard navigation. Only active when no input has focus — we don't
   // want left/right inside the points input to jump students.
@@ -190,7 +224,17 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   }, [goPrevStudent, goNextStudent, onClose]);
 
   const handleSave = useCallback(async () => {
-    if (!response || !question || !responseKey) return;
+    if (!response || !question) return;
+    if (!responseKey) {
+      // Should be unreachable for any response that joined a live
+      // session (both `_responseKey` and `studentUid` are set on
+      // create), but surface it explicitly rather than no-op'ing the
+      // save click — silent no-ops on the grader are confusing.
+      setSaveError(
+        'Cannot save: this response is missing its identifier. Reload the quiz results and try again.'
+      );
+      return;
+    }
     const trimmed = pointsInput.trim();
     if (trimmed === '') {
       setSaveError('Enter a numeric score.');
@@ -205,9 +249,37 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
       setSaveError(`Score must be between 0 and ${maxPoints}.`);
       return;
     }
+    // Snapshot the student's answer the first time we save annotations,
+    // and keep that snapshot frozen forever after. This is what makes
+    // annotation offsets stable: even if the teacher later unlocks the
+    // attempt and the student edits, the snapshot the offsets index
+    // into is unchanged.
+    const hasAnnotations = draftAnnotations.length > 0;
+    const existingSnapshot = savedGrade?.gradingSnapshot;
+    const studentAnswerForSnapshot =
+      response.answers.find((a) => a.questionId === question.id)?.answer ?? '';
+    // Annotations on an empty answer would point into nothing — the
+    // palette can't surface here in normal flow (selection requires
+    // text), but if we ever get into this state via a bug or drag-and-
+    // drop, fail loudly instead of writing dead annotations.
+    if (
+      hasAnnotations &&
+      !existingSnapshot &&
+      !studentAnswerForSnapshot.trim()
+    ) {
+      setSaveError(
+        "Cannot save annotations on an empty response — the student didn't answer this question."
+      );
+      return;
+    }
+    const gradingSnapshot = hasAnnotations
+      ? (existingSnapshot ?? sanitizeQuizResponse(studentAnswerForSnapshot))
+      : existingSnapshot;
     const grade: WrittenAnswerGrade = {
       pointsAwarded: parsed,
       overallComment: comment.trim() || undefined,
+      annotations: hasAnnotations ? draftAnnotations : undefined,
+      gradingSnapshot,
       gradedBy: teacherUid,
       gradedAt: Date.now(),
     };
@@ -234,6 +306,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     pointsInput,
     maxPoints,
     comment,
+    draftAnnotations,
+    savedGrade,
     teacherUid,
     onSaveGrade,
     studentIdx,
@@ -284,7 +358,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={goPrevStudent}
-            disabled={studentIdx === 0}
+            disabled={studentIdx === 0 || saving}
             className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Previous student (←)"
             title="Previous student (←)"
@@ -316,7 +390,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           </div>
           <button
             onClick={goNextStudent}
-            disabled={studentIdx >= gradeableResponses.length - 1}
+            disabled={studentIdx >= gradeableResponses.length - 1 || saving}
             className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Next student (→)"
             title="Next student (→)"
@@ -339,7 +413,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         <div className="flex items-center gap-2 px-5 py-2 border-b border-slate-200 bg-slate-50">
           <button
             onClick={goPrevQuestion}
-            disabled={questionIdx === 0}
+            disabled={questionIdx === 0 || saving}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Previous question"
           >
@@ -352,7 +426,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           </div>
           <button
             onClick={goNextQuestion}
-            disabled={questionIdx >= writtenQuestions.length - 1}
+            disabled={questionIdx >= writtenQuestions.length - 1 || saving}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Next question"
           >
@@ -375,11 +449,19 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
             Student response
           </h3>
           {studentAnswer ? (
-            <article
-              className="bg-white border border-slate-200 rounded-lg p-5 text-sm leading-relaxed text-slate-800 prose prose-sm max-w-none"
-              dangerouslySetInnerHTML={{
-                __html: sanitizeQuizResponse(studentAnswer),
-              }}
+            <AnnotatedResponseView
+              mode="edit"
+              // Once we've saved annotations, the snapshot is the
+              // source of truth; until then, default to the live
+              // sanitized answer so a teacher can start selecting text
+              // even on a never-graded response.
+              snapshot={
+                savedGrade?.gradingSnapshot ??
+                sanitizeQuizResponse(studentAnswer)
+              }
+              annotations={draftAnnotations}
+              authorUid={teacherUid}
+              onChange={setDraftAnnotations}
             />
           ) : (
             <div className="bg-white border border-slate-200 rounded-lg p-5 text-sm text-slate-500 italic">
@@ -456,13 +538,41 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           </button>
 
           <p className="text-xs text-slate-500 leading-relaxed">
-            ← / → switch students. Esc closes the grader. Phase 2 will add
-            inline highlights and margin comments; Phase 3 adds rubric scoring.
+            ← / → switch students. Esc closes the grader. Select text in the
+            response to add a highlight or margin comment. Rubric scoring is
+            coming in Phase 3.
           </p>
         </aside>
       </div>
     </ModalShell>
   );
+};
+
+/**
+ * Field-level equality on two annotation lists. Insensitive to BOTH
+ * key insertion order (so Firestore-loaded annotations compare equal
+ * to locally-built ones with the same fields) AND list order — looks
+ * the annotations up by `id` so reordering doesn't trip a spurious
+ * dirty state. Treats `undefined` and missing color/comment the same.
+ */
+const annotationListsEqual = (
+  a: WrittenAnswerAnnotation[],
+  b: WrittenAnswerAnnotation[] | undefined
+): boolean => {
+  const right = b ?? [];
+  if (a.length !== right.length) return false;
+  const byId = new Map<string, WrittenAnswerAnnotation>();
+  for (const x of right) byId.set(x.id, x);
+  for (const x of a) {
+    const y = byId.get(x.id);
+    if (!y) return false;
+    if (x.from !== y.from || x.to !== y.to) return false;
+    if ((x.highlightColor ?? 'yellow') !== (y.highlightColor ?? 'yellow'))
+      return false;
+    if ((x.comment ?? '') !== (y.comment ?? '')) return false;
+    if (x.authorUid !== y.authorUid) return false;
+  }
+  return true;
 };
 
 const ModalShell: React.FC<{
