@@ -37,6 +37,7 @@ export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
+export { expireSubShares } from './expireSubShares';
 
 setGlobalOptions({ region: 'us-central1' });
 
