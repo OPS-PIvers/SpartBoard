@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-05-06_
-_Last action: never_
+_Last action: 2026-05-13_
 
 ---
 
@@ -72,6 +72,15 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### HIGH `DashboardContext.tsx` grew 937 lines since last week — now 4441 lines
+
+- **Detected:** 2026-05-13
+- **Completed:** 2026-05-13
+- **File:** context/DashboardContext.tsx, utils/adminBuildingConfig.ts (new), tests/utils/adminBuildingConfig.test.ts (new)
+- **Detail:** `DashboardContext.tsx` jumped from 3504 to 4441 lines (+27%) in one week. `getAdminBuildingConfig` (a 400-line switch over 25+ widget types validating per-building admin overrides) was the largest self-contained extractable seam.
+- **Resolution:** Extracted `getAdminBuildingConfig` to `utils/adminBuildingConfig.ts` as a pure function with signature `(type: WidgetType, featurePermissions: FeaturePermission[], selectedBuildings: string[]) => Record<string, unknown>`. Replaced the inline 400-line `useCallback` body in `DashboardContext.tsx` with a thin 4-line bridge that closes over the context's reactive deps and delegates to the pure helper. Removed now-unused imports (`NextUpConfig`, `MaterialsGlobalConfig`, `getMaterialsCatalog`). Net effect: `DashboardContext.tsx` shrank from 4441 to 4041 lines (-400). Added 11 unit tests in `tests/utils/adminBuildingConfig.test.ts` covering empty-input early returns, legacy-key canonicalization, per-widget validation (reveal-grid columns, drawing width clamp + customColors padding, countdown viewMode rejection), and unknown-type fallthrough. `pnpm type-check`, `pnpm lint --max-warnings 0`, and `pnpm format:check` all clean; full unit-test suite (now 230 files / 2386 tests) passes.
+- **Follow-ups:** Drive-sync extraction (`hooks/useDashboardDriveSync.ts`) remains unaddressed — tracked under the MEDIUM `DashboardContext.tsx is 3481 lines and growing` entry above. The LOW "simple switch cases" entry above can now be implemented against `utils/adminBuildingConfig.ts` directly without touching the context.
 
 ### MEDIUM All 9 Cloud Functions use Firebase Functions v1 — migration to v2 warranted
 
