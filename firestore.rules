@@ -709,9 +709,27 @@ service cloud.firestore {
       // un-scoping (→ null), or scoping to a PLC the writer belongs to.
       // Admins bypass the membership check, matching the existing
       // ownership-bypass elsewhere in this block.
+      //
+      // Substitute-share addendum: for `intendedMode == 'substitute'`,
+      // `buildingId` and `initialState` are pinned to their create-time
+      // values. The sub view trusts these to be the frozen snapshot — if
+      // a host could retarget a share's building after creation, a sub
+      // who already opened the board would suddenly see a board they
+      // weren't expecting; if `initialState` could drift, the "Reset
+      // board" action would land on a different baseline than the one
+      // the sub started from. Both pins are admin-overridable for
+      // emergency corrections.
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
         request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null) &&
+        (
+          resource.data.get('intendedMode', null) != 'substitute'
+          || isAdmin()
+          || (
+            request.resource.data.get('buildingId', null) == resource.data.get('buildingId', null) &&
+            request.resource.data.get('initialState', null) == resource.data.get('initialState', null)
+          )
+        ) &&
         (
           request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
           || request.resource.data.get('plcId', null) == null
