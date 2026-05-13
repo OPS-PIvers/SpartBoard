@@ -425,11 +425,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const migrationStartedForUidRef = useRef<string | null>(null);
 
   // Cross-device dock sync. `dockItems`, `libraryOrder`, and `isDockInitialized`
-  // are mirrored to `/users/{uid}/userProfile/profile`. `dockHydrated` flips
-  // true once we've read the source-of-truth from Firestore (or determined
-  // there's nothing to read), at which point local mutations may write back.
+  // are mirrored to `/users/{uid}/userProfile/profile`. Hydration tracks two
+  // separate things:
+  //   - `dockHydrated` flips true once we've *attempted* the cloud read, even
+  //     on failure. The local init effect below waits on this so it doesn't
+  //     seed defaults before we know whether a cloud layout exists.
+  //   - `dockHydrationOk` flips true only when the cloud read *succeeded* (doc
+  //     present or confirmed-absent). The persistence effect requires this so
+  //     a transient Firestore error during hydration doesn't let freshly-
+  //     seeded defaults overwrite a real cloud layout that we just couldn't
+  //     reach this session.
   const [dockHydrated, setDockHydrated] = useState(isAuthBypass);
+  const [dockHydrationOk, setDockHydrationOk] = useState(isAuthBypass);
   const dockHydratedForUidRef = useRef<string | null>(null);
+  // Coalesce rapid dock mutations (e.g. drag-reorders) into a single Firestore
+  // write so we don't fire one setDoc per intermediate frame.
+  const dockPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -715,6 +728,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass) {
       setDockHydrated(true);
+      setDockHydrationOk(true);
       return;
     }
     if (!user || !profileLoaded) return;
@@ -723,6 +737,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     let cancelled = false;
     void (async () => {
+      let succeeded = false;
       try {
         const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
         const snap = await getDoc(profileRef);
@@ -781,10 +796,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsDockInitialized(true);
           localStorage.setItem('classroom_dock_initialized', 'true');
         }
+        succeeded = true;
       } catch (err) {
+        // Leave dockHydrationOk false so we don't push defaults over a real
+        // cloud layout we just couldn't reach. The init effect still proceeds
+        // (via dockHydrated) so the user keeps a functional dock from cache
+        // or admin defaults; a future refresh will retry the read.
         console.error('[DashboardContext] Failed to hydrate dock state:', err);
+        // Allow another attempt if the user refreshes — drop the per-uid lock.
+        if (dockHydratedForUidRef.current === user.uid) {
+          dockHydratedForUidRef.current = null;
+        }
       } finally {
-        if (!cancelled) setDockHydrated(true);
+        if (!cancelled) {
+          setDockHydrated(true);
+          if (succeeded) setDockHydrationOk(true);
+        }
       }
     })();
 
@@ -794,28 +821,43 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [user, profileLoaded]);
 
   // Persist dock state to Firestore whenever it changes locally. Gated on
-  // `dockHydrated` so the initial localStorage-seeded values don't clobber
-  // the cloud doc before we've read it.
+  // `dockHydrationOk` so a transient cloud-read failure doesn't let local
+  // defaults overwrite the user's real layout. The 500ms debounce coalesces
+  // rapid mutations (drag-reorders, multi-toggle bursts) into a single write.
   useEffect(() => {
     if (isAuthBypass) return;
-    if (!user || !dockHydrated) return;
+    if (!user || !dockHydrationOk) return;
     // Only mirror to the cloud once the dock has actually been seeded —
     // otherwise we'd write empty arrays during the brief pre-seed window.
     if (!isDockInitialized) return;
 
-    const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
-    void setDoc(
-      profileRef,
-      {
-        dockItems,
-        libraryOrder,
-        dockInitialized: true,
-      },
-      { merge: true }
-    ).catch((err: unknown) => {
-      console.error('[DashboardContext] Failed to persist dock state:', err);
-    });
-  }, [user, dockHydrated, isDockInitialized, dockItems, libraryOrder]);
+    if (dockPersistTimerRef.current !== null) {
+      clearTimeout(dockPersistTimerRef.current);
+    }
+    const uid = user.uid;
+    dockPersistTimerRef.current = setTimeout(() => {
+      dockPersistTimerRef.current = null;
+      const profileRef = doc(db, 'users', uid, 'userProfile', 'profile');
+      void setDoc(
+        profileRef,
+        {
+          dockItems,
+          libraryOrder,
+          dockInitialized: true,
+        },
+        { merge: true }
+      ).catch((err: unknown) => {
+        console.error('[DashboardContext] Failed to persist dock state:', err);
+      });
+    }, 500);
+
+    return () => {
+      if (dockPersistTimerRef.current !== null) {
+        clearTimeout(dockPersistTimerRef.current);
+        dockPersistTimerRef.current = null;
+      }
+    };
+  }, [user, dockHydrationOk, isDockInitialized, dockItems, libraryOrder]);
 
   // Reset dock-hydration state on sign-out / user switch so the next sign-in
   // re-fetches the cloud doc and the previous user's localStorage cache
@@ -824,6 +866,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (!user) {
       dockHydratedForUidRef.current = null;
       setDockHydrated(isAuthBypass);
+      setDockHydrationOk(isAuthBypass);
+      if (dockPersistTimerRef.current !== null) {
+        clearTimeout(dockPersistTimerRef.current);
+        dockPersistTimerRef.current = null;
+      }
       if (!isAuthBypass) {
         localStorage.removeItem('classroom_dock_items');
         localStorage.removeItem('classroom_visible_tools');

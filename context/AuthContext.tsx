@@ -894,13 +894,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           //      legacy users who selected a building via the old Sidebar
           //      picker (which never wrote setupCompleted) and would otherwise
           //      see the wizard on every new device.
+          // Require at least one non-empty string element so garbage like
+          // [null, ''] doesn't count a user as already-set-up.
+          const rawSelected: unknown =
+            'selectedBuildings' in data
+              ? (data as { selectedBuildings: unknown }).selectedBuildings
+              : null;
           const hasSelectedBuildings =
-            'selectedBuildings' in data &&
-            Array.isArray(
-              (data as { selectedBuildings: unknown }).selectedBuildings
-            ) &&
-            (data as { selectedBuildings: unknown[] }).selectedBuildings
-              .length > 0;
+            Array.isArray(rawSelected) &&
+            rawSelected.some(
+              (id) => typeof id === 'string' && id.trim().length > 0
+            );
           setSetupCompletedState(
             !('setupCompleted' in data) ||
               data.setupCompleted === true ||

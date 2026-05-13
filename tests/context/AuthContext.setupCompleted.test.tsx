@@ -224,6 +224,19 @@ describe('AuthContext — setupCompleted resolution', () => {
       expect(getCtx().setupCompleted).toBe(true);
     });
 
+    it('ignores garbage selectedBuildings entries (null / empty strings) for the broaden heuristic', async () => {
+      await mountWithFakes({
+        profile: {
+          setupCompleted: false,
+          // Mixed garbage — no entry is a non-empty string.
+          selectedBuildings: [null, '', 42],
+        },
+        rootUser: null,
+        hasDashboard: false,
+      });
+      expect(getCtx().setupCompleted).toBe(false);
+    });
+
     it('keeps setupCompleted: false when profile has it false and no buildings', async () => {
       await mountWithFakes({
         profile: { setupCompleted: false, selectedBuildings: [] },
