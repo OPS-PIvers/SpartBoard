@@ -60,6 +60,13 @@ const ActivityWallStudentApp = lazy(() =>
     default: module.ActivityWallStudentApp,
   }))
 );
+const ActivityWallGalleryView = lazy(() =>
+  import('./components/activityWall/ActivityWallGalleryView').then(
+    (module) => ({
+      default: module.ActivityWallGalleryView,
+    })
+  )
+);
 const MiniAppStudentApp = lazy(() =>
   import('./components/miniApp/MiniAppStudentApp').then((module) => ({
     default: module.MiniAppStudentApp,
@@ -323,11 +330,22 @@ const App: React.FC = () => {
   }
 
   if (isActivityWallRoute) {
+    // `/activity-wall/gallery/{shareId}` is a view-only "art gallery"
+    // page for an Activity Wall's submissions — distinct from the
+    // student submission flow that owns every other path under
+    // `/activity-wall/...`. Both are unauthenticated entries.
+    const isActivityWallGalleryRoute = pathname.startsWith(
+      '/activity-wall/gallery/'
+    );
     return (
       <DialogProvider>
         <StudentIdleTimeoutGuard />
         <Suspense fallback={<FullPageLoader />}>
-          <ActivityWallStudentApp />
+          {isActivityWallGalleryRoute ? (
+            <ActivityWallGalleryView />
+          ) : (
+            <ActivityWallStudentApp />
+          )}
         </Suspense>
         <DialogContainer />
       </DialogProvider>

@@ -784,6 +784,92 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Shared Activity Wall galleries — view-only published copy of an
+    // Activity Wall session's submissions. The teacher creates the share
+    // doc; viewers land at /activity-wall/gallery/{shareId} and read the
+    // doc to discover the underlying sessionId + gallery toggles
+    // (allowComments / allowCommentResponses / allowLikes). Reads are
+    // permitted for any signed-in caller (including anonymous gallery
+    // viewers) so an unauthenticated student can open the link.
+    match /shared_activity_walls/{shareId} {
+      allow read: if request.auth != null;
+
+      allow create: if request.auth != null &&
+        request.auth.token.firebase.sign_in_provider != 'anonymous' &&
+        request.resource.data.originalAuthor == request.auth.uid &&
+        request.resource.data.id is string &&
+        request.resource.data.sessionId is string &&
+        request.resource.data.title is string &&
+        request.resource.data.prompt is string &&
+        request.resource.data.mode in ['text', 'photo'] &&
+        request.resource.data.identificationMode in ['anonymous', 'name', 'pin', 'name-pin'] &&
+        request.resource.data.allowComments is bool &&
+        request.resource.data.allowCommentResponses is bool &&
+        request.resource.data.allowLikes is bool &&
+        request.resource.data.createdAt is int &&
+        (request.resource.data.expiresAt == null || request.resource.data.expiresAt is int);
+
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+
+      // Comments — any authenticated viewer (incl. anonymous) can create.
+      // Parent share must allow comments; replies (parentCommentId != null)
+      // additionally require allowCommentResponses == true.
+      match /comments/{commentId} {
+        function parentShare() {
+          return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
+        }
+        allow read: if request.auth != null;
+        allow create: if request.auth != null &&
+          parentShare().get('revoked', false) == false &&
+          parentShare().get('allowComments', false) == true &&
+          (
+            request.resource.data.get('parentCommentId', null) == null ||
+            parentShare().get('allowCommentResponses', false) == true
+          ) &&
+          request.resource.data.id is string &&
+          request.resource.data.submissionId is string &&
+          request.resource.data.content is string &&
+          request.resource.data.content.size() > 0 &&
+          request.resource.data.content.size() <= 2000 &&
+          request.resource.data.participantLabel is string &&
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.createdAt is int;
+        // Commenter can delete their own comment; share owner / admin can
+        // moderate any comment.
+        allow delete: if request.auth != null &&
+          (
+            resource.data.get('authorUid', null) == request.auth.uid ||
+            parentShare().get('originalAuthor', null) == request.auth.uid ||
+            isAdmin()
+          );
+        allow update: if false;
+      }
+
+      // Likes — deterministic doc id (`{submissionId}__{authorUid}`) caps
+      // each viewer to one like per submission. Toggling off is a delete.
+      match /likes/{likeId} {
+        function parentShare() {
+          return get(/databases/$(database)/documents/shared_activity_walls/$(shareId)).data;
+        }
+        allow read: if request.auth != null;
+        allow create: if request.auth != null &&
+          parentShare().get('revoked', false) == false &&
+          parentShare().get('allowLikes', false) == true &&
+          request.resource.data.submissionId is string &&
+          request.resource.data.authorUid == request.auth.uid &&
+          request.resource.data.createdAt is int &&
+          likeId == request.resource.data.submissionId + '__' + request.auth.uid;
+        allow delete: if request.auth != null &&
+          (
+            resource.data.get('authorUid', null) == request.auth.uid ||
+            parentShare().get('originalAuthor', null) == request.auth.uid ||
+            isAdmin()
+          );
+        allow update: if false;
+      }
+    }
+
     // Synced quiz groups — canonical, mutable record of a quiz shared
     // across PLC peers. The group id is an unguessable v4 UUID, so reads
     // are gated only on auth (matches the `shared_assignments` posture).
@@ -2515,8 +2601,16 @@ service cloud.firestore {
           !('driveFileId' in request.resource.data) &&
           !('archiveError' in request.resource.data) &&
           !('archivedAt' in request.resource.data);
-        // Only teacher and admins can read or delete submissions.
-        allow read, delete: if request.auth != null &&
+        // Only teacher and admins can read or delete submissions —
+        // EXCEPT when the parent session has been published as a view-only
+        // gallery (`publiclyShared == true`), in which case any
+        // authenticated caller (including anonymous gallery viewers) can
+        // read the approved submissions. Delete remains teacher/admin-only.
+        allow read: if request.auth != null &&
+                            (isAdmin() ||
+                             sessionId.matches(request.auth.uid + '_.*') ||
+                             get(/databases/$(database)/documents/activity_wall_sessions/$(sessionId)).data.get('publiclyShared', false) == true);
+        allow delete: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
         allow update: if request.auth != null &&
                             (isAdmin() || sessionId.matches(request.auth.uid + '_.*')) &&

@@ -115,10 +115,19 @@ service firebase.storage {
     // these rules, so <img> display works without SDK read permission.
     // SDK-level read/list is limited to the owning teacher and admins.
     match /activity_wall_photos/{sessionId}/{fileName} {
-      // Only the teacher who owns the session (sessionId prefix = their uid) or an admin
-      // can list/download via the SDK.
+      // Owning teacher / admin can list/download via the SDK. Additionally,
+      // when the session has been published as a view-only gallery
+      // (`publiclyShared == true` on the parent session doc), any
+      // authenticated caller — including anonymous gallery viewers — can
+      // download a photo so the gallery page can render it.
       allow read: if request.auth != null &&
-        (isAdmin() || sessionId.matches(request.auth.uid + '_.*'));
+        (
+          isAdmin() ||
+          sessionId.matches(request.auth.uid + '_.*') ||
+          firestore.get(
+            /databases/(default)/documents/activity_wall_sessions/$(sessionId)
+          ).data.get('publiclyShared', false) == true
+        );
       // Any authenticated user (including anonymous students) may upload a new image,
       // but only if the target session exists in Firestore (guards against DoS uploads
       // to guessed sessionIds).

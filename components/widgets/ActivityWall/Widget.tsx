@@ -13,6 +13,7 @@ import {
   Pencil,
   Plus,
   QrCode,
+  Share2,
   Trash2,
   Users,
 } from 'lucide-react';
@@ -51,6 +52,7 @@ import {
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { Modal } from '@/components/common/Modal';
+import { ActivityWallShareModal } from '@/components/widgets/ActivityWall/ShareModal';
 
 const encodeActivityData = (
   activity: ActivityWallActivity,
@@ -318,6 +320,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     null
   );
   const [showLiveView, setShowLiveView] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   // ─── ClassLink target-class fetch (Phase 3D) ────────────────────────────
   // Teacher's ClassLink classes (if provisioned). Fetched once per widget
@@ -1734,7 +1737,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
             )}
 
             <div
-              className="grid grid-cols-2"
+              className="grid grid-cols-3"
               style={{ gap: 'min(6px, 1.8cqmin)' }}
             >
               <button
@@ -1772,6 +1775,26 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                   }}
                 />
                 Pop-out QR
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsShareModalOpen(true)}
+                disabled={!activeActivity || !activeSessionId || !user}
+                className="rounded-xl bg-violet-600 text-white font-bold flex items-center justify-center disabled:opacity-50"
+                style={{
+                  gap: 'min(6px, 1.8cqmin)',
+                  padding: 'min(8px, 2cqmin)',
+                  fontSize: 'min(11px, 3.8cqmin)',
+                }}
+                title="Share a view-only gallery of submissions"
+              >
+                <Share2
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                  }}
+                />
+                Share gallery
               </button>
             </div>
 
@@ -2070,6 +2093,13 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
         )}
       </Modal>
+      <ActivityWallShareModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        activity={activeActivity}
+        sessionId={activeSessionId}
+        teacherUid={user?.uid ?? null}
+      />
     </>
   );
 };
