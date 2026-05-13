@@ -4689,6 +4689,22 @@ export interface UserProfile {
    * Per-teacher account-level preference.
    */
   quizMonitorScoreDisplay?: 'percent' | 'count' | 'hidden';
+  /**
+   * The user's dock layout (tools + folders, ordered). Synced across devices.
+   * When absent, the dock is seeded from building-level admin defaults.
+   */
+  dockItems?: DockItem[];
+  /**
+   * Ordered list of all widget/tool types as the user arranged them in the
+   * "More" library. Synced across devices.
+   */
+  libraryOrder?: (WidgetType | InternalToolType)[];
+  /**
+   * True once the dock has been seeded for this user (either via admin
+   * defaults on first sign-in or via wizard completion). Prevents the dock
+   * from being re-seeded on subsequent logins.
+   */
+  dockInitialized?: boolean;
 }
 
 export interface SharedGroup {

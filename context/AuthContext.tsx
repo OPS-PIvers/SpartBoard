@@ -16,9 +16,12 @@ import {
 import {
   doc,
   getDoc,
+  getDocs,
   setDoc,
   collection,
   onSnapshot,
+  limit,
+  query,
 } from 'firebase/firestore';
 import {
   auth,
@@ -282,6 +285,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // a token refresh later in the session doesn't re-probe and re-write the
   // profile doc. Cleared on sign-out.
   const driveProbedForUidRef = useRef<string | null>(null);
+  const firestoreProbedForUidRef = useRef<string | null>(null);
 
   // Reset role-resolution flags synchronously when `user` changes. Without
   // this, a re-render between users would briefly carry the previous user's
@@ -811,6 +815,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
       if (!user) {
         driveProbedForUidRef.current = null;
+        firestoreProbedForUidRef.current = null;
         setSelectedBuildingsState([]);
         setSavedWidgetConfigs({});
         setProfileLoaded(true);
@@ -881,11 +886,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             );
           }
 
-          // Load setupCompleted. The field is only written by the wizard on new
-          // accounts, so its absence from an existing profile doc means the user
-          // pre-dates the wizard — treat them as having completed setup already.
+          // Decide setupCompleted. The wizard writes `setupCompleted: true` on
+          // finish, so any of the following counts as "already set up":
+          //   1. The field is explicitly true.
+          //   2. The field is missing — user pre-dates the wizard.
+          //   3. The user has a non-empty selectedBuildings array. This catches
+          //      legacy users who selected a building via the old Sidebar
+          //      picker (which never wrote setupCompleted) and would otherwise
+          //      see the wizard on every new device.
+          const hasSelectedBuildings =
+            'selectedBuildings' in data &&
+            Array.isArray(
+              (data as { selectedBuildings: unknown }).selectedBuildings
+            ) &&
+            (data as { selectedBuildings: unknown[] }).selectedBuildings
+              .length > 0;
           setSetupCompletedState(
-            !('setupCompleted' in data) || data.setupCompleted === true
+            !('setupCompleted' in data) ||
+              data.setupCompleted === true ||
+              hasSelectedBuildings
           );
 
           // Load account-level preferences
@@ -956,6 +975,81 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       isCancelled = true;
     };
   }, [user]);
+
+  // Returning-user Firestore probe.
+  //
+  // Runs whenever a user signs in with `setupCompleted=false` but the
+  // profile doc itself was missing or empty (the only path that reaches
+  // here after the in-profile heuristic broadens). Checks two other
+  // signals that the user has used SpartBoard before:
+  //   1. `/users/{uid}` root doc carries a non-empty `buildings` array
+  //      (the legacy analytics mirror written by `setSelectedBuildings`).
+  //   2. `/users/{uid}/dashboards` has at least one document — they
+  //      already created and saved a dashboard previously.
+  // Either signal is enough to skip the setup wizard. Runs before the
+  // Drive probe so users without Google Drive sync are still recognized.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!user || !profileLoaded || setupCompleted) return;
+    if (firestoreProbedForUidRef.current === user.uid) return;
+
+    firestoreProbedForUidRef.current = user.uid;
+    const probeUid = user.uid;
+
+    void (async () => {
+      try {
+        const rootRef = doc(db, 'users', probeUid);
+        const [rootSnap, dashboardsSnap] = await Promise.all([
+          getDoc(rootRef),
+          getDocs(
+            query(collection(db, 'users', probeUid, 'dashboards'), limit(1))
+          ),
+        ]);
+        // If the user has switched since we started, drop the result rather
+        // than scribble on someone else's profile. The ref above is the
+        // authoritative "current probe target".
+        if (firestoreProbedForUidRef.current !== probeUid) return;
+
+        const rootData = rootSnap.exists()
+          ? (rootSnap.data() as Record<string, unknown>)
+          : null;
+        const rootBuildingsRaw =
+          rootData && Array.isArray(rootData.buildings)
+            ? (rootData.buildings as unknown[]).filter(
+                (b): b is string => typeof b === 'string'
+              )
+            : [];
+        const hasRootBuildings = rootBuildingsRaw.length > 0;
+        const hasDashboards = !dashboardsSnap.empty;
+
+        if (!hasRootBuildings && !hasDashboards) return;
+
+        const canonical = hasRootBuildings
+          ? canonicalizeBuildingIds(rootBuildingsRaw)
+          : null;
+
+        const profileUpdate: Record<string, unknown> = {
+          setupCompleted: true,
+        };
+        if (canonical && canonical.length > 0) {
+          profileUpdate.selectedBuildings = canonical;
+        }
+
+        await setDoc(
+          doc(db, 'users', probeUid, 'userProfile', 'profile'),
+          profileUpdate,
+          { merge: true }
+        );
+        if (firestoreProbedForUidRef.current !== probeUid) return;
+        setSetupCompletedState(true);
+        if (canonical && canonical.length > 0) {
+          setSelectedBuildingsState(canonical);
+        }
+      } catch (e) {
+        console.warn('[AuthContext] Returning-user Firestore probe failed:', e);
+      }
+    })();
+  }, [user, profileLoaded, setupCompleted]);
 
   // Returning-user Drive probe.
   //
