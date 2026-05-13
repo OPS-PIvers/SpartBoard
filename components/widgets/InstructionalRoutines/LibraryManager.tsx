@@ -20,6 +20,7 @@ import { ALL_GRADE_LEVELS } from '@/config/widgetGradeLevels';
 import { TOOLS } from '@/config/tools';
 import { WidgetType } from '@/types';
 import { httpsCallable } from 'firebase/functions';
+import { reportAiModelConfigFallback } from '@/utils/aiModelConfigFallback';
 
 // Derive widget types from TOOLS registry, excluding catalyst-related widgets and internal tools
 const WIDGET_TYPES: WidgetType[] = TOOLS.filter(
@@ -76,7 +77,10 @@ export const LibraryManager: React.FC<LibraryManagerProps> = ({
         prompt,
       });
 
-      const data = result.data as Partial<InstructionalRoutine>;
+      const data = result.data as Partial<InstructionalRoutine> & {
+        _modelConfigUsedFallback?: boolean;
+      };
+      reportAiModelConfigFallback(data._modelConfigUsedFallback);
 
       // Preserve ID but overwrite other fields
       onChange({

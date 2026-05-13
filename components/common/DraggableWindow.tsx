@@ -382,6 +382,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     };
   }, [widget.id]);
 
+  // Gesture listeners are attached to the pointer-capture target (see
+  // handleDragStart / handleResizeStart) so that DOM-node detachment GC's
+  // them on unmount. The capture target removal should also synthesize a
+  // pointercancel per the Pointer Events spec, which runs onPointerUp's
+  // teardown — but spec compliance is browser-dependent. As defense-in-depth,
+  // each gesture registers an unmount cleanup here so the global
+  // `is-dragging-widget` body class and any group-sibling overrides are
+  // guaranteed to clear if the host component is destroyed mid-gesture
+  // (Firestore-driven delete, dashboard switch, admin force-remove, etc.).
+  const activeGestureCleanupRef = useRef<(() => void) | null>(null);
+  useEffect(() => {
+    return () => {
+      activeGestureCleanupRef.current?.();
+      activeGestureCleanupRef.current = null;
+    };
+  }, []);
+
   // Subscribe to transient render-time override set by a group-drag/resize
   // leader. When this widget is a sibling of an active gesture, the leader
   // writes { x, y, w?, h? } here each frame and clears it explicitly on
@@ -915,7 +932,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const initialMouseX = e.clientX;
     const initialMouseY = e.clientY;
 
-    // Use pointer capture to ensure we get events even if pointer leaves the element
+    // Use pointer capture to ensure we get events even if pointer leaves the
+    // element. Listeners are attached to the capturing element (not window) so
+    // that an unmount mid-gesture detaches the DOM node and lets the listeners
+    // — along with their closures over dragState/groupSiblingsRef/etc. — get
+    // garbage-collected. Pointer capture redirects all subsequent
+    // pointermove/pointerup/pointercancel events to this element regardless of
+    // where the pointer goes, so window listeners are unnecessary.
     const targetElement = e.currentTarget as HTMLElement;
     try {
       targetElement.setPointerCapture(e.pointerId);
@@ -925,9 +948,37 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     let dragAnimationFrame: number | null = null;
 
+    // Unmount-cleanup hook: clears DOM/module-level state that survives this
+    // component if the host is destroyed mid-gesture. Cleared in onPointerUp
+    // once the gesture completes normally.
+    activeGestureCleanupRef.current = () => {
+      if (dragAnimationFrame !== null) {
+        cancelAnimationFrame(dragAnimationFrame);
+        dragAnimationFrame = null;
+      }
+      document.body.classList.remove('is-dragging-widget');
+      if (groupSiblingsRef.current.length > 0) {
+        for (const sib of groupSiblingsRef.current) {
+          setWidgetOverride(sib.id, null);
+        }
+        groupSiblingsRef.current = [];
+        groupDragDeltaRef.current = { x: 0, y: 0 };
+      }
+    };
+
     const onPointerMove = (moveEvent: PointerEvent) => {
       // Only process the same pointer that started the drag
       if (moveEvent.pointerId !== e.pointerId) return;
+
+      // Defensive: if the mouse button is no longer pressed, the pointerup we
+      // needed was missed (pointer capture silently dropped, event eaten by
+      // another element, etc.). Synthesize the teardown so the widget doesn't
+      // track the cursor every time it re-enters the drag-surface. Touch/pen
+      // don't expose `buttons` reliably and are covered by pointercancel.
+      if (moveEvent.pointerType === 'mouse' && moveEvent.buttons === 0) {
+        onPointerUp(moveEvent);
+        return;
+      }
 
       if (dragAnimationFrame !== null) {
         cancelAnimationFrame(dragAnimationFrame);
@@ -1054,9 +1105,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       setIsDragging(false);
       document.body.classList.remove('is-dragging-widget');
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener('pointermove', onPointerMove);
+      targetElement.removeEventListener('pointerup', onPointerUp);
+      targetElement.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener(
+        'lostpointercapture',
+        onLostPointerCapture
+      );
 
       try {
         if (targetElement.hasPointerCapture(e.pointerId)) {
@@ -1122,11 +1177,26 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         groupSiblingsRef.current = [];
         groupDragDeltaRef.current = { x: 0, y: 0 };
       }
+
+      // Gesture finished normally — disarm the unmount cleanup.
+      activeGestureCleanupRef.current = null;
     };
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+    // Defensive: if pointer capture is dropped mid-gesture (browser-specific:
+    // DOM mutations under the captured element, focus changes, OS interrupts,
+    // overlapping hit surfaces from a sibling widget), our pointerup listener
+    // on targetElement may never fire because subsequent pointer events stop
+    // routing here. Treat lost capture as the end of the gesture and run the
+    // same teardown as pointerup.
+    const onLostPointerCapture = (lostEvent: PointerEvent) => {
+      if (lostEvent.pointerId !== e.pointerId) return;
+      onPointerUp(lostEvent);
+    };
+
+    targetElement.addEventListener('pointermove', onPointerMove);
+    targetElement.addEventListener('pointerup', onPointerUp);
+    targetElement.addEventListener('pointercancel', onPointerUp);
+    targetElement.addEventListener('lostpointercapture', onLostPointerCapture);
   };
 
   /** Inner edge drag zones sit on top of widget content. Before starting a drag,
@@ -1238,6 +1308,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const minW = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.w ?? DEFAULT_MIN_W;
     const minH = WIDGET_MIN_SIZE_OVERRIDES[widget.type]?.h ?? DEFAULT_MIN_H;
 
+    // See handleDragStart for the rationale: pointer capture routes all
+    // subsequent pointer events to this element, and attaching listeners here
+    // (not on window) lets an unmount mid-resize clean up the closures via
+    // normal DOM-node garbage collection.
     const targetElement = e.currentTarget as HTMLElement;
     try {
       targetElement.setPointerCapture(e.pointerId);
@@ -1247,8 +1321,28 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
     let resizeAnimationFrame: number | null = null;
 
+    // Unmount-cleanup hook: clears global body class and pending RAF if the
+    // host component is destroyed mid-resize. Cleared in onPointerUp once the
+    // gesture completes normally.
+    activeGestureCleanupRef.current = () => {
+      if (resizeAnimationFrame !== null) {
+        cancelAnimationFrame(resizeAnimationFrame);
+        resizeAnimationFrame = null;
+      }
+      document.body.classList.remove('is-dragging-widget');
+    };
+
     const onPointerMove = (moveEvent: PointerEvent) => {
       if (moveEvent.pointerId !== e.pointerId) return;
+
+      // Defensive: see handleDragStart's onPointerMove. If the mouse button is
+      // no longer pressed, the pointerup we needed was missed; synthesize the
+      // teardown so the widget doesn't resize every time the cursor re-enters
+      // the resize handle.
+      if (moveEvent.pointerType === 'mouse' && moveEvent.buttons === 0) {
+        onPointerUp(moveEvent);
+        return;
+      }
 
       if (resizeAnimationFrame !== null) {
         cancelAnimationFrame(resizeAnimationFrame);
@@ -1344,9 +1438,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
       setIsResizing(false);
       document.body.classList.remove('is-dragging-widget');
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onPointerUp);
-      window.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener('pointermove', onPointerMove);
+      targetElement.removeEventListener('pointerup', onPointerUp);
+      targetElement.removeEventListener('pointercancel', onPointerUp);
+      targetElement.removeEventListener(
+        'lostpointercapture',
+        onLostPointerCapture
+      );
 
       try {
         if (targetElement.hasPointerCapture(e.pointerId)) {
@@ -1372,11 +1470,23 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           y: dragState.current.y,
         });
       }
+
+      // Gesture finished normally — disarm the unmount cleanup.
+      activeGestureCleanupRef.current = null;
     };
 
-    window.addEventListener('pointermove', onPointerMove);
-    window.addEventListener('pointerup', onPointerUp);
-    window.addEventListener('pointercancel', onPointerUp);
+    // Defensive: see handleDragStart for the rationale. If pointer capture is
+    // dropped mid-resize, run the same teardown as pointerup so the widget
+    // doesn't stay in a "follow the cursor" state after the user releases.
+    const onLostPointerCapture = (lostEvent: PointerEvent) => {
+      if (lostEvent.pointerId !== e.pointerId) return;
+      onPointerUp(lostEvent);
+    };
+
+    targetElement.addEventListener('pointermove', onPointerMove);
+    targetElement.addEventListener('pointerup', onPointerUp);
+    targetElement.addEventListener('pointercancel', onPointerUp);
+    targetElement.addEventListener('lostpointercapture', onLostPointerCapture);
   };
 
   // Force 100% opacity when spotlighted so it stands out against the dimming overlay

@@ -25,6 +25,8 @@ import {
   MockGuidedLearningDriveService,
 } from '@/utils/mockGuidedLearningDriveService';
 import { normalizeGuidedLearningSet } from '@/components/widgets/GuidedLearning/utils/setMigration';
+import { suggestDuplicateTitle } from '@/components/common/library/libraryDuplicate';
+import { logError } from '@/utils/logError';
 
 const GL_COLLECTION = 'guided_learning';
 const BUILDING_GL_COLLECTION = 'building_guided_learning';
@@ -45,10 +47,32 @@ export interface UseGuidedLearningResult {
   loadSetData: (driveFileId: string) => Promise<GuidedLearningSet>;
   /** Delete a personal set from Drive and Firestore */
   deleteSet: (setId: string, driveFileId: string) => Promise<void>;
+  /**
+   * Duplicate a personal set. Loads the source's JSON from Drive, mints
+   * a new id + Drive file, and writes a fresh metadata doc with a
+   * `(Copy)` title suffix. Firebase Storage image refs are shared with
+   * the source — duplicating doesn't re-upload images, which keeps the
+   * copy cheap and avoids stale image churn. The duplicate is
+   * standalone (no PLC linkage carried over).
+   */
+  duplicateSet: (
+    source: GuidedLearningSetMetadata
+  ) => Promise<GuidedLearningSetMetadata>;
   /** Save an admin building set to Firestore */
   saveBuildingSet: (set: GuidedLearningSet) => Promise<void>;
   /** Delete an admin building set from Firestore */
   deleteBuildingSet: (setId: string) => Promise<void>;
+  /**
+   * Duplicate an admin building set. Mirrors `duplicateSet` for the
+   * Firestore-only building-set collection: clones the source's
+   * `GuidedLearningSet` directly into a new doc with a fresh id and a
+   * suggested title. No Drive involvement (building sets store full
+   * data inline in Firestore). Storage image refs are shared with the
+   * source — matches `duplicateSet`'s personal-set policy.
+   */
+  duplicateBuildingSet: (
+    source: GuidedLearningSet
+  ) => Promise<GuidedLearningSet>;
 }
 
 export const useGuidedLearning = (
@@ -197,6 +221,71 @@ export const useGuidedLearning = (
     [userId, getDriveService]
   );
 
+  /**
+   * Hand-rolled write (not via `saveSet`) so we can observe the
+   * freshly-created Drive file id and roll it back on Firestore
+   * failure — `saveSet` only surfaces the id on success and would
+   * leak an orphan Drive file otherwise. Mirrors `useQuiz.duplicateQuiz`.
+   * Reviewer flag from PR #1587.
+   */
+  const duplicateSet = useCallback(
+    async (
+      source: GuidedLearningSetMetadata
+    ): Promise<GuidedLearningSetMetadata> => {
+      if (!userId) throw new Error('Not authenticated');
+      const drive = getDriveService();
+      const sourceData = await loadSetData(source.driveFileId);
+      const now = Date.now();
+      const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
+        ...sourceData,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(sourceData.title || source.title),
+        createdAt: now,
+        updatedAt: now,
+        // Storage image refs are shared — see hook header doc. If
+        // teachers report stale images after a delete, switch this to a
+        // deep copy via the storage-clone helper.
+      });
+      let createdDriveFileId: string | undefined;
+      try {
+        createdDriveFileId = await drive.saveSet(fresh);
+        const metadata: GuidedLearningSetMetadata = {
+          id: fresh.id,
+          title: fresh.title,
+          description: fresh.description,
+          stepCount: fresh.steps.length,
+          mode: fresh.mode,
+          imageUrl: fresh.imageUrls[0] ?? '',
+          driveFileId: createdDriveFileId,
+          createdAt: fresh.createdAt,
+          updatedAt: fresh.updatedAt,
+          // Preserve folder placement on duplicate.
+          ...(source.folderId !== undefined
+            ? { folderId: source.folderId }
+            : {}),
+        };
+        await setDoc(
+          doc(db, 'users', userId, GL_COLLECTION, fresh.id),
+          metadata
+        );
+        return metadata;
+      } catch (err) {
+        if (createdDriveFileId) {
+          try {
+            await drive.deleteSetFile(createdDriveFileId);
+          } catch (rollbackErr) {
+            logError('useGuidedLearning.duplicateSet.rollback', rollbackErr, {
+              sourceSetId: source.id,
+              orphanDriveFileId: createdDriveFileId,
+            });
+          }
+        }
+        throw err;
+      }
+    },
+    [userId, getDriveService, loadSetData]
+  );
+
   const saveBuildingSet = useCallback(
     async (set: GuidedLearningSet): Promise<void> => {
       if (!isAdmin) throw new Error('Admin access required');
@@ -208,6 +297,39 @@ export const useGuidedLearning = (
       await setDoc(doc(db, BUILDING_GL_COLLECTION, set.id), updatedSet);
     },
     [isAdmin]
+  );
+
+  /**
+   * Building-set duplicate. Firestore-only — no Drive rollback path
+   * needed because the failure mode is a single `setDoc` rejection
+   * with no orphan to clean up.
+   *
+   * Re-attributes `authorUid` to the current admin. The spread of
+   * `...source` would otherwise carry the original author's uid into
+   * the copy, which mis-attributes the audit trail and (since the
+   * project's user-deletion sweep checks authorUid) makes the copy
+   * appear as content owned by a possibly-since-deleted author.
+   * Storage image refs are shared with the source — matches the
+   * personal-set policy in `duplicateSet`.
+   */
+  const duplicateBuildingSet = useCallback(
+    async (source: GuidedLearningSet): Promise<GuidedLearningSet> => {
+      if (!isAdmin) throw new Error('Admin access required');
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const fresh: GuidedLearningSet = normalizeGuidedLearningSet({
+        ...source,
+        id: crypto.randomUUID(),
+        title: suggestDuplicateTitle(source.title),
+        isBuilding: true,
+        authorUid: userId,
+        createdAt: now,
+        updatedAt: now,
+      });
+      await setDoc(doc(db, BUILDING_GL_COLLECTION, fresh.id), fresh);
+      return fresh;
+    },
+    [isAdmin, userId]
   );
 
   const deleteBuildingSet = useCallback(
@@ -228,6 +350,8 @@ export const useGuidedLearning = (
     saveSet,
     loadSetData,
     deleteSet,
+    duplicateSet,
+    duplicateBuildingSet,
     saveBuildingSet,
     deleteBuildingSet,
   };

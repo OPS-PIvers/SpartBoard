@@ -360,7 +360,14 @@ export const useFirestore = (userId: string | null) => {
     async (
       dashboard: Dashboard,
       intendedMode?: SharedBoardIntendedMode,
-      hostDisplayName?: string
+      hostDisplayName?: string,
+      /**
+       * Phase 6 — when set, tags the resulting `/shared_boards/{id}` doc
+       * with `plcId` so members of that PLC see it on the PLC Dashboard's
+       * Shared Boards tab. Mutating the field post-create is restricted
+       * to the host (rules pin it immutable for collaborators).
+       */
+      plcId?: string
     ): Promise<string> => {
       if (isAuthBypass) {
         // Stash the host display name on the mock doc under the same field
@@ -373,6 +380,7 @@ export const useFirestore = (userId: string | null) => {
           ...(intendedMode
             ? ({ intendedMode } as unknown as Partial<Dashboard>)
             : {}),
+          ...(plcId ? ({ plcId } as unknown as Partial<Dashboard>) : {}),
         } as Dashboard);
       }
 
@@ -395,6 +403,7 @@ export const useFirestore = (userId: string | null) => {
         originalAuthor: userId,
         ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
         ...(intendedMode ? { intendedMode } : {}),
+        ...(plcId ? { plcId } : {}),
         participants: {},
         updatedAt: Date.now(),
         updatedBy: userId,

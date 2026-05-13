@@ -270,3 +270,23 @@ export async function callLeaveSyncedVideoActivityGroup(
   const result = await fn({ groupId });
   return result.data;
 }
+
+/**
+ * Phase 4 sibling of `callJoinPlcQuizSyncGroup`. Resolves `syncGroupId`
+ * via `plcs/{plcId}/video_activities/{plcVideoActivityId}` instead of
+ * the personal `shared_video_activity_assignments/{shareId}` route. Used
+ * by the PLC Video Activity Library "Add to my library (Sync)" path; the
+ * Cloud Function performs Admin-SDK membership validation before joining
+ * the caller to the canonical `synced_video_activities` group.
+ */
+export async function callJoinPlcVideoActivitySyncGroup(
+  plcId: string,
+  plcVideoActivityId: string
+): Promise<JoinResponse> {
+  const fn = httpsCallable<
+    { plcId: string; plcVideoActivityId: string },
+    JoinResponse
+  >(functions, 'joinPlcVideoActivitySyncGroup');
+  const result = await fn({ plcId, plcVideoActivityId });
+  return result.data;
+}

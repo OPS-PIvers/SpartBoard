@@ -137,9 +137,18 @@ describe('usePlcOverviewLayout — parse + merge', () => {
 describe('usePlcOverviewLayout — debounced write', () => {
   it('debounces consecutive updateLayout calls into a single setDoc', () => {
     vi.useFakeTimers();
-    mockOnSnapshot.mockReturnValue(() => undefined);
+    let snapCb: (snap: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_ref, onNext) => {
+      snapCb = onNext;
+      return () => undefined;
+    });
 
     const { result } = renderHook(() => usePlcOverviewLayout(PLC_ID));
+
+    // Deliver an initial snapshot so writes are unblocked.
+    act(() => {
+      snapCb({ exists: () => false, data: () => undefined });
+    });
 
     act(() => {
       result.current.updateLayout({
@@ -172,9 +181,18 @@ describe('usePlcOverviewLayout — debounced write', () => {
 
 describe('usePlcOverviewLayout — reset', () => {
   it('resetLayout writes the default layout immediately (no debounce)', async () => {
-    mockOnSnapshot.mockReturnValue(() => undefined);
+    let snapCb: (snap: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_ref, onNext) => {
+      snapCb = onNext;
+      return () => undefined;
+    });
 
     const { result } = renderHook(() => usePlcOverviewLayout(PLC_ID));
+
+    // Deliver an initial snapshot so resetLayout is allowed to write.
+    act(() => {
+      snapCb({ exists: () => false, data: () => undefined });
+    });
 
     await act(async () => {
       await result.current.resetLayout();
@@ -187,5 +205,88 @@ describe('usePlcOverviewLayout — reset', () => {
     expect(written.tiles.map((t) => t.kind)).toEqual(
       DEFAULT_PLC_OVERVIEW_LAYOUT.tiles.map((t) => t.kind)
     );
+  });
+});
+
+describe('usePlcOverviewLayout — snapshot error guards writes', () => {
+  it('does not call setDoc when updateLayout fires before any snapshot arrives', () => {
+    vi.useFakeTimers();
+    mockOnSnapshot.mockReturnValue(() => undefined);
+
+    const { result } = renderHook(() => usePlcOverviewLayout(PLC_ID));
+
+    act(() => {
+      result.current.updateLayout({
+        tiles: [{ kind: 'todos', size: 'lg' }],
+        updatedAt: 1,
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+
+    // No snapshot has arrived — the displayed layout may be the default
+    // placeholder, so persisting would overwrite the user's real layout.
+    expect(mockSetDoc).not.toHaveBeenCalled();
+  });
+
+  it('does not call setDoc when the only snapshot delivered was an error', () => {
+    vi.useFakeTimers();
+    let errCb: (err: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_ref, _onNext, onErr) => {
+      errCb = onErr;
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcOverviewLayout(PLC_ID));
+
+    act(() => {
+      errCb(new Error('permission-denied'));
+    });
+
+    act(() => {
+      result.current.updateLayout({
+        tiles: [{ kind: 'todos', size: 'lg' }],
+        updatedAt: 1,
+      });
+    });
+    act(() => {
+      vi.advanceTimersByTime(600);
+    });
+
+    expect(mockSetDoc).not.toHaveBeenCalled();
+    expect(result.current.error).toBeInstanceOf(Error);
+  });
+
+  it('clears error and allows writes after a successful snapshot recovers', () => {
+    vi.useFakeTimers();
+    let snapCb: (snap: unknown) => void = () => undefined;
+    let errCb: (err: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_ref, onNext, onErr) => {
+      snapCb = onNext;
+      errCb = onErr;
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcOverviewLayout(PLC_ID));
+
+    act(() => {
+      errCb(new Error('transient'));
+    });
+    expect(result.current.error).toBeInstanceOf(Error);
+
+    act(() => {
+      snapCb({ exists: () => false, data: () => undefined });
+    });
+    expect(result.current.error).toBeNull();
+
+    act(() => {
+      result.current.updateLayout({
+        tiles: [{ kind: 'todos', size: 'lg' }],
+        updatedAt: 1,
+      });
+      vi.advanceTimersByTime(600);
+    });
+    expect(mockSetDoc).toHaveBeenCalledTimes(1);
   });
 });

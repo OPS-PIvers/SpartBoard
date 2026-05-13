@@ -9,7 +9,9 @@ import { TodosTile } from './tiles/TodosTile';
 import { SharedSheetTile } from './tiles/SharedSheetTile';
 import { QuickActionsTile } from './tiles/QuickActionsTile';
 import { QuizLibraryTile } from './tiles/QuizLibraryTile';
-import { ComingSoonTile } from './tiles/ComingSoonTile';
+import { ActiveAssignmentsTile } from './tiles/ActiveAssignmentsTile';
+import { VideoActivitiesTile } from './tiles/VideoActivitiesTile';
+import { SharedBoardsTile } from './tiles/SharedBoardsTile';
 
 export interface TileContext {
   plc: Plc;
@@ -50,10 +52,6 @@ export function tileFeatureGate(
  * Switchboard for tile content. Each tile kind maps to a small component
  * that renders inside `PlcBentoTile`'s content slot. Adding a new tile =
  * a new case here + an entry in `PLC_BENTO_TILE_KINDS` (`types.ts`).
- *
- * "Coming soon" placeholders for Phase 2/3/4/6 tabs all route through
- * `ComingSoonTile` — when those phases ship, swap the case for the real
- * tile component and the layout doesn't have to change.
  */
 export function renderTileContent(
   kind: PlcBentoTileKind,
@@ -65,12 +63,7 @@ export function renderTileContent(
     case 'members':
       return <MembersTile plc={ctx.plc} />;
     case 'completedAssignments':
-      return (
-        <CompletedAssignmentsTile
-          plc={ctx.plc}
-          onNavigateTab={ctx.onNavigateTab}
-        />
-      );
+      return <CompletedAssignmentsTile plc={ctx.plc} />;
     case 'notes':
       return <NotesTile plc={ctx.plc} onNavigateTab={ctx.onNavigateTab} />;
     case 'todos':
@@ -85,27 +78,18 @@ export function renderTileContent(
       );
     case 'activeAssignments':
       return (
-        <ComingSoonTile
-          kind="activeAssignments"
-          phase={3}
-          onNavigateTab={() => ctx.onNavigateTab('assignments')}
+        <ActiveAssignmentsTile
+          plc={ctx.plc}
+          onNavigateTab={ctx.onNavigateTab}
         />
       );
     case 'videoActivities':
       return (
-        <ComingSoonTile
-          kind="videoActivities"
-          phase={4}
-          onNavigateTab={() => ctx.onNavigateTab('videoActivities')}
-        />
+        <VideoActivitiesTile plc={ctx.plc} onNavigateTab={ctx.onNavigateTab} />
       );
     case 'sharedBoards':
       return (
-        <ComingSoonTile
-          kind="sharedBoards"
-          phase={6}
-          onNavigateTab={() => ctx.onNavigateTab('sharedBoards')}
-        />
+        <SharedBoardsTile plc={ctx.plc} onNavigateTab={ctx.onNavigateTab} />
       );
   }
 }

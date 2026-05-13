@@ -17,7 +17,13 @@
  * hint as the drag-handle tooltip at reduced opacity.
  */
 
-import React, { useContext, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -32,6 +38,15 @@ import type {
   LibraryItemCardProps,
   LibraryMenuAction,
 } from './types';
+
+/**
+ * Window for treating two body-clicks as a double-click rather than two
+ * single-clicks. 250ms is tight for users with slower motor control (OS
+ * defaults are typically 500ms on Windows and macOS), but anything longer
+ * makes the preview pane feel laggy on quick single clicks. Bump if user
+ * reports come in.
+ */
+export const DBLCLICK_DELAY_MS = 250;
 
 /* ─── Badge tone styles ───────────────────────────────────────────────────── */
 
@@ -338,6 +353,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
     iconActions,
     secondaryActions,
     onClick,
+    onDoubleClick,
     viewMode = 'grid',
     dragHandle,
     isDragOverlay,
@@ -351,6 +367,20 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
   const SecondaryPrimaryIcon = secondaryPrimaryAction?.icon;
   const isList = viewMode === 'list';
 
+  // Single-click vs double-click coordination. The browser fires
+  // `onClick` AND `onDoubleClick` on a real dblclick; without a delay
+  // the preview pane would flash open before the editor lands. Standard
+  // pattern: start a DBLCLICK_DELAY_MS timer on the first click and
+  // cancel it if a second click arrives within the window. Refs avoid
+  // the render churn of useState while still surviving across re-renders
+  // of the memoized card.
+  const clickTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    return () => {
+      if (clickTimerRef.current) clearTimeout(clickTimerRef.current);
+    };
+  }, []);
+
   const handleBodyClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Ignore bubbled events from buttons / links / menus inside the card.
     if ((e.target as HTMLElement).closest('button, a, [role="menu"]')) return;
@@ -358,12 +388,32 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
       onSelectionToggle?.();
       return;
     }
-    onClick?.();
+    if (!onDoubleClick) {
+      // Legacy path — no double-click distinction wanted by the host.
+      onClick?.();
+      return;
+    }
+    if (clickTimerRef.current) {
+      // Second click arrived inside the detection window. Cancel the
+      // pending single-click and treat as a dblclick.
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      onDoubleClick();
+      return;
+    }
+    clickTimerRef.current = setTimeout(() => {
+      clickTimerRef.current = null;
+      onClick?.();
+    }, DBLCLICK_DELAY_MS);
   };
 
   return (
     <div
-      onClick={(onClick ?? selectionMode) ? handleBodyClick : undefined}
+      onClick={
+        (onClick ?? onDoubleClick ?? selectionMode)
+          ? handleBodyClick
+          : undefined
+      }
       className={[
         // `@container` makes the card itself the query target so the action
         // buttons can collapse their text labels at narrow widths via
@@ -373,7 +423,7 @@ function CardBody<TMeta>(props: CardBodyProps<TMeta>) {
           ? 'border-brand-blue-primary/60 bg-brand-blue-lighter/30 hover:bg-brand-blue-lighter/40 ring-2 ring-brand-blue-primary/30'
           : 'border-slate-200/80 bg-white/70 hover:bg-white/85',
         isList ? 'flex-row items-center' : 'flex-col',
-        (onClick ?? selectionMode) && 'cursor-pointer',
+        (onClick ?? onDoubleClick ?? selectionMode) && 'cursor-pointer',
         isDragging && 'opacity-50',
         isDragOverlay &&
           'pointer-events-none ring-2 ring-brand-blue-primary/30',

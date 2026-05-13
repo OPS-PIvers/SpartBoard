@@ -147,6 +147,18 @@ export const recomputeAdminAnalytics = onSchedule(
       );
     }
 
+    // An empty `targetOrgs` is an anomaly, not a success — the
+    // `organizations` collection was unexpectedly empty. Log at warn-level
+    // so a Cloud Logging alert on "fleet went to zero" can catch a wiped
+    // collection or a misconfigured query. We don't throw here because the
+    // alert is the actionable signal; throwing would also fail-pin
+    // Scheduler on the (extremely rare) legitimate empty-tenant case.
+    if (targetOrgs.length === 0) {
+      console.warn('[recomputeAdminAnalytics] no target orgs', {
+        totalDurationMs,
+      });
+    }
+
     console.log('[recomputeAdminAnalytics] done', {
       succeeded,
       failed,
@@ -182,13 +194,9 @@ export async function readAnalyticsSnapshot(
     console.debug('[readAnalyticsSnapshot] missing', { orgId });
     return null;
   }
-  const data = snap.data() as Partial<AnalyticsSnapshotDoc> | undefined;
-  if (!data) {
-    console.error('[readAnalyticsSnapshot] malformed: empty doc data', {
-      orgId,
-    });
-    return null;
-  }
+  // `snap.exists` is true here, so `snap.data()` is guaranteed defined by
+  // the Firestore Admin SDK contract — no defensive empty-doc branch.
+  const data = snap.data() as Partial<AnalyticsSnapshotDoc>;
   if (data.schemaVersion !== SNAPSHOT_SCHEMA_VERSION) {
     console.warn('[readAnalyticsSnapshot] stale-schema', {
       orgId,

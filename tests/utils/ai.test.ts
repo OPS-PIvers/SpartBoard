@@ -441,6 +441,35 @@ describe('video activity callables', () => {
       'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
     );
   });
+
+  it('strips the _modelConfigUsedFallback transport flag from the returned payload', async () => {
+    // Pins the doc claim that the flag is transport-only and not observable
+    // on the resolved value. Without stripping, a caller that spreads the
+    // result into a Firestore write would persist the flag.
+    // `httpsCallable` has a complex return type (callable function with a
+    // `.stream()` method); the tests only exercise the call signature so
+    // cast the mock impl through `unknown` to satisfy the type checker.
+    vi.mocked(httpsCallable).mockImplementationOnce((() => async () => ({
+      data: {
+        title: 'Video Activity',
+        questions: [{ text: 'Q1', timestamp: 5 }],
+        _modelConfigUsedFallback: true,
+      },
+    })) as unknown as typeof httpsCallable);
+
+    const result = await generateVideoActivity(
+      'https://youtube.com/watch?v=fallbackflagstrip',
+      1
+    );
+    expect(result).toEqual({
+      title: 'Video Activity',
+      questions: [{ text: 'Q1', timestamp: 5 }],
+    });
+    expect(
+      '_modelConfigUsedFallback' in
+        (result as unknown as Record<string, unknown>)
+    ).toBe(false);
+  });
 });
 
 describe('recommendVideoForActivity', () => {

@@ -10,6 +10,7 @@ import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
+import { BoundedLruMap } from './utils/boundedLruMap';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
 
 // Phase 4 — organization invitations + membership write-through.
@@ -34,6 +35,7 @@ export {
 } from './syncedVideoActivityGroups';
 export { joinPlcQuizSyncGroup } from './plcQuizSyncJoin';
 export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
+export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 
 setGlobalOptions({ region: 'us-central1' });
@@ -119,41 +121,175 @@ function normalizeModelName(raw: unknown): string | undefined {
   return trimmed;
 }
 
+/**
+ * Splits an array into fixed-size chunks (last chunk may be short).
+ * Used to bound fan-out parallelism — both for Firestore `in` queries
+ * (10-item limit per query) and for external HTTP fan-outs (ClassLink,
+ * etc.) where unbounded `Promise.all` can OOM the function instance or
+ * hammer the upstream API.
+ */
+function chunk<T>(arr: readonly T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 interface GeminiModelConfig {
   advancedModel?: string;
   standardModel?: string;
 }
 
+// Module-scope read caches for `generateWithAI`. Cloud Functions 2nd-gen
+// reuses warm instances, so caching across invocations within a warm
+// instance materially cuts Firestore reads for high-traffic AI features
+// (audit doc, item #3 — was 4–6 reads per call, now 2 transactional reads
+// on warm hits). 5-minute TTL keeps admin demotions and model-config
+// overrides propagating within an acceptable window.
+//
+// NOT cached: `ai_usage/*` counter reads and the in-transaction
+// `global_permissions/*` reads. Those gate rate-limit enforcement and
+// must be transactional to prevent races.
+const READ_CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface ModelConfigCacheEntry {
+  value: {
+    advancedModel: string;
+    standardModel: string;
+    usedFallback: boolean;
+  };
+  cachedAt: number;
+}
+let cachedModelConfig: ModelConfigCacheEntry | null = null;
+
+interface AdminStatusCacheEntry {
+  isAdmin: boolean;
+  cachedAt: number;
+}
+
+// Bound on `cachedAdminStatus` size. A warm Cloud Functions instance that
+// sees many distinct callers across its lifetime would otherwise grow this
+// Map unboundedly. At school-district scale this is firmly in "won't
+// matter" territory (low thousands of admins org-wide), but a hard cap
+// closes the long-tail memory growth path that two independent reviewers
+// flagged on PR #1590. `BoundedLruMap` promotes on read so frequently-hit
+// keys survive eviction pressure from one-off callers — this becomes
+// load-bearing once the same pattern is reused on a higher-cardinality key
+// space (e.g. the student-pseudonym path).
+const ADMIN_STATUS_CACHE_MAX = 500;
+const cachedAdminStatus = new BoundedLruMap<string, AdminStatusCacheEntry>(
+  ADMIN_STATUS_CACHE_MAX
+);
+
+/**
+ * Test-only: reset the module-scope read caches so tests can observe a
+ * cold-start read sequence. Underscored prefix makes it obvious this is
+ * not a production API.
+ */
+export function __resetGenerateWithAICaches(): void {
+  cachedModelConfig = null;
+  cachedAdminStatus.clear();
+}
+
 /**
  * Reads the admin-configured model overrides from the `gemini-functions`
  * global permissions document. Returns validated model names (or defaults).
+ * Memoized with a 5-minute TTL — see `READ_CACHE_TTL_MS` above.
+ *
+ * `usedFallback` is `true` when the Firestore read threw — meaning the
+ * caller is running with hardcoded defaults rather than whatever overrides
+ * an admin may have configured. Plumb this back to the client so admins
+ * get a one-time UI signal during Firestore brownouts. Cache hits always
+ * return `usedFallback: false` because the catch path deliberately does
+ * NOT populate the cache.
  */
-async function getGeminiModelConfig(
-  db: admin.firestore.Firestore
-): Promise<{ advancedModel: string; standardModel: string }> {
+async function getGeminiModelConfig(db: admin.firestore.Firestore): Promise<{
+  advancedModel: string;
+  standardModel: string;
+  usedFallback: boolean;
+}> {
+  const now = Date.now();
+  if (
+    cachedModelConfig &&
+    now - cachedModelConfig.cachedAt < READ_CACHE_TTL_MS
+  ) {
+    return cachedModelConfig.value;
+  }
   try {
     const doc = await db
       .collection('global_permissions')
       .doc('gemini-functions')
       .get();
     const cfg = doc.data()?.config as GeminiModelConfig | undefined;
-    return {
+    const value = {
       advancedModel:
         normalizeModelName(cfg?.advancedModel) ?? DEFAULT_ADVANCED_MODEL,
       standardModel:
         normalizeModelName(cfg?.standardModel) ?? DEFAULT_STANDARD_MODEL,
+      usedFallback: false,
     };
+    cachedModelConfig = { value, cachedAt: now };
+    return value;
   } catch (error) {
     console.warn(
       'Failed to read Gemini model config from Firestore; using defaults.',
       error
     );
+    // Do not cache the fallback — a transient Firestore error shouldn't
+    // pin the function to defaults for 5 minutes.
     return {
       advancedModel: DEFAULT_ADVANCED_MODEL,
       standardModel: DEFAULT_STANDARD_MODEL,
+      usedFallback: true,
     };
   }
 }
+
+/**
+ * Memoized admin lookup. The `admins/{email}` doc rarely changes during a
+ * single warm-instance lifetime, so caching for 5 minutes saves one
+ * Firestore read per warm `generateWithAI` call. Key is the lowercased
+ * email (matches the production read).
+ *
+ * Trade-offs: TTL bounds both admin demotion lag (cached `true` survives
+ * a demotion for up to 5 min — they keep elevated quota briefly) and
+ * promotion lag (cached `false` survives a promotion for up to 5 min —
+ * they see old limits briefly). Both are acceptable.
+ *
+ * No try/catch here on purpose. A Firestore failure must throw up to the
+ * caller — caching a wrong answer would either grant non-admins admin
+ * quotas (false positive) or strip admins of their quotas (false
+ * negative), both worse than a temporary 5xx that the client retries.
+ */
+async function getCachedAdminStatus(
+  db: admin.firestore.Firestore,
+  emailLower: string
+): Promise<boolean> {
+  const now = Date.now();
+  const cached = cachedAdminStatus.get(emailLower);
+  if (cached) {
+    if (now - cached.cachedAt < READ_CACHE_TTL_MS) {
+      return cached.isAdmin;
+    }
+    // Prune stale entries so a long-lived warm instance that sees many
+    // unique callers doesn't accumulate dead Map entries.
+    cachedAdminStatus.delete(emailLower);
+  }
+  const doc = await db.collection('admins').doc(emailLower).get();
+  const isAdmin = doc.exists;
+  cachedAdminStatus.set(emailLower, { isAdmin, cachedAt: now });
+  return isAdmin;
+}
+
+// Test-only re-exports so the cache contract can be verified without
+// driving through the full `generateWithAI` pipeline (which would require
+// mocking `@google/genai`). The `__` prefix makes the test-only status
+// grep-able.
+export {
+  getCachedAdminStatus as __getCachedAdminStatus,
+  getGeminiModelConfig as __getGeminiModelConfig,
+};
 
 interface ArchiveActivityWallPhotoData {
   accessToken?: string;
@@ -339,6 +475,7 @@ export const getClassLinkRosterV1 = onCall(
       CLASSLINK_TENANT_URL,
     ],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -417,26 +554,45 @@ export const getClassLinkRosterV1 = onCall(
 
       const studentsByClass: Record<string, ClassLinkStudent[]> = {};
 
-      await Promise.all(
-        classes.map(async (cls: ClassLinkClass) => {
-          const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
-          const studentsHeaders = getOAuthHeaders(
-            studentsUrl,
-            {},
-            'GET',
-            clientId,
-            clientSecret
-          );
-          try {
-            const studentsResponse = await axios.get<{
-              users: ClassLinkStudent[];
-            }>(studentsUrl, { headers: { ...studentsHeaders } });
-            studentsByClass[cls.sourcedId] = studentsResponse.data.users ?? [];
-          } catch {
-            studentsByClass[cls.sourcedId] = [];
-          }
-        })
-      );
+      // Chunk the per-class student lookups so a teacher with 100+ classes
+      // doesn't fire 100+ simultaneous HTTP requests at ClassLink. Audit
+      // item #5. Batch size 15 is the mid-point of the audit's 10-20 range.
+      const CLASSLINK_FANOUT_CHUNK = 15;
+      for (const classBatch of chunk(classes, CLASSLINK_FANOUT_CHUNK)) {
+        await Promise.all(
+          classBatch.map(async (cls: ClassLinkClass) => {
+            const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
+            const studentsHeaders = getOAuthHeaders(
+              studentsUrl,
+              {},
+              'GET',
+              clientId,
+              clientSecret
+            );
+            try {
+              const studentsResponse = await axios.get<{
+                users: ClassLinkStudent[];
+              }>(studentsUrl, { headers: { ...studentsHeaders } });
+              studentsByClass[cls.sourcedId] =
+                studentsResponse.data.users ?? [];
+            } catch (err) {
+              // Single-class failures aren't fatal (the teacher's other
+              // classes should still load), but they must be visible —
+              // an empty `[]` here without a log makes ClassLink auth
+              // expiry or per-class permission issues silently look like
+              // "this class has no students" to the teacher.
+              console.warn(
+                '[getClassLinkRosterV1] students fetch failed for class',
+                {
+                  classId: cls.sourcedId,
+                  error: err instanceof Error ? err.message : String(err),
+                }
+              );
+              studentsByClass[cls.sourcedId] = [];
+            }
+          })
+        );
+      }
 
       return {
         classes,
@@ -459,6 +615,7 @@ export const generateWithAI = onCall(
   {
     memory: '512MiB',
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as AIData;
@@ -481,12 +638,8 @@ export const generateWithAI = onCall(
 
     const db = admin.firestore();
 
-    // Check if user is an admin
-    const adminDoc = await db
-      .collection('admins')
-      .doc(email.toLowerCase())
-      .get();
-    const isAdmin = adminDoc.exists;
+    // Check if user is an admin (cached for 5 minutes per warm instance).
+    const isAdmin = await getCachedAdminStatus(db, email.toLowerCase());
 
     // 1. Determine specific feature ID if applicable
     let specificFeatureId: string | null = null;
@@ -1007,15 +1160,22 @@ Output JSON ONLY in this exact shape:
 
       // blooms-ai returns plain text — wrap in { text } for the generic callAI client
       if (genType === 'blooms-ai') {
-        return { text };
+        return { text, _modelConfigUsedFallback: geminiConfig.usedFallback };
       }
 
       // widget-builder and widget-explainer return plain text — wrap in { result } for the client
       if (genType === 'widget-builder' || genType === 'widget-explainer') {
-        return { result: text };
+        return {
+          result: text,
+          _modelConfigUsedFallback: geminiConfig.usedFallback,
+        };
       }
 
-      return parseGeminiJson<Record<string, unknown>>(text);
+      const parsed = parseGeminiJson<Record<string, unknown>>(text);
+      // Annotate JSON responses with the fallback flag so the client can
+      // surface a one-time admin notice. Underscore-prefixed to make the
+      // marker obvious and avoid colliding with any field Gemini returns.
+      return { ...parsed, _modelConfigUsedFallback: geminiConfig.usedFallback };
     } catch (error: unknown) {
       console.error('AI Generation Error Details:', error);
 
@@ -1037,8 +1197,9 @@ Output JSON ONLY in this exact shape:
 
 export const fetchExternalProxy = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     timeoutSeconds: 30,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as { url: string };
@@ -1066,11 +1227,43 @@ export const fetchExternalProxy = onCall(
       );
     }
 
+    // 1 MB cap on upstream responses. Audit item #6 — without this a
+    // misbehaving upstream could buffer an arbitrary-sized body into the
+    // 128MiB function instance and OOM us. We pass both maxContentLength
+    // and maxBodyLength so the limit is enforced regardless of whether
+    // upstream advertises Content-Length or streams chunked.
+    const MAX_RESPONSE_BYTES = 1_048_576;
+
     try {
-      const response = await axios.get<unknown>(data.url);
+      const response = await axios.get<unknown>(data.url, {
+        maxContentLength: MAX_RESPONSE_BYTES,
+        maxBodyLength: MAX_RESPONSE_BYTES,
+        // SSRF guard: the allowlist check above only validates the
+        // initial URL. Axios follows up to 5 redirects by default, so
+        // an allowlisted host could 302 to an arbitrary off-allowlist
+        // host and we'd happily proxy the response. Disabling redirects
+        // forces 3xx to surface as a request error and keeps the
+        // allowlist load-bearing.
+        maxRedirects: 0,
+      });
       return response.data;
     } catch (error: unknown) {
       console.error('External Proxy Error:', error);
+      // Translate axios's size-limit message into an explicit
+      // resource-exhausted HttpsError so the client can distinguish "the
+      // upstream is too chatty" from a generic network blip. Gating on
+      // `axios.isAxiosError` matches the pattern used elsewhere in this
+      // file and avoids matching on unrelated errors that happen to
+      // contain "maxContentLength" in their message.
+      if (
+        axios.isAxiosError(error) &&
+        /maxContentLength|maxBodyLength/i.test(error.message ?? '')
+      ) {
+        throw new HttpsError(
+          'resource-exhausted',
+          `Upstream response exceeded the ${MAX_RESPONSE_BYTES / 1024} KB proxy limit.`
+        );
+      }
       const msg =
         error instanceof Error ? error.message : 'External fetch failed';
       throw new HttpsError('internal', msg);
@@ -1082,6 +1275,7 @@ export const archiveActivityWallPhoto = onCall(
   {
     memory: '512MiB',
     timeoutSeconds: 120,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as ArchiveActivityWallPhotoData;
@@ -1149,8 +1343,26 @@ export const archiveActivityWallPhoto = onCall(
 
       const bucket = admin.storage().bucket();
       const file = bucket.file(storagePath);
-      const [fileBuffer] = await file.download();
+
+      // Size guard — `file.download()` buffers the entire object into the
+      // 512MiB function instance's memory, so a misbehaving client could
+      // OOM us with a giant photo. Audit doc item #4. Storage metadata
+      // returns `size` as a string in some SDK versions, hence the coerce.
+      // Fail closed on missing/non-numeric size — `NaN > limit` is `false`,
+      // which would bypass the guard and reopen the OOM path.
       const [metadata] = await file.getMetadata();
+      const sizeBytes = Number(metadata.size);
+      const MAX_PHOTO_BYTES = 50 * 1024 * 1024;
+      if (!Number.isFinite(sizeBytes) || sizeBytes > MAX_PHOTO_BYTES) {
+        throw new HttpsError(
+          'invalid-argument',
+          Number.isFinite(sizeBytes)
+            ? `Photo exceeds the 50 MB archive limit (${Math.round(sizeBytes / 1024 / 1024)} MB).`
+            : 'Photo size unknown; cannot safely archive.'
+        );
+      }
+
+      const [fileBuffer] = await file.download();
       const mimeType = metadata.contentType || 'image/jpeg';
       const extension =
         mimeType === 'image/png'
@@ -1207,6 +1419,14 @@ export const archiveActivityWallPhoto = onCall(
         { merge: true }
       );
 
+      // Preserve HttpsError codes so the client can distinguish
+      // user-actionable failures (e.g. `invalid-argument` from the size
+      // guard) from genuine server errors. Wrapping every error as
+      // `internal` would tell a teacher whose photo is too large that
+      // SpartBoard is broken when the real fix is to shrink the photo.
+      if (error instanceof HttpsError) {
+        throw error;
+      }
       throw new HttpsError('internal', message);
     }
   }
@@ -1214,8 +1434,9 @@ export const archiveActivityWallPhoto = onCall(
 
 export const checkUrlCompatibility = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     timeoutSeconds: 20,
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as { url: string };
@@ -1330,6 +1551,12 @@ interface GeneratedVideoQuestion {
 interface GeneratedVideoActivity {
   title: string;
   questions: GeneratedVideoQuestion[];
+  /**
+   * Optional: `true` when the Cloud Function couldn't read the admin model
+   * config from Firestore and fell back to hardcoded defaults. Lets the
+   * client surface a one-time admin notice without polluting every call.
+   */
+  _modelConfigUsedFallback?: boolean;
 }
 
 /**
@@ -1341,6 +1568,7 @@ export const generateVideoActivity = onCall(
     memory: '1GiB',
     timeoutSeconds: 300,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
     const data = request.data as VideoActivityRequestData;
@@ -1520,7 +1748,10 @@ Return JSON in this exact format:
         throw new Error('Invalid response structure from AI');
       }
 
-      return parsed;
+      return {
+        ...parsed,
+        _modelConfigUsedFallback: geminiConfig.usedFallback,
+      };
     } catch (error: unknown) {
       console.error('[generateVideoActivity] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
@@ -1571,6 +1802,7 @@ export const transcribeVideoWithGemini = onCall(
     memory: '1GiB',
     timeoutSeconds: 300,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request): Promise<GeneratedVideoActivity> => {
     const data = request.data as AudioTranscriptionRequestData;
@@ -1842,6 +2074,8 @@ interface GeneratedGuidedLearning {
   suggestedTitle: string;
   suggestedMode: string;
   steps: GuidedLearningStep[];
+  /** See `GeneratedVideoActivity._modelConfigUsedFallback`. */
+  _modelConfigUsedFallback?: boolean;
 }
 
 interface GuidedLearningImageInput {
@@ -1855,6 +2089,7 @@ export const generateGuidedLearning = onCall(
     memory: '512MiB',
     timeoutSeconds: 120,
     secrets: [GEMINI_API_KEY],
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = request.data as {
@@ -2053,7 +2288,10 @@ Guidelines:
             : 0,
       }));
 
-      return parsed;
+      return {
+        ...parsed,
+        _modelConfigUsedFallback: geminiConfig.usedFallback,
+      };
     } catch (error: unknown) {
       console.error('[generateGuidedLearning] Gemini error:', error);
       const detail = error instanceof Error ? error.message : 'unknown error';
@@ -2201,9 +2439,11 @@ export const adminAnalytics = onRequest(
         return;
       }
 
+      const { meta: payloadMeta, ...payloadWithoutMeta } = snapshot.payload;
       res.json({
-        ...snapshot.payload,
+        ...payloadWithoutMeta,
         meta: {
+          ...(payloadMeta ?? {}),
           computedAt: snapshot.computedAt,
           nextRecomputeAt: snapshot.nextRecomputeAt,
           computeDurationMs: snapshot.computeDurationMs,
@@ -2338,6 +2578,7 @@ export const studentLoginV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -2558,9 +2799,10 @@ export const studentLoginV1 = onCall(
  */
 export const getAssignmentPseudonymV1 = onCall(
   {
-    memory: '128MiB',
+    memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   (request) => {
     if (!request.auth) {
@@ -2622,6 +2864,7 @@ export const getStudentClassDirectoryV1 = onCall(
   {
     memory: '256MiB',
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -2684,13 +2927,6 @@ export const getStudentClassDirectoryV1 = onCall(
     // 30; we chunk at 10 to stay safely under the limit and to fit the
     // typical `STUDENT_LOGIN_CLASS_IDS_MAX = 20` payload in 2 chunks.
     const FIRESTORE_IN_CHUNK_SIZE = 10;
-    const chunk = <T>(arr: readonly T[], size: number): T[][] => {
-      const chunks: T[][] = [];
-      for (let i = 0; i < arr.length; i += size) {
-        chunks.push(arr.slice(i, i + size));
-      }
-      return chunks;
-    };
 
     /**
      * Run `collectionGroup('rosters').where(field, 'in', chunk)` for every
@@ -2837,6 +3073,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
   {
     memory: '256MiB',
     minInstances: 1,
+    cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
       CLASSLINK_CLIENT_SECRET,
@@ -3170,6 +3407,7 @@ export const commitRosterPinIndexV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     if (!request.auth) {
@@ -3369,6 +3607,7 @@ export const pinLoginV1 = onCall(
     memory: '256MiB',
     secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
     invoker: 'public',
+    cors: ALLOWED_ORIGINS,
   },
   async (request) => {
     const data = (request.data ?? {}) as PinLoginRequestData;

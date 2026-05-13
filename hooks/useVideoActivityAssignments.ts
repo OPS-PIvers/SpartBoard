@@ -12,7 +12,7 @@
  * (mirroring Quiz's `shareAssignment` / `importSharedAssignment` flows).
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   addDoc,
   collection,
@@ -26,7 +26,7 @@ import {
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '../config/firebase';
+import { auth, db } from '../config/firebase';
 import { invalidateSessionViewCount } from './useSessionViewCount';
 import {
   callJoinSyncedVideoActivityGroup,
@@ -35,8 +35,13 @@ import {
   pullSyncedVideoActivityContent,
 } from './useSyncedVideoActivityGroups';
 import { logError } from '../utils/logError';
+import {
+  mirrorPlcAssignmentStatus,
+  writePlcAssignmentIndexEntry,
+} from './usePlcAssignmentIndex';
 import type {
   AssignmentMode,
+  PlcAssignmentIndexEntry,
   SharedVideoActivityAssignment,
   VideoActivityAnswer,
   VideoActivityAssignment,
@@ -51,6 +56,20 @@ import type {
   VideoActivitySession,
 } from '../types';
 import { gradeVideoActivityAnswer } from '../utils/videoActivityGrading';
+
+/**
+ * Map VA assignment status onto the PLC index's shared `QuizAssignmentStatus`
+ * union. The two unions are intentionally identical today; this helper
+ * exists so a future schema split (e.g. VA gaining a 'review' phase) only
+ * needs one switch to update. Keeps the call sites readable.
+ */
+function vaStatusToIndexStatus(
+  s: VideoActivityAssignmentStatus
+): PlcAssignmentIndexEntry['status'] {
+  // Both unions are 'active' | 'paused' | 'inactive' today. The compiler
+  // catches drift if either side adds a member.
+  return s;
+}
 
 const VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION = 'video_activity_assignments';
 const VIDEO_ACTIVITY_SESSIONS_COLLECTION = 'video_activity_sessions';
@@ -210,6 +229,15 @@ export const useVideoActivityAssignments = (
   const [loading, setLoading] = useState<boolean>(!!userId);
   const [error, setError] = useState<string | null>(null);
 
+  // Live mirror of `assignments` so status mutators can look up a
+  // PLC linkage by id without re-creating the callback every render
+  // (which would churn downstream `useCallback` users). Mirrors the
+  // `assignmentsRef` pattern in `useQuizAssignments.ts`.
+  const assignmentsRef = useRef<VideoActivityAssignment[]>(assignments);
+  useEffect(() => {
+    assignmentsRef.current = assignments;
+  }, [assignments]);
+
   // Adjust state during render when userId transitions away — avoids the
   // "set-state-in-effect" anti-pattern while still clearing stale data when
   // the user signs out.
@@ -291,6 +319,12 @@ export const useVideoActivityAssignments = (
           ? { periodNames: settings.periodNames }
           : {}),
         ...(targetRosterIds.length > 0 ? { rosterIds: targetRosterIds } : {}),
+        // PLC linkage must persist on the assignment doc so the status
+        // mutators (pause / resume / deactivate / reopen) can find the
+        // target PLC index entry to mirror onto. Mirrors the quiz path —
+        // `useQuizAssignments.createAssignment` spreads `settings.plc`
+        // onto its assignment doc the same way.
+        ...(settings.plc ? { plc: settings.plc } : {}),
         mode,
       };
 
@@ -347,6 +381,29 @@ export const useVideoActivityAssignments = (
       );
       await batch.commit();
 
+      // PLC dashboard index: when this VA assignment opts into PLC mode,
+      // record a snapshot under `plcs/{plcId}/assignment_index` so every
+      // teammate sees it on the PLC Dashboard's PLC Assignments tab
+      // alongside quiz entries. Fire-and-forget — the helper has its own
+      // try/catch and never rejects, so the canonical commit returns
+      // immediately. Mirrors the quiz path in `useQuizAssignments`.
+      if (settings.plc) {
+        const current = auth.currentUser;
+        const ownerName = current?.displayName ?? '';
+        const ownerEmail = (current?.email ?? '').toLowerCase();
+        void writePlcAssignmentIndexEntry(settings.plc.id, {
+          id: assignmentId,
+          kind: 'video-activity',
+          ownerUid: userId,
+          ownerName,
+          ownerEmail,
+          title: activity.title,
+          sheetUrl: settings.plc.sheetUrl,
+          status: vaStatusToIndexStatus(initialStatus),
+          createdAt: now,
+        });
+      }
+
       return { id: assignmentId };
     },
     [userId]
@@ -378,6 +435,34 @@ export const useVideoActivityAssignments = (
         sessionPatch
       );
       await batch.commit();
+
+      // Mirror status onto the PLC index entry when this assignment
+      // participates in a PLC. Fire-and-forget — the canonical batch
+      // commit above is the primary write; a mirror failure is logged
+      // by the helper and doesn't reject. The lookup goes through the
+      // ref mirror because `setStatus` is referenced by stable
+      // callbacks (`pauseAssignment` etc.) and we don't want to churn
+      // those callbacks every time `assignments` changes.
+      const live = assignmentsRef.current.find((a) => a.id === assignmentId);
+      if (live?.plc) {
+        void mirrorPlcAssignmentStatus(
+          live.plc.id,
+          assignmentId,
+          vaStatusToIndexStatus(assignmentStatus)
+        );
+      } else if (!live) {
+        // Edge case: status mutation called before the snapshot has
+        // landed (rapid programmatic flow after createAssignment, or
+        // ref synced lazily). Log so the rare "stranded paused VA on
+        // PLC dashboard" symptom is observable in production — without
+        // this signal the silent no-op below is invisible. Reviewer
+        // flag from PR #1593 silent-failure hunt.
+        logError(
+          'useVideoActivityAssignments.setStatus.assignmentMissing',
+          new Error(`No live assignment ${assignmentId} in ref`),
+          { assignmentId, assignmentStatus }
+        );
+      }
     },
     [userId]
   );

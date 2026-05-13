@@ -46,6 +46,14 @@ export interface AdminAnalyticsPayload {
     avgDailyCallsPerUser: number;
     byFeature: Record<string, number>;
   };
+  // Compute-time signals. `partial` is set when one or more
+  // `auth().getUsers()` chunks failed during compute — the engagement
+  // counts that depend on email/uid resolution will be lower than reality.
+  // The HTTP handler merges this into the response meta so the UI can
+  // surface a "some counts may be lower than actual" banner.
+  meta?: {
+    partial?: boolean;
+  };
 }
 
 interface EngagementCounts {
@@ -89,6 +97,12 @@ export async function computeAnalyticsForOrg(
 ): Promise<AdminAnalyticsPayload> {
   const db = admin.firestore();
   const now = Date.now();
+
+  // Tracks whether any `auth().getUsers()` chunk silently failed. The
+  // compute continues so a single bad chunk doesn't drop a fresh snapshot,
+  // but the response carries this flag so admins know the totals may be
+  // under-counted.
+  let partial = false;
 
   // 1. Load the org's members as the authoritative user roster. Members
   // without a `uid` (invited but never signed in) still count toward totals
@@ -144,6 +158,7 @@ export async function computeAnalyticsForOrg(
           });
         }
       } catch (err) {
+        partial = true;
         console.warn('[getAdminAnalytics] auth().getUsers() chunk failed', {
           ...logContext,
           orgId,
@@ -355,6 +370,7 @@ export async function computeAnalyticsForOrg(
             }
           });
         } catch (error) {
+          partial = true;
           console.warn(
             `[getAdminAnalytics] Failed to resolve user emails via auth fallback for ${warningContext}`,
             {
@@ -553,5 +569,9 @@ export async function computeAnalyticsForOrg(
       avgDailyCallsPerUser,
       byFeature: aiCallsByFeature,
     },
+    // Only emit `meta` when something noteworthy happened during compute —
+    // keeps the snapshot payload identical to the previous shape for the
+    // common all-chunks-succeeded path.
+    ...(partial ? { meta: { partial: true } } : {}),
   };
 }

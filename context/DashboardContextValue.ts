@@ -137,7 +137,14 @@ export interface DashboardContextValue {
   // Sharing system
   shareDashboard: (
     dashboard: Dashboard,
-    intendedMode?: SharedBoardImportMode
+    intendedMode?: SharedBoardImportMode,
+    /**
+     * Phase 6 — optional PLC scope. When set, the resulting `/shared_boards/{id}`
+     * doc carries a `plcId` field so members of that PLC see the share on
+     * their PLC Dashboard's Shared Boards tab. Plc-scoped shares still
+     * generate a normal share URL the host can paste anywhere.
+     */
+    plcId?: string
   ) => Promise<string>;
   loadSharedDashboard: (shareId: string) => Promise<Dashboard | null>;
   pendingShareId: string | null;
