@@ -1,16 +1,27 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { GraduationCap, LogOut, School } from 'lucide-react';
-import type { MockBuilding } from './subsMockData';
+import { useAuth } from '@/context/useAuth';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 
 interface BuildingPickerScreenProps {
-  buildings: MockBuilding[];
   onPick: (buildingId: string) => void;
 }
 
 export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
-  buildings,
   onPick,
 }) => {
+  const { user, signOut } = useAuth();
+  const adminBuildings = useAdminBuildings();
+  const buildings = useMemo(() => {
+    const source = adminBuildings.length > 0 ? adminBuildings : BUILDINGS;
+    return source.map((b) => ({
+      id: canonicalBuildingId(b.id),
+      name: b.name,
+      gradeLabel: b.gradeLabel,
+    }));
+  }, [adminBuildings]);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-brand-blue-dark text-white flex flex-col">
       <header className="flex items-center justify-between px-8 py-5">
@@ -29,11 +40,12 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
           <span>
             Signed in as{' '}
             <span className="text-white font-medium">
-              ohssub@orono.k12.mn.us
+              {user?.email ?? 'unknown'}
             </span>
           </span>
           <button
             type="button"
+            onClick={() => void signOut()}
             className="inline-flex items-center gap-1.5 rounded-md bg-white/5 hover:bg-white/10 border border-white/10 px-2.5 py-1 transition-colors cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
@@ -68,7 +80,7 @@ export const BuildingPickerScreen: React.FC<BuildingPickerScreenProps> = ({
                     {b.name}
                   </div>
                   <div className="mt-1 text-[11px] uppercase tracking-wider text-white/50 font-medium">
-                    Grades {b.gradeLabel}
+                    {b.gradeLabel ? `Grades ${b.gradeLabel}` : ' '}
                   </div>
                 </div>
                 <div className="mt-4 text-xs text-brand-blue-lighter group-hover:text-white transition-colors">

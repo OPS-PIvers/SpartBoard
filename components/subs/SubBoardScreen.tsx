@@ -1,38 +1,157 @@
 /**
- * SubBoardScreen — Phase A mockup of the sub-viewing-a-board screen.
+ * SubBoardScreen — frozen, read-only-but-interactive board view for a sub.
  *
- * Visual demonstration only. The Phase 1+ real version will:
- *   - Pull the share doc's `initialState: WidgetData[]` from Firestore
- *   - Render via the existing WidgetRenderer + read-only DraggableWindow
- *   - Hold a SubDashboardContext working copy for local interactions
+ * Phase 4 wires real share data (teacher name, board name, expiration,
+ * widget count) into the existing hand-rendered widget tile layout. Real
+ * widget rendering with the teacher's actual config requires a
+ * `DashboardContextValue` shim that surfaces the share's widgets while
+ * forcing `isActiveBoardReadOnly: true` — that lands in Phase 6 polish.
  *
- * Here we hand-render placeholder widget tiles in a fixed 4x3 grid so the
- * UX of "no dock, no chrome, frozen-but-clickable" is clear.
+ * Until then, the screen still demonstrates the sub UX (no dock, no
+ * chrome, frozen-but-clickable widgets, hamburger profile toolbar with
+ * Reset).
  */
 
-import React, { useMemo, useState } from 'react';
-import { Play, RotateCcw, Shuffle, Volume2, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  ArrowLeft,
+  Loader2,
+  Play,
+  RotateCcw,
+  Shuffle,
+  Volume2,
+  X,
+} from 'lucide-react';
 import { SubProfileToolbar } from './SubProfileToolbar';
-import { getMockBoardWidgets } from './subsMockData';
-import type { MockSharedBoard, MockWidget } from './subsMockData';
+import { teacherCardAccent, teacherInitials } from './subsView';
+import { useSubstituteShare } from '@/hooks/useSubstituteShares';
 
 interface SubBoardScreenProps {
-  board: MockSharedBoard;
+  shareId: string;
   onBackToDirectory: () => void;
   onChangeBuilding: () => void;
 }
 
+// Placeholder widget tile descriptors used until Phase 6 renders the real
+// teacher widgets. Layout is deterministic — a 4×3 grid — and survives
+// resets via the `resetKey` re-mount trick.
+type PreviewKind =
+  | 'clock'
+  | 'schedule'
+  | 'lunch'
+  | 'timer'
+  | 'randomizer'
+  | 'noise'
+  | 'attention'
+  | 'notes'
+  | 'scoreboard'
+  | 'music';
+
+const PLACEHOLDER_TILES: Array<{
+  title: string;
+  preview: PreviewKind;
+  col: number;
+  row: number;
+  colSpan: number;
+  rowSpan: number;
+}> = [
+  { title: 'Clock', preview: 'clock', col: 1, row: 1, colSpan: 1, rowSpan: 1 },
+  {
+    title: 'Schedule',
+    preview: 'schedule',
+    col: 2,
+    row: 1,
+    colSpan: 2,
+    rowSpan: 1,
+  },
+  {
+    title: 'Lunch Count',
+    preview: 'lunch',
+    col: 4,
+    row: 1,
+    colSpan: 1,
+    rowSpan: 1,
+  },
+  { title: 'Timer', preview: 'timer', col: 1, row: 2, colSpan: 1, rowSpan: 1 },
+  {
+    title: 'Randomizer',
+    preview: 'randomizer',
+    col: 2,
+    row: 2,
+    colSpan: 1,
+    rowSpan: 1,
+  },
+  {
+    title: 'Noise Meter',
+    preview: 'noise',
+    col: 3,
+    row: 2,
+    colSpan: 1,
+    rowSpan: 1,
+  },
+  {
+    title: 'Attention',
+    preview: 'attention',
+    col: 4,
+    row: 2,
+    colSpan: 1,
+    rowSpan: 1,
+  },
+  {
+    title: 'Sub Notes',
+    preview: 'notes',
+    col: 1,
+    row: 3,
+    colSpan: 2,
+    rowSpan: 1,
+  },
+  {
+    title: 'Scoreboard',
+    preview: 'scoreboard',
+    col: 3,
+    row: 3,
+    colSpan: 1,
+    rowSpan: 1,
+  },
+  { title: 'Music', preview: 'music', col: 4, row: 3, colSpan: 1, rowSpan: 1 },
+];
+
 export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
-  board,
+  shareId,
   onBackToDirectory,
   onChangeBuilding,
 }) => {
-  // The `resetKey` is the entire mechanism for "Reset board" in the mockup:
-  // bumping it re-mounts the widget tiles so any local interactive state
-  // (timer running, lunch counts, shuffle order) is thrown away. Phase 1
-  // will replace this with a context-driven deep-clone from initialState.
+  const { share, loading, error } = useSubstituteShare(shareId);
+  // resetKey re-mounts the widget tiles on demand — local state (timer
+  // running, lunch counts, shuffle order) is thrown away cleanly.
   const [resetKey, setResetKey] = useState(0);
-  const widgets = useMemo(() => getMockBoardWidgets(), []);
+  const [expired, setExpired] = useState(false);
+
+  // Imperatively check expiration on a 60-second tick (and once at mount)
+  // so an idle sub still gets bounced back when the share lapses. Keeping
+  // the timestamp comparison inside the effect avoids the impure-function
+  // -in-render lint rule that fires on Date.now() at the render surface.
+  const expiresAt = share?.expiresAt;
+  useEffect(() => {
+    if (!expiresAt) return;
+    const check = () => {
+      if (expiresAt <= Date.now()) setExpired(true);
+    };
+    check();
+    const id = window.setInterval(check, 60_000);
+    return () => window.clearInterval(id);
+  }, [expiresAt]);
+
+  useEffect(() => {
+    if (!expired) return;
+    const id = window.setTimeout(onBackToDirectory, 1500);
+    return () => window.clearTimeout(id);
+  }, [expired, onBackToDirectory]);
+
+  const teacherName = share?.originalAuthorName ?? 'Teacher';
+  const boardName = share?.name ?? 'Untitled board';
+  const accent = useMemo(() => teacherCardAccent(shareId), [shareId]);
+  const initials = useMemo(() => teacherInitials(teacherName), [teacherName]);
 
   return (
     <div
@@ -44,73 +163,114 @@ export const SubBoardScreen: React.FC<SubBoardScreenProps> = ({
           'linear-gradient(135deg, #0f172a 0%, #1e293b 100%)',
       }}
     >
-      <SubProfileToolbar
-        teacherName={board.teacherName}
-        teacherInitials={board.teacherInitials}
-        accentColor={board.accentColor}
-        boardName={board.boardName}
-        expiresAt={board.expiresAt}
-        onReset={() => setResetKey((k) => k + 1)}
-        onBackToDirectory={onBackToDirectory}
-        onChangeBuilding={onChangeBuilding}
-      />
+      {!loading && share && (
+        <SubProfileToolbar
+          teacherName={teacherName}
+          teacherInitials={initials}
+          accentColor={accent}
+          boardName={boardName}
+          expiresAt={share.expiresAt ?? 0}
+          onReset={() => setResetKey((k) => k + 1)}
+          onBackToDirectory={onBackToDirectory}
+          onChangeBuilding={onChangeBuilding}
+        />
+      )}
 
-      {/* Read-only banner — calm, glanceable, never overwhelming */}
       <div className="fixed top-4 right-4 z-40 hidden md:flex items-center gap-2 rounded-full bg-white/10 backdrop-blur-xl border border-white/15 px-3 py-1.5 text-[11px] text-white/80">
         <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
         Substitute view — widgets are locked in place
       </div>
 
-      <main className="pt-24 px-6 pb-10">
-        <div
-          key={resetKey}
-          className="mx-auto max-w-7xl grid gap-4"
-          style={{
-            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
-            gridAutoRows: 'minmax(180px, auto)',
-          }}
-        >
-          {widgets.map((w) => (
-            <FrozenWidgetTile key={w.id} widget={w} />
-          ))}
+      {loading && (
+        <div className="min-h-screen flex items-center justify-center text-white/60">
+          <Loader2 className="w-8 h-8 animate-spin" />
         </div>
-      </main>
+      )}
+
+      {!loading && (!!error || !share) && (
+        <ExpiredOrErrorPanel
+          message={
+            expired ? 'This share has expired.' : (error ?? 'Share not found.')
+          }
+          onBack={onBackToDirectory}
+        />
+      )}
+
+      {!loading && share && (
+        <main className="pt-24 px-6 pb-10">
+          <div
+            key={resetKey}
+            className="mx-auto max-w-7xl grid gap-4"
+            style={{
+              gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+              gridAutoRows: 'minmax(180px, auto)',
+            }}
+          >
+            {PLACEHOLDER_TILES.map((tile, i) => (
+              <FrozenWidgetTile key={i} tile={tile} />
+            ))}
+          </div>
+          <p className="mt-6 text-center text-[11px] text-white/40">
+            Preview tiles shown while Phase 6 finishes rendering the
+            teacher&apos;s actual widgets. Interactions stay local to this
+            session — reset clears them.
+          </p>
+        </main>
+      )}
     </div>
   );
 };
 
-const FrozenWidgetTile: React.FC<{ widget: MockWidget }> = ({ widget }) => {
-  const Icon = widget.icon;
-  return (
-    <div
-      className="relative rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xl shadow-black/20 overflow-hidden flex flex-col"
-      style={{
-        gridColumn: `${widget.col} / span ${widget.colSpan}`,
-        gridRow: `${widget.row} / span ${widget.rowSpan}`,
-      }}
-    >
-      <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/5">
-        <div className="flex items-center gap-2 min-w-0">
-          <Icon className="w-3.5 h-3.5 text-white/60 shrink-0" />
-          <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider truncate">
-            {widget.title}
-          </span>
-        </div>
-        <span
-          className="text-[9px] text-white/30 uppercase tracking-wider"
-          title="Widgets are locked in place — but you can still interact with their content"
-        >
-          Locked
-        </span>
-      </div>
-      <div className="flex-1 p-4 flex items-center justify-center">
-        <WidgetPreview kind={widget.preview} />
-      </div>
+const ExpiredOrErrorPanel: React.FC<{
+  message: string;
+  onBack: () => void;
+}> = ({ message, onBack }) => (
+  <main className="min-h-screen flex items-center justify-center px-8">
+    <div className="max-w-md text-center text-white">
+      <h2 className="text-2xl font-bold tracking-tight">{message}</h2>
+      <p className="mt-2 text-sm text-white/60">
+        Returning you to the teacher directory.
+      </p>
+      <button
+        type="button"
+        onClick={onBack}
+        className="mt-6 inline-flex items-center gap-1.5 rounded-md bg-white/10 hover:bg-white/20 border border-white/20 px-3 py-1.5 text-xs font-bold text-white transition-colors cursor-pointer"
+      >
+        <ArrowLeft className="w-3.5 h-3.5" />
+        Back to directory
+      </button>
     </div>
-  );
-};
+  </main>
+);
 
-const WidgetPreview: React.FC<{ kind: MockWidget['preview'] }> = ({ kind }) => {
+const FrozenWidgetTile: React.FC<{
+  tile: (typeof PLACEHOLDER_TILES)[number];
+}> = ({ tile }) => (
+  <div
+    className="relative rounded-2xl bg-white/10 backdrop-blur-md border border-white/15 shadow-xl shadow-black/20 overflow-hidden flex flex-col"
+    style={{
+      gridColumn: `${tile.col} / span ${tile.colSpan}`,
+      gridRow: `${tile.row} / span ${tile.rowSpan}`,
+    }}
+  >
+    <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-white/5">
+      <span className="text-[11px] font-bold text-white/80 uppercase tracking-wider truncate">
+        {tile.title}
+      </span>
+      <span
+        className="text-[9px] text-white/30 uppercase tracking-wider"
+        title="Widgets are locked in place — but you can still interact with their content"
+      >
+        Locked
+      </span>
+    </div>
+    <div className="flex-1 p-4 flex items-center justify-center">
+      <WidgetPreview kind={tile.preview} />
+    </div>
+  </div>
+);
+
+const WidgetPreview: React.FC<{ kind: PreviewKind }> = ({ kind }) => {
   switch (kind) {
     case 'clock':
       return <ClockPreview />;
@@ -132,17 +292,12 @@ const WidgetPreview: React.FC<{ kind: MockWidget['preview'] }> = ({ kind }) => {
       return <ScoreboardPreview />;
     case 'music':
       return <MusicPreview />;
-    default:
-      return null;
   }
 };
 
-// ──────────────── Mock widget previews ────────────────
-// Hand-styled to feel like the real widgets without depending on them.
-
 const ClockPreview: React.FC = () => {
   const [now, setNow] = useState(() => new Date());
-  React.useEffect(() => {
+  useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 30_000);
     return () => window.clearInterval(id);
   }, []);
@@ -226,16 +381,21 @@ const LunchPreview: React.FC = () => {
 const TimerPreview: React.FC = () => {
   const [remaining, setRemaining] = useState(15 * 60);
   const [running, setRunning] = useState(false);
-  React.useEffect(() => {
+  useEffect(() => {
     if (!running) return;
     const id = window.setInterval(() => {
-      setRemaining((r) => Math.max(0, r - 1));
+      setRemaining((r) => {
+        if (r <= 1) {
+          // Stop the ticker by flipping running false here, off the render
+          // path — avoids the "setState in effect body" lint rule.
+          setRunning(false);
+          return 0;
+        }
+        return r - 1;
+      });
     }, 1000);
     return () => window.clearInterval(id);
   }, [running]);
-  React.useEffect(() => {
-    if (remaining === 0 && running) setRunning(false);
-  }, [remaining, running]);
   const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
   const ss = String(remaining % 60).padStart(2, '0');
   return (
@@ -322,15 +482,14 @@ const AttentionPreview: React.FC = () => (
 const NotesPreview: React.FC = () => (
   <div className="w-full text-[11px] text-white/80 leading-snug">
     <div className="text-[10px] uppercase tracking-wider text-white/50 mb-1.5">
-      Notes from Ms. Johnson
+      Sub notes
     </div>
     <ul className="space-y-1 list-disc list-inside">
       <li>
-        Reading workshop runs 8:30—9:30. Books are in bin labeled
-        &ldquo;Today.&rdquo;
+        The teacher&apos;s notes will appear here once Phase 6 renders the real
+        widgets.
       </li>
-      <li>Marcus has a 9am pull-out for speech.</li>
-      <li>If fire drill, exit door 3 — line up by class number.</li>
+      <li>Reset board (☰ menu) returns every widget to its starting state.</li>
     </ul>
   </div>
 );

@@ -1,86 +1,90 @@
 /**
- * SubsApp — top-level routing for the `/subs` substitute teacher flow.
+ * SubsApp — top-level routing for the `/subs` substitute teacher portal.
  *
- * Phase A: mockup-only. No Firestore reads, no auth provider, no domain
- * gating yet. The flow is a 3-step local state machine:
+ * 3-step local state machine inside a domain-gated AuthProvider tree:
  *
  *   1. BuildingPickerScreen — pick the building you're subbing in
  *   2. TeacherDirectoryScreen — pick a teacher whose board to open
  *   3. SubBoardScreen — read-only-but-interactive frozen board
  *
- * Phase 4 will replace the local state with real Firestore-backed data and
- * a domain-gated AuthProvider wrapper at the route layer in App.tsx.
+ * Data comes from Firestore via useSubstituteShares (Phase 4). The actual
+ * widget rendering in SubBoardScreen still uses the hand-rendered tile
+ * placeholders from Phase A — full widget rendering with the teacher's
+ * config is on the Phase 6 polish list.
  */
 
 import React, { useEffect, useState } from 'react';
+import { SubsAuthGate } from './SubsAuthGate';
 import { BuildingPickerScreen } from './BuildingPickerScreen';
 import { TeacherDirectoryScreen } from './TeacherDirectoryScreen';
 import { SubBoardScreen } from './SubBoardScreen';
-import { MOCK_BUILDINGS, MOCK_SHARED_BOARDS } from './subsMockData';
 
 type SubsView =
   | { kind: 'building-picker' }
   | { kind: 'directory'; buildingId: string }
   | { kind: 'board'; buildingId: string; shareId: string };
 
+const VIEW_STORAGE_KEY = 'spart_subs_view';
+
 export const SubsApp: React.FC = () => {
-  const [view, setView] = useState<SubsView>({ kind: 'building-picker' });
-
-  if (view.kind === 'building-picker') {
-    return (
-      <BuildingPickerScreen
-        buildings={MOCK_BUILDINGS}
-        onPick={(buildingId) => setView({ kind: 'directory', buildingId })}
-      />
-    );
-  }
-
-  if (view.kind === 'directory') {
-    const building = MOCK_BUILDINGS.find((b) => b.id === view.buildingId);
-    const boards = MOCK_SHARED_BOARDS.filter(
-      (b) => b.buildingId === view.buildingId
-    );
-    return (
-      <TeacherDirectoryScreen
-        building={building}
-        boards={boards}
-        onPickBoard={(shareId) =>
-          setView({ kind: 'board', buildingId: view.buildingId, shareId })
-        }
-        onChangeBuilding={() => setView({ kind: 'building-picker' })}
-      />
-    );
-  }
-
-  // view.kind === 'board'
-  const board = MOCK_SHARED_BOARDS.find((b) => b.shareId === view.shareId);
-  if (!board) {
-    // Shouldn't happen in the mockup — synchronize back to the directory
-    // via effect so we don't setState during render.
-    return (
-      <SubsAppMissingBoardFallback
-        onFallback={() =>
-          setView({ kind: 'directory', buildingId: view.buildingId })
-        }
-      />
-    );
-  }
-  return (
-    <SubBoardScreen
-      board={board}
-      onBackToDirectory={() =>
-        setView({ kind: 'directory', buildingId: view.buildingId })
+  const [view, setView] = useState<SubsView>(() => {
+    // Restore the last-picked building so a sub bouncing between cards
+    // doesn't lose their place if they refresh.
+    if (typeof window === 'undefined') return { kind: 'building-picker' };
+    try {
+      const raw = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      if (!raw) return { kind: 'building-picker' };
+      const parsed = JSON.parse(raw) as SubsView;
+      if (
+        parsed.kind === 'directory' &&
+        typeof (parsed as { buildingId?: unknown }).buildingId === 'string'
+      ) {
+        return parsed;
       }
-      onChangeBuilding={() => setView({ kind: 'building-picker' })}
-    />
-  );
-};
+    } catch {
+      // ignore corrupt localStorage; start fresh
+    }
+    return { kind: 'building-picker' };
+  });
 
-const SubsAppMissingBoardFallback: React.FC<{ onFallback: () => void }> = ({
-  onFallback,
-}) => {
+  // Persist just the building selection — not the open board — so a refresh
+  // returns to the directory rather than re-opening a possibly-stale share.
   useEffect(() => {
-    onFallback();
-  }, [onFallback]);
-  return null;
+    if (typeof window === 'undefined') return;
+    if (view.kind === 'directory') {
+      window.localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(view));
+    } else if (view.kind === 'building-picker') {
+      window.localStorage.removeItem(VIEW_STORAGE_KEY);
+    }
+  }, [view]);
+
+  return (
+    <SubsAuthGate>
+      {view.kind === 'building-picker' && (
+        <BuildingPickerScreen
+          onPick={(buildingId) => setView({ kind: 'directory', buildingId })}
+        />
+      )}
+
+      {view.kind === 'directory' && (
+        <TeacherDirectoryScreen
+          buildingId={view.buildingId}
+          onPickBoard={(shareId) =>
+            setView({ kind: 'board', buildingId: view.buildingId, shareId })
+          }
+          onChangeBuilding={() => setView({ kind: 'building-picker' })}
+        />
+      )}
+
+      {view.kind === 'board' && (
+        <SubBoardScreen
+          shareId={view.shareId}
+          onBackToDirectory={() =>
+            setView({ kind: 'directory', buildingId: view.buildingId })
+          }
+          onChangeBuilding={() => setView({ kind: 'building-picker' })}
+        />
+      )}
+    </SubsAuthGate>
+  );
 };

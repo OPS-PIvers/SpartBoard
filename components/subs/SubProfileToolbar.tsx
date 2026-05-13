@@ -9,7 +9,7 @@ import {
   RotateCcw,
   School,
 } from 'lucide-react';
-import { formatExpiresAt } from './subsMockData';
+import { formatExpiresAt } from './subsView';
 
 interface SubProfileToolbarProps {
   teacherName: string;
