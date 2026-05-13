@@ -117,6 +117,11 @@ const AdminCalendarFetcher = lazy(() =>
     default: module.AdminCalendarFetcher,
   }))
 );
+const SubsApp = lazy(() =>
+  import('./components/subs/SubsApp').then((module) => ({
+    default: module.SubsApp,
+  }))
+);
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -287,6 +292,10 @@ const App: React.FC = () => {
     pathname === '/student/login' || pathname.startsWith('/student/login/');
   const isMyAssignmentsRoute =
     pathname === '/my-assignments' || pathname.startsWith('/my-assignments/');
+  // Phase A — `/subs` is the substitute teacher portal. Mounted outside the
+  // teacher AuthProvider/DashboardProvider so dashboard listeners don't fire
+  // for subs. Phase 4 will wrap this in a domain-gated AuthProvider.
+  const isSubsRoute = pathname === '/subs' || pathname.startsWith('/subs/');
 
   // Short-link resolver. Runs outside every provider so anonymous visitors
   // can follow admin-created /r/:code links without triggering Firebase
@@ -408,6 +417,18 @@ const App: React.FC = () => {
             <StudentApp />
           </Suspense>
         </StudentProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // Substitute teacher portal — Phase A mockup. No auth, no providers yet.
+  if (isSubsRoute) {
+    return (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
+          <SubsApp />
+        </Suspense>
         <DialogContainer />
       </DialogProvider>
     );

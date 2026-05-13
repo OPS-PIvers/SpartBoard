@@ -11,15 +11,67 @@
  * confirmation dialog instead of the legacy 3-option picker.
  */
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Cloud, Copy, Eye, Check, ExternalLink, X } from 'lucide-react';
+import {
+  Cloud,
+  Copy,
+  Eye,
+  Check,
+  ExternalLink,
+  GraduationCap,
+  Mail,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { usePlcs } from '@/hooks/usePlcs';
+import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import type { Dashboard } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
+
+// Phase A mockup — substitute mode is UI-only and not yet persisted to the
+// share doc. Phase 1 will widen SharedBoardImportMode itself; until then we
+// keep the type-local extension here so the rest of the system stays untouched.
+type ShareMode = SharedBoardImportMode | 'substitute';
+
+// Default 48h expiration window per the plan. Phase 1 will also enforce a
+// 14-day maximum at submit time.
+const DEFAULT_SUB_EXPIRATION_HOURS = 48;
+const ORONO_EMAIL_DOMAIN = '@orono.k12.mn.us';
+
+// Building-keyed preset sub accounts. Phase 2 will move this to
+// `/preset_sub_emails/{buildingId}`; mocked here so the UI looks real.
+const MOCK_PRESET_SUB_EMAILS: Record<string, string[]> = {
+  high: ['ohssub@orono.k12.mn.us', 'ohssub2@orono.k12.mn.us'],
+  middle: ['omssub@orono.k12.mn.us'],
+  intermediate: ['oissub@orono.k12.mn.us'],
+  schumann: ['schumannsub@orono.k12.mn.us'],
+};
+
+function formatLocalDateTime(date: Date): string {
+  // <input type="datetime-local"> needs `YYYY-MM-DDTHH:mm` in local time.
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return (
+    `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}` +
+    `T${pad(date.getHours())}:${pad(date.getMinutes())}`
+  );
+}
+
+function defaultExpirationIso(): string {
+  const d = new Date(
+    Date.now() + DEFAULT_SUB_EXPIRATION_HOURS * 60 * 60 * 1000
+  );
+  return formatLocalDateTime(d);
+}
+
+function isValidOronoEmail(email: string): boolean {
+  return /^[^\s@]+@orono\.k12\.mn\.us$/i.test(email.trim());
+}
 
 interface ShareLinkCreatorModalProps {
   dashboard: Dashboard | null;
@@ -28,12 +80,12 @@ interface ShareLinkCreatorModalProps {
 }
 
 interface ModeOptionProps {
-  mode: SharedBoardImportMode;
+  mode: ShareMode;
   selected: boolean;
   title: string;
   body: string;
   Icon: React.ComponentType<{ className?: string }>;
-  onPick: (mode: SharedBoardImportMode) => void;
+  onPick: (mode: ShareMode) => void;
 }
 
 const ModeOption: React.FC<ModeOptionProps> = ({
@@ -86,9 +138,10 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { shareDashboard, addToast } = useDashboard();
-  const { canAccessFeature } = useAuth();
+  const { canAccessFeature, selectedBuildings } = useAuth();
   const { plcs } = usePlcs();
-  const [mode, setMode] = useState<SharedBoardImportMode>('synced');
+  const adminBuildings = useAdminBuildings();
+  const [mode, setMode] = useState<ShareMode>('synced');
   // Phase 6 — optional PLC scope. `null` (default) means a plain share
   // link with no PLC affiliation. Picking a PLC tags the resulting share
   // doc with `plcId`, surfacing it on that PLC's Shared Boards tab in
@@ -98,6 +151,29 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Substitute-mode config state (Phase A — UI only).
+  const teacherBuildings = useMemo(() => {
+    const list = adminBuildings.length > 0 ? adminBuildings : BUILDINGS;
+    return list.map((b) => ({ id: canonicalBuildingId(b.id), name: b.name }));
+  }, [adminBuildings]);
+  const defaultBuildingId = useMemo(() => {
+    const first = selectedBuildings?.[0];
+    if (
+      first &&
+      teacherBuildings.some((b) => b.id === canonicalBuildingId(first))
+    ) {
+      return canonicalBuildingId(first);
+    }
+    return teacherBuildings[0]?.id ?? '';
+  }, [selectedBuildings, teacherBuildings]);
+  const [subBuildingId, setSubBuildingId] = useState(defaultBuildingId);
+  const [subExpiresAt, setSubExpiresAt] = useState(defaultExpirationIso());
+  const [subEmails, setSubEmails] = useState<string[]>([]);
+  const [subEmailDraft, setSubEmailDraft] = useState('');
+  const [subEmailError, setSubEmailError] = useState<string | null>(null);
+
+  const presetEmails = MOCK_PRESET_SUB_EMAILS[subBuildingId] ?? [];
+
   // Reset modal state every time it opens for a new dashboard.
   React.useEffect(() => {
     if (isOpen) {
@@ -106,8 +182,13 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
       setCreating(false);
       setCreatedUrl(null);
       setCopied(false);
+      setSubBuildingId(defaultBuildingId);
+      setSubExpiresAt(defaultExpirationIso());
+      setSubEmails([]);
+      setSubEmailDraft('');
+      setSubEmailError(null);
     }
-  }, [isOpen, dashboard?.id]);
+  }, [isOpen, dashboard?.id, defaultBuildingId]);
 
   if (!isOpen || !dashboard) return null;
 
@@ -115,6 +196,31 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
 
   const handleCreate = async () => {
     if (!canShare || creating) return;
+
+    // Phase A — substitute mode is mockup-only. Surface a toast and a
+    // preview URL so the host can see the /subs flow, but don't write a
+    // real share doc. Phase 1 will replace this with the actual call.
+    if (mode === 'substitute') {
+      if (!subBuildingId) {
+        addToast(
+          t('shareLinkCreatorModal.substitute.buildingRequired', {
+            defaultValue: 'Pick a building before creating a sub link.',
+          }),
+          'error'
+        );
+        return;
+      }
+      addToast(
+        t('shareLinkCreatorModal.substitute.mockupToast', {
+          defaultValue:
+            'Sub mode — visual mockup only. The link is not yet active.',
+        }),
+        'info'
+      );
+      setCreatedUrl(`${window.location.origin}/subs`);
+      return;
+    }
+
     setCreating(true);
     try {
       const shareId = await shareDashboard(dashboard, mode, plcId ?? undefined);
@@ -169,7 +275,11 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
         ? t('shareLinkCreatorModal.modeLabel.viewOnly', {
             defaultValue: 'View-Only',
           })
-        : t('shareLinkCreatorModal.modeLabel.copy', { defaultValue: 'Copy' });
+        : mode === 'substitute'
+          ? t('shareLinkCreatorModal.modeLabel.substitute', {
+              defaultValue: 'Substitute (View-Only)',
+            })
+          : t('shareLinkCreatorModal.modeLabel.copy', { defaultValue: 'Copy' });
 
   return (
     <Modal
@@ -312,6 +422,239 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
             Icon={Copy}
             onPick={setMode}
           />
+          <ModeOption
+            mode="substitute"
+            selected={mode === 'substitute'}
+            title={t('shareLinkCreatorModal.modes.substitute.title', {
+              defaultValue: 'Substitute (View-Only)',
+            })}
+            body={t('shareLinkCreatorModal.modes.substitute.body', {
+              defaultValue:
+                "Hand off a frozen snapshot to a sub. They can start timers, shuffle the randomizer, and use widgets — but can't move or change them. Expires automatically.",
+            })}
+            Icon={GraduationCap}
+            onPick={setMode}
+          />
+          {mode === 'substitute' && (
+            <div className="rounded-xl border border-brand-blue-lighter bg-brand-blue-lighter/10 px-4 py-3 space-y-3">
+              <div className="flex items-start gap-2 text-[11px] text-slate-600 leading-relaxed">
+                <GraduationCap className="w-4 h-4 shrink-0 text-brand-blue-primary mt-0.5" />
+                <span>
+                  {t('shareLinkCreatorModal.substitute.intro', {
+                    defaultValue:
+                      'Subs sign in at spartboard.web.app/subs, pick this building, and open your board for the day.',
+                  })}
+                </span>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="sub-expires-at"
+                  className="block text-xs font-bold text-slate-700 mb-1"
+                >
+                  {t('shareLinkCreatorModal.substitute.expiresLabel', {
+                    defaultValue: 'Expires on',
+                  })}
+                </label>
+                <input
+                  id="sub-expires-at"
+                  type="datetime-local"
+                  value={subExpiresAt}
+                  onChange={(e) => setSubExpiresAt(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                />
+                <p className="mt-1 text-[10px] text-slate-500">
+                  {t('shareLinkCreatorModal.substitute.expiresHint', {
+                    defaultValue:
+                      'Defaults to 48 hours from now. Maximum 14 days.',
+                  })}
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="sub-building"
+                  className="block text-xs font-bold text-slate-700 mb-1"
+                >
+                  {t('shareLinkCreatorModal.substitute.buildingLabel', {
+                    defaultValue: 'Building',
+                  })}{' '}
+                  <span className="text-red-500" aria-hidden>
+                    *
+                  </span>
+                </label>
+                <select
+                  id="sub-building"
+                  value={subBuildingId}
+                  onChange={(e) => setSubBuildingId(e.target.value)}
+                  className="w-full rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                >
+                  {teacherBuildings.length === 0 && (
+                    <option value="">
+                      {t('shareLinkCreatorModal.substitute.noBuildings', {
+                        defaultValue: 'No buildings configured',
+                      })}
+                    </option>
+                  )}
+                  {teacherBuildings.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 text-[10px] text-slate-500">
+                  {t('shareLinkCreatorModal.substitute.buildingHint', {
+                    defaultValue:
+                      'Pre-filled from your "My Buildings" setting. Subs filter by building when they sign in.',
+                  })}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {t('shareLinkCreatorModal.substitute.emailsLabel', {
+                    defaultValue: 'Share rosters with sub(s)?',
+                  })}{' '}
+                  <span className="text-slate-400 font-normal">
+                    {t('shareLinkCreatorModal.plcScope.optional', {
+                      defaultValue: '(optional)',
+                    })}
+                  </span>
+                </label>
+                <p className="text-[10px] text-slate-500 mb-2 leading-relaxed">
+                  {t('shareLinkCreatorModal.substitute.emailsHint', {
+                    defaultValue:
+                      'Listed subs get read-only Google Drive access to your rosters until expiration. Auto-revoked then. Must be @orono.k12.mn.us.',
+                  })}
+                </p>
+
+                {presetEmails.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {presetEmails.map((email) => {
+                      const added = subEmails.includes(email);
+                      return (
+                        <button
+                          key={email}
+                          type="button"
+                          disabled={added}
+                          onClick={() =>
+                            setSubEmails((prev) => [...prev, email])
+                          }
+                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-bold transition-colors cursor-pointer ${
+                            added
+                              ? 'bg-emerald-100 text-emerald-700 cursor-default'
+                              : 'bg-brand-blue-lighter/40 text-brand-blue-primary hover:bg-brand-blue-lighter/70'
+                          }`}
+                        >
+                          {added ? (
+                            <Check className="w-3 h-3" />
+                          ) : (
+                            <Plus className="w-3 h-3" />
+                          )}
+                          {email}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {subEmails.length > 0 && (
+                  <ul className="space-y-1 mb-2">
+                    {subEmails.map((email) => (
+                      <li
+                        key={email}
+                        className="flex items-center gap-2 rounded-md bg-white border border-slate-200 px-2 py-1 text-xs text-slate-700"
+                      >
+                        <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span className="truncate flex-1">{email}</span>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setSubEmails((prev) =>
+                              prev.filter((e) => e !== email)
+                            )
+                          }
+                          aria-label={t(
+                            'shareLinkCreatorModal.substitute.removeEmail',
+                            { defaultValue: 'Remove email' }
+                          )}
+                          className="shrink-0 text-slate-400 hover:text-red-500 cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="flex gap-1">
+                  <input
+                    type="email"
+                    value={subEmailDraft}
+                    onChange={(e) => {
+                      setSubEmailDraft(e.target.value);
+                      setSubEmailError(null);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const trimmed = subEmailDraft.trim();
+                        if (!trimmed) return;
+                        if (!isValidOronoEmail(trimmed)) {
+                          setSubEmailError(
+                            t('shareLinkCreatorModal.substitute.invalidEmail', {
+                              defaultValue: `Must end with ${ORONO_EMAIL_DOMAIN}`,
+                            })
+                          );
+                          return;
+                        }
+                        if (subEmails.includes(trimmed)) {
+                          setSubEmailDraft('');
+                          return;
+                        }
+                        setSubEmails((prev) => [...prev, trimmed]);
+                        setSubEmailDraft('');
+                      }
+                    }}
+                    placeholder={`name${ORONO_EMAIL_DOMAIN}`}
+                    className="flex-1 rounded-md border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const trimmed = subEmailDraft.trim();
+                      if (!trimmed) return;
+                      if (!isValidOronoEmail(trimmed)) {
+                        setSubEmailError(
+                          t('shareLinkCreatorModal.substitute.invalidEmail', {
+                            defaultValue: `Must end with ${ORONO_EMAIL_DOMAIN}`,
+                          })
+                        );
+                        return;
+                      }
+                      if (subEmails.includes(trimmed)) {
+                        setSubEmailDraft('');
+                        return;
+                      }
+                      setSubEmails((prev) => [...prev, trimmed]);
+                      setSubEmailDraft('');
+                    }}
+                    className="shrink-0 inline-flex items-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    {t('shareLinkCreatorModal.substitute.addEmail', {
+                      defaultValue: 'Add',
+                    })}
+                  </button>
+                </div>
+                {subEmailError && (
+                  <p className="mt-1 text-[10px] text-red-600">
+                    {subEmailError}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
           {plcs.length > 0 && (
             <div className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 space-y-2">
               <label
