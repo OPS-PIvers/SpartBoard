@@ -357,18 +357,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   // Same-device cache invalidation across user accounts. The dock cache in
   // localStorage is keyed by the uid that last wrote it; on mount we only
-  // trust the cache when its uid matches the currently signed-in user.
-  // Mismatch → return defaults, so user B doesn't briefly see user A's
-  // layout while waiting for Firestore hydration. DashboardProvider is only
-  // mounted when `user` is truthy (see App.tsx), so a sign-out → sign-in as
-  // a different user remounts this component with a fresh user value.
+  // trust the cache when its uid matches the currently signed-in user or
+  // when no uid has been recorded yet (legacy migration: data was written
+  // by code before the cache-UID feature existed, so it belongs to whoever
+  // is currently signed in). DashboardProvider is only mounted when `user`
+  // is truthy (see App.tsx), so a sign-out → sign-in as a different user
+  // remounts this component with a fresh user value.
   const dockCacheUidRaw =
     typeof window !== 'undefined'
       ? localStorage.getItem('classroom_dock_cache_uid')
       : null;
+  // Trust localStorage when the recorded uid matches the current user OR
+  // when no uid is recorded at all (legacy / first run of the cache-UID
+  // feature). The latter is the migration path that lets long-time users
+  // keep their hand-curated docks on first load of the new Firestore-sync
+  // code instead of having them wiped.
   const dockCacheMatchesUser = user
-    ? dockCacheUidRaw === user.uid
+    ? dockCacheUidRaw === null || dockCacheUidRaw === user.uid
     : dockCacheUidRaw === null;
+  // True only when localStorage was explicitly written by a *different*
+  // user — the cross-account-leak case where we must wipe before mounting.
+  // Legacy null-uid data is preserved (see comment above).
+  const dockCacheBelongsToOtherUser =
+    !!user && dockCacheUidRaw !== null && dockCacheUidRaw !== user.uid;
 
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
     if (!dockCacheMatchesUser) return false;
@@ -611,8 +622,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }).map((tool) => tool.type);
     }
 
+    // Union dock defaults across *all* of the user's selected buildings.
+    // A teacher with both "high" and "middle" selected should see widgets
+    // marked as default for either — picking just `selectedBuildings[0]`
+    // dropped half the relevant defaults and was a frequent cause of
+    // near-empty docks on first sign-in.
     const tools: (WidgetType | InternalToolType)[] = [];
-    const buildingId = selectedBuildings[0];
 
     (featurePermissions ?? []).forEach((perm) => {
       const rawDockDefaults = perm.config?.dockDefaults as
@@ -620,7 +635,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         | undefined;
 
       // Canonicalize stored keys so legacy IDs (`orono-high-school`) still
-      // match the canonical `buildingId` (`high`). Without this, every
+      // match the canonical buildingIds (`high`). Without this, every
       // teacher would fall through to the `time-tool` fallback below,
       // because admin-panel writes from before canonicalization landed
       // are keyed on legacy IDs and `selectedBuildings` is always
@@ -629,9 +644,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         ? canonicalizeBuildingKeyedRecord(rawDockDefaults)
         : undefined;
 
-      const isDefaultForBuilding =
-        dockDefaults !== undefined && dockDefaults[buildingId] === true;
-      if (!isDefaultForBuilding) return;
+      const isDefaultForAnyBuilding =
+        dockDefaults !== undefined &&
+        selectedBuildings.some((bid) => dockDefaults[bid] === true);
+      if (!isDefaultForAnyBuilding) return;
 
       // Only include tools that the current user can actually access,
       // mirroring the same checks performed by canAccessWidget / the dock.
@@ -666,13 +682,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
     if (hasPersistedDockState) {
       try {
-        // Validate saved dock state before marking initialization complete.
-        // visibleTools/dockItems are already hydrated by their useState initializers.
+        // Re-hydrate state explicitly from localStorage rather than
+        // trusting the useState initializers — the initializers gate on
+        // `dockCacheMatchesUser`, and a future tightening of that check
+        // could leave state empty here without this fallback. Belt-and-
+        // suspenders: the initializers normally cover this, but the cost
+        // of an extra setState call is negligible and the cost of an
+        // empty dock is a user-visible regression.
         if (savedDockRaw !== null) {
-          JSON.parse(savedDockRaw);
-        }
-        if (savedVisibleToolsRaw !== null) {
-          JSON.parse(savedVisibleToolsRaw);
+          const parsedDock = JSON.parse(savedDockRaw) as DockItem[];
+          setDockItems(parsedDock);
+          // Derive visibleTools from dockItems so the two stores stay in
+          // sync — folder items count as visible too.
+          const derivedVisible = parsedDock.flatMap((item) =>
+            item.type === 'tool' ? item.toolType : item.folder.items
+          );
+          setVisibleTools(derivedVisible);
+        } else if (savedVisibleToolsRaw !== null) {
+          const parsedTools = JSON.parse(savedVisibleToolsRaw) as (
+            | WidgetType
+            | InternalToolType
+          )[];
+          setVisibleTools(parsedTools);
+          setDockItems(migrateToDockItems(parsedTools));
         }
         setIsDockInitialized(true);
         localStorage.setItem('classroom_dock_initialized', 'true');
@@ -895,12 +927,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user, dockHydrationOk, isDockInitialized, dockItems, libraryOrder]);
 
-  // Drop any stale dock localStorage entries left behind by a previous user
-  // on this device. We can't do this in the useState initializers because
-  // they shouldn't have side effects, so this runs once on mount when the
-  // cache uid sentinel doesn't match. Cache invalidation across accounts is
-  // primarily handled by the uid-gated useState initializers above; this
-  // just keeps localStorage tidy. A second user-switch in the same tab
+  // Drop any stale dock localStorage entries left behind by a *previous
+  // user* on this device. Legacy localStorage with no recorded uid is
+  // preserved — those entries belong to the currently signed-in user (they
+  // were written by code that predates the cache-UID feature) and the
+  // initializers will have already loaded them into state.
+  //
+  // Cross-user leak protection is primarily handled by the uid-gated
+  // initializers above; this just keeps localStorage tidy and claims the
+  // cache for the current user. A second user-switch in the same tab
   // session is impossible because DashboardProvider is conditionally
   // mounted on `user` (App.tsx) and remounts on each sign-in.
   const dockCacheCleanedRef = useRef(false);
@@ -908,20 +943,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isAuthBypass) return;
     if (dockCacheCleanedRef.current) return;
     dockCacheCleanedRef.current = true;
-    if (dockCacheMatchesUser) return;
-    localStorage.removeItem('classroom_dock_items');
-    localStorage.removeItem('classroom_visible_tools');
-    localStorage.removeItem('classroom_dock_initialized');
-    localStorage.removeItem('spartboard_library_order');
-    // Persist the new owner so subsequent reloads from cache succeed. The
-    // hydration/persistence effects below also keep this in sync on every
-    // write — this is just the initial claim.
-    if (user) {
-      localStorage.setItem('classroom_dock_cache_uid', user.uid);
-    } else {
-      localStorage.removeItem('classroom_dock_cache_uid');
+    if (!user) return;
+    if (dockCacheBelongsToOtherUser) {
+      localStorage.removeItem('classroom_dock_items');
+      localStorage.removeItem('classroom_visible_tools');
+      localStorage.removeItem('classroom_dock_initialized');
+      localStorage.removeItem('spartboard_library_order');
     }
-  }, [dockCacheMatchesUser, user]);
+    // Claim the cache for this user so subsequent reloads trust the
+    // localStorage cache and skip straight to the cloud-synced state. The
+    // hydration/persistence effects below keep this in sync on every
+    // write — this is just the initial claim.
+    localStorage.setItem('classroom_dock_cache_uid', user.uid);
+  }, [dockCacheBelongsToOtherUser, user]);
 
   // --- ROSTER LOGIC ---
   const {
