@@ -38,6 +38,8 @@ export function useDragScroll(
     const onPointerDown = (e: PointerEvent) => {
       // Only respond to the primary pointer (left mouse button, first touch)
       if (e.pointerType === 'mouse' && e.button !== 0) return;
+      // Ignore a second pointer while a scroll gesture is already in flight
+      if (activePointerId !== null) return;
 
       state = 'undecided';
       startX = e.clientX;
@@ -62,7 +64,9 @@ export function useDragScroll(
         const primaryDelta = axis === 'x' ? adx : ady;
         const secondaryDelta = axis === 'x' ? ady : adx;
 
-        if (primaryDelta > secondaryDelta) {
+        // Use >= so a perfectly diagonal drag (primaryDelta === secondaryDelta)
+        // commits to scroll rather than falling through to the collapse handler.
+        if (primaryDelta >= secondaryDelta) {
           state = 'scrolling';
           try {
             el.setPointerCapture(e.pointerId);
