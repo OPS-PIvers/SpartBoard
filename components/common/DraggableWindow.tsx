@@ -214,7 +214,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // import, or assignment modal from within the widget, the toolbar floating
   // on top of that modal is disorienting and blocks clicks.
   const hasOpenModal = useHasOpenModal();
-  const showTools = selectedWidgetId === widget.id && !hasOpenModal;
+  // Hide the floating action toolbar entirely on read-only dashboards
+  // (substitute view, view-only guest). None of its actions (gear/flip,
+  // close, duplicate, lock, pin, etc.) are valid for a read-only viewer,
+  // and the toolbar's "Settings" gear has no per-button isLocked gate of
+  // its own — suppressing showTools at the root is the safest gap-fill.
+  const showTools =
+    selectedWidgetId === widget.id && !hasOpenModal && !isActiveBoardReadOnly;
 
   // Group visual state
   const isInGroup = !!widget.groupId;
@@ -813,11 +819,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     if (e.altKey) {
       switch (e.key.toLowerCase()) {
         case 's': // Settings
+          if (isActiveBoardReadOnly) break;
           e.preventDefault();
           updateWidget(widget.id, { flipped: !widget.flipped });
           handleCloseTools();
           break;
         case 'd': // Draw tool
+          if (isActiveBoardReadOnly) break;
           e.preventDefault();
           setIsAnnotating((prev) => !prev);
           handleCloseTools();
