@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-05-04_
+_Last audited: 2026-05-13_
 _Last action: 2026-05-01_
 
 ---
@@ -26,9 +26,17 @@ _Nothing currently in progress._
 ### LOW useQuizSession and useVideoActivitySession have high internal state density
 
 - **Detected:** 2026-04-17
-- **File:** hooks/useQuizSession.ts (18 useState/useRef calls as of 2026-04-24), hooks/useVideoActivitySession.ts (13 useState/useRef calls)
+- **Updated:** 2026-05-13 — counts updated: `useQuizSession.ts` now has 21 useState/useRef calls; `useVideoActivitySession.ts` has 17 (both grew). Also newly flagged: `usePlcOverviewLayout.ts` (9 calls), `useScreenRecord.ts` (8), `useLiveSession.ts` (8), `useStudentAssignments.ts` (7), `useRosters.ts` (7), `useOrgMembers.ts` (7), `useGuidedLearning.ts` (7).
+- **File:** hooks/useQuizSession.ts (21 useState/useRef calls as of 2026-05-13), hooks/useVideoActivitySession.ts (17 useState/useRef calls)
 - **Detail:** Both hooks accumulate many individual `useState`/`useRef` declarations rather than grouping related values into a single state object or sub-hook. High state density increases cognitive load when tracing data flow and makes it easy to introduce stale-closure bugs via missing dependencies.
 - **Fix:** Audit both hooks and group tightly-coupled state variables into sub-objects (e.g. `sessionStatus`, `studentResponses`, `timerState`) using a single `useState` or `useReducer` per group. Extract repeated logic (e.g. Firestore listener setup) into smaller helper hooks. Prioritize `useQuizSession.ts` first as it has the highest count.
+
+### LOW `as unknown as` double-casts in FeatureConfigurationPanel repeated for new widget (stations)
+
+- **Detected:** 2026-05-13
+- **File:** components/admin/FeatureConfigurationPanel.tsx (lines 96-142)
+- **Detail:** The pattern `XConfigurationPanel as unknown as BuildingConfigPanel` is used for 11 existing panels. When `StationsConfigurationPanel` is added (see ui-unification.md), it will be added with the same double-cast, further extending this pattern. The root issue (noted in the existing LOW item below) is that no shared interface for building config panels exists. Each new widget addition copies the pattern without improving type safety.
+- **Fix:** When adding StationsConfigurationPanel, simultaneously fix the existing LOW item — define a `BuildingConfigPanelComponent` interface and have each panel implement it explicitly, eliminating `as unknown as`. This upgrades the safety of the entire map.
 
 ### LOW useScreenRecord and useLiveSession exceed 5 state/ref calls
 
