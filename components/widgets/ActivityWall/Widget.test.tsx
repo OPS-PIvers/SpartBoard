@@ -116,6 +116,12 @@ vi.mock('firebase/firestore', () => ({
   updateDoc: mockUpdateDoc,
   deleteDoc: mockDeleteDoc,
   deleteField: vi.fn(() => '__delete__'),
+  // Stubs for the session-based library recovery path. Tests prepopulate
+  // `config.activities`, so the recovery effect short-circuits before
+  // touching these — keep them as no-ops returning empty results.
+  getDocs: vi.fn().mockResolvedValue({ docs: [] }),
+  query: vi.fn((ref: unknown) => ref),
+  where: vi.fn(),
 }));
 
 // Phase 3D: the widget fetches ClassLink classes on mount to decide

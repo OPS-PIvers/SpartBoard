@@ -35,9 +35,12 @@ import {
   deleteField,
   deleteDoc,
   doc,
+  getDocs,
   onSnapshot,
+  query,
   setDoc,
   updateDoc,
+  where,
 } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
 import {
@@ -276,6 +279,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const config = widget.config as ActivityWallConfig;
   const {
     activities: libraryActivities,
+    loading: libraryLoading,
     saveActivity: saveLibraryActivity,
     deleteActivity: deleteLibraryActivity,
   } = useActivityWallLibrary(user?.uid);
@@ -623,6 +627,106 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
       }
     })();
   }, [user, widget.id, widget.config, saveLibraryActivity, updateWidget]);
+
+  // ─── One-shot recovery: session docs → library ───────────────────────
+  // Before the library existed, activities lived on `config.activities`.
+  // If the teacher signed in on a different device or removed the widget
+  // back then, the only surviving trace of those activities is the
+  // session doc the widget writes on launch
+  // (`activity_wall_sessions/{teacherUid}_{activityId}`), which mirrors
+  // the full activity config and is also where student submissions hang.
+  // When the library is empty (no legacy `config.activities` to migrate
+  // either) we query those session docs and reconstruct library entries.
+  // A per-user localStorage flag stops us from re-querying on every
+  // empty-library mount once recovery has run.
+  const recoveryRanRef = useRef(false);
+  useEffect(() => {
+    if (recoveryRanRef.current) return;
+    if (!user || libraryLoading) return;
+    if (libraryActivities.length > 0) return;
+    const legacy = (widget.config as ActivityWallConfig).activities ?? [];
+    if (legacy.length > 0) return;
+    const flagKey = `aw_library_recovery_v1_${user.uid}`;
+    if (
+      typeof localStorage !== 'undefined' &&
+      localStorage.getItem(flagKey) === 'done'
+    ) {
+      recoveryRanRef.current = true;
+      return;
+    }
+    recoveryRanRef.current = true;
+    void (async () => {
+      try {
+        const sessionsQuery = query(
+          collection(db, 'activity_wall_sessions'),
+          where('teacherUid', '==', user.uid)
+        );
+        const snap = await getDocs(sessionsQuery);
+        const recovered: ActivityWallLibraryEntry[] = [];
+        snap.docs.forEach((d) => {
+          const data = d.data() as Partial<{
+            activityId: string;
+            title: string;
+            prompt: string;
+            mode: ActivityWallActivity['mode'];
+            moderationEnabled: boolean;
+            identificationMode: ActivityWallActivity['identificationMode'];
+            classId: string;
+            updatedAt: number;
+          }>;
+          if (
+            typeof data.activityId !== 'string' ||
+            typeof data.title !== 'string' ||
+            typeof data.prompt !== 'string'
+          ) {
+            return;
+          }
+          const updatedAt =
+            typeof data.updatedAt === 'number' ? data.updatedAt : Date.now();
+          const entry: ActivityWallLibraryEntry = {
+            id: data.activityId,
+            title: data.title,
+            prompt: data.prompt,
+            mode: data.mode === 'photo' ? 'photo' : 'text',
+            moderationEnabled: !!data.moderationEnabled,
+            identificationMode: data.identificationMode ?? 'anonymous',
+            createdAt: updatedAt,
+            updatedAt,
+          };
+          if (typeof data.classId === 'string' && data.classId.length > 0) {
+            entry.classId = data.classId;
+          }
+          recovered.push(entry);
+        });
+        await Promise.all(recovered.map((entry) => saveLibraryActivity(entry)));
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem(flagKey, 'done');
+        }
+        if (recovered.length > 0) {
+          addToast(
+            `Restored ${recovered.length} activit${
+              recovered.length === 1 ? 'y' : 'ies'
+            } from past sessions.`,
+            'success'
+          );
+        }
+      } catch (err) {
+        console.error(
+          '[ActivityWall] Session-based library recovery failed:',
+          err
+        );
+        // Allow a retry on next mount — don't poison the localStorage flag.
+        recoveryRanRef.current = false;
+      }
+    })();
+  }, [
+    user,
+    libraryLoading,
+    libraryActivities.length,
+    widget.config,
+    saveLibraryActivity,
+    addToast,
+  ]);
 
   // Open the editor seeded with the teacher's last-used classId for this
   // activity (Phase 3D). Keeps the same UX as QuizManager where re-assigning
