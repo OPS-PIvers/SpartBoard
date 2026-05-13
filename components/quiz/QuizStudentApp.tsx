@@ -1338,12 +1338,12 @@ const ActiveQuiz: React.FC<{
     currentQuestion.type === 'MC' ? (currentQuestion.choices ?? []) : [];
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col relative">
+    <div className="h-screen overflow-y-auto bg-slate-900 relative">
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
       {showResumeModal && (
-        <div className="absolute inset-0 z-overlay bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-overlay bg-emerald-900/95 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <UnlockIcon className="w-20 h-20 text-emerald-300 mb-6" />
           <h2 className="text-4xl font-black text-white mb-4">
             Attempt Unlocked
@@ -1381,7 +1381,7 @@ const ActiveQuiz: React.FC<{
 
       {/* 🔴 The Cheating Warning Modal */}
       {showCheatWarning && (
-        <div className="absolute inset-0 z-overlay bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
+        <div className="fixed inset-0 z-overlay bg-red-900/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center">
           <AlertCircle className="w-20 h-20 text-red-500 mb-6 animate-pulse" />
           <h2 className="text-4xl font-black text-white mb-4">
             TAB SWITCH DETECTED
@@ -1413,7 +1413,7 @@ const ActiveQuiz: React.FC<{
         />
       </div>
 
-      <div className="flex-1 flex flex-col p-6 max-w-lg mx-auto w-full">
+      <div className="flex flex-col p-6 max-w-lg mx-auto w-full">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
