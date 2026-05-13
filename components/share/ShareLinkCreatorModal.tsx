@@ -376,6 +376,37 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
               <span className="font-bold text-slate-800">{modeLabel}</span>.
             </p>
           )}
+          {mode === 'substitute' && (
+            <div className="rounded-lg border border-brand-blue-lighter bg-brand-blue-lighter/10 px-3 py-2 text-[11px] text-slate-600 space-y-1">
+              <div>
+                <span className="font-bold text-slate-800">Expires:</span>{' '}
+                {new Date(new Date(subExpiresAt).getTime()).toLocaleString(
+                  undefined,
+                  {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  }
+                )}
+              </div>
+              {subEmails.length > 0 && (
+                <div>
+                  <span className="font-bold text-slate-800">
+                    Drive access granted to:
+                  </span>{' '}
+                  {subEmails.join(', ')}
+                </div>
+              )}
+              {subEmails.length === 0 && (
+                <div className="text-slate-500">
+                  No sub emails listed — the randomizer will fall back to its
+                  manual-mode names.
+                </div>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
             <input
               type="text"
