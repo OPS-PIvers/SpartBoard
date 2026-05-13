@@ -2271,11 +2271,12 @@ describe('generateWithAI read caching', () => {
     expect(adminDocGet).toHaveBeenCalledTimes(2);
   });
 
-  it('evicts the oldest entry when the admin cache exceeds its bound', async () => {
+  it('evicts the least-recently-used entry when the admin cache exceeds its bound', async () => {
     // Pins the size-cap contract — a warm instance that sees many distinct
-    // callers must not grow the Map unboundedly. Insertion order is FIFO,
-    // so after filling beyond the cap and probing the very first email
-    // again, that email must be a cache miss (re-reads Firestore).
+    // callers must not grow the Map unboundedly. The cache is LRU, so
+    // after filling beyond the cap the oldest *by recency* entries are
+    // evicted; entries that were never re-touched stay at the front of
+    // the eviction queue.
     const db = admin.firestore();
     // The implementation cap is 500; fill past it with unique emails.
     // Reading 510 distinct emails forces 10 evictions starting from the
@@ -2292,6 +2293,42 @@ describe('generateWithAI read caching', () => {
 
     // bulk-509 (the most recent) is still cached.
     await __getCachedAdminStatus(db, 'bulk-509@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(511);
+  });
+
+  it('LRU: a recently-accessed key survives eviction pressure that would drop it under FIFO', async () => {
+    // The regression this guards against: under FIFO, a frequently-hit
+    // key written early gets evicted by one-off lookups. Under LRU, a
+    // hit promotes the key to the tail and it survives.
+    const db = admin.firestore();
+
+    // Insert bulk-0 first, then fill the cache up to (but not over) the
+    // cap with 499 other distinct keys. After this, bulk-0 is the oldest
+    // by insertion order.
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    for (let i = 1; i < 500; i++) {
+      await __getCachedAdminStatus(db, `bulk-${i}@school.org`);
+    }
+    expect(adminDocGet).toHaveBeenCalledTimes(500);
+
+    // Touch bulk-0 again — under LRU this promotes it to most-recently-used.
+    // No Firestore read because it's still cached.
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(500);
+
+    // Now push 10 brand-new entries past the cap. Under FIFO bulk-0 would
+    // be evicted first; under LRU bulk-1 is now the oldest and gets dropped.
+    for (let i = 500; i < 510; i++) {
+      await __getCachedAdminStatus(db, `bulk-${i}@school.org`);
+    }
+    expect(adminDocGet).toHaveBeenCalledTimes(510);
+
+    // bulk-0 must still be cached (the LRU promotion saved it).
+    await __getCachedAdminStatus(db, 'bulk-0@school.org');
+    expect(adminDocGet).toHaveBeenCalledTimes(510);
+
+    // bulk-1 — never re-touched, oldest by recency — should now be evicted.
+    await __getCachedAdminStatus(db, 'bulk-1@school.org');
     expect(adminDocGet).toHaveBeenCalledTimes(511);
   });
 
