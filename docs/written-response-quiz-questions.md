@@ -83,53 +83,95 @@ type QuestionType = 'MC' | 'FIB' | 'Matching' | 'Ordering' | 'short' | 'essay';
 | Auto-grade | None — always manual                                                       | None — always manual                                                         |
 | Rubric     | Optional                                                                   | Optional but recommended                                                     |
 
-**Storage shape** (extension to `QuizResponseAnswer`):
+**Storage shape** (revised after Gemini review feedback — keeps grading
+**off** the `answers[]` array for security and document-size reasons):
 
 ```ts
+// Existing array entry — unchanged shape for written responses. The
+// `answer` string is now the (sanitized) HTML body of the student's
+// rich-text response. No plainText mirror — plain text is derived
+// on the fly when needed (word counts, exports).
 type QuizResponseAnswer = {
   questionId: string;
-  answer: string; // existing — for written, this is a serialized TipTap JSON doc
+  answer: string; // for written: sanitized HTML body
   answeredAt: number;
-  isCorrect?: boolean; // unused for written
+  isCorrect?: boolean; // unused for written (see note below)
   speedBonus?: number; // unused for written
-  // NEW (optional, only present for written responses):
-  written?: {
-    docVersion: 1; // schema version for forward-compat
-    plainText: string; // sanitized text, used for word-count, search, exports
-    wordCount: number;
-    lastEditedAt: number;
-  };
-  grading?: {
-    // populated by teacher
-    pointsAwarded: number;
-    rubricScores?: RubricScore[]; // see §6
-    annotations?: Annotation[]; // see §5
-    overallComment?: string; // teacher's summary note
-    gradedBy: string; // teacher uid
-    gradedAt: number;
-  };
+};
+
+// NEW top-level map on the response doc, keyed by questionId. Lives
+// outside `answers[]` so teacher writes are granular and never need to
+// rewrite the student's answer array.
+type QuizResponse = {
+  // ...existing fields...
+  grading?: { [questionId: string]: WrittenAnswerGrade };
+};
+
+type WrittenAnswerGrade = {
+  pointsAwarded: number; // 0..question.points
+  overallComment?: string; // teacher's summary note
+  rubricScores?: RubricScore[]; // Phase 3
+  annotations?: Annotation[]; // Phase 2 — see §5 open question
+  gradedBy: string; // teacher uid
+  gradedAt: number;
 };
 ```
 
-`answer` continues to be a string field at the Firestore level (the TipTap
-JSON serialized) so rules stay simple. The `written.plainText` mirror is
-what we sanitize and read for word counts / Drive exports.
+**Why grading lives outside `answers[]`** (response to Gemini review of
+2026-05-13):
+
+- Firestore rules can already deny student writes to `grading` for free
+  via the existing student `changedKeys().hasOnly([...])` whitelist at
+  `firestore.rules:1814` — `grading` simply isn't in the list.
+- The teacher branch (`request.auth.uid == sessionTeacherUid()`) is
+  unrestricted today, so teachers can write `grading` without needing
+  CEL gymnastics to validate the student's `answer` text was untouched.
+  Putting `grading` inside the answers array would require either
+  rewriting the array as a Map keyed by questionId or moving answers
+  to a subcollection — large breaking changes outside Phase 1 scope.
+- Phase 1 keeps the existing `answers[]` array shape exactly as-is for
+  the four legacy question types.
+
+**Why no `plainText` mirror**:
+
+- Doubles per-response payload for long essays and pushes harder against
+  the 1 MB Firestore doc limit.
+- Easy to derive on demand: `domparser → textContent` on render, plus
+  a small helper in `utils/` for Drive export.
+- Word counts run in the editor against the live document; nothing in
+  Firestore needs them.
+
+**Note on `isCorrect`**: written responses do not set `isCorrect` at the
+student-submission boundary (same as today). Downstream reporting
+(`QuizResults`) derives correctness for written responses as
+`grading.pointsAwarded === pointsMax` when a grade is present, and treats
+the question as "ungraded" until then.
 
 ---
 
 ## 4. Rich text editor
 
-**Recommendation: TipTap (ProseMirror under the hood).**
+**Phase 1 implementation: `contenteditable` + DOMPurify.** No new
+dependency, sanitized HTML in/out, ~5 KB of widget code rather than
+~100 KB of editor framework. Sufficient for the bold/italic/list/word-
+count needs of Phase 1.
 
-Why:
+**Phase 2 swap: TipTap (ProseMirror).** Bringing TipTap in is justified
+the moment we want annotations as first-class ProseMirror **marks**
+(see §5). Until then it's not worth the bundle hit. The schema (sanitized
+HTML in `answer`) stays compatible — TipTap can `setContent(html)` to
+hydrate from existing responses.
 
-- Annotations are first-class via ProseMirror **marks** — exactly what we
-  need for highlights tied to ranges (see §5 recommendation).
-- StarterKit + a handful of extensions covers everything we need;
-  lazy-loaded on the quiz route, bundle impact is ~80-120 KB gzipped and only
-  paid when a written question is rendered.
-- Document is serialized as JSON, sanitized via `dompurify` on render. We
-  already have `dompurify@3.4.2`.
+Why this split:
+
+- The student-facing editor in Phase 1 is a writing surface, not a
+  publishing tool. A toolbar of bold/italic/lists over a sanitized
+  contenteditable handles the bulk of what teachers actually want.
+- ProseMirror's value (real document model, marks, immutable transforms,
+  collaborative editing primitives) pays off when we build annotations
+  on top of student documents. We can defer that bundle cost.
+- `dompurify@3.4.2` already ships in the bundle, so sanitization on
+  every read/write is free.
 
 **Student editor surface** (kept deliberately minimal):
 
@@ -150,21 +192,25 @@ path already touches — no new collection needed.
 
 ---
 
-## 5. Annotations (highlights + margin comments)
+## 5. Annotations (highlights + margin comments) — Phase 2
 
-### Recommendation
-
-**Store annotations as ProseMirror marks inside the student's document.**
-Reason: marks move with the text. If the response gets edited in a future
-"request revisions" flow, a comment anchored to a sentence travels with that
-sentence; sidecar-by-offset comments would drift the moment anyone touches
-the doc.
-
-To make this work cleanly, the student's submitted document is **frozen** at
-grading time (status becomes `completed` and a serialized snapshot is what
-the teacher annotates). If teachers later allow revisions, we copy
-annotations onto the new doc as best-effort — but that's a future-phase
-concern, not Phase 2.
+> **Open question flagged by Gemini review (2026-05-13):** there is a
+> real technical tension between two of the goals stated below — "marks
+> move with the text" vs. "teacher must not modify the student's
+> `answer` JSON." The pragmatic resolution is one of:
+>
+> 1. **Snapshot the document at grading time** to a teacher-owned
+>    `gradingSnapshot` field, and store marks _on the snapshot_. The
+>    student's `answer` stays untouched. Annotations only travel with
+>    the snapshot — fine, because revisions are a Phase 4 concern.
+> 2. **Sidecar offsets** stored under `grading[questionId].annotations`,
+>    with a deterministic re-mapping pass if the student ever revises
+>    the doc later.
+>
+> Phase 2 will pick one. The doc below originally argued for marks-in-
+> document, but that conflicts with the security-first stance that
+> teachers don't rewrite student `answer` text. Decision deferred to
+> Phase 2 design.
 
 ### Annotation shape
 
@@ -333,23 +379,31 @@ right-click suppression.
 
 ## 9. Firestore rules — required changes
 
-Minimal. The response doc shape stays the same at the rule level (we're just
-storing a larger string + an optional `grading` field).
+After the schema revision (grading lives in a top-level `grading` map,
+not inside `answers[]`), Phase 1 needs **zero new permissive rules**:
 
-Adds needed in `firestore.rules`:
+1. **Teachers can already write `grading`** — the existing teacher
+   branch on `match /responses/{responseKey}` is
+   `request.auth.uid == sessionTeacherUid() || isAdmin()` with no
+   field restrictions (`firestore.rules:1773-1775`). Adding the new
+   `grading` field is permitted automatically.
+2. **Students cannot write `grading`** — the student-update branch at
+   `firestore.rules:1814` already locks writes to a strict whitelist:
+   `changedKeys().hasOnly(['answers', 'status', 'submittedAt',
+'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score',
+'preSyncVersion', 'unlocked'])`. `grading` is not in that list, so
+   any student write including it is rejected by default. No rule
+   change needed for student-side protection.
+3. **Rubrics collection (Phase 3 only)**: `/users/{userId}/rubrics/{rubricId}`
+   — owner-only read/write, mirroring `firestore.rules:508-518`.
 
-1. Allow teacher (`teacherUid == request.auth.uid` on the parent session) to
-   write the `grading` field on a response doc. Currently student-only.
-   This needs careful merge-path rules so teacher writes can't reset
-   `answers` or `tabSwitchWarnings`.
-2. New collection `/users/{userId}/rubrics/{rubricId}` — owner-only
-   read/write, mirroring the existing per-user collection patterns
-   (`firestore.rules:508-518` is the right template).
-3. PLC sharing of rubrics piggybacks on the existing `shared_assignments`
-   collection model — Phase 3 only.
+The append-only `tabSwitchWarnings` / `completedAttempts` constraints
+stay exactly as they are.
 
-The append-only `tabSwitchWarnings` / `completedAttempts` constraints stay
-exactly as they are.
+(Phase 2 will add tighter rules around what teachers can write to
+`grading[questionId]` — e.g., capping `pointsAwarded` at the question's
+point value once we model the question key in rules — but Phase 1 trusts
+the existing teacher-owns-everything model.)
 
 ---
 
@@ -379,12 +433,16 @@ exactly as they are.
 - **Phase 1 — Foundation (this design's scope to start)**
   - `short` and `essay` question types in `types.ts`, builder UI in
     `QuizEditor`, default config in `config/widgetDefaults.ts` if applicable.
-  - TipTap student editor, lazy-loaded on quiz route.
-  - Autosave to `answers[].answer` (TipTap JSON) + `written.plainText`.
+  - `contenteditable` + DOMPurify rich-text editor (lazy chunk on quiz
+    route). No new dependency.
+  - Autosave to `answers[].answer` as sanitized HTML. No plainText
+    mirror — derived on demand.
   - Pause/resume rehydration (mostly works already; verify with E2E).
+  - Top-level `grading` map on the response doc, keyed by questionId.
   - Manual grading modal with prev/next nav, points-only entry (no rubric,
     no annotations yet).
-  - Teacher rule allowing `grading` field write.
+  - No rule changes needed — existing student whitelist already locks
+    `grading` out of student writes; teacher branch is unrestricted.
   - Soft-lockdown polish: surface tab-switch count in grading header.
 
 - **Phase 2 — Annotations**
@@ -406,10 +464,10 @@ exactly as they are.
 
 ## 12. Testing checklist (per phase)
 
-- **Phase 1**: unit tests for TipTap JSON ↔ plainText conversion, autosave
-  debounce, word-count cap behavior; E2E for pause-then-resume-next-day
-  scenario using Playwright; rules tests asserting teacher-write-only of
-  `grading` field and student-write-only of everything else.
+- **Phase 1**: unit tests for HTML sanitization round-trip + word
+  count from HTML; autosave debounce; rules tests asserting student
+  writes including `grading` are rejected and teacher writes are
+  accepted. E2E for pause-then-resume-next-day using Playwright.
 - **Phase 2**: annotation range survives sanitization round-trip; student
   read-only render shows highlights at correct offsets.
 - **Phase 3**: CSV import round-trips losslessly; rubric snapshot doesn't
