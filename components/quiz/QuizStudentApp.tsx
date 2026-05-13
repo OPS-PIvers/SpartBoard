@@ -1369,7 +1369,7 @@ const ActiveQuiz: React.FC<{
       {/* Persistent "one strike and you're out" banner — visible for the
           duration of the resumed attempt so the rule stays top-of-mind. */}
       {myResponse?.unlocked && !showResumeModal && (
-        <div className="flex items-start gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs">
+        <div className="sticky top-0 z-10 flex items-start gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs">
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
             Your teacher unlocked your attempt.{' '}
@@ -1809,7 +1809,7 @@ const StructuredQuestionInput: React.FC<{
     : !submitted;
 
   return (
-    <div className="space-y-4 flex-1">
+    <div className="space-y-4">
       {showEditableForm ? (
         <>
           {isMatching ? (
@@ -1981,63 +1981,66 @@ const ReviewPhase: React.FC<{
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-      {/* Question recap */}
-      <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
-        Question {session.currentQuestionIndex + 1} of {session.totalQuestions}
-      </p>
-      <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md">
-        {currentQuestion.text}
-      </h2>
+    <div className="h-screen overflow-y-auto bg-slate-900">
+      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
+        {/* Question recap */}
+        <p className="text-slate-400 text-xs uppercase tracking-widest mb-3">
+          Question {session.currentQuestionIndex + 1} of{' '}
+          {session.totalQuestions}
+        </p>
+        <h2 className="text-lg font-bold text-white mb-6 leading-snug max-w-md">
+          {currentQuestion.text}
+        </h2>
 
-      {/* Correct answer */}
-      {revealed && (
-        <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl mb-4 max-w-sm w-full">
-          <p className="text-emerald-400 font-bold text-sm">
-            <Check className="w-4 h-4 inline-block mr-1 -mt-0.5" />
-            {revealed}
-          </p>
-        </div>
-      )}
+        {/* Correct answer */}
+        {revealed && (
+          <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl mb-4 max-w-sm w-full">
+            <p className="text-emerald-400 font-bold text-sm">
+              <Check className="w-4 h-4 inline-block mr-1 -mt-0.5" />
+              {revealed}
+            </p>
+          </div>
+        )}
 
-      {/* Student's result */}
-      {isCorrect !== null && (
-        <div
-          className={`text-lg font-black mb-6 ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}
-        >
-          {isCorrect ? (
-            <>
-              <CheckCircle2 className="w-5 h-5 inline-block mr-1 -mt-0.5" /> You
-              got it right!
-            </>
-          ) : (
-            <>
-              <XIcon className="w-5 h-5 inline-block mr-1 -mt-0.5" /> Better
-              luck next time!
-            </>
-          )}
-        </div>
-      )}
+        {/* Student's result */}
+        {isCorrect !== null && (
+          <div
+            className={`text-lg font-black mb-6 ${isCorrect ? 'text-emerald-400' : 'text-red-400'}`}
+          >
+            {isCorrect ? (
+              <>
+                <CheckCircle2 className="w-5 h-5 inline-block mr-1 -mt-0.5" />{' '}
+                You got it right!
+              </>
+            ) : (
+              <>
+                <XIcon className="w-5 h-5 inline-block mr-1 -mt-0.5" /> Better
+                luck next time!
+              </>
+            )}
+          </div>
+        )}
 
-      {gamificationEnabled && session.liveLeaderboard ? (
-        <div className="w-full flex flex-col items-center gap-4">
-          <StudentLeaderboard
-            entries={session.liveLeaderboard}
-            myPin={myResponse?.pin ?? ''}
-            myStudentUid={myResponse?.studentUid}
-            scoreSuffix={getScoreSuffix(session)}
-          />
+        {gamificationEnabled && session.liveLeaderboard ? (
+          <div className="w-full flex flex-col items-center gap-4">
+            <StudentLeaderboard
+              entries={session.liveLeaderboard}
+              myPin={myResponse?.pin ?? ''}
+              myStudentUid={myResponse?.studentUid}
+              scoreSuffix={getScoreSuffix(session)}
+            />
+            <div className="flex items-center gap-2 text-slate-500 text-sm">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              Waiting for teacher to continue...
+            </div>
+          </div>
+        ) : (
           <div className="flex items-center gap-2 text-slate-500 text-sm">
             <Loader2 className="w-4 h-4 animate-spin" />
             Waiting for teacher to continue...
           </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-2 text-slate-500 text-sm">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Waiting for teacher to continue...
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
@@ -2073,41 +2076,44 @@ const ResultsScreen: React.FC<{
   }
 
   return (
-    <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6 text-center">
-      <Trophy className="w-16 h-16 text-amber-400 mb-6" />
-      <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
-      <p className="text-slate-400 text-sm mb-8">
-        {pin ? (
-          <>
-            Great job, PIN{' '}
-            <span className="font-mono font-bold text-white">{pin}</span>!
-          </>
-        ) : (
-          'Great job!'
-        )}
-      </p>
-
-      <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
-        <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
-        <p className="text-slate-400 text-sm">
-          of {totalQuestions} questions answered
+    <div className="h-screen overflow-y-auto bg-slate-900">
+      <div className="min-h-full flex flex-col items-center justify-center p-6 text-center">
+        <Trophy className="w-16 h-16 text-amber-400 mb-6" />
+        <h1 className="text-3xl font-black text-white mb-2">Quiz Complete!</h1>
+        <p className="text-slate-400 text-sm mb-8">
+          {pin ? (
+            <>
+              Great job, PIN{' '}
+              <span className="font-mono font-bold text-white">{pin}</span>!
+            </>
+          ) : (
+            'Great job!'
+          )}
         </p>
-      </div>
 
-      <p className="text-slate-500 text-sm max-w-xs">
-        Your answers have been submitted. Ask your teacher to see your results.
-      </p>
-
-      {isGamificationActive(session) && session.liveLeaderboard && (
-        <div className="mt-8 w-full flex justify-center">
-          <StudentLeaderboard
-            entries={session.liveLeaderboard}
-            myPin={pin}
-            myStudentUid={myStudentUid}
-            scoreSuffix={getScoreSuffix(session)}
-          />
+        <div className="mb-8 p-6 bg-slate-800 rounded-2xl">
+          <p className="text-5xl font-black text-white mb-2">{answeredCount}</p>
+          <p className="text-slate-400 text-sm">
+            of {totalQuestions} questions answered
+          </p>
         </div>
-      )}
+
+        <p className="text-slate-500 text-sm max-w-xs">
+          Your answers have been submitted. Ask your teacher to see your
+          results.
+        </p>
+
+        {isGamificationActive(session) && session.liveLeaderboard && (
+          <div className="mt-8 w-full flex justify-center">
+            <StudentLeaderboard
+              entries={session.liveLeaderboard}
+              myPin={pin}
+              myStudentUid={myStudentUid}
+              scoreSuffix={getScoreSuffix(session)}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 };
@@ -2162,7 +2168,7 @@ const PublishedScoreReview: React.FC<{
   const total = session.totalQuestions;
 
   return (
-    <div className="min-h-screen bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
+    <div className="h-screen overflow-y-auto bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto w-full max-w-2xl">
         <header className="mb-6 flex flex-col items-center text-center">
           <Trophy className="mb-4 h-12 w-12 text-amber-400" />
