@@ -11,6 +11,12 @@
  * widget rendering in SubBoardScreen still uses the hand-rendered tile
  * placeholders from Phase A — full widget rendering with the teacher's
  * config is on the Phase 6 polish list.
+ *
+ * The view state machine lives inside `SubsContent`, mounted only after
+ * `SubsAuthGate` has confirmed a signed-in `@orono.k12.mn.us` user. This
+ * lets us scope the building-restore localStorage key to the user's UID
+ * so two subs sharing a classroom cart don't inherit each other's last
+ * building selection.
  */
 
 import React, { useEffect, useState } from 'react';
@@ -18,21 +24,39 @@ import { SubsAuthGate } from './SubsAuthGate';
 import { BuildingPickerScreen } from './BuildingPickerScreen';
 import { TeacherDirectoryScreen } from './TeacherDirectoryScreen';
 import { SubBoardScreen } from './SubBoardScreen';
+import { useAuth } from '@/context/useAuth';
 
 type SubsView =
   | { kind: 'building-picker' }
   | { kind: 'directory'; buildingId: string }
   | { kind: 'board'; buildingId: string; shareId: string };
 
-const VIEW_STORAGE_KEY = 'spart_subs_view';
+// Per-user storage key. SubsAuthGate guarantees `uid` is set before this
+// runs (it doesn't render children until auth is settled + allowed), so
+// the only way to land in the `anon` fallback is if useAuth somehow
+// returns no user at this layer — defensive only.
+function storageKeyFor(uid: string | null | undefined): string {
+  return `spart_subs_view_${uid ?? 'anon'}`;
+}
 
-export const SubsApp: React.FC = () => {
+export const SubsApp: React.FC = () => (
+  <SubsAuthGate>
+    <SubsContent />
+  </SubsAuthGate>
+);
+
+const SubsContent: React.FC = () => {
+  const { user } = useAuth();
+  const uid = user?.uid ?? null;
+  const storageKey = storageKeyFor(uid);
+
   const [view, setView] = useState<SubsView>(() => {
     // Restore the last-picked building so a sub bouncing between cards
-    // doesn't lose their place if they refresh.
+    // doesn't lose their place if they refresh. Per-UID key prevents
+    // cross-user leakage on shared classroom hardware.
     if (typeof window === 'undefined') return { kind: 'building-picker' };
     try {
-      const raw = window.localStorage.getItem(VIEW_STORAGE_KEY);
+      const raw = window.localStorage.getItem(storageKey);
       if (!raw) return { kind: 'building-picker' };
       const parsed = JSON.parse(raw) as SubsView;
       if (
@@ -52,14 +76,14 @@ export const SubsApp: React.FC = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (view.kind === 'directory') {
-      window.localStorage.setItem(VIEW_STORAGE_KEY, JSON.stringify(view));
+      window.localStorage.setItem(storageKey, JSON.stringify(view));
     } else if (view.kind === 'building-picker') {
-      window.localStorage.removeItem(VIEW_STORAGE_KEY);
+      window.localStorage.removeItem(storageKey);
     }
-  }, [view]);
+  }, [view, storageKey]);
 
   return (
-    <SubsAuthGate>
+    <>
       {view.kind === 'building-picker' && (
         <BuildingPickerScreen
           onPick={(buildingId) => setView({ kind: 'directory', buildingId })}
@@ -85,6 +109,6 @@ export const SubsApp: React.FC = () => {
           onChangeBuilding={() => setView({ kind: 'building-picker' })}
         />
       )}
-    </SubsAuthGate>
+    </>
   );
 };

@@ -553,8 +553,12 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                 <GraduationCap className="w-4 h-4 shrink-0 text-brand-blue-primary mt-0.5" />
                 <span>
                   {t('shareLinkCreatorModal.substitute.intro', {
+                    // Derive the portal URL at render time so dev preview
+                    // deployments (e.g. spartboard--dev-paul-XXXXXXXX.web.app)
+                    // show the URL that subs would actually use on that host.
+                    portalUrl: `${window.location.host}/subs`,
                     defaultValue:
-                      'Subs sign in at spartboard.web.app/subs, pick this building, and open your board for the day.',
+                      'Subs sign in at {{portalUrl}}, pick this building, and open your board for the day.',
                   })}
                 </span>
               </div>
