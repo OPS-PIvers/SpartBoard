@@ -990,7 +990,12 @@ export const Dock: React.FC = () => {
                 : 'max-w-[95vw] overflow-x-auto'
             }`}
           >
-            {dockItems.length > 0 ? (
+            {dockItems.length === 0 && (
+              <div className="px-3 py-2 text-xxs font-black uppercase text-slate-400 italic flex-shrink-0">
+                {t('dock.noAppsSelected')}
+              </div>
+            )}
+            {dockItems.length > 0 && (
               <>
                 <DndContext
                   sensors={sensors}
@@ -1415,38 +1420,39 @@ export const Dock: React.FC = () => {
                     ))}
                   </>
                 )}
-
-                {/* Separator and More Button */}
-                <div
-                  className={`bg-slate-200 flex-shrink-0 ${
-                    isVerticalDock
-                      ? 'h-px w-8 my-1 md:my-2'
-                      : 'w-px h-8 mx-1 md:mx-2'
-                  }`}
-                />
-
-                <button
-                  ref={moreButtonRef}
-                  onClick={() => setShowMoreMenu(!showMoreMenu)}
-                  className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x flex-shrink-0"
-                  title={t('sidebar.header.moreWidgets')}
-                >
-                  <DockIcon
-                    color="bg-brand-blue-primary shadow-lg shadow-brand-blue-primary/20"
-                    className="flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-brand-blue-dark transition"
-                  >
-                    <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
-                  </DockIcon>
-                  <DockLabel className="text-slate-600 font-bold">
-                    {t('sidebar.header.more')}
-                  </DockLabel>
-                </button>
               </>
-            ) : (
-              <div className="px-6 py-2 text-xxs font-black uppercase text-slate-400 italic">
-                {t('dock.noAppsSelected')}
-              </div>
             )}
+
+            {/* Separator + "More" button — always accessible so users can
+                add widgets even when the dock is empty. Previously the
+                More button was rendered only inside the dockItems>0 branch,
+                which left users with an empty dock stuck with no UI to
+                recover from. */}
+            {dockItems.length > 0 && (
+              <div
+                className={`bg-slate-200 flex-shrink-0 ${
+                  isVerticalDock
+                    ? 'h-px w-8 my-1 md:my-2'
+                    : 'w-px h-8 mx-1 md:mx-2'
+                }`}
+              />
+            )}
+            <button
+              ref={moreButtonRef}
+              onClick={() => setShowMoreMenu(!showMoreMenu)}
+              className="group flex flex-col items-center gap-1 min-w-[50px] transition-transform active:scale-90 touch-pan-x flex-shrink-0"
+              title={t('sidebar.header.moreWidgets')}
+            >
+              <DockIcon
+                color="bg-brand-blue-primary shadow-lg shadow-brand-blue-primary/20"
+                className="flex items-center justify-center text-white group-hover:scale-110 group-hover:bg-brand-blue-dark transition"
+              >
+                <LayoutGrid className="w-5 h-5 md:w-6 md:h-6" />
+              </DockIcon>
+              <DockLabel className="text-slate-600 font-bold">
+                {t('sidebar.header.more')}
+              </DockLabel>
+            </button>
           </GlassCard>
 
           {showMagicLayout && (
