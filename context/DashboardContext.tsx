@@ -21,6 +21,7 @@ import {
   GridPosition,
   FeaturePermission,
   DrawableObject,
+  UserProfile,
 } from '../types';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
@@ -354,7 +355,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setAnnotationActive(false);
   }, []);
 
+  // Same-device cache invalidation across user accounts. The dock cache in
+  // localStorage is keyed by the uid that last wrote it; on mount we only
+  // trust the cache when its uid matches the currently signed-in user.
+  // Mismatch → return defaults, so user B doesn't briefly see user A's
+  // layout while waiting for Firestore hydration. DashboardProvider is only
+  // mounted when `user` is truthy (see App.tsx), so a sign-out → sign-in as
+  // a different user remounts this component with a fresh user value.
+  const dockCacheUidRaw =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('classroom_dock_cache_uid')
+      : null;
+  const dockCacheMatchesUser = user
+    ? dockCacheUidRaw === user.uid
+    : dockCacheUidRaw === null;
+
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
+    if (!dockCacheMatchesUser) return false;
     return localStorage.getItem('classroom_dock_initialized') === 'true';
   });
   // Keep a ref in sync so timeout callbacks can read the latest value without
@@ -365,6 +382,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [visibleTools, setVisibleTools] = useState<
     (WidgetType | InternalToolType)[]
   >(() => {
+    if (!dockCacheMatchesUser) return [];
     const saved = localStorage.getItem('classroom_visible_tools');
     if (saved) {
       try {
@@ -379,6 +397,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [libraryOrder, setLibraryOrder] = useState<
     (WidgetType | InternalToolType)[]
   >(() => {
+    if (!dockCacheMatchesUser) return TOOLS.map((t) => t.type);
     const saved = localStorage.getItem('spartboard_library_order');
     if (saved) {
       try {
@@ -391,6 +410,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   });
 
   const [dockItems, setDockItems] = useState<DockItem[]>(() => {
+    if (!dockCacheMatchesUser) return [];
     const saved = localStorage.getItem('classroom_dock_items');
     if (saved) {
       try {
@@ -743,17 +763,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         const snap = await getDoc(profileRef);
         if (cancelled) return;
         const data = snap.exists()
-          ? (snap.data() as Record<string, unknown>)
+          ? (snap.data() as Partial<UserProfile>)
           : null;
 
         const cloudDock =
-          data && Array.isArray(data.dockItems)
-            ? (data.dockItems as DockItem[])
-            : null;
+          data && Array.isArray(data.dockItems) ? data.dockItems : null;
         const cloudLibrary =
-          data && Array.isArray(data.libraryOrder)
-            ? (data.libraryOrder as (WidgetType | InternalToolType)[])
-            : null;
+          data && Array.isArray(data.libraryOrder) ? data.libraryOrder : null;
         const cloudInitialized =
           data && typeof data.dockInitialized === 'boolean'
             ? data.dockInitialized
@@ -769,16 +785,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
           // Derive visibleTools from cloud dockItems so the two stores stay
           // in sync. Folder items count as visible too.
-          const derivedVisible: (WidgetType | InternalToolType)[] = [];
-          for (const item of cloudDock) {
-            if (item.type === 'tool') {
-              derivedVisible.push(item.toolType);
-            } else {
-              for (const inner of item.folder.items) {
-                derivedVisible.push(inner);
-              }
-            }
-          }
+          const derivedVisible = cloudDock.flatMap((item) =>
+            item.type === 'tool' ? item.toolType : item.folder.items
+          );
           setVisibleTools(derivedVisible);
           localStorage.setItem(
             'classroom_visible_tools',
@@ -796,6 +805,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           setIsDockInitialized(true);
           localStorage.setItem('classroom_dock_initialized', 'true');
         }
+        // Claim the cache for this user so subsequent reloads on the same
+        // device trust the localStorage cache and skip straight to the
+        // cloud-synced state.
+        localStorage.setItem('classroom_dock_cache_uid', user.uid);
         succeeded = true;
       } catch (err) {
         // Leave dockHydrationOk false so we don't push defaults over a real
@@ -859,29 +872,31 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     };
   }, [user, dockHydrationOk, isDockInitialized, dockItems, libraryOrder]);
 
-  // Reset dock-hydration state on sign-out / user switch so the next sign-in
-  // re-fetches the cloud doc and the previous user's localStorage cache
-  // doesn't leak across accounts on a shared device.
+  // Drop any stale dock localStorage entries left behind by a previous user
+  // on this device. We can't do this in the useState initializers because
+  // they shouldn't have side effects, so this runs once on mount when the
+  // cache uid sentinel doesn't match. Cache invalidation across accounts is
+  // primarily handled by the uid-gated useState initializers above; this
+  // just keeps localStorage tidy. A second user-switch in the same tab
+  // session is impossible because DashboardProvider is conditionally
+  // mounted on `user` (App.tsx) and remounts on each sign-in.
   useEffect(() => {
-    if (!user) {
-      dockHydratedForUidRef.current = null;
-      setDockHydrated(isAuthBypass);
-      setDockHydrationOk(isAuthBypass);
-      if (dockPersistTimerRef.current !== null) {
-        clearTimeout(dockPersistTimerRef.current);
-        dockPersistTimerRef.current = null;
-      }
-      if (!isAuthBypass) {
-        localStorage.removeItem('classroom_dock_items');
-        localStorage.removeItem('classroom_visible_tools');
-        localStorage.removeItem('classroom_dock_initialized');
-        localStorage.removeItem('spartboard_library_order');
-        setDockItems([]);
-        setVisibleTools([]);
-        setIsDockInitialized(false);
-      }
+    if (isAuthBypass) return;
+    if (dockCacheMatchesUser) return;
+    localStorage.removeItem('classroom_dock_items');
+    localStorage.removeItem('classroom_visible_tools');
+    localStorage.removeItem('classroom_dock_initialized');
+    localStorage.removeItem('spartboard_library_order');
+    // Persist the new owner so subsequent reloads from cache succeed. The
+    // hydration/persistence effects below also keep this in sync on every
+    // write — this is just the initial claim.
+    if (user) {
+      localStorage.setItem('classroom_dock_cache_uid', user.uid);
+    } else {
+      localStorage.removeItem('classroom_dock_cache_uid');
     }
-  }, [user]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // --- ROSTER LOGIC ---
   const {
