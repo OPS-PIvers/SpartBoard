@@ -463,6 +463,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const dockPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null
   );
+  // Serialized snapshot of the last dock state we wrote (or hydrated) to
+  // Firestore. Used to skip the no-op write the persist effect would otherwise
+  // fire immediately after hydration sets dockItems to the cloud value.
+  const lastSavedDockDataRef = useRef<string | null>(null);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -809,6 +813,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // device trust the localStorage cache and skip straight to the
         // cloud-synced state.
         localStorage.setItem('classroom_dock_cache_uid', user.uid);
+        // Seed the saved-snapshot ref to whatever we just hydrated so the
+        // persist effect doesn't immediately fire a redundant write back to
+        // Firestore with the exact same payload.
+        lastSavedDockDataRef.current = JSON.stringify({
+          dockItems: cloudDock ?? null,
+          libraryOrder: cloudLibrary ?? null,
+        });
         succeeded = true;
       } catch (err) {
         // Leave dockHydrationOk false so we don't push defaults over a real
@@ -844,6 +855,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // otherwise we'd write empty arrays during the brief pre-seed window.
     if (!isDockInitialized) return;
 
+    // Skip the redundant post-hydration write: if the current state matches
+    // the last snapshot we saved or hydrated, there's nothing to persist.
+    const serialized = JSON.stringify({ dockItems, libraryOrder });
+    if (serialized === lastSavedDockDataRef.current) return;
+
     if (dockPersistTimerRef.current !== null) {
       clearTimeout(dockPersistTimerRef.current);
     }
@@ -859,9 +875,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           dockInitialized: true,
         },
         { merge: true }
-      ).catch((err: unknown) => {
-        console.error('[DashboardContext] Failed to persist dock state:', err);
-      });
+      )
+        .then(() => {
+          lastSavedDockDataRef.current = serialized;
+        })
+        .catch((err: unknown) => {
+          console.error(
+            '[DashboardContext] Failed to persist dock state:',
+            err
+          );
+        });
     }, 500);
 
     return () => {
@@ -880,8 +903,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // just keeps localStorage tidy. A second user-switch in the same tab
   // session is impossible because DashboardProvider is conditionally
   // mounted on `user` (App.tsx) and remounts on each sign-in.
+  const dockCacheCleanedRef = useRef(false);
   useEffect(() => {
     if (isAuthBypass) return;
+    if (dockCacheCleanedRef.current) return;
+    dockCacheCleanedRef.current = true;
     if (dockCacheMatchesUser) return;
     localStorage.removeItem('classroom_dock_items');
     localStorage.removeItem('classroom_visible_tools');
@@ -895,8 +921,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       localStorage.removeItem('classroom_dock_cache_uid');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [dockCacheMatchesUser, user]);
 
   // --- ROSTER LOGIC ---
   const {

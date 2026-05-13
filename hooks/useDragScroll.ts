@@ -35,6 +35,11 @@ export function useDragScroll(
     let startScrollTop = 0;
     let activePointerId: number | null = null;
 
+    const resetGesture = () => {
+      state = 'idle';
+      activePointerId = null;
+    };
+
     const onPointerDown = (e: PointerEvent) => {
       // Only respond to the primary pointer (left mouse button, first touch)
       if (e.pointerType === 'mouse' && e.button !== 0) return;
@@ -71,7 +76,9 @@ export function useDragScroll(
           try {
             el.setPointerCapture(e.pointerId);
           } catch (_err) {
-            // Capture may fail on some browsers — scroll still works without it
+            // Capture may fail on some browsers — scroll still works without it.
+            // The window-level pointerup/pointercancel listeners below ensure
+            // gesture state is reset even when capture is unavailable.
           }
         } else {
           // Secondary axis dominates — hand off to collapse or dnd-kit
@@ -81,8 +88,11 @@ export function useDragScroll(
       }
 
       if (state === 'scrolling') {
-        // Block dnd-kit (document-level) from seeing this move event
-        e.stopImmediatePropagation();
+        // Block dnd-kit's document-level sensors from seeing this move.
+        // stopPropagation prevents the event from bubbling to document/window;
+        // stopImmediatePropagation alone wouldn't help since dnd-kit listens
+        // higher up the tree.
+        e.stopPropagation();
         e.preventDefault();
 
         if (axis === 'x') {
@@ -102,20 +112,29 @@ export function useDragScroll(
           // Ignore — pointer may already be released
         }
       }
-      state = 'idle';
-      activePointerId = null;
+      resetGesture();
     };
 
     el.addEventListener('pointerdown', onPointerDown);
-    el.addEventListener('pointermove', onPointerMove);
+    // Explicit { passive: false } so preventDefault() reliably suppresses
+    // native scroll/text-selection. Some browsers default pointermove to
+    // passive, which would silently ignore preventDefault.
+    el.addEventListener('pointermove', onPointerMove, { passive: false });
     el.addEventListener('pointerup', onPointerUp);
     el.addEventListener('pointercancel', onPointerUp);
+    // Belt-and-suspenders: if setPointerCapture failed, pointerup may fire on
+    // window instead of `el`, which would leave activePointerId set and block
+    // future gestures. Window listeners catch those strays.
+    window.addEventListener('pointerup', onPointerUp);
+    window.addEventListener('pointercancel', onPointerUp);
 
     return () => {
       el.removeEventListener('pointerdown', onPointerDown);
       el.removeEventListener('pointermove', onPointerMove);
       el.removeEventListener('pointerup', onPointerUp);
       el.removeEventListener('pointercancel', onPointerUp);
+      window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
     };
   }, [ref, axis, disabled, minDistance]);
 }
