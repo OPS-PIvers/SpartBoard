@@ -146,7 +146,7 @@ export const VideoActivityStudentApp: React.FC = () => {
  * Firestore — pasting the `?preview=1` URL into a tab is safe regardless of
  * what auth state that browser profile already carries. */
 const VideoActivityPreviewLobby: React.FC = () => (
-  <div className="min-h-screen bg-slate-900 flex flex-col">
+  <div className="h-screen overflow-y-auto bg-slate-900 flex flex-col">
     <TeacherPreviewBanner />
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
@@ -550,68 +550,70 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   if (periodStep && joinStatus !== 'joined') {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
-        <div className="w-full max-w-sm">
-          <div className="flex items-center justify-center mb-8">
-            <ClipboardList className="w-5 h-5 text-brand-blue-primary mr-2" />
-            <span className="text-sm text-slate-300 font-semibold">
-              Video Activity
-            </span>
-          </div>
-
-          <h1 className="text-2xl font-black text-white mb-2 text-center">
-            Select Your Class
-          </h1>
-          <p className="text-slate-400 text-sm text-center mb-6">
-            Which class period are you in?
-          </p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
-              <AlertCircle className="w-4 h-4 shrink-0" />
-              {error}
+      <div className="h-screen overflow-y-auto bg-slate-900">
+        <div className="min-h-full flex flex-col items-center justify-center p-6">
+          <div className="w-full max-w-sm">
+            <div className="flex items-center justify-center mb-8">
+              <ClipboardList className="w-5 h-5 text-brand-blue-primary mr-2" />
+              <span className="text-sm text-slate-300 font-semibold">
+                Video Activity
+              </span>
             </div>
-          )}
 
-          <div className="space-y-2 mb-6">
-            {periodStep.map((period) => (
-              <button
-                key={period}
-                onClick={() => setSelectedPeriod(period)}
-                className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
-                  selectedPeriod === period
-                    ? 'bg-brand-blue-primary text-white ring-2 ring-brand-blue-light'
-                    : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                {period}
-              </button>
-            ))}
-          </div>
+            <h1 className="text-2xl font-black text-white mb-2 text-center">
+              Select Your Class
+            </h1>
+            <p className="text-slate-400 text-sm text-center mb-6">
+              Which class period are you in?
+            </p>
 
-          <button
-            onClick={() => void handlePeriodConfirm()}
-            disabled={joinStatus === 'loading' || !selectedPeriod}
-            className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
-          >
-            {joinStatus === 'loading' ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <>
-                Continue <ArrowRight className="w-5 h-5" />
-              </>
+            {error && (
+              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                {error}
+              </div>
             )}
-          </button>
 
-          <button
-            onClick={() => {
-              setPeriodStep(null);
-              setSelectedPeriod(null);
-            }}
-            className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
-          >
-            Go Back
-          </button>
+            <div className="space-y-2 mb-6">
+              {periodStep.map((period) => (
+                <button
+                  key={period}
+                  onClick={() => setSelectedPeriod(period)}
+                  className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
+                    selectedPeriod === period
+                      ? 'bg-brand-blue-primary text-white ring-2 ring-brand-blue-light'
+                      : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  {period}
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => void handlePeriodConfirm()}
+              disabled={joinStatus === 'loading' || !selectedPeriod}
+              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
+            >
+              {joinStatus === 'loading' ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <>
+                  Continue <ArrowRight className="w-5 h-5" />
+                </>
+              )}
+            </button>
+
+            <button
+              onClick={() => {
+                setPeriodStep(null);
+                setSelectedPeriod(null);
+              }}
+              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
+            >
+              Go Back
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -634,72 +636,76 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
 
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-sm">
-          {/* Brand header */}
-          <div className="flex items-center justify-center gap-3 mb-8">
-            <div className="bg-brand-red-primary rounded-xl p-2.5">
-              <PlayCircle className="w-6 h-6 text-white" />
-            </div>
-            <div>
-              <p className="text-white font-black text-xl leading-none">
-                SpartBoard
-              </p>
-              <p className="text-slate-400 text-xs font-medium mt-0.5">
-                Video Activity
-              </p>
-            </div>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
-            <div className="bg-brand-blue-primary px-5 py-4">
-              <h1 className="text-white font-black text-base uppercase tracking-wide">
-                Join Activity
-              </h1>
-            </div>
-
-            <form onSubmit={handleJoin} className="p-5 flex flex-col gap-4">
+      <div className="h-screen overflow-y-auto bg-slate-900">
+        <div className="min-h-full flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-sm">
+            {/* Brand header */}
+            <div className="flex items-center justify-center gap-3 mb-8">
+              <div className="bg-brand-red-primary rounded-xl p-2.5">
+                <PlayCircle className="w-6 h-6 text-white" />
+              </div>
               <div>
-                <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
-                  Roster PIN
-                </label>
-                <input
-                  type="text"
-                  value={pin}
-                  onChange={(e) => setPin(e.target.value)}
-                  placeholder="Ask your teacher"
-                  inputMode="numeric"
-                  autoFocus
-                  className="w-full border-2 border-slate-200 focus:border-brand-blue-primary rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
-                  required
-                />
+                <p className="text-white font-black text-xl leading-none">
+                  SpartBoard
+                </p>
+                <p className="text-slate-400 text-xs font-medium mt-0.5">
+                  Video Activity
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+              <div className="bg-brand-blue-primary px-5 py-4">
+                <h1 className="text-white font-black text-base uppercase tracking-wide">
+                  Join Activity
+                </h1>
               </div>
 
-              {error && (
-                <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
-                  <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
-                  <p className="text-red-700 text-sm">{error}</p>
+              <form onSubmit={handleJoin} className="p-5 flex flex-col gap-4">
+                <div>
+                  <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1.5">
+                    Roster PIN
+                  </label>
+                  <input
+                    type="text"
+                    value={pin}
+                    onChange={(e) => setPin(e.target.value)}
+                    placeholder="Ask your teacher"
+                    inputMode="numeric"
+                    autoFocus
+                    className="w-full border-2 border-slate-200 focus:border-brand-blue-primary rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
+                    required
+                  />
                 </div>
-              )}
 
-              <button
-                type="submit"
-                disabled={joinStatus === 'loading' || lookingUp || !pin.trim()}
-                className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
-              >
-                {joinStatus === 'loading' || lookingUp ? (
-                  <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                    Joining…
-                  </>
-                ) : (
-                  <>
-                    <PlayCircle className="w-4 h-4" />
-                    Join &amp; Watch
-                  </>
+                {error && (
+                  <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl p-3">
+                    <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
+                    <p className="text-red-700 text-sm">{error}</p>
+                  </div>
                 )}
-              </button>
-            </form>
+
+                <button
+                  type="submit"
+                  disabled={
+                    joinStatus === 'loading' || lookingUp || !pin.trim()
+                  }
+                  className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                >
+                  {joinStatus === 'loading' || lookingUp ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Joining…
+                    </>
+                  ) : (
+                    <>
+                      <PlayCircle className="w-4 h-4" />
+                      Join &amp; Watch
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
@@ -743,45 +749,47 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       : 0;
 
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-4">
-        <div className="w-full max-w-sm">
-          <div className="bg-white rounded-2xl shadow-2xl overflow-hidden text-center">
-            <div className="bg-emerald-600 px-5 py-6">
-              <Trophy className="w-10 h-10 text-white mx-auto mb-2" />
-              <h2 className="text-white font-black text-xl">
-                Activity Complete!
-              </h2>
-            </div>
+      <div className="h-screen overflow-y-auto bg-slate-900">
+        <div className="min-h-full flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-sm">
+            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden text-center">
+              <div className="bg-emerald-600 px-5 py-6">
+                <Trophy className="w-10 h-10 text-white mx-auto mb-2" />
+                <h2 className="text-white font-black text-xl">
+                  Activity Complete!
+                </h2>
+              </div>
 
-            <div className="p-6 flex flex-col gap-4">
-              <p className="text-slate-600 font-medium">Great work!</p>
+              <div className="p-6 flex flex-col gap-4">
+                <p className="text-slate-600 font-medium">Great work!</p>
 
-              {showScore && totalQuestions > 0 && (
-                <div className="bg-brand-blue-lighter/30 rounded-2xl p-5">
-                  <p className="text-5xl font-black text-brand-blue-dark">
-                    {Math.round((correct / totalQuestions) * 100)}%
+                {showScore && totalQuestions > 0 && (
+                  <div className="bg-brand-blue-lighter/30 rounded-2xl p-5">
+                    <p className="text-5xl font-black text-brand-blue-dark">
+                      {Math.round((correct / totalQuestions) * 100)}%
+                    </p>
+                    <p className="text-brand-blue-primary/70 text-sm font-medium mt-1">
+                      {correct} of {totalQuestions} correct
+                    </p>
+                  </div>
+                )}
+
+                {answeredCount < totalQuestions && (
+                  <p className="text-slate-500 text-sm">
+                    {totalQuestions - answeredCount} question(s) were skipped.
                   </p>
-                  <p className="text-brand-blue-primary/70 text-sm font-medium mt-1">
-                    {correct} of {totalQuestions} correct
-                  </p>
+                )}
+
+                {(myResponse?.tabSwitchWarnings ?? 0) >= 3 && (
+                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
+                    Auto-submitted because you left the activity tab 3 times.
+                  </div>
+                )}
+
+                <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-bold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  Results submitted to your teacher
                 </div>
-              )}
-
-              {answeredCount < totalQuestions && (
-                <p className="text-slate-500 text-sm">
-                  {totalQuestions - answeredCount} question(s) were skipped.
-                </p>
-              )}
-
-              {(myResponse?.tabSwitchWarnings ?? 0) >= 3 && (
-                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-sm">
-                  Auto-submitted because you left the activity tab 3 times.
-                </div>
-              )}
-
-              <div className="flex items-center justify-center gap-2 text-emerald-600 text-sm font-bold">
-                <CheckCircle2 className="w-4 h-4" />
-                Results submitted to your teacher
               </div>
             </div>
           </div>

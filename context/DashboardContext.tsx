@@ -21,7 +21,10 @@ import {
   GridPosition,
   FeaturePermission,
   DrawableObject,
+  UserProfile,
 } from '../types';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
 import { useFirestore, type SharedBoardSnapshot } from '../hooks/useFirestore';
@@ -206,6 +209,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     selectedBuildings,
     savedWidgetConfigs,
     saveWidgetConfig,
+    profileLoaded,
     remoteControlEnabled: accountRemoteControlEnabled,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
@@ -351,7 +355,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setAnnotationActive(false);
   }, []);
 
+  // Same-device cache invalidation across user accounts. The dock cache in
+  // localStorage is keyed by the uid that last wrote it; on mount we only
+  // trust the cache when its uid matches the currently signed-in user.
+  // Mismatch → return defaults, so user B doesn't briefly see user A's
+  // layout while waiting for Firestore hydration. DashboardProvider is only
+  // mounted when `user` is truthy (see App.tsx), so a sign-out → sign-in as
+  // a different user remounts this component with a fresh user value.
+  const dockCacheUidRaw =
+    typeof window !== 'undefined'
+      ? localStorage.getItem('classroom_dock_cache_uid')
+      : null;
+  const dockCacheMatchesUser = user
+    ? dockCacheUidRaw === user.uid
+    : dockCacheUidRaw === null;
+
   const [isDockInitialized, setIsDockInitialized] = useState<boolean>(() => {
+    if (!dockCacheMatchesUser) return false;
     return localStorage.getItem('classroom_dock_initialized') === 'true';
   });
   // Keep a ref in sync so timeout callbacks can read the latest value without
@@ -362,6 +382,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [visibleTools, setVisibleTools] = useState<
     (WidgetType | InternalToolType)[]
   >(() => {
+    if (!dockCacheMatchesUser) return [];
     const saved = localStorage.getItem('classroom_visible_tools');
     if (saved) {
       try {
@@ -376,6 +397,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [libraryOrder, setLibraryOrder] = useState<
     (WidgetType | InternalToolType)[]
   >(() => {
+    if (!dockCacheMatchesUser) return TOOLS.map((t) => t.type);
     const saved = localStorage.getItem('spartboard_library_order');
     if (saved) {
       try {
@@ -388,6 +410,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   });
 
   const [dockItems, setDockItems] = useState<DockItem[]>(() => {
+    if (!dockCacheMatchesUser) return [];
     const saved = localStorage.getItem('classroom_dock_items');
     if (saved) {
       try {
@@ -420,6 +443,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // below cause re-runs as `roleResolved`/`roleId`/`isStudentRole` resolve).
   // Scoped per-uid so a sign-out → sign-in as a different user re-arms it.
   const migrationStartedForUidRef = useRef<string | null>(null);
+
+  // Cross-device dock sync. `dockItems`, `libraryOrder`, and `isDockInitialized`
+  // are mirrored to `/users/{uid}/userProfile/profile`. Hydration tracks two
+  // separate things:
+  //   - `dockHydrated` flips true once we've *attempted* the cloud read, even
+  //     on failure. The local init effect below waits on this so it doesn't
+  //     seed defaults before we know whether a cloud layout exists.
+  //   - `dockHydrationOk` flips true only when the cloud read *succeeded* (doc
+  //     present or confirmed-absent). The persistence effect requires this so
+  //     a transient Firestore error during hydration doesn't let freshly-
+  //     seeded defaults overwrite a real cloud layout that we just couldn't
+  //     reach this session.
+  const [dockHydrated, setDockHydrated] = useState(isAuthBypass);
+  const [dockHydrationOk, setDockHydrationOk] = useState(isAuthBypass);
+  const dockHydratedForUidRef = useRef<string | null>(null);
+  // Coalesce rapid dock mutations (e.g. drag-reorders) into a single Firestore
+  // write so we don't fire one setDoc per intermediate frame.
+  const dockPersistTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
+  // Serialized snapshot of the last dock state we wrote (or hydrated) to
+  // Firestore. Used to skip the no-op write the persist effect would otherwise
+  // fire immediately after hydration sets dockItems to the cloud value.
+  const lastSavedDockDataRef = useRef<string | null>(null);
 
   const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
@@ -602,6 +649,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   useEffect(() => {
     if (isDockInitialized) return;
+    // Wait for the Firestore hydration to finish so we don't seed default
+    // building tools on top of a cloud-synced dock layout from another device.
+    if (!dockHydrated) return;
 
     // If the user already has a saved dock layout/tool visibility in
     // localStorage, preserve it and mark init complete instead of overwriting
@@ -686,10 +736,192 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearTimeout(initTimer);
   }, [
     isDockInitialized,
+    dockHydrated,
     featurePermissions,
     selectedBuildings,
     getDefaultDockTools,
   ]);
+
+  // Hydrate dock state from Firestore on sign-in. The userProfile doc is the
+  // cross-device source of truth; localStorage is a cache that gives instant
+  // initial paint and survives offline launches. Order of precedence:
+  //   1. Firestore userProfile.dockItems (cloud, authoritative).
+  //   2. localStorage (this device's last-known layout).
+  //   3. Default building seeding via the effect above (truly new users).
+  // Runs once per uid; resets on sign-out / user switch via the cleanup effect below.
+  useEffect(() => {
+    if (isAuthBypass) {
+      setDockHydrated(true);
+      setDockHydrationOk(true);
+      return;
+    }
+    if (!user || !profileLoaded) return;
+    if (dockHydratedForUidRef.current === user.uid) return;
+    dockHydratedForUidRef.current = user.uid;
+
+    let cancelled = false;
+    void (async () => {
+      let succeeded = false;
+      try {
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        const snap = await getDoc(profileRef);
+        if (cancelled) return;
+        const data = snap.exists()
+          ? (snap.data() as Partial<UserProfile>)
+          : null;
+
+        const cloudDock =
+          data && Array.isArray(data.dockItems) ? data.dockItems : null;
+        const cloudLibrary =
+          data && Array.isArray(data.libraryOrder) ? data.libraryOrder : null;
+        const cloudInitialized =
+          data && typeof data.dockInitialized === 'boolean'
+            ? data.dockInitialized
+            : null;
+
+        if (cloudDock !== null) {
+          // Cloud has authoritative state — overwrite local state and cache.
+          setDockItems(cloudDock);
+          localStorage.setItem(
+            'classroom_dock_items',
+            JSON.stringify(cloudDock)
+          );
+
+          // Derive visibleTools from cloud dockItems so the two stores stay
+          // in sync. Folder items count as visible too.
+          const derivedVisible = cloudDock.flatMap((item) =>
+            item.type === 'tool' ? item.toolType : item.folder.items
+          );
+          setVisibleTools(derivedVisible);
+          localStorage.setItem(
+            'classroom_visible_tools',
+            JSON.stringify(derivedVisible)
+          );
+        }
+        if (cloudLibrary !== null) {
+          setLibraryOrder(cloudLibrary);
+          localStorage.setItem(
+            'spartboard_library_order',
+            JSON.stringify(cloudLibrary)
+          );
+        }
+        if (cloudInitialized === true) {
+          setIsDockInitialized(true);
+          localStorage.setItem('classroom_dock_initialized', 'true');
+        }
+        // Claim the cache for this user so subsequent reloads on the same
+        // device trust the localStorage cache and skip straight to the
+        // cloud-synced state.
+        localStorage.setItem('classroom_dock_cache_uid', user.uid);
+        // Seed the saved-snapshot ref to whatever we just hydrated so the
+        // persist effect doesn't immediately fire a redundant write back to
+        // Firestore with the exact same payload.
+        lastSavedDockDataRef.current = JSON.stringify({
+          dockItems: cloudDock ?? null,
+          libraryOrder: cloudLibrary ?? null,
+        });
+        succeeded = true;
+      } catch (err) {
+        // Leave dockHydrationOk false so we don't push defaults over a real
+        // cloud layout we just couldn't reach. The init effect still proceeds
+        // (via dockHydrated) so the user keeps a functional dock from cache
+        // or admin defaults; a future refresh will retry the read.
+        console.error('[DashboardContext] Failed to hydrate dock state:', err);
+        // Allow another attempt if the user refreshes — drop the per-uid lock.
+        if (dockHydratedForUidRef.current === user.uid) {
+          dockHydratedForUidRef.current = null;
+        }
+      } finally {
+        if (!cancelled) {
+          setDockHydrated(true);
+          if (succeeded) setDockHydrationOk(true);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [user, profileLoaded]);
+
+  // Persist dock state to Firestore whenever it changes locally. Gated on
+  // `dockHydrationOk` so a transient cloud-read failure doesn't let local
+  // defaults overwrite the user's real layout. The 500ms debounce coalesces
+  // rapid mutations (drag-reorders, multi-toggle bursts) into a single write.
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (!user || !dockHydrationOk) return;
+    // Only mirror to the cloud once the dock has actually been seeded —
+    // otherwise we'd write empty arrays during the brief pre-seed window.
+    if (!isDockInitialized) return;
+
+    // Skip the redundant post-hydration write: if the current state matches
+    // the last snapshot we saved or hydrated, there's nothing to persist.
+    const serialized = JSON.stringify({ dockItems, libraryOrder });
+    if (serialized === lastSavedDockDataRef.current) return;
+
+    if (dockPersistTimerRef.current !== null) {
+      clearTimeout(dockPersistTimerRef.current);
+    }
+    const uid = user.uid;
+    dockPersistTimerRef.current = setTimeout(() => {
+      dockPersistTimerRef.current = null;
+      const profileRef = doc(db, 'users', uid, 'userProfile', 'profile');
+      void setDoc(
+        profileRef,
+        {
+          dockItems,
+          libraryOrder,
+          dockInitialized: true,
+        },
+        { merge: true }
+      )
+        .then(() => {
+          lastSavedDockDataRef.current = serialized;
+        })
+        .catch((err: unknown) => {
+          console.error(
+            '[DashboardContext] Failed to persist dock state:',
+            err
+          );
+        });
+    }, 500);
+
+    return () => {
+      if (dockPersistTimerRef.current !== null) {
+        clearTimeout(dockPersistTimerRef.current);
+        dockPersistTimerRef.current = null;
+      }
+    };
+  }, [user, dockHydrationOk, isDockInitialized, dockItems, libraryOrder]);
+
+  // Drop any stale dock localStorage entries left behind by a previous user
+  // on this device. We can't do this in the useState initializers because
+  // they shouldn't have side effects, so this runs once on mount when the
+  // cache uid sentinel doesn't match. Cache invalidation across accounts is
+  // primarily handled by the uid-gated useState initializers above; this
+  // just keeps localStorage tidy. A second user-switch in the same tab
+  // session is impossible because DashboardProvider is conditionally
+  // mounted on `user` (App.tsx) and remounts on each sign-in.
+  const dockCacheCleanedRef = useRef(false);
+  useEffect(() => {
+    if (isAuthBypass) return;
+    if (dockCacheCleanedRef.current) return;
+    dockCacheCleanedRef.current = true;
+    if (dockCacheMatchesUser) return;
+    localStorage.removeItem('classroom_dock_items');
+    localStorage.removeItem('classroom_visible_tools');
+    localStorage.removeItem('classroom_dock_initialized');
+    localStorage.removeItem('spartboard_library_order');
+    // Persist the new owner so subsequent reloads from cache succeed. The
+    // hydration/persistence effects below also keep this in sync on every
+    // write — this is just the initial claim.
+    if (user) {
+      localStorage.setItem('classroom_dock_cache_uid', user.uid);
+    } else {
+      localStorage.removeItem('classroom_dock_cache_uid');
+    }
+  }, [dockCacheMatchesUser, user]);
 
   // --- ROSTER LOGIC ---
   const {

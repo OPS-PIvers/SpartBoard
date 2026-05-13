@@ -37,7 +37,7 @@ export const StudentApp = () => {
  * a disabled button so a curious user can't enter a code/PIN that silently
  * goes nowhere. */
 const StudentPreviewLobby: React.FC = () => (
-  <div className="min-h-screen bg-slate-900 flex flex-col">
+  <div className="h-screen overflow-y-auto bg-slate-900 flex flex-col">
     <TeacherPreviewBanner />
     <div className="flex-1 flex flex-col items-center justify-center p-6 text-center text-slate-200">
       <div className="w-16 h-16 bg-slate-800 rounded-2xl flex items-center justify-center mb-6 shadow-xl ring-1 ring-slate-700">

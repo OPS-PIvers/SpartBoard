@@ -6,10 +6,6 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
-vi.mock('@/context/useAuth', () => ({
-  useAuth: vi.fn(),
-}));
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, options?: { defaultValue?: string }) =>
@@ -18,10 +14,8 @@ vi.mock('react-i18next', () => ({
 }));
 
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 
 const mockedUseDashboard = vi.mocked(useDashboard);
-const mockedUseAuth = vi.mocked(useAuth);
 
 const noop = () => undefined;
 
@@ -31,9 +25,6 @@ const setupContexts = (zoom: number) => {
     zoom,
     setZoom,
   } as unknown as ReturnType<typeof useDashboard>);
-  mockedUseAuth.mockReturnValue({
-    dockPosition: 'left',
-  } as unknown as ReturnType<typeof useAuth>);
   return { setZoom };
 };
 
@@ -97,17 +88,11 @@ describe('BoardActionsFab', () => {
     expect(setZoom).toHaveBeenCalledWith(2);
   });
 
-  it('switches anchoring to the left when the dock is on the right', () => {
-    mockedUseDashboard.mockReturnValue({
-      zoom: 1,
-      setZoom: vi.fn(),
-    } as unknown as ReturnType<typeof useDashboard>);
-    mockedUseAuth.mockReturnValue({
-      dockPosition: 'right',
-    } as unknown as ReturnType<typeof useAuth>);
+  it('always anchors to bottom-right regardless of dock position', () => {
+    setupContexts(1);
     const { container } = render(<BoardActionsFab onOpenCheatSheet={noop} />);
     const root = container.querySelector('[data-screenshot="exclude"]');
-    expect(root?.className).toContain('left-14');
-    expect(root?.className).not.toContain('right-4');
+    expect(root?.className).toContain('right-4');
+    expect(root?.className).not.toContain('left-14');
   });
 });

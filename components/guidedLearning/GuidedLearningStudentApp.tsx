@@ -310,29 +310,31 @@ const StartScreen: React.FC<{
 
   if (needsPeriodPicker) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-          <ClipboardList className="w-8 h-8 text-indigo-400 mx-auto mb-3" />
-          <h1 className="text-white font-bold text-xl mb-1">
-            Select Your Class
-          </h1>
-          <p className="text-slate-400 text-sm mb-5">
-            Which class period are you in?
-          </p>
-          <div className="space-y-2 mb-5 text-left">
-            {periods.map((p) => (
-              <button
-                key={p}
-                onClick={() => onPeriodChange(p)}
-                className="w-full px-4 py-3 rounded-xl text-base font-bold transition-all bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700"
-              >
-                {p}
-              </button>
-            ))}
+      <div className="h-screen overflow-y-auto bg-slate-950">
+        <div className="min-h-full flex items-center justify-center p-6">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <ClipboardList className="w-8 h-8 text-indigo-400 mx-auto mb-3" />
+            <h1 className="text-white font-bold text-xl mb-1">
+              Select Your Class
+            </h1>
+            <p className="text-slate-400 text-sm mb-5">
+              Which class period are you in?
+            </p>
+            <div className="space-y-2 mb-5 text-left">
+              {periods.map((p) => (
+                <button
+                  key={p}
+                  onClick={() => onPeriodChange(p)}
+                  className="w-full px-4 py-3 rounded-xl text-base font-bold transition-all bg-slate-800 border border-slate-700 text-slate-200 hover:bg-slate-700"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <p className="text-xxs text-slate-500">
+              Pick one to continue. You can enter your PIN after this step.
+            </p>
           </div>
-          <p className="text-xxs text-slate-500">
-            Pick one to continue. You can enter your PIN after this step.
-          </p>
         </div>
       </div>
     );
@@ -346,69 +348,71 @@ const StartScreen: React.FC<{
     Boolean(session.welcomeEnabled) && welcomeMessage.length > 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-      <div
-        className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
-      >
-        <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
-        <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-        {showWelcome ? (
-          <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
-            <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
-              {welcomeMessage}
-            </p>
-          </div>
-        ) : (
-          <p className="text-slate-400 text-sm mb-6 capitalize">
-            {session.mode} mode · {session.publicSteps.length} steps
-          </p>
-        )}
-
-        {!isViewOnly && selectedPeriod && periods.length > 1 && (
-          <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2">
-            <span className="text-xs text-slate-400">Class</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-bold text-white">
-                {selectedPeriod}
-              </span>
-              <button
-                onClick={() => onPeriodChange(null)}
-                className="text-xxs text-slate-500 hover:text-slate-300"
-              >
-                Change
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!isViewOnly && (
-          <div className="mb-6">
-            <label className="block text-slate-400 text-xs mb-1.5 text-left">
-              Your PIN <span className="text-slate-600">(optional)</span>
-            </label>
-            <input
-              type="text"
-              value={pin}
-              onChange={(e) => onPinChange(e.target.value)}
-              placeholder="Enter your class PIN"
-              className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
-              maxLength={10}
-            />
-          </div>
-        )}
-
-        <button
-          onClick={onStart}
-          className={`w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 ${
-            // When PIN entry is suppressed (view-only) and no welcome
-            // card preceded it, the start button would butt up against
-            // the title — give it some breathing room.
-            isViewOnly && !showWelcome ? 'mt-2' : ''
-          }`}
+    <div className="h-screen overflow-y-auto bg-slate-950">
+      <div className="min-h-full flex items-center justify-center p-6">
+        <div
+          className={`bg-slate-900 border border-white/10 rounded-2xl p-8 ${showWelcome ? 'max-w-md' : 'max-w-sm'} w-full text-center shadow-2xl`}
         >
-          {showWelcome ? 'Get started' : 'Start'}
-          <ArrowRight className="w-4 h-4" />
-        </button>
+          <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+          <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
+          {showWelcome ? (
+            <div className="mt-3 mb-6 rounded-xl border border-white/10 bg-white/[0.03] px-4 py-3 text-left">
+              <p className="text-slate-200 text-sm whitespace-pre-wrap leading-relaxed">
+                {welcomeMessage}
+              </p>
+            </div>
+          ) : (
+            <p className="text-slate-400 text-sm mb-6 capitalize">
+              {session.mode} mode · {session.publicSteps.length} steps
+            </p>
+          )}
+
+          {!isViewOnly && selectedPeriod && periods.length > 1 && (
+            <div className="mb-4 flex items-center justify-between rounded-lg border border-slate-700 bg-slate-800/60 px-3 py-2">
+              <span className="text-xs text-slate-400">Class</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-white">
+                  {selectedPeriod}
+                </span>
+                <button
+                  onClick={() => onPeriodChange(null)}
+                  className="text-xxs text-slate-500 hover:text-slate-300"
+                >
+                  Change
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!isViewOnly && (
+            <div className="mb-6">
+              <label className="block text-slate-400 text-xs mb-1.5 text-left">
+                Your PIN <span className="text-slate-600">(optional)</span>
+              </label>
+              <input
+                type="text"
+                value={pin}
+                onChange={(e) => onPinChange(e.target.value)}
+                placeholder="Enter your class PIN"
+                className="w-full bg-slate-800 border border-slate-600 rounded-xl px-4 py-2.5 text-white text-sm text-center tracking-widest"
+                maxLength={10}
+              />
+            </div>
+          )}
+
+          <button
+            onClick={onStart}
+            className={`w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2 ${
+              // When PIN entry is suppressed (view-only) and no welcome
+              // card preceded it, the start button would butt up against
+              // the title — give it some breathing room.
+              isViewOnly && !showWelcome ? 'mt-2' : ''
+            }`}
+          >
+            {showWelcome ? 'Get started' : 'Start'}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -432,20 +436,24 @@ const CompletionScreen: React.FC<{
   // and surface the Replay CTA as the primary action.
   if (isViewOnly) {
     return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-          <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
-          <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-          <p className="text-slate-400 text-sm mb-6">
-            You&apos;ve reached the end of this activity.
-          </p>
-          <button
-            onClick={onReplay}
-            className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Replay from beginning
-          </button>
+      <div className="h-screen overflow-y-auto bg-slate-950">
+        <div className="min-h-full flex items-center justify-center p-6">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <BookOpen className="w-10 h-10 text-indigo-400 mx-auto mb-3" />
+            <h1 className="text-white font-bold text-xl mb-1">
+              {session.title}
+            </h1>
+            <p className="text-slate-400 text-sm mb-6">
+              You&apos;ve reached the end of this activity.
+            </p>
+            <button
+              onClick={onReplay}
+              className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-xl transition-colors flex items-center justify-center gap-2"
+            >
+              <RefreshCw className="w-4 h-4" />
+              Replay from beginning
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -453,21 +461,25 @@ const CompletionScreen: React.FC<{
 
   // Response-tracked completion — keep the achievement framing.
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-6">
-      <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
-        <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
-        <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
-        <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
-        <p className="text-emerald-400 font-semibold text-lg mb-1">Complete!</p>
-        {score !== null && (
-          <p className="text-slate-300 text-sm mb-4">
-            You scored <span className="text-white font-bold">{score}%</span> on
-            the comprehension questions.
+    <div className="h-screen overflow-y-auto bg-slate-950">
+      <div className="min-h-full flex items-center justify-center p-6">
+        <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+          <Trophy className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
+          <h1 className="text-white font-bold text-xl mb-1">{session.title}</h1>
+          <CheckCircle2 className="w-8 h-8 text-emerald-400 mx-auto my-4" />
+          <p className="text-emerald-400 font-semibold text-lg mb-1">
+            Complete!
           </p>
-        )}
-        <p className="text-slate-500 text-xs">
-          Your responses have been submitted.
-        </p>
+          {score !== null && (
+            <p className="text-slate-300 text-sm mb-4">
+              You scored <span className="text-white font-bold">{score}%</span>{' '}
+              on the comprehension questions.
+            </p>
+          )}
+          <p className="text-slate-500 text-xs">
+            Your responses have been submitted.
+          </p>
+        </div>
       </div>
     </div>
   );
