@@ -595,7 +595,7 @@
     "viewLiveSession": "View live session information",
     "liveSession": "Live Session",
     "provideCode": "Provide this code to your students.",
-    "noAppsSelected": "No apps selected in settings"
+    "noAppsSelected": "Restoring defaults…"
   },
   "languages": {
     "en": "English",
