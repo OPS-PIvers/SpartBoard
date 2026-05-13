@@ -1190,6 +1190,25 @@ export interface ActivityWallActivity {
   classId?: string;
 }
 
+/**
+ * Per-user Activity Wall library entry stored at
+ * `/users/{userId}/activity_wall_activities/{activityId}`. Holds the
+ * reusable activity definition only — submissions live in
+ * `activity_wall_sessions/{teacherUid}_{activityId}/submissions/*` and
+ * `startedAt` is per-session runtime state, so neither is persisted here.
+ */
+export interface ActivityWallLibraryEntry {
+  id: string;
+  title: string;
+  prompt: string;
+  mode: ActivityWallMode;
+  moderationEnabled: boolean;
+  identificationMode: ActivityWallIdentificationMode;
+  classId?: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export interface ActivityWallBuildingConfig {
   defaultMode?: ActivityWallMode;
   defaultIdentificationMode?: ActivityWallIdentificationMode;
@@ -1202,6 +1221,14 @@ export interface ActivityWallGlobalConfig {
 }
 
 export interface ActivityWallConfig {
+  /**
+   * @deprecated Activities now live in the per-user library collection
+   * `/users/{userId}/activity_wall_activities/{activityId}` (see
+   * `useActivityWallLibrary`). This field is retained only so legacy
+   * widgets created before the library can be migrated on mount; the
+   * widget clears it to `[]` after migration. Do not write new values
+   * here.
+   */
   activities?: ActivityWallActivity[];
   activeActivityId?: string | null;
   draftActivity?: ActivityWallActivity;

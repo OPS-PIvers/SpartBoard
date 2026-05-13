@@ -79,6 +79,20 @@ vi.mock('@/hooks/useGoogleDrive', () => ({
   useGoogleDrive: () => mockUseGoogleDrive(),
 }));
 
+// Tests stage activities on `config.activities`; the library hook is
+// exercised by the widget but doesn't need to surface anything in these
+// fixtures. Returning empty arrays + no-op CRUD keeps the legacy
+// `config.activities` merge path the source of truth for assertions.
+vi.mock('@/hooks/useActivityWallLibrary', () => ({
+  useActivityWallLibrary: () => ({
+    activities: [],
+    loading: false,
+    error: null,
+    saveActivity: vi.fn().mockResolvedValue(undefined),
+    deleteActivity: vi.fn().mockResolvedValue(undefined),
+  }),
+}));
+
 vi.mock('@/config/firebase', () => ({
   db: {},
   functions: {},

@@ -21,6 +21,7 @@ import {
   ActivityWallArchiveStatus,
   ActivityWallConfig,
   ActivityWallActivity,
+  ActivityWallLibraryEntry,
   ActivityWallSubmission,
   ClassLinkClass,
 } from '@/types';
@@ -45,6 +46,7 @@ import {
   ref as storageRef,
 } from 'firebase/storage';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useActivityWallLibrary } from '@/hooks/useActivityWallLibrary';
 import { Modal } from '@/components/common/Modal';
 
 const encodeActivityData = (
@@ -272,10 +274,38 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   const { user, googleAccessToken, refreshGoogleToken } = useAuth();
   const { isConnected: isDriveConnected } = useGoogleDrive();
   const config = widget.config as ActivityWallConfig;
-  const activities = useMemo(
-    () => config.activities ?? [],
-    [config.activities]
-  );
+  const {
+    activities: libraryActivities,
+    saveActivity: saveLibraryActivity,
+    deleteActivity: deleteLibraryActivity,
+  } = useActivityWallLibrary(user?.uid);
+  // Activities surfaced to the widget = library entries (the new source of
+  // truth) MERGED with any leftover `config.activities` from legacy widgets
+  // created before the library existed. The legacy entries are migrated to
+  // the library on mount (see effect below) and `config.activities` is
+  // cleared to `[]`; during the in-flight migration we keep showing them
+  // so the user doesn't briefly see an empty library.
+  const activities = useMemo<ActivityWallActivity[]>(() => {
+    const libraryAsActivity: ActivityWallActivity[] = libraryActivities.map(
+      (entry) => ({
+        id: entry.id,
+        title: entry.title,
+        prompt: entry.prompt,
+        mode: entry.mode,
+        moderationEnabled: entry.moderationEnabled,
+        identificationMode: entry.identificationMode,
+        classId: entry.classId,
+        // Library entries don't store per-session runtime state.
+        submissions: [],
+        startedAt: null,
+      })
+    );
+    const legacy = config.activities ?? [];
+    if (legacy.length === 0) return libraryAsActivity;
+    const libraryIds = new Set(libraryAsActivity.map((a) => a.id));
+    const legacyOnly = legacy.filter((a) => !libraryIds.has(a.id));
+    return [...libraryAsActivity, ...legacyOnly];
+  }, [libraryActivities, config.activities]);
   const activeActivity =
     activities.find((activity) => activity.id === config.activeActivityId) ??
     null;
@@ -541,6 +571,59 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     [updateWidget, widget.config, widget.id]
   );
 
+  // ─── One-shot migration of legacy `config.activities` → library ──────
+  // Pre-library widgets stored activities inline on `config.activities`,
+  // which meant removing the widget destroyed them. Migrate any leftover
+  // entries to `/users/{uid}/activity_wall_activities/{id}` so the same
+  // id continues to address the same `activity_wall_sessions/{uid}_{id}`,
+  // then clear `config.activities` to `[]`. Idempotent — re-runs on
+  // remount harmlessly overwrite identical docs.
+  const migrationRanRef = useRef(false);
+  useEffect(() => {
+    if (migrationRanRef.current) return;
+    if (!user) return;
+    const legacy = (widget.config as ActivityWallConfig).activities ?? [];
+    if (legacy.length === 0) return;
+    migrationRanRef.current = true;
+    void (async () => {
+      const now = Date.now();
+      try {
+        await Promise.all(
+          legacy.map((activity) => {
+            const entry: ActivityWallLibraryEntry = {
+              id: activity.id,
+              title: activity.title,
+              prompt: activity.prompt,
+              mode: activity.mode,
+              moderationEnabled: activity.moderationEnabled,
+              identificationMode: activity.identificationMode,
+              createdAt: activity.startedAt ?? now,
+              updatedAt: now,
+            };
+            if (activity.classId) entry.classId = activity.classId;
+            return saveLibraryActivity(entry);
+          })
+        );
+        // Clear the legacy field. Read the latest config off `widget` so
+        // we don't clobber concurrent updates (e.g. activeActivityId
+        // changes) that landed between mount and this point.
+        const latestConfig = widget.config as ActivityWallConfig;
+        updateWidget(widget.id, {
+          config: { ...latestConfig, activities: [] },
+        });
+      } catch (err) {
+        // Migration failures are non-fatal: legacy activities stay in
+        // config so the user keeps seeing them, and the next mount
+        // retries. Surface to console for debugging.
+        console.error(
+          '[ActivityWall] Failed to migrate legacy activities to library:',
+          err
+        );
+        migrationRanRef.current = false;
+      }
+    })();
+  }, [user, widget.id, widget.config, saveLibraryActivity, updateWidget]);
+
   // Open the editor seeded with the teacher's last-used classId for this
   // activity (Phase 3D). Keeps the same UX as QuizManager where re-assigning
   // the same item pre-fills the previous target class without surprising
@@ -570,22 +653,22 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         ? draftClassId
         : '';
 
-    const nextActivity: ActivityWallActivity = {
-      ...editorDraft,
+    const exists = activities.some((a) => a.id === editorDraft.id);
+    const now = Date.now();
+    const existingEntry = libraryActivities.find(
+      (e) => e.id === editorDraft.id
+    );
+    const entry: ActivityWallLibraryEntry = {
+      id: editorDraft.id,
       title,
       prompt,
-      startedAt: editorDraft.startedAt ?? Date.now(),
-      // Only write `classId` onto the activity when non-empty so the
-      // Firestore session doc — and match-back rules — don't see a
-      // stale id. `undefined` serializes cleanly and keeps the doc
-      // shape aligned with the classic code/PIN flow.
-      classId: selectedClassId || undefined,
+      mode: editorDraft.mode,
+      moderationEnabled: editorDraft.moderationEnabled,
+      identificationMode: editorDraft.identificationMode,
+      createdAt: existingEntry?.createdAt ?? now,
+      updatedAt: now,
     };
-
-    const exists = activities.some((a) => a.id === nextActivity.id);
-    const nextActivities = exists
-      ? activities.map((a) => (a.id === nextActivity.id ? nextActivity : a))
-      : [...activities, nextActivity];
+    if (selectedClassId) entry.classId = selectedClassId;
 
     // Persist the teacher's last-used classId per activity so re-opening
     // the same activity's editor pre-selects the same class. Clearing
@@ -594,33 +677,56 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
     const prevMap = config.lastClassIdByActivityId ?? {};
     const nextMap: Record<string, string> = { ...prevMap };
     if (selectedClassId) {
-      nextMap[nextActivity.id] = selectedClassId;
+      nextMap[entry.id] = selectedClassId;
     } else {
-      delete nextMap[nextActivity.id];
+      delete nextMap[entry.id];
     }
 
-    updateConfig({
-      activities: nextActivities,
-      activeActivityId: nextActivity.id,
-      lastClassIdByActivityId: nextMap,
-    });
-    setEditorDraft(null);
-    setShowLiveView(true);
-    addToast(exists ? 'Activity updated.' : 'Activity created.', 'success');
+    void (async () => {
+      try {
+        await saveLibraryActivity(entry);
+        updateConfig({
+          activeActivityId: entry.id,
+          lastClassIdByActivityId: nextMap,
+        });
+        setEditorDraft(null);
+        setShowLiveView(true);
+        addToast(exists ? 'Activity updated.' : 'Activity created.', 'success');
+      } catch (err) {
+        console.error('[ActivityWall] Failed to save activity:', err);
+        addToast('Failed to save activity.', 'error');
+      }
+    })();
   };
 
   const deleteActivity = (activityId: string) => {
     const nextActivities = activities.filter((a) => a.id !== activityId);
-    updateConfig({
-      activities: nextActivities,
+    // Always reconcile widget-local state (active id selector, legacy
+    // config.activities) so the deletion is reflected immediately even
+    // before the library's onSnapshot tick lands.
+    const legacy = config.activities ?? [];
+    const legacyHasId = legacy.some((a) => a.id === activityId);
+    const configUpdates: Partial<ActivityWallConfig> = {
       activeActivityId:
         config.activeActivityId === activityId
           ? (nextActivities[0]?.id ?? null)
           : config.activeActivityId,
-    });
+    };
+    if (legacyHasId) {
+      configUpdates.activities = legacy.filter((a) => a.id !== activityId);
+    }
+    updateConfig(configUpdates);
     if (editorDraft?.id === activityId) setEditorDraft(null);
     setShowLiveView(false);
-    addToast('Activity removed.', 'info');
+    void (async () => {
+      try {
+        await deleteLibraryActivity(activityId);
+        addToast('Activity removed.', 'info');
+      } catch (err) {
+        console.error('[ActivityWall] Failed to delete activity:', err);
+        addToast('Failed to remove activity.', 'error');
+      }
+    })();
   };
 
   const archivePhotoSubmission = useCallback(
@@ -986,16 +1092,11 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
           );
         }
 
-        const nextActivities = activities.map((activity) => {
-          if (activity.id !== activeActivity.id) return activity;
-          return {
-            ...activity,
-            submissions: (activity.submissions ?? []).filter(
-              (item) => item.id !== submission.id
-            ),
-          };
-        });
-        updateConfig({ activities: nextActivities });
+        // Submissions live in `activity_wall_sessions/{sessionId}/submissions`
+        // (Firestore) — `activity.submissions` on the config doc is legacy
+        // and isn't the source of truth. The Firestore delete above is the
+        // only state mutation needed; the `onSnapshot` listener will
+        // refresh `firestoreState.submissions` automatically.
 
         setSelectedSubmissionId((prev) =>
           prev === submission.id ? null : prev
@@ -1014,14 +1115,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         addToast('Failed to remove submission.', 'error');
       }
     },
-    [
-      activeActivity,
-      activeSessionId,
-      activities,
-      addToast,
-      firestoreRaw,
-      updateConfig,
-    ]
+    [activeActivity, activeSessionId, addToast, firestoreRaw]
   );
 
   if (editorDraft) {
