@@ -315,7 +315,6 @@ export async function generateVideoActivity(
     // object (the editor saves activities to Firestore) never round-trips
     // `_modelConfigUsedFallback` into stored content.
     const { _modelConfigUsedFallback: _omit, ...payload } = result.data;
-    void _omit;
     return payload;
   } catch (error) {
     console.error('Video Activity Generation Error:', error);
