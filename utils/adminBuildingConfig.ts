@@ -264,9 +264,9 @@ export const getAdminBuildingConfig = (
         }
         if (raw['fontFamily'] || raw['themeColor']) {
           const nextUpDefaultConfig = WIDGET_DEFAULTS.nextUp
-            .config as unknown as NextUpConfig;
+            .config as unknown as NextUpConfig | undefined;
           out.styling = {
-            ...nextUpDefaultConfig.styling,
+            ...(nextUpDefaultConfig?.styling ?? {}),
             ...(typeof raw['fontFamily'] === 'string'
               ? { fontFamily: raw['fontFamily'] }
               : {}),
