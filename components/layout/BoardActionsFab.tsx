@@ -10,7 +10,6 @@ import {
 import { useTranslation } from 'react-i18next';
 import { HelpCircle, RotateCcw, Search, ZoomIn, ZoomOut } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { FAB_BASE } from './fabClasses';
 import {
@@ -36,7 +35,6 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
 }) => {
   const { t } = useTranslation();
   const { zoom, setZoom } = useDashboard();
-  const { dockPosition } = useAuth();
 
   const [isSliderOpen, setIsSliderOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -67,17 +65,6 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
 
   const isZoomed = zoom !== ZOOM_DEFAULT;
   const percentage = Math.round(zoom * 100);
-
-  // Mirror BoardNavFab's left/right anchoring: when the dock occupies the
-  // right edge, the cluster must move to the left so they don't overlap.
-  const onLeftSide = dockPosition === 'right';
-  const positionClass = onLeftSide ? 'left-14' : 'right-4';
-  // The popup card itself anchors to the same edge as the cluster.
-  const popupEdge = onLeftSide ? 'left-0' : 'right-0';
-  // The reset FAB animates in from whichever direction the cluster grows.
-  const resetSlideClass = onLeftSide
-    ? 'slide-in-from-left-2'
-    : 'slide-in-from-right-2';
 
   const handleSliderChange = (rawValue: number) => {
     setZoom(sliderToZoom(rawValue));
@@ -122,7 +109,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
     <div
       ref={containerRef}
       data-screenshot="exclude"
-      className={`fixed bottom-6 ${positionClass} z-dock`}
+      className="fixed bottom-6 right-4 z-dock"
     >
       {isSliderOpen && (
         <div
@@ -130,7 +117,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
           role="dialog"
           aria-labelledby={headerId}
           onKeyDown={handlePopupKeyDown}
-          className={`absolute bottom-full ${popupEdge} mb-2 w-64 rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl px-3.5 py-3 animate-in fade-in slide-in-from-bottom-2 duration-150`}
+          className="absolute bottom-full right-0 mb-2 w-64 rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl px-3.5 py-3 animate-in fade-in slide-in-from-bottom-2 duration-150"
         >
           <div className="flex items-center justify-between mb-2">
             <span
@@ -204,7 +191,7 @@ export const BoardActionsFab: FC<BoardActionsFabProps> = ({
             onClick={handleReset}
             aria-label={t('boardZoom.reset', { defaultValue: 'Reset to 100%' })}
             title={t('boardZoom.reset', { defaultValue: 'Reset to 100%' })}
-            className={`${FAB_BASE} animate-in fade-in ${resetSlideClass} duration-200`}
+            className={`${FAB_BASE} animate-in fade-in slide-in-from-right-2 duration-200`}
           >
             <RotateCcw className="w-4 h-4" />
           </button>
