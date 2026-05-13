@@ -2592,25 +2592,26 @@ export const WrittenAnswerReview: React.FC<{
     return null;
   }
   const hasGrade = !!grade;
-  const hasAnnotations = !!grade?.annotations && grade.annotations.length > 0;
-  const snapshot =
-    grade?.gradingSnapshot ??
-    (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
+  const annotations = grade?.annotations ?? [];
+  // When a grade exists, the snapshot is the source of truth — it
+  // froze what the teacher saw. When there's no grade yet, fall back
+  // to the student's live answer so they can still see what they
+  // submitted (and the caption below makes the live-vs-snapshot
+  // distinction explicit).
+  const snapshot = hasGrade
+    ? (grade?.gradingSnapshot ?? '')
+    : studentAnswer
+      ? sanitizeQuizResponse(studentAnswer)
+      : '';
+  const showingLiveAnswer = !hasGrade && !!studentAnswer;
   return (
     <div className="space-y-2">
       {snapshot ? (
-        hasAnnotations ? (
-          <AnnotatedResponseView
-            mode="read"
-            snapshot={snapshot}
-            annotations={grade?.annotations ?? []}
-          />
-        ) : (
-          <article
-            className="rounded-xl border border-slate-700 bg-slate-800/60 p-3 text-sm leading-relaxed text-slate-100 prose prose-sm prose-invert max-w-none"
-            dangerouslySetInnerHTML={{ __html: snapshot }}
-          />
-        )
+        <AnnotatedResponseView
+          mode="read"
+          snapshot={snapshot}
+          annotations={annotations}
+        />
       ) : (
         <p className="text-xs text-slate-500 italic">— no response</p>
       )}
@@ -2632,11 +2633,16 @@ export const WrittenAnswerReview: React.FC<{
           )}
         </div>
       )}
-      {!hasGrade && (
-        <p className="text-[11px] text-slate-500 italic">
-          Not yet graded by your teacher.
-        </p>
-      )}
+      {!hasGrade &&
+        (showingLiveAnswer ? (
+          <p className="text-[11px] text-slate-500 italic">
+            Showing your latest response — not yet graded by your teacher.
+          </p>
+        ) : (
+          <p className="text-[11px] text-slate-500 italic">
+            Not yet graded by your teacher.
+          </p>
+        ))}
     </div>
   );
 };

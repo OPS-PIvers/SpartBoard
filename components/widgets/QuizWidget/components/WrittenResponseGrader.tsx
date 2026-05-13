@@ -167,26 +167,34 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     );
   }, [isDirty]);
 
+  // Gate all navigation on `saving` to prevent a race: an in-flight
+  // `onSaveGrade` reads the captured `studentIdx` and auto-advances on
+  // resolve, so if the teacher manually navigates while the save is
+  // pending the auto-advance can jump past where they expected to land.
   const goPrevStudent = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setStudentIdx((i) => Math.max(0, i - 1));
-  }, [confirmDiscardIfDirty]);
+  }, [confirmDiscardIfDirty, saving]);
   const goNextStudent = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setStudentIdx((i) =>
       Math.min(Math.max(0, gradeableResponses.length - 1), i + 1)
     );
-  }, [gradeableResponses.length, confirmDiscardIfDirty]);
+  }, [gradeableResponses.length, confirmDiscardIfDirty, saving]);
   const goPrevQuestion = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setQuestionIdx((i) => Math.max(0, i - 1));
-  }, [confirmDiscardIfDirty]);
+  }, [confirmDiscardIfDirty, saving]);
   const goNextQuestion = useCallback(() => {
+    if (saving) return;
     if (!confirmDiscardIfDirty()) return;
     setQuestionIdx((i) =>
       Math.min(Math.max(0, writtenQuestions.length - 1), i + 1)
     );
-  }, [writtenQuestions.length, confirmDiscardIfDirty]);
+  }, [writtenQuestions.length, confirmDiscardIfDirty, saving]);
 
   // Keyboard navigation. Only active when no input has focus — we don't
   // want left/right inside the points input to jump students.
@@ -216,7 +224,17 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   }, [goPrevStudent, goNextStudent, onClose]);
 
   const handleSave = useCallback(async () => {
-    if (!response || !question || !responseKey) return;
+    if (!response || !question) return;
+    if (!responseKey) {
+      // Should be unreachable for any response that joined a live
+      // session (both `_responseKey` and `studentUid` are set on
+      // create), but surface it explicitly rather than no-op'ing the
+      // save click — silent no-ops on the grader are confusing.
+      setSaveError(
+        'Cannot save: this response is missing its identifier. Reload the quiz results and try again.'
+      );
+      return;
+    }
     const trimmed = pointsInput.trim();
     if (trimmed === '') {
       setSaveError('Enter a numeric score.');
@@ -240,6 +258,20 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     const existingSnapshot = savedGrade?.gradingSnapshot;
     const studentAnswerForSnapshot =
       response.answers.find((a) => a.questionId === question.id)?.answer ?? '';
+    // Annotations on an empty answer would point into nothing — the
+    // palette can't surface here in normal flow (selection requires
+    // text), but if we ever get into this state via a bug or drag-and-
+    // drop, fail loudly instead of writing dead annotations.
+    if (
+      hasAnnotations &&
+      !existingSnapshot &&
+      !studentAnswerForSnapshot.trim()
+    ) {
+      setSaveError(
+        "Cannot save annotations on an empty response — the student didn't answer this question."
+      );
+      return;
+    }
     const gradingSnapshot = hasAnnotations
       ? (existingSnapshot ?? sanitizeQuizResponse(studentAnswerForSnapshot))
       : existingSnapshot;
@@ -326,7 +358,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         <div className="flex items-center gap-3 min-w-0">
           <button
             onClick={goPrevStudent}
-            disabled={studentIdx === 0}
+            disabled={studentIdx === 0 || saving}
             className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Previous student (←)"
             title="Previous student (←)"
@@ -358,7 +390,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           </div>
           <button
             onClick={goNextStudent}
-            disabled={studentIdx >= gradeableResponses.length - 1}
+            disabled={studentIdx >= gradeableResponses.length - 1 || saving}
             className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Next student (→)"
             title="Next student (→)"
@@ -381,7 +413,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         <div className="flex items-center gap-2 px-5 py-2 border-b border-slate-200 bg-slate-50">
           <button
             onClick={goPrevQuestion}
-            disabled={questionIdx === 0}
+            disabled={questionIdx === 0 || saving}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Previous question"
           >
@@ -394,7 +426,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           </div>
           <button
             onClick={goNextQuestion}
-            disabled={questionIdx >= writtenQuestions.length - 1}
+            disabled={questionIdx >= writtenQuestions.length - 1 || saving}
             className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
             aria-label="Next question"
           >
@@ -517,11 +549,11 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
 };
 
 /**
- * Field-level equality on two annotation lists. Insensitive to key
- * insertion order (so a Firestore-loaded annotation and a locally-built
- * one with the same fields compare equal), and treats `undefined` and
- * `missing` color/comment the same — avoids false-positive dirty
- * states from `JSON.stringify` ordering quirks.
+ * Field-level equality on two annotation lists. Insensitive to BOTH
+ * key insertion order (so Firestore-loaded annotations compare equal
+ * to locally-built ones with the same fields) AND list order — looks
+ * the annotations up by `id` so reordering doesn't trip a spurious
+ * dirty state. Treats `undefined` and missing color/comment the same.
  */
 const annotationListsEqual = (
   a: WrittenAnswerAnnotation[],
@@ -529,10 +561,11 @@ const annotationListsEqual = (
 ): boolean => {
   const right = b ?? [];
   if (a.length !== right.length) return false;
-  for (let i = 0; i < a.length; i++) {
-    const x = a[i];
-    const y = right[i];
-    if (x.id !== y.id) return false;
+  const byId = new Map<string, WrittenAnswerAnnotation>();
+  for (const x of right) byId.set(x.id, x);
+  for (const x of a) {
+    const y = byId.get(x.id);
+    if (!y) return false;
     if (x.from !== y.from || x.to !== y.to) return false;
     if ((x.highlightColor ?? 'yellow') !== (y.highlightColor ?? 'yellow'))
       return false;

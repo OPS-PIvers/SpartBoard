@@ -196,6 +196,14 @@ const EditView: React.FC<EditProps> = ({
     const range = selection.getRangeAt(0);
     const offsets = getPlainTextOffsetFromRange(articleRef.current, range);
     if (!offsets) {
+      // Surface this — a silently-dismissed palette looks like the
+      // feature is broken. Common cause: the selection straddles the
+      // article and an adjacent element (e.g. the margin column).
+      if (!selection.isCollapsed) {
+        console.warn(
+          '[AnnotatedResponseView] selection could not be resolved to a snapshot offset (does it escape the response?)'
+        );
+      }
       setPalette(null);
       return;
     }
