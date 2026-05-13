@@ -64,6 +64,7 @@ import {
   DashboardContext,
   PendingShareImport,
   SharedBoardImportMode,
+  SubstituteShareInput,
 } from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '../utils/adminBuildingConfig';
@@ -219,6 +220,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     deleteDashboard: deleteDashboardFirestore,
     subscribeToDashboards,
     shareDashboard: shareDashboardFirestore,
+    shareSubstituteDashboard: shareSubstituteDashboardFirestore,
     loadSharedDashboard: loadSharedDashboardFirestore,
     mirrorSharedBoard,
     subscribeToSharedBoard,
@@ -1132,7 +1134,32 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       saveDashboard,
       userDomain,
       user,
+      // NOTE: substitute-share handler below has its own dep list; this block
+      // intentionally tracks `handleShareDashboard` deps only.
     ]
+  );
+
+  const handleShareSubstituteDashboard = useCallback(
+    async (input: SubstituteShareInput): Promise<string> => {
+      // Substitute shares always go through Firestore. The Drive export path
+      // used by the regular share flow is one-time and copy-mode-only — it
+      // can't host a building-scoped, expiring, queryable surface like the
+      // sub directory needs.
+      const hostName = user?.displayName ?? user?.email ?? undefined;
+      const scrubbedSeed = scrubDashboardPII(input.dashboard);
+      const shareId = await shareSubstituteDashboardFirestore({
+        dashboard: scrubbedSeed,
+        expiresAt: input.expiresAt,
+        buildingId: input.buildingId,
+        subEmails: input.subEmails,
+        hostDisplayName: hostName,
+      });
+      // Deliberately DO NOT tag the host's local dashboard with a
+      // linkedShareId — substitute shares are frozen snapshots and the host
+      // continues editing their live board independently.
+      return shareId;
+    },
+    [shareSubstituteDashboardFirestore, user]
   );
 
   const handleLoadSharedDashboard = useCallback(
@@ -2158,9 +2185,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // path instead of the legacy 3-option picker.
         const sharedSnap = sharedDb as SharedBoardSnapshot | null;
         const docIntendedMode = sharedSnap?.intendedMode;
+        // Substitute shares are never importable into a teacher's account —
+        // they live only inside the /subs portal. Strip the mode here so the
+        // import picker doesn't try to honor it.
+        const importableMode: SharedBoardImportMode | undefined =
+          docIntendedMode && docIntendedMode !== 'substitute'
+            ? docIntendedMode
+            : undefined;
         const intendedMode: SharedBoardImportMode | undefined = driveBacked
           ? 'copy'
-          : docIntendedMode;
+          : importableMode;
         setPendingShareImport({
           shareId: currentShareId,
           preview: sharedDb,
@@ -4123,6 +4157,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveItemOutOfFolder,
       reorderFolderItems,
       shareDashboard: handleShareDashboard,
+      shareSubstituteDashboard: handleShareSubstituteDashboard,
       loadSharedDashboard: handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
@@ -4227,6 +4262,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveItemOutOfFolder,
       reorderFolderItems,
       handleShareDashboard,
+      handleShareSubstituteDashboard,
       handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,

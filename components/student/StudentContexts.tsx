@@ -252,6 +252,9 @@ const mockDashboard: DashboardContextValue = {
   shareDashboard: async () => {
     return Promise.reject(new Error('Sharing not implemented in student view'));
   },
+  shareSubstituteDashboard: async () => {
+    return Promise.reject(new Error('Sharing not implemented in student view'));
+  },
   loadSharedDashboard: async () => {
     return Promise.resolve(null);
   },
