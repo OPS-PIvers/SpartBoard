@@ -1,14 +1,15 @@
 /**
- * ShareLinkCreatorModal — host-side share link creator. Replaces the old
- * "click Share → instant clipboard copy" path. The host:
+ * ShareLinkCreatorModal — host-side share link creator. The host picks one
+ * of four modes:
  *
- *   1. Picks a mode (Synced / View-Only / Copy).
- *   2. Clicks "Create link" — we write a /shared_boards/{shareId} doc with
- *      `intendedMode` set so the receiving teacher honors the choice.
- *   3. Sees the resulting URL with a copy-to-clipboard button.
- *
- * The recipient flow consumes `intendedMode` from the share doc and shows a
- * confirmation dialog instead of the legacy 3-option picker.
+ *   1. Synced / View-Only / Copy — peer teachers. Writes a
+ *      `/shared_boards/{shareId}` doc with `intendedMode` set, recipient
+ *      lands at `/share/{shareId}`.
+ *   2. Substitute (View-Only) — a frozen, time-boxed, building-scoped board
+ *      that subs find by browsing `/subs`. Writes a `/shared_boards/{shareId}`
+ *      doc with `intendedMode: 'substitute'` plus extra fields (expiresAt,
+ *      buildingId, initialState, subEmails). Distinct write path because
+ *      substitute shares never live-mirror the host's edits.
  */
 
 import React, { useMemo, useState } from 'react';
@@ -34,14 +35,14 @@ import { BUILDINGS, canonicalBuildingId } from '@/config/buildings';
 import type { Dashboard } from '@/types';
 import type { SharedBoardImportMode } from '@/context/DashboardContextValue';
 
-// Phase A mockup — substitute mode is UI-only and not yet persisted to the
-// share doc. Phase 1 will widen SharedBoardImportMode itself; until then we
-// keep the type-local extension here so the rest of the system stays untouched.
+// `SharedBoardImportMode` excludes 'substitute' on purpose (substitute shares
+// are never imported into a teacher's account), so this widened union is the
+// modal-local shape for the picker.
 type ShareMode = SharedBoardImportMode | 'substitute';
 
-// Default 48h expiration window per the plan. Phase 1 will also enforce a
-// 14-day maximum at submit time.
+// Default 48h expiration window per the plan; enforce a 14-day max at submit.
 const DEFAULT_SUB_EXPIRATION_HOURS = 48;
+const MAX_SUB_EXPIRATION_MS = 14 * 24 * 60 * 60 * 1000;
 const ORONO_EMAIL_DOMAIN = '@orono.k12.mn.us';
 
 // Building-keyed preset sub accounts. Phase 2 will move this to
@@ -137,7 +138,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { shareDashboard, addToast } = useDashboard();
+  const { shareDashboard, shareSubstituteDashboard, addToast } = useDashboard();
   const { canAccessFeature, selectedBuildings } = useAuth();
   const { plcs } = usePlcs();
   const adminBuildings = useAdminBuildings();
@@ -197,9 +198,6 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   const handleCreate = async () => {
     if (!canShare || creating) return;
 
-    // Phase A — substitute mode is mockup-only. Surface a toast and a
-    // preview URL so the host can see the /subs flow, but don't write a
-    // real share doc. Phase 1 will replace this with the actual call.
     if (mode === 'substitute') {
       if (!subBuildingId) {
         addToast(
@@ -210,14 +208,59 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
         );
         return;
       }
-      addToast(
-        t('shareLinkCreatorModal.substitute.mockupToast', {
-          defaultValue:
-            'Sub mode — visual mockup only. The link is not yet active.',
-        }),
-        'info'
-      );
-      setCreatedUrl(`${window.location.origin}/subs`);
+      const parsedExpiresAt = new Date(subExpiresAt).getTime();
+      if (!Number.isFinite(parsedExpiresAt) || parsedExpiresAt <= Date.now()) {
+        addToast(
+          t('shareLinkCreatorModal.substitute.expiresInPast', {
+            defaultValue: 'Pick an expiration in the future.',
+          }),
+          'error'
+        );
+        return;
+      }
+      if (parsedExpiresAt > Date.now() + MAX_SUB_EXPIRATION_MS) {
+        addToast(
+          t('shareLinkCreatorModal.substitute.expiresTooFar', {
+            defaultValue: 'Substitute shares can last at most 14 days.',
+          }),
+          'error'
+        );
+        return;
+      }
+      const invalidEmail = subEmails.find((e) => !isValidOronoEmail(e));
+      if (invalidEmail) {
+        addToast(
+          t('shareLinkCreatorModal.substitute.invalidEmail', {
+            defaultValue: `Must end with ${ORONO_EMAIL_DOMAIN}`,
+          }),
+          'error'
+        );
+        return;
+      }
+
+      setCreating(true);
+      try {
+        await shareSubstituteDashboard({
+          dashboard,
+          expiresAt: parsedExpiresAt,
+          buildingId: subBuildingId,
+          subEmails: subEmails.length > 0 ? subEmails : undefined,
+        });
+        // Subs reach this board by browsing /subs filtered to their building —
+        // they don't follow a /share/{shareId} link — so the success panel
+        // shows the /subs entry URL instead of a per-share URL.
+        setCreatedUrl(`${window.location.origin}/subs`);
+      } catch (err) {
+        console.error('Substitute share failed:', err);
+        addToast(
+          t('shareLinkCreatorModal.toast.createFailed', {
+            defaultValue: 'Failed to create share link',
+          }),
+          'error'
+        );
+      } finally {
+        setCreating(false);
+      }
       return;
     }
 
@@ -326,12 +369,21 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
     >
       {createdUrl ? (
         <div className="px-5 pb-5 pt-4 space-y-4">
-          <p className="text-xs text-slate-600">
-            {t('shareLinkCreatorModal.receivedAsBefore', {
-              defaultValue: 'Anyone you send this link to will receive it as',
-            })}{' '}
-            <span className="font-bold text-slate-800">{modeLabel}</span>.
-          </p>
+          {mode === 'substitute' ? (
+            <p className="text-xs text-slate-600">
+              {t('shareLinkCreatorModal.substitute.readyBlurb', {
+                defaultValue:
+                  'Your sub board is live. Subs in this building can open it from the Substitute Portal at the link below.',
+              })}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-600">
+              {t('shareLinkCreatorModal.receivedAsBefore', {
+                defaultValue: 'Anyone you send this link to will receive it as',
+              })}{' '}
+              <span className="font-bold text-slate-800">{modeLabel}</span>.
+            </p>
+          )}
           <div className="flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
             <input
               type="text"

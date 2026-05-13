@@ -17,8 +17,30 @@ import {
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
 
-/** Mode applied to a shared-board import. Mirrors `SharedBoardIntendedMode`. */
+/**
+ * Mode applied to a shared-board import. Substitute shares are intentionally
+ * NOT included here — they are never imported into a teacher's account; they
+ * live only inside the `/subs` substitute portal. Code that handles import
+ * flows can rely on this narrow union to stay correct without checking for
+ * substitute as a special case.
+ */
 export type SharedBoardImportMode = 'copy' | 'synced' | 'view-only';
+
+/**
+ * Input to `shareSubstituteDashboard()` — the substitute share write path.
+ * Distinct from `shareDashboard()` because the lifecycle differs: substitute
+ * shares are frozen at creation, never mirror live edits, and don't tag the
+ * local dashboard with a linkedShareId.
+ */
+export interface SubstituteShareInput {
+  dashboard: Dashboard;
+  /** ms epoch — host-chosen expiration. */
+  expiresAt: number;
+  /** Canonical building id (config/buildings.ts). */
+  buildingId: string;
+  /** Optional @orono.k12.mn.us emails the host wants to grant Drive access to. */
+  subEmails?: string[];
+}
 
 export interface PendingShareImport {
   shareId: string;
@@ -146,6 +168,14 @@ export interface DashboardContextValue {
      */
     plcId?: string
   ) => Promise<string>;
+  /**
+   * Create a frozen, time-boxed share for a substitute teacher. Writes a
+   * `/shared_boards/{shareId}` doc with `intendedMode: 'substitute'` plus
+   * substitute-specific fields (expiresAt, buildingId, initialState,
+   * subEmails). Does NOT tag the local dashboard with a linkedShareId — the
+   * host's later edits never propagate to substitute shares.
+   */
+  shareSubstituteDashboard: (input: SubstituteShareInput) => Promise<string>;
   loadSharedDashboard: (shareId: string) => Promise<Dashboard | null>;
   pendingShareId: string | null;
   clearPendingShare: () => void;
