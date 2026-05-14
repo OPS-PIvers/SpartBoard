@@ -1,12 +1,12 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import type { QuizConfig, QuizData, QuizResponse } from '@/types';
 
-// Locks in the solo Re-Export Sheet affordance — previously absent, which
-// left teachers with no in-app path to refresh a sheet after deleting it or
-// after a code-side change to export output (e.g. the multi-class name
-// resolution fix). The PLC equivalent is covered by QuizResults.regenerate.
+// Locks in the solo Re-Export Sheet affordance — without it, teachers had no
+// in-app path to refresh a sheet after deleting it or after a code-side
+// change to export output. The PLC equivalent is covered by
+// QuizResults.regenerate.
 
 const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
@@ -178,31 +178,106 @@ describe('QuizResults — solo Re-Export Sheet button', () => {
       />
     );
 
-    const button = screen.getByRole('button', {
-      name: /re-export sheet \(creates a new sheet\)/i,
-    });
-    await act(async () => {
-      button.click();
-      // Flush the await chain inside handleExport.
-      await Promise.resolve();
-      await Promise.resolve();
+    screen
+      .getByRole('button', { name: /re-export sheet \(creates a new sheet\)/i })
+      .click();
+
+    await waitFor(() => {
+      expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
     });
 
-    expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
     const callArgs = mockExportResultsToSheet.mock.calls[0];
     // 4th arg is the exportOpts bag — plcMode must be false on a solo
     // re-export, otherwise the call routes through the PLC append path and
     // throws when no plcSheetUrl is provided.
     expect(callArgs[3]).toMatchObject({ plcMode: false });
 
-    expect(addToast).toHaveBeenCalledWith(
-      expect.stringMatching(/re-exported.*previous sheet remains/i),
-      'success'
-    );
+    await waitFor(() => {
+      expect(addToast).toHaveBeenCalledWith(
+        expect.stringMatching(/re-exported.*previous sheet remains/i),
+        'success'
+      );
+    });
     // The new URL was persisted upstream so a remount doesn't rehydrate
     // the stale URL into the OPEN SHEET link.
     expect(onExportUrlSaved).toHaveBeenCalledWith(
       'https://docs.google.com/spreadsheets/d/NEW/edit'
     );
+  });
+
+  it('does NOT fire the re-export toast when this is the first export (no previousExportUrl)', async () => {
+    mockExportResultsToSheet.mockResolvedValue(
+      'https://docs.google.com/spreadsheets/d/FIRST/edit'
+    );
+    const onExportUrlSaved = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <QuizResults
+        quiz={makeQuiz()}
+        responses={[makeResponse('01')]}
+        config={soloConfig()}
+        onBack={vi.fn()}
+        plcId={null}
+        syncGroupId={null}
+        initialExportUrl={null}
+        onExportUrlSaved={onExportUrlSaved}
+      />
+    );
+
+    // First-export path uses the plain "EXPORT" button (not Re-Export).
+    screen.getByRole('button', { name: /^export$/i }).click();
+
+    await waitFor(() => {
+      expect(mockExportResultsToSheet).toHaveBeenCalledTimes(1);
+    });
+    await waitFor(() => {
+      expect(onExportUrlSaved).toHaveBeenCalled();
+    });
+
+    // The "Re-exported" toast must NOT fire on the first export — that
+    // wording is reserved for the case where a previous sheet existed.
+    const reExportCalls = addToast.mock.calls.filter(([msg]) =>
+      typeof msg === 'string' ? /re-exported/i.test(msg) : false
+    );
+    expect(reExportCalls).toHaveLength(0);
+  });
+
+  it('surfaces an error toast and keeps the previous URL when re-export rejects', async () => {
+    mockExportResultsToSheet.mockRejectedValue(new Error('Drive 500'));
+    const onExportUrlSaved = vi.fn().mockResolvedValue(undefined);
+
+    render(
+      <QuizResults
+        quiz={makeQuiz()}
+        responses={[makeResponse('01')]}
+        config={soloConfig()}
+        onBack={vi.fn()}
+        plcId={null}
+        syncGroupId={null}
+        initialExportUrl="https://docs.google.com/spreadsheets/d/OLD/edit"
+        onExportUrlSaved={onExportUrlSaved}
+      />
+    );
+
+    screen
+      .getByRole('button', { name: /re-export sheet \(creates a new sheet\)/i })
+      .click();
+
+    await waitFor(() => {
+      const errorCalls = addToast.mock.calls.filter(
+        ([, kind]) => kind === 'error'
+      );
+      expect(errorCalls.length).toBeGreaterThanOrEqual(1);
+    });
+
+    // The previous-URL persistence callback must NOT fire on failure —
+    // otherwise the teacher's OPEN SHEET link would point at a sheet that
+    // never came to exist.
+    expect(onExportUrlSaved).not.toHaveBeenCalled();
+    // No success toast either.
+    const successCalls = addToast.mock.calls.filter(
+      ([, kind]) => kind === 'success'
+    );
+    expect(successCalls).toHaveLength(0);
   });
 });

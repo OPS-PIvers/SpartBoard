@@ -321,9 +321,8 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // ClassLink name resolution — pulls names for every classId the session
   // targets, so multi-class assignments resolve names for students from
   // every targeted period (not just `classIds[0]`). The fallback to
-  // `[session.classId]` keeps pre-Phase-5A single-class sessions working.
-  // For legacy code+PIN sessions both maps are empty and pinToName
-  // handles display.
+  // `[session.classId]` keeps single-class sessions working. For legacy
+  // code+PIN sessions both maps are empty and pinToName handles display.
   const sessionClassIds = useMemo(() => {
     if (session?.classIds && session.classIds.length > 0)
       return session.classIds;
@@ -1166,12 +1165,6 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               OPEN SHEET
             </a>
             {canShowSoloReExport && (
-              // Solo re-export: always creates a fresh spreadsheet via the
-              // same path as the initial export. The previous sheet stays
-              // in Drive — the teacher cleans it up manually. Necessary
-              // because solo sheets carry a trailing "Question Analysis"
-              // block that makes safe append/rebuild on the same sheet
-              // significantly more complex than just re-running the export.
               <span
                 title="Re-export — creates a new sheet (the previous sheet stays in Drive)"
                 className="shrink-0 inline-flex"

@@ -19,6 +19,7 @@ import {
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
 import { logError } from '@/utils/logError';
 
 interface Props {
@@ -45,10 +46,11 @@ export const GuidedLearningResults: React.FC<Props> = ({
   }, [sessionId, subscribeToResponses]);
 
   // Fetch the session doc once to learn the targeted ClassLink class ids.
-  // Prefer `classIds` (Phase 5A multi-class) so a session targeted at multiple
-  // periods resolves names for students from every targeted class, not just
-  // `classIds[0]`. Falls back to the legacy single `classId` for older
-  // sessions written before multi-class support.
+  // Prefer `classIds` (multi-class sessions) so an assignment targeted at
+  // multiple periods resolves names for students from every targeted class,
+  // not just `classIds[0]`. Falls back to the legacy single `classId` for
+  // older sessions written before multi-class support.
+  const { addToast } = useDashboard();
   const [sessionClassIds, setSessionClassIds] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
@@ -70,19 +72,25 @@ export const GuidedLearningResults: React.FC<Props> = ({
         }
       } catch (err) {
         if (cancelled) return;
-        // Surface the failure so a permissions regression on
-        // guided_learning_sessions/{id} doesn't silently degrade name
-        // resolution to PIN/'Anonymous' with nothing in the console.
+        // Log for ops AND surface to the teacher. Without the toast, a
+        // permissions regression on guided_learning_sessions/{id} silently
+        // degrades name resolution to anonymous — observationally
+        // identical to a legacy code+PIN session — and the teacher has no
+        // way to know what changed.
         logError('GuidedLearningResults.fetchSessionClassIds', err, {
           sessionId,
         });
+        addToast(
+          "Couldn't load student names for this session — they'll show as anonymous. Refresh to retry.",
+          'error'
+        );
         setSessionClassIds([]);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, addToast]);
 
   const { orgId } = useAuth();
   const { byStudentUid } = useAssignmentPseudonymsMulti(
