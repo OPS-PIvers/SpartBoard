@@ -155,57 +155,73 @@ export const requestAndExchangeAuthCode = async (
     };
   }
 
-  const codeOutcome = await new Promise<
+  type CodeOutcome =
     | { kind: 'code'; code: string }
     | { kind: 'cancelled' }
-    | { kind: 'error'; reason: string }
-  >((resolve) => {
-    const codeClient = gis.accounts?.oauth2?.initCodeClient({
-      client_id: clientId,
-      scope: GOOGLE_OAUTH_SCOPES.join(' '),
-      ux_mode: 'popup',
-      hint: hintEmail,
-      // `access_type: 'offline'` is what makes Google issue a refresh_token.
-      // Without it we'd be right back at the 1-hour TTL with no offline
-      // recovery path. `prompt: 'consent'` forces the consent screen so the
-      // refresh_token is reliably included (Google omits it on subsequent
-      // consents to the same scopes otherwise). Both fields are valid on
-      // `initCodeClient` config but aren't in older @types/google.accounts;
-      // the cast below widens the parameter type to accept them.
-      access_type: 'offline',
-      prompt: 'consent',
-      callback: (response: { code?: string; error?: string }) => {
-        if (response.error) {
-          // Real GIS error: `access_denied` (user revoked mid-flow),
-          // `admin_policy_enforced` (Workspace admin blocks the grant),
-          // `interaction_required` (silent path forced), etc.
-          resolve({ kind: 'error', reason: response.error });
-          return;
-        }
-        if (!response.code) {
-          resolve({ kind: 'cancelled' });
-          return;
-        }
-        resolve({ kind: 'code', code: response.code });
-      },
-      error_callback: (err: unknown) => {
-        const reason =
-          (err as { type?: string; message?: string })?.type ??
-          (err as { message?: string })?.message ??
-          'gis-error-callback';
-        resolve({ kind: 'error', reason });
-      },
-    } as Parameters<typeof gis.accounts.oauth2.initCodeClient>[0] & {
-      access_type: string;
-      prompt: string;
-    });
-    if (!codeClient) {
-      resolve({ kind: 'error', reason: 'init-code-client-failed' });
-      return;
+    | { kind: 'error'; reason: string };
+
+  // The Promise executor and the `requestCode()` call below can both throw
+  // synchronously (older @types/google.accounts versions, an unloaded
+  // `oauth2` namespace, popup-blocker policy violations, etc.). A throw
+  // from the executor would reject the Promise and propagate up through
+  // the `await`, bypassing the discriminated `AuthCodeOutcome` contract
+  // and starving the caller's fallback chain. Wrap both seams so any
+  // synchronous throw resolves cleanly into a `{ kind: 'error' }` outcome.
+  const codeOutcome = await new Promise<CodeOutcome>((resolve) => {
+    try {
+      const codeClient = gis.accounts?.oauth2?.initCodeClient({
+        client_id: clientId,
+        scope: GOOGLE_OAUTH_SCOPES.join(' '),
+        ux_mode: 'popup',
+        hint: hintEmail,
+        // `access_type: 'offline'` is what makes Google issue a refresh_token.
+        // Without it we'd be right back at the 1-hour TTL with no offline
+        // recovery path. `prompt: 'consent'` forces the consent screen so the
+        // refresh_token is reliably included (Google omits it on subsequent
+        // consents to the same scopes otherwise). Both fields are valid on
+        // `initCodeClient` config but aren't in older @types/google.accounts;
+        // the cast below widens the parameter type to accept them.
+        access_type: 'offline',
+        prompt: 'consent',
+        callback: (response: { code?: string; error?: string }) => {
+          if (response.error) {
+            // Real GIS error: `access_denied` (user revoked mid-flow),
+            // `admin_policy_enforced` (Workspace admin blocks the grant),
+            // `interaction_required` (silent path forced), etc.
+            resolve({ kind: 'error', reason: response.error });
+            return;
+          }
+          if (!response.code) {
+            resolve({ kind: 'cancelled' });
+            return;
+          }
+          resolve({ kind: 'code', code: response.code });
+        },
+        error_callback: (err: unknown) => {
+          const reason =
+            (err as { type?: string; message?: string })?.type ??
+            (err as { message?: string })?.message ??
+            'gis-error-callback';
+          resolve({ kind: 'error', reason });
+        },
+      } as Parameters<typeof gis.accounts.oauth2.initCodeClient>[0] & {
+        access_type: string;
+        prompt: string;
+      });
+      if (!codeClient) {
+        resolve({ kind: 'error', reason: 'init-code-client-failed' });
+        return;
+      }
+      // `requestCode` is on the code-client surface but isn't typed in older
+      // GIS @types — cast to a structural shape that exposes it.
+      (codeClient as unknown as { requestCode: () => void }).requestCode();
+    } catch (err) {
+      resolve({
+        kind: 'error',
+        reason:
+          err instanceof Error ? err.message : `gis-init-threw: ${String(err)}`,
+      });
     }
-    // `requestCode` is on the code-client surface but isn't typed in older
-    // GIS @types — cast to a structural shape that exposes it.
-    (codeClient as unknown as { requestCode: () => void }).requestCode();
   });
 
   if (codeOutcome.kind === 'cancelled') return { kind: 'cancelled' };

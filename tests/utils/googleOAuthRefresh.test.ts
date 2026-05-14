@@ -145,6 +145,47 @@ function uninstallGis(): void {
   if (win) delete win.google;
 }
 
+// Install a GIS shim whose `initCodeClient` throws synchronously — covers
+// the case where older @types/google.accounts versions or a partially-
+// loaded `oauth2` namespace cause init to blow up before the callback can
+// fire.
+function installGisThatThrowsInInit(message: string): void {
+  const g = globalThis as unknown as { window?: Record<string, unknown> };
+  g.window = g.window ?? {};
+  const win = g.window;
+  win.google = {
+    accounts: {
+      oauth2: {
+        initCodeClient: () => {
+          throw new Error(message);
+        },
+      },
+    },
+  };
+}
+
+// Install a GIS shim whose `requestCode()` throws synchronously — covers
+// e.g. popup-blocker policy violations that surface as a sync throw.
+function installGisThatThrowsInRequestCode(message: string): void {
+  const g = globalThis as unknown as { window?: Record<string, unknown> };
+  g.window = g.window ?? {};
+  const win = g.window;
+  win.google = {
+    accounts: {
+      oauth2: {
+        initCodeClient: (cfg: FakeCodeClientConfig) => {
+          lastCodeClientConfig = cfg;
+          return {
+            requestCode: () => {
+              throw new Error(message);
+            },
+          };
+        },
+      },
+    },
+  };
+}
+
 beforeEach(() => {
   loggedErrors.length = 0;
   callableHandlers.clear();
@@ -252,6 +293,24 @@ describe('requestAndExchangeAuthCode', () => {
       }
     } finally {
       vi.useRealTimers();
+    }
+  });
+
+  it('converts a synchronous throw from initCodeClient into { kind: "error" } (not a rejected promise)', async () => {
+    installGisThatThrowsInInit('initCodeClient blew up');
+    const outcome = await requestAndExchangeAuthCode('client-id', undefined);
+    expect(outcome.kind).toBe('error');
+    if (outcome.kind === 'error') {
+      expect(outcome.reason).toBe('initCodeClient blew up');
+    }
+  });
+
+  it('converts a synchronous throw from requestCode() into { kind: "error" }', async () => {
+    installGisThatThrowsInRequestCode('popup blocked by browser policy');
+    const outcome = await requestAndExchangeAuthCode('client-id', undefined);
+    expect(outcome.kind).toBe('error');
+    if (outcome.kind === 'error') {
+      expect(outcome.reason).toBe('popup blocked by browser policy');
     }
   });
 });
