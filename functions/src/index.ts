@@ -1598,7 +1598,13 @@ interface VideoActivityRequestData {
    * trims back to these quotas so hallucinations get dropped instead of
    * surfacing to the user.
    */
-  typeCounts: Partial<Record<VideoQuestionType, number>>;
+  typeCounts?: Partial<Record<VideoQuestionType, number>>;
+  /**
+   * Legacy single-count field. Older deployed clients send this instead of
+   * `typeCounts`. Server treats it as `{ MC: questionCount }` during a
+   * staggered functions/frontend deploy so in-flight calls don't break.
+   */
+  questionCount?: number;
   /**
    * Total video duration in seconds, captured client-side from the YouTube
    * IFrame player. Used as a hard upper bound on emitted timestamps — any
@@ -1694,6 +1700,27 @@ function normalizeTypeCounts<T extends string>(
 function bufferedRequestCount(requested: number): number {
   if (requested <= 0) return 0;
   return Math.min(60, Math.ceil(requested * 1.3) + 2);
+}
+
+/**
+ * Back-compat shim for in-flight video-activity callers that haven't
+ * received the new bundle yet. If the request only contains the legacy
+ * `questionCount` field (or both fields are empty), treat it as
+ * `{ MC: questionCount }` so we don't reject a payload from an older
+ * frontend during a staggered Functions/frontend deploy.
+ */
+function legacyVideoTypeCountsFallback(
+  typeCounts: Partial<Record<VideoQuestionType, number>> | undefined,
+  questionCount: number | undefined
+): Partial<Record<VideoQuestionType, number>> | undefined {
+  const supplied = typeCounts ?? {};
+  const hasAny = VIDEO_QUESTION_TYPES.some((t) => Number(supplied[t]) > 0);
+  if (hasAny) return supplied;
+  const legacy = Number(questionCount);
+  if (Number.isFinite(legacy) && legacy > 0) {
+    return { MC: Math.floor(legacy) };
+  }
+  return supplied;
 }
 
 function buildVideoActivityPrompt(
@@ -1962,17 +1989,24 @@ interface ValidatedQuizQuestion {
   timeLimit: number;
 }
 
-/** Mirror of `validateAndBucketVideoQuestions` for the quiz flow. */
+/**
+ * Quiz counterpart to `validateAndBucketVideoQuestions`. Unlike the video
+ * flow (which sorts by `timestamp`), the quiz prompt asks for "easier to
+ * harder" progression, so we preserve Gemini's original emit order while
+ * still enforcing per-type quotas: iterate raw in order, accept each valid
+ * question until that type's bucket fills, drop the rest.
+ */
 export function validateAndBucketQuizQuestions(
   raw: unknown,
   counts: Record<QuizGenType, number>
 ): ValidatedQuizQuestion[] {
   if (!Array.isArray(raw)) return [];
-  const buckets: Record<QuizGenType, ValidatedQuizQuestion[]> = {
-    MC: [],
-    FIB: [],
-    Matching: [],
-    Ordering: [],
+  const accepted: ValidatedQuizQuestion[] = [];
+  const filled: Record<QuizGenType, number> = {
+    MC: 0,
+    FIB: 0,
+    Matching: 0,
+    Ordering: 0,
   };
 
   for (const item of raw) {
@@ -1987,6 +2021,7 @@ export function validateAndBucketQuizQuestions(
     ) {
       continue;
     }
+    if (filled[type] >= counts[type]) continue;
     const text = typeof q.text === 'string' ? q.text.trim() : '';
     if (!text) continue;
     const correctAnswer =
@@ -2014,25 +2049,17 @@ export function validateAndBucketQuizQuestions(
     const timeLimit =
       Number.isFinite(timeLimitRaw) && timeLimitRaw > 0 ? timeLimitRaw : 30;
 
-    const validated: ValidatedQuizQuestion = {
+    accepted.push({
       text,
       type,
       correctAnswer,
       incorrectAnswers: type === 'MC' ? incorrectAnswers : [],
       timeLimit,
-    };
-
-    if (buckets[type].length < counts[type]) {
-      buckets[type].push(validated);
-    }
+    });
+    filled[type] += 1;
   }
 
-  return [
-    ...buckets.MC,
-    ...buckets.FIB,
-    ...buckets.Matching,
-    ...buckets.Ordering,
-  ];
+  return accepted;
 }
 
 /**
@@ -2065,7 +2092,7 @@ export const generateVideoActivity = onCall(
       );
     }
 
-    const { url, typeCounts, durationSeconds } = data;
+    const { url, typeCounts, questionCount, durationSeconds } = data;
 
     if (!url || typeof url !== 'string') {
       throw new HttpsError(
@@ -2074,9 +2101,13 @@ export const generateVideoActivity = onCall(
       );
     }
 
+    const effectiveTypeCounts = legacyVideoTypeCountsFallback(
+      typeCounts,
+      questionCount
+    );
     const { counts, total } = normalizeTypeCounts<VideoQuestionType>(
       VIDEO_QUESTION_TYPES,
-      typeCounts
+      effectiveTypeCounts
     );
     if (total <= 0) {
       throw new HttpsError(
@@ -2261,7 +2292,9 @@ export const generateVideoActivity = onCall(
 interface AudioTranscriptionRequestData {
   url: string;
   /** See `VideoActivityRequestData.typeCounts`. */
-  typeCounts: Partial<Record<VideoQuestionType, number>>;
+  typeCounts?: Partial<Record<VideoQuestionType, number>>;
+  /** See `VideoActivityRequestData.questionCount`. */
+  questionCount?: number;
   /** See `VideoActivityRequestData.durationSeconds`. */
   durationSeconds?: number;
 }

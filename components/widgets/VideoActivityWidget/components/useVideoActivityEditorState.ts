@@ -426,6 +426,12 @@ export function useVideoActivityEditorState({
           q.type === 'FIB' || q.type === 'MA' || q.type === 'MC'
             ? q.type
             : 'MC';
+        const variants =
+          type === 'FIB' && Array.isArray(q.acceptableVariants)
+            ? q.acceptableVariants.filter(
+                (v): v is string => typeof v === 'string' && v.trim().length > 0
+              )
+            : undefined;
         return {
           id: crypto.randomUUID(),
           timestamp: q.timestamp,
@@ -434,6 +440,9 @@ export function useVideoActivityEditorState({
           correctAnswer: q.correctAnswer ?? '',
           incorrectAnswers: type === 'FIB' ? [] : (q.incorrectAnswers ?? []),
           timeLimit: q.timeLimit ?? 30,
+          ...(variants && variants.length > 0
+            ? { acceptableVariants: variants }
+            : {}),
         };
       });
       setQuestions((prev) => sortByTimestamp([...prev, ...generated]));
