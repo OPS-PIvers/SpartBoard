@@ -58,6 +58,7 @@ import {
   requestAndExchangeAuthCode,
   revokeBackendRefreshToken,
 } from '../utils/googleOAuthRefresh';
+import { logError } from '../utils/logError';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
 import {
@@ -399,13 +400,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         if (gisToken) return gisToken;
       }
 
-      // Phase-B fallback BEFORE the Firebase popup: ask the backend for a
-      // fresh access_token using the user's stored refresh_token. This is
-      // what makes Drive auth survive the user's Google session expiring
-      // (closed browser, signed out of Google in another tab, etc.) — the
-      // refresh_token lives server-side and isn't tied to the browser's
-      // Google session at all. Safe to attempt in silent mode because the
-      // callable runs without any UI surface.
+      // Backend refresh BEFORE the Firebase popup: ask the server for a
+      // fresh access_token using the stored refresh_token. This is what
+      // makes Drive auth survive Google-session expiry (closed browser,
+      // signed out of Google in another tab, etc.) — the refresh_token
+      // lives server-side and isn't tied to the browser's Google session
+      // at all. Safe to attempt in silent mode because the callable runs
+      // without any UI surface.
       const backendOutcome = await refreshAccessTokenViaBackend();
       if (backendOutcome.status === 'ok') {
         const expiryMs = Date.now() + (backendOutcome.expiresIn || 3600) * 1000;
@@ -420,35 +421,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // flow, which captures a fresh refresh_token via GIS popup. Silent
       // calls bail rather than popping unexpected consent dialogs.
       if (backendOutcome.status === 'needs-consent' && !silent) {
+        // `VITE_GOOGLE_CLIENT_ID` unset is treated as "feature off, fall
+        // through to Firebase popup" — common in dev/test where the
+        // GIS code-flow client isn't configured.
         const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
           | string
           | undefined;
         if (clientId) {
-          try {
-            const exchanged = await requestAndExchangeAuthCode(
-              clientId,
-              email ?? undefined
+          const exchanged = await requestAndExchangeAuthCode(
+            clientId,
+            email ?? undefined
+          );
+          if (exchanged.kind === 'success') {
+            const result = exchanged.result;
+            const expiryMs = Date.now() + (result.expiresIn || 3600) * 1000;
+            localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, result.accessToken);
+            localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
+            setGoogleAccessToken(result.accessToken);
+            return result.accessToken;
+          }
+          if (exchanged.kind === 'error') {
+            // Real GIS/exchange failure — log so ops can see whether
+            // org-policy blocks (`admin_policy_enforced`) or partial
+            // consent are the dominant failure modes before we fall
+            // through to the Firebase popup.
+            logError(
+              'AuthContext.requestAndExchangeAuthCode',
+              exchanged.reason
             );
-            if (exchanged?.accessToken) {
-              const expiryMs =
-                Date.now() + (exchanged.expiresIn || 3600) * 1000;
-              localStorage.setItem(
-                GOOGLE_ACCESS_TOKEN_KEY,
-                exchanged.accessToken
-              );
-              localStorage.setItem(
-                GOOGLE_TOKEN_EXPIRY_KEY,
-                expiryMs.toString()
-              );
-              setGoogleAccessToken(exchanged.accessToken);
-              return exchanged.accessToken;
-            }
-          } catch (err) {
-            console.warn(
-              '[AuthContext] Auth-code re-consent flow failed; falling back to Firebase popup:',
-              err
+          } else if (exchanged.kind === 'needs-consent') {
+            // Backend rejected the grant structurally (partial-consent,
+            // etc.). Falling back to the Firebase popup will hit the
+            // same rejection, but the user at least gets a fresh
+            // access_token good for one hour.
+            logError(
+              'AuthContext.requestAndExchangeAuthCode.needsConsent',
+              new Error(`needs-consent: ${exchanged.cause}`)
             );
           }
+          // exchanged.kind === 'cancelled' → silent user dismissal, no log
         }
       }
 
@@ -574,17 +585,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [refreshGoogleToken]);
 
-  /** Clear the Google Drive token without touching Firebase auth. */
-  const disconnectGoogleDrive = useCallback(() => {
+  /**
+   * Clear the Google Drive token without touching Firebase auth.
+   *
+   * Awaits the server-side revoke so the caller (sidebar Disconnect button)
+   * sees a truthful success/failure signal. Without awaiting, a backend
+   * revoke failure would silently leave the refresh_token live and the
+   * next refresh interval would re-arm Drive access — a privacy/trust
+   * regression for a user who clicked "Disconnect" intentionally.
+   *
+   * Throws on backend revoke failure; callers should catch and surface a
+   * toast directing the user to revoke at myaccount.google.com manually.
+   */
+  const disconnectGoogleDrive = useCallback(async (): Promise<void> => {
     localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
     localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
     setGoogleAccessToken(null);
-    // Also revoke + drop the server-side refresh_token. Fire-and-forget:
-    // the local state change above is the load-bearing UX signal, and the
-    // helper logs failures rather than throwing. Without this, "Disconnect"
-    // would only clear the client token while the backend would silently
-    // reconnect the user on the next refresh attempt.
-    void revokeBackendRefreshToken();
+    try {
+      await revokeBackendRefreshToken();
+    } catch (err) {
+      logError('AuthContext.disconnectGoogleDrive.revoke', err);
+      throw err;
+    }
   }, []);
 
   // Persist googleAccessToken to localStorage

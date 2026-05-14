@@ -26,20 +26,34 @@
  * sidesteps that ordering issue.
  */
 
+import { logError } from '@/utils/logError';
+
 /**
  * Marker subclass for errors the Drive/Sheets services throw to indicate
  * an auth failure. Preferred over message-matching: any error built via
  * `authError()` is an instance of this class, so `isDriveAuthError` can
  * classify it without sniffing the message.
  *
- * Plain `Error` instances thrown from raw network responses (e.g. fetch
- * failures that surface "401" / "403" in the message) still fall through
- * to message-matching below.
+ * The optional `reason` discriminator lets future consumers specialize
+ * the user-facing surface (`'expired'` → "Reconnect"; `'revoked'` →
+ * "Re-authorize"; `'insufficient-scope'` → "Re-grant permissions").
+ * Today every consumer treats them uniformly, but the field is recorded
+ * so the specialization can land without changing throw sites.
  */
+export type DriveAuthErrorReason =
+  | '401'
+  | '403'
+  | 'expired'
+  | 'revoked'
+  | 'insufficient-scope'
+  | 'unknown';
+
 export class DriveAuthError extends Error {
-  constructor(message: string) {
+  readonly reason: DriveAuthErrorReason;
+  constructor(message: string, reason: DriveAuthErrorReason = 'unknown') {
     super(message);
     this.name = 'DriveAuthError';
+    this.reason = reason;
     // Restore the prototype chain when targeting older transpile targets.
     Object.setPrototypeOf(this, DriveAuthError.prototype);
   }
@@ -119,8 +133,11 @@ export const reportDriveAuthError = (err: unknown): boolean => {
  *
  * Usage: `throw authError('Google Sheets access is not granted...')`.
  */
-export const authError = (message: string): DriveAuthError => {
-  const err = new DriveAuthError(message);
+export const authError = (
+  message: string,
+  reason: DriveAuthErrorReason = 'unknown'
+): DriveAuthError => {
+  const err = new DriveAuthError(message, reason);
   reportDriveAuthError(err);
   return err;
 };
@@ -191,13 +208,13 @@ export const subscribeDriveReconnected = (
 export const notifyDriveReconnected = (): void => {
   // Snapshot the set so a handler that unsubscribes mid-fanout doesn't
   // mutate the iteration. Handlers that throw shouldn't take down the
-  // rest of the fanout — log and continue.
+  // rest of the fanout — log via the structured channel and continue.
   const snapshot = Array.from(driveReconnectedHandlers);
   for (const handler of snapshot) {
     try {
       handler();
     } catch (err) {
-      console.error('[driveAuthErrors] reconnect handler threw:', err);
+      logError('driveAuthErrors.reconnectHandler', err);
     }
   }
 };
