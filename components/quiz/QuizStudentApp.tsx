@@ -2483,6 +2483,9 @@ const PublishedScoreReview: React.FC<{
                   writtenGrade != null &&
                   writtenMaxPoints > 0 &&
                   writtenGrade.pointsAwarded === writtenMaxPoints;
+                const writtenIsIncorrect =
+                  writtenGrade != null &&
+                  writtenGrade.pointsAwarded < writtenMaxPoints;
                 const isCorrect = isWritten
                   ? writtenIsCorrect
                   : ans?.isCorrect === true;
@@ -2596,7 +2599,6 @@ export const WrittenAnswerReview: React.FC<{
   const snapshot =
     grade?.gradingSnapshot ??
     (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
-  const showingLiveAnswer = !hasGrade && !!studentAnswer;
   const showingLiveAnswer = !hasGrade && !!studentAnswer;
   return (
     <div className="space-y-2">
