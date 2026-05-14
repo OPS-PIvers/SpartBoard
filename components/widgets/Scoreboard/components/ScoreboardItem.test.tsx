@@ -63,6 +63,10 @@ describe('ScoreboardItem', () => {
   });
 
   it('applies fallback styles for unknown color', () => {
+    // Team labels render as white text on the team's solid color, so the
+    // fallback path just needs to still produce a readable label — the
+    // exact text-* class is brand-blue's white treatment, not a tinted
+    // text-{color}-600 variant from the old transparent-bg design.
     const unknownColorTeam = { ...mockTeam, color: 'bg-unknown-500' };
     render(
       <ScoreboardItem
@@ -72,7 +76,7 @@ describe('ScoreboardItem', () => {
     );
     const teamName = screen.getByText('Alpha');
     expect(teamName).toBeInTheDocument();
-    expect(teamName).toHaveClass('text-blue-600');
+    expect(teamName).toHaveClass('text-white');
   });
 
   it('applies default styles when no color is provided', () => {
@@ -88,7 +92,7 @@ describe('ScoreboardItem', () => {
     );
     const teamName = screen.getByText('Delta');
     expect(teamName).toBeInTheDocument();
-    expect(teamName).toHaveClass('text-blue-600');
+    expect(teamName).toHaveClass('text-white');
   });
   it('does not re-render if props are equal, but does if linkedGroupId changes', () => {
     const onUpdateScore = vi.fn();

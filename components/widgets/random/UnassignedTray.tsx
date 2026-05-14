@@ -8,7 +8,6 @@ interface UnassignedTrayProps {
   names: string[];
   lockedNames: string[];
   onToggleLock: (name: string) => void;
-  onRemove: (name: string) => void;
   /** Hint text shown when the tray is empty but still rendered (e.g. drop target). */
   emptyHint?: string;
   /** When true, render an empty tray as a drop hint (used while dragging). */
@@ -19,7 +18,6 @@ export const UnassignedTray: React.FC<UnassignedTrayProps> = ({
   names,
   lockedNames,
   onToggleLock,
-  onRemove,
   emptyHint,
   alwaysVisible,
 }) => {
@@ -31,14 +29,19 @@ export const UnassignedTray: React.FC<UnassignedTrayProps> = ({
   return (
     <div
       ref={setNodeRef}
-      className={`w-full rounded-xl border border-dashed transition-colors ${
+      className={`w-full flex-shrink-0 rounded-xl border border-dashed transition-colors ${
         isOver
           ? 'bg-brand-blue-light/10 border-brand-blue-primary/60'
           : 'bg-slate-50/60 border-slate-300/70'
       }`}
       style={{
         padding: 'clamp(6px, 1.5cqmin, 12px) clamp(8px, 2cqmin, 16px)',
-        marginBottom: 'clamp(4px, 1cqmin, 10px)',
+        marginTop: 'clamp(4px, 1cqmin, 10px)',
+        // Cap tray height so a large unassigned pool doesn't crowd out the
+        // groups grid. Above the cap, pills wrap and the tray scrolls — but
+        // pills are compact, so a 30-student pool still fits in ~3-4 rows.
+        maxHeight: 'clamp(70px, 22cqmin, 180px)',
+        overflowY: 'auto',
       }}
     >
       <div
@@ -63,7 +66,7 @@ export const UnassignedTray: React.FC<UnassignedTrayProps> = ({
           className="italic text-slate-400"
           style={{ fontSize: 'clamp(10px, 2.8cqmin, 13px)' }}
         >
-          {emptyHint ?? 'Drop a student here to remove them from a group.'}
+          {emptyHint ?? 'Drag a student here to sit them out.'}
         </div>
       ) : (
         <div
@@ -78,7 +81,7 @@ export const UnassignedTray: React.FC<UnassignedTrayProps> = ({
               sourceZoneId={UNASSIGNED_ZONE_ID}
               locked={lockedSet.has(name)}
               onToggleLock={onToggleLock}
-              onRemove={onRemove}
+              variant="pill"
             />
           ))}
         </div>

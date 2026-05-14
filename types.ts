@@ -1048,6 +1048,12 @@ export interface RandomConfig {
    *  Unassigned tray. Excluded from re-randomize until dragged back into a
    *  group/list. */
   unassignedNames?: string[];
+  /** Shuffle mode: names marked as "done" by tapping the check button on
+   *  the chip — used for presentation order, lunch line, etc. The chip
+   *  renders the name struck through. Marks are tied to the student name
+   *  so they survive re-randomize (a fresh order doesn't erase what's
+   *  already been completed). */
+  doneNames?: string[];
 }
 
 export interface DiceConfig {
