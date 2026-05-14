@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-13_
+_Last audited: 2026-05-14_
 _Last action: 2026-05-02_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-14: Full audit of all 63 WidgetType values against all seven registration locations. Zero new gaps. All lazyNamed() export names verified — RevealGrid intentionally uses generic `'Widget'` export via index.ts aliased re-export (confirmed correct per prior audits). No new widget types added since yesterday. Two existing LOW open items remain valid._
 
 _2026-05-13: Full audit of all 63 WidgetType values (`stations` confirmed at line 64 of types.ts; prior extractions stopped at line 63 and missed it). All seven registration locations cross-referenced — zero new gaps. WIDGET_SCALING_CONFIG is `Record<WidgetType, ScalingConfig>` enforced exhaustive by TypeScript. StationsAppearanceSettings confirmed registered. RevealGrid aliased exports (`Widget`/`Settings`) correct. Two existing LOW open items remain valid._
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-13_
+_Last audited: 2026-05-14_
 _Last action: 2026-04-25_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-14: Scanned Widget.tsx files for anti-patterns. Investigated four potential new issues: (1) ActivityWall `max-h-[75vh]` at lines 2080/2086/2089 — inside a fullscreen submission-preview modal overlay rendered via DraggableWindow `variant="bare"`; viewport-height units are correct for viewport-bounded modal content, not a widget canvas violation. (2) Stations `maxHeight: '40cqh'` at line 435 — cq-relative (not pixel), intentionally caps the unassigned-students sub-section to prevent it from dominating the layout; design intent, not an anti-pattern. (3) InstructionalRoutines `height: '18.8cqh'` at line 498 — has explicit math comment `(100 - (4 * 1gap) - (2 * 1pad)) / 5 = 18.8`; deliberately sized to guarantee 5 cards fit; cqh is appropriate here. (4) MusicWidget cqh/cqw mixing — per journal guidance, leave fill-better formulas. No new open items._
 
 _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fixed icon sizes, and max-h/max-w pixel caps. No new items beyond existing open. New notes: (1) ActivityWall `text-base` at line 1868 is inside a fullscreen modal overlay (not the widget canvas surface) — low impact. (2) RevealGrid `text-xs` at lines 164/170 are in interactive overlay controls inside the widget's container-query context — confirmed as existing open item. (3) Embed `text-xs` at line 446 is in the portaled zoom toolbar — confirmed as existing open item. (4) NumberLine `text-xs` at line 339 hover hint — confirmed existing open item. (5) MiniApp has 22 `text-sm`/`text-xs`/`text-base` occurrences — confirmed as existing open item. No new violations introduced._
 
