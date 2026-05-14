@@ -1040,6 +1040,14 @@ export interface RandomConfig {
    *  `makeRestrictedGroupsByCount` (greedy smallest-safe-bucket) for
    *  class mode where restriction-aware placement matters. */
   numHomeGroups?: number;
+  /** Manual editing: names pinned to their current group/index. Locked names
+   *  stay put when Randomize is hit again; other students reshuffle around
+   *  them. Can still be moved manually by drag. */
+  lockedNames?: string[];
+  /** Manual editing: names removed from the result and parked in the
+   *  Unassigned tray. Excluded from re-randomize until dragged back into a
+   *  group/list. */
+  unassignedNames?: string[];
 }
 
 export interface DiceConfig {

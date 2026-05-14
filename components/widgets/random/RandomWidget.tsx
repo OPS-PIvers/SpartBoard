@@ -1,4 +1,10 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import {
@@ -28,9 +34,22 @@ import {
   Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
+import {
+  DndContext,
+  DragEndEvent,
+  DragStartEvent,
+  PointerSensor,
+  TouchSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  pointerWithin,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { getAudioCtx, playTick, playWinner } from './audioUtils';
 import { getLocalIsoDate } from '@/utils/localDate';
 import { logError } from '@/utils/logError';
+import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
 import {
   makeJigsawExpertGroups,
   makeNameGroups,
@@ -38,6 +57,14 @@ import {
   makeRestrictedGroups,
   makeRestrictedGroupsByCount,
 } from './groupMaker';
+import {
+  UNASSIGNED_ZONE_ID,
+  toggleLockedName,
+  clearLockedNames,
+  moveNameToGroup,
+  mergeLockedWithFresh,
+  shuffleWithLocks,
+} from './randomEditHelpers';
 
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { RandomWheel } from './RandomWheel';
@@ -45,6 +72,8 @@ import { RandomSlots } from './RandomSlots';
 import { RandomFlash } from './RandomFlash';
 import { RandomGroups } from './RandomGroups';
 import { GroupSizeStepper } from './GroupSizeStepper';
+import { UnassignedTray } from './UnassignedTray';
+import { ShuffleList } from './ShuffleList';
 
 import { WidgetLayout } from '../WidgetLayout';
 
@@ -109,6 +138,24 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     numExpertGroups: configNumExpertGroups,
     numHomeGroups: configNumHomeGroups,
   } = config;
+  const lockedNames = useMemo(
+    () => (Array.isArray(config.lockedNames) ? config.lockedNames : []),
+    [config.lockedNames]
+  );
+  const unassignedNames = useMemo(
+    () => (Array.isArray(config.unassignedNames) ? config.unassignedNames : []),
+    [config.unassignedNames]
+  );
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, {
+      activationConstraint: { delay: 120, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
   // Classic jigsaw is "4 home groups of 4 → 4 expert groups of 4", so default
   // to 4 in jigsaw mode when the user hasn't explicitly set a size. Other
   // modes keep the historical default of 3. An explicit user choice always
@@ -210,7 +257,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         config.lastResult != null ||
         (config.remainingStudents?.length ?? 0) > 0 ||
         (config.jigsawHomeGroups?.length ?? 0) > 0 ||
-        (config.jigsawExpertGroups?.length ?? 0) > 0;
+        (config.jigsawExpertGroups?.length ?? 0) > 0 ||
+        (config.lockedNames?.length ?? 0) > 0 ||
+        (config.unassignedNames?.length ?? 0) > 0;
       if (hasTransientState) {
         spinGenRef.current += 1;
         const update: Partial<RandomConfig> = {
@@ -219,6 +268,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           jigsawHomeGroups: null,
           jigsawExpertGroups: null,
           jigsawView: 'home',
+          lockedNames: [],
+          unassignedNames: [],
         };
         updateWidget(widget.id, { config: update as WidgetConfig });
         setLocalJigsaw(null);
@@ -313,6 +364,36 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     });
   };
 
+  // ───────── Manual editing state (locks, unassigned, placeholders) ─────────
+  //
+  // When mode is groups/jigsaw and no result exists yet, we still want to
+  // show empty group cards so teachers can manually drag students into them.
+  // Placeholders are kept in component state with stable UUIDs so chip
+  // dragIds and droppable zone ids don't churn across renders. They only
+  // regenerate when the desired count (group size / number of home groups /
+  // student count) changes.
+  const desiredPlaceholderCount = useMemo(() => {
+    if (mode === 'jigsaw') return Math.max(1, displayNumHomeGroups);
+    if (mode === 'groups') return Math.max(1, estimatedHomeGroupCount);
+    return 0;
+  }, [mode, displayNumHomeGroups, estimatedHomeGroupCount]);
+
+  const buildPlaceholders = (count: number): RandomGroup[] =>
+    Array.from({ length: count }, () => ({
+      id: crypto.randomUUID(),
+      names: [],
+    }));
+
+  const [placeholderGroups, setPlaceholderGroups] = useState<RandomGroup[]>(
+    () => buildPlaceholders(desiredPlaceholderCount)
+  );
+  const [prevDesiredPlaceholderCount, setPrevDesiredPlaceholderCount] =
+    useState(desiredPlaceholderCount);
+  if (prevDesiredPlaceholderCount !== desiredPlaceholderCount) {
+    setPrevDesiredPlaceholderCount(desiredPlaceholderCount);
+    setPlaceholderGroups(buildPlaceholders(desiredPlaceholderCount));
+  }
+
   const absentCount = useMemo(() => {
     if (rosterMode !== 'class' || !activeRoster) return 0;
     const today = getLocalIsoDate();
@@ -339,6 +420,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       jigsawHomeGroups: null,
       jigsawExpertGroups: null,
       jigsawView: 'home',
+      lockedNames: [],
+      unassignedNames: [],
     };
     updateWidget(widget.id, { config: update as WidgetConfig });
     setLocalJigsaw(null);
@@ -363,6 +446,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       jigsawHomeGroups: null,
       jigsawExpertGroups: null,
       jigsawView: 'home',
+      lockedNames: [],
+      unassignedNames: [],
     };
     updateWidget(widget.id, { config: update as WidgetConfig });
     setLocalJigsaw(null);
@@ -394,6 +479,297 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const hasJigsawGroups =
     (renderedHomeGroups?.length ?? 0) > 0 ||
     (renderedExpertGroups?.length ?? 0) > 0;
+
+  // ───────── Editable groups + unassigned tray plumbing ─────────
+  //
+  // currentGroups is whatever the user is currently looking at and may edit:
+  //  • mode 'groups' with a result   → displayResult as RandomGroup[]
+  //  • mode 'groups' empty           → placeholder groups (committed on first edit)
+  //  • mode 'jigsaw' home view       → renderedHomeGroups, or placeholders
+  //  • mode 'jigsaw' expert view     → renderedExpertGroups (no placeholder
+  //                                    — expert groups are derived, so the
+  //                                    "fresh" empty state happens only on
+  //                                    the home tab)
+  //  • mode 'shuffle' / 'single'     → null (handled elsewhere)
+  const groupsFromDisplay = useMemo<RandomGroup[] | null>(() => {
+    if (
+      Array.isArray(displayResult) &&
+      displayResult.length > 0 &&
+      typeof displayResult[0] === 'object' &&
+      displayResult[0] !== null &&
+      'names' in (displayResult[0] as RandomGroup)
+    ) {
+      return displayResult as RandomGroup[];
+    }
+    return null;
+  }, [displayResult]);
+
+  const currentGroups = useMemo<RandomGroup[] | null>(() => {
+    if (mode === 'groups') return groupsFromDisplay ?? placeholderGroups;
+    if (mode === 'jigsaw') {
+      if (jigsawView === 'expert') {
+        return renderedExpertGroups ?? null;
+      }
+      return renderedHomeGroups ?? placeholderGroups;
+    }
+    return null;
+  }, [
+    mode,
+    jigsawView,
+    groupsFromDisplay,
+    renderedHomeGroups,
+    renderedExpertGroups,
+    placeholderGroups,
+  ]);
+
+  // Names that the result currently places into some group (or shuffle slot).
+  const namesInResult = useMemo<Set<string>>(() => {
+    const set = new Set<string>();
+    if (currentGroups) {
+      for (const g of currentGroups) for (const n of g.names) set.add(n);
+    } else if (
+      mode === 'shuffle' &&
+      Array.isArray(displayResult) &&
+      displayResult.length > 0 &&
+      typeof displayResult[0] === 'string'
+    ) {
+      for (const n of displayResult as string[]) set.add(n);
+    }
+    return set;
+  }, [currentGroups, displayResult, mode]);
+
+  // Names to show in the Unassigned tray. Combines:
+  //  • Explicit unassigned (persisted) — students the teacher removed
+  //  • Roster students not currently in any group/slot (covers the
+  //    "manual creation from empty" case and post-randomize gaps)
+  // Restricted to the active student pool so absent / removed-from-roster
+  // names don't linger.
+  const unassignedDisplay = useMemo<string[]>(() => {
+    const studentSet = new Set(students);
+    const out: string[] = [];
+    const seen = new Set<string>();
+    for (const n of unassignedNames) {
+      if (studentSet.has(n) && !namesInResult.has(n) && !seen.has(n)) {
+        out.push(n);
+        seen.add(n);
+      }
+    }
+    for (const n of students) {
+      if (!namesInResult.has(n) && !seen.has(n)) {
+        out.push(n);
+        seen.add(n);
+      }
+    }
+    return out;
+  }, [students, namesInResult, unassignedNames]);
+
+  const isEditableMode =
+    mode === 'groups' || mode === 'jigsaw' || mode === 'shuffle';
+
+  // Commit a fresh groups array back to config under the right field for
+  // the current mode/view. Mirrors the original handlePick `performUpdate`
+  // shape but doesn't trigger any of the sound/effect/sharedGroups logic.
+  const commitGroups = useCallback(
+    (nextGroups: RandomGroup[], extra?: Partial<RandomConfig>) => {
+      let update: Partial<RandomConfig> = { ...(extra ?? {}) };
+      if (mode === 'groups') {
+        update = { ...update, lastResult: nextGroups };
+        setDisplayResult(nextGroups);
+      } else if (mode === 'jigsaw') {
+        if (jigsawView === 'expert') {
+          update = { ...update, jigsawExpertGroups: nextGroups };
+          setLocalJigsaw((prev) =>
+            prev ? { ...prev, expert: nextGroups } : null
+          );
+        } else {
+          // Editing home groups invalidates the previously-derived expert
+          // groups — teachers expect to re-launch jigsaw after a manual
+          // home edit. Clear expert so the next Randomize regenerates it.
+          update = {
+            ...update,
+            jigsawHomeGroups: nextGroups,
+            lastResult: nextGroups,
+            jigsawExpertGroups: null,
+          };
+          setLocalJigsaw({ home: nextGroups, expert: [] });
+        }
+      }
+      updateWidget(widget.id, { config: update as WidgetConfig });
+    },
+    [mode, jigsawView, updateWidget, widget.id]
+  );
+
+  const handleToggleLock = useCallback(
+    (name: string) => {
+      const next = toggleLockedName(lockedNames, name);
+      updateWidget(widget.id, {
+        config: { lockedNames: next } as WidgetConfig,
+      });
+    },
+    [lockedNames, updateWidget, widget.id]
+  );
+
+  const handleRemoveFromResult = useCallback(
+    (name: string) => {
+      const nextUnassigned = unassignedNames.includes(name)
+        ? unassignedNames
+        : [...unassignedNames, name];
+      const nextLocked = clearLockedNames(lockedNames, [name]);
+
+      if (mode === 'shuffle') {
+        const current = Array.isArray(displayResult)
+          ? (displayResult as string[])
+          : [];
+        const nextShuffle = current.filter((n) => n !== name);
+        setDisplayResult(nextShuffle);
+        updateWidget(widget.id, {
+          config: {
+            lastResult: nextShuffle,
+            unassignedNames: nextUnassigned,
+            lockedNames: nextLocked,
+          } as WidgetConfig,
+        });
+        return;
+      }
+      if (!currentGroups) return;
+      const nextGroups = currentGroups.map((g) => ({
+        ...g,
+        names: g.names.filter((n) => n !== name),
+      }));
+      commitGroups(nextGroups, {
+        unassignedNames: nextUnassigned,
+        lockedNames: nextLocked,
+      });
+    },
+    [
+      mode,
+      currentGroups,
+      displayResult,
+      unassignedNames,
+      lockedNames,
+      commitGroups,
+      updateWidget,
+      widget.id,
+    ]
+  );
+
+  const handleDragStart = useCallback((_event: DragStartEvent) => {
+    beginWidgetDrag();
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    endWidgetDrag();
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      endWidgetDrag();
+      const { active, over } = event;
+      if (!over) return;
+      const data = active.data.current as
+        | { name?: string; sourceZoneId?: string }
+        | undefined;
+      const name = data?.name;
+      const sourceZoneId = data?.sourceZoneId;
+      if (!name || !sourceZoneId) return;
+
+      const rawTargetId = String(over.id);
+      // Resolve the target zone id (group id, '__unassigned__', or
+      // 'shuffle-row:N'). We pass the raw id through for shuffle so the
+      // insert position is preserved.
+      let targetZoneId: string;
+      if (rawTargetId === UNASSIGNED_ZONE_ID) {
+        targetZoneId = UNASSIGNED_ZONE_ID;
+      } else if (rawTargetId.startsWith('group:')) {
+        targetZoneId = rawTargetId.slice('group:'.length);
+      } else if (rawTargetId.startsWith('shuffle-row:')) {
+        targetZoneId = rawTargetId;
+      } else if (rawTargetId === 'shuffle-list') {
+        targetZoneId = 'shuffle-list';
+      } else {
+        return;
+      }
+      if (sourceZoneId === targetZoneId) return;
+
+      // Shuffle: list + per-row drop targets.
+      if (mode === 'shuffle') {
+        const current = Array.isArray(displayResult)
+          ? [...(displayResult as string[])]
+          : [];
+        const filtered = current.filter((n) => n !== name);
+        let nextShuffle = filtered;
+        let nextUnassigned = unassignedNames.slice();
+        let nextLocked = lockedNames.slice();
+
+        if (targetZoneId === UNASSIGNED_ZONE_ID) {
+          if (!nextUnassigned.includes(name)) nextUnassigned.push(name);
+          nextLocked = clearLockedNames(lockedNames, [name]);
+        } else if (targetZoneId.startsWith('shuffle-row:')) {
+          const targetIdx = parseInt(
+            targetZoneId.slice('shuffle-row:'.length),
+            10
+          );
+          const clamped = Math.max(
+            0,
+            Math.min(
+              filtered.length,
+              Number.isFinite(targetIdx) ? targetIdx : filtered.length
+            )
+          );
+          nextShuffle = [
+            ...filtered.slice(0, clamped),
+            name,
+            ...filtered.slice(clamped),
+          ];
+          nextUnassigned = nextUnassigned.filter((n) => n !== name);
+        } else if (targetZoneId === 'shuffle-list') {
+          nextShuffle = [...filtered, name];
+          nextUnassigned = nextUnassigned.filter((n) => n !== name);
+        }
+
+        setDisplayResult(nextShuffle);
+        updateWidget(widget.id, {
+          config: {
+            lastResult: nextShuffle,
+            unassignedNames: nextUnassigned,
+            lockedNames: nextLocked,
+          } as WidgetConfig,
+        });
+        return;
+      }
+
+      // Groups / jigsaw
+      if (!currentGroups) return;
+      if (targetZoneId === UNASSIGNED_ZONE_ID) {
+        const nextGroups = currentGroups.map((g) => ({
+          ...g,
+          names: g.names.filter((n) => n !== name),
+        }));
+        const nextUnassigned = unassignedNames.includes(name)
+          ? unassignedNames
+          : [...unassignedNames, name];
+        const nextLocked = clearLockedNames(lockedNames, [name]);
+        commitGroups(nextGroups, {
+          unassignedNames: nextUnassigned,
+          lockedNames: nextLocked,
+        });
+      } else {
+        const nextGroups = moveNameToGroup(currentGroups, name, targetZoneId);
+        const nextUnassigned = unassignedNames.filter((n) => n !== name);
+        commitGroups(nextGroups, { unassignedNames: nextUnassigned });
+      }
+    },
+    [
+      mode,
+      currentGroups,
+      displayResult,
+      unassignedNames,
+      lockedNames,
+      commitGroups,
+      updateWidget,
+      widget.id,
+    ]
+  );
 
   const handleSendToScoreboard = () => {
     // 1. Normalize current groups from displayResult
@@ -692,13 +1068,35 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setIsSpinning(false);
           return;
         }
+        const lockedSet = new Set(lockedNames);
+        const unassignedSet = new Set(unassignedNames);
+        const includeName = (name: string) =>
+          !unassignedSet.has(name) && !lockedSet.has(name);
+        const existingHome = renderedHomeGroups;
+        const useLockPath =
+          lockedSet.size > 0 &&
+          Array.isArray(existingHome) &&
+          existingHome.length > 0;
+
         let homeGroups: RandomGroup[];
         if (rosterMode === 'class' && activeRoster) {
-          const { groups, unsatisfied } = makeRestrictedGroupsByCount(
-            presentClassStudents,
-            displayNumHomeGroups
+          const poolStudents = presentClassStudents.filter((s) =>
+            includeName(`${s.firstName} ${s.lastName}`.trim())
           );
-          homeGroups = groups;
+          const targetCount = useLockPath
+            ? existingHome.length
+            : displayNumHomeGroups;
+          const { groups, unsatisfied } = makeRestrictedGroupsByCount(
+            poolStudents,
+            targetCount
+          );
+          homeGroups = useLockPath
+            ? mergeLockedWithFresh({
+                currentGroups: existingHome,
+                lockedNames,
+                freshGroups: groups,
+              })
+            : groups;
           if (unsatisfied > 0) {
             addToast(
               t('widgets.random.restrictionsUnsatisfied', {
@@ -709,7 +1107,18 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             );
           }
         } else {
-          homeGroups = makeNameGroupsByCount(students, displayNumHomeGroups);
+          const pool = students.filter(includeName);
+          const targetCount = useLockPath
+            ? existingHome.length
+            : displayNumHomeGroups;
+          const fresh = makeNameGroupsByCount(pool, targetCount);
+          homeGroups = useLockPath
+            ? mergeLockedWithFresh({
+                currentGroups: existingHome,
+                lockedNames,
+                freshGroups: fresh,
+              })
+            : fresh;
         }
         const numExpertGroups =
           configNumExpertGroups ??
@@ -811,26 +1220,90 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setIsSpinning(false);
           return;
         }
+        const lockedSet = new Set(lockedNames);
+        const unassignedSet = new Set(unassignedNames);
+        const includeName = (name: string) =>
+          !unassignedSet.has(name) && !lockedSet.has(name);
+
         let result: string[] | RandomGroup[];
         if (mode === 'shuffle') {
-          result = shuffle(students);
-        } else if (rosterMode === 'class' && activeRoster) {
-          const { groups, unsatisfied } = makeRestrictedGroups(
-            presentClassStudents,
-            groupSize
-          );
-          result = groups;
-          if (unsatisfied > 0) {
-            addToast(
-              t('widgets.random.restrictionsUnsatisfied', {
-                defaultValue:
-                  "Couldn't satisfy all restrictions — try again or adjust group size.",
-              }),
-              'warning'
-            );
+          const existing =
+            Array.isArray(displayResult) &&
+            displayResult.length > 0 &&
+            typeof displayResult[0] === 'string'
+              ? (displayResult as string[])
+              : null;
+          if (existing && lockedSet.size > 0) {
+            // Lock-aware: keep locked names at their current indices,
+            // shuffle the rest. Drop any unassigned names that slipped in.
+            const filtered = existing.filter((n) => !unassignedSet.has(n));
+            result = shuffleWithLocks(filtered, lockedNames);
+          } else {
+            const pool = students.filter((n) => !unassignedSet.has(n));
+            result = shuffle(pool);
           }
         } else {
-          result = makeNameGroups(students, groupSize);
+          const existingGroups = groupsFromDisplay;
+          const useLockPath =
+            lockedSet.size > 0 &&
+            Array.isArray(existingGroups) &&
+            existingGroups.length > 0;
+
+          if (rosterMode === 'class' && activeRoster) {
+            const poolStudents = presentClassStudents.filter((s) =>
+              includeName(`${s.firstName} ${s.lastName}`.trim())
+            );
+            if (useLockPath) {
+              const targetCount = existingGroups.length;
+              const { groups, unsatisfied } = makeRestrictedGroupsByCount(
+                poolStudents,
+                targetCount
+              );
+              result = mergeLockedWithFresh({
+                currentGroups: existingGroups,
+                lockedNames,
+                freshGroups: groups,
+              });
+              if (unsatisfied > 0) {
+                addToast(
+                  t('widgets.random.restrictionsUnsatisfied', {
+                    defaultValue:
+                      "Couldn't satisfy all restrictions — try again or adjust group size.",
+                  }),
+                  'warning'
+                );
+              }
+            } else {
+              const { groups, unsatisfied } = makeRestrictedGroups(
+                poolStudents,
+                groupSize
+              );
+              result = groups;
+              if (unsatisfied > 0) {
+                addToast(
+                  t('widgets.random.restrictionsUnsatisfied', {
+                    defaultValue:
+                      "Couldn't satisfy all restrictions — try again or adjust group size.",
+                  }),
+                  'warning'
+                );
+              }
+            }
+          } else {
+            const pool = students.filter((n) => !unassignedSet.has(n));
+            if (useLockPath) {
+              const targetCount = existingGroups.length;
+              const unlockedPool = pool.filter((n) => !lockedSet.has(n));
+              const fresh = makeNameGroupsByCount(unlockedPool, targetCount);
+              result = mergeLockedWithFresh({
+                currentGroups: existingGroups,
+                lockedNames,
+                freshGroups: fresh,
+              });
+            } else {
+              result = makeNameGroups(pool, groupSize);
+            }
+          }
         }
         setDisplayResult(result);
         if (soundEnabled) playWinner();
@@ -1100,129 +1573,84 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           </div>
         }
         content={
-          <div
-            className={`flex-1 flex flex-col w-full h-full self-stretch min-h-0 overflow-hidden ${
-              mode === 'single' ? 'items-center justify-center' : ''
-            }`}
-          >
-            {mode === 'single' ? (
-              renderSinglePick()
-            ) : mode === 'jigsaw' ? (
-              <div
-                className="w-full flex-1 min-h-0 flex flex-col"
-                style={{ padding: '0 min(8px, 2cqmin)' }}
-              >
-                <RandomGroups
-                  displayResult={
-                    jigsawView === 'expert'
-                      ? renderedExpertGroups
-                      : renderedHomeGroups
-                  }
-                  sharedGroups={activeDashboard?.sharedGroups}
-                  groupNamePrefix={
-                    jigsawView === 'expert' ? 'Expert Group' : 'Home Group'
-                  }
-                />
-              </div>
-            ) : (
-              <div
-                className="w-full flex-1 min-h-0 flex flex-col"
-                style={{ padding: '0 min(8px, 2cqmin)' }}
-              >
-                {mode === 'shuffle' ? (
-                  (() => {
-                    const shuffleNames =
-                      Array.isArray(displayResult) &&
-                      (displayResult.length === 0 ||
-                        !Array.isArray(displayResult[0]))
-                        ? (displayResult as string[])
-                        : [];
-                    if (shuffleNames.length === 0) {
-                      return (
-                        <div
-                          className="flex-1 flex flex-col items-center justify-center text-slate-300 italic"
-                          style={{
-                            padding: 'min(40px, 8cqmin) 0',
-                            gap: 'min(8px, 2cqmin)',
-                          }}
-                        >
-                          <Layers
-                            className="opacity-20"
-                            style={{
-                              width: 'min(32px, 8cqmin)',
-                              height: 'min(32px, 8cqmin)',
-                            }}
-                          />
-                          <span
-                            className="font-bold"
-                            style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-                          >
-                            {t('widgets.random.shuffleHint', {
-                              defaultValue: 'Click Randomize to Shuffle',
-                            })}
-                          </span>
-                        </div>
-                      );
+          mode === 'single' ? (
+            <div className="flex-1 flex flex-col w-full h-full self-stretch min-h-0 overflow-hidden items-center justify-center">
+              {renderSinglePick()}
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={pointerWithin}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={handleDragCancel}
+            >
+              <div className="flex-1 flex flex-col w-full h-full self-stretch min-h-0 overflow-hidden">
+                <div
+                  className="w-full flex-1 min-h-0 flex flex-col"
+                  style={{ padding: '0 min(8px, 2cqmin)' }}
+                >
+                  <UnassignedTray
+                    names={unassignedDisplay}
+                    lockedNames={lockedNames}
+                    onToggleLock={handleToggleLock}
+                    onRemove={handleRemoveFromResult}
+                    alwaysVisible={
+                      unassignedDisplay.length === 0 &&
+                      isEditableMode &&
+                      lockedNames.length > 0
                     }
-                    return (
-                      <div
-                        className="flex-1 overflow-y-auto overflow-x-hidden w-full"
-                        style={{
-                          // CSS multi-column layout: browser fits as many ~200px
-                          // columns as the container allows. column-fill: auto
-                          // fills column 1 top-to-bottom, then column 2, etc. —
-                          // the column-first reading order we want for a numbered
-                          // list. Vertical overflow scrolls; breakInside on each
-                          // row keeps cards intact across column boundaries.
-                          columnWidth: 'clamp(160px, 36cqmin, 240px)',
-                          columnFill: 'auto',
-                          columnGap: 'clamp(6px, 1.5cqmin, 12px)',
-                          padding: 'clamp(2px, 1cqmin, 6px) 0',
-                        }}
-                      >
-                        {shuffleNames.map((name: string, i: number) => (
-                          <div
-                            key={i}
-                            className="flex items-center bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden"
-                            style={{
-                              gap: 'clamp(8px, 2.5cqmin, 14px)',
-                              padding:
-                                'clamp(4px, 1.2cqmin, 10px) clamp(10px, 2.5cqmin, 16px)',
-                              marginBottom: 'clamp(3px, 1cqmin, 8px)',
-                              minHeight: 'clamp(28px, 6cqmin, 48px)',
-                              breakInside: 'avoid',
-                            }}
-                          >
-                            <span
-                              className="font-mono font-black text-slate-400 flex-shrink-0 tabular-nums"
-                              style={{
-                                fontSize: 'clamp(11px, 3.2cqmin, 18px)',
-                              }}
-                            >
-                              {i + 1}
-                            </span>
-                            <span
-                              className="leading-tight font-bold text-slate-700 truncate min-w-0"
-                              style={{
-                                fontSize: 'clamp(13px, 4cqmin, 22px)',
-                              }}
-                            >
-                              {name}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    );
-                  })()
-                ) : (
-                  <RandomGroups
-                    displayResult={displayResult}
-                    sharedGroups={activeDashboard?.sharedGroups}
+                    emptyHint={
+                      mode === 'shuffle'
+                        ? 'Drop a student here to remove them from the list.'
+                        : 'Drop a student here to remove them from a group.'
+                    }
                   />
-                )}
+                  {mode === 'jigsaw' ? (
+                    <RandomGroups
+                      displayResult={
+                        jigsawView === 'expert'
+                          ? renderedExpertGroups
+                          : (renderedHomeGroups ?? placeholderGroups)
+                      }
+                      sharedGroups={activeDashboard?.sharedGroups}
+                      groupNamePrefix={
+                        jigsawView === 'expert' ? 'Expert Group' : 'Home Group'
+                      }
+                      editable
+                      lockedNames={lockedNames}
+                      onToggleLock={handleToggleLock}
+                      onRemove={handleRemoveFromResult}
+                    />
+                  ) : mode === 'shuffle' ? (
+                    <ShuffleList
+                      names={
+                        Array.isArray(displayResult) &&
+                        (displayResult.length === 0 ||
+                          !Array.isArray(displayResult[0])) &&
+                        (displayResult.length === 0 ||
+                          typeof displayResult[0] === 'string')
+                          ? (displayResult as string[])
+                          : []
+                      }
+                      lockedNames={lockedNames}
+                      onToggleLock={handleToggleLock}
+                      onRemove={handleRemoveFromResult}
+                    />
+                  ) : (
+                    <RandomGroups
+                      displayResult={groupsFromDisplay ?? placeholderGroups}
+                      sharedGroups={activeDashboard?.sharedGroups}
+                      editable
+                      lockedNames={lockedNames}
+                      onToggleLock={handleToggleLock}
+                      onRemove={handleRemoveFromResult}
+                    />
+                  )}
+                </div>
               </div>
-            )}
-          </div>
+            </DndContext>
+          )
         }
         footer={
           mode === 'jigsaw' && hasJigsawGroups ? (
