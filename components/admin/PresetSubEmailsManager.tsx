@@ -32,6 +32,19 @@ export const PresetSubEmailsManager: React.FC = () => {
     () => buildings[0]?.id ?? ''
   );
 
+  // Reconcile the selection when admin buildings finish loading (or change)
+  // and the current pick is no longer in the available list — otherwise the
+  // editor would read/write presets under a building id that is not shown
+  // in the picker, and the user can't recover without a page reload.
+  // In-render sync — see CLAUDE.md "Adjusting state while rendering".
+  const fallbackBuildingId = buildings[0]?.id ?? '';
+  const selectedBuildingPresent = buildings.some(
+    (b) => b.id === selectedBuildingId
+  );
+  if (!selectedBuildingPresent && selectedBuildingId !== fallbackBuildingId) {
+    setSelectedBuildingId(fallbackBuildingId);
+  }
+
   return (
     <div className="p-6 max-w-3xl">
       <div className="flex items-center gap-3 mb-6">

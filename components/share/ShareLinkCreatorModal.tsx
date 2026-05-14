@@ -202,11 +202,26 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
   // If the modal is already open and `subBuildingId` is empty (admin
   // buildings hadn't resolved at open time), seed it from the default once
   // the default becomes available — without clobbering an existing pick.
+  // Also reconcile when the available buildings list changes and the
+  // current selection is no longer present (modal opened with the
+  // fallback BUILDINGS list, then org-specific list arrived and dropped
+  // that id) — without this the share would write a building id subs
+  // never see in their picker.
   React.useEffect(() => {
-    if (isOpen && !subBuildingId && defaultBuildingId) {
+    if (!isOpen) return;
+    if (!subBuildingId && defaultBuildingId) {
+      setSubBuildingId(defaultBuildingId);
+      return;
+    }
+    if (
+      subBuildingId &&
+      teacherBuildings.length > 0 &&
+      !teacherBuildings.some((b) => b.id === subBuildingId) &&
+      defaultBuildingId
+    ) {
       setSubBuildingId(defaultBuildingId);
     }
-  }, [isOpen, subBuildingId, defaultBuildingId]);
+  }, [isOpen, subBuildingId, defaultBuildingId, teacherBuildings]);
 
   if (!isOpen || !dashboard) return null;
 

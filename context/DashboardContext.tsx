@@ -4222,6 +4222,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const contextValue = useMemo(
     () => ({
+      driveService,
       dashboards,
       activeDashboard,
       toasts,
@@ -4327,6 +4328,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearAnnotation,
     }),
     [
+      driveService,
       dashboards,
       activeDashboard,
       toasts,

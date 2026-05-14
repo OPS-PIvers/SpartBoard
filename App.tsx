@@ -2,7 +2,6 @@ import React, { lazy, Suspense, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
-import { useGoogleDrive } from './hooks/useGoogleDrive';
 import { useReconcileExpiredSubShares } from './hooks/useReconcileExpiredSubShares';
 import { CustomWidgetsProvider } from './context/CustomWidgetsContext';
 import { SavedWidgetsProvider } from './context/SavedWidgetsContext';
@@ -181,8 +180,11 @@ const AppContent: React.FC = () => {
     roleResolved,
     signOut,
   } = useAuth();
-  const { loading: dashLoading, activeDashboard } = useDashboard();
-  const { driveService } = useGoogleDrive();
+  const {
+    loading: dashLoading,
+    activeDashboard,
+    driveService,
+  } = useDashboard();
 
   // Sweep this teacher's expired substitute shares once per session so
   // Drive permissions get revoked using their existing OAuth token. The

@@ -94,7 +94,14 @@ export const normalizeEditorBlocks = (editor: HTMLDivElement): void => {
       // Drop whitespace-only text nodes (typically newlines from sanitized
       // HTML); they're not paragraphs the user typed and wrapping them
       // creates visible empty lines on the next normalization pass.
-      if ((child.nodeValue ?? '').trim().length === 0) continue;
+      // The node must be physically removed from the editor as well —
+      // skipping `pending.push` alone leaves it sitting between blocks,
+      // which is the exact mixed-content shape this helper exists to
+      // eliminate.
+      if ((child.nodeValue ?? '').trim().length === 0) {
+        editor.removeChild(child);
+        continue;
+      }
       pending.push(child);
     }
   }

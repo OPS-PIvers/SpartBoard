@@ -7,6 +7,9 @@ import {
   ScoreboardColor,
 } from '@/config/scoreboard';
 
+const DEFAULT_TEAM_COLOR: ScoreboardColor = 'bg-blue-500';
+const KNOWN_TEAM_COLORS = new Set<string>(TEAM_COLORS);
+
 const COLOR_STYLES: Record<
   ScoreboardColor,
   { label: string; score: string; button: string }
@@ -105,7 +108,8 @@ const COLOR_STYLES: Record<
 
 const getStyles = (colorClass: string) => {
   return (
-    COLOR_STYLES[colorClass as ScoreboardColor] ?? COLOR_STYLES['bg-blue-500']
+    COLOR_STYLES[colorClass as ScoreboardColor] ??
+    COLOR_STYLES[DEFAULT_TEAM_COLOR]
   );
 };
 
@@ -117,11 +121,15 @@ export const ScoreboardItem = React.memo(
     team: ScoreboardTeam;
     onUpdateScore: (id: string, delta: number) => void;
   }) => {
-    const colorClass = team.color ?? 'bg-blue-500';
-    // Match the Randomizer group header: solid team color background, white
-    // text. Buttons sit on white chips so they stay tappable against any
-    // hue. Picking the exact same color class for both surfaces guarantees
-    // identical rendering across widgets.
+    // Normalize the persisted color through the known-palette set before
+    // it lands in className — an unknown value would interpolate into
+    // `bg-something-500` that Tailwind has no rule for, leaving white
+    // text on no background. Fall back to the default for both the bg
+    // and the button icon color so they always agree.
+    const rawColor = team.color ?? DEFAULT_TEAM_COLOR;
+    const colorClass = KNOWN_TEAM_COLORS.has(rawColor)
+      ? rawColor
+      : DEFAULT_TEAM_COLOR;
     const buttonIconColor = getStyles(colorClass).button;
 
     return (

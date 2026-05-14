@@ -16,6 +16,7 @@ import {
   DrawableObject,
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
+import type { GoogleDriveService } from '../utils/googleDriveService';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally
@@ -76,6 +77,15 @@ export interface AnnotationState {
 }
 
 export interface DashboardContextValue {
+  /**
+   * Memoized Google Drive service for the active teacher session, or null
+   * when no Google access token is available. Surfaced here so callers
+   * inside DashboardProvider can reuse the existing hook instance instead
+   * of calling `useGoogleDrive()` again — that hook has side effects
+   * (token-change handler, folder-migration effect) that should fire at
+   * most once per session.
+   */
+  driveService: GoogleDriveService | null;
   dashboards: Dashboard[];
   activeDashboard: Dashboard | null;
   toasts: Toast[];

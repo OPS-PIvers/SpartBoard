@@ -83,6 +83,7 @@ const mockAuth: AuthContextType = {
 // to update their configuration will silently fail.
 // See studentViewConfig.ts for widget compatibility details.
 const mockDashboard: DashboardContextValue = {
+  driveService: null,
   dashboards: [],
   activeDashboard: null,
   toasts: [],

@@ -687,7 +687,18 @@ service cloud.firestore {
     //     it to skip the picker, so any update path that allows it to drift
     //     would let a participant spoof the host's choice.
     match /shared_boards/{shareId} {
-      allow read: if request.auth != null;
+      // Substitute shares carry building/sub-email routing metadata and Drive
+      // grant ids that should not leak outside the org — restrict reads to
+      // the host, admins, and authenticated callers in the @orono.k12.mn.us
+      // domain (the same gate the /subs UI enforces client-side). Other
+      // share modes (synced, view-only, copy) remain readable by any
+      // authenticated user since they're discovered by share URL, not query.
+      allow read: if request.auth != null && (
+        resource.data.get('intendedMode', null) != 'substitute'
+        || resource.data.get('originalAuthor', null) == request.auth.uid
+        || isAdmin()
+        || request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+      );
 
       // Host writes their own share, and if they tag it with a `plcId`,
       // they must be a current member of that PLC. Defense-in-depth on top
@@ -697,10 +708,11 @@ service cloud.firestore {
       // Substitute-share addendum (`intendedMode == 'substitute'`):
       // - `buildingId` MUST be a non-empty string. The /subs directory
       //   query joins on it; a missing/wrong value silently hides the share.
-      // - `expiresAt` MUST be a number strictly in the future. Without this
-      //   the function sweep would delete the doc immediately, but during
-      //   the window between create and sweep the driveGrants[] could be
-      //   queried + abused.
+      // - `expiresAt` MUST be a number strictly in the future AND at most
+      //   14 days out. The UI enforces the 14-day cap; mirroring it in
+      //   rules prevents a hostile client from creating a share that lives
+      //   for years (and keeps Drive grants live for that whole window).
+      //   1209600000ms == 14 * 24 * 60 * 60 * 1000.
       // - `initialState` MUST be a list. Subs trust it for the "Reset board"
       //   action; non-list values break that codepath.
       // PLC scoping is intentionally NOT allowed for substitute shares —
@@ -715,6 +727,7 @@ service cloud.firestore {
             && request.resource.data.buildingId.size() > 0
             && request.resource.data.expiresAt is number
             && request.resource.data.expiresAt > request.time.toMillis()
+            && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
             && request.resource.data.initialState is list
           )
         ) &&
@@ -733,15 +746,20 @@ service cloud.firestore {
       // Admins bypass the membership check, matching the existing
       // ownership-bypass elsewhere in this block.
       //
-      // Substitute-share addendum: for `intendedMode == 'substitute'`,
-      // `buildingId` and `initialState` are pinned to their create-time
+      // Substitute-share addendum: for `intendedMode == 'substitute'`, all
+      // lifecycle fields (`buildingId`, `initialState`, `expiresAt`,
+      // `subEmails`, `driveGrants`) are pinned to their create-time
       // values. The sub view trusts these to be the frozen snapshot — if
       // a host could retarget a share's building after creation, a sub
       // who already opened the board would suddenly see a board they
       // weren't expecting; if `initialState` could drift, the "Reset
       // board" action would land on a different baseline than the one
-      // the sub started from. Both pins are admin-overridable for
-      // emergency corrections.
+      // the sub started from; if `expiresAt` could be extended, the
+      // substitute share's frozen/time-boxed contract would be broken
+      // (and Drive grants would outlive their intended window); if
+      // `subEmails` or `driveGrants` could be rewritten, the cleanup
+      // job's accounting of "who got access to what" would silently
+      // drift. All pins are admin-overridable for emergency corrections.
       allow update: if request.auth != null &&
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin()) &&
         request.resource.data.get('intendedMode', null) == resource.data.get('intendedMode', null) &&
@@ -750,7 +768,10 @@ service cloud.firestore {
           || isAdmin()
           || (
             request.resource.data.get('buildingId', null) == resource.data.get('buildingId', null) &&
-            request.resource.data.get('initialState', null) == resource.data.get('initialState', null)
+            request.resource.data.get('initialState', null) == resource.data.get('initialState', null) &&
+            request.resource.data.get('expiresAt', null) == resource.data.get('expiresAt', null) &&
+            request.resource.data.get('subEmails', null) == resource.data.get('subEmails', null) &&
+            request.resource.data.get('driveGrants', null) == resource.data.get('driveGrants', null)
           )
         ) &&
         (
