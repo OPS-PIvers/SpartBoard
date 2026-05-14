@@ -1584,7 +1584,13 @@ const ActiveQuiz: React.FC<{
         />
       </div>
 
-      <div className="flex flex-col p-6 max-w-lg mx-auto w-full">
+      <div
+        className={`flex flex-col p-6 mx-auto w-full ${
+          currentQuestion.type === 'short' || currentQuestion.type === 'essay'
+            ? 'max-w-3xl'
+            : 'max-w-lg'
+        }`}
+      >
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
@@ -1886,7 +1892,7 @@ const ActiveQuiz: React.FC<{
 
         {(currentQuestion.type === 'short' ||
           currentQuestion.type === 'essay') && (
-          <div className="space-y-4 flex-1">
+          <div className="space-y-4">
             <React.Suspense
               fallback={
                 <div className="h-48 bg-slate-800 border border-slate-700 rounded-2xl flex items-center justify-center">
@@ -1911,15 +1917,15 @@ const ActiveQuiz: React.FC<{
               />
             </React.Suspense>
 
-            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3">
+            {/*
+              Sticky CTA: the editor can grow up to ~70vh tall, so without
+              `sticky bottom-0` the Submit button rides below the fold and
+              students miss it.
+            */}
+            <div className="animate-in fade-in slide-in-from-bottom-2 space-y-3 sticky bottom-0 z-10 bg-slate-900/85 backdrop-blur-sm pt-3 pb-2 -mx-2 px-2 rounded-xl">
               {isStudentPaced ? (
                 submitted && currentIndex >= session.totalQuestions - 1 ? (
-                  <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                    <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                    <p className="text-emerald-300 text-sm font-bold">
-                      Quiz complete!
-                    </p>
-                  </div>
+                  <QuizCompleteCard />
                 ) : (
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
@@ -1957,14 +1963,9 @@ const ActiveQuiz: React.FC<{
                   )}
                 </button>
               ) : (
-                <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-                  <p className="text-emerald-300 text-sm font-bold">
-                    {currentIndex < session.totalQuestions - 1
-                      ? 'Waiting for teacher…'
-                      : 'Response submitted — your teacher will grade this.'}
-                  </p>
-                </div>
+                <WrittenSubmittedCard
+                  isWaiting={currentIndex < session.totalQuestions - 1}
+                />
               )}
             </div>
           </div>
@@ -2157,6 +2158,51 @@ const SaveErrorBanner: React.FC<{ message: string }> = ({ message }) => (
     <AlertCircle className="w-4 h-4 shrink-0" />
     <span>{message}</span>
   </div>
+);
+
+// ─── Written-response post-submit cards ──────────────────────────────────────
+//
+// Reused in two places: between essay questions (waiting state) and after
+// the final question lands (`isWaiting=false`). The "Back to my
+// assignments" CTA is what stops students from feeling stranded on the
+// submitted screen with no way out.
+
+const WrittenSubmittedCard: React.FC<{ isWaiting: boolean }> = ({
+  isWaiting,
+}) => (
+  <div className="flex flex-col gap-3">
+    <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+      <p className="text-emerald-300 text-sm font-bold">
+        {isWaiting
+          ? 'Waiting for teacher…'
+          : 'Response submitted — your teacher will grade this.'}
+      </p>
+    </div>
+    {!isWaiting && <ReturnToAssignmentsButton />}
+  </div>
+);
+
+const QuizCompleteCard: React.FC = () => (
+  <div className="flex flex-col gap-3">
+    <div className="p-4 bg-emerald-500/15 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-3">
+      <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
+      <p className="text-emerald-300 text-sm font-bold">Quiz complete!</p>
+    </div>
+    <ReturnToAssignmentsButton />
+  </div>
+);
+
+const ReturnToAssignmentsButton: React.FC = () => (
+  <button
+    type="button"
+    onClick={() => {
+      window.location.assign('/my-assignments');
+    }}
+    className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20"
+  >
+    Back to my assignments <ArrowRight className="w-4 h-4" />
+  </button>
 );
 
 // ─── Answer feedback banner ──────────────────────────────────────────────────
@@ -2736,6 +2782,18 @@ const QuizSubmittedWaitScreen: React.FC<{
         <Loader2 className="w-4 h-4 animate-spin" />
         Waiting for teacher to end the quiz and show final results…
       </div>
+
+      {/*
+        Pseudonym students (no PIN) reached this from /my-assignments and
+        would otherwise be stranded waiting for the teacher to end the
+        quiz. PIN-based students joined by code and have nowhere to go
+        back to — skip the CTA for them.
+      */}
+      {!pin && (
+        <div className="mt-6">
+          <ReturnToAssignmentsButton />
+        </div>
+      )}
     </div>
   );
 };

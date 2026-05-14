@@ -74,7 +74,6 @@ export const StudentClassView: React.FC<StudentClassViewProps> = ({
           value={filterMode}
           onChange={onFilterChange}
           counts={{
-            all: active.length + completed.length,
             active: active.length,
             completed: completed.length,
           }}

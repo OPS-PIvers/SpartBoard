@@ -60,7 +60,6 @@ export const StudentOverview: React.FC<StudentOverviewProps> = ({
           value={filterMode}
           onChange={onFilterChange}
           counts={{
-            all: total,
             active: active.length,
             completed: completed.length,
           }}
