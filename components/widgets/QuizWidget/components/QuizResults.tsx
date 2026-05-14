@@ -655,6 +655,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       });
       return;
     }
+    // Captured before we overwrite exportUrl — used below to distinguish
+    // the first solo export (silent success, button transitions to OPEN
+    // SHEET) from a solo re-export (toast acknowledging that the previous
+    // sheet is now an orphan in the teacher's Drive).
+    const previousExportUrl = exportUrl;
     setExporting(true);
     setExportError(null);
     try {
@@ -731,6 +736,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       }
       if (config.plcMode) {
         addToast('Results exported to shared PLC sheet', 'success');
+      } else if (previousExportUrl) {
+        addToast(
+          'Re-exported to a fresh sheet. The previous sheet remains in your Drive.',
+          'success'
+        );
       }
     } catch (err) {
       if (err instanceof PlcSheetSchemaMismatchError) {
@@ -832,6 +842,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // PLC-mode sheets are append-friendly by construction (Results tab is
   // header + rows, no trailing blocks).
   const canShowUpdateSheet = !!config.plcMode && trackingInitialized;
+  // Solo mode equivalent: a "Re-export" button that creates a fresh sheet
+  // each time `handleExport` runs. Reuses the existing solo export path
+  // (which always creates a new spreadsheet) so the teacher has a way to
+  // refresh after deleting the old sheet, after a bug fix changes export
+  // output, or just to rebuild with the latest responses. The previous
+  // sheet remains in Drive — the teacher cleans it up manually.
+  const canShowSoloReExport = !config.plcMode && !!exportUrl;
 
   const handleUpdateSheet = async () => {
     if (!exportUrl) return;
@@ -1148,6 +1165,48 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               />
               OPEN SHEET
             </a>
+            {canShowSoloReExport && (
+              // Solo re-export: always creates a fresh spreadsheet via the
+              // same path as the initial export. The previous sheet stays
+              // in Drive — the teacher cleans it up manually. Necessary
+              // because solo sheets carry a trailing "Question Analysis"
+              // block that makes safe append/rebuild on the same sheet
+              // significantly more complex than just re-running the export.
+              <span
+                title="Re-export — creates a new sheet (the previous sheet stays in Drive)"
+                className="shrink-0 inline-flex"
+              >
+                <button
+                  onClick={() => void handleExport()}
+                  disabled={exporting}
+                  aria-label="Re-export sheet (creates a new sheet)"
+                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                    fontSize: 'min(11px, 3.5cqmin)',
+                  }}
+                >
+                  {exporting ? (
+                    <Loader2
+                      className="animate-spin"
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <RefreshCw
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  )}
+                  RE-EXPORT SHEET
+                </button>
+              </span>
+            )}
             {canShowUpdateSheet && (
               // Smart re-export: appends new responses when the sheet is
               // behind, otherwise clears and rewrites the same sheet from
