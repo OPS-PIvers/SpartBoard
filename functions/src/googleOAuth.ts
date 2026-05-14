@@ -45,6 +45,13 @@ if (!admin.apps.length) {
 
 // Google's standard OAuth 2.0 token endpoint.
 const GOOGLE_TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
+const GOOGLE_REVOKE_ENDPOINT = 'https://oauth2.googleapis.com/revoke';
+
+// Per-request timeout for Google OAuth calls. Cloud Functions have a global
+// timeout (~60s default), but a tighter per-request bound prevents a single
+// hung connection from holding an instance and lets us surface a clean
+// `failed-precondition` error to the client instead of a cryptic timeout.
+const GOOGLE_API_TIMEOUT_MS = 10_000;
 
 // Where the encrypted refresh_token lives. Firestore rules MUST deny
 // client read/write on this path — see firestore.rules `/users/{uid}/private/**`.
@@ -151,7 +158,10 @@ export const exchangeGoogleAuthCode = onCall(
           redirect_uri: redirectUri,
           grant_type: 'authorization_code',
         }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: GOOGLE_API_TIMEOUT_MS,
+        }
       );
       tokens = res.data;
     } catch (err) {
@@ -263,7 +273,10 @@ export const refreshGoogleAccessToken = onCall(
           refresh_token: refreshToken,
           grant_type: 'refresh_token',
         }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          timeout: GOOGLE_API_TIMEOUT_MS,
+        }
       );
       return {
         accessToken: res.data.access_token,
@@ -331,9 +344,12 @@ export const revokeGoogleRefreshToken = onCall(
     if (plaintext) {
       await axios
         .post(
-          'https://oauth2.googleapis.com/revoke',
+          GOOGLE_REVOKE_ENDPOINT,
           new URLSearchParams({ token: plaintext }).toString(),
-          { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+          {
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            timeout: GOOGLE_API_TIMEOUT_MS,
+          }
         )
         .catch(() => {
           // Google may have already invalidated the token; deleting the
