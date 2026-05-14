@@ -55,6 +55,14 @@ export interface TimelineProps {
   onMarkerDrag?: (questionId: string, newSeconds: number) => void;
   /** Optional id of a question the parent considers "active" (rendered larger). */
   activeQuestionId?: string;
+  /**
+   * Called whenever the player reports a new total duration (initial onReady
+   * and any later state transition). Lifted to the editor so the AI overlay
+   * can pass duration as a hard upper bound on Gemini-generated timestamps,
+   * which was the root cause of the 2:40 video returning 3:35 timestamps.
+   * Fires with 0 while the duration is still unknown.
+   */
+  onDurationChange?: (seconds: number) => void;
 }
 
 /**
@@ -84,6 +92,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onSelectQuestion,
   onMarkerDrag,
   activeQuestionId,
+  onDurationChange,
 }) => {
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -150,6 +159,15 @@ export const Timeline: React.FC<TimelineProps> = ({
   // (Re)create the player whenever videoId changes.
   useEffect(() => {
     if (!videoId) return;
+    // Notify the parent that the previous video's duration no longer
+    // applies. Cleared here (in an effect, post-commit) rather than from
+    // the render-time reset block above, which would call a parent setter
+    // during render — React would warn "Cannot update a component while
+    // rendering a different component." The parent's setter (passed in
+    // via `onDurationChange`) is a stable useState setter, so adding it
+    // to this effect's dep array does not cause the player to re-init on
+    // unrelated parent re-renders.
+    onDurationChange?.(0);
     let cancelled = false;
 
     const teardown = () => {
@@ -205,7 +223,9 @@ export const Timeline: React.FC<TimelineProps> = ({
           onReady: () => {
             if (cancelled || !playerRef.current) return;
             try {
-              setDuration(playerRef.current.getDuration());
+              const d = playerRef.current.getDuration();
+              setDuration(d);
+              if (d > 0) onDurationChange?.(d);
               setPlayhead(playerRef.current.getCurrentTime());
               setPlayerReady(true);
             } catch {
@@ -223,7 +243,10 @@ export const Timeline: React.FC<TimelineProps> = ({
                   setPlayhead(playerRef.current.getCurrentTime());
                   // Duration may not be known until first play on some videos.
                   const d = playerRef.current.getDuration();
-                  if (d > 0) setDuration(d);
+                  if (d > 0) {
+                    setDuration(d);
+                    onDurationChange?.(d);
+                  }
                 } catch {
                   /* ignore */
                 }
@@ -238,7 +261,14 @@ export const Timeline: React.FC<TimelineProps> = ({
       cancelled = true;
       teardown();
     };
-  }, [videoId, playerElementId, startPolling, stopPolling, initRetryToken]);
+  }, [
+    videoId,
+    playerElementId,
+    startPolling,
+    stopPolling,
+    initRetryToken,
+    onDurationChange,
+  ]);
 
   // Render markers and playhead.
   const safeDuration = duration > 0 ? duration : 1;

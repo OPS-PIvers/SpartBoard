@@ -15,10 +15,12 @@ import {
   isAnswerCorrect,
 } from '@/hooks/useGuidedLearningSession';
 import {
-  useAssignmentPseudonyms,
+  useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
+import { logError } from '@/utils/logError';
 
 interface Props {
   set: GuidedLearningSet;
@@ -43,9 +45,13 @@ export const GuidedLearningResults: React.FC<Props> = ({
     return unsub;
   }, [sessionId, subscribeToResponses]);
 
-  // Fetch the session doc once to learn the optional classId. When set
-  // (ClassLink-assigned), we resolve pseudonyms to real student names.
-  const [classId, setClassId] = useState<string | null>(null);
+  // Fetch the session doc once to learn the targeted ClassLink class ids.
+  // Prefer `classIds` (multi-class sessions) so an assignment targeted at
+  // multiple periods resolves names for students from every targeted class,
+  // not just `classIds[0]`. Falls back to the legacy single `classId` for
+  // older sessions written before multi-class support.
+  const { addToast } = useDashboard();
+  const [sessionClassIds, setSessionClassIds] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -54,19 +60,44 @@ export const GuidedLearningResults: React.FC<Props> = ({
           doc(db, 'guided_learning_sessions', sessionId)
         );
         if (cancelled) return;
-        const data = snap.data() as { classId?: string } | undefined;
-        setClassId(data?.classId ?? null);
-      } catch {
-        if (!cancelled) setClassId(null);
+        const data = snap.data() as
+          | { classId?: string; classIds?: string[] }
+          | undefined;
+        if (data?.classIds && data.classIds.length > 0) {
+          setSessionClassIds(data.classIds);
+        } else if (data?.classId) {
+          setSessionClassIds([data.classId]);
+        } else {
+          setSessionClassIds([]);
+        }
+      } catch (err) {
+        if (cancelled) return;
+        // Log for ops AND surface to the teacher. Without the toast, a
+        // permissions regression on guided_learning_sessions/{id} silently
+        // degrades name resolution to anonymous — observationally
+        // identical to a legacy code+PIN session — and the teacher has no
+        // way to know what changed.
+        logError('GuidedLearningResults.fetchSessionClassIds', err, {
+          sessionId,
+        });
+        addToast(
+          "Couldn't load student names for this session — they'll show as anonymous. Refresh to retry.",
+          'error'
+        );
+        setSessionClassIds([]);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, addToast]);
 
   const { orgId } = useAuth();
-  const { byStudentUid } = useAssignmentPseudonyms(sessionId, classId, orgId);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
+    sessionId,
+    sessionClassIds,
+    orgId
+  );
 
   const {
     questionSteps,

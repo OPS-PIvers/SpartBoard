@@ -51,7 +51,7 @@ import type { CompletionState } from './AssignmentListItem';
 const FILTER_STORAGE_KEY = 'sb_my_assignments_filter';
 
 const isFilterMode = (v: unknown): v is AssignmentFilterMode =>
-  v === 'all' || v === 'active' || v === 'completed';
+  v === 'active' || v === 'completed';
 
 const formatTodayLong = (now: Date): string =>
   now.toLocaleDateString(undefined, {
@@ -123,12 +123,12 @@ const MyAssignmentsPage: React.FC = () => {
   // Filter mode persists to sessionStorage so a refresh keeps it but the
   // choice never follows the student onto a shared device.
   const [filterMode, setFilterMode] = useState<AssignmentFilterMode>(() => {
-    if (typeof window === 'undefined') return 'all';
+    if (typeof window === 'undefined') return 'active';
     try {
       const raw = window.sessionStorage.getItem(FILTER_STORAGE_KEY);
-      return isFilterMode(raw) ? raw : 'all';
+      return isFilterMode(raw) ? raw : 'active';
     } catch {
-      return 'all';
+      return 'active';
     }
   });
   useEffect(() => {

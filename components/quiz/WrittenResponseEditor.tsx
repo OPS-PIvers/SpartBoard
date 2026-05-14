@@ -16,7 +16,14 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Bold, Italic, List, ListOrdered, Underline } from 'lucide-react';
+import {
+  Bold,
+  GripHorizontal,
+  Italic,
+  List,
+  ListOrdered,
+  Underline,
+} from 'lucide-react';
 import { sanitizeQuizResponse } from '@/utils/security';
 
 interface WrittenResponseEditorProps {
@@ -67,12 +74,100 @@ const countWords = (html: string): number => {
   return text.split(' ').length;
 };
 
+const ESSAY_MIN_HEIGHT_PX = 352; // ~22rem — comfortable on a laptop
+const SHORT_MIN_HEIGHT_PX = 128; // ~8rem
+const MAX_HEIGHT_PX_CAP = 900; // hard cap so the editor can't push the page
+const KEYBOARD_RESIZE_STEP_PX = 32;
+
 const WrittenResponseEditorInner: React.FC<
   Omit<WrittenResponseEditorProps, 'questionKey'>
 > = ({ value, onChange, placeholder, maxWords, disabled, isEssay }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const [wordCount, setWordCount] = useState(() => countWords(value));
   const [isEmpty, setIsEmpty] = useState(() => !value.trim());
+
+  // Student-controlled editor height. Starts at the per-question default;
+  // they can drag the bottom-right grip to enlarge it (or use ↑/↓ when the
+  // handle has keyboard focus). Resets on remount per question via the
+  // `questionKey` wrapper.
+  const minHeight = isEssay ? ESSAY_MIN_HEIGHT_PX : SHORT_MIN_HEIGHT_PX;
+  const [heightPx, setHeightPx] = useState<number>(minHeight);
+  // Cap at the smaller of 70vh and MAX_HEIGHT_PX_CAP so very tall windows
+  // can't stretch the editor past a reasonable working size.
+  const maxHeight = (): number => {
+    if (typeof window === 'undefined') return MAX_HEIGHT_PX_CAP;
+    return Math.min(MAX_HEIGHT_PX_CAP, Math.round(window.innerHeight * 0.7));
+  };
+
+  // Pointer-drag resize. `pointer-events: none` on body during drag would
+  // be cleaner, but we only need to track the y delta and clamp.
+  const dragStateRef = useRef<{ startY: number; startHeight: number } | null>(
+    null
+  );
+  const handlePointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (disabled) return;
+    dragStateRef.current = {
+      startY: e.clientY,
+      startHeight: heightPx,
+    };
+    (e.currentTarget as Element).setPointerCapture(e.pointerId);
+  };
+  const handlePointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const state = dragStateRef.current;
+    if (!state) return;
+    const delta = e.clientY - state.startY;
+    const next = Math.max(
+      minHeight,
+      Math.min(maxHeight(), state.startHeight + delta)
+    );
+    setHeightPx(next);
+  };
+  const handlePointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (dragStateRef.current) {
+      try {
+        (e.currentTarget as Element).releasePointerCapture(e.pointerId);
+      } catch (err) {
+        // `releasePointerCapture` throws `InvalidStateError` if the capture
+        // was already released (e.g. by `pointercancel` firing before
+        // `pointerup`). Anything else is unexpected — surface it instead
+        // of swallowing the whole class of DOM errors silently.
+        if (
+          !(err instanceof DOMException && err.name === 'InvalidStateError')
+        ) {
+          console.warn(
+            '[WrittenResponseEditor] unexpected releasePointerCapture error',
+            err
+          );
+        }
+      }
+      dragStateRef.current = null;
+    }
+  };
+  const handleHandleKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHeightPx((h) => Math.min(maxHeight(), h + KEYBOARD_RESIZE_STEP_PX));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHeightPx((h) => Math.max(minHeight, h - KEYBOARD_RESIZE_STEP_PX));
+    }
+  };
+
+  // If the student shrinks the browser window after dragging the editor
+  // taller than the new max, the stored height stays stale until the next
+  // interaction — leaving the editor visibly taller than 70vh allows.
+  // Re-clamp on viewport resize so the cap stays honest. Floored at
+  // `minHeight` because a viewport smaller than the editor's minimum is
+  // a worse problem than ignoring this clamp.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      setHeightPx((h) => Math.max(minHeight, Math.min(h, maxHeight())));
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => window.removeEventListener('resize', onResize);
+  }, [minHeight]);
 
   // Seed innerHTML once on mount. Subsequent edits are driven by the
   // contenteditable element itself — re-writing innerHTML on every value
@@ -118,7 +213,7 @@ const WrittenResponseEditorInner: React.FC<
   const overCap = !!maxWords && maxWords > 0 && wordCount > maxWords;
 
   return (
-    <div className="flex flex-col gap-2 w-full">
+    <div className="flex flex-col gap-2 w-full" ref={containerRef}>
       <div className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-t-2xl">
         <ToolbarButton
           label="Bold"
@@ -194,10 +289,12 @@ const WrittenResponseEditorInner: React.FC<
             disabled
               ? 'border-slate-700 text-slate-400 cursor-not-allowed'
               : 'border-slate-700 text-white focus:outline-none focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
-          } rounded-b-2xl text-sm leading-relaxed overflow-y-auto ${
-            isEssay ? 'min-h-[18rem]' : 'min-h-[6rem]'
-          }`}
-          style={{ wordBreak: 'break-word' }}
+          } rounded-b-2xl text-sm leading-relaxed overflow-y-auto`}
+          style={{
+            wordBreak: 'break-word',
+            height: `${heightPx}px`,
+            minHeight: `${minHeight}px`,
+          }}
         />
         {isEmpty && placeholder && (
           <div
@@ -206,6 +303,21 @@ const WrittenResponseEditorInner: React.FC<
           >
             {placeholder}
           </div>
+        )}
+        {!disabled && (
+          <button
+            type="button"
+            aria-label="Drag to resize response area (or use up and down arrow keys)"
+            title="Drag to resize"
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            onKeyDown={handleHandleKeyDown}
+            className="absolute bottom-1.5 right-2 flex items-center justify-center w-7 h-5 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700/70 cursor-ns-resize touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+          >
+            <GripHorizontal className="w-4 h-4" />
+          </button>
         )}
       </div>
 

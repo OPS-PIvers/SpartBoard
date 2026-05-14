@@ -26,20 +26,34 @@
  * sidesteps that ordering issue.
  */
 
+import { logError } from '@/utils/logError';
+
 /**
  * Marker subclass for errors the Drive/Sheets services throw to indicate
  * an auth failure. Preferred over message-matching: any error built via
  * `authError()` is an instance of this class, so `isDriveAuthError` can
  * classify it without sniffing the message.
  *
- * Plain `Error` instances thrown from raw network responses (e.g. fetch
- * failures that surface "401" / "403" in the message) still fall through
- * to message-matching below.
+ * The optional `reason` discriminator lets future consumers specialize
+ * the user-facing surface (`'expired'` → "Reconnect"; `'revoked'` →
+ * "Re-authorize"; `'insufficient-scope'` → "Re-grant permissions").
+ * Today every consumer treats them uniformly, but the field is recorded
+ * so the specialization can land without changing throw sites.
  */
+export type DriveAuthErrorReason =
+  | '401'
+  | '403'
+  | 'expired'
+  | 'revoked'
+  | 'insufficient-scope'
+  | 'unknown';
+
 export class DriveAuthError extends Error {
-  constructor(message: string) {
+  readonly reason: DriveAuthErrorReason;
+  constructor(message: string, reason: DriveAuthErrorReason = 'unknown') {
     super(message);
     this.name = 'DriveAuthError';
+    this.reason = reason;
     // Restore the prototype chain when targeting older transpile targets.
     Object.setPrototypeOf(this, DriveAuthError.prototype);
   }
@@ -119,8 +133,11 @@ export const reportDriveAuthError = (err: unknown): boolean => {
  *
  * Usage: `throw authError('Google Sheets access is not granted...')`.
  */
-export const authError = (message: string): DriveAuthError => {
-  const err = new DriveAuthError(message);
+export const authError = (
+  message: string,
+  reason: DriveAuthErrorReason = 'unknown'
+): DriveAuthError => {
+  const err = new DriveAuthError(message, reason);
   reportDriveAuthError(err);
   return err;
 };
@@ -135,24 +152,82 @@ export const authError = (message: string): DriveAuthError => {
  * Sign-out (`token === null`) also resets the latch so a subsequent sign-in
  * with the same cached token (rare but possible: re-entering an unexpired
  * session) re-arms the toast for that session's first stale episode.
+ *
+ * Side effect: any `token !== lastSeenToken` transition (including the
+ * initial null → token at sign-in, and subsequent tokenA → tokenB
+ * rotations) fans out a "drive-reconnected" notification so widgets whose
+ * effects don't naturally observe `googleAccessToken` can subscribe via
+ * `subscribeDriveReconnected` and re-run their loaders. Unchanged-token
+ * replays from multiple consumers mounting and sign-out (token → null)
+ * do NOT fire — only real rotations do. Firing on null → token is the
+ * critical path the toast "Connect" button depends on: widgets that
+ * failed to load while disconnected need the signal to retry.
  */
 export const onDriveTokenChange = (token: string | null): void => {
   if (token && token !== lastSeenToken) {
     lastSeenToken = token;
     driveAuthErrorLatched = false;
+    notifyDriveReconnected();
   } else if (!token) {
     lastSeenToken = null;
     driveAuthErrorLatched = false;
   }
 };
 
+type DriveReconnectedHandler = () => void;
+
+const driveReconnectedHandlers = new Set<DriveReconnectedHandler>();
+
 /**
- * Test-only: clear all module-level state (handler, latch, last-seen token)
- * so unit tests don't leak state across cases. Production code should use
- * `setDriveAuthErrorHandler(null)` + a fresh token signal instead.
+ * Subscribe to "Drive token rotated to a new value" notifications. Used by
+ * widgets and hooks whose data fetches are gated behind non-token state
+ * (Firestore listeners, route params, etc.) and therefore don't naturally
+ * re-run when `googleAccessToken` changes.
+ *
+ * Returns an unsubscribe function. Multiple subscribers are supported; a
+ * single token rotation fans out to all of them.
+ *
+ * Handlers are invoked synchronously inside `notifyDriveReconnected`.
+ * They should be cheap — typically just enqueue a refetch — and must not
+ * throw, or other subscribers in the same fan-out will be skipped.
+ */
+export const subscribeDriveReconnected = (
+  handler: DriveReconnectedHandler
+): (() => void) => {
+  driveReconnectedHandlers.add(handler);
+  return () => {
+    driveReconnectedHandlers.delete(handler);
+  };
+};
+
+/**
+ * Dispatch the "drive-reconnected" signal to every subscriber. Called from
+ * `onDriveTokenChange` whenever a real token rotation lands. Exported so
+ * tests can drive the signal directly without faking a token transition.
+ */
+export const notifyDriveReconnected = (): void => {
+  // Snapshot the set so a handler that unsubscribes mid-fanout doesn't
+  // mutate the iteration. Handlers that throw shouldn't take down the
+  // rest of the fanout — log via the structured channel and continue.
+  const snapshot = Array.from(driveReconnectedHandlers);
+  for (const handler of snapshot) {
+    try {
+      handler();
+    } catch (err) {
+      logError('driveAuthErrors.reconnectHandler', err);
+    }
+  }
+};
+
+/**
+ * Test-only: clear all module-level state (handler, latch, last-seen token,
+ * reconnect subscribers) so unit tests don't leak state across cases.
+ * Production code should use `setDriveAuthErrorHandler(null)` + a fresh
+ * token signal instead.
  */
 export const __resetDriveAuthErrorsForTests = (): void => {
   driveAuthErrorHandler = null;
   driveAuthErrorLatched = false;
   lastSeenToken = null;
+  driveReconnectedHandlers.clear();
 };

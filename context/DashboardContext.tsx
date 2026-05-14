@@ -56,6 +56,7 @@ import {
 } from '../utils/dashboardPII';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
+import { useDriveReconnected } from '../hooks/useDriveReconnected';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import {
   setAiModelConfigFallbackHandler,
@@ -2134,6 +2135,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // names (PII) from the Drive PII supplement file. Firestore only stores the
   // scrubbed version; Drive is the authoritative source of PII fields.
   const lastPiiRestoredIdRef = useRef<string | null>(null);
+
+  // After a Drive reconnect, clear the one-shot latch so a previously-failed
+  // PII restore retries with the fresh token. Otherwise a teacher who saw
+  // their custom widget names disappear (scrubbed Firestore copy with no
+  // PII supplement loaded) keeps seeing the scrubbed version until they
+  // switch dashboards and back. Mirrors the reset in SidebarBackgrounds.
+  useDriveReconnected(() => {
+    lastPiiRestoredIdRef.current = null;
+  });
 
   useEffect(() => {
     if (!driveService || !activeId || loading) return;

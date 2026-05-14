@@ -52,6 +52,13 @@ import {
 } from '../config/buildings';
 import i18n from '../i18n';
 import { GoogleDriveService } from '../utils/googleDriveService';
+import { onDriveTokenChange } from '../utils/driveAuthErrors';
+import {
+  refreshAccessTokenViaBackend,
+  requestAndExchangeAuthCode,
+  revokeBackendRefreshToken,
+} from '../utils/googleOAuthRefresh';
+import { logError } from '../utils/logError';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
 import {
@@ -320,110 +327,207 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // In-flight silent refresh shared across concurrent callers. Multiple
+  // widgets and hooks (sidebar, Firestore listeners, quiz export) can call
+  // `refreshGoogleToken()` simultaneously when the token expires; without
+  // dedup each one independently enters the GIS → backend → popup chain,
+  // potentially firing multiple concurrent backend requests. Only the
+  // silent path dedups — explicit user-triggered reconnects (silent=false)
+  // always run their own chain so a click on "Reconnect" never gets
+  // suppressed by a background refresh that bailed early.
+  const inFlightSilentRefreshRef = useRef<Promise<string | null> | null>(null);
+
   const refreshGoogleToken = useCallback(
     async (silent: boolean = true): Promise<string | null> => {
       if (isAuthBypass) return MOCK_ACCESS_TOKEN;
+      if (silent && inFlightSilentRefreshRef.current) {
+        return inFlightSilentRefreshRef.current;
+      }
+
+      // Treat `expires_in` as untrusted: Google's spec says positive
+      // seconds, but a buggy/clock-skewed response of 0 or negative would
+      // store an immediately-stale expiry and trigger an infinite refresh
+      // loop. Fall back to 1 hour for anything we can't treat as positive.
+      const computeExpiryMs = (raw: unknown): number => {
+        const seconds =
+          typeof raw === 'number' && Number.isFinite(raw) && raw > 0
+            ? raw
+            : 3600;
+        return Date.now() + seconds * 1000;
+      };
 
       const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
         | string
         | undefined;
       const email = user?.email;
 
-      // Prefer GIS silent refresh when the client ID env var is configured.
-      // google.accounts is loaded asynchronously via the GIS script tag in index.html.
-      if (clientId && email && typeof window.google !== 'undefined') {
-        let gisToken: string | null = null;
-        try {
-          gisToken = await new Promise<string | null>((resolve) => {
-            // Use optional chaining as a belt-and-suspenders guard: the outer
-            // typeof check confirms window.google exists, but accounts/oauth2
-            // sub-properties could still be absent if the GIS script partially
-            // loaded or a future API change removes them.
-            const tokenClient =
-              window.google?.accounts?.oauth2?.initTokenClient({
-                client_id: clientId,
-                scope: GOOGLE_OAUTH_SCOPES.join(' '),
-                hint: email,
-                callback: (response: google.accounts.oauth2.TokenResponse) => {
-                  try {
-                    if (response.access_token) {
-                      const expiryMs =
-                        Date.now() +
-                        (parseInt(response.expires_in ?? '3600', 10) || 3600) *
-                          1000;
-                      // Write token before expiry so that a fast page reload never
-                      // finds an expiry key without its accompanying token.
-                      // Note: two separate setItem calls are not truly atomic; this
-                      // ordering minimises the window where expiry exists without token.
-                      localStorage.setItem(
-                        GOOGLE_ACCESS_TOKEN_KEY,
-                        response.access_token
-                      );
-                      localStorage.setItem(
-                        GOOGLE_TOKEN_EXPIRY_KEY,
-                        expiryMs.toString()
-                      );
-                      setGoogleAccessToken(response.access_token);
-                      resolve(response.access_token);
-                    } else {
+      const runRefreshChain = async (): Promise<string | null> => {
+        // Prefer GIS silent refresh when the client ID env var is configured.
+        // google.accounts is loaded asynchronously via the GIS script tag in index.html.
+        if (clientId && email && typeof window.google !== 'undefined') {
+          let gisToken: string | null = null;
+          try {
+            gisToken = await new Promise<string | null>((resolve) => {
+              // Use optional chaining as a belt-and-suspenders guard: the outer
+              // typeof check confirms window.google exists, but accounts/oauth2
+              // sub-properties could still be absent if the GIS script partially
+              // loaded or a future API change removes them.
+              const tokenClient =
+                window.google?.accounts?.oauth2?.initTokenClient({
+                  client_id: clientId,
+                  scope: GOOGLE_OAUTH_SCOPES.join(' '),
+                  hint: email,
+                  callback: (
+                    response: google.accounts.oauth2.TokenResponse
+                  ) => {
+                    try {
+                      if (response.access_token) {
+                        const expiryMs = computeExpiryMs(
+                          parseInt(response.expires_in ?? '3600', 10)
+                        );
+                        // Write token before expiry so that a fast page reload never
+                        // finds an expiry key without its accompanying token.
+                        // Note: two separate setItem calls are not truly atomic; this
+                        // ordering minimises the window where expiry exists without token.
+                        localStorage.setItem(
+                          GOOGLE_ACCESS_TOKEN_KEY,
+                          response.access_token
+                        );
+                        localStorage.setItem(
+                          GOOGLE_TOKEN_EXPIRY_KEY,
+                          expiryMs.toString()
+                        );
+                        setGoogleAccessToken(response.access_token);
+                        resolve(response.access_token);
+                      } else {
+                        resolve(null);
+                      }
+                    } catch (err) {
+                      console.error('Failed to handle GIS token response', err);
                       resolve(null);
                     }
-                  } catch (err) {
-                    console.error('Failed to handle GIS token response', err);
-                    resolve(null);
-                  }
-                },
-                error_callback: () => resolve(null),
-              });
-            if (!tokenClient) {
-              resolve(null);
-              return;
-            }
-            // prompt: '' = attempt silent authorization without showing a popup.
-            // A popup only appears when the user's Google session has expired.
-            tokenClient.requestAccessToken({ prompt: '' });
-          });
-        } catch {
-          // initTokenClient or requestAccessToken threw synchronously.
-          // Treat as a GIS failure so the silent/Firebase fallback logic below runs.
-          gisToken = null;
+                  },
+                  error_callback: () => resolve(null),
+                });
+              if (!tokenClient) {
+                resolve(null);
+                return;
+              }
+              // prompt: '' = attempt silent authorization without showing a popup.
+              // A popup only appears when the user's Google session has expired.
+              tokenClient.requestAccessToken({ prompt: '' });
+            });
+          } catch {
+            // initTokenClient or requestAccessToken threw synchronously.
+            // Treat as a GIS failure so the silent/Firebase fallback logic below runs.
+            gisToken = null;
+          }
+
+          // GIS succeeded — return immediately.
+          if (gisToken) return gisToken;
         }
 
-        // GIS succeeded — return immediately.
-        if (gisToken) return gisToken;
+        // Backend refresh BEFORE the Firebase popup: ask the server for a
+        // fresh access_token using the stored refresh_token. This is what
+        // makes Drive auth survive Google-session expiry (closed browser,
+        // signed out of Google in another tab, etc.) — the refresh_token
+        // lives server-side and isn't tied to the browser's Google session
+        // at all. Safe to attempt in silent mode because the callable runs
+        // without any UI surface.
+        const backendOutcome = await refreshAccessTokenViaBackend();
+        if (backendOutcome.status === 'ok') {
+          const expiryMs = computeExpiryMs(backendOutcome.expiresIn);
+          localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, backendOutcome.token);
+          localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
+          setGoogleAccessToken(backendOutcome.token);
+          return backendOutcome.token;
+        }
 
-        // GIS failed (e.g. domain not in authorized JavaScript origins).
+        // Backend reported the refresh_token is missing or revoked. For a
+        // user-triggered (non-silent) call we can escalate to the auth-code
+        // flow, which captures a fresh refresh_token via GIS popup. Silent
+        // calls bail rather than popping unexpected consent dialogs.
+        if (backendOutcome.status === 'needs-consent' && !silent) {
+          // `VITE_GOOGLE_CLIENT_ID` unset is treated as "feature off, fall
+          // through to Firebase popup" — common in dev/test where the
+          // GIS code-flow client isn't configured.
+          const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+            | string
+            | undefined;
+          if (clientId) {
+            const exchanged = await requestAndExchangeAuthCode(
+              clientId,
+              email ?? undefined
+            );
+            if (exchanged.kind === 'success') {
+              const result = exchanged.result;
+              const expiryMs = computeExpiryMs(result.expiresIn);
+              localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, result.accessToken);
+              localStorage.setItem(
+                GOOGLE_TOKEN_EXPIRY_KEY,
+                expiryMs.toString()
+              );
+              setGoogleAccessToken(result.accessToken);
+              return result.accessToken;
+            }
+            if (exchanged.kind === 'error') {
+              // Real GIS/exchange failure — log so ops can see whether
+              // org-policy blocks (`admin_policy_enforced`) or partial
+              // consent are the dominant failure modes before we fall
+              // through to the Firebase popup.
+              logError(
+                'AuthContext.requestAndExchangeAuthCode',
+                exchanged.reason
+              );
+            } else if (exchanged.kind === 'needs-consent') {
+              // Backend rejected the grant structurally (partial-consent,
+              // etc.). Falling back to the Firebase popup will hit the
+              // same rejection, but the user at least gets a fresh
+              // access_token good for one hour.
+              logError(
+                'AuthContext.requestAndExchangeAuthCode.needsConsent',
+                new Error(`needs-consent: ${exchanged.cause}`)
+              );
+            }
+            // exchanged.kind === 'cancelled' → silent user dismissal, no log
+          }
+        }
+
         // For silent background refreshes, give up here to avoid unexpected popups.
         // For explicit user-triggered reconnects (silent=false), fall through to
         // the Firebase popup below, which uses the already-authorized Firebase
         // OAuth client and avoids redirect_uri_mismatch errors.
         if (silent) return null;
-      }
 
-      // Fallback: re-run Firebase popup sign-in to get a fresh access token.
-      // Skip when called silently (e.g. from the background interval) — browsers
-      // block popups that are not triggered by a direct user gesture.
-      if (silent) return null;
-
-      try {
-        const result = await signInWithPopup(auth, googleProvider);
-        const credential = GoogleAuthProvider.credentialFromResult(result);
-        if (credential) {
-          const token = credential.accessToken ?? null;
-          setGoogleAccessToken(token);
-          if (token) {
-            localStorage.setItem(
-              GOOGLE_TOKEN_EXPIRY_KEY,
-              (Date.now() + GOOGLE_TOKEN_TTL_MS).toString()
-            );
+        try {
+          const result = await signInWithPopup(auth, googleProvider);
+          const credential = GoogleAuthProvider.credentialFromResult(result);
+          if (credential) {
+            const token = credential.accessToken ?? null;
+            setGoogleAccessToken(token);
+            if (token) {
+              localStorage.setItem(
+                GOOGLE_TOKEN_EXPIRY_KEY,
+                (Date.now() + GOOGLE_TOKEN_TTL_MS).toString()
+              );
+            }
+            return token;
           }
-          return token;
+          return null;
+        } catch (error) {
+          console.error('Error refreshing Google token:', error);
+          return null;
         }
-        return null;
-      } catch (error) {
-        console.error('Error refreshing Google token:', error);
-        return null;
+      };
+
+      if (silent) {
+        const promise = runRefreshChain().finally(() => {
+          inFlightSilentRefreshRef.current = null;
+        });
+        inFlightSilentRefreshRef.current = promise;
+        return promise;
       }
+      return runRefreshChain();
     },
     [user?.email]
   );
@@ -521,11 +625,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return () => clearInterval(interval);
   }, [refreshGoogleToken]);
 
-  /** Clear the Google Drive token without touching Firebase auth. */
-  const disconnectGoogleDrive = useCallback(() => {
+  /**
+   * Clear the Google Drive token without touching Firebase auth.
+   *
+   * Awaits the server-side revoke so the caller (sidebar Disconnect button)
+   * sees a truthful success/failure signal. Without awaiting, a backend
+   * revoke failure would silently leave the refresh_token live and the
+   * next refresh interval would re-arm Drive access — a privacy/trust
+   * regression for a user who clicked "Disconnect" intentionally.
+   *
+   * Throws on backend revoke failure; callers should catch and surface a
+   * toast directing the user to revoke at myaccount.google.com manually.
+   */
+  const disconnectGoogleDrive = useCallback(async (): Promise<void> => {
     localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
     localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
     setGoogleAccessToken(null);
+    try {
+      await revokeBackendRefreshToken();
+    } catch (err) {
+      logError('AuthContext.disconnectGoogleDrive.revoke', err);
+      throw err;
+    }
   }, []);
 
   // Persist googleAccessToken to localStorage
@@ -536,6 +657,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
     }
+  }, [googleAccessToken]);
+
+  // Broadcast token rotations to any subscriber that needs to refetch.
+  //
+  // Lives in AuthContext (the source of truth for `googleAccessToken`)
+  // rather than relying on `useGoogleDrive` to fan it out — that hook is
+  // only mounted inside DashboardProvider, so widgets/hooks that read the
+  // token directly from AuthContext would otherwise miss the signal.
+  // `onDriveTokenChange` deduplicates on `lastSeenToken`, so the parallel
+  // call from `useGoogleDrive` is a harmless no-op once we fire first.
+  useEffect(() => {
+    onDriveTokenChange(googleAccessToken);
   }, [googleAccessToken]);
 
   // Listen to user roles + app settings.

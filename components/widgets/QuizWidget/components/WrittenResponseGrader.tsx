@@ -31,6 +31,7 @@ import {
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
+import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -126,6 +127,9 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const [draftAnnotations, setDraftAnnotations] = useState<
     WrittenAnswerAnnotation[]
   >([]);
+  const [activeAnnotationId, setActiveAnnotationId] = useState<string | null>(
+    null
+  );
   const [hydrationKey, setHydrationKey] = useState<string>('');
 
   const targetKey = `${responseKey ?? ''}::${question?.id ?? ''}`;
@@ -134,6 +138,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
     setPointsInput(savedGrade != null ? String(savedGrade.pointsAwarded) : '');
     setComment(savedGrade?.overallComment ?? '');
     setDraftAnnotations(savedGrade?.annotations ?? []);
+    setActiveAnnotationId(null);
     setSaveError(null);
   }
 
@@ -435,13 +440,13 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
         </div>
       )}
 
-      {/* Body */}
-      <div className="flex-1 grid grid-cols-[1fr_320px] min-h-0">
-        <section className="overflow-y-auto p-6 bg-slate-50">
+      {/* Body — 2-pane: response article (flex-1) + grading sidebar (~400px) */}
+      <div className="flex-1 grid grid-cols-[1fr_400px] min-h-0">
+        <section className="overflow-y-auto p-8 bg-slate-50">
           <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">
             Question
           </h3>
-          <p className="text-base font-bold text-slate-900 mb-6 leading-snug">
+          <p className="text-lg font-bold text-slate-900 mb-8 leading-snug">
             {question.text}
           </p>
 
@@ -462,6 +467,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
               annotations={draftAnnotations}
               authorUid={teacherUid}
               onChange={setDraftAnnotations}
+              activeId={activeAnnotationId}
+              onActiveIdChange={setActiveAnnotationId}
             />
           ) : (
             <div className="bg-white border border-slate-200 rounded-lg p-5 text-sm text-slate-500 italic">
@@ -470,11 +477,11 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           )}
         </section>
 
-        <aside className="border-l border-slate-200 bg-white p-5 flex flex-col gap-4 overflow-y-auto">
+        <aside className="border-l border-slate-200 bg-white p-6 flex flex-col gap-5 overflow-y-auto">
           <div>
             <label
               htmlFor="grade-points"
-              className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1"
+              className="block text-sm font-bold uppercase tracking-wider text-slate-500 mb-2"
             >
               Points awarded
             </label>
@@ -488,11 +495,11 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
                 max={maxPoints}
                 value={pointsInput}
                 onChange={(e) => setPointsInput(e.target.value)}
-                className="w-24 px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-base"
+                className="w-28 px-3 py-2 bg-white border-2 border-emerald-500/30 rounded-lg text-emerald-800 font-bold focus:outline-none focus:border-emerald-500 text-lg"
                 placeholder="0"
                 autoFocus
               />
-              <span className="text-sm text-slate-500 font-mono">
+              <span className="text-base text-slate-500 font-mono">
                 / {maxPoints}
               </span>
             </div>
@@ -501,7 +508,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           <div>
             <label
               htmlFor="grade-comment"
-              className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1"
+              className="block text-sm font-bold uppercase tracking-wider text-slate-500 mb-2"
             >
               Overall comment (optional)
             </label>
@@ -509,9 +516,24 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
               id="grade-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              rows={6}
+              rows={5}
               placeholder="Feedback for this student…"
               className="w-full px-3 py-2 bg-white border border-slate-300 rounded-lg text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40 focus:border-brand-blue-primary text-sm resize-none"
+            />
+          </div>
+
+          <div className="pt-2 border-t border-slate-200">
+            <h4 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">
+              Highlights &amp; comments ({draftAnnotations.length})
+            </h4>
+            <AnnotationsList
+              annotations={draftAnnotations}
+              snapshot={
+                savedGrade?.gradingSnapshot ??
+                (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '')
+              }
+              activeId={activeAnnotationId}
+              onSelect={setActiveAnnotationId}
             />
           </div>
 
@@ -524,7 +546,7 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
           <button
             onClick={() => void handleSave()}
             disabled={saving}
-            className="w-full py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors"
+            className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors"
           >
             {saving ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -539,8 +561,8 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
 
           <p className="text-xs text-slate-500 leading-relaxed">
             ← / → switch students. Esc closes the grader. Select text in the
-            response to add a highlight or margin comment. Rubric scoring is
-            coming in Phase 3.
+            response to highlight; click an existing highlight to edit its
+            comment.
           </p>
         </aside>
       </div>
@@ -575,6 +597,70 @@ const annotationListsEqual = (
   return true;
 };
 
+/**
+ * Scannable list of every annotation on the active question. Clicking a row
+ * sets `activeId` on the parent, which drives the popover anchored next to
+ * the corresponding mark inside the response article. The teacher's eye
+ * stays in one place — list ↔ article — instead of bouncing to a sidebar
+ * editor that they previously couldn't find.
+ */
+const AnnotationsList: React.FC<{
+  annotations: WrittenAnswerAnnotation[];
+  snapshot: string;
+  activeId: string | null;
+  onSelect: (id: string) => void;
+}> = ({ annotations, snapshot, activeId, onSelect }) => {
+  // Project the snapshot to plaintext through `htmlToPlainText`, NOT
+  // `textContent`. Annotation offsets are produced against `htmlToPlainText`'s
+  // projection (block tags + `<br>` insert `\n`), so a `textContent`-based
+  // slice drifts by one char per preceding block — every snippet past the
+  // first paragraph would render the wrong text. Memoized on `snapshot` so
+  // keystrokes in the popover textarea don't re-DOMParse.
+  const plaintext = useMemo(() => htmlToPlainText(snapshot), [snapshot]);
+  if (annotations.length === 0) {
+    return (
+      <p className="text-xs text-slate-500 italic leading-relaxed">
+        Select text in the response to add a highlight or margin comment.
+      </p>
+    );
+  }
+  return (
+    <div className="flex flex-col gap-1.5">
+      {annotations.map((a) => {
+        const snippet = plaintext.slice(a.from, a.to);
+        const truncated =
+          snippet.length > 60 ? `${snippet.slice(0, 60)}…` : snippet;
+        const isActive = a.id === activeId;
+        return (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => onSelect(a.id)}
+            className={`text-left rounded-lg border p-2 text-xs leading-relaxed transition-colors ${
+              isActive
+                ? 'border-violet-400 bg-violet-50'
+                : 'border-slate-200 bg-slate-50 hover:bg-slate-100'
+            }`}
+          >
+            <span
+              className={`inline-block px-1.5 rounded ${highlightClass(a.highlightColor)} pointer-events-none`}
+            >
+              {truncated || 'highlight'}
+            </span>
+            {a.comment ? (
+              <span className="mt-1 block text-slate-700">{a.comment}</span>
+            ) : (
+              <span className="mt-1 block text-slate-400 italic">
+                (no comment yet — click to add)
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+};
+
 const ModalShell: React.FC<{
   onClose: () => void;
   children: React.ReactNode;
@@ -596,7 +682,10 @@ const ModalShell: React.FC<{
       className="absolute inset-0 cursor-default"
       onClick={onClose}
     />
-    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col overflow-hidden">
+    <div
+      className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[1400px] h-[92vh] flex flex-col overflow-hidden"
+      style={{ maxWidth: 'min(95vw, 1400px)' }}
+    >
       {children}
     </div>
   </div>

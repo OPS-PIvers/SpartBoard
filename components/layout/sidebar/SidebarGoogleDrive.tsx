@@ -39,6 +39,23 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
     }
   };
 
+  const handleDisconnectDrive = async () => {
+    try {
+      await disconnectGoogleDrive();
+    } catch {
+      // Local token has been cleared, but the server-side revoke failed.
+      // Tell the user so they can finish the disconnect manually rather
+      // than believing the privacy-relevant step has happened.
+      addToast(
+        t('sidebar.settings.driveDisconnectPartial', {
+          defaultValue:
+            "Local Drive token cleared, but we couldn't revoke the server-side connection. Try again or revoke at myaccount.google.com.",
+        }),
+        'error'
+      );
+    }
+  };
+
   return (
     <div
       className={`absolute inset-0 flex flex-col transition-all duration-300 ease-in-out ${
@@ -131,7 +148,7 @@ export const SidebarGoogleDrive: React.FC<SidebarGoogleDriveProps> = ({
                     })}
                   </button>
                   <button
-                    onClick={() => disconnectGoogleDrive()}
+                    onClick={handleDisconnectDrive}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-white border border-slate-200 text-xxs font-bold text-slate-500 uppercase tracking-wider hover:text-brand-red-primary hover:border-brand-red-lighter hover:bg-red-50 transition-all shadow-sm"
                   >
                     <Unlink className="w-3.5 h-3.5" />

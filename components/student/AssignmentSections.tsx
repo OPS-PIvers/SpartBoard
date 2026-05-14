@@ -41,8 +41,6 @@ interface AssignmentSectionsProps {
    * Drives the muted "Checking…" visual on the matching list rows.
    */
   pendingVerificationKeys?: ReadonlySet<string>;
-  /** Optional override for the all-empty state (mode='all', both sections empty). */
-  emptyAll?: React.ReactNode;
 }
 
 export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
@@ -54,90 +52,58 @@ export const AssignmentSections: React.FC<AssignmentSectionsProps> = ({
   hideClassName,
   onCompletionResolved,
   pendingVerificationKeys,
-  emptyAll,
 }) => {
-  const showActive = mode === 'all' || mode === 'active';
-  const showCompleted = mode === 'all' || mode === 'completed';
-
-  // All-empty fallback for mode='all' so the page reads as "you're all caught
-  // up" instead of two empty headers.
-  if (mode === 'all' && active.length === 0 && completed.length === 0) {
+  if (mode === 'active') {
     return (
-      <>
-        {emptyAll ?? (
+      <Section
+        label="Active"
+        count={active.length}
+        empty={
           <CalmEmpty
             title="All caught up"
-            body="You're all caught up — nothing active or completed yet."
+            body="You're all caught up — no active assignments right now."
           />
-        )}
-      </>
+        }
+      >
+        {active.map((a) => (
+          <AssignmentListItem
+            key={a.compositeId}
+            assignment={a}
+            pseudonymUid={pseudonymUid}
+            classEntry={
+              a.classIds[0] ? directoryById[a.classIds[0]] : undefined
+            }
+            hideClassName={hideClassName}
+            onCompletionResolved={onCompletionResolved}
+          />
+        ))}
+      </Section>
     );
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      {showActive && (
-        <Section
-          label="Active"
-          count={active.length}
-          empty={
-            mode === 'all' ? (
-              <p className="text-sm text-slate-500">
-                Nothing active right now.
-              </p>
-            ) : (
-              <CalmEmpty
-                title="All caught up"
-                body="You're all caught up — no active assignments right now."
-              />
-            )
-          }
-        >
-          {active.map((a) => (
-            <AssignmentListItem
-              key={a.compositeId}
-              assignment={a}
-              pseudonymUid={pseudonymUid}
-              classEntry={
-                a.classIds[0] ? directoryById[a.classIds[0]] : undefined
-              }
-              hideClassName={hideClassName}
-              onCompletionResolved={onCompletionResolved}
-            />
-          ))}
-        </Section>
-      )}
-      {showCompleted && (
-        <Section
-          label="Completed"
-          count={completed.length}
-          empty={
-            mode === 'all' ? (
-              <p className="text-sm text-slate-500">Nothing completed yet.</p>
-            ) : (
-              <CalmEmpty
-                title="Nothing completed yet"
-                body="Once you finish an assignment, it'll show up here."
-              />
-            )
-          }
-        >
-          {completed.map((a) => (
-            <AssignmentListItem
-              key={a.compositeId}
-              assignment={a}
-              pseudonymUid={pseudonymUid}
-              classEntry={
-                a.classIds[0] ? directoryById[a.classIds[0]] : undefined
-              }
-              hideClassName={hideClassName}
-              onCompletionResolved={onCompletionResolved}
-              pendingVerification={pendingVerificationKeys?.has(a.compositeId)}
-            />
-          ))}
-        </Section>
-      )}
-    </div>
+    <Section
+      label="Completed"
+      count={completed.length}
+      empty={
+        <CalmEmpty
+          title="Nothing completed yet"
+          body="Once you finish an assignment, it'll show up here."
+        />
+      }
+    >
+      {completed.map((a) => (
+        <AssignmentListItem
+          key={a.compositeId}
+          assignment={a}
+          pseudonymUid={pseudonymUid}
+          classEntry={a.classIds[0] ? directoryById[a.classIds[0]] : undefined}
+          hideClassName={hideClassName}
+          onCompletionResolved={onCompletionResolved}
+          pendingVerification={pendingVerificationKeys?.has(a.compositeId)}
+        />
+      ))}
+    </Section>
   );
 };
 

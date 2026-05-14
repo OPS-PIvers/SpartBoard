@@ -5,7 +5,7 @@ import * as admin from 'firebase-admin';
 import axios, { AxiosError } from 'axios';
 import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
-import { GoogleGenAI, Content } from '@google/genai';
+import { GoogleGenAI, Content, Type, Schema } from '@google/genai';
 import { randomUUID } from 'node:crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { sanitizePrompt } from './sanitize';
@@ -38,6 +38,11 @@ export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
+export {
+  exchangeGoogleAuthCode,
+  refreshGoogleAccessToken,
+  revokeGoogleRefreshToken,
+} from './googleOAuth';
 
 setGlobalOptions({ region: 'us-central1' });
 
@@ -92,7 +97,15 @@ interface AIData {
     | 'blooms-ai';
   prompt?: string;
   image?: string; // base64 data
+  /**
+   * Per-type quiz question counts. Only honored for `type === 'quiz'`.
+   * Each entry is the number of questions of that type the teacher
+   * requested. Unspecified types are treated as zero.
+   */
+  typeCounts?: Partial<Record<QuizGenType, number>>;
 }
+
+type QuizGenType = 'MC' | 'FIB' | 'Matching' | 'Ordering';
 
 interface GlobalPermConfig {
   dailyLimit?: number;
@@ -1011,32 +1024,32 @@ Worked example (flashcards app with a "Done" button):
         `,
           userPrompt: 'Extract text from this image.',
         }),
-        quiz: () => ({
-          systemPrompt: `
-          You are an expert teacher creating a classroom quiz.
-          Generate a quiz based on the topic or content provided within <topic> tags.
-          Return JSON in this exact format:
-          {
-            "title": "Quiz title",
-            "questions": [
-              {
-                "text": "Question text",
-                "type": "MC",
-                "correctAnswer": "The correct answer",
-                "incorrectAnswers": ["Wrong answer 1", "Wrong answer 2", "Wrong answer 3"],
-                "timeLimit": 30
-              }
-            ]
+        quiz: () => {
+          const { counts: quizCounts, total: quizTotal } =
+            normalizeTypeCounts<QuizGenType>(
+              QUIZ_QUESTION_TYPES,
+              data?.typeCounts
+            );
+          // Back-compat: if the client didn't send `typeCounts`, fall back
+          // to a sensible default (5 MC) so older clients keep working
+          // until they redeploy with the new payload.
+          if (quizTotal <= 0) {
+            quizCounts.MC = 5;
           }
-          Rules:
-          1. Generate 5-10 questions unless the user specifies a number.
-          2. Use only "MC" (Multiple Choice) type.
-          3. Each question must have exactly 3 incorrect answers.
-          4. Time limit should be 20-60 seconds depending on question complexity.
-          5. Questions should progress from easier to harder.
-        `,
-          userPrompt: `Topic/Content: <topic>${sanitizedUserInput}</topic>`,
-        }),
+          const effectiveTotal =
+            quizTotal > 0
+              ? quizTotal
+              : QUIZ_QUESTION_TYPES.reduce((sum, t) => sum + quizCounts[t], 0);
+          return {
+            systemPrompt: buildQuizPrompt(
+              quizCounts,
+              effectiveTotal,
+              bufferedRequestCount(effectiveTotal),
+              sanitizedUserInput
+            ),
+            userPrompt: '',
+          };
+        },
         'widget-builder': () => ({
           systemPrompt: `
           You are an expert frontend developer creating classroom widgets. Create a complete self-contained HTML widget for a classroom dashboard.
@@ -1139,6 +1152,12 @@ Output JSON ONLY in this exact shape:
           ? geminiConfig.advancedModel
           : geminiConfig.standardModel;
 
+      // Quiz alone uses structured-output (responseSchema) — it has a fixed
+      // shape we want to enforce. Other generators stay on plain JSON mode
+      // because they have looser, type-specific shapes.
+      const responseSchema =
+        genType === 'quiz' ? buildQuizResponseSchema() : undefined;
+
       const result = await ai.models.generateContent({
         model,
         contents,
@@ -1150,6 +1169,7 @@ Output JSON ONLY in this exact shape:
             genType === 'blooms-ai'
               ? 'text/plain'
               : 'application/json',
+          ...(responseSchema ? { responseSchema } : {}),
         },
       });
 
@@ -1173,6 +1193,38 @@ Output JSON ONLY in this exact shape:
       }
 
       const parsed = parseGeminiJson<Record<string, unknown>>(text);
+
+      // Quiz: post-validate and trim per-type quotas. Without this, Gemini
+      // can return a shape that doesn't match the per-type field rules
+      // documented in types.ts (e.g., a "Matching" question with the wrong
+      // pipe encoding) and the editor would silently render garbage.
+      if (genType === 'quiz') {
+        const { counts: quizCounts, total: quizTotal } =
+          normalizeTypeCounts<QuizGenType>(
+            QUIZ_QUESTION_TYPES,
+            data?.typeCounts
+          );
+        if (quizTotal <= 0) quizCounts.MC = 5;
+        const validatedQuestions = validateAndBucketQuizQuestions(
+          parsed.questions,
+          quizCounts
+        );
+        if (validatedQuestions.length === 0) {
+          throw new HttpsError(
+            'internal',
+            'The AI did not produce any usable questions. Try adjusting the topic or the question mix.'
+          );
+        }
+        return {
+          title:
+            typeof parsed.title === 'string' && parsed.title.trim().length > 0
+              ? parsed.title
+              : 'AI-generated quiz',
+          questions: validatedQuestions,
+          _modelConfigUsedFallback: geminiConfig.usedFallback,
+        };
+      }
+
       // Annotate JSON responses with the fallback flag so the client can
       // surface a one-time admin notice. Underscore-prefixed to make the
       // marker obvious and avoid colliding with any field Gemini returns.
@@ -1536,16 +1588,41 @@ export const checkUrlCompatibility = onCall(
 // Video Activity: Caption-based AI question generation
 // ---------------------------------------------------------------------------
 
+type VideoQuestionType = 'MC' | 'FIB' | 'MA';
+
 interface VideoActivityRequestData {
   url: string;
-  questionCount: number;
+  /**
+   * Per-type question counts the teacher requested in the AI overlay. The
+   * server requests a slight surplus from Gemini, then post-validates and
+   * trims back to these quotas so hallucinations get dropped instead of
+   * surfacing to the user.
+   */
+  typeCounts?: Partial<Record<VideoQuestionType, number>>;
+  /**
+   * Legacy single-count field. Older deployed clients send this instead of
+   * `typeCounts`. Server treats it as `{ MC: questionCount }` during a
+   * staggered functions/frontend deploy so in-flight calls don't break.
+   */
+  questionCount?: number;
+  /**
+   * Total video duration in seconds, captured client-side from the YouTube
+   * IFrame player. Used as a hard upper bound on emitted timestamps — any
+   * question Gemini returns with a timestamp beyond this is dropped.
+   * Optional because Gemini will still produce reasonable timestamps without
+   * it, but accuracy is much higher when provided.
+   */
+  durationSeconds?: number;
 }
 
 interface GeneratedVideoQuestion {
   text: string;
   timestamp: number;
+  type: VideoQuestionType;
   correctAnswer: string;
   incorrectAnswers: string[];
+  /** FIB-only: optional alternate accepted answer forms (e.g. ["color", "colour"]). */
+  acceptableVariants?: string[];
   timeLimit: number;
 }
 
@@ -1558,6 +1635,431 @@ interface GeneratedVideoActivity {
    * client surface a one-time admin notice without polluting every call.
    */
   _modelConfigUsedFallback?: boolean;
+}
+
+// ---------------------------------------------------------------------------
+// Video Activity / Quiz AI helpers
+//
+// These helpers are exported (named) but not re-exported through the Firebase
+// callables list — they're internal to this file's two AI generators. Keeping
+// them as pure functions makes the prompt + post-validation logic testable in
+// isolation (no Firestore, no Gemini calls).
+// ---------------------------------------------------------------------------
+
+/** Order matters: this is the per-type emit order in prompts. */
+const VIDEO_QUESTION_TYPES: VideoQuestionType[] = ['MC', 'FIB', 'MA'];
+const QUIZ_QUESTION_TYPES: QuizGenType[] = [
+  'MC',
+  'FIB',
+  'Matching',
+  'Ordering',
+];
+
+const VIDEO_TYPE_LABEL: Record<VideoQuestionType, string> = {
+  MC: 'Multiple Choice',
+  FIB: 'Fill in the Blank',
+  MA: 'Multi-Answer (select multiple)',
+};
+
+const QUIZ_TYPE_LABEL: Record<QuizGenType, string> = {
+  MC: 'Multiple Choice',
+  FIB: 'Fill in the Blank',
+  Matching: 'Matching pairs',
+  Ordering: 'Sequence ordering',
+};
+
+interface NormalizedCounts<T extends string> {
+  counts: Record<T, number>;
+  total: number;
+}
+
+/** Clamp negative/non-finite counts to zero and compute a total. */
+function normalizeTypeCounts<T extends string>(
+  allowed: readonly T[],
+  raw: Partial<Record<T, number>> | undefined
+): NormalizedCounts<T> {
+  const counts = {} as Record<T, number>;
+  let total = 0;
+  for (const t of allowed) {
+    const n = Number(raw?.[t]);
+    const clean = Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+    counts[t] = clean;
+    total += clean;
+  }
+  return { counts, total };
+}
+
+/**
+ * Ask Gemini for a surplus so hallucinations can be filtered without
+ * leaving the teacher short on questions. ~30% extra plus a minimum of +2,
+ * capped at 60 so a pathological per-type request (15 of each of 4 quiz
+ * types → 60 requested → 80 with surplus) doesn't balloon the prompt past
+ * what Gemini can usefully reason about. The per-type stepper UI caps each
+ * type at 15, so 60 raw is the worst case we should encounter in practice.
+ */
+function bufferedRequestCount(requested: number): number {
+  if (requested <= 0) return 0;
+  return Math.min(60, Math.ceil(requested * 1.3) + 2);
+}
+
+/**
+ * Back-compat shim for in-flight video-activity callers that haven't
+ * received the new bundle yet. If the request only contains the legacy
+ * `questionCount` field (or both fields are empty), treat it as
+ * `{ MC: questionCount }` so we don't reject a payload from an older
+ * frontend during a staggered Functions/frontend deploy.
+ */
+function legacyVideoTypeCountsFallback(
+  typeCounts: Partial<Record<VideoQuestionType, number>> | undefined,
+  questionCount: number | undefined
+): Partial<Record<VideoQuestionType, number>> | undefined {
+  const supplied = typeCounts ?? {};
+  const hasAny = VIDEO_QUESTION_TYPES.some((t) => Number(supplied[t]) > 0);
+  if (hasAny) return supplied;
+  const legacy = Number(questionCount);
+  if (Number.isFinite(legacy) && legacy > 0) {
+    return { MC: Math.floor(legacy) };
+  }
+  return supplied;
+}
+
+function buildVideoActivityPrompt(
+  counts: Record<VideoQuestionType, number>,
+  total: number,
+  bufferedTotal: number,
+  durationSeconds: number | undefined
+): string {
+  const mixLines = VIDEO_QUESTION_TYPES.filter((t) => counts[t] > 0)
+    .map((t) => `   - ${counts[t]} ${VIDEO_TYPE_LABEL[t]} ("${t}")`)
+    .join('\n');
+
+  const durationLine =
+    durationSeconds && durationSeconds > 0
+      ? `The video is exactly ${Math.floor(durationSeconds)} seconds long. Every "timestamp" you emit MUST be an integer between 0 and ${Math.floor(durationSeconds)} inclusive. NEVER invent timestamps beyond ${Math.floor(durationSeconds)}.`
+      : 'Every "timestamp" you emit MUST be an integer second that falls within the actual video. Do not invent timestamps past the end of the video.';
+
+  return `You are an expert teacher creating a video comprehension activity.
+Watch the provided YouTube video and generate up to ${bufferedTotal} questions that check understanding of key concepts.
+
+TARGET QUESTION MIX (the teacher requested ${total} questions total):
+${mixLines}
+
+CRITICAL RULES:
+1. ${durationLine}
+2. Each question's "timestamp" should sit AT or JUST AFTER the moment the answer is discussed, so students hear the explanation before being prompted.
+3. Questions must be in ascending "timestamp" order.
+4. Every question must be grounded in something actually said or shown in the video. Do not paraphrase generic facts that aren't covered.
+5. Per-type shape (the "type" field decides which fields are required):
+   - "MC": "correctAnswer" is the one correct option (string). "incorrectAnswers" MUST contain exactly 3 plausible-but-wrong distractor strings. Leave "acceptableVariants" empty.
+   - "FIB": "correctAnswer" is the single canonical accepted answer (a short word or phrase students would type). "incorrectAnswers" MUST be an empty array. Optionally fill "acceptableVariants" with 0–3 additional accepted spellings/synonyms (e.g. ["color", "colour"]).
+   - "MA": "correctAnswer" is a pipe-separated list of the correct selections, e.g. "option1|option2". "incorrectAnswers" contains 2–4 distractor options shown alongside. Leave "acceptableVariants" empty.
+6. "timeLimit" should be 20–45 seconds (integer).
+7. Aim for the requested type counts above. If you cannot find enough good content for a type, emit fewer of that type rather than padding with another type or fabricating content.
+8. Return ONLY valid JSON matching the provided schema. No markdown fences, no commentary.`;
+}
+
+function buildQuizPrompt(
+  counts: Record<QuizGenType, number>,
+  total: number,
+  bufferedTotal: number,
+  userInput: string
+): string {
+  const mixLines = QUIZ_QUESTION_TYPES.filter((t) => counts[t] > 0)
+    .map((t) => `   - ${counts[t]} ${QUIZ_TYPE_LABEL[t]} ("${t}")`)
+    .join('\n');
+
+  return `You are an expert teacher creating a classroom quiz.
+Generate a quiz based on the topic or content provided within <topic> tags below. Produce up to ${bufferedTotal} questions to satisfy the requested mix (target ${total} total).
+
+TARGET QUESTION MIX:
+${mixLines}
+
+Per-type shape (the "type" field decides which fields are required):
+- "MC": "correctAnswer" is the one correct option. "incorrectAnswers" MUST contain exactly 3 plausible-but-wrong distractor strings.
+- "FIB": "correctAnswer" is the single canonical accepted answer (short word or phrase). "incorrectAnswers" MUST be an empty array.
+- "Matching": "correctAnswer" is a pipe-separated list of "term:definition" pairs, e.g. "Mars:fourth planet|Venus:second planet|Earth:third planet". Provide 3–6 pairs. "incorrectAnswers" MUST be an empty array.
+- "Ordering": "correctAnswer" is a pipe-separated list of items in their correct sequence, e.g. "First|Second|Third|Fourth". Provide 3–6 items. "incorrectAnswers" MUST be an empty array.
+
+Other rules:
+1. "timeLimit" should be 20–60 seconds depending on complexity (integer).
+2. Questions should progress from easier to harder.
+3. Aim for the requested type counts above. If you cannot find enough good content for a type, emit fewer of that type rather than padding with another type or fabricating content.
+4. Return ONLY valid JSON matching the provided schema. No markdown fences, no commentary.
+
+Topic/Content: <topic>${userInput}</topic>`;
+}
+
+function buildVideoActivityResponseSchema(): Schema {
+  return {
+    type: Type.OBJECT,
+    required: ['title', 'questions'],
+    properties: {
+      title: { type: Type.STRING },
+      questions: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: [
+            'text',
+            'timestamp',
+            'type',
+            'correctAnswer',
+            'incorrectAnswers',
+            'timeLimit',
+          ],
+          properties: {
+            text: { type: Type.STRING },
+            timestamp: { type: Type.INTEGER },
+            type: {
+              type: Type.STRING,
+              enum: ['MC', 'FIB', 'MA'],
+            },
+            correctAnswer: { type: Type.STRING },
+            incorrectAnswers: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            acceptableVariants: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            timeLimit: { type: Type.INTEGER },
+          },
+        },
+      },
+    },
+  };
+}
+
+function buildQuizResponseSchema(): Schema {
+  return {
+    type: Type.OBJECT,
+    required: ['title', 'questions'],
+    properties: {
+      title: { type: Type.STRING },
+      questions: {
+        type: Type.ARRAY,
+        items: {
+          type: Type.OBJECT,
+          required: [
+            'text',
+            'type',
+            'correctAnswer',
+            'incorrectAnswers',
+            'timeLimit',
+          ],
+          properties: {
+            text: { type: Type.STRING },
+            type: {
+              type: Type.STRING,
+              enum: ['MC', 'FIB', 'Matching', 'Ordering'],
+            },
+            correctAnswer: { type: Type.STRING },
+            incorrectAnswers: {
+              type: Type.ARRAY,
+              items: { type: Type.STRING },
+            },
+            timeLimit: { type: Type.INTEGER },
+          },
+        },
+      },
+    },
+  };
+}
+
+/**
+ * Drop malformed entries, drop entries with timestamps outside the video,
+ * bucket by type, and trim each bucket to its requested quota. Returns the
+ * accepted questions sorted by timestamp.
+ *
+ * Exported (via export keyword) primarily so a future test file can exercise
+ * the validator without needing a Firebase/Gemini harness.
+ */
+export function validateAndBucketVideoQuestions(
+  raw: unknown,
+  counts: Record<VideoQuestionType, number>,
+  durationSeconds: number | undefined
+): GeneratedVideoQuestion[] {
+  if (!Array.isArray(raw)) return [];
+  const maxTs =
+    durationSeconds && durationSeconds > 0
+      ? Math.floor(durationSeconds)
+      : Infinity;
+
+  const buckets: Record<VideoQuestionType, GeneratedVideoQuestion[]> = {
+    MC: [],
+    FIB: [],
+    MA: [],
+  };
+
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const q = item as Record<string, unknown>;
+    const type = q.type;
+    if (type !== 'MC' && type !== 'FIB' && type !== 'MA') {
+      continue;
+    }
+    const text = typeof q.text === 'string' ? q.text.trim() : '';
+    if (!text) continue;
+    const timestamp =
+      typeof q.timestamp === 'number' ? Math.floor(q.timestamp) : NaN;
+    if (!Number.isFinite(timestamp) || timestamp < 0 || timestamp > maxTs) {
+      continue;
+    }
+    const correctAnswer =
+      typeof q.correctAnswer === 'string' ? q.correctAnswer.trim() : '';
+    if (!correctAnswer) continue;
+    const incorrectAnswers = Array.isArray(q.incorrectAnswers)
+      ? q.incorrectAnswers.filter(
+          (a): a is string => typeof a === 'string' && a.trim().length > 0
+        )
+      : [];
+    // The prompt asks for exactly 3 distractors for MC. Validator floor is
+    // 3 to match — with the `bufferedRequestCount` surplus we'd rather drop
+    // a thin question than render a watered-down 3-option MC.
+    if (type === 'MC' && incorrectAnswers.length < 3) continue;
+    // MA stores correct selections pipe-joined in `correctAnswer` and
+    // shows `incorrectAnswers` as the distractor options. A "MA" with no
+    // distractors degenerates into "pick the only choice"; the prompt
+    // asks for 2–4 distractors, so we require at least 2 of each side.
+    if (type === 'MA' && !isValidOrderingList(correctAnswer, 2)) continue;
+    if (type === 'MA' && incorrectAnswers.length < 2) continue;
+    const timeLimitRaw =
+      typeof q.timeLimit === 'number' ? Math.floor(q.timeLimit) : 30;
+    const timeLimit =
+      Number.isFinite(timeLimitRaw) && timeLimitRaw > 0 ? timeLimitRaw : 30;
+    const acceptableVariants =
+      type === 'FIB' && Array.isArray(q.acceptableVariants)
+        ? q.acceptableVariants.filter(
+            (a): a is string => typeof a === 'string' && a.trim().length > 0
+          )
+        : undefined;
+
+    const validated: GeneratedVideoQuestion = {
+      text,
+      timestamp,
+      type,
+      correctAnswer,
+      incorrectAnswers: type === 'FIB' ? [] : incorrectAnswers,
+      timeLimit,
+      ...(acceptableVariants && acceptableVariants.length > 0
+        ? { acceptableVariants }
+        : {}),
+    };
+
+    if (buckets[type].length < counts[type]) {
+      buckets[type].push(validated);
+    }
+  }
+
+  return [...buckets.MC, ...buckets.FIB, ...buckets.MA].sort(
+    (a, b) => a.timestamp - b.timestamp
+  );
+}
+
+/** Pipe-delimited Ordering payloads must have at least 2 non-empty entries. */
+function isValidOrderingList(value: string, minEntries: number): boolean {
+  const parts = value.split('|').filter((p) => p.trim().length > 0);
+  return parts.length >= minEntries;
+}
+
+/**
+ * Matching payloads use `"term1:def1|term2:def2"` per the storage rules in
+ * types.ts. The validator must reject pipe-only output (an Ordering-shaped
+ * payload that Gemini mislabeled as Matching), so each pair MUST contain a
+ * non-empty term and a non-empty definition separated by `:`.
+ */
+function isValidMatchingList(value: string, minPairs: number): boolean {
+  const parts = value.split('|').filter((p) => p.trim().length > 0);
+  if (parts.length < minPairs) return false;
+  return parts.every((pair) => {
+    const colonIdx = pair.indexOf(':');
+    if (colonIdx <= 0) return false;
+    const term = pair.slice(0, colonIdx).trim();
+    const def = pair.slice(colonIdx + 1).trim();
+    return term.length > 0 && def.length > 0;
+  });
+}
+
+interface ValidatedQuizQuestion {
+  text: string;
+  type: QuizGenType;
+  correctAnswer: string;
+  incorrectAnswers: string[];
+  timeLimit: number;
+}
+
+/**
+ * Quiz counterpart to `validateAndBucketVideoQuestions`. Unlike the video
+ * flow (which sorts by `timestamp`), the quiz prompt asks for "easier to
+ * harder" progression, so we preserve Gemini's original emit order while
+ * still enforcing per-type quotas: iterate raw in order, accept each valid
+ * question until that type's bucket fills, drop the rest.
+ */
+export function validateAndBucketQuizQuestions(
+  raw: unknown,
+  counts: Record<QuizGenType, number>
+): ValidatedQuizQuestion[] {
+  if (!Array.isArray(raw)) return [];
+  const accepted: ValidatedQuizQuestion[] = [];
+  const filled: Record<QuizGenType, number> = {
+    MC: 0,
+    FIB: 0,
+    Matching: 0,
+    Ordering: 0,
+  };
+
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const q = item as Record<string, unknown>;
+    const type = q.type;
+    if (
+      type !== 'MC' &&
+      type !== 'FIB' &&
+      type !== 'Matching' &&
+      type !== 'Ordering'
+    ) {
+      continue;
+    }
+    if (filled[type] >= counts[type]) continue;
+    const text = typeof q.text === 'string' ? q.text.trim() : '';
+    if (!text) continue;
+    const correctAnswer =
+      typeof q.correctAnswer === 'string' ? q.correctAnswer.trim() : '';
+    if (!correctAnswer) continue;
+    const incorrectAnswers = Array.isArray(q.incorrectAnswers)
+      ? q.incorrectAnswers.filter(
+          (a): a is string => typeof a === 'string' && a.trim().length > 0
+        )
+      : [];
+    // The prompts ask for exactly 3 distractors (MC) and 3+ pairs/items
+    // (Matching, Ordering). Validator floors match — with the
+    // `bufferedRequestCount` surplus we'd rather drop a thin question than
+    // render a 3-option MC or a 2-pair Matching that the teacher didn't
+    // ask for.
+    if (type === 'MC' && incorrectAnswers.length < 3) continue;
+    if (type === 'Matching' && !isValidMatchingList(correctAnswer, 3)) {
+      continue;
+    }
+    if (type === 'Ordering' && !isValidOrderingList(correctAnswer, 3)) {
+      continue;
+    }
+    const timeLimitRaw =
+      typeof q.timeLimit === 'number' ? Math.floor(q.timeLimit) : 30;
+    const timeLimit =
+      Number.isFinite(timeLimitRaw) && timeLimitRaw > 0 ? timeLimitRaw : 30;
+
+    accepted.push({
+      text,
+      type,
+      correctAnswer,
+      incorrectAnswers: type === 'MC' ? incorrectAnswers : [],
+      timeLimit,
+    });
+    filled[type] += 1;
+  }
+
+  return accepted;
 }
 
 /**
@@ -1590,7 +2092,7 @@ export const generateVideoActivity = onCall(
       );
     }
 
-    const { url, questionCount } = data;
+    const { url, typeCounts, questionCount, durationSeconds } = data;
 
     if (!url || typeof url !== 'string') {
       throw new HttpsError(
@@ -1599,7 +2101,21 @@ export const generateVideoActivity = onCall(
       );
     }
 
-    const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
+    const effectiveTypeCounts = legacyVideoTypeCountsFallback(
+      typeCounts,
+      questionCount
+    );
+    const { counts, total } = normalizeTypeCounts<VideoQuestionType>(
+      VIDEO_QUESTION_TYPES,
+      effectiveTypeCounts
+    );
+    if (total <= 0) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Select at least one question to generate.'
+      );
+    }
+    const bufferedTotal = bufferedRequestCount(total);
 
     // Extract video ID from URL
     const videoIdMatch = url.match(
@@ -1613,6 +2129,13 @@ export const generateVideoActivity = onCall(
         'Could not extract a video ID from the provided URL. Please paste a valid YouTube link.'
       );
     }
+
+    const cleanDuration =
+      typeof durationSeconds === 'number' &&
+      Number.isFinite(durationSeconds) &&
+      durationSeconds > 0
+        ? Math.floor(durationSeconds)
+        : undefined;
 
     const db = admin.firestore();
 
@@ -1690,31 +2213,12 @@ export const generateVideoActivity = onCall(
 
     const ai = new GoogleGenAI({ apiKey });
 
-    const systemPrompt = `You are an expert teacher creating a video comprehension activity.
-Watch the provided YouTube video and generate exactly ${count} multiple-choice questions that check understanding of key concepts.
-
-CRITICAL RULES:
-1. Each question's "timestamp" field MUST be an integer representing the exact second from the start of the video when the answer is discussed.
-1b. The question should be asked AFTER students have heard the explanation, so choose a timestamp near the END of the relevant explanation segment (not the beginning).
-2. Questions must be in ascending timestamp order.
-3. Each question must have exactly 3 plausible but clearly incorrect answers.
-4. Only use "MC" (Multiple Choice) type.
-5. Time limit should be 20-45 seconds per question.
-6. Return ONLY valid JSON — no markdown fences, no commentary.
-
-Return JSON in this exact format:
-{
-  "title": "Short descriptive activity title based on video content",
-  "questions": [
-    {
-      "text": "Question text here?",
-      "timestamp": 42,
-      "correctAnswer": "The correct answer",
-      "incorrectAnswers": ["Wrong 1", "Wrong 2", "Wrong 3"],
-      "timeLimit": 30
-    }
-  ]
-}`;
+    const systemPrompt = buildVideoActivityPrompt(
+      counts,
+      total,
+      bufferedTotal,
+      cleanDuration
+    );
 
     try {
       const result = await ai.models.generateContent({
@@ -1733,28 +2237,44 @@ Return JSON in this exact format:
             ],
           },
         ],
-        config: { responseMimeType: 'application/json' },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: buildVideoActivityResponseSchema(),
+        },
       });
 
       const text = result.text;
       if (!text) throw new Error('Empty response from AI');
 
-      const parsed = parseGeminiJson<GeneratedVideoActivity>(text);
+      const parsed = parseGeminiJson<{
+        title?: unknown;
+        questions?: unknown;
+      }>(text);
 
-      if (
-        !parsed.title ||
-        !Array.isArray(parsed.questions) ||
-        parsed.questions.length === 0
-      ) {
-        throw new Error('Invalid response structure from AI');
+      if (!parsed.title || typeof parsed.title !== 'string') {
+        throw new Error('Invalid response structure from AI (missing title).');
+      }
+
+      const validatedQuestions = validateAndBucketVideoQuestions(
+        parsed.questions,
+        counts,
+        cleanDuration
+      );
+
+      if (validatedQuestions.length === 0) {
+        throw new Error(
+          'The AI did not produce any usable questions for this video. Try a different video or adjust the question mix.'
+        );
       }
 
       return {
-        ...parsed,
+        title: parsed.title,
+        questions: validatedQuestions,
         _modelConfigUsedFallback: geminiConfig.usedFallback,
       };
     } catch (error: unknown) {
       console.error('[generateVideoActivity] Gemini error:', error);
+      if (error instanceof HttpsError) throw error;
       const detail = error instanceof Error ? error.message : 'unknown error';
       throw new HttpsError(
         'internal',
@@ -1771,7 +2291,12 @@ Return JSON in this exact format:
 
 interface AudioTranscriptionRequestData {
   url: string;
-  questionCount: number;
+  /** See `VideoActivityRequestData.typeCounts`. */
+  typeCounts?: Partial<Record<VideoQuestionType, number>>;
+  /** See `VideoActivityRequestData.questionCount`. */
+  questionCount?: number;
+  /** See `VideoActivityRequestData.durationSeconds`. */
+  durationSeconds?: number;
 }
 
 interface AudioTranscriptionPermConfig {
@@ -1950,8 +2475,19 @@ export const transcribeVideoWithGemini = onCall(
       }
     }
 
-    const { url, questionCount } = data;
-    const count = Math.min(Math.max(Number(questionCount) || 5, 1), 20);
+    const { url, typeCounts, durationSeconds } = data;
+
+    const { counts, total } = normalizeTypeCounts<VideoQuestionType>(
+      VIDEO_QUESTION_TYPES,
+      typeCounts
+    );
+    if (total <= 0) {
+      throw new HttpsError(
+        'invalid-argument',
+        'Select at least one question to generate.'
+      );
+    }
+    const bufferedTotal = bufferedRequestCount(total);
 
     const videoIdMatch = url.match(
       /(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&]{11})/
@@ -1965,6 +2501,13 @@ export const transcribeVideoWithGemini = onCall(
       );
     }
 
+    const cleanDuration =
+      typeof durationSeconds === 'number' &&
+      Number.isFinite(durationSeconds) &&
+      durationSeconds > 0
+        ? Math.floor(durationSeconds)
+        : undefined;
+
     const apiKey = GEMINI_API_KEY.value();
     if (!apiKey) {
       throw new HttpsError(
@@ -1977,31 +2520,12 @@ export const transcribeVideoWithGemini = onCall(
     const model = perm.config?.model ?? 'gemini-3.1-flash-lite-preview';
     const ai = new GoogleGenAI({ apiKey });
 
-    const systemPrompt = `You are an expert teacher creating a video comprehension activity.
-Watch the provided YouTube video and generate exactly ${count} multiple-choice questions.
-
-CRITICAL RULES:
-1. Each question's "timestamp" field MUST be an integer (seconds from start) when the answer is discussed.
-1b. Place each question timestamp near the END of the explanation segment so students hear the content before being prompted.
-2. Questions must be in ascending timestamp order.
-3. Each question must have exactly 3 plausible but incorrect answers.
-4. Only use "MC" type.
-5. Time limit should be 20-45 seconds per question.
-6. Return ONLY valid JSON — no markdown fences, no commentary.
-
-Return JSON:
-{
-  "title": "Short descriptive activity title",
-  "questions": [
-    {
-      "text": "Question?",
-      "timestamp": 42,
-      "correctAnswer": "Correct answer",
-      "incorrectAnswers": ["Wrong 1", "Wrong 2", "Wrong 3"],
-      "timeLimit": 30
-    }
-  ]
-}`;
+    const systemPrompt = buildVideoActivityPrompt(
+      counts,
+      total,
+      bufferedTotal,
+      cleanDuration
+    );
 
     try {
       const result = await ai.models.generateContent({
@@ -2020,25 +2544,43 @@ Return JSON:
             ],
           },
         ],
-        config: { responseMimeType: 'application/json' },
+        config: {
+          responseMimeType: 'application/json',
+          responseSchema: buildVideoActivityResponseSchema(),
+        },
       });
 
       const text = result.text;
       if (!text) throw new Error('Empty response from AI');
 
-      const parsed = parseGeminiJson<GeneratedVideoActivity>(text);
+      const parsed = parseGeminiJson<{
+        title?: unknown;
+        questions?: unknown;
+      }>(text);
 
-      if (
-        !parsed.title ||
-        !Array.isArray(parsed.questions) ||
-        parsed.questions.length === 0
-      ) {
-        throw new Error('Invalid response structure from AI');
+      if (!parsed.title || typeof parsed.title !== 'string') {
+        throw new Error('Invalid response structure from AI (missing title).');
       }
 
-      return parsed;
+      const validatedQuestions = validateAndBucketVideoQuestions(
+        parsed.questions,
+        counts,
+        cleanDuration
+      );
+
+      if (validatedQuestions.length === 0) {
+        throw new Error(
+          'The AI did not produce any usable questions for this video. Try a different video or adjust the question mix.'
+        );
+      }
+
+      return {
+        title: parsed.title,
+        questions: validatedQuestions,
+      };
     } catch (error: unknown) {
       console.error('[transcribeVideoWithGemini] Gemini error:', error);
+      if (error instanceof HttpsError) throw error;
       const detail = error instanceof Error ? error.message : 'unknown error';
       const msg = `AI generation failed (model: ${model}): ${detail}`;
       throw new HttpsError('internal', msg);

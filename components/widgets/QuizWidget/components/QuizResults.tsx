@@ -59,7 +59,7 @@ import {
 } from '../utils/quizScoreboard';
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
+import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -318,12 +318,19 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     [rosters, resolvedPeriods]
   );
 
-  // ClassLink name resolution — only populated when session.classId is set
-  // (i.e. assigned to a ClassLink class). For legacy code+PIN sessions both
-  // maps are empty and pinToName handles display.
-  const { byStudentUid } = useAssignmentPseudonyms(
+  // ClassLink name resolution — pulls names for every classId the session
+  // targets, so multi-class assignments resolve names for students from
+  // every targeted period (not just `classIds[0]`). The fallback to
+  // `[session.classId]` keeps single-class sessions working. For legacy
+  // code+PIN sessions both maps are empty and pinToName handles display.
+  const sessionClassIds = useMemo(() => {
+    if (session?.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session?.classId ? [session.classId] : [];
+  }, [session?.classIds, session?.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
     session?.id ?? null,
-    session?.classId ?? null,
+    sessionClassIds,
     orgId
   );
   const exportPinToName = useMemo(
@@ -647,6 +654,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       });
       return;
     }
+    // Captured before we overwrite exportUrl — used below to distinguish
+    // the first solo export (silent success, button transitions to OPEN
+    // SHEET) from a solo re-export (toast acknowledging that the previous
+    // sheet is now an orphan in the teacher's Drive).
+    const previousExportUrl = exportUrl;
     setExporting(true);
     setExportError(null);
     try {
@@ -723,6 +735,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       }
       if (config.plcMode) {
         addToast('Results exported to shared PLC sheet', 'success');
+      } else if (previousExportUrl) {
+        addToast(
+          'Re-exported to a fresh sheet. The previous sheet remains in your Drive.',
+          'success'
+        );
       }
     } catch (err) {
       if (err instanceof PlcSheetSchemaMismatchError) {
@@ -824,6 +841,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   // PLC-mode sheets are append-friendly by construction (Results tab is
   // header + rows, no trailing blocks).
   const canShowUpdateSheet = !!config.plcMode && trackingInitialized;
+  // Solo mode equivalent: a "Re-export" button that creates a fresh sheet
+  // each time `handleExport` runs. Reuses the existing solo export path
+  // (which always creates a new spreadsheet) so the teacher has a way to
+  // refresh after deleting the old sheet, after a bug fix changes export
+  // output, or just to rebuild with the latest responses. The previous
+  // sheet remains in Drive — the teacher cleans it up manually.
+  const canShowSoloReExport = !config.plcMode && !!exportUrl;
 
   const handleUpdateSheet = async () => {
     if (!exportUrl) return;
@@ -1140,6 +1164,42 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               />
               OPEN SHEET
             </a>
+            {canShowSoloReExport && (
+              <span
+                title="Re-export — creates a new sheet (the previous sheet stays in Drive)"
+                className="shrink-0 inline-flex"
+              >
+                <button
+                  onClick={() => void handleExport()}
+                  disabled={exporting}
+                  aria-label="Re-export sheet (creates a new sheet)"
+                  className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
+                  style={{
+                    gap: 'min(6px, 1.5cqmin)',
+                    padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+                    fontSize: 'min(11px, 3.5cqmin)',
+                  }}
+                >
+                  {exporting ? (
+                    <Loader2
+                      className="animate-spin"
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  ) : (
+                    <RefreshCw
+                      style={{
+                        width: 'min(14px, 4cqmin)',
+                        height: 'min(14px, 4cqmin)',
+                      }}
+                    />
+                  )}
+                  RE-EXPORT SHEET
+                </button>
+              </span>
+            )}
             {canShowUpdateSheet && (
               // Smart re-export: appends new responses when the sheet is
               // behind, otherwise clears and rewrites the same sheet from

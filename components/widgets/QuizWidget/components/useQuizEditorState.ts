@@ -4,7 +4,16 @@ import {
   GeneratedQuestion,
   buildPromptWithFileContext,
   generateQuiz,
+  type QuizGenType,
+  type QuizTypeCounts,
 } from '@/utils/ai';
+
+const DEFAULT_AI_TYPE_COUNTS: Record<QuizGenType, number> = {
+  MC: 5,
+  FIB: 0,
+  Matching: 0,
+  Ordering: 0,
+};
 
 const blankQuestion = (): QuizQuestion => ({
   id: crypto.randomUUID(),
@@ -42,6 +51,10 @@ export interface QuizEditorController {
   setShowAiPrompt: (next: boolean) => void;
   aiPrompt: string;
   setAiPrompt: (next: string) => void;
+  /** Per-type AI question budget (MC / FIB / Matching / Ordering). */
+  aiTypeCounts: Record<QuizGenType, number>;
+  setAiTypeCount: (type: QuizGenType, count: number) => void;
+  aiTotalCount: number;
   aiGenerating: boolean;
   aiError: string | null;
   aiFileContext: string | null;
@@ -83,6 +96,9 @@ export function useQuizEditorState({
 
   const [showAiPrompt, setShowAiPrompt] = useState(false);
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiTypeCounts, setAiTypeCounts] = useState<Record<QuizGenType, number>>(
+    DEFAULT_AI_TYPE_COUNTS
+  );
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiFileContext, setAiFileContext] = useState<string | null>(null);
@@ -100,6 +116,7 @@ export function useQuizEditorState({
     setSelectedId(originalQuestions[0]?.id ?? null);
     setShowAiPrompt(false);
     setAiPrompt('');
+    setAiTypeCounts(DEFAULT_AI_TYPE_COUNTS);
     setAiGenerating(false);
     setAiError(null);
     setAiFileContext(null);
@@ -201,8 +218,29 @@ export function useQuizEditorState({
     []
   );
 
+  const aiTotalCount = useMemo(
+    () =>
+      aiTypeCounts.MC +
+      aiTypeCounts.FIB +
+      aiTypeCounts.Matching +
+      aiTypeCounts.Ordering,
+    [aiTypeCounts]
+  );
+
+  const setAiTypeCount = useCallback((type: QuizGenType, count: number) => {
+    const clean = Math.max(
+      0,
+      Math.min(15, Number.isFinite(count) ? Math.floor(count) : 0)
+    );
+    setAiTypeCounts((prev) => ({ ...prev, [type]: clean }));
+  }, []);
+
   const runAiGenerate = useCallback(async () => {
     if (!aiPrompt.trim()) return;
+    if (aiTotalCount <= 0) {
+      setAiError('Pick at least one question to generate.');
+      return;
+    }
     setAiGenerating(true);
     setAiError(null);
     const fullPrompt = buildPromptWithFileContext(
@@ -210,9 +248,15 @@ export function useQuizEditorState({
       aiFileContext,
       aiFileName
     );
+    const typeCounts: QuizTypeCounts = {
+      MC: aiTypeCounts.MC,
+      FIB: aiTypeCounts.FIB,
+      Matching: aiTypeCounts.Matching,
+      Ordering: aiTypeCounts.Ordering,
+    };
     let result: Awaited<ReturnType<typeof generateQuiz>>;
     try {
-      result = await generateQuiz(fullPrompt);
+      result = await generateQuiz(fullPrompt, typeCounts);
     } catch (err) {
       setAiError(
         err instanceof Error
@@ -243,7 +287,7 @@ export function useQuizEditorState({
             timeLimit: q.timeLimit ?? 30,
             type,
             correctAnswer: q.correctAnswer ?? '',
-            incorrectAnswers: q.incorrectAnswers ?? [],
+            incorrectAnswers: type === 'MC' ? (q.incorrectAnswers ?? []) : [],
           };
         }
       );
@@ -263,7 +307,7 @@ export function useQuizEditorState({
     } finally {
       setAiGenerating(false);
     }
-  }, [aiPrompt, aiFileContext, aiFileName, title]);
+  }, [aiPrompt, aiFileContext, aiFileName, aiTypeCounts, aiTotalCount, title]);
 
   return {
     title,
@@ -284,6 +328,9 @@ export function useQuizEditorState({
     setShowAiPrompt,
     aiPrompt,
     setAiPrompt,
+    aiTypeCounts,
+    setAiTypeCount,
+    aiTotalCount,
     aiGenerating,
     aiError,
     aiFileContext,

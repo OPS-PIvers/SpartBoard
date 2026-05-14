@@ -53,7 +53,10 @@ vi.mock('@/hooks/usePlcs', () => ({
   }),
 }));
 vi.mock('@/hooks/useAssignmentPseudonyms', () => ({
-  useAssignmentPseudonyms: () => ({ byStudentUid: new Map() }),
+  useAssignmentPseudonymsMulti: () => ({
+    byStudentUid: new Map(),
+    byAssignmentPseudonym: new Map(),
+  }),
   formatStudentName: () => '',
 }));
 vi.mock('@/hooks/useClickOutside', () => ({ useClickOutside: vi.fn() }));

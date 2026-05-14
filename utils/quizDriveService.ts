@@ -1304,7 +1304,54 @@ export class QuizDriveService {
       throw new Error('Failed to create template spreadsheet');
     }
 
-    const sheet = (await createRes.json()) as { spreadsheetUrl: string };
+    const sheet = (await createRes.json()) as {
+      spreadsheetId: string;
+      spreadsheetUrl: string;
+      sheets?: { properties?: { sheetId?: number } }[];
+    };
+
+    // Force column A (Timestamp) to plain-text format. Sheets' default
+    // auto-format treats "01:30" as a duration value and strips the leading
+    // zero on display (and can further mutate the value on CSV export),
+    // confusing teachers building the template. Plain-text preserves
+    // exactly what the user typed.
+    const sheetId = sheet.sheets?.[0]?.properties?.sheetId;
+    if (sheetId === undefined) {
+      throw new Error(
+        'Failed to read sheetId from created template spreadsheet'
+      );
+    }
+    const formatRes = await fetch(
+      `${SHEETS_API_URL}/${sheet.spreadsheetId}:batchUpdate`,
+      {
+        method: 'POST',
+        headers: this.jsonHeaders,
+        body: JSON.stringify({
+          requests: [
+            {
+              repeatCell: {
+                range: {
+                  sheetId,
+                  startColumnIndex: 0,
+                  endColumnIndex: 1,
+                },
+                cell: {
+                  userEnteredFormat: { numberFormat: { type: 'TEXT' } },
+                },
+                fields: 'userEnteredFormat.numberFormat',
+              },
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!formatRes.ok) {
+      const err = await formatRes.text();
+      console.error('Sheets format timestamp column error:', err);
+      throw new Error('Failed to format template timestamp column');
+    }
+
     return sheet.spreadsheetUrl;
   }
 

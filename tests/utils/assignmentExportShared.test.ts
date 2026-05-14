@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   buildResultsSheetData,
   formatExportPoints,
@@ -176,5 +176,101 @@ describe('buildResultsSheetData', () => {
     const noQs = buildResultsSheetData([r()], [], ALWAYS_FULL);
     expect(noQs.dataRows[0][6]).toBe(''); // Score (%) blank
     expect(noQs.dataRows[0][8]).toBe('0'); // Max Points = 0
+  });
+
+  // Silent-failure surfacing: when a response falls through to the generic
+  // 'Student' export label (no PIN AND no entry in byStudentUid), the
+  // builder must log via logError so ops can see when a regression in
+  // pseudonym resolution silently writes unusable rows to the sheet.
+  describe('unresolved anonymous response logging', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('logs when a response with no PIN cannot be resolved', () => {
+      const { dataRows } = buildResultsSheetData(
+        [r({ studentUid: 'sso-unknown', pin: undefined })],
+        [q()],
+        ALWAYS_FULL,
+        { byStudentUid: new Map() }
+      );
+      // Row still emits the 'Student' fallback — behavior preserved, just
+      // now observable.
+      expect(dataRows[0][3]).toBe('Student');
+      const mocked = vi.mocked(console.error);
+      expect(mocked).toHaveBeenCalledOnce();
+      const firstArg = mocked.mock.calls[0]?.[0];
+      expect(firstArg).toMatch(/assignmentExportShared\.buildResultsSheetData/);
+      expect(firstArg).toMatch(
+        /1 response\(s\) exported with generic 'Student' label/
+      );
+    });
+
+    it('reports the actual unresolved count, not the row count', () => {
+      buildResultsSheetData(
+        [
+          r({ studentUid: 'sso-1', pin: undefined }), // resolves
+          r({ studentUid: 'sso-unknown-a', pin: undefined }), // unresolved
+          r({ studentUid: 'sso-unknown-b', pin: undefined }), // unresolved
+          r({ pin: '01', studentUid: 'no-sso' }), // resolves via PIN
+        ],
+        [q()],
+        ALWAYS_FULL,
+        {
+          byStudentUid: new Map([
+            ['sso-1', { givenName: 'Alex', familyName: 'Lee' }],
+          ]),
+          pinToName: { '01': 'Pat Smith' },
+        }
+      );
+      const mocked = vi.mocked(console.error);
+      expect(mocked).toHaveBeenCalledOnce();
+      const firstArg = mocked.mock.calls[0]?.[0];
+      // Counter must reflect unresolved count (2), not total rows (4).
+      expect(firstArg).toMatch(/2 response\(s\)/);
+    });
+
+    it('includes structured context in the logError payload', () => {
+      buildResultsSheetData(
+        [r({ studentUid: 'sso-unknown', pin: undefined })],
+        [q()],
+        ALWAYS_FULL,
+        {
+          byStudentUid: new Map([
+            ['sso-1', { givenName: 'Alex', familyName: 'Lee' }],
+          ]),
+        }
+      );
+      const mocked = vi.mocked(console.error);
+      const contextArg = mocked.mock.calls[0]?.[1];
+      expect(contextArg).toMatchObject({
+        unresolvedCount: 1,
+        totalRows: 1,
+        byStudentUidSize: 1,
+      });
+    });
+
+    it('does not log when every SSO response resolves', () => {
+      buildResultsSheetData(
+        [r({ studentUid: 'sso-1', pin: undefined })],
+        [q()],
+        ALWAYS_FULL,
+        {
+          byStudentUid: new Map([
+            ['sso-1', { givenName: 'Alex', familyName: 'Lee' }],
+          ]),
+        }
+      );
+      expect(vi.mocked(console.error)).not.toHaveBeenCalled();
+    });
+
+    it('does not log for legacy PIN-only responses (no SSO map passed)', () => {
+      buildResultsSheetData([r({ pin: '01' })], [q()], ALWAYS_FULL);
+      expect(vi.mocked(console.error)).not.toHaveBeenCalled();
+    });
   });
 });
