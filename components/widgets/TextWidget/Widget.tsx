@@ -12,6 +12,7 @@ import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { FormattingToolbar } from './FormattingToolbar';
 import { PLACEHOLDER_TEXT } from './constants';
+import { normalizeEditorBlocks } from './normalizeBlocks';
 
 /** Gap (px) between the toolbar and the widget edge. */
 const TOOLBAR_GAP = 8;
@@ -132,17 +133,29 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   // On first render, set initial content. On subsequent renders, sync external
   // content changes into the DOM only when not actively editing and only when
-  // the content actually changed externally (e.g. template applied).
+  // the content actually changed externally (e.g. template applied). After
+  // either path, normalize so every line is a block element — without that,
+  // drag-selection across mixed bare-text/<div>/<br> content terminates at
+  // the first paragraph boundary.
+  //
+  // We don't set `defaultParagraphSeparator`: it's deprecated and applies
+  // document-wide (would leak into other contentEditables like the quiz
+  // response editor). Chrome already defaults to <div> on Enter; if a
+  // Firefox user types with <br> separators, normalization on next mount or
+  // external sync corrects the structure. `normalizeEditorBlocks` is a
+  // no-op when nothing needs wrapping, so it's safe to run on every sync.
   useEffect(() => {
     if (!editorRef.current) return;
     if (!didInit.current) {
       didInit.current = true;
       editorRef.current.innerHTML = content ? sanitizeHtml(content) : '';
+      normalizeEditorBlocks(editorRef.current);
       return;
     }
     if (!isEditingRef.current && content !== lastExternalContent.current) {
       lastExternalContent.current = content;
       editorRef.current.innerHTML = content ? sanitizeHtml(content) : '';
+      normalizeEditorBlocks(editorRef.current);
     }
   }, [content]);
 
@@ -222,6 +235,27 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           document.execCommand('createLink', false, url);
           // Trigger input to save changes
           handleInput();
+        }
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+8 → bulleted list, Ctrl/Cmd+Shift+7 → numbered list.
+      // Matches Google Docs / Word conventions; pairs the toolbar's new
+      // top-level Lists buttons with keyboard parity to B/I/U/K.
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+        if (e.key === '8' || e.code === 'Digit8') {
+          e.preventDefault();
+          document.execCommand('styleWithCSS', false, 'true');
+          document.execCommand('insertUnorderedList', false);
+          handleInput();
+          return;
+        }
+        if (e.key === '7' || e.code === 'Digit7') {
+          e.preventDefault();
+          document.execCommand('styleWithCSS', false, 'true');
+          document.execCommand('insertOrderedList', false);
+          handleInput();
+          return;
         }
       }
     },
