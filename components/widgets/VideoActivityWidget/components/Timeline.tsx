@@ -156,17 +156,18 @@ export const Timeline: React.FC<TimelineProps> = ({
     setInitRetryToken(0);
   }
 
-  // Bubble duration up to the editor whenever it changes. Effect rather than
-  // calling `onDurationChange` directly from the player callbacks because the
-  // YT player can re-emit the same duration multiple times and the parent
-  // typically wants a stable update on real changes only.
-  useEffect(() => {
-    if (onDurationChange) onDurationChange(duration);
-  }, [duration, onDurationChange]);
-
   // (Re)create the player whenever videoId changes.
   useEffect(() => {
     if (!videoId) return;
+    // Notify the parent that the previous video's duration no longer
+    // applies. Cleared here (in an effect, post-commit) rather than from
+    // the render-time reset block above, which would call a parent setter
+    // during render — React would warn "Cannot update a component while
+    // rendering a different component." The parent's setter (passed in
+    // via `onDurationChange`) is a stable useState setter, so adding it
+    // to this effect's dep array does not cause the player to re-init on
+    // unrelated parent re-renders.
+    onDurationChange?.(0);
     let cancelled = false;
 
     const teardown = () => {
@@ -222,7 +223,9 @@ export const Timeline: React.FC<TimelineProps> = ({
           onReady: () => {
             if (cancelled || !playerRef.current) return;
             try {
-              setDuration(playerRef.current.getDuration());
+              const d = playerRef.current.getDuration();
+              setDuration(d);
+              if (d > 0) onDurationChange?.(d);
               setPlayhead(playerRef.current.getCurrentTime());
               setPlayerReady(true);
             } catch {
@@ -240,7 +243,10 @@ export const Timeline: React.FC<TimelineProps> = ({
                   setPlayhead(playerRef.current.getCurrentTime());
                   // Duration may not be known until first play on some videos.
                   const d = playerRef.current.getDuration();
-                  if (d > 0) setDuration(d);
+                  if (d > 0) {
+                    setDuration(d);
+                    onDurationChange?.(d);
+                  }
                 } catch {
                   /* ignore */
                 }
@@ -255,7 +261,14 @@ export const Timeline: React.FC<TimelineProps> = ({
       cancelled = true;
       teardown();
     };
-  }, [videoId, playerElementId, startPolling, stopPolling, initRetryToken]);
+  }, [
+    videoId,
+    playerElementId,
+    startPolling,
+    stopPolling,
+    initRetryToken,
+    onDurationChange,
+  ]);
 
   // Render markers and playhead.
   const safeDuration = duration > 0 ? duration : 1;

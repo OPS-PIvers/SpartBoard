@@ -1685,11 +1685,15 @@ function normalizeTypeCounts<T extends string>(
 
 /**
  * Ask Gemini for a surplus so hallucinations can be filtered without
- * leaving the teacher short on questions. ~30% extra plus a minimum of +2.
+ * leaving the teacher short on questions. ~30% extra plus a minimum of +2,
+ * capped at 60 so a pathological per-type request (15 of each of 4 quiz
+ * types → 60 requested → 80 with surplus) doesn't balloon the prompt past
+ * what Gemini can usefully reason about. The per-type stepper UI caps each
+ * type at 15, so 60 raw is the worst case we should encounter in practice.
  */
 function bufferedRequestCount(requested: number): number {
   if (requested <= 0) return 0;
-  return Math.min(20, Math.ceil(requested * 1.3) + 2);
+  return Math.min(60, Math.ceil(requested * 1.3) + 2);
 }
 
 function buildVideoActivityPrompt(
@@ -1884,6 +1888,12 @@ export function validateAndBucketVideoQuestions(
         )
       : [];
     if (type === 'MC' && incorrectAnswers.length < 2) continue;
+    // MA stores correct selections pipe-joined in `correctAnswer` and
+    // shows `incorrectAnswers` as the distractor options. A "MA" with no
+    // distractors degenerates into "pick the only choice"; the prompt
+    // asks for 2–4 distractors, so we require at least 2 of each side.
+    if (type === 'MA' && !isValidOrderingList(correctAnswer, 2)) continue;
+    if (type === 'MA' && incorrectAnswers.length < 2) continue;
     const timeLimitRaw =
       typeof q.timeLimit === 'number' ? Math.floor(q.timeLimit) : 30;
     const timeLimit =
@@ -1917,10 +1927,28 @@ export function validateAndBucketVideoQuestions(
   );
 }
 
-/** Pipe-delimited Matching / Ordering payloads must have at least 2 entries. */
-function isValidPipeList(value: string, minEntries: number): boolean {
+/** Pipe-delimited Ordering payloads must have at least 2 non-empty entries. */
+function isValidOrderingList(value: string, minEntries: number): boolean {
   const parts = value.split('|').filter((p) => p.trim().length > 0);
   return parts.length >= minEntries;
+}
+
+/**
+ * Matching payloads use `"term1:def1|term2:def2"` per the storage rules in
+ * types.ts. The validator must reject pipe-only output (an Ordering-shaped
+ * payload that Gemini mislabeled as Matching), so each pair MUST contain a
+ * non-empty term and a non-empty definition separated by `:`.
+ */
+function isValidMatchingList(value: string, minPairs: number): boolean {
+  const parts = value.split('|').filter((p) => p.trim().length > 0);
+  if (parts.length < minPairs) return false;
+  return parts.every((pair) => {
+    const colonIdx = pair.indexOf(':');
+    if (colonIdx <= 0) return false;
+    const term = pair.slice(0, colonIdx).trim();
+    const def = pair.slice(colonIdx + 1).trim();
+    return term.length > 0 && def.length > 0;
+  });
 }
 
 interface ValidatedQuizQuestion {
@@ -1967,10 +1995,10 @@ export function validateAndBucketQuizQuestions(
         )
       : [];
     if (type === 'MC' && incorrectAnswers.length < 2) continue;
-    if (
-      (type === 'Matching' || type === 'Ordering') &&
-      !isValidPipeList(correctAnswer, 2)
-    ) {
+    if (type === 'Matching' && !isValidMatchingList(correctAnswer, 2)) {
+      continue;
+    }
+    if (type === 'Ordering' && !isValidOrderingList(correctAnswer, 2)) {
       continue;
     }
     const timeLimitRaw =

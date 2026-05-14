@@ -657,10 +657,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
                   >
                     –
                   </button>
-                  <span
-                    className="w-6 text-center text-sm font-bold text-indigo-900 tabular-nums"
-                    aria-live="polite"
-                  >
+                  <span className="w-6 text-center text-sm font-bold text-indigo-900 tabular-nums">
                     {value}
                   </span>
                   <button
