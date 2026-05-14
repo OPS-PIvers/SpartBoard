@@ -663,23 +663,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     return tools;
   }, [featurePermissions, selectedBuildings, isAdmin, user]);
 
-  // Auto-recover when a user lands in an "empty dock" state after hydration.
-  // This catches two cases:
-  //   1. The migration bug (fixed in PR #1618) left users with
-  //      `dockInitialized: true` but `dockItems: []` in Firestore — the
-  //      seeding effect below short-circuits on `isDockInitialized`, so
-  //      those users would otherwise be stuck with an empty dock until
-  //      they manually clicked "Reset to defaults" in the Widget Library.
-  //   2. Hydration silently failed (network / transient Firestore error),
-  //      leaving state at its initial empty value with no path to recover.
-  // The ref gates this to once per session so a user who deliberately
-  // clears their dock can keep it cleared.
-  const autoSeededEmptyDockRef = useRef(false);
+  // Empty-dock recovery: whenever the dock is empty after hydration,
+  // refill it with building-aware defaults. Earlier iterations of this
+  // effect gated by a once-per-session ref to "preserve a user's empty
+  // dock," but the actual user experience is that an empty dock is
+  // always wrong — there is no UI path to clear-and-refill, so an empty
+  // dock is always either the migration bug, a failed hydration, or a
+  // user attempting to clean up who has no way back. Always refill.
   useEffect(() => {
     if (isAuthBypass) return;
     if (!dockHydrated) return;
     if (dockItems.length > 0) return;
-    if (autoSeededEmptyDockRef.current) return;
     // Wait for permissions when a building is selected — otherwise we'd
     // seed using an empty permission set and land on the `['time-tool']`
     // fallback, which is exactly the empty-feeling state we're trying to
@@ -691,7 +685,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     ) {
       return;
     }
-    autoSeededEmptyDockRef.current = true;
     const defaultTools = getDefaultDockTools();
     if (defaultTools.length === 0) return;
     const defaultDock = migrateToDockItems(defaultTools);
