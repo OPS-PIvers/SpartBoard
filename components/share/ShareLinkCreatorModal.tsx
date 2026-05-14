@@ -212,6 +212,25 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
 
   const canShare = canAccessFeature('dashboard-sharing');
 
+  const handleAddSubEmail = () => {
+    const trimmed = subEmailDraft.trim();
+    if (!trimmed) return;
+    if (!isValidOronoEmail(trimmed)) {
+      setSubEmailError(
+        t('shareLinkCreatorModal.substitute.invalidEmail', {
+          defaultValue: `Must end with ${ORONO_EMAIL_DOMAIN}`,
+        })
+      );
+      return;
+    }
+    if (subEmails.includes(trimmed)) {
+      setSubEmailDraft('');
+      return;
+    }
+    setSubEmails((prev) => [...prev, trimmed]);
+    setSubEmailDraft('');
+  };
+
   const handleCreate = async () => {
     if (!canShare || creating) return;
 
@@ -714,22 +733,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
                         e.preventDefault();
-                        const trimmed = subEmailDraft.trim();
-                        if (!trimmed) return;
-                        if (!isValidOronoEmail(trimmed)) {
-                          setSubEmailError(
-                            t('shareLinkCreatorModal.substitute.invalidEmail', {
-                              defaultValue: `Must end with ${ORONO_EMAIL_DOMAIN}`,
-                            })
-                          );
-                          return;
-                        }
-                        if (subEmails.includes(trimmed)) {
-                          setSubEmailDraft('');
-                          return;
-                        }
-                        setSubEmails((prev) => [...prev, trimmed]);
-                        setSubEmailDraft('');
+                        handleAddSubEmail();
                       }
                     }}
                     placeholder={`name${ORONO_EMAIL_DOMAIN}`}
@@ -737,24 +741,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
                   />
                   <button
                     type="button"
-                    onClick={() => {
-                      const trimmed = subEmailDraft.trim();
-                      if (!trimmed) return;
-                      if (!isValidOronoEmail(trimmed)) {
-                        setSubEmailError(
-                          t('shareLinkCreatorModal.substitute.invalidEmail', {
-                            defaultValue: `Must end with ${ORONO_EMAIL_DOMAIN}`,
-                          })
-                        );
-                        return;
-                      }
-                      if (subEmails.includes(trimmed)) {
-                        setSubEmailDraft('');
-                        return;
-                      }
-                      setSubEmails((prev) => [...prev, trimmed]);
-                      setSubEmailDraft('');
-                    }}
+                    onClick={handleAddSubEmail}
                     className="shrink-0 inline-flex items-center gap-1 rounded-md bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 text-xs font-bold text-slate-700 transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
