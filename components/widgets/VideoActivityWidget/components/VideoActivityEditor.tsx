@@ -60,6 +60,7 @@ export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
     setSelectedId,
     addQuestionAtTime,
     updateQuestion,
+    setVideoDurationSeconds,
     error,
   } = state;
 
@@ -116,6 +117,7 @@ export const VideoActivityEditorContextPane: React.FC<PaneProps> = ({
               updateQuestion(id, { timestamp: seconds })
             }
             activeQuestionId={selectedId ?? undefined}
+            onDurationChange={setVideoDurationSeconds}
           />
         ) : (
           <div className="aspect-video w-full rounded-xl border-2 border-dashed border-slate-300 bg-white flex flex-col items-center justify-center text-center text-slate-500 px-4">
@@ -485,12 +487,35 @@ interface AiOverlayProps {
   state: VideoActivityEditorController;
 }
 
+const VIDEO_TYPE_STEPPER_ROWS: ReadonlyArray<{
+  type: 'MC' | 'FIB' | 'MA';
+  label: string;
+  hint: string;
+}> = [
+  {
+    type: 'MC',
+    label: 'Multiple Choice',
+    hint: 'One correct answer + 3 distractors',
+  },
+  {
+    type: 'FIB',
+    label: 'Fill in the Blank',
+    hint: 'Student types a short answer',
+  },
+  {
+    type: 'MA',
+    label: 'Multi-Answer',
+    hint: 'Student selects all correct options',
+  },
+];
+
 export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
   const {
     showAiPrompt,
     setShowAiPrompt,
-    aiQuestionCount,
-    setAiQuestionCount,
+    aiTypeCounts,
+    setAiTypeCount,
+    aiTotalCount,
     aiGenerating,
     aiError,
     runAiGenerate,
@@ -504,25 +529,62 @@ export const VideoActivityAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       title="Draft with AI"
       description="Gemini will watch the video and append questions to the current list."
       generating={aiGenerating}
-      canGenerate={!!youtubeUrl.trim()}
+      canGenerate={!!youtubeUrl.trim() && aiTotalCount > 0}
       onGenerate={() => void runAiGenerate()}
       error={aiError}
       generateLabel="Generate Questions"
     >
-      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-2">
-        <div className="flex justify-between items-center text-xs font-bold text-indigo-700/70 uppercase">
-          <span>Question Count</span>
-          <span>{aiQuestionCount}</span>
+      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between text-xs font-bold text-indigo-700/70 uppercase tracking-widest">
+          <span>Question Mix</span>
+          <span>Total: {aiTotalCount}</span>
         </div>
-        <input
-          type="range"
-          min={3}
-          max={15}
-          value={aiQuestionCount}
-          onChange={(e) => setAiQuestionCount(parseInt(e.target.value))}
-          className="w-full accent-indigo-600"
-          aria-label="Target question count"
-        />
+        <ul className="space-y-2">
+          {VIDEO_TYPE_STEPPER_ROWS.map((row) => {
+            const value = aiTypeCounts[row.type];
+            return (
+              <li
+                key={row.type}
+                className="flex items-center gap-3 bg-white rounded-xl border border-indigo-100 px-3 py-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-indigo-900">
+                    {row.label}
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    {row.hint}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setAiTypeCount(row.type, value - 1)}
+                    disabled={value <= 0 || aiGenerating}
+                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label={`Decrease ${row.label} count`}
+                  >
+                    –
+                  </button>
+                  <span
+                    className="w-6 text-center text-sm font-bold text-indigo-900 tabular-nums"
+                    aria-live="polite"
+                  >
+                    {value}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAiTypeCount(row.type, value + 1)}
+                    disabled={value >= 15 || aiGenerating}
+                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label={`Increase ${row.label} count`}
+                  >
+                    +
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </AIGeneratorOverlay>
   );

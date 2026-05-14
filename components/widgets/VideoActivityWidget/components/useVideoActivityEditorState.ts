@@ -1,6 +1,17 @@
 import { useCallback, useMemo, useState } from 'react';
 import { VideoActivityData, VideoActivityQuestion } from '@/types';
-import { generateVideoActivity } from '@/utils/ai';
+import {
+  generateVideoActivity,
+  type VideoQuestionGenType,
+  type VideoTypeCounts,
+} from '@/utils/ai';
+
+/** Defaults to a familiar "5 MC" experience for first-time opens of the overlay. */
+const DEFAULT_AI_TYPE_COUNTS: Record<VideoQuestionGenType, number> = {
+  MC: 5,
+  FIB: 0,
+  MA: 0,
+};
 
 /** Convert total seconds to MM:SS string. */
 export function secondsToMmSs(seconds: number): string {
@@ -62,8 +73,13 @@ export interface VideoActivityEditorController {
   // AI generation
   showAiPrompt: boolean;
   setShowAiPrompt: (next: boolean) => void;
-  aiQuestionCount: number;
-  setAiQuestionCount: (next: number) => void;
+  /** Per-type AI question budget (MC / FIB / MA). Sum drives "total to generate". */
+  aiTypeCounts: Record<VideoQuestionGenType, number>;
+  setAiTypeCount: (type: VideoQuestionGenType, count: number) => void;
+  aiTotalCount: number;
+  /** Video duration (seconds) lifted from the YouTube player. 0 until known. */
+  videoDurationSeconds: number;
+  setVideoDurationSeconds: (seconds: number) => void;
   aiGenerating: boolean;
   aiError: string | null;
   runAiGenerate: () => Promise<void>;
@@ -137,7 +153,10 @@ export function useVideoActivityEditorState({
 
   // AI generation state
   const [showAiPrompt, setShowAiPrompt] = useState(false);
-  const [aiQuestionCount, setAiQuestionCount] = useState(5);
+  const [aiTypeCounts, setAiTypeCounts] = useState<
+    Record<VideoQuestionGenType, number>
+  >(DEFAULT_AI_TYPE_COUNTS);
+  const [videoDurationSeconds, setVideoDurationSeconds] = useState(0);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
 
@@ -160,7 +179,8 @@ export function useVideoActivityEditorState({
     setTimestampInputs(init);
     setReorderHintFor(null);
     setShowAiPrompt(false);
-    setAiQuestionCount(5);
+    setAiTypeCounts(DEFAULT_AI_TYPE_COUNTS);
+    setVideoDurationSeconds(0);
     setAiGenerating(false);
     setAiError(null);
   }
@@ -352,16 +372,45 @@ export function useVideoActivityEditorState({
     setTimestampInputs((prev) => ({ ...prev, [id]: raw }));
   }, []);
 
+  const aiTotalCount = useMemo(
+    () => aiTypeCounts.MC + aiTypeCounts.FIB + aiTypeCounts.MA,
+    [aiTypeCounts]
+  );
+
+  const setAiTypeCount = useCallback(
+    (type: VideoQuestionGenType, count: number) => {
+      const clean = Math.max(
+        0,
+        Math.min(15, Number.isFinite(count) ? Math.floor(count) : 0)
+      );
+      setAiTypeCounts((prev) => ({ ...prev, [type]: clean }));
+    },
+    []
+  );
+
   const runAiGenerate = useCallback(async () => {
     if (!youtubeUrl.trim()) {
       setAiError('A YouTube URL is required to generate questions.');
       return;
     }
+    if (aiTotalCount <= 0) {
+      setAiError('Pick at least one question to generate.');
+      return;
+    }
     setAiGenerating(true);
     setAiError(null);
+    const typeCounts: VideoTypeCounts = {
+      MC: aiTypeCounts.MC,
+      FIB: aiTypeCounts.FIB,
+      MA: aiTypeCounts.MA,
+    };
     let result: Awaited<ReturnType<typeof generateVideoActivity>>;
     try {
-      result = await generateVideoActivity(youtubeUrl.trim(), aiQuestionCount);
+      result = await generateVideoActivity(
+        youtubeUrl.trim(),
+        typeCounts,
+        videoDurationSeconds > 0 ? videoDurationSeconds : undefined
+      );
     } catch (err) {
       setAiError(err instanceof Error ? err.message : 'Generation failed');
       setAiGenerating(false);
@@ -372,15 +421,21 @@ export function useVideoActivityEditorState({
         throw new Error('AI returned an unexpected response shape.');
       }
       if (!title.trim() && result.title) setTitle(result.title);
-      const generated: VideoActivityQuestion[] = result.questions.map((q) => ({
-        id: crypto.randomUUID(),
-        timestamp: q.timestamp,
-        text: q.text,
-        type: 'MC',
-        correctAnswer: q.correctAnswer ?? '',
-        incorrectAnswers: q.incorrectAnswers ?? [],
-        timeLimit: q.timeLimit ?? 30,
-      }));
+      const generated: VideoActivityQuestion[] = result.questions.map((q) => {
+        const type: VideoQuestionGenType =
+          q.type === 'FIB' || q.type === 'MA' || q.type === 'MC'
+            ? q.type
+            : 'MC';
+        return {
+          id: crypto.randomUUID(),
+          timestamp: q.timestamp,
+          text: q.text,
+          type,
+          correctAnswer: q.correctAnswer ?? '',
+          incorrectAnswers: type === 'FIB' ? [] : (q.incorrectAnswers ?? []),
+          timeLimit: q.timeLimit ?? 30,
+        };
+      });
       setQuestions((prev) => sortByTimestamp([...prev, ...generated]));
       setTimestampInputs((prev) => {
         const next = { ...prev };
@@ -400,7 +455,7 @@ export function useVideoActivityEditorState({
     } finally {
       setAiGenerating(false);
     }
-  }, [youtubeUrl, aiQuestionCount, title]);
+  }, [youtubeUrl, aiTypeCounts, aiTotalCount, videoDurationSeconds, title]);
 
   return {
     title,
@@ -424,8 +479,11 @@ export function useVideoActivityEditorState({
     reorderHintFor,
     showAiPrompt,
     setShowAiPrompt,
-    aiQuestionCount,
-    setAiQuestionCount,
+    aiTypeCounts,
+    setAiTypeCount,
+    aiTotalCount,
+    videoDurationSeconds,
+    setVideoDurationSeconds,
     aiGenerating,
     aiError,
     runAiGenerate,

@@ -313,20 +313,20 @@ describe('generateDashboardLayout', () => {
 
 describe('generateQuiz', () => {
   it('generates quiz successfully', async () => {
-    const result = await generateQuiz('Science');
+    const result = await generateQuiz('Science', { MC: 5 });
     expect(result.title).toBe('Mock Quiz');
     expect(result.questions).toHaveLength(1);
     expect(result.questions[0].text).toBe('Question 1');
   });
 
   it('throws formatted error on failure', async () => {
-    await expect(generateQuiz('FAIL')).rejects.toThrow(
+    await expect(generateQuiz('FAIL', { MC: 5 })).rejects.toThrow(
       /Failed to generate quiz.*Simulated API Failure/
     );
   });
 
   it('throws error on invalid response format', async () => {
-    await expect(generateQuiz('invalid-response')).rejects.toThrow(
+    await expect(generateQuiz('invalid-response', { MC: 5 })).rejects.toThrow(
       'Invalid response format from AI'
     );
   });
@@ -417,7 +417,9 @@ beforeEach(() => {
 
 describe('video activity callables', () => {
   it('passes the extended timeout to generateVideoActivity', async () => {
-    await generateVideoActivity('https://youtube.com/watch?v=abc12345678', 3);
+    await generateVideoActivity('https://youtube.com/watch?v=abc12345678', {
+      MC: 3,
+    });
 
     expect(vi.mocked(httpsCallable)).toHaveBeenCalledWith(
       {},
@@ -428,7 +430,7 @@ describe('video activity callables', () => {
 
   it('maps deadline-exceeded to the friendly video activity error', async () => {
     await expect(
-      generateVideoActivity('https://youtube.com/watch?v=timeout', 3)
+      generateVideoActivity('https://youtube.com/watch?v=timeout', { MC: 3 })
     ).rejects.toThrow(
       'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
     );
@@ -436,7 +438,9 @@ describe('video activity callables', () => {
 
   it('maps deadline-exceeded to the friendly transcription error', async () => {
     await expect(
-      transcribeVideoWithGemini('https://youtube.com/watch?v=timeout', 3)
+      transcribeVideoWithGemini('https://youtube.com/watch?v=timeout', {
+        MC: 3,
+      })
     ).rejects.toThrow(
       'Video analysis is taking longer than expected. Please try a shorter YouTube video (under ~15 minutes) or try again in a moment.'
     );
@@ -459,7 +463,7 @@ describe('video activity callables', () => {
 
     const result = await generateVideoActivity(
       'https://youtube.com/watch?v=fallbackflagstrip',
-      1
+      { MC: 1 }
     );
     expect(result).toEqual({
       title: 'Video Activity',

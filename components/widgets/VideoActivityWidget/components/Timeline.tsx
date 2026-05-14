@@ -55,6 +55,14 @@ export interface TimelineProps {
   onMarkerDrag?: (questionId: string, newSeconds: number) => void;
   /** Optional id of a question the parent considers "active" (rendered larger). */
   activeQuestionId?: string;
+  /**
+   * Called whenever the player reports a new total duration (initial onReady
+   * and any later state transition). Lifted to the editor so the AI overlay
+   * can pass duration as a hard upper bound on Gemini-generated timestamps,
+   * which was the root cause of the 2:40 video returning 3:35 timestamps.
+   * Fires with 0 while the duration is still unknown.
+   */
+  onDurationChange?: (seconds: number) => void;
 }
 
 /**
@@ -84,6 +92,7 @@ export const Timeline: React.FC<TimelineProps> = ({
   onSelectQuestion,
   onMarkerDrag,
   activeQuestionId,
+  onDurationChange,
 }) => {
   const playerContainerRef = useRef<HTMLDivElement | null>(null);
   const trackRef = useRef<HTMLDivElement | null>(null);
@@ -146,6 +155,14 @@ export const Timeline: React.FC<TimelineProps> = ({
     // immediately — leaving the player stuck on "Loading player…".
     setInitRetryToken(0);
   }
+
+  // Bubble duration up to the editor whenever it changes. Effect rather than
+  // calling `onDurationChange` directly from the player callbacks because the
+  // YT player can re-emit the same duration multiple times and the parent
+  // typically wants a stable update on real changes only.
+  useEffect(() => {
+    if (onDurationChange) onDurationChange(duration);
+  }, [duration, onDurationChange]);
 
   // (Re)create the player whenever videoId changes.
   useEffect(() => {
