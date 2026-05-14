@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
@@ -10,11 +10,17 @@ import {
   DEFAULT_GLOBAL_STYLE,
   SpecialistScheduleItem,
 } from '@/types';
-import { Calendar, Clock, CheckCircle2, Circle } from 'lucide-react';
+import { Calendar, Clock, CheckCircle2, Circle, Timer } from 'lucide-react';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
+import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { hexToRgba } from '@/utils/styles';
+import {
+  REFERENCE_VIEWPORT,
+  computeWidgetPixelRect,
+} from '@/utils/proportionalLayout';
+import { SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
 
 /** Parses an "HH:MM" time string and returns minutes since midnight, or -1 if invalid. */
 const parseTime = (t: string | undefined): number => {
@@ -46,7 +52,7 @@ const toDateStr = (d: Date): string => {
 export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { activeDashboard } = useDashboard();
+  const { activeDashboard, addWidget, addToast } = useDashboard();
   const { featurePermissions } = useAuth();
   const buildingId = useWidgetBuildingId(widget) ?? 'schumann-elementary';
   const config = widget.config as SpecialistScheduleConfig;
@@ -208,6 +214,97 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
     return bestIndex;
   }, [currentItems, now]);
 
+  const handleStartTimer = useCallback(
+    (item: SpecialistScheduleItem) => {
+      if (!item.endTime) return;
+      const endMinutes = parseTime(item.endTime);
+      if (endMinutes < 0) return;
+      const currentNow = new Date();
+      const nowSec =
+        currentNow.getHours() * 3600 +
+        currentNow.getMinutes() * 60 +
+        currentNow.getSeconds();
+      const remainingSeconds = Math.max(0, endMinutes * 60 - nowSec);
+      if (remainingSeconds <= 0) {
+        addToast('This event has already ended.', 'info');
+        return;
+      }
+
+      // Place the new timer to the right of this widget. We pass both pixel
+      // and proportional overrides so the rect is self-consistent on the
+      // first render *and* on the next hydration tick — passing only pixel
+      // coords would cause addWidget to derive proportions against the
+      // 1920×1080 reference viewport, then hydration would translate those
+      // wrong proportions back through the current viewport and jump/resize
+      // the widget on top of this one.
+      const timerDefaults = WIDGET_DEFAULTS['time-tool'];
+      const timerRefW = timerDefaults.w ?? 420;
+      const timerRefH = timerDefaults.h ?? 400;
+      const pad = SNAP_LAYOUT_CONSTANTS.PADDING;
+      const safeRefW = REFERENCE_VIEWPORT.w - 2 * pad;
+      const safeRefH = REFERENCE_VIEWPORT.h - 2 * pad;
+      // Derive the current viewport's safe-board dims from this widget's own
+      // pixel ↔ proportion mapping; fall back to reference dims if missing.
+      const wPropSafe =
+        typeof widget.wProp === 'number' && widget.wProp > 0 ? widget.wProp : 0;
+      const hPropSafe =
+        typeof widget.hProp === 'number' && widget.hProp > 0 ? widget.hProp : 0;
+      const safeCurW = wPropSafe > 0 ? widget.w / wPropSafe : safeRefW;
+      const safeCurH = hPropSafe > 0 ? widget.h / hPropSafe : safeRefH;
+      const newWProp = timerRefW / safeRefW;
+      const newHProp = timerRefH / safeRefH;
+      const newXProp = (widget.xProp ?? 0) + wPropSafe + 20 / safeCurW;
+      const newYProp = widget.yProp ?? 0;
+      const aspectRatio = timerRefW / timerRefH;
+      // Apply the same aspect-fit math hydration will use so the first render
+      // matches the post-hydration size (otherwise the widget mounts at the
+      // raw proportional rect and snaps smaller once aspect-fit kicks in).
+      const fitted = computeWidgetPixelRect(
+        {
+          xProp: newXProp,
+          yProp: newYProp,
+          wProp: newWProp,
+          hProp: newHProp,
+          aspectRatio,
+        },
+        safeCurW + 2 * pad,
+        safeCurH + 2 * pad,
+        'preserve-aspect'
+      );
+
+      addWidget('time-tool', {
+        x: fitted.x,
+        y: fitted.y,
+        w: fitted.w,
+        h: fitted.h,
+        xProp: newXProp,
+        yProp: newYProp,
+        wProp: newWProp,
+        hProp: newHProp,
+        aspectRatio,
+        config: {
+          mode: 'timer',
+          visualType: 'digital',
+          duration: remainingSeconds,
+          elapsedTime: remainingSeconds,
+          isRunning: true,
+          startTime: Date.now(),
+          selectedSound: 'Gong',
+        },
+      });
+    },
+    [
+      addWidget,
+      addToast,
+      widget.w,
+      widget.h,
+      widget.xProp,
+      widget.yProp,
+      widget.wProp,
+      widget.hProp,
+    ]
+  );
+
   const clockWidget = useMemo(
     () => activeDashboard?.widgets?.find((w) => w.type === 'clock') ?? null,
     [activeDashboard?.widgets]
@@ -360,6 +457,30 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
                       {item.task}
                     </span>
                   </div>
+                  {item.endTime && (
+                    <button
+                      onClick={() => handleStartTimer(item)}
+                      className="shrink-0 text-teal-400 hover:text-teal-600 hover:bg-teal-50 rounded-lg transition-colors ml-auto"
+                      style={{
+                        padding: 'min(4px, 1cqmin)',
+                        // Active rows render the absolutely-positioned "NOW" badge
+                        // in the top-right; shift the timer button left so it clears.
+                        marginRight: isActive
+                          ? 'min(48px, 11cqmin)'
+                          : undefined,
+                      }}
+                      title={`Start timer until ${formatTime(item.endTime, format24)}`}
+                      aria-label={`Start timer until ${formatTime(item.endTime, format24)}`}
+                    >
+                      <Timer
+                        className="shrink-0"
+                        style={{
+                          width: 'min(28px, 7cqmin)',
+                          height: 'min(28px, 7cqmin)',
+                        }}
+                      />
+                    </button>
+                  )}
                 </div>
               );
             })}
