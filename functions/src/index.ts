@@ -1887,7 +1887,10 @@ export function validateAndBucketVideoQuestions(
           (a): a is string => typeof a === 'string' && a.trim().length > 0
         )
       : [];
-    if (type === 'MC' && incorrectAnswers.length < 2) continue;
+    // The prompt asks for exactly 3 distractors for MC. Validator floor is
+    // 3 to match — with the `bufferedRequestCount` surplus we'd rather drop
+    // a thin question than render a watered-down 3-option MC.
+    if (type === 'MC' && incorrectAnswers.length < 3) continue;
     // MA stores correct selections pipe-joined in `correctAnswer` and
     // shows `incorrectAnswers` as the distractor options. A "MA" with no
     // distractors degenerates into "pick the only choice"; the prompt
@@ -1994,11 +1997,16 @@ export function validateAndBucketQuizQuestions(
           (a): a is string => typeof a === 'string' && a.trim().length > 0
         )
       : [];
-    if (type === 'MC' && incorrectAnswers.length < 2) continue;
-    if (type === 'Matching' && !isValidMatchingList(correctAnswer, 2)) {
+    // The prompts ask for exactly 3 distractors (MC) and 3+ pairs/items
+    // (Matching, Ordering). Validator floors match — with the
+    // `bufferedRequestCount` surplus we'd rather drop a thin question than
+    // render a 3-option MC or a 2-pair Matching that the teacher didn't
+    // ask for.
+    if (type === 'MC' && incorrectAnswers.length < 3) continue;
+    if (type === 'Matching' && !isValidMatchingList(correctAnswer, 3)) {
       continue;
     }
-    if (type === 'Ordering' && !isValidOrderingList(correctAnswer, 2)) {
+    if (type === 'Ordering' && !isValidOrderingList(correctAnswer, 3)) {
       continue;
     }
     const timeLimitRaw =
