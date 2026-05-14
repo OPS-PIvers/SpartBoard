@@ -167,6 +167,14 @@ function logWarn(scope: string, err: unknown, extra?: Record<string, unknown>) {
   console.warn(`[googleOAuth.${scope}]`, err, extra ?? {});
 }
 
+// Info-level log for security-relevant successful events (e.g. a successful
+// refresh-token revocation). These need to be auditable after the fact —
+// after a security incident or a teacher support request — even when nothing
+// went wrong, so they don't fit the warn/error channels.
+function logInfo(scope: string, extra?: Record<string, unknown>) {
+  console.info(`[googleOAuth.${scope}]`, extra ?? {});
+}
+
 /**
  * Exchange a Google authorization code for tokens, then persist the
  * refresh_token.
@@ -432,8 +440,9 @@ export const revokeGoogleRefreshToken = onCall(
         plaintext = null;
       }
     }
+    let googleRevoked = false;
     if (plaintext) {
-      await axios
+      googleRevoked = await axios
         .post(
           GOOGLE_REVOKE_ENDPOINT,
           new URLSearchParams({ token: plaintext }).toString(),
@@ -442,6 +451,7 @@ export const revokeGoogleRefreshToken = onCall(
             timeout: GOOGLE_API_TIMEOUT_MS,
           }
         )
+        .then(() => true)
         .catch((err) => {
           // Best-effort revoke. Google may have already invalidated the
           // token (`invalid_token` response) — that's fine, deleting the
@@ -450,9 +460,19 @@ export const revokeGoogleRefreshToken = onCall(
           // misconfiguration) are all worth surfacing in logs so ops can
           // see sustained revoke endpoint regressions.
           logWarn('revokeGoogleRefreshToken.revokeEndpoint', err, { uid });
+          return false;
         });
     }
     await ref.delete();
+    // Auditable success record: who, and whether Google's side of the
+    // revoke landed. Useful when a teacher reports unexpected Drive
+    // access loss or — conversely — claims they disconnected but Drive
+    // is still authorized.
+    logInfo('revokeGoogleRefreshToken.success', {
+      uid,
+      googleRevoked,
+      hadStoredToken: plaintext !== null,
+    });
     return { revoked: true };
   }
 );
