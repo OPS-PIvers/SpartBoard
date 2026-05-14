@@ -1,19 +1,17 @@
 import React from 'react';
 
-export type AssignmentFilterMode = 'all' | 'active' | 'completed';
+export type AssignmentFilterMode = 'active' | 'completed';
 
 interface AssignmentFilterTabsProps {
   value: AssignmentFilterMode;
   onChange: (mode: AssignmentFilterMode) => void;
   counts?: {
-    all?: number;
     active?: number;
     completed?: number;
   };
 }
 
 const TABS: ReadonlyArray<{ id: AssignmentFilterMode; label: string }> = [
-  { id: 'all', label: 'All' },
   { id: 'active', label: 'Active' },
   { id: 'completed', label: 'Completed' },
 ];

@@ -197,7 +197,9 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   // check confirms participation the row re-renders with the standard
   // "completed" treatment; if it confirms non-participation the parent
   // drops the row from its partition entirely.
-  const isPending = pendingVerification && !isCompleted;
+  const isPending: boolean = !!pendingVerification && !isCompleted;
+
+  const isGraded = assignment.gradingState === 'graded';
 
   return (
     <a
@@ -206,7 +208,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
       className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
         isPending
           ? 'border-dashed border-slate-200 bg-slate-50'
-          : `border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm ${isCompleted ? 'opacity-80' : ''}`
+          : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-sm'
       }`}
     >
       <span
@@ -226,11 +228,7 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
       <div className="min-w-0 flex-1">
         <p
           className={`truncate text-sm font-semibold sm:text-base ${
-            isCompleted
-              ? 'text-slate-500 line-through'
-              : isPending
-                ? 'text-slate-500'
-                : 'text-slate-800'
+            isPending ? 'text-slate-500' : 'text-slate-800'
           }`}
         >
           {assignment.title}
@@ -249,17 +247,54 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
       </div>
 
       <span
-        className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${
-          isCompleted
-            ? 'bg-slate-100 text-slate-500 group-hover:bg-slate-200'
-            : isPending
-              ? 'bg-slate-100 text-slate-400'
-              : 'bg-brand-blue-primary text-white shadow-sm shadow-brand-blue-primary/20 group-hover:bg-brand-blue-dark'
-        }`}
+        className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
+          { isPending, isCompleted, isGraded }
+        )}`}
         aria-hidden="true"
       >
-        {isCompleted ? 'Review' : isPending ? 'Checking…' : 'Open'}
+        {getChipLabel({ isPending, isCompleted, isGraded })}
       </span>
     </a>
   );
 };
+
+/**
+ * Status chip wording per row state.
+ *  - Active row → "Open" (primary CTA)
+ *  - Completed row, grades not published → "Not graded"
+ *  - Completed row, grades published → "View results"
+ *  - Optimistically-surfaced row whose completion check hasn't resolved →
+ *    "Checking…"
+ */
+function getChipLabel({
+  isPending,
+  isCompleted,
+  isGraded,
+}: {
+  isPending: boolean;
+  isCompleted: boolean;
+  isGraded: boolean;
+}): string {
+  if (isPending) return 'Checking…';
+  if (!isCompleted) return 'Open';
+  return isGraded ? 'View results' : 'Not graded';
+}
+
+function getChipClass({
+  isPending,
+  isCompleted,
+  isGraded,
+}: {
+  isPending: boolean;
+  isCompleted: boolean;
+  isGraded: boolean;
+}): string {
+  if (isPending) return 'bg-slate-100 text-slate-400';
+  if (!isCompleted) {
+    return 'bg-brand-blue-primary text-white shadow-sm shadow-brand-blue-primary/20 group-hover:bg-brand-blue-dark';
+  }
+  if (isGraded) {
+    return 'bg-brand-blue-primary text-white shadow-sm shadow-brand-blue-primary/20 group-hover:bg-brand-blue-dark';
+  }
+  return 'bg-slate-100 text-slate-500 group-hover:bg-slate-200';
+}

@@ -72,6 +72,14 @@ export interface AssignmentSummary {
   classIds: string[];
   createdAt?: number;
   endedAt?: number;
+  /**
+   * Whether the teacher has published grades / made results visible to the
+   * student. Drives the Completed-row status chip ("Not graded" vs "View
+   * results"). For kinds without an explicit publish step, this stays
+   * 'not-graded' — the student still sees their submission; the chip just
+   * doesn't promise a score is waiting.
+   */
+  gradingState: 'not-graded' | 'graded';
 }
 
 export type LoadState = 'loading' | 'ready';
@@ -104,6 +112,13 @@ interface KindConfig {
   accent: string;
   titleFrom: (data: DocumentData) => string;
   hrefFrom: (sessionId: string, data: DocumentData) => string;
+  /**
+   * Derive whether grades / results have been published to the student from
+   * the session document. Each kind decides its own publish signal — quiz
+   * uses `scoreVisibility` + `scorePublishedAt`; other kinds default to
+   * 'not-graded' until they grow an explicit publish step.
+   */
+  gradingStateFrom: (data: DocumentData) => 'not-graded' | 'graded';
 }
 
 export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
@@ -128,6 +143,16 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
           ? data.code
           : sessionId;
       return `/quiz?code=${encodeURIComponent(code)}`;
+    },
+    gradingStateFrom: (data) => {
+      // Quiz uses `scoreVisibility` ('none' = hidden) plus a
+      // `scorePublishedAt` timestamp to mark when grades go live to the
+      // student. Both must be present for the student to see results.
+      const visibility = (data as Record<string, unknown>).scoreVisibility;
+      const publishedAt = (data as Record<string, unknown>).scorePublishedAt;
+      const isVisible = typeof visibility === 'string' && visibility !== 'none';
+      const isPublished = typeof publishedAt === 'number';
+      return isVisible && isPublished ? 'graded' : 'not-graded';
     },
   },
   'video-activity': {
@@ -155,6 +180,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
       return 'Video activity';
     },
     hrefFrom: (sessionId) => `/activity/${encodeURIComponent(sessionId)}`,
+    gradingStateFrom: () => 'not-graded',
   },
   'guided-learning': {
     collectionName: 'guided_learning_sessions',
@@ -172,6 +198,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
         : 'Guided learning',
     hrefFrom: (sessionId) =>
       `/guided-learning/${encodeURIComponent(sessionId)}`,
+    gradingStateFrom: () => 'not-graded',
   },
   'mini-app': {
     collectionName: 'mini_app_sessions',
@@ -195,6 +222,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
       return 'Mini app';
     },
     hrefFrom: (sessionId) => `/miniapp/${encodeURIComponent(sessionId)}`,
+    gradingStateFrom: () => 'not-graded',
   },
   'activity-wall': {
     collectionName: 'activity_wall_sessions',
@@ -211,6 +239,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
         ? data.title
         : 'Activity wall',
     hrefFrom: (sessionId) => `/activity-wall/${encodeURIComponent(sessionId)}`,
+    gradingStateFrom: () => 'not-graded',
   },
 };
 
@@ -392,6 +421,7 @@ export function useStudentAssignments({
         classIds: intersected,
         createdAt: typeof createdAtRaw === 'number' ? createdAtRaw : undefined,
         endedAt: typeof endedAtRaw === 'number' ? endedAtRaw : undefined,
+        gradingState: config.gradingStateFrom(data),
       };
     };
 

@@ -7,6 +7,7 @@ export default {
     './components/**/*.{js,ts,jsx,tsx}',
     './context/**/*.{js,ts,jsx,tsx}',
     './hooks/**/*.{js,ts,jsx,tsx}',
+    './utils/**/*.{js,ts}',
     './*.{js,ts,jsx,tsx}',
     './config/**/*.ts',
   ],
@@ -16,6 +17,15 @@ export default {
       pattern:
         /^font-(sans|serif|mono|handwritten|rounded|fun|comic|slab|retro|marker|cursive)$/,
     },
+    // Quiz written-response highlight colors. Defined in utils/writtenAnnotations.ts
+    // and applied to <mark> elements at runtime. Without this safelist (and
+    // without scanning utils/), Tailwind would purge these and <mark> would
+    // fall back to the browser default (yellow) regardless of the teacher's
+    // color choice — the symptom of the "all highlights look yellow" bug.
+    'bg-amber-300/60',
+    'bg-emerald-300/60',
+    'bg-pink-300/60',
+    'bg-sky-300/60',
     'bg-blue-500',
     'bg-red-500',
     'bg-amber-500',

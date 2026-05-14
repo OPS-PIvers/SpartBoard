@@ -158,7 +158,7 @@ describe('WrittenResponseGrader — annotations + snapshot', () => {
         onClose={vi.fn()}
       />
     );
-    expect(screen.getByText(/Annotations \(1\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Highlights & comments \(1\)/)).toBeInTheDocument();
     expect(screen.getByText('A note')).toBeInTheDocument();
   });
 });

@@ -1,7 +1,35 @@
+import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
 import type { WrittenAnswerAnnotation } from '@/types';
+
+/**
+ * Controlled wrapper for the edit-mode tests. The component now requires
+ * the parent to own `activeId`; this harness handles that so tests can
+ * focus on observable behavior (popover open/close, comment edits).
+ */
+const EditHarness: React.FC<{
+  snapshot: string;
+  annotations: WrittenAnswerAnnotation[];
+  onChange: (next: WrittenAnswerAnnotation[]) => void;
+  initialActiveId?: string | null;
+}> = ({ snapshot, annotations, onChange, initialActiveId = null }) => {
+  const [activeId, setActiveId] = React.useState<string | null>(
+    initialActiveId
+  );
+  return (
+    <AnnotatedResponseView
+      mode="edit"
+      snapshot={snapshot}
+      annotations={annotations}
+      authorUid="teacher-1"
+      onChange={onChange}
+      activeId={activeId}
+      onActiveIdChange={setActiveId}
+    />
+  );
+};
 
 const ann = (
   from: number,
@@ -61,105 +89,82 @@ describe('AnnotatedResponseView — read mode', () => {
 });
 
 describe('AnnotatedResponseView — edit mode', () => {
-  it('renders an empty-state hint when no annotations exist', () => {
+  it('renders the article without a popover when no annotation is active', () => {
     render(
-      <AnnotatedResponseView
-        mode="edit"
+      <EditHarness
         snapshot="<p>hello world</p>"
         annotations={[]}
-        authorUid="teacher-1"
         onChange={vi.fn()}
       />
     );
     expect(
-      screen.getByText(/select text in the response/i)
-    ).toBeInTheDocument();
+      screen.queryByRole('dialog', { name: /annotation editor/i })
+    ).not.toBeInTheDocument();
+    // The article content renders.
+    expect(screen.getByText(/hello/)).toBeInTheDocument();
   });
 
-  it('renders one row per saved annotation', () => {
+  it('opens an anchored popover when an existing mark is clicked', () => {
     render(
-      <AnnotatedResponseView
-        mode="edit"
+      <EditHarness
         snapshot="<p>hello world</p>"
-        annotations={[
-          ann(0, 5, { id: 'a1', comment: 'First' }),
-          ann(6, 11, { id: 'a2' }),
-        ]}
-        authorUid="teacher-1"
+        annotations={[ann(0, 5, { id: 'a1', comment: 'note' })]}
         onChange={vi.fn()}
       />
     );
-    expect(screen.getByText(/Annotations \(2\)/)).toBeInTheDocument();
-    expect(screen.getByText('First')).toBeInTheDocument();
-  });
-
-  it('opens the editor panel when an annotation row is clicked', () => {
-    const onChange = vi.fn();
-    render(
-      <AnnotatedResponseView
-        mode="edit"
-        snapshot="<p>hello world</p>"
-        annotations={[ann(0, 5, { id: 'a1', comment: 'note' })]}
-        authorUid="teacher-1"
-        onChange={onChange}
-      />
-    );
-    const row = screen.getByText('note').closest('button');
-    if (!row) throw new Error('Expected annotation row button');
-    fireEvent.click(row);
-    // Active-editor textarea pre-fills with the comment.
+    // Click the highlighted mark in the article — the parent harness
+    // surfaces the popover.
+    const mark = document.querySelector('mark[data-annotation-id="a1"]');
+    if (!mark) throw new Error('Expected a <mark> for the annotation');
+    fireEvent.click(mark);
+    // Popover renders with the comment pre-filled.
+    expect(
+      screen.getByRole('dialog', { name: /annotation editor/i })
+    ).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/margin comment/i)).toHaveValue('note');
   });
 
-  it('updates the annotation list when the active comment changes', () => {
+  it('updates the annotation list when the popover textarea changes', () => {
     const onChange = vi.fn();
     render(
-      <AnnotatedResponseView
-        mode="edit"
+      <EditHarness
         snapshot="<p>hello world</p>"
         annotations={[ann(0, 5, { id: 'a1', comment: '' })]}
-        authorUid="teacher-1"
         onChange={onChange}
+        initialActiveId="a1"
       />
     );
-    fireEvent.click(screen.getByRole('button', { name: /highlight/i }));
     const ta = screen.getByPlaceholderText(/margin comment/i);
     fireEvent.change(ta, { target: { value: 'edited' } });
     const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
     expect(last[0].comment).toBe('edited');
   });
 
-  it('deletes an annotation via the active-editor trash button', () => {
+  it('deletes the active annotation via the trash button', () => {
     const onChange = vi.fn();
     render(
-      <AnnotatedResponseView
-        mode="edit"
+      <EditHarness
         snapshot="<p>hello world</p>"
         annotations={[ann(0, 5, { id: 'a1', comment: 'x' })]}
-        authorUid="teacher-1"
         onChange={onChange}
+        initialActiveId="a1"
       />
     );
-    const row = screen.getByText('x').closest('button');
-    if (!row) throw new Error('Expected annotation row button');
-    fireEvent.click(row);
     fireEvent.click(screen.getByRole('button', { name: /delete annotation/i }));
     const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
     expect(last).toEqual([]);
   });
 
-  it('changes color when a swatch is clicked in the active editor', () => {
+  it('changes color when a swatch is clicked in the popover', () => {
     const onChange = vi.fn();
     render(
-      <AnnotatedResponseView
-        mode="edit"
+      <EditHarness
         snapshot="<p>hello</p>"
         annotations={[ann(0, 5, { id: 'a1', highlightColor: 'yellow' })]}
-        authorUid="teacher-1"
         onChange={onChange}
+        initialActiveId="a1"
       />
     );
-    fireEvent.click(screen.getAllByRole('button', { name: /highlight/i })[0]);
     fireEvent.click(screen.getByRole('button', { name: /pink highlight/i }));
     const last = onChange.mock.calls.at(-1)?.[0] as WrittenAnswerAnnotation[];
     expect(last[0].highlightColor).toBe('pink');
