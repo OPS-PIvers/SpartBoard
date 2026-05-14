@@ -182,20 +182,40 @@ export const Creator: React.FC<CreatorProps> = ({
     setIsGenerating(true);
     setError(null);
     try {
-      const result = await generateVideoActivity(url, questionCount);
+      // The Creator's pre-editor wizard only exposes a single "how many?"
+      // slider, so we ask Gemini for all MC. The richer per-type stepper
+      // UX lives in the editor's "Draft with AI" overlay where the teacher
+      // has already loaded the player and chosen a video.
+      const result = await generateVideoActivity(url, { MC: questionCount });
       const activity: VideoActivityData = {
         id: crypto.randomUUID(),
         title: title.trim() || result.title,
         youtubeUrl: url.trim(),
-        questions: result.questions.map((q) => ({
-          id: crypto.randomUUID(),
-          timestamp: q.timestamp,
-          text: q.text,
-          type: 'MC',
-          correctAnswer: q.correctAnswer ?? '',
-          incorrectAnswers: q.incorrectAnswers ?? [],
-          timeLimit: q.timeLimit ?? 30,
-        })),
+        questions: result.questions.map((q) => {
+          const type =
+            q.type === 'FIB' || q.type === 'MA' || q.type === 'MC'
+              ? q.type
+              : 'MC';
+          const variants =
+            type === 'FIB' && Array.isArray(q.acceptableVariants)
+              ? q.acceptableVariants.filter(
+                  (v): v is string =>
+                    typeof v === 'string' && v.trim().length > 0
+                )
+              : undefined;
+          return {
+            id: crypto.randomUUID(),
+            timestamp: q.timestamp,
+            text: q.text,
+            type,
+            correctAnswer: q.correctAnswer ?? '',
+            incorrectAnswers: type === 'FIB' ? [] : (q.incorrectAnswers ?? []),
+            timeLimit: q.timeLimit ?? 30,
+            ...(variants && variants.length > 0
+              ? { acceptableVariants: variants }
+              : {}),
+          };
+        }),
         createdAt: Date.now(),
         updatedAt: Date.now(),
       };

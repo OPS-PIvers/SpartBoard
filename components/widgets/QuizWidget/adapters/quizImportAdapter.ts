@@ -238,7 +238,11 @@ export function createQuizImportAdapter(
       promptPlaceholder:
         'e.g. A 5-question quiz about the solar system for 3rd graders.',
       generate: async ({ prompt }) => {
-        const result = await generateQuiz(prompt);
+        // The quiz import wizard has only a free-form prompt textarea — no
+        // type-mix picker — so default to 5 MC questions. The richer
+        // per-type stepper UX lives in the QuizEditor's "Draft with AI"
+        // overlay where the teacher has the full editor open.
+        const result = await generateQuiz(prompt, { MC: 5 });
         return {
           id: crypto.randomUUID(),
           title: result.title,

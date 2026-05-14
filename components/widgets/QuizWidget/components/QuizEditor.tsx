@@ -565,6 +565,29 @@ interface AiOverlayProps {
   state: QuizEditorController;
 }
 
+const QUIZ_TYPE_STEPPER_ROWS: ReadonlyArray<{
+  type: 'MC' | 'FIB' | 'Matching' | 'Ordering';
+  label: string;
+  hint: string;
+}> = [
+  { type: 'MC', label: 'Multiple Choice', hint: 'One answer + 3 distractors' },
+  {
+    type: 'FIB',
+    label: 'Fill in the Blank',
+    hint: 'Student types a short answer',
+  },
+  {
+    type: 'Matching',
+    label: 'Matching',
+    hint: 'Pairs of terms and definitions',
+  },
+  {
+    type: 'Ordering',
+    label: 'Ordering',
+    hint: 'Put items in the correct sequence',
+  },
+];
+
 export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
   const { canAccessFeature } = useAuth();
   const {
@@ -572,6 +595,9 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
     setShowAiPrompt,
     aiPrompt,
     setAiPrompt,
+    aiTypeCounts,
+    setAiTypeCount,
+    aiTotalCount,
     aiGenerating,
     aiError,
     setAiFile,
@@ -587,7 +613,7 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       title="Draft with AI"
       description="Describe the quiz you want to create. Generated questions will be appended to the current list."
       generating={aiGenerating}
-      canGenerate={!!aiPrompt.trim() && !aiFileExtracting}
+      canGenerate={!!aiPrompt.trim() && !aiFileExtracting && aiTotalCount > 0}
       onGenerate={() => void runAiGenerate()}
       error={aiError}
       generateLabel="Generate Quiz"
@@ -595,11 +621,60 @@ export const QuizAiOverlay: React.FC<AiOverlayProps> = ({ state }) => {
       <textarea
         value={aiPrompt}
         onChange={(e) => setAiPrompt(e.target.value)}
-        placeholder="e.g. A 5-question quiz about the solar system for 3rd graders."
-        className="w-full h-32 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
+        placeholder="e.g. A quiz about the solar system for 3rd graders."
+        className="w-full h-24 p-4 bg-white border-2 border-indigo-100 rounded-2xl text-sm text-indigo-900 placeholder-indigo-300 focus:outline-none focus:border-indigo-500 resize-none shadow-inner"
         autoFocus
         aria-label="Describe your quiz"
       />
+      <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-4 space-y-3">
+        <div className="flex items-center justify-between text-xs font-bold text-indigo-700/70 uppercase tracking-widest">
+          <span>Question Mix</span>
+          <span>Total: {aiTotalCount}</span>
+        </div>
+        <ul className="space-y-2">
+          {QUIZ_TYPE_STEPPER_ROWS.map((row) => {
+            const value = aiTypeCounts[row.type];
+            return (
+              <li
+                key={row.type}
+                className="flex items-center gap-3 bg-white rounded-xl border border-indigo-100 px-3 py-2"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-bold text-indigo-900">
+                    {row.label}
+                  </div>
+                  <div className="text-[11px] text-slate-500 truncate">
+                    {row.hint}
+                  </div>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setAiTypeCount(row.type, value - 1)}
+                    disabled={value <= 0 || aiGenerating}
+                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label={`Decrease ${row.label} count`}
+                  >
+                    –
+                  </button>
+                  <span className="w-6 text-center text-sm font-bold text-indigo-900 tabular-nums">
+                    {value}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setAiTypeCount(row.type, value + 1)}
+                    disabled={value >= 15 || aiGenerating}
+                    className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 font-bold hover:bg-indigo-200 disabled:opacity-30 disabled:cursor-not-allowed"
+                    aria-label={`Increase ${row.label} count`}
+                  >
+                    +
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
       {canAccessFeature('ai-file-context') && (
         <DriveFileAttachment
           onFileContent={(content, name) => setAiFile(content, name)}
