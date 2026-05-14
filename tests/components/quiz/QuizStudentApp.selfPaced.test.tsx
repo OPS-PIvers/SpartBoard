@@ -50,6 +50,10 @@ const {
       onAuthStateChanged: vi.fn(),
       signInWithPopup: vi.fn(),
       signOut: vi.fn(),
+      // QuizStudentApp awaits this before checking `currentUser` to avoid
+      // racing Firebase Auth's IndexedDB hydration. Tests control
+      // `currentUser` synchronously, so resolving immediately is correct.
+      authStateReady: vi.fn().mockResolvedValue(undefined),
       currentUser: null as MockUser | null,
     },
     mockJoinQuizSession: vi.fn(),

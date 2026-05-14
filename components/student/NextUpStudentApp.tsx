@@ -28,10 +28,14 @@ export const NextUpStudentApp: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  // Sign in anonymously on mount
+  // Sign in anonymously on mount only if nobody is signed in yet. Awaiting
+  // `authStateReady()` first prevents a hydration race that would otherwise
+  // replace an existing SSO user with a fresh anonymous one on full-page
+  // navigations from `/my-assignments` (see QuizStudentApp for the same fix).
   useEffect(() => {
     const initAuth = async () => {
       try {
+        await auth.authStateReady();
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }

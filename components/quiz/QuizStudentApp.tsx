@@ -111,6 +111,16 @@ export const QuizStudentApp: React.FC = () => {
     if (previewMode) return;
     const init = async () => {
       try {
+        // Wait for Firebase Auth to hydrate from IndexedDB before deciding
+        // whether to sign in anonymously. `/my-assignments` → `/quiz` is a
+        // full-page browser navigation, so on mount `auth.currentUser` is
+        // null for the first tick or two even when IndexedDB holds an SSO
+        // user. Without this await we'd race hydration: a synchronous null
+        // check sends us into the signInAnonymously branch and silently
+        // replaces the SSO user with a fresh anonymous one — breaking the
+        // auto-join effect below and forcing SSO students into the PIN
+        // form. See QuizStudentApp.ssoAutoJoin.test.tsx for the regression.
+        await auth.authStateReady();
         if (!auth.currentUser) {
           await signInAnonymously(auth);
         }
