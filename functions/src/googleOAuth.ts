@@ -223,10 +223,28 @@ export const refreshGoogleAccessToken = onCall(
       );
     }
     const stored = snap.data() as StoredGoogleAuth;
-    const refreshToken = decryptRefreshToken(
-      stored.encryptedRefreshToken,
-      GOOGLE_OAUTH_REFRESH_TOKEN_KEY.value()
-    );
+    let refreshToken: string;
+    try {
+      refreshToken = decryptRefreshToken(
+        stored.encryptedRefreshToken,
+        GOOGLE_OAUTH_REFRESH_TOKEN_KEY.value()
+      );
+    } catch (err) {
+      // Decryption failed — the most likely cause is rotation of
+      // GOOGLE_OAUTH_REFRESH_TOKEN_KEY, which makes every previously-stored
+      // ciphertext undecryptable. Drop the stored doc and signal
+      // needs-consent so the client routes the user through the
+      // auth-code flow instead of looping on a useless popup retry.
+      console.warn(
+        '[refreshGoogleAccessToken] Failed to decrypt stored refresh token; dropping doc and prompting re-consent.',
+        err
+      );
+      await ref.delete().catch(() => undefined);
+      throw new HttpsError(
+        'failed-precondition',
+        'needs-consent: stored refresh token could not be decrypted (key may have rotated).'
+      );
+    }
 
     try {
       const res = await axios.post<GoogleTokenResponse>(

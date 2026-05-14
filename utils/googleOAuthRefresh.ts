@@ -85,11 +85,15 @@ export const requestAndExchangeAuthCode = async (
       scope: GOOGLE_OAUTH_SCOPES.join(' '),
       ux_mode: 'popup',
       hint: hintEmail,
-      // `access_type` is what makes Google issue a refresh_token. Without it
-      // we'd be right back at the 1-hour TTL with no offline recovery path.
-      // `prompt: 'consent'` forces the consent screen so the refresh_token
-      // is reliably included (Google omits it on subsequent consents to the
-      // same scopes otherwise).
+      // `access_type: 'offline'` is what makes Google issue a refresh_token.
+      // Without it we'd be right back at the 1-hour TTL with no offline
+      // recovery path. `prompt: 'consent'` forces the consent screen so the
+      // refresh_token is reliably included (Google omits it on subsequent
+      // consents to the same scopes otherwise). Both fields are valid on
+      // `initCodeClient` config but aren't in older @types/google.accounts;
+      // the cast below widens the parameter type to accept them.
+      access_type: 'offline',
+      prompt: 'consent',
       callback: (response: { code?: string; error?: string }) => {
         if (response.error || !response.code) {
           resolve(null);
@@ -99,8 +103,8 @@ export const requestAndExchangeAuthCode = async (
       },
       error_callback: () => resolve(null),
     } as Parameters<typeof gis.accounts.oauth2.initCodeClient>[0] & {
-      access_type?: string;
-      prompt?: string;
+      access_type: string;
+      prompt: string;
     });
     if (!codeClient) {
       resolve(null);

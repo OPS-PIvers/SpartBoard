@@ -136,22 +136,20 @@ export const authError = (message: string): DriveAuthError => {
  * with the same cached token (rare but possible: re-entering an unexpired
  * session) re-arms the toast for that session's first stale episode.
  *
- * Side effect: a real token rotation (null → token, or tokenA → tokenB)
- * also fans out a "drive-reconnected" notification so widgets whose
+ * Side effect: any `token !== lastSeenToken` transition (including the
+ * initial null → token at sign-in, and subsequent tokenA → tokenB
+ * rotations) fans out a "drive-reconnected" notification so widgets whose
  * effects don't naturally observe `googleAccessToken` can subscribe via
- * `subscribeDriveReconnected` and re-run their loaders. Token-on-mount
- * (first-ever sign-in) and unchanged-token replays don't fire — only true
- * rotations do.
+ * `subscribeDriveReconnected` and re-run their loaders. Unchanged-token
+ * replays from multiple consumers mounting and sign-out (token → null)
+ * do NOT fire — only real rotations do. Firing on null → token is the
+ * critical path the toast "Connect" button depends on: widgets that
+ * failed to load while disconnected need the signal to retry.
  */
 export const onDriveTokenChange = (token: string | null): void => {
   if (token && token !== lastSeenToken) {
-    const isFreshSession = lastSeenToken === null;
     lastSeenToken = token;
     driveAuthErrorLatched = false;
-    // Notify on every real rotation, including the null → token transition
-    // that fires when the toast "Connect" button succeeds. Widgets that
-    // failed to load while disconnected need that signal to retry.
-    void isFreshSession;
     notifyDriveReconnected();
   } else if (!token) {
     lastSeenToken = null;
