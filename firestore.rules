@@ -808,7 +808,11 @@ service cloud.firestore {
         request.resource.data.originalAuthor == request.auth.uid &&
         request.resource.data.id == shareId &&
         request.resource.data.sessionId is string &&
-        request.resource.data.sessionId.startsWith(request.auth.uid + '_') &&
+        // NOTE: Firestore Rules has no `startsWith()` on strings — `matches()`
+        // (RE2) is the only built-in prefix primitive. Firebase Auth UIDs are
+        // documented as alphanumerics with no regex-special chars, so embedding
+        // the UID into the pattern is safe here.
+        request.resource.data.sessionId.matches(request.auth.uid + '_.*') &&
         request.resource.data.keys().hasOnly([
           'id', 'sessionId', 'originalAuthor', 'title', 'prompt', 'mode',
           'identificationMode', 'allowComments', 'allowCommentResponses',
