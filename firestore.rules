@@ -527,6 +527,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // Private server-managed credentials (e.g. encrypted Google OAuth
+    // refresh_token written by `exchangeGoogleAuthCode` and read by
+    // `refreshGoogleAccessToken`). DENY ALL client access — the Admin SDK
+    // from Cloud Functions bypasses rules and is the only path that
+    // should read or write here. Default-deny would cover this too, but
+    // an explicit rule documents the intent and protects against any
+    // future permissive `users/{userId}/{document=**}` rule accidentally
+    // exposing the refresh_token.
+    match /users/{userId}/private/{document=**} {
+      allow read, write: if false;
+    }
+
     // Starter Packs
     match /artifacts/{appId}/public/data/starterPacks/{packId} {
       allow read: if request.auth != null;

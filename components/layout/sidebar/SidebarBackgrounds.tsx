@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useDashboard } from '@/context/useDashboard';
 import { extractYouTubeId } from '@/utils/youtube';
 import { isCustomBackground } from '@/utils/backgrounds';
@@ -215,6 +216,15 @@ export const SidebarBackgrounds: React.FC<SidebarBackgroundsProps> = ({
     getUserBackgroundsFromDrive,
     addToast,
   ]);
+
+  // After a Drive reconnect (toast "Connect" or sidebar "Refresh"), clear
+  // the one-shot fetch latch so the next "My Uploads" tab visit re-pulls
+  // from Drive. Without this, a failed initial fetch leaves
+  // `hasFetchedDrive=true` and the panel keeps showing whatever it
+  // managed to load (often nothing) even after the token comes back.
+  useDriveReconnected(() => {
+    setHasFetchedDrive(false);
+  });
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
