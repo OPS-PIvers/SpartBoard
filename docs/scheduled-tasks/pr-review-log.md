@@ -4,6 +4,34 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-14
+
+- PRs reviewed:
+  - #1623 — feat(random): manual editing, lock + remove for randomizer groups (base `main`, head `claude/manual-group-editing-IoDSo`, draft)
+  - #1622 — Enhance quiz annotations (base `main`, head `dev-paul`)
+  - #1621 — feat: substitute teacher portal (base `dev-paul`, head `feat/substitute-teacher`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`)
+- Comments processed: 12 unresolved comment threads across the 4 PRs — 3 fixes prepared & verified locally but blocked by branch protection on `dev-paul` (HTTP 403 push reject) so posted as suggestion diffs, 2 explained as no-fix-needed (architectural API refactor / i18n-cross-cut), 1 deferred as needing a deliberate schema decision, 6 already-addressed-by-author skipped (PR #1621 × 3 outdated/fixed in c733f59, PR #1366 × 6 — author replies on each).
+- Fixes pushed: 0 (push to `dev-paul` for PR #1622 blocked by branch protection HTTP 403; prepared diffs posted as `\`\`\`suggestion` blocks for manual apply)
+  - PR #1622 prepared diffs (verified locally — type-check ✓, lint ✓, 2458/2458 unit tests pass):
+    - `firestore.rules:811`: replace `matches(uid + '_.*')` with `startsWith(uid + '_')` for shared_activity_walls sessionId-ownership check
+    - `components/quiz/QuizStudentApp.tsx:2491`: derive icon/border from `writtenGrade` only for written question types (avoid red/X on ungraded responses where `publishAssignmentScores` stored `ans.isCorrect = false`)
+    - `components/quiz/QuizStudentApp.tsx:2605`: fall back to sanitized `studentAnswer` when a points-only / comment-only grade has no `gradingSnapshot` (currently shows "— no response")
+    - `tests/components/quiz/PublishedScoreReview.annotations.test.tsx`: new regression test `falls back to the live answer when a points-only grade has no snapshot`
+- Reviews posted: 4
+  - PR #1623 manual group editing: Ready (after the i18n follow-up is scheduled and manual smoke passes); helper extraction + `randomEditHelpers.test.ts` (18 tests) + group-id preservation noted as exactly the right shape; main gap is no DnD integration test (deferred to manual smoke per the PR's test plan)
+  - PR #1622 quiz annotations: Needs changes — 3 of the 5 open reviewer threads have prepared fixes; the `firestore.rules:838` schema-lock concern was deferred as needing a deliberate mutable-field allow-list decision rather than an automated patch; declined the `htmlToPlainText` overload as a perf-refactor not a bug
+  - PR #1621 substitute teacher portal: Ready with minor notes — every actionable reviewer thread closed by c733f59/613ccb2 in author's prior round (including the composite `(intendedMode, expiresAt)` index for `expireSubShares`); follow-ups for Phase 6 real widget renderer, i18n backfill, and emulator-based rules/function tests are explicitly called out by author
+  - PR #1366 line-endings plan: Ready (eighth review on this PR with no content change since `da8f0946`); flagged that PR is ~3 weeks old and the "quiet window" precondition may need an updated execution date
+- Notes:
+  - Branch-safety: PR #1622's head is `dev-paul`. Per the CRITICAL rule, push to `dev-paul` is permitted "when there are PR comments on a PR merging dev-paul into main" — but the local proxy rejected the push with HTTP 403, indicating infrastructure-level branch protection takes precedence over the conditional permission. The prepared commit was reset and the diffs surfaced as inline suggestions so the maintainer can apply manually.
+  - Coordination call-outs raised in reviews:
+    - PR #1623 — i18n strings in `RandomGroups.tsx` / `StudentChip.tsx` / `UnassignedTray.tsx` / `ShuffleList.tsx` need a module-wide sweep PR (not a one-off fix)
+    - PR #1622 — `shared_activity_walls` update rule should adopt a `keys().hasOnly([...])` schema-lock paired with rules tests for the disallowed-field-injection paths
+    - PR #1366 — eight reviews and three weeks in; consider whether the renormalization can actually land in a quiet window given the current open-PR landscape
+
+---
+
 ## 2026-05-13
 
 - PRs reviewed:
