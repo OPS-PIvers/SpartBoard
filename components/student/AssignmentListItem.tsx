@@ -280,6 +280,9 @@ function getChipLabel({
   return isGraded ? 'View results' : 'Not graded';
 }
 
+const PRIMARY_CTA_CLASS =
+  'bg-brand-blue-primary text-white shadow-sm shadow-brand-blue-primary/20 group-hover:bg-brand-blue-dark';
+
 function getChipClass({
   isPending,
   isCompleted,
@@ -290,11 +293,9 @@ function getChipClass({
   isGraded: boolean;
 }): string {
   if (isPending) return 'bg-slate-100 text-slate-400';
-  if (!isCompleted) {
-    return 'bg-brand-blue-primary text-white shadow-sm shadow-brand-blue-primary/20 group-hover:bg-brand-blue-dark';
-  }
-  if (isGraded) {
-    return 'bg-brand-blue-primary text-white shadow-sm shadow-brand-blue-primary/20 group-hover:bg-brand-blue-dark';
-  }
+  // Active rows AND completed-with-published-results both invite a click
+  // ("Open" / "View results"), so they share the primary brand-blue style.
+  // Completed-not-yet-graded is a muted status indicator, not a CTA.
+  if (!isCompleted || isGraded) return PRIMARY_CTA_CLASS;
   return 'bg-slate-100 text-slate-500 group-hover:bg-slate-200';
 }

@@ -31,7 +31,7 @@ import {
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
-import { highlightClass } from '@/utils/writtenAnnotations';
+import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -610,6 +610,13 @@ const AnnotationsList: React.FC<{
   activeId: string | null;
   onSelect: (id: string) => void;
 }> = ({ annotations, snapshot, activeId, onSelect }) => {
+  // Project the snapshot to plaintext through `htmlToPlainText`, NOT
+  // `textContent`. Annotation offsets are produced against `htmlToPlainText`'s
+  // projection (block tags + `<br>` insert `\n`), so a `textContent`-based
+  // slice drifts by one char per preceding block — every snippet past the
+  // first paragraph would render the wrong text. Memoized on `snapshot` so
+  // keystrokes in the popover textarea don't re-DOMParse.
+  const plaintext = useMemo(() => htmlToPlainText(snapshot), [snapshot]);
   if (annotations.length === 0) {
     return (
       <p className="text-xs text-slate-500 italic leading-relaxed">
@@ -617,19 +624,6 @@ const AnnotationsList: React.FC<{
       </p>
     );
   }
-  // Project the snapshot to plaintext once so we can show a short snippet
-  // of the highlighted text in each list row — without forcing the parent
-  // to maintain its own plaintext copy.
-  const plaintext =
-    typeof DOMParser !== 'undefined'
-      ? (() => {
-          const doc = new DOMParser().parseFromString(
-            `<div>${snapshot}</div>`,
-            'text/html'
-          );
-          return doc.body.textContent ?? '';
-        })()
-      : '';
   return (
     <div className="flex flex-col gap-1.5">
       {annotations.map((a) => {

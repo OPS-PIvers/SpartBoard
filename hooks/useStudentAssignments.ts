@@ -150,6 +150,20 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
       // student. Both must be present for the student to see results.
       const visibility = (data as Record<string, unknown>).scoreVisibility;
       const publishedAt = (data as Record<string, unknown>).scorePublishedAt;
+      // Surface data-shape mismatches — if one field is present but the
+      // other has the wrong type, the student silently sees "Not graded"
+      // on a session the teacher believes they published. This is the
+      // kind of "support ticket with no traces in the data" bug worth a
+      // console.warn so it shows up in error reporting.
+      if (
+        (visibility !== undefined && typeof visibility !== 'string') ||
+        (publishedAt !== undefined && typeof publishedAt !== 'number')
+      ) {
+        console.warn(
+          '[useStudentAssignments] malformed quiz publication fields',
+          { scoreVisibility: visibility, scorePublishedAt: publishedAt }
+        );
+      }
       const isVisible = typeof visibility === 'string' && visibility !== 'none';
       const isPublished = typeof publishedAt === 'number';
       return isVisible && isPublished ? 'graded' : 'not-graded';

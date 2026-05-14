@@ -127,8 +127,19 @@ const WrittenResponseEditorInner: React.FC<
     if (dragStateRef.current) {
       try {
         (e.currentTarget as Element).releasePointerCapture(e.pointerId);
-      } catch {
-        // releasePointerCapture throws if not currently captured — ignore.
+      } catch (err) {
+        // `releasePointerCapture` throws `InvalidStateError` if the capture
+        // was already released (e.g. by `pointercancel` firing before
+        // `pointerup`). Anything else is unexpected — surface it instead
+        // of swallowing the whole class of DOM errors silently.
+        if (
+          !(err instanceof DOMException && err.name === 'InvalidStateError')
+        ) {
+          console.warn(
+            '[WrittenResponseEditor] unexpected releasePointerCapture error',
+            err
+          );
+        }
       }
       dragStateRef.current = null;
     }

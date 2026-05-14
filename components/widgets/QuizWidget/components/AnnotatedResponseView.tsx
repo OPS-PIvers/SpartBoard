@@ -157,8 +157,25 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
       const mark = article.querySelector(
         `mark[data-annotation-id="${CSS.escape(a.id)}"]`
       );
-      if (!mark) continue;
-      const markRect = (mark as HTMLElement).getBoundingClientRect();
+      if (!mark) {
+        // The annotation has a comment but no <mark> rendered for it —
+        // either offsets pointed past the snapshot's plaintext length or
+        // a future renderer change dropped it. Either way the comment
+        // would silently disappear from the margin; surface it.
+        console.warn(
+          '[AnnotatedResponseView] commented annotation has no <mark> in DOM',
+          a.id
+        );
+        continue;
+      }
+      // Use the first client rect so a mark that wraps to a new line
+      // anchors its comment to the FIRST visual line. The bounding rect
+      // would span both lines and place the chip in the gap between.
+      const rects = (mark as HTMLElement).getClientRects();
+      const markRect = rects.length > 0 ? rects[0] : null;
+      if (!markRect || (markRect.width === 0 && markRect.height === 0)) {
+        continue;
+      }
       const articleRect = article.getBoundingClientRect();
       rows.push({ id: a.id, top: markRect.top - articleRect.top });
     }
@@ -171,29 +188,71 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
       next[r.id] = top;
       cursor = top + COMMENT_CHIP_MIN_HEIGHT + COMMENT_CHIP_GAP;
     }
-    setPinnedTops(next);
+    // Skip the setState entirely when the result is identical so a
+    // grader-side annotations array mutation that doesn't shift any
+    // mark's position doesn't trigger a render cascade.
+    setPinnedTops((prev) => {
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      if (prevKeys.length === nextKeys.length) {
+        let same = true;
+        for (const k of nextKeys) {
+          if (prev[k] !== next[k]) {
+            same = false;
+            break;
+          }
+        }
+        if (same) return prev;
+      }
+      return next;
+    });
   }, [commented, isWide]);
 
+  // Hold the latest measurement callback in a ref so the long-lived
+  // ResizeObserver effect below can invoke the current closure without
+  // having to depend on `recomputePinnedTops` itself — depending on it
+  // would re-create the observer on every annotation change.
+  const recomputePinnedTopsRef = useRef(recomputePinnedTops);
+  useEffect(() => {
+    recomputePinnedTopsRef.current = recomputePinnedTops;
+  }, [recomputePinnedTops]);
+
   // Measure the rendered article once it's in the DOM. The setState
-  // inside `recomputePinnedTops` is the standard DOM-measurement pattern
-  // (read layout in useLayoutEffect, project it into state) — there's no
-  // external system to synchronize, so the lint rule fires a false
-  // positive here.
+  // inside `recomputePinnedTops` is the standard DOM-measurement
+  // pattern (read layout in useLayoutEffect, project it into state) —
+  // there's no external system to synchronize, so the lint rule fires
+  // a false positive here.
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     recomputePinnedTops();
   }, [recomputePinnedTops, tree]);
 
   // Re-measure when the article box itself changes size (font load,
-  // viewport resize, content reflow inside the prose container).
+  // viewport resize, content reflow). Observe once per mounted article;
+  // the callback ref keeps the listener pointing at the latest closure
+  // without churning observer subscriptions.
   useEffect(() => {
     if (typeof ResizeObserver === 'undefined') return;
     const article = articleRef.current;
     if (!article) return;
-    const ro = new ResizeObserver(() => recomputePinnedTops());
+    const ro = new ResizeObserver(() => recomputePinnedTopsRef.current());
     ro.observe(article);
     return () => ro.disconnect();
-  }, [recomputePinnedTops]);
+  }, []);
+
+  // Pulse-timeout cleanup. Without this, a click that triggers a pulse
+  // followed by an unmount within 1.2s would call setPulsedId on a dead
+  // component. React 19 silently no-ops the state update but the
+  // outstanding timer is still a (tiny) leak.
+  const pulseTimerRef = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (pulseTimerRef.current !== null) {
+        window.clearTimeout(pulseTimerRef.current);
+      }
+    },
+    []
+  );
 
   const handleMarkClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -206,8 +265,12 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
       setPulsedId(id);
       // Auto-clear the pulse after the animation finishes so a second
       // click on the same mark visibly re-triggers it.
-      window.setTimeout(() => {
+      if (pulseTimerRef.current !== null) {
+        window.clearTimeout(pulseTimerRef.current);
+      }
+      pulseTimerRef.current = window.setTimeout(() => {
         setPulsedId((prev) => (prev === id ? null : prev));
+        pulseTimerRef.current = null;
       }, 1200);
     },
     [annotations]
@@ -345,17 +408,6 @@ const EditView: React.FC<EditProps> = ({
     from: number;
     to: number;
   } | null>(null);
-  const [commentDraft, setCommentDraft] = useState<string>('');
-
-  // Keep `commentDraft` in sync with whichever annotation is active. We use
-  // the "adjusting state while rendering" pattern (track previous activeId)
-  // so the reset happens without an extra effect/render cycle.
-  const [prevActiveId, setPrevActiveId] = useState<string | null>(activeId);
-  if (prevActiveId !== activeId) {
-    setPrevActiveId(activeId);
-    const a = activeId ? annotations.find((x) => x.id === activeId) : null;
-    setCommentDraft(a?.comment ?? '');
-  }
 
   // Same memoization split as ReadOnlyView: parse once per snapshot,
   // re-walk on annotation changes. Critical in edit mode because the
@@ -407,9 +459,13 @@ const EditView: React.FC<EditProps> = ({
     onActiveIdChange(null);
   }, [onActiveIdChange]);
 
-  // Dismiss the palette / popover on Escape so a teacher mid-selection can
-  // bail without closing the entire modal.
+  // Dismiss the palette / popover on Escape. Listener is scoped to the
+  // container so an Escape pressed inside the grading sidebar (Points
+  // input, Overall comment textarea) still bubbles to the parent modal's
+  // close handler.
   useEffect(() => {
+    const containerEl = containerRef.current;
+    if (!containerEl) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       if (palette) {
@@ -419,11 +475,12 @@ const EditView: React.FC<EditProps> = ({
       } else {
         return;
       }
-      // Stop the event so the parent modal doesn't also close.
+      // Only stop propagation when we actually handled the key, so the
+      // parent modal can still close via Esc when nothing's open here.
       e.stopPropagation();
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
+    containerEl.addEventListener('keydown', onKey);
+    return () => containerEl.removeEventListener('keydown', onKey);
   }, [palette, activeId, onActiveIdChange]);
 
   const handleArticleClick = useCallback(
@@ -440,8 +497,14 @@ const EditView: React.FC<EditProps> = ({
         }
         return;
       }
-      // Click on bare text — dismiss any open popover.
-      if (activeId) onActiveIdChange(null);
+      // Bare-text click — only dismiss the popover if this is a true
+      // click (no active selection). Without this guard, finishing a
+      // drag-selection lands a `click` event on bare text and would
+      // close the popover the teacher just opened via the palette.
+      if (!activeId) return;
+      const sel = window.getSelection();
+      if (sel && !sel.isCollapsed) return;
+      onActiveIdChange(null);
     },
     [activeId, onActiveIdChange]
   );
@@ -489,9 +552,12 @@ const EditView: React.FC<EditProps> = ({
     : null;
 
   // Position the comment popover beneath the active mark (or above if it
-  // would overflow the container bottom). Recomputes when the active id,
-  // snapshot, or annotation list changes (the latter so the popover
-  // re-aligns if the user types and the mark's box shifts).
+  // would overflow the container bottom). Recomputes when the active id
+  // changes or the article reflows; uses the first client rect so a
+  // line-wrapped mark anchors to its first visual line (a single
+  // bounding rect would span both lines and place the popover in dead
+  // space). Skips the setState when the result is unchanged so
+  // keystrokes in the textarea don't flicker the popover.
   const [popoverPos, setPopoverPos] = useState<{
     x: number;
     y: number;
@@ -499,17 +565,34 @@ const EditView: React.FC<EditProps> = ({
   } | null>(null);
   useLayoutEffect(() => {
     if (!activeId || !articleRef.current || !containerRef.current) {
-      setPopoverPos(null);
+      setPopoverPos((prev) => (prev === null ? prev : null));
       return;
     }
     const mark = articleRef.current.querySelector(
       `mark[data-annotation-id="${CSS.escape(activeId)}"]`
     );
     if (!mark) {
-      setPopoverPos(null);
+      // The annotation exists in props but no <mark> rendered for it —
+      // shouldn't happen after `renderAnnotatedSnapshot`, but if it
+      // does the popover would silently disappear without explanation.
+      console.warn(
+        '[AnnotatedResponseView] active annotation has no <mark> in DOM',
+        activeId
+      );
+      setPopoverPos((prev) => (prev === null ? prev : null));
       return;
     }
-    const markRect = (mark as HTMLElement).getBoundingClientRect();
+    // `getClientRects()` returns one rect per line for a wrapped mark;
+    // we use the first so the popover anchors to the first visible line
+    // rather than spanning the gap between two. In environments where
+    // layout isn't computed (e.g. jsdom in unit tests) the list is empty
+    // and we fall back to the single bounding rect so the popover still
+    // renders.
+    const rects = (mark as HTMLElement).getClientRects();
+    const markRect =
+      rects.length > 0
+        ? rects[0]
+        : (mark as HTMLElement).getBoundingClientRect();
     const containerRect = containerRef.current.getBoundingClientRect();
     const x = markRect.left - containerRect.left + markRect.width / 2;
     const below = markRect.bottom - containerRect.top + 8;
@@ -517,8 +600,16 @@ const EditView: React.FC<EditProps> = ({
     // Prefer below; flip if the popover would render past the container.
     const placement: 'below' | 'above' =
       below + 200 > containerRect.height && above > 100 ? 'above' : 'below';
-    setPopoverPos({ x, y: placement === 'below' ? below : above, placement });
-  }, [activeId, annotations, tree]);
+    const next = { x, y: placement === 'below' ? below : above, placement };
+    setPopoverPos((prev) =>
+      prev &&
+      prev.x === next.x &&
+      prev.y === next.y &&
+      prev.placement === next.placement
+        ? prev
+        : next
+    );
+  }, [activeId, tree]);
 
   return (
     <div ref={containerRef} className="relative">
@@ -563,16 +654,18 @@ const EditView: React.FC<EditProps> = ({
         </div>
       )}
       {active && popoverPos && (
+        // `key={active.id}` remounts the popover for each annotation, so
+        // its internal `commentDraft` state is reset cleanly without
+        // having to track a `prevActiveId` reset pattern in the parent.
         <AnchoredAnnotationEditor
+          key={active.id}
           annotation={active}
-          commentDraft={commentDraft}
           x={popoverPos.x}
           y={popoverPos.y}
           placement={popoverPos.placement}
-          onCommentChange={(v) => {
-            setCommentDraft(v);
-            updateActiveAnnotation({ comment: v.trim() || undefined });
-          }}
+          onCommentChange={(v) =>
+            updateActiveAnnotation({ comment: v.trim() || undefined })
+          }
           onColorChange={(c) => updateActiveAnnotation({ highlightColor: c })}
           onDelete={deleteActive}
           onClose={() => onActiveIdChange(null)}
@@ -583,14 +676,15 @@ const EditView: React.FC<EditProps> = ({
 };
 
 /**
- * Editor popover anchored to the active mark inside the article. Auto-focuses
- * the textarea on mount so the teacher can start typing immediately — that's
- * the bug we're fixing (the previous sidebar editor was technically present
- * but easy to miss).
+ * Editor popover anchored to the active mark. Auto-focuses its textarea on
+ * mount (parent uses `key={annotation.id}` to remount per annotation, which
+ * also resets the internal `commentDraft`). Uses `role="group"` rather than
+ * `role="dialog"` to communicate "non-modal inline editor" — there's no
+ * focus trap, the document under it is still interactive, and the parent
+ * scopes its own Escape handler.
  */
 const AnchoredAnnotationEditor: React.FC<{
   annotation: WrittenAnswerAnnotation;
-  commentDraft: string;
   x: number;
   y: number;
   placement: 'below' | 'above';
@@ -600,7 +694,6 @@ const AnchoredAnnotationEditor: React.FC<{
   onClose: () => void;
 }> = ({
   annotation,
-  commentDraft,
   x,
   y,
   placement,
@@ -609,14 +702,17 @@ const AnchoredAnnotationEditor: React.FC<{
   onDelete,
   onClose,
 }) => {
-  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-  useEffect(() => {
-    textareaRef.current?.focus();
-  }, [annotation.id]);
+  const labelId = useId();
+  // Local draft state. Initialized from the annotation that mounted the
+  // editor; reset is handled by the parent via `key`, so we never have to
+  // sync to incoming prop changes ourselves.
+  const [commentDraft, setCommentDraft] = useState<string>(
+    annotation.comment ?? ''
+  );
   return (
     <div
-      role="dialog"
-      aria-label="Annotation editor"
+      role="group"
+      aria-labelledby={labelId}
       className={`absolute z-popover -translate-x-1/2 ${
         placement === 'above' ? '-translate-y-full' : ''
       } w-72 rounded-xl border border-violet-300 bg-white p-3 shadow-xl flex flex-col gap-2`}
@@ -626,6 +722,9 @@ const AnchoredAnnotationEditor: React.FC<{
       onClick={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
     >
+      <span id={labelId} className="sr-only">
+        Edit annotation
+      </span>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
           {COLORS.map((c) => (
@@ -665,9 +764,13 @@ const AnchoredAnnotationEditor: React.FC<{
         </div>
       </div>
       <textarea
-        ref={textareaRef}
+        autoFocus
         value={commentDraft}
-        onChange={(e) => onCommentChange(e.target.value)}
+        onChange={(e) => {
+          const next = e.target.value;
+          setCommentDraft(next);
+          onCommentChange(next);
+        }}
         rows={3}
         placeholder="Margin comment (optional)"
         className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"

@@ -98,7 +98,7 @@ describe('AnnotatedResponseView — edit mode', () => {
       />
     );
     expect(
-      screen.queryByRole('dialog', { name: /annotation editor/i })
+      screen.queryByRole('group', { name: /edit annotation/i })
     ).not.toBeInTheDocument();
     // The article content renders.
     expect(screen.getByText(/hello/)).toBeInTheDocument();
@@ -119,7 +119,7 @@ describe('AnnotatedResponseView — edit mode', () => {
     fireEvent.click(mark);
     // Popover renders with the comment pre-filled.
     expect(
-      screen.getByRole('dialog', { name: /annotation editor/i })
+      screen.getByRole('group', { name: /edit annotation/i })
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/margin comment/i)).toHaveValue('note');
   });
