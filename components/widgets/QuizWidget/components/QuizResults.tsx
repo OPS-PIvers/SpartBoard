@@ -59,7 +59,7 @@ import {
 } from '../utils/quizScoreboard';
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
 import { useClickOutside } from '@/hooks/useClickOutside';
-import { useAssignmentPseudonyms } from '@/hooks/useAssignmentPseudonyms';
+import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
@@ -318,12 +318,20 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     [rosters, resolvedPeriods]
   );
 
-  // ClassLink name resolution — only populated when session.classId is set
-  // (i.e. assigned to a ClassLink class). For legacy code+PIN sessions both
-  // maps are empty and pinToName handles display.
-  const { byStudentUid } = useAssignmentPseudonyms(
+  // ClassLink name resolution — pulls names for every classId the session
+  // targets, so multi-class assignments resolve names for students from
+  // every targeted period (not just `classIds[0]`). The fallback to
+  // `[session.classId]` keeps pre-Phase-5A single-class sessions working.
+  // For legacy code+PIN sessions both maps are empty and pinToName
+  // handles display.
+  const sessionClassIds = useMemo(() => {
+    if (session?.classIds && session.classIds.length > 0)
+      return session.classIds;
+    return session?.classId ? [session.classId] : [];
+  }, [session?.classIds, session?.classId]);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
     session?.id ?? null,
-    session?.classId ?? null,
+    sessionClassIds,
     orgId
   );
   const exportPinToName = useMemo(

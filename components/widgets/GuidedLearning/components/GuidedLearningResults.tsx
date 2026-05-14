@@ -15,7 +15,7 @@ import {
   isAnswerCorrect,
 } from '@/hooks/useGuidedLearningSession';
 import {
-  useAssignmentPseudonyms,
+  useAssignmentPseudonymsMulti,
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
@@ -43,9 +43,12 @@ export const GuidedLearningResults: React.FC<Props> = ({
     return unsub;
   }, [sessionId, subscribeToResponses]);
 
-  // Fetch the session doc once to learn the optional classId. When set
-  // (ClassLink-assigned), we resolve pseudonyms to real student names.
-  const [classId, setClassId] = useState<string | null>(null);
+  // Fetch the session doc once to learn the targeted ClassLink class ids.
+  // Prefer `classIds` (Phase 5A multi-class) so a session targeted at multiple
+  // periods resolves names for students from every targeted class, not just
+  // `classIds[0]`. Falls back to the legacy single `classId` for older
+  // sessions written before multi-class support.
+  const [sessionClassIds, setSessionClassIds] = useState<string[]>([]);
   useEffect(() => {
     let cancelled = false;
     void (async () => {
@@ -54,10 +57,18 @@ export const GuidedLearningResults: React.FC<Props> = ({
           doc(db, 'guided_learning_sessions', sessionId)
         );
         if (cancelled) return;
-        const data = snap.data() as { classId?: string } | undefined;
-        setClassId(data?.classId ?? null);
+        const data = snap.data() as
+          | { classId?: string; classIds?: string[] }
+          | undefined;
+        if (data?.classIds && data.classIds.length > 0) {
+          setSessionClassIds(data.classIds);
+        } else if (data?.classId) {
+          setSessionClassIds([data.classId]);
+        } else {
+          setSessionClassIds([]);
+        }
       } catch {
-        if (!cancelled) setClassId(null);
+        if (!cancelled) setSessionClassIds([]);
       }
     })();
     return () => {
@@ -66,7 +77,11 @@ export const GuidedLearningResults: React.FC<Props> = ({
   }, [sessionId]);
 
   const { orgId } = useAuth();
-  const { byStudentUid } = useAssignmentPseudonyms(sessionId, classId, orgId);
+  const { byStudentUid } = useAssignmentPseudonymsMulti(
+    sessionId,
+    sessionClassIds,
+    orgId
+  );
 
   const {
     questionSteps,
