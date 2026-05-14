@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import {
   buildResultsSheetData,
   formatExportPoints,
@@ -176,5 +176,55 @@ describe('buildResultsSheetData', () => {
     const noQs = buildResultsSheetData([r()], [], ALWAYS_FULL);
     expect(noQs.dataRows[0][6]).toBe(''); // Score (%) blank
     expect(noQs.dataRows[0][8]).toBe('0'); // Max Points = 0
+  });
+
+  // Silent-failure surfacing: when an SSO joiner (no PIN, no entry in
+  // byStudentUid) falls through to the generic 'Student' export label, the
+  // builder must log via logError so ops can see when a regression in
+  // pseudonym resolution silently writes unusable rows to the sheet.
+  describe('unresolved SSO student logging', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('logs when an SSO response with no PIN cannot be resolved', () => {
+      const { dataRows } = buildResultsSheetData(
+        [r({ studentUid: 'sso-unknown', pin: undefined })],
+        [q()],
+        ALWAYS_FULL,
+        { byStudentUid: new Map() }
+      );
+      // Row still emits the 'Student' fallback — behavior preserved, just
+      // now observable.
+      expect(dataRows[0][3]).toBe('Student');
+      const mocked = vi.mocked(console.error);
+      expect(mocked).toHaveBeenCalledOnce();
+      const firstArg = mocked.mock.calls[0]?.[0];
+      expect(firstArg).toMatch(/assignmentExportShared\.buildResultsSheetData/);
+      expect(firstArg).toMatch(/1 SSO student/);
+    });
+
+    it('does not log when every SSO response resolves', () => {
+      buildResultsSheetData(
+        [r({ studentUid: 'sso-1', pin: undefined })],
+        [q()],
+        ALWAYS_FULL,
+        {
+          byStudentUid: new Map([
+            ['sso-1', { givenName: 'Alex', familyName: 'Lee' }],
+          ]),
+        }
+      );
+      expect(vi.mocked(console.error)).not.toHaveBeenCalled();
+    });
+
+    it('does not log for legacy PIN-only responses (no SSO map passed)', () => {
+      buildResultsSheetData([r({ pin: '01' })], [q()], ALWAYS_FULL);
+      expect(vi.mocked(console.error)).not.toHaveBeenCalled();
+    });
   });
 });

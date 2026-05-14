@@ -28,6 +28,7 @@
 import { useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { auth, functions } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 
 export interface StudentName {
   givenName: string;
@@ -173,10 +174,18 @@ export function formatStudentName(name: StudentName | undefined): string {
 
 /**
  * Multi-class variant of `useAssignmentPseudonyms` for sessions targeted to
- * more than one ClassLink class (currently just mini-app sessions, which
- * store `classIds: string[]`). Fetches the pseudonym map per classId and
- * merges the results into a single pair of reverse maps. A student enrolled
- * in multiple selected classes will resolve to the same name from either.
+ * one or more ClassLink classes. Used by every Phase-5A-aware viewer
+ * (Quiz/VA/GL Results and Live Monitor, Mini App Submissions) — pass a
+ * single-element array for single-class sessions; pass the session's
+ * `classIds` array for multi-class. Fetches the pseudonym map per classId
+ * and merges the results into a single pair of reverse maps. A student
+ * enrolled in multiple selected classes resolves to the same name from
+ * either.
+ *
+ * Per-class fetches run under `Promise.allSettled` so one failing classId
+ * (403, transient CF error) does not zero out the whole map — partial
+ * resolution is strictly better than zero. Failed classIds are reported
+ * via `logError`.
  */
 export function useAssignmentPseudonymsMulti(
   assignmentId: string | null | undefined,
@@ -206,28 +215,39 @@ export function useAssignmentPseudonymsMulti(
     const cleanedInEffect = classIdsKey.split('|');
     let cancelled = false;
     const key = `${assignmentId}::${classIdsKey}::${orgKey}`;
-    Promise.all(
+    // allSettled (not all): a single classId's lookup failing — 403 from a
+    // revoked share, transient CF unavailability, etc. — must not zero out
+    // the entire map. Pre-fix behavior degraded every student in every
+    // targeted class to the generic 'Student' export label, recreating the
+    // exact bug the multi-class swap is meant to fix. Marked `void` because
+    // allSettled never rejects, so the .then handler never throws — no
+    // rejection handler needed.
+    void Promise.allSettled(
       cleanedInEffect.map((cid) =>
         fetchPseudonymMaps(assignmentId, cid, orgKey, teacherUid)
       )
-    )
-      .then((all) => {
-        if (cancelled) return;
-        const byStudentUid = new Map<string, StudentName>();
-        const byAssignmentPseudonym = new Map<string, StudentName>();
-        for (const maps of all) {
-          for (const [k, v] of maps.byStudentUid) byStudentUid.set(k, v);
-          for (const [k, v] of maps.byAssignmentPseudonym)
+    ).then((results) => {
+      if (cancelled) return;
+      const byStudentUid = new Map<string, StudentName>();
+      const byAssignmentPseudonym = new Map<string, StudentName>();
+      results.forEach((res, i) => {
+        if (res.status === 'fulfilled') {
+          for (const [k, v] of res.value.byStudentUid) byStudentUid.set(k, v);
+          for (const [k, v] of res.value.byAssignmentPseudonym)
             byAssignmentPseudonym.set(k, v);
+        } else {
+          logError('useAssignmentPseudonymsMulti.fetchPerClass', res.reason, {
+            assignmentId,
+            classId: cleanedInEffect[i],
+          });
         }
-        setResolved({ key, maps: { byStudentUid, byAssignmentPseudonym } });
-      })
-      .catch((err) => {
-        console.warn(
-          '[useAssignmentPseudonymsMulti] Name resolution failed:',
-          err
-        );
       });
+      // Partial resolution is strictly better than zero — set even when
+      // some classes failed. The per-class logError above gives ops the
+      // failing classIds for triage; downstream consumers fall back to PIN
+      // / 'Student' for unresolved uids exactly as before.
+      setResolved({ key, maps: { byStudentUid, byAssignmentPseudonym } });
+    });
     return () => {
       cancelled = true;
     };

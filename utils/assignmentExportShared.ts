@@ -16,6 +16,7 @@
 
 import type { GradeResult } from '@/types';
 import { resolvePinName } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
+import { logError } from '@/utils/logError';
 
 /**
  * Format a points value for export. Whole numbers stay as integers;
@@ -86,6 +87,12 @@ export function buildResultsSheetData<
     'Unknown Teacher';
   const timestamp = new Date().toISOString();
 
+  // Counts SSO joiners (no PIN) whose studentUid didn't resolve via the
+  // pseudonym map and thus hit the generic 'Student' label. Logged once
+  // per export below so a regression here is visible in ops triage — the
+  // pre-instrumentation behavior wrote unresolved rows to the sheet with
+  // zero signal that anything had gone wrong.
+  let unresolvedSsoCount = 0;
   const resolveStudent = (r: R): string => {
     const sso = byStudentUid?.get(r.studentUid);
     if (sso) {
@@ -96,6 +103,7 @@ export function buildResultsSheetData<
       const name = resolvePinName(pinToName, r.classPeriod, r.pin);
       return name ?? `Student (PIN: ${r.pin})`;
     }
+    unresolvedSsoCount++;
     return 'Student';
   };
 
@@ -165,5 +173,20 @@ export function buildResultsSheetData<
   // Stable sort by student name so the export reads naturally even when
   // responses arrive in arbitrary join order.
   dataRows.sort((a, b) => a[3].localeCompare(b[3]));
+
+  if (unresolvedSsoCount > 0) {
+    logError(
+      'assignmentExportShared.buildResultsSheetData',
+      new Error(
+        `${unresolvedSsoCount} SSO student(s) exported with generic 'Student' label`
+      ),
+      {
+        unresolvedCount: unresolvedSsoCount,
+        totalRows: dataRows.length,
+        byStudentUidSize: byStudentUid?.size ?? 0,
+      }
+    );
+  }
+
   return { headers, dataRows };
 }

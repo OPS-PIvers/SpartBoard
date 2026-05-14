@@ -19,6 +19,7 @@ import {
   formatStudentName,
 } from '@/hooks/useAssignmentPseudonyms';
 import { useAuth } from '@/context/useAuth';
+import { logError } from '@/utils/logError';
 
 interface Props {
   set: GuidedLearningSet;
@@ -67,8 +68,15 @@ export const GuidedLearningResults: React.FC<Props> = ({
         } else {
           setSessionClassIds([]);
         }
-      } catch {
-        if (!cancelled) setSessionClassIds([]);
+      } catch (err) {
+        if (cancelled) return;
+        // Surface the failure so a permissions regression on
+        // guided_learning_sessions/{id} doesn't silently degrade name
+        // resolution to PIN/'Anonymous' with nothing in the console.
+        logError('GuidedLearningResults.fetchSessionClassIds', err, {
+          sessionId,
+        });
+        setSessionClassIds([]);
       }
     })();
     return () => {
