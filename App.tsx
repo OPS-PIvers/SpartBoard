@@ -2,6 +2,7 @@ import React, { lazy, Suspense, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/useAuth';
+import { useReconcileExpiredSubShares } from './hooks/useReconcileExpiredSubShares';
 import { CustomWidgetsProvider } from './context/CustomWidgetsContext';
 import { SavedWidgetsProvider } from './context/SavedWidgetsContext';
 import { DashboardProvider } from './context/DashboardContext';
@@ -117,6 +118,11 @@ const AdminCalendarFetcher = lazy(() =>
     default: module.AdminCalendarFetcher,
   }))
 );
+const SubsApp = lazy(() =>
+  import('./components/subs/SubsApp').then((module) => ({
+    default: module.SubsApp,
+  }))
+);
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -165,6 +171,7 @@ const AuthenticatedApp: React.FC<{ isRemote?: boolean }> = ({
 /** Rendered inside DashboardProvider so it can access both auth and dashboard context. */
 const AppContent: React.FC = () => {
   const {
+    user,
     isAdmin,
     profileLoaded,
     setupCompleted,
@@ -173,7 +180,29 @@ const AppContent: React.FC = () => {
     roleResolved,
     signOut,
   } = useAuth();
-  const { loading: dashLoading, activeDashboard } = useDashboard();
+  const {
+    loading: dashLoading,
+    activeDashboard,
+    driveService,
+    addToast,
+  } = useDashboard();
+
+  // Sweep this teacher's expired substitute shares once per session so
+  // Drive permissions get revoked using their existing OAuth token. The
+  // `expireSubShares` cloud function continues to delete share docs as a
+  // fallback when a teacher never returns. Wire `onPartialFailure` to a
+  // toast so a stuck revoke surfaces in the UI — the cloud-function
+  // fallback only logs to Cloud Logging, which is invisible to teachers.
+  useReconcileExpiredSubShares({
+    uid: user?.uid ?? null,
+    driveService,
+    onPartialFailure: () => {
+      addToast(
+        'Some expired substitute-share Drive permissions could not be revoked. Reconnect Google Drive to retry — they will otherwise be cleaned up automatically within 7 days.',
+        'error'
+      );
+    },
+  });
 
   // Two paths to "this is a student":
   //   - `isStudentRole` — token carries `studentRole: true`. Real SSO
@@ -287,6 +316,10 @@ const App: React.FC = () => {
     pathname === '/student/login' || pathname.startsWith('/student/login/');
   const isMyAssignmentsRoute =
     pathname === '/my-assignments' || pathname.startsWith('/my-assignments/');
+  // Phase A — `/subs` is the substitute teacher portal. Mounted outside the
+  // teacher AuthProvider/DashboardProvider so dashboard listeners don't fire
+  // for subs. Phase 4 will wrap this in a domain-gated AuthProvider.
+  const isSubsRoute = pathname === '/subs' || pathname.startsWith('/subs/');
 
   // Short-link resolver. Runs outside every provider so anonymous visitors
   // can follow admin-created /r/:code links without triggering Firebase
@@ -408,6 +441,22 @@ const App: React.FC = () => {
             <StudentApp />
           </Suspense>
         </StudentProvider>
+        <DialogContainer />
+      </DialogProvider>
+    );
+  }
+
+  // Substitute teacher portal — Google sign-in required, @orono.k12.mn.us
+  // domain enforced inside SubsApp via a small auth gate. Mounted outside
+  // DashboardProvider so teacher dashboard listeners never fire for subs.
+  if (isSubsRoute) {
+    return (
+      <DialogProvider>
+        <AuthProvider>
+          <Suspense fallback={<FullPageLoader />}>
+            <SubsApp />
+          </Suspense>
+        </AuthProvider>
         <DialogContainer />
       </DialogProvider>
     );

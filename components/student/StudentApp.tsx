@@ -102,11 +102,33 @@ const StudentAppInner: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // Sign in anonymously when component mounts
+  // Sign in anonymously when component mounts — but only if there's no
+  // existing user. An SSO-authenticated student who lands on `/join`
+  // (bookmark, stale link, etc.) must keep their custom-token session;
+  // unconditional `signInAnonymously` would silently demote them and then
+  // `RequireStudentAuth` would bounce them off `/my-assignments` on return.
   useEffect(() => {
     const initAuth = async () => {
       try {
-        await signInAnonymously(auth);
+        // Wait for hydration so the `auth.currentUser` check below reflects
+        // the persisted IndexedDB state, not the synchronous null seen on a
+        // fresh page load. If hydration itself rejects (e.g. IndexedDB
+        // blocked in a private window), fall through and let the anonymous
+        // sign-in attempt run as a last resort — /join's pre-existing
+        // contract is that the lobby should always end up with *some* auth
+        // user for `useLiveSession` to attach to, and signInAnonymously is
+        // a better fallback than rendering the lobby with no auth at all.
+        try {
+          await auth.authStateReady();
+        } catch (hydrationErr) {
+          console.warn(
+            '[StudentApp] authStateReady failed; falling through to anonymous sign-in.',
+            hydrationErr
+          );
+        }
+        if (!auth.currentUser) {
+          await signInAnonymously(auth);
+        }
         setAuthInitialized(true);
       } catch (error) {
         // - This component treats anonymous-auth failures as non-fatal so the UI can still proceed.

@@ -83,6 +83,7 @@ const mockAuth: AuthContextType = {
 // to update their configuration will silently fail.
 // See studentViewConfig.ts for widget compatibility details.
 const mockDashboard: DashboardContextValue = {
+  driveService: null,
   dashboards: [],
   activeDashboard: null,
   toasts: [],
@@ -250,6 +251,9 @@ const mockDashboard: DashboardContextValue = {
   },
   // Sharing system mocks
   shareDashboard: async () => {
+    return Promise.reject(new Error('Sharing not implemented in student view'));
+  },
+  shareSubstituteDashboard: async () => {
     return Promise.reject(new Error('Sharing not implemented in student view'));
   },
   loadSharedDashboard: async () => {

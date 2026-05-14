@@ -64,6 +64,9 @@ describe('FormattingToolbar', () => {
     expect(screen.getByTitle('Italic')).toBeInTheDocument();
     expect(screen.getByTitle('Underline')).toBeInTheDocument();
     expect(screen.getByTitle('Hyperlink (Ctrl+K)')).toBeInTheDocument();
+    // Lists are top-level buttons (promoted out of the alignment menu)
+    expect(screen.getByTitle(/Bulleted List/)).toBeInTheDocument();
+    expect(screen.getByTitle(/Numbered List/)).toBeInTheDocument();
     // Alignment & Layout trigger and Colors trigger
     expect(screen.getByTitle('Alignment & Layout')).toBeInTheDocument();
     expect(screen.getByTitle('Colors')).toBeInTheDocument();
@@ -72,8 +75,6 @@ describe('FormattingToolbar', () => {
     expect(screen.getByTitle('Align Left')).toBeInTheDocument();
     expect(screen.getByTitle('Align Center')).toBeInTheDocument();
     expect(screen.getByTitle('Align Right')).toBeInTheDocument();
-    expect(screen.getByTitle('Bulleted List')).toBeInTheDocument();
-    expect(screen.getByTitle('Numbered List')).toBeInTheDocument();
     expect(screen.getByTitle('Decrease Indent')).toBeInTheDocument();
     expect(screen.getByTitle('Increase Indent')).toBeInTheDocument();
     expect(screen.getByTitle('Align Top')).toBeInTheDocument();
@@ -470,13 +471,12 @@ describe('FormattingToolbar', () => {
     expect(execCommandMock).toHaveBeenCalledWith('underline', false, '');
   });
 
-  it('opens alignment popout with all four sections', () => {
+  it('opens alignment popout with all sections', () => {
     render(<FormattingToolbar {...defaultProps} />);
     fireEvent.click(screen.getByTitle('Alignment & Layout'));
     expect(screen.getByText('Justify')).toBeInTheDocument();
     expect(screen.getByText('Vertical')).toBeInTheDocument();
     expect(screen.getByText('Indent')).toBeInTheDocument();
-    expect(screen.getByText('Lists')).toBeInTheDocument();
   });
 
   it('executes justifyCenter from alignment popout', () => {
@@ -502,15 +502,63 @@ describe('FormattingToolbar', () => {
     expect(mockOnBgColorChange).toHaveBeenCalledWith('#fef9c3');
   });
 
-  it('executes list command from alignment popout', () => {
+  it('executes list command from top-level lists group', () => {
     render(<FormattingToolbar {...defaultProps} />);
-    fireEvent.click(screen.getByTitle('Alignment & Layout'));
-    fireEvent.click(screen.getByTitle('Bulleted List'));
+    fireEvent.click(screen.getByTitle(/Bulleted List/));
     expect(execCommandMock).toHaveBeenCalledWith(
       'insertUnorderedList',
       false,
       ''
     );
+  });
+
+  it('reflects list toggle state via aria-pressed', () => {
+    // Mock queryCommandState to simulate the caret being inside a list.
+    const queryCommandStateMock = vi.fn(
+      (cmd: string) => cmd === 'insertUnorderedList'
+    );
+    document.queryCommandState =
+      queryCommandStateMock as unknown as typeof document.queryCommandState;
+
+    // Capture-selection runs on selectionchange; fire one with a real range
+    // inside an editor element so the toolbar reads queryCommandState.
+    const editor = document.createElement('div');
+    const text = document.createTextNode('hello');
+    editor.appendChild(text);
+    document.body.appendChild(editor);
+
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    const range = document.createRange();
+    range.selectNodeContents(text);
+    const mockSelection = {
+      anchorNode: text,
+      rangeCount: 1,
+      getRangeAt: () => range,
+      removeAllRanges: vi.fn(),
+      addRange: vi.fn(),
+    } as unknown as Selection;
+    vi.spyOn(window, 'getSelection').mockReturnValue(mockSelection);
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+
+    expect(screen.getByTitle(/Bulleted List/)).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByTitle(/Numbered List/)).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+
+    document.body.removeChild(editor);
+    vi.restoreAllMocks();
   });
 
   it('syncs font size display when configFontSize changes', () => {

@@ -532,6 +532,127 @@ export class GoogleDriveService {
   }
 
   /**
+   * List the permissions currently set on a Drive file. Used by the
+   * substitute-share flow to dedupe — Drive's `permissions.create` is
+   * idempotent server-side and returns the EXISTING permissionId when the
+   * same (file, email) pair is granted twice, but we still want to know
+   * about it up front so we can refcount the permission across multiple
+   * concurrent substitute shares (only the last share to expire should
+   * actually call delete).
+   *
+   * Returns the raw permissions array with `id`, `emailAddress`, and
+   * `role` populated. Filters down to user-type permissions in callers.
+   */
+  async listFilePermissions(
+    fileId: string
+  ): Promise<
+    Array<{ id: string; emailAddress?: string; role?: string; type?: string }>
+  > {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/permissions?fields=permissions(id,type,role,emailAddress)`,
+      { headers: this.headers }
+    );
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      const body = await response.text();
+      throw new Error(
+        `Failed to list permissions on ${fileId}: ${response.status} ${body.slice(0, 200)}`
+      );
+    }
+    const data = (await response.json()) as {
+      permissions?: Array<{
+        id?: string;
+        emailAddress?: string;
+        role?: string;
+        type?: string;
+      }>;
+    };
+    return (data.permissions ?? []).filter(
+      (
+        p
+      ): p is {
+        id: string;
+        emailAddress?: string;
+        role?: string;
+        type?: string;
+      } => typeof p.id === 'string'
+    );
+  }
+
+  /**
+   * Grant a single user `reader` access to a Drive file. Used by the
+   * substitute-teacher share flow to surface a teacher's roster files to
+   * specific @orono.k12.mn.us sub accounts for the lifetime of the share.
+   *
+   * Returns the Drive `permissionId` so callers can persist it on the share
+   * doc and revoke later (Phase 5 cloud function or manual cleanup).
+   *
+   * NOTE: Drive's `permissions.create` is idempotent — calling this twice
+   * for the same (fileId, email) returns the SAME permissionId rather than
+   * erroring. Callers that need to refcount across concurrent shares
+   * should call `listFilePermissions` first and check for an existing
+   * grant.
+   */
+  async grantUserReaderPermission(
+    fileId: string,
+    email: string
+  ): Promise<string> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/permissions?sendNotificationEmail=false`,
+      {
+        method: 'POST',
+        headers: this.headers,
+        body: JSON.stringify({
+          role: 'reader',
+          type: 'user',
+          emailAddress: email,
+        }),
+      }
+    );
+    if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      const body = await response.text();
+      throw new Error(
+        `Failed to grant Drive reader to ${email} on ${fileId}: ${response.status} ${body.slice(0, 200)}`
+      );
+    }
+    const data = (await response.json()) as { id?: string };
+    if (!data.id) {
+      throw new Error(
+        `Drive permission grant for ${email} returned no permissionId`
+      );
+    }
+    return data.id;
+  }
+
+  /**
+   * Revoke a previously granted Drive permission by id. Mirrors
+   * `grantUserReaderPermission`. Idempotent on 404 (already gone).
+   */
+  async deletePermission(fileId: string, permissionId: string): Promise<void> {
+    const response = await this.fetchWithRetry(
+      `${DRIVE_API_URL}/files/${fileId}/permissions/${permissionId}`,
+      {
+        method: 'DELETE',
+        headers: this.headers,
+      }
+    );
+    if (!response.ok && response.status !== 404) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
+      const body = await response.text();
+      throw new Error(
+        `Failed to delete Drive permission ${permissionId}: ${response.status} ${body.slice(0, 200)}`
+      );
+    }
+  }
+
+  /**
    * Update the content of an existing Drive file in-place (PATCH media upload).
    * Use this instead of uploadFile when the file already exists to avoid
    * accumulating duplicate/orphaned files in Drive.

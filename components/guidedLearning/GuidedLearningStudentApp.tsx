@@ -60,6 +60,11 @@ export const GuidedLearningStudentApp: React.FC = () => {
   useEffect(() => {
     const init = async () => {
       try {
+        // Await IndexedDB hydration before checking `auth.currentUser`,
+        // otherwise a full-page navigation from `/my-assignments` would
+        // race hydration and demote an SSO user to a fresh anonymous
+        // session. See QuizStudentApp for the same fix.
+        await auth.authStateReady();
         if (!auth.currentUser) {
           const cred = await signInAnonymously(auth);
           setAnonymousUid(cred.user.uid);

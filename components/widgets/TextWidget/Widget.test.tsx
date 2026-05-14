@@ -215,6 +215,8 @@ describe('TextWidget', () => {
     ) as HTMLElement;
 
     expect(editableDiv).not.toBeNull();
+    // Inline-only placeholder content is left unwrapped (the normalizer
+    // only acts on mixed/multi-paragraph structures).
     expect(editableDiv.innerHTML).toBe('Click to edit...');
 
     // In JSDOM, setting focus to it triggers the focus event
@@ -233,6 +235,7 @@ describe('TextWidget', () => {
       'div[contentEditable="true"]'
     ) as HTMLElement;
     expect(editableDiv).not.toBeNull();
+    // Inline-only content is left untouched by the normalizer.
     expect(editableDiv.innerHTML).toBe('Hello World');
 
     const updatedWidget = {
@@ -242,7 +245,9 @@ describe('TextWidget', () => {
 
     rerender(<TextWidget widget={updatedWidget} />);
 
+    // External sync replaces the DOM contents wholesale, not appends.
     expect(editableDiv.innerHTML).toBe('Updated External Content');
+    expect(editableDiv.textContent).toBe('Updated External Content');
   });
 
   it('does not update DOM from external change when editing', () => {
@@ -301,6 +306,73 @@ describe('TextWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
       config: { ...mockConfig, content: 'Immediate Save' },
     });
+  });
+
+  it('wraps loose top-level text in a <div> on mount so drag-selection works across paragraphs', () => {
+    const mixedWidget: WidgetData = {
+      ...mockWidget,
+      config: {
+        ...mockConfig,
+        // Templates ship with <br>-separated lines and content authored by
+        // users on older builds has bare first-line text followed by <div>
+        // paragraphs. Both shapes must end up as uniform <div> blocks.
+        content: 'First line<br/><div>Second line</div>Third line',
+      },
+    };
+    const { container } = render(<TextWidget widget={mixedWidget} />);
+    const editableDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
+
+    // All direct children of the editor are now block-level elements.
+    const childTags = Array.from(editableDiv.childNodes).map((n) =>
+      n.nodeType === Node.ELEMENT_NODE
+        ? (n as HTMLElement).tagName
+        : n.nodeType === Node.TEXT_NODE
+          ? '#text'
+          : '#other'
+    );
+    expect(childTags.every((t) => t !== '#text' && t !== 'BR')).toBe(true);
+    // Verify content was preserved without loss or re-ordering.
+    expect(editableDiv.children.length).toBe(3);
+    expect(editableDiv.textContent).toBe('First lineSecond lineThird line');
+  });
+
+  it('triggers Bulleted List from Ctrl+Shift+8', () => {
+    render(<TextWidget widget={mockWidget} />);
+    const editableDiv = screen
+      .getByText('Hello World')
+      .closest('div[contentEditable="true"]');
+    expect(editableDiv).not.toBeNull();
+    if (editableDiv) {
+      fireEvent.keyDown(editableDiv, {
+        key: '8',
+        code: 'Digit8',
+        ctrlKey: true,
+        shiftKey: true,
+      });
+      expect(execCommandMock).toHaveBeenCalledWith(
+        'insertUnorderedList',
+        false
+      );
+    }
+  });
+
+  it('triggers Numbered List from Ctrl+Shift+7', () => {
+    render(<TextWidget widget={mockWidget} />);
+    const editableDiv = screen
+      .getByText('Hello World')
+      .closest('div[contentEditable="true"]');
+    expect(editableDiv).not.toBeNull();
+    if (editableDiv) {
+      fireEvent.keyDown(editableDiv, {
+        key: '7',
+        code: 'Digit7',
+        ctrlKey: true,
+        shiftKey: true,
+      });
+      expect(execCommandMock).toHaveBeenCalledWith('insertOrderedList', false);
+    }
   });
 
   it('normalizes empty browser markup to empty string on input', () => {

@@ -1040,6 +1040,20 @@ export interface RandomConfig {
    *  `makeRestrictedGroupsByCount` (greedy smallest-safe-bucket) for
    *  class mode where restriction-aware placement matters. */
   numHomeGroups?: number;
+  /** Manual editing: names pinned to their current group/index. Locked names
+   *  stay put when Randomize is hit again; other students reshuffle around
+   *  them. Can still be moved manually by drag. */
+  lockedNames?: string[];
+  /** Manual editing: names removed from the result and parked in the
+   *  Unassigned tray. Excluded from re-randomize until dragged back into a
+   *  group/list. */
+  unassignedNames?: string[];
+  /** Shuffle mode: names marked as "done" by tapping the check button on
+   *  the chip — used for presentation order, lunch line, etc. The chip
+   *  renders the name struck through. Marks are tied to the student name
+   *  so they survive re-randomize (a fresh order doesn't erase what's
+   *  already been completed). */
+  doneNames?: string[];
 }
 
 export interface DiceConfig {
@@ -4987,7 +5001,42 @@ export interface Dashboard {
  * /shared_boards/{shareId} doc as `intendedMode` so the recipient flow can
  * honor the host's choice instead of letting the recipient pick.
  */
-export type SharedBoardIntendedMode = 'copy' | 'synced' | 'view-only';
+export type SharedBoardIntendedMode =
+  | 'copy'
+  | 'synced'
+  | 'view-only'
+  | 'substitute';
+
+/**
+ * Per-roster Drive permission record persisted on a substitute share when the
+ * host opts to share their rosters with a sub. The expiration sweep cloud
+ * function (Phase 5) iterates this list to revoke each grant by
+ * `permissionId` once the share expires or is deleted.
+ */
+export interface SubstituteShareDriveGrant {
+  email: string;
+  fileId: string;
+  permissionId: string;
+}
+
+/**
+ * Substitute-mode-only fields persisted on `/shared_boards/{shareId}` when
+ * `intendedMode === 'substitute'`. The widgets field on the doc carries the
+ * same snapshot as `initialState`; the host never updates either after
+ * creation, so the sub view is frozen for the lifetime of the share.
+ */
+export interface SubstituteShareFields {
+  /** ms epoch — defaults to sharedAt + 48h, max 14 days. */
+  expiresAt: number;
+  /** Canonical building id (config/buildings.ts). Subs filter by this. */
+  buildingId: string;
+  /** Immutable widgets snapshot at creation time. */
+  initialState: WidgetData[];
+  /** Optional @orono.k12.mn.us emails granted Drive access. */
+  subEmails?: string[];
+  /** Phase 5: per-email/file Drive permission ids for revocation. */
+  driveGrants?: SubstituteShareDriveGrant[];
+}
 
 /** Per-participant entry on a /shared_boards/{shareId} doc. */
 export interface SharedBoardParticipant {

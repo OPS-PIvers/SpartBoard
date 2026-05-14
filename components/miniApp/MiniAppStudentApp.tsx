@@ -56,15 +56,25 @@ export const MiniAppStudentApp: React.FC = () => {
 
   useEffect(() => {
     const init = async () => {
-      if (!auth.currentUser) {
-        try {
+      try {
+        // Await IndexedDB hydration so the `auth.currentUser` check below
+        // reflects the persisted SSO session (if any) instead of the
+        // synchronous null seen on a fresh page load. Treating hydration
+        // failure as a hard auth error — rather than swallowing it and
+        // falling through to signInAnonymously — is what prevents the
+        // exact SSO-demotion bug this fix exists to address, since a
+        // rejected hydration with null currentUser would otherwise route
+        // an SSO student into a fresh anonymous session.
+        await auth.authStateReady();
+        if (!auth.currentUser) {
           await signInAnonymously(auth);
-        } catch (err) {
-          console.warn('[MiniAppStudentApp] Anonymous auth failed:', err);
-          setAuthFailed(true);
         }
+      } catch (err) {
+        logError('MiniAppStudentApp.authInit', err);
+        setAuthFailed(true);
+      } finally {
+        setAuthReady(true);
       }
-      setAuthReady(true);
     };
     void init();
   }, []);

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 import { RandomWidget } from './RandomWidget';
 import { useDashboard } from '@/context/useDashboard';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
@@ -269,14 +269,15 @@ describe('RandomWidget', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('renders the post-pick footer as two rows with all 5 controls visible (no cutoff)', () => {
-      // Regression guard: when both Launch buttons + both steppers + the
-      // Randomize button shared a single horizontal row, the trailing items
-      // overflowed the widget's right edge and were clipped. The footer is
-      // now a vertical stack of two rows so every control stays reachable.
+    it('renders the post-pick footer as a single row with all 5 controls visible', () => {
+      // The footer was consolidated from a two-row stack into a single
+      // horizontal row to reclaim vertical space — Launch Jigsaw and Launch
+      // Home Group lost their long "Launch …" labels and now sit between
+      // their respective steppers. Every control must remain reachable on
+      // one line.
       render(<RandomWidget widget={jigsawWidget({ jigsawView: 'home' })} />);
 
-      // Both Launch buttons.
+      // Both Launch buttons (accessible names preserved via aria-label).
       expect(
         screen.getByRole('button', { name: /Launch Jigsaw/i })
       ).toBeInTheDocument();
@@ -284,7 +285,7 @@ describe('RandomWidget', () => {
         screen.getByRole('button', { name: /Launch Home Group/i })
       ).toBeInTheDocument();
 
-      // Both steppers (group role + aria-label set on GroupSizeStepper).
+      // Both steppers.
       expect(
         screen.getByRole('group', { name: /Number of Expert Groups/i })
       ).toBeInTheDocument();
@@ -292,23 +293,24 @@ describe('RandomWidget', () => {
         screen.getByRole('group', { name: /Number of Home Groups/i })
       ).toBeInTheDocument();
 
-      // Randomize button still reachable from this view.
+      // Randomize button still reachable.
       expect(
         screen.getByRole('button', { name: /Randomize|Picking/i })
       ).toBeInTheDocument();
 
-      // Footer is a flex column whose direct children are the two rows.
+      // Footer is a single flex row containing all five controls plus the
+      // associated stepper labels — no nested stack of two rows.
       const footer = screen.getByTestId('footer');
-      const stack = footer.firstElementChild as HTMLElement | null;
-      expect(stack).not.toBeNull();
-      expect(stack?.className).toMatch(/\bflex-col\b/);
-      expect(stack?.children.length).toBe(2);
+      const row = footer.firstElementChild as HTMLElement | null;
+      expect(row).not.toBeNull();
+      expect(row?.className).not.toMatch(/\bflex-col\b/);
 
-      // Row 1 must contain the Expert stepper, the Launch Jigsaw button, and
-      // the Randomize button. Row 2 must contain the Home stepper, the Launch
-      // Home Group button, and an aria-hidden spacer for visual alignment.
-      const row1 = stack?.children[0] as HTMLElement;
-      const row2 = stack?.children[1] as HTMLElement;
+      const expertStepper = screen.getByRole('group', {
+        name: /Number of Expert Groups/i,
+      });
+      const homeStepper = screen.getByRole('group', {
+        name: /Number of Home Groups/i,
+      });
       const launchJigsaw = screen.getByRole('button', {
         name: /Launch Jigsaw/i,
       });
@@ -318,18 +320,11 @@ describe('RandomWidget', () => {
       const randomize = screen.getByRole('button', {
         name: /^Randomize$|^Picking$/,
       });
-      const expertStepper = screen.getByRole('group', {
-        name: /Number of Expert Groups/i,
-      });
-      const homeStepper = screen.getByRole('group', {
-        name: /Number of Home Groups/i,
-      });
-      expect(row1.contains(expertStepper)).toBe(true);
-      expect(row1.contains(launchJigsaw)).toBe(true);
-      expect(row1.contains(randomize)).toBe(true);
-      expect(row2.contains(homeStepper)).toBe(true);
-      expect(row2.contains(launchHome)).toBe(true);
-      expect(row2.querySelector('[aria-hidden="true"]')).not.toBeNull();
+      expect(row?.contains(expertStepper)).toBe(true);
+      expect(row?.contains(launchJigsaw)).toBe(true);
+      expect(row?.contains(homeStepper)).toBe(true);
+      expect(row?.contains(launchHome)).toBe(true);
+      expect(row?.contains(randomize)).toBe(true);
     });
   });
 
@@ -423,5 +418,97 @@ describe('RandomWidget', () => {
       expect.stringMatching(/scoreboard/i),
       'success'
     );
+  });
+
+  describe('Randomize with locks (no sit-out tray)', () => {
+    const groupsWidget = (
+      override: Partial<RandomConfig> = {}
+    ): WidgetData => ({
+      id: 'test-id',
+      type: 'random',
+      config: {
+        firstNames: 'Alice\nBob\nCharlie\nDave',
+        mode: 'groups',
+        rosterMode: 'custom',
+        groupSize: 2,
+        lastResult: [
+          { id: 'g1', names: ['Alice', 'Bob'] },
+          { id: 'g2', names: ['Charlie', 'Dave'] },
+        ],
+        ...override,
+      } as RandomConfig,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      z: 1,
+      flipped: false,
+    });
+
+    it('keeps locked students in their group after Randomize', () => {
+      vi.useFakeTimers();
+      try {
+        render(
+          <RandomWidget
+            widget={groupsWidget({
+              lockedNames: ['Alice'],
+            })}
+          />
+        );
+        act(() => {
+          fireEvent.click(
+            screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+          );
+        });
+        act(() => {
+          vi.advanceTimersByTime(600);
+        });
+
+        const calls = mockUpdateWidget.mock.calls;
+        const last = calls[calls.length - 1][1] as {
+          config: Record<string, unknown>;
+        };
+        const result = last.config.lastResult as {
+          id: string;
+          names: string[];
+        }[];
+        const g1 = result.find((g) => g.id === 'g1');
+        expect(g1?.names).toContain('Alice');
+        // Randomize always clears the legacy unassigned bucket.
+        expect(last.config.unassignedNames).toEqual([]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('clears any legacy unassignedNames on randomize', () => {
+      vi.useFakeTimers();
+      try {
+        render(
+          <RandomWidget
+            widget={groupsWidget({
+              unassignedNames: ['Eve'],
+              lockedNames: [],
+            })}
+          />
+        );
+        act(() => {
+          fireEvent.click(
+            screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+          );
+        });
+        act(() => {
+          vi.advanceTimersByTime(600);
+        });
+
+        const calls = mockUpdateWidget.mock.calls;
+        const last = calls[calls.length - 1][1] as {
+          config: Record<string, unknown>;
+        };
+        expect(last.config.unassignedNames).toEqual([]);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
   });
 });

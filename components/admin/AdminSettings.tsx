@@ -11,6 +11,7 @@ import {
   BarChart,
   LayoutTemplate,
   Link2,
+  GraduationCap,
 } from 'lucide-react';
 
 import { useAuth } from '@/context/useAuth';
@@ -22,6 +23,7 @@ import { OrganizationPanel } from './Organization/OrganizationPanel';
 import { AnalyticsManager } from './Analytics/AnalyticsManager';
 import { DashboardTemplatesManager } from './DashboardTemplatesManager';
 import { LinkShortenerManager } from './LinkShortenerManager';
+import { PresetSubEmailsManager } from './PresetSubEmailsManager';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -75,6 +77,12 @@ const TABS = [
     label: 'Links',
     icon: Link2,
     component: LinkShortenerManager,
+  },
+  {
+    id: 'sub-presets',
+    label: 'Sub Presets',
+    icon: GraduationCap,
+    component: PresetSubEmailsManager,
   },
 ] as const;
 

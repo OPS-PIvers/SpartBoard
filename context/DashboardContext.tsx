@@ -22,6 +22,7 @@ import {
   FeaturePermission,
   DrawableObject,
   UserProfile,
+  SubstituteShareDriveGrant,
 } from '../types';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
@@ -64,6 +65,8 @@ import {
   DashboardContext,
   PendingShareImport,
   SharedBoardImportMode,
+  SubstituteShareInput,
+  SubstituteShareResult,
 } from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '../utils/adminBuildingConfig';
@@ -219,6 +222,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     deleteDashboard: deleteDashboardFirestore,
     subscribeToDashboards,
     shareDashboard: shareDashboardFirestore,
+    shareSubstituteDashboard: shareSubstituteDashboardFirestore,
     loadSharedDashboard: loadSharedDashboardFirestore,
     mirrorSharedBoard,
     subscribeToSharedBoard,
@@ -1208,7 +1212,115 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       saveDashboard,
       userDomain,
       user,
+      // NOTE: substitute-share handler below has its own dep list; this block
+      // intentionally tracks `handleShareDashboard` deps only.
     ]
+  );
+
+  const handleShareSubstituteDashboard = useCallback(
+    async (input: SubstituteShareInput): Promise<SubstituteShareResult> => {
+      // Substitute shares always go through Firestore. The Drive export path
+      // used by the regular share flow is one-time and copy-mode-only — it
+      // can't host a building-scoped, expiring, queryable surface like the
+      // sub directory needs.
+      const hostName = user?.displayName ?? user?.email ?? undefined;
+      const scrubbedSeed = scrubDashboardPII(input.dashboard);
+
+      // Resolve Drive grants BEFORE writing the share doc so they can be
+      // persisted atomically. Drive's `permissions.create` is idempotent —
+      // calling it twice for the same (fileId, email) returns the SAME
+      // permissionId, which means a naive grant flow would later revoke a
+      // permission that another concurrent substitute share still depends
+      // on. We pre-list the file's permissions and reuse the existing
+      // permissionId when present so the refcounting logic in the reconcile
+      // sweep (`useReconcileExpiredSubShares`) sees the conflict and skips
+      // the revoke if other active shares still reference it.
+      const driveGrants: SubstituteShareDriveGrant[] = [];
+      const subEmails = input.subEmails ?? [];
+      const fileIds = input.rosterDriveFileIds ?? [];
+      const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
+      // Track failed pairs so the caller can warn the host — without this,
+      // a partial network failure would silently produce a share doc with
+      // missing driveGrants and the host would never know.
+      const failedPairs: Array<{ email: string; fileId: string }> = [];
+      if (driveSharingRequested && driveService) {
+        for (const fileId of fileIds) {
+          let existingPerms: Awaited<
+            ReturnType<typeof driveService.listFilePermissions>
+          > = [];
+          try {
+            existingPerms = await driveService.listFilePermissions(fileId);
+          } catch (err) {
+            console.error(
+              `[shareSubstituteDashboard] listFilePermissions(${fileId}) failed; will fall back to grant calls:`,
+              err
+            );
+          }
+
+          for (const email of subEmails) {
+            const lower = email.toLowerCase();
+            const existing = existingPerms.find(
+              (p) =>
+                p.type === 'user' &&
+                p.emailAddress?.toLowerCase() === lower &&
+                typeof p.id === 'string'
+            );
+            if (existing) {
+              driveGrants.push({ email, fileId, permissionId: existing.id });
+              continue;
+            }
+            try {
+              const permissionId = await driveService.grantUserReaderPermission(
+                fileId,
+                email
+              );
+              driveGrants.push({ email, fileId, permissionId });
+            } catch (err) {
+              console.error(
+                `[shareSubstituteDashboard] Drive grant failed for ${email} on ${fileId}:`,
+                err
+              );
+              failedPairs.push({ email, fileId });
+            }
+          }
+        }
+      } else if (driveSharingRequested && !driveService) {
+        // Drive sharing was asked for but the teacher has no live Drive
+        // service (no token / disconnected). Every requested pair fails.
+        for (const fileId of fileIds) {
+          for (const email of subEmails) {
+            failedPairs.push({ email, fileId });
+          }
+        }
+      }
+
+      const shareId = await shareSubstituteDashboardFirestore({
+        dashboard: scrubbedSeed,
+        expiresAt: input.expiresAt,
+        buildingId: input.buildingId,
+        subEmails: input.subEmails,
+        driveGrants: driveGrants.length > 0 ? driveGrants : undefined,
+        hostDisplayName: hostName,
+      });
+
+      // Deliberately DO NOT tag the host's local dashboard with a
+      // linkedShareId — substitute shares are frozen snapshots and the host
+      // continues editing their live board independently.
+      const attempted = driveSharingRequested
+        ? subEmails.length * fileIds.length
+        : 0;
+      return {
+        shareId,
+        driveGrants: driveSharingRequested
+          ? {
+              attempted,
+              succeeded: driveGrants.length,
+              failed: failedPairs,
+            }
+          : null,
+      };
+    },
+    [shareSubstituteDashboardFirestore, driveService, user]
   );
 
   const handleLoadSharedDashboard = useCallback(
@@ -2234,9 +2346,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // path instead of the legacy 3-option picker.
         const sharedSnap = sharedDb as SharedBoardSnapshot | null;
         const docIntendedMode = sharedSnap?.intendedMode;
+        // Substitute shares are never importable into a teacher's account —
+        // they live only inside the /subs portal. Strip the mode here so the
+        // import picker doesn't try to honor it.
+        const importableMode: SharedBoardImportMode | undefined =
+          docIntendedMode && docIntendedMode !== 'substitute'
+            ? docIntendedMode
+            : undefined;
         const intendedMode: SharedBoardImportMode | undefined = driveBacked
           ? 'copy'
-          : docIntendedMode;
+          : importableMode;
         setPendingShareImport({
           shareId: currentShareId,
           preview: sharedDb,
@@ -4130,6 +4249,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const contextValue = useMemo(
     () => ({
+      driveService,
       dashboards,
       activeDashboard,
       toasts,
@@ -4199,6 +4319,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveItemOutOfFolder,
       reorderFolderItems,
       shareDashboard: handleShareDashboard,
+      shareSubstituteDashboard: handleShareSubstituteDashboard,
       loadSharedDashboard: handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,
@@ -4234,6 +4355,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       clearAnnotation,
     }),
     [
+      driveService,
       dashboards,
       activeDashboard,
       toasts,
@@ -4303,6 +4425,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveItemOutOfFolder,
       reorderFolderItems,
       handleShareDashboard,
+      handleShareSubstituteDashboard,
       handleLoadSharedDashboard,
       pendingShareId,
       clearPendingShare,

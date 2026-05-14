@@ -5,51 +5,87 @@ import { Plus, Minus } from 'lucide-react';
 import {
   SCOREBOARD_COLORS as TEAM_COLORS,
   ScoreboardColor,
+  normalizeScoreboardColor,
 } from '@/config/scoreboard';
 
 const COLOR_STYLES: Record<
   ScoreboardColor,
   { label: string; score: string; button: string }
 > = {
+  'bg-sky-500': {
+    label: 'text-sky-600',
+    score: 'text-sky-700',
+    button: 'text-sky-700',
+  },
   'bg-blue-500': {
     label: 'text-blue-600',
     score: 'text-blue-700',
     button: 'text-blue-700',
-  },
-  'bg-red-500': {
-    label: 'text-red-600',
-    score: 'text-red-700',
-    button: 'text-red-700',
-  },
-  'bg-green-500': {
-    label: 'text-green-600',
-    score: 'text-green-700',
-    button: 'text-green-700',
-  },
-  'bg-yellow-500': {
-    label: 'text-yellow-600',
-    score: 'text-yellow-700',
-    button: 'text-yellow-700',
-  },
-  'bg-purple-500': {
-    label: 'text-purple-600',
-    score: 'text-purple-700',
-    button: 'text-purple-700',
-  },
-  'bg-pink-500': {
-    label: 'text-pink-600',
-    score: 'text-pink-700',
-    button: 'text-pink-700',
   },
   'bg-indigo-500': {
     label: 'text-indigo-600',
     score: 'text-indigo-700',
     button: 'text-indigo-700',
   },
+  'bg-violet-500': {
+    label: 'text-violet-600',
+    score: 'text-violet-700',
+    button: 'text-violet-700',
+  },
+  'bg-purple-500': {
+    label: 'text-purple-600',
+    score: 'text-purple-700',
+    button: 'text-purple-700',
+  },
+  'bg-fuchsia-500': {
+    label: 'text-fuchsia-600',
+    score: 'text-fuchsia-700',
+    button: 'text-fuchsia-700',
+  },
+  'bg-pink-500': {
+    label: 'text-pink-600',
+    score: 'text-pink-700',
+    button: 'text-pink-700',
+  },
+  'bg-rose-500': {
+    label: 'text-rose-600',
+    score: 'text-rose-700',
+    button: 'text-rose-700',
+  },
+  'bg-red-500': {
+    label: 'text-red-600',
+    score: 'text-red-700',
+    button: 'text-red-700',
+  },
   'bg-orange-500': {
     label: 'text-orange-600',
     score: 'text-orange-700',
     button: 'text-orange-700',
+  },
+  'bg-amber-500': {
+    label: 'text-amber-600',
+    score: 'text-amber-700',
+    button: 'text-amber-700',
+  },
+  'bg-yellow-500': {
+    label: 'text-yellow-600',
+    score: 'text-yellow-700',
+    button: 'text-yellow-700',
+  },
+  'bg-lime-500': {
+    label: 'text-lime-600',
+    score: 'text-lime-700',
+    button: 'text-lime-700',
+  },
+  'bg-green-500': {
+    label: 'text-green-600',
+    score: 'text-green-700',
+    button: 'text-green-700',
+  },
+  'bg-emerald-500': {
+    label: 'text-emerald-600',
+    score: 'text-emerald-700',
+    button: 'text-emerald-700',
   },
   'bg-teal-600': {
     label: 'text-teal-600',
@@ -61,13 +97,14 @@ const COLOR_STYLES: Record<
     score: 'text-cyan-700',
     button: 'text-cyan-700',
   },
+  'bg-slate-600': {
+    label: 'text-slate-600',
+    score: 'text-slate-700',
+    button: 'text-slate-700',
+  },
 };
 
-const getStyles = (colorClass: string) => {
-  return (
-    COLOR_STYLES[colorClass as ScoreboardColor] ?? COLOR_STYLES['bg-blue-500']
-  );
-};
+const getStyles = (colorClass: ScoreboardColor) => COLOR_STYLES[colorClass];
 
 export const ScoreboardItem = React.memo(
   ({
@@ -77,16 +114,21 @@ export const ScoreboardItem = React.memo(
     team: ScoreboardTeam;
     onUpdateScore: (id: string, delta: number) => void;
   }) => {
-    const colorClass = team.color ?? 'bg-blue-500';
-    const styles = getStyles(colorClass);
+    // Normalize the persisted color through the known-palette set before
+    // it lands in className — an unknown value would interpolate into
+    // `bg-something-500` that Tailwind has no rule for, leaving white
+    // text on no background. The helper also logs once per unknown
+    // value so stale-data regressions surface in dev console.
+    const colorClass = normalizeScoreboardColor(team.color);
+    const buttonIconColor = getStyles(colorClass).button;
 
     return (
       <div
-        className={`flex flex-col items-center justify-center ${colorClass}/20 rounded-2xl border border-slate-200 relative group transition-all hover:shadow-md`}
+        className={`flex flex-col items-center justify-center ${colorClass} text-white rounded-2xl border border-white/20 shadow-sm relative group transition-all hover:shadow-md`}
         style={{ containerType: 'size', padding: 'min(4px, 1cqmin)' }}
       >
         <div
-          className={`font-black uppercase tracking-widest ${styles.label} text-center line-clamp-1 w-full`}
+          className="font-black uppercase tracking-widest text-white text-center line-clamp-1 w-full"
           style={{
             fontSize: 'min(15cqh, 80cqw)',
             marginBottom: 'min(2cqh, 1cqmin)',
@@ -97,7 +139,7 @@ export const ScoreboardItem = React.memo(
           {team.name}
         </div>
         <div
-          className={`font-black ${styles.score} tabular-nums drop-shadow-sm`}
+          className="font-black text-white tabular-nums drop-shadow-sm"
           style={{
             fontSize: 'min(60cqh, 50cqw)',
             lineHeight: 1,
@@ -113,7 +155,7 @@ export const ScoreboardItem = React.memo(
           <button
             onClick={() => onUpdateScore(team.id, -1)}
             aria-label="Decrease score"
-            className={`bg-white ${styles.button} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
+            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
             style={{ padding: 'min(8px, 2cqh)' }}
           >
             <Minus
@@ -126,7 +168,7 @@ export const ScoreboardItem = React.memo(
           <button
             onClick={() => onUpdateScore(team.id, 1)}
             aria-label="Increase score"
-            className={`${colorClass} text-white rounded-lg shadow-md hover:brightness-110 active:scale-95 transition-all`}
+            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
             style={{ padding: 'min(8px, 2cqh)' }}
           >
             <Plus

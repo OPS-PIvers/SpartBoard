@@ -19,6 +19,8 @@ import {
   Dashboard,
   SharedBoardIntendedMode,
   SharedBoardParticipant,
+  SubstituteShareDriveGrant,
+  WidgetData,
 } from '../types';
 
 /**
@@ -414,6 +416,89 @@ export const useFirestore = (userId: string | null) => {
   );
 
   /**
+   * Write a substitute-mode share. Distinct from `shareDashboard()` because
+   * substitute shares carry extra fields (expiresAt, buildingId, initialState,
+   * subEmails, driveGrants) and have different lifecycle semantics — no live
+   * mirror, no linkedShareId on the host's dashboard, expiration sweeps
+   * remove them.
+   *
+   * `driveGrants` is passed in here (not added via a follow-up updateDoc)
+   * so the share doc lands with the grants atomically. A crash after Drive
+   * grants succeed but before this write would orphan permissions; the
+   * caller is responsible for ordering: grant first, then call this. Even
+   * with that sequencing, the failure window is one network call instead
+   * of two.
+   */
+  const shareSubstituteDashboard = useCallback(
+    async (params: {
+      dashboard: Dashboard;
+      expiresAt: number;
+      buildingId: string;
+      subEmails?: string[];
+      driveGrants?: SubstituteShareDriveGrant[];
+      hostDisplayName?: string;
+    }): Promise<string> => {
+      const {
+        dashboard,
+        expiresAt,
+        buildingId,
+        subEmails,
+        driveGrants,
+        hostDisplayName,
+      } = params;
+
+      if (isAuthBypass) {
+        return mockSharedStore.add({
+          ...dashboard,
+          ...(hostDisplayName
+            ? ({ originalAuthorName: hostDisplayName } as Partial<Dashboard>)
+            : {}),
+          intendedMode: 'substitute',
+        } as Dashboard);
+      }
+
+      const shareRef = collection(db, 'shared_boards');
+      // Strip link metadata so the frozen snapshot can never reference itself
+      // as a parent, mirroring the regular `shareDashboard` write path.
+      const {
+        id: _id,
+        linkedShareId: _ls,
+        linkedShareRole: _lsr,
+        linkedShareHostName: _lsh,
+        linkedShareEnded: _lse,
+        ...data
+      } = dashboard;
+
+      // The widgets array is captured both at the top level (for renderers
+      // that read `widgets`) and as `initialState` (for the sub-board
+      // "Reset board" action to deep-clone from). Two copies are deliberate
+      // and stay in sync only at creation time — the host can't update
+      // either after the fact.
+      const initialState = JSON.parse(
+        JSON.stringify(data.widgets ?? [])
+      ) as WidgetData[];
+
+      const docRef = await addDoc(shareRef, {
+        ...data,
+        sharedAt: Date.now(),
+        originalAuthor: userId,
+        ...(hostDisplayName ? { originalAuthorName: hostDisplayName } : {}),
+        intendedMode: 'substitute' as SharedBoardIntendedMode,
+        expiresAt,
+        buildingId,
+        initialState,
+        ...(subEmails && subEmails.length > 0 ? { subEmails } : {}),
+        ...(driveGrants && driveGrants.length > 0 ? { driveGrants } : {}),
+        participants: {},
+        updatedAt: Date.now(),
+        updatedBy: userId,
+      });
+      return docRef.id;
+    },
+    [userId]
+  );
+
+  /**
    * Push the host or collaborator's local dashboard state into the shared
    * doc. Strips the doc id and link bookkeeping so they don't leak to the
    * other side. `updatedBy` is the local user's uid so subscribers can
@@ -580,6 +665,7 @@ export const useFirestore = (userId: string | null) => {
     deleteDashboard,
     subscribeToDashboards,
     shareDashboard,
+    shareSubstituteDashboard,
     loadSharedDashboard,
     mirrorSharedBoard,
     subscribeToSharedBoard,

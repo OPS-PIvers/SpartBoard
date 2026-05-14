@@ -73,6 +73,11 @@ vi.mock('@/config/firebase', () => {
     onAuthStateChanged: vi.fn(),
     signInWithPopup: vi.fn(),
     signOut: vi.fn(),
+    // Student-app entry components await this before checking
+    // `auth.currentUser` so they don't race Firebase Auth's IndexedDB
+    // hydration. Resolve immediately under test — individual tests that
+    // need to model the race override this in their local `mockAuth`.
+    authStateReady: vi.fn().mockResolvedValue(undefined),
   };
   return {
     isConfigured: false,

@@ -87,6 +87,14 @@ export const VideoActivityStudentApp: React.FC = () => {
     if (previewMode) return;
     const init = async () => {
       try {
+        // Wait for Firebase Auth to hydrate from IndexedDB before deciding
+        // whether to sign in anonymously. On full-page navigations from
+        // `/my-assignments` (which uses an <a href> link), `auth.currentUser`
+        // is null for the first tick or two even when IndexedDB holds an SSO
+        // user — without this await we'd race hydration and silently replace
+        // the SSO user with a fresh anonymous one. See QuizStudentApp for
+        // the same fix and its regression test.
+        await auth.authStateReady();
         // Sign in anonymously only when nobody is signed in — SSO students
         // arrive with a custom-token user we must keep.
         if (!auth.currentUser) {

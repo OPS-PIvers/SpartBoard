@@ -38,6 +38,10 @@ const { mockAuth, mockJoinQuizSession, mockLookupSession } = vi.hoisted(() => {
       onAuthStateChanged: vi.fn(),
       signInWithPopup: vi.fn(),
       signOut: vi.fn(),
+      // Real Firebase Auth resolves this once the initial state has been
+      // determined from IndexedDB. QuizStudentApp awaits it before deciding
+      // whether to sign in anonymously, so the tests must stub it.
+      authStateReady: vi.fn().mockResolvedValue(undefined),
       currentUser: null as MockUser | null,
     },
     mockJoinQuizSession: vi.fn(),
@@ -134,8 +138,84 @@ describe('QuizStudentApp — SSO studentRole auto-join', () => {
     mockLookupSession.mockReset();
     // Default to a successful join — individual tests override as needed.
     mockJoinQuizSession.mockResolvedValue('session-1');
+    // Default authStateReady to a no-op resolve — tests that exercise the
+    // hydration race override this to populate currentUser inside the
+    // implementation.
+    mockAuth.authStateReady.mockReset().mockResolvedValue(undefined);
     mockAuth.currentUser = null;
     setSearch('');
+  });
+
+  it('waits for authStateReady before signing in anonymously — preserves SSO user that hydrates from IndexedDB after mount', async () => {
+    // Regression test for the bug where SSO students who previously visited
+    // /join (leaving an anonymous-then-replaced user record in IndexedDB) get
+    // bounced to the PIN form when navigating from /my-assignments → /quiz.
+    //
+    // The browser-native <a href> in AssignmentListItem causes a full page
+    // load. Firebase Auth hydrates `auth.currentUser` asynchronously from
+    // IndexedDB. If the component checks `auth.currentUser` synchronously
+    // on mount it sees null and calls signInAnonymously(), silently
+    // replacing the SSO user — and `isStudentRole` stays false, so the
+    // auto-join effect never fires and the PIN form renders.
+    //
+    // Model the race: currentUser is null until authStateReady() resolves,
+    // at which point we populate it with the SSO user (this is what real
+    // Firebase Auth does when reading the IndexedDB record).
+    mockAuth.currentUser = null;
+    mockAuth.authStateReady.mockReset().mockImplementation(() => {
+      mockAuth.currentUser = mintUser({
+        uid: 'sso-uid-hydrated',
+        isAnonymous: false,
+        studentRole: true,
+      });
+      return Promise.resolve();
+    });
+    setSearch('?code=ABC123');
+
+    render(<QuizStudentApp />);
+
+    await waitFor(() => {
+      expect(mockJoinQuizSession).toHaveBeenCalledWith(
+        'ABC123',
+        undefined,
+        undefined
+      );
+    });
+
+    // The bug we are guarding against: signInAnonymously must NOT be called
+    // when an SSO user is about to hydrate from IndexedDB. If this assertion
+    // ever fails, the race has regressed and SSO students will see the PIN
+    // form again.
+    expect(vi.mocked(signInAnonymously)).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Join Quiz/i)).not.toBeInTheDocument();
+  });
+
+  it('treats authStateReady rejection as a hard auth failure — does NOT silently demote to anonymous', async () => {
+    // Regression test for the silent-failure mode the code-review caught:
+    // if authStateReady() rejects (e.g. IndexedDB blocked in a private
+    // window) and the component swallows the error, the subsequent
+    // `if (!auth.currentUser) signInAnonymously()` block would silently
+    // create a fresh anonymous user when an SSO user was about to
+    // hydrate. That's the exact bug this PR is fixing — just on the
+    // rejection path. QuizStudentApp's init effect must collapse hydration
+    // and anonymous-sign-in into a single try/catch so a rejection routes
+    // to the error screen instead of falling through.
+    mockAuth.currentUser = null;
+    mockAuth.authStateReady
+      .mockReset()
+      .mockRejectedValue(new Error('IndexedDB blocked'));
+
+    setSearch('?code=ABC123');
+
+    render(<QuizStudentApp />);
+
+    // The component should render the auth-failure error UI, not silently
+    // sign in anonymously and route to the PIN form.
+    expect(await screen.findByText(/Unable to connect/i)).toBeInTheDocument();
+
+    // Critically: no silent anonymous fallback.
+    expect(vi.mocked(signInAnonymously)).not.toHaveBeenCalled();
+    expect(mockJoinQuizSession).not.toHaveBeenCalled();
   });
 
   it('auto-joins on mount with (urlCode, undefined, undefined) and never shows the period picker', async () => {
