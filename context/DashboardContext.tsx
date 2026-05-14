@@ -66,6 +66,7 @@ import {
   PendingShareImport,
   SharedBoardImportMode,
   SubstituteShareInput,
+  SubstituteShareResult,
 } from './DashboardContextValue';
 import { validateGridConfig, sanitizeAIConfig } from '../utils/ai_security';
 import { getAdminBuildingConfig as getAdminBuildingConfigPure } from '../utils/adminBuildingConfig';
@@ -1217,7 +1218,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const handleShareSubstituteDashboard = useCallback(
-    async (input: SubstituteShareInput): Promise<string> => {
+    async (input: SubstituteShareInput): Promise<SubstituteShareResult> => {
       // Substitute shares always go through Firestore. The Drive export path
       // used by the regular share flow is one-time and copy-mode-only — it
       // can't host a building-scoped, expiring, queryable surface like the
@@ -1237,7 +1238,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const driveGrants: SubstituteShareDriveGrant[] = [];
       const subEmails = input.subEmails ?? [];
       const fileIds = input.rosterDriveFileIds ?? [];
-      if (subEmails.length > 0 && fileIds.length > 0 && driveService) {
+      const driveSharingRequested = subEmails.length > 0 && fileIds.length > 0;
+      // Track failed pairs so the caller can warn the host — without this,
+      // a partial network failure would silently produce a share doc with
+      // missing driveGrants and the host would never know.
+      const failedPairs: Array<{ email: string; fileId: string }> = [];
+      if (driveSharingRequested && driveService) {
         for (const fileId of fileIds) {
           let existingPerms: Awaited<
             ReturnType<typeof driveService.listFilePermissions>
@@ -1274,7 +1280,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
                 `[shareSubstituteDashboard] Drive grant failed for ${email} on ${fileId}:`,
                 err
               );
+              failedPairs.push({ email, fileId });
             }
+          }
+        }
+      } else if (driveSharingRequested && !driveService) {
+        // Drive sharing was asked for but the teacher has no live Drive
+        // service (no token / disconnected). Every requested pair fails.
+        for (const fileId of fileIds) {
+          for (const email of subEmails) {
+            failedPairs.push({ email, fileId });
           }
         }
       }
@@ -1291,7 +1306,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Deliberately DO NOT tag the host's local dashboard with a
       // linkedShareId — substitute shares are frozen snapshots and the host
       // continues editing their live board independently.
-      return shareId;
+      const attempted = driveSharingRequested
+        ? subEmails.length * fileIds.length
+        : 0;
+      return {
+        shareId,
+        driveGrants: driveSharingRequested
+          ? {
+              attempted,
+              succeeded: driveGrants.length,
+              failed: failedPairs,
+            }
+          : null,
+      };
     },
     [shareSubstituteDashboardFirestore, driveService, user]
   );

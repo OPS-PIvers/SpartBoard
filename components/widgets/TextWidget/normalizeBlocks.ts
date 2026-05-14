@@ -82,7 +82,7 @@ export const normalizeEditorBlocks = (editor: HTMLDivElement): void => {
       const el = child as HTMLElement;
       if (el.tagName === 'BR') {
         flushPending(child);
-        editor.removeChild(child);
+        if (child.parentNode === editor) editor.removeChild(child);
         continue;
       }
       if (BLOCK_TAGS.has(el.tagName)) {
@@ -99,7 +99,7 @@ export const normalizeEditorBlocks = (editor: HTMLDivElement): void => {
       // which is the exact mixed-content shape this helper exists to
       // eliminate.
       if ((child.nodeValue ?? '').trim().length === 0) {
-        editor.removeChild(child);
+        if (child.parentNode === editor) editor.removeChild(child);
         continue;
       }
       pending.push(child);

@@ -2,10 +2,7 @@ import React from 'react';
 import { ScoreboardTeam } from '@/types';
 import { Plus, Minus } from 'lucide-react';
 
-import { SCOREBOARD_COLORS, ScoreboardColor } from '@/config/scoreboard';
-
-const DEFAULT_TEAM_COLOR: ScoreboardColor = 'bg-blue-500';
-const KNOWN_TEAM_COLORS = new Set<string>(SCOREBOARD_COLORS);
+import { ScoreboardColor, normalizeScoreboardColor } from '@/config/scoreboard';
 
 // Per-color text class used for the +/- button icons on white chips.
 // The row body itself now uses the solid team color as background with
@@ -47,11 +44,9 @@ export const ScoreboardRowItem = React.memo(
     // Normalize the persisted color through the known-palette set before
     // it lands in className — an unknown value would interpolate into
     // `bg-something-500` that Tailwind has no rule for, leaving white
-    // text on no background.
-    const rawColor = team.color ?? DEFAULT_TEAM_COLOR;
-    const colorClass = KNOWN_TEAM_COLORS.has(rawColor)
-      ? rawColor
-      : DEFAULT_TEAM_COLOR;
+    // text on no background. The helper also logs once per unknown
+    // value so stale-data regressions surface in dev console.
+    const colorClass = normalizeScoreboardColor(team.color);
     const buttonIconColor = getText(colorClass);
 
     return (

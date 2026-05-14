@@ -240,10 +240,12 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
     }
     if (subEmails.includes(trimmed)) {
       setSubEmailDraft('');
+      setSubEmailError(null);
       return;
     }
     setSubEmails((prev) => [...prev, trimmed]);
     setSubEmailDraft('');
+    setSubEmailError(null);
   };
 
   const handleCreate = async () => {
@@ -301,7 +303,7 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
 
       setCreating(true);
       try {
-        await shareSubstituteDashboard({
+        const result = await shareSubstituteDashboard({
           dashboard,
           expiresAt: parsedExpiresAt,
           buildingId: subBuildingId,
@@ -313,6 +315,26 @@ export const ShareLinkCreatorModal: React.FC<ShareLinkCreatorModalProps> = ({
         // they don't follow a /share/{shareId} link — so the success panel
         // shows the /subs entry URL instead of a per-share URL.
         setCreatedUrl(`${window.location.origin}/subs`);
+        // Surface partial Drive-grant failures. The share itself is valid
+        // (the doc was written and subs can open the board), but one or
+        // more grants for the active roster file didn't land — those subs
+        // won't have name access. Telling the host now lets them retry or
+        // hand-share the file via Drive's UI instead of finding out from a
+        // confused sub later.
+        const grants = result.driveGrants;
+        if (grants && grants.failed.length > 0) {
+          const missedEmails = Array.from(
+            new Set(grants.failed.map((p) => p.email))
+          );
+          addToast(
+            t('shareLinkCreatorModal.toast.partialDriveGrant', {
+              defaultValue:
+                'Share created, but roster access could not be granted to: {{emails}}. Reconnect Google Drive and retry, or share the roster file manually.',
+              emails: missedEmails.join(', '),
+            }),
+            'error'
+          );
+        }
       } catch (err) {
         console.error('Substitute share failed:', err);
         addToast(

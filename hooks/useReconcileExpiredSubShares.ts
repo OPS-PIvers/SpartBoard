@@ -56,13 +56,32 @@ interface PersistedGrant {
 interface ReconcileArgs {
   uid: string | null | undefined;
   driveService: GoogleDriveService | null | undefined;
+  /**
+   * Called when the sweep finishes with at least one failed revoke. The
+   * sweep already logs + leaves the doc behind for next-session retry, but
+   * without an in-app signal the teacher has no way to know a stale Drive
+   * grant is still attached to their files. Callers wire this to `addToast`
+   * (or similar) so reconnecting the Drive auth surfaces as a user-visible
+   * nudge rather than only a Cloud Logging warning.
+   */
+  onPartialFailure?: () => void;
 }
 
 export function useReconcileExpiredSubShares({
   uid,
   driveService,
+  onPartialFailure,
 }: ReconcileArgs): void {
   const didRunRef = useRef(false);
+  // Latch the callback so changes to it across renders don't retrigger the
+  // sweep effect — only `uid` and `driveService` should gate it. The ref
+  // is updated from an effect (not inline in render) per project lint
+  // policy; the sweep's catch handler reads `.current` long after the
+  // effect runs so always-latest is correct.
+  const onPartialFailureRef = useRef(onPartialFailure);
+  useEffect(() => {
+    onPartialFailureRef.current = onPartialFailure;
+  }, [onPartialFailure]);
 
   useEffect(() => {
     if (!uid || !driveService) return;
@@ -97,7 +116,10 @@ export function useReconcileExpiredSubShares({
       })
       .catch((err) => {
         console.error('[useReconcileExpiredSubShares] sweep failed:', err);
-        // No throttle set → retry next session.
+        // No throttle set → retry next session. Also surface to the user
+        // so they know to reconnect Drive — the cloud-function fallback
+        // is non-actionable from their POV.
+        onPartialFailureRef.current?.();
       });
   }, [uid, driveService]);
 }

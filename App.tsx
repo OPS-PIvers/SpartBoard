@@ -184,15 +184,24 @@ const AppContent: React.FC = () => {
     loading: dashLoading,
     activeDashboard,
     driveService,
+    addToast,
   } = useDashboard();
 
   // Sweep this teacher's expired substitute shares once per session so
   // Drive permissions get revoked using their existing OAuth token. The
   // `expireSubShares` cloud function continues to delete share docs as a
-  // fallback when a teacher never returns.
+  // fallback when a teacher never returns. Wire `onPartialFailure` to a
+  // toast so a stuck revoke surfaces in the UI — the cloud-function
+  // fallback only logs to Cloud Logging, which is invisible to teachers.
   useReconcileExpiredSubShares({
     uid: user?.uid ?? null,
     driveService,
+    onPartialFailure: () => {
+      addToast(
+        'Some expired substitute-share Drive permissions could not be revoked. Reconnect Google Drive to retry — they will otherwise be cleaned up automatically within 7 days.',
+        'error'
+      );
+    },
   });
 
   // Two paths to "this is a student":

@@ -28,6 +28,29 @@ import type { GoogleDriveService } from '../utils/googleDriveService';
 export type SharedBoardImportMode = 'copy' | 'synced' | 'view-only';
 
 /**
+ * Outcome of a substitute share creation. The share doc itself always
+ * writes successfully (the function would throw otherwise), but Drive
+ * grants for each (email, fileId) pair can fail individually — Drive
+ * permission calls hit the network and may bounce on a stale token,
+ * quota, or a recipient that doesn't exist. We surface the per-pair
+ * outcome so the caller can warn the host before they hand the link to
+ * a sub who won't actually have roster access.
+ */
+export interface SubstituteShareResult {
+  shareId: string;
+  /**
+   * Null when no roster Drive sharing was requested (empty
+   * `rosterDriveFileIds` or empty `subEmails`). Otherwise carries the
+   * counts plus the failed pairs (caller can show specifics).
+   */
+  driveGrants: {
+    attempted: number;
+    succeeded: number;
+    failed: Array<{ email: string; fileId: string }>;
+  } | null;
+}
+
+/**
  * Input to `shareSubstituteDashboard()` — the substitute share write path.
  * Distinct from `shareDashboard()` because the lifecycle differs: substitute
  * shares are frozen at creation, never mirror live edits, and don't tag the
@@ -193,8 +216,14 @@ export interface DashboardContextValue {
    * substitute-specific fields (expiresAt, buildingId, initialState,
    * subEmails). Does NOT tag the local dashboard with a linkedShareId — the
    * host's later edits never propagate to substitute shares.
+   *
+   * Returns a `SubstituteShareResult` carrying the new shareId AND a
+   * per-pair Drive grant summary so callers can warn the host when some
+   * subs missed out on roster access (e.g. stale Drive token, quota).
    */
-  shareSubstituteDashboard: (input: SubstituteShareInput) => Promise<string>;
+  shareSubstituteDashboard: (
+    input: SubstituteShareInput
+  ) => Promise<SubstituteShareResult>;
   loadSharedDashboard: (shareId: string) => Promise<Dashboard | null>;
   pendingShareId: string | null;
   clearPendingShare: () => void;

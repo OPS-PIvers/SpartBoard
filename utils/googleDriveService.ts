@@ -553,6 +553,9 @@ export class GoogleDriveService {
       { headers: this.headers }
     );
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
       const body = await response.text();
       throw new Error(
         `Failed to list permissions on ${fileId}: ${response.status} ${body.slice(0, 200)}`
@@ -609,6 +612,9 @@ export class GoogleDriveService {
       }
     );
     if (!response.ok) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
       const body = await response.text();
       throw new Error(
         `Failed to grant Drive reader to ${email} on ${fileId}: ${response.status} ${body.slice(0, 200)}`
@@ -636,6 +642,9 @@ export class GoogleDriveService {
       }
     );
     if (!response.ok && response.status !== 404) {
+      if (response.status === 401 || response.status === 403) {
+        throw authError('Google Drive access expired. Please sign in again.');
+      }
       const body = await response.text();
       throw new Error(
         `Failed to delete Drive permission ${permissionId}: ${response.status} ${body.slice(0, 200)}`
