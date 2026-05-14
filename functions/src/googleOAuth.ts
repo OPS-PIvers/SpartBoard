@@ -37,7 +37,7 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as CryptoJS from 'crypto-js';
-import axios, { AxiosError } from 'axios';
+import axios from 'axios';
 
 if (!admin.apps.length) {
   admin.initializeApp();
@@ -71,8 +71,8 @@ interface GoogleTokenResponse {
 interface StoredGoogleAuth {
   /** AES-encrypted refresh_token. Plaintext NEVER persisted. */
   encryptedRefreshToken: string;
-  /** ISO timestamp of last successful refresh — diagnostic, not load-bearing. */
-  updatedAt: string;
+  /** Numeric epoch (ms) of last successful refresh — diagnostic, not load-bearing. */
+  updatedAt: number;
   /** Scope string Google returned at the last exchange. */
   scope: string;
 }
@@ -155,8 +155,16 @@ export const exchangeGoogleAuthCode = onCall(
       );
       tokens = res.data;
     } catch (err) {
-      const axiosErr = err as AxiosError<{ error?: string }>;
-      const googleErr = axiosErr.response?.data?.error ?? axiosErr.message;
+      // Narrow via `axios.isAxiosError` so we only reach for `.response.data`
+      // when the error genuinely came from axios. A bare assertion would
+      // silently work via optional chaining but mask any non-axios failures
+      // (e.g. a TypeError thrown by surrounding code) behind a misleading
+      // "Google token exchange failed: undefined" message.
+      const googleErr = axios.isAxiosError(err)
+        ? ((err.response?.data as { error?: string })?.error ?? err.message)
+        : err instanceof Error
+          ? err.message
+          : String(err);
       throw new HttpsError(
         'failed-precondition',
         `Google token exchange failed: ${googleErr}`
@@ -181,7 +189,7 @@ export const exchangeGoogleAuthCode = onCall(
       );
       const stored: StoredGoogleAuth = {
         encryptedRefreshToken: encrypted,
-        updatedAt: new Date().toISOString(),
+        updatedAt: Date.now(),
         scope: tokens.scope ?? '',
       };
       await admin.firestore().doc(PRIVATE_DOC_PATH(uid)).set(stored);
@@ -262,22 +270,31 @@ export const refreshGoogleAccessToken = onCall(
         expiresIn: res.data.expires_in,
       };
     } catch (err) {
-      const axiosErr = err as AxiosError<{ error?: string }>;
-      const googleErr = axiosErr.response?.data?.error;
-      if (googleErr === 'invalid_grant') {
-        // Refresh token revoked (user disconnected at myaccount.google.com,
-        // password reset, etc.). Drop the stored token so the next refresh
-        // call surfaces `needs-consent` cleanly and the client re-routes
-        // through the code flow rather than looping on a dead token.
-        await ref.delete().catch(() => undefined);
+      // Narrow via `axios.isAxiosError` before reading `.response.data` so a
+      // non-axios failure (e.g. a TypeError from surrounding code) doesn't
+      // get misclassified as a Google API error. Only axios errors carry
+      // the `invalid_grant` signal we need to recognize.
+      if (axios.isAxiosError(err)) {
+        const googleErr = (err.response?.data as { error?: string })?.error;
+        if (googleErr === 'invalid_grant') {
+          // Refresh token revoked (user disconnected at myaccount.google.com,
+          // password reset, etc.). Drop the stored token so the next refresh
+          // call surfaces `needs-consent` cleanly and the client re-routes
+          // through the code flow rather than looping on a dead token.
+          await ref.delete().catch(() => undefined);
+          throw new HttpsError(
+            'failed-precondition',
+            'needs-consent: stored refresh token was revoked.'
+          );
+        }
         throw new HttpsError(
-          'failed-precondition',
-          'needs-consent: stored refresh token was revoked.'
+          'internal',
+          `Google refresh failed: ${googleErr ?? err.message}`
         );
       }
       throw new HttpsError(
         'internal',
-        `Google refresh failed: ${googleErr ?? axiosErr.message}`
+        `Google refresh failed: ${err instanceof Error ? err.message : String(err)}`
       );
     }
   }
