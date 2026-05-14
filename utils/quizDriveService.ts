@@ -1315,7 +1315,12 @@ export class QuizDriveService {
     // zero on display (and can further mutate the value on CSV export),
     // confusing teachers building the template. Plain-text preserves
     // exactly what the user typed.
-    const sheetId = sheet.sheets?.[0]?.properties?.sheetId ?? 0;
+    const sheetId = sheet.sheets?.[0]?.properties?.sheetId;
+    if (sheetId === undefined) {
+      throw new Error(
+        'Failed to read sheetId from created template spreadsheet'
+      );
+    }
     const formatRes = await fetch(
       `${SHEETS_API_URL}/${sheet.spreadsheetId}:batchUpdate`,
       {
