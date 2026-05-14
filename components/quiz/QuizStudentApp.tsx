@@ -2593,16 +2593,10 @@ export const WrittenAnswerReview: React.FC<{
   }
   const hasGrade = !!grade;
   const annotations = grade?.annotations ?? [];
-  // When a grade exists, the snapshot is the source of truth — it
-  // froze what the teacher saw. When there's no grade yet, fall back
-  // to the student's live answer so they can still see what they
-  // submitted (and the caption below makes the live-vs-snapshot
-  // distinction explicit).
-  const snapshot = hasGrade
-    ? (grade?.gradingSnapshot ?? '')
-    : studentAnswer
-      ? sanitizeQuizResponse(studentAnswer)
-      : '';
+  const snapshot =
+    grade?.gradingSnapshot ??
+    (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
+  const showingLiveAnswer = !hasGrade && !!studentAnswer;
   const showingLiveAnswer = !hasGrade && !!studentAnswer;
   return (
     <div className="space-y-2">
