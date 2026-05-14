@@ -215,9 +215,9 @@ describe('TextWidget', () => {
     ) as HTMLElement;
 
     expect(editableDiv).not.toBeNull();
-    // Loose top-level text is normalized into a <div> so drag-selection
-    // works consistently across paragraphs.
-    expect(editableDiv.textContent).toBe('Click to edit...');
+    // Inline-only placeholder content is left unwrapped (the normalizer
+    // only acts on mixed/multi-paragraph structures).
+    expect(editableDiv.innerHTML).toBe('Click to edit...');
 
     // In JSDOM, setting focus to it triggers the focus event
     fireEvent.focus(editableDiv);
@@ -235,8 +235,8 @@ describe('TextWidget', () => {
       'div[contentEditable="true"]'
     ) as HTMLElement;
     expect(editableDiv).not.toBeNull();
-    // Loose top-level text is normalized into a <div> wrapper.
-    expect(editableDiv.textContent).toBe('Hello World');
+    // Inline-only content is left untouched by the normalizer.
+    expect(editableDiv.innerHTML).toBe('Hello World');
 
     const updatedWidget = {
       ...mockWidget,
@@ -245,6 +245,8 @@ describe('TextWidget', () => {
 
     rerender(<TextWidget widget={updatedWidget} />);
 
+    // External sync replaces the DOM contents wholesale, not appends.
+    expect(editableDiv.innerHTML).toBe('Updated External Content');
     expect(editableDiv.textContent).toBe('Updated External Content');
   });
 
@@ -331,6 +333,46 @@ describe('TextWidget', () => {
           : '#other'
     );
     expect(childTags.every((t) => t !== '#text' && t !== 'BR')).toBe(true);
+    // Verify content was preserved without loss or re-ordering.
+    expect(editableDiv.children.length).toBe(3);
+    expect(editableDiv.textContent).toBe('First lineSecond lineThird line');
+  });
+
+  it('triggers Bulleted List from Ctrl+Shift+8', () => {
+    render(<TextWidget widget={mockWidget} />);
+    const editableDiv = screen
+      .getByText('Hello World')
+      .closest('div[contentEditable="true"]');
+    expect(editableDiv).not.toBeNull();
+    if (editableDiv) {
+      fireEvent.keyDown(editableDiv, {
+        key: '8',
+        code: 'Digit8',
+        ctrlKey: true,
+        shiftKey: true,
+      });
+      expect(execCommandMock).toHaveBeenCalledWith(
+        'insertUnorderedList',
+        false
+      );
+    }
+  });
+
+  it('triggers Numbered List from Ctrl+Shift+7', () => {
+    render(<TextWidget widget={mockWidget} />);
+    const editableDiv = screen
+      .getByText('Hello World')
+      .closest('div[contentEditable="true"]');
+    expect(editableDiv).not.toBeNull();
+    if (editableDiv) {
+      fireEvent.keyDown(editableDiv, {
+        key: '7',
+        code: 'Digit7',
+        ctrlKey: true,
+        shiftKey: true,
+      });
+      expect(execCommandMock).toHaveBeenCalledWith('insertOrderedList', false);
+    }
   });
 
   it('normalizes empty browser markup to empty string on input', () => {

@@ -12,6 +12,7 @@ import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { FormattingToolbar } from './FormattingToolbar';
 import { PLACEHOLDER_TEXT } from './constants';
+import { normalizeEditorBlocks } from './normalizeBlocks';
 
 /** Gap (px) between the toolbar and the widget edge. */
 const TOOLBAR_GAP = 8;
@@ -130,87 +131,25 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
   }, [isSelected, widget.id]);
 
-  /** Wrap loose top-level text/inline nodes into <div> paragraphs so the
-   *  editor's structure is uniform (every line is a block element).
-   *
-   *  Mixed structures — a bare first-line text node followed by <div>-wrapped
-   *  paragraphs (Chrome's default after pressing Enter), or template content
-   *  using <br> line breaks — make drag-selection feel broken: highlighting
-   *  past the bare-text/block boundary often collapses or stops at the end of
-   *  the first line. Wrapping every line in a <div> lets the browser treat
-   *  selection consistently across the whole editor. */
-  const normalizeEditorBlocks = (editor: HTMLDivElement) => {
-    const blockTags = new Set([
-      'DIV',
-      'P',
-      'UL',
-      'OL',
-      'LI',
-      'BLOCKQUOTE',
-      'H1',
-      'H2',
-      'H3',
-      'H4',
-      'H5',
-      'H6',
-      'PRE',
-    ]);
-
-    let pending: Node[] = [];
-    const flushPending = (insertBefore: Node | null) => {
-      if (pending.length === 0) return;
-      const block = document.createElement('div');
-      for (const node of pending) {
-        block.appendChild(node);
-      }
-      editor.insertBefore(block, insertBefore);
-      pending = [];
-    };
-
-    for (const child of Array.from(editor.childNodes)) {
-      if (child.nodeType === Node.ELEMENT_NODE) {
-        const el = child as HTMLElement;
-        if (el.tagName === 'BR') {
-          // Treat <br> at the top level as a paragraph break: flush the
-          // pending inline run into a block and drop the <br>.
-          flushPending(child);
-          editor.removeChild(child);
-          continue;
-        }
-        if (blockTags.has(el.tagName)) {
-          flushPending(child);
-          continue;
-        }
-        pending.push(child);
-      } else if (child.nodeType === Node.TEXT_NODE) {
-        if ((child.nodeValue ?? '').length === 0) continue;
-        pending.push(child);
-      }
-    }
-    flushPending(null);
-  };
-
   // On first render, set initial content. On subsequent renders, sync external
   // content changes into the DOM only when not actively editing and only when
   // the content actually changed externally (e.g. template applied). After
   // either path, normalize so every line is a block element — without that,
   // drag-selection across mixed bare-text/<div>/<br> content terminates at
   // the first paragraph boundary.
+  //
+  // We don't set `defaultParagraphSeparator`: it's deprecated and applies
+  // document-wide (would leak into other contentEditables like the quiz
+  // response editor). Chrome already defaults to <div> on Enter; if a
+  // Firefox user types with <br> separators, normalization on next mount or
+  // external sync corrects the structure. `normalizeEditorBlocks` is a
+  // no-op when nothing needs wrapping, so it's safe to run on every sync.
   useEffect(() => {
     if (!editorRef.current) return;
     if (!didInit.current) {
       didInit.current = true;
       editorRef.current.innerHTML = content ? sanitizeHtml(content) : '';
       normalizeEditorBlocks(editorRef.current);
-      // Make Enter emit <div> wrappers so user-typed paragraphs stay
-      // structurally uniform with normalized template content.
-      try {
-        document.execCommand('defaultParagraphSeparator', false, 'div');
-      } catch {
-        // Older browsers may not support this; normalization above covers
-        // existing content, and Chrome/Firefox/Safari all default to a
-        // block wrapper anyway.
-      }
       return;
     }
     if (!isEditingRef.current && content !== lastExternalContent.current) {
@@ -296,6 +235,27 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           document.execCommand('createLink', false, url);
           // Trigger input to save changes
           handleInput();
+        }
+        return;
+      }
+
+      // Ctrl/Cmd+Shift+8 → bulleted list, Ctrl/Cmd+Shift+7 → numbered list.
+      // Matches Google Docs / Word conventions; pairs the toolbar's new
+      // top-level Lists buttons with keyboard parity to B/I/U/K.
+      if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
+        if (e.key === '8' || e.code === 'Digit8') {
+          e.preventDefault();
+          document.execCommand('styleWithCSS', false, 'true');
+          document.execCommand('insertUnorderedList', false);
+          handleInput();
+          return;
+        }
+        if (e.key === '7' || e.code === 'Digit7') {
+          e.preventDefault();
+          document.execCommand('styleWithCSS', false, 'true');
+          document.execCommand('insertOrderedList', false);
+          handleInput();
+          return;
         }
       }
     },
