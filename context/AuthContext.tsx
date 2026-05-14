@@ -52,6 +52,12 @@ import {
 } from '../config/buildings';
 import i18n from '../i18n';
 import { GoogleDriveService } from '../utils/googleDriveService';
+import { onDriveTokenChange } from '../utils/driveAuthErrors';
+import {
+  refreshAccessTokenViaBackend,
+  requestAndExchangeAuthCode,
+  revokeBackendRefreshToken,
+} from '../utils/googleOAuthRefresh';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
 import {
@@ -391,18 +397,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
 
         // GIS succeeded — return immediately.
         if (gisToken) return gisToken;
-
-        // GIS failed (e.g. domain not in authorized JavaScript origins).
-        // For silent background refreshes, give up here to avoid unexpected popups.
-        // For explicit user-triggered reconnects (silent=false), fall through to
-        // the Firebase popup below, which uses the already-authorized Firebase
-        // OAuth client and avoids redirect_uri_mismatch errors.
-        if (silent) return null;
       }
 
-      // Fallback: re-run Firebase popup sign-in to get a fresh access token.
-      // Skip when called silently (e.g. from the background interval) — browsers
-      // block popups that are not triggered by a direct user gesture.
+      // Phase-B fallback BEFORE the Firebase popup: ask the backend for a
+      // fresh access_token using the user's stored refresh_token. This is
+      // what makes Drive auth survive the user's Google session expiring
+      // (closed browser, signed out of Google in another tab, etc.) — the
+      // refresh_token lives server-side and isn't tied to the browser's
+      // Google session at all. Safe to attempt in silent mode because the
+      // callable runs without any UI surface.
+      const backendOutcome = await refreshAccessTokenViaBackend();
+      if (backendOutcome.status === 'ok') {
+        const expiryMs = Date.now() + (backendOutcome.expiresIn || 3600) * 1000;
+        localStorage.setItem(GOOGLE_ACCESS_TOKEN_KEY, backendOutcome.token);
+        localStorage.setItem(GOOGLE_TOKEN_EXPIRY_KEY, expiryMs.toString());
+        setGoogleAccessToken(backendOutcome.token);
+        return backendOutcome.token;
+      }
+
+      // Backend reported the refresh_token is missing or revoked. For a
+      // user-triggered (non-silent) call we can escalate to the auth-code
+      // flow, which captures a fresh refresh_token via GIS popup. Silent
+      // calls bail rather than popping unexpected consent dialogs.
+      if (backendOutcome.status === 'needs-consent' && !silent) {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as
+          | string
+          | undefined;
+        if (clientId) {
+          try {
+            const exchanged = await requestAndExchangeAuthCode(
+              clientId,
+              email ?? undefined
+            );
+            if (exchanged?.accessToken) {
+              const expiryMs =
+                Date.now() + (exchanged.expiresIn || 3600) * 1000;
+              localStorage.setItem(
+                GOOGLE_ACCESS_TOKEN_KEY,
+                exchanged.accessToken
+              );
+              localStorage.setItem(
+                GOOGLE_TOKEN_EXPIRY_KEY,
+                expiryMs.toString()
+              );
+              setGoogleAccessToken(exchanged.accessToken);
+              return exchanged.accessToken;
+            }
+          } catch (err) {
+            console.warn(
+              '[AuthContext] Auth-code re-consent flow failed; falling back to Firebase popup:',
+              err
+            );
+          }
+        }
+      }
+
+      // For silent background refreshes, give up here to avoid unexpected popups.
+      // For explicit user-triggered reconnects (silent=false), fall through to
+      // the Firebase popup below, which uses the already-authorized Firebase
+      // OAuth client and avoids redirect_uri_mismatch errors.
       if (silent) return null;
 
       try {
@@ -526,6 +579,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
     localStorage.removeItem(GOOGLE_TOKEN_EXPIRY_KEY);
     setGoogleAccessToken(null);
+    // Also revoke + drop the server-side refresh_token. Fire-and-forget:
+    // the local state change above is the load-bearing UX signal, and the
+    // helper logs failures rather than throwing. Without this, "Disconnect"
+    // would only clear the client token while the backend would silently
+    // reconnect the user on the next refresh attempt.
+    void revokeBackendRefreshToken();
   }, []);
 
   // Persist googleAccessToken to localStorage
@@ -536,6 +595,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     } else {
       localStorage.removeItem(GOOGLE_ACCESS_TOKEN_KEY);
     }
+  }, [googleAccessToken]);
+
+  // Broadcast token rotations to any subscriber that needs to refetch.
+  //
+  // Lives in AuthContext (the source of truth for `googleAccessToken`)
+  // rather than relying on `useGoogleDrive` to fan it out — that hook is
+  // only mounted inside DashboardProvider, so widgets/hooks that read the
+  // token directly from AuthContext would otherwise miss the signal.
+  // `onDriveTokenChange` deduplicates on `lastSeenToken`, so the parallel
+  // call from `useGoogleDrive` is a harmless no-op once we fire first.
+  useEffect(() => {
+    onDriveTokenChange(googleAccessToken);
   }, [googleAccessToken]);
 
   // Listen to user roles + app settings.

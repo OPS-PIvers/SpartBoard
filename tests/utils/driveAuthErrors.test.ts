@@ -6,6 +6,8 @@ import {
   onDriveTokenChange,
   authError,
   DriveAuthError,
+  subscribeDriveReconnected,
+  notifyDriveReconnected,
   __resetDriveAuthErrorsForTests,
 } from '@/utils/driveAuthErrors';
 
@@ -136,6 +138,93 @@ describe('driveAuthErrors', () => {
       // the new session toasts again.
       onDriveTokenChange('token-1');
       reportDriveAuthError(new Error('Google Drive access expired'));
+      expect(handler).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  describe('drive-reconnected pub/sub', () => {
+    it('fans out a notify to every subscriber', () => {
+      const a = vi.fn();
+      const b = vi.fn();
+      subscribeDriveReconnected(a);
+      subscribeDriveReconnected(b);
+      notifyDriveReconnected();
+      expect(a).toHaveBeenCalledTimes(1);
+      expect(b).toHaveBeenCalledTimes(1);
+    });
+
+    it('returns an unsubscribe function that detaches the handler', () => {
+      const handler = vi.fn();
+      const unsubscribe = subscribeDriveReconnected(handler);
+      unsubscribe();
+      notifyDriveReconnected();
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('emits exactly once on a real token rotation (null → token)', () => {
+      const handler = vi.fn();
+      subscribeDriveReconnected(handler);
+      onDriveTokenChange('token-1');
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits exactly once on a token-to-different-token rotation', () => {
+      const handler = vi.fn();
+      onDriveTokenChange('token-1'); // initial — subscribed AFTER, so missed.
+      subscribeDriveReconnected(handler);
+      onDriveTokenChange('token-2');
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
+
+    it('does NOT emit when the same token replays (consumer-mount no-op)', () => {
+      const handler = vi.fn();
+      onDriveTokenChange('token-1');
+      subscribeDriveReconnected(handler);
+      onDriveTokenChange('token-1');
+      onDriveTokenChange('token-1');
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('does NOT emit on sign-out (token → null)', () => {
+      const handler = vi.fn();
+      onDriveTokenChange('token-1');
+      subscribeDriveReconnected(handler);
+      onDriveTokenChange(null);
+      expect(handler).not.toHaveBeenCalled();
+    });
+
+    it('keeps fanning out to remaining handlers when one throws', () => {
+      const thrower = vi.fn(() => {
+        throw new Error('boom');
+      });
+      const other = vi.fn();
+      subscribeDriveReconnected(thrower);
+      subscribeDriveReconnected(other);
+      // Swallow the expected console.error noise from the in-flight handler.
+      const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {
+        /* swallow */
+      });
+      notifyDriveReconnected();
+      expect(thrower).toHaveBeenCalledTimes(1);
+      expect(other).toHaveBeenCalledTimes(1);
+      errSpy.mockRestore();
+    });
+
+    it('tolerates a handler unsubscribing itself mid-fanout', () => {
+      const handler = vi.fn();
+      let unsubscribeSelf: (() => void) | null = null;
+      const selfRemoving = vi.fn(() => {
+        unsubscribeSelf?.();
+      });
+      unsubscribeSelf = subscribeDriveReconnected(selfRemoving);
+      subscribeDriveReconnected(handler);
+      notifyDriveReconnected();
+      // Both fire on this fanout (the snapshot is taken before iteration).
+      expect(selfRemoving).toHaveBeenCalledTimes(1);
+      expect(handler).toHaveBeenCalledTimes(1);
+      // On the next fanout, only the still-subscribed handler fires.
+      notifyDriveReconnected();
+      expect(selfRemoving).toHaveBeenCalledTimes(1);
       expect(handler).toHaveBeenCalledTimes(2);
     });
   });

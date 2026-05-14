@@ -38,6 +38,11 @@ export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
+export {
+  exchangeGoogleAuthCode,
+  refreshGoogleAccessToken,
+  revokeGoogleRefreshToken,
+} from './googleOAuth';
 
 setGlobalOptions({ region: 'us-central1' });
 
