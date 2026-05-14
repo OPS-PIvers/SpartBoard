@@ -215,7 +215,9 @@ describe('TextWidget', () => {
     ) as HTMLElement;
 
     expect(editableDiv).not.toBeNull();
-    expect(editableDiv.innerHTML).toBe('Click to edit...');
+    // Loose top-level text is normalized into a <div> so drag-selection
+    // works consistently across paragraphs.
+    expect(editableDiv.textContent).toBe('Click to edit...');
 
     // In JSDOM, setting focus to it triggers the focus event
     fireEvent.focus(editableDiv);
@@ -233,7 +235,8 @@ describe('TextWidget', () => {
       'div[contentEditable="true"]'
     ) as HTMLElement;
     expect(editableDiv).not.toBeNull();
-    expect(editableDiv.innerHTML).toBe('Hello World');
+    // Loose top-level text is normalized into a <div> wrapper.
+    expect(editableDiv.textContent).toBe('Hello World');
 
     const updatedWidget = {
       ...mockWidget,
@@ -242,7 +245,7 @@ describe('TextWidget', () => {
 
     rerender(<TextWidget widget={updatedWidget} />);
 
-    expect(editableDiv.innerHTML).toBe('Updated External Content');
+    expect(editableDiv.textContent).toBe('Updated External Content');
   });
 
   it('does not update DOM from external change when editing', () => {
@@ -301,6 +304,33 @@ describe('TextWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
       config: { ...mockConfig, content: 'Immediate Save' },
     });
+  });
+
+  it('wraps loose top-level text in a <div> on mount so drag-selection works across paragraphs', () => {
+    const mixedWidget: WidgetData = {
+      ...mockWidget,
+      config: {
+        ...mockConfig,
+        // Templates ship with <br>-separated lines and content authored by
+        // users on older builds has bare first-line text followed by <div>
+        // paragraphs. Both shapes must end up as uniform <div> blocks.
+        content: 'First line<br/><div>Second line</div>Third line',
+      },
+    };
+    const { container } = render(<TextWidget widget={mixedWidget} />);
+    const editableDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
+
+    // All direct children of the editor are now block-level elements.
+    const childTags = Array.from(editableDiv.childNodes).map((n) =>
+      n.nodeType === Node.ELEMENT_NODE
+        ? (n as HTMLElement).tagName
+        : n.nodeType === Node.TEXT_NODE
+          ? '#text'
+          : '#other'
+    );
+    expect(childTags.every((t) => t !== '#text' && t !== 'BR')).toBe(true);
   });
 
   it('normalizes empty browser markup to empty string on input', () => {

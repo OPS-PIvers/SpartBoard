@@ -411,7 +411,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const [currentFontSize, setCurrentFontSize] = useState(configFontSize);
   const [fontSizeInput, setFontSizeInput] = useState(String(configFontSize));
-  const [visibleCount, setVisibleCount] = useState(6);
+  const [visibleCount, setVisibleCount] = useState(7);
   const savedRangeRef = useRef<Range | null>(null);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const groupRefs = useRef<(HTMLDivElement | null)[]>([]);
@@ -702,7 +702,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       let total = 0;
       let count = 0;
 
-      for (let i = 0; i < 6; i++) {
+      for (let i = 0; i < 7; i++) {
         const el = groupRefs.current[i];
         if (!el) continue;
         const groupWidth = el.offsetWidth;
@@ -891,12 +891,46 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
 
       {visibleCount >= 3 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
 
-      {/* Group 3: Alignment & Layout */}
+      {/* Group 3: Lists — bulleted / numbered, surfaced as a top-level
+          segmented control so the most-requested formatting affordance is
+          one click away rather than buried in a nested menu. */}
       <div
         ref={setGroupRef(3)}
         className="flex items-center"
         style={
           visibleCount <= 3
+            ? { position: 'absolute', visibility: 'hidden' }
+            : undefined
+        }
+      >
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => runCommand('insertUnorderedList')}
+          className="flex items-center justify-center w-7 h-7 rounded-l border border-r-0 border-slate-200 hover:bg-slate-100 transition-colors"
+          title="Bulleted List"
+          aria-label="Bulleted List"
+        >
+          <List className="w-3.5 h-3.5 text-slate-600" />
+        </button>
+        <button
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={() => runCommand('insertOrderedList')}
+          className="flex items-center justify-center w-7 h-7 rounded-r border border-slate-200 hover:bg-slate-100 transition-colors"
+          title="Numbered List"
+          aria-label="Numbered List"
+        >
+          <ListOrdered className="w-3.5 h-3.5 text-slate-600" />
+        </button>
+      </div>
+
+      {visibleCount >= 4 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
+
+      {/* Group 4: Alignment & Layout */}
+      <div
+        ref={setGroupRef(4)}
+        className="flex items-center"
+        style={
+          visibleCount <= 4
             ? { position: 'absolute', visibility: 'hidden' }
             : undefined
         }
@@ -1030,51 +1064,18 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                 </button>
               </div>
             </div>
-
-            <div className="h-px bg-slate-100" />
-
-            {/* Lists */}
-            <div>
-              <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
-                Lists
-              </div>
-              <div className="flex gap-0.5">
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    runCommand('insertUnorderedList');
-                    setShowAlignMenu(false);
-                  }}
-                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
-                  title="Bulleted List"
-                >
-                  <List className="w-3.5 h-3.5 text-slate-600" />
-                </button>
-                <button
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => {
-                    runCommand('insertOrderedList');
-                    setShowAlignMenu(false);
-                  }}
-                  className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
-                  title="Numbered List"
-                >
-                  <ListOrdered className="w-3.5 h-3.5 text-slate-600" />
-                </button>
-              </div>
-            </div>
           </div>
         </MenuButton>
       </div>
 
-      {visibleCount >= 4 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
+      {visibleCount >= 5 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
 
-      {/* Group 4: Colors */}
+      {/* Group 5: Colors */}
       <div
-        ref={setGroupRef(4)}
+        ref={setGroupRef(5)}
         className="flex items-center"
         style={
-          visibleCount <= 4
+          visibleCount <= 5
             ? { position: 'absolute', visibility: 'hidden' }
             : undefined
         }
@@ -1228,14 +1229,14 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         </MenuButton>
       </div>
 
-      {visibleCount >= 5 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
+      {visibleCount >= 6 && <div className="w-px h-4 bg-slate-200 mx-0.5" />}
 
-      {/* Group 5: Link */}
+      {/* Group 6: Link */}
       <div
-        ref={setGroupRef(5)}
+        ref={setGroupRef(6)}
         className="flex items-center"
         style={
-          visibleCount <= 5
+          visibleCount <= 6
             ? { position: 'absolute', visibility: 'hidden' }
             : undefined
         }
@@ -1251,7 +1252,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       </div>
 
       {/* Overflow "..." button — shown when some groups are hidden */}
-      {visibleCount < 6 && (
+      {visibleCount < 7 && (
         <MenuButton
           icon={<MoreHorizontal className="w-3.5 h-3.5 text-slate-600" />}
           label="More options"
@@ -1310,8 +1311,41 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
               </div>
             )}
 
-            {/* Alignment section — shown when alignment group is hidden */}
+            {/* Lists section — shown when lists group is hidden */}
             {visibleCount <= 3 && (
+              <div>
+                <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
+                  Lists
+                </div>
+                <div className="flex gap-0.5">
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('insertUnorderedList');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Bulleted List"
+                  >
+                    <List className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                  <button
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => {
+                      runCommand('insertOrderedList');
+                      setShowOverflowMenu(false);
+                    }}
+                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
+                    title="Numbered List"
+                  >
+                    <ListOrdered className="w-3.5 h-3.5 text-slate-600" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Alignment section — shown when alignment group is hidden */}
+            {visibleCount <= 4 && (
               <div>
                 <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
                   Alignment
@@ -1405,34 +1439,12 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
                   >
                     <Indent className="w-3.5 h-3.5 text-slate-600" />
                   </button>
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      runCommand('insertUnorderedList');
-                      setShowOverflowMenu(false);
-                    }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
-                    title="Bulleted List"
-                  >
-                    <List className="w-3.5 h-3.5 text-slate-600" />
-                  </button>
-                  <button
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => {
-                      runCommand('insertOrderedList');
-                      setShowOverflowMenu(false);
-                    }}
-                    className="w-8 h-8 rounded hover:bg-slate-100 flex items-center justify-center"
-                    title="Numbered List"
-                  >
-                    <ListOrdered className="w-3.5 h-3.5 text-slate-600" />
-                  </button>
                 </div>
               </div>
             )}
 
             {/* Colors section — shown when colors group is hidden */}
-            {visibleCount <= 4 && (
+            {visibleCount <= 5 && (
               <div className="space-y-1.5">
                 <div>
                   <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
@@ -1563,7 +1575,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
             )}
 
             {/* Link section — shown when link group is hidden */}
-            {visibleCount <= 5 && (
+            {visibleCount <= 6 && (
               <div>
                 <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1 mb-0.5">
                   Link

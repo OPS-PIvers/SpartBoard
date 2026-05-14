@@ -130,19 +130,93 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
   }, [isSelected, widget.id]);
 
+  /** Wrap loose top-level text/inline nodes into <div> paragraphs so the
+   *  editor's structure is uniform (every line is a block element).
+   *
+   *  Mixed structures — a bare first-line text node followed by <div>-wrapped
+   *  paragraphs (Chrome's default after pressing Enter), or template content
+   *  using <br> line breaks — make drag-selection feel broken: highlighting
+   *  past the bare-text/block boundary often collapses or stops at the end of
+   *  the first line. Wrapping every line in a <div> lets the browser treat
+   *  selection consistently across the whole editor. */
+  const normalizeEditorBlocks = (editor: HTMLDivElement) => {
+    const blockTags = new Set([
+      'DIV',
+      'P',
+      'UL',
+      'OL',
+      'LI',
+      'BLOCKQUOTE',
+      'H1',
+      'H2',
+      'H3',
+      'H4',
+      'H5',
+      'H6',
+      'PRE',
+    ]);
+
+    let pending: Node[] = [];
+    const flushPending = (insertBefore: Node | null) => {
+      if (pending.length === 0) return;
+      const block = document.createElement('div');
+      for (const node of pending) {
+        block.appendChild(node);
+      }
+      editor.insertBefore(block, insertBefore);
+      pending = [];
+    };
+
+    for (const child of Array.from(editor.childNodes)) {
+      if (child.nodeType === Node.ELEMENT_NODE) {
+        const el = child as HTMLElement;
+        if (el.tagName === 'BR') {
+          // Treat <br> at the top level as a paragraph break: flush the
+          // pending inline run into a block and drop the <br>.
+          flushPending(child);
+          editor.removeChild(child);
+          continue;
+        }
+        if (blockTags.has(el.tagName)) {
+          flushPending(child);
+          continue;
+        }
+        pending.push(child);
+      } else if (child.nodeType === Node.TEXT_NODE) {
+        if ((child.nodeValue ?? '').length === 0) continue;
+        pending.push(child);
+      }
+    }
+    flushPending(null);
+  };
+
   // On first render, set initial content. On subsequent renders, sync external
   // content changes into the DOM only when not actively editing and only when
-  // the content actually changed externally (e.g. template applied).
+  // the content actually changed externally (e.g. template applied). After
+  // either path, normalize so every line is a block element — without that,
+  // drag-selection across mixed bare-text/<div>/<br> content terminates at
+  // the first paragraph boundary.
   useEffect(() => {
     if (!editorRef.current) return;
     if (!didInit.current) {
       didInit.current = true;
       editorRef.current.innerHTML = content ? sanitizeHtml(content) : '';
+      normalizeEditorBlocks(editorRef.current);
+      // Make Enter emit <div> wrappers so user-typed paragraphs stay
+      // structurally uniform with normalized template content.
+      try {
+        document.execCommand('defaultParagraphSeparator', false, 'div');
+      } catch {
+        // Older browsers may not support this; normalization above covers
+        // existing content, and Chrome/Firefox/Safari all default to a
+        // block wrapper anyway.
+      }
       return;
     }
     if (!isEditingRef.current && content !== lastExternalContent.current) {
       lastExternalContent.current = content;
       editorRef.current.innerHTML = content ? sanitizeHtml(content) : '';
+      normalizeEditorBlocks(editorRef.current);
     }
   }, [content]);
 
