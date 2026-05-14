@@ -2483,12 +2483,12 @@ const PublishedScoreReview: React.FC<{
                   writtenGrade != null &&
                   writtenMaxPoints > 0 &&
                   writtenGrade.pointsAwarded === writtenMaxPoints;
-                const isCorrect = ans?.isCorrect === true || writtenIsCorrect;
-                const writtenIsIncorrect =
-                  writtenGrade != null &&
-                  writtenGrade.pointsAwarded < writtenMaxPoints;
-                const isIncorrect =
-                  ans?.isCorrect === false || writtenIsIncorrect;
+                const isCorrect = isWritten
+                  ? writtenIsCorrect
+                  : ans?.isCorrect === true;
+                const isIncorrect = isWritten
+                  ? writtenIsIncorrect
+                  : ans?.isCorrect === false;
                 const correctAnswer = session.revealedAnswers?.[q.id];
                 return (
                   <article
