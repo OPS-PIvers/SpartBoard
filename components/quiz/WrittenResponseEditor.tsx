@@ -154,6 +154,21 @@ const WrittenResponseEditorInner: React.FC<
     }
   };
 
+  // If the student shrinks the browser window after dragging the editor
+  // taller than the new max, the stored height stays stale until the next
+  // interaction — leaving the editor visibly taller than 70vh allows.
+  // Re-clamp on viewport resize so the cap stays honest. Floored at
+  // `minHeight` because a viewport smaller than the editor's minimum is
+  // a worse problem than ignoring this clamp.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => {
+      setHeightPx((h) => Math.max(minHeight, Math.min(h, maxHeight())));
+    };
+    window.addEventListener('resize', onResize, { passive: true });
+    return () => window.removeEventListener('resize', onResize);
+  }, [minHeight]);
+
   // Seed innerHTML once on mount. Subsequent edits are driven by the
   // contenteditable element itself — re-writing innerHTML on every value
   // change would reset the caret on every keystroke.

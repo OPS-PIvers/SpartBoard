@@ -271,6 +271,19 @@ const sliceTextWithAnnotations = (
   return out;
 };
 
+// The four `<mark>` background classes shipped by `highlightClass`.
+// Exported so `tailwind.config.js` can spread them into its `safelist`
+// without duplicating the list — these classes live in this file, which
+// Tailwind already scans via the `utils/` content glob, but the safelist
+// is a belt-and-braces guarantee against future content-glob regressions
+// and needs to stay in lockstep with the switch below.
+export const HIGHLIGHT_BG_CLASSES = [
+  'bg-amber-300/60',
+  'bg-emerald-300/60',
+  'bg-pink-300/60',
+  'bg-sky-300/60',
+] as const;
+
 /**
  * Tailwind classes for each highlight color. Kept here so the same
  * palette is used by both the teacher's edit surface (live marks) and
@@ -280,16 +293,17 @@ const sliceTextWithAnnotations = (
 export const highlightClass = (
   color: WrittenAnswerAnnotation['highlightColor']
 ): string => {
+  const base = 'text-inherit rounded-sm px-0.5 cursor-pointer';
   switch (color) {
     case 'green':
-      return 'bg-emerald-300/60 text-inherit rounded-sm px-0.5 cursor-pointer';
+      return `bg-emerald-300/60 ${base}`;
     case 'pink':
-      return 'bg-pink-300/60 text-inherit rounded-sm px-0.5 cursor-pointer';
+      return `bg-pink-300/60 ${base}`;
     case 'blue':
-      return 'bg-sky-300/60 text-inherit rounded-sm px-0.5 cursor-pointer';
+      return `bg-sky-300/60 ${base}`;
     case 'yellow':
     default:
-      return 'bg-amber-300/60 text-inherit rounded-sm px-0.5 cursor-pointer';
+      return `bg-amber-300/60 ${base}`;
   }
 };
 

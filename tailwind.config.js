@@ -1,4 +1,5 @@
 import { Z_INDEX } from './config/zIndex';
+import { HIGHLIGHT_BG_CLASSES } from './utils/writtenAnnotations';
 
 /** @type {import('tailwindcss').Config} */
 export default {
@@ -17,15 +18,13 @@ export default {
       pattern:
         /^font-(sans|serif|mono|handwritten|rounded|fun|comic|slab|retro|marker|cursive)$/,
     },
-    // Quiz written-response highlight colors. Defined in utils/writtenAnnotations.ts
-    // and applied to <mark> elements at runtime. Without this safelist (and
-    // without scanning utils/), Tailwind would purge these and <mark> would
-    // fall back to the browser default (yellow) regardless of the teacher's
-    // color choice — the symptom of the "all highlights look yellow" bug.
-    'bg-amber-300/60',
-    'bg-emerald-300/60',
-    'bg-pink-300/60',
-    'bg-sky-300/60',
+    // Quiz written-response highlight colors. Sourced from
+    // utils/writtenAnnotations.ts so the list can't drift from
+    // `highlightClass`. Without this safelist (and without scanning
+    // utils/), Tailwind would purge these and <mark> would fall back to
+    // the browser default (yellow) regardless of the teacher's color
+    // choice — the symptom of the "all highlights look yellow" bug.
+    ...HIGHLIGHT_BG_CLASSES,
     'bg-blue-500',
     'bg-red-500',
     'bg-amber-500',

@@ -240,19 +240,17 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
     return () => ro.disconnect();
   }, []);
 
-  // Pulse-timeout cleanup. Without this, a click that triggers a pulse
-  // followed by an unmount within 1.2s would call setPulsedId on a dead
-  // component. React 19 silently no-ops the state update but the
-  // outstanding timer is still a (tiny) leak.
-  const pulseTimerRef = useRef<number | null>(null);
-  useEffect(
-    () => () => {
-      if (pulseTimerRef.current !== null) {
-        window.clearTimeout(pulseTimerRef.current);
-      }
-    },
-    []
-  );
+  // Auto-clear the pulse after the animation finishes so a second click
+  // on the same mark visibly re-triggers it. Watching `pulsedId` directly
+  // means: (a) the cleanup function clears the timer on unmount, (b)
+  // changing pulsedId mid-pulse (clicking a different mark) cleanly
+  // cancels the previous timer via cleanup, (c) the click handler stays
+  // a pure setter — no manual timer bookkeeping at the call site.
+  useEffect(() => {
+    if (!pulsedId) return;
+    const t = window.setTimeout(() => setPulsedId(null), 1200);
+    return () => window.clearTimeout(t);
+  }, [pulsedId]);
 
   const handleMarkClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -263,15 +261,6 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
       const a = annotations.find((x) => x.id === id);
       if (!a?.comment?.trim()) return;
       setPulsedId(id);
-      // Auto-clear the pulse after the animation finishes so a second
-      // click on the same mark visibly re-triggers it.
-      if (pulseTimerRef.current !== null) {
-        window.clearTimeout(pulseTimerRef.current);
-      }
-      pulseTimerRef.current = window.setTimeout(() => {
-        setPulsedId((prev) => (prev === id ? null : prev));
-        pulseTimerRef.current = null;
-      }, 1200);
     },
     [annotations]
   );

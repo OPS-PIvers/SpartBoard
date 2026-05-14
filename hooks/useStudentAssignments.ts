@@ -148,6 +148,10 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
       // Quiz uses `scoreVisibility` ('none' = hidden) plus a
       // `scorePublishedAt` timestamp to mark when grades go live to the
       // student. Both must be present for the student to see results.
+      // Guard the cast — Firestore can hand back partial/empty snapshots
+      // during deletion races, and a runtime TypeError here would crash
+      // the whole assignment list instead of just dropping one row.
+      if (!data || typeof data !== 'object') return 'not-graded';
       const visibility = (data as Record<string, unknown>).scoreVisibility;
       const publishedAt = (data as Record<string, unknown>).scorePublishedAt;
       // Surface data-shape mismatches — if one field is present but the
