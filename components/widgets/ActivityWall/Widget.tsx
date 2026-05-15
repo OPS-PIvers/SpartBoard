@@ -275,7 +275,8 @@ const formatClassLinkClassLabel = (cls: ClassLinkClass): string => {
 export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
   widget,
 }) => {
-  const { updateWidget, addWidget, addToast } = useDashboard();
+  const { updateWidget, addWidget, addToast, isActiveBoardReadOnly } =
+    useDashboard();
   const { user, googleAccessToken, refreshGoogleToken } = useAuth();
   const { isConnected: isDriveConnected } = useGoogleDrive();
   const config = widget.config as ActivityWallConfig;
@@ -1470,28 +1471,33 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                   {activities.length === 1 ? 'y' : 'ies'}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => {
-                  openEditor(buildBlankActivity());
-                  setShowLiveView(false);
-                }}
-                className="rounded-xl bg-brand-blue-primary text-white font-black uppercase flex items-center"
-                style={{
-                  padding: 'min(7px, 2cqmin) min(10px, 2.8cqmin)',
-                  gap: 'min(4px, 1.4cqmin)',
-                  fontSize: 'min(10px, 3.2cqmin)',
-                }}
-                title="Create activity"
-              >
-                <Plus
-                  style={{
-                    width: 'min(12px, 3.7cqmin)',
-                    height: 'min(12px, 3.7cqmin)',
+              {/* Create-activity affordance hidden in substitute / view-only
+                  mode — subs can run activities the teacher prepared but
+                  cannot author new ones. */}
+              {!isActiveBoardReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    openEditor(buildBlankActivity());
+                    setShowLiveView(false);
                   }}
-                />
-                New
-              </button>
+                  className="rounded-xl bg-brand-blue-primary text-white font-black uppercase flex items-center"
+                  style={{
+                    padding: 'min(7px, 2cqmin) min(10px, 2.8cqmin)',
+                    gap: 'min(4px, 1.4cqmin)',
+                    fontSize: 'min(10px, 3.2cqmin)',
+                  }}
+                  title="Create activity"
+                >
+                  <Plus
+                    style={{
+                      width: 'min(12px, 3.7cqmin)',
+                      height: 'min(12px, 3.7cqmin)',
+                    }}
+                  />
+                  New
+                </button>
+              )}
             </div>
 
             <div
@@ -1534,8 +1540,15 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                       >
                         {activity.prompt}
                       </p>
+                      {/* Per-activity actions. "View" is interactive — a sub
+                          running the wall during class IS the intended use. Edit
+                          and Delete alter the teacher's activity library; both
+                          hide in substitute / view-only mode, and the grid
+                          collapses to a single column. */}
                       <div
-                        className="grid grid-cols-3 mt-2"
+                        className={`grid mt-2 ${
+                          isActiveBoardReadOnly ? 'grid-cols-1' : 'grid-cols-3'
+                        }`}
                         style={{ gap: 'min(6px, 1.7cqmin)' }}
                       >
                         <button
@@ -1552,34 +1565,38 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                         >
                           View
                         </button>
-                        <button
-                          type="button"
-                          onClick={() => openEditor(activity)}
-                          className="rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center"
-                          style={{ gap: 'min(4px, 1.1cqmin)' }}
-                        >
-                          <Pencil
-                            style={{
-                              width: 'min(11px, 3.2cqmin)',
-                              height: 'min(11px, 3.2cqmin)',
-                            }}
-                          />
-                          Edit
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => deleteActivity(activity.id)}
-                          className="rounded-lg bg-rose-600 text-white font-bold flex items-center justify-center"
-                          style={{ gap: 'min(4px, 1.1cqmin)' }}
-                        >
-                          <Trash2
-                            style={{
-                              width: 'min(11px, 3.2cqmin)',
-                              height: 'min(11px, 3.2cqmin)',
-                            }}
-                          />
-                          Delete
-                        </button>
+                        {!isActiveBoardReadOnly && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() => openEditor(activity)}
+                              className="rounded-lg bg-amber-500 text-white font-bold flex items-center justify-center"
+                              style={{ gap: 'min(4px, 1.1cqmin)' }}
+                            >
+                              <Pencil
+                                style={{
+                                  width: 'min(11px, 3.2cqmin)',
+                                  height: 'min(11px, 3.2cqmin)',
+                                }}
+                              />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => deleteActivity(activity.id)}
+                              className="rounded-lg bg-rose-600 text-white font-bold flex items-center justify-center"
+                              style={{ gap: 'min(4px, 1.1cqmin)' }}
+                            >
+                              <Trash2
+                                style={{
+                                  width: 'min(11px, 3.2cqmin)',
+                                  height: 'min(11px, 3.2cqmin)',
+                                }}
+                              />
+                              Delete
+                            </button>
+                          </>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -1878,22 +1895,24 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                                   }}
                                 />
                               </button>
-                              <button
-                                type="button"
-                                className="rounded-full bg-rose-50 p-1 text-rose-700"
-                                title="Delete submission"
-                                aria-label="Delete submission"
-                                onClick={() =>
-                                  void deleteSubmission(submission)
-                                }
-                              >
-                                <Trash2
-                                  style={{
-                                    width: 'min(10px, 3cqmin)',
-                                    height: 'min(10px, 3cqmin)',
-                                  }}
-                                />
-                              </button>
+                              {!isActiveBoardReadOnly && (
+                                <button
+                                  type="button"
+                                  className="rounded-full bg-rose-50 p-1 text-rose-700"
+                                  title="Delete submission"
+                                  aria-label="Delete submission"
+                                  onClick={() =>
+                                    void deleteSubmission(submission)
+                                  }
+                                >
+                                  <Trash2
+                                    style={{
+                                      width: 'min(10px, 3cqmin)',
+                                      height: 'min(10px, 3cqmin)',
+                                    }}
+                                  />
+                                </button>
+                              )}
                             </span>
                           )}
                         </div>
@@ -1985,22 +2004,24 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
                                       }}
                                     />
                                   </button>
-                                  <button
-                                    type="button"
-                                    className="rounded-full bg-white/95 p-1 text-rose-700 shadow"
-                                    title="Delete submission"
-                                    aria-label="Delete submission"
-                                    onClick={() =>
-                                      void deleteSubmission(submission)
-                                    }
-                                  >
-                                    <Trash2
-                                      style={{
-                                        width: 'min(10px, 3cqmin)',
-                                        height: 'min(10px, 3cqmin)',
-                                      }}
-                                    />
-                                  </button>
+                                  {!isActiveBoardReadOnly && (
+                                    <button
+                                      type="button"
+                                      className="rounded-full bg-white/95 p-1 text-rose-700 shadow"
+                                      title="Delete submission"
+                                      aria-label="Delete submission"
+                                      onClick={() =>
+                                        void deleteSubmission(submission)
+                                      }
+                                    >
+                                      <Trash2
+                                        style={{
+                                          width: 'min(10px, 3cqmin)',
+                                          height: 'min(10px, 3cqmin)',
+                                        }}
+                                      />
+                                    </button>
+                                  )}
                                 </div>
                               )}
                               {archiveStatus === 'failed' && (
