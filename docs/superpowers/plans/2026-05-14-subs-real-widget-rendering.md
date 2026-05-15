@@ -10,6 +10,41 @@
 
 ---
 
+## Drift from shipped code (read me first)
+
+This plan shipped as PR #1634 (merged into `dev-paul`). A few intentional deviations from the templates below were introduced during implementation and review — if you reread this plan trying to understand the merged code, prefer the merged source over the templates here when they disagree:
+
+1. **`SubsDashboardProvider.updateWidget` shallow-merges `config`** instead of the naive `{ ...w, ...updates }` shown in Task 2. The shipped form is:
+
+   ```tsx
+   const mergedConfig = updates.config
+     ? { ...w.config, ...updates.config }
+     : w.config;
+   return { ...w, ...updates, config: mergedConfig };
+   ```
+
+   This matches the canonical `DashboardContext.updateWidget` and prevents partial `{ config: { someField: x } }` updates from clobbering every other sibling field. Pinned by the `updateWidget shallow-merges config` test in `tests/components/subs/SubsDashboardProvider.test.tsx`.
+
+2. **`initialSnapshot` is `useState` + lazy init**, not the `useMemo` + `useRef` shown in Task 2. Reason: a live Firestore listener on the share doc can fire new array references for the same logical data; `useMemo` would chase those identities and silently retarget the reset action. The shipped form freezes the reset target at mount time:
+
+   ```tsx
+   const [initialSnapshot, setInitialSnapshot] = useState<WidgetData[]>(
+     () => share.initialState ?? share.widgets ?? []
+   );
+   ```
+
+   `setInitialSnapshot` is only called from the "adjusting state while rendering" reseed branch when the share's `shareId` changes.
+
+3. **`SubsDashboardProvider` no longer takes `onResetKeyChange`** as a prop. The two-phase signal (provider bumps key + parent listens) was removed in favour of `SubBoardScreen` owning its own canvas `resetKey` and bumping it inline alongside `resetWidgets()`. Simpler, no render-body side effects, no redundant key state.
+
+4. **Stickers route through a dedicated `ReadOnlySticker` wrapper** in `SubBoardCanvas` that applies `pointer-events: none`. `WidgetRenderer` short-circuits sticker rendering directly to `StickerItemWidget` / `DraggableSticker`, neither of which honour `isActiveBoardReadOnly`, so without this wrapper subs would keep drag/resize/rotate affordances on stickers. The wrapper deliberately does NOT apply `position: absolute` — `DraggableSticker` owns positioning, and an outer absolute wrapper would double-offset. Pinned by `tests/components/subs/ReadOnlySticker.test.tsx`.
+
+5. **External-URL backgrounds use `backgroundImage: url("...")` with cover/center/no-repeat**, not the bare `background: <url>` shorthand from an early draft. The URL is sanitized (`replace(/["'\\\n\r]/g, '')`) before interpolation to defeat CSS-string injection.
+
+If you change the provider or canvas in the future, treat these as load-bearing invariants and update the pinning tests if you break them deliberately.
+
+---
+
 ## Context the engineer must read first
 
 You will likely have zero context on `/subs`. Read these before starting:

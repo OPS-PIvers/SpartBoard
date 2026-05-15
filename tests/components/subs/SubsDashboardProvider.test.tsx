@@ -88,6 +88,37 @@ describe('SubsDashboardProvider', () => {
     ).toBe(99);
   });
 
+  it('updateWidget shallow-merges config (preserves sibling fields)', () => {
+    // Pins the canonical shallow-merge at the config level. Without it, a
+    // widget calling updateWidget(id, { config: { newField: x } }) would
+    // silently clobber every other sibling config field (counts, etc.).
+    // Matches DashboardContext.updateWidget's merge semantics.
+    let handle: ProbeHandle | null = null;
+    render(
+      <SubsDashboardProvider share={makeShare()}>
+        <Probe onReady={(h) => (handle = h)} />
+      </SubsDashboardProvider>
+    );
+    // Add a NEW sibling field at the config level. The existing `counts`
+    // field must survive — the merge is { ...w.config, ...updates.config }.
+    act(() => {
+      handle!.update('w1', {
+        config: { addedByUser: 'sub-note' },
+      } as unknown as Partial<WidgetData>);
+    });
+    const merged = handle!.widgets[0].config as {
+      counts: Record<string, number>;
+      addedByUser: string;
+    };
+    expect(merged.addedByUser).toBe('sub-note');
+    // If this fails, the provider regressed to a naive `{ ...w, ...updates }`
+    // that overwrites the entire config object.
+    expect(merged.counts).toBeDefined();
+    expect(merged.counts.hot).toBe(5);
+    expect(merged.counts.cold).toBe(2);
+    expect(merged.counts.home).toBe(1);
+  });
+
   it('resetWidgets restores the initialState snapshot', () => {
     let handle: ProbeHandle | null = null;
     render(

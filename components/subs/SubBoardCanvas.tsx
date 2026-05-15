@@ -34,8 +34,10 @@ const EMPTY_STUDENTS: LiveStudent[] = [];
  * so we just wrap in pointer-events:none to block all drag/resize/context-menu
  * interactions. No re-applying coordinates here — that was the double-positioning bug.
  */
-const ReadOnlySticker: React.FC<{ widget: WidgetData }> = ({ widget }) => (
-  <div style={{ pointerEvents: 'none' }}>
+export const ReadOnlySticker: React.FC<{ widget: WidgetData }> = ({
+  widget,
+}) => (
+  <div data-testid="readonly-sticker-wrapper" style={{ pointerEvents: 'none' }}>
     <StickerItemWidget widget={widget} />
   </div>
 );
