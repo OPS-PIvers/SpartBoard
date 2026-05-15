@@ -2527,10 +2527,21 @@ const PublishedScoreReview: React.FC<{
   for (const a of myResponse.answers) {
     answerById.set(a.questionId, a);
   }
+  // "Fully correct" only makes sense for auto-graded types. Counting an
+  // essay or short-answer against this tally produces a misleading "0 of
+  // 1 fully correct" beneath a 70% score for partial-credit work. Count
+  // and label against auto-graded questions only; suppress the line
+  // entirely when the quiz has no auto-graded questions at all.
+  const publicQuestions = session.publicQuestions ?? [];
+  const autoGradedQuestionIds = new Set(
+    publicQuestions
+      .filter((q) => !isWrittenQuestionType(q.type))
+      .map((q) => q.id)
+  );
+  const autoGradedCount = autoGradedQuestionIds.size;
   const correctCount = myResponse.answers.filter(
-    (a) => a.isCorrect === true
+    (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
-  const total = session.totalQuestions;
 
   return (
     <div className="h-screen overflow-y-auto bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
@@ -2555,16 +2566,18 @@ const PublishedScoreReview: React.FC<{
               <p className="text-5xl font-black text-white sm:text-6xl">
                 {scorePercent}%
               </p>
-              {/* Per-question tally counts only fully-correct answers, so it
-                  can lag the percentage on quizzes that award partial credit
-                  (Matching/Ordering with `allowPartialCredit`) or use non-1
-                  point values. The "fully correct" qualifier makes the
-                  potential gap between this line and the percentage above
-                  legible to the student rather than appearing to contradict
-                  it. */}
-              <p className="mt-2 text-sm text-slate-400">
-                {correctCount} of {total} fully correct
-              </p>
+              {/* Per-question tally counts only fully-correct answers, so
+                  it can lag the percentage on quizzes that award partial
+                  credit (Matching/Ordering with `allowPartialCredit`) or
+                  use non-1 point values — and it doesn't apply at all to
+                  written-response questions where "fully correct" is a
+                  category error. Hide the line on essay-only quizzes; on
+                  mixed quizzes it counts only the auto-graded subset. */}
+              {autoGradedCount > 0 && (
+                <p className="mt-2 text-sm text-slate-400">
+                  {correctCount} of {autoGradedCount} fully correct
+                </p>
+              )}
             </>
           ) : (
             <p className="text-sm text-slate-300">
@@ -2586,23 +2599,22 @@ const PublishedScoreReview: React.FC<{
                 const writtenGrade = isWritten
                   ? myResponse.grading?.[q.id]
                   : undefined;
-                // Match `gradeAnswer`'s default: a missing `points`
-                // means 1, not 0. The old `q.points &&` short-circuited
-                // when `points` was unset, so a full-credit grade on a
-                // default-points question never showed the ✓.
+                // Written-response questions don't have a binary
+                // right/wrong outcome — a 7/10 essay is partial credit,
+                // not "incorrect". Suppress the red-X / red-border
+                // treatment entirely for written types. A full-credit
+                // essay still shows the ✓ as a positive ack, but never
+                // a red mark for anything below 100%.
                 const writtenMaxPoints = q.points ?? 1;
                 const writtenIsCorrect =
                   writtenGrade != null &&
                   writtenMaxPoints > 0 &&
                   writtenGrade.pointsAwarded === writtenMaxPoints;
-                const writtenIsIncorrect =
-                  writtenGrade != null &&
-                  writtenGrade.pointsAwarded < writtenMaxPoints;
                 const isCorrect = isWritten
                   ? writtenIsCorrect
                   : ans?.isCorrect === true;
                 const isIncorrect = isWritten
-                  ? writtenIsIncorrect
+                  ? false
                   : ans?.isCorrect === false;
                 const correctAnswer = session.revealedAnswers?.[q.id];
                 return (
@@ -2713,7 +2725,7 @@ export const WrittenAnswerReview: React.FC<{
     (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
   const showingLiveAnswer = !hasGrade && !!studentAnswer;
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {snapshot ? (
         <AnnotatedResponseView
           mode="read"
@@ -2724,22 +2736,30 @@ export const WrittenAnswerReview: React.FC<{
         <p className="text-xs text-slate-500 italic">— no response</p>
       )}
       {hasGrade && (
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-slate-400">
-          <span>
-            Score:{' '}
-            <span className="font-mono text-slate-100">
+        <>
+          {grade.overallComment && (
+            // Promoted from a tiny footnote to a violet-accented card so
+            // the teacher's written feedback is the most visible thing
+            // after the student's own answer — it's the part students
+            // most need to read.
+            <div className="rounded-lg border border-violet-400/40 bg-violet-500/10 px-3 py-2.5">
+              <p className="text-[10px] font-black uppercase tracking-wider text-violet-300 mb-1">
+                Teacher Comment
+              </p>
+              <p className="text-sm text-slate-100 leading-relaxed whitespace-pre-wrap">
+                {grade.overallComment}
+              </p>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-slate-700/60">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Score
+            </span>
+            <span className="font-mono text-base font-black text-slate-100">
               {grade.pointsAwarded} / {maxPoints}
             </span>
-          </span>
-          {grade.overallComment && (
-            <span className="basis-full text-slate-300">
-              <span className="font-bold uppercase tracking-wider text-[10px] text-slate-500">
-                Teacher comment:
-              </span>{' '}
-              {grade.overallComment}
-            </span>
-          )}
-        </div>
+          </div>
+        </>
       )}
       {!hasGrade &&
         (showingLiveAnswer ? (

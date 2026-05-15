@@ -317,6 +317,10 @@ export const useGuidedLearningAssignments = (
       });
       batch.update(sessionRef, {
         scoreVisibility: deleteField(),
+        // Mirror `scorePublishedAt` removal on the session so the student's
+        // `parsePublicationFields` (which requires BOTH fields) doesn't
+        // see a stale timestamp lingering after unpublish.
+        scorePublishedAt: deleteField(),
         revealedAnswers: deleteField(),
       });
       await batch.commit();
@@ -419,6 +423,11 @@ export const useGuidedLearningAssignments = (
       });
       const sessionPatch: Record<string, unknown> = {
         scoreVisibility: visibility,
+        // Mirror `scorePublishedAt` onto the session so the student's
+        // `/my-assignments` row can flip from "Not graded" to
+        // "View results". `parsePublicationFields` requires BOTH fields,
+        // and the student listener only subscribes to the session doc.
+        scorePublishedAt: now,
       };
       if (visibility === 'score-responses-and-answers') {
         const revealedAnswers: Record<string, string> = {};

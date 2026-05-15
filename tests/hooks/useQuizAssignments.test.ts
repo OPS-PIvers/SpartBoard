@@ -1165,6 +1165,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     }
     expect(sessionCall[1]).toMatchObject({
       scoreVisibility: DELETE_FIELD_SENTINEL,
+      scorePublishedAt: DELETE_FIELD_SENTINEL,
       revealedAnswers: DELETE_FIELD_SENTINEL,
     });
   });
@@ -1259,6 +1260,13 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
       scoreVisibility: 'score-only',
       revealedAnswers: DELETE_FIELD_SENTINEL,
     });
+    // `scorePublishedAt` must mirror onto the session doc — the
+    // student's `parsePublicationFields` rule requires BOTH fields,
+    // and the student listener only sees the session doc. Skipping
+    // this mirror leaves every student stuck on "Not graded".
+    expect(
+      (sessionCall[1] as { scorePublishedAt?: unknown }).scorePublishedAt
+    ).toBeTypeOf('number');
 
     // Per-response patches carry the computed score plus answers with
     // isCorrect tagged. Locate by ref so the order in mock.calls
