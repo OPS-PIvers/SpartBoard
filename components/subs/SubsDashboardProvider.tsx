@@ -71,26 +71,25 @@ const DEFAULT_ANNOTATION_STATE: AnnotationState = {
 };
 
 /**
- * Deep-clone a widget array. The substitute share's `initialState` is the
- * single source of truth for "the board before the sub touched it" and
- * must never be mutated — every reset deep-clones from it.
+ * Deep-clone a widget array so the substitute share's initialState is never
+ * mutated. Uses structuredClone on the whole widget (not just config) so
+ * nested fields like `annotation` are also independent copies.
  */
 function cloneInitialWidgets(source: WidgetData[]): WidgetData[] {
-  return source.map((w) => ({
-    ...w,
-    config: w.config ? structuredClone(w.config) : w.config,
-  }));
+  return structuredClone(source);
 }
 
 export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   share,
   children,
 }) => {
-  // The snapshot we reset to. `initialState` is the canonical reset target;
-  // fall back to `widgets` for legacy shares that pre-date the field.
-  const initialSnapshot = useMemo<WidgetData[]>(
-    () => share.initialState ?? share.widgets ?? [],
-    [share.initialState, share.widgets]
+  // Freeze the reset target at mount time. Firestore onSnapshot may fire
+  // new array references for the same logical data; useMemo would chase
+  // those identities and silently retarget reset. Use lazy useState so
+  // "reset to initial state" means "reset to the state when the sub
+  // opened this board".
+  const [initialSnapshot, setInitialSnapshot] = useState<WidgetData[]>(
+    () => share.initialState ?? share.widgets ?? []
   );
 
   const [widgets, setWidgets] = useState<WidgetData[]>(() =>
@@ -109,8 +108,10 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // rather than useEffect, per CLAUDE.md guidance.
   const [prevShareId, setPrevShareId] = useState(share.shareId);
   if (prevShareId !== share.shareId) {
+    const nextSnapshot = share.initialState ?? share.widgets ?? [];
     setPrevShareId(share.shareId);
-    setWidgets(cloneInitialWidgets(initialSnapshot));
+    setInitialSnapshot(nextSnapshot);
+    setWidgets(cloneInitialWidgets(nextSnapshot));
   }
 
   const resetWidgets = useCallback(() => {
@@ -122,10 +123,21 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // resize / close), not to lock widget content. Without this, every
   // counter / score / timer / lunch-count interaction would silently
   // no-op for the sub.
+  //
+  // Mirrors the canonical DashboardContext.updateWidget config-merge logic:
+  // partial config updates are shallow-merged so widgets that call
+  // updateWidget(id, { config: { someField: x } }) don't clobber other
+  // config keys.
   const updateWidget = useCallback(
     (id: string, updates: Partial<WidgetData>) => {
       setWidgets((prev) =>
-        prev.map((w) => (w.id === id ? { ...w, ...updates } : w))
+        prev.map((w) => {
+          if (w.id !== id) return w;
+          const mergedConfig = updates.config
+            ? { ...w.config, ...updates.config }
+            : w.config;
+          return { ...w, ...updates, config: mergedConfig };
+        })
       );
     },
     []
@@ -314,8 +326,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
 
       // Roster CRUD — subs read rosters via /subs UI separately, not
       // through this context.
-      addRoster: (() =>
-        Promise.resolve('')) as DashboardContextValue['addRoster'],
+      addRoster: () => Promise.resolve(''),
       updateRoster: NOOP_ASYNC as DashboardContextValue['updateRoster'],
       deleteRoster: NOOP_ASYNC as DashboardContextValue['deleteRoster'],
       setActiveRoster: NOOP,

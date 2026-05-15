@@ -11,6 +11,7 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
+import { StickerItemWidget } from '@/components/widgets/stickers/StickerItemWidget';
 import {
   isExternalBackground,
   isCustomBackground,
@@ -22,9 +23,39 @@ import {
   type LiveSession,
   type WidgetConfig,
   type WidgetType,
+  type WidgetData,
+  type StickerConfig,
 } from '@/types';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
+
+/**
+ * Read-only sticker renderer for the substitute view. Positions the sticker
+ * visually at its stored coordinates without attaching any drag, resize, or
+ * context-menu listeners. Subs can see stickers but cannot interact with them.
+ */
+const ReadOnlySticker: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+  const config = widget.config as StickerConfig;
+  const rotation = config.rotation ?? 0;
+  return (
+    <div
+      className="absolute pointer-events-none select-none"
+      style={{
+        left: widget.x,
+        top: widget.y,
+        width: widget.w,
+        height: widget.h,
+        zIndex: widget.z,
+        transform: `rotate(${rotation}deg)`,
+      }}
+    >
+      {/* Re-use the visual-only shell from StickerItemWidget by stripping
+          the DraggableSticker wrapper. We render a synthetic non-draggable
+          div that matches the sticker's visual output. */}
+      <StickerItemWidget widget={widget} />
+    </div>
+  );
+};
 
 const NO_LIVE_SESSION = {
   isLive: false,
@@ -87,11 +118,18 @@ export const SubBoardCanvas: React.FC<SubBoardCanvasProps> = ({ resetKey }) => {
     800
   );
 
+  // Sanitize external background URLs — strip characters that could break or
+  // inject into the CSS url("...") value (double-quote, single-quote,
+  // backslash, and bare newlines are the only vectors inside a CSS string).
+  const safeBackgroundUrl = isExternal
+    ? background.replace(/["'\\\n\r]/g, '')
+    : '';
+
   const outerStyle: React.CSSProperties | undefined = isCustom
     ? customBgStyle
     : isExternal
       ? {
-          backgroundImage: `url("${background}")`,
+          backgroundImage: `url("${safeBackgroundUrl}")`,
           backgroundSize: 'cover',
           backgroundPosition: 'center',
           backgroundRepeat: 'no-repeat',
@@ -112,19 +150,20 @@ export const SubBoardCanvas: React.FC<SubBoardCanvasProps> = ({ resetKey }) => {
           minHeight: '100%',
         }}
       >
-        {active.widgets.map((widget) => (
-          <div
-            key={`${widget.id}-${resetKey}`}
-            style={{
-              position: 'absolute',
-              left: widget.x,
-              top: widget.y,
-              width: widget.w,
-              height: widget.h,
-              zIndex: widget.z ?? 1,
-            }}
-          >
+        {active.widgets.map((widget) =>
+          widget.type === 'sticker' ? (
+            // Stickers bypass DraggableWindow entirely (WidgetRenderer
+            // short-circuits for them). Render a read-only positional shell
+            // so subs can see stickers without gaining drag/resize affordances.
+            <ReadOnlySticker key={`${widget.id}-${resetKey}`} widget={widget} />
+          ) : (
+            // Non-sticker widgets: DraggableWindow already applies
+            // position:absolute with widget.x / widget.y / widget.w / widget.h
+            // from the widget prop, so NO wrapper div is needed here.
+            // isActiveBoardReadOnly:true (set in SubsDashboardProvider) locks
+            // the chrome (no drag/resize/close/flip) automatically.
             <WidgetRenderer
+              key={`${widget.id}-${resetKey}`}
               widget={widget}
               isLive={NO_LIVE_SESSION.isLive}
               students={NO_LIVE_SESSION.students}
@@ -147,8 +186,8 @@ export const SubBoardCanvas: React.FC<SubBoardCanvasProps> = ({ resetKey }) => {
               dashboardSettings={active.settings}
               updateDashboardSettings={dashboard.updateDashboardSettings}
             />
-          </div>
-        ))}
+          )
+        )}
       </div>
     </div>
   );
