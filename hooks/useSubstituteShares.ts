@@ -22,6 +22,27 @@ import type {
 } from '@/types';
 
 /**
+ * Maps known Firestore error codes to user-friendly messages so that raw SDK
+ * strings (e.g. "Missing or insufficient permissions.") never surface in the
+ * UI. The original error is still passed to console.error for debugging.
+ */
+function friendlySubShareError(err: {
+  code?: string;
+  message?: string;
+}): string {
+  switch (err.code) {
+    case 'permission-denied':
+      return 'You do not have permission to view this board.';
+    case 'unavailable':
+      return 'Could not reach the server. Check your internet connection.';
+    case 'not-found':
+      return 'This board could not be found.';
+    default:
+      return 'This board could not be loaded.';
+  }
+}
+
+/**
  * Firestore-side shape of a substitute share doc. The persisted widgets
  * array doubles as `initialState` at creation time — we trust the latter
  * to deep-clone from on Reset and never mutate it.
@@ -87,7 +108,11 @@ export function useSubstituteShares(
       },
       (err) => {
         console.error('[useSubstituteShares] snapshot error:', err);
-        setSnapshot({ buildingId: canonical, shares: [], error: err.message });
+        setSnapshot({
+          buildingId: canonical,
+          shares: [],
+          error: friendlySubShareError(err),
+        });
       }
     );
     return unsub;
@@ -155,7 +180,11 @@ export function useSubstituteShare(
       },
       (err) => {
         console.error('[useSubstituteShare] snapshot error:', err);
-        setSnapshot({ shareId, share: null, error: err.message });
+        setSnapshot({
+          shareId,
+          share: null,
+          error: friendlySubShareError(err),
+        });
       }
     );
     return unsub;

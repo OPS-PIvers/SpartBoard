@@ -18,6 +18,7 @@ import { ScalableWidget } from '../common/ScalableWidget';
 import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
 import { UI_CONSTANTS } from '@/config/layout';
 import {
   WIDGET_SETTINGS_COMPONENTS,
@@ -103,6 +104,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
     featurePermissions,
     disableCloseConfirmation: accountDisableCloseConfirmation,
   } = useAuth();
+  const { isActiveBoardReadOnly } = useDashboard();
 
   const handleToggleLive = async () => {
     try {
@@ -324,6 +326,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       }
       globalStyle={globalStyle}
       headerActions={
+        !isActiveBoardReadOnly &&
         (isLive || canAccessFeature('live-session')) && (
           <LiveControl
             isLive={isLive}
