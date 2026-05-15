@@ -5013,6 +5013,18 @@ export interface Dashboard {
   createdAt: number;
   isDefault?: boolean;
   order?: number;
+  /**
+   * Parent collection id, or `null` for root-level Boards (no collection).
+   * Optional during the migration window; populated by
+   * `collectionsMigration.ts` the first time a legacy dashboard loads.
+   */
+  collectionId?: string | null;
+  /**
+   * When true, this Board appears in the Pinned section of the modal and
+   * the FAB kebab popover (Plan 2). Independent of `collectionId` — pinned
+   * Boards still belong to their Collection.
+   */
+  isPinned?: boolean;
   settings?: DashboardSettings;
   libraryOrder?: (WidgetType | InternalToolType)[];
   updatedAt?: number;
