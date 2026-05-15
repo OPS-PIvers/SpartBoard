@@ -141,13 +141,11 @@ export const SubBoardCanvas: React.FC<SubBoardCanvasProps> = ({ resetKey }) => {
               removeWidget={dashboard.removeWidget}
               duplicateWidget={dashboard.duplicateWidget}
               bringToFront={dashboard.bringToFront}
-              addToast={(msg, type) => dashboard.addToast(msg, type)}
+              addToast={dashboard.addToast}
               globalStyle={globalStyle}
               dashboardBackground={background}
               dashboardSettings={active.settings}
-              updateDashboardSettings={(updates) =>
-                dashboard.updateDashboardSettings(updates)
-              }
+              updateDashboardSettings={dashboard.updateDashboardSettings}
             />
           </div>
         ))}

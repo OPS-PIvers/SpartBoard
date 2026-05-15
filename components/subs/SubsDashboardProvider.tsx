@@ -15,9 +15,10 @@
  *   DashboardProvider gates its own `updateWidget` on the same flag; we
  *   intentionally do not — our updateWidget is the local-state mutator
  *   that powers content interaction.
- * - `resetWidgets()` deep-clones from `initialState` and bumps `resetKey`,
- *   exposed separately via SubsControlContext so the existing
- *   SubProfileToolbar.onReset prop has somewhere to point.
+ * - `resetWidgets()` deep-clones from `initialState` back into local state,
+ *   exposed via SubsControlContext so SubProfileToolbar.onReset has somewhere
+ *   to point. The canvas key channel (`resetKey`) is owned by SubBoardScreen
+ *   and driven directly from there.
  * - Every other action on DashboardContextValue is a no-op. Subs never see
  *   a sidebar, dock, roster picker, sharing UI, or annotations.
  */
@@ -54,11 +55,6 @@ import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 interface SubsDashboardProviderProps {
   share: SubstituteShareDoc;
   children: React.ReactNode;
-  /**
-   * Bumped on reset — pass into SubBoardCanvas as `key` to force re-mount
-   * of every widget (clears component-local state like Timer's `running`).
-   */
-  onResetKeyChange?: (key: number) => void;
 }
 
 const NOOP = () => {
@@ -89,7 +85,6 @@ function cloneInitialWidgets(source: WidgetData[]): WidgetData[] {
 export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   share,
   children,
-  onResetKeyChange,
 }) => {
   // The snapshot we reset to. `initialState` is the canonical reset target;
   // fall back to `widgets` for legacy shares that pre-date the field.
@@ -101,7 +96,6 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   const [widgets, setWidgets] = useState<WidgetData[]>(() =>
     cloneInitialWidgets(initialSnapshot)
   );
-  const [resetKey, setResetKey] = useState(0);
 
   // Stable fallback for `createdAt` — captured once so `activeDashboard`
   // useMemo does not observe a new value each render when the share doc
@@ -115,21 +109,13 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // rather than useEffect, per CLAUDE.md guidance.
   const [prevShareId, setPrevShareId] = useState(share.shareId);
   if (prevShareId !== share.shareId) {
-    const nextKey = resetKey + 1;
     setPrevShareId(share.shareId);
     setWidgets(cloneInitialWidgets(initialSnapshot));
-    setResetKey(nextKey);
-    onResetKeyChange?.(nextKey);
   }
 
   const resetWidgets = useCallback(() => {
     setWidgets(cloneInitialWidgets(initialSnapshot));
-    setResetKey((k) => {
-      const next = k + 1;
-      onResetKeyChange?.(next);
-      return next;
-    });
-  }, [initialSnapshot, onResetKeyChange]);
+  }, [initialSnapshot]);
 
   // Local-only widget mutation. Deliberately does NOT honour the
   // isActiveBoardReadOnly flag — that flag exists to lock chrome (drag /
