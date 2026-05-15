@@ -9,6 +9,11 @@ import { CollectionTree } from './CollectionTree';
 import { BoardGrid } from './BoardGrid';
 import { BoardsModalHeader } from './BoardsModalHeader';
 import { useMultiSelect } from './useMultiSelect';
+import { BoardContextMenu } from './BoardContextMenu';
+import { CollectionContextMenu } from './CollectionContextMenu';
+import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
+import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
+import type { Dashboard } from '@/types';
 
 interface BoardsModalProps {
   onClose: () => void;
@@ -17,7 +22,8 @@ interface BoardsModalProps {
 export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const { showPrompt, showConfirm } = useDialog();
-  const { user } = useAuth();
+  const { user, isAdmin, canAccessFeature } = useAuth();
+  const canShare = canAccessFeature('dashboard-sharing');
   const {
     dashboards,
     activeDashboard,
@@ -27,16 +33,31 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     moveBoardToCollection,
     pinBoard,
     unpinBoard,
+    renameDashboard,
+    duplicateDashboard,
+    setDefaultDashboard,
   } = useDashboard();
-  const { collections, createCollection, deleteCollection } = useCollections(
-    user?.uid
-  );
+  const {
+    collections,
+    createCollection,
+    deleteCollection,
+    renameCollection,
+    setCollectionMetadata,
+  } = useCollections(user?.uid);
 
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null
   >(activeDashboard?.collectionId ?? null);
   const [search, setSearch] = useState('');
   const multi = useMultiSelect();
+  const [contextMenu, setContextMenu] = useState<{
+    type: 'board' | 'collection';
+    id: string;
+    position: { x: number; y: number };
+  } | null>(null);
+  const [shareTarget, setShareTarget] = useState<Dashboard | null>(null);
+  const [saveAsTemplateTarget, setSaveAsTemplateTarget] =
+    useState<Dashboard | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -95,6 +116,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       onClose();
     },
     [loadDashboard, onClose]
+  );
+
+  const handleContextMenu = useCallback(
+    (
+      e: React.MouseEvent,
+      target: { type: 'board' | 'collection'; id: string }
+    ) => {
+      e.preventDefault();
+      setContextMenu({ ...target, position: { x: e.clientX, y: e.clientY } });
+    },
+    []
   );
 
   const handleBulkDelete = useCallback(async () => {
@@ -214,12 +246,107 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             onSelectCollection={setSelectedCollectionId}
             onToggleSelect={multi.toggle}
             onOpenBoard={handleOpenBoard}
-            onContextMenu={(_e, _target) => {
-              /* wired in Task 6.10 */
-            }}
+            onContextMenu={handleContextMenu}
           />
         </div>
       </div>
+
+      {contextMenu?.type === 'board' &&
+        (() => {
+          const board = dashboards.find((d) => d.id === contextMenu.id);
+          if (!board) return null;
+          return (
+            <BoardContextMenu
+              board={board}
+              position={contextMenu.position}
+              canShare={canShare}
+              isAdmin={Boolean(isAdmin)}
+              onClose={() => setContextMenu(null)}
+              onOpen={() => handleOpenBoard(board.id)}
+              onRename={async () => {
+                const next = await showPrompt(
+                  t('common.rename', { defaultValue: 'Rename' }),
+                  {
+                    title: 'Rename',
+                    confirmLabel: 'Save',
+                    placeholder: board.name,
+                  }
+                );
+                if (next?.trim()) await renameDashboard(board.id, next.trim());
+              }}
+              onDuplicate={() => void duplicateDashboard(board.id)}
+              onSetDefault={() => void setDefaultDashboard(board.id)}
+              onTogglePin={() =>
+                board.isPinned ? unpinBoard(board.id) : pinBoard(board.id)
+              }
+              onMove={handleBulkMove}
+              onShare={() => setShareTarget(board)}
+              onSaveAsTemplate={() => setSaveAsTemplateTarget(board)}
+              onDelete={async () => {
+                const ok = await showConfirm(
+                  t('boardsModal.deleteBoardConfirm', {
+                    defaultValue: 'Delete this Board?',
+                  }),
+                  { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
+                );
+                if (ok) await deleteDashboard(board.id);
+              }}
+            />
+          );
+        })()}
+
+      {contextMenu?.type === 'collection' &&
+        (() => {
+          const c = collections.find((cc) => cc.id === contextMenu.id);
+          if (!c) return null;
+          return (
+            <CollectionContextMenu
+              position={contextMenu.position}
+              onClose={() => setContextMenu(null)}
+              onOpen={() => setSelectedCollectionId(c.id)}
+              onRename={async () => {
+                const next = await showPrompt('Rename Collection', {
+                  title: 'Rename',
+                  confirmLabel: 'Save',
+                  placeholder: c.name,
+                });
+                if (next?.trim()) await renameCollection(c.id, next.trim());
+              }}
+              onMove={() => {
+                /* implemented in Task 6.12 */
+              }}
+              onColor={async () => {
+                const color = await showPrompt('Color (hex, e.g., #ad2122)', {
+                  title: 'Set color',
+                  confirmLabel: 'Save',
+                  placeholder: c.color ?? '#2d3f89',
+                });
+                if (color) await setCollectionMetadata(c.id, { color });
+              }}
+              onDelete={async () => {
+                const ok = await showConfirm(
+                  t('boardsModal.deleteCollectionConfirm', {
+                    defaultValue:
+                      'Delete this Collection? Boards inside will move to its parent.',
+                  }),
+                  { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
+                );
+                if (ok) await deleteCollection(c.id, 'move-to-parent');
+              }}
+            />
+          );
+        })()}
+
+      <ShareLinkCreatorModal
+        isOpen={!!shareTarget}
+        dashboard={shareTarget}
+        onClose={() => setShareTarget(null)}
+      />
+      <SaveAsTemplateModal
+        isOpen={!!saveAsTemplateTarget}
+        currentDashboard={saveAsTemplateTarget}
+        onClose={() => setSaveAsTemplateTarget(null)}
+      />
     </div>
   );
 };
