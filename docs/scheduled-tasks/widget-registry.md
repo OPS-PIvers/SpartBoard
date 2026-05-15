@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-14_
+_Last audited: 2026-05-15_
 _Last action: 2026-05-02_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-15: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types, lines 1–64). No new widget types or registry entries added. Recent commits verified: random redesign (`feat(random)` ×2, `b0b11656`, `f8fb1e6b`) added new sub-components (RandomGroups, StudentChip, UnassignedTray, GroupSizeStepper) but no new WidgetType — `RandomWidget` and `RandomSettings` export names in lazyNamed() still match source. Substitute share (`c42faa9d`) added `SubstituteShareFields` and `substitute` to `SharedBoardIntendedMode` — no WidgetType change. Quiz-written overhaul (`7de28fe7`) and other commits: no new widget types. WidgetRegistry.ts, widgetDefaults.ts, tools.ts, widgetGradeLevels.ts all unchanged since 2026-05-14 audit. Two existing LOW open items remain valid._
 
 _2026-05-14: Full audit of all 63 WidgetType values against all seven registration locations. Zero new gaps. All lazyNamed() export names verified — RevealGrid intentionally uses generic `'Widget'` export via index.ts aliased re-export (confirmed correct per prior audits). No new widget types added since yesterday. Two existing LOW open items remain valid._
 
