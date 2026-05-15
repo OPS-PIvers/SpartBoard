@@ -55,6 +55,7 @@ Each file has one clear responsibility. The provider and the canvas are delibera
 ## Task 1: Create `SubsControlContext`
 
 **Files:**
+
 - Create: `components/subs/SubsControlContext.tsx`
 
 This is a one-method context. Keeping it separate from `DashboardContext` avoids polluting the canonical interface with a "reset to initial state" verb that only makes sense for subs.
@@ -113,6 +114,7 @@ git commit -m "feat(subs): add SubsControlContext for reset wiring"
 ## Task 2: Create `SubsDashboardProvider`
 
 **Files:**
+
 - Create: `components/subs/SubsDashboardProvider.tsx`
 
 This is the load-bearing file. It must satisfy the full `DashboardContextValue` interface. Most fields are no-op stubs; the ones that matter are `activeDashboard`, `dashboards`, `isActiveBoardReadOnly`, `updateWidget`, `bringToFront`, plus a synthesised `driveService` (null) and live-session defaults (no live session for subs).
@@ -260,20 +262,17 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     []
   );
 
-  const bringToFront = useCallback(
-    (id: string) => {
-      // Subs can still tap to focus a widget visually. We bump z but keep
-      // the change local (no Firestore write). Skipped silently if the
-      // widget is already on top.
-      setWidgets((prev) => {
-        const maxZ = prev.reduce((acc, w) => Math.max(acc, w.z ?? 0), 0);
-        return prev.map((w) =>
-          w.id === id && (w.z ?? 0) < maxZ ? { ...w, z: maxZ + 1 } : w
-        );
-      });
-    },
-    []
-  );
+  const bringToFront = useCallback((id: string) => {
+    // Subs can still tap to focus a widget visually. We bump z but keep
+    // the change local (no Firestore write). Skipped silently if the
+    // widget is already on top.
+    setWidgets((prev) => {
+      const maxZ = prev.reduce((acc, w) => Math.max(acc, w.z ?? 0), 0);
+      return prev.map((w) =>
+        w.id === id && (w.z ?? 0) < maxZ ? { ...w, z: maxZ + 1 } : w
+      );
+    });
+  }, []);
 
   const activeDashboard = useMemo<Dashboard>(
     () => ({
@@ -495,6 +494,7 @@ git commit -m "feat(subs): SubsDashboardProvider — DashboardContext shim over 
 ## Task 3: Create `SubBoardCanvas`
 
 **Files:**
+
 - Create: `components/subs/SubBoardCanvas.tsx`
 
 The canvas reads `activeDashboard` from `useDashboard()` and renders each widget through `WidgetRenderer`. It mounts the teacher's background as the surface beneath. Widgets are absolute-positioned by their `x` / `y` / `w` / `h` — `DraggableWindow` already supports absolute layout when those values are present on the `widget` prop.
@@ -591,13 +591,7 @@ export const SubBoardCanvas: React.FC<SubBoardCanvasProps> = ({ resetKey }) => {
   return (
     <div
       className="absolute inset-0 overflow-auto"
-      style={
-        isCustom
-          ? customBgStyle
-          : isExternal
-            ? { background }
-            : undefined
-      }
+      style={isCustom ? customBgStyle : isExternal ? { background } : undefined}
       // Background-class case: when neither isCustom nor isExternal, the
       // teacher's background is a Tailwind className string. Apply it
       // directly so utility-class backgrounds still work.
@@ -605,9 +599,7 @@ export const SubBoardCanvas: React.FC<SubBoardCanvasProps> = ({ resetKey }) => {
     >
       <div
         className={
-          !isCustom && !isExternal && background
-            ? background
-            : undefined
+          !isCustom && !isExternal && background ? background : undefined
         }
         style={{
           position: 'relative',
@@ -677,6 +669,7 @@ git commit -m "feat(subs): SubBoardCanvas — render real widgets at real coords
 ## Task 4: Rewrite `SubBoardScreen` body
 
 **Files:**
+
 - Modify: `components/subs/SubBoardScreen.tsx`
 
 Drop the entire `PLACEHOLDER_TILES` array, `FrozenWidgetTile`, `WidgetPreview`, and all the `*Preview` components (≈280 LOC removed). Keep:
@@ -888,6 +881,7 @@ git commit -m "feat(subs): render teacher's real board through SubsDashboardProv
 ## Task 5: Tests — `SubsDashboardProvider`
 
 **Files:**
+
 - Create: `tests/components/subs/SubsDashboardProvider.test.tsx`
 
 Four cases worth pinning down with tests, in priority order. Skip everything else — the rest of the surface area is no-op stubs that aren't worth asserting.
@@ -911,7 +905,9 @@ import { useDashboard } from '@/context/useDashboard';
 import type { SubstituteShareDoc } from '@/hooks/useSubstituteShares';
 import type { WidgetData } from '@/types';
 
-function makeShare(overrides: Partial<SubstituteShareDoc> = {}): SubstituteShareDoc {
+function makeShare(
+  overrides: Partial<SubstituteShareDoc> = {}
+): SubstituteShareDoc {
   const widgets: WidgetData[] = [
     {
       id: 'w1',
@@ -980,9 +976,14 @@ describe('SubsDashboardProvider', () => {
       </SubsDashboardProvider>
     );
     act(() => {
-      handle!.update('w1', { config: { counts: { hot: 99, cold: 0, home: 0 } } } as Partial<WidgetData>);
+      handle!.update('w1', {
+        config: { counts: { hot: 99, cold: 0, home: 0 } },
+      } as Partial<WidgetData>);
     });
-    expect((handle!.widgets[0].config as { counts: Record<string, number> }).counts.hot).toBe(99);
+    expect(
+      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
+        .hot
+    ).toBe(99);
   });
 
   it('resetWidgets restores the initialState snapshot', () => {
@@ -993,13 +994,21 @@ describe('SubsDashboardProvider', () => {
       </SubsDashboardProvider>
     );
     act(() => {
-      handle!.update('w1', { config: { counts: { hot: 99, cold: 0, home: 0 } } } as Partial<WidgetData>);
+      handle!.update('w1', {
+        config: { counts: { hot: 99, cold: 0, home: 0 } },
+      } as Partial<WidgetData>);
     });
-    expect((handle!.widgets[0].config as { counts: Record<string, number> }).counts.hot).toBe(99);
+    expect(
+      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
+        .hot
+    ).toBe(99);
     act(() => {
       handle!.reset();
     });
-    expect((handle!.widgets[0].config as { counts: Record<string, number> }).counts.hot).toBe(5);
+    expect(
+      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
+        .hot
+    ).toBe(5);
   });
 
   it('reseeds local state when shareId changes', () => {
@@ -1011,15 +1020,23 @@ describe('SubsDashboardProvider', () => {
       </SubsDashboardProvider>
     );
     act(() => {
-      handle!.update('w1', { config: { counts: { hot: 99, cold: 0, home: 0 } } } as Partial<WidgetData>);
+      handle!.update('w1', {
+        config: { counts: { hot: 99, cold: 0, home: 0 } },
+      } as Partial<WidgetData>);
     });
-    expect((handle!.widgets[0].config as { counts: Record<string, number> }).counts.hot).toBe(99);
+    expect(
+      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
+        .hot
+    ).toBe(99);
     rerender(
       <SubsDashboardProvider share={makeShare({ shareId: 'b' })}>
         <Probe onReady={(h) => (handle = h)} />
       </SubsDashboardProvider>
     );
-    expect((handle!.widgets[0].config as { counts: Record<string, number> }).counts.hot).toBe(5);
+    expect(
+      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
+        .hot
+    ).toBe(5);
   });
 });
 ```
@@ -1029,6 +1046,7 @@ describe('SubsDashboardProvider', () => {
 Run: `pnpm run test -- tests/components/subs/SubsDashboardProvider.test.tsx`
 
 If you wrote the provider in Task 2 already, these should pass. If they fail, fix the provider — the tests are correct, not the implementation. Common gotchas:
+
 - Forgot to deep-clone in `cloneInitialWidgets` (later reset shares a reference, mutation leaks).
 - Used `useEffect` to reseed on share change instead of the "adjusting state while rendering" pattern (causes one stale render).
 - Hooked `resetWidgets` to `widgets` instead of the ref to `initialSnapshot` (loses the original after first edit).
@@ -1069,6 +1087,7 @@ In a private/incognito window, sign in as a `@orono.k12.mn.us` account that is *
 - [ ] **Step 4: Validate visual fidelity**
 
 Confirm:
+
 - Background matches the teacher's dashboard background (color, gradient, or image — not the radial-gradient placeholder).
 - Widgets render at their actual sizes and positions (not in a hand-rolled 4×3 grid).
 - Widget content shows real config (real schedule items, real scoreboard team names, real Sub Notes text — NOT "Ava / Marcus / Priya", NOT "Quiet Focus Mix", NOT the placeholder copy).
@@ -1077,6 +1096,7 @@ Confirm:
 - [ ] **Step 5: Validate read-only chrome**
 
 Confirm:
+
 - No drag affordance when hovering a widget's title bar.
 - No resize handle in the bottom-right corner.
 - No close button.
@@ -1086,6 +1106,7 @@ Confirm:
 - [ ] **Step 6: Validate content interaction**
 
 Confirm:
+
 - Timer Start button starts the timer; Reset on the timer resets it.
 - Lunch Count +/- buttons mutate the count.
 - Scoreboard +/- buttons change the score.
@@ -1095,6 +1116,7 @@ Confirm:
 - [ ] **Step 7: Validate the Reset action**
 
 Click the hamburger toolbar → Reset. Confirm:
+
 - Lunch counts, scores, timer state — all snap back to whatever the teacher had at share-creation time.
 - No flicker / no widgets disappearing during reset.
 - Reset can be invoked multiple times in a row without error.
@@ -1102,6 +1124,7 @@ Click the hamburger toolbar → Reset. Confirm:
 - [ ] **Step 8: Validate Firestore writes**
 
 Open the Firebase console for this environment. Confirm:
+
 - No writes are issued to `/users/{teacherUid}/dashboards/...` during the sub session.
 - No writes are issued to `/shared_boards/{shareId}` during the sub session.
 - (Writes WILL happen when the teacher edits — that's expected. We're verifying the SUB doesn't write.)
