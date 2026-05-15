@@ -4,6 +4,29 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-15
+
+- PRs reviewed:
+  - #1633 — docs(widget-registry): document intentional omissions in WIDGET_SETTINGS_COMPONENTS (base `dev-paul`, head `claude/widget-registry-settings-docs`, draft)
+  - #1632 — audit(scheduled-tasks): Friday 2026-05-15 daily audits (base `dev-paul`, head `scheduled-tasks`, draft)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`, head `docs/line-endings-normalization-plan`)
+- Comments processed: 8 unresolved comment threads/issue-comments across the 3 PRs — 7 fixed and pushed, 1 deferred for author decision (PR #1366 `.editorconfig` scope expansion).
+- Fixes pushed: 3
+  - PR #1633 / `claude/widget-registry-settings-docs` (`fd47ee2b`): correct stickers flip-panel JSDoc + audit-log entry — the prior wording claimed `StickerBookWidget` hides the flip button, but `DraggableWindow.tsx:2688-2710` unconditionally renders the gear icon and `StickerBookWidget` has no flip-suppressing logic. Flipping a stickers widget shows the standard "Standard settings available." fallback on the Settings tab; appearance lives on the Style tab via `StickerBookAppearanceSettings`. Verified: tsc --noEmit ✓, eslint --max-warnings 0 ✓, prettier --check ✓.
+  - PR #1632 / `scheduled-tasks`: same stickers JSDoc + audit-log correction applied (the PR carries a verbatim copy of PR #1633's WidgetRegistry.ts block and the same Completed entry). Pushed alongside the pr-review-log update for this run.
+  - PR #1366 / `docs/line-endings-normalization-plan` (`a9eaa492`): five doc edits — Step 2 now creates a branch (`chore/normalize-line-endings`) before renormalize commands, adds `git status` sanity check between `--renormalize` and `commit` (so an empty-staging case isn't silently treated as a failure), and includes the `gh pr create` invocation with the title pinned to the Step 4 grep pattern; Step 5 working-tree refresh lifted out of the conflict-resolution block into an unconditional `git rm --cached -r . && git reset --hard` after the rebase loop (a conflict-free rebase never pauses for `--continue` so the prior phrasing left the operator without a refresh signal); Rollback section uses the same subject-grep + hard-fail + verification echo pattern as Step 4 instead of a `<renormalize-commit-hash>` placeholder, and adds a follow-up block to register the revert commit's hash in `.git-blame-ignore-revs` (the revert produces matching blame pollution on the same ~932 files). Verified: prettier --check ✓.
+- Reviews posted: 3
+  - PR #1633 widget-registry docs: Ready — JSDoc + audit-log both corrected during this pass; CI mostly green with Code Quality job still running; cross-PR consistency note flagged the verbatim duplicate in PR #1632 (which was fixed in parallel).
+  - PR #1632 Friday audit: Ready — three daily audits performed, one new LOW item (MiniApp portaled active-app toolbar) detected with sound fix options. Cross-PR overlap with #1633 called out and resolved.
+  - PR #1366 line-endings plan: Ready — five operator-failure-mode fixes applied this pass; `.editorconfig` proposal left for author decision.
+- Notes:
+  - Both gemini-code-assist threads on PR #1633 were inline review comments tied to the WidgetRegistry.ts JSDoc and the audit-log entry. Verified directly against `DraggableWindow.tsx` (gear icon unconditionally rendered) and `WidgetRenderer.tsx:169-173` (the "Standard settings available." fallback) — the JSDoc claim that StickerBookWidget hides the flip button was factually wrong. The audit-log entry was authored in the same PR (not a historical log), so correcting it from inception keeps the resolution accurate.
+  - Coordination call-outs raised in reviews:
+    - PR #1633 + #1632 — same JSDoc block duplicated across both PRs; whichever merges first wins, conflict resolution should preserve the corrected wording.
+    - PR #1366 — `.editorconfig` would prevent the "Delete ␍" friction from returning on newly-created Windows files but is out of scope for this plan; author should decide whether to bundle into PR 1 or open a separate `feat: add .editorconfig` PR.
+
+---
+
 ## 2026-05-14
 
 - PRs reviewed:
