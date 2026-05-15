@@ -420,7 +420,10 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
     // (index.css), so a `min-h-screen` child can't trigger document scroll
     // when submissions overflow the viewport. Give the outer an explicit
     // viewport height + `overflow-y-auto` so the gallery list scrolls.
-    <div className="h-screen overflow-y-auto bg-slate-100">
+    // `h-dvh` follows `h-screen` so the dynamic viewport unit wins on
+    // browsers that support it — keeps iOS Safari from clipping the
+    // bottom row under the collapsing URL bar.
+    <div className="h-screen h-dvh overflow-y-auto bg-slate-100">
       <header className="bg-brand-blue-primary text-white">
         <div className="max-w-5xl mx-auto px-5 py-6">
           <p className="text-xs uppercase tracking-widest font-bold opacity-90">
