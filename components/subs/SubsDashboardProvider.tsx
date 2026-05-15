@@ -255,6 +255,12 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       loadDashboard: NOOP,
       reorderDashboards: NOOP_ASYNC as (ids: string[]) => Promise<void>,
       setDefaultDashboard: NOOP,
+      moveBoardToCollection: NOOP_ASYNC as (
+        boardId: string,
+        collectionId: string | null
+      ) => Promise<void>,
+      pinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      unpinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
       resetDockToDefaults: NOOP,
       setGradeFilter: NOOP,
 

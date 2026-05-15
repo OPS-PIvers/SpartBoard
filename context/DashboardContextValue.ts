@@ -132,6 +132,12 @@ export interface DashboardContextValue {
   loadDashboard: (id: string) => void;
   reorderDashboards: (ids: string[]) => Promise<void>;
   setDefaultDashboard: (id: string) => void;
+  moveBoardToCollection: (
+    boardId: string,
+    collectionId: string | null
+  ) => Promise<void>;
+  pinBoard: (boardId: string) => Promise<void>;
+  unpinBoard: (boardId: string) => Promise<void>;
   resetDockToDefaults: () => void;
   addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void;
   addWidgets: (

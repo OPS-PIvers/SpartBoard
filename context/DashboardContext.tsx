@@ -24,7 +24,7 @@ import {
   UserProfile,
   SubstituteShareDriveGrant,
 } from '../types';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
@@ -3255,6 +3255,39 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, saveDashboards, addToast]
   );
 
+  const moveBoardToCollection = useCallback(
+    async (boardId: string, collectionId: string | null): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+        collectionId,
+        updatedAt: Date.now(),
+      });
+    },
+    [user?.uid]
+  );
+
+  const pinBoard = useCallback(
+    async (boardId: string): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+        isPinned: true,
+        updatedAt: Date.now(),
+      });
+    },
+    [user?.uid]
+  );
+
+  const unpinBoard = useCallback(
+    async (boardId: string): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+        isPinned: false,
+        updatedAt: Date.now(),
+      });
+    },
+    [user?.uid]
+  );
+
   const resetDockToDefaults = useCallback(() => {
     // Re-use the shared helper so the access-filtering logic (enabled,
     // accessLevel, betaUsers) is always consistent with the init path.
@@ -4281,6 +4314,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadDashboard,
       reorderDashboards,
       setDefaultDashboard,
+      moveBoardToCollection,
+      pinBoard,
+      unpinBoard,
       resetDockToDefaults,
       addWidget,
       addWidgets,
@@ -4387,6 +4423,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadDashboard,
       reorderDashboards,
       setDefaultDashboard,
+      moveBoardToCollection,
+      pinBoard,
+      unpinBoard,
       resetDockToDefaults,
       addWidget,
       addWidgets,
