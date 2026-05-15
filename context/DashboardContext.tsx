@@ -54,6 +54,7 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
 } from '../utils/dashboardPII';
+import { migrateBoardForCollections } from '@/utils/collectionsMigration';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
@@ -1363,9 +1364,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const { vpW, vpH } = getCurrentViewport();
         const migratedDashboards = sortedDashboards.map((db) => {
+          const collectionsMigrated = migrateBoardForCollections(db);
           const widgetMigrated: Dashboard = {
-            ...db,
-            widgets: db.widgets.map(migrateWidget),
+            ...collectionsMigrated,
+            widgets: collectionsMigrated.widgets.map(migrateWidget),
           };
           return hydrateDashboardForViewport(widgetMigrated, vpW, vpH);
         });
