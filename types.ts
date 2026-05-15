@@ -4949,6 +4949,18 @@ export interface UserProfile {
   savedWidgetConfigs?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** True after the user has completed the first-time setup wizard */
   setupCompleted?: boolean;
+  /**
+   * The Collection the teacher was most recently in. App-open restores
+   * this. `null` means "root level (no collection)". Set by
+   * `loadDashboard` in DashboardContext when a Board is opened.
+   */
+  lastActiveCollectionId?: string | null;
+  /**
+   * Per-Collection last-visited Board memory. Keys are Collection ids
+   * (or the literal string `"__root__"` for root-level Boards).
+   * Populated whenever a Board within a Collection is opened.
+   */
+  lastBoardIdByCollection?: Record<string, string>;
   /** Skip the confirmation dialog when closing widgets (account-level) */
   disableCloseConfirmation?: boolean;
   /** Whether remote control is enabled for all boards (account-level) */
