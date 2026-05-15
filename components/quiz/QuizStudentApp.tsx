@@ -1132,6 +1132,14 @@ const ActiveQuiz: React.FC<{
   const fibAnswerRef = useRef(fibAnswer);
   const draftMcAnswerRef = useRef(draftMcAnswer);
   const onAnswerRef = useRef(onAnswer);
+  // Mirror of `myResponse.status` for the visibility/unmount flush
+  // handlers (which are scoped to `[]` deps and can't read state
+  // directly). Used to short-circuit the flush after the student has
+  // already submitted — without this, the cleanup flush at unmount
+  // re-writes the answer with `status: 'draft'`, downgrading the parent
+  // response from `'completed'` back to `'in-progress'` and silently
+  // breaking the teacher's "Finished" counter.
+  const myResponseStatusRef = useRef(myResponse?.status);
   // Live serialized answer for Matching/Ordering, written by the child
   // StructuredQuestionInput on every drag/tap so timer auto-submit can
   // capture partial placements instead of submitting the empty string.
@@ -1144,6 +1152,7 @@ const ActiveQuiz: React.FC<{
     draftMcAnswerRef.current = draftMcAnswer;
     onAnswerRef.current = onAnswer;
     writtenAnswerRef.current = writtenAnswer;
+    myResponseStatusRef.current = myResponse?.status;
   }, [
     currentQuestion,
     selectedAnswer,
@@ -1151,6 +1160,7 @@ const ActiveQuiz: React.FC<{
     draftMcAnswer,
     onAnswer,
     writtenAnswer,
+    myResponse?.status,
   ]);
 
   // Reset the structured answer ref when the question changes so a stale
@@ -1271,6 +1281,14 @@ const ActiveQuiz: React.FC<{
   // the page tears down is the best-effort flush we can do.
   useEffect(() => {
     const flush = () => {
+      // Bail if the response has already been finalized. The cleanup
+      // flush runs on unmount, which is triggered by `myResponse.status`
+      // flipping to `'completed'` — without this guard, the flush would
+      // re-write the answer with `status: 'draft'`, downgrading the
+      // parent doc from `'completed'` back to `'in-progress'` and
+      // breaking the teacher's results view ("0 finished", "in
+      // progress" badge, score distribution empty).
+      if (myResponseStatusRef.current === 'completed') return;
       const qid = currentQuestionRef.current?.id;
       const type = currentQuestionRef.current?.type;
       if (type !== 'short' && type !== 'essay') return;
@@ -2218,13 +2236,26 @@ const QuizCompleteCard: React.FC = () => (
   </div>
 );
 
-const ReturnToAssignmentsButton: React.FC = () => (
+/**
+ * Inline CTA used after submission. `variant="card"` matches the existing
+ * full-width pill that sits inside the answer card on the active quiz
+ * screen; `variant="standalone"` is a compact pill sized to its label —
+ * used on the full-screen `QuizSubmittedWaitScreen` so it doesn't stretch
+ * edge-to-edge.
+ */
+const ReturnToAssignmentsButton: React.FC<{
+  variant?: 'card' | 'standalone';
+}> = ({ variant = 'card' }) => (
   <button
     type="button"
     onClick={() => {
       window.location.assign('/my-assignments');
     }}
-    className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20"
+    className={
+      variant === 'standalone'
+        ? 'inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-full transition-colors'
+        : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20'
+    }
   >
     Back to my assignments <ArrowRight className="w-4 h-4" />
   </button>
@@ -2816,7 +2847,7 @@ const QuizSubmittedWaitScreen: React.FC<{
       */}
       {!pin && (
         <div className="mt-6">
-          <ReturnToAssignmentsButton />
+          <ReturnToAssignmentsButton variant="standalone" />
         </div>
       )}
     </div>

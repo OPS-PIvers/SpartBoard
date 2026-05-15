@@ -1717,6 +1717,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         newAnswer,
       ];
 
+      // Don't downgrade a finalized response: if `completeQuiz` already
+      // flipped the doc to `'completed'`, a late autosave/draft write
+      // arriving here (visibility-hidden flush, beforeunload, retry on
+      // a quiz the student already finished) must not revert to
+      // `'in-progress'`. Treats client-side `myResponseRef` as the
+      // freshest signal; it's updated by the `onSnapshot` listener so
+      // it reflects the post-completeQuiz state in the same tab.
+      const nextStatus =
+        myResponseRef.current?.status === 'completed'
+          ? 'completed'
+          : 'in-progress';
+
       await updateDoc(
         doc(
           db,
@@ -1725,7 +1737,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           RESPONSES_COLLECTION,
           responseKey
         ),
-        { status: 'in-progress', answers: updated }
+        { status: nextStatus, answers: updated }
       );
     },
     []
