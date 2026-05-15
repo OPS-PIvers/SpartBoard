@@ -3258,6 +3258,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const moveBoardToCollection = useCallback(
     async (boardId: string, collectionId: string | null): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === boardId ? { ...d, collectionId } : d))
+      );
+      if (isAuthBypass) return;
       await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
         collectionId,
         updatedAt: Date.now(),
@@ -3269,6 +3273,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const pinBoard = useCallback(
     async (boardId: string): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === boardId ? { ...d, isPinned: true } : d))
+      );
+      if (isAuthBypass) return;
       await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
         isPinned: true,
         updatedAt: Date.now(),
@@ -3280,6 +3288,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const unpinBoard = useCallback(
     async (boardId: string): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
+      setDashboards((prev) =>
+        prev.map((d) => (d.id === boardId ? { ...d, isPinned: false } : d))
+      );
+      if (isAuthBypass) return;
       await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
         isPinned: false,
         updatedAt: Date.now(),
