@@ -10,15 +10,21 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { parsePublicationFields } from '@/hooks/useStudentAssignments';
 
 describe('parsePublicationFields', () => {
-  let warnSpy: ReturnType<typeof vi.spyOn<typeof console, 'warn'>>;
-
+  // `vi.spyOn` with an explicit `typeof console` generic tripped vitest 4's
+  // `Methods<Required<T>>` constraint under the CI tsc ("warn" does not
+  // satisfy the constraint '"Console"'). `vi.mocked(console.warn)` after
+  // setup is the type-safe way to grab the spy in each test without
+  // storing it in a typed `let` — matches the rest of the codebase's
+  // spy patterns.
   beforeEach(() => {
-    warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
   });
 
   afterEach(() => {
-    warnSpy.mockRestore();
+    vi.restoreAllMocks();
   });
+
+  const warnSpy = () => vi.mocked(console.warn);
 
   it("returns 'graded' when scoreVisibility is non-'none' AND scorePublishedAt is a number", () => {
     expect(
@@ -63,8 +69,8 @@ describe('parsePublicationFields', () => {
         scorePublishedAt: 'not-a-number', // wrong type
       })
     ).toBe('not-graded');
-    expect(warnSpy).toHaveBeenCalledTimes(1);
-    expect(warnSpy.mock.calls[0][0]).toMatch(/malformed quiz/);
+    expect(warnSpy()).toHaveBeenCalledTimes(1);
+    expect(warnSpy().mock.calls[0][0]).toMatch(/malformed quiz/);
   });
 
   it("returns 'not-graded' for null / non-object data without crashing the row", () => {
@@ -94,6 +100,6 @@ describe('parsePublicationFields', () => {
     parsePublicationFields('guided-learning', bad);
     parsePublicationFields('guided-learning', bad);
     parsePublicationFields('guided-learning', bad);
-    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy()).toHaveBeenCalledTimes(1);
   });
 });
