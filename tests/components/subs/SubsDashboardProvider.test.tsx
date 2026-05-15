@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-non-null-assertion -- test-fixture handle is always set by Probe before assertions */
 import { describe, it, expect } from 'vitest';
 import { render, act } from '@testing-library/react';
 import React from 'react';
@@ -59,6 +58,11 @@ function Probe({ onReady }: { onReady: (h: ProbeHandle) => void }) {
   return null;
 }
 
+function expectHandle(h: ProbeHandle | null): ProbeHandle {
+  if (!h) throw new Error('Probe handle was not set');
+  return h;
+}
+
 describe('SubsDashboardProvider', () => {
   it('exposes isActiveBoardReadOnly: true so DraggableWindow auto-locks', () => {
     let handle: ProbeHandle | null = null;
@@ -67,7 +71,7 @@ describe('SubsDashboardProvider', () => {
         <Probe onReady={(h) => (handle = h)} />
       </SubsDashboardProvider>
     );
-    expect(handle!.isReadOnly).toBe(true);
+    expect(expectHandle(handle).isReadOnly).toBe(true);
   });
 
   it('updateWidget mutates local state but does not touch Firestore', () => {
@@ -78,13 +82,16 @@ describe('SubsDashboardProvider', () => {
       </SubsDashboardProvider>
     );
     act(() => {
-      handle!.update('w1', {
+      expectHandle(handle).update('w1', {
         config: { counts: { hot: 99, cold: 0, home: 0 } },
       } as Partial<WidgetData>);
     });
     expect(
-      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
-        .hot
+      (
+        expectHandle(handle).widgets[0].config as {
+          counts: Record<string, number>;
+        }
+      ).counts.hot
     ).toBe(99);
   });
 
@@ -102,11 +109,11 @@ describe('SubsDashboardProvider', () => {
     // Add a NEW sibling field at the config level. The existing `counts`
     // field must survive — the merge is { ...w.config, ...updates.config }.
     act(() => {
-      handle!.update('w1', {
+      expectHandle(handle).update('w1', {
         config: { addedByUser: 'sub-note' },
       } as unknown as Partial<WidgetData>);
     });
-    const merged = handle!.widgets[0].config as {
+    const merged = expectHandle(handle).widgets[0].config as {
       counts: Record<string, number>;
       addedByUser: string;
     };
@@ -127,20 +134,26 @@ describe('SubsDashboardProvider', () => {
       </SubsDashboardProvider>
     );
     act(() => {
-      handle!.update('w1', {
+      expectHandle(handle).update('w1', {
         config: { counts: { hot: 99, cold: 0, home: 0 } },
       } as Partial<WidgetData>);
     });
     expect(
-      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
-        .hot
+      (
+        expectHandle(handle).widgets[0].config as {
+          counts: Record<string, number>;
+        }
+      ).counts.hot
     ).toBe(99);
     act(() => {
-      handle!.reset();
+      expectHandle(handle).reset();
     });
     expect(
-      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
-        .hot
+      (
+        expectHandle(handle).widgets[0].config as {
+          counts: Record<string, number>;
+        }
+      ).counts.hot
     ).toBe(5);
   });
 
@@ -153,13 +166,16 @@ describe('SubsDashboardProvider', () => {
       </SubsDashboardProvider>
     );
     act(() => {
-      handle!.update('w1', {
+      expectHandle(handle).update('w1', {
         config: { counts: { hot: 99, cold: 0, home: 0 } },
       } as Partial<WidgetData>);
     });
     expect(
-      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
-        .hot
+      (
+        expectHandle(handle).widgets[0].config as {
+          counts: Record<string, number>;
+        }
+      ).counts.hot
     ).toBe(99);
     rerender(
       <SubsDashboardProvider share={makeShare({ shareId: 'b' })}>
@@ -167,8 +183,11 @@ describe('SubsDashboardProvider', () => {
       </SubsDashboardProvider>
     );
     expect(
-      (handle!.widgets[0].config as { counts: Record<string, number> }).counts
-        .hot
+      (
+        expectHandle(handle).widgets[0].config as {
+          counts: Record<string, number>;
+        }
+      ).counts.hot
     ).toBe(5);
   });
 });
