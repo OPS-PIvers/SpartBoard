@@ -68,6 +68,8 @@ const mockAuth: AuthContextType = {
   updateAccountPreferences: async () => {
     // No-op in student view
   },
+  lastActiveCollectionId: undefined,
+  lastBoardIdByCollection: undefined,
   orgId: null,
   roleId: null,
   isStudentRole: false,
