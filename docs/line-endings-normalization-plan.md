@@ -88,24 +88,32 @@ Merge PR 1 to `main` on its own.
 From a freshly-pulled `main` after PR 1 is merged, **on a clean working tree**. The commands below include `git rm --cached -r .` and `git reset --hard`, which will discard any uncommitted changes — stash or commit everything you care about before starting.
 
 ```bash
-# 0. Confirm clean working tree — this must print "nothing to commit"
+# 0. Start from a clean, up-to-date main — do not skip this. `git checkout -b`
+#    below creates the new branch from wherever HEAD currently points, so if
+#    you're on dev-foo or an old claude/* branch the renormalize branch will
+#    inherit that divergence and Step 3's `git diff main...HEAD --ignore-cr-at-eol`
+#    check will not be empty.
+git checkout main
+git pull
+
+# 1. Confirm clean working tree — this must print "nothing to commit"
 git status
 
-# 1. Sanity: confirm .gitattributes is present
+# 2. Sanity: confirm .gitattributes is present
 cat .gitattributes
 
-# 2. Create the PR 2 branch — do not commit directly to main.
+# 3. Create the PR 2 branch — do not commit directly to main.
 git checkout -b chore/normalize-line-endings
 
-# 3. Refresh the index so git re-applies the new attribute rules.
+# 4. Refresh the index so git re-applies the new attribute rules.
 #    WARNING: the next two commands discard any uncommitted changes.
 git rm --cached -r .
 git reset --hard
 
-# 4. Renormalize every tracked file's line endings per .gitattributes
+# 5. Renormalize every tracked file's line endings per .gitattributes
 git add --renormalize .
 
-# 5. Sanity-check whether anything was actually staged. If the committed
+# 6. Sanity-check whether anything was actually staged. If the committed
 #    blobs are already LF (the Context section above explains why this is
 #    typical when core.autocrlf=true has been used consistently), nothing
 #    will be staged and the commit below will fail with "nothing to commit".
@@ -114,10 +122,10 @@ git add --renormalize .
 #    from PR 1 is sufficient.
 git status
 
-# 6. Commit the churn (skip if Step 5 showed nothing staged)
+# 7. Commit the churn (skip if Step 6 showed nothing staged)
 git commit -m "chore: normalize line endings to LF per .gitattributes"
 
-# 7. Push the branch and open the PR. The title must match the local
+# 8. Push the branch and open the PR. The title must match the local
 #    commit message exactly so Step 4's grep can find the squash hash.
 git push -u origin chore/normalize-line-endings
 gh pr create --base main \
@@ -226,7 +234,7 @@ Immediately after PR 2 merges:
 
 ## Rollback
 
-If something smells wrong after PR 2 merges, revert using the same subject-grep + hard-fail guard + verification echo pattern from Step 4 so the right hash is reverted (and the operator doesn't have to copy/paste a hash under stress):
+If something smells wrong after PR 2 merges, revert using the same subject-grep + hard-fail guard + verification echo pattern from Step 4 so the right hash is reverted (and the operator doesn't have to copy/paste a hash under stress). `main` is protected in this repo, so the revert must go through a PR — do not try to push the revert commit directly:
 
 ```bash
 git checkout main
@@ -239,7 +247,12 @@ if [ -z "$SQUASH_HASH" ]; then
 fi
 git log -1 --format="%H %s%n%an  %ad" "$SQUASH_HASH"   # verify before reverting
 
+git checkout -b revert/normalize-line-endings
 git revert "$SQUASH_HASH"
+git push -u origin revert/normalize-line-endings
+gh pr create --base main \
+  --title "revert: normalize line endings (rollback)" \
+  --body "Emergency rollback of the renormalize commit. See docs/line-endings-normalization-plan.md Rollback section."
 ```
 
 Safe because it's a pure textual revert. Then investigate and retry.
@@ -256,7 +269,7 @@ git log -1 --format="%H %s%n%an  %ad" "$REVERT_HASH"   # verify before writing
 echo "$REVERT_HASH  # revert: normalize line endings" >> .git-blame-ignore-revs
 ```
 
-If PR 3 hasn't merged yet at the point of rollback, include both hashes (the original renormalize and the revert) in a single blame-ignore commit instead of two separate PRs.
+If PR 3 hasn't merged yet at the point of rollback, include both hashes (the original renormalize and the revert) in a single blame-ignore commit instead of two separate PRs. If PR 3 has already merged, open a fourth small PR (`chore: register revert hash in blame-ignore`) containing only the revert hash — the same branch + push + `gh pr create` flow as Step 4, since `main` is protected.
 
 ## Scope guardrails (what this plan does NOT do)
 
