@@ -84,7 +84,10 @@
       "boardName": "Board name",
       "create": "Create",
       "enterBoardData": "Paste your board data here:",
-      "imported": "Imported"
+      "imported": "Imported",
+      "activeCollection": "Active Collection",
+      "rootBoards": "Boards",
+      "manageAll": "Manage all boards"
     },
     "backgrounds": {
       "presets": "Presets",
@@ -871,6 +874,50 @@
     "dashboard": {
       "emptyBoardHint": "Drag tools from the Dock below to start",
       "switchBoardsHint": "Use the board navigation controls in the bottom-left to switch boards"
+    }
+  },
+  "boardsModal": {
+    "title": "Boards",
+    "close": "Close",
+    "searchPlaceholder": "Search Boards & Collections",
+    "newBoard": "New Board",
+    "newBoardPrompt": "Board name",
+    "newCollection": "New Collection",
+    "newCollectionPrompt": "Collection name",
+    "manageAll": "Manage all boards",
+    "pinned": "Pinned",
+    "pinnedEmpty": "Pin Boards to keep them one tap away",
+    "allBoards": "Boards",
+    "rootLabel": "All Boards (no Collection)",
+    "subCollections": "Sub-Collections",
+    "boards": "Boards",
+    "empty": "This Collection is empty — drag Boards here or create one.",
+    "selectedCount": "{{count}} selected",
+    "clearSelection": "Clear selection",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "move": "Move…",
+    "moveTitle": "Move to Collection",
+    "moveDestination": "Collection name to move to (or leave blank for root)",
+    "rootDestination": "Root (no Collection)",
+    "delete": "Delete",
+    "bulkDeleteConfirm": "Delete {{count}} item(s)? This cannot be undone.",
+    "deleteBoardConfirm": "Delete this Board?",
+    "deleteCollectionConfirm": "Delete this Collection? Boards inside will move to its parent.",
+    "unpinBoard": "Unpin Board",
+    "menu": {
+      "open": "Open",
+      "openCollection": "Open",
+      "rename": "Rename",
+      "duplicate": "Duplicate (fresh)",
+      "setDefault": "Set as default in this Collection",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "move": "Move to…",
+      "color": "Set color",
+      "share": "Share…",
+      "saveAsTemplate": "Save as Template…",
+      "delete": "Delete"
     }
   },
   "admin": {

@@ -73,7 +73,10 @@
       "enterNewName": "Gib einen neuen Namen für deine Tafel ein.",
       "newBoardTitle": "Neue Tafel",
       "enterName": "Gib einen Namen für deine neue Tafel ein.",
-      "boardName": "Tafelname"
+      "boardName": "Tafelname",
+      "activeCollection": "Active Collection",
+      "rootBoards": "Boards",
+      "manageAll": "Manage all boards"
     },
     "backgrounds": {
       "presets": "Voreinstellungen",
@@ -341,6 +344,50 @@
     "dashboard": {
       "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
       "switchBoardsHint": "Verwenden Sie die Tafelnavigation unten links, um zwischen Tafeln zu wechseln"
+    }
+  },
+  "boardsModal": {
+    "title": "Boards",
+    "close": "Close",
+    "searchPlaceholder": "Search Boards & Collections",
+    "newBoard": "New Board",
+    "newBoardPrompt": "Board name",
+    "newCollection": "New Collection",
+    "newCollectionPrompt": "Collection name",
+    "manageAll": "Manage all boards",
+    "pinned": "Pinned",
+    "pinnedEmpty": "Pin Boards to keep them one tap away",
+    "allBoards": "Boards",
+    "rootLabel": "All Boards (no Collection)",
+    "subCollections": "Sub-Collections",
+    "boards": "Boards",
+    "empty": "This Collection is empty — drag Boards here or create one.",
+    "selectedCount": "{{count}} selected",
+    "clearSelection": "Clear selection",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "move": "Move…",
+    "moveTitle": "Move to Collection",
+    "moveDestination": "Collection name to move to (or leave blank for root)",
+    "rootDestination": "Root (no Collection)",
+    "delete": "Delete",
+    "bulkDeleteConfirm": "Delete {{count}} item(s)? This cannot be undone.",
+    "deleteBoardConfirm": "Delete this Board?",
+    "deleteCollectionConfirm": "Delete this Collection? Boards inside will move to its parent.",
+    "unpinBoard": "Unpin Board",
+    "menu": {
+      "open": "Open",
+      "openCollection": "Open",
+      "rename": "Rename",
+      "duplicate": "Duplicate (fresh)",
+      "setDefault": "Set as default in this Collection",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "move": "Move to…",
+      "color": "Set color",
+      "share": "Share…",
+      "saveAsTemplate": "Save as Template…",
+      "delete": "Delete"
     }
   }
 }
