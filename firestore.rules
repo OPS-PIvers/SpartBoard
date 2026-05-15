@@ -2625,12 +2625,15 @@ service cloud.firestore {
       allow create: if request.auth != null &&
         request.auth.token.firebase.sign_in_provider != 'anonymous' &&
         request.resource.data.teacherUid == request.auth.uid;
-      // Sessions are otherwise immutable; only the owning teacher (or admin)
-      // may delete — used by the Wave 2-GL "Delete permanently" action in the
-      // Assignment archive to clean up the session along with the per-teacher
-      // assignment doc.
-      allow update: if false;
-      allow delete: if request.auth != null &&
+      // The owning teacher (or admin) may update the session — used by
+      // `publishAssignmentScores` to mirror `scoreVisibility` +
+      // `revealedAnswers` onto the session doc so the student listener can
+      // gate its review screen without subscribing to teacher-owned docs.
+      // Mirrors the Quiz session rule (`quiz_sessions/{sessionId}` allow
+      // update). Only the owning teacher (or admin) may delete — used by
+      // the Wave 2-GL "Delete permanently" action in the Assignment archive
+      // to clean up the session along with the per-teacher assignment doc.
+      allow update, delete: if request.auth != null &&
         (resource.data.teacherUid == request.auth.uid || isAdmin());
 
       match /responses/{studentUid} {
@@ -2639,6 +2642,9 @@ service cloud.firestore {
         }
         function glSessionClassIds() {
           return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.get('classIds', []);
+        }
+        function glSessionTeacherUid() {
+          return get(/databases/$(database)/documents/guided_learning_sessions/$(sessionId)).data.teacherUid;
         }
         // Defense in depth — block response writes on view-only sessions.
         // GuidedLearningSession.mode already names the play-mode
@@ -2664,17 +2670,36 @@ service cloud.firestore {
           passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
           glSessionMode() == 'submissions';
-        // Students can update only their own response to add answers or set completedAt;
-        // identity fields and score are immutable from the client
-        allow update: if request.auth != null &&
-          studentUid == request.auth.uid &&
-          passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
-          request.resource.data.studentAnonymousId == resource.data.studentAnonymousId &&
-          request.resource.data.sessionId == resource.data.sessionId &&
-          request.resource.data.startedAt == resource.data.startedAt &&
-          request.resource.data.score == resource.data.score &&
-          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt', 'pin']) &&
-          request.resource.data.answers.size() >= resource.data.answers.size();
+        // Two disjoint branches:
+        //
+        //   TEACHER branch — the owning teacher (or admin) writes `score` and
+        //   per-answer `isCorrect` when they call `publishAssignmentScores`,
+        //   and clears those on unpublish. The session's `teacherUid` is the
+        //   sole ownership gate; we deliberately don't constrain
+        //   `request.resource.data` further so future publish-flow fields
+        //   don't require a rules edit. Mirrors the Quiz / VA response
+        //   update pattern.
+        //
+        //   STUDENT branch — append answers / set completedAt on their own
+        //   response, with `score` locked immutable from the client. Branch
+        //   mutual exclusivity is by intent: a student calling update() will
+        //   fail the teacher disjunct (uid != teacherUid) and fall through
+        //   to the student branch's full append-only invariants.
+        allow update: if request.auth != null && (
+          // Teacher branch.
+          (request.auth.uid == glSessionTeacherUid() || isAdmin()) ||
+          // Student branch — unchanged.
+          (
+            studentUid == request.auth.uid &&
+            passesStudentClassGateCompat(glSessionClassIds(), glSessionClassId()) &&
+            request.resource.data.studentAnonymousId == resource.data.studentAnonymousId &&
+            request.resource.data.sessionId == resource.data.sessionId &&
+            request.resource.data.startedAt == resource.data.startedAt &&
+            request.resource.data.score == resource.data.score &&
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['answers', 'completedAt', 'pin']) &&
+            request.resource.data.answers.size() >= resource.data.answers.size()
+          )
+        );
         // Owning teacher (or admin) may delete responses — used when the
         // teacher permanently deletes an assignment.
         allow delete: if request.auth != null && (

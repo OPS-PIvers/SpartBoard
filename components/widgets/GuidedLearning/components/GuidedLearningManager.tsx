@@ -35,6 +35,8 @@ import {
   Copy,
   ExternalLink,
   CheckSquare,
+  EyeOff,
+  Send,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -49,6 +51,7 @@ import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -188,6 +191,22 @@ export interface GuidedLearningManagerProps {
   onAssignmentArchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentUnarchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentDelete: (assignment: GuidedLearningAssignment) => void;
+  /**
+   * Open the publish-scores picker modal for an archived assignment. Set
+   * ⇒ the archive kebab gains a "Publish scores" / "Update published
+   * scores" entry. Submission-mode assignments only — view-only shares
+   * have no responses to grade.
+   */
+  onAssignmentPublishScores?: (
+    assignment: GuidedLearningAssignment
+  ) => void | Promise<void>;
+  /**
+   * Revoke published score visibility in one click (skips the picker
+   * modal). Only surfaced when `assignment.scoreVisibility` is published.
+   */
+  onAssignmentUnpublishScores?: (
+    assignment: GuidedLearningAssignment
+  ) => void | Promise<void>;
 
   /** Persisted library grid/list toggle (from widget config). */
   initialLibraryViewMode?: 'grid' | 'list';
@@ -357,6 +376,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentArchive,
   onAssignmentUnarchive,
   onAssignmentDelete,
+  onAssignmentPublishScores,
+  onAssignmentUnpublishScores,
   initialLibraryViewMode,
   onLibraryViewModeChange,
   assignmentMode = 'submissions',
@@ -377,6 +398,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(
     null
   );
+  const { showConfirm } = useDialog();
   const [prevTab, setPrevTab] = React.useState(tab);
   if (prevTab !== tab) {
     setPrevTab(tab);
@@ -878,6 +900,43 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         label: 'Move to In Progress',
         icon: RotateCcw,
         onClick: () => onAssignmentUnarchive(a),
+      });
+    }
+
+    // Publish / Unpublish scores — archive tab, submissions only.
+    // View-only shares have no responses to grade.
+    if (mode === 'archive' && !isViewOnly && onAssignmentPublishScores) {
+      const isPublished =
+        a.scoreVisibility !== undefined && a.scoreVisibility !== 'none';
+      secondary.push({
+        id: 'publish-scores',
+        label: isPublished ? 'Update published scores' : 'Publish scores',
+        icon: Send,
+        onClick: () => void onAssignmentPublishScores(a),
+      });
+    }
+    if (
+      mode === 'archive' &&
+      !isViewOnly &&
+      onAssignmentUnpublishScores &&
+      a.scoreVisibility !== undefined &&
+      a.scoreVisibility !== 'none'
+    ) {
+      secondary.push({
+        id: 'unpublish-scores',
+        label: 'Unpublish scores',
+        icon: EyeOff,
+        onClick: async () => {
+          const ok = await showConfirm(
+            'Students will no longer be able to see their scores or responses. You can republish anytime.',
+            {
+              title: 'Unpublish scores',
+              variant: 'danger',
+              confirmLabel: 'Unpublish',
+            }
+          );
+          if (ok) await onAssignmentUnpublishScores(a);
+        },
       });
     }
 

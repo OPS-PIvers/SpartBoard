@@ -4199,6 +4199,18 @@ export type GuidedLearningQuestionType =
   | 'matching'
   | 'sorting';
 
+/**
+ * Score-visibility levels for a Guided Learning assignment. Structurally
+ * identical to {@link QuizScoreVisibility} and
+ * {@link VideoActivityScoreVisibility} so the shared `PublishScoresModal`
+ * picker works across all three widgets.
+ */
+export type GuidedLearningScoreVisibility =
+  | 'none'
+  | 'score-only'
+  | 'score-and-responses'
+  | 'score-responses-and-answers';
+
 export interface GuidedLearningQuestion {
   type: GuidedLearningQuestionType;
   text: string;
@@ -4426,6 +4438,21 @@ export interface GuidedLearningSession {
   welcomeEnabled?: boolean;
   /** Mirrors `GuidedLearningSet.welcomeMessage`. */
   welcomeMessage?: string;
+  /**
+   * Mirror of {@link GuidedLearningAssignment.scoreVisibility} for the
+   * student-facing `/my-assignments` Completed review screen. Absent /
+   * `'none'` ⇒ the student app shows the "Ask your teacher" placeholder
+   * instead of the score/Trophy screen. Realtime via `onSnapshot`, so
+   * teacher unpublish propagates instantly.
+   */
+  scoreVisibility?: GuidedLearningScoreVisibility;
+  /**
+   * Canonical correct answer per step, keyed by `stepId`. Populated only
+   * when `scoreVisibility === 'score-responses-and-answers'`; cleared
+   * (via `deleteField`) on unpublish so unpublished sessions never leak
+   * answer keys to the client.
+   */
+  revealedAnswers?: Record<string, string>;
 }
 
 /** Per-student response in /guided_learning_sessions/{id}/responses/{studentUid} */
@@ -5917,6 +5944,17 @@ export interface GuidedLearningAssignment {
    *  Stored under `assignmentMode` (not `mode`) to avoid colliding with the
    *  GL session's existing play-mode field. Absent on pre-feature assignments. */
   assignmentMode?: AssignmentMode;
+  /**
+   * Teacher-controlled gate on what students see on the `/my-assignments`
+   * Completed review screen. Absent / `'none'` ⇒ unpublished (Quiz/VA
+   * parity). Set by `publishAssignmentScores`. Mirrored onto
+   * {@link GuidedLearningSession.scoreVisibility} so the realtime student
+   * listener can react without subscribing to teacher-owned docs.
+   */
+  scoreVisibility?: GuidedLearningScoreVisibility;
+  /** Epoch ms of the most recent `publishAssignmentScores` call. Cleared
+   *  (via `deleteField`) on unpublish. */
+  scorePublishedAt?: number;
 }
 
 // === Library folders (Wave 3) ===
