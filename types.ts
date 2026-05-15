@@ -4957,7 +4957,7 @@ export interface UserProfile {
   lastActiveCollectionId?: string | null;
   /**
    * Per-Collection last-visited Board memory. Keys are Collection ids
-   * (or the literal string `"__root__"` for root-level Boards).
+   * (or {@link ROOT_COLLECTION_KEY} for root-level Boards).
    * Populated whenever a Board within a Collection is opened.
    */
   lastBoardIdByCollection?: Record<string, string>;
@@ -4996,6 +4996,14 @@ export interface UserProfile {
    */
   dockInitialized?: boolean;
 }
+
+/**
+ * Sentinel key used in {@link UserProfile.lastBoardIdByCollection} for
+ * root-level Boards (those with no Collection). All read/write sites of the
+ * `lastBoardIdByCollection` map must use this constant instead of a literal
+ * string to prevent silent typo bugs.
+ */
+export const ROOT_COLLECTION_KEY = '__root__' as const;
 
 export interface SharedGroup {
   id: string;
