@@ -16,6 +16,7 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
 import { ensureProtocol } from '@/utils/urlHelpers';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
+import { TRUSTED_EMBED_HOSTNAMES } from './trustedHostnames';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 
 interface CompatibilityResult {
@@ -52,6 +53,7 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const allowListedDomains = new Set([
         'www.carriderpro.com',
         'carriderpro.com',
+        ...TRUSTED_EMBED_HOSTNAMES,
         ...(globalConfig?.whitelistUrls ?? []).map((d) => d.toLowerCase()),
       ]);
       return allowListedDomains.has(hostname);
@@ -72,6 +74,7 @@ export const EmbedSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const allowListedDomains = new Set([
         'www.carriderpro.com',
         'carriderpro.com',
+        ...TRUSTED_EMBED_HOSTNAMES,
         ...(globalConfig?.whitelistUrls ?? []).map((d) => d.toLowerCase()),
       ]);
 
