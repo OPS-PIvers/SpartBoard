@@ -24,38 +24,21 @@ import {
   type WidgetConfig,
   type WidgetType,
   type WidgetData,
-  type StickerConfig,
 } from '@/types';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
 
 /**
- * Read-only sticker renderer for the substitute view. Positions the sticker
- * visually at its stored coordinates without attaching any drag, resize, or
- * context-menu listeners. Subs can see stickers but cannot interact with them.
+ * Read-only sticker renderer for the substitute view. DraggableSticker owns
+ * all positioning (position:absolute, left/top/width/height/zIndex/transform),
+ * so we just wrap in pointer-events:none to block all drag/resize/context-menu
+ * interactions. No re-applying coordinates here — that was the double-positioning bug.
  */
-const ReadOnlySticker: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const config = widget.config as StickerConfig;
-  const rotation = config.rotation ?? 0;
-  return (
-    <div
-      className="absolute pointer-events-none select-none"
-      style={{
-        left: widget.x,
-        top: widget.y,
-        width: widget.w,
-        height: widget.h,
-        zIndex: widget.z,
-        transform: `rotate(${rotation}deg)`,
-      }}
-    >
-      {/* Re-use the visual-only shell from StickerItemWidget by stripping
-          the DraggableSticker wrapper. We render a synthetic non-draggable
-          div that matches the sticker's visual output. */}
-      <StickerItemWidget widget={widget} />
-    </div>
-  );
-};
+const ReadOnlySticker: React.FC<{ widget: WidgetData }> = ({ widget }) => (
+  <div style={{ pointerEvents: 'none' }}>
+    <StickerItemWidget widget={widget} />
+  </div>
+);
 
 const NO_LIVE_SESSION = {
   isLive: false,
