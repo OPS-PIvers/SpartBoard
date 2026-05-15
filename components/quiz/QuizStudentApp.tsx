@@ -60,6 +60,7 @@ import {
   QuizPublicQuestion,
   WrittenAnswerGrade,
   isWrittenQuestionType,
+  isAnswerSubmitted,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
@@ -397,12 +398,17 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   }, [isViewOnly, session?.id, authedUid]);
 
   const handleAnswer = useCallback(
-    async (questionId: string, answer: string, speedBonus?: number) => {
+    async (
+      questionId: string,
+      answer: string,
+      speedBonus?: number,
+      opts?: { isDraft?: boolean }
+    ) => {
       // View-only shares never persist responses — the Firestore rule
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (isViewOnly) return;
-      await submitAnswer(questionId, answer, speedBonus);
+      await submitAnswer(questionId, answer, speedBonus, opts);
     },
     [submitAnswer, isViewOnly]
   );
@@ -676,8 +682,13 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       );
     }
 
+    // Drafts (debounced autosaves of written responses) don't count as
+    // "answered" — the student is still typing. The completion gate only
+    // fires on an explicit Submit, which writes `status: 'submitted'`.
     const alreadyAnswered = currentQ
-      ? myResponse.answers.some((a) => a.questionId === currentQ.id)
+      ? myResponse.answers.some(
+          (a) => a.questionId === currentQ.id && isAnswerSubmitted(a)
+        )
       : false;
 
     return (
@@ -743,7 +754,12 @@ const ActiveQuiz: React.FC<{
   currentQuestion: QuizPublicQuestion | undefined;
   alreadyAnswered: boolean;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
-  onAnswer: (qId: string, answer: string, speedBonus?: number) => Promise<void>;
+  onAnswer: (
+    qId: string,
+    answer: string,
+    speedBonus?: number,
+    opts?: { isDraft?: boolean }
+  ) => Promise<void>;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   warningCount: number;
@@ -949,9 +965,12 @@ const ActiveQuiz: React.FC<{
     return shuffleQuestionForStudent(baseQuestion, studentShuffleSeed);
   }, [baseQuestion, answerOptionShuffleEnabled, studentShuffleSeed]);
 
+  // Drafts don't count: a debounced autosave of a written-response in
+  // progress must not flip `submitted` true and shouldn't trigger
+  // `QuizCompleteCard`. Only explicit Submit writes `status: 'submitted'`.
   const alreadyAnswered = isStudentPaced
     ? (myResponse?.answers ?? []).some(
-        (a) => a.questionId === currentQuestion?.id
+        (a) => a.questionId === currentQuestion?.id && isAnswerSubmitted(a)
       )
     : sessionAnswered;
 
@@ -1223,11 +1242,13 @@ const ActiveQuiz: React.FC<{
     }
     const draft = writtenAnswer;
     writtenAutosaveTimer.current = setTimeout(() => {
-      void onAnswerRef.current(qid, draft).catch((err: unknown) => {
-        logError('QuizStudentApp.writtenAutosave', err, {
-          questionId: qid,
+      void onAnswerRef
+        .current(qid, draft, undefined, { isDraft: true })
+        .catch((err: unknown) => {
+          logError('QuizStudentApp.writtenAutosave', err, {
+            questionId: qid,
+          });
         });
-      });
     }, 500);
 
     return () => {
@@ -1260,11 +1281,13 @@ const ActiveQuiz: React.FC<{
         clearTimeout(writtenAutosaveTimer.current);
         writtenAutosaveTimer.current = null;
       }
-      void onAnswerRef.current(qid, draft).catch((err: unknown) => {
-        logError('QuizStudentApp.writtenAutosaveFlush', err, {
-          questionId: qid,
+      void onAnswerRef
+        .current(qid, draft, undefined, { isDraft: true })
+        .catch((err: unknown) => {
+          logError('QuizStudentApp.writtenAutosaveFlush', err, {
+            questionId: qid,
+          });
         });
-      });
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') flush();
@@ -1586,9 +1609,11 @@ const ActiveQuiz: React.FC<{
 
       <div
         className={`flex flex-col p-6 mx-auto w-full ${
-          currentQuestion.type === 'short' || currentQuestion.type === 'essay'
-            ? 'max-w-3xl'
-            : 'max-w-lg'
+          currentQuestion.type === 'essay'
+            ? 'max-w-5xl'
+            : currentQuestion.type === 'short'
+              ? 'max-w-3xl'
+              : 'max-w-lg'
         }`}
       >
         {/* Header */}

@@ -2697,6 +2697,22 @@ export interface QuizResponseAnswer {
   isCorrect?: boolean;
   /** Percentage speed bonus earned from answering quickly (0–50 means +0% to +50%). */
   speedBonus?: number;
+  /**
+   * Distinguishes a debounced autosave draft (written-response only) from an
+   * explicit submit. Missing on legacy docs written before drafts existed and
+   * on MC/FIB/Matching/Ordering answers (those have no autosave path) —
+   * treat missing as `'submitted'` via {@link isAnswerSubmitted}.
+   */
+  status?: 'draft' | 'submitted';
+}
+
+/**
+ * True when the answer should be treated as the student's final submission.
+ * Returns `true` for legacy rows missing the `status` field — they predate
+ * draft autosave and were always explicit submits.
+ */
+export function isAnswerSubmitted(a: QuizResponseAnswer): boolean {
+  return a.status !== 'draft';
 }
 
 export type QuizResponseStatus = 'joined' | 'in-progress' | 'completed';

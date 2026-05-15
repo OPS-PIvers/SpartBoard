@@ -19,9 +19,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
-  Loader2,
   ShieldAlert,
-  X,
 } from 'lucide-react';
 import {
   QuizData,
@@ -32,6 +30,7 @@ import {
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from './AnnotatedResponseView';
 import { highlightClass, htmlToPlainText } from '@/utils/writtenAnnotations';
+import { EditorModalShell } from '@/components/common/EditorModalShell';
 
 interface WrittenResponseGraderProps {
   quiz: QuizData;
@@ -321,32 +320,23 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
 
   if (writtenQuestions.length === 0) {
     return (
-      <ModalShell onClose={onClose}>
-        <div className="p-10 text-center text-slate-600">
-          <p className="text-lg font-bold">
-            No written questions in this quiz.
-          </p>
-          <p className="text-sm text-slate-500 mt-2">
-            Manual grading is only available for short-answer and essay
-            questions.
-          </p>
-        </div>
-      </ModalShell>
+      <EmptyStateShell onClose={onClose}>
+        <p className="text-lg font-bold">No written questions in this quiz.</p>
+        <p className="text-sm text-slate-500 mt-2">
+          Manual grading is only available for short-answer and essay questions.
+        </p>
+      </EmptyStateShell>
     );
   }
 
   if (gradeableResponses.length === 0 || !response || !question) {
     return (
-      <ModalShell onClose={onClose}>
-        <div className="p-10 text-center text-slate-600">
-          <p className="text-lg font-bold">
-            No written responses to grade yet.
-          </p>
-          <p className="text-sm text-slate-500 mt-2">
-            Students haven&apos;t submitted any short-answer or essay responses.
-          </p>
-        </div>
-      </ModalShell>
+      <EmptyStateShell onClose={onClose}>
+        <p className="text-lg font-bold">No written responses to grade yet.</p>
+        <p className="text-sm text-slate-500 mt-2">
+          Students haven&apos;t submitted any short-answer or essay responses.
+        </p>
+      </EmptyStateShell>
     );
   }
 
@@ -356,125 +346,140 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
   const fullyGradedForThisQ = !!savedGrade;
   const isLastStudent = studentIdx >= gradeableResponses.length - 1;
 
-  return (
-    <ModalShell onClose={onClose}>
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 py-3 border-b border-slate-200 bg-white">
-        <div className="flex items-center gap-3 min-w-0">
-          <button
-            onClick={goPrevStudent}
-            disabled={studentIdx === 0 || saving}
-            className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Previous student (←)"
-            title="Previous student (←)"
-          >
-            <ChevronLeft className="w-5 h-5" />
-          </button>
-          <div className="min-w-0">
-            <div className="text-xs text-slate-500 font-bold uppercase tracking-wider">
-              Student {studentIdx + 1} of {gradeableResponses.length}
-            </div>
-            <div className="text-sm font-bold text-slate-900 truncate">
-              {studentLabel}
-              {fullyGradedForThisQ && (
-                <span className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xxs uppercase tracking-wider">
-                  <CheckCircle2 className="w-3 h-3" />
-                  Graded
-                </span>
-              )}
-              {tabSwitches > 0 && (
-                <span
-                  className="ml-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-xxs uppercase tracking-wider"
-                  title={`${tabSwitches} tab switch warning${tabSwitches === 1 ? '' : 's'} during the assessment`}
-                >
-                  <ShieldAlert className="w-3 h-3" />
-                  {tabSwitches} tab switch{tabSwitches === 1 ? '' : 'es'}
-                </span>
-              )}
-            </div>
-          </div>
-          <button
-            onClick={goNextStudent}
-            disabled={studentIdx >= gradeableResponses.length - 1 || saving}
-            className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Next student (→)"
-            title="Next student (→)"
-          >
-            <ChevronRight className="w-5 h-5" />
-          </button>
-        </div>
-        <button
-          onClick={onClose}
-          className="p-1.5 rounded text-slate-500 hover:bg-slate-100 transition-colors"
-          aria-label="Close grader"
-          title="Close (Esc)"
-        >
-          <X className="w-5 h-5" />
-        </button>
-      </header>
-
-      {/* Question switcher (only if there's more than one written Q) */}
-      {writtenQuestions.length > 1 && (
-        <div className="flex items-center gap-2 px-5 py-2 border-b border-slate-200 bg-slate-50">
-          <button
-            onClick={goPrevQuestion}
-            disabled={questionIdx === 0 || saving}
-            className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Previous question"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </button>
-          <div className="text-xs text-slate-600">
-            Question {questionIdx + 1} of {writtenQuestions.length}
-            <span className="ml-2 text-slate-400">·</span>
-            <span className="ml-2 capitalize">{question.type}</span>
-          </div>
-          <button
-            onClick={goNextQuestion}
-            disabled={questionIdx >= writtenQuestions.length - 1 || saving}
-            className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-            aria-label="Next question"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        </div>
+  const subtitle = (
+    <span className="flex items-center gap-2 flex-wrap">
+      <span>
+        Student {studentIdx + 1} of {gradeableResponses.length}
+        <span className="mx-1.5 text-slate-300">·</span>
+        <span className="font-semibold text-slate-700">{studentLabel}</span>
+      </span>
+      {fullyGradedForThisQ && (
+        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700 text-xxs uppercase tracking-wider">
+          <CheckCircle2 className="w-3 h-3" />
+          Graded
+        </span>
       )}
+      {tabSwitches > 0 && (
+        <span
+          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 text-xxs uppercase tracking-wider"
+          title={`${tabSwitches} tab switch warning${tabSwitches === 1 ? '' : 's'} during the assessment`}
+        >
+          <ShieldAlert className="w-3 h-3" />
+          {tabSwitches} tab switch{tabSwitches === 1 ? '' : 'es'}
+        </span>
+      )}
+      {writtenQuestions.length > 1 && (
+        <span>
+          <span className="mx-1.5 text-slate-300">·</span>
+          Question {questionIdx + 1} of {writtenQuestions.length}
+          <span className="mx-1.5 text-slate-300">·</span>
+          <span className="capitalize">{question.type}</span>
+        </span>
+      )}
+    </span>
+  );
 
-      {/* Body — 2-pane: response article (flex-1) + grading sidebar (~400px) */}
-      <div className="flex-1 grid grid-cols-[1fr_400px] min-h-0">
-        <section className="overflow-y-auto p-8 bg-slate-50">
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">
-            Question
-          </h3>
-          <p className="text-lg font-bold text-slate-900 mb-8 leading-snug">
-            {question.text}
-          </p>
+  const headerExtras = (
+    <>
+      <button
+        onClick={goPrevStudent}
+        disabled={studentIdx === 0 || saving}
+        className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        aria-label="Previous student (←)"
+        title="Previous student (←)"
+      >
+        <ChevronLeft className="w-5 h-5" />
+      </button>
+      <button
+        onClick={goNextStudent}
+        disabled={studentIdx >= gradeableResponses.length - 1 || saving}
+        className="p-1.5 rounded text-slate-500 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+        aria-label="Next student (→)"
+        title="Next student (→)"
+      >
+        <ChevronRight className="w-5 h-5" />
+      </button>
+    </>
+  );
 
-          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-2">
-            Student response
-          </h3>
-          {studentAnswer ? (
-            <AnnotatedResponseView
-              mode="edit"
-              // Once we've saved annotations, the snapshot is the
-              // source of truth; until then, default to the live
-              // sanitized answer so a teacher can start selecting text
-              // even on a never-graded response.
-              snapshot={
-                savedGrade?.gradingSnapshot ??
-                sanitizeQuizResponse(studentAnswer)
-              }
-              annotations={draftAnnotations}
-              authorUid={teacherUid}
-              onChange={setDraftAnnotations}
-              activeId={activeAnnotationId}
-              onActiveIdChange={setActiveAnnotationId}
-            />
-          ) : (
-            <div className="bg-white border border-slate-200 rounded-lg p-5 text-sm text-slate-500 italic">
-              The student didn&apos;t answer this question.
+  return (
+    <EditorModalShell
+      isOpen
+      title="Grade written responses"
+      subtitle={subtitle}
+      headerExtras={headerExtras}
+      isDirty={isDirty}
+      isSaving={saving}
+      saveLabel={isLastStudent ? 'Save grade' : 'Save & next'}
+      onSave={handleSave}
+      onClose={onClose}
+      confirmDiscardMessage="You have unsaved grade edits. Discard them?"
+      confirmDiscardTitle="Discard grade edits?"
+      bodyClassName="!p-0 !overflow-hidden"
+      saveErrorMessage={false}
+    >
+      <div className="h-full grid grid-cols-[2fr_1fr] min-h-0">
+        <section className="overflow-y-auto bg-slate-50">
+          {writtenQuestions.length > 1 && (
+            <div className="flex items-center gap-2 px-6 py-2 border-b border-slate-200 bg-slate-50 sticky top-0 z-20">
+              <button
+                onClick={goPrevQuestion}
+                disabled={questionIdx === 0 || saving}
+                className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Previous question"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={goNextQuestion}
+                disabled={questionIdx >= writtenQuestions.length - 1 || saving}
+                className="p-1 rounded text-slate-500 hover:bg-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                aria-label="Next question"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
             </div>
           )}
+          {/*
+            Slim sticky question prompt — gives the teacher the question
+            text at a glance without dominating vertical space. The
+            student's writing below is the dominant element.
+          */}
+          <div className="sticky top-0 z-10 bg-slate-50/95 backdrop-blur border-b border-slate-200 px-8 py-3">
+            <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-1">
+              Question
+            </div>
+            <p className="text-sm font-semibold text-slate-900 leading-snug">
+              {question.text}
+            </p>
+          </div>
+          <div className="p-8">
+            <h3 className="text-sm font-bold uppercase tracking-wider text-slate-500 mb-3">
+              Student response
+            </h3>
+            {studentAnswer ? (
+              <AnnotatedResponseView
+                mode="edit"
+                // Once we've saved annotations, the snapshot is the
+                // source of truth; until then, default to the live
+                // sanitized answer so a teacher can start selecting text
+                // even on a never-graded response.
+                snapshot={
+                  savedGrade?.gradingSnapshot ??
+                  sanitizeQuizResponse(studentAnswer)
+                }
+                annotations={draftAnnotations}
+                authorUid={teacherUid}
+                onChange={setDraftAnnotations}
+                activeId={activeAnnotationId}
+                onActiveIdChange={setActiveAnnotationId}
+              />
+            ) : (
+              <div className="bg-white border border-slate-200 rounded-lg p-5 text-sm text-slate-500 italic">
+                The student didn&apos;t answer this question.
+              </div>
+            )}
+          </div>
         </section>
 
         <aside className="border-l border-slate-200 bg-white p-6 flex flex-col gap-5 overflow-y-auto">
@@ -537,36 +542,20 @@ export const WrittenResponseGrader: React.FC<WrittenResponseGraderProps> = ({
             />
           </div>
 
+          <p className="text-xs text-slate-500 leading-relaxed mt-auto">
+            ← / → switch students. Esc closes the grader. Select text in the
+            response to highlight; click an existing highlight to edit its
+            comment.
+          </p>
+
           {saveError && (
             <div className="p-2.5 bg-brand-red-lighter/40 border border-brand-red-primary/20 rounded-lg text-xs text-brand-red-dark font-bold">
               {saveError}
             </div>
           )}
-
-          <button
-            onClick={() => void handleSave()}
-            disabled={saving}
-            className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-lg flex items-center justify-center gap-2 transition-colors"
-          >
-            {saving ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : isLastStudent ? (
-              'Save grade'
-            ) : (
-              <>
-                Save &amp; next <ChevronRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-
-          <p className="text-xs text-slate-500 leading-relaxed">
-            ← / → switch students. Esc closes the grader. Select text in the
-            response to highlight; click an existing highlight to edit its
-            comment.
-          </p>
         </aside>
       </div>
-    </ModalShell>
+    </EditorModalShell>
   );
 };
 
@@ -661,7 +650,13 @@ const AnnotationsList: React.FC<{
   );
 };
 
-const ModalShell: React.FC<{
+/**
+ * Lightweight modal used by the empty-state branches (no written questions,
+ * or no responses to grade yet). Keeps the same overlay treatment as the
+ * grader proper, but skips the EditorModalShell Save/Cancel chrome since
+ * there's nothing to save.
+ */
+const EmptyStateShell: React.FC<{
   onClose: () => void;
   children: React.ReactNode;
 }> = ({ onClose, children }) => (
@@ -671,22 +666,20 @@ const ModalShell: React.FC<{
     aria-label="Grade written responses"
     className="fixed inset-0 z-overlay flex items-center justify-center bg-slate-900/70 backdrop-blur-sm p-4"
   >
-    {/*
-      Backdrop is a non-focusable div so Tab can't escape into it and so a
-      stray Space/Enter while focus is elsewhere doesn't close the modal.
-      Click-to-dismiss is preserved via onClick. Esc-to-close is wired in
-      the modal body's keydown listener.
-    */}
     <div
       aria-hidden
       className="absolute inset-0 cursor-default"
       onClick={onClose}
     />
-    <div
-      className="relative bg-white rounded-2xl shadow-2xl w-full max-w-[1400px] h-[92vh] flex flex-col overflow-hidden"
-      style={{ maxWidth: 'min(95vw, 1400px)' }}
-    >
+    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg p-10 text-center text-slate-600">
       {children}
+      <button
+        type="button"
+        onClick={onClose}
+        className="mt-6 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+      >
+        Close
+      </button>
     </div>
   </div>
 );

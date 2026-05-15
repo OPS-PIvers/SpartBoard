@@ -954,7 +954,8 @@ export interface UseQuizSessionStudentResult {
   submitAnswer: (
     questionId: string,
     answer: string,
-    speedBonus?: number
+    speedBonus?: number,
+    opts?: { isDraft?: boolean }
   ) => Promise<void>;
   completeQuiz: () => Promise<void>;
   /**
@@ -1682,7 +1683,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   );
 
   const submitAnswer = useCallback(
-    async (questionId: string, answer: string, speedBonus?: number) => {
+    async (
+      questionId: string,
+      answer: string,
+      speedBonus?: number,
+      opts?: { isDraft?: boolean }
+    ) => {
       const sessionId = sessionIdRef.current;
       const responseKey = responseKeyRef.current;
       if (!sessionId || !responseKey) return;
@@ -1690,10 +1696,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // isCorrect is intentionally not written by the student to prevent
       // client-side forgery. It is computed by the teacher's results view
       // using gradeAnswer() against the full quiz data loaded from Drive.
+      //
+      // `status` distinguishes a debounced autosave draft (written-response
+      // only) from an explicit submit. The student's `alreadyAnswered` gate
+      // checks for `'submitted'` so a draft autosave doesn't masquerade as
+      // a final answer and prematurely fire the completion card.
       const newAnswer: QuizResponseAnswer = {
         questionId,
         answer,
         answeredAt: Date.now(),
+        status: opts?.isDraft ? 'draft' : 'submitted',
         ...(speedBonus != null && speedBonus > 0
           ? { speedBonus: Math.min(50, Math.max(0, speedBonus)) }
           : {}),

@@ -276,7 +276,12 @@ describe('QuizStudentApp — self-paced flow', () => {
 
     // submitAnswer was invoked once with the chosen answer for Q1.
     expect(mockSubmitAnswer).toHaveBeenCalledTimes(1);
-    expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', '4', undefined);
+    expect(mockSubmitAnswer).toHaveBeenCalledWith(
+      'q1',
+      '4',
+      undefined,
+      undefined
+    );
   });
 
   it('shows a back button when self-paced and not on the first question', async () => {
@@ -346,7 +351,12 @@ describe('QuizStudentApp — self-paced flow', () => {
 
     // submitAnswer fired twice total: q1='4', then q1='5'.
     expect(mockSubmitAnswer).toHaveBeenCalledTimes(2);
-    expect(mockSubmitAnswer).toHaveBeenLastCalledWith('q1', '5', undefined);
+    expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
+      'q1',
+      '5',
+      undefined,
+      undefined
+    );
   });
 
   it('hydrates the saved answer when myResponse arrives after the initial mount (page refresh mid-quiz)', async () => {
@@ -462,7 +472,8 @@ describe('QuizStudentApp — self-paced flow', () => {
       expect(mockSubmitAnswer).toHaveBeenCalledWith(
         'qm-timer',
         'France:Paris|Germany:',
-        0
+        0,
+        undefined
       );
     } finally {
       vi.useRealTimers();
@@ -513,7 +524,8 @@ describe('QuizStudentApp — self-paced flow', () => {
       expect(mockSubmitAnswer).toHaveBeenCalledWith(
         'qo-timer',
         'First|Second|',
-        0
+        0,
+        undefined
       );
     } finally {
       vi.useRealTimers();
@@ -632,6 +644,7 @@ describe('QuizStudentApp — self-paced flow', () => {
     expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
       'qm',
       'France:Paris|Germany:Berlin|Spain:Madrid',
+      undefined,
       undefined
     );
   });
@@ -673,6 +686,7 @@ describe('QuizStudentApp — self-paced flow', () => {
     expect(mockSubmitAnswer).toHaveBeenLastCalledWith(
       'qo',
       'Fourth|Third|Second|First',
+      undefined,
       undefined
     );
   });
