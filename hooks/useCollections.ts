@@ -322,36 +322,57 @@ export const useCollections = (
       const target = collections.find((c) => c.id === collectionId);
       if (!target) throw new Error('Collection not found');
 
-      const batch = writeBatch(db);
       const now = Date.now();
 
       if (mode === 'move-to-parent') {
-        // Reparent direct child collections to target's parent.
+        // Phase 1: reparent direct child collections to target's parent.
         const childCollections = collections.filter(
           (c) => c.parentCollectionId === collectionId
         );
+        let currentPhase1Batch = writeBatch(db);
+        let phase1Count = 0;
         for (const cc of childCollections) {
-          batch.update(doc(db, 'users', userId, COLLECTIONS_SUBPATH, cc.id), {
-            parentCollectionId: target.parentCollectionId,
-            updatedAt: now,
-          });
+          if (phase1Count >= 400) {
+            await currentPhase1Batch.commit();
+            currentPhase1Batch = writeBatch(db);
+            phase1Count = 0;
+          }
+          currentPhase1Batch.update(
+            doc(db, 'users', userId, COLLECTIONS_SUBPATH, cc.id),
+            { parentCollectionId: target.parentCollectionId, updatedAt: now }
+          );
+          phase1Count += 1;
         }
-        // Re-home Boards in this Collection to target's parent (null or id).
+        if (phase1Count > 0) await currentPhase1Batch.commit();
+
+        // Phase 2: re-home Boards in this Collection to target's parent.
         const boardsQuery = query(
           collection(db, 'users', userId, DASHBOARDS_SUBPATH),
           where('collectionId', '==', collectionId)
         );
         const boardSnap = await getDocs(boardsQuery);
-        boardSnap.docs.forEach((d) => {
-          batch.update(d.ref, {
+        let phase2Batch = writeBatch(db);
+        let phase2Count = 0;
+        for (const d of boardSnap.docs) {
+          if (phase2Count >= 400) {
+            await phase2Batch.commit();
+            phase2Batch = writeBatch(db);
+            phase2Count = 0;
+          }
+          phase2Batch.update(d.ref, {
             collectionId: target.parentCollectionId,
             updatedAt: now,
           });
-        });
-        batch.delete(
+          phase2Count += 1;
+        }
+        if (phase2Count > 0) await phase2Batch.commit();
+
+        // Phase 3: delete the collection doc itself (single write).
+        const phase3Batch = writeBatch(db);
+        phase3Batch.delete(
           doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId)
         );
-        await batch.commit();
+        await phase3Batch.commit();
         return;
       }
 
@@ -359,37 +380,47 @@ export const useCollections = (
       const descendantIds = collectDescendantCollectionIds(collectionId);
       const allCollectionIds = [collectionId, ...descendantIds];
 
-      // Re-home Boards anywhere in this tree to target's parent. Chunk to
-      // stay within Firestore 'in' query limit (30).
-      const CHUNK = 30;
-      for (let i = 0; i < allCollectionIds.length; i += CHUNK) {
-        const chunkIds = allCollectionIds.slice(i, i + CHUNK);
+      // Phase 1: re-home Boards anywhere in this tree to target's parent.
+      // Chunk the `where('collectionId', 'in', ...)` queries by 30 (Firestore
+      // 'in' limit), and chunk the resulting batch writes at 400.
+      const QUERY_CHUNK = 30;
+      let rehomeBatch = writeBatch(db);
+      let rehomeCount = 0;
+      for (let i = 0; i < allCollectionIds.length; i += QUERY_CHUNK) {
+        const chunkIds = allCollectionIds.slice(i, i + QUERY_CHUNK);
         const boardsQuery = query(
           collection(db, 'users', userId, DASHBOARDS_SUBPATH),
           where('collectionId', 'in', chunkIds)
         );
         const boardSnap = await getDocs(boardsQuery);
-        boardSnap.docs.forEach((d) => {
-          batch.update(d.ref, {
+        for (const d of boardSnap.docs) {
+          if (rehomeCount >= 400) {
+            await rehomeBatch.commit();
+            rehomeBatch = writeBatch(db);
+            rehomeCount = 0;
+          }
+          rehomeBatch.update(d.ref, {
             collectionId: target.parentCollectionId,
             updatedAt: now,
           });
-        });
-      }
-
-      // Delete each Collection doc. Batch limit is 500 writes; chunk.
-      let writeCount = 0;
-      let currentBatch = batch;
-      for (const id of allCollectionIds) {
-        if (writeCount >= 400) {
-          await currentBatch.commit();
-          currentBatch = writeBatch(db);
-          writeCount = 0;
+          rehomeCount += 1;
         }
-        currentBatch.delete(doc(db, 'users', userId, COLLECTIONS_SUBPATH, id));
-        writeCount += 1;
       }
-      await currentBatch.commit();
+      if (rehomeCount > 0) await rehomeBatch.commit();
+
+      // Phase 2: delete each Collection doc. Chunk at 400 writes per batch.
+      let deleteBatch = writeBatch(db);
+      let deleteCount = 0;
+      for (const id of allCollectionIds) {
+        if (deleteCount >= 400) {
+          await deleteBatch.commit();
+          deleteBatch = writeBatch(db);
+          deleteCount = 0;
+        }
+        deleteBatch.delete(doc(db, 'users', userId, COLLECTIONS_SUBPATH, id));
+        deleteCount += 1;
+      }
+      if (deleteCount > 0) await deleteBatch.commit();
     },
     [userId, collections, collectDescendantCollectionIds]
   );
