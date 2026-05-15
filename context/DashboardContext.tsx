@@ -3241,6 +3241,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return d;
         })
       );
+      addToast('Default board updated', 'success');
 
       if (isAuthBypass) return;
 
@@ -3264,7 +3265,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       });
       await batch.commit();
     },
-    [user?.uid, dashboards]
+    [user?.uid, dashboards, addToast]
   );
 
   const moveBoardToCollection = useCallback(

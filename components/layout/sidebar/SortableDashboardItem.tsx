@@ -25,7 +25,7 @@ interface SortableDashboardItemProps {
   onLoad: (id: string) => void;
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
-  onSetDefault: (id: string) => void;
+  onSetDefault: (id: string) => Promise<void>;
   onDuplicate: (id: string) => void;
   onShare: (db: Dashboard) => void;
   onSaveAsTemplate?: () => void;
@@ -131,7 +131,9 @@ export const SortableDashboardItem = React.memo(
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  onSetDefault(db.id);
+                  void onSetDefault(db.id).catch((err: unknown) => {
+                    console.error('Failed to set default board:', err);
+                  });
                 }}
                 className={`p-1.5 rounded-lg transition-colors ${
                   db.isDefault
