@@ -254,7 +254,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       ) => Promise<void>,
       loadDashboard: NOOP,
       reorderDashboards: NOOP_ASYNC as (ids: string[]) => Promise<void>,
-      setDefaultDashboard: NOOP,
+      setDefaultDashboard: NOOP_ASYNC as (boardId: string) => Promise<void>,
       moveBoardToCollection: NOOP_ASYNC as (
         boardId: string,
         collectionId: string | null

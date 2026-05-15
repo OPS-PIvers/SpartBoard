@@ -121,7 +121,7 @@ const mockDashboard: DashboardContextValue = {
   reorderDashboards: async () => {
     // No-op
   },
-  setDefaultDashboard: () => {
+  setDefaultDashboard: async () => {
     // No-op
   },
   moveBoardToCollection: async () => {

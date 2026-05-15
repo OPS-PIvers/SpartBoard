@@ -131,7 +131,7 @@ export interface DashboardContextValue {
   renameDashboard: (id: string, name: string) => Promise<void>;
   loadDashboard: (id: string) => void;
   reorderDashboards: (ids: string[]) => Promise<void>;
-  setDefaultDashboard: (id: string) => void;
+  setDefaultDashboard: (boardId: string) => Promise<void>;
   moveBoardToCollection: (
     boardId: string,
     collectionId: string | null

@@ -24,7 +24,7 @@ import {
   UserProfile,
   SubstituteShareDriveGrant,
 } from '../types';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
@@ -3225,34 +3225,46 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const setDefaultDashboard = useCallback(
-    (id: string) => {
-      if (!user) return;
+    async (boardId: string): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      const target = dashboards.find((d) => d.id === boardId);
+      if (!target) return;
+      const targetCollectionId = target.collectionId ?? null;
 
-      const updatedDashboards = dashboards.map((db) => ({
-        ...db,
-        isDefault: db.id === id,
-      }));
-
-      // Update local state
-      setDashboards(
-        [...updatedDashboards].sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          if (a.isDefault && !b.isDefault) return -1;
-          if (!a.isDefault && b.isDefault) return 1;
-          return (b.createdAt || 0) - (a.createdAt || 0);
+      // Optimistic local state update: clear isDefault on siblings, set on target.
+      setDashboards((prev) =>
+        prev.map((d) => {
+          const dColl = d.collectionId ?? null;
+          if (dColl === targetCollectionId) {
+            return { ...d, isDefault: d.id === boardId };
+          }
+          return d;
         })
       );
 
-      // Save to Firestore
-      void saveDashboards(updatedDashboards).catch((err) => {
-        console.error('Failed to save default dashboard status:', err);
-      });
+      if (isAuthBypass) return;
 
-      addToast('Default board updated');
+      const batch = writeBatch(db);
+      const now = Date.now();
+
+      // Clear isDefault on every sibling in the same Collection.
+      dashboards.forEach((d) => {
+        const dColl = d.collectionId ?? null;
+        if (dColl === targetCollectionId && d.isDefault && d.id !== boardId) {
+          batch.update(doc(db, 'users', user.uid, 'dashboards', d.id), {
+            isDefault: false,
+            updatedAt: now,
+          });
+        }
+      });
+      // Set on the target.
+      batch.update(doc(db, 'users', user.uid, 'dashboards', boardId), {
+        isDefault: true,
+        updatedAt: now,
+      });
+      await batch.commit();
     },
-    [user, dashboards, saveDashboards, addToast]
+    [user?.uid, dashboards]
   );
 
   const moveBoardToCollection = useCallback(
