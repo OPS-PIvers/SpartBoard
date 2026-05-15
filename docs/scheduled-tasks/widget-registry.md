@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-05-15_
-_Last action: 2026-05-02_
+_Last action: 2026-05-15_
 
 ---
 
@@ -28,23 +28,19 @@ _2026-05-06: All WidgetType values verified against WIDGET_COMPONENTS, WIDGET_SE
 
 _2026-05-05: `blending-board` (added in dev-paul merge) verified fully registered in all locations; export names match source files. No new registry gaps from the merge._
 
-### LOW `stickers` missing from `WIDGET_SETTINGS_COMPONENTS`
-
-- **Detected:** 2026-04-14
-- **File:** components/widgets/WidgetRegistry.ts
-- **Detail:** `stickers` (StickerBook) has entries in `WIDGET_COMPONENTS`, `WIDGET_APPEARANCE_COMPONENTS`, `WIDGET_SCALING_CONFIG`, `widgetDefaults.ts`, `widgetGradeLevels.ts`, and `tools.ts`, but is absent from `WIDGET_SETTINGS_COMPONENTS`. `stickers/StickerBookSettings.tsx` exports `StickerBookAppearanceSettings` (wired into appearance panel), but there is no flip-panel settings component registered. As a result flipping the stickers widget shows no settings tab — only the appearance tab. May be intentional if stickers has no non-appearance settings, but is undocumented.
-- **Fix:** Either (a) confirm this is intentional and add a JSDoc comment in `WIDGET_SETTINGS_COMPONENTS` noting stickers has appearance-only settings, or (b) create a `StickerBookSettings` component and register it if any non-appearance settings (e.g. lock/reset) are desired.
-
-### LOW `blooms-detail` missing from `WIDGET_SETTINGS_COMPONENTS`
-
-- **Detected:** 2026-04-17
-- **File:** components/widgets/WidgetRegistry.ts, components/widgets/BloomsTaxonomy/DetailWidget.tsx
-- **Detail:** `blooms-detail` is registered in `WIDGET_COMPONENTS` (line 191) and `WIDGET_SCALING_CONFIG`, but has no entry in `WIDGET_SETTINGS_COMPONENTS`. `BloomsTaxonomy/DetailWidget.tsx` exports no Settings component. Because `blooms-detail` is a programmatically-spawned companion widget (not user-selectable from the Dock), having no settings panel may be intentional — but it is undocumented. Flipping a blooms-detail widget card will show an empty settings area with no controls.
-- **Fix:** Either (a) add a JSDoc comment in `WIDGET_SETTINGS_COMPONENTS` noting that `blooms-detail` intentionally has no settings panel (it is read-only, managed by the parent `blooms-taxonomy` widget), or (b) create a minimal `BloomsDetailSettings` component for any future per-instance configuration needs.
+_No open items as of 2026-05-15 action._
 
 ---
 
 ## Completed
+
+### LOW `stickers` and `blooms-detail` missing from `WIDGET_SETTINGS_COMPONENTS`
+
+- **Detected:** 2026-04-14 (stickers), 2026-04-17 (blooms-detail)
+- **Completed:** 2026-05-15
+- **File:** components/widgets/WidgetRegistry.ts
+- **Detail:** Both widget types had entries in `WIDGET_COMPONENTS` and `WIDGET_SCALING_CONFIG` but were absent from `WIDGET_SETTINGS_COMPONENTS`. For `stickers`, all configuration lives in the appearance panel (`StickerBookAppearanceSettings`) and the flip button is hidden by `StickerBookWidget`. For `blooms-detail`, the widget is a read-only companion spawned programmatically by `blooms-taxonomy` with no per-instance configuration. Both omissions were intentional but undocumented — a developer adding a new widget might assume an entry was missed.
+- **Resolution:** Chose option (a) — added a JSDoc block on the `WIDGET_SETTINGS_COMPONENTS` export in `components/widgets/WidgetRegistry.ts` documenting that the map is intentionally not exhaustive over `WidgetType`. The note explicitly calls out `stickers` (appearance-panel-only, flip button hidden), `blooms-detail` (read-only companion managed by parent), `sticker` (cross-referenced to the `WIDGET_COMPONENTS` JSDoc), and `onboarding` (one-time system widget — already documented inline). Documentation-only change — no behavioral impact. `pnpm exec tsc --noEmit`, `pnpm exec eslint components/widgets/WidgetRegistry.ts --max-warnings 0`, and `pnpm exec prettier --check components/widgets/WidgetRegistry.ts` all clean.
 
 ### LOW `config/tools.ts` lacks documentation of intentionally-excluded `WidgetType`s
 
