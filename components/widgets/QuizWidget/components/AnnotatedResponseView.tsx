@@ -272,7 +272,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
       <div className="flex flex-col gap-3">
         <article
           ref={articleRef}
-          className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-sm leading-relaxed text-slate-100 max-w-none [&_mark]:transition-colors"
+          className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-sm leading-relaxed text-slate-100 max-w-none min-w-0 break-words [&_mark]:transition-colors"
           onMouseOver={(e) => {
             const t = (e.target as HTMLElement).closest('mark');
             if (t) setHoveredId(t.getAttribute('data-annotation-id'));
@@ -703,7 +703,7 @@ const EditView: React.FC<EditProps> = ({
     <div ref={containerRef} className="relative">
       <article
         ref={articleRef}
-        className="rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none cursor-text select-text"
+        className="rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
         onMouseUp={handleMouseUp}
         onClick={handleArticleClick}
       >

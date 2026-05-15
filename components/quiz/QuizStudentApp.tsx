@@ -1550,7 +1550,14 @@ const ActiveQuiz: React.FC<{
     currentQuestion.type === 'MC' ? (currentQuestion.choices ?? []) : [];
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900 relative">
+    // `overflow-x-hidden` is a defensive backstop so an oversized child
+    // (a long unbreakable token in a student answer, a misconfigured
+    // grid below a fold, a future refactor that adds a fixed-width
+    // element) can never produce a horizontal scrollbar on an 11"
+    // Chromebook. The max-width caps above keep content well-anchored
+    // on widescreens; this guarantees the narrow-viewport path stays
+    // scroll-free regardless of what's rendered inside.
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-slate-900 relative">
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
@@ -1627,11 +1634,22 @@ const ActiveQuiz: React.FC<{
 
       <div
         className={`flex flex-col p-6 mx-auto w-full ${
+          // Per-type width caps. Tuned for the personal-device viewport
+          // a student actually uses (laptop / Chromebook / tablet), not
+          // a projector:
+          //   essay     → max-w-7xl  ~1280px. Long-form writing benefits
+          //                from elbow room more than line-length
+          //                discipline; the editor wraps its own prose.
+          //   short     → max-w-5xl  ~1024px. Paragraph-length answers
+          //                still want room without becoming sprawling.
+          //   MC/FIB/   → max-w-2xl   ~672px. Short answer options and
+          //   Matching/   structured inputs read worse when stretched
+          //   Ordering    across a widescreen — keep them compact.
           currentQuestion.type === 'essay'
-            ? 'max-w-5xl'
+            ? 'max-w-7xl'
             : currentQuestion.type === 'short'
-              ? 'max-w-3xl'
-              : 'max-w-lg'
+              ? 'max-w-5xl'
+              : 'max-w-2xl'
         }`}
       >
         {/* Header */}
@@ -1689,7 +1707,7 @@ const ActiveQuiz: React.FC<{
         </div>
 
         {/* Question */}
-        <h2 className="text-xl font-bold text-white mb-8 leading-snug">
+        <h2 className="text-xl font-bold text-white mb-8 leading-snug break-words">
           {currentQuestion.text}
         </h2>
 
@@ -2543,9 +2561,16 @@ const PublishedScoreReview: React.FC<{
     (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
 
+  // Per-question cards dominate this view (snapshot + teacher
+  // annotations + score + comment block), so the container is sized
+  // generously — written-response reviews benefit much more from
+  // horizontal room than from a tight prose column. The annotation
+  // engine inside each card handles its own internal line lengths.
+  // `overflow-x-hidden` is the same horizontal-scroll backstop the
+  // active-quiz screen uses — see comment there for why.
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
-      <div className="mx-auto w-full max-w-2xl">
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
           <Trophy className="mb-4 h-12 w-12 text-amber-400" />
           <h1 className="text-2xl font-black text-white sm:text-3xl">
@@ -2632,7 +2657,7 @@ const PublishedScoreReview: React.FC<{
                       <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-700 font-mono text-[11px] font-bold text-slate-200">
                         {idx + 1}
                       </span>
-                      <p className="flex-1 text-sm font-semibold text-slate-100">
+                      <p className="flex-1 min-w-0 break-words text-sm font-semibold text-slate-100">
                         {q.text}
                       </p>
                       {isCorrect && (
