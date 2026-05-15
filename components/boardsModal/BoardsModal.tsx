@@ -85,17 +85,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       }
     );
     if (!name?.trim()) return;
-    await createNewDashboard(name.trim());
-    // Find the just-created Board (it'll be the most-recent one by createdAt).
-    const newest = [...dashboards].sort((a, b) => b.createdAt - a.createdAt)[0];
-    if (newest && selectedCollectionId !== null) {
-      await moveBoardToCollection(newest.id, selectedCollectionId);
+    // createNewDashboard returns the new board's ID so we can assign it to the
+    // selected Collection without relying on stale closure state.
+    const newBoardId = await createNewDashboard(name.trim());
+    if (newBoardId && selectedCollectionId !== null) {
+      await moveBoardToCollection(newBoardId, selectedCollectionId);
     }
   }, [
     showPrompt,
     t,
     createNewDashboard,
-    dashboards,
     selectedCollectionId,
     moveBoardToCollection,
   ]);

@@ -32,7 +32,7 @@ import {
   writeBatch,
   addDoc,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import type { Collection } from '@/types';
 
 const COLLECTIONS_SUBPATH = 'collections';
@@ -75,7 +75,8 @@ export const useCollections = (
   userId: string | undefined
 ): UseCollectionsResult => {
   const [collections, setCollections] = useState<Collection[]>([]);
-  const [loading, setLoading] = useState<boolean>(!!userId);
+  // In auth bypass mode there's no Firestore subscription, so loading is always false.
+  const [loading, setLoading] = useState<boolean>(!!userId && !isAuthBypass);
   const [error, setError] = useState<string | null>(null);
 
   // Reset state on userId change without using useEffect.
@@ -86,13 +87,20 @@ export const useCollections = (
       setCollections([]);
       setLoading(false);
       setError(null);
-    } else {
+    } else if (!isAuthBypass) {
+      // In auth bypass mode there is no Firestore subscription, so loading
+      // never applies — leave it as false to avoid a spurious loading spinner.
       setLoading(true);
     }
   }
 
   useEffect(() => {
     if (!userId) return;
+
+    // In auth bypass mode (dev/test), skip Firestore subscription and use
+    // in-memory state only. CRUD operations below also short-circuit.
+    // loading starts as false for bypass mode (see useState initializer).
+    if (isAuthBypass) return;
 
     const q = query(
       collection(db, 'users', userId, COLLECTIONS_SUBPATH),
@@ -135,6 +143,22 @@ export const useCollections = (
         siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
 
       const now = Date.now();
+
+      // In auth bypass mode, maintain in-memory state only — no Firestore write.
+      if (isAuthBypass) {
+        const id = crypto.randomUUID();
+        const newCollection: Collection = {
+          id,
+          name: trimmed,
+          parentCollectionId,
+          order: nextOrder,
+          createdAt: now,
+          updatedAt: now,
+        };
+        setCollections((prev) => [...prev, newCollection]);
+        return id;
+      }
+
       const ref = await addDoc(
         collection(db, 'users', userId, COLLECTIONS_SUBPATH),
         {

@@ -102,9 +102,7 @@ const mockDashboard: DashboardContextValue = {
   removeToast: () => {
     // No-op
   },
-  createNewDashboard: async () => {
-    // No-op
-  },
+  createNewDashboard: () => Promise.resolve(undefined),
   saveCurrentDashboard: async () => {
     // No-op
   },

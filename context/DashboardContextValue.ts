@@ -124,7 +124,10 @@ export interface DashboardContextValue {
     action?: Toast['action']
   ) => void;
   removeToast: (id: string) => void;
-  createNewDashboard: (name: string, data?: Dashboard) => Promise<void>;
+  createNewDashboard: (
+    name: string,
+    data?: Dashboard
+  ) => Promise<string | undefined>;
   saveCurrentDashboard: () => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;
   duplicateDashboard: (id: string) => Promise<void>;

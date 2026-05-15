@@ -3038,10 +3038,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const createNewDashboard = useCallback(
-    async (name: string, data?: Dashboard) => {
+    async (name: string, data?: Dashboard): Promise<string | undefined> => {
       if (!user) {
         addToast('Must be signed in to create dashboard', 'error');
-        return;
+        return undefined;
       }
 
       const maxOrder = dashboards.reduce(
@@ -3064,9 +3064,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         await saveDashboard(newDb);
         updateActiveId(newDb.id);
         addToast(`Dashboard "${name}" ready`);
+        return newDb.id;
       } catch (err) {
         console.error('Failed to create dashboard:', err);
         addToast('Failed to create dashboard', 'error');
+        return undefined;
       }
     },
     [user, dashboards, saveDashboard, addToast, updateActiveId]
