@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Star, Pin, GripVertical } from 'lucide-react';
+import { useDraggable } from '@dnd-kit/core';
 import type { Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
@@ -27,6 +28,10 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   const { unpinBoard, pinBoard } = useDashboard();
   const longPressTimer = useRef<number | null>(null);
 
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `board:${board.id}`,
+  });
+
   const handlePointerDown = () => {
     longPressTimer.current = window.setTimeout(() => {
       onLongPress();
@@ -48,7 +53,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({
 
   return (
     <div
+      ref={setNodeRef}
+      {...attributes}
       className={`relative group rounded-xl border bg-white p-4 cursor-pointer transition-all hover:shadow-md ${
+        isDragging ? 'opacity-50' : ''
+      } ${
         isSelected
           ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/30'
           : isActive
@@ -71,6 +80,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
     >
       {/* Drag handle (top-right) */}
       <button
+        {...listeners}
         aria-label="Drag to move"
         className="absolute top-2 right-2 p-1 rounded text-slate-300 opacity-0 group-hover:opacity-100 hover:bg-slate-100 transition cursor-grab active:cursor-grabbing"
         onClick={(e) => e.stopPropagation()}

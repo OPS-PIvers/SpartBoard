@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FolderOpen } from 'lucide-react';
+import { useDroppable } from '@dnd-kit/core';
 import type { Collection, Dashboard } from '@/types';
 import { CollectionTreeNode } from './CollectionTreeNode';
 import { PinnedSection } from './PinnedSection';
@@ -54,6 +55,11 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   );
   const isRootSelected = selectedCollectionId === null;
 
+  // Root drop zone — boards/collections dragged here move to root level.
+  const { setNodeRef: setRootDropRef, isOver: isOverRoot } = useDroppable({
+    id: 'collection:root',
+  });
+
   return (
     <div className="w-72 shrink-0 border-r border-slate-200 bg-white overflow-y-auto custom-scrollbar flex flex-col">
       <PinnedSection
@@ -70,9 +76,15 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
           </span>
         </div>
 
-        {/* Root selector — clicking shows all root-level Boards in the grid */}
+        {/* Root selector — clicking shows all root-level Boards in the grid.
+            Also a drop zone: dragging a board/collection here moves it to root. */}
         <div
+          ref={setRootDropRef}
           className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-sm cursor-pointer transition-colors mb-1 ${
+            isOverRoot
+              ? 'bg-brand-blue-lighter ring-2 ring-brand-blue-primary'
+              : ''
+          } ${
             isRootSelected
               ? 'bg-brand-blue-lighter text-brand-blue-primary font-bold'
               : 'text-slate-700 hover:bg-slate-100'

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronRight, Folder } from 'lucide-react';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Collection, Dashboard } from '@/types';
 
 interface CollectionTreeNodeProps {
@@ -26,10 +27,32 @@ export const CollectionTreeNode: React.FC<CollectionTreeNodeProps> = ({
   const isSelected = selectedCollectionId === node.id;
   const hasChildren = children.length > 0;
 
+  const dndId = `collection:${node.id}`;
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({ id: dndId });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: dndId });
+
+  // Combine drag + drop refs for this dual-purpose element.
+  const setRef = (n: HTMLDivElement | null) => {
+    setDragRef(n);
+    setDropRef(n);
+  };
+
   return (
     <div>
       <div
+        ref={setRef}
+        {...attributes}
+        {...listeners}
         className={`flex items-center gap-1 px-1 py-1 rounded-md text-sm cursor-pointer transition-colors ${
+          isDragging ? 'opacity-50' : ''
+        } ${
+          isOver ? 'bg-brand-blue-lighter ring-2 ring-brand-blue-primary' : ''
+        } ${
           isSelected
             ? 'bg-brand-blue-lighter text-brand-blue-primary font-bold'
             : 'text-slate-700 hover:bg-slate-100'

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { DndContext, closestCenter } from '@dnd-kit/core';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -13,6 +14,7 @@ import { BoardContextMenu } from './BoardContextMenu';
 import { CollectionContextMenu } from './CollectionContextMenu';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
+import { useBoardsModalDnd } from './useBoardsModalDnd';
 import type { Dashboard } from '@/types';
 
 interface BoardsModalProps {
@@ -50,6 +52,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   >(activeDashboard?.collectionId ?? null);
   const [search, setSearch] = useState('');
   const multi = useMultiSelect();
+  const { sensors, handleDragEnd } = useBoardsModalDnd();
   const [contextMenu, setContextMenu] = useState<{
     type: 'board' | 'collection';
     id: string;
@@ -230,25 +233,31 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onBulkUnpin={handleBulkUnpin}
         />
 
-        <div className="flex-1 overflow-hidden flex">
-          <CollectionTree
-            collections={filteredCollections}
-            boards={filteredBoards}
-            selectedCollectionId={selectedCollectionId}
-            onSelectCollection={setSelectedCollectionId}
-          />
-          <BoardGrid
-            selectedCollectionId={selectedCollectionId}
-            collections={filteredCollections}
-            boards={filteredBoards}
-            selectedIds={multi.selectedIds}
-            isSelectMode={multi.isSelectMode}
-            onSelectCollection={setSelectedCollectionId}
-            onToggleSelect={multi.toggle}
-            onOpenBoard={handleOpenBoard}
-            onContextMenu={handleContextMenu}
-          />
-        </div>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="flex-1 overflow-hidden flex">
+            <CollectionTree
+              collections={filteredCollections}
+              boards={filteredBoards}
+              selectedCollectionId={selectedCollectionId}
+              onSelectCollection={setSelectedCollectionId}
+            />
+            <BoardGrid
+              selectedCollectionId={selectedCollectionId}
+              collections={filteredCollections}
+              boards={filteredBoards}
+              selectedIds={multi.selectedIds}
+              isSelectMode={multi.isSelectMode}
+              onSelectCollection={setSelectedCollectionId}
+              onToggleSelect={multi.toggle}
+              onOpenBoard={handleOpenBoard}
+              onContextMenu={handleContextMenu}
+            />
+          </div>
+        </DndContext>
       </div>
 
       {contextMenu?.type === 'board' &&

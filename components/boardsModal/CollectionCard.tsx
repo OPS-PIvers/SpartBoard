@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Folder, GripVertical } from 'lucide-react';
+import { useDraggable, useDroppable } from '@dnd-kit/core';
 import type { Collection } from '@/types';
 
 interface CollectionCardProps {
@@ -27,6 +28,21 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
 }) => {
   const longPressTimer = useRef<number | null>(null);
 
+  const draggableId = `collection:${collection.id}`;
+  const {
+    attributes,
+    listeners,
+    setNodeRef: setDragRef,
+    isDragging,
+  } = useDraggable({ id: draggableId });
+  const { setNodeRef: setDropRef, isOver } = useDroppable({ id: draggableId });
+
+  // Combine drag + drop refs for this dual-purpose element.
+  const setRef = (node: HTMLDivElement | null) => {
+    setDragRef(node);
+    setDropRef(node);
+  };
+
   const handlePointerDown = () => {
     longPressTimer.current = window.setTimeout(() => {
       onLongPress();
@@ -42,7 +58,13 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
 
   return (
     <div
+      ref={setRef}
+      {...attributes}
       className={`relative group rounded-xl border bg-slate-50 p-4 cursor-pointer transition-all hover:shadow-md ${
+        isDragging ? 'opacity-50' : ''
+      } ${
+        isOver ? 'bg-brand-blue-lighter ring-2 ring-brand-blue-primary' : ''
+      } ${
         isSelected
           ? 'border-brand-blue-primary ring-2 ring-brand-blue-primary/30'
           : 'border-slate-200'
@@ -61,6 +83,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
       onPointerCancel={cancelLongPress}
     >
       <button
+        {...listeners}
         aria-label="Drag to move"
         className="absolute top-2 right-2 p-1 rounded text-slate-300 opacity-0 group-hover:opacity-100 hover:bg-slate-100 transition cursor-grab active:cursor-grabbing"
         onClick={(e) => e.stopPropagation()}
