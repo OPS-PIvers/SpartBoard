@@ -94,19 +94,38 @@ git status
 # 1. Sanity: confirm .gitattributes is present
 cat .gitattributes
 
-# 2. Refresh the index so git re-applies the new attribute rules.
+# 2. Create the PR 2 branch — do not commit directly to main.
+git checkout -b chore/normalize-line-endings
+
+# 3. Refresh the index so git re-applies the new attribute rules.
 #    WARNING: the next two commands discard any uncommitted changes.
 git rm --cached -r .
 git reset --hard
 
-# 3. Renormalize every tracked file's line endings per .gitattributes
+# 4. Renormalize every tracked file's line endings per .gitattributes
 git add --renormalize .
 
-# 4. Commit the churn
+# 5. Sanity-check whether anything was actually staged. If the committed
+#    blobs are already LF (the Context section above explains why this is
+#    typical when core.autocrlf=true has been used consistently), nothing
+#    will be staged and the commit below will fail with "nothing to commit".
+#    In that case PR 2 is a no-op — close the branch without merging and
+#    proceed straight to Step 5 post-merge cleanup, since `.gitattributes`
+#    from PR 1 is sufficient.
+git status
+
+# 6. Commit the churn (skip if Step 5 showed nothing staged)
 git commit -m "chore: normalize line endings to LF per .gitattributes"
+
+# 7. Push the branch and open the PR. The title must match the local
+#    commit message exactly so Step 4's grep can find the squash hash.
+git push -u origin chore/normalize-line-endings
+gh pr create --base main \
+  --title "chore: normalize line endings to LF per .gitattributes" \
+  --body "Mechanical renormalization — see docs/line-endings-normalization-plan.md Step 2."
 ```
 
-**Title PR 2 exactly as `chore: normalize line endings to LF per .gitattributes`.** GitHub's "Squash and merge" uses the **PR title** (not the branch commit message) as the squash commit subject, and Step 4 greps that subject (case-insensitive, for `"normalize line endings"`) to discover the hash. If the PR title is renamed before merging, Step 4's grep returns nothing and the hard-fail guard triggers — leaving the operator with a confusing error and no easy way to diagnose the root cause.
+**Title PR 2 exactly as `chore: normalize line endings to LF per .gitattributes`** (the `gh pr create` line above sets this). GitHub's "Squash and merge" uses the **PR title** (not the branch commit message) as the squash commit subject, and Step 4 greps that subject (case-insensitive, for `"normalize line endings"`) to discover the hash. If the PR title is renamed before merging, Step 4's grep returns nothing and the hard-fail guard triggers — leaving the operator with a confusing error and no easy way to diagnose the root cause.
 
 **Do not add the commit hash to `.git-blame-ignore-revs` in this PR.** This repo uses "Squash and merge" (see [PR #1365](https://github.com/OPS-PIvers/SpartBoard/pull/1365)), so the hash on your PR branch will **not** be the hash that lands on `main` — the squash produces a new commit. Pre-capturing a hash here records a ref that never exists on `main`, silently breaking blame-ignore.
 
@@ -188,7 +207,16 @@ Immediately after PR 2 merges:
   git rebase --continue
   ```
 
-  Repeat the inner loop for each replayed commit that hits conflicts (a long-lived branch with multiple commits will pause at each one). After `git rebase --continue` reports the rebase is complete, run `git rm --cached -r . && git reset --hard` to refresh the working tree to LF.
+  Repeat the inner loop for each replayed commit that hits conflicts (a long-lived branch with multiple commits will pause at each one).
+
+  **After the rebase finishes — whether it required conflict resolution or completed silently with no conflicts — always refresh the working tree:**
+
+  ```bash
+  git rm --cached -r .
+  git reset --hard
+  ```
+
+  This step must run unconditionally. A conflict-free rebase never pauses for `--continue`, so an operator following the conflict-resolution block alone would skip the refresh and end up with a rebased branch whose files on disk are still CRLF.
 
   `git checkout --theirs -- <file>` overwrites the conflicted file but does **not** stage it — without `git add` the rebase will not recognize the conflict as resolved, and without `git rebase --continue` it will sit paused indefinitely.
   - **Note on `--theirs` semantics:** during `git rebase`, `--ours`/`--theirs` are **reversed** relative to `git merge`. In a rebase, `--ours` refers to the base you're rebasing **onto** (`main`, already LF), and `--theirs` refers to the commit being **replayed** (your branch, possibly CRLF). `--theirs` is correct here because the subsequent `git rm --cached -r . && git reset --hard` re-normalizes everything to LF; do not swap to `--ours`, which would silently discard any actual content changes in your branch commit if a "conflict" turns out to be more than line endings.
@@ -198,13 +226,37 @@ Immediately after PR 2 merges:
 
 ## Rollback
 
-If something smells wrong after PR 2 merges:
+If something smells wrong after PR 2 merges, revert using the same subject-grep + hard-fail guard + verification echo pattern from Step 4 so the right hash is reverted (and the operator doesn't have to copy/paste a hash under stress):
 
 ```bash
-git revert <renormalize-commit-hash>
+git checkout main
+git pull
+
+SQUASH_HASH=$(git log --format="%H %s" | grep -i "normalize line endings" | head -1 | awk '{print $1}')
+if [ -z "$SQUASH_HASH" ]; then
+  echo "ERROR: could not find squash commit — check the merged commit message and retry."
+  exit 1
+fi
+git log -1 --format="%H %s%n%an  %ad" "$SQUASH_HASH"   # verify before reverting
+
+git revert "$SQUASH_HASH"
 ```
 
 Safe because it's a pure textual revert. Then investigate and retry.
+
+**Blame-ignore the revert commit too.** A `git revert` of the renormalize commit produces a new commit that touches the same ~932 files in the opposite direction (LF → CRLF), polluting `git blame` exactly the way the original renormalize commit did. After the revert merges, append its squash hash to `.git-blame-ignore-revs` using the same pattern as Step 4 (the revert subject is typically `Revert "chore: normalize line endings…"`):
+
+```bash
+REVERT_HASH=$(git log --format="%H %s" | grep -i 'revert.*normalize line endings' | head -1 | awk '{print $1}')
+if [ -z "$REVERT_HASH" ]; then
+  echo "ERROR: revert commit not found by subject — check the merged commit message and retry."
+  exit 1
+fi
+git log -1 --format="%H %s%n%an  %ad" "$REVERT_HASH"   # verify before writing
+echo "$REVERT_HASH  # revert: normalize line endings" >> .git-blame-ignore-revs
+```
+
+If PR 3 hasn't merged yet at the point of rollback, include both hashes (the original renormalize and the revert) in a single blame-ignore commit instead of two separate PRs.
 
 ## Scope guardrails (what this plan does NOT do)
 
