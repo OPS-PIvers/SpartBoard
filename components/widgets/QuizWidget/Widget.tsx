@@ -1662,6 +1662,32 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onArchivePublishScores={(a) => {
           setPublishingAssignment(a);
         }}
+        onArchiveUnpublishScores={async (a) => {
+          // One-click unpublish: the `'none'` branch of
+          // `publishAssignmentScores` skips the Drive quiz lookup
+          // and just flips `scoreVisibility` + clears
+          // `revealedAnswers` on both the assignment and session
+          // docs, so we can pass an empty QuizData placeholder.
+          try {
+            await publishAssignmentScores(
+              a.id,
+              {
+                id: a.quizId,
+                title: a.quizTitle,
+                questions: [],
+                createdAt: 0,
+                updatedAt: 0,
+              },
+              'none'
+            );
+            addToast('Scores unpublished.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to unpublish scores',
+              'error'
+            );
+          }
+        }}
         onArchivePauseResume={async (a) => {
           try {
             if (a.status === 'paused') {

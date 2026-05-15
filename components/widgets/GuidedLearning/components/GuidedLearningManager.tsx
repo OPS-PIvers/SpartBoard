@@ -35,6 +35,8 @@ import {
   Copy,
   ExternalLink,
   CheckSquare,
+  EyeOff,
+  Send,
 } from 'lucide-react';
 import type {
   AssignmentMode,
@@ -188,6 +190,22 @@ export interface GuidedLearningManagerProps {
   onAssignmentArchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentUnarchive: (assignment: GuidedLearningAssignment) => void;
   onAssignmentDelete: (assignment: GuidedLearningAssignment) => void;
+  /**
+   * Open the publish-scores picker modal for an archived assignment. Set
+   * ⇒ the archive kebab gains a "Publish scores" / "Update published
+   * scores" entry. Submission-mode assignments only — view-only shares
+   * have no responses to grade.
+   */
+  onAssignmentPublishScores?: (
+    assignment: GuidedLearningAssignment
+  ) => void | Promise<void>;
+  /**
+   * Revoke published score visibility in one click (skips the picker
+   * modal). Only surfaced when `assignment.scoreVisibility` is published.
+   */
+  onAssignmentUnpublishScores?: (
+    assignment: GuidedLearningAssignment
+  ) => void | Promise<void>;
 
   /** Persisted library grid/list toggle (from widget config). */
   initialLibraryViewMode?: 'grid' | 'list';
@@ -357,6 +375,8 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   onAssignmentArchive,
   onAssignmentUnarchive,
   onAssignmentDelete,
+  onAssignmentPublishScores,
+  onAssignmentUnpublishScores,
   initialLibraryViewMode,
   onLibraryViewModeChange,
   assignmentMode = 'submissions',
@@ -377,6 +397,12 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(
     null
   );
+  // Two-click confirmation for the destructive "Unpublish scores" kebab
+  // entry. First click flips the label to "Confirm unpublish"; second
+  // click on the same row triggers the hook. Mirrors the local Delete
+  // pattern used by VideoActivityManager.
+  const [confirmUnpublishAssignmentId, setConfirmUnpublishAssignmentId] =
+    React.useState<string | null>(null);
   const [prevTab, setPrevTab] = React.useState(tab);
   if (prevTab !== tab) {
     setPrevTab(tab);
@@ -878,6 +904,42 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
         label: 'Move to In Progress',
         icon: RotateCcw,
         onClick: () => onAssignmentUnarchive(a),
+      });
+    }
+
+    // Publish / Unpublish scores — archive tab, submissions only.
+    // View-only shares have no responses to grade.
+    if (mode === 'archive' && !isViewOnly && onAssignmentPublishScores) {
+      const isPublished =
+        a.scoreVisibility !== undefined && a.scoreVisibility !== 'none';
+      secondary.push({
+        id: 'publish-scores',
+        label: isPublished ? 'Update published scores' : 'Publish scores',
+        icon: Send,
+        onClick: () => void onAssignmentPublishScores(a),
+      });
+    }
+    if (
+      mode === 'archive' &&
+      !isViewOnly &&
+      onAssignmentUnpublishScores &&
+      a.scoreVisibility !== undefined &&
+      a.scoreVisibility !== 'none'
+    ) {
+      const awaitingConfirm = confirmUnpublishAssignmentId === a.id;
+      secondary.push({
+        id: 'unpublish-scores',
+        label: awaitingConfirm ? 'Confirm unpublish' : 'Unpublish scores',
+        icon: EyeOff,
+        destructive: awaitingConfirm,
+        onClick: () => {
+          if (awaitingConfirm) {
+            setConfirmUnpublishAssignmentId(null);
+            void onAssignmentUnpublishScores(a);
+          } else {
+            setConfirmUnpublishAssignmentId(a.id);
+          }
+        },
       });
     }
 

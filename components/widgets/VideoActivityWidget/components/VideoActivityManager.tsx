@@ -26,6 +26,7 @@ import {
   CheckSquare,
   Copy,
   Edit2,
+  EyeOff,
   FileUp,
   Link2,
   Loader2,
@@ -207,6 +208,13 @@ export interface VideoActivityManagerProps {
    * `useVideoActivityAssignments.publishAssignmentScores` hook.
    */
   onArchivePublishScores?: (assignment: VideoActivityAssignment) => void;
+  /**
+   * Revoke published score visibility in one click (skips the picker
+   * modal). Only surfaced when `assignment.scoreVisibility` is published.
+   */
+  onArchiveUnpublishScores?: (
+    assignment: VideoActivityAssignment
+  ) => void | Promise<void>;
 
   /** Persisted library grid/list toggle (from widget config). */
   initialLibraryViewMode?: 'grid' | 'list';
@@ -433,6 +441,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveShare,
   onArchiveMonitor,
   onArchivePublishScores,
+  onArchiveUnpublishScores,
   initialLibraryViewMode,
   onLibraryViewModeChange,
   rosters,
@@ -517,6 +526,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [confirmDeleteAssignmentId, setConfirmDeleteAssignmentId] = useState<
     string | null
   >(null);
+  // Two-click confirmation for the destructive "Unpublish scores" kebab
+  // entry. First click flips the label to "Confirm unpublish"; second
+  // click within the same kebab session actually calls the hook.
+  const [confirmUnpublishAssignmentId, setConfirmUnpublishAssignmentId] =
+    useState<string | null>(null);
 
   /* ─── Folder navigation (Wave 3-B-3) ──────────────────────────────────── */
   const folderState = useFolders(userId, 'video_activity');
@@ -1132,6 +1146,28 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         label: isPublished ? 'Update published scores' : 'Publish scores',
         icon: Send,
         onClick: () => onArchivePublishScores(assignment),
+      });
+    }
+    if (
+      onArchiveUnpublishScores &&
+      !assignmentIsViewOnly &&
+      assignment.scoreVisibility !== undefined &&
+      assignment.scoreVisibility !== 'none'
+    ) {
+      const awaitingConfirm = confirmUnpublishAssignmentId === assignment.id;
+      actions.push({
+        id: 'unpublish-scores',
+        label: awaitingConfirm ? 'Confirm unpublish' : 'Unpublish scores',
+        icon: EyeOff,
+        destructive: awaitingConfirm,
+        onClick: () => {
+          if (awaitingConfirm) {
+            setConfirmUnpublishAssignmentId(null);
+            void onArchiveUnpublishScores(assignment);
+          } else {
+            setConfirmUnpublishAssignmentId(assignment.id);
+          }
+        },
       });
     }
 

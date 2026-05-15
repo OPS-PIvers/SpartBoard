@@ -216,7 +216,27 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
         : 'Guided learning',
     hrefFrom: (sessionId) =>
       `/guided-learning/${encodeURIComponent(sessionId)}`,
-    gradingStateFrom: () => 'not-graded',
+    gradingStateFrom: (data) => {
+      // Mirrors the Quiz rule above — GL gained `scoreVisibility` +
+      // `scorePublishedAt` when the teacher publish/unpublish flow
+      // shipped. Both must be present (and visibility !== 'none') for
+      // the student row to render "View results" instead of "Not graded".
+      if (!data || typeof data !== 'object') return 'not-graded';
+      const visibility = (data as Record<string, unknown>).scoreVisibility;
+      const publishedAt = (data as Record<string, unknown>).scorePublishedAt;
+      if (
+        (visibility !== undefined && typeof visibility !== 'string') ||
+        (publishedAt !== undefined && typeof publishedAt !== 'number')
+      ) {
+        console.warn(
+          '[useStudentAssignments] malformed guided-learning publication fields',
+          { scoreVisibility: visibility, scorePublishedAt: publishedAt }
+        );
+      }
+      const isVisible = typeof visibility === 'string' && visibility !== 'none';
+      const isPublished = typeof publishedAt === 'number';
+      return isVisible && isPublished ? 'graded' : 'not-graded';
+    },
   },
   'mini-app': {
     collectionName: 'mini_app_sessions',

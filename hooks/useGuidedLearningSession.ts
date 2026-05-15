@@ -14,7 +14,6 @@ import {
   collection,
   doc,
   setDoc,
-  getDoc,
   onSnapshot,
   query,
   orderBy,
@@ -335,10 +334,16 @@ export const useGuidedLearningSessionStudent = (
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const snap = await getDoc(doc(db, GL_SESSIONS_COLLECTION, sessionId));
+    // Realtime listener so a teacher publish/unpublish flips the
+    // student-visible `scoreVisibility` + `revealedAnswers` in place
+    // without the student needing to refresh. The session doc is
+    // already small and world-readable, so a per-student listener is
+    // cheap.
+    const unsub = onSnapshot(
+      doc(db, GL_SESSIONS_COLLECTION, sessionId),
+      (snap) => {
         if (!snap.exists()) {
+          setSession(null);
           setError('This guided learning session was not found.');
         } else {
           const raw = snap.data() as GuidedLearningSession & {
@@ -365,15 +370,17 @@ export const useGuidedLearningSessionStudent = (
               showOverlay: step.showOverlay ?? 'none',
             })),
           });
+          setError(null);
         }
-      } catch (err) {
-        console.error('[useGuidedLearningSession] Load error:', err);
+        setLoading(false);
+      },
+      (err) => {
+        console.error('[useGuidedLearningSession] Snapshot error:', err);
         setError('Failed to load the session. Please try again.');
-      } finally {
         setLoading(false);
       }
-    };
-    void load();
+    );
+    return unsub;
   }, [sessionId]);
 
   const submitResponse = useCallback(

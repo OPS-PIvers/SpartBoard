@@ -21,8 +21,15 @@ import {
   CheckCircle2,
   RefreshCw,
   Trophy,
+  XCircle,
 } from 'lucide-react';
-import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import {
+  addDoc,
+  collection,
+  doc,
+  onSnapshot,
+  serverTimestamp,
+} from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import { useGuidedLearningSessionStudent } from '@/hooks/useGuidedLearningSession';
@@ -124,6 +131,53 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   const [completed, setCompleted] = useState(false);
   const [score, setScore] = useState<number | null>(null);
   const [answers, setAnswers] = useState<GuidedLearningResponse['answers']>([]);
+  // Realtime listener on /guided_learning_sessions/{id}/responses/{uid}
+  // so a returning student gets their published score + per-step
+  // `isCorrect` flags, and a teacher unpublish (which clears
+  // `session.revealedAnswers` + flips `scoreVisibility` to 'none')
+  // propagates without a refresh. View-only shares never persist
+  // responses, so the subscription is gated on `shouldSubscribeResponse`.
+  const shouldSubscribeResponse = !!sessionId && !!anonymousUid && !isViewOnly;
+  const [myResponse, setMyResponse] = useState<GuidedLearningResponse | null>(
+    null
+  );
+  const [myResponseLoading, setMyResponseLoading] = useState(
+    shouldSubscribeResponse
+  );
+  // Adjust-state-while-rendering pattern (avoids set-state-in-effect):
+  // when the subscription gating flips (e.g., session loads as view-only),
+  // sync the loading flag to match without a cascading render.
+  const [prevShouldSubscribeResponse, setPrevShouldSubscribeResponse] =
+    useState(shouldSubscribeResponse);
+  if (shouldSubscribeResponse !== prevShouldSubscribeResponse) {
+    setPrevShouldSubscribeResponse(shouldSubscribeResponse);
+    setMyResponseLoading(shouldSubscribeResponse);
+    if (!shouldSubscribeResponse) setMyResponse(null);
+  }
+  useEffect(() => {
+    if (!shouldSubscribeResponse) return;
+    const unsub = onSnapshot(
+      doc(db, GL_SESSIONS_COLLECTION, sessionId, 'responses', anonymousUid),
+      (snap) => {
+        setMyResponse(
+          snap.exists() ? (snap.data() as GuidedLearningResponse) : null
+        );
+        setMyResponseLoading(false);
+      },
+      (err) => {
+        // Firestore rules may reject the read for a brand-new student
+        // who hasn't joined yet — treat as "no response" rather than
+        // surfacing a scary error.
+        console.warn(
+          '[GuidedLearningStudentApp] response listener error:',
+          err
+        );
+        setMyResponse(null);
+        setMyResponseLoading(false);
+      }
+    );
+    return unsub;
+  }, [sessionId, anonymousUid, shouldSubscribeResponse]);
   // Bumped when the user clicks "Replay from beginning" on a view-only
   // completion screen. Used as the React key on the player so its
   // internal state (currentIdx, activeStepId, image index, etc.) fully
@@ -197,12 +251,41 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   if (error) return <ErrorScreen message={error} />;
   if (!session) return <ErrorScreen message="Session not found." />;
 
+  // Returning student case — a response already exists in Firestore. Show
+  // either the published review or a "wait for teacher" placeholder
+  // rather than dropping them back onto the start screen (which would
+  // imply they could submit again). `completed` short-circuits this
+  // branch so the just-submitted screen still wins immediately after
+  // `handleComplete` flips the local state.
+  if (!completed && !isViewOnly && !myResponseLoading && myResponse) {
+    const visibility = session.scoreVisibility ?? 'none';
+    if (visibility !== 'none') {
+      return (
+        <PublishedGLReview
+          session={session}
+          myResponse={myResponse}
+          visibility={visibility}
+        />
+      );
+    }
+    return (
+      <CompletionScreen
+        session={session}
+        score={null}
+        isViewOnly={false}
+        visibility="none"
+        onReplay={() => undefined}
+      />
+    );
+  }
+
   if (completed) {
     return (
       <CompletionScreen
         session={session}
         score={score}
         isViewOnly={isViewOnly}
+        visibility={session.scoreVisibility ?? 'none'}
         onReplay={() => {
           // Drop responses + bump key so the player fully remounts with
           // fresh state at step 0 / image 0. Keep `started` true so the
@@ -428,13 +511,21 @@ const CompletionScreen: React.FC<{
   score: number | null;
   isViewOnly: boolean;
   /**
+   * Teacher's current score-visibility setting on the session.
+   * `'none'` ⇒ render the neutral "submitted, ask your teacher"
+   * placeholder; any other value ⇒ keep the gamified Trophy framing.
+   * The actual score / per-step results live on the response doc and
+   * are surfaced by `PublishedGLReview`, not here.
+   */
+  visibility: NonNullable<GuidedLearningSession['scoreVisibility']>;
+  /**
    * View-only "Replay from beginning" handler. Resets state so the
    * player remounts at step 0. Not shown for response-tracked sessions
    * (those have already submitted — replay would imply submitting
    * twice).
    */
   onReplay: () => void;
-}> = ({ session, score, isViewOnly, onReplay }) => {
+}> = ({ session, score, isViewOnly, visibility, onReplay }) => {
   // View-only completion is purely informational — there's no "score",
   // no "you finished an assignment" framing, just "you reached the end
   // of this resource". Suppress the gamified Trophy / Complete! styling
@@ -464,7 +555,36 @@ const CompletionScreen: React.FC<{
     );
   }
 
-  // Response-tracked completion — keep the achievement framing.
+  // Response-tracked completion. When the teacher hasn't published
+  // results yet (`visibility === 'none'`, the default), drop the
+  // gamified Trophy framing in favor of a neutral "submitted" placeholder
+  // — promising "Complete!" on a screen that can't show a score reads as
+  // a missing feature. Once the teacher publishes, the parent component
+  // routes returning students to `PublishedGLReview` instead, so the
+  // Trophy variant below is only reached on the immediate post-submit
+  // render when the teacher had already pre-published at create time
+  // (uncommon but supported).
+  if (visibility === 'none') {
+    return (
+      <div className="h-screen overflow-y-auto bg-slate-950">
+        <div className="min-h-full flex items-center justify-center p-6">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-8 max-w-sm w-full text-center shadow-2xl">
+            <CheckCircle2 className="w-10 h-10 text-emerald-400 mx-auto mb-3" />
+            <h1 className="text-white font-bold text-xl mb-1">
+              {session.title}
+            </h1>
+            <p className="text-slate-300 text-sm mb-4">
+              Your responses have been submitted.
+            </p>
+            <p className="text-slate-500 text-xs">
+              Ask your teacher to see your results.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen overflow-y-auto bg-slate-950">
       <div className="min-h-full flex items-center justify-center p-6">
@@ -489,3 +609,139 @@ const CompletionScreen: React.FC<{
     </div>
   );
 };
+
+// ─── Published-score review ──────────────────────────────────────────────────
+//
+// Rendered for a returning student whose teacher has flipped
+// `scoreVisibility` on the session via the archive's "Publish scores"
+// kebab action. The three modes are progressive disclosure:
+//
+//   - score-only: just the percentage tally.
+//   - score-and-responses: above + per-step rows tagging each of the
+//     student's answers correct or incorrect, but never the canonical
+//     correct answer.
+//   - score-responses-and-answers: above + the canonical correct answer
+//     under each row, sourced from `session.revealedAnswers` (populated
+//     atomically by `publishAssignmentScores`).
+//
+// All data the screen needs lives on `myResponse` (score + per-answer
+// `isCorrect`) and `session` (publicSteps, revealedAnswers). We don't
+// recompute correctness client-side — the teacher's publish step is the
+// only writer for those fields, so a stale-cache device can't manufacture
+// a "correct" badge that isn't on the authoritative response doc.
+
+const PublishedGLReview: React.FC<{
+  session: GuidedLearningSession;
+  myResponse: GuidedLearningResponse;
+  visibility: NonNullable<GuidedLearningSession['scoreVisibility']>;
+}> = ({ session, myResponse, visibility }) => {
+  const showResponses =
+    visibility === 'score-and-responses' ||
+    visibility === 'score-responses-and-answers';
+  const showAnswers = visibility === 'score-responses-and-answers';
+
+  const gradableSteps = session.publicSteps.filter((s) => !!s.question);
+  const answersByStep = new Map(
+    myResponse.answers.map((a) => [a.stepId, a] as const)
+  );
+
+  const score = myResponse.score ?? 0;
+  const correctCount = myResponse.answers.filter(
+    (a) => a.isCorrect === true
+  ).length;
+  const totalGradable = gradableSteps.length;
+
+  return (
+    <div className="h-screen overflow-y-auto bg-slate-950">
+      <div className="min-h-full flex items-start justify-center p-6">
+        <div className="w-full max-w-md flex flex-col gap-4">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl p-6 text-center shadow-2xl">
+            <Trophy className="w-10 h-10 text-yellow-400 mx-auto mb-2" />
+            <h1 className="text-white font-bold text-xl mb-1">
+              {session.title}
+            </h1>
+            <p className="text-slate-400 text-xs mb-4">Your results</p>
+            <p className="text-5xl font-black text-white mb-1">{score}%</p>
+            {totalGradable > 0 && (
+              <p className="text-slate-400 text-sm">
+                {correctCount} of {totalGradable} correct
+              </p>
+            )}
+          </div>
+
+          {showResponses && totalGradable > 0 && (
+            <div className="bg-slate-900 border border-white/10 rounded-2xl p-4 shadow-2xl">
+              <ul className="flex flex-col gap-3">
+                {gradableSteps.map((step, idx) => {
+                  const ans = answersByStep.get(step.id);
+                  const isCorrect = ans?.isCorrect === true;
+                  const canonical = showAnswers
+                    ? session.revealedAnswers?.[step.id]
+                    : undefined;
+                  const studentAnswer = formatStudentAnswer(ans?.answer);
+                  return (
+                    <li
+                      key={step.id}
+                      className="border border-white/10 rounded-xl p-3 bg-slate-950/40"
+                    >
+                      <div className="flex items-start gap-2">
+                        {isCorrect ? (
+                          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+                        ) : (
+                          <XCircle className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" />
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-white text-sm font-semibold mb-1">
+                            Step {idx + 1}
+                            {step.label ? ` · ${step.label}` : ''}
+                          </p>
+                          {step.question?.text && (
+                            <p className="text-slate-400 text-xs mb-2">
+                              {step.question.text}
+                            </p>
+                          )}
+                          <p className="text-slate-200 text-sm">
+                            <span className="text-slate-500">
+                              Your answer:{' '}
+                            </span>
+                            {studentAnswer || (
+                              <span className="italic text-slate-500">
+                                No answer
+                              </span>
+                            )}
+                          </p>
+                          {showAnswers && !isCorrect && canonical && (
+                            <p className="text-slate-200 text-sm mt-1 whitespace-pre-line">
+                              <span className="text-slate-500">
+                                Correct answer:{' '}
+                              </span>
+                              {canonical}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/** Stringify a stored student answer for display. Mirrors the format used
+ *  by `revealedAnswers` so matching / sorting reads consistently. */
+function formatStudentAnswer(answer: string | string[] | undefined): string {
+  if (answer === undefined) return '';
+  if (typeof answer === 'string') return answer;
+  if (answer.length === 0) return '';
+  // Matching is stored as "left:right" strings; expand the colon to an
+  // arrow for readability and join with newlines so list-shaped answers
+  // (sorting items) also render legibly.
+  return answer
+    .map((a) => (a.includes(':') ? a.replace(':', ' → ') : a))
+    .join('\n');
+}
