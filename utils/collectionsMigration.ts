@@ -1,12 +1,13 @@
 import type { Dashboard } from '@/types';
 
 /**
- * True if this Dashboard hasn't been migrated for the Collections feature
- * (i.e., `collectionId` is undefined). Boards with `collectionId === null`
- * are considered already migrated to "root level."
+ * True if this Dashboard hasn't been fully migrated for the Collections
+ * feature — either `collectionId` or `isPinned` is undefined. Boards where
+ * both fields are set (including `collectionId: null, isPinned: false`) are
+ * considered already migrated.
  */
 export const needsCollectionMigration = (board: Dashboard): boolean => {
-  return board.collectionId === undefined;
+  return board.collectionId === undefined || board.isPinned === undefined;
 };
 
 /**
@@ -17,7 +18,7 @@ export const needsCollectionMigration = (board: Dashboard): boolean => {
  * Run on every Board load until cleaned up by a subsequent Firestore write.
  */
 export const migrateBoardForCollections = (board: Dashboard): Dashboard => {
-  if (!needsCollectionMigration(board) && board.isPinned !== undefined) {
+  if (!needsCollectionMigration(board)) {
     return board;
   }
   return {

@@ -19,27 +19,31 @@ describe('needsCollectionMigration', () => {
     expect(needsCollectionMigration(mkBoard())).toBe(true);
   });
 
-  it('returns false when collectionId is null (already migrated)', () => {
-    expect(needsCollectionMigration(mkBoard({ collectionId: null }))).toBe(
-      false
-    );
+  it('returns false when collectionId is null and isPinned is set', () => {
+    expect(
+      needsCollectionMigration(mkBoard({ collectionId: null, isPinned: false }))
+    ).toBe(false);
   });
 
-  it('returns false when collectionId is set', () => {
-    expect(needsCollectionMigration(mkBoard({ collectionId: 'c1' }))).toBe(
-      false
-    );
+  it('returns false when collectionId is set and isPinned is set', () => {
+    expect(
+      needsCollectionMigration(mkBoard({ collectionId: 'c1', isPinned: false }))
+    ).toBe(false);
   });
 
   it('returns true when isPinned is undefined even if collectionId is set', () => {
     expect(needsCollectionMigration(mkBoard({ collectionId: 'c1' }))).toBe(
-      false
+      true
     );
+  });
+
+  it('returns false when both collectionId and isPinned are set', () => {
     expect(
-      needsCollectionMigration(mkBoard({ collectionId: null, isPinned: false }))
+      needsCollectionMigration(mkBoard({ collectionId: 'c1', isPinned: false }))
     ).toBe(false);
-    // Treat missing isPinned as needing migration when collectionId also missing,
-    // since that's the legacy case. If collectionId is set, we trust the doc.
+    expect(
+      needsCollectionMigration(mkBoard({ collectionId: null, isPinned: true }))
+    ).toBe(false);
   });
 });
 
@@ -63,5 +67,11 @@ describe('migrateBoardForCollections', () => {
     const result = migrateBoardForCollections(board);
     expect(result.name).toBe('Original');
     expect(result.isDefault).toBe(true);
+  });
+
+  it('returns the exact same reference when no migration is needed', () => {
+    const board = mkBoard({ collectionId: 'c1', isPinned: false });
+    const result = migrateBoardForCollections(board);
+    expect(result).toBe(board); // strict reference equality
   });
 });
