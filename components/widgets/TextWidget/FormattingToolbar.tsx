@@ -32,6 +32,11 @@ import { IconButton } from '@/components/common/IconButton';
 import { FONT_COLORS } from '@/config/fonts';
 import { HIGHLIGHT_PALETTE, STICKY_NOTE_COLORS } from '@/config/colors';
 import { useDialog } from '@/context/useDialog';
+import {
+  needsBlockNormalization,
+  normalizeEditorBlocks,
+} from '@/utils/contentEditableBlocks';
+import { toggleList } from '@/utils/contentEditableLists';
 
 interface FormattingToolbarProps {
   editorRef: React.RefObject<HTMLDivElement | null>;
@@ -533,11 +538,42 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
   }, [editorRef]);
 
   /** Run a document.execCommand with styleWithCSS enabled. Used for block-level
-   *  commands (justify, indent, lists, fontName, createLink) that operate on
-   *  block ancestors and work correctly across multi-block selections. */
+   *  commands (justify, indent, fontName, createLink) that operate on
+   *  block ancestors and work correctly across multi-block selections.
+   *
+   *  `insertUnorderedList` / `insertOrderedList` are NOT routed through
+   *  execCommand: Chrome's implementation only converts the cursor's
+   *  current paragraph when the selection spans multiple blocks, so we
+   *  delegate to our own `toggleList` helper which mutates the DOM
+   *  directly and works across any selection shape. */
   const runCommand = useCallback(
     (command: string, value: string = '') => {
       restoreSelection();
+      if (
+        command === 'insertUnorderedList' ||
+        command === 'insertOrderedList'
+      ) {
+        const editor = editorRef.current;
+        if (!editor) return;
+        // Normalize first so the live mixed-bare-text-then-<div>
+        // structure that Chrome produces in fresh editors doesn't
+        // confuse the block collection. No-op for already-uniform
+        // structures.
+        if (needsBlockNormalization(editor)) {
+          normalizeEditorBlocks(editor);
+        }
+        const listTag = command === 'insertUnorderedList' ? 'ul' : 'ol';
+        // `paragraphTag: 'div'` matches TextWidget's persistence
+        // shape (`sanitizeHtml` allows `<div>`).
+        toggleList(editor, listTag, 'div');
+        editor.focus();
+        // toggleList mutates the DOM directly — contenteditable doesn't
+        // fire `input` for raw mutations, so the parent's onInput-driven
+        // save would otherwise skip this change. Dispatch the event so
+        // Widget.tsx's `handleInput` runs and persists the new structure.
+        editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
+        return;
+      }
       document.execCommand('styleWithCSS', false, 'true');
       document.execCommand(command, false, value);
       editorRef.current?.focus();

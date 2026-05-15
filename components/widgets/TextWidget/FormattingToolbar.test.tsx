@@ -502,14 +502,30 @@ describe('FormattingToolbar', () => {
     expect(mockOnBgColorChange).toHaveBeenCalledWith('#fef9c3');
   });
 
-  it('executes list command from top-level lists group', () => {
+  it('wraps the selected blocks in a <ul> when the bulleted-list button is clicked', () => {
+    // The toolbar's list buttons used to call
+    // `execCommand('insertUnorderedList')`, which Chrome only applies
+    // to the cursor's paragraph when the selection spans multiple
+    // blocks. The toolbar now routes through our custom `toggleList`
+    // helper, so the assertion is the observable DOM change rather
+    // than an execCommand spy call.
+    const editor = mockEditorRef.current;
+    if (!editor) throw new Error('mockEditorRef.current is null');
+    editor.innerHTML = '<div>Alpha</div><div>Beta</div>';
+    document.body.appendChild(editor);
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+
     render(<FormattingToolbar {...defaultProps} />);
     fireEvent.click(screen.getByTitle(/Bulleted List/));
-    expect(execCommandMock).toHaveBeenCalledWith(
-      'insertUnorderedList',
-      false,
-      ''
-    );
+
+    expect(editor.querySelector('ul')).not.toBeNull();
+    expect(editor.querySelectorAll('li').length).toBe(2);
+    document.body.removeChild(editor);
   });
 
   it('reflects list toggle state via aria-pressed', () => {
