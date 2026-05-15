@@ -87,10 +87,15 @@ export const SubBoardCanvas: React.FC<SubBoardCanvasProps> = ({ resetKey }) => {
     800
   );
 
-  const outerStyle = isCustom
+  const outerStyle: React.CSSProperties | undefined = isCustom
     ? customBgStyle
     : isExternal
-      ? { background }
+      ? {
+          backgroundImage: `url("${background}")`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat',
+        }
       : undefined;
 
   return (
