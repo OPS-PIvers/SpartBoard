@@ -284,8 +284,14 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget, addToast, rosters, addWidget, selectedWidgetId } =
-    useDashboard();
+  const {
+    updateWidget,
+    addToast,
+    rosters,
+    addWidget,
+    selectedWidgetId,
+    isActiveBoardReadOnly,
+  } = useDashboard();
   const { user, getAssignmentMode } = useAuth();
   const assignmentMode: AssignmentMode = getAssignmentMode('miniApp');
   const { showConfirm } = useDialog();
@@ -1122,7 +1128,13 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
 
                         {/* Right group: QR Share + Save-as-Widget + Library
                             (or Unsaved + Save when activeAppUnsaved). */}
-                        {config.activeAppUnsaved && (
+                        {/* Substitute / view-only boards hide every active-
+                            app authoring affordance below. Save to library,
+                            QR Share (which adds a NEW widget to the board),
+                            and Save as Widget all alter the teacher's
+                            content. The active app itself still runs and the
+                            "Back to library" button (further down) stays. */}
+                        {config.activeAppUnsaved && !isActiveBoardReadOnly && (
                           <>
                             <div className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400 h-8 px-2 text-[10px]">
                               Unsaved
@@ -1144,29 +1156,33 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             </button>
                           </>
                         )}
-                        <button
-                          onClick={() => void handleCreateQrShare()}
-                          disabled={isCreatingQrShare || !user}
-                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
-                          title="Share via QR — drops a QR-code widget that students can scan"
-                        >
-                          {isCreatingQrShare ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                          ) : (
-                            <QrCode className="w-3.5 h-3.5" />
-                          )}
-                          <span className={labelClass}>QR Share</span>
-                        </button>
-                        {!config.activeAppUnsaved && user && (
+                        {!isActiveBoardReadOnly && (
                           <button
-                            onClick={() => setShowSaveAsWidget(true)}
-                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
-                            title="Save as widget — pin this mini app to your dock"
+                            onClick={() => void handleCreateQrShare()}
+                            disabled={isCreatingQrShare || !user}
+                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                            title="Share via QR — drops a QR-code widget that students can scan"
                           >
-                            <Bookmark className="w-3.5 h-3.5" />
-                            <span className={labelClass}>Save as Widget</span>
+                            {isCreatingQrShare ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <QrCode className="w-3.5 h-3.5" />
+                            )}
+                            <span className={labelClass}>QR Share</span>
                           </button>
                         )}
+                        {!config.activeAppUnsaved &&
+                          user &&
+                          !isActiveBoardReadOnly && (
+                            <button
+                              onClick={() => setShowSaveAsWidget(true)}
+                              className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                              title="Save as widget — pin this mini app to your dock"
+                            >
+                              <Bookmark className="w-3.5 h-3.5" />
+                              <span className={labelClass}>Save as Widget</span>
+                            </button>
+                          )}
                         <button
                           onClick={handleCloseActive}
                           className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
@@ -1348,6 +1364,7 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                 })
               }
               assignmentMode={assignmentMode}
+              readOnly={isActiveBoardReadOnly}
             />
             {/* Assign modal */}
             {!isStudentView && assigningApp && (

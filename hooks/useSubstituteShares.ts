@@ -14,12 +14,34 @@ import { useEffect, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { canonicalBuildingId } from '@/config/buildings';
+import { logError } from '@/utils/logError';
 import type {
   Dashboard,
   SharedBoardIntendedMode,
   SubstituteShareFields,
   SubstituteShareDriveGrant,
 } from '@/types';
+
+/**
+ * Maps known Firestore error codes to user-friendly messages so that raw SDK
+ * strings (e.g. "Missing or insufficient permissions.") never surface in the
+ * UI. The original error is still reported via logError for debugging.
+ */
+function friendlySubShareError(err: {
+  code?: string;
+  message?: string;
+}): string {
+  switch (err.code) {
+    case 'permission-denied':
+      return 'You do not have permission to view this board.';
+    case 'unavailable':
+      return 'Could not reach the server. Check your internet connection.';
+    case 'not-found':
+      return 'This board could not be found.';
+    default:
+      return 'This board could not be loaded.';
+  }
+}
 
 /**
  * Firestore-side shape of a substitute share doc. The persisted widgets
@@ -86,8 +108,14 @@ export function useSubstituteShares(
         setSnapshot({ buildingId: canonical, shares, error: null });
       },
       (err) => {
-        console.error('[useSubstituteShares] snapshot error:', err);
-        setSnapshot({ buildingId: canonical, shares: [], error: err.message });
+        logError('useSubstituteShares.snapshot', err, {
+          buildingId: canonical,
+        });
+        setSnapshot({
+          buildingId: canonical,
+          shares: [],
+          error: friendlySubShareError(err),
+        });
       }
     );
     return unsub;
@@ -154,8 +182,12 @@ export function useSubstituteShare(
         });
       },
       (err) => {
-        console.error('[useSubstituteShare] snapshot error:', err);
-        setSnapshot({ shareId, share: null, error: err.message });
+        logError('useSubstituteShare.snapshot', err, { shareId });
+        setSnapshot({
+          shareId,
+          share: null,
+          error: friendlySubShareError(err),
+        });
       }
     );
     return unsub;

@@ -238,6 +238,30 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
   stations: lazyNamed(() => import('./Stations/Widget'), 'StationsWidget'),
 };
 
+/**
+ * Maps widget types to their flip-panel settings components (the back-face
+ * shown when the user clicks the gear icon).
+ *
+ * Note: This map is intentionally NOT exhaustive over all `WidgetType`s.
+ * Several widget types deliberately have no flip-panel settings component:
+ *
+ * - `stickers`: All sticker configuration lives in the appearance panel
+ *   (`StickerBookAppearanceSettings`, registered in
+ *   `WIDGET_APPEARANCE_COMPONENTS`). The flip button is always rendered,
+ *   so when users flip the widget the "Settings" tab shows the standard
+ *   fallback face ("Standard settings available.") while the "Style" tab
+ *   surfaces the actual sticker appearance controls.
+ * - `blooms-detail`: Read-only companion widget spawned programmatically by
+ *   `blooms-taxonomy`. All editing happens on the parent widget; the detail
+ *   widget has no per-instance configuration.
+ * - `sticker`: Decorative overlay — see the `WIDGET_COMPONENTS` JSDoc above
+ *   for the full sticker special-case explanation.
+ * - `onboarding`: One-time system widget with no user-configurable state
+ *   (see inline comment below).
+ *
+ * Do not assume `WIDGET_SETTINGS_COMPONENTS[widgetType]` is defined for every
+ * `WidgetType` — always handle the `undefined` case at call sites.
+ */
 export const WIDGET_SETTINGS_COMPONENTS: Partial<
   Record<WidgetType, SettingsComponent>
 > = {

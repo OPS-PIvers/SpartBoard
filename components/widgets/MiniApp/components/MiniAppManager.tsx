@@ -154,6 +154,15 @@ export interface MiniAppManagerProps {
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
+
+  /**
+   * When true, every authoring affordance is hidden (Create / Edit /
+   * Delete / Duplicate / Assign / Import / Export / reorder). Subs can
+   * still Run apps. Distinct from `source === 'global'` which is a
+   * personal/global filter — `readOnly` is a permission state that
+   * overrides regardless of the source filter.
+   */
+  readOnly?: boolean;
 }
 
 /* ─── Constants ───────────────────────────────────────────────────────────── */
@@ -306,6 +315,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   initialLibraryViewMode,
   onLibraryViewModeChange,
   assignmentMode = 'submissions',
+  readOnly = false,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -437,26 +447,33 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
   }
 
   /* ── Shell actions ────────────────────────────────────────────────────── */
-  const primaryAction = {
-    label: 'New App',
-    icon: Plus,
-    onClick: onCreate,
-  };
+  // Top-of-manager affordances. All three are authoring actions and hide
+  // entirely when `readOnly` is true (substitute / view-only board). Subs
+  // can still Run apps via the per-card icon actions.
+  const primaryAction = readOnly
+    ? undefined
+    : {
+        label: 'New App',
+        icon: Plus,
+        onClick: onCreate,
+      };
 
-  const secondaryActions = [
-    {
-      label: 'Import',
-      icon: FileUp,
-      onClick: onImport,
-    },
-    {
-      label: 'Export',
-      icon: Download,
-      onClick: onExport,
-      disabled: personalLibrary.length === 0,
-      disabledReason: 'Your library is empty.',
-    },
-  ];
+  const secondaryActions = readOnly
+    ? []
+    : [
+        {
+          label: 'Import',
+          icon: FileUp,
+          onClick: onImport,
+        },
+        {
+          label: 'Export',
+          icon: Download,
+          onClick: onExport,
+          disabled: personalLibrary.length === 0,
+          disabledReason: 'Your library is empty.',
+        },
+      ];
 
   /* ── Drop-to-folder handler (Wave 3-B-3) ─────────────────────────────── */
   const { moveItem } = folderState;
@@ -652,6 +669,16 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           },
         ];
 
+    // In read-only mode, strip every authoring affordance from the per-
+    // card menu. Subs keep Run (and "View assignments" — that surface is
+    // itself read-only data). Edit / Delete / Duplicate / Move-to-folder
+    // disappear, the primary Assign/Share button hides, and double-click-
+    // to-edit becomes a no-op (still opens the preview pane).
+    const READ_ONLY_SAFE_ACTION_IDS = new Set(['run', 'assignments']);
+    const visibleSecondary = readOnly
+      ? secondary.filter((a) => READ_ONLY_SAFE_ACTION_IDS.has(a.id))
+      : secondary;
+
     return (
       <LibraryItemCard<MiniAppItem>
         key={getRowId(row)}
@@ -668,7 +695,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </div>
         }
         primaryAction={
-          isViewOnly
+          readOnly || isViewOnly
             ? undefined
             : {
                 label: primaryActionLabel,
@@ -686,21 +713,25 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                   tone: 'primary',
                   onClick: () => onRun(app),
                 },
-                {
-                  id: 'share',
-                  label: 'Share link',
-                  icon: Link2,
-                  onClick: () => onAssign(app),
-                },
+                ...(readOnly
+                  ? []
+                  : [
+                      {
+                        id: 'share',
+                        label: 'Share link',
+                        icon: Link2,
+                        onClick: () => onAssign(app),
+                      },
+                    ]),
               ]
             : undefined
         }
-        secondaryActions={secondary}
+        secondaryActions={visibleSecondary}
         // Phase 5 follow-up — single-click opens preview pane,
-        // double-click opens editor.
+        // double-click opens editor. Suppress the edit shortcut for subs.
         onClick={() => setPreviewRowId(getRowId(row))}
-        onDoubleClick={() => onEdit(app)}
-        sortable={!selectionMode}
+        onDoubleClick={readOnly ? undefined : () => onEdit(app)}
+        sortable={!selectionMode && !readOnly}
         viewMode={view.state.viewMode}
         selectionMode={selectionMode}
         selected={selection.isSelected(getRowId(row))}
@@ -744,6 +775,14 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           },
         ];
 
+    // Same READ_ONLY allowlist as personal cards. Global apps' "Save to
+    // my library" is authoring (it writes a copy into the teacher's
+    // personal library), so it disappears in read-only mode too.
+    const READ_ONLY_SAFE_ACTION_IDS = new Set(['run', 'assignments']);
+    const visibleSecondary = readOnly
+      ? secondary.filter((a) => READ_ONLY_SAFE_ACTION_IDS.has(a.id))
+      : secondary;
+
     return (
       <LibraryItemCard<GlobalMiniAppItem>
         key={getRowId(row)}
@@ -760,7 +799,7 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
           </div>
         }
         primaryAction={
-          isViewOnly
+          readOnly || isViewOnly
             ? undefined
             : {
                 label: primaryActionLabel,
@@ -778,16 +817,20 @@ export const MiniAppManager: React.FC<MiniAppManagerProps> = ({
                   tone: 'primary',
                   onClick: () => onRun(app),
                 },
-                {
-                  id: 'share',
-                  label: 'Share link',
-                  icon: Link2,
-                  onClick: () => onAssign(app),
-                },
+                ...(readOnly
+                  ? []
+                  : [
+                      {
+                        id: 'share',
+                        label: 'Share link',
+                        icon: Link2,
+                        onClick: () => onAssign(app),
+                      },
+                    ]),
               ]
             : undefined
         }
-        secondaryActions={secondary}
+        secondaryActions={visibleSecondary}
         // Global apps are read-only here. Single-click still opens the
         // preview pane (so teachers can inspect what they'd be saving
         // before clicking "Save to my library"); no double-click for

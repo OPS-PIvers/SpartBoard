@@ -7,10 +7,11 @@
  *   2. TeacherDirectoryScreen — pick a teacher whose board to open
  *   3. SubBoardScreen — read-only-but-interactive frozen board
  *
- * Data comes from Firestore via useSubstituteShares (Phase 4). The actual
- * widget rendering in SubBoardScreen still uses the hand-rendered tile
- * placeholders from Phase A — full widget rendering with the teacher's
- * config is on the Phase 6 polish list.
+ * Data comes from Firestore via useSubstituteShares. SubBoardScreen mounts
+ * a SubsDashboardProvider that synthesises a DashboardContextValue from the
+ * share's `initialState` snapshot, then renders the teacher's real widgets
+ * through the canonical WidgetRenderer pipeline (locked read-only via
+ * `isActiveBoardReadOnly: true`).
  *
  * The view state machine lives inside `SubsContent`, mounted only after
  * `SubsAuthGate` has confirmed a signed-in `@orono.k12.mn.us` user. This

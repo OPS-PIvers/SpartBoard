@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-13_
+_Last audited: 2026-05-15_
 _Last action: 2026-04-25_
 
 ---
@@ -22,11 +22,22 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-05-15: Scanned all Widget.tsx / index.tsx files for anti-patterns. NEW LOW item detected: MiniApp portaled active-app toolbar (lines 1054–1191, rendered via createPortal to document.body) introduced in `feat(library): preview pane + Duplicate polish` (2026-05-12, f043df3e) — uses hardcoded `text-xs`, `h-8`, `w-3.5 h-3.5` icon sizes in a portaled element outside the container query context. See new open item below. Also: RandomWidget redesign (`feat(random)` commits b0b11656, f8fb1e6b) converted all previously-tracked hardcoded spacing to `cqmin` — random/RandomWidget.tsx entries removed from the group item. Existing open MiniApp item line numbers are stale (save form shifted from lines 848–874 to 1191–1228 as file grew — same UI, different lines). SpecialistSchedule new timer-launch icon (1b946b67) correctly uses `cqmin`. All other existing open items remain valid._
+
+_2026-05-14: Scanned Widget.tsx files for anti-patterns. Investigated four potential new issues: (1) ActivityWall `max-h-[75vh]` at lines 2080/2086/2089 — inside a fullscreen submission-preview modal overlay rendered via DraggableWindow `variant="bare"`; viewport-height units are correct for viewport-bounded modal content, not a widget canvas violation. (2) Stations `maxHeight: '40cqh'` at line 435 — cq-relative (not pixel), intentionally caps the unassigned-students sub-section to prevent it from dominating the layout; design intent, not an anti-pattern. (3) InstructionalRoutines `height: '18.8cqh'` at line 498 — has explicit math comment `(100 - (4 * 1gap) - (2 * 1pad)) / 5 = 18.8`; deliberately sized to guarantee 5 cards fit; cqh is appropriate here. (4) MusicWidget cqh/cqw mixing — per journal guidance, leave fill-better formulas. No new open items._
+
 _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fixed icon sizes, and max-h/max-w pixel caps. No new items beyond existing open. New notes: (1) ActivityWall `text-base` at line 1868 is inside a fullscreen modal overlay (not the widget canvas surface) — low impact. (2) RevealGrid `text-xs` at lines 164/170 are in interactive overlay controls inside the widget's container-query context — confirmed as existing open item. (3) Embed `text-xs` at line 446 is in the portaled zoom toolbar — confirmed as existing open item. (4) NumberLine `text-xs` at line 339 hover hint — confirmed existing open item. (5) MiniApp has 22 `text-sm`/`text-xs`/`text-base` occurrences — confirmed as existing open item. No new violations introduced._
 
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
+### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
+
+- **Detected:** 2026-05-15
+- **File:** components/widgets/MiniApp/Widget.tsx:1054–1191 (createPortal block)
+- **Detail:** The "active app overlay toolbar" — shown when a mini-app is running — is rendered via `createPortal` to `document.body` with `position: fixed`. It contains: `text-xs` on all button labels, `h-8` on all buttons, `w-3.5 h-3.5` on all icons, `gap-1.5` and `px-3` on buttons. Widget has `skipScaling: true`. Since the toolbar is portaled outside the widget's CSS container, `cqmin` units will not resolve against the widget's size — the same constraint as the EmbedWidget portaled zoom toolbar. The toolbar was added in commit `f043df3e` (2026-05-12). Distinct from the existing open item "MiniApp internal dialog overlays" which covers non-portaled modal overlays inside the container query context.
+- **Fix:** Two options: (a) Remove the portal — if the toolbar doesn't need to escape the DraggableWindow stacking context, render it inside the widget frame and convert all sizes to `cqmin`; (b) Keep the portal — derive a `cqmin`-equivalent pixel scale factor from `widgetRect.width / 300` (base widget width) and use computed pixel values in the portaled toolbar styles. The toolbar already reads `widgetRect` for positioning, so the scale factor is available with no additional prop-drilling. Example for `text-xs` (12px base): `fontSize: Math.round(widgetRect.width * 0.04)` (4% of width = cqw-equivalent at default sizes).
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
@@ -58,7 +69,7 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
   - `DiceWidget/Widget.tsx:109, :113-116` — `px-3 pb-3` footer, `py-4 px-6 gap-3` Roll Dice button
   - `GuidedLearning/Widget.tsx:231` — `w-8 h-8` on Loader2 loading icon
   - `NextUp/Widget.tsx:295, :331, :344, :346, :360, :409, :425, :430` — `p-6`, `gap-2`, `p-1`, `px-3 py-1`, `mb-2 px-1`, `space-y-2`, `py-8`
-  - `random/RandomWidget.tsx:711, :750, :752` — `px-2 pb-2` footer, `h-12` Randomize button, `w-4 h-4` RefreshCw icon
+  - ~~`random/RandomWidget.tsx:711, :750, :752`~~ — resolved by random redesign (2026-05-15; commits b0b11656, f8fb1e6b converted all to `cqmin`)
   - `SoundWidget/Widget.tsx:182, :210, :212` — `p-2` content wrapper, `pb-3` footer, `px-6 py-2` level label
   - `SoundboardWidget/Widget.tsx:391, :402` — `mb-2` Music icon, `gap-2` selection bar
   - `SpecialistSchedule/SpecialistScheduleWidget.tsx:234, :314` — `mb-2 pb-2` header row, `px-2 py-1` "Now" badge

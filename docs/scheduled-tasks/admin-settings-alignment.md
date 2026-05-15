@@ -27,6 +27,7 @@ _Nothing currently in progress._
   - `record` — `RecordConfigurationPanel` registered
   - `remote` — `RemoteConfigurationPanel` registered
 - **Fix:** For each widget, decide: (a) if building-level defaults are genuinely needed, add a `Building*Defaults` interface to types.ts, add a `buildingDefaults` field to the widget's config interface, and add a case in `getAdminBuildingConfig()`; or (b) if admin settings aren't needed, remove the panel from `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` to avoid confusing admins with non-functional UI.
+- **2026-05-14 skip note:** Action agent skipped this item per the recent-modification safety rule. `types.ts` was modified in commit 865470c2 (`feat(quiz): inline annotations + snapshot for written responses (Phase 2)`) and `context/DashboardContext.tsx` was modified in commit 6b2f5ff4 (`fix(dock): remove session-gate on empty-dock auto-recovery`) — both within the last 5 commits on this branch. Although the recent changes are in unrelated regions (quiz types / dock state), the mechanical "no-recent-modifications" guard requires deferral. Will be re-eligible once both target files have aged out of the last-5-commits window.
 
 ### MEDIUM Appearance settings (cardColor, cardOpacity, fontFamily, fontColor) exposed in user Settings.tsx but absent from admin building config
 

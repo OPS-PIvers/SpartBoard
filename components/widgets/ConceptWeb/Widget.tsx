@@ -13,7 +13,12 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   widget,
   isStudentView,
 }) => {
-  const { updateWidget, bringToFront, activeDashboard } = useDashboard();
+  const { updateWidget, bringToFront, activeDashboard, isActiveBoardReadOnly } =
+    useDashboard();
+  // Treat substitute / view-only boards the same as the student view —
+  // both modes want the diagram visible but uneditable. Promote a single
+  // `isReadOnly` flag so the existing student-view guards extend cleanly.
+  const isReadOnly = (isStudentView ?? false) || isActiveBoardReadOnly;
   const config = widget.config as ConceptWebConfig;
   const nodes = useMemo(() => config.nodes ?? [], [config.nodes]);
   const edges = useMemo(() => config.edges ?? [], [config.edges]);
@@ -56,7 +61,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const cardOpacity = config.cardOpacity ?? 1;
 
   const handleAddNode = () => {
-    if (isStudentView) return;
+    if (isReadOnly) return;
 
     // Add some random offset so they don't stack perfectly (in percentages)
     const offsetX = Math.random() * 5 - 2.5;
@@ -81,13 +86,13 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleNodeTextChange = (id: string, text: string) => {
-    if (isStudentView) return;
+    if (isReadOnly) return;
     const updated = nodes.map((n) => (n.id === id ? { ...n, text } : n));
     updateWidget(widget.id, { config: { ...config, nodes: updated } });
   };
 
   const handleDeleteNode = (id: string) => {
-    if (isStudentView) return;
+    if (isReadOnly) return;
     const remainingNodes = nodes.filter((n) => n.id !== id);
     const remainingEdges = edges.filter(
       (e) => e.sourceNodeId !== id && e.targetNodeId !== id
@@ -98,7 +103,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleDeleteEdge = (e: React.MouseEvent, id: string) => {
-    if (isStudentView) return;
+    if (isReadOnly) return;
     e.stopPropagation();
     const remainingEdges = edges.filter((edge) => edge.id !== id);
     updateWidget(widget.id, {
@@ -111,7 +116,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     e: React.PointerEvent<HTMLDivElement>,
     node: ConceptNode
   ) => {
-    if (isStudentView) return;
+    if (isReadOnly) return;
     const target = e.target as HTMLElement;
     if (
       target.tagName.toLowerCase() === 'textarea' ||
@@ -133,7 +138,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleNodePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     if (
       !activeNodeId ||
-      isStudentView ||
+      isReadOnly ||
       !dragPosRef.current ||
       !containerRef.current ||
       e.pointerId !== dragPointerIdRef.current
@@ -161,7 +166,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleNodePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (
       !activeNodeId ||
-      isStudentView ||
+      isReadOnly ||
       !dragPosRef.current ||
       e.pointerId !== dragPointerIdRef.current
     )
@@ -192,7 +197,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     e: React.PointerEvent<HTMLElement>,
     node: ConceptNode
   ) => {
-    if (isStudentView) return;
+    if (isReadOnly) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     resizeDimRef.current = {
@@ -210,7 +215,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleResizePointerMove = (e: React.PointerEvent<HTMLElement>) => {
     if (
       !resizingNodeId ||
-      isStudentView ||
+      isReadOnly ||
       !resizeDimRef.current ||
       !containerRef.current ||
       e.pointerId !== resizePointerIdRef.current
@@ -238,7 +243,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   const handleResizePointerUp = (e: React.PointerEvent<HTMLElement>) => {
     if (
       !resizingNodeId ||
-      isStudentView ||
+      isReadOnly ||
       !resizeDimRef.current ||
       e.pointerId !== resizePointerIdRef.current
     )
@@ -271,7 +276,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
     e: React.PointerEvent<HTMLElement>,
     nodeId: string
   ) => {
-    if (isStudentView) return;
+    if (isReadOnly) return;
     e.stopPropagation();
     e.currentTarget.setPointerCapture(e.pointerId);
     setDrawingFromId(nodeId);
@@ -286,7 +291,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleHandlePointerMove = (e: React.PointerEvent<HTMLElement>) => {
-    if (!drawingFromId || isStudentView) return;
+    if (!drawingFromId || isReadOnly) return;
     e.stopPropagation();
     const rect = containerRef.current?.getBoundingClientRect();
     if (rect) {
@@ -298,7 +303,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
   };
 
   const handleHandlePointerUp = (e: React.PointerEvent<HTMLElement>) => {
-    if (!drawingFromId || isStudentView) return;
+    if (!drawingFromId || isReadOnly) return;
     e.stopPropagation();
     e.currentTarget.releasePointerCapture(e.pointerId);
 
@@ -379,7 +384,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
       className={`relative w-full h-full overflow-hidden rounded-xl select-none ${fontClassName}`}
       style={{ backgroundColor: hexToRgba(cardColor, cardOpacity) }}
     >
-      {!isStudentView && (
+      {!isReadOnly && (
         <button
           className="absolute z-20 bg-white border border-slate-300 rounded shadow-sm font-medium text-slate-700 hover:bg-slate-50 pointer-events-auto"
           style={{
@@ -438,7 +443,7 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
               className="pointer-events-auto cursor-pointer hover:stroke-rose-400 transition-colors"
               onClick={(e) => handleDeleteEdge(e, edge.id)}
             >
-              {!isStudentView && <title>Click to delete edge</title>}
+              {!isReadOnly && <title>Click to delete edge</title>}
             </path>
           );
         })}
@@ -492,10 +497,10 @@ export const ConceptWebWidget: React.FC<WidgetComponentProps> = ({
               value={node.text}
               onChange={(e) => handleNodeTextChange(node.id, e.target.value)}
               placeholder="Idea..."
-              readOnly={isStudentView}
+              readOnly={isReadOnly}
             />
 
-            {!isStudentView && (
+            {!isReadOnly && (
               <>
                 <button
                   type="button"

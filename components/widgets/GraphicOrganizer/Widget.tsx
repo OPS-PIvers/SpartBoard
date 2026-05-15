@@ -21,6 +21,9 @@ const EditableNode: React.FC<{
   const contentEditableRef = useRef<HTMLDivElement>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onUpdateRef = useRef(onUpdate);
+  // Disable contentEditable for substitute / view-only boards so subs can
+  // see the teacher's diagram but cannot retype or delete cell text.
+  const { isActiveBoardReadOnly } = useDashboard();
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
@@ -69,7 +72,7 @@ const EditableNode: React.FC<{
   return (
     <div
       ref={contentEditableRef}
-      contentEditable
+      contentEditable={!isActiveBoardReadOnly}
       suppressContentEditableWarning
       onInput={handleInput}
       onBlur={handleBlur}

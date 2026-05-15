@@ -22,6 +22,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
 import { generateMiniAppCode } from '@/utils/ai';
 import { useEmbedConfig } from './hooks/useEmbedConfig';
+import { TRUSTED_EMBED_HOSTNAMES } from './trustedHostnames';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useAuth } from '@/context/useAuth';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
@@ -226,6 +227,7 @@ export const EmbedWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       const allowListedDomains = new Set([
         'www.carriderpro.com',
         'carriderpro.com',
+        ...TRUSTED_EMBED_HOSTNAMES,
         ...(globalConfig?.whitelistUrls ?? []).map((d) => d.toLowerCase()),
       ]);
       return allowListedDomains.has(hostname);
