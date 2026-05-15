@@ -12,7 +12,10 @@ import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { FormattingToolbar } from './FormattingToolbar';
 import { PLACEHOLDER_TEXT } from './constants';
-import { normalizeEditorBlocks } from './normalizeBlocks';
+import {
+  needsBlockNormalization,
+  normalizeEditorBlocks,
+} from './normalizeBlocks';
 
 /** Gap (px) between the toolbar and the widget edge. */
 const TOOLBAR_GAP = 8;
@@ -200,6 +203,18 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     // Skip save when the toolbar is performing a multi-step DOM mutation
     // (e.g. execCommand + span replacement for font-size changes).
     if (suppressInputRef.current) return;
+    // Re-normalize the live editor structure so drag-selection and list
+    // commands keep working as the user edits. Chrome leaves the FIRST line
+    // as a bare text node and only wraps subsequent Enter-separated lines in
+    // <div> blocks — that mixed `text<div>line</div>` shape collapses drag
+    // selections at the paragraph boundary and makes `insertUnorderedList`/
+    // `insertOrderedList` apply to only one line instead of the visible
+    // paragraph the cursor sits in. The helper is a fast no-op for already-
+    // uniform structures, and only moves nodes (never clones), so live Range
+    // references — including the caret — survive per the DOM spec.
+    if (editorRef.current && needsBlockNormalization(editorRef.current)) {
+      normalizeEditorBlocks(editorRef.current);
+    }
     // Save on every input for immediate persistence (debounced by DashboardContext)
     const content = readEditorContent();
     lastExternalContent.current = content;
@@ -275,6 +290,19 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               <div
                 ref={toolbarPortalRef}
                 data-click-outside-ignore="true"
+                // The toolbar lives in a portal but React events still bubble
+                // through the component tree to the DraggableWindow ancestor,
+                // whose `handlePointerDown` calls `.focus()` on the widget
+                // chrome whenever the pointerdown target isn't inside a
+                // contentEditable. That focus shift pulls focus out of the
+                // editor mid-click, fires `onBlur`, and drops the live
+                // selection — execCommand calls (bold/italic, lists,
+                // foreColor) then run against a collapsed/stale selection and
+                // appear to do nothing. Stopping pointerdown propagation here
+                // keeps the editor focused while the toolbar's own
+                // `onMouseDown preventDefault` handlers (on the buttons)
+                // still prevent the click from changing focus to the button.
+                onPointerDown={(e) => e.stopPropagation()}
                 style={{
                   position: 'fixed',
                   // Position above the widget; if not enough space, show below.

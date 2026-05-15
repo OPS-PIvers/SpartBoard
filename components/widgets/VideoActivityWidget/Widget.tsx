@@ -121,6 +121,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     deleteAssignment,
     shareAssignment,
     publishAssignmentScores,
+    unpublishAssignmentScores,
   } = useVideoActivityAssignments(user?.uid);
 
   const [publishingAssignment, setPublishingAssignment] =
@@ -838,6 +839,19 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         onArchivePublishScores={(assignment) =>
           setPublishingAssignment(assignment)
         }
+        onArchiveUnpublishScores={async (assignment) => {
+          // One-click unpublish — `unpublishAssignmentScores` is a cheap
+          // two-write batch (no Drive lookup, no grading).
+          try {
+            await unpublishAssignmentScores(assignment.id);
+            addToast('Scores unpublished.', 'success');
+          } catch (err) {
+            addToast(
+              err instanceof Error ? err.message : 'Failed to unpublish scores',
+              'error'
+            );
+          }
+        }}
         initialLibraryViewMode={config.libraryViewMode}
         onLibraryViewModeChange={(mode) => {
           updateWidget(widget.id, {
@@ -866,21 +880,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             const target = publishingAssignment;
             try {
               if (visibility === 'none') {
-                await publishAssignmentScores(
-                  target.id,
-                  // Empty placeholder VideoActivityData — the 'none' branch
-                  // never reads it. Cheaper than re-loading from Drive for
-                  // a flag flip.
-                  {
-                    id: target.activityId,
-                    title: target.activityTitle,
-                    youtubeUrl: '',
-                    questions: [],
-                    createdAt: 0,
-                    updatedAt: 0,
-                  },
-                  visibility
-                );
+                await unpublishAssignmentScores(target.id);
                 addToast('Scores unpublished.', 'success');
                 setPublishingAssignment(null);
                 return;

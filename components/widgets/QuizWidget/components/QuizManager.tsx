@@ -25,6 +25,7 @@ import {
   Trash2,
   BarChart3,
   Eye,
+  EyeOff,
   Link2,
   User,
   Zap,
@@ -336,6 +337,13 @@ interface QuizManagerProps {
    * kebab affordance.
    */
   onArchivePublishScores?: (assignment: QuizAssignment) => void | Promise<void>;
+  /**
+   * Revoke published score visibility in one click (skips the picker
+   * modal). Only surfaced when `assignment.scoreVisibility` is published.
+   */
+  onArchiveUnpublishScores?: (
+    assignment: QuizAssignment
+  ) => void | Promise<void>;
   onArchivePauseResume?: (assignment: QuizAssignment) => void | Promise<void>;
   onArchiveDeactivate?: (assignment: QuizAssignment) => void | Promise<void>;
   /** Reopen an ended assignment back to a paused state. */
@@ -498,6 +506,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onArchiveEditSettings,
   onArchiveShare,
   onArchivePublishScores,
+  onArchiveUnpublishScores,
   onArchivePauseResume,
   onArchiveDeactivate,
   onArchiveReopen,
@@ -1134,6 +1143,28 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
             : 'Publish scores',
         icon: Send,
         onClick: () => void onArchivePublishScores(a),
+      });
+    }
+    if (
+      onArchiveUnpublishScores &&
+      a.scoreVisibility &&
+      a.scoreVisibility !== 'none'
+    ) {
+      secondaries.push({
+        id: 'unpublish-scores',
+        label: 'Unpublish scores',
+        icon: EyeOff,
+        onClick: async () => {
+          const ok = await showConfirm(
+            'Students will no longer be able to see their scores or responses. You can republish anytime.',
+            {
+              title: 'Unpublish scores',
+              variant: 'danger',
+              confirmLabel: 'Unpublish',
+            }
+          );
+          if (ok) await onArchiveUnpublishScores(a);
+        },
       });
     }
     secondaries.push({

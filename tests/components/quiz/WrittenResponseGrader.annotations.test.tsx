@@ -1,5 +1,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
+
+// EditorModalShell calls these hooks unconditionally. Stub them so the
+// grader can render outside a full provider tree.
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: vi.fn() }),
+}));
+vi.mock('@/context/useDialog', () => ({
+  useDialog: () => ({
+    showConfirm: vi.fn().mockResolvedValue(true),
+  }),
+}));
+
 import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
 import type {
   QuizData,

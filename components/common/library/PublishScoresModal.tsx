@@ -32,17 +32,20 @@ import {
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import type {
+  GuidedLearningScoreVisibility,
   QuizScoreVisibility,
   VideoActivityScoreVisibility,
 } from '@/types';
 
 /**
- * Score-visibility level. Quiz and VA both define the same string-literal
- * union; either resolves to the same shape at the call site.
+ * Score-visibility level. Quiz, VA, and GL all define the same
+ * string-literal union; any of them resolves to the same shape at the
+ * call site.
  */
 export type PublishScoresVisibility =
   | QuizScoreVisibility
-  | VideoActivityScoreVisibility;
+  | VideoActivityScoreVisibility
+  | GuidedLearningScoreVisibility;
 
 interface PublishScoresModalProps {
   /** Assignment title — sub-line so the teacher knows which assignment they're publishing. */

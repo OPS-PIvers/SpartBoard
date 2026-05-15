@@ -26,6 +26,7 @@ import {
   CheckSquare,
   Copy,
   Edit2,
+  EyeOff,
   FileUp,
   Link2,
   Loader2,
@@ -53,6 +54,7 @@ import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArc
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -207,6 +209,13 @@ export interface VideoActivityManagerProps {
    * `useVideoActivityAssignments.publishAssignmentScores` hook.
    */
   onArchivePublishScores?: (assignment: VideoActivityAssignment) => void;
+  /**
+   * Revoke published score visibility in one click (skips the picker
+   * modal). Only surfaced when `assignment.scoreVisibility` is published.
+   */
+  onArchiveUnpublishScores?: (
+    assignment: VideoActivityAssignment
+  ) => void | Promise<void>;
 
   /** Persisted library grid/list toggle (from widget config). */
   initialLibraryViewMode?: 'grid' | 'list';
@@ -433,6 +442,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   onArchiveShare,
   onArchiveMonitor,
   onArchivePublishScores,
+  onArchiveUnpublishScores,
   initialLibraryViewMode,
   onLibraryViewModeChange,
   rosters,
@@ -441,6 +451,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   lastClassIdByActivityId,
   assignmentMode = 'submissions',
 }) => {
+  const { showConfirm } = useDialog();
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const [tab, setTab] = useState<LibraryTab>('library');
@@ -1132,6 +1143,29 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
         label: isPublished ? 'Update published scores' : 'Publish scores',
         icon: Send,
         onClick: () => onArchivePublishScores(assignment),
+      });
+    }
+    if (
+      onArchiveUnpublishScores &&
+      !assignmentIsViewOnly &&
+      assignment.scoreVisibility !== undefined &&
+      assignment.scoreVisibility !== 'none'
+    ) {
+      actions.push({
+        id: 'unpublish-scores',
+        label: 'Unpublish scores',
+        icon: EyeOff,
+        onClick: async () => {
+          const ok = await showConfirm(
+            'Students will no longer be able to see their scores or responses. You can republish anytime.',
+            {
+              title: 'Unpublish scores',
+              variant: 'danger',
+              confirmLabel: 'Unpublish',
+            }
+          );
+          if (ok) await onArchiveUnpublishScores(assignment);
+        },
       });
     }
 

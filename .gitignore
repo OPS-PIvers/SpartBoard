@@ -58,6 +58,14 @@ eslint-output.txt
 .claude/worktrees/
 .claude/settings.local.json
 
+# Agent skills installed via the `skills` CLI (project scope).
+# Project-committed skills (e.g. admin-widget-config, new-widget) are re-included below.
+.agents/
+skills-lock.json
+.claude/skills/*
+!.claude/skills/admin-widget-config/
+!.claude/skills/new-widget/
+
 # Playwright MCP scratch
 .playwright-mcp/
 

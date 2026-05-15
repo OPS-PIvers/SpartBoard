@@ -60,6 +60,7 @@ import {
   QuizPublicQuestion,
   WrittenAnswerGrade,
   isWrittenQuestionType,
+  isAnswerSubmitted,
 } from '@/types';
 import { sanitizeQuizResponse } from '@/utils/security';
 import { AnnotatedResponseView } from '@/components/widgets/QuizWidget/components/AnnotatedResponseView';
@@ -397,12 +398,17 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
   }, [isViewOnly, session?.id, authedUid]);
 
   const handleAnswer = useCallback(
-    async (questionId: string, answer: string, speedBonus?: number) => {
+    async (
+      questionId: string,
+      answer: string,
+      speedBonus?: number,
+      opts?: { isDraft?: boolean }
+    ) => {
       // View-only shares never persist responses — the Firestore rule
       // rejects the write defense-in-depth, but skip it client-side too so
       // the console stays clean.
       if (isViewOnly) return;
-      await submitAnswer(questionId, answer, speedBonus);
+      await submitAnswer(questionId, answer, speedBonus, opts);
     },
     [submitAnswer, isViewOnly]
   );
@@ -676,8 +682,13 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       );
     }
 
+    // Drafts (debounced autosaves of written responses) don't count as
+    // "answered" — the student is still typing. The completion gate only
+    // fires on an explicit Submit, which writes `status: 'submitted'`.
     const alreadyAnswered = currentQ
-      ? myResponse.answers.some((a) => a.questionId === currentQ.id)
+      ? myResponse.answers.some(
+          (a) => a.questionId === currentQ.id && isAnswerSubmitted(a)
+        )
       : false;
 
     return (
@@ -743,7 +754,12 @@ const ActiveQuiz: React.FC<{
   currentQuestion: QuizPublicQuestion | undefined;
   alreadyAnswered: boolean;
   myResponse: ReturnType<typeof useQuizSessionStudent>['myResponse'];
-  onAnswer: (qId: string, answer: string, speedBonus?: number) => Promise<void>;
+  onAnswer: (
+    qId: string,
+    answer: string,
+    speedBonus?: number,
+    opts?: { isDraft?: boolean }
+  ) => Promise<void>;
   onComplete: () => Promise<void>;
   reportTabSwitch: () => Promise<number>;
   warningCount: number;
@@ -949,9 +965,12 @@ const ActiveQuiz: React.FC<{
     return shuffleQuestionForStudent(baseQuestion, studentShuffleSeed);
   }, [baseQuestion, answerOptionShuffleEnabled, studentShuffleSeed]);
 
+  // Drafts don't count: a debounced autosave of a written-response in
+  // progress must not flip `submitted` true and shouldn't trigger
+  // `QuizCompleteCard`. Only explicit Submit writes `status: 'submitted'`.
   const alreadyAnswered = isStudentPaced
     ? (myResponse?.answers ?? []).some(
-        (a) => a.questionId === currentQuestion?.id
+        (a) => a.questionId === currentQuestion?.id && isAnswerSubmitted(a)
       )
     : sessionAnswered;
 
@@ -1113,6 +1132,14 @@ const ActiveQuiz: React.FC<{
   const fibAnswerRef = useRef(fibAnswer);
   const draftMcAnswerRef = useRef(draftMcAnswer);
   const onAnswerRef = useRef(onAnswer);
+  // Mirror of `myResponse.status` for the visibility/unmount flush
+  // handlers (which are scoped to `[]` deps and can't read state
+  // directly). Used to short-circuit the flush after the student has
+  // already submitted — without this, the cleanup flush at unmount
+  // re-writes the answer with `status: 'draft'`, downgrading the parent
+  // response from `'completed'` back to `'in-progress'` and silently
+  // breaking the teacher's "Finished" counter.
+  const myResponseStatusRef = useRef(myResponse?.status);
   // Live serialized answer for Matching/Ordering, written by the child
   // StructuredQuestionInput on every drag/tap so timer auto-submit can
   // capture partial placements instead of submitting the empty string.
@@ -1125,6 +1152,7 @@ const ActiveQuiz: React.FC<{
     draftMcAnswerRef.current = draftMcAnswer;
     onAnswerRef.current = onAnswer;
     writtenAnswerRef.current = writtenAnswer;
+    myResponseStatusRef.current = myResponse?.status;
   }, [
     currentQuestion,
     selectedAnswer,
@@ -1132,6 +1160,7 @@ const ActiveQuiz: React.FC<{
     draftMcAnswer,
     onAnswer,
     writtenAnswer,
+    myResponse?.status,
   ]);
 
   // Reset the structured answer ref when the question changes so a stale
@@ -1223,11 +1252,13 @@ const ActiveQuiz: React.FC<{
     }
     const draft = writtenAnswer;
     writtenAutosaveTimer.current = setTimeout(() => {
-      void onAnswerRef.current(qid, draft).catch((err: unknown) => {
-        logError('QuizStudentApp.writtenAutosave', err, {
-          questionId: qid,
+      void onAnswerRef
+        .current(qid, draft, undefined, { isDraft: true })
+        .catch((err: unknown) => {
+          logError('QuizStudentApp.writtenAutosave', err, {
+            questionId: qid,
+          });
         });
-      });
     }, 500);
 
     return () => {
@@ -1250,6 +1281,14 @@ const ActiveQuiz: React.FC<{
   // the page tears down is the best-effort flush we can do.
   useEffect(() => {
     const flush = () => {
+      // Bail if the response has already been finalized. The cleanup
+      // flush runs on unmount, which is triggered by `myResponse.status`
+      // flipping to `'completed'` — without this guard, the flush would
+      // re-write the answer with `status: 'draft'`, downgrading the
+      // parent doc from `'completed'` back to `'in-progress'` and
+      // breaking the teacher's results view ("0 finished", "in
+      // progress" badge, score distribution empty).
+      if (myResponseStatusRef.current === 'completed') return;
       const qid = currentQuestionRef.current?.id;
       const type = currentQuestionRef.current?.type;
       if (type !== 'short' && type !== 'essay') return;
@@ -1260,11 +1299,13 @@ const ActiveQuiz: React.FC<{
         clearTimeout(writtenAutosaveTimer.current);
         writtenAutosaveTimer.current = null;
       }
-      void onAnswerRef.current(qid, draft).catch((err: unknown) => {
-        logError('QuizStudentApp.writtenAutosaveFlush', err, {
-          questionId: qid,
+      void onAnswerRef
+        .current(qid, draft, undefined, { isDraft: true })
+        .catch((err: unknown) => {
+          logError('QuizStudentApp.writtenAutosaveFlush', err, {
+            questionId: qid,
+          });
         });
-      });
     };
     const onVisibilityChange = () => {
       if (document.visibilityState === 'hidden') flush();
@@ -1509,7 +1550,14 @@ const ActiveQuiz: React.FC<{
     currentQuestion.type === 'MC' ? (currentQuestion.choices ?? []) : [];
 
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900 relative">
+    // `overflow-x-hidden` is a defensive backstop so an oversized child
+    // (a long unbreakable token in a student answer, a misconfigured
+    // grid below a fold, a future refactor that adds a fixed-width
+    // element) can never produce a horizontal scrollbar on an 11"
+    // Chromebook. The max-width caps above keep content well-anchored
+    // on widescreens; this guarantees the narrow-viewport path stays
+    // scroll-free regardless of what's rendered inside.
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-slate-900 relative">
       {/* The "your teacher unlocked your attempt" prompt — covers the quiz
           UI on first render after a teacher unlock so the student knows
           what happened before they touch anything. */}
@@ -1586,9 +1634,22 @@ const ActiveQuiz: React.FC<{
 
       <div
         className={`flex flex-col p-6 mx-auto w-full ${
-          currentQuestion.type === 'short' || currentQuestion.type === 'essay'
-            ? 'max-w-3xl'
-            : 'max-w-lg'
+          // Per-type width caps. Tuned for the personal-device viewport
+          // a student actually uses (laptop / Chromebook / tablet), not
+          // a projector:
+          //   essay     → max-w-7xl  ~1280px. Long-form writing benefits
+          //                from elbow room more than line-length
+          //                discipline; the editor wraps its own prose.
+          //   short     → max-w-5xl  ~1024px. Paragraph-length answers
+          //                still want room without becoming sprawling.
+          //   MC/FIB/   → max-w-2xl   ~672px. Short answer options and
+          //   Matching/   structured inputs read worse when stretched
+          //   Ordering    across a widescreen — keep them compact.
+          currentQuestion.type === 'essay'
+            ? 'max-w-7xl'
+            : currentQuestion.type === 'short'
+              ? 'max-w-5xl'
+              : 'max-w-2xl'
         }`}
       >
         {/* Header */}
@@ -1646,7 +1707,7 @@ const ActiveQuiz: React.FC<{
         </div>
 
         {/* Question */}
-        <h2 className="text-xl font-bold text-white mb-8 leading-snug">
+        <h2 className="text-xl font-bold text-white mb-8 leading-snug break-words">
           {currentQuestion.text}
         </h2>
 
@@ -2193,13 +2254,26 @@ const QuizCompleteCard: React.FC = () => (
   </div>
 );
 
-const ReturnToAssignmentsButton: React.FC = () => (
+/**
+ * Inline CTA used after submission. `variant="card"` matches the existing
+ * full-width pill that sits inside the answer card on the active quiz
+ * screen; `variant="standalone"` is a compact pill sized to its label —
+ * used on the full-screen `QuizSubmittedWaitScreen` so it doesn't stretch
+ * edge-to-edge.
+ */
+const ReturnToAssignmentsButton: React.FC<{
+  variant?: 'card' | 'standalone';
+}> = ({ variant = 'card' }) => (
   <button
     type="button"
     onClick={() => {
       window.location.assign('/my-assignments');
     }}
-    className="w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20"
+    className={
+      variant === 'standalone'
+        ? 'inline-flex items-center gap-2 px-5 py-2.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-sm font-bold rounded-full transition-colors'
+        : 'w-full py-3 bg-brand-blue-primary hover:bg-brand-blue-dark text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20'
+    }
   >
     Back to my assignments <ArrowRight className="w-4 h-4" />
   </button>
@@ -2471,14 +2545,32 @@ const PublishedScoreReview: React.FC<{
   for (const a of myResponse.answers) {
     answerById.set(a.questionId, a);
   }
+  // "Fully correct" only makes sense for auto-graded types. Counting an
+  // essay or short-answer against this tally produces a misleading "0 of
+  // 1 fully correct" beneath a 70% score for partial-credit work. Count
+  // and label against auto-graded questions only; suppress the line
+  // entirely when the quiz has no auto-graded questions at all.
+  const publicQuestions = session.publicQuestions ?? [];
+  const autoGradedQuestionIds = new Set(
+    publicQuestions
+      .filter((q) => !isWrittenQuestionType(q.type))
+      .map((q) => q.id)
+  );
+  const autoGradedCount = autoGradedQuestionIds.size;
   const correctCount = myResponse.answers.filter(
-    (a) => a.isCorrect === true
+    (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
-  const total = session.totalQuestions;
 
+  // Per-question cards dominate this view (snapshot + teacher
+  // annotations + score + comment block), so the container is sized
+  // generously — written-response reviews benefit much more from
+  // horizontal room than from a tight prose column. The annotation
+  // engine inside each card handles its own internal line lengths.
+  // `overflow-x-hidden` is the same horizontal-scroll backstop the
+  // active-quiz screen uses — see comment there for why.
   return (
-    <div className="h-screen overflow-y-auto bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
-      <div className="mx-auto w-full max-w-2xl">
+    <div className="h-screen overflow-y-auto overflow-x-hidden bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
+      <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
           <Trophy className="mb-4 h-12 w-12 text-amber-400" />
           <h1 className="text-2xl font-black text-white sm:text-3xl">
@@ -2499,16 +2591,18 @@ const PublishedScoreReview: React.FC<{
               <p className="text-5xl font-black text-white sm:text-6xl">
                 {scorePercent}%
               </p>
-              {/* Per-question tally counts only fully-correct answers, so it
-                  can lag the percentage on quizzes that award partial credit
-                  (Matching/Ordering with `allowPartialCredit`) or use non-1
-                  point values. The "fully correct" qualifier makes the
-                  potential gap between this line and the percentage above
-                  legible to the student rather than appearing to contradict
-                  it. */}
-              <p className="mt-2 text-sm text-slate-400">
-                {correctCount} of {total} fully correct
-              </p>
+              {/* Per-question tally counts only fully-correct answers, so
+                  it can lag the percentage on quizzes that award partial
+                  credit (Matching/Ordering with `allowPartialCredit`) or
+                  use non-1 point values — and it doesn't apply at all to
+                  written-response questions where "fully correct" is a
+                  category error. Hide the line on essay-only quizzes; on
+                  mixed quizzes it counts only the auto-graded subset. */}
+              {autoGradedCount > 0 && (
+                <p className="mt-2 text-sm text-slate-400">
+                  {correctCount} of {autoGradedCount} fully correct
+                </p>
+              )}
             </>
           ) : (
             <p className="text-sm text-slate-300">
@@ -2530,23 +2624,22 @@ const PublishedScoreReview: React.FC<{
                 const writtenGrade = isWritten
                   ? myResponse.grading?.[q.id]
                   : undefined;
-                // Match `gradeAnswer`'s default: a missing `points`
-                // means 1, not 0. The old `q.points &&` short-circuited
-                // when `points` was unset, so a full-credit grade on a
-                // default-points question never showed the ✓.
+                // Written-response questions don't have a binary
+                // right/wrong outcome — a 7/10 essay is partial credit,
+                // not "incorrect". Suppress the red-X / red-border
+                // treatment entirely for written types. A full-credit
+                // essay still shows the ✓ as a positive ack, but never
+                // a red mark for anything below 100%.
                 const writtenMaxPoints = q.points ?? 1;
                 const writtenIsCorrect =
                   writtenGrade != null &&
                   writtenMaxPoints > 0 &&
                   writtenGrade.pointsAwarded === writtenMaxPoints;
-                const writtenIsIncorrect =
-                  writtenGrade != null &&
-                  writtenGrade.pointsAwarded < writtenMaxPoints;
                 const isCorrect = isWritten
                   ? writtenIsCorrect
                   : ans?.isCorrect === true;
                 const isIncorrect = isWritten
-                  ? writtenIsIncorrect
+                  ? false
                   : ans?.isCorrect === false;
                 const correctAnswer = session.revealedAnswers?.[q.id];
                 return (
@@ -2564,7 +2657,7 @@ const PublishedScoreReview: React.FC<{
                       <span className="mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-slate-700 font-mono text-[11px] font-bold text-slate-200">
                         {idx + 1}
                       </span>
-                      <p className="flex-1 text-sm font-semibold text-slate-100">
+                      <p className="flex-1 min-w-0 break-words text-sm font-semibold text-slate-100">
                         {q.text}
                       </p>
                       {isCorrect && (
@@ -2657,7 +2750,7 @@ export const WrittenAnswerReview: React.FC<{
     (studentAnswer ? sanitizeQuizResponse(studentAnswer) : '');
   const showingLiveAnswer = !hasGrade && !!studentAnswer;
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {snapshot ? (
         <AnnotatedResponseView
           mode="read"
@@ -2668,22 +2761,30 @@ export const WrittenAnswerReview: React.FC<{
         <p className="text-xs text-slate-500 italic">— no response</p>
       )}
       {hasGrade && (
-        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-xs text-slate-400">
-          <span>
-            Score:{' '}
-            <span className="font-mono text-slate-100">
+        <>
+          {grade.overallComment && (
+            // Promoted from a tiny footnote to a violet-accented card so
+            // the teacher's written feedback is the most visible thing
+            // after the student's own answer — it's the part students
+            // most need to read.
+            <div className="rounded-lg border border-violet-400/40 bg-violet-500/10 px-3 py-2.5">
+              <p className="text-[10px] font-black uppercase tracking-wider text-violet-300 mb-1">
+                Teacher Comment
+              </p>
+              <p className="text-sm text-slate-100 leading-relaxed whitespace-pre-wrap">
+                {grade.overallComment}
+              </p>
+            </div>
+          )}
+          <div className="flex items-baseline justify-between gap-2 pt-1 border-t border-slate-700/60">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              Score
+            </span>
+            <span className="font-mono text-base font-black text-slate-100">
               {grade.pointsAwarded} / {maxPoints}
             </span>
-          </span>
-          {grade.overallComment && (
-            <span className="basis-full text-slate-300">
-              <span className="font-bold uppercase tracking-wider text-[10px] text-slate-500">
-                Teacher comment:
-              </span>{' '}
-              {grade.overallComment}
-            </span>
-          )}
-        </div>
+          </div>
+        </>
       )}
       {!hasGrade &&
         (showingLiveAnswer ? (
@@ -2791,7 +2892,7 @@ const QuizSubmittedWaitScreen: React.FC<{
       */}
       {!pin && (
         <div className="mt-6">
-          <ReturnToAssignmentsButton />
+          <ReturnToAssignmentsButton variant="standalone" />
         </div>
       )}
     </div>

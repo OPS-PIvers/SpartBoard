@@ -1627,15 +1627,19 @@ const QuestionsTab: React.FC<{
   questions: QuizData['questions'];
   responses: QuizResponse[];
 }> = ({ questions, responses }) => {
-  // ⚡ Bolt: Pre-calculate counts of "answered" and "correct" per question.
-  // This avoids O(Q*R*A) iteration inside `questions.map` loop and instead
-  // uses a single O(R*A) pass with O(Q) rendering.
+  // ⚡ Bolt: Pre-calculate counts per question in a single pass.
+  // Auto-graded types track answered/correct; written types track
+  // answered/graded so partial credit (7/10 essay) isn't bucketed as
+  // "Missed" — graders found that misleading.
   const questionStats = React.useMemo(() => {
-    const stats: Record<string, { answered: number; correct: number }> = {};
+    const stats: Record<
+      string,
+      { answered: number; correct: number; graded: number }
+    > = {};
     const questionsById: Record<string, QuizQuestion> = {};
 
     questions.forEach((q) => {
-      stats[q.id] = { answered: 0, correct: 0 };
+      stats[q.id] = { answered: 0, correct: 0, graded: 0 };
       questionsById[q.id] = q;
     });
 
@@ -1646,15 +1650,11 @@ const QuestionsTab: React.FC<{
 
         if (qStats && q) {
           qStats.answered++;
-          // Written types pass through `gradeAnswer` with the response's
-          // manual grade (if any) so awarded == max still counts as
-          // correct in the accuracy widget. Ungraded written responses
-          // count toward `answered` but not `correct`.
-          const manualGrade =
-            q.type === 'short' || q.type === 'essay'
-              ? r.grading?.[q.id]
-              : undefined;
-          if (gradeAnswer(q, a.answer, manualGrade).isCorrect) {
+          const isWritten = q.type === 'short' || q.type === 'essay';
+          const manualGrade = isWritten ? r.grading?.[q.id] : undefined;
+          if (isWritten) {
+            if (manualGrade) qStats.graded++;
+          } else if (gradeAnswer(q, a.answer, manualGrade).isCorrect) {
             qStats.correct++;
           }
         }
@@ -1667,10 +1667,18 @@ const QuestionsTab: React.FC<{
   return (
     <div className="space-y-3">
       {questions.map((q, i) => {
-        const stats = questionStats[q.id] || { answered: 0, correct: 0 };
+        const stats = questionStats[q.id] || {
+          answered: 0,
+          correct: 0,
+          graded: 0,
+        };
+        const isWritten = q.type === 'short' || q.type === 'essay';
         const pct =
           stats.answered > 0
-            ? Math.round((stats.correct / stats.answered) * 100)
+            ? Math.round(
+                ((isWritten ? stats.graded : stats.correct) / stats.answered) *
+                  100
+              )
             : 0;
 
         return (
@@ -1721,7 +1729,8 @@ const QuestionsTab: React.FC<{
                     height: 'min(14px, 4cqmin)',
                   }}
                 />
-                {stats.correct} Correct
+                {isWritten ? stats.graded : stats.correct}{' '}
+                {isWritten ? 'Graded' : 'Correct'}
               </div>
               <div
                 className="flex items-center gap-1.5 text-brand-red-primary font-bold"
@@ -1733,7 +1742,8 @@ const QuestionsTab: React.FC<{
                     height: 'min(14px, 4cqmin)',
                   }}
                 />
-                {stats.answered - stats.correct} Missed
+                {stats.answered - (isWritten ? stats.graded : stats.correct)}{' '}
+                {isWritten ? 'Ungraded' : 'Missed'}
               </div>
             </div>
 

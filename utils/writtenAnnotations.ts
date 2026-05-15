@@ -254,6 +254,7 @@ const sliceTextWithAnnotations = (
     }
     const primary = active[0];
     const overlapIds = active.map((a) => a.id).join(',');
+    const isPreview = primary.id === PREVIEW_ANNOTATION_ID;
     out.push(
       React.createElement(
         'mark',
@@ -261,8 +262,12 @@ const sliceTextWithAnnotations = (
           key: `m${ctx.keyCounter++}`,
           'data-annotation-id': primary.id,
           'data-overlap-ids': overlapIds,
-          'data-color': primary.highlightColor ?? 'yellow',
-          className: highlightClass(primary.highlightColor),
+          'data-color': isPreview
+            ? 'preview'
+            : (primary.highlightColor ?? 'yellow'),
+          className: isPreview
+            ? PREVIEW_HIGHLIGHT_CLASS
+            : highlightClass(primary.highlightColor),
         },
         chunk
       )
@@ -270,6 +275,26 @@ const sliceTextWithAnnotations = (
   }
   return out;
 };
+
+/**
+ * Reserved annotation id for the "pending selection" preview mark
+ * rendered while the teacher has drag-selected text but not yet picked
+ * a color. The edit surface injects a synthetic annotation with this
+ * id into the rendered list so the user keeps visual feedback even
+ * after the textarea's autoFocus collapses the native browser
+ * selection. Never persisted — `EditView` swaps it for a real
+ * annotation on the first color click.
+ */
+export const PREVIEW_ANNOTATION_ID = '__preview__';
+
+/**
+ * Distinctive style for the pending-selection preview mark. Soft
+ * violet tint + dashed outline communicates "you've selected this,
+ * pick a color to commit" without claiming one of the real
+ * highlight-color slots.
+ */
+export const PREVIEW_HIGHLIGHT_CLASS =
+  'bg-violet-200/50 outline-dashed outline-1 outline-violet-400 text-inherit rounded-sm px-0.5';
 
 // The four `<mark>` background classes shipped by `highlightClass`.
 // Exported so `tailwind.config.js` can spread them into its `safelist`
@@ -282,6 +307,11 @@ export const HIGHLIGHT_BG_CLASSES = [
   'bg-emerald-300/60',
   'bg-pink-300/60',
   'bg-sky-300/60',
+  // Preview mark for the pending-selection state — see
+  // `PREVIEW_HIGHLIGHT_CLASS`. Kept in the same safelist so a
+  // content-glob regression can't strip just the preview style.
+  'bg-violet-200/50',
+  'outline-violet-400',
 ] as const;
 
 /**

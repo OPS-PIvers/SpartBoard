@@ -113,6 +113,42 @@ describe('TextWidget', () => {
     expect(screen.queryByTitle('Bold')).not.toBeInTheDocument();
   });
 
+  it('does not bubble pointerdown from the formatting toolbar to ancestor handlers', async () => {
+    // The toolbar renders to document.body via createPortal, but React
+    // synthetic events still bubble through the COMPONENT tree — meaning a
+    // pointerdown on a toolbar button reaches DraggableWindow's
+    // `handlePointerDown` ancestor in production. That handler calls
+    // `.focus()` on the widget chrome whenever the target isn't inside a
+    // contentEditable, which fires the editor's `onBlur` and drops the
+    // live selection. execCommand calls (lists, foreColor, …) then run
+    // against a stale collapsed selection and silently no-op.
+    //
+    // The fix attaches `onPointerDown={(e) => e.stopPropagation()}` on the
+    // toolbar's portal wrapper. This test guards that regression by
+    // mounting an ancestor pointerdown handler around TextWidget and
+    // verifying it does NOT fire when a toolbar button is pressed.
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      selectedWidgetId: 'test-widget',
+    });
+
+    const ancestorPointerDown = vi.fn();
+    render(
+      <div onPointerDown={ancestorPointerDown}>
+        <TextWidget widget={mockWidget} />
+      </div>
+    );
+
+    // Toolbar renders via portal + RAF position tracking — wait for it.
+    await waitFor(() => {
+      expect(screen.getByTitle('Bold')).toBeInTheDocument();
+    });
+
+    fireEvent.pointerDown(screen.getByTitle('Bold'));
+
+    expect(ancestorPointerDown).not.toHaveBeenCalled();
+  });
+
   it('triggers hyperlink prompt on Control+K', async () => {
     mockShowPrompt.mockResolvedValue('https://test.com');
     render(<TextWidget widget={mockWidget} />);
@@ -306,6 +342,65 @@ describe('TextWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('test-widget', {
       config: { ...mockConfig, content: 'Immediate Save' },
     });
+  });
+
+  it('normalizes mixed bare-text-then-<div> structure during live editing', () => {
+    // Reproduces the exact shape Chrome produces while typing: the user
+    // types "First", hits Enter (Chrome creates `<div><br></div>` for the
+    // new line), then types "Second" — leaving the first line as a bare
+    // text node. Without input-time normalization the editor is stuck in
+    // a mixed structure that breaks drag-selection across the boundary
+    // and confuses list commands. handleInput should rewrite the structure
+    // to uniform block children on the same event.
+    const { container } = render(<TextWidget widget={mockWidget} />);
+    const editableDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
+    expect(editableDiv).not.toBeNull();
+
+    editableDiv.innerHTML = 'First<div>Second</div>';
+    fireEvent.input(editableDiv);
+
+    // After normalization every top-level child is a block element.
+    const childTags = Array.from(editableDiv.childNodes).map((n) =>
+      n.nodeType === Node.ELEMENT_NODE
+        ? (n as HTMLElement).tagName
+        : n.nodeType === Node.TEXT_NODE
+          ? '#text'
+          : '#other'
+    );
+    expect(childTags.every((t) => t !== '#text' && t !== 'BR')).toBe(true);
+    expect(editableDiv.children.length).toBe(2);
+    expect(editableDiv.textContent).toBe('FirstSecond');
+
+    // Saved content reflects the normalized structure (so the same
+    // mixed shape doesn't re-appear after a save → external sync round
+    // trip).
+    const lastCall = mockUpdateWidget.mock.lastCall;
+    expect(lastCall).toBeDefined();
+    if (lastCall) {
+      const payload = lastCall[1] as { config: TextConfig };
+      const savedContent = payload.config.content ?? '';
+      expect(savedContent).not.toMatch(/^First</); // bare-text prefix is gone
+      expect(savedContent).toContain('<div>First</div>');
+      expect(savedContent).toContain('<div>Second</div>');
+    }
+  });
+
+  it('leaves already-uniform block structure alone on input', () => {
+    // The normalizer only rewrites mixed structures. Pure-block content is
+    // a no-op so steady-state typing inside an existing paragraph doesn't
+    // shuffle node identity (which would invalidate the caret) on every
+    // keystroke.
+    const { container } = render(<TextWidget widget={mockWidget} />);
+    const editableDiv = container.querySelector(
+      'div[contentEditable="true"]'
+    ) as HTMLElement;
+
+    editableDiv.innerHTML = '<div>One</div><div>Two</div>';
+    fireEvent.input(editableDiv);
+
+    expect(editableDiv.innerHTML).toBe('<div>One</div><div>Two</div>');
   });
 
   it('wraps loose top-level text in a <div> on mount so drag-selection works across paragraphs', () => {

@@ -5,16 +5,16 @@
  *  - Renders the frozen `gradingSnapshot` with existing marks via
  *    `renderAnnotatedSnapshot` (offsets computed against the snapshot's
  *    plaintext projection).
- *  - On mouseup with a non-empty selection, surfaces a small floating
- *    palette anchored to the selection's bounding rect; choosing a color
- *    creates an annotation. Choosing the comment icon also creates an
- *    annotation and selects it.
- *  - When an annotation is active (selected by the teacher or just
- *    created via comment-icon), renders an editor popover anchored next
- *    to the highlighted mark so the comment input is visible exactly
- *    where the teacher is looking. The teacher's right-side annotations
- *    list lives in the parent grader sidebar — clicking a list item
- *    sets `activeId` here and the popover opens at the mark.
+ *  - On mouseup with a non-empty selection, the editor popover opens
+ *    anchored to the selection — but the annotation is NOT created
+ *    until the teacher picks a color. Picking a color commits the
+ *    highlight (carrying any text already typed into the comment
+ *    textarea) and the popover stays open so the teacher can keep
+ *    typing or change the color.
+ *  - The same popover opens when the teacher clicks an existing
+ *    highlight, anchored next to its `<mark>`.
+ *  - Popover dismisses via X, Esc, Ctrl/Cmd+Enter inside the textarea,
+ *    or clicking outside on bare text.
  *
  * In `mode="read"` (student review surface after publish):
  *  - Same snapshot rendered read-only.
@@ -37,11 +37,12 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { MessageSquare, Trash2, X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import type { WrittenAnswerAnnotation } from '@/types';
 import {
   getPlainTextOffsetFromRange,
   parseSnapshotRoot,
+  PREVIEW_ANNOTATION_ID,
   renderAnnotatedSnapshot,
 } from '@/utils/writtenAnnotations';
 
@@ -271,7 +272,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
       <div className="flex flex-col gap-3">
         <article
           ref={articleRef}
-          className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-sm leading-relaxed text-slate-100 max-w-none [&_mark]:transition-colors"
+          className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-sm leading-relaxed text-slate-100 max-w-none min-w-0 break-words [&_mark]:transition-colors"
           onMouseOver={(e) => {
             const t = (e.target as HTMLElement).closest('mark');
             if (t) setHoveredId(t.getAttribute('data-annotation-id'));
@@ -391,12 +392,32 @@ const EditView: React.FC<EditProps> = ({
   const articleRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const reactId = useId();
-  const [palette, setPalette] = useState<{
+  // True between a drag-completing `mouseup` and the synthetic `click`
+  // that browsers fire on the same gesture. The popover's textarea
+  // `autoFocus`-es when it mounts, which collapses the text selection
+  // before our `click` handler runs — without this flag, the
+  // bare-text click would interpret the collapsed selection as "user
+  // clicked away" and dismiss the popover the mouseup just opened.
+  const justOpenedPendingRef = useRef(false);
+
+  // Pending text selection waiting for the teacher to pick a color.
+  // Until they do, the annotation does NOT exist — the popover is
+  // shown anchored to the selection rect, and the teacher can type
+  // into the comment textarea ahead of picking a color. The first
+  // color click commits both the highlight and the typed draft as a
+  // new annotation, then the popover transitions to "editing an
+  // existing annotation" mode.
+  const [pendingSelection, setPendingSelection] = useState<{
     x: number;
     y: number;
     from: number;
     to: number;
+    placement: 'below' | 'above';
   } | null>(null);
+  // Comment text typed before a color is picked. Carried into the
+  // annotation when the teacher commits a color. Cleared when the
+  // popover dismisses or after a successful commit.
+  const [pendingComment, setPendingComment] = useState('');
 
   // Same memoization split as ReadOnlyView: parse once per snapshot,
   // re-walk on annotation changes. Critical in edit mode because the
@@ -404,120 +425,179 @@ const EditView: React.FC<EditProps> = ({
   // `annotations` mutates per keypress and would otherwise re-
   // DOMParse the whole snapshot each time.
   const parsedRoot = useMemo(() => parseSnapshotRoot(snapshot), [snapshot]);
+  // While the teacher is mid-selection (pending state), inject a
+  // synthetic annotation so the renderer shows a preview mark over
+  // the drag range. The textarea's autoFocus collapses the native
+  // browser selection an instant after mouseup, so without this
+  // visual the teacher loses all feedback about what they highlighted
+  // until they pick a color. The synthetic annotation is never
+  // persisted — `commitPending` builds the real one from the same
+  // offsets when a color is clicked.
+  const annotationsForRender = useMemo<WrittenAnswerAnnotation[]>(() => {
+    if (!pendingSelection) return annotations;
+    return [
+      ...annotations,
+      {
+        id: PREVIEW_ANNOTATION_ID,
+        from: pendingSelection.from,
+        to: pendingSelection.to,
+        authorUid,
+        createdAt: 0,
+      },
+    ];
+  }, [annotations, pendingSelection, authorUid]);
   const tree = useMemo(
-    () => renderAnnotatedSnapshot({ root: parsedRoot, annotations }),
-    [parsedRoot, annotations]
+    () =>
+      renderAnnotatedSnapshot({
+        root: parsedRoot,
+        annotations: annotationsForRender,
+      }),
+    [parsedRoot, annotationsForRender]
   );
 
-  // Compute the rectangle of the current text selection inside the
-  // article and convert it to plaintext offsets. If nothing's selected
-  // (or the selection is outside the article), close the palette.
+  // Compute the plaintext offsets of the current text selection and
+  // open the editor popover anchored to the selection rect. The
+  // annotation is NOT created here — it's deferred until the teacher
+  // picks a color, so the popover acts as a single point-of-decision
+  // for color + comment instead of forcing a two-step (palette → edit)
+  // flow.
   const handleMouseUp = useCallback(() => {
     if (!articleRef.current || !containerRef.current) return;
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) {
-      setPalette(null);
-      return;
-    }
+    if (!selection || selection.isCollapsed) return;
     const range = selection.getRangeAt(0);
     const offsets = getPlainTextOffsetFromRange(articleRef.current, range);
     if (!offsets) {
-      // Surface this — a silently-dismissed palette looks like the
-      // feature is broken. Common cause: the selection straddles the
-      // article and an adjacent element.
-      if (!selection.isCollapsed) {
-        console.warn(
-          '[AnnotatedResponseView] selection could not be resolved to a snapshot offset (does it escape the response?)'
-        );
-      }
-      setPalette(null);
+      // Surface this — a silently-no-op selection looks like the feature
+      // is broken. Common cause: the selection straddles the article
+      // and an adjacent element.
+      console.warn(
+        '[AnnotatedResponseView] selection could not be resolved to a snapshot offset (does it escape the response?)'
+      );
       return;
     }
     const rect = range.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-      setPalette(null);
-      return;
-    }
+    if (rect.width === 0 && rect.height === 0) return;
     const containerRect = containerRef.current.getBoundingClientRect();
-    setPalette({
-      x: rect.left - containerRect.left + rect.width / 2,
-      y: rect.top - containerRect.top - 8,
+    const x = rect.left - containerRect.left + rect.width / 2;
+    const below = rect.bottom - containerRect.top + 8;
+    const above = rect.top - containerRect.top - 8;
+    const placement: 'below' | 'above' =
+      below + 220 > containerRect.height && above > 120 ? 'above' : 'below';
+    onActiveIdChange(null);
+    setPendingComment('');
+    setPendingSelection({
+      x,
+      y: placement === 'below' ? below : above,
       from: offsets.from,
       to: offsets.to,
+      placement,
     });
+    // The synthetic `click` that follows this drag-completing mouseup
+    // will see the textarea's autoFocus-collapsed selection — flag the
+    // next click as "from this gesture" so handleArticleClick skips its
+    // dismiss path. The setTimeout(0) clears the flag after the
+    // immediate event-loop tick so a mouseup that never produces a
+    // matching click (e.g. drag ends outside the article) doesn't
+    // swallow a future, unrelated click.
+    justOpenedPendingRef.current = true;
+    setTimeout(() => {
+      justOpenedPendingRef.current = false;
+    }, 0);
+  }, [onActiveIdChange]);
+
+  // Commit a pending selection as a new annotation. Called when the
+  // teacher picks the first color in the popover; carries any text
+  // already typed in the textarea into the annotation's comment.
+  const commitPending = useCallback(
+    (color: Color) => {
+      if (!pendingSelection) return;
+      const id = `${reactId}-${Date.now()}-${++annotationSeq}`;
+      const next: WrittenAnswerAnnotation = {
+        id,
+        from: pendingSelection.from,
+        to: pendingSelection.to,
+        highlightColor: color,
+        authorUid,
+        createdAt: Date.now(),
+        ...(pendingComment.trim() ? { comment: pendingComment.trim() } : {}),
+      };
+      onChange([...annotations, next]);
+      onActiveIdChange(id);
+      setPendingSelection(null);
+      setPendingComment('');
+      window.getSelection()?.removeAllRanges();
+    },
+    [
+      pendingSelection,
+      pendingComment,
+      reactId,
+      authorUid,
+      onChange,
+      annotations,
+      onActiveIdChange,
+    ]
+  );
+
+  const closePopover = useCallback(() => {
+    setPendingSelection(null);
+    setPendingComment('');
     onActiveIdChange(null);
   }, [onActiveIdChange]);
 
-  // Dismiss the palette / popover on Escape. Listener is scoped to the
-  // container so an Escape pressed inside the grading sidebar (Points
-  // input, Overall comment textarea) still bubbles to the parent modal's
-  // close handler.
+  // Dismiss the popover on Escape. Listener is scoped to the container
+  // so an Escape pressed inside the grading sidebar (Points input,
+  // Overall comment textarea) still bubbles to the parent modal's close
+  // handler.
   useEffect(() => {
     const containerEl = containerRef.current;
     if (!containerEl) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (palette) {
-        setPalette(null);
-      } else if (activeId) {
-        onActiveIdChange(null);
-      } else {
-        return;
-      }
+      if (!activeId && !pendingSelection) return;
+      closePopover();
       // Only stop propagation when we actually handled the key, so the
       // parent modal can still close via Esc when nothing's open here.
       e.stopPropagation();
     };
     containerEl.addEventListener('keydown', onKey);
     return () => containerEl.removeEventListener('keydown', onKey);
-  }, [palette, activeId, onActiveIdChange]);
+  }, [activeId, pendingSelection, closePopover]);
 
   const handleArticleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
+      // Swallow the synthetic click that follows a drag-completing
+      // mouseup. The selection is briefly collapsed by the textarea's
+      // autoFocus, which would otherwise look like "user clicked
+      // outside their selection" and dismiss the popover we just
+      // opened.
+      if (justOpenedPendingRef.current) {
+        justOpenedPendingRef.current = false;
+        return;
+      }
       const mark = (e.target as HTMLElement).closest('mark');
       if (mark) {
         const id = mark.getAttribute('data-annotation-id');
-        if (id) {
-          onActiveIdChange(id);
-          setPalette(null);
-          // Clear any selection so the palette doesn't immediately
-          // reopen on mouseup.
-          window.getSelection()?.removeAllRanges();
-        }
+        // Clicks on the synthetic preview mark are no-ops — the user
+        // is just clicking on their own pending selection, the
+        // popover is already open for it.
+        if (!id || id === PREVIEW_ANNOTATION_ID) return;
+        setPendingSelection(null);
+        setPendingComment('');
+        onActiveIdChange(id);
+        // Clear any selection so a stray mouseup doesn't immediately
+        // open the pending-selection popover.
+        window.getSelection()?.removeAllRanges();
         return;
       }
-      // Bare-text click — only dismiss the popover if this is a true
-      // click (no active selection). Without this guard, finishing a
-      // drag-selection lands a `click` event on bare text and would
-      // close the popover the teacher just opened via the palette.
-      if (!activeId) return;
+      // Bare-text click — only dismiss if a popover is open and the
+      // user isn't mid-selection.
+      if (!activeId && !pendingSelection) return;
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return;
-      onActiveIdChange(null);
+      closePopover();
     },
-    [activeId, onActiveIdChange]
-  );
-
-  const createAnnotation = useCallback(
-    (color: Color, withCommentInput: boolean) => {
-      if (!palette) return;
-      const id = `${reactId}-${Date.now()}-${++annotationSeq}`;
-      const next: WrittenAnswerAnnotation = {
-        id,
-        from: palette.from,
-        to: palette.to,
-        highlightColor: color,
-        authorUid,
-        createdAt: Date.now(),
-      };
-      onChange([...annotations, next]);
-      setPalette(null);
-      if (withCommentInput) {
-        onActiveIdChange(id);
-      }
-      window.getSelection()?.removeAllRanges();
-    },
-    [palette, reactId, authorUid, onChange, annotations, onActiveIdChange]
+    [activeId, pendingSelection, onActiveIdChange, closePopover]
   );
 
   const updateActiveAnnotation = useCallback(
@@ -600,64 +680,64 @@ const EditView: React.FC<EditProps> = ({
     );
   }, [activeId, tree]);
 
+  // Pending state owns its own coordinates (from the selection rect);
+  // active state uses the mark-anchored position computed above. Only
+  // one is ever non-null at a time.
+  const popover = pendingSelection
+    ? {
+        kind: 'pending' as const,
+        x: pendingSelection.x,
+        y: pendingSelection.y,
+        placement: pendingSelection.placement,
+      }
+    : active && popoverPos
+      ? {
+          kind: 'active' as const,
+          x: popoverPos.x,
+          y: popoverPos.y,
+          placement: popoverPos.placement,
+        }
+      : null;
+
   return (
     <div ref={containerRef} className="relative">
       <article
         ref={articleRef}
-        className="rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none cursor-text select-text"
+        className="rounded-xl border border-slate-200 bg-white p-6 text-base leading-relaxed text-slate-800 max-w-none min-w-0 break-words cursor-text select-text"
         onMouseUp={handleMouseUp}
         onClick={handleArticleClick}
       >
         {tree}
       </article>
-      {palette && (
-        <div
-          role="toolbar"
-          aria-label="Annotation palette"
-          className="absolute z-popover -translate-x-1/2 -translate-y-full flex items-center gap-1 px-1.5 py-1 bg-slate-900 text-white rounded-lg shadow-xl"
-          style={{ left: palette.x, top: palette.y }}
-          // Prevent the article's mouseup from clearing the selection
-          // before we read it; the palette handles its own clicks.
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {COLORS.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              aria-label={c.label}
-              title={c.label}
-              onClick={() => createAnnotation(c.id, false)}
-              className={`w-5 h-5 rounded-full ${c.swatch} ring-1 ring-white/40 hover:ring-2 hover:ring-white transition`}
-            />
-          ))}
-          <div className="w-px h-4 bg-slate-700 mx-0.5" />
-          <button
-            type="button"
-            aria-label="Add comment"
-            title="Add comment"
-            onClick={() => createAnnotation('yellow', true)}
-            className="p-1 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" />
-          </button>
-        </div>
-      )}
-      {active && popoverPos && (
-        // `key={active.id}` remounts the popover for each annotation, so
-        // its internal `commentDraft` state is reset cleanly without
-        // having to track a `prevActiveId` reset pattern in the parent.
+      {popover && (
+        // `key` remounts the popover when transitioning between
+        // pending → editing or between two different active annotations,
+        // so the internal `commentDraft` state resets cleanly without
+        // a prop-sync dance in the parent. `popover.kind === 'active'`
+        // statically narrows `active` to non-null (the popover memo
+        // only sets `active` when `active && popoverPos`).
         <AnchoredAnnotationEditor
-          key={active.id}
-          annotation={active}
-          x={popoverPos.x}
-          y={popoverPos.y}
-          placement={popoverPos.placement}
+          key={popover.kind === 'active' && active ? active.id : 'pending'}
+          annotation={popover.kind === 'active' ? active : null}
+          pendingCommentDraft={
+            popover.kind === 'pending' ? pendingComment : undefined
+          }
+          onPendingCommentChange={
+            popover.kind === 'pending' ? setPendingComment : undefined
+          }
+          x={popover.x}
+          y={popover.y}
+          placement={popover.placement}
           onCommentChange={(v) =>
             updateActiveAnnotation({ comment: v.trim() || undefined })
           }
-          onColorChange={(c) => updateActiveAnnotation({ highlightColor: c })}
+          onColorChange={(c) =>
+            popover.kind === 'pending'
+              ? commitPending(c)
+              : updateActiveAnnotation({ highlightColor: c })
+          }
           onDelete={deleteActive}
-          onClose={() => onActiveIdChange(null)}
+          onClose={closePopover}
         />
       )}
     </div>
@@ -665,24 +745,46 @@ const EditView: React.FC<EditProps> = ({
 };
 
 /**
- * Editor popover anchored to the active mark. Auto-focuses its textarea on
- * mount (parent uses `key={annotation.id}` to remount per annotation, which
- * also resets the internal `commentDraft`). Uses `role="group"` rather than
- * `role="dialog"` to communicate "non-modal inline editor" — there's no
- * focus trap, the document under it is still interactive, and the parent
- * scopes its own Escape handler.
+ * Editor popover for annotations. Two modes:
+ *
+ *  - **Pending** (`annotation === null`): renders for an in-progress text
+ *    selection that hasn't been committed yet. No color is selected
+ *    initially; clicking any color commits the highlight (carrying any
+ *    text already typed into the textarea, via the parent's
+ *    `pendingCommentDraft` / `onPendingCommentChange`). Delete is
+ *    hidden.
+ *  - **Active** (`annotation !== null`): renders for an existing
+ *    annotation; current color is highlighted, comment textarea is
+ *    hydrated, delete is available.
+ *
+ * Auto-focuses the textarea on mount; parent uses `key` to remount on
+ * transitions so the internal draft resets cleanly. `role="group"`
+ * communicates "non-modal inline editor" — no focus trap, document
+ * under it is still interactive, parent scopes the Escape handler.
+ *
+ * Ctrl/Cmd+Enter inside the textarea dismisses the popover so the
+ * teacher can rapid-fire highlights without reaching for the X.
  */
 const AnchoredAnnotationEditor: React.FC<{
-  annotation: WrittenAnswerAnnotation;
+  /** Existing annotation in edit mode; `null` in pending-selection mode. */
+  annotation: WrittenAnswerAnnotation | null;
+  /** Parent-owned textarea state for pending mode (so it survives commit). */
+  pendingCommentDraft?: string;
+  onPendingCommentChange?: (v: string) => void;
   x: number;
   y: number;
   placement: 'below' | 'above';
+  /** Edit-mode only — committed comment writes pass through here. */
   onCommentChange: (v: string) => void;
+  /** Color click. In pending mode this commits; in active mode it updates. */
   onColorChange: (c: Color) => void;
+  /** Edit-mode only. Not rendered in pending mode. */
   onDelete: () => void;
   onClose: () => void;
 }> = ({
   annotation,
+  pendingCommentDraft,
+  onPendingCommentChange,
   x,
   y,
   placement,
@@ -692,12 +794,12 @@ const AnchoredAnnotationEditor: React.FC<{
   onClose,
 }) => {
   const labelId = useId();
-  // Local draft state. Initialized from the annotation that mounted the
-  // editor; reset is handled by the parent via `key`, so we never have to
-  // sync to incoming prop changes ourselves.
-  const [commentDraft, setCommentDraft] = useState<string>(
-    annotation.comment ?? ''
-  );
+  const isPending = annotation === null;
+  // Edit-mode local draft. Pending mode uses the parent-owned draft via
+  // `pendingCommentDraft` so the value survives the commit transition
+  // (parent remounts this component with `key='pending' → key=<newId>`).
+  const [editDraft, setEditDraft] = useState<string>(annotation?.comment ?? '');
+  const commentValue = isPending ? (pendingCommentDraft ?? '') : editDraft;
   return (
     <div
       role="group"
@@ -707,12 +809,12 @@ const AnchoredAnnotationEditor: React.FC<{
       } w-72 rounded-xl border border-violet-300 bg-white p-3 shadow-xl flex flex-col gap-2`}
       style={{ left: x, top: y }}
       // Block clicks inside the popover from bubbling to the article
-      // (which would clear activeId via `handleArticleClick`).
+      // (which would close it via `handleArticleClick`).
       onClick={(e) => e.stopPropagation()}
       onMouseUp={(e) => e.stopPropagation()}
     >
       <span id={labelId} className="sr-only">
-        Edit annotation
+        {isPending ? 'Choose highlight color' : 'Edit annotation'}
       </span>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1">
@@ -724,23 +826,25 @@ const AnchoredAnnotationEditor: React.FC<{
               title={c.label}
               onClick={() => onColorChange(c.id)}
               className={`w-5 h-5 rounded-full ${c.swatch} ${
-                annotation.highlightColor === c.id
+                !isPending && annotation.highlightColor === c.id
                   ? 'ring-2 ring-violet-600'
-                  : 'ring-1 ring-slate-300'
+                  : 'ring-1 ring-slate-300 hover:ring-2 hover:ring-violet-400'
               } transition`}
             />
           ))}
         </div>
         <div className="flex items-center gap-0.5">
-          <button
-            type="button"
-            aria-label="Delete annotation"
-            title="Delete"
-            onClick={onDelete}
-            className="p-1 rounded text-slate-500 hover:bg-brand-red-lighter/40 hover:text-brand-red-dark transition-colors"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
+          {!isPending && (
+            <button
+              type="button"
+              aria-label="Delete annotation"
+              title="Delete"
+              onClick={onDelete}
+              className="p-1 rounded text-slate-500 hover:bg-brand-red-lighter/40 hover:text-brand-red-dark transition-colors"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
           <button
             type="button"
             aria-label="Close annotation editor"
@@ -754,14 +858,30 @@ const AnchoredAnnotationEditor: React.FC<{
       </div>
       <textarea
         autoFocus
-        value={commentDraft}
+        value={commentValue}
         onChange={(e) => {
           const next = e.target.value;
-          setCommentDraft(next);
-          onCommentChange(next);
+          if (isPending) {
+            onPendingCommentChange?.(next);
+          } else {
+            setEditDraft(next);
+            onCommentChange(next);
+          }
+        }}
+        onKeyDown={(e) => {
+          // Ctrl/Cmd+Enter dismisses the popover so the teacher can
+          // rapid-fire highlights without reaching for the X.
+          if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+            e.preventDefault();
+            onClose();
+          }
         }}
         rows={3}
-        placeholder="Margin comment (optional)"
+        placeholder={
+          isPending
+            ? 'Margin comment (optional) — pick a color to commit'
+            : 'Margin comment (optional)'
+        }
         className="w-full px-2 py-1.5 bg-white border border-slate-300 rounded text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-violet-400/40 focus:border-violet-400 resize-none"
       />
     </div>

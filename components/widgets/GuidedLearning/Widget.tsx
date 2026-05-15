@@ -19,6 +19,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { AssignModal, ViewOnlyShareModal } from '@/components/common/library';
+import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
@@ -94,6 +95,8 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     archiveAssignment,
     unarchiveAssignment,
     deleteAssignment,
+    publishAssignmentScores,
+    unpublishAssignmentScores,
   } = useGuidedLearningAssignments(user?.uid);
 
   // Local component state
@@ -127,6 +130,10 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
   const [assignTarget, setAssignTarget] = useState<AssignDialogTarget | null>(
     null
   );
+  // Ephemeral modal state for the per-assignment "Publish Scores" picker.
+  // Mirrors the QuizWidget / VideoActivityWidget pattern.
+  const [publishingAssignment, setPublishingAssignment] =
+    useState<GuidedLearningAssignment | null>(null);
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
     makeEmptyPickerValue()
   );
@@ -710,6 +717,25 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                 onAssignmentDelete={(a) => {
                   void handleAssignmentDelete(a);
                 }}
+                onAssignmentPublishScores={(a) => {
+                  setPublishingAssignment(a);
+                }}
+                onAssignmentUnpublishScores={async (a) => {
+                  // One-click unpublish — `unpublishAssignmentScores`
+                  // is a cheap two-write batch (no set lookup, no
+                  // grading).
+                  try {
+                    await unpublishAssignmentScores(a.id);
+                    addToast('Scores unpublished.', 'success');
+                  } catch (err) {
+                    addToast(
+                      err instanceof Error
+                        ? err.message
+                        : 'Failed to unpublish scores',
+                      'error'
+                    );
+                  }
+                }}
                 initialLibraryViewMode={config.libraryViewMode}
                 onLibraryViewModeChange={(mode) => {
                   updateWidget(widget.id, {
@@ -869,6 +895,63 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
           error={viewOnlyShareError}
           onConfirm={() => void handleConfirmViewOnlyShare()}
           onClose={closeViewOnlyShareModal}
+        />
+      )}
+
+      {publishingAssignment && (
+        <PublishScoresModal
+          assignmentTitle={publishingAssignment.setTitle}
+          currentVisibility={publishingAssignment.scoreVisibility}
+          onClose={() => setPublishingAssignment(null)}
+          onConfirm={async (visibility) => {
+            const target = publishingAssignment;
+            try {
+              if (visibility === 'none') {
+                // Mirror Quiz/VA: route through the dedicated unpublish
+                // method (no set lookup needed for a flag-flip).
+                await unpublishAssignmentScores(target.id);
+                addToast('Scores unpublished.', 'success');
+                setPublishingAssignment(null);
+                return;
+              }
+              // Resolve the canonical set so the grader sees the full
+              // `correctAnswer` / `matchingPairs` / `sortingItems` —
+              // `session.publicSteps` strips them for student safety.
+              const personalMeta = sets.find((s) => s.id === target.setId);
+              const buildingSet = buildingSets.find(
+                (s) => s.id === target.setId
+              );
+              const data = await loadSet(
+                target.setId,
+                personalMeta?.driveFileId,
+                buildingSet
+              );
+              if (!data) {
+                addToast(
+                  'Set is no longer in your library — cannot publish scores.',
+                  'error'
+                );
+                return;
+              }
+              const result = await publishAssignmentScores(
+                target.id,
+                data,
+                visibility
+              );
+              addToast(
+                result.responsesUpdated > 0
+                  ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
+                  : 'Scores published. Students will see results once they submit.',
+                'success'
+              );
+              setPublishingAssignment(null);
+            } catch (err) {
+              addToast(
+                err instanceof Error ? err.message : 'Failed to publish scores',
+                'error'
+              );
+            }
+          }}
         />
       )}
     </>
