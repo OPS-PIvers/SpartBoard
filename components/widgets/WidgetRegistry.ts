@@ -247,8 +247,10 @@ export const WIDGET_COMPONENTS: Partial<Record<WidgetType, WidgetComponent>> = {
  *
  * - `stickers`: All sticker configuration lives in the appearance panel
  *   (`StickerBookAppearanceSettings`, registered in
- *   `WIDGET_APPEARANCE_COMPONENTS`). The flip button is hidden by
- *   `StickerBookWidget` so users never see an empty settings face.
+ *   `WIDGET_APPEARANCE_COMPONENTS`). The flip button is always rendered,
+ *   so when users flip the widget the "Settings" tab shows the standard
+ *   fallback face ("Standard settings available.") while the "Style" tab
+ *   surfaces the actual sticker appearance controls.
  * - `blooms-detail`: Read-only companion widget spawned programmatically by
  *   `blooms-taxonomy`. All editing happens on the parent widget; the detail
  *   widget has no per-instance configuration.
