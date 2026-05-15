@@ -115,9 +115,11 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   // rather than useEffect, per CLAUDE.md guidance.
   const [prevShareId, setPrevShareId] = useState(share.shareId);
   if (prevShareId !== share.shareId) {
+    const nextKey = resetKey + 1;
     setPrevShareId(share.shareId);
     setWidgets(cloneInitialWidgets(initialSnapshot));
-    setResetKey((k) => k + 1);
+    setResetKey(nextKey);
+    onResetKeyChange?.(nextKey);
   }
 
   const resetWidgets = useCallback(() => {
@@ -354,15 +356,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
   return (
     <DashboardContext.Provider value={value}>
       <SubsControlContext.Provider value={controlValue}>
-        {/*
-          resetKey is exposed via a `data-reset-key` attribute so SubBoardCanvas
-          can read it off the DOM if needed — but the canonical channel is the
-          onResetKeyChange callback, which lets the parent thread it through as
-          a React `key` prop. Belt-and-suspenders.
-        */}
-        <div data-reset-key={resetKey} className="contents">
-          {children}
-        </div>
+        {children}
       </SubsControlContext.Provider>
     </DashboardContext.Provider>
   );
