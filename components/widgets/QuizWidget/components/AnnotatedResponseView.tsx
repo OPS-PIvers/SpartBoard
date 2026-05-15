@@ -42,6 +42,7 @@ import type { WrittenAnswerAnnotation } from '@/types';
 import {
   getPlainTextOffsetFromRange,
   parseSnapshotRoot,
+  PREVIEW_ANNOTATION_ID,
   renderAnnotatedSnapshot,
 } from '@/utils/writtenAnnotations';
 
@@ -424,9 +425,34 @@ const EditView: React.FC<EditProps> = ({
   // `annotations` mutates per keypress and would otherwise re-
   // DOMParse the whole snapshot each time.
   const parsedRoot = useMemo(() => parseSnapshotRoot(snapshot), [snapshot]);
+  // While the teacher is mid-selection (pending state), inject a
+  // synthetic annotation so the renderer shows a preview mark over
+  // the drag range. The textarea's autoFocus collapses the native
+  // browser selection an instant after mouseup, so without this
+  // visual the teacher loses all feedback about what they highlighted
+  // until they pick a color. The synthetic annotation is never
+  // persisted — `commitPending` builds the real one from the same
+  // offsets when a color is clicked.
+  const annotationsForRender = useMemo<WrittenAnswerAnnotation[]>(() => {
+    if (!pendingSelection) return annotations;
+    return [
+      ...annotations,
+      {
+        id: PREVIEW_ANNOTATION_ID,
+        from: pendingSelection.from,
+        to: pendingSelection.to,
+        authorUid,
+        createdAt: 0,
+      },
+    ];
+  }, [annotations, pendingSelection, authorUid]);
   const tree = useMemo(
-    () => renderAnnotatedSnapshot({ root: parsedRoot, annotations }),
-    [parsedRoot, annotations]
+    () =>
+      renderAnnotatedSnapshot({
+        root: parsedRoot,
+        annotations: annotationsForRender,
+      }),
+    [parsedRoot, annotationsForRender]
   );
 
   // Compute the plaintext offsets of the current text selection and
@@ -552,14 +578,16 @@ const EditView: React.FC<EditProps> = ({
       const mark = (e.target as HTMLElement).closest('mark');
       if (mark) {
         const id = mark.getAttribute('data-annotation-id');
-        if (id) {
-          setPendingSelection(null);
-          setPendingComment('');
-          onActiveIdChange(id);
-          // Clear any selection so a stray mouseup doesn't immediately
-          // open the pending-selection popover.
-          window.getSelection()?.removeAllRanges();
-        }
+        // Clicks on the synthetic preview mark are no-ops — the user
+        // is just clicking on their own pending selection, the
+        // popover is already open for it.
+        if (!id || id === PREVIEW_ANNOTATION_ID) return;
+        setPendingSelection(null);
+        setPendingComment('');
+        onActiveIdChange(id);
+        // Clear any selection so a stray mouseup doesn't immediately
+        // open the pending-selection popover.
+        window.getSelection()?.removeAllRanges();
         return;
       }
       // Bare-text click — only dismiss if a popover is open and the
