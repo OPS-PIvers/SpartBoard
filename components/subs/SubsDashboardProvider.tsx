@@ -167,6 +167,20 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       settings: share.settings,
       globalStyle: share.globalStyle,
       libraryOrder: share.libraryOrder ?? [],
+      // sharedGroups is dashboard-level metadata for the Randomizer's
+      // group display (id, color, custom name) — separate from the per-
+      // widget config.lastResult. Without forwarding it, randomized
+      // groups render without their teacher-customized names / colors
+      // and the cross-widget group identity is lost.
+      sharedGroups: share.sharedGroups,
+      // annotationOverlay carries any pencil-tool strokes the teacher
+      // drew on top of the board at share creation time. Subs see them
+      // but cannot draw new ones (annotation is disabled in the provider).
+      annotationOverlay: share.annotationOverlay,
+      // Forward the teacher's saved viewport dimensions so SubBoardCanvas
+      // can scale the board to fit the sub's viewport without distortion.
+      viewportWidth: share.viewportWidth,
+      viewportHeight: share.viewportHeight,
     }),
     [
       share.shareId,
@@ -176,6 +190,10 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       share.settings,
       share.globalStyle,
       share.libraryOrder,
+      share.sharedGroups,
+      share.annotationOverlay,
+      share.viewportWidth,
+      share.viewportHeight,
       fallbackCreatedAt,
       widgets,
     ]

@@ -27,6 +27,7 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     activeDashboard,
     selectedWidgetId,
     setSelectedWidgetId,
+    isActiveBoardReadOnly,
   } = useDashboard();
   const { showPrompt } = useDialog();
   const globalStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
@@ -350,7 +351,12 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     lineHeight: 1.5,
                   }}
                   data-placeholder={PLACEHOLDER_TEXT}
-                  contentEditable
+                  // Substitute / view-only boards lock the editor so subs and
+                  // viewers cannot type, paste, or delete content. The chrome
+                  // is already locked by DraggableWindow, but contentEditable
+                  // is a per-widget concern — `isActiveBoardReadOnly` is the
+                  // single source of truth.
+                  contentEditable={!isActiveBoardReadOnly}
                   suppressContentEditableWarning
                   spellCheck={true}
                   onFocus={handleFocus}
