@@ -6029,6 +6029,37 @@ export interface LibraryFolder {
 }
 
 /**
+ * A Board collection (folder) stored at
+ * `/users/{userId}/collections/{collectionId}`.
+ *
+ * Collections are nestable: `parentCollectionId === null` means root-level.
+ * Sibling collections within a given parent are ordered by `order` ascending.
+ *
+ * `defaultBoardId` is the Board that loads when a teacher first enters this
+ * Collection (before any per-Collection history is recorded). Only one Board
+ * per Collection may be the default; the constraint is enforced in
+ * `useCollections.setCollectionDefaultBoard`.
+ */
+export interface Collection {
+  id: string;
+  name: string;
+  /** Parent collection id, or `null` for root-level collections. */
+  parentCollectionId: string | null;
+  /** Sort order among siblings (ascending). */
+  order: number;
+  /** Optional accent color (any CSS color string, e.g. '#ad2122'). */
+  color?: string;
+  /** Optional lucide-react icon name (e.g., 'BookOpen'). */
+  icon?: string;
+  /** Board id to load on first entry to this collection. */
+  defaultBoardId?: string;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last rename / move / reorder / metadata change. */
+  updatedAt?: number;
+}
+
+/**
  * Admin-created short link, stored at `/short_links/{code}`. The doc id is
  * the public-facing code (e.g. `lesson-1`); the URL `${origin}/r/${code}`
  * resolves client-side via `ShortLinkRedirect` and bumps the `clicks`
