@@ -12,6 +12,7 @@ import { BoardsModalHeader } from './BoardsModalHeader';
 import { useMultiSelect } from './useMultiSelect';
 import { BoardContextMenu } from './BoardContextMenu';
 import { CollectionContextMenu } from './CollectionContextMenu';
+import { MoveToCollectionMenu } from './MoveToCollectionMenu';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { useBoardsModalDnd } from './useBoardsModalDnd';
@@ -61,6 +62,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const [shareTarget, setShareTarget] = useState<Dashboard | null>(null);
   const [saveAsTemplateTarget, setSaveAsTemplateTarget] =
     useState<Dashboard | null>(null);
+  const [moveMenuOpen, setMoveMenuOpen] = useState(false);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -165,26 +167,22 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     multi.clearSelection();
   }, [multi, dashboards, unpinBoard]);
 
-  const handleBulkMove = useCallback(async () => {
-    // Minimal v1: prompt for the destination Collection name and look it up.
-    // Replaced in Task 6.12 with a proper picker submenu.
-    const destName = await showPrompt(
-      t('boardsModal.moveDestination', {
-        defaultValue: 'Collection name to move to (or leave blank for root)',
-      }),
-      { title: 'Move', confirmLabel: 'Move', placeholder: 'Math / Monday' }
-    );
-    if (destName === null) return;
-    const dest = destName.trim()
-      ? collections.find((c) => c.name === destName.trim())
-      : null;
-    const destId = dest?.id ?? null;
-    for (const id of multi.selectedIds) {
-      const isBoard = dashboards.some((d) => d.id === id);
-      if (isBoard) await moveBoardToCollection(id, destId);
-    }
-    multi.clearSelection();
-  }, [showPrompt, t, multi, collections, dashboards, moveBoardToCollection]);
+  const handleBulkMove = useCallback(() => {
+    setMoveMenuOpen(true);
+  }, []);
+
+  const handleMoveDestinationPicked = useCallback(
+    async (destId: string | null) => {
+      for (const id of multi.selectedIds) {
+        const isBoard = dashboards.some((d) => d.id === id);
+        if (isBoard) await moveBoardToCollection(id, destId);
+        // (Collection-to-Collection move via the menu can be added later — for v1
+        // we use drag-drop or context-menu Move on a single Collection.)
+      }
+      multi.clearSelection();
+    },
+    [multi, dashboards, moveBoardToCollection]
+  );
 
   // Filter by search (substring on Board + Collection names)
   const filteredCollections = search.trim()
@@ -345,6 +343,14 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
             />
           );
         })()}
+
+      {moveMenuOpen && (
+        <MoveToCollectionMenu
+          collections={collections}
+          onMove={handleMoveDestinationPicked}
+          onClose={() => setMoveMenuOpen(false)}
+        />
+      )}
 
       <ShareLinkCreatorModal
         isOpen={!!shareTarget}
