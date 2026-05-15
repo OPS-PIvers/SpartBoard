@@ -391,6 +391,13 @@ const EditView: React.FC<EditProps> = ({
   const articleRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const reactId = useId();
+  // True between a drag-completing `mouseup` and the synthetic `click`
+  // that browsers fire on the same gesture. The popover's textarea
+  // `autoFocus`-es when it mounts, which collapses the text selection
+  // before our `click` handler runs — without this flag, the
+  // bare-text click would interpret the collapsed selection as "user
+  // clicked away" and dismiss the popover the mouseup just opened.
+  const justOpenedPendingRef = useRef(false);
 
   // Pending text selection waiting for the teacher to pick a color.
   // Until they do, the annotation does NOT exist — the popover is
@@ -460,6 +467,17 @@ const EditView: React.FC<EditProps> = ({
       to: offsets.to,
       placement,
     });
+    // The synthetic `click` that follows this drag-completing mouseup
+    // will see the textarea's autoFocus-collapsed selection — flag the
+    // next click as "from this gesture" so handleArticleClick skips its
+    // dismiss path. The setTimeout(0) clears the flag after the
+    // immediate event-loop tick so a mouseup that never produces a
+    // matching click (e.g. drag ends outside the article) doesn't
+    // swallow a future, unrelated click.
+    justOpenedPendingRef.current = true;
+    setTimeout(() => {
+      justOpenedPendingRef.current = false;
+    }, 0);
   }, [onActiveIdChange]);
 
   // Commit a pending selection as a new annotation. Called when the
@@ -522,6 +540,15 @@ const EditView: React.FC<EditProps> = ({
 
   const handleArticleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
+      // Swallow the synthetic click that follows a drag-completing
+      // mouseup. The selection is briefly collapsed by the textarea's
+      // autoFocus, which would otherwise look like "user clicked
+      // outside their selection" and dismiss the popover we just
+      // opened.
+      if (justOpenedPendingRef.current) {
+        justOpenedPendingRef.current = false;
+        return;
+      }
       const mark = (e.target as HTMLElement).closest('mark');
       if (mark) {
         const id = mark.getAttribute('data-annotation-id');
@@ -535,10 +562,8 @@ const EditView: React.FC<EditProps> = ({
         }
         return;
       }
-      // Bare-text click — only dismiss if this is a true click (no
-      // active selection). Without this guard, finishing a drag-
-      // selection lands a `click` event on bare text and would close
-      // the popover the mouseup handler just opened.
+      // Bare-text click — only dismiss if a popover is open and the
+      // user isn't mid-selection.
       if (!activeId && !pendingSelection) return;
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return;
