@@ -23,6 +23,7 @@ import {
   DrawableObject,
   UserProfile,
   SubstituteShareDriveGrant,
+  ROOT_COLLECTION_KEY,
 } from '../types';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
@@ -3334,8 +3335,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string) => {
       updateActiveId(id);
       addToast('Board loaded');
+      if (user?.uid && !isAuthBypass) {
+        const target = dashboards.find((d) => d.id === id);
+        if (target) {
+          const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
+          const profileRef = doc(
+            db,
+            'users',
+            user.uid,
+            'userProfile',
+            'profile'
+          );
+          const updates: Record<string, unknown> = {
+            lastActiveCollectionId: target.collectionId ?? null,
+            [`lastBoardIdByCollection.${collectionKey}`]: id,
+          };
+          void setDoc(profileRef, updates, { merge: true });
+        }
+      }
     },
-    [addToast, updateActiveId]
+    [addToast, updateActiveId, user, dashboards]
   );
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
