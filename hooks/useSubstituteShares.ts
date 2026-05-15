@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { collection, doc, onSnapshot, query, where } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { canonicalBuildingId } from '@/config/buildings';
+import { logError } from '@/utils/logError';
 import type {
   Dashboard,
   SharedBoardIntendedMode,
@@ -24,7 +25,7 @@ import type {
 /**
  * Maps known Firestore error codes to user-friendly messages so that raw SDK
  * strings (e.g. "Missing or insufficient permissions.") never surface in the
- * UI. The original error is still passed to console.error for debugging.
+ * UI. The original error is still reported via logError for debugging.
  */
 function friendlySubShareError(err: {
   code?: string;
@@ -107,7 +108,9 @@ export function useSubstituteShares(
         setSnapshot({ buildingId: canonical, shares, error: null });
       },
       (err) => {
-        console.error('[useSubstituteShares] snapshot error:', err);
+        logError('useSubstituteShares.snapshot', err, {
+          buildingId: canonical,
+        });
         setSnapshot({
           buildingId: canonical,
           shares: [],
@@ -179,7 +182,7 @@ export function useSubstituteShare(
         });
       },
       (err) => {
-        console.error('[useSubstituteShare] snapshot error:', err);
+        logError('useSubstituteShare.snapshot', err, { shareId });
         setSnapshot({
           shareId,
           share: null,

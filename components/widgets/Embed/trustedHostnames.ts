@@ -16,6 +16,8 @@ export const TRUSTED_EMBED_HOSTNAMES: ReadonlyArray<string> = [
   'vids.google.com',
   'youtube.com',
   'www.youtube.com',
+  'www.youtube-nocookie.com',
   'youtu.be',
   'vimeo.com',
+  'player.vimeo.com',
 ];
