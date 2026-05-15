@@ -54,7 +54,7 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
 } from '../utils/dashboardPII';
-import { migrateBoardForCollections } from '@/utils/collectionsMigration';
+import { migrateBoardForCollections } from '../utils/collectionsMigration';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
