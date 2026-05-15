@@ -375,8 +375,19 @@ export const useGuidedLearningSessionStudent = (
         setLoading(false);
       },
       (err) => {
+        // Firestore's onSnapshot retries internally on recoverable
+        // failures, so a transient blip (WiFi drop, brief unavailable)
+        // doesn't justify ejecting the student onto a permanent
+        // ErrorScreen — especially if we already have data on hand.
+        // Only surface a hard error before the first successful
+        // snapshot; after that, swallow and let the listener self-heal.
         console.error('[useGuidedLearningSession] Snapshot error:', err);
-        setError('Failed to load the session. Please try again.');
+        setSession((prev) => {
+          if (prev === null) {
+            setError('Failed to load the session. Please try again.');
+          }
+          return prev;
+        });
         setLoading(false);
       }
     );

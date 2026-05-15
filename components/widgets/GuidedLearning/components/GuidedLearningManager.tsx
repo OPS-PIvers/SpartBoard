@@ -51,6 +51,7 @@ import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -397,12 +398,7 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
   const [previewEntryId, setPreviewEntryId] = React.useState<string | null>(
     null
   );
-  // Two-click confirmation for the destructive "Unpublish scores" kebab
-  // entry. First click flips the label to "Confirm unpublish"; second
-  // click on the same row triggers the hook. Mirrors the local Delete
-  // pattern used by VideoActivityManager.
-  const [confirmUnpublishAssignmentId, setConfirmUnpublishAssignmentId] =
-    React.useState<string | null>(null);
+  const { showConfirm } = useDialog();
   const [prevTab, setPrevTab] = React.useState(tab);
   if (prevTab !== tab) {
     setPrevTab(tab);
@@ -926,19 +922,20 @@ export const GuidedLearningManager: React.FC<GuidedLearningManagerProps> = ({
       a.scoreVisibility !== undefined &&
       a.scoreVisibility !== 'none'
     ) {
-      const awaitingConfirm = confirmUnpublishAssignmentId === a.id;
       secondary.push({
         id: 'unpublish-scores',
-        label: awaitingConfirm ? 'Confirm unpublish' : 'Unpublish scores',
+        label: 'Unpublish scores',
         icon: EyeOff,
-        destructive: awaitingConfirm,
-        onClick: () => {
-          if (awaitingConfirm) {
-            setConfirmUnpublishAssignmentId(null);
-            void onAssignmentUnpublishScores(a);
-          } else {
-            setConfirmUnpublishAssignmentId(a.id);
-          }
+        onClick: async () => {
+          const ok = await showConfirm(
+            'Students will no longer be able to see their scores or responses. You can republish anytime.',
+            {
+              title: 'Unpublish scores',
+              variant: 'danger',
+              confirmLabel: 'Unpublish',
+            }
+          );
+          if (ok) await onAssignmentUnpublishScores(a);
         },
       });
     }

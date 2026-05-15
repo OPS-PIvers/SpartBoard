@@ -96,6 +96,7 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
     unarchiveAssignment,
     deleteAssignment,
     publishAssignmentScores,
+    unpublishAssignmentScores,
   } = useGuidedLearningAssignments(user?.uid);
 
   // Local component state
@@ -720,23 +721,11 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
                   setPublishingAssignment(a);
                 }}
                 onAssignmentUnpublishScores={async (a) => {
-                  // One-click unpublish — the hook's `'none'` branch
-                  // skips set lookup (no grading needed for a flag
-                  // flip), so we can pass an empty placeholder set.
+                  // One-click unpublish — `unpublishAssignmentScores`
+                  // is a cheap two-write batch (no set lookup, no
+                  // grading).
                   try {
-                    await publishAssignmentScores(
-                      a.id,
-                      {
-                        id: a.setId,
-                        title: a.setTitle,
-                        imageUrls: [],
-                        steps: [],
-                        mode: 'guided',
-                        createdAt: 0,
-                        updatedAt: 0,
-                      },
-                      'none'
-                    );
+                    await unpublishAssignmentScores(a.id);
                     addToast('Scores unpublished.', 'success');
                   } catch (err) {
                     addToast(
@@ -918,20 +907,9 @@ export const GuidedLearningWidget: React.FC<{ widget: WidgetData }> = ({
             const target = publishingAssignment;
             try {
               if (visibility === 'none') {
-                // Mirror Quiz/VA: skip set lookup for the flag-flip.
-                await publishAssignmentScores(
-                  target.id,
-                  {
-                    id: target.setId,
-                    title: target.setTitle,
-                    imageUrls: [],
-                    steps: [],
-                    mode: 'guided',
-                    createdAt: 0,
-                    updatedAt: 0,
-                  },
-                  'none'
-                );
+                // Mirror Quiz/VA: route through the dedicated unpublish
+                // method (no set lookup needed for a flag-flip).
+                await unpublishAssignmentScores(target.id);
                 addToast('Scores unpublished.', 'success');
                 setPublishingAssignment(null);
                 return;

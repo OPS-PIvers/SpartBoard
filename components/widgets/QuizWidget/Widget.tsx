@@ -149,6 +149,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setAssignmentExportedResponseIds,
     shareAssignment,
     publishAssignmentScores,
+    unpublishAssignmentScores,
     syncAssignmentToLatest,
   } = useQuizAssignments(user?.uid);
 
@@ -1663,23 +1664,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setPublishingAssignment(a);
         }}
         onArchiveUnpublishScores={async (a) => {
-          // One-click unpublish: the `'none'` branch of
-          // `publishAssignmentScores` skips the Drive quiz lookup
-          // and just flips `scoreVisibility` + clears
-          // `revealedAnswers` on both the assignment and session
-          // docs, so we can pass an empty QuizData placeholder.
+          // One-click unpublish — `unpublishAssignmentScores` is a
+          // cheap two-write batch (no Drive lookup, no grading).
           try {
-            await publishAssignmentScores(
-              a.id,
-              {
-                id: a.quizId,
-                title: a.quizTitle,
-                questions: [],
-                createdAt: 0,
-                updatedAt: 0,
-              },
-              'none'
-            );
+            await unpublishAssignmentScores(a.id);
             addToast('Scores unpublished.', 'success');
           } catch (err) {
             addToast(
@@ -1924,28 +1912,15 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           currentVisibility={publishingAssignment.scoreVisibility}
           onClose={() => setPublishingAssignment(null)}
           onConfirm={async (visibility) => {
-            // Resolve the canonical quiz from Drive so the score
-            // computation has access to every question's correctAnswer
-            // (the session's `publicQuestions` strips them for student
-            // safety). When unpublishing the quiz lookup is skipped —
-            // the hook's `'none'` path doesn't read questions.
+            // `'none'` routes to the dedicated `unpublishAssignmentScores`
+            // (no Drive lookup, no grading). Other levels resolve the
+            // canonical quiz from Drive so the score computation has
+            // access to every question's `correctAnswer` — the session's
+            // `publicQuestions` strips them for student safety.
             const target = publishingAssignment;
             try {
               if (visibility === 'none') {
-                await publishAssignmentScores(
-                  target.id,
-                  // Empty placeholder QuizData — the 'none' branch never
-                  // reads it. Cheaper than re-loading the quiz from Drive
-                  // for a flag-flip.
-                  {
-                    id: target.quizId,
-                    title: target.quizTitle,
-                    questions: [],
-                    createdAt: 0,
-                    updatedAt: 0,
-                  },
-                  visibility
-                );
+                await unpublishAssignmentScores(target.id);
                 addToast('Scores unpublished.', 'success');
                 setPublishingAssignment(null);
                 return;

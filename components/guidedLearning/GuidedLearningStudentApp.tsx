@@ -144,6 +144,13 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   const [myResponseLoading, setMyResponseLoading] = useState(
     shouldSubscribeResponse
   );
+  // A non-null value here means the listener failed for a real reason
+  // (permission-denied, network outage, rule rejection) — NOT just "doc
+  // doesn't exist," which `onSnapshot` reports as a successful snapshot
+  // with `snap.exists() === false`. We surface a soft banner instead of
+  // silently treating a failed read as "no submission exists" — that
+  // would invite a student who already submitted to resubmit.
+  const [myResponseError, setMyResponseError] = useState<string | null>(null);
   // Adjust-state-while-rendering pattern (avoids set-state-in-effect):
   // when the subscription gating flips (e.g., session loads as view-only),
   // sync the loading flag to match without a cascading render.
@@ -152,28 +159,37 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   if (shouldSubscribeResponse !== prevShouldSubscribeResponse) {
     setPrevShouldSubscribeResponse(shouldSubscribeResponse);
     setMyResponseLoading(shouldSubscribeResponse);
-    if (!shouldSubscribeResponse) setMyResponse(null);
+    if (!shouldSubscribeResponse) {
+      setMyResponse(null);
+      setMyResponseError(null);
+    }
   }
   useEffect(() => {
     if (!shouldSubscribeResponse) return;
     const unsub = onSnapshot(
       doc(db, GL_SESSIONS_COLLECTION, sessionId, 'responses', anonymousUid),
       (snap) => {
+        // `snap.exists() === false` is the normal "first visit, no
+        // submission yet" path — not an error. Clearing `myResponseError`
+        // here lets a transient listener failure self-heal once the
+        // backend recovers.
         setMyResponse(
           snap.exists() ? (snap.data() as GuidedLearningResponse) : null
         );
+        setMyResponseError(null);
         setMyResponseLoading(false);
       },
       (err) => {
-        // Firestore rules may reject the read for a brand-new student
-        // who hasn't joined yet — treat as "no response" rather than
-        // surfacing a scary error.
-        console.warn(
-          '[GuidedLearningStudentApp] response listener error:',
-          err
-        );
-        setMyResponse(null);
-        setMyResponseLoading(false);
+        // Real listener failures (permission-denied / unavailable /
+        // network) only. Do NOT zero out `myResponse` here — if we had
+        // already received a snapshot, keeping the last-known data
+        // avoids flicker, and if we hadn't, the parent gate will keep
+        // `myResponseLoading: true` so the Player UI doesn't render
+        // (which would silently invite a duplicate submission).
+        logError('GuidedLearningStudentApp.responseListener', err, {
+          sessionId,
+        });
+        setMyResponseError('listener-failed');
       }
     );
     return unsub;
@@ -250,6 +266,17 @@ const StudentExperience: React.FC<{ anonymousUid: string }> = ({
   if (loading) return <FullPageLoader />;
   if (error) return <ErrorScreen message={error} />;
   if (!session) return <ErrorScreen message="Session not found." />;
+
+  // Response-listener failure on a submissions-mode session — we can't
+  // safely show the start screen (a returning student would silently
+  // resubmit) and we can't show the review (no data). Surface a refresh
+  // prompt instead. `completed` short-circuits so a just-submitted
+  // student isn't blocked by a stale error.
+  if (!completed && !isViewOnly && myResponseError && !myResponse) {
+    return (
+      <ErrorScreen message="Couldn't load your submission status. Please refresh and try again." />
+    );
+  }
 
   // Returning student case — a response already exists in Firestore. Show
   // either the published review or a "wait for teacher" placeholder
@@ -630,7 +657,7 @@ const CompletionScreen: React.FC<{
 // only writer for those fields, so a stale-cache device can't manufacture
 // a "correct" badge that isn't on the authoritative response doc.
 
-const PublishedGLReview: React.FC<{
+export const PublishedGLReview: React.FC<{
   session: GuidedLearningSession;
   myResponse: GuidedLearningResponse;
   visibility: NonNullable<GuidedLearningSession['scoreVisibility']>;
@@ -733,15 +760,27 @@ const PublishedGLReview: React.FC<{
 };
 
 /** Stringify a stored student answer for display. Mirrors the format used
- *  by `revealedAnswers` so matching / sorting reads consistently. */
-function formatStudentAnswer(answer: string | string[] | undefined): string {
+ *  by `revealedAnswers` so matching / sorting reads consistently.
+ *  Exported alongside `PublishedGLReview` so the test harness can exercise
+ *  the colon-split regression case without rendering the full review.
+ */
+// eslint-disable-next-line react-refresh/only-export-components
+export function formatStudentAnswer(
+  answer: string | string[] | undefined
+): string {
   if (answer === undefined) return '';
   if (typeof answer === 'string') return answer;
   if (answer.length === 0) return '';
-  // Matching is stored as "left:right" strings; expand the colon to an
-  // arrow for readability and join with newlines so list-shaped answers
-  // (sorting items) also render legibly.
+  // Matching is stored as `"${left}:${right}"` strings (see
+  // `isAnswerCorrect`), so split on the FIRST colon — `pair.left` or
+  // `pair.right` may legitimately contain colons themselves (e.g.
+  // "Ratio: 3"). `String#replace(":")` is first-match-only too, but it
+  // doesn't split, so multi-colon strings render with a trailing
+  // colon-bearing fragment. `indexOf` + `slice` is unambiguous.
   return answer
-    .map((a) => (a.includes(':') ? a.replace(':', ' → ') : a))
+    .map((a) => {
+      const i = a.indexOf(':');
+      return i < 0 ? a : `${a.slice(0, i)} → ${a.slice(i + 1)}`;
+    })
     .join('\n');
 }

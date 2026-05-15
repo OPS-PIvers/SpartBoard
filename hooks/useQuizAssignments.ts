@@ -337,7 +337,7 @@ export interface UseQuizAssignmentsResult {
   /**
    * Publish (or unpublish) score visibility for an archived assignment.
    *
-   * For visibility levels other than `'none'`, this:
+   * Publishes scores at the given visibility level:
    *   1. Computes each student's percentage score from the live response
    *      docs using `gradeAnswer` against the canonical `quizData`, and
    *      writes the resulting `score` + per-answer `isCorrect` flags onto
@@ -349,19 +349,29 @@ export interface UseQuizAssignmentsResult {
    *      `session.revealedAnswers` with every question's canonical answer
    *      so the student review screen can render the correct answer text.
    *
-   * Passing `'none'` clears the visibility flags (and `revealedAnswers`)
-   * so a teacher who published in error can roll back without deleting
-   * the assignment. Already-written `score` / `isCorrect` fields on
-   * responses are left in place — re-publishing simply overwrites them.
+   * Returns the number of responses whose score was (re)computed.
    *
-   * Returns the number of responses whose score was (re)computed; `0`
-   * when `'none'`.
+   * The signature deliberately excludes `'none'` — callers wishing to
+   * unpublish must use {@link UseQuizAssignmentsResult.unpublishAssignmentScores}
+   * instead, which is a cheap two-write batch that doesn't require
+   * fabricating a placeholder `QuizData` to satisfy the type.
    */
   publishAssignmentScores: (
     assignmentId: string,
     quizData: QuizData,
-    visibility: QuizScoreVisibility
+    visibility: Exclude<QuizScoreVisibility, 'none'>
   ) => Promise<{ responsesUpdated: number }>;
+  /**
+   * Revoke published score visibility for an assignment. Clears
+   * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
+   * `deleteField()`, so the unpublished and never-published states are
+   * indistinguishable on disk) and wipes `revealedAnswers` on the
+   * mirrored session doc. Already-written per-response `score` /
+   * `isCorrect` fields are left intact — student-side rendering gates
+   * on `session.scoreVisibility`, and re-publishing safely overwrites
+   * them.
+   */
+  unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
 }
 
 /**
@@ -1795,11 +1805,58 @@ export const useQuizAssignments = (
     [userId]
   );
 
+  const unpublishAssignmentScores = useCallback<
+    UseQuizAssignmentsResult['unpublishAssignmentScores']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        QUIZ_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
+      // Wipe the visibility flags on both docs and the revealed-answers
+      // map on the session. Already-written `score` and per-answer
+      // `isCorrect` fields on response docs are left in place: the
+      // reader gates on `scoreVisibility`, so leaving the numbers
+      // behind is harmless and avoids a multi-batch wipe on a gesture
+      // the teacher may immediately undo. Using `deleteField()` for
+      // `scoreVisibility` on both docs collapses the "unpublished" and
+      // "never published" states into a single shape on disk.
+      const batch = writeBatch(db);
+      batch.update(assignmentRef, {
+        scoreVisibility: deleteField(),
+        scorePublishedAt: deleteField(),
+        updatedAt: now,
+      });
+      batch.update(sessionRef, {
+        scoreVisibility: deleteField(),
+        revealedAnswers: deleteField(),
+      });
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const publishAssignmentScores = useCallback<
     UseQuizAssignmentsResult['publishAssignmentScores']
   >(
     async (assignmentId, quizData, visibility) => {
       if (!userId) throw new Error('Not authenticated');
+      // Belt-and-suspenders against a future caller that bypasses the
+      // type-level `Exclude<…, 'none'>`. The unpublish path lives in
+      // `unpublishAssignmentScores` and has different semantics
+      // (deleteField vs. mirroring); routing 'none' here would write
+      // the literal string and break the gradingStateFrom rule.
+      if ((visibility as string) === 'none') {
+        throw new Error(
+          'publishAssignmentScores: visibility "none" is not allowed — use unpublishAssignmentScores instead.'
+        );
+      }
 
       const now = Date.now();
       const assignmentRef = doc(
@@ -1810,28 +1867,6 @@ export const useQuizAssignments = (
         assignmentId
       );
       const sessionRef = doc(db, QUIZ_SESSIONS_COLLECTION, assignmentId);
-
-      // Unpublish path — clear the visibility flags on assignment + session
-      // and wipe the revealed-answers map so the student review screen
-      // falls back to "scores not yet published". Already-written `score`
-      // and per-answer `isCorrect` fields on response docs are left in
-      // place: the reader gates on `scoreVisibility`, so leaving the
-      // numbers behind is harmless and avoids a multi-batch wipe on a
-      // gesture the teacher may immediately undo.
-      if (visibility === 'none') {
-        const batch = writeBatch(db);
-        batch.update(assignmentRef, {
-          scoreVisibility: 'none',
-          scorePublishedAt: deleteField(),
-          updatedAt: now,
-        });
-        batch.update(sessionRef, {
-          scoreVisibility: 'none',
-          revealedAnswers: deleteField(),
-        });
-        await batch.commit();
-        return { responsesUpdated: 0 };
-      }
 
       // Index questions by id for O(1) grading lookups. Use the canonical
       // `quizData.questions` (loaded from Drive on the teacher side) so
@@ -1946,20 +1981,38 @@ export const useQuizAssignments = (
         firstBatch.update(updates[i].ref, updates[i].patch);
       }
       await firstBatch.commit();
+      let responsesCommitted = firstChunkSize;
 
       // Remaining responses in subsequent batches (assignments with > ~398
-      // submissions across a PLC). Each batch is independently committed.
-      for (
-        let cursor = firstChunkSize;
-        cursor < updates.length;
-        cursor += MAX_BATCH_WRITES
-      ) {
-        const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
-        const chunkBatch = writeBatch(db);
-        for (const u of chunk) {
-          chunkBatch.update(u.ref, u.patch);
+      // submissions across a PLC). Each chunk is independently committed.
+      // If a chunk fails partway, the assignment + session visibility
+      // flags are already published (committed in `firstBatch`) — students
+      // will start seeing the review screen for already-graded responses,
+      // while the remaining `updates.length - responsesCommitted` rows
+      // still carry whatever `score`/`isCorrect` they had pre-publish.
+      // Re-running publish is safe and idempotent (the chunk reconstructs
+      // every patch from scratch), so we throw a structured error the
+      // caller can surface verbatim — "X of Y graded, re-run Publish to
+      // finish" — instead of a generic "Failed to publish."
+      try {
+        for (
+          let cursor = firstChunkSize;
+          cursor < updates.length;
+          cursor += MAX_BATCH_WRITES
+        ) {
+          const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
+          const chunkBatch = writeBatch(db);
+          for (const u of chunk) {
+            chunkBatch.update(u.ref, u.patch);
+          }
+          await chunkBatch.commit();
+          responsesCommitted += chunk.length;
         }
-        await chunkBatch.commit();
+      } catch (err) {
+        const cause = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Partial publish: ${responsesCommitted} of ${updates.length} student responses graded. Re-run "Publish scores" to finish. (${cause})`
+        );
       }
 
       return { responsesUpdated: updates.length };
@@ -1986,5 +2039,6 @@ export const useQuizAssignments = (
     importSharedAssignment,
     syncAssignmentToLatest,
     publishAssignmentScores,
+    unpublishAssignmentScores,
   };
 };

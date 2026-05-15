@@ -177,30 +177,39 @@ export interface UseVideoActivityAssignmentsResult {
     options: ImportSharedAssignmentOptions
   ) => Promise<{ assignmentId: string; activityId: string }>;
   /**
-   * Publish (or unpublish) per-student scores for an assignment. Mirrors
+   * Publish per-student scores for an assignment. Mirrors
    * `useQuizAssignments.publishAssignmentScores`. Grades every response
    * via `gradeVideoActivityAnswer` (handles MA / FIB-with-variants — the
    * Quiz grader's `'MA'` blind spot is irrelevant here), writes the
    * computed `score` + per-answer `isCorrect` flags onto each response,
    * and mirrors the visibility flag onto the assignment + session docs.
    *
-   * `'none'` is the unpublish path: clears `scoreVisibility` on assignment
-   * + session and wipes `revealedAnswers`. Already-written `score` /
-   * `isCorrect` are left in place — the reader gates on `scoreVisibility`,
-   * so this is harmless and avoids a multi-batch wipe on a gesture the
-   * teacher may immediately undo.
-   *
    * `'score-responses-and-answers'` populates `session.revealedAnswers`
    * (id → correctAnswer) so the student review screen can show the
    * canonical correct answer for each question — VA's session strips
    * correct answers from `publicQuestions` for the in-progress flow,
    * mirroring Quiz's student-safety pattern.
+   *
+   * The signature deliberately excludes `'none'` — use
+   * {@link UseVideoActivityAssignmentsResult.unpublishAssignmentScores}
+   * for the rollback path, which is a cheap two-write batch that
+   * doesn't require fabricating a placeholder `VideoActivityData`.
    */
   publishAssignmentScores: (
     assignmentId: string,
     activityData: VideoActivityData,
-    visibility: VideoActivityScoreVisibility
+    visibility: Exclude<VideoActivityScoreVisibility, 'none'>
   ) => Promise<{ responsesUpdated: number }>;
+  /**
+   * Revoke published score visibility for an assignment. Clears
+   * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
+   * `deleteField()`) and wipes `revealedAnswers` on the mirrored
+   * session doc. Already-written per-response `score` / `isCorrect`
+   * fields are left intact — student-side rendering gates on
+   * `session.scoreVisibility`, and re-publishing safely overwrites
+   * them.
+   */
+  unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
 }
 
 export interface ImportSharedAssignmentOptions {
@@ -885,11 +894,58 @@ export const useVideoActivityAssignments = (
     [userId, peekSharedAssignment, createAssignment]
   );
 
+  const unpublishAssignmentScores = useCallback<
+    UseVideoActivityAssignmentsResult['unpublishAssignmentScores']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        VIDEO_ACTIVITY_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const sessionRef = doc(
+        db,
+        VIDEO_ACTIVITY_SESSIONS_COLLECTION,
+        assignmentId
+      );
+      // Wipe visibility flags via deleteField on both docs (so the
+      // "unpublished" and "never published" states share a single
+      // shape on disk) and clear the revealed-answers map. Per-response
+      // `score` / `isCorrect` are left intact — student-side rendering
+      // gates on `session.scoreVisibility`, and re-publishing safely
+      // overwrites them.
+      const batch = writeBatch(db);
+      batch.update(assignmentRef, {
+        scoreVisibility: deleteField(),
+        scorePublishedAt: deleteField(),
+        updatedAt: now,
+      });
+      batch.update(sessionRef, {
+        scoreVisibility: deleteField(),
+        revealedAnswers: deleteField(),
+      });
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const publishAssignmentScores = useCallback<
     UseVideoActivityAssignmentsResult['publishAssignmentScores']
   >(
     async (assignmentId, activityData, visibility) => {
       if (!userId) throw new Error('Not authenticated');
+      // Belt-and-suspenders against a future caller that bypasses the
+      // type-level `Exclude<…, 'none'>` (see Quiz hook for the same
+      // assert and rationale).
+      if ((visibility as string) === 'none') {
+        throw new Error(
+          'publishAssignmentScores: visibility "none" is not allowed — use unpublishAssignmentScores instead.'
+        );
+      }
 
       const now = Date.now();
       const assignmentRef = doc(
@@ -904,21 +960,6 @@ export const useVideoActivityAssignments = (
         VIDEO_ACTIVITY_SESSIONS_COLLECTION,
         assignmentId
       );
-
-      if (visibility === 'none') {
-        const batch = writeBatch(db);
-        batch.update(assignmentRef, {
-          scoreVisibility: 'none',
-          scorePublishedAt: deleteField(),
-          updatedAt: now,
-        });
-        batch.update(sessionRef, {
-          scoreVisibility: 'none',
-          revealedAnswers: deleteField(),
-        });
-        await batch.commit();
-        return { responsesUpdated: 0 };
-      }
 
       const questionsById = new Map(
         activityData.questions.map((q) => [q.id, q])
@@ -1006,18 +1047,32 @@ export const useVideoActivityAssignments = (
         firstBatch.update(updates[i].ref, updates[i].patch);
       }
       await firstBatch.commit();
+      let responsesCommitted = firstChunkSize;
 
-      for (
-        let cursor = firstChunkSize;
-        cursor < updates.length;
-        cursor += MAX_BATCH_WRITES
-      ) {
-        const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
-        const chunkBatch = writeBatch(db);
-        for (const u of chunk) {
-          chunkBatch.update(u.ref, u.patch);
+      // Mirror Quiz's chunked-failure recovery: if a subsequent chunk
+      // fails partway, the visibility flag is already flipped — students
+      // will see graded responses while ungraded ones still carry
+      // pre-publish state. Throw a structured error the caller can
+      // surface verbatim so the teacher knows to re-run Publish.
+      try {
+        for (
+          let cursor = firstChunkSize;
+          cursor < updates.length;
+          cursor += MAX_BATCH_WRITES
+        ) {
+          const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
+          const chunkBatch = writeBatch(db);
+          for (const u of chunk) {
+            chunkBatch.update(u.ref, u.patch);
+          }
+          await chunkBatch.commit();
+          responsesCommitted += chunk.length;
         }
-        await chunkBatch.commit();
+      } catch (err) {
+        const cause = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Partial publish: ${responsesCommitted} of ${updates.length} student responses graded. Re-run "Publish scores" to finish. (${cause})`
+        );
       }
 
       return { responsesUpdated: updates.length };
@@ -1040,5 +1095,6 @@ export const useVideoActivityAssignments = (
     peekSharedAssignment,
     importSharedAssignment,
     publishAssignmentScores,
+    unpublishAssignmentScores,
   };
 };

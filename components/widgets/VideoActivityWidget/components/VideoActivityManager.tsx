@@ -54,6 +54,7 @@ import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArc
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
 import { FolderSidebar } from '@/components/common/library/FolderSidebar';
 import { FolderPickerPopover } from '@/components/common/library/FolderPickerPopover';
 import { buildMoveToFolderAction } from '@/components/common/library/folderMenuAction';
@@ -450,6 +451,7 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   lastClassIdByActivityId,
   assignmentMode = 'submissions',
 }) => {
+  const { showConfirm } = useDialog();
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
   const [tab, setTab] = useState<LibraryTab>('library');
@@ -526,11 +528,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [confirmDeleteAssignmentId, setConfirmDeleteAssignmentId] = useState<
     string | null
   >(null);
-  // Two-click confirmation for the destructive "Unpublish scores" kebab
-  // entry. First click flips the label to "Confirm unpublish"; second
-  // click within the same kebab session actually calls the hook.
-  const [confirmUnpublishAssignmentId, setConfirmUnpublishAssignmentId] =
-    useState<string | null>(null);
 
   /* ─── Folder navigation (Wave 3-B-3) ──────────────────────────────────── */
   const folderState = useFolders(userId, 'video_activity');
@@ -1154,19 +1151,20 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       assignment.scoreVisibility !== undefined &&
       assignment.scoreVisibility !== 'none'
     ) {
-      const awaitingConfirm = confirmUnpublishAssignmentId === assignment.id;
       actions.push({
         id: 'unpublish-scores',
-        label: awaitingConfirm ? 'Confirm unpublish' : 'Unpublish scores',
+        label: 'Unpublish scores',
         icon: EyeOff,
-        destructive: awaitingConfirm,
-        onClick: () => {
-          if (awaitingConfirm) {
-            setConfirmUnpublishAssignmentId(null);
-            void onArchiveUnpublishScores(assignment);
-          } else {
-            setConfirmUnpublishAssignmentId(assignment.id);
-          }
+        onClick: async () => {
+          const ok = await showConfirm(
+            'Students will no longer be able to see their scores or responses. You can republish anytime.',
+            {
+              title: 'Unpublish scores',
+              variant: 'danger',
+              confirmLabel: 'Unpublish',
+            }
+          );
+          if (ok) await onArchiveUnpublishScores(assignment);
         },
       });
     }

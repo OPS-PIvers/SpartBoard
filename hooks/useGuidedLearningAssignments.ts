@@ -48,22 +48,30 @@ const GL_SESSION_RESPONSES_SUBCOLLECTION = 'responses';
  * array-shaped answers for matching and sorting are flattened into a
  * human-readable string for the student review screen. Returns `null` for
  * steps that don't have a gradable question (info hotspots, etc.).
+ *
+ * Exhaustive over `GuidedLearningQuestionType`: a new type added to the
+ * union surfaces as a TypeScript error on the `_exhaustiveCheck: never`
+ * assignment, so callers can't silently drop coverage for a new question
+ * shape.
  */
-function formatCanonicalAnswer(step: GuidedLearningStep): string | null {
+export function formatCanonicalAnswer(step: GuidedLearningStep): string | null {
   const q = step.question;
   if (!q) return null;
-  if (q.type === 'multiple-choice') {
-    return q.correctAnswer ?? null;
+  switch (q.type) {
+    case 'multiple-choice':
+      return q.correctAnswer ?? null;
+    case 'matching':
+      if (!q.matchingPairs?.length) return null;
+      return q.matchingPairs.map((p) => `${p.left} → ${p.right}`).join('\n');
+    case 'sorting':
+      if (!q.sortingItems?.length) return null;
+      return q.sortingItems.join(' → ');
+    default: {
+      const _exhaustiveCheck: never = q.type;
+      void _exhaustiveCheck;
+      return null;
+    }
   }
-  if (q.type === 'matching') {
-    if (!q.matchingPairs?.length) return null;
-    return q.matchingPairs.map((p) => `${p.left} → ${p.right}`).join('\n');
-  }
-  if (q.type === 'sorting') {
-    if (!q.sortingItems?.length) return null;
-    return q.sortingItems.join(' → ');
-  }
-  return null;
 }
 
 export interface CreateAssignmentInput {
@@ -99,22 +107,33 @@ export interface UseGuidedLearningAssignmentsResult {
   /** Delete assignment + session + all responses permanently. */
   deleteAssignment: (assignmentId: string) => Promise<void>;
   /**
-   * Publish (or unpublish) student-facing score visibility for an
-   * archived assignment. Mirrors the Quiz/VA `publishAssignmentScores`
-   * contract: `'none'` unpublishes (cheap flag-flip + revealed-answer
-   * wipe); other levels recompute per-response `isCorrect` + `score`,
-   * mirror the visibility flag onto session, and populate
-   * `revealedAnswers` iff the teacher chose to share answer keys.
-   * Pre-existing per-response `score` / `isCorrect` values are
-   * overwritten so the operation is idempotent and self-correcting
-   * (responses submitted in student-mode may have been written with
-   * `isCorrect: null`).
+   * Publish student-facing score visibility for an archived assignment.
+   * Mirrors `useQuizAssignments.publishAssignmentScores`: recomputes
+   * per-response `isCorrect` + `score`, mirrors the visibility flag onto
+   * the session doc, and populates `session.revealedAnswers` iff the
+   * teacher chose `'score-responses-and-answers'`. Pre-existing
+   * per-response values are overwritten so the operation is idempotent
+   * and self-correcting (responses submitted in student-mode are
+   * written with `isCorrect: null`).
+   *
+   * The signature deliberately excludes `'none'` — use
+   * {@link UseGuidedLearningAssignmentsResult.unpublishAssignmentScores}
+   * for the rollback path, which is a cheap two-write batch that
+   * doesn't require fabricating a placeholder `GuidedLearningSet`.
    */
   publishAssignmentScores: (
     assignmentId: string,
     glData: GuidedLearningSet,
-    visibility: GuidedLearningScoreVisibility
+    visibility: Exclude<GuidedLearningScoreVisibility, 'none'>
   ) => Promise<{ responsesUpdated: number }>;
+  /**
+   * Revoke published score visibility for an assignment. Clears
+   * `scoreVisibility` + `scorePublishedAt` on the assignment doc (via
+   * `deleteField()`) and wipes `revealedAnswers` on the mirrored
+   * session doc. Per-response `score` / `isCorrect` are left intact —
+   * student-side rendering gates on `session.scoreVisibility`.
+   */
+  unpublishAssignmentScores: (assignmentId: string) => Promise<void>;
 }
 
 export const useGuidedLearningAssignments = (
@@ -270,11 +289,53 @@ export const useGuidedLearningAssignments = (
     [userId]
   );
 
+  const unpublishAssignmentScores = useCallback<
+    UseGuidedLearningAssignmentsResult['unpublishAssignmentScores']
+  >(
+    async (assignmentId) => {
+      if (!userId) throw new Error('Not authenticated');
+      const now = Date.now();
+      const assignmentRef = doc(
+        db,
+        'users',
+        userId,
+        GL_ASSIGNMENTS_COLLECTION,
+        assignmentId
+      );
+      const sessionRef = doc(db, GL_SESSIONS_COLLECTION, assignmentId);
+      // Wipe visibility flags via deleteField on both docs and clear
+      // the revealed-answers map. Per-response `score` / `isCorrect`
+      // are left intact: the student app gates on
+      // `session.scoreVisibility`, so numbers behind a closed gate are
+      // harmless and a re-publish at the same level avoids a multi-
+      // batch recompute.
+      const batch = writeBatch(db);
+      batch.update(assignmentRef, {
+        scoreVisibility: deleteField(),
+        scorePublishedAt: deleteField(),
+        updatedAt: now,
+      });
+      batch.update(sessionRef, {
+        scoreVisibility: deleteField(),
+        revealedAnswers: deleteField(),
+      });
+      await batch.commit();
+    },
+    [userId]
+  );
+
   const publishAssignmentScores = useCallback<
     UseGuidedLearningAssignmentsResult['publishAssignmentScores']
   >(
     async (assignmentId, glData, visibility) => {
       if (!userId) throw new Error('Not authenticated');
+      // Belt-and-suspenders against a future caller bypassing the
+      // type-level `Exclude<…, 'none'>` (matches Quiz/VA pattern).
+      if ((visibility as string) === 'none') {
+        throw new Error(
+          'publishAssignmentScores: visibility "none" is not allowed — use unpublishAssignmentScores instead.'
+        );
+      }
 
       const now = Date.now();
       const assignmentRef = doc(
@@ -285,26 +346,6 @@ export const useGuidedLearningAssignments = (
         assignmentId
       );
       const sessionRef = doc(db, GL_SESSIONS_COLLECTION, assignmentId);
-
-      // Unpublish path — flip visibility flag on both docs and wipe the
-      // revealed-answers map. Leave per-response `score` / `isCorrect`
-      // intact: the student app gates on `session.scoreVisibility`, so
-      // numbers behind a closed gate are harmless and a re-publish at
-      // the same level avoids a multi-batch recompute.
-      if (visibility === 'none') {
-        const batch = writeBatch(db);
-        batch.update(assignmentRef, {
-          scoreVisibility: 'none',
-          scorePublishedAt: deleteField(),
-          updatedAt: now,
-        });
-        batch.update(sessionRef, {
-          scoreVisibility: 'none',
-          revealedAnswers: deleteField(),
-        });
-        await batch.commit();
-        return { responsesUpdated: 0 };
-      }
 
       // Index steps by id for O(1) grading lookups. `glData.steps` is the
       // canonical set loaded by the caller — `session.publicSteps` strips
@@ -396,18 +437,32 @@ export const useGuidedLearningAssignments = (
         firstBatch.update(updates[i].ref, updates[i].patch);
       }
       await firstBatch.commit();
+      let responsesCommitted = firstChunkSize;
 
-      for (
-        let cursor = firstChunkSize;
-        cursor < updates.length;
-        cursor += MAX_BATCH_WRITES
-      ) {
-        const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
-        const chunkBatch = writeBatch(db);
-        for (const u of chunk) {
-          chunkBatch.update(u.ref, u.patch);
+      // Mirror Quiz/VA chunked-failure recovery: if a subsequent chunk
+      // fails partway, the visibility flag is already flipped — some
+      // students will see graded reviews while the remaining responses
+      // still carry pre-publish state. Throw a structured error so the
+      // caller can tell the teacher "X of Y graded, re-run Publish."
+      try {
+        for (
+          let cursor = firstChunkSize;
+          cursor < updates.length;
+          cursor += MAX_BATCH_WRITES
+        ) {
+          const chunk = updates.slice(cursor, cursor + MAX_BATCH_WRITES);
+          const chunkBatch = writeBatch(db);
+          for (const u of chunk) {
+            chunkBatch.update(u.ref, u.patch);
+          }
+          await chunkBatch.commit();
+          responsesCommitted += chunk.length;
         }
-        await chunkBatch.commit();
+      } catch (err) {
+        const cause = err instanceof Error ? err.message : String(err);
+        throw new Error(
+          `Partial publish: ${responsesCommitted} of ${updates.length} student responses graded. Re-run "Publish scores" to finish. (${cause})`
+        );
       }
 
       return { responsesUpdated: updates.length };
@@ -424,5 +479,6 @@ export const useGuidedLearningAssignments = (
     unarchiveAssignment,
     deleteAssignment,
     publishAssignmentScores,
+    unpublishAssignmentScores,
   };
 };

@@ -121,6 +121,45 @@ interface KindConfig {
   gradingStateFrom: (data: DocumentData) => 'not-graded' | 'graded';
 }
 
+/**
+ * Shared publication-field parser for Quiz / GL `gradingStateFrom`.
+ * Returns 'graded' iff `scoreVisibility` is a non-'none' string AND
+ * `scorePublishedAt` is a number — matching the contract that
+ * `publishAssignmentScores` writes both atomically.
+ *
+ * Malformed snapshots (wrong types) are warned at most once per
+ * `kind:sessionVisibility:sessionPublishedAt` shape signature. Without
+ * this throttle, a single bad doc would `console.warn` on every
+ * snapshot delivery and drown out real errors — `gradingStateFrom` is
+ * called per assignment per snapshot.
+ */
+const warnedPublicationKeys = new Set<string>();
+/** @internal — exported only for the test harness. */
+export function parsePublicationFields(
+  kind: string,
+  data: DocumentData
+): 'not-graded' | 'graded' {
+  if (!data || typeof data !== 'object') return 'not-graded';
+  const visibility = (data as Record<string, unknown>).scoreVisibility;
+  const publishedAt = (data as Record<string, unknown>).scorePublishedAt;
+  if (
+    (visibility !== undefined && typeof visibility !== 'string') ||
+    (publishedAt !== undefined && typeof publishedAt !== 'number')
+  ) {
+    const key = `${kind}:${typeof visibility}:${typeof publishedAt}`;
+    if (!warnedPublicationKeys.has(key)) {
+      warnedPublicationKeys.add(key);
+      console.warn(
+        `[useStudentAssignments] malformed ${kind} publication fields`,
+        { scoreVisibility: visibility, scorePublishedAt: publishedAt }
+      );
+    }
+  }
+  const isVisible = typeof visibility === 'string' && visibility !== 'none';
+  const isPublished = typeof publishedAt === 'number';
+  return isVisible && isPublished ? 'graded' : 'not-graded';
+}
+
 export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
   quiz: {
     collectionName: 'quiz_sessions',
@@ -144,34 +183,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
           : sessionId;
       return `/quiz?code=${encodeURIComponent(code)}`;
     },
-    gradingStateFrom: (data) => {
-      // Quiz uses `scoreVisibility` ('none' = hidden) plus a
-      // `scorePublishedAt` timestamp to mark when grades go live to the
-      // student. Both must be present for the student to see results.
-      // Guard the cast — Firestore can hand back partial/empty snapshots
-      // during deletion races, and a runtime TypeError here would crash
-      // the whole assignment list instead of just dropping one row.
-      if (!data || typeof data !== 'object') return 'not-graded';
-      const visibility = (data as Record<string, unknown>).scoreVisibility;
-      const publishedAt = (data as Record<string, unknown>).scorePublishedAt;
-      // Surface data-shape mismatches — if one field is present but the
-      // other has the wrong type, the student silently sees "Not graded"
-      // on a session the teacher believes they published. This is the
-      // kind of "support ticket with no traces in the data" bug worth a
-      // console.warn so it shows up in error reporting.
-      if (
-        (visibility !== undefined && typeof visibility !== 'string') ||
-        (publishedAt !== undefined && typeof publishedAt !== 'number')
-      ) {
-        console.warn(
-          '[useStudentAssignments] malformed quiz publication fields',
-          { scoreVisibility: visibility, scorePublishedAt: publishedAt }
-        );
-      }
-      const isVisible = typeof visibility === 'string' && visibility !== 'none';
-      const isPublished = typeof publishedAt === 'number';
-      return isVisible && isPublished ? 'graded' : 'not-graded';
-    },
+    gradingStateFrom: (data) => parsePublicationFields('quiz', data),
   },
   'video-activity': {
     collectionName: 'video_activity_sessions',
@@ -216,27 +228,7 @@ export const KIND_CONFIG: Record<SessionKind, KindConfig> = {
         : 'Guided learning',
     hrefFrom: (sessionId) =>
       `/guided-learning/${encodeURIComponent(sessionId)}`,
-    gradingStateFrom: (data) => {
-      // Mirrors the Quiz rule above — GL gained `scoreVisibility` +
-      // `scorePublishedAt` when the teacher publish/unpublish flow
-      // shipped. Both must be present (and visibility !== 'none') for
-      // the student row to render "View results" instead of "Not graded".
-      if (!data || typeof data !== 'object') return 'not-graded';
-      const visibility = (data as Record<string, unknown>).scoreVisibility;
-      const publishedAt = (data as Record<string, unknown>).scorePublishedAt;
-      if (
-        (visibility !== undefined && typeof visibility !== 'string') ||
-        (publishedAt !== undefined && typeof publishedAt !== 'number')
-      ) {
-        console.warn(
-          '[useStudentAssignments] malformed guided-learning publication fields',
-          { scoreVisibility: visibility, scorePublishedAt: publishedAt }
-        );
-      }
-      const isVisible = typeof visibility === 'string' && visibility !== 'none';
-      const isPublished = typeof publishedAt === 'number';
-      return isVisible && isPublished ? 'graded' : 'not-graded';
-    },
+    gradingStateFrom: (data) => parsePublicationFields('guided-learning', data),
   },
   'mini-app': {
     collectionName: 'mini_app_sessions',

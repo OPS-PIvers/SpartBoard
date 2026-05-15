@@ -121,6 +121,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
     deleteAssignment,
     shareAssignment,
     publishAssignmentScores,
+    unpublishAssignmentScores,
   } = useVideoActivityAssignments(user?.uid);
 
   const [publishingAssignment, setPublishingAssignment] =
@@ -839,23 +840,10 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           setPublishingAssignment(assignment)
         }
         onArchiveUnpublishScores={async (assignment) => {
-          // One-click unpublish — mirrors the modal's 'none' branch
-          // (above) but without re-opening the picker. The hook's
-          // 'none' path skips the Drive lookup, so an empty
-          // placeholder VideoActivityData is sufficient.
+          // One-click unpublish — `unpublishAssignmentScores` is a cheap
+          // two-write batch (no Drive lookup, no grading).
           try {
-            await publishAssignmentScores(
-              assignment.id,
-              {
-                id: assignment.activityId,
-                title: assignment.activityTitle,
-                youtubeUrl: '',
-                questions: [],
-                createdAt: 0,
-                updatedAt: 0,
-              },
-              'none'
-            );
+            await unpublishAssignmentScores(assignment.id);
             addToast('Scores unpublished.', 'success');
           } catch (err) {
             addToast(
@@ -892,21 +880,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             const target = publishingAssignment;
             try {
               if (visibility === 'none') {
-                await publishAssignmentScores(
-                  target.id,
-                  // Empty placeholder VideoActivityData — the 'none' branch
-                  // never reads it. Cheaper than re-loading from Drive for
-                  // a flag flip.
-                  {
-                    id: target.activityId,
-                    title: target.activityTitle,
-                    youtubeUrl: '',
-                    questions: [],
-                    createdAt: 0,
-                    updatedAt: 0,
-                  },
-                  visibility
-                );
+                await unpublishAssignmentScores(target.id);
                 addToast('Scores unpublished.', 'success');
                 setPublishingAssignment(null);
                 return;

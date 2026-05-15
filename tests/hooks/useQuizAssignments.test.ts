@@ -1133,18 +1133,14 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     });
   });
 
-  it("clears flags and skips response writes when visibility is 'none'", async () => {
+  it('unpublishAssignmentScores clears flags via deleteField on both docs', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
     await act(async () => {
-      const outcome = await result.current.publishAssignmentScores(
-        ASSIGNMENT_ID,
-        quizData,
-        'none'
-      );
-      expect(outcome).toEqual({ responsesUpdated: 0 });
+      await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
     });
 
-    // Exactly one batch (assignment + session) — no response queries.
+    // Exactly one batch (assignment + session) — no response queries
+    // (the unpublish path leaves per-response scores intact).
     expect(mockGetDocs).not.toHaveBeenCalled();
     expect(batchCommit).toHaveBeenCalledTimes(1);
 
@@ -1157,7 +1153,7 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
       throw new Error('expected batch.update on assignment doc');
     }
     expect(assignmentCall[1]).toMatchObject({
-      scoreVisibility: 'none',
+      scoreVisibility: DELETE_FIELD_SENTINEL,
       scorePublishedAt: DELETE_FIELD_SENTINEL,
     });
 
@@ -1168,9 +1164,37 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
       throw new Error('expected batch.update on session doc');
     }
     expect(sessionCall[1]).toMatchObject({
-      scoreVisibility: 'none',
+      scoreVisibility: DELETE_FIELD_SENTINEL,
       revealedAnswers: DELETE_FIELD_SENTINEL,
     });
+  });
+
+  it('unpublishAssignmentScores is idempotent — second call still writes the same patch', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
+      await result.current.unpublishAssignmentScores(ASSIGNMENT_ID);
+    });
+    // Two commits, no response reads in either pass.
+    expect(mockGetDocs).not.toHaveBeenCalled();
+    expect(batchCommit).toHaveBeenCalledTimes(2);
+  });
+
+  it("publishAssignmentScores rejects visibility 'none' at runtime", async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await expect(
+        // Bypass the `Exclude<…, 'none'>` type guard at runtime.
+        (
+          result.current.publishAssignmentScores as unknown as (
+            id: string,
+            data: unknown,
+            v: string
+          ) => Promise<unknown>
+        )(ASSIGNMENT_ID, quizData, 'none')
+      ).rejects.toThrow(/unpublishAssignmentScores/);
+    });
+    expect(batchCommit).not.toHaveBeenCalled();
   });
 
   it('grades responses and writes per-answer isCorrect on score-only publish', async () => {
