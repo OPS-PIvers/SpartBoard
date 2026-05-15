@@ -4867,7 +4867,12 @@ export interface WidgetData {
   customTitle?: string | null;
   isLive?: boolean;
   isLocked?: boolean; // When true: widget cannot be moved, resized, or deleted by end-users
-  isPinned?: boolean; // User-pinned: drag, resize, maximize, snap disabled
+  /**
+   * User-pinned widget: drag, resize, maximize, and snap are disabled. This is
+   * a widget-level interaction lock — distinct from `Dashboard.isPinned`, which
+   * marks a Board for the modal/FAB Pinned quick-access section.
+   */
+  isPinned?: boolean;
   transparency?: number;
   annotation?: DrawingConfig;
   /** Override which building's admin defaults this widget uses (falls back to user's primary building) */
@@ -5022,7 +5027,8 @@ export interface Dashboard {
   /**
    * When true, this Board appears in the Pinned section of the modal and
    * the FAB kebab popover (Plan 2). Independent of `collectionId` — pinned
-   * Boards still belong to their Collection.
+   * Boards still belong to their Collection. Distinct from
+   * `WidgetData.isPinned`, which is a widget-level interaction lock.
    */
   isPinned?: boolean;
   settings?: DashboardSettings;
