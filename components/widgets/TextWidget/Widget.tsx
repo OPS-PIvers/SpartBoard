@@ -17,6 +17,7 @@ import {
   normalizeEditorBlocks,
 } from '@/utils/contentEditableBlocks';
 import { toggleList } from '@/utils/contentEditableLists';
+import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 
 /** Gap (px) between the toolbar and the widget edge. */
 const TOOLBAR_GAP = 8;
@@ -163,6 +164,19 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       normalizeEditorBlocks(editorRef.current);
     }
   }, [content]);
+
+  // Install the drag-select enhancer once the editor is mounted.
+  // Chrome's default drag-selection inside contenteditable anchors to
+  // the clicked text node and refuses to extend across block
+  // boundaries — clicking the first character of paragraph 1 and
+  // dragging through paragraph 3 only selects paragraph 1. The
+  // enhancer overrides extension on every mousemove using
+  // `caretPositionFromPoint` so the selection always reaches the
+  // pointer's actual position.
+  useEffect(() => {
+    if (!editorRef.current) return undefined;
+    return installDragSelectEnhancer(editorRef.current);
+  }, []);
 
   const isPlaceholder = !content || content === PLACEHOLDER_TEXT;
 
