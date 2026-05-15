@@ -335,6 +335,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [groupBuildMode, setGroupBuildMode] = useState(false);
   const dashboardsRef = useRef(dashboards);
+  dashboardsRef.current = dashboards;
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
@@ -3336,7 +3337,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updateActiveId(id);
       addToast('Board loaded');
       if (user?.uid && !isAuthBypass) {
-        const target = dashboards.find((d) => d.id === id);
+        const target = dashboardsRef.current.find((d) => d.id === id);
         if (target) {
           const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
           const profileRef = doc(
@@ -3350,11 +3351,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             lastActiveCollectionId: target.collectionId ?? null,
             [`lastBoardIdByCollection.${collectionKey}`]: id,
           };
-          void setDoc(profileRef, updates, { merge: true });
+          void setDoc(profileRef, updates, { merge: true }).catch(
+            (err: unknown) => {
+              console.error(
+                '[DashboardContext] Failed to persist last-active board:',
+                err
+              );
+            }
+          );
         }
       }
     },
-    [addToast, updateActiveId, user, dashboards]
+    [addToast, updateActiveId, user]
   );
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
