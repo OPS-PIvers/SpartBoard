@@ -113,6 +113,42 @@ describe('TextWidget', () => {
     expect(screen.queryByTitle('Bold')).not.toBeInTheDocument();
   });
 
+  it('does not bubble pointerdown from the formatting toolbar to ancestor handlers', async () => {
+    // The toolbar renders to document.body via createPortal, but React
+    // synthetic events still bubble through the COMPONENT tree — meaning a
+    // pointerdown on a toolbar button reaches DraggableWindow's
+    // `handlePointerDown` ancestor in production. That handler calls
+    // `.focus()` on the widget chrome whenever the target isn't inside a
+    // contentEditable, which fires the editor's `onBlur` and drops the
+    // live selection. execCommand calls (lists, foreColor, …) then run
+    // against a stale collapsed selection and silently no-op.
+    //
+    // The fix attaches `onPointerDown={(e) => e.stopPropagation()}` on the
+    // toolbar's portal wrapper. This test guards that regression by
+    // mounting an ancestor pointerdown handler around TextWidget and
+    // verifying it does NOT fire when a toolbar button is pressed.
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      ...mockDashboardContext,
+      selectedWidgetId: 'test-widget',
+    });
+
+    const ancestorPointerDown = vi.fn();
+    render(
+      <div onPointerDown={ancestorPointerDown}>
+        <TextWidget widget={mockWidget} />
+      </div>
+    );
+
+    // Toolbar renders via portal + RAF position tracking — wait for it.
+    await waitFor(() => {
+      expect(screen.getByTitle('Bold')).toBeInTheDocument();
+    });
+
+    fireEvent.pointerDown(screen.getByTitle('Bold'));
+
+    expect(ancestorPointerDown).not.toHaveBeenCalled();
+  });
+
   it('triggers hyperlink prompt on Control+K', async () => {
     mockShowPrompt.mockResolvedValue('https://test.com');
     render(<TextWidget widget={mockWidget} />);
@@ -343,8 +379,8 @@ describe('TextWidget', () => {
     const lastCall = mockUpdateWidget.mock.lastCall;
     expect(lastCall).toBeDefined();
     if (lastCall) {
-      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-      const savedContent = lastCall[1].config.content as string;
+      const payload = lastCall[1] as { config: TextConfig };
+      const savedContent = payload.config.content ?? '';
       expect(savedContent).not.toMatch(/^First</); // bare-text prefix is gone
       expect(savedContent).toContain('<div>First</div>');
       expect(savedContent).toContain('<div>Second</div>');
