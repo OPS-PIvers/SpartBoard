@@ -416,7 +416,11 @@ const GalleryReady: React.FC<GalleryReadyProps> = ({
   }, [comments]);
 
   return (
-    <div className="min-h-screen bg-slate-100">
+    // Outer wrapper owns the scroll: body has `overflow: hidden` globally
+    // (index.css), so a `min-h-screen` child can't trigger document scroll
+    // when submissions overflow the viewport. Give the outer an explicit
+    // viewport height + `overflow-y-auto` so the gallery list scrolls.
+    <div className="h-screen overflow-y-auto bg-slate-100">
       <header className="bg-brand-blue-primary text-white">
         <div className="max-w-5xl mx-auto px-5 py-6">
           <p className="text-xs uppercase tracking-widest font-bold opacity-90">
