@@ -5,13 +5,14 @@
  *  - Renders the frozen `gradingSnapshot` with existing marks via
  *    `renderAnnotatedSnapshot` (offsets computed against the snapshot's
  *    plaintext projection).
- *  - On mouseup with a non-empty selection, surfaces a small floating
- *    palette anchored to the selection's bounding rect; choosing a color
- *    creates an annotation. Choosing the comment icon also creates an
- *    annotation and selects it.
+ *  - On mouseup with a non-empty selection, the annotation is created
+ *    immediately (default yellow highlight) and the editor popover opens
+ *    anchored next to the new mark — same UI the teacher gets when they
+ *    click an existing highlight. From there they can change color,
+ *    add a margin comment, or dismiss.
  *  - When an annotation is active (selected by the teacher or just
- *    created via comment-icon), renders an editor popover anchored next
- *    to the highlighted mark so the comment input is visible exactly
+ *    created), renders an editor popover anchored next to the
+ *    highlighted mark so the comment input is visible exactly
  *    where the teacher is looking. The teacher's right-side annotations
  *    list lives in the parent grader sidebar — clicking a list item
  *    sets `activeId` here and the popover opens at the mark.
@@ -37,7 +38,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { MessageSquare, Trash2, X } from 'lucide-react';
+import { Trash2, X } from 'lucide-react';
 import type { WrittenAnswerAnnotation } from '@/types';
 import {
   getPlainTextOffsetFromRange,
@@ -391,12 +392,6 @@ const EditView: React.FC<EditProps> = ({
   const articleRef = useRef<HTMLElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const reactId = useId();
-  const [palette, setPalette] = useState<{
-    x: number;
-    y: number;
-    from: number;
-    to: number;
-  } | null>(null);
 
   // Same memoization split as ReadOnlyView: parse once per snapshot,
   // re-walk on annotation changes. Critical in edit mode because the
@@ -409,68 +404,61 @@ const EditView: React.FC<EditProps> = ({
     [parsedRoot, annotations]
   );
 
-  // Compute the rectangle of the current text selection inside the
-  // article and convert it to plaintext offsets. If nothing's selected
-  // (or the selection is outside the article), close the palette.
+  // Compute the plaintext offsets of the current text selection and
+  // immediately create a yellow-default annotation, then open the
+  // editor popover anchored to the new mark. The editor lets the
+  // teacher change the color, add a margin comment, or dismiss —
+  // collapsing the previous two-step palette → editor flow into one.
   const handleMouseUp = useCallback(() => {
-    if (!articleRef.current || !containerRef.current) return;
+    if (!articleRef.current) return;
     const selection = window.getSelection();
-    if (!selection || selection.isCollapsed) {
-      setPalette(null);
-      return;
-    }
+    if (!selection || selection.isCollapsed) return;
     const range = selection.getRangeAt(0);
     const offsets = getPlainTextOffsetFromRange(articleRef.current, range);
     if (!offsets) {
-      // Surface this — a silently-dismissed palette looks like the
-      // feature is broken. Common cause: the selection straddles the
-      // article and an adjacent element.
-      if (!selection.isCollapsed) {
-        console.warn(
-          '[AnnotatedResponseView] selection could not be resolved to a snapshot offset (does it escape the response?)'
-        );
-      }
-      setPalette(null);
+      // Surface this — a silently-no-op selection looks like the feature
+      // is broken. Common cause: the selection straddles the article
+      // and an adjacent element.
+      console.warn(
+        '[AnnotatedResponseView] selection could not be resolved to a snapshot offset (does it escape the response?)'
+      );
       return;
     }
     const rect = range.getBoundingClientRect();
-    if (rect.width === 0 && rect.height === 0) {
-      setPalette(null);
-      return;
-    }
-    const containerRect = containerRef.current.getBoundingClientRect();
-    setPalette({
-      x: rect.left - containerRect.left + rect.width / 2,
-      y: rect.top - containerRect.top - 8,
+    if (rect.width === 0 && rect.height === 0) return;
+
+    const id = `${reactId}-${Date.now()}-${++annotationSeq}`;
+    const next: WrittenAnswerAnnotation = {
+      id,
       from: offsets.from,
       to: offsets.to,
-    });
-    onActiveIdChange(null);
-  }, [onActiveIdChange]);
+      highlightColor: 'yellow',
+      authorUid,
+      createdAt: Date.now(),
+    };
+    onChange([...annotations, next]);
+    onActiveIdChange(id);
+    selection.removeAllRanges();
+  }, [reactId, authorUid, onChange, annotations, onActiveIdChange]);
 
-  // Dismiss the palette / popover on Escape. Listener is scoped to the
-  // container so an Escape pressed inside the grading sidebar (Points
-  // input, Overall comment textarea) still bubbles to the parent modal's
-  // close handler.
+  // Dismiss the popover on Escape. Listener is scoped to the container
+  // so an Escape pressed inside the grading sidebar (Points input,
+  // Overall comment textarea) still bubbles to the parent modal's close
+  // handler.
   useEffect(() => {
     const containerEl = containerRef.current;
     if (!containerEl) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      if (palette) {
-        setPalette(null);
-      } else if (activeId) {
-        onActiveIdChange(null);
-      } else {
-        return;
-      }
+      if (!activeId) return;
+      onActiveIdChange(null);
       // Only stop propagation when we actually handled the key, so the
       // parent modal can still close via Esc when nothing's open here.
       e.stopPropagation();
     };
     containerEl.addEventListener('keydown', onKey);
     return () => containerEl.removeEventListener('keydown', onKey);
-  }, [palette, activeId, onActiveIdChange]);
+  }, [activeId, onActiveIdChange]);
 
   const handleArticleClick = useCallback(
     (e: React.MouseEvent<HTMLElement>) => {
@@ -479,9 +467,8 @@ const EditView: React.FC<EditProps> = ({
         const id = mark.getAttribute('data-annotation-id');
         if (id) {
           onActiveIdChange(id);
-          setPalette(null);
-          // Clear any selection so the palette doesn't immediately
-          // reopen on mouseup.
+          // Clear any selection so a stray mouseup doesn't immediately
+          // create a new annotation.
           window.getSelection()?.removeAllRanges();
         }
         return;
@@ -489,35 +476,13 @@ const EditView: React.FC<EditProps> = ({
       // Bare-text click — only dismiss the popover if this is a true
       // click (no active selection). Without this guard, finishing a
       // drag-selection lands a `click` event on bare text and would
-      // close the popover the teacher just opened via the palette.
+      // close the popover the create-on-mouseup flow just opened.
       if (!activeId) return;
       const sel = window.getSelection();
       if (sel && !sel.isCollapsed) return;
       onActiveIdChange(null);
     },
     [activeId, onActiveIdChange]
-  );
-
-  const createAnnotation = useCallback(
-    (color: Color, withCommentInput: boolean) => {
-      if (!palette) return;
-      const id = `${reactId}-${Date.now()}-${++annotationSeq}`;
-      const next: WrittenAnswerAnnotation = {
-        id,
-        from: palette.from,
-        to: palette.to,
-        highlightColor: color,
-        authorUid,
-        createdAt: Date.now(),
-      };
-      onChange([...annotations, next]);
-      setPalette(null);
-      if (withCommentInput) {
-        onActiveIdChange(id);
-      }
-      window.getSelection()?.removeAllRanges();
-    },
-    [palette, reactId, authorUid, onChange, annotations, onActiveIdChange]
   );
 
   const updateActiveAnnotation = useCallback(
@@ -610,38 +575,6 @@ const EditView: React.FC<EditProps> = ({
       >
         {tree}
       </article>
-      {palette && (
-        <div
-          role="toolbar"
-          aria-label="Annotation palette"
-          className="absolute z-popover -translate-x-1/2 -translate-y-full flex items-center gap-1 px-1.5 py-1 bg-slate-900 text-white rounded-lg shadow-xl"
-          style={{ left: palette.x, top: palette.y }}
-          // Prevent the article's mouseup from clearing the selection
-          // before we read it; the palette handles its own clicks.
-          onMouseDown={(e) => e.preventDefault()}
-        >
-          {COLORS.map((c) => (
-            <button
-              key={c.id}
-              type="button"
-              aria-label={c.label}
-              title={c.label}
-              onClick={() => createAnnotation(c.id, false)}
-              className={`w-5 h-5 rounded-full ${c.swatch} ring-1 ring-white/40 hover:ring-2 hover:ring-white transition`}
-            />
-          ))}
-          <div className="w-px h-4 bg-slate-700 mx-0.5" />
-          <button
-            type="button"
-            aria-label="Add comment"
-            title="Add comment"
-            onClick={() => createAnnotation('yellow', true)}
-            className="p-1 rounded text-slate-300 hover:bg-slate-800 hover:text-white transition-colors"
-          >
-            <MessageSquare className="w-4 h-4" />
-          </button>
-        </div>
-      )}
       {active && popoverPos && (
         // `key={active.id}` remounts the popover for each annotation, so
         // its internal `commentDraft` state is reset cleanly without
