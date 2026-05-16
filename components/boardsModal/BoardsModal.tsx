@@ -5,7 +5,6 @@ import { DndContext, closestCenter } from '@dnd-kit/core';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
-import { useCollections } from '@/hooks/useCollections';
 import { CollectionTree } from './CollectionTree';
 import { BoardGrid } from './BoardGrid';
 import { BoardsModalHeader } from './BoardsModalHeader';
@@ -25,7 +24,7 @@ interface BoardsModalProps {
 export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const { t } = useTranslation();
   const { showPrompt, showConfirm } = useDialog();
-  const { user, isAdmin, canAccessFeature } = useAuth();
+  const { isAdmin, canAccessFeature } = useAuth();
   const canShare = canAccessFeature('dashboard-sharing');
   const {
     dashboards,
@@ -40,14 +39,14 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     duplicateDashboard,
     setDefaultDashboard,
     addToast,
+    collectionsApi: {
+      collections,
+      createCollection,
+      deleteCollection,
+      renameCollection,
+      setCollectionMetadata,
+    },
   } = useDashboard();
-  const {
-    collections,
-    createCollection,
-    deleteCollection,
-    renameCollection,
-    setCollectionMetadata,
-  } = useCollections(user?.uid);
 
   const [selectedCollectionId, setSelectedCollectionId] = useState<
     string | null

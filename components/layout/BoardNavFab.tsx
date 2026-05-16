@@ -17,8 +17,6 @@ import {
   Star,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
-import { useCollections } from '@/hooks/useCollections';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { FAB_BASE } from './fabClasses';
 import { BoardBreadcrumb } from './BoardBreadcrumb';
@@ -26,10 +24,13 @@ import { CollectionSwitcherMenu } from './CollectionSwitcherMenu';
 
 export const BoardNavFab: FC = () => {
   const { t } = useTranslation();
-  const { dashboards, activeDashboard, loadDashboard, setActiveCollectionId } =
-    useDashboard();
-  const { user } = useAuth();
-  const { collections } = useCollections(user?.uid);
+  const {
+    dashboards,
+    activeDashboard,
+    loadDashboard,
+    setActiveCollectionId,
+    collectionsApi: { collections },
+  } = useDashboard();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [isCollectionMenuOpen, setIsCollectionMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);

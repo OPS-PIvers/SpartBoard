@@ -86,6 +86,18 @@ const mockAuth: AuthContextType = {
 // See studentViewConfig.ts for widget compatibility details.
 const mockDashboard: DashboardContextValue = {
   driveService: null,
+  collectionsApi: {
+    collections: [],
+    loading: false,
+    error: null,
+    createCollection: () => Promise.resolve(''),
+    renameCollection: () => Promise.resolve(),
+    moveCollection: () => Promise.resolve(),
+    deleteCollection: () => Promise.resolve(),
+    reorderSiblings: () => Promise.resolve(),
+    setCollectionMetadata: () => Promise.resolve(),
+    setCollectionDefaultBoard: () => Promise.resolve(),
+  },
   dashboards: [],
   activeDashboard: null,
   toasts: [],

@@ -17,6 +17,7 @@ import {
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
 import type { GoogleDriveService } from '../utils/googleDriveService';
+import type { UseCollectionsResult } from '../hooks/useCollections';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally
@@ -109,6 +110,14 @@ export interface DashboardContextValue {
    * most once per session.
    */
   driveService: GoogleDriveService | null;
+  /**
+   * Single shared instance of the collections hook result. All consumers
+   * must read from this instead of calling `useCollections(user?.uid)`
+   * directly — using the single source of truth avoids duplicate Firestore
+   * subscriptions and ensures in-memory state (auth bypass / E2E) is shared
+   * across every component.
+   */
+  collectionsApi: UseCollectionsResult;
   dashboards: Dashboard[];
   activeDashboard: Dashboard | null;
   toasts: Toast[];

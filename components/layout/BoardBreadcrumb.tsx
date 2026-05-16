@@ -2,15 +2,14 @@ import { type FC, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Folder, ChevronRight } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
-import { useCollections } from '@/hooks/useCollections';
 import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 
 export const BoardBreadcrumb: FC = () => {
   const { t } = useTranslation();
-  const { activeDashboard } = useDashboard();
-  const { user } = useAuth();
-  const { collections } = useCollections(user?.uid);
+  const {
+    activeDashboard,
+    collectionsApi: { collections },
+  } = useDashboard();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   if (!activeDashboard) return null;

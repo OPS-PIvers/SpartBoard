@@ -239,7 +239,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     stopSharingBoard,
   } = useFirestore(user?.uid ?? null);
 
-  const { collections } = useCollections(user?.uid);
+  const collectionsApi = useCollections(user?.uid);
+  const { collections } = collectionsApi;
 
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [pendingShareId, setPendingShareId] = useState<string | null>(() => {
@@ -4577,6 +4578,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const contextValue = useMemo(
     () => ({
       driveService,
+      collectionsApi,
       dashboards,
       activeDashboard,
       toasts,
@@ -4687,6 +4689,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       driveService,
+      collectionsApi,
       dashboards,
       activeDashboard,
       toasts,
