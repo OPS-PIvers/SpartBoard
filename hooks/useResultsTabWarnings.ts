@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, increment, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 
 interface UseResultsTabWarningsArgs {
@@ -33,15 +33,28 @@ export function useResultsTabWarnings({
   lockedOut,
   responseDocPath,
 }: UseResultsTabWarningsArgs): void {
-  const wasHiddenRef = useRef(document.visibilityState === 'hidden');
+  const wasHiddenRef = useRef(false);
 
   useEffect(() => {
     if (!enabled || lockedOut) return undefined;
+    // Seed for THIS activation — `false` instead of "current visibility state"
+    // avoids spurious increments if the hook mounts while the tab is hidden
+    // (the first visible event would otherwise count an exit we never observed).
+    wasHiddenRef.current = false;
 
     const incrementOnce = async () => {
-      const next = currentWarnings + 1;
-      const update: Record<string, unknown> = { resultsTabWarnings: next };
-      if (next >= threshold) {
+      const update: Partial<{
+        resultsTabWarnings: ReturnType<typeof increment>;
+        resultsLockedOut: boolean;
+        resultsLockedOutAt: number;
+      }> = {
+        resultsTabWarnings: increment(1),
+      };
+      // Best-effort lockout flip based on the latest snapshot. If a rapid second
+      // event races, this still computes against the same stale snapshot — but the
+      // increment itself is atomic via `increment(1)`, so the count is preserved
+      // and the lockout will flip on the next event at the latest.
+      if (currentWarnings + 1 >= threshold) {
         update.resultsLockedOut = true;
         update.resultsLockedOutAt = Date.now();
       }
