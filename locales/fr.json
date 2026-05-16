@@ -422,10 +422,14 @@
     "expiresIn": "Expires in",
     "building": "Building",
     "buildingRequired": "Select a building before sharing with a sub.",
+    "selectBuilding": "— Select building —",
     "createLink": "Create link",
     "creating": "Creating…",
     "createFailed": "Failed to create Collection share",
-    "linkReady": "Share link copied to clipboard.",
+    "linkReady": "Share link ready.",
+    "linkCopied": "Share link copied to clipboard.",
+    "linkCopyFailed": "Copy the link below — clipboard access was blocked.",
+    "copy": "Copy",
     "urlLabel": "Share collection URL",
     "imported": "Imported Collection with {{count}} board(s)",
     "partialImport": "Imported {{succeeded}} board(s) — {{failed}} failed",
@@ -447,7 +451,8 @@
     "heading": "Collections",
     "boardCount": "{{count}} board(s)",
     "boardPlaceholder": "Board …{{id}}",
-    "comingSoon": "Board view in /subs coming soon — open in the teacher app for now"
+    "comingSoon": "Board view in /subs coming soon — open in the teacher app for now",
+    "comingSoonLabel": "Coming soon"
   },
   "collectionMenu": {
     "share": "Share Collection…"

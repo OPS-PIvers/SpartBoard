@@ -90,7 +90,13 @@ describe('SubCollectionsList', () => {
       docsResponse(fakeCollection('s1', 'Math', ['boardA-1234']))
     );
     render(<SubCollectionsList buildingId="middle-school" />);
+    // The button now has two children: the board label and the "Coming soon" sub-label.
+    // findByRole searches accessible name which includes all text content.
     const btn = await screen.findByRole('button', { name: /Board …1234/i });
     expect(btn).toBeDisabled();
+    // Visible "Coming soon" sub-label should also be present inside the button.
+    expect(btn.querySelector('span:last-child')?.textContent).toMatch(
+      /coming soon/i
+    );
   });
 });

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
 import type { Collection, Dashboard } from '@/types';
 import type { useDashboard as UseDashboardFn } from '@/context/useDashboard';
+import { BUILDINGS } from '@/config/buildings';
 
 const useDashboardMock = vi.fn();
 
@@ -105,7 +106,7 @@ describe('ShareCollectionLinkCreatorModal', () => {
     act(() => {
       fireEvent.click(screen.getByRole('radio', { name: /substitute/i }));
     });
-    // Click Create link without filling building
+    // Click Create link without selecting a building (select stays at empty "")
     act(() => {
       fireEvent.click(screen.getByRole('button', { name: /create link/i }));
     });
@@ -118,6 +119,40 @@ describe('ShareCollectionLinkCreatorModal', () => {
       'error'
     );
     expect(shareSubstituteCollection).not.toHaveBeenCalled();
+  });
+
+  it('Substitute mode with valid building calls shareSubstituteCollection and shows URL panel', async () => {
+    const shareSubstituteCollection = vi.fn().mockResolvedValue('sub-share-id');
+    useDashboardMock.mockReturnValue({
+      ...baseMockReturn,
+      shareSubstituteCollection,
+    });
+    render(
+      <ShareCollectionLinkCreatorModal
+        isOpen
+        collection={collection()}
+        boards={[board('b1')]}
+        onClose={vi.fn()}
+      />
+    );
+    // Switch to substitute mode
+    act(() => {
+      fireEvent.click(screen.getByRole('radio', { name: /substitute/i }));
+    });
+    // Select a canonical building from the dropdown
+    const select = screen.getByRole('combobox');
+    act(() => {
+      fireEvent.change(select, { target: { value: BUILDINGS[0].id } });
+    });
+    // Click Create link
+    await userEvent.click(screen.getByRole('button', { name: /create link/i }));
+    expect(shareSubstituteCollection).toHaveBeenCalledWith(
+      expect.objectContaining({ buildingId: BUILDINGS[0].id })
+    );
+    const urlInput = await screen.findByLabelText(/share collection url/i);
+    expect((urlInput as HTMLInputElement).value).toContain(
+      '/share-collection/sub-share-id'
+    );
   });
 
   it('Copy mode calls shareCollection and reveals the URL panel', async () => {

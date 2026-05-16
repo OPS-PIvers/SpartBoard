@@ -3,6 +3,8 @@ import { useTranslation } from 'react-i18next';
 import { Folder, Copy, UserCheck } from 'lucide-react';
 import type { Collection, Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { BUILDINGS } from '@/config/buildings';
+import { logError } from '@/utils/logError';
 
 interface ShareCollectionLinkCreatorModalProps {
   isOpen: boolean;
@@ -13,6 +15,9 @@ interface ShareCollectionLinkCreatorModalProps {
 }
 
 type ModeChoice = 'copy' | 'substitute';
+type CopyState = 'unknown' | 'copied' | 'failed';
+
+const BUILDING_IDS = new Set(BUILDINGS.map((b) => b.id));
 
 const SUB_TTL_PRESETS: { label: string; ms: number }[] = [
   { label: '4 hours', ms: 4 * 60 * 60 * 1000 },
@@ -31,6 +36,7 @@ export const ShareCollectionLinkCreatorModal: FC<
   const [ttlMs, setTtlMs] = useState<number>(SUB_TTL_PRESETS[1].ms);
   const [buildingId, setBuildingId] = useState<string>('');
   const [shareUrl, setShareUrl] = useState<string | null>(null);
+  const [copyState, setCopyState] = useState<CopyState>('unknown');
   const [busy, setBusy] = useState(false);
   const headingId = useId();
 
@@ -52,6 +58,17 @@ export const ShareCollectionLinkCreatorModal: FC<
           setBusy(false);
           return;
         }
+        // Defense-in-depth: reject any value not in the canonical list.
+        if (!BUILDING_IDS.has(buildingId)) {
+          addToast(
+            t('shareCollection.buildingRequired', {
+              defaultValue: 'Select a building before sharing with a sub.',
+            }),
+            'error'
+          );
+          setBusy(false);
+          return;
+        }
         shareId = await shareSubstituteCollection({
           collection,
           boards,
@@ -64,8 +81,10 @@ export const ShareCollectionLinkCreatorModal: FC<
       setShareUrl(url);
       try {
         await navigator.clipboard.writeText(url);
-      } catch {
-        // clipboard may be blocked — URL is still shown in the input
+        setCopyState('copied');
+      } catch (err) {
+        setCopyState('failed');
+        logError('ShareCollectionLinkCreatorModal.clipboard', err);
       }
     } catch {
       addToast(
@@ -198,13 +217,22 @@ export const ShareCollectionLinkCreatorModal: FC<
                 <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider">
                   {t('shareCollection.building', { defaultValue: 'Building' })}
                 </label>
-                <input
-                  type="text"
+                <select
                   value={buildingId}
                   onChange={(e) => setBuildingId(e.target.value)}
-                  placeholder="e.g. middle-school"
-                  className="w-full px-2 py-1 text-sm border border-slate-300 rounded"
-                />
+                  className="w-full px-2 py-1 text-sm border border-slate-300 rounded bg-white"
+                >
+                  <option value="">
+                    {t('shareCollection.selectBuilding', {
+                      defaultValue: '— Select building —',
+                    })}
+                  </option>
+                  {BUILDINGS.map((b) => (
+                    <option key={b.id} value={b.id}>
+                      {b.name}
+                    </option>
+                  ))}
+                </select>
               </div>
             )}
 
@@ -236,21 +264,55 @@ export const ShareCollectionLinkCreatorModal: FC<
 
         {shareUrl && (
           <div className="p-5 space-y-3">
-            <p className="text-sm text-slate-600">
-              {t('shareCollection.linkReady', {
-                defaultValue: 'Share link copied to clipboard.',
-              })}
-            </p>
-            <input
-              type="text"
-              readOnly
-              value={shareUrl}
-              aria-label={t('shareCollection.urlLabel', {
-                defaultValue: 'Share collection URL',
-              })}
-              className="w-full px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded select-all"
-              onFocus={(e) => e.currentTarget.select()}
-            />
+            {copyState === 'copied' && (
+              <p className="text-sm text-slate-600">
+                {t('shareCollection.linkCopied', {
+                  defaultValue: 'Share link copied to clipboard.',
+                })}
+              </p>
+            )}
+            {copyState === 'failed' && (
+              <p className="text-sm text-amber-600">
+                {t('shareCollection.linkCopyFailed', {
+                  defaultValue:
+                    'Copy the link below — clipboard access was blocked.',
+                })}
+              </p>
+            )}
+            {copyState === 'unknown' && (
+              <p className="text-sm text-slate-600">
+                {t('shareCollection.linkReady', {
+                  defaultValue: 'Share link ready.',
+                })}
+              </p>
+            )}
+            <div className="flex gap-1">
+              <input
+                type="text"
+                readOnly
+                value={shareUrl}
+                aria-label={t('shareCollection.urlLabel', {
+                  defaultValue: 'Share collection URL',
+                })}
+                className="flex-1 px-2 py-1.5 text-xs font-mono bg-slate-50 border border-slate-200 rounded select-all"
+                onFocus={(e) => e.currentTarget.select()}
+              />
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    await navigator.clipboard.writeText(shareUrl);
+                    setCopyState('copied');
+                  } catch (err) {
+                    setCopyState('failed');
+                    logError('ShareCollectionLinkCreatorModal.manualCopy', err);
+                  }
+                }}
+                className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
+              >
+                {t('shareCollection.copy', { defaultValue: 'Copy' })}
+              </button>
+            </div>
             <div className="flex justify-end">
               <button
                 type="button"

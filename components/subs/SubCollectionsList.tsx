@@ -23,23 +23,22 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
     const canonical = canonicalBuildingId(buildingId);
     void (async () => {
       try {
+        // NOTE: this composite query requires a Firestore index on
+        // (intendedMode, buildingId, expiresAt). Phase 3 will add it to
+        // firestore.indexes.json. Until then the SDK surfaces a
+        // "missing index" error in the console in production.
         const q = query(
           collection(db, 'shared_collections'),
           where('intendedMode', '==', 'substitute'),
-          where('buildingId', '==', canonical)
+          where('buildingId', '==', canonical),
+          where('expiresAt', '>', Date.now())
         );
         const snap = await getDocs(q);
         if (cancelled) return;
-        const now = Date.now();
         const docs: SharedCollection[] = [];
         snap.docs.forEach((d) => {
           const data = d.data() as SharedCollection;
-          // Filter expired collections client-side (mirrors useSubstituteShares pattern).
-          const expiresAt =
-            typeof data.expiresAt === 'number' ? data.expiresAt : Infinity;
-          if (expiresAt > now) {
-            docs.push({ ...data, shareId: d.id });
-          }
+          docs.push({ ...data, shareId: d.id });
         });
         setCollections(docs);
       } catch (err) {
@@ -104,13 +103,20 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
                   defaultValue:
                     'Board view in /subs coming soon — open in the teacher app for now',
                 })}
-                className="text-left px-2 py-1.5 text-xs rounded-md bg-slate-50 border border-slate-200 opacity-60 cursor-not-allowed"
+                className="text-left px-2 py-1.5 text-xs rounded-md bg-slate-50 border border-slate-200 opacity-60 cursor-not-allowed flex flex-col gap-0.5"
                 aria-disabled="true"
               >
-                {t('subCollections.boardPlaceholder', {
-                  id: boardId.slice(-4),
-                  defaultValue: 'Board …{{id}}',
-                })}
+                <span>
+                  {t('subCollections.boardPlaceholder', {
+                    id: boardId.slice(-4),
+                    defaultValue: 'Board …{{id}}',
+                  })}
+                </span>
+                <span className="text-[10px] text-slate-400 italic">
+                  {t('subCollections.comingSoonLabel', {
+                    defaultValue: 'Coming soon',
+                  })}
+                </span>
               </button>
             ))}
           </div>
