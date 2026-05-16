@@ -228,7 +228,11 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 
   return (
     <a
-      href={assignment.openHref}
+      // Omit href entirely when locked so middle-click, cmd-click, ctrl-click,
+      // and shift-click can't bypass the onClick guard (which only blocks
+      // primary-button left clicks). An hrefless <a> is non-navigable in all
+      // click modes, making aria-disabled semantically truthful.
+      href={lockedOut ? undefined : assignment.openHref}
       onClick={handleClick}
       aria-busy={isPending ? true : undefined}
       aria-disabled={lockedOut ? true : undefined}
@@ -283,14 +287,19 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         </span>
       )}
 
-      <span
-        className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
-          { isPending, isCompleted, isGraded }
-        )}`}
-        aria-hidden="true"
-      >
-        {getChipLabel({ isPending, isCompleted, isGraded })}
-      </span>
+      {/* Suppress the right-side status chip when locked so the "Locked" pill
+          is the single, dominant signal on a locked row — otherwise the chip
+          (e.g. "View results") contradicts the badge. */}
+      {!lockedOut && (
+        <span
+          className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
+            { isPending, isCompleted, isGraded }
+          )}`}
+          aria-hidden="true"
+        >
+          {getChipLabel({ isPending, isCompleted, isGraded })}
+        </span>
+      )}
     </a>
   );
 };
