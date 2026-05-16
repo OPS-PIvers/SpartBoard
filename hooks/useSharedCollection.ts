@@ -19,7 +19,7 @@ import {
   getDocs,
   writeBatch,
 } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, isAuthBypass } from '@/config/firebase';
 import { logError } from '@/utils/logError';
 import type {
   Dashboard,
@@ -31,6 +31,74 @@ import type {
 
 const SHARED_COLLECTIONS_SUBPATH = 'shared_collections';
 const SHARED_COLLECTION_BOARDS_SUBPATH = 'boards';
+
+// ---------------------------------------------------------------------------
+// In-memory mock store for auth-bypass (dev / E2E) mode.
+// Mirrors the singleton pattern in useFirestore.ts.
+// ---------------------------------------------------------------------------
+class MockSharedCollectionStore {
+  private static instance: MockSharedCollectionStore;
+  private collections = new Map<string, SharedCollection>();
+  private boards = new Map<string, Map<string, Dashboard>>();
+
+  private constructor() {
+    // Private constructor for singleton
+  }
+
+  static getInstance(): MockSharedCollectionStore {
+    if (!MockSharedCollectionStore.instance) {
+      MockSharedCollectionStore.instance = new MockSharedCollectionStore();
+    }
+    return MockSharedCollectionStore.instance;
+  }
+
+  save(shareId: string, meta: SharedCollection, boardList: Dashboard[]): void {
+    this.collections.set(shareId, meta);
+    const bMap = new Map<string, Dashboard>();
+    for (const b of boardList) bMap.set(b.id, b);
+    this.boards.set(shareId, bMap);
+    try {
+      sessionStorage.setItem(
+        `mock_scoll_${shareId}`,
+        JSON.stringify({ meta, boards: boardList })
+      );
+    } catch {
+      /* session storage unavailable — in-memory only */
+    }
+  }
+
+  getCollection(shareId: string): SharedCollection | null {
+    if (this.collections.has(shareId)) {
+      return this.collections.get(shareId) ?? null;
+    }
+    // Hydrate from sessionStorage (cross-navigation in E2E)
+    try {
+      const raw = sessionStorage.getItem(`mock_scoll_${shareId}`);
+      if (raw) {
+        const parsed = JSON.parse(raw) as {
+          meta: SharedCollection;
+          boards: Dashboard[];
+        };
+        this.collections.set(shareId, parsed.meta);
+        const bMap = new Map<string, Dashboard>();
+        for (const b of parsed.boards) bMap.set(b.id, b);
+        this.boards.set(shareId, bMap);
+        return parsed.meta;
+      }
+    } catch {
+      /* ignore */
+    }
+    return null;
+  }
+
+  getBoards(shareId: string): Dashboard[] {
+    // Ensure collection (and boards) are hydrated if only sessionStorage has them
+    this.getCollection(shareId);
+    return Array.from(this.boards.get(shareId)?.values() ?? []);
+  }
+}
+
+const mockCollStore = MockSharedCollectionStore.getInstance();
 
 interface ShareCollectionInput {
   collection: CollectionType;
@@ -57,7 +125,6 @@ export const useSharedCollection = () => {
   const shareCollection = useCallback(
     async (input: ShareCollectionInput): Promise<string> => {
       const shareId = crypto.randomUUID();
-      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
       const now = Date.now();
 
       const parentPayload: SharedCollection = {
@@ -78,6 +145,12 @@ export const useSharedCollection = () => {
         createdAt: now,
       };
 
+      if (isAuthBypass) {
+        mockCollStore.save(shareId, parentPayload, input.boards);
+        return shareId;
+      }
+
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
       const BATCH_LIMIT = 400;
       let currentBatch = writeBatch(db);
       currentBatch.set(parentRef, parentPayload);
@@ -120,7 +193,6 @@ export const useSharedCollection = () => {
   const shareSubstituteCollection = useCallback(
     async (input: SubstituteShareInput): Promise<string> => {
       const shareId = crypto.randomUUID();
-      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
       const now = Date.now();
 
       const parentPayload: SharedCollection = {
@@ -143,6 +215,12 @@ export const useSharedCollection = () => {
         buildingId: input.buildingId,
       };
 
+      if (isAuthBypass) {
+        mockCollStore.save(shareId, parentPayload, input.boards);
+        return shareId;
+      }
+
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
       const BATCH_LIMIT = 400;
       let currentBatch = writeBatch(db);
       currentBatch.set(parentRef, parentPayload);
@@ -182,6 +260,18 @@ export const useSharedCollection = () => {
    */
   const loadSharedCollection = useCallback(
     async (shareId: string): Promise<SharedCollection | null> => {
+      if (isAuthBypass) {
+        const meta = mockCollStore.getCollection(shareId);
+        if (!meta) return null;
+        if (
+          meta.intendedMode === 'substitute' &&
+          meta.expiresAt &&
+          meta.expiresAt < Date.now()
+        ) {
+          return null;
+        }
+        return meta;
+      }
       try {
         const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
         const snap = await getDoc(parentRef);
@@ -212,6 +302,13 @@ export const useSharedCollection = () => {
    */
   const loadSharedCollectionBoards = useCallback(
     async (shareId: string, boardIds: string[]): Promise<Dashboard[]> => {
+      if (isAuthBypass) {
+        const allBoards = mockCollStore.getBoards(shareId);
+        const byId = new Map(allBoards.map((b) => [b.id, b]));
+        return boardIds
+          .map((id) => byId.get(id))
+          .filter((d): d is Dashboard => Boolean(d));
+      }
       const colRef = collection(
         db,
         SHARED_COLLECTIONS_SUBPATH,

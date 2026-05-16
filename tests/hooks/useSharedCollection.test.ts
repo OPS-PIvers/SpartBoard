@@ -42,7 +42,7 @@ vi.mock('firebase/firestore', () => {
   };
 });
 
-vi.mock('@/config/firebase', () => ({ db: {} }));
+vi.mock('@/config/firebase', () => ({ db: {}, isAuthBypass: false }));
 vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
 
 import { useSharedCollection } from '@/hooks/useSharedCollection';
