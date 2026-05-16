@@ -2085,7 +2085,13 @@ service cloud.firestore {
            // rule because the new status is not 'completed'). The case
            // this blocks is 'completed' → 'completed', which only happens
            // via a race or bug.
-           (resource.data.get('status', '') != 'completed' ||
+           //
+           // Only fires when the update actually touches `status`. Writes
+           // that leave status alone (tab-warning increments during the
+           // quiz, results-protection writes after publish) need to be
+           // allowed even when the doc is already in the 'completed' state.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['status']) ||
+            resource.data.get('status', '') != 'completed' ||
             request.resource.data.get('status', '') != 'completed'))
         );
         allow delete: if request.auth != null &&
