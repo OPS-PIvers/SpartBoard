@@ -529,5 +529,55 @@
       "saveAsTemplate": "Save as Template…",
       "delete": "Delete"
     }
+  },
+  "shareCollection": {
+    "title": "Share Collection",
+    "subtitle": "Sharing {{count}} board(s) from this Collection.",
+    "mode": "Share Mode",
+    "copyMode": "Copy",
+    "copyModeHint": "Recipient imports a full copy into their account.",
+    "substituteMode": "Substitute (view-only)",
+    "substituteModeHint": "A sub teacher sees the Collection in /subs for the window you choose.",
+    "expiresIn": "Expires in",
+    "building": "Building",
+    "buildingRequired": "Select a building before sharing with a sub.",
+    "selectBuilding": "— Select building —",
+    "createLink": "Create link",
+    "creating": "Creating…",
+    "createFailed": "Failed to create Collection share",
+    "linkReady": "Share link ready.",
+    "linkCopied": "Share link copied to clipboard.",
+    "linkCopyFailed": "Copy the link below — clipboard access was blocked.",
+    "copy": "Copy",
+    "urlLabel": "Share collection URL",
+    "imported": "Imported Collection with {{count}} board(s)",
+    "partialImport": "Imported {{succeeded}} board(s) — {{failed}} failed",
+    "importFailed": "Failed to import shared Collection",
+    "notFound": "Shared Collection not found or expired",
+    "empty": "Shared Collection is empty",
+    "invalidShareUrl": "Invalid share link — missing share id.",
+    "substituteImportRejected": "Substitute shares are view-only. Open this link in /subs to view."
+  },
+  "importSharedCollection": {
+    "title": "Import shared Collection",
+    "loading": "Loading shared Collection…",
+    "notFound": "Shared Collection not found or expired.",
+    "shared": "Shared by {{name}}",
+    "boardCount": "{{count}} board(s)",
+    "importing": "Importing…",
+    "import": "Import Collection",
+    "substituteOnly": "This is a substitute (view-only) share. Open it in /subs."
+  },
+  "subCollections": {
+    "loading": "Loading shared Collections…",
+    "loadError": "Couldn't load shared Collections — refresh to retry.",
+    "heading": "Collections",
+    "boardCount": "{{count}} board(s)",
+    "boardPlaceholder": "Board …{{id}}",
+    "comingSoon": "Board view in /subs coming soon — open in the teacher app for now",
+    "comingSoonLabel": "Coming soon"
+  },
+  "collectionMenu": {
+    "share": "Share Collection…"
   }
 }

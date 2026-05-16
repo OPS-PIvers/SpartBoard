@@ -24,6 +24,8 @@ import {
   UserProfile,
   SubstituteShareDriveGrant,
   ROOT_COLLECTION_KEY,
+  Collection,
+  CollectionSubstituteShareInput,
 } from '../types';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
@@ -62,6 +64,7 @@ import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
 import { useCollections } from '../hooks/useCollections';
+import { useSharedCollection } from '../hooks/useSharedCollection';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import {
   setAiModelConfigFallbackHandler,
@@ -241,6 +244,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const collectionsApi = useCollections(user?.uid);
   const { collections } = collectionsApi;
+  const sharedCollectionApi = useSharedCollection();
 
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [pendingShareId, setPendingShareId] = useState<string | null>(() => {
@@ -291,6 +295,33 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
+    window.history.replaceState(null, '', '/');
+  }, []);
+
+  // Detect malformed /share-collection/ URLs (present but no ID) so we can
+  // toast after mount, when addToast is available.
+  const [hadEmptyShareCollectionUrl] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname;
+    return (
+      path.startsWith('/share-collection/') &&
+      !path.split('/share-collection/')[1]
+    );
+  });
+
+  const [pendingSharedCollectionId, setPendingSharedCollectionId] = useState<
+    string | null
+  >(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    if (path.startsWith('/share-collection/')) {
+      return path.split('/share-collection/')[1] || null;
+    }
+    return null;
+  });
+
+  const clearPendingSharedCollection = useCallback(() => {
+    setPendingSharedCollectionId(null);
     window.history.replaceState(null, '', '/');
   }, []);
 
@@ -557,6 +588,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     return () => setDriveAuthErrorHandler(null);
   }, [addToast, refreshGoogleToken]);
+
+  // Fire a toast (and clean the URL) when the user landed on /share-collection/
+  // with no share ID. The initializer for hadEmptyShareCollectionUrl captures
+  // this at mount time; addToast isn't available during state init, so we
+  // surface the error here instead. hadEmptyShareCollectionUrl is a frozen
+  // constant (never updated after init) so this effect fires exactly once.
+  useEffect(() => {
+    if (hadEmptyShareCollectionUrl) {
+      addToast('Invalid share link — missing share id.', 'error');
+      window.history.replaceState(null, '', '/');
+    }
+  }, [hadEmptyShareCollectionUrl, addToast]);
 
   // Surface a one-time notice when an AI Cloud Function couldn't read the
   // admin-configured Gemini model overrides from Firestore and fell back to
@@ -3120,10 +3163,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (
       name: string,
       data?: Dashboard,
-      options?: { collectionId?: string | null }
+      options?: { collectionId?: string | null; silent?: boolean }
     ): Promise<string | undefined> => {
       if (!user) {
-        addToast('Must be signed in to create dashboard', 'error');
+        if (!options?.silent)
+          addToast('Must be signed in to create dashboard', 'error');
         return undefined;
       }
 
@@ -3142,7 +3186,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             ...data,
             id: crypto.randomUUID(),
             name,
-            order: maxOrder + 1,
+            order: data.order ?? maxOrder + 1,
             collectionId,
           }
         : {
@@ -3158,8 +3202,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         await saveDashboard(newDb);
-        updateActiveId(newDb.id);
-        addToast(`Dashboard "${name}" ready`);
+        if (!options?.silent) {
+          updateActiveId(newDb.id);
+          addToast(`Dashboard "${name}" ready`);
+        }
         return newDb.id;
       } catch (err) {
         logError('DashboardContext.createNewDashboard', err, {
@@ -3167,11 +3213,201 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           name,
           collectionId,
         });
+        if (options?.silent) {
+          // Silent callers (e.g. importSharedCollection) need to detect
+          // failure via rejection — re-throw so Promise.allSettled can count.
+          throw err;
+        }
         addToast('Failed to create dashboard', 'error');
         return undefined;
       }
     },
     [user, dashboards, saveDashboard, addToast, updateActiveId]
+  );
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Collection share + import actions
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const shareCollection = useCallback(
+    async (input: {
+      collection: Collection;
+      boards: Dashboard[];
+    }): Promise<string> => {
+      if (!user) throw new Error('Not authenticated');
+      return sharedCollectionApi.shareCollection({
+        ...input,
+        hostUid: user.uid,
+        hostDisplayName: user.displayName,
+      });
+    },
+    [user, sharedCollectionApi]
+  );
+
+  const shareSubstituteCollection = useCallback(
+    async (
+      input: CollectionSubstituteShareInput & {
+        collection: Collection;
+        boards: Dashboard[];
+      }
+    ): Promise<string> => {
+      if (!user) throw new Error('Not authenticated');
+      return sharedCollectionApi.shareSubstituteCollection({
+        ...input,
+        hostUid: user.uid,
+        hostDisplayName: user.displayName,
+      });
+    },
+    [user, sharedCollectionApi]
+  );
+
+  const importSharedCollection = useCallback(
+    async (
+      shareId: string
+    ): Promise<{
+      collectionId: string;
+      firstBoardId: string | null;
+    } | null> => {
+      if (!user) {
+        addToast('Must be signed in to import', 'error');
+        return null;
+      }
+      const meta = await sharedCollectionApi.loadSharedCollection(shareId);
+      if (!meta) {
+        addToast('Shared Collection not found or expired', 'error');
+        return null;
+      }
+      if (meta.intendedMode === 'substitute') {
+        addToast(
+          'Substitute shares are view-only. Open this link in /subs to view.',
+          'error'
+        );
+        return null;
+      }
+      const boards = await sharedCollectionApi.loadSharedCollectionBoards(
+        shareId,
+        meta.boardIds
+      );
+      if (boards.length === 0) {
+        addToast('Shared Collection is empty', 'error');
+        return null;
+      }
+      // Warn if the share was partially available (some board docs missing).
+      if (boards.length < meta.boardIds.length) {
+        const missing = meta.boardIds.length - boards.length;
+        addToast(
+          `${missing.toString()} board(s) couldn't be loaded — importing the rest`,
+          'error'
+        );
+        // Continue with the partial set; warning is surfaced above.
+      }
+
+      try {
+        // Phase 1: create the recipient's Collection.
+        const newCollectionId = await collectionsApi.createCollection(
+          meta.collection.name,
+          null // root — recipient can move it later
+        );
+
+        // Capture maxOrder ONCE before the parallel fan-out so each board
+        // gets a deterministic, non-colliding order value.
+        const baseOrder = dashboards.reduce(
+          (max, d) => Math.max(max, d.order ?? 0),
+          0
+        );
+
+        // Phase 2: clone each Board into the new Collection. Use silent:true
+        // so N boards don't fire N toasts and N activeId thrashes. With
+        // silent:true, createNewDashboard throws on failure so
+        // Promise.allSettled captures rejections (not undefined returns).
+        const importResults = await Promise.allSettled(
+          boards.map((b, idx) =>
+            createNewDashboard(
+              `${b.name} (Imported)`,
+              // Deep-clone the board so nested widget state isn't shared by
+              // reference across imports.
+              {
+                ...structuredClone(b),
+                id: crypto.randomUUID(),
+                order: baseOrder + idx + 1,
+              } as Dashboard,
+              { collectionId: newCollectionId, silent: true }
+            )
+          )
+        );
+
+        // With silent:true, createNewDashboard throws on failure (rejected)
+        // and returns the new id on success (fulfilled with a string).
+        // Guard against undefined returns defensively in case a future caller
+        // removes silent:true without updating this detection.
+        const succeeded = importResults.filter(
+          (r) => r.status === 'fulfilled' && r.value !== undefined
+        ).length;
+        const failed = boards.length - succeeded;
+
+        if (failed > 0) {
+          addToast(
+            `Imported ${succeeded.toString()} board(s) — ${failed.toString()} failed`,
+            'error'
+          );
+        } else {
+          addToast(`Imported Collection with ${succeeded.toString()} board(s)`);
+        }
+
+        // NOTE: This cleanup runs AFTER createCollection's Firestore write
+        // resolves, which means the recipient's useCollections onSnapshot
+        // listener may have already received and displayed the new Collection
+        // (typically ~50-200ms before this delete arrives). On total-failure
+        // imports the user will see the Collection flash briefly in their
+        // sidebar tree before disappearing. Acceptable for an exceptional
+        // path; a transactional fix (single batch with all writes + create-or-
+        // delete based on success count) would require Firestore Cloud
+        // Functions or a rewrite to use a single batched transaction.
+        if (succeeded === 0) {
+          // All boards failed — delete the empty Collection rather than
+          // leaving a labeled-but-empty shell in the recipient's tree.
+          try {
+            await collectionsApi.deleteCollection(
+              newCollectionId,
+              'delete-all'
+            );
+          } catch (cleanupErr) {
+            logError(
+              'DashboardContext.importSharedCollection.cleanup',
+              cleanupErr,
+              { newCollectionId }
+            );
+          }
+          return null;
+        }
+
+        // Return the first successfully imported board's id directly so
+        // the caller can navigate without waiting for the Firestore snapshot
+        // to update the local dashboards state (which is async).
+        const firstFulfilled = importResults.find(
+          (r): r is PromiseFulfilledResult<string | undefined> =>
+            r.status === 'fulfilled' && r.value !== undefined
+        );
+        const firstBoardId = firstFulfilled?.value ?? null;
+
+        return { collectionId: newCollectionId, firstBoardId };
+      } catch (err) {
+        logError('DashboardContext.importSharedCollection', err, {
+          shareId,
+          boardCount: boards.length,
+        });
+        addToast('Failed to import shared Collection', 'error');
+        return null;
+      }
+    },
+    [
+      user,
+      dashboards,
+      addToast,
+      sharedCollectionApi,
+      collectionsApi,
+      createNewDashboard,
+    ]
   );
 
   const saveCurrentDashboard = useCallback(async () => {
@@ -4684,6 +4920,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      shareCollection,
+      shareSubstituteCollection,
+      loadSharedCollection: sharedCollectionApi.loadSharedCollection,
+      loadSharedCollectionBoards:
+        sharedCollectionApi.loadSharedCollectionBoards,
+      importSharedCollection,
+      pendingSharedCollectionId,
+      setPendingSharedCollectionId,
+      clearPendingSharedCollection,
       zoom,
       setZoom,
       annotationActive,
@@ -4795,6 +5040,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      shareCollection,
+      shareSubstituteCollection,
+      sharedCollectionApi.loadSharedCollection,
+      sharedCollectionApi.loadSharedCollectionBoards,
+      importSharedCollection,
+      pendingSharedCollectionId,
+      setPendingSharedCollectionId,
+      clearPendingSharedCollection,
       zoom,
       setZoom,
       annotationActive,

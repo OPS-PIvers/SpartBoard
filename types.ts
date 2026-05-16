@@ -6178,6 +6178,65 @@ export interface Collection {
 }
 
 /**
+ * Mode applied to a shared-Collection import. NOT including 'synced' —
+ * live-mirroring N boards is unbounded cost. Substitute is a frozen,
+ * time-boxed view-only flavor used by the /subs portal.
+ */
+export type SharedCollectionImportMode = 'copy' | 'substitute';
+
+/**
+ * Frozen snapshot stored at `/shared_collections/{shareId}`. Each Board
+ * in the Collection is stored as a separate doc under
+ * `/shared_collections/{shareId}/boards/{boardId}` to dodge Firestore's
+ * 1MB-per-doc limit. The parent doc stores Collection metadata + an
+ * ordered `boardIds` list for the recipient flow.
+ */
+export interface SharedCollection {
+  shareId: string;
+  hostUid: string;
+  hostDisplayName: string | null;
+  intendedMode: SharedCollectionImportMode;
+  /** Frozen Collection metadata at share time (NOT the live Collection). */
+  collection: {
+    name: string;
+    color?: string;
+    icon?: string;
+  };
+  /** Ordered Board IDs — recipient reads from subcollection by these IDs. */
+  boardIds: string[];
+  /** ms epoch. */
+  createdAt: number;
+  /** Substitute-only: ms epoch when this share expires. */
+  expiresAt?: number;
+  /** Substitute-only: building id (config/buildings.ts) for /subs scoping. */
+  buildingId?: string;
+}
+
+/**
+ * One Board snapshot inside a Collection share. Stored at
+ * `/shared_collections/{shareId}/boards/{boardId}`. Mirrors the existing
+ * `Dashboard` shape minus any `linkedShareId`/`linkedShareRole` fields
+ * (a share-import is never itself a share host).
+ */
+export interface SharedCollectionBoardDoc {
+  boardId: string;
+  /** Frozen `Dashboard` at share time. */
+  dashboard: Dashboard;
+}
+
+/**
+ * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
+ * for single Boards but operates on a whole Collection.
+ */
+export interface CollectionSubstituteShareInput {
+  collectionId: string;
+  expiresAt: number;
+  buildingId: string;
+  subEmails?: string[];
+  rosterDriveFileIds?: string[];
+}
+
+/**
  * Admin-created short link, stored at `/short_links/{code}`. The doc id is
  * the public-facing code (e.g. `lesson-1`); the URL `${origin}/r/${code}`
  * resolves client-side via `ShortLinkRedirect` and bumps the `clicks`

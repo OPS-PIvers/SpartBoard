@@ -330,6 +330,16 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       ungroupWidgets: NOOP,
       setGroupBuildMode: NOOP,
 
+      // Collection sharing — subs never originate collection shares.
+      shareCollection: () => Promise.resolve(''),
+      shareSubstituteCollection: () => Promise.resolve(''),
+      loadSharedCollection: () => Promise.resolve(null),
+      loadSharedCollectionBoards: () => Promise.resolve([]),
+      importSharedCollection: () => Promise.resolve(null),
+      pendingSharedCollectionId: null,
+      setPendingSharedCollectionId: NOOP,
+      clearPendingSharedCollection: NOOP,
+
       // Sharing — subs never originate shares of their own.
       shareDashboard: NOOP_ASYNC_STRING as (
         dashboard: Dashboard,

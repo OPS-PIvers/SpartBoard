@@ -13,9 +13,10 @@ import { BoardContextMenu } from './BoardContextMenu';
 import { CollectionContextMenu } from './CollectionContextMenu';
 import { MoveToCollectionMenu } from './MoveToCollectionMenu';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
+import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { useBoardsModalDnd } from './useBoardsModalDnd';
-import type { Dashboard } from '@/types';
+import type { Collection, Dashboard } from '@/types';
 
 interface BoardsModalProps {
   onClose: () => void;
@@ -60,6 +61,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     position: { x: number; y: number };
   } | null>(null);
   const [shareTarget, setShareTarget] = useState<Dashboard | null>(null);
+  const [shareCollectionTarget, setShareCollectionTarget] =
+    useState<Collection | null>(null);
   const [saveAsTemplateTarget, setSaveAsTemplateTarget] =
     useState<Dashboard | null>(null);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
@@ -498,6 +501,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               position={contextMenu.position}
               onClose={() => setContextMenu(null)}
               onOpen={() => setSelectedCollectionId(c.id)}
+              canShare={canShare}
+              onShare={() => setShareCollectionTarget(c)}
               onRename={async () => {
                 const next = await showPrompt('Rename Collection', {
                   title: 'Rename',
@@ -568,6 +573,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         dashboard={shareTarget}
         onClose={() => setShareTarget(null)}
       />
+      {shareCollectionTarget && (
+        <ShareCollectionLinkCreatorModal
+          isOpen
+          collection={shareCollectionTarget}
+          boards={dashboards.filter(
+            (d) => (d.collectionId ?? null) === shareCollectionTarget.id
+          )}
+          onClose={() => setShareCollectionTarget(null)}
+        />
+      )}
       <SaveAsTemplateModal
         isOpen={!!saveAsTemplateTarget}
         currentDashboard={saveAsTemplateTarget}

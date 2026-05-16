@@ -20,6 +20,7 @@ import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import { QuizAssignmentImportModeModal } from '@/components/widgets/QuizWidget/components/QuizAssignmentImportModeModal';
 import { ImportShareModePicker } from '@/components/share/ImportShareModePicker';
+import { ImportSharedCollectionModal } from '@/components/share/ImportSharedCollectionModal';
 import { ShareStatusBanner } from '@/components/share/ShareStatusBanner';
 import { logError } from '@/utils/logError';
 import {
@@ -168,6 +169,8 @@ export const DashboardView: React.FC = () => {
     clearPendingAssignmentShare,
     pendingVideoActivityShareId,
     clearPendingVideoActivityShare,
+    pendingSharedCollectionId,
+    clearPendingSharedCollection,
     setPendingAssignmentSetup,
     // Widget grouping
     groupWidgets,
@@ -1741,6 +1744,18 @@ export const DashboardView: React.FC = () => {
       <AnnouncementOverlay />
       <ShareStatusBanner />
       <ImportShareModePicker />
+      {pendingSharedCollectionId && (
+        <ImportSharedCollectionModal
+          shareId={pendingSharedCollectionId}
+          onClose={clearPendingSharedCollection}
+          onImported={(result) => {
+            // Use firstBoardId returned directly from importSharedCollection
+            // rather than searching dashboards — the Firestore snapshot may not
+            // have updated yet when this callback fires.
+            if (result.firstBoardId) loadDashboard(result.firstBoardId);
+          }}
+        />
+      )}
       <BoardActionsFab onOpenCheatSheet={() => setIsCheatSheetOpen(true)} />
 
       {importModePrompt && (

@@ -106,6 +106,17 @@ vi.mock('../hooks/useCollections', () => ({
   }),
 }));
 
+vi.mock('../hooks/useSharedCollection', () => ({
+  useSharedCollection: () => ({
+    shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
+    shareSubstituteCollection: vi
+      .fn()
+      .mockResolvedValue('mock-collection-sub-share-id'),
+    loadSharedCollection: vi.fn().mockResolvedValue(null),
+    loadSharedCollectionBoards: vi.fn().mockResolvedValue([]),
+  }),
+}));
+
 vi.mock('firebase/firestore', async (importOriginal) => {
   // Real module reference so any unmocked Firestore function (e.g. helpers
   // imported transitively by deeper modules) still resolves to its real

@@ -135,6 +135,17 @@ vi.mock('@/hooks/useCollections', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useSharedCollection', () => ({
+  useSharedCollection: () => ({
+    shareCollection: vi.fn().mockResolvedValue('mock-collection-share-id'),
+    shareSubstituteCollection: vi
+      .fn()
+      .mockResolvedValue('mock-collection-sub-share-id'),
+    loadSharedCollection: vi.fn().mockResolvedValue(null),
+    loadSharedCollectionBoards: vi.fn().mockResolvedValue([]),
+  }),
+}));
+
 vi.mock('@/components/boardsModal/BoardsModal', () => ({
   BoardsModal: () => null,
 }));

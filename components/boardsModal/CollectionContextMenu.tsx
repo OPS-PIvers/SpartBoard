@@ -5,6 +5,7 @@ import {
   Pencil,
   FolderInput,
   Palette,
+  Share2,
   Trash2,
 } from 'lucide-react';
 
@@ -15,6 +16,8 @@ interface CollectionContextMenuProps {
   onRename: () => void;
   onMove: () => void;
   onColor: () => void;
+  canShare: boolean;
+  onShare: () => void;
   onDelete: () => void;
 }
 
@@ -25,6 +28,8 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   onRename,
   onMove,
   onColor,
+  canShare,
+  onShare,
   onDelete,
 }) => {
   const { t } = useTranslation();
@@ -67,13 +72,22 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       icon: Palette,
       action: onColor,
     },
-    {
-      label: t('boardsModal.menu.delete', { defaultValue: 'Delete' }),
-      icon: Trash2,
-      action: onDelete,
-      danger: true,
-    },
   ];
+
+  if (canShare) {
+    items.push({
+      label: t('collectionMenu.share', { defaultValue: 'Share Collection…' }),
+      icon: Share2,
+      action: onShare,
+    });
+  }
+
+  items.push({
+    label: t('boardsModal.menu.delete', { defaultValue: 'Delete' }),
+    icon: Trash2,
+    action: onDelete,
+    danger: true,
+  });
 
   return (
     <div
