@@ -12,8 +12,15 @@
  */
 
 import { useCallback } from 'react';
-import { doc, writeBatch } from 'firebase/firestore';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  writeBatch,
+} from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import type {
   Dashboard,
   SharedCollection,
@@ -168,5 +175,66 @@ export const useSharedCollection = () => {
     []
   );
 
-  return { shareCollection, shareSubstituteCollection };
+  /**
+   * Recipient action: fetch the share metadata doc. Returns null if not
+   * found, expired, or rejected by rules. Logs errors via logError so
+   * production failures surface in telemetry rather than the console.
+   */
+  const loadSharedCollection = useCallback(
+    async (shareId: string): Promise<SharedCollection | null> => {
+      try {
+        const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+        const snap = await getDoc(parentRef);
+        if (!snap.exists()) return null;
+        const data = snap.data() as SharedCollection;
+        if (
+          data.intendedMode === 'substitute' &&
+          data.expiresAt &&
+          data.expiresAt < Date.now()
+        ) {
+          return null;
+        }
+        return data;
+      } catch (err) {
+        logError('useSharedCollection.loadSharedCollection', err, { shareId });
+        return null;
+      }
+    },
+    []
+  );
+
+  /**
+   * Recipient action: fetch every frozen Board snapshot in the share.
+   * Order respects the parent's `boardIds[]` so the recipient sees the
+   * same ordering as the host had at share time. Single `getDocs` query
+   * is cheaper than N parallel `getDoc` calls for moderate Collection
+   * sizes (< 30 Boards).
+   */
+  const loadSharedCollectionBoards = useCallback(
+    async (shareId: string, boardIds: string[]): Promise<Dashboard[]> => {
+      const colRef = collection(
+        db,
+        SHARED_COLLECTIONS_SUBPATH,
+        shareId,
+        SHARED_COLLECTION_BOARDS_SUBPATH
+      );
+      const snap = await getDocs(colRef);
+      const byId = new Map<string, Dashboard>();
+      for (const d of snap.docs) {
+        const data = d.data() as SharedCollectionBoardDoc;
+        byId.set(d.id, data.dashboard);
+      }
+      return boardIds
+        .map((id) => byId.get(id))
+        .filter((d): d is Dashboard => Boolean(d));
+    },
+    []
+  );
+
+  return {
+    shareCollection,
+    shareSubstituteCollection,
+    loadSharedCollection,
+    loadSharedCollectionBoards,
+  };
 };
