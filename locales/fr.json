@@ -436,7 +436,8 @@
     "importFailed": "Failed to import shared Collection",
     "notFound": "Shared Collection not found or expired",
     "empty": "Shared Collection is empty",
-    "invalidShareUrl": "Invalid share link — missing share id."
+    "invalidShareUrl": "Invalid share link — missing share id.",
+    "substituteImportRejected": "Substitute shares are view-only. Open this link in /subs to view."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",
@@ -445,7 +446,8 @@
     "shared": "Shared by {{name}}",
     "boardCount": "{{count}} board(s)",
     "importing": "Importing…",
-    "import": "Import Collection"
+    "import": "Import Collection",
+    "substituteOnly": "This is a substitute (view-only) share. Open it in /subs."
   },
   "subCollections": {
     "loading": "Loading shared Collections…",

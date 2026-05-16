@@ -3186,7 +3186,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             ...data,
             id: crypto.randomUUID(),
             name,
-            order: maxOrder + 1,
+            order: data.order ?? maxOrder + 1,
             collectionId,
           }
         : {
@@ -3275,6 +3275,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const meta = await sharedCollectionApi.loadSharedCollection(shareId);
       if (!meta) {
         addToast('Shared Collection not found or expired', 'error');
+        return null;
+      }
+      if (meta.intendedMode === 'substitute') {
+        addToast(
+          'Substitute shares are view-only. Open this link in /subs to view.',
+          'error'
+        );
         return null;
       }
       const boards = await sharedCollectionApi.loadSharedCollectionBoards(

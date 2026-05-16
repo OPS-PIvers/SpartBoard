@@ -32,6 +32,23 @@ import type {
 const SHARED_COLLECTIONS_SUBPATH = 'shared_collections';
 const SHARED_COLLECTION_BOARDS_SUBPATH = 'boards';
 
+/**
+ * Strip share-linkage fields from a Dashboard before snapshotting into
+ * a Collection share. Inherited linkages would make the recipient appear
+ * to be a collaborator on the host's original single-Board share, which is
+ * wrong — the recipient is starting fresh.
+ */
+const sanitizeBoardForShare = (board: Dashboard): Dashboard => {
+  const {
+    linkedShareId: _linkedShareId,
+    linkedShareRole: _linkedShareRole,
+    linkedShareHostName: _linkedShareHostName,
+    linkedShareEnded: _linkedShareEnded,
+    ...rest
+  } = board;
+  return rest;
+};
+
 // ---------------------------------------------------------------------------
 // In-memory mock store for auth-bypass (dev / E2E) mode.
 // Mirrors the singleton pattern in useFirestore.ts.
@@ -115,17 +132,15 @@ export const useSharedCollection = () => {
    * Host action: write the share metadata + every Board snapshot in a
    * chunked writeBatch. Returns the new shareId.
    *
-   * Write order: ALL board sub-docs are committed first; the parent doc is
-   * written LAST in its own batch. The parent's existence is the signal that
-   * every board sub-doc was successfully persisted. If any board batch fails,
-   * the parent is never written, so recipients see "not found or expired"
-   * rather than a partial Collection.
+   * Write order: parent doc FIRST, then board sub-docs in chunked batches.
+   * The Firestore subcollection rule reads parent.hostUid to authorise board
+   * writes — without an existing parent doc, `get()` returns null and the
+   * rule denies the write. Auth-bypass (E2E) skips Firestore rules, which
+   * is why parent-last slipped through testing.
    *
-   * Trade-off: if board batches succeed but the final parent batch fails,
-   * orphan board sub-docs remain under `/shared_collections/{shareId}/boards/*`.
-   * They are never readable by anyone (no parent doc exists to expose the
-   * shareId), so they only cost storage. A future scheduled cleanup can prune
-   * them by walking sub-collections and checking parent existence.
+   * If a board batch fails after the parent lands, the recipient sees a
+   * partial Collection. importSharedCollection detects this via
+   * `boards.length < meta.boardIds.length` and surfaces a warning toast.
    */
   const shareCollection = useCallback(
     async (input: ShareCollectionInput): Promise<string> => {
@@ -155,9 +170,17 @@ export const useSharedCollection = () => {
         return shareId;
       }
 
-      // Phase 1: write ALL board sub-docs in chunked batches.
-      // If any of these throws, the parent doc does not yet exist → recipient
-      // can't load the share at all (clean failure, no partial-state surface).
+      // Write the parent doc FIRST. The subcollection rule reads
+      // parent.hostUid to authorize board writes; without an existing
+      // parent doc, board batches are denied by Firestore rules.
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      const parentBatch = writeBatch(db);
+      parentBatch.set(parentRef, parentPayload);
+      await parentBatch.commit();
+
+      // Then write all board sub-docs in chunked batches. If any batch
+      // fails, the recipient sees a partial Collection and gets a warning
+      // toast via the partial-result detection in importSharedCollection.
       const BATCH_LIMIT = 400;
       let currentBatch = writeBatch(db);
       let inBatch = 0;
@@ -177,20 +200,12 @@ export const useSharedCollection = () => {
         );
         const boardPayload: SharedCollectionBoardDoc = {
           boardId: board.id,
-          dashboard: board,
+          dashboard: sanitizeBoardForShare(board),
         };
         currentBatch.set(boardRef, boardPayload);
         inBatch += 1;
       }
       if (inBatch > 0) await currentBatch.commit();
-
-      // Phase 2: write the parent doc LAST. Its existence is the signal that
-      // all sub-docs were successfully committed. Recipients cannot discover
-      // the share until this batch lands.
-      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
-      const parentBatch = writeBatch(db);
-      parentBatch.set(parentRef, parentPayload);
-      await parentBatch.commit();
 
       return shareId;
     },
@@ -198,15 +213,14 @@ export const useSharedCollection = () => {
   );
 
   /**
-   * Host action: substitute variant. Same parent-last write strategy as
+   * Host action: substitute variant. Same parent-first write strategy as
    * shareCollection. Adds `expiresAt` + `buildingId` and sets
    * `intendedMode: 'substitute'` on the parent payload. Drive grants are
    * NOT implemented for Collection shares — see plan's "Known
    * limitations" for rationale.
    *
-   * See shareCollection for the write-order trade-off comment (board
-   * sub-docs first, parent last — clean failure on board batch error,
-   * possible orphan board docs on parent batch error).
+   * See shareCollection for the write-order rationale (parent first, then
+   * board sub-docs — the subcollection rule reads parent.hostUid).
    */
   const shareSubstituteCollection = useCallback(
     async (input: SubstituteShareInput): Promise<string> => {
@@ -238,9 +252,17 @@ export const useSharedCollection = () => {
         return shareId;
       }
 
-      // Phase 1: write ALL board sub-docs in chunked batches.
-      // If any of these throws, the parent doc does not yet exist → recipient
-      // can't load the share at all (clean failure, no partial-state surface).
+      // Write the parent doc FIRST. The subcollection rule reads
+      // parent.hostUid to authorize board writes; without an existing
+      // parent doc, board batches are denied by Firestore rules.
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      const parentBatch = writeBatch(db);
+      parentBatch.set(parentRef, parentPayload);
+      await parentBatch.commit();
+
+      // Then write all board sub-docs in chunked batches. If any batch
+      // fails, the recipient sees a partial Collection and gets a warning
+      // toast via the partial-result detection in importSharedCollection.
       const BATCH_LIMIT = 400;
       let currentBatch = writeBatch(db);
       let inBatch = 0;
@@ -260,20 +282,12 @@ export const useSharedCollection = () => {
         );
         const boardPayload: SharedCollectionBoardDoc = {
           boardId: board.id,
-          dashboard: board,
+          dashboard: sanitizeBoardForShare(board),
         };
         currentBatch.set(boardRef, boardPayload);
         inBatch += 1;
       }
       if (inBatch > 0) await currentBatch.commit();
-
-      // Phase 2: write the parent doc LAST. Its existence is the signal that
-      // all sub-docs were successfully committed. Recipients cannot discover
-      // the share until this batch lands.
-      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
-      const parentBatch = writeBatch(db);
-      parentBatch.set(parentRef, parentPayload);
-      await parentBatch.commit();
 
       return shareId;
     },

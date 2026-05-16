@@ -299,14 +299,19 @@ export const ShareCollectionLinkCreatorModal: FC<
               />
               <button
                 type="button"
-                onClick={async () => {
-                  try {
-                    await navigator.clipboard.writeText(shareUrl);
-                    setCopyState('copied');
-                  } catch (err) {
-                    setCopyState('failed');
-                    logError('ShareCollectionLinkCreatorModal.manualCopy', err);
-                  }
+                onClick={() => {
+                  void (async () => {
+                    try {
+                      await navigator.clipboard.writeText(shareUrl);
+                      setCopyState('copied');
+                    } catch (err) {
+                      setCopyState('failed');
+                      logError(
+                        'ShareCollectionLinkCreatorModal.manualCopy',
+                        err
+                      );
+                    }
+                  })();
                 }}
                 className="px-2 py-1.5 text-xs font-bold bg-slate-100 text-slate-700 rounded hover:bg-slate-200"
               >

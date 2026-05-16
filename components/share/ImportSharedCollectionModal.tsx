@@ -93,7 +93,15 @@ export const ImportSharedCollectionModal: FC<
               })}
             </p>
           )}
-          {!loading && meta && (
+          {!loading && meta && meta.intendedMode === 'substitute' && (
+            <p className="text-sm text-amber-600">
+              {t('importSharedCollection.substituteOnly', {
+                defaultValue:
+                  'This is a substitute (view-only) share. Open it in /subs.',
+              })}
+            </p>
+          )}
+          {!loading && meta && meta.intendedMode === 'copy' && (
             <>
               <p className="text-sm text-slate-800">
                 <span className="font-bold">{meta.collection.name}</span>{' '}
@@ -127,7 +135,9 @@ export const ImportSharedCollectionModal: FC<
             <button
               type="button"
               onClick={() => void handleImport()}
-              disabled={busy || loading || !meta}
+              disabled={
+                busy || loading || !meta || meta.intendedMode === 'substitute'
+              }
               className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
             >
               {busy
