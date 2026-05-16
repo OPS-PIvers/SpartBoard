@@ -24,10 +24,19 @@ export const BoardNavFab: FC = () => {
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const headerId = useId();
 
+  const activeCollectionId = activeDashboard?.collectionId ?? null;
+  const boardsInCollection = useMemo(
+    () =>
+      dashboards
+        .filter((d) => (d.collectionId ?? null) === activeCollectionId)
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [dashboards, activeCollectionId]
+  );
+
   const currentIndex = useMemo(() => {
     if (!activeDashboard) return -1;
-    return dashboards.findIndex((d) => d.id === activeDashboard.id);
-  }, [dashboards, activeDashboard]);
+    return boardsInCollection.findIndex((d) => d.id === activeDashboard.id);
+  }, [boardsInCollection, activeDashboard]);
 
   const closePicker = useCallback(
     (returnFocus = true) => {
@@ -62,25 +71,27 @@ export const BoardNavFab: FC = () => {
   // Drop trailing ref slots when the dashboard list shrinks so we don't
   // dispatch focus to detached buttons after a board is deleted.
   useEffect(() => {
-    itemRefs.current.length = dashboards.length;
-  }, [dashboards.length]);
+    itemRefs.current.length = boardsInCollection.length;
+  }, [boardsInCollection.length]);
 
-  if (dashboards.length <= 1) return null;
+  if (boardsInCollection.length <= 1) return null;
 
   const goPrev = () => {
     if (currentIndex < 0) return;
-    const next = (currentIndex - 1 + dashboards.length) % dashboards.length;
-    loadDashboard(dashboards[next].id);
+    const next =
+      (currentIndex - 1 + boardsInCollection.length) %
+      boardsInCollection.length;
+    loadDashboard(boardsInCollection[next].id);
   };
 
   const goNext = () => {
     if (currentIndex < 0) return;
-    const next = (currentIndex + 1) % dashboards.length;
-    loadDashboard(dashboards[next].id);
+    const next = (currentIndex + 1) % boardsInCollection.length;
+    loadDashboard(boardsInCollection[next].id);
   };
 
   const focusItem = (idx: number) => {
-    const len = dashboards.length;
+    const len = boardsInCollection.length;
     const wrapped = ((idx % len) + len) % len;
     itemRefs.current[wrapped]?.focus();
   };
@@ -100,7 +111,9 @@ export const BoardNavFab: FC = () => {
         break;
       case 'ArrowUp':
         e.preventDefault();
-        focusItem(focusedIdx < 0 ? dashboards.length - 1 : focusedIdx - 1);
+        focusItem(
+          focusedIdx < 0 ? boardsInCollection.length - 1 : focusedIdx - 1
+        );
         break;
       case 'Home':
         e.preventDefault();
@@ -108,7 +121,7 @@ export const BoardNavFab: FC = () => {
         break;
       case 'End':
         e.preventDefault();
-        focusItem(dashboards.length - 1);
+        focusItem(boardsInCollection.length - 1);
         break;
       case 'Tab':
         // Tab takes focus out of the menu — close to keep state consistent.
@@ -141,7 +154,7 @@ export const BoardNavFab: FC = () => {
           >
             {boardListLabel}
           </div>
-          {dashboards.map((db, idx) => {
+          {boardsInCollection.map((db, idx) => {
             const isActive = activeDashboard?.id === db.id;
             return (
               <button
