@@ -9,13 +9,10 @@ import type { SharedCollection } from '@/types';
 
 interface SubCollectionsListProps {
   buildingId: string;
-  /** Called when the sub clicks a Board within a shared Collection. */
-  onOpenBoard: (shareId: string, boardId: string) => void;
 }
 
 export const SubCollectionsList: FC<SubCollectionsListProps> = ({
   buildingId,
-  onOpenBoard,
 }) => {
   const { t } = useTranslation();
   const [collections, setCollections] = useState<SharedCollection[]>([]);
@@ -102,8 +99,13 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
               <button
                 key={boardId}
                 type="button"
-                onClick={() => onOpenBoard(c.shareId, boardId)}
-                className="text-left px-3 py-2 text-xs rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white/80 transition-colors cursor-pointer"
+                disabled
+                title={t('subCollections.comingSoon', {
+                  defaultValue:
+                    'Board view in /subs coming soon — open in the teacher app for now',
+                })}
+                className="text-left px-2 py-1.5 text-xs rounded-md bg-slate-50 border border-slate-200 opacity-60 cursor-not-allowed"
+                aria-disabled="true"
               >
                 {t('subCollections.boardPlaceholder', {
                   id: boardId.slice(-4),

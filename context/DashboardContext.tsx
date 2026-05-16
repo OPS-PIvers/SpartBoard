@@ -3281,6 +3281,27 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         } else {
           addToast(`Imported Collection with ${succeeded.toString()} board(s)`);
         }
+
+        if (succeeded === 0) {
+          // All boards failed — delete the empty Collection rather than leaving
+          // a labeled-but-empty shell in the recipient's tree. The user will
+          // see the "No items could be imported" toast above; the Collection
+          // shouldn't linger.
+          try {
+            await collectionsApi.deleteCollection(
+              newCollectionId,
+              'delete-all'
+            );
+          } catch (cleanupErr) {
+            logError(
+              'DashboardContext.importSharedCollection.cleanup',
+              cleanupErr,
+              { newCollectionId }
+            );
+          }
+          return null;
+        }
+
         return { collectionId: newCollectionId };
       } catch (err) {
         logError('DashboardContext.importSharedCollection', err, {

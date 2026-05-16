@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { SubCollectionsList } from '@/components/subs/SubCollectionsList';
 import type { SharedCollection } from '@/types';
 
@@ -50,16 +49,14 @@ beforeEach(() => {
 describe('SubCollectionsList', () => {
   it('renders the loading state initially', () => {
     getDocsMock.mockReturnValueOnce(new Promise(() => undefined)); // never resolves
-    render(
-      <SubCollectionsList buildingId="middle-school" onOpenBoard={vi.fn()} />
-    );
+    render(<SubCollectionsList buildingId="middle-school" />);
     expect(screen.getByText(/loading shared collections/i)).toBeInTheDocument();
   });
 
   it('renders nothing when no Collections are returned', async () => {
     getDocsMock.mockResolvedValueOnce(docsResponse());
     const { container } = render(
-      <SubCollectionsList buildingId="middle-school" onOpenBoard={vi.fn()} />
+      <SubCollectionsList buildingId="middle-school" />
     );
     await waitFor(() => {
       expect(
@@ -78,9 +75,7 @@ describe('SubCollectionsList', () => {
         fakeCollection('s2', 'Reading', ['b3'])
       )
     );
-    render(
-      <SubCollectionsList buildingId="middle-school" onOpenBoard={vi.fn()} />
-    );
+    render(<SubCollectionsList buildingId="middle-school" />);
     await waitFor(() => {
       expect(screen.getByText('Math')).toBeInTheDocument();
     });
@@ -90,20 +85,12 @@ describe('SubCollectionsList', () => {
     expect(screen.getByText('1 board(s)')).toBeInTheDocument();
   });
 
-  it('calls onOpenBoard(shareId, boardId) when a board button is clicked', async () => {
-    const onOpenBoard = vi.fn();
+  it('renders per-board buttons as disabled (full board-view in /subs deferred)', async () => {
     getDocsMock.mockResolvedValueOnce(
       docsResponse(fakeCollection('s1', 'Math', ['boardA-1234']))
     );
-    render(
-      <SubCollectionsList
-        buildingId="middle-school"
-        onOpenBoard={onOpenBoard}
-      />
-    );
-    // Click the board button (label = "Board …1234" via boardId.slice(-4))
+    render(<SubCollectionsList buildingId="middle-school" />);
     const btn = await screen.findByRole('button', { name: /Board …1234/i });
-    await userEvent.click(btn);
-    expect(onOpenBoard).toHaveBeenCalledWith('s1', 'boardA-1234');
+    expect(btn).toBeDisabled();
   });
 });

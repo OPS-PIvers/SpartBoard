@@ -105,14 +105,6 @@ const SubsContent: React.FC = () => {
           onPickBoard={(shareId) =>
             setView({ kind: 'board', buildingId: view.buildingId, shareId })
           }
-          onOpenCollectionBoard={(shareId, boardId) =>
-            setView({
-              kind: 'collection-board',
-              buildingId: view.buildingId,
-              shareId,
-              boardId,
-            })
-          }
           onChangeBuilding={() => setView({ kind: 'building-picker' })}
         />
       )}

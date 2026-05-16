@@ -446,7 +446,8 @@
     "loading": "Loading shared Collections…",
     "heading": "Collections",
     "boardCount": "{{count}} board(s)",
-    "boardPlaceholder": "Board …{{id}}"
+    "boardPlaceholder": "Board …{{id}}",
+    "comingSoon": "Board view in /subs coming soon — open in the teacher app for now"
   },
   "collectionMenu": {
     "share": "Share Collection…"
