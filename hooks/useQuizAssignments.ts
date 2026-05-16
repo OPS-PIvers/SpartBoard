@@ -48,6 +48,7 @@ import type {
   QuizResponseAnswer,
   QuizScoreVisibility,
   QuizSession,
+  ResultsProtection,
   SharedQuizAssignment,
 } from '../types';
 import type { SessionTargets } from '../utils/resolveAssignmentTargets';
@@ -359,7 +360,8 @@ export interface UseQuizAssignmentsResult {
   publishAssignmentScores: (
     assignmentId: string,
     quizData: QuizData,
-    visibility: Exclude<QuizScoreVisibility, 'none'>
+    visibility: Exclude<QuizScoreVisibility, 'none'>,
+    protection?: ResultsProtection
   ) => Promise<{ responsesUpdated: number }>;
   /**
    * Revoke published score visibility for an assignment. Clears
@@ -1831,6 +1833,11 @@ export const useQuizAssignments = (
       batch.update(assignmentRef, {
         scoreVisibility: deleteField(),
         scorePublishedAt: deleteField(),
+        // Clear results-protection settings alongside the publication flags.
+        // Leaving stale `protection` on disk after unpublish would let the
+        // next publish silently inherit old watermark/tab-warning config
+        // the teacher may have already disabled.
+        protection: deleteField(),
         updatedAt: now,
       });
       batch.update(sessionRef, {
@@ -1840,6 +1847,10 @@ export const useQuizAssignments = (
         // see a stale timestamp lingering after unpublish.
         scorePublishedAt: deleteField(),
         revealedAnswers: deleteField(),
+        // The student app reads protection from the session doc, so it
+        // must be cleared here too — otherwise watermark/tab-warning
+        // would keep rendering against a no-longer-published result set.
+        protection: deleteField(),
       });
       await batch.commit();
     },
@@ -1849,7 +1860,7 @@ export const useQuizAssignments = (
   const publishAssignmentScores = useCallback<
     UseQuizAssignmentsResult['publishAssignmentScores']
   >(
-    async (assignmentId, quizData, visibility) => {
+    async (assignmentId, quizData, visibility, protection) => {
       if (!userId) throw new Error('Not authenticated');
       // Belt-and-suspenders against a future caller that bypasses the
       // type-level `Exclude<…, 'none'>`. The unpublish path lives in
@@ -1955,9 +1966,18 @@ export const useQuizAssignments = (
       // safely overwrites — the operation is idempotent.
       const MAX_BATCH_WRITES = 400;
       const firstBatch = writeBatch(db);
+      // When the caller omits protection (older sites that haven't been
+      // wired up yet, or an explicit "no protection" publish), write
+      // `deleteField()` so any prior protection on the doc is wiped. This
+      // matches the unpublish semantics: republishing without protection
+      // must NOT silently re-apply settings from a stale prior publish.
+      const protectionWrite:
+        | ResultsProtection
+        | ReturnType<typeof deleteField> = protection ?? deleteField();
       firstBatch.update(assignmentRef, {
         scoreVisibility: visibility,
         scorePublishedAt: now,
+        protection: protectionWrite,
         updatedAt: now,
       });
       const sessionPatch: Record<string, unknown> = {
@@ -1969,6 +1989,11 @@ export const useQuizAssignments = (
         // writing it only on the teacher-owned assignment doc (the prior
         // behavior) silently left every student stuck on "Not graded".
         scorePublishedAt: now,
+        // Mirror protection onto the session doc too — the student app
+        // only subscribes to the session, so watermark + tab-warning
+        // settings have to live here for the student review screen to
+        // honor them.
+        protection: protectionWrite,
       };
       // Populate `revealedAnswers` only when the teacher chose to share
       // correct-answer text. The other two visibility levels deliberately
