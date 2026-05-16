@@ -283,7 +283,7 @@ export function AssignmentArchiveCard<TAssignment>({
                 <span
                   aria-label={
                     primaryAction.badgeAriaLabel ??
-                    `${primaryAction.badgeCount} attention`
+                    `${primaryAction.badgeCount} item${primaryAction.badgeCount === 1 ? '' : 's'} need attention`
                   }
                   className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-1 ring-white"
                 >
