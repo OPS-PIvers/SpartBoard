@@ -941,6 +941,46 @@
       "delete": "Delete"
     }
   },
+  "shareCollection": {
+    "title": "Share Collection",
+    "subtitle": "Sharing {{count}} board(s) from this Collection.",
+    "mode": "Share Mode",
+    "copyMode": "Copy",
+    "copyModeHint": "Recipient imports a full copy into their account.",
+    "substituteMode": "Substitute (view-only)",
+    "substituteModeHint": "A sub teacher sees the Collection in /subs for the window you choose.",
+    "expiresIn": "Expires in",
+    "building": "Building",
+    "buildingRequired": "Select a building before sharing with a sub.",
+    "createLink": "Create link",
+    "creating": "Creating…",
+    "createFailed": "Failed to create Collection share",
+    "linkReady": "Share link copied to clipboard.",
+    "urlLabel": "Share collection URL",
+    "imported": "Imported Collection with {{count}} board(s)",
+    "partialImport": "Imported {{succeeded}} board(s) — {{failed}} failed",
+    "importFailed": "Failed to import shared Collection",
+    "notFound": "Shared Collection not found or expired",
+    "empty": "Shared Collection is empty"
+  },
+  "importSharedCollection": {
+    "title": "Import shared Collection",
+    "loading": "Loading shared Collection…",
+    "notFound": "Shared Collection not found or expired.",
+    "shared": "Shared by {{name}}",
+    "boardCount": "{{count}} board(s)",
+    "importing": "Importing…",
+    "import": "Import Collection"
+  },
+  "subCollections": {
+    "loading": "Loading shared Collections…",
+    "heading": "Collections",
+    "boardCount": "{{count}} board(s)",
+    "boardPlaceholder": "Board …{{id}}"
+  },
+  "collectionMenu": {
+    "share": "Share Collection…"
+  },
   "admin": {
     "stickers": {
       "title": "Global Sticker Library",
