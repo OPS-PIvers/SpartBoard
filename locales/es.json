@@ -18,7 +18,8 @@
     "previous": "Tablero anterior",
     "next": "Tablero siguiente",
     "selectBoard": "Seleccionar tablero",
-    "boardList": "Todos los tableros"
+    "boardList": "Todos los tableros",
+    "switchCollection": "Switch Collection…"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -464,6 +465,14 @@
       "emptyBoardHint": "Arrastra herramientas desde el Dock para empezar",
       "switchBoardsHint": "Usa los controles de navegación en la parte inferior izquierda para cambiar de tablero"
     }
+  },
+  "boardBreadcrumb": {
+    "root": "All Boards",
+    "openManager": "Manage Boards"
+  },
+  "collectionSwitcher": {
+    "title": "Switch Collection",
+    "root": "All Boards (root)"
   },
   "boardsModal": {
     "title": "Boards",
