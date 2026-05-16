@@ -3250,8 +3250,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, saveDashboards]
   );
 
+  // `options.silent` suppresses the success + error toast surfaced by the
+  // action itself. Rollback + logError + throw still happen. Bulk callers
+  // (Promise.allSettled fan-out) pass `silent: true` and rely on their own
+  // aggregate "Updated N — M failed" toast to avoid per-item notification
+  // spam (notification blindness is itself a silent-failure mode).
   const setDefaultDashboard = useCallback(
-    async (boardId: string): Promise<void> => {
+    async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
       const target = dashboards.find((d) => d.id === boardId);
       if (!target) return;
@@ -3278,7 +3283,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       );
 
       if (isAuthBypass) {
-        addToast('Default board updated', 'success');
+        if (!options?.silent) addToast('Default board updated', 'success');
         return;
       }
 
@@ -3301,7 +3306,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         await batch.commit();
-        addToast('Default board updated', 'success');
+        if (!options?.silent) addToast('Default board updated', 'success');
       } catch (err) {
         logError('DashboardContext.setDefaultDashboard', err, {
           uid: user.uid,
@@ -3315,7 +3320,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               : d
           )
         );
-        addToast('Failed to set default board', 'error');
+        if (!options?.silent) addToast('Failed to set default board', 'error');
         throw err;
       }
     },
@@ -3323,11 +3328,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const moveBoardToCollection = useCallback(
-    async (boardId: string, collectionId: string | null): Promise<void> => {
+    async (
+      boardId: string,
+      collectionId: string | null,
+      options?: { silent?: boolean }
+    ): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
       const prev = dashboards.find((d) => d.id === boardId);
       if (!prev) return;
       const prevCollectionId = prev.collectionId ?? null;
+      // No-op when the board is already in the target Collection. Avoids a
+      // wasted Firestore write (school-district cost) and a lying "Moved"
+      // toast when the user re-picks the same destination.
+      if (prevCollectionId === collectionId) return;
 
       setDashboards((curr) =>
         curr.map((d) => (d.id === boardId ? { ...d, collectionId } : d))
@@ -3353,7 +3366,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             d.id === boardId ? { ...d, collectionId: prevCollectionId } : d
           )
         );
-        addToast('Failed to move board', 'error');
+        if (!options?.silent) addToast('Failed to move board', 'error');
         throw err;
       }
     },
@@ -3361,10 +3374,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const pinBoard = useCallback(
-    async (boardId: string): Promise<void> => {
+    async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
       const prev = dashboards.find((d) => d.id === boardId);
       const prevPinned = prev?.isPinned ?? false;
+      if (prevPinned) return; // already pinned — skip the write
 
       setDashboards((curr) =>
         curr.map((d) => (d.id === boardId ? { ...d, isPinned: true } : d))
@@ -3386,7 +3400,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             d.id === boardId ? { ...d, isPinned: prevPinned } : d
           )
         );
-        addToast('Failed to pin board', 'error');
+        if (!options?.silent) addToast('Failed to pin board', 'error');
         throw err;
       }
     },
@@ -3394,10 +3408,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const unpinBoard = useCallback(
-    async (boardId: string): Promise<void> => {
+    async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
       const prev = dashboards.find((d) => d.id === boardId);
       const prevPinned = prev?.isPinned ?? false;
+      if (!prevPinned) return; // already unpinned — skip the write
 
       setDashboards((curr) =>
         curr.map((d) => (d.id === boardId ? { ...d, isPinned: false } : d))
@@ -3419,7 +3434,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             d.id === boardId ? { ...d, isPinned: prevPinned } : d
           )
         );
-        addToast('Failed to unpin board', 'error');
+        if (!options?.silent) addToast('Failed to unpin board', 'error');
         throw err;
       }
     },
@@ -3451,35 +3466,37 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // last Board) only once the profile has been loaded. Writing earlier
       // races with AuthContext.loadProfile and can overwrite the freshly-read
       // values with a stale {merge: true} write before the read completes.
-      if (user?.uid && !isAuthBypass && profileLoaded) {
-        const target = dashboardsRef.current.find((d) => d.id === id);
-        if (target) {
-          const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
-          const profileRef = doc(
-            db,
-            'users',
-            user.uid,
-            'userProfile',
-            'profile'
-          );
-          const updates: Record<string, unknown> = {
-            lastActiveCollectionId: target.collectionId ?? null,
-            [`lastBoardIdByCollection.${collectionKey}`]: id,
-          };
-          void setDoc(profileRef, updates, { merge: true }).catch(
-            (err: unknown) => {
-              logError(
-                'DashboardContext.loadDashboard.persistLastActive',
-                err,
-                {
-                  uid: user.uid,
-                  boardId: id,
-                  collectionId: target.collectionId ?? null,
-                }
-              );
-            }
-          );
-        }
+      if (!user?.uid || isAuthBypass) return;
+      if (!profileLoaded) {
+        // Tripwire: today App.tsx blocks render until profileLoaded === true
+        // so this branch should be unreachable. If it ever fires, the
+        // navigation-memory write is silently dropped and the user will land
+        // on a stale Board on next session — log so we notice in telemetry
+        // before users do.
+        logError(
+          'DashboardContext.loadDashboard.skippedPreProfile',
+          new Error('loadDashboard called before profileLoaded'),
+          { uid: user.uid, boardId: id }
+        );
+        return;
+      }
+      const target = dashboardsRef.current.find((d) => d.id === id);
+      if (target) {
+        const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        const updates: Record<string, unknown> = {
+          lastActiveCollectionId: target.collectionId ?? null,
+          [`lastBoardIdByCollection.${collectionKey}`]: id,
+        };
+        void setDoc(profileRef, updates, { merge: true }).catch(
+          (err: unknown) => {
+            logError('DashboardContext.loadDashboard.persistLastActive', err, {
+              uid: user.uid,
+              boardId: id,
+              collectionId: target.collectionId ?? null,
+            });
+          }
+        );
       }
     },
     [addToast, updateActiveId, user, profileLoaded]

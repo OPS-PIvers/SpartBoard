@@ -132,8 +132,10 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       <button
         onClick={(e) => {
           e.stopPropagation();
-          if (board.isPinned) void unpinBoard(board.id);
-          else void pinBoard(board.id);
+          // Action toasts + rolls back on failure; .catch keeps the
+          // rethrow from surfacing as an unhandled rejection.
+          const op = board.isPinned ? unpinBoard(board.id) : pinBoard(board.id);
+          op.catch(() => undefined);
         }}
         aria-label={
           board.isPinned

@@ -385,6 +385,8 @@
     "bulkMoveSuccess": "Moved {{count}} board(s)",
     "bulkPartialFailure": "Updated {{succeeded}} item(s) — {{failed}} failed",
     "bulkAllFailed": "No items could be updated — please retry",
+    "noBoardsInSelection": "No Boards in selection — Collections can't be used here",
+    "createCollectionFailed": "Failed to create Collection",
     "menu": {
       "open": "Open",
       "openCollection": "Open",

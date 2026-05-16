@@ -170,14 +170,14 @@ export const useFolders = (
         setLoading(false);
       },
       (err) => {
-        console.error('[useFolders] Firestore error:', err);
+        logError('useFolders.onSnapshot', err, { userId, widget });
         setError('Failed to load folders');
         setLoading(false);
       }
     );
 
     return unsub;
-  }, [userId, collectionName]);
+  }, [userId, collectionName, widget]);
 
   const createFolder = useCallback(
     async (name: string, parentId: string | null): Promise<string> => {
@@ -328,8 +328,14 @@ export const useFolders = (
       const now = Date.now();
       // Phase tracking matches useCollections.deleteCollection — if a partial
       // failure occurs mid-tree, the log carries enough context for triage.
-      let phase: 'init' | 'reparent-children' | 'rehome-items' | 'delete-docs' =
-        'init';
+      // 'rehome-items-read' = getDocs of items to re-home in flight
+      // 'rehome-items-write' = writeBatch of re-home updates in flight
+      let phase:
+        | 'init'
+        | 'reparent-children'
+        | 'rehome-items-read'
+        | 'rehome-items-write'
+        | 'delete-docs' = 'init';
       let itemsRehomed = 0;
       let foldersDeleted = 0;
       let childrenReparented = 0;
@@ -366,12 +372,13 @@ export const useFolders = (
           }
 
           // Phase 2: reparent items in this folder to target's parent.
-          phase = 'rehome-items';
+          phase = 'rehome-items-read';
           const itemQuery = query(
             collection(db, 'users', userId, itemsCollection),
             where('folderId', '==', folderId)
           );
           const itemSnap = await getDocs(itemQuery);
+          phase = 'rehome-items-write';
           let phase2Batch = writeBatch(db);
           let phase2Count = 0;
           for (const d of itemSnap.docs) {
@@ -411,7 +418,6 @@ export const useFolders = (
         // Phase 1: re-home items in this folder tree. Firestore 'in' queries
         // are capped at 30 ids; chunk the queries and chunk batch writes at
         // BATCH_LIMIT independently.
-        phase = 'rehome-items';
         const QUERY_CHUNK = 30;
         let rehomeBatch = writeBatch(db);
         let rehomeCount = 0;
@@ -421,7 +427,9 @@ export const useFolders = (
             collection(db, 'users', userId, itemsCollection),
             where('folderId', 'in', chunk)
           );
+          phase = 'rehome-items-read';
           const itemSnap = await getDocs(itemQuery);
+          phase = 'rehome-items-write';
           for (const d of itemSnap.docs) {
             if (rehomeCount >= BATCH_LIMIT) {
               await rehomeBatch.commit();

@@ -50,7 +50,11 @@ export const PinnedSection: React.FC<PinnedSectionProps> = ({
                 {b.name}
               </button>
               <button
-                onClick={() => void unpinBoard(b.id)}
+                onClick={() => {
+                  // unpinBoard toasts + rolls back on failure; .catch
+                  // suppresses the rethrow's unhandled-rejection warning.
+                  unpinBoard(b.id).catch(() => undefined);
+                }}
                 aria-label={t('boardsModal.unpinBoard', {
                   defaultValue: 'Unpin Board',
                 })}

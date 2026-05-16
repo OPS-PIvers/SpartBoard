@@ -414,10 +414,16 @@ export const useCollections = (
       // Phase tracking lets a partial failure log "how far we got" so a
       // support-bound teacher report ("some collections didn't delete") can
       // be triaged without guessing.
+      // 'rehome-boards-read' = getDocs of Boards to re-home in flight
+      // 'rehome-boards-write' = writeBatch of re-home updates in flight
+      // Split so the log distinguishes "couldn't read" (boardsRehomed === 0
+      // is meaningless) from "partial write" (boardsRehomed === N tells you
+      // how far we got).
       let phase:
         | 'init'
         | 'reparent-children'
-        | 'rehome-boards'
+        | 'rehome-boards-read'
+        | 'rehome-boards-write'
         | 'delete-docs' = 'init';
       let boardsRehomed = 0;
       let collectionsDeleted = 0;
@@ -451,12 +457,13 @@ export const useCollections = (
           }
 
           // Phase 2: re-home Boards in this Collection to target's parent.
-          phase = 'rehome-boards';
+          phase = 'rehome-boards-read';
           const boardsQuery = query(
             collection(db, 'users', userId, DASHBOARDS_SUBPATH),
             where('collectionId', '==', collectionId)
           );
           const boardSnap = await getDocs(boardsQuery);
+          phase = 'rehome-boards-write';
           let phase2Batch = writeBatch(db);
           let phase2Count = 0;
           for (const d of boardSnap.docs) {
@@ -495,7 +502,6 @@ export const useCollections = (
         // Phase 1: re-home Boards anywhere in this tree to target's parent.
         // Chunk the `where('collectionId', 'in', ...)` queries by 30 (Firestore
         // 'in' limit), and chunk the resulting batch writes at 400.
-        phase = 'rehome-boards';
         const QUERY_CHUNK = 30;
         let rehomeBatch = writeBatch(db);
         let rehomeCount = 0;
@@ -505,7 +511,9 @@ export const useCollections = (
             collection(db, 'users', userId, DASHBOARDS_SUBPATH),
             where('collectionId', 'in', chunkIds)
           );
+          phase = 'rehome-boards-read';
           const boardSnap = await getDocs(boardsQuery);
+          phase = 'rehome-boards-write';
           for (const d of boardSnap.docs) {
             if (rehomeCount >= 400) {
               await rehomeBatch.commit();

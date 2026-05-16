@@ -86,11 +86,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       }
     );
     if (!name?.trim()) return;
-    // Create directly inside the active Collection (single Firestore write
-    // instead of create-then-move). createNewDashboard returns the new ID.
-    await createNewDashboard(name.trim(), undefined, {
-      collectionId: selectedCollectionId,
-    });
+    // createNewDashboard already toasts on failure; the awaited promise
+    // throws on auth-required path. Wrap so an unhandled rejection doesn't
+    // surface in the browser console alongside the user-facing toast.
+    try {
+      await createNewDashboard(name.trim(), undefined, {
+        collectionId: selectedCollectionId,
+      });
+    } catch {
+      /* error already toasted by createNewDashboard */
+    }
   }, [showPrompt, t, createNewDashboard, selectedCollectionId]);
 
   const handleCreateCollection = useCallback(async () => {
@@ -105,8 +110,20 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       }
     );
     if (!name?.trim()) return;
-    await createCollection(name.trim(), selectedCollectionId);
-  }, [showPrompt, t, createCollection, selectedCollectionId]);
+    // createCollection re-throws on Firestore failure (the hook itself does
+    // not toast). Surface a user-facing toast here so the failure isn't an
+    // unhandled rejection in the console.
+    try {
+      await createCollection(name.trim(), selectedCollectionId);
+    } catch {
+      addToast(
+        t('boardsModal.createCollectionFailed', {
+          defaultValue: 'Failed to create Collection',
+        }),
+        'error'
+      );
+    }
+  }, [showPrompt, t, createCollection, selectedCollectionId, addToast]);
 
   const handleOpenBoard = useCallback(
     (id: string) => {
@@ -168,16 +185,33 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     [addToast, t]
   );
 
+  // Toast when the user fires a bulk action with no eligible Boards in the
+  // selection (e.g. only Collections selected for a "pin" action) so they
+  // don't see a misleading "Pinned 0 board(s)" success.
+  const toastNoBoardsInSelection = useCallback(() => {
+    addToast(
+      t('boardsModal.noBoardsInSelection', {
+        defaultValue: "No Boards in selection — Collections can't be used here",
+      }),
+      'info'
+    );
+  }, [addToast, t]);
+
   const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(multi.selectedIds);
+    if (ids.length === 0) return;
     const confirmed = await showConfirm(
       t('boardsModal.bulkDeleteConfirm', {
-        count: multi.selectedIds.size,
+        count: ids.length,
         defaultValue: 'Delete {{count}} item(s)? This cannot be undone.',
       }),
       { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
     );
     if (!confirmed) return;
-    const ids = Array.from(multi.selectedIds);
+    // deleteDashboard already toasts on failure internally; we let it stay
+    // silent on success and rely on the aggregate report below. For
+    // deleteCollection (no built-in toasting yet), the aggregate is the only
+    // surface.
     const results = await Promise.allSettled(
       ids.map((id) =>
         dashboards.some((d) => d.id === id)
@@ -191,9 +225,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       'boardsModal.bulkDeleteSuccess',
       'Deleted {{count}} item(s)',
       'boardsModal.bulkPartialFailure',
-      'Updated {{succeeded}} of {{succeeded}} + {{failed}} items — {{failed}} failed',
+      'Deleted {{succeeded}} item(s) — {{failed}} failed',
       'boardsModal.bulkAllFailed',
-      'No items could be updated — please retry'
+      'No items could be deleted — please retry'
     );
   }, [
     showConfirm,
@@ -209,35 +243,55 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     const ids = Array.from(multi.selectedIds).filter((id) =>
       dashboards.some((d) => d.id === id)
     );
-    const results = await Promise.allSettled(ids.map((id) => pinBoard(id)));
+    if (ids.length === 0) {
+      toastNoBoardsInSelection();
+      return;
+    }
+    // silent: true → bulk fan-out suppresses per-item action toasts so the
+    // user sees one aggregate result instead of N individual notifications.
+    const results = await Promise.allSettled(
+      ids.map((id) => pinBoard(id, { silent: true }))
+    );
     multi.clearSelection();
     reportBulkResult(
       results,
       'boardsModal.bulkPinSuccess',
       'Pinned {{count}} board(s)',
       'boardsModal.bulkPartialFailure',
-      'Updated {{succeeded}} item(s) — {{failed}} failed',
+      'Pinned {{succeeded}} board(s) — {{failed}} failed',
       'boardsModal.bulkAllFailed',
-      'No items could be updated — please retry'
+      'No boards could be pinned — please retry'
     );
-  }, [multi, dashboards, pinBoard, reportBulkResult]);
+  }, [multi, dashboards, pinBoard, reportBulkResult, toastNoBoardsInSelection]);
 
   const handleBulkUnpin = useCallback(async () => {
     const ids = Array.from(multi.selectedIds).filter((id) =>
       dashboards.some((d) => d.id === id)
     );
-    const results = await Promise.allSettled(ids.map((id) => unpinBoard(id)));
+    if (ids.length === 0) {
+      toastNoBoardsInSelection();
+      return;
+    }
+    const results = await Promise.allSettled(
+      ids.map((id) => unpinBoard(id, { silent: true }))
+    );
     multi.clearSelection();
     reportBulkResult(
       results,
       'boardsModal.bulkUnpinSuccess',
       'Unpinned {{count}} board(s)',
       'boardsModal.bulkPartialFailure',
-      'Updated {{succeeded}} item(s) — {{failed}} failed',
+      'Unpinned {{succeeded}} board(s) — {{failed}} failed',
       'boardsModal.bulkAllFailed',
-      'No items could be updated — please retry'
+      'No boards could be unpinned — please retry'
     );
-  }, [multi, dashboards, unpinBoard, reportBulkResult]);
+  }, [
+    multi,
+    dashboards,
+    unpinBoard,
+    reportBulkResult,
+    toastNoBoardsInSelection,
+  ]);
 
   const handleBulkMove = useCallback(() => {
     setSingleMoveTargetId(null);
@@ -264,7 +318,10 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           await moveBoardToCollection(id, destId);
         } catch {
           // moveBoardToCollection already toasted + rolled back — swallow
-          // the rethrow here so the modal doesn't surface twice.
+          // the rethrow here so the modal doesn't surface twice. NOTE:
+          // single-board path relies on the action's own toast as the user
+          // surface; if that ever moves into reportBulkResult, this catch
+          // becomes a real silent-failure.
         }
         return;
       }
@@ -272,8 +329,12 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       const ids = Array.from(multi.selectedIds).filter((id) =>
         dashboards.some((d) => d.id === id)
       );
+      if (ids.length === 0) {
+        toastNoBoardsInSelection();
+        return;
+      }
       const results = await Promise.allSettled(
-        ids.map((id) => moveBoardToCollection(id, destId))
+        ids.map((id) => moveBoardToCollection(id, destId, { silent: true }))
       );
       multi.clearSelection();
       reportBulkResult(
@@ -281,9 +342,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         'boardsModal.bulkMoveSuccess',
         'Moved {{count}} board(s)',
         'boardsModal.bulkPartialFailure',
-        'Moved {{succeeded}} item(s) — {{failed}} failed',
+        'Moved {{succeeded}} board(s) — {{failed}} failed',
         'boardsModal.bulkAllFailed',
-        'No items could be moved — please retry'
+        'No boards could be moved — please retry'
       );
     },
     [
@@ -292,8 +353,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       dashboards,
       moveBoardToCollection,
       reportBulkResult,
+      toastNoBoardsInSelection,
     ]
   );
+
+  // For the right-click single-board move flow, pre-exclude the board's
+  // current Collection from the destination picker — it's a no-op write
+  // and a confusing UX ("Moved" toast when nothing changed).
+  const moveMenuExcludeId = singleMoveTargetId
+    ? (dashboards.find((d) => d.id === singleMoveTargetId)?.collectionId ??
+      null)
+    : null;
 
   // Filter by search (substring on Board + Collection names)
   const filteredCollections = search.trim()
@@ -393,11 +463,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 if (next?.trim()) await renameDashboard(board.id, next.trim());
               }}
               onDuplicate={() => void duplicateDashboard(board.id)}
-              onSetDefault={() => void setDefaultDashboard(board.id)}
+              onSetDefault={() => {
+                // Action toasts on failure; .catch prevents the rethrow
+                // from surfacing as an unhandled rejection in the console.
+                setDefaultDashboard(board.id).catch(() => undefined);
+              }}
               onTogglePin={() => {
-                void (board.isPinned
+                const op = board.isPinned
                   ? unpinBoard(board.id)
-                  : pinBoard(board.id));
+                  : pinBoard(board.id);
+                op.catch(() => undefined);
               }}
               onMove={() => handleSingleMove(board.id)}
               onShare={() => setShareTarget(board)}
@@ -483,6 +558,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       {moveMenuOpen && (
         <MoveToCollectionMenu
           collections={collections}
+          excludeId={moveMenuExcludeId}
           onMove={handleMoveDestinationPicked}
           onClose={() => setMoveMenuOpen(false)}
         />
