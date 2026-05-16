@@ -78,6 +78,12 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     const focused = itemRefs.current.findIndex(
       (el) => el === document.activeElement
     );
+    // Use the known flat item count as the upper bound. `itemRefs.current`
+    // is index-keyed and not pruned when Collections change, so its
+    // `.length` can overshoot the last live entry — pressing End on a
+    // stale ref array would focus a `null` slot. `flat.length` (plus
+    // the root button at index 0) gives the correct last index.
+    const lastIdx = flat.length;
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
@@ -89,7 +95,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         break;
       case 'ArrowUp':
         e.preventDefault();
-        focusItem(focused < 0 ? itemRefs.current.length - 1 : focused - 1);
+        focusItem(focused < 0 ? lastIdx : focused - 1);
         break;
       case 'Home':
         e.preventDefault();
@@ -97,7 +103,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         break;
       case 'End':
         e.preventDefault();
-        focusItem(itemRefs.current.length - 1);
+        focusItem(lastIdx);
         break;
       case 'Tab':
         // Tab takes focus out — close to keep state consistent (matches BoardNavFab pattern).

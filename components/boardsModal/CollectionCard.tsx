@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Folder, GripVertical } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
@@ -57,6 +57,19 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
       longPressTimer.current = null;
     }
   };
+
+  // Guarantee the pending long-press timer is cleared if the card
+  // unmounts mid-press (e.g. modal closes between pointerdown and
+  // the 350ms fire) — otherwise the callback would run against a
+  // stale closure on an unmounted component.
+  useEffect(
+    () => () => {
+      if (longPressTimer.current !== null) {
+        window.clearTimeout(longPressTimer.current);
+      }
+    },
+    []
+  );
 
   return (
     <div

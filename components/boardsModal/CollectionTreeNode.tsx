@@ -65,6 +65,12 @@ export const CollectionTreeNode: React.FC<CollectionTreeNodeProps> = ({
             e.stopPropagation();
             setIsExpanded((v) => !v);
           }}
+          // Stop pointerdown from reaching the dnd-kit drag listener
+          // on the outer wrapper. Without this, pressing the chevron
+          // would start a drag instead of toggling expansion (click
+          // stopPropagation doesn't cover pointer events that dnd-kit
+          // listens for).
+          onPointerDown={(e) => e.stopPropagation()}
           aria-label={isExpanded ? 'Collapse' : 'Expand'}
           className={`shrink-0 p-0.5 rounded hover:bg-slate-200 ${
             hasChildren ? 'visible' : 'invisible'

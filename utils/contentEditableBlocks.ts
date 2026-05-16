@@ -3,21 +3,29 @@
  *
  * Both the teacher-facing `TextWidget` and the student-facing
  * `WrittenResponseEditor` rely on `document.execCommand` for inline
- * formatting + list commands and on the browser's native selection
- * algorithm for drag-select. Chrome leaves the FIRST line of a
- * contenteditable as a bare text node and only wraps subsequent
- * Enter-separated lines in `<div>` blocks, producing a mixed
- * `text<div>line</div>` structure that breaks BOTH:
+ * formatting (bold/italic/underline) and on the browser's native
+ * selection algorithm for drag-select. List toggling is NOT handled
+ * by `execCommand` any more — it lives in `contentEditableLists.ts`
+ * (`toggleList`), which both editors call directly.
+ *
+ * Chrome leaves the FIRST line of a contenteditable as a bare text
+ * node and only wraps subsequent Enter-separated lines in `<div>`
+ * blocks, producing a mixed `text<div>line</div>` structure that
+ * breaks BOTH:
  *
  *  1. **Drag-selection across paragraphs** collapses at the bare-
  *     text/block boundary (Ctrl+A still works as a workaround).
- *  2. **`insertUnorderedList` / `insertOrderedList`** only format the
- *     paragraph the cursor sits in, leaving sibling paragraphs as
- *     bare text.
+ *  2. **`toggleList`** assumes top-level children are uniform
+ *     block elements; bare text nodes at the top level would be
+ *     skipped when collecting selected blocks.
  *
  * `normalizeEditorBlocks` rewrites the mixed structure into uniform
- * blocks. The caller picks the wrap tag — `<div>` for the TextWidget
- * (which persists `<div>` blocks via `sanitizeHtml`) or `<p>` for the
+ * blocks. Both editor call sites run it (or `needsBlockNormalization`
+ * + `normalizeEditorBlocks`) immediately before invoking `toggleList`
+ * so the list helper can rely on every top-level child being a block.
+ *
+ * The caller picks the wrap tag — `<div>` for the TextWidget (which
+ * persists `<div>` blocks via `sanitizeHtml`) or `<p>` for the
  * WrittenResponseEditor (whose `sanitizeQuizResponse` allowlist
  * permits `<p>` but strips `<div>`). When the wrap tag is `<p>`, any
  * existing top-level `<div>` blocks are also coerced to `<p>` so the

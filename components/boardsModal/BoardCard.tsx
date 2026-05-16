@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Star, Pin, GripVertical } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
@@ -47,6 +47,19 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       longPressTimer.current = null;
     }
   };
+
+  // Guarantee the pending long-press timer is cleared if the card
+  // unmounts mid-press (e.g. modal closes between pointerdown and
+  // the 350ms fire). Without this the callback would run against a
+  // stale closure on an unmounted component.
+  useEffect(
+    () => () => {
+      if (longPressTimer.current !== null) {
+        window.clearTimeout(longPressTimer.current);
+      }
+    },
+    []
+  );
 
   const widgetCount = board.widgets?.length ?? 0;
   const lastEdited = board.updatedAt
