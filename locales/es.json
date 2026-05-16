@@ -554,7 +554,8 @@
     "partialImport": "Imported {{succeeded}} board(s) — {{failed}} failed",
     "importFailed": "Failed to import shared Collection",
     "notFound": "Shared Collection not found or expired",
-    "empty": "Shared Collection is empty"
+    "empty": "Shared Collection is empty",
+    "invalidShareUrl": "Invalid share link — missing share id."
   },
   "importSharedCollection": {
     "title": "Import shared Collection",

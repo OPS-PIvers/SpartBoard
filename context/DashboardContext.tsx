@@ -298,6 +298,17 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     window.history.replaceState(null, '', '/');
   }, []);
 
+  // Detect malformed /share-collection/ URLs (present but no ID) so we can
+  // toast after mount, when addToast is available.
+  const [hadEmptyShareCollectionUrl] = useState<boolean>(() => {
+    if (typeof window === 'undefined') return false;
+    const path = window.location.pathname;
+    return (
+      path.startsWith('/share-collection/') &&
+      !path.split('/share-collection/')[1]
+    );
+  });
+
   const [pendingSharedCollectionId, setPendingSharedCollectionId] = useState<
     string | null
   >(() => {
@@ -577,6 +588,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     return () => setDriveAuthErrorHandler(null);
   }, [addToast, refreshGoogleToken]);
+
+  // Fire a toast (and clean the URL) when the user landed on /share-collection/
+  // with no share ID. The initializer for hadEmptyShareCollectionUrl captures
+  // this at mount time; addToast isn't available during state init, so we
+  // surface the error here instead. hadEmptyShareCollectionUrl is a frozen
+  // constant (never updated after init) so this effect fires exactly once.
+  useEffect(() => {
+    if (hadEmptyShareCollectionUrl) {
+      addToast('Invalid share link — missing share id.', 'error');
+      window.history.replaceState(null, '', '/');
+    }
+  }, [hadEmptyShareCollectionUrl, addToast]);
 
   // Surface a one-time notice when an AI Cloud Function couldn't read the
   // admin-configured Gemini model overrides from Firestore and fell back to
@@ -3324,6 +3347,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           addToast(`Imported Collection with ${succeeded.toString()} board(s)`);
         }
 
+        // NOTE: This cleanup runs AFTER createCollection's Firestore write
+        // resolves, which means the recipient's useCollections onSnapshot
+        // listener may have already received and displayed the new Collection
+        // (typically ~50-200ms before this delete arrives). On total-failure
+        // imports the user will see the Collection flash briefly in their
+        // sidebar tree before disappearing. Acceptable for an exceptional
+        // path; a transactional fix (single batch with all writes + create-or-
+        // delete based on success count) would require Firestore Cloud
+        // Functions or a rewrite to use a single batched transaction.
         if (succeeded === 0) {
           // All boards failed — delete the empty Collection rather than
           // leaving a labeled-but-empty shell in the recipient's tree.

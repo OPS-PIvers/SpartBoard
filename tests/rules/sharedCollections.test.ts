@@ -103,12 +103,16 @@ const subShareDoc = (overrides: Record<string, unknown> = {}) => ({
   ...overrides,
 });
 
-/** A frozen board snapshot document. */
-const boardSnapshotDoc = () => ({
-  id: BOARD_ID,
-  name: 'Board Snapshot',
-  widgets: [],
-  frozenAt: NOW_MS,
+/** A frozen board snapshot document matching the SharedCollectionBoardDoc shape. */
+const boardSnapshotDoc = (boardId: string = BOARD_ID) => ({
+  boardId,
+  dashboard: {
+    id: boardId,
+    name: `Board ${boardId}`,
+    background: 'bg-slate-800',
+    widgets: [],
+    createdAt: 0,
+  },
 });
 
 const sharePath = `shared_collections/${SHARE_ID}`;

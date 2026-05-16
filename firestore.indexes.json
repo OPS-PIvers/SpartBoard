@@ -287,7 +287,8 @@
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "intendedMode", "order": "ASCENDING" },
-        { "fieldPath": "buildingId", "order": "ASCENDING" }
+        { "fieldPath": "buildingId", "order": "ASCENDING" },
+        { "fieldPath": "expiresAt", "order": "ASCENDING" }
       ]
     }
   ],
