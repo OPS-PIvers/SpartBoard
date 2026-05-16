@@ -523,6 +523,15 @@ export interface UseQuizSessionTeacherResult {
    * without showing the "Warning N of 3" modal.
    */
   unlockStudentAttempt: (responseKey: string) => Promise<void>;
+  /**
+   * Unlock a student's results-view lockout (triggered when their
+   * `resultsTabWarnings` count hit the session's `protection.tabWarningThreshold`
+   * while viewing published results). Decrements `resultsTabWarnings` by 1
+   * (floored at 0) and clears the `resultsLockedOut` flag + `resultsLockedOutAt`
+   * timestamp. The decrement is intentional: one more tab-switch will re-lock
+   * the student, giving zero grace warnings post-unlock.
+   */
+  unlockResultsForStudent: (responseKey: string) => Promise<void>;
   /** Reveal the correct answer for a question (writes to session doc) */
   revealAnswer: (questionId: string, correctAnswer: string) => Promise<void>;
   /** Hide a previously revealed answer (removes from session doc) */
@@ -746,6 +755,37 @@ export const useQuizSessionTeacher = (
     [sessionId, responses, session?.quizId]
   );
 
+  const unlockResultsForStudent = useCallback(
+    async (responseKey: string) => {
+      if (!sessionId) {
+        throw new Error('No active session — cannot unlock results.');
+      }
+      const responseRef = doc(
+        db,
+        QUIZ_SESSIONS_COLLECTION,
+        sessionId,
+        RESPONSES_COLLECTION,
+        responseKey
+      );
+      const snap = await getDoc(responseRef);
+      if (!snap.exists()) {
+        throw new Error(
+          'Student response not found — they may have already been removed or rejoined.'
+        );
+      }
+      const data = snap.data() as Partial<QuizResponse> | undefined;
+      const prev = data?.resultsTabWarnings ?? 0;
+      // Decrement by 1, floored at 0. One more tab-switch re-locks them
+      // (zero grace warnings post-unlock — intentional).
+      await updateDoc(responseRef, {
+        resultsTabWarnings: Math.max(0, prev - 1),
+        resultsLockedOut: false,
+        resultsLockedOutAt: deleteField(),
+      });
+    },
+    [sessionId]
+  );
+
   const revealAnswer = useCallback(
     async (questionId: string, correctAnswer: string) => {
       if (!sessionId) return;
@@ -891,6 +931,7 @@ export const useQuizSessionTeacher = (
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    unlockResultsForStudent,
     revealAnswer,
     hideAnswer,
   };

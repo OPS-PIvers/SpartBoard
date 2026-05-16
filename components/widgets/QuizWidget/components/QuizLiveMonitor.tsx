@@ -106,6 +106,13 @@ interface QuizLiveMonitorProps {
    * Pass `response._responseKey` (snapshot doc id), NOT `studentUid`.
    */
   onUnlockStudent?: (responseKey: string) => Promise<void>;
+  /**
+   * Unlock a student's results-view lockout (triggered when the
+   * `resultsTabWarnings` threshold was hit while viewing published results).
+   * Decrements warnings by 1 and clears the lockout. Pass
+   * `response._responseKey` (snapshot doc id), NOT `studentUid`.
+   */
+  onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
   onRevealAnswer?: (questionId: string, correctAnswer: string) => Promise<void>;
   onHideAnswer?: (questionId: string) => Promise<void>;
   /** Navigate back to the manager view without ending the quiz. */
@@ -279,6 +286,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   onUpdateConfig,
   onRemoveStudent,
   onUnlockStudent,
+  onUnlockResultsForStudent,
   onRevealAnswer,
   onHideAnswer,
   onBack,
@@ -355,6 +363,13 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   // normal monitoring and only meaningful for assessments. Teachers can
   // surface them on demand from the roster toolbar.
   const [showTabWarnings, setShowTabWarnings] = useState(false);
+
+  // Results-view tab-warning threshold. Mirrored from
+  // `QuizAssignment.protection` to the session at publish time; falls back
+  // to 3 (the UI default) for legacy sessions published before the
+  // feature shipped.
+  const resultsTabWarningThreshold =
+    session.protection?.tabWarningThreshold ?? 3;
 
   // Session-local approval gate for revealing student performance on the
   // monitor. Defaults to false so a fresh open never shows scores or
@@ -540,6 +555,26 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
       }
     },
     [onUnlockStudent, showConfirm, addToast]
+  );
+
+  const handleUnlockResultsForStudent = useCallback(
+    async (responseKey: string, displayName: string) => {
+      if (!onUnlockResultsForStudent) return;
+      try {
+        await onUnlockResultsForStudent(responseKey);
+        addToast(
+          `${displayName} can view results again — one more tab-switch will re-lock them.`,
+          'success'
+        );
+      } catch (err) {
+        logError('QuizLiveMonitor.unlockResultsForStudent', err);
+        addToast(
+          `Could not unlock ${displayName}'s results — try again or check your connection.`,
+          'error'
+        );
+      }
+    },
+    [onUnlockResultsForStudent, addToast]
   );
 
   const handleToggleColors = useCallback(() => {
@@ -1694,6 +1729,18 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                       )
                                   : undefined
                               }
+                              onUnlockResults={
+                                onUnlockResultsForStudent
+                                  ? (displayName) =>
+                                      void handleUnlockResultsForStudent(
+                                        rowKey,
+                                        displayName
+                                      )
+                                  : undefined
+                              }
+                              resultsTabWarningThreshold={
+                                resultsTabWarningThreshold
+                              }
                               pinToName={pinToName}
                               byStudentUid={byStudentUid}
                             />
@@ -2112,6 +2159,18 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                         displayName
                                       )
                                   : undefined
+                              }
+                              onUnlockResults={
+                                onUnlockResultsForStudent
+                                  ? (displayName) =>
+                                      void handleUnlockResultsForStudent(
+                                        rowKey,
+                                        displayName
+                                      )
+                                  : undefined
+                              }
+                              resultsTabWarningThreshold={
+                                resultsTabWarningThreshold
                               }
                               pinToName={pinToName}
                               byStudentUid={byStudentUid}
@@ -2553,6 +2612,12 @@ const StudentRow: React.FC<{
   /** Invoked with the resolved roster display name so the confirm dialog
       can use a friendly phrasing without re-resolving inside the row. */
   onUnlock?: (displayName: string) => void;
+  /** Unlock a student's results-view lockout. Receives resolved display name
+      so the toast can use friendly phrasing without re-resolving inside the row. */
+  onUnlockResults?: (displayName: string) => void;
+  /** Session-published results-protection threshold (`tabWarningThreshold`).
+      Used by the results-locked badge to display "{warnings}/{threshold}". */
+  resultsTabWarningThreshold: number;
   pinToName: Record<string, string>;
   byStudentUid?: Map<
     string,
@@ -2571,6 +2636,8 @@ const StudentRow: React.FC<{
   onConfirmRemoveToggle,
   onRemove,
   onUnlock,
+  onUnlockResults,
+  resultsTabWarningThreshold,
   pinToName,
   byStudentUid,
 }) => {
@@ -2817,6 +2884,33 @@ const StudentRow: React.FC<{
           }
           return null;
         })()}
+
+        {/* Results-view lockout indicator + unlock action. A row enters this
+            state when the student crossed `protection.tabWarningThreshold`
+            tab-switches while viewing published results — the student app
+            redirects them out and writes `resultsLockedOut: true`. The
+            teacher's unlock here decrements warnings by 1 (so a single
+            additional tab-switch re-locks them) and clears the flag. */}
+        {response.resultsLockedOut === true && (
+          <span
+            aria-label="Results locked"
+            className="flex items-center gap-0.5 bg-rose-100 text-rose-800 rounded uppercase font-black shrink-0"
+            style={{
+              fontSize: 'min(9px, 2.5cqmin)',
+              padding: 'min(2px, 0.5cqmin) min(6px, 1.5cqmin)',
+            }}
+            title={`Results locked after ${response.resultsTabWarnings ?? 0} of ${resultsTabWarningThreshold} tab-switch warnings`}
+          >
+            <Lock
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
+            Results locked ({response.resultsTabWarnings ?? 0}/
+            {resultsTabWarningThreshold})
+          </span>
+        )}
       </span>
       {pillText !== null && (
         <span
@@ -2825,6 +2919,27 @@ const StudentRow: React.FC<{
         >
           {pillText}
         </span>
+      )}
+      {/* Unlock-results action — only when the student is currently locked
+          out of viewing published results. Decrements warnings by 1 and
+          clears the lockout (one more tab-switch will re-lock them). */}
+      {response.resultsLockedOut === true && onUnlockResults && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUnlockResults(displayName);
+          }}
+          className="bg-amber-400 hover:bg-amber-300 text-slate-900 font-bold rounded-md transition-colors shrink-0"
+          style={{
+            padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+            fontSize: 'min(10px, 3cqmin)',
+          }}
+          title="Decrement warnings by 1 and reopen the results view for this student"
+          aria-label={`Unlock results for ${displayName}`}
+        >
+          Unlock results
+        </button>
       )}
       {/* Remove button — always visible. Hover-only discoverability
           failed on touch devices and made the action effectively

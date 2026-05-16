@@ -1685,6 +1685,92 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
   });
 });
 
+describe('useQuizSessionTeacher — unlockResultsForStudent', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    setupTeacherMocks();
+  });
+
+  it('decrements resultsTabWarnings by 1, clears the lockout, and removes resultsLockedOutAt', async () => {
+    // The teacher unlock is deliberately a *decrement*, not a full reset:
+    // a single additional tab-switch post-unlock should re-lock the
+    // student. Stub the response read so the hook sees prior warnings.
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({ resultsTabWarnings: 3, resultsLockedOut: true }),
+    });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await act(async () => {
+      await result.current.unlockResultsForStudent('pin-period_1-9999');
+    });
+
+    expect(firestore.updateDoc).toHaveBeenCalledTimes(1);
+    const updatePayload = (
+      firestore.updateDoc as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1];
+    expect(updatePayload).toEqual({
+      resultsTabWarnings: 2,
+      resultsLockedOut: false,
+      resultsLockedOutAt: DELETE_FIELD_SENTINEL,
+    });
+  });
+
+  it('floors resultsTabWarnings at 0 when the prior value is already 0 or missing', async () => {
+    // Defensive case: rules + UI shouldn't ever leave us here, but if the
+    // read returns no warnings at all the decrement must not produce -1.
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      exists: () => true,
+      data: () => ({}),
+    });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await act(async () => {
+      await result.current.unlockResultsForStudent('pin-period_1-9999');
+    });
+
+    const updatePayload = (
+      firestore.updateDoc as unknown as ReturnType<typeof vi.fn>
+    ).mock.calls[0][1];
+    expect(updatePayload).toMatchObject({
+      resultsTabWarnings: 0,
+      resultsLockedOut: false,
+      resultsLockedOutAt: DELETE_FIELD_SENTINEL,
+    });
+  });
+
+  it('throws when the response doc no longer exists (snapshot races with student removal)', async () => {
+    (
+      firestore.getDoc as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      exists: () => false,
+    });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    await expect(
+      result.current.unlockResultsForStudent('pin-period_1-9999')
+    ).rejects.toThrow(/Student response not found/);
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('is a no-op when sessionId is null', async () => {
+    const { result } = renderHook(() => useQuizSessionTeacher(null));
+
+    await expect(
+      result.current.unlockResultsForStudent('pin-period_1-9999')
+    ).rejects.toThrow(/No active session/);
+    expect(firestore.getDoc).not.toHaveBeenCalled();
+    expect(firestore.updateDoc).not.toHaveBeenCalled();
+  });
+});
+
 describe('useQuizSessionTeacher — endQuizSession', () => {
   let env: TeacherMockEnv;
 
