@@ -2045,8 +2045,13 @@ service cloud.firestore {
            // snapshots under the same key — they inherit the same
            // student-side protection by construction. See
            // docs/written-response-quiz-questions.md §9.
+           // Use `affectedKeys()` (added ∪ removed ∪ changed), not
+           // `changedKeys()` — the latter only covers keys that exist on
+           // BOTH sides with different values, so a smuggled NEW field
+           // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
+           // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
