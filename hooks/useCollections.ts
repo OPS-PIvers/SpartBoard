@@ -180,6 +180,17 @@ export const useCollections = (
       const trimmed = nextName.trim();
       if (!trimmed) throw new Error('Collection name is required');
 
+      if (isAuthBypass) {
+        setCollections((prev) =>
+          prev.map((c) =>
+            c.id === collectionId
+              ? { ...c, name: trimmed, updatedAt: Date.now() }
+              : c
+          )
+        );
+        return;
+      }
+
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId),
@@ -241,6 +252,22 @@ export const useCollections = (
       const nextOrder =
         siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
 
+      if (isAuthBypass) {
+        setCollections((prev) =>
+          prev.map((c) =>
+            c.id === collectionId
+              ? {
+                  ...c,
+                  parentCollectionId: nextParentCollectionId,
+                  order: nextOrder,
+                  updatedAt: Date.now(),
+                }
+              : c
+          )
+        );
+        return;
+      }
+
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId),
@@ -262,6 +289,19 @@ export const useCollections = (
     ): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
       if (orderedIds.length === 0) return;
+
+      if (isAuthBypass) {
+        const now = Date.now();
+        setCollections((prev) =>
+          prev.map((c) => {
+            const newIndex = orderedIds.indexOf(c.id);
+            return newIndex !== -1
+              ? { ...c, order: newIndex, updatedAt: now }
+              : c;
+          })
+        );
+        return;
+      }
 
       const batch = writeBatch(db);
       const now = Date.now();
@@ -291,6 +331,13 @@ export const useCollections = (
       if (patch.color !== undefined) update.color = patch.color;
       if (patch.icon !== undefined) update.icon = patch.icon;
 
+      if (isAuthBypass) {
+        setCollections((prev) =>
+          prev.map((c) => (c.id === collectionId ? { ...c, ...update } : c))
+        );
+        return;
+      }
+
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId),
@@ -304,6 +351,22 @@ export const useCollections = (
   const setCollectionDefaultBoard = useCallback(
     async (collectionId: string, boardId: string | null): Promise<void> => {
       if (!userId) throw new Error('Not authenticated');
+
+      if (isAuthBypass) {
+        setCollections((prev) =>
+          prev.map((c) =>
+            c.id === collectionId
+              ? {
+                  ...c,
+                  defaultBoardId: boardId ?? undefined,
+                  updatedAt: Date.now(),
+                }
+              : c
+          )
+        );
+        return;
+      }
+
       const batch = writeBatch(db);
       batch.update(
         doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId),

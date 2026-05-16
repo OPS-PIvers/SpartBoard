@@ -282,9 +282,11 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }}
               onDuplicate={() => void duplicateDashboard(board.id)}
               onSetDefault={() => void setDefaultDashboard(board.id)}
-              onTogglePin={() =>
-                board.isPinned ? unpinBoard(board.id) : pinBoard(board.id)
-              }
+              onTogglePin={() => {
+                void (board.isPinned
+                  ? unpinBoard(board.id)
+                  : pinBoard(board.id));
+              }}
               onMove={handleBulkMove}
               onShare={() => setShareTarget(board)}
               onSaveAsTemplate={() => setSaveAsTemplateTarget(board)}
