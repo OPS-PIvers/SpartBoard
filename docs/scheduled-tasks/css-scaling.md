@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-15_
+_Last audited: 2026-05-16_
 _Last action: 2026-04-25_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-16: Scanned all Widget.tsx / index.tsx files for anti-patterns. New commits since 2026-05-15: fix(activity-wall-gallery) 6b6b77c1, fix(text-widget) f4a8315b, fix(embed) 1894d043, fix(subs) 08f13588, feat(Collections+Boards) f691e285, quiz/grader fixes. ActivityWall `max-h-[75vh]` at lines 2101/2107/2110 re-examined — these are inside a fullscreen submission-preview overlay shown at the teacher level, rendered outside the widget canvas container query context; viewport-height units remain correct for this use case (confirmed 2026-05-14 investigation). Embed fix (1894d043) added provider-allowlist logic; the existing portaled zoom toolbar open item unchanged. All pre-existing open items remain valid. No new anti-patterns detected._
 
 _2026-05-15: Scanned all Widget.tsx / index.tsx files for anti-patterns. NEW LOW item detected: MiniApp portaled active-app toolbar (lines 1054–1191, rendered via createPortal to document.body) introduced in `feat(library): preview pane + Duplicate polish` (2026-05-12, f043df3e) — uses hardcoded `text-xs`, `h-8`, `w-3.5 h-3.5` icon sizes in a portaled element outside the container query context. See new open item below. Also: RandomWidget redesign (`feat(random)` commits b0b11656, f8fb1e6b) converted all previously-tracked hardcoded spacing to `cqmin` — random/RandomWidget.tsx entries removed from the group item. Existing open MiniApp item line numbers are stale (save form shifted from lines 848–874 to 1191–1228 as file grew — same UI, different lines). SpecialistSchedule new timer-launch icon (1b946b67) correctly uses `cqmin`. All other existing open items remain valid._
 
