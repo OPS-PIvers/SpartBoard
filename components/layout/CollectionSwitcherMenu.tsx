@@ -51,18 +51,19 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     return out;
   }, [collections]);
 
-  // Auto-focus the active item once on open. We capture the target index from
-  // the initial props (activeCollectionId / flat are stable at mount) and focus
-  // after the first paint so the button refs are populated.
+  // Auto-focus the active collection item exactly once when the submenu mounts.
+  // Empty deps array is intentional: this is mount-time focus seeding, not a
+  // reaction to prop changes. Adding activeCollectionId or flat as deps would
+  // re-steal focus every time the parent re-renders (e.g. Firestore snapshot),
+  // yanking the keyboard user away from wherever they navigated mid-session.
+  // Focus restoration when the menu CLOSES is handled by the onClose callback
+  // in BoardNavFab (via requestAnimationFrame(() => triggerRef.current?.focus())).
   useEffect(() => {
     const activeIdx =
       activeCollectionId === null
         ? 0
         : 1 + flat.findIndex(({ c }) => c.id === activeCollectionId);
     itemRefs.current[activeIdx >= 0 ? activeIdx : 0]?.focus();
-    // activeCollectionId and flat are intentionally excluded: this effect runs
-    // once on mount to set initial focus; re-focusing on every prop change
-    // would steal focus from the user mid-interaction.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

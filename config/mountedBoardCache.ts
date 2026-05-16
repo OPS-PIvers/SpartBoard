@@ -1,7 +1,9 @@
 /**
- * Number of Boards held mounted at any moment. Active Board + (N-1)
- * most-recently-touched. Live-session-active Boards are pinned in
- * addition to the LRU set (never evicted while the session is live).
+ * Maximum number of Boards mounted at any moment. This is the TOTAL
+ * cap — pinned Boards (live-session hosts) and LRU Boards share this
+ * budget. Pinned slots reduce the LRU window correspondingly. There is
+ * a safety floor: at least one slot is always reserved for the active
+ * Board even if all other slots are pinned.
  *
  * Default 2: enough to make "switch to look up something, switch back"
  * preserve drawing/timer/video state on the originating Board. Higher

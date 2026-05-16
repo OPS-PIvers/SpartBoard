@@ -62,6 +62,7 @@ export const BoardNavFab: FC = () => {
 
   const handleClickOutside = useCallback(() => {
     closePicker(false);
+    setIsCollectionMenuOpen(false);
   }, [closePicker]);
 
   useClickOutside(containerRef, handleClickOutside);
@@ -169,7 +170,14 @@ export const BoardNavFab: FC = () => {
           collections={collections}
           activeCollectionId={activeCollectionId}
           onSelect={(id) => setActiveCollectionId(id)}
-          onClose={() => setIsCollectionMenuOpen(false)}
+          onClose={() => {
+            setIsCollectionMenuOpen(false);
+            // Restore focus to the trigger button so keyboard users aren't
+            // dropped on document.body when the submenu unmounts. Use
+            // requestAnimationFrame to let React commit the unmount before
+            // attempting focus (the board-list menu may still be mid-update).
+            requestAnimationFrame(() => triggerRef.current?.focus());
+          }}
         />
       )}
 

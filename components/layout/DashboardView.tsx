@@ -53,10 +53,10 @@ import {
 } from 'lucide-react';
 import {
   DEFAULT_GLOBAL_STYLE,
-  LiveSession,
   LiveStudent,
   SpartStickerDropPayload,
 } from '@/types';
+import type { LiveSession } from '@/types';
 import { extractYouTubeId } from '@/utils/youtube';
 
 const EMPTY_STUDENTS: LiveStudent[] = [];
