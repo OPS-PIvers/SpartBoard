@@ -2015,7 +2015,15 @@ service cloud.firestore {
            // a student from adding/changing `pin` or `joinedAt`.
            request.resource.data.get('pin', null) == resource.data.get('pin', null) &&
            request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
-           request.resource.data.score == null &&
+           // Score may stay unchanged OR transition to null (rejoin reset).
+           // Students can never write a non-null score they didn't already
+           // have — blocks score forgery while allowing both mid-quiz writes
+           // (score is null on both sides → diff doesn't touch it) and
+           // post-publish results-protection writes (score unchanged from
+           // the graded value). The earlier blanket `score == null` check
+           // rejected results-view writes against scored docs.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['score']) ||
+            request.resource.data.score == null) &&
            // Students may only ever write `0` to `preSyncVersion`. The
            // rejoin path resets it to 0 so a previously-tagged response
            // re-enters the "untagged" pool that
