@@ -118,17 +118,15 @@ const rangeIntersectsNode = (range: Range, node: Node): boolean => {
 
 /**
  * Replace each selected paragraph/li with an `<li>` and group them
- * under a single new `<ul>`/`<ol>` inserted where the first selected
- * block was. Children of each block are moved (never cloned) so live
+ * under a single new `<ul>`/`<ol>` inserted in place of the original
+ * blocks. Children of each block are moved (never cloned) so live
  * Range references — including the user's caret — survive per the DOM
  * spec.
  *
- * Edge cases handled:
- *  - If an `<li>` is selected and its parent list has unselected
- *    siblings, the parent list is split or the `<li>` is migrated.
- *  - Empty leftover lists are removed.
- *  - Selected `<li>`s from the same list have their original list
- *    cleaned up after extraction.
+ * In-place insertion preserves document order even when the selection
+ * is a subset of `<li>`s inside an existing list with unselected
+ * siblings: the source list is split at the first selected `<li>` so
+ * the new list lands between the unselected before/after siblings.
  */
 const wrapBlocksIntoList = (
   editor: HTMLElement,
@@ -138,20 +136,47 @@ const wrapBlocksIntoList = (
   const firstBlock = blocks[0];
   if (!firstBlock.parentNode) return;
 
-  // Find the editor-level ancestor of `firstBlock` — its top-level
-  // "address" inside the editor. The new list will be inserted before
-  // this anchor on the editor. For a paragraph block at top level
-  // `anchor === firstBlock`; for an `<li>` selected from inside a
-  // `<ul>` `anchor === <ul>`. Inserting via `editor.insertBefore` is
-  // critical: if we instead used `firstBlock.parentNode.insertBefore`,
-  // a selected `<li>` would nest the new list inside its own old list.
+  // For a top-level paragraph block, anchor is the block itself (its
+  // parent is the editor). For an `<li>` selected from inside a list
+  // with unselected siblings, split the source list so the trailing
+  // segment (everything from the first selected `<li>` onward, plus
+  // unselected `<li>`s that came after) becomes a fresh list-sibling
+  // of the original — the new list lands between them, preserving
+  // document order.
   let anchor: Node = firstBlock;
-  while (anchor.parentNode && anchor.parentNode !== editor) {
-    anchor = anchor.parentNode;
+  if (firstBlock.tagName === 'LI') {
+    const sourceList = firstBlock.parentElement;
+    if (
+      sourceList &&
+      sourceList.parentNode === editor &&
+      (sourceList.tagName === 'UL' || sourceList.tagName === 'OL')
+    ) {
+      const firstIdx = Array.from(sourceList.children).indexOf(firstBlock);
+      if (firstIdx > 0) {
+        // Move every sibling from firstIdx onward into a new list
+        // immediately after the original. The new wrap list will then
+        // be inserted before this trailing segment, leaving the
+        // unselected leading siblings in the original list.
+        const trailingList = document.createElement(
+          sourceList.tagName.toLowerCase() as 'ul' | 'ol'
+        );
+        const tail = Array.from(sourceList.children).slice(firstIdx);
+        for (const li of tail) trailingList.appendChild(li);
+        // insertBefore(node, sourceList.nextSibling) === insertAfter
+        editor.insertBefore(trailingList, sourceList.nextSibling);
+        anchor = trailingList;
+      } else {
+        anchor = sourceList;
+      }
+    } else {
+      // Fall back: walk up to editor-level (rare — block normalization
+      // should keep lists at the editor's top level).
+      while (anchor.parentNode && anchor.parentNode !== editor) {
+        anchor = anchor.parentNode;
+      }
+      if (anchor.parentNode !== editor) return;
+    }
   }
-  // If the walk left the editor (shouldn't happen given the caller's
-  // preconditions) we have nothing safe to anchor against.
-  if (anchor.parentNode !== editor) return;
 
   const newList = document.createElement(listTag);
   const sourceLists = new Set<HTMLElement>();
