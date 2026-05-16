@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { MountedBoardsLayer } from '@/components/layout/MountedBoardsLayer';
+import type { MountedBoardsLayerProps } from '@/components/layout/MountedBoardsLayer';
 import type { Dashboard } from '@/types';
 
 vi.mock('@/components/layout/BoardCanvas', () => ({
@@ -52,7 +53,10 @@ const noopProps = {
   bringToFront: () => undefined,
   addToast: () => undefined,
   updateDashboardSettings: () => undefined,
-} as unknown as Record<string, never>;
+} as unknown as Omit<
+  MountedBoardsLayerProps,
+  'activeId' | 'dashboards' | 'sessions'
+>;
 
 describe('MountedBoardsLayer', () => {
   it('mounts only the active Board on first render', () => {

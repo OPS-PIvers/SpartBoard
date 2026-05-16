@@ -3,7 +3,7 @@ import type { Dashboard, LiveSession, LiveStudent } from '@/types';
 import { useMountedBoardCache } from '@/hooks/useMountedBoardCache';
 import { BoardCanvas, type BoardCanvasProps } from './BoardCanvas';
 
-interface MountedBoardsLayerProps {
+export interface MountedBoardsLayerProps {
   activeId: string | null;
   dashboards: Dashboard[];
   isMinimized: boolean;
