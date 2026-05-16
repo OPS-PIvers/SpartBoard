@@ -77,8 +77,11 @@ test.describe('Board Sharing', () => {
 
     await firstBoardCard.click({ button: 'right' });
 
-    // Click the "Share…" item in the BoardContextMenu.
-    await page.getByRole('button', { name: /share/i }).first().click();
+    // BoardContextMenu items render as role="menuitem" (not "button").
+    // Wait for the menu, then click the "Share…" item.
+    const contextMenu = page.getByRole('menu');
+    await expect(contextMenu).toBeVisible({ timeout: 5000 });
+    await contextMenu.getByRole('menuitem', { name: /share/i }).click();
 
     // ShareLinkCreatorModal opens. Default mode is "Synced" — just hit
     // "Create link".
