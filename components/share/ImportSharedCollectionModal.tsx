@@ -39,8 +39,16 @@ export const ImportSharedCollectionModal: FC<
   const handleImport = async () => {
     if (!meta) return;
     setBusy(true);
-    const result = await importSharedCollection(shareId);
-    setBusy(false);
+    // Guard `setBusy(false)` in a finally so a thrown rejection from
+    // `importSharedCollection` (network failure, rules denial, etc.)
+    // can't leave the Import button permanently disabled/spinning for
+    // the rest of the session.
+    let result: Awaited<ReturnType<typeof importSharedCollection>>;
+    try {
+      result = await importSharedCollection(shareId);
+    } finally {
+      setBusy(false);
+    }
     if (result) {
       onImported(result);
       onClose();
