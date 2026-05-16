@@ -9,16 +9,29 @@ import {
   type KeyboardEvent as ReactKeyboardEvent,
 } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ChevronLeft, ChevronRight, MoreVertical, Star } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  Folder,
+  MoreVertical,
+  Star,
+} from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useCollections } from '@/hooks/useCollections';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { FAB_BASE } from './fabClasses';
 import { BoardBreadcrumb } from './BoardBreadcrumb';
+import { CollectionSwitcherMenu } from './CollectionSwitcherMenu';
 
 export const BoardNavFab: FC = () => {
   const { t } = useTranslation();
-  const { dashboards, activeDashboard, loadDashboard } = useDashboard();
+  const { dashboards, activeDashboard, loadDashboard, setActiveCollectionId } =
+    useDashboard();
+  const { user } = useAuth();
+  const { collections } = useCollections(user?.uid);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isCollectionMenuOpen, setIsCollectionMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
@@ -64,15 +77,18 @@ export const BoardNavFab: FC = () => {
     }
     if (didFocusOnOpenRef.current) return;
     didFocusOnOpenRef.current = true;
-    const targetIdx = currentIndex >= 0 ? currentIndex : 0;
+    const switchSlot = collections.length > 0 ? 1 : 0;
+    const targetIdx =
+      currentIndex >= 0 ? currentIndex + switchSlot : switchSlot;
     itemRefs.current[targetIdx]?.focus();
-  }, [isPickerOpen, currentIndex]);
+  }, [isPickerOpen, currentIndex, collections.length]);
 
   // Drop trailing ref slots when the dashboard list shrinks so we don't
   // dispatch focus to detached buttons after a board is deleted.
   useEffect(() => {
-    itemRefs.current.length = boardsInCollection.length;
-  }, [boardsInCollection.length]);
+    const switchSlot = collections.length > 0 ? 1 : 0;
+    itemRefs.current.length = switchSlot + boardsInCollection.length;
+  }, [boardsInCollection.length, collections.length]);
 
   if (boardsInCollection.length <= 1) return null;
 
@@ -91,8 +107,10 @@ export const BoardNavFab: FC = () => {
   };
 
   const focusItem = (idx: number) => {
-    const len = boardsInCollection.length;
-    const wrapped = ((idx % len) + len) % len;
+    const switchSlot = collections.length > 0 ? 1 : 0;
+    const totalItems = switchSlot + boardsInCollection.length;
+    if (totalItems === 0) return;
+    const wrapped = ((idx % totalItems) + totalItems) % totalItems;
     itemRefs.current[wrapped]?.focus();
   };
 
@@ -112,7 +130,9 @@ export const BoardNavFab: FC = () => {
       case 'ArrowUp':
         e.preventDefault();
         focusItem(
-          focusedIdx < 0 ? boardsInCollection.length - 1 : focusedIdx - 1
+          focusedIdx < 0
+            ? (collections.length > 0 ? 1 : 0) + boardsInCollection.length - 1
+            : focusedIdx - 1
         );
         break;
       case 'Home':
@@ -121,7 +141,9 @@ export const BoardNavFab: FC = () => {
         break;
       case 'End':
         e.preventDefault();
-        focusItem(boardsInCollection.length - 1);
+        focusItem(
+          (collections.length > 0 ? 1 : 0) + boardsInCollection.length - 1
+        );
         break;
       case 'Tab':
         // Tab takes focus out of the menu — close to keep state consistent.
@@ -141,7 +163,16 @@ export const BoardNavFab: FC = () => {
       data-screenshot="exclude"
       className="fixed bottom-6 left-4 z-dock"
     >
-      {isPickerOpen && (
+      {isCollectionMenuOpen && (
+        <CollectionSwitcherMenu
+          collections={collections}
+          activeCollectionId={activeCollectionId}
+          onSelect={(id) => setActiveCollectionId(id)}
+          onClose={() => setIsCollectionMenuOpen(false)}
+        />
+      )}
+
+      {isPickerOpen && !isCollectionMenuOpen && (
         <div
           role="menu"
           aria-labelledby={headerId}
@@ -154,13 +185,35 @@ export const BoardNavFab: FC = () => {
           >
             {boardListLabel}
           </div>
+          {collections.length > 0 && (
+            <button
+              ref={(el) => {
+                itemRefs.current[0] = el;
+              }}
+              role="menuitem"
+              onClick={() => {
+                setIsPickerOpen(false);
+                setIsCollectionMenuOpen(true);
+              }}
+              className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 border-b border-white/10 mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+            >
+              <Folder className="w-3.5 h-3.5 flex-shrink-0" />
+              {t('boardNav.switchCollection', {
+                defaultValue: 'Switch Collection…',
+              })}
+            </button>
+          )}
           {boardsInCollection.map((db, idx) => {
             const isActive = activeDashboard?.id === db.id;
+            // Offset board indices by 1 when the Switch Collection item occupies
+            // itemRefs[0]. Keeps Arrow-key navigation inclusive of both the
+            // collection switcher and every board in the active collection.
+            const refIdx = collections.length > 0 ? idx + 1 : idx;
             return (
               <button
                 key={db.id}
                 ref={(el) => {
-                  itemRefs.current[idx] = el;
+                  itemRefs.current[refIdx] = el;
                 }}
                 role="menuitem"
                 onClick={() => {
