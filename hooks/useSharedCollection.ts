@@ -115,12 +115,17 @@ export const useSharedCollection = () => {
    * Host action: write the share metadata + every Board snapshot in a
    * chunked writeBatch. Returns the new shareId.
    *
-   * Chunking note: a `writeBatch` is capped at 500 operations. A Collection
-   * with > 499 Boards exceeds that (metadata + 499 boards = 500). We split
-   * into multiple batches if needed — boards are immutable post-creation,
-   * so partial-batch failure recovery is simple (delete the parent if any
-   * board batch fails). BATCH_LIMIT 400 leaves headroom for the parent
-   * write in the first batch.
+   * Write order: ALL board sub-docs are committed first; the parent doc is
+   * written LAST in its own batch. The parent's existence is the signal that
+   * every board sub-doc was successfully persisted. If any board batch fails,
+   * the parent is never written, so recipients see "not found or expired"
+   * rather than a partial Collection.
+   *
+   * Trade-off: if board batches succeed but the final parent batch fails,
+   * orphan board sub-docs remain under `/shared_collections/{shareId}/boards/*`.
+   * They are never readable by anyone (no parent doc exists to expose the
+   * shareId), so they only cost storage. A future scheduled cleanup can prune
+   * them by walking sub-collections and checking parent existence.
    */
   const shareCollection = useCallback(
     async (input: ShareCollectionInput): Promise<string> => {
@@ -150,11 +155,12 @@ export const useSharedCollection = () => {
         return shareId;
       }
 
-      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      // Phase 1: write ALL board sub-docs in chunked batches.
+      // If any of these throws, the parent doc does not yet exist → recipient
+      // can't load the share at all (clean failure, no partial-state surface).
       const BATCH_LIMIT = 400;
       let currentBatch = writeBatch(db);
-      currentBatch.set(parentRef, parentPayload);
-      let inBatch = 1;
+      let inBatch = 0;
 
       for (const board of input.boards) {
         if (inBatch >= BATCH_LIMIT) {
@@ -178,17 +184,29 @@ export const useSharedCollection = () => {
       }
       if (inBatch > 0) await currentBatch.commit();
 
+      // Phase 2: write the parent doc LAST. Its existence is the signal that
+      // all sub-docs were successfully committed. Recipients cannot discover
+      // the share until this batch lands.
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      const parentBatch = writeBatch(db);
+      parentBatch.set(parentRef, parentPayload);
+      await parentBatch.commit();
+
       return shareId;
     },
     []
   );
 
   /**
-   * Host action: substitute variant. Same chunked-batch strategy as
+   * Host action: substitute variant. Same parent-last write strategy as
    * shareCollection. Adds `expiresAt` + `buildingId` and sets
    * `intendedMode: 'substitute'` on the parent payload. Drive grants are
    * NOT implemented for Collection shares — see plan's "Known
    * limitations" for rationale.
+   *
+   * See shareCollection for the write-order trade-off comment (board
+   * sub-docs first, parent last — clean failure on board batch error,
+   * possible orphan board docs on parent batch error).
    */
   const shareSubstituteCollection = useCallback(
     async (input: SubstituteShareInput): Promise<string> => {
@@ -220,11 +238,12 @@ export const useSharedCollection = () => {
         return shareId;
       }
 
-      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      // Phase 1: write ALL board sub-docs in chunked batches.
+      // If any of these throws, the parent doc does not yet exist → recipient
+      // can't load the share at all (clean failure, no partial-state surface).
       const BATCH_LIMIT = 400;
       let currentBatch = writeBatch(db);
-      currentBatch.set(parentRef, parentPayload);
-      let inBatch = 1;
+      let inBatch = 0;
 
       for (const board of input.boards) {
         if (inBatch >= BATCH_LIMIT) {
@@ -247,6 +266,14 @@ export const useSharedCollection = () => {
         inBatch += 1;
       }
       if (inBatch > 0) await currentBatch.commit();
+
+      // Phase 2: write the parent doc LAST. Its existence is the signal that
+      // all sub-docs were successfully committed. Recipients cannot discover
+      // the share until this batch lands.
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      const parentBatch = writeBatch(db);
+      parentBatch.set(parentRef, parentPayload);
+      await parentBatch.commit();
 
       return shareId;
     },
@@ -303,27 +330,43 @@ export const useSharedCollection = () => {
   const loadSharedCollectionBoards = useCallback(
     async (shareId: string, boardIds: string[]): Promise<Dashboard[]> => {
       if (isAuthBypass) {
-        const allBoards = mockCollStore.getBoards(shareId);
-        const byId = new Map(allBoards.map((b) => [b.id, b]));
+        try {
+          const allBoards = mockCollStore.getBoards(shareId);
+          const byId = new Map(allBoards.map((b) => [b.id, b]));
+          return boardIds
+            .map((id) => byId.get(id))
+            .filter((d): d is Dashboard => Boolean(d));
+        } catch (err) {
+          logError('useSharedCollection.loadSharedCollectionBoards', err, {
+            shareId,
+            boardIdCount: boardIds.length,
+          });
+          return [];
+        }
+      }
+      try {
+        const colRef = collection(
+          db,
+          SHARED_COLLECTIONS_SUBPATH,
+          shareId,
+          SHARED_COLLECTION_BOARDS_SUBPATH
+        );
+        const snap = await getDocs(colRef);
+        const byId = new Map<string, Dashboard>();
+        for (const d of snap.docs) {
+          const data = d.data() as SharedCollectionBoardDoc;
+          byId.set(d.id, data.dashboard);
+        }
         return boardIds
           .map((id) => byId.get(id))
           .filter((d): d is Dashboard => Boolean(d));
+      } catch (err) {
+        logError('useSharedCollection.loadSharedCollectionBoards', err, {
+          shareId,
+          boardIdCount: boardIds.length,
+        });
+        return [];
       }
-      const colRef = collection(
-        db,
-        SHARED_COLLECTIONS_SUBPATH,
-        shareId,
-        SHARED_COLLECTION_BOARDS_SUBPATH
-      );
-      const snap = await getDocs(colRef);
-      const byId = new Map<string, Dashboard>();
-      for (const d of snap.docs) {
-        const data = d.data() as SharedCollectionBoardDoc;
-        byId.set(d.id, data.dashboard);
-      }
-      return boardIds
-        .map((id) => byId.get(id))
-        .filter((d): d is Dashboard => Boolean(d));
     },
     []
   );

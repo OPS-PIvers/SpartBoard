@@ -139,7 +139,7 @@ export interface DashboardContextValue {
   createNewDashboard: (
     name: string,
     data?: Dashboard,
-    options?: { collectionId?: string | null }
+    options?: { collectionId?: string | null; silent?: boolean }
   ) => Promise<string | undefined>;
   saveCurrentDashboard: () => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;
@@ -319,7 +319,7 @@ export interface DashboardContextValue {
   ) => Promise<Dashboard[]>;
   importSharedCollection: (
     shareId: string
-  ) => Promise<{ collectionId: string } | null>;
+  ) => Promise<{ collectionId: string; firstBoardId: string | null } | null>;
   pendingSharedCollectionId: string | null;
   setPendingSharedCollectionId: (id: string | null) => void;
   clearPendingSharedCollection: () => void;

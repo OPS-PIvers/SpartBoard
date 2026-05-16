@@ -1748,11 +1748,11 @@ export const DashboardView: React.FC = () => {
         <ImportSharedCollectionModal
           shareId={pendingSharedCollectionId}
           onClose={clearPendingSharedCollection}
-          onImported={(newCollectionId) => {
-            const firstBoard = dashboards.find(
-              (d) => (d.collectionId ?? null) === newCollectionId
-            );
-            if (firstBoard) loadDashboard(firstBoard.id);
+          onImported={(result) => {
+            // Use firstBoardId returned directly from importSharedCollection
+            // rather than searching dashboards — the Firestore snapshot may not
+            // have updated yet when this callback fires.
+            if (result.firstBoardId) loadDashboard(result.firstBoardId);
           }}
         />
       )}

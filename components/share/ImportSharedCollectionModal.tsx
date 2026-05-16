@@ -7,7 +7,10 @@ import type { SharedCollection } from '@/types';
 interface ImportSharedCollectionModalProps {
   shareId: string;
   onClose: () => void;
-  onImported: (collectionId: string) => void;
+  onImported: (result: {
+    collectionId: string;
+    firstBoardId: string | null;
+  }) => void;
 }
 
 export const ImportSharedCollectionModal: FC<
@@ -39,7 +42,7 @@ export const ImportSharedCollectionModal: FC<
     const result = await importSharedCollection(shareId);
     setBusy(false);
     if (result) {
-      onImported(result.collectionId);
+      onImported(result);
       onClose();
     }
   };

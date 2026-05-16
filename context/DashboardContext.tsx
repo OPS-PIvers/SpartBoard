@@ -3140,10 +3140,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     async (
       name: string,
       data?: Dashboard,
-      options?: { collectionId?: string | null }
+      options?: { collectionId?: string | null; silent?: boolean }
     ): Promise<string | undefined> => {
       if (!user) {
-        addToast('Must be signed in to create dashboard', 'error');
+        if (!options?.silent)
+          addToast('Must be signed in to create dashboard', 'error');
         return undefined;
       }
 
@@ -3178,8 +3179,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
       try {
         await saveDashboard(newDb);
-        updateActiveId(newDb.id);
-        addToast(`Dashboard "${name}" ready`);
+        if (!options?.silent) {
+          updateActiveId(newDb.id);
+          addToast(`Dashboard "${name}" ready`);
+        }
         return newDb.id;
       } catch (err) {
         logError('DashboardContext.createNewDashboard', err, {
@@ -3187,6 +3190,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           name,
           collectionId,
         });
+        if (options?.silent) {
+          // Silent callers (e.g. importSharedCollection) need to detect
+          // failure via rejection — re-throw so Promise.allSettled can count.
+          throw err;
+        }
         addToast('Failed to create dashboard', 'error');
         return undefined;
       }
@@ -3231,7 +3239,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const importSharedCollection = useCallback(
-    async (shareId: string): Promise<{ collectionId: string } | null> => {
+    async (
+      shareId: string
+    ): Promise<{
+      collectionId: string;
+      firstBoardId: string | null;
+    } | null> => {
       if (!user) {
         addToast('Must be signed in to import', 'error');
         return null;
@@ -3249,6 +3262,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast('Shared Collection is empty', 'error');
         return null;
       }
+      // Warn if the share was partially available (some board docs missing).
+      if (boards.length < meta.boardIds.length) {
+        const missing = meta.boardIds.length - boards.length;
+        addToast(
+          `${missing.toString()} board(s) couldn't be loaded — importing the rest`,
+          'error'
+        );
+        // Continue with the partial set; warning is surfaced above.
+      }
 
       try {
         // Phase 1: create the recipient's Collection.
@@ -3257,22 +3279,42 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           null // root — recipient can move it later
         );
 
-        // Phase 2: clone each Board into the new Collection. Each
-        // createNewDashboard fans out to a Firestore write; collect failures
-        // so the user sees a partial-success report instead of silent skips.
+        // Capture maxOrder ONCE before the parallel fan-out so each board
+        // gets a deterministic, non-colliding order value.
+        const baseOrder = dashboards.reduce(
+          (max, d) => Math.max(max, d.order ?? 0),
+          0
+        );
+
+        // Phase 2: clone each Board into the new Collection. Use silent:true
+        // so N boards don't fire N toasts and N activeId thrashes. With
+        // silent:true, createNewDashboard throws on failure so
+        // Promise.allSettled captures rejections (not undefined returns).
         const importResults = await Promise.allSettled(
-          boards.map((b) =>
+          boards.map((b, idx) =>
             createNewDashboard(
               `${b.name} (Imported)`,
-              { ...b, id: crypto.randomUUID() } as Dashboard,
-              { collectionId: newCollectionId }
+              // Deep-clone the board so nested widget state isn't shared by
+              // reference across imports.
+              {
+                ...structuredClone(b),
+                id: crypto.randomUUID(),
+                order: baseOrder + idx + 1,
+              } as Dashboard,
+              { collectionId: newCollectionId, silent: true }
             )
           )
         );
-        const failed = importResults.filter(
-          (r) => r.status === 'rejected'
+
+        // With silent:true, createNewDashboard throws on failure (rejected)
+        // and returns the new id on success (fulfilled with a string).
+        // Guard against undefined returns defensively in case a future caller
+        // removes silent:true without updating this detection.
+        const succeeded = importResults.filter(
+          (r) => r.status === 'fulfilled' && r.value !== undefined
         ).length;
-        const succeeded = boards.length - failed;
+        const failed = boards.length - succeeded;
+
         if (failed > 0) {
           addToast(
             `Imported ${succeeded.toString()} board(s) — ${failed.toString()} failed`,
@@ -3283,10 +3325,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         if (succeeded === 0) {
-          // All boards failed — delete the empty Collection rather than leaving
-          // a labeled-but-empty shell in the recipient's tree. The user will
-          // see the "No items could be imported" toast above; the Collection
-          // shouldn't linger.
+          // All boards failed — delete the empty Collection rather than
+          // leaving a labeled-but-empty shell in the recipient's tree.
           try {
             await collectionsApi.deleteCollection(
               newCollectionId,
@@ -3302,7 +3342,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return null;
         }
 
-        return { collectionId: newCollectionId };
+        // Return the first successfully imported board's id directly so
+        // the caller can navigate without waiting for the Firestore snapshot
+        // to update the local dashboards state (which is async).
+        const firstFulfilled = importResults.find(
+          (r): r is PromiseFulfilledResult<string | undefined> =>
+            r.status === 'fulfilled' && r.value !== undefined
+        );
+        const firstBoardId = firstFulfilled?.value ?? null;
+
+        return { collectionId: newCollectionId, firstBoardId };
       } catch (err) {
         logError('DashboardContext.importSharedCollection', err, {
           shareId,
@@ -3312,7 +3361,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return null;
       }
     },
-    [user, addToast, sharedCollectionApi, collectionsApi, createNewDashboard]
+    [
+      user,
+      dashboards,
+      addToast,
+      sharedCollectionApi,
+      collectionsApi,
+      createNewDashboard,
+    ]
   );
 
   const saveCurrentDashboard = useCallback(async () => {
