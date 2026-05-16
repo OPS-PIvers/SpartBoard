@@ -30,7 +30,15 @@ import { useAuth } from '@/context/useAuth';
 type SubsView =
   | { kind: 'building-picker' }
   | { kind: 'directory'; buildingId: string }
-  | { kind: 'board'; buildingId: string; shareId: string };
+  | { kind: 'board'; buildingId: string; shareId: string }
+  // TODO(collections-plan-3): wire full Collection board view once
+  // SubsDashboardProvider supports loadSharedCollectionBoards.
+  | {
+      kind: 'collection-board';
+      buildingId: string;
+      shareId: string;
+      boardId: string;
+    };
 
 // Per-user storage key. SubsAuthGate guarantees `uid` is set before this
 // runs (it doesn't render children until auth is settled + allowed), so
@@ -97,11 +105,31 @@ const SubsContent: React.FC = () => {
           onPickBoard={(shareId) =>
             setView({ kind: 'board', buildingId: view.buildingId, shareId })
           }
+          onOpenCollectionBoard={(shareId, boardId) =>
+            setView({
+              kind: 'collection-board',
+              buildingId: view.buildingId,
+              shareId,
+              boardId,
+            })
+          }
           onChangeBuilding={() => setView({ kind: 'building-picker' })}
         />
       )}
 
       {view.kind === 'board' && (
+        <SubBoardScreen
+          shareId={view.shareId}
+          onBackToDirectory={() =>
+            setView({ kind: 'directory', buildingId: view.buildingId })
+          }
+          onChangeBuilding={() => setView({ kind: 'building-picker' })}
+        />
+      )}
+
+      {/* TODO(collections-plan-3): replace stub with real Collection board view
+          once SubsDashboardProvider wires loadSharedCollectionBoards. */}
+      {view.kind === 'collection-board' && (
         <SubBoardScreen
           shareId={view.shareId}
           onBackToDirectory={() =>

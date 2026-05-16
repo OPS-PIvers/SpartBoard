@@ -16,16 +16,20 @@ import {
   teacherCardAccent,
   teacherInitials,
 } from './subsView';
+import { SubCollectionsList } from './SubCollectionsList';
 
 interface TeacherDirectoryScreenProps {
   buildingId: string;
   onPickBoard: (shareId: string) => void;
+  /** Called when the sub selects a Board inside a shared Collection. */
+  onOpenCollectionBoard: (shareId: string, boardId: string) => void;
   onChangeBuilding: () => void;
 }
 
 export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
   buildingId,
   onPickBoard,
+  onOpenCollectionBoard,
   onChangeBuilding,
 }) => {
   const adminBuildings = useAdminBuildings();
@@ -182,6 +186,14 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
               })}
             </div>
           )}
+
+          {/* Collections shared with subs — shown below individual boards. */}
+          <div className="mt-10">
+            <SubCollectionsList
+              buildingId={buildingId}
+              onOpenBoard={onOpenCollectionBoard}
+            />
+          </div>
         </div>
       </main>
     </div>

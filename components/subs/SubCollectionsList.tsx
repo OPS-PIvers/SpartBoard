@@ -1,0 +1,119 @@
+import { type FC, useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Folder } from 'lucide-react';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { db } from '@/config/firebase';
+import { canonicalBuildingId } from '@/config/buildings';
+import { logError } from '@/utils/logError';
+import type { SharedCollection } from '@/types';
+
+interface SubCollectionsListProps {
+  buildingId: string;
+  /** Called when the sub clicks a Board within a shared Collection. */
+  onOpenBoard: (shareId: string, boardId: string) => void;
+}
+
+export const SubCollectionsList: FC<SubCollectionsListProps> = ({
+  buildingId,
+  onOpenBoard,
+}) => {
+  const { t } = useTranslation();
+  const [collections, setCollections] = useState<SharedCollection[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    const canonical = canonicalBuildingId(buildingId);
+    void (async () => {
+      try {
+        const q = query(
+          collection(db, 'shared_collections'),
+          where('intendedMode', '==', 'substitute'),
+          where('buildingId', '==', canonical)
+        );
+        const snap = await getDocs(q);
+        if (cancelled) return;
+        const now = Date.now();
+        const docs: SharedCollection[] = [];
+        snap.docs.forEach((d) => {
+          const data = d.data() as SharedCollection;
+          // Filter expired collections client-side (mirrors useSubstituteShares pattern).
+          const expiresAt =
+            typeof data.expiresAt === 'number' ? data.expiresAt : Infinity;
+          if (expiresAt > now) {
+            docs.push({ ...data, shareId: d.id });
+          }
+        });
+        setCollections(docs);
+      } catch (err) {
+        logError('SubCollectionsList.load', err, { buildingId });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [buildingId]);
+
+  if (loading) {
+    return (
+      <p className="text-sm text-white/50 italic">
+        {t('subCollections.loading', {
+          defaultValue: 'Loading shared Collections…',
+        })}
+      </p>
+    );
+  }
+
+  if (collections.length === 0) {
+    return null;
+  }
+
+  return (
+    <section className="space-y-3">
+      <h3 className="text-[11px] uppercase tracking-wider font-bold text-white/50">
+        {t('subCollections.heading', { defaultValue: 'Collections' })}
+      </h3>
+      {collections.map((c) => (
+        <div
+          key={c.shareId}
+          className="rounded-2xl bg-white/5 backdrop-blur-md border border-white/10 p-5"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Folder
+              className="w-4 h-4 flex-shrink-0"
+              style={
+                c.collection.color ? { color: c.collection.color } : undefined
+              }
+            />
+            <span className="text-sm font-bold text-white">
+              {c.collection.name}
+            </span>
+            <span className="ml-auto text-[11px] text-white/50">
+              {t('subCollections.boardCount', {
+                count: c.boardIds.length,
+                defaultValue: '{{count}} board(s)',
+              })}
+            </span>
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {c.boardIds.map((boardId) => (
+              <button
+                key={boardId}
+                type="button"
+                onClick={() => onOpenBoard(c.shareId, boardId)}
+                className="text-left px-3 py-2 text-xs rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/30 text-white/80 transition-colors cursor-pointer"
+              >
+                {t('subCollections.boardPlaceholder', {
+                  id: boardId.slice(-4),
+                  defaultValue: 'Board …{{id}}',
+                })}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+    </section>
+  );
+};

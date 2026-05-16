@@ -281,6 +281,14 @@
         { "fieldPath": "plcId", "order": "ASCENDING" },
         { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "shared_collections",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "intendedMode", "order": "ASCENDING" },
+        { "fieldPath": "buildingId", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
