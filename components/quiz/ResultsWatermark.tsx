@@ -28,7 +28,7 @@ export const ResultsWatermark: React.FC<ResultsWatermarkProps> = ({
     <svg
       role="presentation"
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-50 h-full w-full select-none"
+      className="pointer-events-none fixed inset-0 z-50 h-full w-full select-none text-white"
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
@@ -44,7 +44,7 @@ export const ResultsWatermark: React.FC<ResultsWatermarkProps> = ({
           <text
             x="0"
             y="60"
-            fontFamily="ui-monospace, SFMono-Regular, Menlo, monospace"
+            fontFamily="'Roboto Mono', ui-monospace, SFMono-Regular, Menlo, monospace"
             fontSize="14"
             fill="currentColor"
             opacity="0.12"
