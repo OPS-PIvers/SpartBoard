@@ -10,14 +10,14 @@ import {
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
-import { useAuth } from '@/context/useAuth';
-import { useCollections } from '@/hooks/useCollections';
 import { logError } from '@/utils/logError';
 
 export const useBoardsModalDnd = () => {
-  const { user } = useAuth();
-  const { moveBoardToCollection, addToast } = useDashboard();
-  const { moveCollection } = useCollections(user?.uid);
+  const {
+    moveBoardToCollection,
+    addToast,
+    collectionsApi: { moveCollection },
+  } = useDashboard();
   const { t } = useTranslation();
 
   // Mouse: 15px movement to start drag (matches existing SidebarBoards).

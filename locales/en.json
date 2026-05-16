@@ -21,7 +21,8 @@
     "previous": "Previous board",
     "next": "Next board",
     "selectBoard": "Select board",
-    "boardList": "All boards"
+    "boardList": "All boards",
+    "switchCollection": "Switch Collection…"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -875,6 +876,14 @@
       "emptyBoardHint": "Drag tools from the Dock below to start",
       "switchBoardsHint": "Use the board navigation controls in the bottom-left to switch boards"
     }
+  },
+  "boardBreadcrumb": {
+    "root": "All Boards",
+    "openManager": "Manage Boards"
+  },
+  "collectionSwitcher": {
+    "title": "Switch Collection",
+    "root": "All Boards (root)"
   },
   "boardsModal": {
     "title": "Boards",

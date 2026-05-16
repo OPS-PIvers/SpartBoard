@@ -56,10 +56,12 @@ import {
   dashboardHasPII,
 } from '../utils/dashboardPII';
 import { migrateBoardForCollections } from '../utils/collectionsMigration';
+import { pickInitialBoard } from '../utils/pickInitialBoard';
 import { logError } from '../utils/logError';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
+import { useCollections } from '../hooks/useCollections';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import {
   setAiModelConfigFallbackHandler,
@@ -217,6 +219,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     savedWidgetConfigs,
     saveWidgetConfig,
     profileLoaded,
+    lastActiveCollectionId,
+    lastBoardIdByCollection,
     remoteControlEnabled: accountRemoteControlEnabled,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
@@ -234,6 +238,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     leaveSharedBoard,
     stopSharingBoard,
   } = useFirestore(user?.uid ?? null);
+
+  const collectionsApi = useCollections(user?.uid);
+  const { collections } = collectionsApi;
 
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [pendingShareId, setPendingShareId] = useState<string | null>(() => {
@@ -337,6 +344,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [groupBuildMode, setGroupBuildMode] = useState(false);
   const dashboardsRef = useRef(dashboards);
   dashboardsRef.current = dashboards;
+  // Refs mirror auth/collections state used by the initial-board selection
+  // path so that branch (which runs inside the snapshot callback) doesn't
+  // have to be re-bound on every userProfile/collection change. Refs are
+  // the right call here because the selection is fire-once on app open,
+  // not a reactive computation.
+  const profileLoadedRef = useRef(profileLoaded);
+  profileLoadedRef.current = profileLoaded;
+  const lastActiveCollectionIdRef = useRef(lastActiveCollectionId);
+  lastActiveCollectionIdRef.current = lastActiveCollectionId;
+  const lastBoardIdByCollectionRef = useRef(lastBoardIdByCollection);
+  lastBoardIdByCollectionRef.current = lastBoardIdByCollection;
+  const collectionsRef = useRef(collections);
+  collectionsRef.current = collections;
+  // Hoisted here (not inside the Task 0.4 effect) so the snapshot callback can
+  // also set it — preventing a second Firestore churn from double-picking.
+  const initialBoardSelectedRef = useRef(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
@@ -1781,9 +1804,25 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
 
         if (migratedDashboards.length > 0 && !activeIdRef.current) {
-          // Try to load default dashboard first
-          const defaultDb = migratedDashboards.find((d) => d.isDefault);
-          updateActiveId(defaultDb ? defaultDb.id : migratedDashboards[0].id);
+          // Wait for the userProfile snapshot to land before picking. If we
+          // pick now using `undefined` lastActiveCollectionId, pickInitialBoard
+          // falls through to the global default — a behavior we explicitly
+          // want to AVOID on the first paint so the teacher doesn't see a
+          // flash of "wrong board" before profile-aware selection corrects it.
+          // The `initialBoardSelectedRef` gate (added in Task 0.4) makes the
+          // selection run exactly once across snapshot churn.
+          if (profileLoadedRef.current) {
+            const initial = pickInitialBoard(
+              migratedDashboards,
+              lastActiveCollectionIdRef.current,
+              lastBoardIdByCollectionRef.current,
+              collectionsRef.current
+            );
+            if (initial) {
+              updateActiveId(initial.id);
+              initialBoardSelectedRef.current = true;
+            }
+          }
         }
 
         // Create default dashboard if none exist. Skip for student users —
@@ -1886,6 +1925,45 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     roleId,
     isStudentRole,
     roleResolved,
+  ]);
+
+  // One-shot upgrade of the initial Board choice once profile + collections
+  // are both available. Runs at most once — guarded by `initialBoardSelectedRef`
+  // so a subsequent profile refresh doesn't yank the teacher to a different
+  // Board after they've started working. The ref is declared at component scope
+  // (not here) so the snapshot callback can also set it.
+  useEffect(() => {
+    if (initialBoardSelectedRef.current) return;
+    if (!profileLoaded) return;
+    if (loading) return;
+    if (dashboards.length === 0) return;
+    if (activeIdRef.current) {
+      // Some other path already picked an active Board (e.g. URL deep-link).
+      initialBoardSelectedRef.current = true;
+      return;
+    }
+    const initial = pickInitialBoard(
+      dashboards,
+      lastActiveCollectionId,
+      lastBoardIdByCollection,
+      collections
+    );
+    // Intentionally leave initialBoardSelectedRef false when initial === null,
+    // so a future dep change (e.g. collections loading after dashboards) gets
+    // another chance to pick a Board. Setting the ref true here would freeze
+    // the effect into the "no board picked" state.
+    if (initial) {
+      updateActiveId(initial.id);
+      initialBoardSelectedRef.current = true;
+    }
+  }, [
+    profileLoaded,
+    loading,
+    dashboards,
+    lastActiveCollectionId,
+    lastBoardIdByCollection,
+    collections,
+    updateActiveId,
   ]);
 
   // Re-hydrate widget pixel x/y/w/h from canonical proportional bounds
@@ -3502,6 +3580,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [addToast, updateActiveId, user, profileLoaded]
   );
 
+  const setActiveCollectionId = useCallback(
+    (nextCollectionId: string | null) => {
+      // Reuse pickInitialBoard but force its lastActiveCollectionId arg to
+      // the new Collection — this picks the per-Collection remembered
+      // Board (or the right fallback) without an extra Firestore read.
+      const target = pickInitialBoard(
+        dashboards,
+        nextCollectionId,
+        lastBoardIdByCollection,
+        collections
+      );
+      if (!target) {
+        logError(
+          'DashboardContext.setActiveCollectionId.noBoardsInCollection',
+          new Error('Target Collection has no resolvable Board'),
+          { collectionId: nextCollectionId }
+        );
+        return;
+      }
+      loadDashboard(target.id);
+    },
+    [dashboards, lastBoardIdByCollection, collections, loadDashboard]
+  );
+
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
   // True when the user is viewing a board they joined as a viewer in
@@ -4484,6 +4586,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const contextValue = useMemo(
     () => ({
       driveService,
+      collectionsApi,
       dashboards,
       activeDashboard,
       toasts,
@@ -4506,6 +4609,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      setActiveCollectionId,
       resetDockToDefaults,
       addWidget,
       addWidgets,
@@ -4593,6 +4697,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     }),
     [
       driveService,
+      collectionsApi,
       dashboards,
       activeDashboard,
       toasts,
@@ -4615,6 +4720,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      setActiveCollectionId,
       resetDockToDefaults,
       addWidget,
       addWidgets,

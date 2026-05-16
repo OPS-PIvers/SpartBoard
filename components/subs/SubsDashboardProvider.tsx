@@ -203,6 +203,18 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     return {
       // === Real implementations (the four that matter) =====================
       driveService: null,
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: () => Promise.resolve(''),
+        renameCollection: () => Promise.resolve(),
+        moveCollection: () => Promise.resolve(),
+        deleteCollection: () => Promise.resolve(),
+        reorderSiblings: () => Promise.resolve(),
+        setCollectionMetadata: () => Promise.resolve(),
+        setCollectionDefaultBoard: () => Promise.resolve(),
+      },
       dashboards: [activeDashboard],
       activeDashboard,
       isActiveBoardReadOnly: true,
@@ -261,6 +273,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       ) => Promise<void>,
       pinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
       unpinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      setActiveCollectionId: NOOP,
       resetDockToDefaults: NOOP,
       setGradeFilter: NOOP,
 

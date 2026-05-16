@@ -120,6 +120,25 @@ vi.mock('../hooks/usePlcs', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useCollections', () => ({
+  useCollections: () => ({
+    collections: [],
+    loading: false,
+    error: null,
+    createCollection: vi.fn(),
+    renameCollection: vi.fn(),
+    moveCollection: vi.fn(),
+    deleteCollection: vi.fn(),
+    reorderSiblings: vi.fn(),
+    setCollectionMetadata: vi.fn(),
+    setCollectionDefaultBoard: vi.fn(),
+  }),
+}));
+
+vi.mock('@/components/boardsModal/BoardsModal', () => ({
+  BoardsModal: () => null,
+}));
+
 const mockGlobalStyle: GlobalStyle = {
   fontFamily: 'sans',
   windowTransparency: 0.8,
@@ -159,6 +178,18 @@ describe('Global Escape Interaction', () => {
     gradeFilter: 'all',
     zoom: 1,
     setZoom: vi.fn(),
+    collectionsApi: {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    },
   };
 
   afterEach(() => {

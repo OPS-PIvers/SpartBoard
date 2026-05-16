@@ -18,7 +18,8 @@
     "previous": "Vorherige Tafel",
     "next": "Nächste Tafel",
     "selectBoard": "Tafel auswählen",
-    "boardList": "Alle Tafeln"
+    "boardList": "Alle Tafeln",
+    "switchCollection": "Switch Collection…"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -345,6 +346,14 @@
       "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
       "switchBoardsHint": "Verwenden Sie die Tafelnavigation unten links, um zwischen Tafeln zu wechseln"
     }
+  },
+  "boardBreadcrumb": {
+    "root": "All Boards",
+    "openManager": "Manage Boards"
+  },
+  "collectionSwitcher": {
+    "title": "Switch Collection",
+    "root": "All Boards (root)"
   },
   "boardsModal": {
     "title": "Boards",
