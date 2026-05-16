@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, Lock } from 'lucide-react';
 import { db, functions } from '@/config/firebase';
 import {
   KIND_CONFIG,
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
+import { useDialog } from '@/context/useDialog';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -140,6 +141,11 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   pendingVerification,
 }) => {
   const [completion, setCompletion] = useState<CompletionState>('unknown');
+  // Only the quiz kind has `resultsLockedOut` on its response doc. Other
+  // assignment kinds don't carry this field — strict equality below means a
+  // missing/undefined field never trips the locked state.
+  const [lockedOut, setLockedOut] = useState(false);
+  const { showAlert } = useDialog();
   const config = KIND_CONFIG[assignment.kind];
   const responseSub = RESPONSE_SUBCOLLECTION[assignment.kind];
   const docIdStrategy = DOC_ID_STRATEGY[assignment.kind];
@@ -171,6 +177,12 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
           ? 'completed'
           : 'not-completed';
         setCompletion(next);
+        // Quiz-only: surface the teacher-controlled lockout flag so the row
+        // can render a Locked badge and intercept the tap. Strict equality
+        // keeps legacy responses (no field) out of the locked state.
+        if (assignment.kind === 'quiz' && snap.exists()) {
+          setLockedOut(snap.data()?.resultsLockedOut === true);
+        }
         onCompletionResolved?.(assignment.sessionId, assignment.kind, next);
       } catch {
         // Silent: a failed completion check shouldn't block the student
@@ -201,10 +213,25 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 
   const isGraded = assignment.gradingState === 'graded';
 
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (!lockedOut) return;
+    // Quiz results have been locked by the teacher (Task 10). Block the
+    // navigation and explain what happened — the student can still see the
+    // row in their list, but can't open the results view.
+    e.preventDefault();
+    e.stopPropagation();
+    void showAlert('Locked by your teacher. Ask them to unlock your results.', {
+      title: 'Results locked',
+      variant: 'warning',
+    });
+  };
+
   return (
     <a
       href={assignment.openHref}
+      onClick={handleClick}
       aria-busy={isPending ? true : undefined}
+      aria-disabled={lockedOut ? true : undefined}
       className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
         isPending
           ? 'border-dashed border-slate-200 bg-slate-50'
@@ -245,6 +272,16 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
           <span>{config.label}</span>
         </p>
       </div>
+
+      {lockedOut && (
+        <span
+          aria-label="Results locked by your teacher"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-600"
+        >
+          <Lock className="h-3 w-3" />
+          Locked
+        </span>
+      )}
 
       <span
         className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
