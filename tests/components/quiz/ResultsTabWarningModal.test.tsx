@@ -68,9 +68,23 @@ describe('ResultsTabWarningModal', () => {
     );
     const dialog = screen.getByRole('dialog');
     expect(dialog).toHaveAttribute('aria-modal', 'true');
-    expect(dialog).toHaveAttribute(
-      'aria-labelledby',
-      'results-tab-warning-title'
+    const labelledBy = dialog.getAttribute('aria-labelledby');
+    expect(labelledBy).toBeTruthy();
+    // The id must resolve to a real element inside the dialog.
+    expect(dialog.querySelector(`#${labelledBy}`)).toHaveTextContent(
+      /Stay on this tab/
     );
+  });
+
+  it('autofocuses the dismiss button so keyboard users can press Enter immediately', () => {
+    render(
+      <ResultsTabWarningModal
+        open
+        warningCount={1}
+        threshold={3}
+        onDismiss={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('button', { name: /I understand/i })).toHaveFocus();
   });
 });
