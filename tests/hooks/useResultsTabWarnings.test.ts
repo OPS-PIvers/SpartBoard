@@ -1,0 +1,107 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act } from '@testing-library/react';
+import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
+
+const updateDoc = vi.fn();
+const docRef = { __mockRef: true };
+vi.mock('firebase/firestore', async (orig) => {
+  const actual = await (
+    orig as () => Promise<typeof import('firebase/firestore')>
+  )();
+  return {
+    ...actual,
+    doc: vi.fn(() => docRef),
+    updateDoc: (...args: unknown[]): unknown => updateDoc(...args) as unknown,
+  };
+});
+
+describe('useResultsTabWarnings', () => {
+  beforeEach(() => {
+    updateDoc.mockReset().mockResolvedValue(undefined);
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('does nothing when enabled=false', () => {
+    renderHook(() =>
+      useResultsTabWarnings({
+        enabled: false,
+        threshold: 3,
+        currentWarnings: 0,
+        responseDocPath: '/quiz_sessions/x/responses/y',
+      })
+    );
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+
+  it('increments warnings on visibility hide → show transition', async () => {
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    });
+    renderHook(() =>
+      useResultsTabWarnings({
+        enabled: true,
+        threshold: 3,
+        currentWarnings: 0,
+        responseDocPath: '/quiz_sessions/x/responses/y',
+      })
+    );
+    await act(() => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      return Promise.resolve();
+    });
+    expect(updateDoc).toHaveBeenCalledTimes(1);
+    expect(updateDoc.mock.calls[0][1]).toMatchObject({
+      resultsTabWarnings: 1,
+    });
+  });
+
+  it('flips resultsLockedOut=true when warnings reach threshold', async () => {
+    Object.defineProperty(document, 'visibilityState', {
+      value: 'hidden',
+      configurable: true,
+    });
+    renderHook(() =>
+      useResultsTabWarnings({
+        enabled: true,
+        threshold: 3,
+        currentWarnings: 2,
+        responseDocPath: '/quiz_sessions/x/responses/y',
+      })
+    );
+    await act(() => {
+      Object.defineProperty(document, 'visibilityState', {
+        value: 'visible',
+        configurable: true,
+      });
+      document.dispatchEvent(new Event('visibilitychange'));
+      return Promise.resolve();
+    });
+    expect(updateDoc.mock.calls[0][1]).toMatchObject({
+      resultsTabWarnings: 3,
+      resultsLockedOut: true,
+      resultsLockedOutAt: expect.any(Number) as unknown,
+    });
+  });
+
+  it('does not increment further once already locked out', () => {
+    renderHook(() =>
+      useResultsTabWarnings({
+        enabled: true,
+        threshold: 3,
+        currentWarnings: 3,
+        lockedOut: true,
+        responseDocPath: '/quiz_sessions/x/responses/y',
+      })
+    );
+    document.dispatchEvent(new Event('visibilitychange'));
+    expect(updateDoc).not.toHaveBeenCalled();
+  });
+});
