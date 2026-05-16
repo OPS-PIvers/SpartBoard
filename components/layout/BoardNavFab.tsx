@@ -13,6 +13,7 @@ import { ChevronLeft, ChevronRight, MoreVertical, Star } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useClickOutside } from '@/hooks/useClickOutside';
 import { FAB_BASE } from './fabClasses';
+import { BoardBreadcrumb } from './BoardBreadcrumb';
 
 export const BoardNavFab: FC = () => {
   const { t } = useTranslation();
@@ -174,6 +175,10 @@ export const BoardNavFab: FC = () => {
           })}
         </div>
       )}
+
+      <div className="absolute bottom-full left-0 mb-1.5 flex items-center">
+        <BoardBreadcrumb />
+      </div>
 
       <div className="flex items-center gap-1">
         <button
