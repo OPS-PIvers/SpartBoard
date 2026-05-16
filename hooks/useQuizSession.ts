@@ -777,6 +777,13 @@ export const useQuizSessionTeacher = (
       const prev = data?.resultsTabWarnings ?? 0;
       // Decrement by 1, floored at 0. One more tab-switch re-locks them
       // (zero grace warnings post-unlock — intentional).
+      //
+      // Read-modify-write race: if the student's hook fires `increment(1)`
+      // between our `getDoc` and `updateDoc` (a ~100ms window), the student's
+      // increment is silently lost. Accepted intentionally — the collision is
+      // rare, the stakes are low (one extra warning at most), and the lockout
+      // will re-fire on the very next event anyway since `currentWarnings + 1
+      // >= threshold` still holds.
       await updateDoc(responseRef, {
         resultsTabWarnings: Math.max(0, prev - 1),
         resultsLockedOut: false,
