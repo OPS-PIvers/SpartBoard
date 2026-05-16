@@ -31,10 +31,14 @@ import {
   X,
 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import type {
-  GuidedLearningScoreVisibility,
-  QuizScoreVisibility,
-  VideoActivityScoreVisibility,
+import {
+  RESULTS_PROTECTION_DEFAULTS,
+  RESULTS_TAB_WARNING_THRESHOLD_MAX,
+  RESULTS_TAB_WARNING_THRESHOLD_MIN,
+  type GuidedLearningScoreVisibility,
+  type QuizScoreVisibility,
+  type ResultsProtection,
+  type VideoActivityScoreVisibility,
 } from '@/types';
 
 /**
@@ -53,7 +57,22 @@ interface PublishScoresModalProps {
   /** Currently-published level (or 'none' / undefined when nothing is published yet). */
   currentVisibility: PublishScoresVisibility | undefined;
   onClose: () => void;
-  onConfirm: (visibility: PublishScoresVisibility) => Promise<void> | void;
+  onConfirm: (
+    visibility: PublishScoresVisibility,
+    protection?: ResultsProtection
+  ) => Promise<void> | void;
+  /**
+   * Quiz-only opt-in: when true, render the anti-screenshot protection
+   * fieldset (watermark + tab-switch warning) below the visibility picker.
+   * VA and GL pass nothing and the fieldset stays hidden.
+   */
+  showProtection?: boolean;
+  /**
+   * Initial protection state. Caller (Quiz Widget) pre-fills this from
+   * `appSettings.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS` so
+   * the teacher's last choice is remembered across publishes.
+   */
+  initialProtection?: ResultsProtection;
 }
 
 interface VisibilityOption {
@@ -89,6 +108,8 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
   currentVisibility,
   onClose,
   onConfirm,
+  showProtection = false,
+  initialProtection,
 }) => {
   // Default the picker to whatever the assignment is currently set to (or
   // 'score-only' on first publish — the calmest non-empty choice).
@@ -98,6 +119,9 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
       : 'score-only';
   const [selected, setSelected] = useState<PublishScoresVisibility>(initial);
   const [submitting, setSubmitting] = useState(false);
+  const [protection, setProtection] = useState<ResultsProtection>(
+    () => initialProtection ?? RESULTS_PROTECTION_DEFAULTS
+  );
 
   const isPublished =
     currentVisibility !== undefined && currentVisibility !== 'none';
@@ -106,10 +130,27 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
     if (submitting) return;
     setSubmitting(true);
     try {
-      await onConfirm(visibility);
+      // Only forward protection when the caller wired the fieldset — VA/GL
+      // stay on the original two-arg signature.
+      if (showProtection) {
+        await onConfirm(visibility, protection);
+      } else {
+        await onConfirm(visibility);
+      }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleThresholdChange = (raw: string) => {
+    const parsed = Number.parseInt(raw, 10);
+    const clamped = Number.isFinite(parsed)
+      ? Math.min(
+          RESULTS_TAB_WARNING_THRESHOLD_MAX,
+          Math.max(RESULTS_TAB_WARNING_THRESHOLD_MIN, parsed)
+        )
+      : RESULTS_PROTECTION_DEFAULTS.tabWarningThreshold;
+    setProtection((p) => ({ ...p, tabWarningThreshold: clamped }));
   };
 
   return (
@@ -195,6 +236,76 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
             );
           })}
         </div>
+
+        {showProtection && (
+          <fieldset className="rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-3 space-y-2">
+            <legend className="px-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+              Protection
+            </legend>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={protection.watermarkEnabled}
+                onChange={(e) =>
+                  setProtection((p) => ({
+                    ...p,
+                    watermarkEnabled: e.target.checked,
+                  }))
+                }
+                disabled={submitting}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-semibold text-slate-900">
+                  Watermark
+                </span>
+                <span className="block text-xs text-slate-600 leading-relaxed">
+                  Overlay each result page with the student&apos;s name and the
+                  publish timestamp to discourage screenshots.
+                </span>
+              </span>
+            </label>
+            <label className="flex items-start gap-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={protection.tabWarningEnabled}
+                onChange={(e) =>
+                  setProtection((p) => ({
+                    ...p,
+                    tabWarningEnabled: e.target.checked,
+                  }))
+                }
+                disabled={submitting}
+                className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
+              />
+              <span className="flex-1">
+                <span className="block text-sm font-semibold text-slate-900">
+                  Tab-switch warning
+                </span>
+                <span className="block text-xs text-slate-600 leading-relaxed">
+                  Warn students when they leave the results tab; lock access
+                  after the threshold is reached.
+                </span>
+              </span>
+            </label>
+            {protection.tabWarningEnabled && (
+              <label className="flex items-center gap-3 pl-7">
+                <span className="text-xs text-slate-700">
+                  Warnings before lockout
+                </span>
+                <input
+                  type="number"
+                  min={RESULTS_TAB_WARNING_THRESHOLD_MIN}
+                  max={RESULTS_TAB_WARNING_THRESHOLD_MAX}
+                  value={protection.tabWarningThreshold}
+                  onChange={(e) => handleThresholdChange(e.target.value)}
+                  disabled={submitting}
+                  className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
+                />
+              </label>
+            )}
+          </fieldset>
+        )}
 
         <div className="pt-2 flex flex-col-reverse sm:flex-row gap-2 sm:justify-between">
           {isPublished ? (

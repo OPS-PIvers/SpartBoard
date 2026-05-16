@@ -40,7 +40,7 @@ import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
-import type { QuizAssignment } from '@/types';
+import { RESULTS_PROTECTION_DEFAULTS, type QuizAssignment } from '@/types';
 import {
   buildPinToNameMap,
   buildScoreboardTeams,
@@ -98,7 +98,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     pendingAssignmentEditId,
     clearPendingAssignmentEdit,
   } = useDashboard();
-  const { user, googleAccessToken, orgId, getAssignmentMode } = useAuth();
+  const {
+    user,
+    googleAccessToken,
+    orgId,
+    getAssignmentMode,
+    appSettings,
+    updateAppSettings,
+  } = useAuth();
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
@@ -1910,8 +1917,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         <PublishScoresModal
           assignmentTitle={publishingAssignment.quizTitle}
           currentVisibility={publishingAssignment.scoreVisibility}
+          showProtection
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
           onClose={() => setPublishingAssignment(null)}
-          onConfirm={async (visibility) => {
+          onConfirm={async (visibility, protection) => {
             // `'none'` routes to the dedicated `unpublishAssignmentScores`
             // (no Drive lookup, no grading). Other levels resolve the
             // canonical quiz from Drive so the score computation has
@@ -1938,8 +1949,17 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               const result = await publishAssignmentScores(
                 target.id,
                 data,
-                visibility
+                visibility,
+                protection
               );
+              // Persist the teacher's last protection choice so the next
+              // publish dialog opens pre-filled. Only runs on successful
+              // publish — sequential await is intentional.
+              if (protection) {
+                await updateAppSettings({
+                  lastResultsProtection: protection,
+                });
+              }
               addToast(
                 result.responsesUpdated > 0
                   ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
