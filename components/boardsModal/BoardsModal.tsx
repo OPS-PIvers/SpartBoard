@@ -39,6 +39,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     renameDashboard,
     duplicateDashboard,
     setDefaultDashboard,
+    addToast,
   } = useDashboard();
   const {
     collections,
@@ -85,19 +86,12 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       }
     );
     if (!name?.trim()) return;
-    // createNewDashboard returns the new board's ID so we can assign it to the
-    // selected Collection without relying on stale closure state.
-    const newBoardId = await createNewDashboard(name.trim());
-    if (newBoardId && selectedCollectionId !== null) {
-      await moveBoardToCollection(newBoardId, selectedCollectionId);
-    }
-  }, [
-    showPrompt,
-    t,
-    createNewDashboard,
-    selectedCollectionId,
-    moveBoardToCollection,
-  ]);
+    // Create directly inside the active Collection (single Firestore write
+    // instead of create-then-move). createNewDashboard returns the new ID.
+    await createNewDashboard(name.trim(), undefined, {
+      collectionId: selectedCollectionId,
+    });
+  }, [showPrompt, t, createNewDashboard, selectedCollectionId]);
 
   const handleCreateCollection = useCallback(async () => {
     const name = await showPrompt(
@@ -133,6 +127,47 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     []
   );
 
+  // Tracks a single board the user invoked a context-menu action on. When set,
+  // the move picker operates on this board alone instead of the multi-select
+  // bucket — fixes the right-click "Move to…" path where the right-clicked
+  // board may not be in the selection (or selection may be empty).
+  const [singleMoveTargetId, setSingleMoveTargetId] = useState<string | null>(
+    null
+  );
+
+  // Report results of a multi-write fan-out. If some writes failed the
+  // user sees a partial-success toast instead of silent skips.
+  const reportBulkResult = useCallback(
+    (
+      results: PromiseSettledResult<unknown>[],
+      successKey: string,
+      successDefault: string,
+      partialKey: string,
+      partialDefault: string,
+      allFailKey: string,
+      allFailDefault: string
+    ) => {
+      const total = results.length;
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      const succeeded = total - failed;
+      if (failed === 0) {
+        addToast(t(successKey, { count: total, defaultValue: successDefault }));
+      } else if (succeeded === 0) {
+        addToast(t(allFailKey, { defaultValue: allFailDefault }), 'error');
+      } else {
+        addToast(
+          t(partialKey, {
+            succeeded,
+            failed,
+            defaultValue: partialDefault,
+          }),
+          'error'
+        );
+      }
+    },
+    [addToast, t]
+  );
+
   const handleBulkDelete = useCallback(async () => {
     const confirmed = await showConfirm(
       t('boardsModal.bulkDeleteConfirm', {
@@ -142,45 +177,122 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       { title: 'Delete', variant: 'danger', confirmLabel: 'Delete' }
     );
     if (!confirmed) return;
-    for (const id of multi.selectedIds) {
-      const isBoard = dashboards.some((d) => d.id === id);
-      if (isBoard) await deleteDashboard(id);
-      else await deleteCollection(id, 'move-to-parent');
-    }
+    const ids = Array.from(multi.selectedIds);
+    const results = await Promise.allSettled(
+      ids.map((id) =>
+        dashboards.some((d) => d.id === id)
+          ? deleteDashboard(id)
+          : deleteCollection(id, 'move-to-parent')
+      )
+    );
     multi.clearSelection();
-  }, [showConfirm, t, multi, dashboards, deleteDashboard, deleteCollection]);
+    reportBulkResult(
+      results,
+      'boardsModal.bulkDeleteSuccess',
+      'Deleted {{count}} item(s)',
+      'boardsModal.bulkPartialFailure',
+      'Updated {{succeeded}} of {{succeeded}} + {{failed}} items — {{failed}} failed',
+      'boardsModal.bulkAllFailed',
+      'No items could be updated — please retry'
+    );
+  }, [
+    showConfirm,
+    t,
+    multi,
+    dashboards,
+    deleteDashboard,
+    deleteCollection,
+    reportBulkResult,
+  ]);
 
   const handleBulkPin = useCallback(async () => {
-    for (const id of multi.selectedIds) {
-      const board = dashboards.find((d) => d.id === id);
-      if (board) await pinBoard(id);
-    }
+    const ids = Array.from(multi.selectedIds).filter((id) =>
+      dashboards.some((d) => d.id === id)
+    );
+    const results = await Promise.allSettled(ids.map((id) => pinBoard(id)));
     multi.clearSelection();
-  }, [multi, dashboards, pinBoard]);
+    reportBulkResult(
+      results,
+      'boardsModal.bulkPinSuccess',
+      'Pinned {{count}} board(s)',
+      'boardsModal.bulkPartialFailure',
+      'Updated {{succeeded}} item(s) — {{failed}} failed',
+      'boardsModal.bulkAllFailed',
+      'No items could be updated — please retry'
+    );
+  }, [multi, dashboards, pinBoard, reportBulkResult]);
 
   const handleBulkUnpin = useCallback(async () => {
-    for (const id of multi.selectedIds) {
-      const board = dashboards.find((d) => d.id === id);
-      if (board) await unpinBoard(id);
-    }
+    const ids = Array.from(multi.selectedIds).filter((id) =>
+      dashboards.some((d) => d.id === id)
+    );
+    const results = await Promise.allSettled(ids.map((id) => unpinBoard(id)));
     multi.clearSelection();
-  }, [multi, dashboards, unpinBoard]);
+    reportBulkResult(
+      results,
+      'boardsModal.bulkUnpinSuccess',
+      'Unpinned {{count}} board(s)',
+      'boardsModal.bulkPartialFailure',
+      'Updated {{succeeded}} item(s) — {{failed}} failed',
+      'boardsModal.bulkAllFailed',
+      'No items could be updated — please retry'
+    );
+  }, [multi, dashboards, unpinBoard, reportBulkResult]);
 
   const handleBulkMove = useCallback(() => {
+    setSingleMoveTargetId(null);
+    setMoveMenuOpen(true);
+  }, []);
+
+  // Right-click context-menu "Move to…" — operates on the right-clicked board
+  // regardless of whether it's part of the bulk selection.
+  const handleSingleMove = useCallback((boardId: string) => {
+    setSingleMoveTargetId(boardId);
     setMoveMenuOpen(true);
   }, []);
 
   const handleMoveDestinationPicked = useCallback(
     async (destId: string | null) => {
-      for (const id of multi.selectedIds) {
+      // Single-board path (right-click "Move to…") takes precedence over
+      // the bulk selection — see handleSingleMove.
+      if (singleMoveTargetId) {
+        const id = singleMoveTargetId;
+        setSingleMoveTargetId(null);
         const isBoard = dashboards.some((d) => d.id === id);
-        if (isBoard) await moveBoardToCollection(id, destId);
-        // (Collection-to-Collection move via the menu can be added later — for v1
-        // we use drag-drop or context-menu Move on a single Collection.)
+        if (!isBoard) return;
+        try {
+          await moveBoardToCollection(id, destId);
+        } catch {
+          // moveBoardToCollection already toasted + rolled back — swallow
+          // the rethrow here so the modal doesn't surface twice.
+        }
+        return;
       }
+
+      const ids = Array.from(multi.selectedIds).filter((id) =>
+        dashboards.some((d) => d.id === id)
+      );
+      const results = await Promise.allSettled(
+        ids.map((id) => moveBoardToCollection(id, destId))
+      );
       multi.clearSelection();
+      reportBulkResult(
+        results,
+        'boardsModal.bulkMoveSuccess',
+        'Moved {{count}} board(s)',
+        'boardsModal.bulkPartialFailure',
+        'Moved {{succeeded}} item(s) — {{failed}} failed',
+        'boardsModal.bulkAllFailed',
+        'No items could be moved — please retry'
+      );
     },
-    [multi, dashboards, moveBoardToCollection]
+    [
+      singleMoveTargetId,
+      multi,
+      dashboards,
+      moveBoardToCollection,
+      reportBulkResult,
+    ]
   );
 
   // Filter by search (substring on Board + Collection names)
@@ -287,7 +399,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                   ? unpinBoard(board.id)
                   : pinBoard(board.id));
               }}
-              onMove={handleBulkMove}
+              onMove={() => handleSingleMove(board.id)}
               onShare={() => setShareTarget(board)}
               onSaveAsTemplate={() => setSaveAsTemplateTarget(board)}
               onDelete={async () => {
@@ -324,12 +436,35 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 /* implemented in Task 6.12 */
               }}
               onColor={async () => {
-                const color = await showPrompt('Color (hex, e.g., #ad2122)', {
-                  title: 'Set color',
-                  confirmLabel: 'Save',
-                  placeholder: c.color ?? '#2d3f89',
-                });
-                if (color) await setCollectionMetadata(c.id, { color });
+                const color = await showPrompt(
+                  t('boardsModal.colorPrompt', {
+                    defaultValue: 'Color (hex, e.g., #ad2122)',
+                  }),
+                  {
+                    title: t('boardsModal.menu.color', {
+                      defaultValue: 'Set color',
+                    }),
+                    confirmLabel: 'Save',
+                    placeholder: c.color ?? '#2d3f89',
+                  }
+                );
+                if (!color) return;
+                // Restrict to safe hex — `style={{ color }}` rejects bad
+                // values silently, but unsanitized user input shouldn't be
+                // persisted at all. Accept #RGB / #RRGGBB only.
+                const hex = color.trim();
+                const isValidHex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex);
+                if (!isValidHex) {
+                  addToast(
+                    t('boardsModal.colorInvalid', {
+                      defaultValue:
+                        'Invalid color — use hex like #ad2122 or #abc.',
+                    }),
+                    'error'
+                  );
+                  return;
+                }
+                await setCollectionMetadata(c.id, { color: hex });
               }}
               onDelete={async () => {
                 const ok = await showConfirm(

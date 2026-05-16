@@ -33,6 +33,7 @@ import {
   addDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import type { Collection } from '@/types';
 
 const COLLECTIONS_SUBPATH = 'collections';
@@ -118,7 +119,7 @@ export const useCollections = (
         setLoading(false);
       },
       (err) => {
-        console.error('[useCollections] Firestore error:', err);
+        logError('useCollections.onSnapshot', err, { userId });
         setError('Failed to load collections');
         setLoading(false);
       }
@@ -410,104 +411,150 @@ export const useCollections = (
       if (!target) throw new Error('Collection not found');
 
       const now = Date.now();
+      // Phase tracking lets a partial failure log "how far we got" so a
+      // support-bound teacher report ("some collections didn't delete") can
+      // be triaged without guessing.
+      let phase:
+        | 'init'
+        | 'reparent-children'
+        | 'rehome-boards'
+        | 'delete-docs' = 'init';
+      let boardsRehomed = 0;
+      let collectionsDeleted = 0;
+      let childrenReparented = 0;
 
-      if (mode === 'move-to-parent') {
-        // Phase 1: reparent direct child collections to target's parent.
-        const childCollections = collections.filter(
-          (c) => c.parentCollectionId === collectionId
-        );
-        let currentPhase1Batch = writeBatch(db);
-        let phase1Count = 0;
-        for (const cc of childCollections) {
-          if (phase1Count >= 400) {
-            await currentPhase1Batch.commit();
-            currentPhase1Batch = writeBatch(db);
-            phase1Count = 0;
-          }
-          currentPhase1Batch.update(
-            doc(db, 'users', userId, COLLECTIONS_SUBPATH, cc.id),
-            { parentCollectionId: target.parentCollectionId, updatedAt: now }
+      try {
+        if (mode === 'move-to-parent') {
+          // Phase 1: reparent direct child collections to target's parent.
+          phase = 'reparent-children';
+          const childCollections = collections.filter(
+            (c) => c.parentCollectionId === collectionId
           );
-          phase1Count += 1;
-        }
-        if (phase1Count > 0) await currentPhase1Batch.commit();
+          let currentPhase1Batch = writeBatch(db);
+          let phase1Count = 0;
+          for (const cc of childCollections) {
+            if (phase1Count >= 400) {
+              await currentPhase1Batch.commit();
+              childrenReparented += phase1Count;
+              currentPhase1Batch = writeBatch(db);
+              phase1Count = 0;
+            }
+            currentPhase1Batch.update(
+              doc(db, 'users', userId, COLLECTIONS_SUBPATH, cc.id),
+              { parentCollectionId: target.parentCollectionId, updatedAt: now }
+            );
+            phase1Count += 1;
+          }
+          if (phase1Count > 0) {
+            await currentPhase1Batch.commit();
+            childrenReparented += phase1Count;
+          }
 
-        // Phase 2: re-home Boards in this Collection to target's parent.
-        const boardsQuery = query(
-          collection(db, 'users', userId, DASHBOARDS_SUBPATH),
-          where('collectionId', '==', collectionId)
-        );
-        const boardSnap = await getDocs(boardsQuery);
-        let phase2Batch = writeBatch(db);
-        let phase2Count = 0;
-        for (const d of boardSnap.docs) {
-          if (phase2Count >= 400) {
+          // Phase 2: re-home Boards in this Collection to target's parent.
+          phase = 'rehome-boards';
+          const boardsQuery = query(
+            collection(db, 'users', userId, DASHBOARDS_SUBPATH),
+            where('collectionId', '==', collectionId)
+          );
+          const boardSnap = await getDocs(boardsQuery);
+          let phase2Batch = writeBatch(db);
+          let phase2Count = 0;
+          for (const d of boardSnap.docs) {
+            if (phase2Count >= 400) {
+              await phase2Batch.commit();
+              boardsRehomed += phase2Count;
+              phase2Batch = writeBatch(db);
+              phase2Count = 0;
+            }
+            phase2Batch.update(d.ref, {
+              collectionId: target.parentCollectionId,
+              updatedAt: now,
+            });
+            phase2Count += 1;
+          }
+          if (phase2Count > 0) {
             await phase2Batch.commit();
-            phase2Batch = writeBatch(db);
-            phase2Count = 0;
+            boardsRehomed += phase2Count;
           }
-          phase2Batch.update(d.ref, {
-            collectionId: target.parentCollectionId,
-            updatedAt: now,
-          });
-          phase2Count += 1;
+
+          // Phase 3: delete the collection doc itself (single write).
+          phase = 'delete-docs';
+          const phase3Batch = writeBatch(db);
+          phase3Batch.delete(
+            doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId)
+          );
+          await phase3Batch.commit();
+          collectionsDeleted = 1;
+          return;
         }
-        if (phase2Count > 0) await phase2Batch.commit();
 
-        // Phase 3: delete the collection doc itself (single write).
-        const phase3Batch = writeBatch(db);
-        phase3Batch.delete(
-          doc(db, 'users', userId, COLLECTIONS_SUBPATH, collectionId)
-        );
-        await phase3Batch.commit();
-        return;
-      }
+        // mode === 'delete-all'
+        const descendantIds = collectDescendantCollectionIds(collectionId);
+        const allCollectionIds = [collectionId, ...descendantIds];
 
-      // mode === 'delete-all'
-      const descendantIds = collectDescendantCollectionIds(collectionId);
-      const allCollectionIds = [collectionId, ...descendantIds];
-
-      // Phase 1: re-home Boards anywhere in this tree to target's parent.
-      // Chunk the `where('collectionId', 'in', ...)` queries by 30 (Firestore
-      // 'in' limit), and chunk the resulting batch writes at 400.
-      const QUERY_CHUNK = 30;
-      let rehomeBatch = writeBatch(db);
-      let rehomeCount = 0;
-      for (let i = 0; i < allCollectionIds.length; i += QUERY_CHUNK) {
-        const chunkIds = allCollectionIds.slice(i, i + QUERY_CHUNK);
-        const boardsQuery = query(
-          collection(db, 'users', userId, DASHBOARDS_SUBPATH),
-          where('collectionId', 'in', chunkIds)
-        );
-        const boardSnap = await getDocs(boardsQuery);
-        for (const d of boardSnap.docs) {
-          if (rehomeCount >= 400) {
-            await rehomeBatch.commit();
-            rehomeBatch = writeBatch(db);
-            rehomeCount = 0;
+        // Phase 1: re-home Boards anywhere in this tree to target's parent.
+        // Chunk the `where('collectionId', 'in', ...)` queries by 30 (Firestore
+        // 'in' limit), and chunk the resulting batch writes at 400.
+        phase = 'rehome-boards';
+        const QUERY_CHUNK = 30;
+        let rehomeBatch = writeBatch(db);
+        let rehomeCount = 0;
+        for (let i = 0; i < allCollectionIds.length; i += QUERY_CHUNK) {
+          const chunkIds = allCollectionIds.slice(i, i + QUERY_CHUNK);
+          const boardsQuery = query(
+            collection(db, 'users', userId, DASHBOARDS_SUBPATH),
+            where('collectionId', 'in', chunkIds)
+          );
+          const boardSnap = await getDocs(boardsQuery);
+          for (const d of boardSnap.docs) {
+            if (rehomeCount >= 400) {
+              await rehomeBatch.commit();
+              boardsRehomed += rehomeCount;
+              rehomeBatch = writeBatch(db);
+              rehomeCount = 0;
+            }
+            rehomeBatch.update(d.ref, {
+              collectionId: target.parentCollectionId,
+              updatedAt: now,
+            });
+            rehomeCount += 1;
           }
-          rehomeBatch.update(d.ref, {
-            collectionId: target.parentCollectionId,
-            updatedAt: now,
-          });
-          rehomeCount += 1;
         }
-      }
-      if (rehomeCount > 0) await rehomeBatch.commit();
+        if (rehomeCount > 0) {
+          await rehomeBatch.commit();
+          boardsRehomed += rehomeCount;
+        }
 
-      // Phase 2: delete each Collection doc. Chunk at 400 writes per batch.
-      let deleteBatch = writeBatch(db);
-      let deleteCount = 0;
-      for (const id of allCollectionIds) {
-        if (deleteCount >= 400) {
+        // Phase 2: delete each Collection doc. Chunk at 400 writes per batch.
+        phase = 'delete-docs';
+        let deleteBatch = writeBatch(db);
+        let deleteCount = 0;
+        for (const id of allCollectionIds) {
+          if (deleteCount >= 400) {
+            await deleteBatch.commit();
+            collectionsDeleted += deleteCount;
+            deleteBatch = writeBatch(db);
+            deleteCount = 0;
+          }
+          deleteBatch.delete(doc(db, 'users', userId, COLLECTIONS_SUBPATH, id));
+          deleteCount += 1;
+        }
+        if (deleteCount > 0) {
           await deleteBatch.commit();
-          deleteBatch = writeBatch(db);
-          deleteCount = 0;
+          collectionsDeleted += deleteCount;
         }
-        deleteBatch.delete(doc(db, 'users', userId, COLLECTIONS_SUBPATH, id));
-        deleteCount += 1;
+      } catch (err) {
+        logError('useCollections.deleteCollection', err, {
+          userId,
+          collectionId,
+          mode,
+          phase,
+          childrenReparented,
+          boardsRehomed,
+          collectionsDeleted,
+        });
+        throw err;
       }
-      if (deleteCount > 0) await deleteBatch.commit();
     },
     [userId, collections, collectDescendantCollectionIds]
   );

@@ -38,6 +38,7 @@ import {
   serverTimestamp,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import type { LibraryFolder, LibraryFolderWidget } from '@/types';
 
 /**
@@ -324,75 +325,149 @@ export const useFolders = (
       const target = folders.find((f) => f.id === folderId);
       if (!target) throw new Error('Folder not found');
 
-      const batch = writeBatch(db);
       const now = Date.now();
+      // Phase tracking matches useCollections.deleteCollection — if a partial
+      // failure occurs mid-tree, the log carries enough context for triage.
+      let phase: 'init' | 'reparent-children' | 'rehome-items' | 'delete-docs' =
+        'init';
+      let itemsRehomed = 0;
+      let foldersDeleted = 0;
+      let childrenReparented = 0;
+      // Firestore batch limit is 500 writes; we chunk at 400 to keep headroom
+      // for batches that mix updates and deletes.
+      const BATCH_LIMIT = 400;
 
-      if (mode === 'move-to-parent') {
-        // Reparent direct children folders to target's parent.
-        const childFolders = folders.filter((f) => f.parentId === folderId);
-        for (const cf of childFolders) {
-          batch.update(doc(db, 'users', userId, collectionName, cf.id), {
-            parentId: target.parentId,
-            updatedAt: now,
-          });
+      try {
+        if (mode === 'move-to-parent') {
+          // Phase 1: reparent direct children folders to target's parent.
+          phase = 'reparent-children';
+          const childFolders = folders.filter((f) => f.parentId === folderId);
+          let phase1Batch = writeBatch(db);
+          let phase1Count = 0;
+          for (const cf of childFolders) {
+            if (phase1Count >= BATCH_LIMIT) {
+              await phase1Batch.commit();
+              childrenReparented += phase1Count;
+              phase1Batch = writeBatch(db);
+              phase1Count = 0;
+            }
+            phase1Batch.update(
+              doc(db, 'users', userId, collectionName, cf.id),
+              {
+                parentId: target.parentId,
+                updatedAt: now,
+              }
+            );
+            phase1Count += 1;
+          }
+          if (phase1Count > 0) {
+            await phase1Batch.commit();
+            childrenReparented += phase1Count;
+          }
+
+          // Phase 2: reparent items in this folder to target's parent.
+          phase = 'rehome-items';
+          const itemQuery = query(
+            collection(db, 'users', userId, itemsCollection),
+            where('folderId', '==', folderId)
+          );
+          const itemSnap = await getDocs(itemQuery);
+          let phase2Batch = writeBatch(db);
+          let phase2Count = 0;
+          for (const d of itemSnap.docs) {
+            if (phase2Count >= BATCH_LIMIT) {
+              await phase2Batch.commit();
+              itemsRehomed += phase2Count;
+              phase2Batch = writeBatch(db);
+              phase2Count = 0;
+            }
+            phase2Batch.update(d.ref, { folderId: target.parentId });
+            phase2Count += 1;
+          }
+          if (phase2Count > 0) {
+            await phase2Batch.commit();
+            itemsRehomed += phase2Count;
+          }
+
+          // Phase 3: delete the folder doc itself (single write).
+          phase = 'delete-docs';
+          const phase3Batch = writeBatch(db);
+          phase3Batch.delete(
+            doc(db, 'users', userId, collectionName, folderId)
+          );
+          await phase3Batch.commit();
+          foldersDeleted = 1;
+          return;
         }
-        // Reparent items in this folder to target's parent (null or id).
-        // Firestore doesn't let us filter inside a batch — we need a read
-        // step first via getDocs.
-        const itemQuery = query(
-          collection(db, 'users', userId, itemsCollection),
-          where('folderId', '==', folderId)
-        );
-        const itemSnap = await getDocs(itemQuery);
-        itemSnap.docs.forEach((d) => {
-          batch.update(d.ref, {
-            folderId: target.parentId,
-          });
-        });
-        // Delete the folder doc itself.
-        batch.delete(doc(db, 'users', userId, collectionName, folderId));
-        await batch.commit();
-        return;
-      }
 
-      // mode === 'delete-all'
-      // Collect this folder + all descendants. Delete folder docs for each.
-      // For items, we STILL re-home to the deleted folder's parent rather
-      // than deleting — destructive content loss must be explicit, not a
-      // side-effect of folder cleanup.
-      const descendantIds = collectDescendantFolderIds(folderId);
-      const allFolderIds = [folderId, ...descendantIds];
+        // mode === 'delete-all'
+        // Collect this folder + all descendants. Delete folder docs for each.
+        // For items, we STILL re-home to the deleted folder's parent rather
+        // than deleting — destructive content loss must be explicit, not a
+        // side-effect of folder cleanup.
+        const descendantIds = collectDescendantFolderIds(folderId);
+        const allFolderIds = [folderId, ...descendantIds];
 
-      // Re-home items in this folder tree. Firestore 'in' queries support up
-      // to 30 ids per query as of 2024; chunk to be safe.
-      const CHUNK = 30;
-      for (let i = 0; i < allFolderIds.length; i += CHUNK) {
-        const chunk = allFolderIds.slice(i, i + CHUNK);
-        const itemQuery = query(
-          collection(db, 'users', userId, itemsCollection),
-          where('folderId', 'in', chunk)
-        );
-        const itemSnap = await getDocs(itemQuery);
-        itemSnap.docs.forEach((d) => {
-          batch.update(d.ref, { folderId: target.parentId });
-        });
-      }
-
-      // Delete each folder doc. Batch limit is 500 writes; each folder
-      // contributes one delete plus any reparent updates above. For very
-      // large trees (>500) we commit and start a new batch.
-      let writeCount = 0;
-      let currentBatch = batch;
-      for (const id of allFolderIds) {
-        if (writeCount >= 400) {
-          await currentBatch.commit();
-          currentBatch = writeBatch(db);
-          writeCount = 0;
+        // Phase 1: re-home items in this folder tree. Firestore 'in' queries
+        // are capped at 30 ids; chunk the queries and chunk batch writes at
+        // BATCH_LIMIT independently.
+        phase = 'rehome-items';
+        const QUERY_CHUNK = 30;
+        let rehomeBatch = writeBatch(db);
+        let rehomeCount = 0;
+        for (let i = 0; i < allFolderIds.length; i += QUERY_CHUNK) {
+          const chunk = allFolderIds.slice(i, i + QUERY_CHUNK);
+          const itemQuery = query(
+            collection(db, 'users', userId, itemsCollection),
+            where('folderId', 'in', chunk)
+          );
+          const itemSnap = await getDocs(itemQuery);
+          for (const d of itemSnap.docs) {
+            if (rehomeCount >= BATCH_LIMIT) {
+              await rehomeBatch.commit();
+              itemsRehomed += rehomeCount;
+              rehomeBatch = writeBatch(db);
+              rehomeCount = 0;
+            }
+            rehomeBatch.update(d.ref, { folderId: target.parentId });
+            rehomeCount += 1;
+          }
         }
-        currentBatch.delete(doc(db, 'users', userId, collectionName, id));
-        writeCount += 1;
+        if (rehomeCount > 0) {
+          await rehomeBatch.commit();
+          itemsRehomed += rehomeCount;
+        }
+
+        // Phase 2: delete each folder doc, chunked at BATCH_LIMIT writes.
+        phase = 'delete-docs';
+        let deleteBatch = writeBatch(db);
+        let deleteCount = 0;
+        for (const id of allFolderIds) {
+          if (deleteCount >= BATCH_LIMIT) {
+            await deleteBatch.commit();
+            foldersDeleted += deleteCount;
+            deleteBatch = writeBatch(db);
+            deleteCount = 0;
+          }
+          deleteBatch.delete(doc(db, 'users', userId, collectionName, id));
+          deleteCount += 1;
+        }
+        if (deleteCount > 0) {
+          await deleteBatch.commit();
+          foldersDeleted += deleteCount;
+        }
+      } catch (err) {
+        logError('useFolders.deleteFolder', err, {
+          userId,
+          folderId,
+          mode,
+          phase,
+          childrenReparented,
+          itemsRehomed,
+          foldersDeleted,
+        });
+        throw err;
       }
-      await currentBatch.commit();
     },
     [
       userId,

@@ -11,11 +11,23 @@ export const needsCollectionMigration = (board: Dashboard): boolean => {
 };
 
 /**
- * Idempotent migration: seeds `collectionId: null` and `isPinned: false`
- * on a Board that lacks those fields. Returns the migrated Board (or the
- * original if no change was needed).
+ * Idempotent read-time normalization: seeds `collectionId: null` and
+ * `isPinned: false` on a Board that lacks those fields. Returns the migrated
+ * Board (or the original if no change was needed).
  *
- * Run on every Board load until cleaned up by a subsequent Firestore write.
+ * This is a READ-TIME, IN-MEMORY normalization only — it does NOT write back
+ * to Firestore. Legacy Board docs in Firestore that pre-date the Collections
+ * feature will still be missing these fields until the document is otherwise
+ * saved (widget update, rename, etc.), at which point the full normalized
+ * shape will be persisted via the regular `saveDashboard` path.
+ *
+ * Practical implication: queries like `where('collectionId', '==', null)`
+ * will NOT match legacy docs (Firestore treats "missing field" and "null
+ * field" as distinct in equality comparisons). Code that needs to find
+ * unfoldered Boards should rely on the read-time normalized in-memory list
+ * rather than issuing such a query directly. The current usage in
+ * `useCollections.deleteCollection` queries by specific non-null
+ * `collectionId` values, which is unaffected by this caveat.
  */
 export const migrateBoardForCollections = (board: Dashboard): Dashboard => {
   if (!needsCollectionMigration(board)) {

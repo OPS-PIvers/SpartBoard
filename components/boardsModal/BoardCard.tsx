@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Star, Pin, GripVertical } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
+import { useTranslation } from 'react-i18next';
 import type { Dashboard } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 
@@ -26,6 +27,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   onContextMenu,
 }) => {
   const { unpinBoard, pinBoard } = useDashboard();
+  const { t } = useTranslation();
   const longPressTimer = useRef<number | null>(null);
 
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
@@ -81,7 +83,9 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       {/* Drag handle (top-right) */}
       <button
         {...listeners}
-        aria-label="Drag to move"
+        aria-label={t('boardsModal.dragToMove', {
+          defaultValue: 'Drag to move',
+        })}
         className="absolute top-2 right-2 p-1 rounded text-slate-300 opacity-0 group-hover:opacity-100 hover:bg-slate-100 transition cursor-grab active:cursor-grabbing"
         onClick={(e) => e.stopPropagation()}
         data-drag-handle="board"
@@ -131,7 +135,11 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           if (board.isPinned) void unpinBoard(board.id);
           else void pinBoard(board.id);
         }}
-        aria-label={board.isPinned ? 'Unpin' : 'Pin'}
+        aria-label={
+          board.isPinned
+            ? t('boardsModal.unpin', { defaultValue: 'Unpin' })
+            : t('boardsModal.pin', { defaultValue: 'Pin' })
+        }
         className="absolute bottom-2 right-2 p-1 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition"
       >
         <Pin

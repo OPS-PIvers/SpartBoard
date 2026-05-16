@@ -20,6 +20,10 @@ export default tseslint.config(
       '**/*.config.ts',
       'scripts',
       'functions/lib',
+      // `remotion/` is an optional self-contained sub-package (own
+      // tsconfig + package.json) for rendering demo videos. Not part of
+      // the main app's TypeScript project.
+      'remotion',
       'coverage',
       '.agents',
       '.gemini',

@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { Folder, GripVertical } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
+import { useTranslation } from 'react-i18next';
 import type { Collection } from '@/types';
 
 interface CollectionCardProps {
@@ -26,6 +27,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
   onLongPress,
   onContextMenu,
 }) => {
+  const { t } = useTranslation();
   const longPressTimer = useRef<number | null>(null);
 
   const draggableId = `collection:${collection.id}`;
@@ -84,7 +86,9 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
     >
       <button
         {...listeners}
-        aria-label="Drag to move"
+        aria-label={t('boardsModal.dragToMove', {
+          defaultValue: 'Drag to move',
+        })}
         className="absolute top-2 right-2 p-1 rounded text-slate-300 opacity-0 group-hover:opacity-100 hover:bg-slate-100 transition cursor-grab active:cursor-grabbing"
         onClick={(e) => e.stopPropagation()}
         data-drag-handle="collection"

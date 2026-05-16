@@ -46,5 +46,5 @@
     /* Type Accuracy */
     "forceConsistentCasingInFileNames": true
   },
-  "exclude": ["node_modules", "dist", "functions"]
+  "exclude": ["node_modules", "dist", "functions", "remotion"]
 }

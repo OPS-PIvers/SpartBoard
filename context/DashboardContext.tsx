@@ -56,6 +56,7 @@ import {
   dashboardHasPII,
 } from '../utils/dashboardPII';
 import { migrateBoardForCollections } from '../utils/collectionsMigration';
+import { logError } from '../utils/logError';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
@@ -3038,7 +3039,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const createNewDashboard = useCallback(
-    async (name: string, data?: Dashboard): Promise<string | undefined> => {
+    async (
+      name: string,
+      data?: Dashboard,
+      options?: { collectionId?: string | null }
+    ): Promise<string | undefined> => {
       if (!user) {
         addToast('Must be signed in to create dashboard', 'error');
         return undefined;
@@ -3049,8 +3054,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         0
       );
 
+      // Resolving collectionId up front lets us write the new Board into its
+      // target Collection in a single Firestore write — no second round-trip
+      // through moveBoardToCollection.
+      const collectionId = options?.collectionId ?? null;
+
       const newDb: Dashboard = data
-        ? { ...data, id: crypto.randomUUID(), name, order: maxOrder + 1 }
+        ? {
+            ...data,
+            id: crypto.randomUUID(),
+            name,
+            order: maxOrder + 1,
+            collectionId,
+          }
         : {
             id: crypto.randomUUID(),
             name,
@@ -3058,6 +3074,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             widgets: [],
             createdAt: Date.now(),
             order: maxOrder + 1,
+            collectionId,
+            isPinned: false,
           };
 
       try {
@@ -3066,7 +3084,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast(`Dashboard "${name}" ready`);
         return newDb.id;
       } catch (err) {
-        console.error('Failed to create dashboard:', err);
+        logError('DashboardContext.createNewDashboard', err, {
+          uid: user.uid,
+          name,
+          collectionId,
+        });
         addToast('Failed to create dashboard', 'error');
         return undefined;
       }
@@ -3235,6 +3257,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       if (!target) return;
       const targetCollectionId = target.collectionId ?? null;
 
+      // Snapshot the previous default-flags so we can roll back if the
+      // Firestore batch fails. Without this snapshot, a failed commit
+      // leaves local state diverged from Firestore until the next snapshot.
+      const prevDefaults = new Map(
+        dashboards
+          .filter((d) => (d.collectionId ?? null) === targetCollectionId)
+          .map((d) => [d.id, d.isDefault] as const)
+      );
+
       // Optimistic local state update: clear isDefault on siblings, set on target.
       setDashboards((prev) =>
         prev.map((d) => {
@@ -3245,14 +3276,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           return d;
         })
       );
-      addToast('Default board updated', 'success');
 
-      if (isAuthBypass) return;
+      if (isAuthBypass) {
+        addToast('Default board updated', 'success');
+        return;
+      }
 
       const batch = writeBatch(db);
       const now = Date.now();
 
-      // Clear isDefault on every sibling in the same Collection.
       dashboards.forEach((d) => {
         const dColl = d.collectionId ?? null;
         if (dColl === targetCollectionId && d.isDefault && d.id !== boardId) {
@@ -3262,12 +3294,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         }
       });
-      // Set on the target.
       batch.update(doc(db, 'users', user.uid, 'dashboards', boardId), {
         isDefault: true,
         updatedAt: now,
       });
-      await batch.commit();
+
+      try {
+        await batch.commit();
+        addToast('Default board updated', 'success');
+      } catch (err) {
+        logError('DashboardContext.setDefaultDashboard', err, {
+          uid: user.uid,
+          boardId,
+        });
+        // Roll back the optimistic state so the UI matches Firestore again.
+        setDashboards((prev) =>
+          prev.map((d) =>
+            prevDefaults.has(d.id)
+              ? { ...d, isDefault: prevDefaults.get(d.id) ?? false }
+              : d
+          )
+        );
+        addToast('Failed to set default board', 'error');
+        throw err;
+      }
     },
     [user?.uid, dashboards, addToast]
   );
@@ -3275,46 +3325,105 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const moveBoardToCollection = useCallback(
     async (boardId: string, collectionId: string | null): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
-      setDashboards((prev) =>
-        prev.map((d) => (d.id === boardId ? { ...d, collectionId } : d))
+      const prev = dashboards.find((d) => d.id === boardId);
+      if (!prev) return;
+      const prevCollectionId = prev.collectionId ?? null;
+
+      setDashboards((curr) =>
+        curr.map((d) => (d.id === boardId ? { ...d, collectionId } : d))
       );
       if (isAuthBypass) return;
-      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
-        collectionId,
-        updatedAt: Date.now(),
-      });
+
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+          collectionId,
+          updatedAt: Date.now(),
+        });
+      } catch (err) {
+        logError('DashboardContext.moveBoardToCollection', err, {
+          uid: user.uid,
+          boardId,
+          fromCollectionId: prevCollectionId,
+          toCollectionId: collectionId,
+        });
+        // Roll back the optimistic state so the dragged board returns to its
+        // original Collection on screen.
+        setDashboards((curr) =>
+          curr.map((d) =>
+            d.id === boardId ? { ...d, collectionId: prevCollectionId } : d
+          )
+        );
+        addToast('Failed to move board', 'error');
+        throw err;
+      }
     },
-    [user?.uid]
+    [user?.uid, dashboards, addToast]
   );
 
   const pinBoard = useCallback(
     async (boardId: string): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
-      setDashboards((prev) =>
-        prev.map((d) => (d.id === boardId ? { ...d, isPinned: true } : d))
+      const prev = dashboards.find((d) => d.id === boardId);
+      const prevPinned = prev?.isPinned ?? false;
+
+      setDashboards((curr) =>
+        curr.map((d) => (d.id === boardId ? { ...d, isPinned: true } : d))
       );
       if (isAuthBypass) return;
-      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
-        isPinned: true,
-        updatedAt: Date.now(),
-      });
+
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+          isPinned: true,
+          updatedAt: Date.now(),
+        });
+      } catch (err) {
+        logError('DashboardContext.pinBoard', err, {
+          uid: user.uid,
+          boardId,
+        });
+        setDashboards((curr) =>
+          curr.map((d) =>
+            d.id === boardId ? { ...d, isPinned: prevPinned } : d
+          )
+        );
+        addToast('Failed to pin board', 'error');
+        throw err;
+      }
     },
-    [user?.uid]
+    [user?.uid, dashboards, addToast]
   );
 
   const unpinBoard = useCallback(
     async (boardId: string): Promise<void> => {
       if (!user?.uid) throw new Error('Not authenticated');
-      setDashboards((prev) =>
-        prev.map((d) => (d.id === boardId ? { ...d, isPinned: false } : d))
+      const prev = dashboards.find((d) => d.id === boardId);
+      const prevPinned = prev?.isPinned ?? false;
+
+      setDashboards((curr) =>
+        curr.map((d) => (d.id === boardId ? { ...d, isPinned: false } : d))
       );
       if (isAuthBypass) return;
-      await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
-        isPinned: false,
-        updatedAt: Date.now(),
-      });
+
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+          isPinned: false,
+          updatedAt: Date.now(),
+        });
+      } catch (err) {
+        logError('DashboardContext.unpinBoard', err, {
+          uid: user.uid,
+          boardId,
+        });
+        setDashboards((curr) =>
+          curr.map((d) =>
+            d.id === boardId ? { ...d, isPinned: prevPinned } : d
+          )
+        );
+        addToast('Failed to unpin board', 'error');
+        throw err;
+      }
     },
-    [user?.uid]
+    [user?.uid, dashboards, addToast]
   );
 
   const resetDockToDefaults = useCallback(() => {
@@ -3338,7 +3447,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string) => {
       updateActiveId(id);
       addToast('Board loaded');
-      if (user?.uid && !isAuthBypass) {
+      // Persist navigation memory (lastActiveCollectionId + per-Collection
+      // last Board) only once the profile has been loaded. Writing earlier
+      // races with AuthContext.loadProfile and can overwrite the freshly-read
+      // values with a stale {merge: true} write before the read completes.
+      if (user?.uid && !isAuthBypass && profileLoaded) {
         const target = dashboardsRef.current.find((d) => d.id === id);
         if (target) {
           const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
@@ -3355,16 +3468,21 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           };
           void setDoc(profileRef, updates, { merge: true }).catch(
             (err: unknown) => {
-              console.error(
-                '[DashboardContext] Failed to persist last-active board:',
-                err
+              logError(
+                'DashboardContext.loadDashboard.persistLastActive',
+                err,
+                {
+                  uid: user.uid,
+                  boardId: id,
+                  collectionId: target.collectionId ?? null,
+                }
               );
             }
           );
         }
       }
     },
-    [addToast, updateActiveId, user]
+    [addToast, updateActiveId, user, profileLoaded]
   );
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
