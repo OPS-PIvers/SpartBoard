@@ -140,6 +140,16 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     hideAnswer,
   } = useQuizSessionTeacher(config.activeAssignmentId);
 
+  // Count of students in the active session whose results view is locked
+  // out (tab-warning threshold breached). Surfaced on the Monitor button
+  // in QuizManager so teachers see attention-needing state without opening
+  // the live monitor. Derived from the same `responses` snapshot that
+  // QuizLiveMonitor consumes — no second listener.
+  const activeAssignmentLockedCount = useMemo(
+    () => responses.filter((r) => r.resultsLockedOut === true).length,
+    [responses]
+  );
+
   // Assignment archive — per-teacher list of past/current assignments.
   const {
     assignments,
@@ -1528,6 +1538,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
         assignments={assignments}
         assignmentsLoading={assignmentsLoading}
+        activeAssignmentLockedCount={activeAssignmentLockedCount}
         onArchiveCopyUrl={(a) => {
           const url = `${window.location.origin}/quiz?code=${a.code}`;
           if (typeof navigator !== 'undefined' && navigator.clipboard) {

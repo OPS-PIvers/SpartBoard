@@ -259,20 +259,38 @@ export function AssignmentArchiveCard<TAssignment>({
         </div>
 
         {/* Primary action — omitted on archived view-only cards where the
-            link is dead and a Copy button would be misleading. */}
+            link is dead and a Copy button would be misleading. The wrapper
+            is `relative` so an optional badge can absolutely-position over
+            the top-right corner without disturbing the button's own layout. */}
         {primaryAction && (
-          <button
-            type="button"
-            onClick={primaryAction.onClick}
-            disabled={primaryAction.disabled}
-            title={
-              primaryAction.disabled ? primaryAction.disabledReason : undefined
-            }
-            className="flex items-center gap-1 shrink-0 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {PrimaryIcon && <PrimaryIcon size={12} className="shrink-0" />}
-            <span>{primaryAction.label}</span>
-          </button>
+          <div className="relative shrink-0">
+            <button
+              type="button"
+              onClick={primaryAction.onClick}
+              disabled={primaryAction.disabled}
+              title={
+                primaryAction.disabled
+                  ? primaryAction.disabledReason
+                  : undefined
+              }
+              className="flex items-center gap-1 px-2.5 py-1 bg-brand-blue-primary hover:bg-brand-blue-dark text-white text-xs font-bold rounded-lg transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {PrimaryIcon && <PrimaryIcon size={12} className="shrink-0" />}
+              <span>{primaryAction.label}</span>
+            </button>
+            {typeof primaryAction.badgeCount === 'number' &&
+              primaryAction.badgeCount > 0 && (
+                <span
+                  aria-label={
+                    primaryAction.badgeAriaLabel ??
+                    `${primaryAction.badgeCount} attention`
+                  }
+                  className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-1 ring-white"
+                >
+                  {primaryAction.badgeCount}
+                </span>
+              )}
+          </div>
         )}
 
         {/* Overflow menu */}
