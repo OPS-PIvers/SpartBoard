@@ -3120,7 +3120,6 @@ function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
 export const studentLoginV1 = onCall(
   {
     memory: '256MiB',
-    minInstances: 1,
     cors: ALLOWED_ORIGINS,
     secrets: [
       CLASSLINK_CLIENT_ID,
