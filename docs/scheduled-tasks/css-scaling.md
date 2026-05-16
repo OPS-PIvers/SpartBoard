@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-05-16_
-_Last action: 2026-04-25_
+_Last action: 2026-05-16_
 
 ---
 
@@ -86,16 +86,17 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 - **Detail:** The widget has two internal overlay dialogs rendered inside the container-query context: (1) the "Start Live Session" / "Share Link" dialog shown when the user launches a live session (lines 120–260), and (2) the "Save to Library" overlay shown when pasting HTML into the widget (lines 848–880). Both use hardcoded Tailwind classes `text-base`, `text-sm`, `text-xs` on labels, body text, code blocks, and buttons. Widget has `skipScaling: true`. At small widget sizes these overlays will show unscaled text and potentially overflow the widget bounds. The prior 2026-04-14 completion entry "MiniAppWidget uses hardcoded Tailwind text sizes — Resolved outside journal workflow" was inaccurate; these overlay states were not assessed.
 - **Fix:** For both overlay dialogs, replace `text-base` → `style={{ fontSize: 'min(16px, 6cqmin)' }}`, `text-sm` → `style={{ fontSize: 'min(14px, 5.5cqmin)' }}`, `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`. Also convert any `w-4 h-4` icon sizes and `gap-2`, `p-3`/`p-5` spacing to `cqmin` equivalents.
 
-### LOW NumberLineWidget hover hint `text-xs` still present — prior completion was inaccurate
-
-- **Detected:** 2026-04-26 (re-flagged; originally detected 2026-04-12, incorrectly closed 2026-04-14)
-- **File:** components/widgets/NumberLine/Widget.tsx:339
-- **Detail:** `className="absolute bottom-2 left-4 text-xs text-slate-400 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"` is still present. The 2026-04-14 completion note "Resolved outside journal workflow. 2026-04-14 audit confirmed widget is clean" was inaccurate — the `text-xs` at line 339 was never removed. The hint is invisible by default (opacity-0) and only visible on hover, so impact is very low, but the pattern is inconsistent for a `skipScaling: true` widget.
-- **Fix:** Replace `text-xs` with `style={{ fontSize: 'min(12px, 6cqmin)' }}` on the hint div and remove the `bottom-2 left-4` Tailwind positional classes, replacing them with equivalent inline styles `style={{ bottom: 'min(8px, 4cqmin)', left: 'min(16px, 8cqmin)' }}`. (cqmin percentages chosen to reach the px caps at the widget's default size of 700×200, where `cqmin = 2px`; this preserves the original Tailwind dimensions at default size and only shrinks if the widget is sized smaller.)
-
 ---
 
 ## Completed
+
+### LOW NumberLineWidget hover hint `text-xs` still present — prior completion was inaccurate
+
+- **Detected:** 2026-04-26 (re-flagged; originally detected 2026-04-12, incorrectly closed 2026-04-14)
+- **Completed:** 2026-05-16
+- **File:** components/widgets/NumberLine/Widget.tsx:339
+- **Detail:** The hover-visible tooltip hint at the bottom-left of the number-line content area used `text-xs` plus `bottom-2 left-4` as hardcoded Tailwind classes inside a `skipScaling: true` widget — they did not respond to widget size. The 2026-04-14 completion was inaccurate; the classes were never removed.
+- **Resolution:** Replaced the hardcoded Tailwind sizing classes with inline `cqmin` styles per the journal entry: `text-xs` → `fontSize: 'min(12px, 6cqmin)'`, `bottom-2` → `bottom: 'min(8px, 4cqmin)'`, `left-4` → `left: 'min(16px, 8cqmin)'`. Other Tailwind utility classes (`absolute`, `text-slate-400`, `pointer-events-none`, `opacity-0`, `group-hover:opacity-100`, `transition-opacity`) were preserved on `className` — they don't carry pixel sizing. `pnpm exec tsc --noEmit`, `pnpm exec eslint components/widgets/NumberLine/Widget.tsx --max-warnings 0`, and `pnpm exec prettier --check` on the changed files all clean.
 
 ### MEDIUM StarterPackWidget has hardcoded icon size and spacing in addition to text sizes
 
