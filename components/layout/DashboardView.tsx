@@ -32,9 +32,8 @@ import { Sidebar } from './sidebar/Sidebar';
 import { Dock } from './Dock';
 import { AnnotationOverlay } from './AnnotationOverlay';
 import { BoardNavFab } from './BoardNavFab';
-import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
-import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 import { AnnouncementOverlay } from '@/components/announcements/AnnouncementOverlay';
+import { MountedBoardsLayer } from './MountedBoardsLayer';
 import { CheatSheetModal } from '@/components/common/CheatSheetModal';
 import { BoardActionsFab } from './BoardActionsFab';
 import { clampZoom, ZOOM_DEFAULT } from '@/utils/zoomMapping';
@@ -54,6 +53,7 @@ import {
 } from 'lucide-react';
 import {
   DEFAULT_GLOBAL_STYLE,
+  LiveSession,
   LiveStudent,
   SpartStickerDropPayload,
 } from '@/types';
@@ -1096,6 +1096,23 @@ export const DashboardView: React.FC = () => {
       : 'animate-slide-right-in';
   }, [currentIndex]);
 
+  // Ensure activeDashboard is always in the list passed to the mount cache.
+  // In production dashboards always includes activeDashboard, but tests may
+  // set dashboards:[] while supplying an activeDashboard, so we guard here
+  // rather than fixing every individual test.
+  const mountableDashboards = useMemo(() => {
+    if (!activeDashboard) return dashboards;
+    const has = dashboards.some((d) => d.id === activeDashboard.id);
+    return has ? dashboards : [activeDashboard, ...dashboards];
+  }, [dashboards, activeDashboard]);
+
+  // Stable sessions Map for MountedBoardsLayer — memoized so each render
+  // doesn't produce a new Map that invalidates useMountedBoardCache's memo.
+  const sessions = useMemo<Map<string, LiveSession> | undefined>(() => {
+    if (!session?.isActive || !activeDashboard) return undefined;
+    return new Map([[activeDashboard.id, session]]);
+  }, [session, activeDashboard]);
+
   if (activeDashboard?.id !== lastDashboardId) {
     setLastDashboardId(activeDashboard?.id);
     if (isMinimized) {
@@ -1620,67 +1637,34 @@ export const DashboardView: React.FC = () => {
           </div>
         )}
 
-        {/* Dynamic Widget Surface */}
-        <div
-          key={activeDashboard.id}
-          className={`relative w-full h-full ${animationClass} transition-opacity duration-500 ease-in-out`}
-          style={{
-            // Note: transform and opacity transitions here create CSS stacking contexts.
-            // Spotlighted widgets escape this by portaling to document.body.
-            transform: isMinimized ? 'translateY(80vh)' : undefined,
-            transformOrigin: isMinimized ? 'bottom center' : 'center center',
-            opacity: isMinimized ? 0 : 1,
-            pointerEvents: isMinimized ? 'none' : 'auto',
-          }}
-        >
-          {activeDashboard.widgets.map((widget) => {
-            const isLive =
-              session?.isActive && session?.activeWidgetId === widget.id;
-            return (
-              <WidgetRenderer
-                key={widget.id}
-                widget={widget}
-                isStudentView={false}
-                sessionCode={session?.code}
-                isGlobalFrozen={session?.frozen ?? false}
-                isLive={isLive ?? false}
-                students={isLive ? students : EMPTY_STUDENTS}
-                updateSessionConfig={updateSessionConfig}
-                updateSessionBackground={updateSessionBackground}
-                startSession={startSession}
-                endSession={endSession}
-                removeStudent={removeStudent}
-                toggleFreezeStudent={toggleFreezeStudent}
-                toggleGlobalFreeze={toggleGlobalFreeze}
-                updateWidget={updateWidget}
-                removeWidget={removeWidget}
-                duplicateWidget={duplicateWidget}
-                bringToFront={bringToFront}
-                addToast={addToast}
-                globalStyle={globalStyle}
-                dashboardBackground={activeDashboard.background}
-                dashboardSettings={activeDashboard.settings}
-                updateDashboardSettings={updateDashboardSettings}
-              />
-            );
-          })}
-          {/* Group Bounding Box — rendered when a grouped widget is selected */}
-          {(() => {
-            const selectedGroupId = selectedWidgetId
-              ? activeDashboard.widgets.find((w) => w.id === selectedWidgetId)
-                  ?.groupId
-              : undefined;
-            if (!selectedGroupId) return null;
-            const members = activeDashboard.widgets.filter(
-              (w) =>
-                w.groupId === selectedGroupId &&
-                !w.minimized &&
-                !w.isLocked &&
-                !w.isPinned
-            );
-            return <GroupBoundingBox groupWidgets={members} zoom={zoom} />;
-          })()}
-        </div>
+        {/* Dynamic Widget Surface — Board state (timers, drawings) is
+            preserved across switches via the LRU mount window in
+            MountedBoardsLayer / useMountedBoardCache. */}
+        <MountedBoardsLayer
+          activeId={activeDashboard?.id ?? null}
+          dashboards={mountableDashboards}
+          isMinimized={isMinimized}
+          animationClass={animationClass}
+          sessions={sessions}
+          students={students}
+          emptyStudents={EMPTY_STUDENTS}
+          selectedWidgetId={selectedWidgetId}
+          zoom={zoom}
+          globalStyle={globalStyle}
+          updateSessionConfig={updateSessionConfig}
+          updateSessionBackground={updateSessionBackground}
+          startSession={startSession}
+          endSession={endSession}
+          removeStudent={removeStudent}
+          toggleFreezeStudent={toggleFreezeStudent}
+          toggleGlobalFreeze={toggleGlobalFreeze}
+          updateWidget={updateWidget}
+          removeWidget={removeWidget}
+          duplicateWidget={duplicateWidget}
+          bringToFront={bringToFront}
+          addToast={addToast}
+          updateDashboardSettings={updateDashboardSettings}
+        />
       </div>
 
       {/* Group-building mode floating action bar */}

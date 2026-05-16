@@ -12,7 +12,7 @@ import type {
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 
-interface BoardCanvasProps {
+export interface BoardCanvasProps {
   dashboard: Dashboard;
   isActive: boolean;
   isMinimized: boolean;
