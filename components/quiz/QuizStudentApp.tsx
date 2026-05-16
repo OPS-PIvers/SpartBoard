@@ -2572,19 +2572,13 @@ const PublishedScoreReview: React.FC<{
   // informational — its job is to discourage shared screenshots, not to
   // authenticate.
   const watermarkEnabled = session.protection?.watermarkEnabled === true;
-  // Snapshot `Date.now()` once per mount when the session has no
-  // `scorePublishedAt` (legacy / mid-publish). Calling `Date.now()` directly
-  // in render is impure and trips react-hooks/purity. Wrapping in `useMemo`
-  // with a stable dep makes the fallback deterministic for the lifetime of
-  // this view — a tiny inaccuracy on the watermark stamp vs. the eventual
-  // real publish time, which the listener will update naturally on the next
-  // render once the field arrives.
-  const sessionPublishedAt = session.scorePublishedAt;
-  // Lazy-init via `useState` keeps the fallback timestamp stable across
-  // re-renders without calling `Date.now()` in render (which would violate
-  // react-hooks/purity). `useState(fn)` runs `fn` exactly once at mount.
+  // When the session has no `scorePublishedAt` (legacy or mid-publish), fall
+  // back to a per-mount snapshot of `Date.now()`. `useState(fn)` runs `fn`
+  // exactly once at mount, giving us a stable timestamp without calling
+  // `Date.now()` in render (which would violate react-hooks/purity). The
+  // listener will swap in the real publish time on its next snapshot.
   const [fallbackPublishedAt] = useState(() => Date.now());
-  const publishedAt = sessionPublishedAt ?? fallbackPublishedAt;
+  const publishedAt = session.scorePublishedAt ?? fallbackPublishedAt;
   // Treat blank/whitespace-only displayName as missing so we still fall through
   // to the PIN label when an SSO provider returns an empty string.
   const trimmedDisplayName = auth.currentUser?.displayName?.trim() ?? '';
