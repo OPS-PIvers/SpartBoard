@@ -17,16 +17,13 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
   const { t } = useTranslation();
   const [collections, setCollections] = useState<SharedCollection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errored, setErrored] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     const canonical = canonicalBuildingId(buildingId);
     void (async () => {
       try {
-        // NOTE: this composite query requires a Firestore index on
-        // (intendedMode, buildingId, expiresAt). Phase 3 will add it to
-        // firestore.indexes.json. Until then the SDK surfaces a
-        // "missing index" error in the console in production.
         const q = query(
           collection(db, 'shared_collections'),
           where('intendedMode', '==', 'substitute'),
@@ -41,8 +38,10 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
           docs.push({ ...data, shareId: d.id });
         });
         setCollections(docs);
+        setErrored(false);
       } catch (err) {
         logError('SubCollectionsList.load', err, { buildingId });
+        if (!cancelled) setErrored(true);
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -57,6 +56,19 @@ export const SubCollectionsList: FC<SubCollectionsListProps> = ({
       <p className="text-sm text-white/50 italic">
         {t('subCollections.loading', {
           defaultValue: 'Loading shared Collections…',
+        })}
+      </p>
+    );
+  }
+
+  // A total query failure (network, rules, missing index in production)
+  // must not silently render an empty pane — a sub who's expecting a
+  // Collection would assume nothing was shared.
+  if (errored) {
+    return (
+      <p className="text-sm text-rose-300/80 italic">
+        {t('subCollections.loadError', {
+          defaultValue: "Couldn't load shared Collections — refresh to retry.",
         })}
       </p>
     );

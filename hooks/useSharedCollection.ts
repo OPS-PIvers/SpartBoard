@@ -33,10 +33,35 @@ const SHARED_COLLECTIONS_SUBPATH = 'shared_collections';
 const SHARED_COLLECTION_BOARDS_SUBPATH = 'boards';
 
 /**
- * Strip share-linkage fields from a Dashboard before snapshotting into
- * a Collection share. Inherited linkages would make the recipient appear
- * to be a collaborator on the host's original single-Board share, which is
- * wrong — the recipient is starting fresh.
+ * Strip host-specific fields from a Dashboard before snapshotting into a
+ * Collection share. The recipient is starting fresh — they must not
+ * inherit anything that names the host, points at the host's Storage /
+ * Drive, or replays the host's live-session state.
+ *
+ * Stripped:
+ * - `linkedShareId` / `linkedShareRole` / `linkedShareHostName` /
+ *   `linkedShareEnded`: live single-Board share linkage. Inheriting these
+ *   would falsely mark the recipient as a collaborator on the host's
+ *   original share.
+ * - `driveFileId`: points at the HOST's Drive file. A recipient writing
+ *   updates through this id would push to the host's Drive.
+ * - `thumbnailUrl`: signed URL into the host's Storage bucket. Expires
+ *   and isn't reachable under the recipient's auth — let it regenerate
+ *   on first save.
+ * - `sharedGroups`: per-host share permissions; not transferable.
+ * - `annotationOverlay`: live pencil-overlay strokes from the host's
+ *   session. Transient state — never persisted state.
+ * - `isDefault`: host's "open this on sign-in" flag. Importing a
+ *   Collection must not silently change which Board the recipient lands
+ *   on.
+ * - `isPinned`: host's pin in the FAB popover. Imports should not
+ *   surprise the recipient with new pinned Boards.
+ * - `updatedAt`: timestamp from the host's last edit. Recipient's copy
+ *   should stamp this on first own edit, not lie about provenance.
+ * - `collectionId`: host's local Collection id. The importer reassigns
+ *   to the freshly-created recipient Collection via createNewDashboard's
+ *   options arg — spreading the host's value would have been overridden
+ *   anyway, but strip it here so the snapshot doesn't carry stale state.
  */
 const sanitizeBoardForShare = (board: Dashboard): Dashboard => {
   const {
@@ -44,6 +69,14 @@ const sanitizeBoardForShare = (board: Dashboard): Dashboard => {
     linkedShareRole: _linkedShareRole,
     linkedShareHostName: _linkedShareHostName,
     linkedShareEnded: _linkedShareEnded,
+    driveFileId: _driveFileId,
+    thumbnailUrl: _thumbnailUrl,
+    sharedGroups: _sharedGroups,
+    annotationOverlay: _annotationOverlay,
+    isDefault: _isDefault,
+    isPinned: _isPinned,
+    updatedAt: _updatedAt,
+    collectionId: _collectionId,
     ...rest
   } = board;
   return rest;

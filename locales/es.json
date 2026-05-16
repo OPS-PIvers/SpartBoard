@@ -570,6 +570,7 @@
   },
   "subCollections": {
     "loading": "Loading shared Collections…",
+    "loadError": "Couldn't load shared Collections — refresh to retry.",
     "heading": "Collections",
     "boardCount": "{{count}} board(s)",
     "boardPlaceholder": "Board …{{id}}",
