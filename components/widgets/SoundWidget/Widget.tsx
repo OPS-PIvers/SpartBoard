@@ -18,7 +18,10 @@ interface CustomWindow extends Window {
   webkitAudioContext: typeof AudioContext;
 }
 
-export const SoundWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+export const SoundWidget: React.FC<{
+  widget: WidgetData;
+  isActive?: boolean;
+}> = ({ widget, isActive = true }) => {
   const { updateWidget, activeDashboard } = useDashboard();
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
@@ -90,11 +93,54 @@ export const SoundWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   ]);
 
   useEffect(() => {
+    // When the host Board is hidden, suspend the AudioContext and cancel the
+    // RAF loop so we're not burning CPU sampling an inaudible mic.
+    if (!isActive) {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      void audioContextRef.current?.suspend();
+      return;
+    }
+
+    // If we already have a running AudioContext (board was hidden then shown
+    // again), just resume and restart the RAF loop without re-acquiring the mic.
+    if (audioContextRef.current && analyserRef.current) {
+      void audioContextRef.current.resume();
+
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const resumeLoop = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const sum = dataArray.reduce((a, b) => a + b, 0);
+        const average = sum / bufferLength;
+        const normalized = Math.min(
+          100,
+          average * (sensitivityRef.current * 2)
+        );
+        setVolume(normalized);
+        setHistory((prev) => [...prev.slice(-49), normalized]);
+        animationRef.current = requestAnimationFrame(resumeLoop);
+      };
+      resumeLoop();
+      // No full teardown here — cleanup below handles it on unmount or next isActive=false
+      return;
+    }
+
+    // First activation: acquire the mic and set up AudioContext fresh.
+    let cancelled = false;
     const startAudio = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
         streamRef.current = stream;
         const AudioContextClass =
           window.AudioContext ||
@@ -131,12 +177,16 @@ export const SoundWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
     void startAudio();
     return () => {
+      cancelled = true;
       if (animationRef.current !== null)
         cancelAnimationFrame(animationRef.current);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       void audioContextRef.current?.close();
+      audioContextRef.current = null;
+      analyserRef.current = null;
+      streamRef.current = null;
     };
-  }, []);
+  }, [isActive]);
 
   const level = getLevelData(volume);
 
