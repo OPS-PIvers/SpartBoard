@@ -2038,7 +2038,7 @@ service cloud.firestore {
            // student-side protection by construction. See
            // docs/written-response-quiz-questions.md §9.
            request.resource.data.diff(resource.data)
-             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked']) &&
+             .changedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
@@ -2049,6 +2049,21 @@ service cloud.firestore {
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
             request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
+           // Results-view screenshot-protection guards (Task 11). The student
+           // app's `useResultsTabWarnings` hook increments
+           // `resultsTabWarnings` (via `increment(1)`) on each visibility/blur
+           // round-trip on the published-results screen, and flips
+           // `resultsLockedOut` true (+ stamps `resultsLockedOutAt`) once the
+           // threshold is reached. Both monotonic from the student side; only
+           // the teacher (via `unlockResultsForStudent` — built in Task 12)
+           // can decrement warnings or clear the lockout.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['resultsTabWarnings']) ||
+            request.resource.data.get('resultsTabWarnings', 0) >= resource.data.get('resultsTabWarnings', 0)) &&
+           // `resultsLockedOut` may only stay the same OR transition false→true.
+           // A student-side write of `true→false` (self-unlock) is rejected.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['resultsLockedOut']) ||
+            (resource.data.get('resultsLockedOut', false) == false ||
+             request.resource.data.get('resultsLockedOut', false) == true)) &&
            // Attempt-cap enforcement. completedAttempts may not exceed the
            // session's attemptLimit. attemptLimit == null means unlimited.
            // Without this rule a hostile client could call completeQuiz N
