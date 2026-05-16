@@ -845,6 +845,72 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Collection-level shares — parent doc holds metadata, subcollection
+    // /shared_collections/{shareId}/boards/{boardId} holds frozen Board
+    // snapshots. Mirrors /shared_boards substitute gating (inline pattern)
+    // and the 14-day expiresAt cap.
+    match /shared_collections/{shareId} {
+      // READ: any authed user for non-substitute shares. Substitute shares
+      // are gated by host, admin, or @orono.k12.mn.us email (same as
+      // /shared_boards). No isSubInBuilding helper — inline match.
+      allow read: if request.auth != null && (
+        resource.data.get('intendedMode', null) != 'substitute'
+        || resource.data.get('hostUid', null) == request.auth.uid
+        || isAdmin()
+        || request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+      );
+
+      // CREATE: host writes their own share. Substitute shares add a
+      // 14-day TTL cap (1209600000ms == 14 * 24 * 60 * 60 * 1000) AND
+      // require a non-empty buildingId — both mirror the /shared_boards
+      // substitute create rule. boardIds must be a non-empty list of
+      // at most 500 entries; collection.name must be a non-empty string;
+      // intendedMode must be in the legal set.
+      allow create: if request.auth != null
+        && request.resource.data.hostUid == request.auth.uid
+        && request.resource.data.boardIds is list
+        && request.resource.data.boardIds.size() > 0
+        && request.resource.data.boardIds.size() <= 500
+        && request.resource.data.collection.name is string
+        && request.resource.data.collection.name.size() > 0
+        && request.resource.data.intendedMode in ['copy', 'substitute']
+        && (
+          request.resource.data.intendedMode != 'substitute'
+          || (
+            request.resource.data.buildingId is string
+            && request.resource.data.buildingId.size() > 0
+            && request.resource.data.expiresAt is number
+            && request.resource.data.expiresAt > request.time.toMillis()
+            && request.resource.data.expiresAt <= request.time.toMillis() + 1209600000
+          )
+        );
+
+      // UPDATE: host-only, and ONLY allowed on copy shares (substitute
+      // shares are immutable post-creation). Admins bypass for emergency
+      // corrections.
+      allow update: if request.auth != null
+        && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin())
+        && resource.data.get('intendedMode', null) == 'copy';
+
+      allow delete: if request.auth != null
+        && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin());
+
+      // Per-Board snapshots. Read mirrors parent semantics. Write only by
+      // parent's host (the share-creation writeBatch puts the parent doc
+      // first, then the boards, so the get() lookup resolves).
+      match /boards/{boardId} {
+        allow read: if request.auth != null && (
+          get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('intendedMode', null) != 'substitute'
+          || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
+          || isAdmin()
+          || request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+        );
+
+        allow create, update, delete: if request.auth != null
+          && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid;
+      }
+    }
+
     // Preset substitute emails — per-building list of generic sub accounts
     // (e.g. ohssub@orono.k12.mn.us) that teachers can quickly add when
     // creating a Substitute (View-Only) share. Admin-managed. Authenticated
