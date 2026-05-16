@@ -76,23 +76,83 @@ describe('PublishScoresModal — protection toggles', () => {
     expect(threshold).toHaveValue(3);
   });
 
-  it('clamps the threshold value to [1, 10] on change', () => {
+  it('clamps the threshold value to [1, 10] on blur', () => {
     renderWithProtection();
 
     fireEvent.click(screen.getByLabelText(/tab.?switch warning/i));
     const threshold = screen.getByLabelText(/warnings before lockout/i);
 
-    // Above max -> clamped to 10
+    // Above max -> clamped to 10 on blur
     fireEvent.change(threshold, { target: { value: '99' } });
+    fireEvent.blur(threshold);
     expect(threshold).toHaveValue(10);
 
-    // Below min -> clamped to 1
+    // Below min -> clamped to 1 on blur
     fireEvent.change(threshold, { target: { value: '0' } });
+    fireEvent.blur(threshold);
     expect(threshold).toHaveValue(1);
 
     // In range -> kept as typed
     fireEvent.change(threshold, { target: { value: '5' } });
+    fireEvent.blur(threshold);
     expect(threshold).toHaveValue(5);
+  });
+
+  it('lets the user clear the threshold input mid-edit without snapping back to default', () => {
+    renderWithProtection();
+
+    fireEvent.click(screen.getByLabelText(/tab.?switch warning/i));
+    const threshold = screen.getByLabelText(/warnings before lockout/i);
+
+    // Initial value should be the default (3)
+    expect(threshold).toHaveValue(3);
+
+    // User backspaces the value to empty — must NOT snap back to default.
+    fireEvent.change(threshold, { target: { value: '' } });
+    // A number input with an empty string reports null via .value (HTML spec),
+    // which testing-library surfaces as null for toHaveValue().
+    expect(threshold).toHaveValue(null);
+  });
+
+  it('submitting without blurring still honors the user’s last typed threshold', async () => {
+    const onConfirm = vi.fn(() => undefined);
+    renderWithProtection({ onConfirm });
+
+    // Enable tab warning, type a fresh value, do NOT blur.
+    fireEvent.click(screen.getByLabelText(/tab.?switch warning/i));
+    const threshold = screen.getByLabelText(/warnings before lockout/i);
+    fireEvent.change(threshold, { target: { value: '5' } });
+    // No blur here — straight to Publish.
+
+    fireEvent.click(screen.getByRole('button', { name: /publish/i }));
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ tabWarningThreshold: 5 })
+    );
+  });
+
+  it('submitting without blurring still clamps an out-of-range typed value', async () => {
+    const onConfirm = vi.fn(() => undefined);
+    renderWithProtection({ onConfirm });
+
+    fireEvent.click(screen.getByLabelText(/tab.?switch warning/i));
+    const threshold = screen.getByLabelText(/warnings before lockout/i);
+    // Type a number above the max — no blur — submit.
+    fireEvent.change(threshold, { target: { value: '99' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /publish/i }));
+
+    await waitFor(() => {
+      expect(onConfirm).toHaveBeenCalledTimes(1);
+    });
+    expect(onConfirm).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ tabWarningThreshold: 10 })
+    );
   });
 
   it('passes protection to onConfirm when publishing', async () => {

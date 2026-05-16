@@ -122,9 +122,27 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
   const [protection, setProtection] = useState<ResultsProtection>(
     () => initialProtection ?? RESULTS_PROTECTION_DEFAULTS
   );
+  // Raw input value for the threshold field so the input can be transiently
+  // empty (or otherwise invalid) while the user is editing without snapping
+  // the persisted `protection.tabWarningThreshold` back to defaults.
+  // Clamp + commit happens on blur and at submit time.
+  const [thresholdInputValue, setThresholdInputValue] = useState<string>(() =>
+    String(
+      (initialProtection ?? RESULTS_PROTECTION_DEFAULTS).tabWarningThreshold
+    )
+  );
 
   const isPublished =
     currentVisibility !== undefined && currentVisibility !== 'none';
+
+  const clampThreshold = (raw: string): number | null => {
+    const parsed = Number.parseInt(raw, 10);
+    if (!Number.isFinite(parsed)) return null;
+    return Math.min(
+      RESULTS_TAB_WARNING_THRESHOLD_MAX,
+      Math.max(RESULTS_TAB_WARNING_THRESHOLD_MIN, parsed)
+    );
+  };
 
   const handleConfirm = async (visibility: PublishScoresVisibility) => {
     if (submitting) return;
@@ -133,7 +151,14 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
       // Only forward protection when the caller wired the fieldset — VA/GL
       // stay on the original two-arg signature.
       if (showProtection) {
-        await onConfirm(visibility, protection);
+        // Force a final clamp from the input string so the user's last
+        // keystrokes are honored even if they never blurred the field.
+        const clamped = clampThreshold(thresholdInputValue);
+        const finalProtection: ResultsProtection = {
+          ...protection,
+          tabWarningThreshold: clamped ?? protection.tabWarningThreshold,
+        };
+        await onConfirm(visibility, finalProtection);
       } else {
         await onConfirm(visibility);
       }
@@ -143,14 +168,25 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
   };
 
   const handleThresholdChange = (raw: string) => {
-    const parsed = Number.parseInt(raw, 10);
-    const clamped = Number.isFinite(parsed)
-      ? Math.min(
-          RESULTS_TAB_WARNING_THRESHOLD_MAX,
-          Math.max(RESULTS_TAB_WARNING_THRESHOLD_MIN, parsed)
-        )
-      : RESULTS_PROTECTION_DEFAULTS.tabWarningThreshold;
-    setProtection((p) => ({ ...p, tabWarningThreshold: clamped }));
+    // Allow free-form editing — including transiently empty values. Clamp
+    // happens on blur (and as a safety net at submit time).
+    setThresholdInputValue(raw);
+  };
+
+  const handleThresholdBlur = () => {
+    const clamped = clampThreshold(thresholdInputValue);
+    const next = clamped ?? RESULTS_PROTECTION_DEFAULTS.tabWarningThreshold;
+    setProtection((p) => ({ ...p, tabWarningThreshold: next }));
+    setThresholdInputValue(String(next));
+  };
+
+  const handleTabWarningToggle = (enabled: boolean) => {
+    setProtection((p) => ({ ...p, tabWarningEnabled: enabled }));
+    if (enabled) {
+      // Re-sync the input string with the current persisted threshold so the
+      // field shows a sensible value when it reappears.
+      setThresholdInputValue(String(protection.tabWarningThreshold));
+    }
   };
 
   return (
@@ -269,12 +305,7 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
               <input
                 type="checkbox"
                 checked={protection.tabWarningEnabled}
-                onChange={(e) =>
-                  setProtection((p) => ({
-                    ...p,
-                    tabWarningEnabled: e.target.checked,
-                  }))
-                }
+                onChange={(e) => handleTabWarningToggle(e.target.checked)}
                 disabled={submitting}
                 className="mt-0.5 h-4 w-4 rounded border-slate-300 text-brand-blue-primary focus:ring-brand-blue-primary/40"
               />
@@ -297,8 +328,9 @@ export const PublishScoresModal: React.FC<PublishScoresModalProps> = ({
                   type="number"
                   min={RESULTS_TAB_WARNING_THRESHOLD_MIN}
                   max={RESULTS_TAB_WARNING_THRESHOLD_MAX}
-                  value={protection.tabWarningThreshold}
+                  value={thresholdInputValue}
                   onChange={(e) => handleThresholdChange(e.target.value)}
+                  onBlur={handleThresholdBlur}
                   disabled={submitting}
                   className="w-16 rounded-md border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/40"
                 />
