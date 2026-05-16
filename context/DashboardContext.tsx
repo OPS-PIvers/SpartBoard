@@ -24,6 +24,8 @@ import {
   UserProfile,
   SubstituteShareDriveGrant,
   ROOT_COLLECTION_KEY,
+  Collection,
+  CollectionSubstituteShareInput,
 } from '../types';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
@@ -62,6 +64,7 @@ import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
 import { useCollections } from '../hooks/useCollections';
+import { useSharedCollection } from '../hooks/useSharedCollection';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import {
   setAiModelConfigFallbackHandler,
@@ -241,6 +244,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const collectionsApi = useCollections(user?.uid);
   const { collections } = collectionsApi;
+  const sharedCollectionApi = useSharedCollection();
 
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [pendingShareId, setPendingShareId] = useState<string | null>(() => {
@@ -292,6 +296,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const clearPendingShare = useCallback(() => {
     setPendingShareId(null);
     window.history.replaceState(null, '', '/');
+  }, []);
+
+  const [pendingSharedCollectionId, setPendingSharedCollectionId] = useState<
+    string | null
+  >(null);
+
+  const clearPendingSharedCollection = useCallback(() => {
+    setPendingSharedCollectionId(null);
   }, []);
 
   const clearPendingQuizShare = useCallback(() => {
@@ -3174,6 +3186,106 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, saveDashboard, addToast, updateActiveId]
   );
 
+  // ─────────────────────────────────────────────────────────────────────────
+  // Collection share + import actions
+  // ─────────────────────────────────────────────────────────────────────────
+
+  const shareCollection = useCallback(
+    async (input: {
+      collection: Collection;
+      boards: Dashboard[];
+    }): Promise<string> => {
+      if (!user) throw new Error('Not authenticated');
+      return sharedCollectionApi.shareCollection({
+        ...input,
+        hostUid: user.uid,
+        hostDisplayName: user.displayName,
+      });
+    },
+    [user, sharedCollectionApi]
+  );
+
+  const shareSubstituteCollection = useCallback(
+    async (
+      input: CollectionSubstituteShareInput & {
+        collection: Collection;
+        boards: Dashboard[];
+      }
+    ): Promise<string> => {
+      if (!user) throw new Error('Not authenticated');
+      return sharedCollectionApi.shareSubstituteCollection({
+        ...input,
+        hostUid: user.uid,
+        hostDisplayName: user.displayName,
+      });
+    },
+    [user, sharedCollectionApi]
+  );
+
+  const importSharedCollection = useCallback(
+    async (shareId: string): Promise<{ collectionId: string } | null> => {
+      if (!user) {
+        addToast('Must be signed in to import', 'error');
+        return null;
+      }
+      const meta = await sharedCollectionApi.loadSharedCollection(shareId);
+      if (!meta) {
+        addToast('Shared Collection not found or expired', 'error');
+        return null;
+      }
+      const boards = await sharedCollectionApi.loadSharedCollectionBoards(
+        shareId,
+        meta.boardIds
+      );
+      if (boards.length === 0) {
+        addToast('Shared Collection is empty', 'error');
+        return null;
+      }
+
+      try {
+        // Phase 1: create the recipient's Collection.
+        const newCollectionId = await collectionsApi.createCollection(
+          meta.collection.name,
+          null // root — recipient can move it later
+        );
+
+        // Phase 2: clone each Board into the new Collection. Each
+        // createNewDashboard fans out to a Firestore write; collect failures
+        // so the user sees a partial-success report instead of silent skips.
+        const importResults = await Promise.allSettled(
+          boards.map((b) =>
+            createNewDashboard(
+              `${b.name} (Imported)`,
+              { ...b, id: crypto.randomUUID() } as Dashboard,
+              { collectionId: newCollectionId }
+            )
+          )
+        );
+        const failed = importResults.filter(
+          (r) => r.status === 'rejected'
+        ).length;
+        const succeeded = boards.length - failed;
+        if (failed > 0) {
+          addToast(
+            `Imported ${succeeded.toString()} board(s) — ${failed.toString()} failed`,
+            'error'
+          );
+        } else {
+          addToast(`Imported Collection with ${succeeded.toString()} board(s)`);
+        }
+        return { collectionId: newCollectionId };
+      } catch (err) {
+        logError('DashboardContext.importSharedCollection', err, {
+          shareId,
+          boardCount: boards.length,
+        });
+        addToast('Failed to import shared Collection', 'error');
+        return null;
+      }
+    },
+    [user, addToast, sharedCollectionApi, collectionsApi, createNewDashboard]
+  );
+
   const saveCurrentDashboard = useCallback(async () => {
     if (!user) {
       addToast('Must be signed in to save', 'error');
@@ -4684,6 +4796,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      shareCollection,
+      shareSubstituteCollection,
+      loadSharedCollection: sharedCollectionApi.loadSharedCollection,
+      loadSharedCollectionBoards:
+        sharedCollectionApi.loadSharedCollectionBoards,
+      importSharedCollection,
+      pendingSharedCollectionId,
+      setPendingSharedCollectionId,
+      clearPendingSharedCollection,
       zoom,
       setZoom,
       annotationActive,
@@ -4795,6 +4916,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      shareCollection,
+      shareSubstituteCollection,
+      sharedCollectionApi.loadSharedCollection,
+      sharedCollectionApi.loadSharedCollectionBoards,
+      importSharedCollection,
+      pendingSharedCollectionId,
+      setPendingSharedCollectionId,
+      clearPendingSharedCollection,
       zoom,
       setZoom,
       annotationActive,

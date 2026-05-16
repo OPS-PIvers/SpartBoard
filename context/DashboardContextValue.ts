@@ -14,6 +14,9 @@ import {
   AddWidgetOverrides,
   GridPosition,
   DrawableObject,
+  Collection,
+  CollectionSubstituteShareInput,
+  SharedCollection,
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
 import type { GoogleDriveService } from '../utils/googleDriveService';
@@ -297,6 +300,29 @@ export interface DashboardContextValue {
   pendingAssignmentEditId: string | null;
   setPendingAssignmentEdit: (assignmentId: string | null) => void;
   clearPendingAssignmentEdit: () => void;
+
+  // Collection sharing system
+  shareCollection: (input: {
+    collection: Collection;
+    boards: Dashboard[];
+  }) => Promise<string>;
+  shareSubstituteCollection: (
+    input: CollectionSubstituteShareInput & {
+      collection: Collection;
+      boards: Dashboard[];
+    }
+  ) => Promise<string>;
+  loadSharedCollection: (shareId: string) => Promise<SharedCollection | null>;
+  loadSharedCollectionBoards: (
+    shareId: string,
+    boardIds: string[]
+  ) => Promise<Dashboard[]>;
+  importSharedCollection: (
+    shareId: string
+  ) => Promise<{ collectionId: string } | null>;
+  pendingSharedCollectionId: string | null;
+  setPendingSharedCollectionId: (id: string | null) => void;
+  clearPendingSharedCollection: () => void;
 
   // Roster system
   rosters: ClassRoster[];

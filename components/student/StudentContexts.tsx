@@ -273,6 +273,19 @@ const mockDashboard: DashboardContextValue = {
   clearAllStickers: () => {
     // No-op
   },
+  // Collection sharing system mocks
+  shareCollection: () => Promise.resolve(''),
+  shareSubstituteCollection: () => Promise.resolve(''),
+  loadSharedCollection: () => Promise.resolve(null),
+  loadSharedCollectionBoards: () => Promise.resolve([]),
+  importSharedCollection: () => Promise.resolve(null),
+  pendingSharedCollectionId: null,
+  setPendingSharedCollectionId: () => {
+    // No-op
+  },
+  clearPendingSharedCollection: () => {
+    // No-op
+  },
   // Sharing system mocks
   shareDashboard: async () => {
     return Promise.reject(new Error('Sharing not implemented in student view'));
