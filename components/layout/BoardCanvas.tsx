@@ -122,6 +122,7 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
             <WidgetRenderer
               key={widget.id}
               widget={widget}
+              isActive={isActive}
               isStudentView={false}
               sessionCode={session?.code}
               isGlobalFrozen={session?.frozen ?? false}

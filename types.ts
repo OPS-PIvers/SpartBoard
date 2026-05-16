@@ -4803,6 +4803,15 @@ export interface WidgetComponentProps {
   studentPin?: string | null;
   isSpotlighted?: boolean;
   updateDashboardSettings?: (updates: Partial<DashboardSettings>) => void;
+  /**
+   * True when this widget's host Board is currently visible (active).
+   * False when the Board is mounted-but-hidden via the LRU cache.
+   * Resource-heavy widgets (Webcam, SoundWidget, SmartNotebook) gate their
+   * MediaStream/AudioContext/onSnapshot acquisitions on this flag. Phase C of
+   * Plan 2 wires it into those widgets; most widgets ignore it. Defaults to
+   * `true` so student-facing and non-LRU surfaces are unaffected.
+   */
+  isActive?: boolean;
 }
 
 export interface WidgetLayout {
