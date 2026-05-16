@@ -2681,6 +2681,12 @@ export interface QuizSession {
    * canonical answer in one batch.
    */
   scoreVisibility?: QuizScoreVisibility;
+  /**
+   * Mirror of QuizAssignment.protection so the student app — which only reads
+   * /quiz_sessions — can decide whether to mount watermark + tab-warning UI.
+   * Cleared by `unpublishAssignmentScores`.
+   */
+  protection?: ResultsProtection;
 }
 
 export interface QuizResponseAnswer {
@@ -2771,6 +2777,22 @@ export interface QuizResponse {
    * Used for maintaining quiz integrity.
    */
   tabSwitchWarnings?: number;
+  /**
+   * Number of tab-switch / focus-loss events the student has accumulated while
+   * viewing **published results**. Distinct from `tabSwitchWarnings`, which
+   * tracks tab switches during the active quiz-taking attempt. Server-rule
+   * enforced to only ever increase from a student write — teacher writes (via
+   * `unlockResultsForStudent`) can decrement.
+   */
+  resultsTabWarnings?: number;
+  /**
+   * True once `resultsTabWarnings` reaches `session.protection.tabWarningThreshold`.
+   * Read by the student app to redirect to My Assignments, and by the teacher's
+   * monitor to surface the lock badge + unlock affordance.
+   */
+  resultsLockedOut?: boolean;
+  /** Wall-clock ms when `resultsLockedOut` last flipped from false → true. */
+  resultsLockedOutAt?: number;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
   /**
@@ -3075,6 +3097,34 @@ export type QuizScoreVisibility =
   | 'score-responses-and-answers';
 
 /**
+ * Anti-screenshot protections applied to a student's view of published quiz
+ * results. Mirrored from QuizAssignment → QuizSession at publish time so the
+ * student app (which only reads sessions) can render protection without
+ * needing access to the teacher's assignment doc.
+ */
+export interface ResultsProtection {
+  /** Show a repeating low-opacity overlay with student name + publish timestamp. */
+  watermarkEnabled: boolean;
+  /** Detect visibility/focus changes and warn → lock student when threshold hit. */
+  tabWarningEnabled: boolean;
+  /**
+   * Number of warnings before lockout. 1–10 inclusive. Only meaningful when
+   * `tabWarningEnabled` is true. Defaults to 3 in the UI but persisted
+   * explicitly so historical assignments stay accurate after the default changes.
+   */
+  tabWarningThreshold: number;
+}
+
+export const RESULTS_PROTECTION_DEFAULTS: ResultsProtection = {
+  watermarkEnabled: true,
+  tabWarningEnabled: false,
+  tabWarningThreshold: 3,
+};
+
+export const RESULTS_TAB_WARNING_THRESHOLD_MIN = 1;
+export const RESULTS_TAB_WARNING_THRESHOLD_MAX = 10;
+
+/**
  * PLC linkage for a quiz assignment. Present iff the assignment is in PLC
  * mode (the originator opted into "Share with PLC" at create time, or the
  * importer is a member of the originator's PLC). The presence of this
@@ -3220,6 +3270,12 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * `QuizSession` doc by `publishAssignmentScores`.
    */
   scoreVisibility?: QuizScoreVisibility;
+  /**
+   * Anti-screenshot protections applied when results are visible to students.
+   * `undefined` = no protection (legacy assignments pre-feature). Mirrored to
+   * the session doc by `publishAssignmentScores`.
+   */
+  protection?: ResultsProtection;
   /**
    * Timestamp of the most recent `publishAssignmentScores` call. Used by
    * the archive UI to surface "Published <date>" text on cards whose
@@ -5166,6 +5222,13 @@ export type AssignmentModesConfig = Partial<
 export interface AppSettings {
   geminiDailyLimit: number;
   logoUrl?: string;
+  /**
+   * The protection settings the teacher last published with. Used as the
+   * pre-fill for the next "Publish Results" dialog so teachers don't have to
+   * re-pick on every publish. Initialised from `RESULTS_PROTECTION_DEFAULTS`
+   * if unset.
+   */
+  lastResultsProtection?: ResultsProtection;
 }
 
 /**
