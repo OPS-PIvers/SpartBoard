@@ -37,7 +37,7 @@ import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
 import { StylePanel } from './StylePanel';
-import { SidebarBoards } from './SidebarBoards';
+import { SidebarBoardsActive } from './SidebarBoardsActive';
 import { SidebarBackgrounds } from './SidebarBackgrounds';
 import { SidebarQuickAccess } from './SidebarQuickAccess';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
@@ -49,6 +49,7 @@ import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { PlcDashboard } from '@/components/plc/PlcDashboard';
+import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 
 type MenuSection =
   | 'main'
@@ -186,6 +187,7 @@ export const Sidebar: React.FC = () => {
   const [showAdminSettings, setShowAdminSettings] = useState(false);
   const [showShortLinkQuickCreate, setShowShortLinkQuickCreate] =
     useState(false);
+  const [isBoardsModalOpen, setIsBoardsModalOpen] = useState(false);
 
   // The currently-open PLC dashboard tracks against the live `plcs` array so
   // a feature toggle by another member shows up immediately. If the PLC
@@ -329,6 +331,10 @@ export const Sidebar: React.FC = () => {
           plc={openPlcDashboardPlc}
           onClose={() => setOpenPlcDashboardId(null)}
         />
+      )}
+
+      {isBoardsModalOpen && (
+        <BoardsModal onClose={() => setIsBoardsModalOpen(false)} />
       )}
 
       {isOpen && (
@@ -573,7 +579,14 @@ export const Sidebar: React.FC = () => {
               </nav>
 
               {/* BOARDS SECTION */}
-              <SidebarBoards isVisible={activeSection === 'boards'} />
+              <SidebarBoardsActive
+                isVisible={activeSection === 'boards'}
+                onOpenModal={() => {
+                  setIsBoardsModalOpen(true);
+                  setIsOpen(false);
+                  setActiveSection('main');
+                }}
+              />
 
               {/* BACKGROUNDS SECTION */}
               <SidebarBackgrounds isVisible={activeSection === 'backgrounds'} />

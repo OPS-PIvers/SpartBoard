@@ -124,14 +124,31 @@ export interface DashboardContextValue {
     action?: Toast['action']
   ) => void;
   removeToast: (id: string) => void;
-  createNewDashboard: (name: string, data?: Dashboard) => Promise<void>;
+  createNewDashboard: (
+    name: string,
+    data?: Dashboard,
+    options?: { collectionId?: string | null }
+  ) => Promise<string | undefined>;
   saveCurrentDashboard: () => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;
   duplicateDashboard: (id: string) => Promise<void>;
   renameDashboard: (id: string, name: string) => Promise<void>;
   loadDashboard: (id: string) => void;
   reorderDashboards: (ids: string[]) => Promise<void>;
-  setDefaultDashboard: (id: string) => void;
+  setDefaultDashboard: (
+    boardId: string,
+    options?: { silent?: boolean }
+  ) => Promise<void>;
+  moveBoardToCollection: (
+    boardId: string,
+    collectionId: string | null,
+    options?: { silent?: boolean }
+  ) => Promise<void>;
+  pinBoard: (boardId: string, options?: { silent?: boolean }) => Promise<void>;
+  unpinBoard: (
+    boardId: string,
+    options?: { silent?: boolean }
+  ) => Promise<void>;
   resetDockToDefaults: () => void;
   addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void;
   addWidgets: (

@@ -4867,7 +4867,12 @@ export interface WidgetData {
   customTitle?: string | null;
   isLive?: boolean;
   isLocked?: boolean; // When true: widget cannot be moved, resized, or deleted by end-users
-  isPinned?: boolean; // User-pinned: drag, resize, maximize, snap disabled
+  /**
+   * User-pinned widget: drag, resize, maximize, and snap are disabled. This is
+   * a widget-level interaction lock — distinct from `Dashboard.isPinned`, which
+   * marks a Board for the modal/FAB Pinned quick-access section.
+   */
+  isPinned?: boolean;
   transparency?: number;
   annotation?: DrawingConfig;
   /** Override which building's admin defaults this widget uses (falls back to user's primary building) */
@@ -4944,6 +4949,18 @@ export interface UserProfile {
   savedWidgetConfigs?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** True after the user has completed the first-time setup wizard */
   setupCompleted?: boolean;
+  /**
+   * The Collection the teacher was most recently in. App-open restores
+   * this. `null` means "root level (no collection)". Set by
+   * `loadDashboard` in DashboardContext when a Board is opened.
+   */
+  lastActiveCollectionId?: string | null;
+  /**
+   * Per-Collection last-visited Board memory. Keys are Collection ids
+   * (or {@link ROOT_COLLECTION_KEY} for root-level Boards).
+   * Populated whenever a Board within a Collection is opened.
+   */
+  lastBoardIdByCollection?: Record<string, string>;
   /** Skip the confirmation dialog when closing widgets (account-level) */
   disableCloseConfirmation?: boolean;
   /** Whether remote control is enabled for all boards (account-level) */
@@ -4980,6 +4997,14 @@ export interface UserProfile {
   dockInitialized?: boolean;
 }
 
+/**
+ * Sentinel key used in {@link UserProfile.lastBoardIdByCollection} for
+ * root-level Boards (those with no Collection). All read/write sites of the
+ * `lastBoardIdByCollection` map must use this constant instead of a literal
+ * string to prevent silent typo bugs.
+ */
+export const ROOT_COLLECTION_KEY = '__root__' as const;
+
 export interface SharedGroup {
   id: string;
   name: string;
@@ -5013,6 +5038,19 @@ export interface Dashboard {
   createdAt: number;
   isDefault?: boolean;
   order?: number;
+  /**
+   * Parent collection id, or `null` for root-level Boards (no collection).
+   * Optional during the migration window; populated by
+   * `collectionsMigration.ts` the first time a legacy dashboard loads.
+   */
+  collectionId?: string | null;
+  /**
+   * When true, this Board appears in the Pinned section of the modal and
+   * the FAB kebab popover (Plan 2). Independent of `collectionId` — pinned
+   * Boards still belong to their Collection. Distinct from
+   * `WidgetData.isPinned`, which is a widget-level interaction lock.
+   */
+  isPinned?: boolean;
   settings?: DashboardSettings;
   libraryOrder?: (WidgetType | InternalToolType)[];
   updatedAt?: number;
@@ -6025,6 +6063,37 @@ export interface LibraryFolder {
   /** Epoch ms at create. */
   createdAt: number;
   /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
+  updatedAt?: number;
+}
+
+/**
+ * A Board collection (folder) stored at
+ * `/users/{userId}/collections/{collectionId}`.
+ *
+ * Collections are nestable: `parentCollectionId === null` means root-level.
+ * Sibling collections within a given parent are ordered by `order` ascending.
+ *
+ * `defaultBoardId` is the Board that loads when a teacher first enters this
+ * Collection (before any per-Collection history is recorded). Only one Board
+ * per Collection may be the default; the constraint is enforced in
+ * `useCollections.setCollectionDefaultBoard`.
+ */
+export interface Collection {
+  id: string;
+  name: string;
+  /** Parent collection id, or `null` for root-level collections. */
+  parentCollectionId: string | null;
+  /** Sort order among siblings (ascending). */
+  order: number;
+  /** Optional accent color (any CSS color string, e.g. '#ad2122'). */
+  color?: string;
+  /** Optional lucide-react icon name (e.g., 'BookOpen'). */
+  icon?: string;
+  /** Board id to load on first entry to this collection. */
+  defaultBoardId?: string;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last rename / move / reorder / metadata change. */
   updatedAt?: number;
 }
 

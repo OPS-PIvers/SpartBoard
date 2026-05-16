@@ -68,6 +68,8 @@ const mockAuth: AuthContextType = {
   updateAccountPreferences: async () => {
     // No-op in student view
   },
+  lastActiveCollectionId: undefined,
+  lastBoardIdByCollection: undefined,
   orgId: null,
   roleId: null,
   isStudentRole: false,
@@ -100,9 +102,7 @@ const mockDashboard: DashboardContextValue = {
   removeToast: () => {
     // No-op
   },
-  createNewDashboard: async () => {
-    // No-op
-  },
+  createNewDashboard: () => Promise.resolve(undefined),
   saveCurrentDashboard: async () => {
     // No-op
   },
@@ -121,7 +121,16 @@ const mockDashboard: DashboardContextValue = {
   reorderDashboards: async () => {
     // No-op
   },
-  setDefaultDashboard: () => {
+  setDefaultDashboard: async () => {
+    // No-op
+  },
+  moveBoardToCollection: async () => {
+    // No-op
+  },
+  pinBoard: async () => {
+    // No-op
+  },
+  unpinBoard: async () => {
     // No-op
   },
   resetDockToDefaults: () => {

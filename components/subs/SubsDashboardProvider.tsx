@@ -244,7 +244,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       createNewDashboard: NOOP_ASYNC as (
         name: string,
         data?: Dashboard
-      ) => Promise<void>,
+      ) => Promise<string | undefined>,
       saveCurrentDashboard: NOOP_ASYNC,
       deleteDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
       duplicateDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
@@ -254,7 +254,13 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       ) => Promise<void>,
       loadDashboard: NOOP,
       reorderDashboards: NOOP_ASYNC as (ids: string[]) => Promise<void>,
-      setDefaultDashboard: NOOP,
+      setDefaultDashboard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      moveBoardToCollection: NOOP_ASYNC as (
+        boardId: string,
+        collectionId: string | null
+      ) => Promise<void>,
+      pinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      unpinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
       resetDockToDefaults: NOOP,
       setGradeFilter: NOOP,
 

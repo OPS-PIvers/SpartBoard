@@ -23,8 +23,9 @@ import {
   DrawableObject,
   UserProfile,
   SubstituteShareDriveGrant,
+  ROOT_COLLECTION_KEY,
 } from '../types';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from './useAuth';
 import { mergeWidgetConfig } from '../utils/widgetConfigPersistence';
@@ -54,6 +55,8 @@ import {
   mergeDashboardPII,
   dashboardHasPII,
 } from '../utils/dashboardPII';
+import { migrateBoardForCollections } from '../utils/collectionsMigration';
+import { logError } from '../utils/logError';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
@@ -333,6 +336,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedWidgetIds, setSelectedWidgetIds] = useState<string[]>([]);
   const [groupBuildMode, setGroupBuildMode] = useState(false);
   const dashboardsRef = useRef(dashboards);
+  dashboardsRef.current = dashboards;
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
@@ -1363,9 +1367,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
         const { vpW, vpH } = getCurrentViewport();
         const migratedDashboards = sortedDashboards.map((db) => {
+          const collectionsMigrated = migrateBoardForCollections(db);
           const widgetMigrated: Dashboard = {
-            ...db,
-            widgets: db.widgets.map(migrateWidget),
+            ...collectionsMigrated,
+            widgets: collectionsMigrated.widgets.map(migrateWidget),
           };
           return hydrateDashboardForViewport(widgetMigrated, vpW, vpH);
         });
@@ -3034,10 +3039,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   );
 
   const createNewDashboard = useCallback(
-    async (name: string, data?: Dashboard) => {
+    async (
+      name: string,
+      data?: Dashboard,
+      options?: { collectionId?: string | null }
+    ): Promise<string | undefined> => {
       if (!user) {
         addToast('Must be signed in to create dashboard', 'error');
-        return;
+        return undefined;
       }
 
       const maxOrder = dashboards.reduce(
@@ -3045,8 +3054,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         0
       );
 
+      // Resolving collectionId up front lets us write the new Board into its
+      // target Collection in a single Firestore write — no second round-trip
+      // through moveBoardToCollection.
+      const collectionId = options?.collectionId ?? null;
+
       const newDb: Dashboard = data
-        ? { ...data, id: crypto.randomUUID(), name, order: maxOrder + 1 }
+        ? {
+            ...data,
+            id: crypto.randomUUID(),
+            name,
+            order: maxOrder + 1,
+            collectionId,
+          }
         : {
             id: crypto.randomUUID(),
             name,
@@ -3054,15 +3074,23 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             widgets: [],
             createdAt: Date.now(),
             order: maxOrder + 1,
+            collectionId,
+            isPinned: false,
           };
 
       try {
         await saveDashboard(newDb);
         updateActiveId(newDb.id);
         addToast(`Dashboard "${name}" ready`);
+        return newDb.id;
       } catch (err) {
-        console.error('Failed to create dashboard:', err);
+        logError('DashboardContext.createNewDashboard', err, {
+          uid: user.uid,
+          name,
+          collectionId,
+        });
         addToast('Failed to create dashboard', 'error');
+        return undefined;
       }
     },
     [user, dashboards, saveDashboard, addToast, updateActiveId]
@@ -3222,35 +3250,195 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, saveDashboards]
   );
 
+  // `options.silent` suppresses the success + error toast surfaced by the
+  // action itself. Rollback + logError + throw still happen. Bulk callers
+  // (Promise.allSettled fan-out) pass `silent: true` and rely on their own
+  // aggregate "Updated N — M failed" toast to avoid per-item notification
+  // spam (notification blindness is itself a silent-failure mode).
   const setDefaultDashboard = useCallback(
-    (id: string) => {
-      if (!user) return;
+    async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      const target = dashboards.find((d) => d.id === boardId);
+      if (!target) return;
+      const targetCollectionId = target.collectionId ?? null;
 
-      const updatedDashboards = dashboards.map((db) => ({
-        ...db,
-        isDefault: db.id === id,
-      }));
+      // Snapshot the previous default-flags so we can roll back if the
+      // Firestore batch fails. Without this snapshot, a failed commit
+      // leaves local state diverged from Firestore until the next snapshot.
+      const prevDefaults = new Map(
+        dashboards
+          .filter((d) => (d.collectionId ?? null) === targetCollectionId)
+          .map((d) => [d.id, d.isDefault] as const)
+      );
 
-      // Update local state
-      setDashboards(
-        [...updatedDashboards].sort((a, b) => {
-          const orderA = a.order ?? 0;
-          const orderB = b.order ?? 0;
-          if (orderA !== orderB) return orderA - orderB;
-          if (a.isDefault && !b.isDefault) return -1;
-          if (!a.isDefault && b.isDefault) return 1;
-          return (b.createdAt || 0) - (a.createdAt || 0);
+      // Optimistic local state update: clear isDefault on siblings, set on target.
+      setDashboards((prev) =>
+        prev.map((d) => {
+          const dColl = d.collectionId ?? null;
+          if (dColl === targetCollectionId) {
+            return { ...d, isDefault: d.id === boardId };
+          }
+          return d;
         })
       );
 
-      // Save to Firestore
-      void saveDashboards(updatedDashboards).catch((err) => {
-        console.error('Failed to save default dashboard status:', err);
+      if (isAuthBypass) {
+        if (!options?.silent) addToast('Default board updated', 'success');
+        return;
+      }
+
+      const batch = writeBatch(db);
+      const now = Date.now();
+
+      dashboards.forEach((d) => {
+        const dColl = d.collectionId ?? null;
+        if (dColl === targetCollectionId && d.isDefault && d.id !== boardId) {
+          batch.update(doc(db, 'users', user.uid, 'dashboards', d.id), {
+            isDefault: false,
+            updatedAt: now,
+          });
+        }
+      });
+      batch.update(doc(db, 'users', user.uid, 'dashboards', boardId), {
+        isDefault: true,
+        updatedAt: now,
       });
 
-      addToast('Default board updated');
+      try {
+        await batch.commit();
+        if (!options?.silent) addToast('Default board updated', 'success');
+      } catch (err) {
+        logError('DashboardContext.setDefaultDashboard', err, {
+          uid: user.uid,
+          boardId,
+        });
+        // Roll back the optimistic state so the UI matches Firestore again.
+        setDashboards((prev) =>
+          prev.map((d) =>
+            prevDefaults.has(d.id)
+              ? { ...d, isDefault: prevDefaults.get(d.id) ?? false }
+              : d
+          )
+        );
+        if (!options?.silent) addToast('Failed to set default board', 'error');
+        throw err;
+      }
     },
-    [user, dashboards, saveDashboards, addToast]
+    [user?.uid, dashboards, addToast]
+  );
+
+  const moveBoardToCollection = useCallback(
+    async (
+      boardId: string,
+      collectionId: string | null,
+      options?: { silent?: boolean }
+    ): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      const prev = dashboards.find((d) => d.id === boardId);
+      if (!prev) return;
+      const prevCollectionId = prev.collectionId ?? null;
+      // No-op when the board is already in the target Collection. Avoids a
+      // wasted Firestore write (school-district cost) and a lying "Moved"
+      // toast when the user re-picks the same destination.
+      if (prevCollectionId === collectionId) return;
+
+      setDashboards((curr) =>
+        curr.map((d) => (d.id === boardId ? { ...d, collectionId } : d))
+      );
+      if (isAuthBypass) return;
+
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+          collectionId,
+          updatedAt: Date.now(),
+        });
+      } catch (err) {
+        logError('DashboardContext.moveBoardToCollection', err, {
+          uid: user.uid,
+          boardId,
+          fromCollectionId: prevCollectionId,
+          toCollectionId: collectionId,
+        });
+        // Roll back the optimistic state so the dragged board returns to its
+        // original Collection on screen.
+        setDashboards((curr) =>
+          curr.map((d) =>
+            d.id === boardId ? { ...d, collectionId: prevCollectionId } : d
+          )
+        );
+        if (!options?.silent) addToast('Failed to move board', 'error');
+        throw err;
+      }
+    },
+    [user?.uid, dashboards, addToast]
+  );
+
+  const pinBoard = useCallback(
+    async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      const prev = dashboards.find((d) => d.id === boardId);
+      const prevPinned = prev?.isPinned ?? false;
+      if (prevPinned) return; // already pinned — skip the write
+
+      setDashboards((curr) =>
+        curr.map((d) => (d.id === boardId ? { ...d, isPinned: true } : d))
+      );
+      if (isAuthBypass) return;
+
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+          isPinned: true,
+          updatedAt: Date.now(),
+        });
+      } catch (err) {
+        logError('DashboardContext.pinBoard', err, {
+          uid: user.uid,
+          boardId,
+        });
+        setDashboards((curr) =>
+          curr.map((d) =>
+            d.id === boardId ? { ...d, isPinned: prevPinned } : d
+          )
+        );
+        if (!options?.silent) addToast('Failed to pin board', 'error');
+        throw err;
+      }
+    },
+    [user?.uid, dashboards, addToast]
+  );
+
+  const unpinBoard = useCallback(
+    async (boardId: string, options?: { silent?: boolean }): Promise<void> => {
+      if (!user?.uid) throw new Error('Not authenticated');
+      const prev = dashboards.find((d) => d.id === boardId);
+      const prevPinned = prev?.isPinned ?? false;
+      if (!prevPinned) return; // already unpinned — skip the write
+
+      setDashboards((curr) =>
+        curr.map((d) => (d.id === boardId ? { ...d, isPinned: false } : d))
+      );
+      if (isAuthBypass) return;
+
+      try {
+        await updateDoc(doc(db, 'users', user.uid, 'dashboards', boardId), {
+          isPinned: false,
+          updatedAt: Date.now(),
+        });
+      } catch (err) {
+        logError('DashboardContext.unpinBoard', err, {
+          uid: user.uid,
+          boardId,
+        });
+        setDashboards((curr) =>
+          curr.map((d) =>
+            d.id === boardId ? { ...d, isPinned: prevPinned } : d
+          )
+        );
+        if (!options?.silent) addToast('Failed to unpin board', 'error');
+        throw err;
+      }
+    },
+    [user?.uid, dashboards, addToast]
   );
 
   const resetDockToDefaults = useCallback(() => {
@@ -3274,8 +3462,44 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     (id: string) => {
       updateActiveId(id);
       addToast('Board loaded');
+      // Persist navigation memory (lastActiveCollectionId + per-Collection
+      // last Board) only once the profile has been loaded. Writing earlier
+      // races with AuthContext.loadProfile and can overwrite the freshly-read
+      // values with a stale {merge: true} write before the read completes.
+      if (!user?.uid || isAuthBypass) return;
+      if (!profileLoaded) {
+        // Tripwire: today App.tsx blocks render until profileLoaded === true
+        // so this branch should be unreachable. If it ever fires, the
+        // navigation-memory write is silently dropped and the user will land
+        // on a stale Board on next session — log so we notice in telemetry
+        // before users do.
+        logError(
+          'DashboardContext.loadDashboard.skippedPreProfile',
+          new Error('loadDashboard called before profileLoaded'),
+          { uid: user.uid, boardId: id }
+        );
+        return;
+      }
+      const target = dashboardsRef.current.find((d) => d.id === id);
+      if (target) {
+        const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
+        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+        const updates: Record<string, unknown> = {
+          lastActiveCollectionId: target.collectionId ?? null,
+          [`lastBoardIdByCollection.${collectionKey}`]: id,
+        };
+        void setDoc(profileRef, updates, { merge: true }).catch(
+          (err: unknown) => {
+            logError('DashboardContext.loadDashboard.persistLastActive', err, {
+              uid: user.uid,
+              boardId: id,
+              collectionId: target.collectionId ?? null,
+            });
+          }
+        );
+      }
     },
-    [addToast, updateActiveId]
+    [addToast, updateActiveId, user, profileLoaded]
   );
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
@@ -4279,6 +4503,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadDashboard,
       reorderDashboards,
       setDefaultDashboard,
+      moveBoardToCollection,
+      pinBoard,
+      unpinBoard,
       resetDockToDefaults,
       addWidget,
       addWidgets,
@@ -4385,6 +4612,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       loadDashboard,
       reorderDashboards,
       setDefaultDashboard,
+      moveBoardToCollection,
+      pinBoard,
+      unpinBoard,
       resetDockToDefaults,
       addWidget,
       addWidgets,
