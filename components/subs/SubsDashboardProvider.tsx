@@ -261,6 +261,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       ) => Promise<void>,
       pinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
       unpinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      setActiveCollectionId: NOOP,
       resetDockToDefaults: NOOP,
       setGradeFilter: NOOP,
 

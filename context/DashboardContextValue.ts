@@ -149,6 +149,7 @@ export interface DashboardContextValue {
     boardId: string,
     options?: { silent?: boolean }
   ) => Promise<void>;
+  setActiveCollectionId: (collectionId: string | null) => void;
   resetDockToDefaults: () => void;
   addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void;
   addWidgets: (

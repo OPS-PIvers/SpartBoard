@@ -3579,6 +3579,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [addToast, updateActiveId, user, profileLoaded]
   );
 
+  const setActiveCollectionId = useCallback(
+    (nextCollectionId: string | null) => {
+      // Reuse pickInitialBoard but force its lastActiveCollectionId arg to
+      // the new Collection — this picks the per-Collection remembered
+      // Board (or the right fallback) without an extra Firestore read.
+      const target = pickInitialBoard(
+        dashboards,
+        nextCollectionId,
+        lastBoardIdByCollection,
+        collections
+      );
+      if (target) loadDashboard(target.id);
+    },
+    [dashboards, lastBoardIdByCollection, collections, loadDashboard]
+  );
+
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
   // True when the user is viewing a board they joined as a viewer in
@@ -4583,6 +4599,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      setActiveCollectionId,
       resetDockToDefaults,
       addWidget,
       addWidgets,
@@ -4692,6 +4709,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       moveBoardToCollection,
       pinBoard,
       unpinBoard,
+      setActiveCollectionId,
       resetDockToDefaults,
       addWidget,
       addWidgets,

@@ -133,6 +133,9 @@ const mockDashboard: DashboardContextValue = {
   unpinBoard: async () => {
     // No-op
   },
+  setActiveCollectionId: () => {
+    // No-op
+  },
   resetDockToDefaults: () => {
     // No-op
   },
