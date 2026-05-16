@@ -300,10 +300,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [pendingSharedCollectionId, setPendingSharedCollectionId] = useState<
     string | null
-  >(null);
+  >(() => {
+    if (typeof window === 'undefined') return null;
+    const path = window.location.pathname;
+    if (path.startsWith('/share-collection/')) {
+      return path.split('/share-collection/')[1] || null;
+    }
+    return null;
+  });
 
   const clearPendingSharedCollection = useCallback(() => {
     setPendingSharedCollectionId(null);
+    window.history.replaceState(null, '', '/');
   }, []);
 
   const clearPendingQuizShare = useCallback(() => {
