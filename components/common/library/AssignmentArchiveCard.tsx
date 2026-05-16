@@ -277,14 +277,25 @@ export function AssignmentArchiveCard<TAssignment>({
             >
               {PrimaryIcon && <PrimaryIcon size={12} className="shrink-0" />}
               <span>{primaryAction.label}</span>
+              {/* Screen-reader copy of the badge count — the visible pill is a
+                  sibling of the button (so it can render *outside* the button's
+                  layout bounds) and therefore isn't part of the button's
+                  accessible name. This sr-only node appends the count to the
+                  label so a focused screen reader hears "Monitor, 3 students
+                  locked" rather than just "Monitor". */}
+              {typeof primaryAction.badgeCount === 'number' &&
+                primaryAction.badgeCount > 0 && (
+                  <span className="sr-only">
+                    {', '}
+                    {primaryAction.badgeAriaLabel ??
+                      `${primaryAction.badgeCount} item${primaryAction.badgeCount === 1 ? '' : 's'} need attention`}
+                  </span>
+                )}
             </button>
             {typeof primaryAction.badgeCount === 'number' &&
               primaryAction.badgeCount > 0 && (
                 <span
-                  aria-label={
-                    primaryAction.badgeAriaLabel ??
-                    `${primaryAction.badgeCount} item${primaryAction.badgeCount === 1 ? '' : 's'} need attention`
-                  }
+                  aria-hidden="true"
                   className="pointer-events-none absolute -right-1.5 -top-1.5 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ring-1 ring-white"
                 >
                   {primaryAction.badgeCount}

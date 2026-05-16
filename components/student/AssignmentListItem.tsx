@@ -213,17 +213,70 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 
   const isGraded = assignment.gradingState === 'graded';
 
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
-    if (!lockedOut) return;
-    // Quiz results have been locked by the teacher (Task 10). Block the
-    // navigation and explain what happened — the student can still see the
-    // row in their list, but can't open the results view.
-    e.preventDefault();
-    e.stopPropagation();
+  /**
+   * Re-check the live `resultsLockedOut` state from Firestore before either
+   * blocking the click or surfacing the alert. Our row-level `lockedOut`
+   * comes from a one-shot `getDoc` during the completion check and never
+   * subscribes to changes — so if the teacher has unlocked the response
+   * since the page rendered, the stale flag would otherwise strand the
+   * student behind a "Locked" badge until they refreshed. On any error
+   * (network, missing doc, etc.) we fall through to the alert as if still
+   * locked — failing closed is safer than allowing access on an unknown.
+   */
+  const recheckLockAndProceed = async (): Promise<void> => {
+    if (!responseSub || docIdStrategy === 'none' || !pseudonymUid) {
+      void showAlert(
+        'Locked by your teacher. Ask them to unlock your results.',
+        { title: 'Results locked', variant: 'warning' }
+      );
+      return;
+    }
+    try {
+      const docId =
+        docIdStrategy === 'assignment-pseudonym'
+          ? await getCachedPseudonym(assignment.sessionId, pseudonymUid)
+          : pseudonymUid;
+      const snap = await getDoc(
+        doc(db, config.collectionName, assignment.sessionId, responseSub, docId)
+      );
+      const stillLocked =
+        snap.exists() && snap.data()?.resultsLockedOut === true;
+      if (!stillLocked) {
+        setLockedOut(false);
+        // Teacher has unlocked since our initial check. Since we stripped
+        // `href` to defeat middle-click bypass, navigate programmatically.
+        window.location.assign(assignment.openHref);
+        return;
+      }
+    } catch {
+      // Fall through to alert — treat unknown as still locked.
+    }
     void showAlert('Locked by your teacher. Ask them to unlock your results.', {
       title: 'Results locked',
       variant: 'warning',
     });
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (!lockedOut) return;
+    // Quiz results have been locked by the teacher (Task 10). Block the
+    // default navigation, then re-check the live state — the teacher may
+    // have unlocked since the row's initial completion check resolved.
+    e.preventDefault();
+    e.stopPropagation();
+    void recheckLockAndProceed();
+  };
+
+  // An <a> without href is no longer in the natural tab order. To keep the
+  // locked row reachable by keyboard, we force `tabIndex={0}` and handle
+  // Enter / Space ourselves so screen-reader / keyboard users get the same
+  // re-check-and-alert behavior as mouse users.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLAnchorElement>): void => {
+    if (!lockedOut) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    void recheckLockAndProceed();
   };
 
   return (
@@ -231,9 +284,14 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
       // Omit href entirely when locked so middle-click, cmd-click, ctrl-click,
       // and shift-click can't bypass the onClick guard (which only blocks
       // primary-button left clicks). An hrefless <a> is non-navigable in all
-      // click modes, making aria-disabled semantically truthful.
+      // click modes, making aria-disabled semantically truthful. We then
+      // restore keyboard focusability via tabIndex={0} so the row stays
+      // reachable by Tab — see handleKeyDown for Enter/Space handling.
       href={lockedOut ? undefined : assignment.openHref}
       onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={lockedOut ? 0 : undefined}
+      role={lockedOut ? 'button' : undefined}
       aria-busy={isPending ? true : undefined}
       aria-disabled={lockedOut ? true : undefined}
       className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
