@@ -71,6 +71,7 @@ import { MatchingResponseInput } from './MatchingResponseInput';
 import { OrderingResponseInput } from './OrderingResponseInput';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
+import { ResultsWatermark } from './ResultsWatermark';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -2561,6 +2562,39 @@ const PublishedScoreReview: React.FC<{
     (a) => autoGradedQuestionIds.has(a.questionId) && a.isCorrect === true
   ).length;
 
+  // Watermark overlay — rendered above content via fixed positioning, below
+  // any future modal dialogs (z-50, well below `Z_INDEX.modal`/`Z_INDEX.toast`
+  // from `config/zIndex.ts`). Strictly decorative + pointer-events-none, so
+  // it doesn't interfere with scrolling, focus, or selection beneath it.
+  // Student display name is best-effort: SSO joiners carry an
+  // `auth.currentUser.displayName`; anonymous PIN joiners fall back to their
+  // PIN; otherwise we use a generic 'Student' label. The watermark is
+  // informational — its job is to discourage shared screenshots, not to
+  // authenticate.
+  const watermarkEnabled = session.protection?.watermarkEnabled === true;
+  // Snapshot `Date.now()` once per mount when the session has no
+  // `scorePublishedAt` (legacy / mid-publish). Calling `Date.now()` directly
+  // in render is impure and trips react-hooks/purity. Wrapping in `useMemo`
+  // with a stable dep makes the fallback deterministic for the lifetime of
+  // this view — a tiny inaccuracy on the watermark stamp vs. the eventual
+  // real publish time, which the listener will update naturally on the next
+  // render once the field arrives.
+  const sessionPublishedAt = session.scorePublishedAt;
+  // Lazy-init via `useState` keeps the fallback timestamp stable across
+  // re-renders without calling `Date.now()` in render (which would violate
+  // react-hooks/purity). `useState(fn)` runs `fn` exactly once at mount.
+  const [fallbackPublishedAt] = useState(() => Date.now());
+  const publishedAt = sessionPublishedAt ?? fallbackPublishedAt;
+  // Treat blank/whitespace-only displayName as missing so we still fall through
+  // to the PIN label when an SSO provider returns an empty string.
+  const trimmedDisplayName = auth.currentUser?.displayName?.trim() ?? '';
+  const watermarkStudentName =
+    trimmedDisplayName.length > 0
+      ? trimmedDisplayName
+      : pin
+        ? `PIN ${pin}`
+        : 'Student';
+
   // Per-question cards dominate this view (snapshot + teacher
   // annotations + score + comment block), so the container is sized
   // generously — written-response reviews benefit much more from
@@ -2570,6 +2604,12 @@ const PublishedScoreReview: React.FC<{
   // active-quiz screen uses — see comment there for why.
   return (
     <div className="h-screen overflow-y-auto overflow-x-hidden bg-slate-900 px-4 py-8 sm:px-6 sm:py-12">
+      {watermarkEnabled && (
+        <ResultsWatermark
+          studentName={watermarkStudentName}
+          publishedAt={publishedAt}
+        />
+      )}
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
           <Trophy className="mb-4 h-12 w-12 text-amber-400" />

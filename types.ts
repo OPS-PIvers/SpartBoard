@@ -2687,6 +2687,14 @@ export interface QuizSession {
    * Cleared by `unpublishAssignmentScores`.
    */
   protection?: ResultsProtection;
+  /**
+   * Server-set timestamp for the most recent `publishAssignmentScores` call.
+   * Mirrored from the assignment doc so the student app (which only reads
+   * `/quiz_sessions`) can stamp the watermark with a publish time without
+   * needing access to the teacher's assignment doc. Cleared by
+   * `unpublishAssignmentScores`.
+   */
+  scorePublishedAt?: number;
 }
 
 export interface QuizResponseAnswer {
