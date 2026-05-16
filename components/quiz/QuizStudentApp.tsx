@@ -72,6 +72,8 @@ import { OrderingResponseInput } from './OrderingResponseInput';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { ResultsWatermark } from './ResultsWatermark';
+import { ResultsTabWarningModal } from './ResultsTabWarningModal';
+import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -2589,6 +2591,53 @@ const PublishedScoreReview: React.FC<{
         ? `PIN ${pin}`
         : 'Student';
 
+  // ─── Tab-switch warning protection ─────────────────────────────────────────
+  // Listens for visibility/focus loss; each return increments the warning
+  // counter on the response doc and (at threshold) flips `resultsLockedOut`
+  // true. The modal pops only when the count goes UP while the student is
+  // viewing this page — we seed `shownForCount` from the persisted value at
+  // mount so a stale count from a previous session doesn't auto-pop the modal
+  // on first render. Lockout flips trigger a redirect to /my-assignments,
+  // where the row will render in its locked state.
+  const tabWarningEnabled = session.protection?.tabWarningEnabled === true;
+  const threshold = session.protection?.tabWarningThreshold ?? 3;
+  const currentWarnings = myResponse.resultsTabWarnings ?? 0;
+  const lockedOut = myResponse.resultsLockedOut === true;
+
+  const [shownForCount, setShownForCount] = useState(() => currentWarnings);
+  const modalOpen =
+    tabWarningEnabled && currentWarnings > shownForCount && !lockedOut;
+
+  // `myResponse._responseKey` is the Firestore doc id, populated at read time
+  // by the session-student listener (see `useQuizSession.ts` L1065). The path
+  // mirrors how the response listener constructs its doc ref.
+  const responseKey = myResponse._responseKey;
+  useResultsTabWarnings({
+    enabled: tabWarningEnabled && Boolean(responseKey),
+    threshold,
+    currentWarnings,
+    lockedOut,
+    responseDocPath: responseKey
+      ? `quiz_sessions/${session.id}/responses/${responseKey}`
+      : '',
+  });
+
+  // Lockout → redirect. The MyAssignments page will show the locked card.
+  // We set the saved filter to 'completed' first so the student lands on the
+  // tab that actually contains the locked row (active-tab would hide it).
+  // No react-router in this app — match the existing `window.location.assign`
+  // pattern used by `ReturnToAssignmentsButton`.
+  useEffect(() => {
+    if (!lockedOut) return;
+    try {
+      window.sessionStorage.setItem('sb_my_assignments_filter', 'completed');
+    } catch {
+      // sessionStorage may be disabled (privacy mode); the page will just
+      // open on its default filter, which is fine.
+    }
+    window.location.assign('/my-assignments');
+  }, [lockedOut]);
+
   // Per-question cards dominate this view (snapshot + teacher
   // annotations + score + comment block), so the container is sized
   // generously — written-response reviews benefit much more from
@@ -2604,6 +2653,12 @@ const PublishedScoreReview: React.FC<{
           publishedAt={publishedAt}
         />
       )}
+      <ResultsTabWarningModal
+        open={modalOpen}
+        warningCount={currentWarnings}
+        threshold={threshold}
+        onDismiss={() => setShownForCount(currentWarnings)}
+      />
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-6 flex flex-col items-center text-center">
           <Trophy className="mb-4 h-12 w-12 text-amber-400" />
