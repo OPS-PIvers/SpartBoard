@@ -24,7 +24,6 @@ import {
   UserProfile,
   SubstituteShareDriveGrant,
   ROOT_COLLECTION_KEY,
-  Collection,
 } from '../types';
 import { doc, getDoc, setDoc, updateDoc, writeBatch } from 'firebase/firestore';
 import { db, isAuthBypass } from '../config/firebase';
@@ -62,6 +61,7 @@ import { logError } from '../utils/logError';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
 import { useDriveReconnected } from '../hooks/useDriveReconnected';
+import { useCollections } from '../hooks/useCollections';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
 import {
   setAiModelConfigFallbackHandler,
@@ -239,6 +239,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     stopSharingBoard,
   } = useFirestore(user?.uid ?? null);
 
+  const { collections } = useCollections(user?.uid);
+
   const [dashboards, setDashboards] = useState<Dashboard[]>([]);
   const [pendingShareId, setPendingShareId] = useState<string | null>(() => {
     if (typeof window === 'undefined') return null;
@@ -352,9 +354,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   lastActiveCollectionIdRef.current = lastActiveCollectionId;
   const lastBoardIdByCollectionRef = useRef(lastBoardIdByCollection);
   lastBoardIdByCollectionRef.current = lastBoardIdByCollection;
-  const collectionsRef = useRef<Collection[]>([]);
-  // collectionsRef stays empty here; Task 0.4 will populate it from
-  // useCollections(user?.uid) once that hook is wired into this provider.
+  const collectionsRef = useRef(collections);
+  collectionsRef.current = collections;
+  // Hoisted here (not inside the Task 0.4 effect) so the snapshot callback can
+  // also set it — preventing a second Firestore churn from double-picking.
+  const initialBoardSelectedRef = useRef(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
@@ -1813,7 +1817,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
               lastBoardIdByCollectionRef.current,
               collectionsRef.current
             );
-            if (initial) updateActiveId(initial.id);
+            if (initial) {
+              updateActiveId(initial.id);
+              initialBoardSelectedRef.current = true;
+            }
           }
         }
 
@@ -1917,6 +1924,45 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     roleId,
     isStudentRole,
     roleResolved,
+  ]);
+
+  // One-shot upgrade of the initial Board choice once profile + collections
+  // are both available. Runs at most once — guarded by `initialBoardSelectedRef`
+  // so a subsequent profile refresh doesn't yank the teacher to a different
+  // Board after they've started working. The ref is declared at component scope
+  // (not here) so the snapshot callback can also set it.
+  useEffect(() => {
+    if (initialBoardSelectedRef.current) return;
+    if (!profileLoaded) return;
+    if (loading) return;
+    if (dashboards.length === 0) return;
+    if (activeIdRef.current) {
+      // Some other path already picked an active Board (e.g. URL deep-link).
+      initialBoardSelectedRef.current = true;
+      return;
+    }
+    const initial = pickInitialBoard(
+      dashboards,
+      lastActiveCollectionId,
+      lastBoardIdByCollection,
+      collections
+    );
+    // Intentionally leave initialBoardSelectedRef false when initial === null,
+    // so a future dep change (e.g. collections loading after dashboards) gets
+    // another chance to pick a Board. Setting the ref true here would freeze
+    // the effect into the "no board picked" state.
+    if (initial) {
+      updateActiveId(initial.id);
+      initialBoardSelectedRef.current = true;
+    }
+  }, [
+    profileLoaded,
+    loading,
+    dashboards,
+    lastActiveCollectionId,
+    lastBoardIdByCollection,
+    collections,
+    updateActiveId,
   ]);
 
   // Re-hydrate widget pixel x/y/w/h from canonical proportional bounds
