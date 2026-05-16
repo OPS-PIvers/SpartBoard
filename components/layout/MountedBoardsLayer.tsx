@@ -17,7 +17,6 @@ export interface MountedBoardsLayerProps {
   emptyStudents: LiveStudent[];
   selectedWidgetId: string | null;
   zoom: number;
-  globalStyle: BoardCanvasProps['globalStyle'];
   // Pass-through callbacks (typed via BoardCanvasProps at the call site)
   updateSessionConfig: BoardCanvasProps['updateSessionConfig'];
   updateSessionBackground: BoardCanvasProps['updateSessionBackground'];
@@ -44,7 +43,6 @@ export const MountedBoardsLayer: FC<MountedBoardsLayerProps> = ({
   emptyStudents,
   selectedWidgetId,
   zoom,
-  globalStyle,
   updateSessionConfig,
   updateSessionBackground,
   startSession,
@@ -83,7 +81,6 @@ export const MountedBoardsLayer: FC<MountedBoardsLayerProps> = ({
           emptyStudents={emptyStudents}
           selectedWidgetId={selectedWidgetId}
           zoom={zoom}
-          globalStyle={globalStyle}
           updateSessionConfig={updateSessionConfig}
           updateSessionBackground={updateSessionBackground}
           startSession={startSession}

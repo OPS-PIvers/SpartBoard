@@ -1108,10 +1108,35 @@ export const DashboardView: React.FC = () => {
 
   // Stable sessions Map for MountedBoardsLayer — memoized so each render
   // doesn't produce a new Map that invalidates useMountedBoardCache's memo.
+  //
+  // Pinning limitation: useLiveSession() returns the session bound to the
+  // currently active board. When the teacher switches away, `session`
+  // becomes null and we lose the pin. Fixing this requires lifting session
+  // ownership to a board-keyed map at the data layer (deferred).
   const sessions = useMemo<Map<string, LiveSession> | undefined>(() => {
     if (!session?.isActive || !activeDashboard) return undefined;
     return new Map([[activeDashboard.id, session]]);
   }, [session, activeDashboard]);
+
+  // One-time tripwire: log when a session first goes active so the pinning
+  // limitation is visible in monitoring. useLiveSession() does not expose a
+  // stable hostBoardId across board switches, meaning useMountedBoardCache
+  // never receives a pin for a non-active board. Fixing requires lifting
+  // session ownership to a board-keyed data layer (deferred).
+  const pinningWarnedRef = React.useRef(false);
+  if (session?.isActive && !pinningWarnedRef.current) {
+    pinningWarnedRef.current = true;
+    logError(
+      'MountedBoardsLayer.pinningLimitation',
+      new Error(
+        'Live session pinning is bound to the active board only — non-active boards cannot be pinned until session ownership is lifted to a board-keyed data layer'
+      ),
+      { activeBoardId: activeDashboard?.id, sessionCode: session.code }
+    );
+  }
+  if (!session?.isActive) {
+    pinningWarnedRef.current = false;
+  }
 
   if (activeDashboard?.id !== lastDashboardId) {
     setLastDashboardId(activeDashboard?.id);
@@ -1650,7 +1675,6 @@ export const DashboardView: React.FC = () => {
           emptyStudents={EMPTY_STUDENTS}
           selectedWidgetId={selectedWidgetId}
           zoom={zoom}
-          globalStyle={globalStyle}
           updateSessionConfig={updateSessionConfig}
           updateSessionBackground={updateSessionBackground}
           startSession={startSession}

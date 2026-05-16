@@ -3591,7 +3591,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         lastBoardIdByCollection,
         collections
       );
-      if (target) loadDashboard(target.id);
+      if (!target) {
+        logError(
+          'DashboardContext.setActiveCollectionId.noBoardsInCollection',
+          new Error('Target Collection has no resolvable Board'),
+          { collectionId: nextCollectionId }
+        );
+        return;
+      }
+      loadDashboard(target.id);
     },
     [dashboards, lastBoardIdByCollection, collections, loadDashboard]
   );

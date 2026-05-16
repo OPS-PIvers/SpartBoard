@@ -6,9 +6,9 @@ import type {
   WidgetData,
   WidgetConfig,
   WidgetType,
-  GlobalStyle,
   DashboardSettings,
 } from '@/types';
+import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { GroupBoundingBox } from '@/components/common/GroupBoundingBox';
 
@@ -44,7 +44,6 @@ export interface BoardCanvasProps {
   duplicateWidget: (id: string) => void;
   bringToFront: (id: string) => void;
   addToast: (message: string, type?: 'info' | 'success' | 'error') => void;
-  globalStyle: GlobalStyle;
   updateDashboardSettings?: (updates: Partial<DashboardSettings>) => void;
 }
 
@@ -81,9 +80,12 @@ export const BoardCanvas: FC<BoardCanvasProps> = memo(
     duplicateWidget,
     bringToFront,
     addToast,
-    globalStyle,
     updateDashboardSettings,
   }) => {
+    // Each Board resolves its own globalStyle so hidden boards don't inherit
+    // the active Board's styling when widget memoization is evaluated.
+    const globalStyle = dashboard.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+
     const selectedGroupId = selectedWidgetId
       ? dashboard.widgets.find((w) => w.id === selectedWidgetId)?.groupId
       : undefined;

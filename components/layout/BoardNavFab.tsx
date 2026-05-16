@@ -267,7 +267,7 @@ export const BoardNavFab: FC = () => {
             defaultValue: 'Select board',
           })}
           aria-haspopup="menu"
-          aria-expanded={isPickerOpen}
+          aria-expanded={isPickerOpen || isCollectionMenuOpen}
           title={activeName}
           className={FAB_BASE}
         >

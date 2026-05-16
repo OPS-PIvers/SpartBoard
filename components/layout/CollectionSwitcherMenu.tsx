@@ -1,4 +1,5 @@
-import { type FC, useMemo } from 'react';
+import { type FC, useMemo, useEffect, useRef } from 'react';
+import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Folder, Home } from 'lucide-react';
 import type { Collection } from '@/types';
@@ -25,6 +26,9 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
 }) => {
   const { t } = useTranslation();
 
+  // itemRefs[0] = root button, itemRefs[1..n] = Collection buttons in flat order.
+  const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
   const flat = useMemo(() => {
     const childrenByParent = new Map<string | null, Collection[]>();
     for (const c of collections) {
@@ -47,9 +51,64 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
     return out;
   }, [collections]);
 
+  // Auto-focus the active item once on open. We capture the target index from
+  // the initial props (activeCollectionId / flat are stable at mount) and focus
+  // after the first paint so the button refs are populated.
+  useEffect(() => {
+    const activeIdx =
+      activeCollectionId === null
+        ? 0
+        : 1 + flat.findIndex(({ c }) => c.id === activeCollectionId);
+    itemRefs.current[activeIdx >= 0 ? activeIdx : 0]?.focus();
+    // activeCollectionId and flat are intentionally excluded: this effect runs
+    // once on mount to set initial focus; re-focusing on every prop change
+    // would steal focus from the user mid-interaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const focusItem = (idx: number) => {
+    const total = 1 + flat.length;
+    if (total === 0) return;
+    const wrapped = ((idx % total) + total) % total;
+    itemRefs.current[wrapped]?.focus();
+  };
+
+  const handleKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    const focused = itemRefs.current.findIndex(
+      (el) => el === document.activeElement
+    );
+    switch (e.key) {
+      case 'Escape':
+        e.preventDefault();
+        onClose();
+        break;
+      case 'ArrowDown':
+        e.preventDefault();
+        focusItem(focused < 0 ? 0 : focused + 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        focusItem(focused < 0 ? itemRefs.current.length - 1 : focused - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        focusItem(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        focusItem(itemRefs.current.length - 1);
+        break;
+      case 'Tab':
+        // Tab takes focus out — close to keep state consistent (matches BoardNavFab pattern).
+        onClose();
+        break;
+    }
+  };
+
   return (
     <div
       role="menu"
+      onKeyDown={handleKeyDown}
       aria-label={t('collectionSwitcher.title', {
         defaultValue: 'Switch Collection',
       })}
@@ -59,6 +118,9 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         {t('collectionSwitcher.title', { defaultValue: 'Switch Collection' })}
       </div>
       <button
+        ref={(el) => {
+          itemRefs.current[0] = el;
+        }}
         role="menuitem"
         onClick={() => {
           onSelect(null);
@@ -73,11 +135,14 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         <Home className="w-3.5 h-3.5 flex-shrink-0" />
         {t('collectionSwitcher.root', { defaultValue: 'All Boards (root)' })}
       </button>
-      {flat.map(({ c, depth }) => {
+      {flat.map(({ c, depth }, index) => {
         const isActive = activeCollectionId === c.id;
         return (
           <button
             key={c.id}
+            ref={(el) => {
+              itemRefs.current[index + 1] = el;
+            }}
             role="menuitem"
             onClick={() => {
               onSelect(c.id);
