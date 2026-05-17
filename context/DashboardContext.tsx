@@ -391,6 +391,29 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // Hoisted here (not inside the Task 0.4 effect) so the snapshot callback can
   // also set it — preventing a second Firestore churn from double-picking.
   const initialBoardSelectedRef = useRef(false);
+  // Navigation-memory write dedup + debounce. Mutated only inside the
+  // `loadDashboard` callback / its setTimeout, never during render — the
+  // previous write's key is compared to skip true no-op writes, and the
+  // pending timer ID lets rapid board cycling collapse into one Firestore
+  // write.
+  const navigationWriteRef = useRef<{
+    boardId: string;
+    collectionKey: string;
+  } | null>(null);
+  const navigationDebounceRef = useRef<number | null>(null);
+  // Drop any pending navigation-memory write on provider unmount so a
+  // dangling timer can't fire after the AuthContext has cleared `user`.
+  // The user lands on the second-to-last Board on next session in the
+  // rare corner case where they navigate-and-close within the 500ms
+  // window — acceptable trade-off for the dedup/debounce cost win.
+  useEffect(() => {
+    return () => {
+      if (navigationDebounceRef.current !== null) {
+        clearTimeout(navigationDebounceRef.current);
+        navigationDebounceRef.current = null;
+      }
+    };
+  }, []);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [zoom, setZoom] = useState<number>(1);
 
@@ -3804,23 +3827,49 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       }
       const target = dashboardsRef.current.find((d) => d.id === id);
-      if (target) {
-        const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
-        const profileRef = doc(db, 'users', user.uid, 'userProfile', 'profile');
+      if (!target) return;
+      const collectionKey = target.collectionId ?? ROOT_COLLECTION_KEY;
+
+      // Dedup: skip the write entirely if neither value moved. A teacher
+      // re-clicking the active board's sidebar entry (or rapidly cycling
+      // through and landing back where they started) was previously
+      // issuing a profile write per click. Across a district that adds up
+      // to real Firestore cost for a strictly no-op write. The dedup
+      // window is per-process, mirroring server state via the same ref.
+      if (
+        navigationWriteRef.current?.boardId === id &&
+        navigationWriteRef.current.collectionKey === collectionKey
+      ) {
+        return;
+      }
+      navigationWriteRef.current = { boardId: id, collectionKey };
+
+      // Debounce: collapse rapid board cycling (a teacher hopping through
+      // 4-5 boards during a transition) into a single profile write. 500ms
+      // is long enough to absorb interactive bursts, short enough that the
+      // last-visited Board is captured before the user closes the tab.
+      if (navigationDebounceRef.current !== null) {
+        clearTimeout(navigationDebounceRef.current);
+      }
+      const uid = user.uid;
+      const collectionId = target.collectionId ?? null;
+      navigationDebounceRef.current = window.setTimeout(() => {
+        navigationDebounceRef.current = null;
+        const profileRef = doc(db, 'users', uid, 'userProfile', 'profile');
         const updates: Record<string, unknown> = {
-          lastActiveCollectionId: target.collectionId ?? null,
+          lastActiveCollectionId: collectionId,
           [`lastBoardIdByCollection.${collectionKey}`]: id,
         };
         void setDoc(profileRef, updates, { merge: true }).catch(
           (err: unknown) => {
             logError('DashboardContext.loadDashboard.persistLastActive', err, {
-              uid: user.uid,
+              uid,
               boardId: id,
-              collectionId: target.collectionId ?? null,
+              collectionId,
             });
           }
         );
-      }
+      }, 500);
     },
     [addToast, updateActiveId, user, profileLoaded]
   );
