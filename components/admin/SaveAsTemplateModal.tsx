@@ -25,6 +25,14 @@ import { useAuth } from '@/context/useAuth';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
 
+/**
+ * Discriminated target passed to `SaveAsTemplateModal`.
+ *
+ * - `'board'`: capture a single Dashboard as a Board template.
+ * - `'collection'`: capture a Collection + its ordered child Boards as a
+ *   Collection template. `boards` must contain only the direct child Boards
+ *   of `collection`, in display order.
+ */
 export type SaveTemplateTarget =
   | { kind: 'board'; dashboard: Dashboard }
   | { kind: 'collection'; collection: CollectionType; boards: Dashboard[] };
@@ -80,9 +88,10 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     const unsub = onSnapshot(
       q,
       (snap) => {
-        const all = snap.docs.map(
-          (d) => ({ ...(d.data() as AnyTemplate), id: d.id }) as AnyTemplate
-        );
+        const all = snap.docs.map((d) => ({
+          ...(d.data() as AnyTemplate),
+          id: d.id,
+        }));
         const filtered = all.filter((t) =>
           target?.kind === 'collection'
             ? isCollectionTemplate(t)
@@ -97,6 +106,11 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
       }
     );
     return unsub;
+    // Dep is target?.kind, not target — we only need to re-subscribe when
+    // the discriminator flips (Board ↔ Collection), not on every target
+    // object-identity change. The caller (BoardsModal) null-resets target
+    // on close, so isOpen toggling guarantees a fresh subscription per
+    // open even if the same kind is reused for a different target.
   }, [isOpen, target?.kind]);
 
   // Reset state when modal closes
