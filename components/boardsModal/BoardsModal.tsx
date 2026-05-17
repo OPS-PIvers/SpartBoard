@@ -15,6 +15,7 @@ import { MoveToCollectionMenu } from './MoveToCollectionMenu';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
+import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { useBoardsModalDnd } from './useBoardsModalDnd';
 import type { Collection, Dashboard } from '@/types';
 
@@ -67,6 +68,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     useState<Dashboard | null>(null);
   const [saveAsCollectionTemplateTarget, setSaveAsCollectionTemplateTarget] =
     useState<Collection | null>(null);
+  const [createFromTemplateOpen, setCreateFromTemplateOpen] = useState(false);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -407,6 +409,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onSearchChange={setSearch}
           onCreateBoard={handleCreateBoard}
           onCreateCollection={handleCreateCollection}
+          onCreateFromTemplate={() => setCreateFromTemplateOpen(true)}
           isSelectMode={multi.isSelectMode}
           selectedCount={multi.selectedIds.size}
           onClearSelection={multi.clearSelection}
@@ -610,6 +613,10 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               }
             : null
         }
+      />
+      <CreateFromTemplateModal
+        isOpen={createFromTemplateOpen}
+        onClose={() => setCreateFromTemplateOpen(false)}
       />
     </div>
   );
