@@ -5540,6 +5540,13 @@ export interface DashboardTemplate {
   id: string;
   name: string;
   description: string;
+  /**
+   * Discriminates Board templates (this interface) from Collection
+   * templates (see CollectionTemplate). Optional + literal 'board' so
+   * legacy docs without the field deserialize as Board templates with
+   * zero migration. Always pass 'board' when writing new docs.
+   */
+  type?: 'board';
   /** Snapshot of widgets to pre-populate the dashboard with */
   widgets: WidgetData[];
   /** Optional global style override applied when template is deployed */
@@ -5560,6 +5567,83 @@ export interface DashboardTemplate {
   updatedAt: number;
   createdBy: string; // admin email
 }
+
+/**
+ * A single Board's snapshot when embedded inside a CollectionTemplate.
+ * Mirrors the fields that `sanitizeBoardSnapshot` preserves — the rest
+ * of a Dashboard's surface is host-specific and stripped at capture
+ * time. `id` is the host's original Board id; the importer assigns a
+ * fresh id during instantiation, so this id is for ordering / debugging
+ * only.
+ */
+export interface BoardTemplateSnapshot {
+  id: string;
+  name: string;
+  background: string;
+  widgets: WidgetData[];
+  globalStyle?: Partial<GlobalStyle>;
+  settings?: DashboardSettings;
+  libraryOrder?: (WidgetType | InternalToolType)[];
+  viewportWidth?: number;
+  viewportHeight?: number;
+  createdAt: number;
+}
+
+/**
+ * A Collection's metadata captured for the template browser. Mirrors the
+ * subset of `Collection` that admins curate; the recipient's
+ * createCollection action stamps fresh `id`, `order`, `createdAt` /
+ * `updatedAt`, and `parentCollectionId: null` (templates always land at
+ * root — admins or teachers move them after).
+ */
+export interface CollectionTemplateSnapshot {
+  name: string;
+  color?: string;
+  icon?: string;
+  /**
+   * Optional default-board hint: the snapshot id of the Board that
+   * should be marked as the Collection's default on first open. Stored
+   * as the `BoardTemplateSnapshot.id`; resolved to the recipient's new
+   * Board id at hydration time. Undefined means no default.
+   */
+  defaultBoardSnapshotId?: string;
+}
+
+/**
+ * A Collection-level template. Same Firestore collection as
+ * `DashboardTemplate` (`/dashboard_templates/`) — the `type` field
+ * discriminates. Admin-curated, authed-read, same rule gate.
+ */
+export interface CollectionTemplate {
+  id: string;
+  type: 'collection';
+  name: string;
+  description: string;
+  collectionSnapshot: CollectionTemplateSnapshot;
+  /** Ordered list — defines the order child Boards appear in the new Collection. */
+  boardSnapshots: BoardTemplateSnapshot[];
+  tags: string[];
+  targetGradeLevels: GradeLevel[];
+  targetBuildings: string[];
+  enabled: boolean;
+  accessLevel: 'admin' | 'beta' | 'public';
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;
+}
+
+/**
+ * Union of every doc shape stored in `/dashboard_templates/`. Read sites
+ * MUST discriminate via `isCollectionTemplate` / `isBoardTemplate` before
+ * accessing Board-only fields like `widgets`.
+ */
+export type AnyTemplate = DashboardTemplate | CollectionTemplate;
+
+export const isCollectionTemplate = (t: AnyTemplate): t is CollectionTemplate =>
+  t.type === 'collection';
+
+export const isBoardTemplate = (t: AnyTemplate): t is DashboardTemplate =>
+  t.type !== 'collection';
 
 // --- CUSTOM WIDGET TYPES (Phase 3: No-Code Widget Builder) ---
 
