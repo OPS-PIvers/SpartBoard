@@ -852,12 +852,19 @@ service cloud.firestore {
     match /shared_collections/{shareId} {
       // READ: any authed user for non-substitute shares. Substitute shares
       // are gated by host, admin, or @orono.k12.mn.us email (same as
-      // /shared_boards). No isSubInBuilding helper — inline match.
+      // /shared_boards), AND must not be past their expiresAt — the
+      // client-side `loadSharedCollection` filters expired shares, but a
+      // hostile client (direct REST/curl) would otherwise read stale
+      // snapshots indefinitely. Host and admin can still read past expiry
+      // for cleanup / debugging.
       allow read: if request.auth != null && (
         resource.data.get('intendedMode', null) != 'substitute'
         || resource.data.get('hostUid', null) == request.auth.uid
         || isAdmin()
-        || request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+        || (
+          request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+          && resource.data.get('expiresAt', 0) > request.time.toMillis()
+        )
       );
 
       // CREATE: host writes their own share. Substitute shares add a
@@ -895,15 +902,19 @@ service cloud.firestore {
       allow delete: if request.auth != null
         && (resource.data.get('hostUid', null) == request.auth.uid || isAdmin());
 
-      // Per-Board snapshots. Read mirrors parent semantics. Write only by
-      // parent's host (the share-creation writeBatch puts the parent doc
-      // first, then the boards, so the get() lookup resolves).
+      // Per-Board snapshots. Read mirrors parent semantics (including the
+      // expiresAt cutoff for substitute shares — see parent rule). Write
+      // only by parent's host (the share-creation writeBatch puts the
+      // parent doc first, then the boards, so the get() lookup resolves).
       match /boards/{boardId} {
         allow read: if request.auth != null && (
           get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('intendedMode', null) != 'substitute'
           || get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('hostUid', null) == request.auth.uid
           || isAdmin()
-          || request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+          || (
+            request.auth.token.get('email', '').lower().matches('.*@orono[.]k12[.]mn[.]us$')
+            && get(/databases/$(database)/documents/shared_collections/$(shareId)).data.get('expiresAt', 0) > request.time.toMillis()
+          )
         );
 
         allow create, update, delete: if request.auth != null

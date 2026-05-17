@@ -308,6 +308,46 @@ describe('results-protection — student writes', () => {
       )
     );
   });
+
+  it('student CAN reset score to null when re-entering after grading (rejoin path)', async () => {
+    // The whitelist deliberately includes `score` because the rejoin path
+    // writes `score: null` to clear a previous attempt's grade before the
+    // student starts answering again. Pin the allow case so a future
+    // tightening that disallows score transitions doesn't silently break
+    // rejoin without test coverage flagging it.
+    await seedSessionAndResponses({}); // baseResponse seeds score: 80
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          asStudentA(),
+          `quiz_sessions/${SESSION_ID}/responses/${RESPONSE_A_KEY}`
+        ),
+        { score: null, preSyncVersion: 1 }
+      )
+    );
+  });
+
+  it('student CANNOT smuggle a new arbitrary field added alongside a protection write', async () => {
+    // The rule swaps `changedKeys()` → `affectedKeys()` specifically because
+    // `changedKeys` would let an *added* (new) field land in `addedKeys`
+    // and bypass `hasOnly([...])`. The existing smuggle test seeds
+    // `studentUid` (already on the doc, so it hits `changedKeys` either
+    // way). This case pins the asymmetric attack the rule comment names:
+    // a field that exists on the new doc but NOT the old must still be
+    // rejected.
+    await seedSessionAndResponses({ warnings: 1 });
+    // Seed a response without `arbitraryNewField`, then attempt to add it
+    // alongside a legitimate warnings increment.
+    await assertFails(
+      updateDoc(
+        doc(
+          asStudentA(),
+          `quiz_sessions/${SESSION_ID}/responses/${RESPONSE_A_KEY}`
+        ),
+        { resultsTabWarnings: 2, arbitraryNewField: 'should-be-blocked' }
+      )
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------

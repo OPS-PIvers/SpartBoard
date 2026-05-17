@@ -103,7 +103,9 @@ vi.mock('../hooks/useSharedCollection', () => ({
     shareSubstituteCollection: vi
       .fn()
       .mockResolvedValue('mock-collection-sub-share-id'),
-    loadSharedCollection: vi.fn().mockResolvedValue(null),
+    loadSharedCollection: vi
+      .fn()
+      .mockResolvedValue({ ok: false, reason: 'not-found' }),
     loadSharedCollectionBoards: vi.fn().mockResolvedValue([]),
   }),
 }));

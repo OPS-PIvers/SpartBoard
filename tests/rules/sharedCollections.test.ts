@@ -208,6 +208,38 @@ describe('shared_collections — read, substitute share', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 4b. READ — substitute share expiry enforcement
+// ---------------------------------------------------------------------------
+// The client-side `loadSharedCollection` filters expired shares, but a
+// hostile client (direct REST/curl) could otherwise read frozen Board
+// snapshots indefinitely after expiry. The rule rejects expired reads for
+// non-host/non-admin callers; host + admin can still read past expiry for
+// cleanup / debugging.
+
+describe('shared_collections — read, substitute share expiry', () => {
+  beforeEach(async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 }) // 1 minute past
+      );
+    });
+  });
+
+  it('Orono email is denied on expired substitute share', async () => {
+    await assertFails(getDoc(doc(asOronoTeacher(), sharePath)));
+  });
+
+  it('host can still read their own expired substitute share', async () => {
+    await assertSucceeds(getDoc(doc(asHost(), sharePath)));
+  });
+
+  it('admin can read expired substitute share', async () => {
+    await assertSucceeds(getDoc(doc(asAdmin(), sharePath)));
+  });
+});
+
+// ---------------------------------------------------------------------------
 // 5. CREATE — valid copy payload
 // ---------------------------------------------------------------------------
 
@@ -459,6 +491,28 @@ describe('shared_collections/boards — read', () => {
       await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
     });
     await assertFails(getDoc(doc(asUnauth(), boardPath)));
+  });
+
+  it('Orono teacher denied reading board on expired substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
+    });
+    await assertFails(getDoc(doc(asOronoTeacher(), boardPath)));
+  });
+
+  it('host can read board on expired substitute share', async () => {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(
+        doc(ctx.firestore(), sharePath),
+        subShareDoc({ expiresAt: NOW_MS - 60_000 })
+      );
+      await setDoc(doc(ctx.firestore(), boardPath), boardSnapshotDoc());
+    });
+    await assertSucceeds(getDoc(doc(asHost(), boardPath)));
   });
 });
 
