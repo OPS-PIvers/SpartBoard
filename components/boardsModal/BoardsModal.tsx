@@ -15,6 +15,7 @@ import { MoveToCollectionMenu } from './MoveToCollectionMenu';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
+import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { useBoardsModalDnd } from './useBoardsModalDnd';
 import type { Collection, Dashboard } from '@/types';
 
@@ -65,6 +66,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     useState<Collection | null>(null);
   const [saveAsTemplateTarget, setSaveAsTemplateTarget] =
     useState<Dashboard | null>(null);
+  const [saveAsCollectionTemplateTarget, setSaveAsCollectionTemplateTarget] =
+    useState<Collection | null>(null);
+  const [createFromTemplateOpen, setCreateFromTemplateOpen] = useState(false);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -405,6 +409,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
           onSearchChange={setSearch}
           onCreateBoard={handleCreateBoard}
           onCreateCollection={handleCreateCollection}
+          onCreateFromTemplate={() => setCreateFromTemplateOpen(true)}
           isSelectMode={multi.isSelectMode}
           selectedCount={multi.selectedIds.size}
           onClearSelection={multi.clearSelection}
@@ -503,6 +508,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               onOpen={() => setSelectedCollectionId(c.id)}
               canShare={canShare}
               onShare={() => setShareCollectionTarget(c)}
+              canSaveAsTemplate={Boolean(isAdmin)}
+              onSaveAsTemplate={() => setSaveAsCollectionTemplateTarget(c)}
               onRename={async () => {
                 const next = await showPrompt('Rename Collection', {
                   title: 'Rename',
@@ -584,9 +591,32 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         />
       )}
       <SaveAsTemplateModal
-        isOpen={!!saveAsTemplateTarget}
-        currentDashboard={saveAsTemplateTarget}
+        isOpen={saveAsTemplateTarget !== null}
         onClose={() => setSaveAsTemplateTarget(null)}
+        target={
+          saveAsTemplateTarget
+            ? { kind: 'board', dashboard: saveAsTemplateTarget }
+            : null
+        }
+      />
+      <SaveAsTemplateModal
+        isOpen={saveAsCollectionTemplateTarget !== null}
+        onClose={() => setSaveAsCollectionTemplateTarget(null)}
+        target={
+          saveAsCollectionTemplateTarget
+            ? {
+                kind: 'collection',
+                collection: saveAsCollectionTemplateTarget,
+                boards: dashboards.filter(
+                  (d) => d.collectionId === saveAsCollectionTemplateTarget.id
+                ),
+              }
+            : null
+        }
+      />
+      <CreateFromTemplateModal
+        isOpen={createFromTemplateOpen}
+        onClose={() => setCreateFromTemplateOpen(false)}
       />
     </div>
   );

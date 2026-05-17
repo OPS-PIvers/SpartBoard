@@ -396,6 +396,9 @@
     "bulkAllFailed": "No items could be updated — please retry",
     "noBoardsInSelection": "No Boards in selection — Collections can't be used here",
     "createCollectionFailed": "Failed to create Collection",
+    "header": {
+      "createFromTemplate": "+ from Template"
+    },
     "menu": {
       "open": "Open",
       "openCollection": "Open",
@@ -459,6 +462,15 @@
     "comingSoonLabel": "Coming soon"
   },
   "collectionMenu": {
-    "share": "Share Collection…"
+    "share": "Share Collection…",
+    "saveAsTemplate": "Save as Template…"
+  },
+  "templatePicker": {
+    "title": "Create from Template",
+    "loading": "Loading templates…",
+    "loadError": "Couldn't load templates — refresh to retry.",
+    "empty": "No templates available yet.",
+    "kindBoard": "Board",
+    "kindCollection": "Collection · {{count}} board(s)"
   }
 }

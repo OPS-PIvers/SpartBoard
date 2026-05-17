@@ -4,6 +4,7 @@ import {
   Search,
   Plus,
   FolderPlus,
+  LayoutTemplate,
   X,
   Trash2,
   FolderInput,
@@ -16,6 +17,7 @@ interface BoardsModalHeaderProps {
   onSearchChange: (next: string) => void;
   onCreateBoard: () => void;
   onCreateCollection: () => void;
+  onCreateFromTemplate?: () => void;
   isSelectMode: boolean;
   selectedCount: number;
   onClearSelection: () => void;
@@ -30,6 +32,7 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
   onSearchChange,
   onCreateBoard,
   onCreateCollection,
+  onCreateFromTemplate,
   isSelectMode,
   selectedCount,
   onClearSelection,
@@ -109,6 +112,18 @@ export const BoardsModalHeader: React.FC<BoardsModalHeaderProps> = ({
         />
       </div>
       <div className="flex items-center gap-2 ml-auto">
+        {onCreateFromTemplate && (
+          <button
+            type="button"
+            onClick={onCreateFromTemplate}
+            className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
+          >
+            <LayoutTemplate className="w-3.5 h-3.5" />
+            {t('boardsModal.header.createFromTemplate', {
+              defaultValue: '+ from Template',
+            })}
+          </button>
+        )}
         <button
           onClick={onCreateCollection}
           className="flex items-center gap-1.5 px-3 py-2 text-xxs font-bold uppercase tracking-wider text-slate-700 bg-slate-100 rounded-xl hover:bg-slate-200 transition"
