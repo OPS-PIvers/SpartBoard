@@ -208,14 +208,17 @@ export const useSharedCollection = () => {
    * chunked writeBatch. Returns the new shareId.
    *
    * Write order: parent doc FIRST, then board sub-docs in chunked batches.
-   * The Firestore subcollection rule reads parent.hostUid to authorise board
-   * writes — without an existing parent doc, `get()` returns null and the
-   * rule denies the write. Auth-bypass (E2E) skips Firestore rules, which
-   * is why parent-last slipped through testing.
+   * The Firestore subcollection rule reads `parent.hostUid` to authorise
+   * board writes — without the parent doc the rule expression cannot
+   * evaluate and the write is denied. Auth-bypass (E2E) skips Firestore
+   * rules, which is why parent-last slipped through testing.
    *
-   * If a board batch fails after the parent lands, the recipient sees a
-   * partial Collection. importSharedCollection detects this via
-   * `boards.length < meta.boardIds.length` and surfaces a warning toast.
+   * If a board batch fails after the parent lands, `commitBoardBatches`
+   * attempts a best-effort cleanup of the parent doc and re-throws —
+   * the recipient should see "not-found" rather than a partial Collection.
+   * The pre-existing partial-load detection in importSharedCollection
+   * remains as a second line of defence for any stale state that escapes
+   * cleanup.
    */
   const shareCollection = useCallback(
     async (input: ShareCollectionInput): Promise<string> => {

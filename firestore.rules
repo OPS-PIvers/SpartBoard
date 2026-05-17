@@ -2139,14 +2139,14 @@ service cloud.firestore {
             request.resource.data.tabSwitchWarnings >= resource.data.get('tabSwitchWarnings', 0)) &&
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['completedAttempts']) ||
             request.resource.data.get('completedAttempts', 0) >= resource.data.get('completedAttempts', 0)) &&
-           // Results-view screenshot-protection guards (Task 11). The student
-           // app's `useResultsTabWarnings` hook increments
-           // `resultsTabWarnings` (via `increment(1)`) on each visibility/blur
-           // round-trip on the published-results screen, and flips
-           // `resultsLockedOut` true (+ stamps `resultsLockedOutAt`) once the
-           // threshold is reached. Both monotonic from the student side; only
-           // the teacher (via `unlockResultsForStudent` — built in Task 12)
-           // can decrement warnings or clear the lockout.
+           // Results-view screenshot-protection guards. The student app's
+           // `useResultsTabWarnings` hook increments `resultsTabWarnings`
+           // (via `increment(1)`) on each visibility/blur round-trip on the
+           // published-results screen, and flips `resultsLockedOut` true
+           // (+ stamps `resultsLockedOutAt`) once the threshold is reached.
+           // Both monotonic from the student side; only the teacher (via
+           // the unlock-results action) can decrement warnings or clear
+           // the lockout.
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['resultsTabWarnings']) ||
             request.resource.data.get('resultsTabWarnings', 0) >= resource.data.get('resultsTabWarnings', 0)) &&
            // `resultsLockedOut` may only stay the same OR transition false→true.

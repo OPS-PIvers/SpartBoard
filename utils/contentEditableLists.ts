@@ -108,8 +108,11 @@ const collectSelectedBlocks = (
 const rangeIntersectsNode = (range: Range, node: Node): boolean => {
   const nodeRange = document.createRange();
   nodeRange.selectNode(node);
-  // `intersectsNode` would be perfect but isn't in older Edge / Safari.
-  // Compare-boundary-points covers every browser we ship to.
+  // `Range.intersectsNode` would be a one-liner here, but
+  // `compareBoundaryPoints` is what the test suite pins so we keep the
+  // explicit form. The boundary-touching semantics are then deterministic
+  // across browsers regardless of any subtle implementation differences in
+  // `intersectsNode`.
   return (
     range.compareBoundaryPoints(Range.END_TO_START, nodeRange) <= 0 &&
     range.compareBoundaryPoints(Range.START_TO_END, nodeRange) >= 0

@@ -272,9 +272,9 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 
   const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
     if (!lockedOut) return;
-    // Quiz results have been locked by the teacher (Task 10). Block the
-    // default navigation, then re-check the live state — the teacher may
-    // have unlocked since the row's initial completion check resolved.
+    // Quiz results have been locked by the teacher. Block the default
+    // navigation, then re-check the live state — the teacher may have
+    // unlocked since the row's initial completion check resolved.
     e.preventDefault();
     e.stopPropagation();
     void recheckLockAndProceed();

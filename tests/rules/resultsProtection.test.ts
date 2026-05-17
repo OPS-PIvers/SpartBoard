@@ -1,5 +1,5 @@
 // Firestore security-rules tests for the results-view screenshot-protection
-// fields on quiz response docs (Task 11).
+// fields on quiz response docs.
 //
 // Contract:
 //   - Students may only INCREMENT `resultsTabWarnings` (monotonic) on their
@@ -14,8 +14,8 @@
 //     existing `changedKeys().hasOnly([...])` whitelist enforces this.
 //   - Teachers (session owner) can write any of the three fields freely,
 //     including DECREMENTING `resultsTabWarnings` and clearing
-//     `resultsLockedOut` back to false. This is what powers the Task 12
-//     teacher unlock affordance.
+//     `resultsLockedOut` back to false. This is what powers the teacher
+//     unlock affordance.
 //
 // Requires a running Firestore emulator. Invoke via:
 //   pnpm run test:rules
@@ -353,11 +353,11 @@ describe('results-protection — student writes', () => {
 // ---------------------------------------------------------------------------
 // Teacher-side rules — the teacher branch on the response update rule is
 // unrestricted. These tests pin that contract so a future tightening of
-// the teacher branch doesn't accidentally break the Task 12 unlock flow.
+// the teacher branch doesn't accidentally break the teacher unlock flow.
 // ---------------------------------------------------------------------------
 
 describe('results-protection — teacher writes', () => {
-  it('teacher CAN decrement resultsTabWarnings (Task 12 unlock affordance)', async () => {
+  it('teacher CAN decrement resultsTabWarnings (powers the teacher unlock affordance)', async () => {
     await seedSessionAndResponses({
       warnings: 3,
       lockedOut: true,

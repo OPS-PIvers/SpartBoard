@@ -388,8 +388,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   lastBoardIdByCollectionRef.current = lastBoardIdByCollection;
   const collectionsRef = useRef(collections);
   collectionsRef.current = collections;
-  // Hoisted here (not inside the Task 0.4 effect) so the snapshot callback can
-  // also set it — preventing a second Firestore churn from double-picking.
+  // Hoisted to component scope (not local to the one-shot initial-board
+  // selection effect below) so the snapshot callback can also set it —
+  // preventing a second Firestore churn from double-picking the initial
+  // board.
   const initialBoardSelectedRef = useRef(false);
   // Navigation-memory write dedup + debounce. Mutated only inside the
   // `loadDashboard` callback / its setTimeout, never during render — the
@@ -1875,8 +1877,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           // falls through to the global default — a behavior we explicitly
           // want to AVOID on the first paint so the teacher doesn't see a
           // flash of "wrong board" before profile-aware selection corrects it.
-          // The `initialBoardSelectedRef` gate (added in Task 0.4) makes the
-          // selection run exactly once across snapshot churn.
+          // The `initialBoardSelectedRef` gate makes the selection run
+          // exactly once across snapshot churn.
           if (profileLoadedRef.current) {
             const initial = pickInitialBoard(
               migratedDashboards,

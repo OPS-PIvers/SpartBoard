@@ -4871,9 +4871,9 @@ export interface WidgetComponentProps {
    * True when this widget's host Board is currently visible (active).
    * False when the Board is mounted-but-hidden via the LRU cache.
    * Resource-heavy widgets (Webcam, SoundWidget, SmartNotebook) gate their
-   * MediaStream/AudioContext/onSnapshot acquisitions on this flag. Phase C of
-   * Plan 2 wires it into those widgets; most widgets ignore it. Defaults to
-   * `true` so student-facing and non-LRU surfaces are unaffected.
+   * MediaStream/AudioContext/onSnapshot acquisitions on this flag so hidden
+   * Boards release their hardware/listeners. Most widgets ignore it.
+   * Defaults to `true` so student-facing and non-LRU surfaces are unaffected.
    */
   isActive?: boolean;
 }
@@ -5118,9 +5118,9 @@ export interface Dashboard {
    */
   collectionId?: string | null;
   /**
-   * When true, this Board appears in the Pinned section of the modal and
-   * the FAB kebab popover (Plan 2). Independent of `collectionId` — pinned
-   * Boards still belong to their Collection. Distinct from
+   * When true, this Board appears in the Pinned section of the Boards
+   * modal and the FAB kebab popover. Independent of `collectionId` —
+   * pinned Boards still belong to their Collection. Distinct from
    * `WidgetData.isPinned`, which is a widget-level interaction lock.
    */
   isPinned?: boolean;

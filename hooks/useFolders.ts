@@ -1,12 +1,12 @@
 /**
- * useFolders — library folder management (Wave 3-B).
+ * useFolders — library folder management.
  *
  * Streams folders from `/users/{userId}/{widget}_folders` and exposes CRUD
  * operations that round-trip to Firestore. The returned hook result is
  * memoized so consumers (FolderSidebar, managers) can include it in effect
  * dependency arrays without thrashing.
  *
- * Schema recap (see `types.ts` "Library folders (Wave 3)" section):
+ * Schema recap (see `types.ts` "Library folders" section):
  *   /users/{userId}/{widget}_folders/{folderId}
  *     => { id, name, parentId: string | null, order: number,
  *          createdAt: number, updatedAt?: number }
