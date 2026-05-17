@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-16_
+_Last audited: 2026-05-17_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-17: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types). Recent commits since 2026-05-16: perf(functions) 0c0457f3, feat(Collection-level-sharing) 2f8d6751, fix(collections-polish) 6dccd37a/e490fa79/debe426f, feat(quiz-screenshot-protection) 2bf54e9d. None touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Zero new gaps. All lazyNamed() export names remain correct. No open items._
 
 _2026-05-16: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types). Recent commits since 2026-05-15: feat(Collections+Boards) f691e285, fix(editors) d50460d0/2a2ba441, fix(activity-wall-gallery) 6b6b77c1, fix(text-widget) f4a8315b, fix(quiz-student/quiz/grader) dc682704/e49bf415/e5b63444/fa928a62/d9f2ed10, feat(grader) 361dda84, feat(quiz) e15bde39, feat(publish-scores) c6edb29c, fix(embed) 1894d043, fix(subs) 08f13588. None touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Zero new gaps. All lazyNamed() export names remain correct. No open items._
 

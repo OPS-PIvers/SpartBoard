@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-16_
+_Last audited: 2026-05-17_
 _Last action: 2026-05-16_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-17: Scanned all Widget.tsx / index.tsx files for anti-patterns. Recent commits since 2026-05-16: Collection-level sharing plan 2–3 (2f8d6751/debe426f), quiz screenshot protection (2bf54e9d), collections polish (6dccd37a/e490fa79). None introduced new Widget.tsx front-face changes. All pre-existing open items remain valid. No new anti-patterns detected._
 
 _2026-05-16: Scanned all Widget.tsx / index.tsx files for anti-patterns. New commits since 2026-05-15: fix(activity-wall-gallery) 6b6b77c1, fix(text-widget) f4a8315b, fix(embed) 1894d043, fix(subs) 08f13588, feat(Collections+Boards) f691e285, quiz/grader fixes. ActivityWall `max-h-[75vh]` at lines 2101/2107/2110 re-examined — these are inside a fullscreen submission-preview overlay shown at the teacher level, rendered outside the widget canvas container query context; viewport-height units remain correct for this use case (confirmed 2026-05-14 investigation). Embed fix (1894d043) added provider-allowlist logic; the existing portaled zoom toolbar open item unchanged. All pre-existing open items remain valid. No new anti-patterns detected._
 
