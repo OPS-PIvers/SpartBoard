@@ -11,14 +11,28 @@ import {
 import { db, isAuthBypass } from '@/config/firebase';
 import { LayoutTemplate, Save, RefreshCw, Loader2 } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
-import { Dashboard, DashboardTemplate, WidgetData } from '@/types';
+import {
+  Dashboard,
+  DashboardTemplate,
+  AnyTemplate,
+  Collection as CollectionType,
+  CollectionTemplate,
+  BoardTemplateSnapshot,
+  WidgetData,
+  isCollectionTemplate,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+
+export type SaveTemplateTarget =
+  | { kind: 'board'; dashboard: Dashboard }
+  | { kind: 'collection'; collection: CollectionType; boards: Dashboard[] };
 
 interface SaveAsTemplateModalProps {
   isOpen: boolean;
   onClose: () => void;
-  currentDashboard: Dashboard | null;
+  target: SaveTemplateTarget | null;
 }
 
 const TEMPLATES_COLLECTION = 'dashboard_templates';
@@ -26,11 +40,11 @@ const TEMPLATES_COLLECTION = 'dashboard_templates';
 export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   isOpen,
   onClose,
-  currentDashboard,
+  target,
 }) => {
   const { user } = useAuth();
   const BUILDINGS = useAdminBuildings();
-  const [templates, setTemplates] = useState<DashboardTemplate[]>([]);
+  const [templates, setTemplates] = useState<AnyTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
 
   // Update existing template state
@@ -47,7 +61,10 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     text: string;
   } | null>(null);
 
-  // Subscribe to templates while modal is open
+  // Subscribe to templates while modal is open. Filters by target kind so
+  // teachers updating a Board template never see Collection templates in
+  // the picker (and vice versa) — overwriting across types would corrupt
+  // the doc shape.
   useEffect(() => {
     if (!isOpen) return;
     if (isAuthBypass) {
@@ -63,12 +80,15 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     const unsub = onSnapshot(
       q,
       (snap) => {
-        setTemplates(
-          snap.docs.map((d) => ({
-            ...(d.data() as DashboardTemplate),
-            id: d.id,
-          }))
+        const all = snap.docs.map(
+          (d) => ({ ...(d.data() as AnyTemplate), id: d.id }) as AnyTemplate
         );
+        const filtered = all.filter((t) =>
+          target?.kind === 'collection'
+            ? isCollectionTemplate(t)
+            : !isCollectionTemplate(t)
+        );
+        setTemplates(filtered);
         setLoadingTemplates(false);
       },
       (err) => {
@@ -77,7 +97,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
       }
     );
     return unsub;
-  }, [isOpen]);
+  }, [isOpen, target?.kind]);
 
   // Reset state when modal closes
   useEffect(() => {
@@ -89,28 +109,86 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     }
   }, [isOpen]);
 
-  const captureWidgets = (dashboard: Dashboard): WidgetData[] =>
-    dashboard.widgets.map((w) => ({
-      ...w,
-      isLocked: undefined,
-      config: structuredClone(w.config),
-    }));
+  /** Board-template payload: widgets + style snapshot, sanitized. */
+  const captureBoardForBoardTemplate = (dashboard: Dashboard) => {
+    const cleaned = sanitizeBoardSnapshot(dashboard);
+    return {
+      widgets: cleaned.widgets.map((w: WidgetData) => ({
+        ...w,
+        isLocked: undefined,
+        config: structuredClone(w.config),
+      })),
+      globalStyle: cleaned.globalStyle ?? undefined,
+      background: cleaned.background ?? undefined,
+    };
+  };
+
+  /** Each Board in a Collection becomes one BoardTemplateSnapshot. */
+  const captureBoardForCollectionTemplate = (
+    dashboard: Dashboard
+  ): BoardTemplateSnapshot => {
+    const cleaned = sanitizeBoardSnapshot(dashboard);
+    return {
+      id: cleaned.id,
+      name: cleaned.name,
+      background: cleaned.background,
+      widgets: cleaned.widgets.map((w: WidgetData) => ({
+        ...w,
+        isLocked: undefined,
+        config: structuredClone(w.config),
+      })),
+      ...(cleaned.globalStyle !== undefined && {
+        globalStyle: cleaned.globalStyle,
+      }),
+      ...(cleaned.settings !== undefined && { settings: cleaned.settings }),
+      ...(cleaned.libraryOrder !== undefined && {
+        libraryOrder: cleaned.libraryOrder,
+      }),
+      ...(cleaned.viewportWidth !== undefined && {
+        viewportWidth: cleaned.viewportWidth,
+      }),
+      ...(cleaned.viewportHeight !== undefined && {
+        viewportHeight: cleaned.viewportHeight,
+      }),
+      createdAt: cleaned.createdAt,
+    };
+  };
 
   const handleUpdate = async () => {
-    if (!currentDashboard || !selectedTemplateId) return;
+    if (!target || !selectedTemplateId) return;
     setUpdating(true);
     setMessage(null);
     try {
-      await setDoc(
-        doc(db, TEMPLATES_COLLECTION, selectedTemplateId),
-        {
-          widgets: captureWidgets(currentDashboard),
-          globalStyle: currentDashboard.globalStyle ?? null,
-          background: currentDashboard.background ?? null,
-          updatedAt: Date.now(),
-        },
-        { merge: true }
-      );
+      if (target.kind === 'board') {
+        await setDoc(
+          doc(db, TEMPLATES_COLLECTION, selectedTemplateId),
+          {
+            ...captureBoardForBoardTemplate(target.dashboard),
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
+      } else {
+        await setDoc(
+          doc(db, TEMPLATES_COLLECTION, selectedTemplateId),
+          {
+            collectionSnapshot: {
+              name: target.collection.name,
+              ...(target.collection.color !== undefined && {
+                color: target.collection.color,
+              }),
+              ...(target.collection.icon !== undefined && {
+                icon: target.collection.icon,
+              }),
+            },
+            boardSnapshots: target.boards.map(
+              captureBoardForCollectionTemplate
+            ),
+            updatedAt: Date.now(),
+          },
+          { merge: true }
+        );
+      }
       setMessage({ type: 'success', text: 'Template updated successfully.' });
     } catch (err) {
       console.error('Failed to update template:', err);
@@ -121,27 +199,55 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   };
 
   const handleSaveNew = async () => {
-    if (!currentDashboard || !newName.trim() || !user?.email) return;
+    if (!target || !newName.trim() || !user?.email) return;
     setSaving(true);
     setMessage(null);
     try {
       const now = Date.now();
-      const template: Omit<DashboardTemplate, 'id'> = {
-        name: newName.trim(),
-        description: '',
-        widgets: captureWidgets(currentDashboard),
-        globalStyle: currentDashboard.globalStyle,
-        background: currentDashboard.background,
-        tags: [],
-        targetGradeLevels: [],
-        targetBuildings: newBuildings,
-        enabled: true,
-        accessLevel: 'public',
-        createdAt: now,
-        updatedAt: now,
-        createdBy: user.email,
-      };
-      await addDoc(collection(db, TEMPLATES_COLLECTION), template);
+      let payload:
+        | Omit<DashboardTemplate, 'id'>
+        | Omit<CollectionTemplate, 'id'>;
+      if (target.kind === 'board') {
+        payload = {
+          type: 'board',
+          name: newName.trim(),
+          description: '',
+          ...captureBoardForBoardTemplate(target.dashboard),
+          tags: [],
+          targetGradeLevels: [],
+          targetBuildings: newBuildings,
+          enabled: true,
+          accessLevel: 'public',
+          createdAt: now,
+          updatedAt: now,
+          createdBy: user.email,
+        };
+      } else {
+        payload = {
+          type: 'collection',
+          name: newName.trim(),
+          description: '',
+          collectionSnapshot: {
+            name: target.collection.name,
+            ...(target.collection.color !== undefined && {
+              color: target.collection.color,
+            }),
+            ...(target.collection.icon !== undefined && {
+              icon: target.collection.icon,
+            }),
+          },
+          boardSnapshots: target.boards.map(captureBoardForCollectionTemplate),
+          tags: [],
+          targetGradeLevels: [],
+          targetBuildings: newBuildings,
+          enabled: true,
+          accessLevel: 'public',
+          createdAt: now,
+          updatedAt: now,
+          createdBy: user.email,
+        };
+      }
+      await addDoc(collection(db, TEMPLATES_COLLECTION), payload);
       setMessage({
         type: 'success',
         text: `Template "${newName.trim()}" saved.`,
@@ -166,7 +272,11 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Save Board as Template"
+      title={
+        target?.kind === 'collection'
+          ? 'Save Collection as Template'
+          : 'Save Board as Template'
+      }
       maxWidth="max-w-lg"
       zIndex="z-modal-deep"
     >

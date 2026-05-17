@@ -584,9 +584,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         />
       )}
       <SaveAsTemplateModal
-        isOpen={!!saveAsTemplateTarget}
-        currentDashboard={saveAsTemplateTarget}
+        isOpen={saveAsTemplateTarget !== null}
         onClose={() => setSaveAsTemplateTarget(null)}
+        target={
+          saveAsTemplateTarget
+            ? { kind: 'board', dashboard: saveAsTemplateTarget }
+            : null
+        }
       />
     </div>
   );
