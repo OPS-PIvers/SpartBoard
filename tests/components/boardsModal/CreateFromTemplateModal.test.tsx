@@ -66,6 +66,7 @@ vi.mock('@/config/firebase', () => ({
 
 const createCollection = vi.fn().mockResolvedValue('new-coll-id');
 const setCollectionDefaultBoard = vi.fn().mockResolvedValue(undefined);
+const deleteCollection = vi.fn().mockResolvedValue(undefined);
 const createNewDashboard = vi.fn().mockResolvedValue('new-board-id');
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
@@ -74,6 +75,7 @@ vi.mock('@/context/useDashboard', () => ({
     collectionsApi: {
       createCollection,
       setCollectionDefaultBoard,
+      deleteCollection,
     },
   }),
 }));
@@ -82,6 +84,10 @@ beforeEach(() => {
   createCollection.mockClear();
   createNewDashboard.mockClear();
   setCollectionDefaultBoard.mockClear();
+  deleteCollection.mockClear();
+  // Reset any per-test mockRejectedValue overrides so tests don't bleed into
+  // each other.
+  createNewDashboard.mockResolvedValue('new-board-id');
 });
 
 describe('CreateFromTemplateModal', () => {
@@ -129,6 +135,24 @@ describe('CreateFromTemplateModal', () => {
     await waitFor(() => expect(createNewDashboard).toHaveBeenCalledTimes(1));
     expect(createCollection).not.toHaveBeenCalled();
     expect(createNewDashboard.mock.calls[0][0]).toBe('Board T');
+  });
+
+  it('rolls back the Collection when every Board creation fails', async () => {
+    createNewDashboard.mockRejectedValue(new Error('boom'));
+
+    render(<CreateFromTemplateModal isOpen onClose={() => undefined} />);
+    onSnapshotCallback({
+      docs: [{ id: 'ct1', data: () => collectionTemplate }],
+    });
+    await waitFor(() => screen.getByText('Collection T'));
+    fireEvent.click(screen.getByText('Collection T'));
+
+    await waitFor(() => expect(createCollection).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(deleteCollection).toHaveBeenCalledWith('new-coll-id', 'delete-all')
+    );
+    // onClose should NOT be called — modal stays open so user can retry
+    expect(setCollectionDefaultBoard).not.toHaveBeenCalled();
   });
 
   it('skips disabled templates', async () => {

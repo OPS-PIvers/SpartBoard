@@ -9,6 +9,7 @@ import { hydrateCollectionTemplate } from '@/utils/collectionTemplateHydration';
 import {
   AnyTemplate,
   Dashboard,
+  DEFAULT_GLOBAL_STYLE,
   isCollectionTemplate,
   DashboardTemplate,
 } from '@/types';
@@ -28,7 +29,8 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
 }) => {
   const { t } = useTranslation();
   const { collectionsApi, dashboards, createNewDashboard } = useDashboard();
-  const { createCollection, setCollectionDefaultBoard } = collectionsApi;
+  const { createCollection, setCollectionDefaultBoard, deleteCollection } =
+    collectionsApi;
   const [templates, setTemplates] = useState<AnyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyTemplateId, setBusyTemplateId] = useState<string | null>(null);
@@ -82,10 +84,8 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
       try {
         // Board templates land at root with no collectionId. Spread the
         // template's widgets/style/background into the new Dashboard.
-        // Cast via `as Dashboard` because DashboardTemplate.globalStyle is
-        // Partial<GlobalStyle> while Dashboard.globalStyle expects GlobalStyle;
-        // the runtime shape is identical — the Partial<> is a write-time
-        // convenience type that shouldn't propagate to instantiated Dashboards.
+        // Merge Partial<GlobalStyle> with DEFAULT_GLOBAL_STYLE so the resulting
+        // Dashboard.globalStyle always satisfies the full GlobalStyle type.
         const dashboard = {
           id: crypto.randomUUID(),
           name: tpl.name,
@@ -94,7 +94,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
           createdAt: Date.now(),
           order: baseOrder + 1,
           ...(tpl.globalStyle !== undefined && {
-            globalStyle: tpl.globalStyle,
+            globalStyle: { ...DEFAULT_GLOBAL_STYLE, ...tpl.globalStyle },
           }),
         } as Dashboard;
         await createNewDashboard(tpl.name, dashboard);
@@ -120,16 +120,42 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
           collectionInput.name,
           collectionInput.parentCollectionId
         );
+
         // Fan out Board creation sequentially under the new Collection.
         // Sequential (not parallel) so the order field translates 1:1 to
         // sidebar position without ordering races between concurrent
-        // createNewDashboard calls.
+        // createNewDashboard calls. Track per-Board success so we can
+        // roll back if every Board creation fails (matches the pattern in
+        // DashboardContext.importSharedCollection from Plan 3).
+        let succeeded = 0;
         for (const board of boardInputs) {
-          await createNewDashboard(board.name, board, {
-            collectionId: newCollectionId,
-            silent: true,
-          });
+          try {
+            await createNewDashboard(board.name, board, {
+              collectionId: newCollectionId,
+              silent: true,
+            });
+            succeeded += 1;
+          } catch (boardErr) {
+            logError('CreateFromTemplateModal.boardCreate', boardErr, {
+              templateId: tpl.id,
+              boardName: board.name,
+            });
+          }
         }
+
+        if (succeeded === 0) {
+          // Every Board creation failed — remove the empty Collection shell
+          // rather than leaving a stale entry in the user's sidebar.
+          try {
+            await deleteCollection(newCollectionId, 'delete-all');
+          } catch (cleanupErr) {
+            logError('CreateFromTemplateModal.rollback', cleanupErr, {
+              newCollectionId,
+            });
+          }
+          return;
+        }
+
         if (defaultBoardId !== null) {
           await setCollectionDefaultBoard(newCollectionId, defaultBoardId);
         }
@@ -146,6 +172,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
       baseOrder,
       createCollection,
       createNewDashboard,
+      deleteCollection,
       setCollectionDefaultBoard,
       onClose,
     ]

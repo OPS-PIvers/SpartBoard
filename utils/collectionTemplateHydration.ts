@@ -3,6 +3,7 @@ import type {
   Dashboard,
   BoardTemplateSnapshot,
 } from '@/types';
+import { DEFAULT_GLOBAL_STYLE } from '@/types';
 
 export interface HydrateOptions {
   /** Highest existing `order` value across the recipient's dashboards. New Boards land at `existingMaxOrder + 1..N`. */
@@ -63,8 +64,6 @@ export const hydrateCollectionTemplate = (
       const newId = crypto.randomUUID();
       idRemap.set(snap.id, newId);
 
-      // Build dashboard object; globalStyle is stored as Partial but passed as-is
-      // (consumers of this helper will see it as-is; they handle the partial-ness)
       const board = {
         id: newId,
         name: snap.name,
@@ -73,7 +72,7 @@ export const hydrateCollectionTemplate = (
         createdAt: Date.now(),
         order: options.existingMaxOrder + idx + 1,
         ...(snap.globalStyle !== undefined && {
-          globalStyle: snap.globalStyle,
+          globalStyle: { ...DEFAULT_GLOBAL_STYLE, ...snap.globalStyle },
         }),
         ...(snap.settings !== undefined && { settings: snap.settings }),
         ...(snap.libraryOrder !== undefined && {
