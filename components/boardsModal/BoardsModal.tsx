@@ -65,6 +65,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     useState<Collection | null>(null);
   const [saveAsTemplateTarget, setSaveAsTemplateTarget] =
     useState<Dashboard | null>(null);
+  const [saveAsCollectionTemplateTarget, setSaveAsCollectionTemplateTarget] =
+    useState<Collection | null>(null);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -503,6 +505,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               onOpen={() => setSelectedCollectionId(c.id)}
               canShare={canShare}
               onShare={() => setShareCollectionTarget(c)}
+              canSaveAsTemplate={Boolean(isAdmin)}
+              onSaveAsTemplate={() => setSaveAsCollectionTemplateTarget(c)}
               onRename={async () => {
                 const next = await showPrompt('Rename Collection', {
                   title: 'Rename',
@@ -589,6 +593,21 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         target={
           saveAsTemplateTarget
             ? { kind: 'board', dashboard: saveAsTemplateTarget }
+            : null
+        }
+      />
+      <SaveAsTemplateModal
+        isOpen={saveAsCollectionTemplateTarget !== null}
+        onClose={() => setSaveAsCollectionTemplateTarget(null)}
+        target={
+          saveAsCollectionTemplateTarget
+            ? {
+                kind: 'collection',
+                collection: saveAsCollectionTemplateTarget,
+                boards: dashboards.filter(
+                  (d) => d.collectionId === saveAsCollectionTemplateTarget.id
+                ),
+              }
             : null
         }
       />
