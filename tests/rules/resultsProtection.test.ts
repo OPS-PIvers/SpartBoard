@@ -310,11 +310,11 @@ describe('results-protection — student writes', () => {
   });
 
   it('student CAN reset score to null when re-entering after grading (rejoin path)', async () => {
-    // The whitelist deliberately includes `score` because the rejoin path
-    // writes `score: null` to clear a previous attempt's grade before the
-    // student starts answering again. Pin the allow case so a future
-    // tightening that disallows score transitions doesn't silently break
-    // rejoin without test coverage flagging it.
+    // The score-field guard at L2095-2103 deliberately allows `score → null`
+    // because the rejoin path writes `score: null` to clear a previous
+    // attempt's grade before the student starts answering again. Pin the
+    // allow case so a future tightening that disallows score transitions
+    // doesn't silently break rejoin without test coverage flagging it.
     await seedSessionAndResponses({}); // baseResponse seeds score: 80
     await assertSucceeds(
       updateDoc(
@@ -322,7 +322,7 @@ describe('results-protection — student writes', () => {
           asStudentA(),
           `quiz_sessions/${SESSION_ID}/responses/${RESPONSE_A_KEY}`
         ),
-        { score: null, preSyncVersion: 1 }
+        { score: null }
       )
     );
   });
