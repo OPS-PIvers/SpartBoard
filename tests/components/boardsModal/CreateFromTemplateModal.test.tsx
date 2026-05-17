@@ -66,18 +66,15 @@ vi.mock('@/config/firebase', () => ({
 
 const createCollection = vi.fn().mockResolvedValue('new-coll-id');
 const setCollectionDefaultBoard = vi.fn().mockResolvedValue(undefined);
-vi.mock('@/hooks/useCollections', () => ({
-  useCollections: () => ({
-    createCollection,
-    setCollectionDefaultBoard,
-  }),
-}));
-
 const createNewDashboard = vi.fn().mockResolvedValue('new-board-id');
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     dashboards: [{ order: 4 }],
     createNewDashboard,
+    collectionsApi: {
+      createCollection,
+      setCollectionDefaultBoard,
+    },
   }),
 }));
 

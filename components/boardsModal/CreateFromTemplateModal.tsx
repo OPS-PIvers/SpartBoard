@@ -4,7 +4,6 @@ import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import { Loader2, Layout, Folder } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { db, isAuthBypass } from '@/config/firebase';
-import { useCollections } from '@/hooks/useCollections';
 import { useDashboard } from '@/context/useDashboard';
 import { hydrateCollectionTemplate } from '@/utils/collectionTemplateHydration';
 import {
@@ -27,15 +26,8 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  // NOTE: useCollections is called without a userId here because this modal
-  // only uses createCollection and setCollectionDefaultBoard — both of which
-  // are called in response to explicit user actions inside a fully-authed
-  // session. The DashboardContext exposes a shared collectionsApi instance but
-  // the test-suite mocks useCollections directly, so we call it here to keep
-  // the seam consistent with the mock boundary.
-  const { createCollection, setCollectionDefaultBoard } =
-    useCollections(undefined);
-  const { dashboards, createNewDashboard } = useDashboard();
+  const { collectionsApi, dashboards, createNewDashboard } = useDashboard();
+  const { createCollection, setCollectionDefaultBoard } = collectionsApi;
   const [templates, setTemplates] = useState<AnyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyTemplateId, setBusyTemplateId] = useState<string | null>(null);
@@ -75,7 +67,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
   }, [isOpen]);
 
   const baseOrder = dashboards.reduce(
-    (max, d) => Math.max(max, (d as { order?: number }).order ?? 0),
+    (max, d) => Math.max(max, d.order ?? 0),
     0
   );
 
