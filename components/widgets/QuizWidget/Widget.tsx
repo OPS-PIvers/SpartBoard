@@ -1965,14 +1965,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 visibility,
                 protection
               );
-              // Persist the teacher's last protection choice so the next
-              // publish dialog opens pre-filled. Only runs on successful
-              // publish — sequential await is intentional.
-              if (protection) {
-                await updateAppSettings({
-                  lastResultsProtection: protection,
-                });
-              }
               addToast(
                 result.responsesUpdated > 0
                   ? `Scores published to ${result.responsesUpdated} student${result.responsesUpdated === 1 ? '' : 's'}.`
@@ -1981,10 +1973,34 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               );
               setPublishingAssignment(null);
             } catch (err) {
+              logError('QuizWidget.publishAssignmentScores', err, {
+                assignmentId: target.id,
+                visibility,
+              });
               addToast(
                 err instanceof Error ? err.message : 'Failed to publish scores',
                 'error'
               );
+              return;
+            }
+            // Persist the teacher's last protection choice so the next
+            // publish dialog opens pre-filled. Best-effort — this is a UI
+            // preference, not part of the publish contract. Kept out of the
+            // publish try/catch so a preference-save failure does NOT
+            // surface as "Failed to publish scores" (the publish already
+            // succeeded, and re-publishing on perceived failure would
+            // double the Firestore write cost on PLC-shared assignments
+            // with hundreds of responses).
+            if (protection) {
+              try {
+                await updateAppSettings({
+                  lastResultsProtection: protection,
+                });
+              } catch (err) {
+                logError('QuizWidget.updateAppSettings.lastProtection', err, {
+                  assignmentId: target.id,
+                });
+              }
             }
           }}
         />

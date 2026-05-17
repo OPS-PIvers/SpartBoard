@@ -1852,7 +1852,14 @@ export const useQuizAssignments = (
         // would keep rendering against a no-longer-published result set.
         protection: deleteField(),
       });
-      await batch.commit();
+      try {
+        await batch.commit();
+      } catch (err) {
+        logError('useQuizAssignments.unpublishAssignmentScores', err, {
+          assignmentId,
+        });
+        throw err;
+      }
     },
     [userId]
   );
@@ -2016,7 +2023,17 @@ export const useQuizAssignments = (
       for (let i = 0; i < firstChunkSize; i++) {
         firstBatch.update(updates[i].ref, updates[i].patch);
       }
-      await firstBatch.commit();
+      try {
+        await firstBatch.commit();
+      } catch (err) {
+        logError('useQuizAssignments.publishAssignmentScores.firstBatch', err, {
+          assignmentId,
+          visibility,
+          totalResponses: updates.length,
+          firstChunkSize,
+        });
+        throw err;
+      }
       let responsesCommitted = firstChunkSize;
 
       // Remaining responses in subsequent batches (assignments with > ~398
@@ -2045,6 +2062,12 @@ export const useQuizAssignments = (
           responsesCommitted += chunk.length;
         }
       } catch (err) {
+        logError('useQuizAssignments.publishAssignmentScores.chunkLoop', err, {
+          assignmentId,
+          visibility,
+          responsesCommitted,
+          totalResponses: updates.length,
+        });
         const cause = err instanceof Error ? err.message : String(err);
         throw new Error(
           `Partial publish: ${responsesCommitted} of ${updates.length} student responses graded. Re-run "Publish scores" to finish. (${cause})`

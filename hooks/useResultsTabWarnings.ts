@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { doc, increment, updateDoc } from 'firebase/firestore';
 import { db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 
 interface UseResultsTabWarningsArgs {
   /** True only when the session has tab-warning protection enabled AND student isn't already locked. */
@@ -34,6 +35,16 @@ export function useResultsTabWarnings({
   responseDocPath,
 }: UseResultsTabWarningsArgs): void {
   const wasHiddenRef = useRef(false);
+  // Mirror `currentWarnings` into a ref so the listener effect can read the
+  // latest value without re-subscribing on every snapshot. If `currentWarnings`
+  // were in the effect deps, each successful increment would tear down
+  // listeners and reset `wasHiddenRef` — losing the hidden state during a
+  // rapid hide→return→hide race window (Firestore round-trip is ~100-200ms,
+  // comfortably within motivated-cheater behavior).
+  const currentWarningsRef = useRef(currentWarnings);
+  useEffect(() => {
+    currentWarningsRef.current = currentWarnings;
+  }, [currentWarnings]);
 
   useEffect(() => {
     if (!enabled || lockedOut) return undefined;
@@ -43,6 +54,7 @@ export function useResultsTabWarnings({
     wasHiddenRef.current = false;
 
     const incrementOnce = async () => {
+      const nextCount = currentWarningsRef.current + 1;
       const update: Partial<{
         resultsTabWarnings: ReturnType<typeof increment>;
         resultsLockedOut: boolean;
@@ -54,14 +66,18 @@ export function useResultsTabWarnings({
       // event races, this still computes against the same stale snapshot — but the
       // increment itself is atomic via `increment(1)`, so the count is preserved
       // and the lockout will flip on the next event at the latest.
-      if (currentWarnings + 1 >= threshold) {
+      if (nextCount >= threshold) {
         update.resultsLockedOut = true;
         update.resultsLockedOutAt = Date.now();
       }
       try {
         await updateDoc(doc(db, responseDocPath), update);
       } catch (e) {
-        console.error('[useResultsTabWarnings] update failed', e);
+        logError('useResultsTabWarnings.update', e, {
+          responseDocPath,
+          nextCount,
+          threshold,
+        });
       }
     };
 
@@ -95,5 +111,8 @@ export function useResultsTabWarnings({
       window.removeEventListener('blur', handleBlur);
       window.removeEventListener('focus', handleFocus);
     };
-  }, [enabled, lockedOut, threshold, currentWarnings, responseDocPath]);
+    // `currentWarnings` is intentionally excluded — mirrored via
+    // `currentWarningsRef` above. Re-subscribing on every increment would
+    // reset `wasHiddenRef` and drop subsequent hidden-state observations.
+  }, [enabled, lockedOut, threshold, responseDocPath]);
 }

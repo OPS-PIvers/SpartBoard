@@ -9,6 +9,7 @@ import {
 } from '@/hooks/useStudentAssignments';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
 import { useDialog } from '@/context/useDialog';
+import { logError } from '@/utils/logError';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -248,8 +249,20 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         window.location.assign(assignment.openHref);
         return;
       }
-    } catch {
-      // Fall through to alert — treat unknown as still locked.
+    } catch (err) {
+      // Re-check failed (network, permission, transient Firestore error).
+      // We don't know the live state — surface a recoverable message rather
+      // than a misleading "your teacher locked this" alert, and log so
+      // operators can see the failure rate.
+      logError('AssignmentListItem.recheckLock', err, {
+        sessionId: assignment.sessionId,
+        kind: assignment.kind,
+      });
+      void showAlert(
+        'Could not verify your results status. Check your connection and try again in a moment.',
+        { title: 'Connection issue', variant: 'warning' }
+      );
+      return;
     }
     void showAlert('Locked by your teacher. Ask them to unlock your results.', {
       title: 'Results locked',
