@@ -364,8 +364,10 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
             </h3>
           </div>
           <p className="text-xs text-slate-500">
-            Overwrite a template&apos;s widgets and style with the current
-            board. Its name, access settings, and buildings are preserved.
+            {target?.kind === 'collection'
+              ? "Overwrite a template's board snapshots with the current Collection's boards."
+              : "Overwrite a template's widgets and style with the current board."}{' '}
+            Its name, access settings, and buildings are preserved.
           </p>
           {loadingTemplates ? (
             <div className="flex items-center gap-2 text-slate-400 text-sm">

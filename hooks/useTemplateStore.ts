@@ -67,6 +67,13 @@ class MockTemplateStore {
     this.persist();
   }
 
+  /** Remove a template by id. Hydrates from sessionStorage on first call. */
+  remove(id: string): void {
+    this.hydrate();
+    this.items.delete(id);
+    this.persist();
+  }
+
   /**
    * Returns all templates sorted by createdAt descending — matches the
    * production Firestore query `orderBy('createdAt', 'desc')`.

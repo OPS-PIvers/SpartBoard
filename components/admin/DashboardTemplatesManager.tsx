@@ -10,6 +10,7 @@ import {
   addDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { mockTemplateStore } from '@/hooks/useTemplateStore';
 import {
   AnyTemplate,
   DashboardTemplate,
@@ -152,10 +153,14 @@ export const DashboardTemplatesManager: React.FC = () => {
       if (!local) return;
       setSavingIds((prev) => new Set(prev).add(id));
       try {
-        await setDoc(doc(db, TEMPLATES_COLLECTION, id), {
-          ...local,
-          updatedAt: Date.now(),
-        });
+        if (isAuthBypass) {
+          mockTemplateStore.save({ ...local, updatedAt: Date.now() });
+        } else {
+          await setDoc(doc(db, TEMPLATES_COLLECTION, id), {
+            ...local,
+            updatedAt: Date.now(),
+          });
+        }
         setUnsavedIds((prev) => {
           const next = new Set(prev);
           next.delete(id);
@@ -182,7 +187,12 @@ export const DashboardTemplatesManager: React.FC = () => {
       );
       if (confirmed) {
         try {
-          await deleteDoc(doc(db, TEMPLATES_COLLECTION, template.id));
+          if (isAuthBypass) {
+            mockTemplateStore.remove(template.id);
+            setTemplates((prev) => prev.filter((t) => t.id !== template.id));
+          } else {
+            await deleteDoc(doc(db, TEMPLATES_COLLECTION, template.id));
+          }
         } catch (err) {
           console.error('Failed to delete template:', err);
         }
@@ -209,7 +219,14 @@ export const DashboardTemplatesManager: React.FC = () => {
         updatedAt: now,
         createdBy: user.email,
       };
-      await addDoc(collection(db, TEMPLATES_COLLECTION), newTemplate);
+      if (isAuthBypass) {
+        const newId = crypto.randomUUID();
+        const finalTemplate = { ...newTemplate, id: newId } as AnyTemplate;
+        mockTemplateStore.save(finalTemplate);
+        setTemplates((prev) => [finalTemplate, ...prev]);
+      } else {
+        await addDoc(collection(db, TEMPLATES_COLLECTION), newTemplate);
+      }
       setForm(DEFAULT_FORM);
       setShowForm(false);
     } catch (err) {
