@@ -6,6 +6,7 @@ import {
   FolderInput,
   Palette,
   Share2,
+  LayoutTemplate,
   Trash2,
 } from 'lucide-react';
 
@@ -18,6 +19,8 @@ interface CollectionContextMenuProps {
   onColor: () => void;
   canShare: boolean;
   onShare: () => void;
+  canSaveAsTemplate: boolean;
+  onSaveAsTemplate: () => void;
   onDelete: () => void;
 }
 
@@ -30,6 +33,8 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
   onColor,
   canShare,
   onShare,
+  canSaveAsTemplate,
+  onSaveAsTemplate,
   onDelete,
 }) => {
   const { t } = useTranslation();
@@ -79,6 +84,16 @@ export const CollectionContextMenu: React.FC<CollectionContextMenuProps> = ({
       label: t('collectionMenu.share', { defaultValue: 'Share Collection…' }),
       icon: Share2,
       action: onShare,
+    });
+  }
+
+  if (canSaveAsTemplate) {
+    items.push({
+      label: t('collectionMenu.saveAsTemplate', {
+        defaultValue: 'Save as Template…',
+      }),
+      icon: LayoutTemplate,
+      action: onSaveAsTemplate,
     });
   }
 
