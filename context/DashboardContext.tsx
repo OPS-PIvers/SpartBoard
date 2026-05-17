@@ -3858,9 +3858,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       navigationDebounceRef.current = window.setTimeout(() => {
         navigationDebounceRef.current = null;
         const profileRef = doc(db, 'users', uid, 'userProfile', 'profile');
+        // Use the nested-object form rather than a dot-notated key
+        // (`lastBoardIdByCollection.${collectionKey}: id`). `setDoc` with
+        // `{ merge: true }` treats dot-notated keys as LITERAL field names
+        // — it does NOT interpret them as field paths the way `updateDoc`
+        // does. The nested-object form recursively merges maps under
+        // merge:true, so existing per-Collection entries in
+        // `lastBoardIdByCollection` are preserved and the new entry is
+        // added/updated under the right key. AuthContext reads this as a
+        // nested map; the dot-notated form silently wrote literal
+        // `"lastBoardIdByCollection.foo"` fields at the doc root that
+        // AuthContext never saw, so navigation memory never persisted.
         const updates: Record<string, unknown> = {
           lastActiveCollectionId: collectionId,
-          [`lastBoardIdByCollection.${collectionKey}`]: id,
+          lastBoardIdByCollection: { [collectionKey]: id },
         };
         void setDoc(profileRef, updates, { merge: true }).catch(
           (err: unknown) => {
