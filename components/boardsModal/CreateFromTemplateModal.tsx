@@ -13,6 +13,7 @@ import {
   DashboardTemplate,
 } from '@/types';
 import { logError } from '@/utils/logError';
+import { mockTemplateStore } from '@/hooks/useTemplateStore';
 
 interface Props {
   isOpen: boolean;
@@ -36,6 +37,10 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
   useEffect(() => {
     if (!isOpen) return;
     if (isAuthBypass) {
+      // In auth-bypass / E2E mode, read from the in-memory mock store.
+      // Defensive filter matches production: only show enabled templates.
+      const all = mockTemplateStore.getAll().filter((tpl) => tpl.enabled);
+      setTemplates(all);
       setLoading(false);
       return;
     }

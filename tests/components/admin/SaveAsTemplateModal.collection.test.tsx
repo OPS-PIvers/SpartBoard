@@ -2,7 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
-import type { Collection, Dashboard } from '@/types';
+import type { Collection, Dashboard, AnyTemplate } from '@/types';
 
 const addDocMock = vi.fn().mockResolvedValue({ id: 'new-template-id' });
 const setDocMock = vi.fn().mockResolvedValue(undefined);
@@ -19,7 +19,7 @@ vi.mock('firebase/firestore', () => ({
 
 vi.mock('@/config/firebase', () => ({
   db: {},
-  isAuthBypass: true, // skip the snapshot subscription
+  isAuthBypass: true, // routes writes to mock store, not Firestore
 }));
 
 vi.mock('@/context/useAuth', () => ({
@@ -28,6 +28,17 @@ vi.mock('@/context/useAuth', () => ({
 
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => [],
+}));
+
+// Capture what the mock store receives so tests can assert on it.
+const savedTemplates: AnyTemplate[] = [];
+vi.mock('@/hooks/useTemplateStore', () => ({
+  mockTemplateStore: {
+    save: (t: AnyTemplate) => {
+      savedTemplates.push(t);
+    },
+    getAll: () => savedTemplates,
+  },
 }));
 
 const collection: Collection = {
@@ -52,6 +63,7 @@ const board = (id: string, name: string): Dashboard => ({
 beforeEach(() => {
   addDocMock.mockClear();
   setDocMock.mockClear();
+  savedTemplates.length = 0;
 });
 
 describe('SaveAsTemplateModal — Collection target', () => {
@@ -73,8 +85,10 @@ describe('SaveAsTemplateModal — Collection target', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /Save New Template/i }));
 
-    await waitFor(() => expect(addDocMock).toHaveBeenCalledTimes(1));
-    const written = addDocMock.mock.calls[0][1] as Record<string, unknown>;
+    // In auth-bypass mode, writes go to the mock store — NOT addDoc.
+    await waitFor(() => expect(savedTemplates).toHaveLength(1));
+    expect(addDocMock).not.toHaveBeenCalled();
+    const written = savedTemplates[0] as unknown as Record<string, unknown>;
     expect(written.type).toBe('collection');
     expect(written.collectionSnapshot).toMatchObject({
       name: 'Morning Routine',

@@ -24,6 +24,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
+import { mockTemplateStore } from '@/hooks/useTemplateStore';
 
 /**
  * Discriminated target passed to `SaveAsTemplateModal`.
@@ -76,6 +77,15 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   useEffect(() => {
     if (!isOpen) return;
     if (isAuthBypass) {
+      // In auth-bypass / E2E mode, read from the in-memory mock store.
+      // Filter by target kind so the picker only shows same-kind templates.
+      const all = mockTemplateStore.getAll();
+      const filtered = all.filter((t) =>
+        target?.kind === 'collection'
+          ? isCollectionTemplate(t)
+          : !isCollectionTemplate(t)
+      );
+      setTemplates(filtered);
       setLoadingTemplates(false);
       return;
     }
@@ -173,7 +183,38 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
     setUpdating(true);
     setMessage(null);
     try {
-      if (target.kind === 'board') {
+      if (isAuthBypass) {
+        // In auth-bypass / E2E mode, merge the update into the mock store.
+        const existing = mockTemplateStore
+          .getAll()
+          .find((t) => t.id === selectedTemplateId);
+        if (existing) {
+          if (target.kind === 'board') {
+            mockTemplateStore.save({
+              ...existing,
+              ...captureBoardForBoardTemplate(target.dashboard),
+              updatedAt: Date.now(),
+            } as AnyTemplate);
+          } else {
+            mockTemplateStore.save({
+              ...existing,
+              collectionSnapshot: {
+                name: target.collection.name,
+                ...(target.collection.color !== undefined && {
+                  color: target.collection.color,
+                }),
+                ...(target.collection.icon !== undefined && {
+                  icon: target.collection.icon,
+                }),
+              },
+              boardSnapshots: target.boards.map(
+                captureBoardForCollectionTemplate
+              ),
+              updatedAt: Date.now(),
+            } as AnyTemplate);
+          }
+        }
+      } else if (target.kind === 'board') {
         await setDoc(
           doc(db, TEMPLATES_COLLECTION, selectedTemplateId),
           {
@@ -261,7 +302,14 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
           createdBy: user.email,
         };
       }
-      await addDoc(collection(db, TEMPLATES_COLLECTION), payload);
+      if (isAuthBypass) {
+        // In auth-bypass / E2E mode, write to the in-memory mock store
+        // instead of Firestore (db is a {} stub; addDoc would throw).
+        const id = crypto.randomUUID();
+        mockTemplateStore.save({ ...payload, id } as AnyTemplate);
+      } else {
+        await addDoc(collection(db, TEMPLATES_COLLECTION), payload);
+      }
       setMessage({
         type: 'success',
         text: `Template "${newName.trim()}" saved.`,
