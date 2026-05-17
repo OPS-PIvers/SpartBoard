@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-05-17_
-_Last action: 2026-04-16_
+_Last action: 2026-05-17 (skip note only — recent-modification safety rule)_
 
 ---
 
@@ -28,6 +28,7 @@ _Nothing currently in progress._
   - `remote` — `RemoteConfigurationPanel` registered
 - **Fix:** For each widget, decide: (a) if building-level defaults are genuinely needed, add a `Building*Defaults` interface to types.ts, add a `buildingDefaults` field to the widget's config interface, and add a case in `getAdminBuildingConfig()`; or (b) if admin settings aren't needed, remove the panel from `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` to avoid confusing admins with non-functional UI.
 - **2026-05-14 skip note:** Action agent skipped this item per the recent-modification safety rule. `types.ts` was modified in commit 865470c2 (`feat(quiz): inline annotations + snapshot for written responses (Phase 2)`) and `context/DashboardContext.tsx` was modified in commit 6b2f5ff4 (`fix(dock): remove session-gate on empty-dock auto-recovery`) — both within the last 5 commits on this branch. Although the recent changes are in unrelated regions (quiz types / dock state), the mechanical "no-recent-modifications" guard requires deferral. Will be re-eligible once both target files have aged out of the last-5-commits window.
+- **2026-05-17 skip note:** Re-skipped per the recent-modification safety rule. `types.ts` was modified in commits 516ab8dc (`feat: Collection-level templates (Plan 4 of 4)`) and 2f8d6751 (`feat: Collection-level sharing (Copy + Substitute view-only) (Plan 3 of 4)`), and `context/DashboardContext.tsx` was modified in commits 2f8d6751, debe426f (`feat: Collections FAB + breadcrumb + mounted-set state preservation (Plan 2 of 4)`), and f691e285 (`feat: Collections + Boards modal (Plan 1 of 4)`) — all within the last 5 substantive commits on this branch. The Collections feature shipped in 4 plans throughout the week kept both target files in continuous churn. Will re-evaluate next cycle once both target files have aged out of the last-5-commits window.
 
 ### MEDIUM Appearance settings (cardColor, cardOpacity, fontFamily, fontColor) exposed in user Settings.tsx but absent from admin building config
 
