@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-18_
+_Last audited: 2026-05-17_
 _Last action: 2026-05-16_
 
 ---
@@ -21,8 +21,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-_2026-05-18: Scanned all Widget.tsx / index.tsx files for anti-patterns. New commits since 2026-05-17: feat(whats-new) 8e86f851 (new changelog modal in Sidebar — not a widget file), fix(soundwidget) 6bf370df (AudioContext resume path split — logic only, no className changes), fix(quiz) 0f81a137 (results-protection error paths — not a widget front-face), fix(number-line) 8b91d650 (the cqmin hover-hint fix already marked completed 2026-05-16), feat(collection-level-templates) 516ab8dc. None introduced new Widget.tsx front-face scaling violations. All pre-existing open items remain valid. No new anti-patterns detected._
 
 _2026-05-17: Scanned all Widget.tsx / index.tsx files for anti-patterns. Recent commits since 2026-05-16: Collection-level sharing plan 2–3 (2f8d6751/debe426f), quiz screenshot protection (2bf54e9d), collections polish (6dccd37a/e490fa79). None introduced new Widget.tsx front-face changes. All pre-existing open items remain valid. No new anti-patterns detected._
 
