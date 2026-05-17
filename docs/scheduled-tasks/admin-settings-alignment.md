@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-05-17_
-_Last action: 2026-05-21_
+_Last action: 2026-04-16_
 
 ---
 
@@ -15,6 +15,20 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM 5 widgets have ConfigurationPanels but no Building\*Defaults type infrastructure
+
+- **Detected:** 2026-04-16
+- **File:** types.ts, context/DashboardContext.tsx, components/admin/FeatureConfigurationPanel.tsx
+- **Detail:** The following 5 widgets have `*ConfigurationPanel.tsx` components registered in `BUILDING_CONFIG_PANELS` but have NO `Building*Defaults` interface in `types.ts` and NO `buildingDefaults` field on their config interface. The panels collect admin input with no defined schema, no Firestore storage key, and no application logic.
+  - `mathTools` — `MathToolsConfigurationPanel` registered
+  - `recessGear` — `RecessGearConfigurationPanel` registered
+  - `magic` — `MagicConfigurationPanel` registered
+  - `record` — `RecordConfigurationPanel` registered
+  - `remote` — `RemoteConfigurationPanel` registered
+- **Fix:** For each widget, decide: (a) if building-level defaults are genuinely needed, add a `Building*Defaults` interface to types.ts, add a `buildingDefaults` field to the widget's config interface, and add a case in `getAdminBuildingConfig()`; or (b) if admin settings aren't needed, remove the panel from `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx` to avoid confusing admins with non-functional UI.
+- **2026-05-14 skip note:** Action agent skipped this item per the recent-modification safety rule. `types.ts` was modified in commit 865470c2 (`feat(quiz): inline annotations + snapshot for written responses (Phase 2)`) and `context/DashboardContext.tsx` was modified in commit 6b2f5ff4 (`fix(dock): remove session-gate on empty-dock auto-recovery`) — both within the last 5 commits on this branch. Although the recent changes are in unrelated regions (quiz types / dock state), the mechanical "no-recent-modifications" guard requires deferral. Will be re-eligible once both target files have aged out of the last-5-commits window.
+- **2026-05-17 skip note:** Re-skipped per the recent-modification safety rule. `types.ts` was modified in commits 516ab8dc (`feat: Collection-level templates (Plan 4 of 4)`) and 2f8d6751 (`feat: Collection-level sharing (Copy + Substitute view-only) (Plan 3 of 4)`), and `context/DashboardContext.tsx` was modified in commits 2f8d6751, debe426f (`feat: Collections FAB + breadcrumb + mounted-set state preservation (Plan 2 of 4)`), and f691e285 (`feat: Collections + Boards modal (Plan 1 of 4)`) — all within the last 5 substantive commits on this branch. The Collections feature shipped in 4 plans throughout the week kept both target files in continuous churn. Will re-evaluate next cycle once both target files have aged out of the last-5-commits window.
 
 ### MEDIUM Appearance settings (cardColor, cardOpacity, fontFamily, fontColor) exposed in user Settings.tsx but absent from admin building config
 
@@ -59,16 +73,6 @@ _Nothing currently in progress._
 ---
 
 ## Completed
-
-### MEDIUM 5 widgets have ConfigurationPanels but no Building\*Defaults type infrastructure
-
-- **Detected:** 2026-04-16
-- **Completed:** 2026-05-21
-- **File:** components/admin/FeatureConfigurationPanel.tsx (+ deleted MagicConfigurationPanel.tsx, RecordConfigurationPanel.tsx, RemoteConfigurationPanel.tsx, SchemaDrivenConfigurationPanel.tsx)
-- **Detail:** The original entry flagged `mathTools`, `recessGear`, `magic`, `record`, and `remote` as registered in `BUILDING_CONFIG_PANELS` with "no application logic." On investigation the five split into two groups:
-  - **`mathTools` and `recessGear` — NOT dead UI; the original premise was inaccurate.** Both are fully functional via the _global-config_ pattern rather than the `buildingDefaults` / `getAdminBuildingConfig()` pattern. `MathTools/Widget.tsx:34-46` reads `featurePermissions.find(p => p.widgetType === 'mathTools')?.config` as `MathToolsGlobalConfig` and applies `toolGradeLevels` + `dpiCalibration`. `RecessGear/Widget.tsx:47` reads the admin permission's `config` as `RecessGearGlobalConfig` and applies `temperatureRanges`. These panels write structured, typed, consumed config — they correctly do **not** need a `Building*Defaults` interface or a `getAdminBuildingConfig` case. No action required; re-classified as not-an-issue.
-  - **`magic`, `record`, `remote` — genuinely dead/stub admin UI (fix option b applied).** A whole-codebase grep confirmed `MagicConfigurationPanel`'s keys (`dailyRateLimit`, `promptSuggestions`) and `RecordConfigurationPanel`'s keys (`maxDurationMinutes`, `maxResolution`) appear **only** in their own panels — nothing in `components/`, `hooks/`, `utils/`, or the cloud functions ever reads them. `RemoteConfigurationPanel` was an explicit "No additional global settings available" stub; `RemoteGlobalConfig` only carries `dockDefaults`, which is already handled by the always-rendered `DockDefaultsPanel` at the top of `FeatureConfigurationPanel`, independent of the `BUILDING_CONFIG_PANELS` entry.
-- **Resolution:** Chose fix option (b) for the three dead/stub panels — wiring them up (option a) would require unspecified feature work (AI quota enforcement for `magic`, screen-recording constraints for `record`) that is out of scope for a config-alignment cleanup. Removed the `magic`, `record`, and `remote` imports and `BUILDING_CONFIG_PANELS` entries from `FeatureConfigurationPanel.tsx`; all three now fall through to the standard "No global settings available for this widget." placeholder. Deleted the three now-unused panel files plus `SchemaDrivenConfigurationPanel.tsx`, which was orphaned once `magic`/`record` (its only consumers) were removed. `remote`'s dock-visibility control is unaffected (still rendered by `DockDefaultsPanel`). `RemoteGlobalConfig` left in `types.ts` (harmless unused export documenting the dockDefaults shape). `pnpm type-check` clean (whole project); `pnpm exec eslint components/admin/FeatureConfigurationPanel.tsx --max-warnings 0` and `pnpm exec prettier --check` both clean. No test referenced any removed file.
 
 ### HIGH 6 widgets have Building\*Defaults + ConfigurationPanel but no getAdminBuildingConfig handler
 

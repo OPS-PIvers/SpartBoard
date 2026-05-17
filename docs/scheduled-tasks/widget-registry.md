@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-21_
+_Last audited: 2026-05-17_
 _Last action: 2026-05-15_
 
 ---
@@ -15,14 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-_2026-05-21: Full audit of all 64 WidgetType values. New dev-paul commits merged: feat(settings) consolidate Style/Preferences/Language into Settings modal, refactor(admin) vertical dark rail nav for AdminSettings, fix/feat(spotify) 18 commits refactoring Personal Spotify into PersonalSpotifyAdaptiveLayout + sub-components. None touch WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. types.ts unchanged. DashboardContext change is isDefault:false in duplicateDashboard — no new WidgetType. All 64 WidgetTypes remain correctly registered. Zero new gaps._
-
-_2026-05-20: Full audit of all 64 WidgetType values (corrected count from prior 63 shorthand — `stations` was always present at line 64). Recent commits since 2026-05-19: fix(deps) lodash-es override (dependency only), docs(changelog) release entry (docs only). Neither touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 64 WidgetTypes have entries in WIDGET_COMPONENTS (except `sticker`, intentional), widgetDefaults, and tools.ts (with documented exclusions). All sampled lazyNamed() export names verified correct. Zero new gaps. No open items._
-
-_2026-05-19: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types). Recent commits since 2026-05-18: Sidebar Cohesion Pass (89b66431 — modal UI only), feat(music) 94f21d0f (adds `MusicSource` union type and new fields to `MusicConfig` — no new WidgetType member), fix(text-widget) 2109d9b1, feat(whats-new) 0fbbea46, fix(styles) 8c51c322, docs(changelog) a0710f91, quiz teacher-unlock 5c5eb1d7, board-nav-fab overhaul (multiple commits). None touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Zero new gaps. All lazyNamed() export names remain correct. No open items._
-
-_2026-05-18: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types). Recent commits since 2026-05-17: feat(whats-new) 8e86f851, fix(soundwidget) 6bf370df, fix(quiz-results-protection) 0f81a137, fix(number-line-cqmin) 8b91d650, feat(collection-level-templates) 516ab8dc (added 84 lines to types.ts — new CollectionTemplate interfaces; no new WidgetType members), chore(comments) 56dac1ca. None touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Zero new gaps. All lazyNamed() export names remain correct. No open items._
 
 _2026-05-17: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types). Recent commits since 2026-05-16: perf(functions) 0c0457f3, feat(Collection-level-sharing) 2f8d6751, fix(collections-polish) 6dccd37a/e490fa79/debe426f, feat(quiz-screenshot-protection) 2bf54e9d. None touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Zero new gaps. All lazyNamed() export names remain correct. No open items._
 
