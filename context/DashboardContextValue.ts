@@ -16,11 +16,11 @@ import {
   DrawableObject,
   Collection,
   CollectionSubstituteShareInput,
-  SharedCollection,
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
 import type { GoogleDriveService } from '../utils/googleDriveService';
 import type { UseCollectionsResult } from '../hooks/useCollections';
+import type { LoadSharedCollectionResult } from '../hooks/useSharedCollection';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally
@@ -312,7 +312,9 @@ export interface DashboardContextValue {
       boards: Dashboard[];
     }
   ) => Promise<string>;
-  loadSharedCollection: (shareId: string) => Promise<SharedCollection | null>;
+  loadSharedCollection: (
+    shareId: string
+  ) => Promise<LoadSharedCollectionResult>;
   loadSharedCollectionBoards: (
     shareId: string,
     boardIds: string[]

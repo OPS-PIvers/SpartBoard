@@ -14,6 +14,7 @@
 import { useCallback } from 'react';
 import {
   collection,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
@@ -32,6 +33,19 @@ import type {
 
 const SHARED_COLLECTIONS_SUBPATH = 'shared_collections';
 const SHARED_COLLECTION_BOARDS_SUBPATH = 'boards';
+
+/**
+ * Result of {@link loadSharedCollection}. Differentiates a definitively
+ * unavailable share (not-found / expired) from a transient failure to
+ * determine its state (unauthorized / network / malformed) so the caller
+ * can render the right user message.
+ */
+export type LoadSharedCollectionResult =
+  | { ok: true; meta: SharedCollection }
+  | {
+      ok: false;
+      reason: 'not-found' | 'expired' | 'unauthorized' | 'error';
+    };
 
 // ---------------------------------------------------------------------------
 // In-memory mock store for auth-bypass (dev / E2E) mode.
@@ -111,6 +125,83 @@ interface ShareCollectionInput {
 type SubstituteShareInput = ShareCollectionInput &
   CollectionSubstituteShareInput;
 
+/**
+ * Commit every Board snapshot under `/shared_collections/{shareId}/boards/`
+ * in chunked batches. Parent doc is assumed already written by the caller.
+ *
+ * On batch failure: log with rich context (boards committed so far, total,
+ * which batch was in-flight) and attempt a best-effort cleanup of the
+ * partially-populated share — delete the parent doc so the recipient gets
+ * "not-found" instead of a half-populated share with no warning. Re-throws
+ * a descriptive error so the modal's catch can surface it to the host as
+ * a real failure instead of returning a share URL that won't fully load.
+ */
+async function commitBoardBatches({
+  shareId,
+  boards,
+  scope,
+}: {
+  shareId: string;
+  boards: Dashboard[];
+  scope: 'shareCollection' | 'shareSubstituteCollection';
+}): Promise<void> {
+  const BATCH_LIMIT = 400;
+  let currentBatch = writeBatch(db);
+  let inBatch = 0;
+  let boardsCommitted = 0;
+
+  try {
+    for (const board of boards) {
+      if (inBatch >= BATCH_LIMIT) {
+        await currentBatch.commit();
+        boardsCommitted += inBatch;
+        currentBatch = writeBatch(db);
+        inBatch = 0;
+      }
+      const boardRef = doc(
+        db,
+        SHARED_COLLECTIONS_SUBPATH,
+        shareId,
+        SHARED_COLLECTION_BOARDS_SUBPATH,
+        board.id
+      );
+      const boardPayload: SharedCollectionBoardDoc = {
+        boardId: board.id,
+        dashboard: sanitizeBoardSnapshot(board),
+      };
+      currentBatch.set(boardRef, boardPayload);
+      inBatch += 1;
+    }
+    if (inBatch > 0) {
+      await currentBatch.commit();
+      boardsCommitted += inBatch;
+    }
+  } catch (err) {
+    logError(`useSharedCollection.${scope}.boardBatch`, err, {
+      shareId,
+      boardsCommitted,
+      totalBoards: boards.length,
+    });
+    // Best-effort cleanup: drop the parent doc so the share fails fast as
+    // "not-found" rather than presenting a partially-populated Collection
+    // to the recipient. If cleanup itself fails, log and continue — the
+    // original failure is the one we re-throw.
+    try {
+      const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
+      await deleteDoc(parentRef);
+    } catch (cleanupErr) {
+      logError(`useSharedCollection.${scope}.partialCleanup`, cleanupErr, {
+        shareId,
+        boardsCommitted,
+      });
+    }
+    const cause = err instanceof Error ? err.message : String(err);
+    throw new Error(
+      `Failed to upload all boards (${boardsCommitted.toString()} of ${boards.length.toString()} committed). The share has been cancelled — please try again. (${cause})`
+    );
+  }
+}
+
 export const useSharedCollection = () => {
   /**
    * Host action: write the share metadata + every Board snapshot in a
@@ -162,34 +253,11 @@ export const useSharedCollection = () => {
       parentBatch.set(parentRef, parentPayload);
       await parentBatch.commit();
 
-      // Then write all board sub-docs in chunked batches. If any batch
-      // fails, the recipient sees a partial Collection and gets a warning
-      // toast via the partial-result detection in importSharedCollection.
-      const BATCH_LIMIT = 400;
-      let currentBatch = writeBatch(db);
-      let inBatch = 0;
-
-      for (const board of input.boards) {
-        if (inBatch >= BATCH_LIMIT) {
-          await currentBatch.commit();
-          currentBatch = writeBatch(db);
-          inBatch = 0;
-        }
-        const boardRef = doc(
-          db,
-          SHARED_COLLECTIONS_SUBPATH,
-          shareId,
-          SHARED_COLLECTION_BOARDS_SUBPATH,
-          board.id
-        );
-        const boardPayload: SharedCollectionBoardDoc = {
-          boardId: board.id,
-          dashboard: sanitizeBoardSnapshot(board),
-        };
-        currentBatch.set(boardRef, boardPayload);
-        inBatch += 1;
-      }
-      if (inBatch > 0) await currentBatch.commit();
+      await commitBoardBatches({
+        shareId,
+        boards: input.boards,
+        scope: 'shareCollection',
+      });
 
       return shareId;
     },
@@ -244,34 +312,11 @@ export const useSharedCollection = () => {
       parentBatch.set(parentRef, parentPayload);
       await parentBatch.commit();
 
-      // Then write all board sub-docs in chunked batches. If any batch
-      // fails, the recipient sees a partial Collection and gets a warning
-      // toast via the partial-result detection in importSharedCollection.
-      const BATCH_LIMIT = 400;
-      let currentBatch = writeBatch(db);
-      let inBatch = 0;
-
-      for (const board of input.boards) {
-        if (inBatch >= BATCH_LIMIT) {
-          await currentBatch.commit();
-          currentBatch = writeBatch(db);
-          inBatch = 0;
-        }
-        const boardRef = doc(
-          db,
-          SHARED_COLLECTIONS_SUBPATH,
-          shareId,
-          SHARED_COLLECTION_BOARDS_SUBPATH,
-          board.id
-        );
-        const boardPayload: SharedCollectionBoardDoc = {
-          boardId: board.id,
-          dashboard: sanitizeBoardSnapshot(board),
-        };
-        currentBatch.set(boardRef, boardPayload);
-        inBatch += 1;
-      }
-      if (inBatch > 0) await currentBatch.commit();
+      await commitBoardBatches({
+        shareId,
+        boards: input.boards,
+        scope: 'shareSubstituteCollection',
+      });
 
       return shareId;
     },
@@ -279,40 +324,58 @@ export const useSharedCollection = () => {
   );
 
   /**
-   * Recipient action: fetch the share metadata doc. Returns null if not
-   * found, expired, or rejected by rules. Logs errors via logError so
-   * production failures surface in telemetry rather than the console.
+   * Recipient action: fetch the share metadata doc.
+   *
+   * Returns a discriminated result so callers can distinguish definitively
+   * "share doesn't exist" / "share has expired" from "we couldn't determine
+   * its state" (rules denied, network failure, malformed payload). The
+   * three failure cases warrant different user messaging — a teacher who
+   * gets `unauthorized` should re-authenticate / contact the host, while
+   * `not-found` means the link is invalid. Logs errors via logError so
+   * production failures still surface in telemetry.
    */
   const loadSharedCollection = useCallback(
-    async (shareId: string): Promise<SharedCollection | null> => {
+    async (shareId: string): Promise<LoadSharedCollectionResult> => {
       if (isAuthBypass) {
         const meta = mockCollStore.getCollection(shareId);
-        if (!meta) return null;
+        if (!meta) return { ok: false, reason: 'not-found' };
         if (
           meta.intendedMode === 'substitute' &&
           meta.expiresAt &&
           meta.expiresAt < Date.now()
         ) {
-          return null;
+          return { ok: false, reason: 'expired' };
         }
-        return meta;
+        return { ok: true, meta };
       }
       try {
         const parentRef = doc(db, SHARED_COLLECTIONS_SUBPATH, shareId);
         const snap = await getDoc(parentRef);
-        if (!snap.exists()) return null;
+        if (!snap.exists()) return { ok: false, reason: 'not-found' };
         const data = snap.data() as SharedCollection;
         if (
           data.intendedMode === 'substitute' &&
           data.expiresAt &&
           data.expiresAt < Date.now()
         ) {
-          return null;
+          return { ok: false, reason: 'expired' };
         }
-        return data;
+        return { ok: true, meta: data };
       } catch (err) {
         logError('useSharedCollection.loadSharedCollection', err, { shareId });
-        return null;
+        // Firestore SDK errors expose `code` on the rejection. A
+        // `permission-denied` code means rules rejected the read — the
+        // share likely exists but the recipient can't see it (e.g. token
+        // expired, building scope mismatch). Distinguish so the caller can
+        // tell the user to re-auth instead of "share doesn't exist".
+        const code =
+          err && typeof err === 'object' && 'code' in err
+            ? (err as { code?: unknown }).code
+            : undefined;
+        if (code === 'permission-denied') {
+          return { ok: false, reason: 'unauthorized' };
+        }
+        return { ok: false, reason: 'error' };
       }
     },
     []

@@ -333,7 +333,11 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       // Collection sharing — subs never originate collection shares.
       shareCollection: () => Promise.resolve(''),
       shareSubstituteCollection: () => Promise.resolve(''),
-      loadSharedCollection: () => Promise.resolve(null),
+      loadSharedCollection: () =>
+        Promise.resolve({
+          ok: false as const,
+          reason: 'not-found' as const,
+        }),
       loadSharedCollectionBoards: () => Promise.resolve([]),
       importSharedCollection: () => Promise.resolve(null),
       pendingSharedCollectionId: null,

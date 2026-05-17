@@ -3272,11 +3272,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast('Must be signed in to import', 'error');
         return null;
       }
-      const meta = await sharedCollectionApi.loadSharedCollection(shareId);
-      if (!meta) {
-        addToast('Shared Collection not found or expired', 'error');
+      const result = await sharedCollectionApi.loadSharedCollection(shareId);
+      if (!result.ok) {
+        const message =
+          result.reason === 'not-found'
+            ? 'Shared Collection not found.'
+            : result.reason === 'expired'
+              ? 'This shared Collection has expired.'
+              : result.reason === 'unauthorized'
+                ? "You don't have permission to view this Collection. Reconnect your Google account or ask the host to re-share."
+                : 'Could not load the shared Collection. Check your connection and try again.';
+        addToast(message, 'error');
         return null;
       }
+      const meta = result.meta;
       if (meta.intendedMode === 'substitute') {
         addToast(
           'Substitute shares are view-only. Open this link in /subs to view.',
@@ -3828,6 +3837,19 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         collections
       );
       if (!target) {
+        // No Board to switch to. Surface a user-visible hint so a click on
+        // an empty Collection isn't a confusing no-op — the previous
+        // behaviour silently logged and returned, leaving the user wondering
+        // why nothing happened. Active Board stays the same.
+        const name = nextCollectionId
+          ? (collections.find((c) => c.id === nextCollectionId)?.name ?? null)
+          : null;
+        addToast(
+          name
+            ? `“${name}” has no boards yet — add one to switch to it.`
+            : 'This Collection has no boards yet — add one to switch to it.',
+          'info'
+        );
         logError(
           'DashboardContext.setActiveCollectionId.noBoardsInCollection',
           new Error('Target Collection has no resolvable Board'),
@@ -3837,7 +3859,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       }
       loadDashboard(target.id);
     },
-    [dashboards, lastBoardIdByCollection, collections, loadDashboard]
+    [dashboards, lastBoardIdByCollection, collections, loadDashboard, addToast]
   );
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;

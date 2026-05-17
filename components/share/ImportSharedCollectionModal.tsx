@@ -13,22 +13,32 @@ interface ImportSharedCollectionModalProps {
   }) => void;
 }
 
+type LoadState =
+  | { kind: 'loading' }
+  | { kind: 'found'; meta: SharedCollection }
+  | { kind: 'not-found' }
+  | { kind: 'expired' }
+  | { kind: 'unauthorized' }
+  | { kind: 'error' };
+
 export const ImportSharedCollectionModal: FC<
   ImportSharedCollectionModalProps
 > = ({ shareId, onClose, onImported }) => {
   const { t } = useTranslation();
   const { loadSharedCollection, importSharedCollection } = useDashboard();
-  const [meta, setMeta] = useState<SharedCollection | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [state, setState] = useState<LoadState>({ kind: 'loading' });
   const [busy, setBusy] = useState(false);
   const headingId = useId();
+  const meta = state.kind === 'found' ? state.meta : null;
 
   useEffect(() => {
     let cancelled = false;
     void loadSharedCollection(shareId).then((result) => {
-      if (!cancelled) {
-        setMeta(result);
-        setLoading(false);
+      if (cancelled) return;
+      if (result.ok) {
+        setState({ kind: 'found', meta: result.meta });
+      } else {
+        setState({ kind: result.reason });
       }
     });
     return () => {
@@ -79,21 +89,45 @@ export const ImportSharedCollectionModal: FC<
           </h2>
         </div>
         <div className="p-5 space-y-3">
-          {loading && (
+          {state.kind === 'loading' && (
             <p className="text-sm text-slate-500">
               {t('importSharedCollection.loading', {
                 defaultValue: 'Loading shared Collection…',
               })}
             </p>
           )}
-          {!loading && !meta && (
+          {state.kind === 'not-found' && (
             <p className="text-sm text-red-600">
               {t('importSharedCollection.notFound', {
-                defaultValue: 'Shared Collection not found or expired.',
+                defaultValue:
+                  'Shared Collection not found. The link may be wrong or the host may have deleted it.',
               })}
             </p>
           )}
-          {!loading && meta && meta.intendedMode === 'substitute' && (
+          {state.kind === 'expired' && (
+            <p className="text-sm text-red-600">
+              {t('importSharedCollection.expired', {
+                defaultValue: 'This shared Collection has expired.',
+              })}
+            </p>
+          )}
+          {state.kind === 'unauthorized' && (
+            <p className="text-sm text-red-600">
+              {t('importSharedCollection.unauthorized', {
+                defaultValue:
+                  "You don't have permission to view this Collection. Reconnect your Google account or ask the host to re-share.",
+              })}
+            </p>
+          )}
+          {state.kind === 'error' && (
+            <p className="text-sm text-red-600">
+              {t('importSharedCollection.loadError', {
+                defaultValue:
+                  'Could not load the shared Collection. Check your connection and try again.',
+              })}
+            </p>
+          )}
+          {meta && meta.intendedMode === 'substitute' && (
             <p className="text-sm text-amber-600">
               {t('importSharedCollection.substituteOnly', {
                 defaultValue:
@@ -101,7 +135,7 @@ export const ImportSharedCollectionModal: FC<
               })}
             </p>
           )}
-          {!loading && meta && meta.intendedMode === 'copy' && (
+          {meta && meta.intendedMode === 'copy' && (
             <>
               <p className="text-sm text-slate-800">
                 <span className="font-bold">{meta.collection.name}</span>{' '}
@@ -136,7 +170,9 @@ export const ImportSharedCollectionModal: FC<
               type="button"
               onClick={() => void handleImport()}
               disabled={
-                busy || loading || !meta || meta.intendedMode === 'substitute'
+                busy ||
+                state.kind !== 'found' ||
+                meta?.intendedMode === 'substitute'
               }
               className="px-3 py-1.5 text-sm font-bold bg-brand-blue-primary text-white rounded hover:bg-brand-blue-dark disabled:opacity-50"
             >

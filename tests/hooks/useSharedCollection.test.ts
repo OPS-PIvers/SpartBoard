@@ -114,7 +114,7 @@ describe('useSharedCollection', () => {
     expect(parent.expiresAt).toBe(9999999999999);
   });
 
-  it('loadSharedCollection returns null for an expired substitute share', async () => {
+  it('loadSharedCollection returns expired result for an expired substitute share', async () => {
     const mod = (await vi.importMock('firebase/firestore')) as {
       __testHelpers: { docs: Map<string, unknown> };
     };
@@ -126,8 +126,8 @@ describe('useSharedCollection', () => {
       collection: { name: 'gone' },
     });
     const { result } = renderHook(() => useSharedCollection());
-    const meta = await result.current.loadSharedCollection('expired');
-    expect(meta).toBeNull();
+    const loaded = await result.current.loadSharedCollection('expired');
+    expect(loaded).toEqual({ ok: false, reason: 'expired' });
   });
 
   it('loadSharedCollectionBoards returns boards in boardIds order', async () => {

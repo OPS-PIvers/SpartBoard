@@ -42,40 +42,56 @@ export const ShareCollectionLinkCreatorModal: FC<
 
   const handleCreate = useCallback(async () => {
     if (!collection) return;
+    // Validate substitute prerequisites BEFORE flipping busy so an early
+    // return doesn't paint the modal as "creating share".
+    if (mode === 'substitute') {
+      if (!buildingId || !BUILDING_IDS.has(buildingId)) {
+        addToast(
+          t('shareCollection.buildingRequired', {
+            defaultValue: 'Select a building before sharing with a sub.',
+          }),
+          'error'
+        );
+        return;
+      }
+    }
     setBusy(true);
+    // try/finally guarantees `setBusy(false)` runs even if a future
+    // refactor adds an early `return` after a throw or an unawaited
+    // sub-action raises — without it, the modal would lock into a
+    // permanently "Creating…" state for the rest of the session.
     try {
       let shareId: string;
-      if (mode === 'copy') {
-        shareId = await shareCollection({ collection, boards });
-      } else {
-        if (!buildingId) {
-          addToast(
-            t('shareCollection.buildingRequired', {
-              defaultValue: 'Select a building before sharing with a sub.',
-            }),
-            'error'
-          );
-          setBusy(false);
-          return;
+      try {
+        if (mode === 'copy') {
+          shareId = await shareCollection({ collection, boards });
+        } else {
+          shareId = await shareSubstituteCollection({
+            collection,
+            boards,
+            collectionId: collection.id,
+            expiresAt: Date.now() + ttlMs,
+            buildingId,
+          });
         }
-        // Defense-in-depth: reject any value not in the canonical list.
-        if (!BUILDING_IDS.has(buildingId)) {
-          addToast(
-            t('shareCollection.buildingRequired', {
-              defaultValue: 'Select a building before sharing with a sub.',
-            }),
-            'error'
-          );
-          setBusy(false);
-          return;
-        }
-        shareId = await shareSubstituteCollection({
-          collection,
-          boards,
+      } catch (err) {
+        logError('ShareCollectionLinkCreatorModal.create', err, {
+          mode,
           collectionId: collection.id,
-          expiresAt: Date.now() + ttlMs,
-          buildingId,
+          boardCount: boards.length,
+          ...(mode === 'substitute' ? { ttlMs, buildingId } : {}),
         });
+        // `commitBoardBatches` re-throws partial-failure errors with a
+        // descriptive cause that's safe to show — surface verbatim so the
+        // host knows "X of Y boards committed" rather than a generic toast.
+        const message =
+          err instanceof Error
+            ? err.message
+            : t('shareCollection.createFailed', {
+                defaultValue: 'Failed to create Collection share',
+              });
+        addToast(message, 'error');
+        return;
       }
       const url = `${window.location.origin}/share-collection/${shareId}`;
       setShareUrl(url);
@@ -86,17 +102,9 @@ export const ShareCollectionLinkCreatorModal: FC<
         setCopyState('failed');
         logError('ShareCollectionLinkCreatorModal.clipboard', err);
       }
-    } catch {
-      addToast(
-        t('shareCollection.createFailed', {
-          defaultValue: 'Failed to create Collection share',
-        }),
-        'error'
-      );
+    } finally {
       setBusy(false);
-      return;
     }
-    setBusy(false);
   }, [
     mode,
     ttlMs,

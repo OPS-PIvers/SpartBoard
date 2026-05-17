@@ -47,6 +47,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       deleteCollection,
       renameCollection,
       setCollectionMetadata,
+      moveCollection,
     },
   } = useDashboard();
 
@@ -157,6 +158,12 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   const [singleMoveTargetId, setSingleMoveTargetId] = useState<string | null>(
     null
   );
+  // Same idea but for Collection-context "Move to…" (right-click on a
+  // Collection card). Distinguished from board moves so the destination
+  // picker routes through `moveCollection` instead of `moveBoardToCollection`.
+  const [singleMoveCollectionId, setSingleMoveCollectionId] = useState<
+    string | null
+  >(null);
 
   // Report results of a multi-write fan-out. If some writes failed the
   // user sees a partial-success toast instead of silent skips.
@@ -313,6 +320,37 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
 
   const handleMoveDestinationPicked = useCallback(
     async (destId: string | null) => {
+      // Single-Collection path (right-click on a Collection's "Move to…").
+      // Routed through `moveCollection`, which validates against cycles
+      // (moving a parent into one of its own descendants).
+      if (singleMoveCollectionId) {
+        const id = singleMoveCollectionId;
+        setSingleMoveCollectionId(null);
+        try {
+          await moveCollection(id, destId);
+          addToast(
+            t('boardsModal.collectionMoved', {
+              defaultValue: 'Collection moved',
+            }),
+            'success'
+          );
+        } catch (err) {
+          // moveCollection throws on cycle/self-move with a descriptive
+          // message — surface it verbatim so the user knows why the move
+          // was rejected (e.g. "Cannot move a collection into one of its
+          // own subcollections").
+          addToast(
+            err instanceof Error
+              ? err.message
+              : t('boardsModal.collectionMoveFailed', {
+                  defaultValue: 'Failed to move Collection',
+                }),
+            'error'
+          );
+        }
+        return;
+      }
+
       // Single-board path (right-click "Move to…") takes precedence over
       // the bulk selection — see handleSingleMove.
       if (singleMoveTargetId) {
@@ -354,10 +392,14 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       );
     },
     [
+      singleMoveCollectionId,
       singleMoveTargetId,
       multi,
       dashboards,
       moveBoardToCollection,
+      moveCollection,
+      addToast,
+      t,
       reportBulkResult,
       toastNoBoardsInSelection,
     ]
@@ -365,11 +407,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
 
   // For the right-click single-board move flow, pre-exclude the board's
   // current Collection from the destination picker — it's a no-op write
-  // and a confusing UX ("Moved" toast when nothing changed).
-  const moveMenuExcludeId = singleMoveTargetId
-    ? (dashboards.find((d) => d.id === singleMoveTargetId)?.collectionId ??
-      null)
-    : null;
+  // and a confusing UX ("Moved" toast when nothing changed). For the
+  // single-Collection move flow, exclude the Collection itself so the
+  // user can't pick "move A into A" (descendant cycles are caught by
+  // moveCollection's runtime validation and toasted on failure).
+  const moveMenuExcludeId =
+    singleMoveCollectionId ??
+    (singleMoveTargetId
+      ? (dashboards.find((d) => d.id === singleMoveTargetId)?.collectionId ??
+        null)
+      : null);
 
   // Filter by search (substring on Board + Collection names)
   const filteredCollections = search.trim()
@@ -519,7 +566,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 if (next?.trim()) await renameCollection(c.id, next.trim());
               }}
               onMove={() => {
-                /* implemented in Task 6.12 */
+                setSingleMoveCollectionId(c.id);
+                setMoveMenuOpen(true);
               }}
               onColor={async () => {
                 const color = await showPrompt(
@@ -608,7 +656,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 kind: 'collection',
                 collection: saveAsCollectionTemplateTarget,
                 boards: dashboards.filter(
-                  (d) => d.collectionId === saveAsCollectionTemplateTarget.id
+                  (d) =>
+                    (d.collectionId ?? null) ===
+                    saveAsCollectionTemplateTarget.id
                 ),
               }
             : null
