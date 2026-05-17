@@ -50,7 +50,7 @@ export interface HydrationResult {
  * DashboardContext already handle Firestore + permission gating + toast
  * surfacing. Reusing them keeps the import flow consistent with
  * everything else the user does (creating Collections / Boards
- * manually, importing shared Collections in Plan 3, etc.).
+ * manually, importing shared Collections, etc.).
  */
 export const hydrateCollectionTemplate = (
   template: CollectionTemplate,
@@ -64,7 +64,7 @@ export const hydrateCollectionTemplate = (
       const newId = crypto.randomUUID();
       idRemap.set(snap.id, newId);
 
-      const board = {
+      const board: Dashboard = {
         id: newId,
         name: snap.name,
         background: snap.background,
@@ -84,7 +84,7 @@ export const hydrateCollectionTemplate = (
         ...(snap.viewportHeight !== undefined && {
           viewportHeight: snap.viewportHeight,
         }),
-      } as Dashboard;
+      };
 
       return board;
     }

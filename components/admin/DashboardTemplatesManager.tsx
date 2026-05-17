@@ -19,6 +19,8 @@ import {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
+import { logError } from '@/utils/logError';
 import { Toggle } from '@/components/common/Toggle';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
@@ -68,10 +70,12 @@ const DEFAULT_FORM: NewTemplateFormState = { name: '', description: '' };
 export const DashboardTemplatesManager: React.FC = () => {
   const { user } = useAuth();
   const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
 
   const [templates, setTemplates] = useState<AnyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errored, setErrored] = useState(false);
   const [typeFilter, setTypeFilter] = useState<'all' | 'board' | 'collection'>(
     'all'
   );
@@ -122,10 +126,12 @@ export const DashboardTemplatesManager: React.FC = () => {
           }
           return next;
         });
+        setErrored(false);
         setLoading(false);
       },
       (err) => {
-        console.error('Failed to load dashboard templates:', err);
+        logError('DashboardTemplatesManager.subscribe', err);
+        setErrored(true);
         setLoading(false);
       }
     );
@@ -167,7 +173,10 @@ export const DashboardTemplatesManager: React.FC = () => {
           return next;
         });
       } catch (err) {
-        console.error('Failed to save template:', err);
+        addToast('Failed to save template — try again.', 'error');
+        logError('DashboardTemplatesManager.handleSave', err, {
+          templateId: id,
+        });
       } finally {
         setSavingIds((prev) => {
           const next = new Set(prev);
@@ -176,7 +185,7 @@ export const DashboardTemplatesManager: React.FC = () => {
         });
       }
     },
-    [localTemplates]
+    [addToast, localTemplates]
   );
 
   const handleDelete = useCallback(
@@ -194,11 +203,14 @@ export const DashboardTemplatesManager: React.FC = () => {
             await deleteDoc(doc(db, TEMPLATES_COLLECTION, template.id));
           }
         } catch (err) {
-          console.error('Failed to delete template:', err);
+          addToast('Failed to delete template — try again.', 'error');
+          logError('DashboardTemplatesManager.handleDelete', err, {
+            templateId: template.id,
+          });
         }
       }
     },
-    [showConfirm]
+    [addToast, showConfirm]
   );
 
   const handleCreate = useCallback(async () => {
@@ -207,6 +219,7 @@ export const DashboardTemplatesManager: React.FC = () => {
     try {
       const now = Date.now();
       const newTemplate: Omit<DashboardTemplate, 'id'> = {
+        type: 'board' as const,
         name: form.name.trim(),
         description: form.description.trim(),
         widgets: [],
@@ -230,11 +243,14 @@ export const DashboardTemplatesManager: React.FC = () => {
       setForm(DEFAULT_FORM);
       setShowForm(false);
     } catch (err) {
-      console.error('Failed to create template:', err);
+      addToast('Failed to create template — try again.', 'error');
+      logError('DashboardTemplatesManager.handleCreate', err, {
+        name: form.name,
+      });
     } finally {
       setCreating(false);
     }
-  }, [form, user]);
+  }, [addToast, form, user]);
 
   const toggleBuilding = (id: string, buildingId: string) => {
     const local = localTemplates.get(id);
@@ -341,6 +357,10 @@ export const DashboardTemplatesManager: React.FC = () => {
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
           <span className="text-sm">Loading templates…</span>
         </div>
+      ) : errored ? (
+        <p className="text-sm text-rose-300/80 italic mb-3">
+          Couldn&apos;t load templates — refresh to retry.
+        </p>
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
           <LayoutTemplate className="w-10 h-10 opacity-40" />

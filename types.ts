@@ -5643,7 +5643,7 @@ export const isCollectionTemplate = (t: AnyTemplate): t is CollectionTemplate =>
   t.type === 'collection';
 
 export const isBoardTemplate = (t: AnyTemplate): t is DashboardTemplate =>
-  t.type !== 'collection';
+  t.type === 'board' || t.type === undefined;
 
 // --- CUSTOM WIDGET TYPES (Phase 3: No-Code Widget Builder) ---
 

@@ -28,7 +28,8 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
   onClose,
 }) => {
   const { t } = useTranslation();
-  const { collectionsApi, dashboards, createNewDashboard } = useDashboard();
+  const { collectionsApi, dashboards, createNewDashboard, addToast } =
+    useDashboard();
   const { createCollection, setCollectionDefaultBoard, deleteCollection } =
     collectionsApi;
   const [templates, setTemplates] = useState<AnyTemplate[]>([]);
@@ -125,8 +126,8 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
         // Sequential (not parallel) so the order field translates 1:1 to
         // sidebar position without ordering races between concurrent
         // createNewDashboard calls. Track per-Board success so we can
-        // roll back if every Board creation fails (matches the pattern in
-        // DashboardContext.importSharedCollection from Plan 3).
+        // roll back if every Board creation fails (same rollback strategy
+        // used elsewhere in the codebase for multi-step collection writes).
         let succeeded = 0;
         for (const board of boardInputs) {
           try {
@@ -156,6 +157,15 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
           return;
         }
 
+        if (succeeded < boardInputs.length) {
+          const missing = boardInputs.length - succeeded;
+          addToast(
+            `Template applied — but ${missing.toString()} board(s) couldn't be created. Add them manually.`,
+            'error'
+          );
+          // Continue — the Collection + partial boards are still useful.
+        }
+
         if (defaultBoardId !== null) {
           await setCollectionDefaultBoard(newCollectionId, defaultBoardId);
         }
@@ -169,6 +179,7 @@ export const CreateFromTemplateModal: React.FC<Props> = ({
       }
     },
     [
+      addToast,
       baseOrder,
       createCollection,
       createNewDashboard,

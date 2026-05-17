@@ -44,8 +44,10 @@ class MockTemplateStore {
         const parsed = JSON.parse(raw) as AnyTemplate[];
         for (const t of parsed) this.items.set(t.id, t);
       }
-    } catch {
-      // sessionStorage unavailable (e.g. sandboxed iframe) — in-memory only
+    } catch (_err) {
+      // sessionStorage unavailable (sandboxed iframe, quota exceeded, or
+      // private-browsing mode). Falls back to in-memory only — not actionable
+      // in production since this store is auth-bypass / E2E only.
     }
   }
 
@@ -55,8 +57,10 @@ class MockTemplateStore {
         STORAGE_KEY,
         JSON.stringify(Array.from(this.items.values()))
       );
-    } catch {
-      // sessionStorage unavailable — in-memory only
+    } catch (_err) {
+      // sessionStorage unavailable (sandboxed iframe, quota exceeded, or
+      // private-browsing mode). Falls back to in-memory only — not actionable
+      // in production since this store is auth-bypass / E2E only.
     }
   }
 

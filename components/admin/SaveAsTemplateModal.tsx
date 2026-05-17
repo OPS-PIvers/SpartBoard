@@ -23,6 +23,7 @@ import {
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
+import { logError } from '@/utils/logError';
 import { sanitizeBoardSnapshot } from '@/utils/dashboardSanitize';
 import { mockTemplateStore } from '@/hooks/useTemplateStore';
 
@@ -55,6 +56,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
   const BUILDINGS = useAdminBuildings();
   const [templates, setTemplates] = useState<AnyTemplate[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
+  const [loadError, setLoadError] = useState(false);
 
   // Update existing template state
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
@@ -108,10 +110,12 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
             : !isCollectionTemplate(t)
         );
         setTemplates(filtered);
+        setLoadError(false);
         setLoadingTemplates(false);
       },
       (err) => {
-        console.error('Failed to load templates:', err);
+        logError('SaveAsTemplateModal.subscribe', err);
+        setLoadError(true);
         setLoadingTemplates(false);
       }
     );
@@ -246,7 +250,7 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
       }
       setMessage({ type: 'success', text: 'Template updated successfully.' });
     } catch (err) {
-      console.error('Failed to update template:', err);
+      logError('SaveAsTemplateModal.handleUpdate', err, { selectedTemplateId });
       setMessage({ type: 'error', text: 'Failed to update template.' });
     } finally {
       setUpdating(false);
@@ -317,7 +321,9 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
       setNewName('');
       setNewBuildings([]);
     } catch (err) {
-      console.error('Failed to save template:', err);
+      logError('SaveAsTemplateModal.handleSaveNew', err, {
+        newName: newName.trim(),
+      });
       setMessage({ type: 'error', text: 'Failed to save template.' });
     } finally {
       setSaving(false);
@@ -374,6 +380,10 @@ export const SaveAsTemplateModal: React.FC<SaveAsTemplateModalProps> = ({
               <Loader2 className="w-4 h-4 animate-spin" />
               Loading templates…
             </div>
+          ) : loadError ? (
+            <p className="text-sm text-rose-500 italic">
+              Couldn&apos;t load existing templates — check your connection.
+            </p>
           ) : templates.length === 0 ? (
             <p className="text-sm text-slate-400 italic">
               No templates saved yet.

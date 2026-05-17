@@ -68,10 +68,12 @@ const createCollection = vi.fn().mockResolvedValue('new-coll-id');
 const setCollectionDefaultBoard = vi.fn().mockResolvedValue(undefined);
 const deleteCollection = vi.fn().mockResolvedValue(undefined);
 const createNewDashboard = vi.fn().mockResolvedValue('new-board-id');
+const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     dashboards: [{ order: 4 }],
     createNewDashboard,
+    addToast,
     collectionsApi: {
       createCollection,
       setCollectionDefaultBoard,
@@ -85,6 +87,7 @@ beforeEach(() => {
   createNewDashboard.mockClear();
   setCollectionDefaultBoard.mockClear();
   deleteCollection.mockClear();
+  addToast.mockClear();
   // Reset any per-test mockRejectedValue overrides so tests don't bleed into
   // each other.
   createNewDashboard.mockResolvedValue('new-board-id');
@@ -139,8 +142,9 @@ describe('CreateFromTemplateModal', () => {
 
   it('rolls back the Collection when every Board creation fails', async () => {
     createNewDashboard.mockRejectedValue(new Error('boom'));
+    const onClose = vi.fn();
 
-    render(<CreateFromTemplateModal isOpen onClose={() => undefined} />);
+    render(<CreateFromTemplateModal isOpen onClose={onClose} />);
     onSnapshotCallback({
       docs: [{ id: 'ct1', data: () => collectionTemplate }],
     });
@@ -151,8 +155,9 @@ describe('CreateFromTemplateModal', () => {
     await waitFor(() =>
       expect(deleteCollection).toHaveBeenCalledWith('new-coll-id', 'delete-all')
     );
-    // onClose should NOT be called — modal stays open so user can retry
     expect(setCollectionDefaultBoard).not.toHaveBeenCalled();
+    // onClose must NOT be called — modal stays open so user can retry
+    expect(onClose).not.toHaveBeenCalled();
   });
 
   it('skips disabled templates', async () => {

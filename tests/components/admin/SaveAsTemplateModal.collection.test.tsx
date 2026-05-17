@@ -2,7 +2,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
-import type { Collection, Dashboard, AnyTemplate } from '@/types';
+import type {
+  Collection,
+  Dashboard,
+  AnyTemplate,
+  DashboardTemplate,
+} from '@/types';
 
 const addDocMock = vi.fn().mockResolvedValue({ id: 'new-template-id' });
 const setDocMock = vi.fn().mockResolvedValue(undefined);
@@ -121,5 +126,41 @@ describe('SaveAsTemplateModal — Collection target', () => {
     expect(
       screen.getByText(/Save Collection as Template/i)
     ).toBeInTheDocument();
+  });
+});
+
+describe('SaveAsTemplateModal — Board target', () => {
+  const someBoard: Dashboard = {
+    id: 'b1',
+    name: 'My Board',
+    background: 'bg-slate-900',
+    widgets: [{ id: 'w1', type: 'clock' } as Dashboard['widgets'][number]],
+    createdAt: 1000,
+  };
+
+  it('writes a Board-target template with type: "board" and widgets', async () => {
+    render(
+      <SaveAsTemplateModal
+        isOpen
+        onClose={() => undefined}
+        target={{ kind: 'board', dashboard: someBoard }}
+      />
+    );
+
+    expect(screen.getByText(/Save Board as Template/i)).toBeInTheDocument();
+
+    fireEvent.change(screen.getByPlaceholderText(/e\.g\. Morning Routine/i), {
+      target: { value: 'My Board Template' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /Save New Template/i }));
+
+    await waitFor(() => expect(savedTemplates).toHaveLength(1));
+    const written = savedTemplates[0] as unknown as DashboardTemplate;
+    expect(written.type).toBe('board');
+    expect(written.name).toBe('My Board Template');
+    expect(written.widgets).toHaveLength(1);
+    expect(written.createdBy).toBe('admin@example.com');
+    // addDoc should NOT be called in auth-bypass mode
+    expect(addDocMock).not.toHaveBeenCalled();
   });
 });
