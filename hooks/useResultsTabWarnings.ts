@@ -44,7 +44,22 @@ export function useResultsTabWarnings({
   const currentWarningsRef = useRef(currentWarnings);
   useEffect(() => {
     currentWarningsRef.current = currentWarnings;
+    // When a fresh snapshot arrives the server count is now authoritative;
+    // any in-flight delta we accumulated locally has been absorbed, so
+    // reset the pending tally. (See `pendingDeltaRef` below.)
+    pendingDeltaRef.current = 0;
   }, [currentWarnings]);
+
+  // Counts increments fired locally since the last snapshot landed.
+  // `increment(1)` is atomic server-side, so the count is always correct
+  // — but the LOCKOUT-flip decision (`nextCount >= threshold`) was reading
+  // `currentWarnings` alone, which lags one round-trip behind under rapid
+  // successive events. Three quick tab switches at warnings=1 / threshold=3
+  // could all see `nextCount=2` and skip the lockout flag, so the student
+  // was effectively locked out one event late. Folding `pendingDelta` into
+  // the threshold check makes the lockout flip on the event that actually
+  // crosses the threshold, even when the snapshot hasn't returned yet.
+  const pendingDeltaRef = useRef(0);
 
   useEffect(() => {
     if (!enabled || lockedOut) return undefined;
@@ -54,7 +69,8 @@ export function useResultsTabWarnings({
     wasHiddenRef.current = false;
 
     const incrementOnce = async () => {
-      const nextCount = currentWarningsRef.current + 1;
+      pendingDeltaRef.current += 1;
+      const nextCount = currentWarningsRef.current + pendingDeltaRef.current;
       const update: Partial<{
         resultsTabWarnings: ReturnType<typeof increment>;
         resultsLockedOut: boolean;
@@ -62,10 +78,10 @@ export function useResultsTabWarnings({
       }> = {
         resultsTabWarnings: increment(1),
       };
-      // Best-effort lockout flip based on the latest snapshot. If a rapid second
-      // event races, this still computes against the same stale snapshot — but the
-      // increment itself is atomic via `increment(1)`, so the count is preserved
-      // and the lockout will flip on the next event at the latest.
+      // `nextCount` now reflects in-flight increments too, so a burst of
+      // rapid events correctly crosses the threshold on the right event.
+      // The increment itself remains atomic via `increment(1)` — only the
+      // lockout-flip decision uses the local tally.
       if (nextCount >= threshold) {
         update.resultsLockedOut = true;
         update.resultsLockedOutAt = Date.now();
