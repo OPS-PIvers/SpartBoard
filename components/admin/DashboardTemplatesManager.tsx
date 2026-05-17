@@ -358,197 +358,208 @@ export const DashboardTemplatesManager: React.FC = () => {
               if (typeFilter === 'collection') return isCollectionTemplate(tpl);
               return !isCollectionTemplate(tpl);
             });
-            return visibleTemplates.map((template) => {
-              const local = localTemplates.get(template.id) ?? template;
-              const hasUnsaved = unsavedIds.has(template.id);
-              const isSaving = savingIds.has(template.id);
+            return visibleTemplates.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-8">
+                No {typeFilter === 'board' ? 'board' : 'collection'} templates
+                yet.
+              </p>
+            ) : (
+              visibleTemplates.map((template) => {
+                const local = localTemplates.get(template.id) ?? template;
+                const hasUnsaved = unsavedIds.has(template.id);
+                const isSaving = savingIds.has(template.id);
 
-              return (
-                <div
-                  key={template.id}
-                  className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
-                >
-                  <div className="flex items-center gap-4 p-3 flex-wrap">
-                    {/* Identity */}
-                    <div className="flex items-center gap-3 w-60 shrink-0 min-w-0">
-                      <div className="w-9 h-9 rounded-xl bg-brand-blue-primary/10 flex items-center justify-center shrink-0">
-                        <LayoutTemplate className="w-4 h-4 text-brand-blue-primary" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5 mb-0.5">
+                return (
+                  <div
+                    key={template.id}
+                    className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
+                  >
+                    <div className="flex items-center gap-4 p-3 flex-wrap">
+                      {/* Identity */}
+                      <div className="flex items-center gap-3 w-60 shrink-0 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-brand-blue-primary/10 flex items-center justify-center shrink-0">
+                          <LayoutTemplate className="w-4 h-4 text-brand-blue-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <input
+                              type="text"
+                              value={local.name}
+                              onChange={(e) =>
+                                updateLocal(template.id, {
+                                  name: e.target.value,
+                                })
+                              }
+                              className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 text-sm transition-colors"
+                              placeholder="Template name"
+                            />
+                            <span
+                              className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                isCollectionTemplate(template)
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-sky-100 text-sky-800'
+                              }`}
+                            >
+                              {isCollectionTemplate(template)
+                                ? 'Collection'
+                                : 'Board'}
+                            </span>
+                          </div>
                           <input
                             type="text"
-                            value={local.name}
+                            value={local.description}
                             onChange={(e) =>
-                              updateLocal(template.id, { name: e.target.value })
+                              updateLocal(template.id, {
+                                description: e.target.value,
+                              })
                             }
-                            className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 text-sm transition-colors"
-                            placeholder="Template name"
+                            className="w-full text-xs text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
+                            placeholder="Add description…"
                           />
-                          <span
-                            className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                              isCollectionTemplate(template)
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-sky-100 text-sky-800'
-                            }`}
-                          >
-                            {isCollectionTemplate(template)
-                              ? 'Collection'
-                              : 'Board'}
-                          </span>
                         </div>
-                        <input
-                          type="text"
-                          value={local.description}
-                          onChange={(e) =>
-                            updateLocal(template.id, {
-                              description: e.target.value,
-                            })
+                      </div>
+
+                      <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
+
+                      {/* Enabled toggle */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <span className="text-xxs font-bold text-slate-400 uppercase">
+                          Enabled
+                        </span>
+                        <Toggle
+                          checked={local.enabled}
+                          onChange={(checked) =>
+                            updateLocal(template.id, { enabled: checked })
                           }
-                          className="w-full text-xs text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
-                          placeholder="Add description…"
+                          size="sm"
                         />
+                      </div>
+
+                      <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
+
+                      {/* Access level */}
+                      <div className="flex items-center gap-1">
+                        {(['admin', 'beta', 'public'] as AccessLevel[]).map(
+                          (level) => (
+                            <button
+                              key={level}
+                              onClick={() =>
+                                updateLocal(template.id, { accessLevel: level })
+                              }
+                              className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
+                                local.accessLevel === level
+                                  ? getAccessLevelColor(level)
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              {getAccessLevelIcon(level)}
+                              <span className="capitalize">{level}</span>
+                            </button>
+                          )
+                        )}
+                      </div>
+
+                      {/* Building selector */}
+                      {BUILDINGS.length > 0 && (
+                        <>
+                          <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {BUILDINGS.map((b) => {
+                              const selected = local.targetBuildings.includes(
+                                b.id
+                              );
+                              return (
+                                <button
+                                  key={b.id}
+                                  onClick={() =>
+                                    toggleBuilding(template.id, b.id)
+                                  }
+                                  title={b.name}
+                                  className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                                    selected
+                                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {b.gradeLabel}
+                                </button>
+                              );
+                            })}
+                            <button
+                              onClick={() =>
+                                updateLocal(template.id, {
+                                  targetBuildings: [],
+                                })
+                              }
+                              className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                                local.targetBuildings.length === 0
+                                  ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                  : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              ALL
+                            </button>
+                          </div>
+                        </>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 ml-auto pl-3 border-l border-slate-100 shrink-0">
+                        <button
+                          onClick={() => void handleSave(template.id)}
+                          disabled={isSaving || !hasUnsaved}
+                          title={
+                            hasUnsaved ? 'Save changes' : 'No changes to save'
+                          }
+                          className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                            hasUnsaved
+                              ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                              : 'text-slate-300 hover:bg-brand-blue-primary hover:text-white'
+                          }`}
+                        >
+                          {isSaving ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => void handleDelete(template)}
+                          title="Delete template"
+                          className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
                       </div>
                     </div>
 
-                    <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
-
-                    {/* Enabled toggle */}
-                    <div className="flex flex-col items-center gap-1 shrink-0">
-                      <span className="text-xxs font-bold text-slate-400 uppercase">
-                        Enabled
-                      </span>
-                      <Toggle
-                        checked={local.enabled}
-                        onChange={(checked) =>
-                          updateLocal(template.id, { enabled: checked })
-                        }
-                        size="sm"
-                      />
-                    </div>
-
-                    <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
-
-                    {/* Access level */}
-                    <div className="flex items-center gap-1">
-                      {(['admin', 'beta', 'public'] as AccessLevel[]).map(
-                        (level) => (
-                          <button
-                            key={level}
-                            onClick={() =>
-                              updateLocal(template.id, { accessLevel: level })
-                            }
-                            className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
-                              local.accessLevel === level
-                                ? getAccessLevelColor(level)
-                                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                            }`}
-                          >
-                            {getAccessLevelIcon(level)}
-                            <span className="capitalize">{level}</span>
-                          </button>
-                        )
+                    {/* Widget / board count footer */}
+                    <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-xxs text-slate-400">
+                      {isCollectionTemplate(template) ? (
+                        <span>
+                          {template.boardSnapshots.length} board
+                          {template.boardSnapshots.length !== 1 ? 's' : ''}{' '}
+                          captured
+                        </span>
+                      ) : (
+                        <span>
+                          {template.widgets.length} widget
+                          {template.widgets.length !== 1 ? 's' : ''} captured
+                        </span>
                       )}
-                    </div>
-
-                    {/* Building selector */}
-                    {BUILDINGS.length > 0 && (
-                      <>
-                        <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {BUILDINGS.map((b) => {
-                            const selected = local.targetBuildings.includes(
-                              b.id
-                            );
-                            return (
-                              <button
-                                key={b.id}
-                                onClick={() =>
-                                  toggleBuilding(template.id, b.id)
-                                }
-                                title={b.name}
-                                className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                                  selected
-                                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                                    : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                                }`}
-                              >
-                                {b.gradeLabel}
-                              </button>
-                            );
-                          })}
-                          <button
-                            onClick={() =>
-                              updateLocal(template.id, { targetBuildings: [] })
-                            }
-                            className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                              local.targetBuildings.length === 0
-                                ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                                : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            ALL
-                          </button>
-                        </div>
-                      </>
-                    )}
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-1 ml-auto pl-3 border-l border-slate-100 shrink-0">
-                      <button
-                        onClick={() => void handleSave(template.id)}
-                        disabled={isSaving || !hasUnsaved}
-                        title={
-                          hasUnsaved ? 'Save changes' : 'No changes to save'
-                        }
-                        className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                          hasUnsaved
-                            ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                            : 'text-slate-300 hover:bg-brand-blue-primary hover:text-white'
-                        }`}
-                      >
-                        {isSaving ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Save className="w-4 h-4" />
-                        )}
-                      </button>
-                      <button
-                        onClick={() => void handleDelete(template)}
-                        title="Delete template"
-                        className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {template.targetBuildings.length > 0 && (
+                        <>
+                          {' '}
+                          · {template.targetBuildings.length} building
+                          {template.targetBuildings.length !== 1 ? 's' : ''}
+                        </>
+                      )}
+                      {' · '}by {template.createdBy}
                     </div>
                   </div>
-
-                  {/* Widget / board count footer */}
-                  <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-xxs text-slate-400">
-                    {isCollectionTemplate(template) ? (
-                      <span>
-                        {template.boardSnapshots.length} board
-                        {template.boardSnapshots.length !== 1 ? 's' : ''}{' '}
-                        captured
-                      </span>
-                    ) : (
-                      <span>
-                        {template.widgets.length} widget
-                        {template.widgets.length !== 1 ? 's' : ''} captured
-                      </span>
-                    )}
-                    {template.targetBuildings.length > 0 && (
-                      <>
-                        {' '}
-                        · {template.targetBuildings.length} building
-                        {template.targetBuildings.length !== 1 ? 's' : ''}
-                      </>
-                    )}
-                    {' · '}by {template.createdBy}
-                  </div>
-                </div>
-              );
-            });
+                );
+              })
+            );
           })()}
         </div>
       )}
