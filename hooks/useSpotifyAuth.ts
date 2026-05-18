@@ -1,18 +1,22 @@
 /**
  * useSpotifyAuth — connection state + profile for the current user's Spotify account.
  *
- * - Calls `refreshSpotifyAccessToken` on mount to detect whether a
- *   refresh_token is already persisted for this user (any signed-in user
- *   who had previously connected). If it succeeds, we treat them as
- *   connected and fetch the profile.
- * - `connect()` runs the popup auth flow and persists the refresh_token.
- * - `disconnect()` clears the local cache and tells the backend to drop
- *   the stored refresh_token.
- * - `getAccessToken()` returns a valid token (refreshing if needed) for
- *   downstream Web Playback SDK / Web API calls.
+ * Shared state model
+ * ------------------
+ * The connection state lives in a module-level singleton so every `useSpotifyAuth`
+ * subscriber (e.g. the Music widget's settings panel AND its already-mounted
+ * front-face player) observes the same status. Without this, connecting from
+ * the settings panel wouldn't update the front-face player until it remounted.
+ *
+ * Per-uid cache invalidation
+ * --------------------------
+ * The module-level access-token cache (in `utils/spotifyAuth.ts`) is keyed
+ * globally, not per uid. We explicitly clear it whenever Firebase's signed-in
+ * uid changes so user B can't inherit user A's still-valid Spotify session in
+ * the same browser tab.
  */
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '@/context/useAuth';
 import {
   ConnectOutcome,
@@ -20,8 +24,10 @@ import {
   clearAccessTokenCache,
   connectSpotify,
   disconnectSpotify,
+  DisconnectOutcome,
   fetchSpotifyProfile,
   getValidAccessToken,
+  prettifyConnectErrorReason,
   SpotifyUserProfile,
 } from '@/utils/spotifyAuth';
 
@@ -37,92 +43,143 @@ export interface UseSpotifyAuth {
   isConnected: boolean;
   isPremium: boolean;
   connect: () => Promise<ConnectOutcome>;
-  disconnect: () => Promise<void>;
+  disconnect: () => Promise<DisconnectOutcome>;
   getAccessToken: () => Promise<string | null>;
+}
+
+// ---------------------------------------------------------------------------
+// Module-level singleton state + subscribers
+// ---------------------------------------------------------------------------
+
+let sharedState: SpotifyConnectionState = { status: 'unknown' };
+const subscribers = new Set<(s: SpotifyConnectionState) => void>();
+/** uid the singleton state was initialized for. `null` = signed out or not yet seen. */
+let initializedForUid: string | null = null;
+/** Guards against duplicate initial-probe round-trips when multiple hooks mount at once. */
+let inflightInit: Promise<void> | null = null;
+
+function setSharedState(next: SpotifyConnectionState): void {
+  sharedState = next;
+  subscribers.forEach((cb) => cb(next));
+}
+
+/**
+ * Run the initial "is this user already connected?" probe exactly once per
+ * uid, broadcasting the result to every mounted hook instance via
+ * `setSharedState`. Concurrent mounts share the same in-flight promise so we
+ * don't fire duplicate `refreshSpotifyAccessToken` + `/me` round-trips.
+ */
+function initializeForUid(uid: string): Promise<void> {
+  if (initializedForUid === uid && sharedState.status !== 'unknown') {
+    return Promise.resolve();
+  }
+  if (inflightInit) return inflightInit;
+  initializedForUid = uid;
+  inflightInit = (async () => {
+    setSharedState({ status: 'unknown' });
+    const token = await getValidAccessToken();
+    // Uid may have changed mid-probe (rapid sign-out/sign-in). Re-check.
+    if (initializedForUid !== uid) return;
+    if (!token) {
+      setSharedState({ status: 'disconnected' });
+      return;
+    }
+    try {
+      const profile = await fetchSpotifyProfile(token);
+      if (initializedForUid !== uid) return;
+      setSharedState({ status: 'connected', profile });
+    } catch (err) {
+      if (initializedForUid !== uid) return;
+      setSharedState({
+        status: 'error',
+        message: err instanceof Error ? err.message : String(err),
+      });
+    }
+  })().finally(() => {
+    inflightInit = null;
+  });
+  return inflightInit;
 }
 
 export function useSpotifyAuth(): UseSpotifyAuth {
   const { user } = useAuth();
-  const [state, setState] = useState<SpotifyConnectionState>({
-    status: 'unknown',
-  });
-  // Track the uid the current state was computed for so a sign-out/sign-in
-  // doesn't accidentally show a stale connected state.
-  const lastUidRef = useRef<string | null>(null);
+  const [state, setState] = useState<SpotifyConnectionState>(sharedState);
 
-  // Detect existing connection on mount + on user change.
+  // Subscribe this component to shared-state updates for its entire lifetime.
+  useEffect(() => {
+    subscribers.add(setState);
+    // Sync once after subscription in case the singleton changed between
+    // render and effect commit (race with another hook instance's
+    // connect/disconnect). Deferred past the effect body so
+    // `react-hooks/set-state-in-effect` doesn't flag a cascading render —
+    // and so React batches it with anything else in the same microtask.
+    queueMicrotask(() => {
+      setState(sharedState);
+    });
+    return () => {
+      subscribers.delete(setState);
+    };
+  }, []);
+
+  // React to sign-in/sign-out/uid-switch.
   useEffect(() => {
     if (!user) {
-      lastUidRef.current = null;
-      clearAccessTokenCache();
-      setState({ status: 'disconnected' });
+      // Sign-out — clear token cache and state so a different signed-in user
+      // doesn't inherit the previous session.
+      if (initializedForUid !== null) {
+        initializedForUid = null;
+        clearAccessTokenCache();
+        setSharedState({ status: 'disconnected' });
+      }
       return;
     }
-    if (lastUidRef.current === user.uid && state.status !== 'unknown') return;
-    lastUidRef.current = user.uid;
-
-    let cancelled = false;
-    setState({ status: 'unknown' });
-
-    void (async () => {
-      const token = await getValidAccessToken();
-      if (cancelled) return;
-      if (!token) {
-        setState({ status: 'disconnected' });
-        return;
-      }
-      try {
-        const profile = await fetchSpotifyProfile(token);
-        if (cancelled) return;
-        setState({ status: 'connected', profile });
-      } catch (err) {
-        if (cancelled) return;
-        setState({
-          status: 'error',
-          message: err instanceof Error ? err.message : String(err),
-        });
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // `state.status` intentionally omitted: the lastUidRef guard handles
-    // re-runs and we don't want a state setter inside the effect to loop.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Uid switch (user A → user B in the same tab). Invalidate the global
+    // token cache before probing — otherwise user B's first getValidAccessToken()
+    // call returns user A's still-valid cached access_token.
+    if (initializedForUid !== null && initializedForUid !== user.uid) {
+      clearAccessTokenCache();
+      initializedForUid = null;
+      setSharedState({ status: 'unknown' });
+    }
+    void initializeForUid(user.uid);
   }, [user]);
 
   const connect = useCallback(async (): Promise<ConnectOutcome> => {
-    setState({ status: 'connecting' });
+    setSharedState({ status: 'connecting' });
     const outcome = await connectSpotify();
     if (outcome.kind === 'success') {
       cacheAccessToken(outcome.result.accessToken, outcome.result.expiresIn);
       try {
         const profile = await fetchSpotifyProfile(outcome.result.accessToken);
-        setState({ status: 'connected', profile });
+        setSharedState({ status: 'connected', profile });
       } catch (err) {
-        setState({
+        setSharedState({
           status: 'error',
           message: err instanceof Error ? err.message : String(err),
         });
       }
     } else if (outcome.kind === 'cancelled') {
-      setState({ status: 'disconnected' });
+      setSharedState({ status: 'disconnected' });
     } else {
-      setState({
+      setSharedState({
         status: 'error',
         message:
           outcome.kind === 'error'
-            ? outcome.reason
-            : `Spotify requires re-consent (${outcome.cause}).`,
+            ? prettifyConnectErrorReason(outcome.reason)
+            : `Spotify needs re-consent (${outcome.cause}). Try connecting again.`,
       });
     }
     return outcome;
   }, []);
 
-  const disconnect = useCallback(async () => {
-    await disconnectSpotify();
-    setState({ status: 'disconnected' });
+  const disconnect = useCallback(async (): Promise<DisconnectOutcome> => {
+    const result = await disconnectSpotify();
+    if (result.ok) {
+      setSharedState({ status: 'disconnected' });
+    } else {
+      setSharedState({ status: 'error', message: result.message });
+    }
+    return result;
   }, []);
 
   const getAccessToken = useCallback(() => getValidAccessToken(), []);

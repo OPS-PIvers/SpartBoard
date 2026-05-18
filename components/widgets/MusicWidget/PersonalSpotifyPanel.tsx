@@ -12,7 +12,6 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  AlertCircle,
   CheckCircle2,
   Crown,
   Disc3,
@@ -30,6 +29,7 @@ import {
   parseSpotifyResource,
   searchSpotify,
   SpotifySearchResult,
+  spotifyOpenUrlFromInput,
 } from '@/utils/spotifyAuth';
 import { SpotifyPremiumDialog } from '@/components/spotify/SpotifyPremiumDialog';
 import { hasDismissedSpotifyPremiumNotice } from '@/utils/spotifyPremiumNotice';
@@ -57,7 +57,9 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
   const [searchResults, setSearchResults] = useState<SpotifySearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState<string | null>(null);
-  const [connectError, setConnectError] = useState<string | null>(null);
+  const [disconnectWarning, setDisconnectWarning] = useState<string | null>(
+    null
+  );
 
   // Keep the input in sync if the config changes externally (e.g. via another tab).
   useEffect(() => {
@@ -109,16 +111,20 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
   }, [urlInput, isConnected, getAccessToken]);
 
   const triggerConnect = useCallback(async () => {
-    setConnectError(null);
-    const outcome = await connect();
-    if (outcome.kind === 'error') {
-      setConnectError(prettifyConnectError(outcome.reason));
-    } else if (outcome.kind === 'needs-consent') {
-      setConnectError(
-        'Spotify needs re-consent. Try connecting again — if it keeps failing, contact your admin.'
-      );
-    }
+    // Error prettification + state surfacing live in `useSpotifyAuth` so
+    // every subscriber (panel + already-mounted player) sees the same
+    // message. We just need to fire the popup here.
+    setDisconnectWarning(null);
+    await connect();
   }, [connect]);
+
+  const triggerDisconnect = useCallback(async () => {
+    setDisconnectWarning(null);
+    const result = await disconnect();
+    if (!result.ok) {
+      setDisconnectWarning(result.message);
+    }
+  }, [disconnect]);
 
   const handleConnectClick = useCallback(() => {
     if (!user) return;
@@ -153,16 +159,25 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
       });
       return;
     }
-    if (parseSpotifyResource(trimmed)) {
-      updateWidget(widget.id, {
-        config: { ...config, personalSpotifyUrl: trimmed },
-      });
-    }
+    if (!parseSpotifyResource(trimmed)) return;
+    // Clear the cached label + thumbnail unless this input already matches
+    // the saved selection. Without this, pasting a different valid URL
+    // leaves the prior track's label/thumbnail displayed alongside the new
+    // URL until the SDK happens to update it.
+    if (trimmed === config.personalSpotifyUrl) return;
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        personalSpotifyUrl: trimmed,
+        personalSpotifyLabel: '',
+        personalSpotifyThumbnail: '',
+      },
+    });
   }, [urlInput, config, widget.id, updateWidget]);
 
   const pickResult = useCallback(
     (result: SpotifySearchResult) => {
-      const openUrl = spotifyUriToOpenUrl(result.uri) ?? result.uri;
+      const openUrl = spotifyOpenUrlFromInput(result.uri) ?? result.uri;
       updateWidget(widget.id, {
         config: {
           ...config,
@@ -196,22 +211,14 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
       )}
 
       {state.status === 'disconnected' && (
-        <div className="space-y-2">
-          <button
-            type="button"
-            onClick={handleConnectClick}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition shadow-sm"
-          >
-            <Music2 className="w-4 h-4" />
-            Connect Spotify account
-          </button>
-          {connectError && (
-            <p className="text-xs text-red-600 flex items-start gap-1.5">
-              <AlertCircle className="w-3.5 h-3.5 mt-0.5 shrink-0" />
-              <span>{connectError}</span>
-            </p>
-          )}
-        </div>
+        <button
+          type="button"
+          onClick={handleConnectClick}
+          className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-sm transition shadow-sm"
+        >
+          <Music2 className="w-4 h-4" />
+          Connect Spotify account
+        </button>
       )}
 
       {state.status === 'connecting' && (
@@ -262,7 +269,7 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
             </div>
             <button
               type="button"
-              onClick={() => void disconnect()}
+              onClick={() => void triggerDisconnect()}
               className="p-1.5 text-slate-500 hover:text-red-600 hover:bg-red-50 rounded transition"
               title="Disconnect Spotify"
               aria-label="Disconnect Spotify"
@@ -270,6 +277,12 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
               <LogOut className="w-4 h-4" />
             </button>
           </div>
+
+          {disconnectWarning && (
+            <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              {disconnectWarning}
+            </div>
+          )}
 
           {!isPremium && (
             <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
@@ -354,25 +367,3 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
     </div>
   );
 };
-
-function prettifyConnectError(reason: string): string {
-  switch (reason) {
-    case 'popup-blocked':
-      return 'Your browser blocked the Spotify sign-in popup. Allow popups for this site and try again.';
-    case 'auth-bypass-mode':
-      return 'Spotify cannot be connected in auth-bypass mode.';
-    case 'callback-missing-code':
-      return 'Spotify did not return an authorization code. Try again.';
-    case 'access_denied':
-      return 'Spotify access was denied. Try connecting again and approve the requested permissions.';
-    default:
-      return reason;
-  }
-}
-
-/** Convert `spotify:track:abc` → `https://open.spotify.com/track/abc`. */
-function spotifyUriToOpenUrl(uri: string): string | null {
-  const m = uri.match(/^spotify:(track|album|playlist|artist):([A-Za-z0-9]+)$/);
-  if (!m) return null;
-  return `https://open.spotify.com/${m[1]}/${m[2]}`;
-}

@@ -10,27 +10,91 @@
  * Extensions) — i.e. Chrome / Edge / Firefox / Safari on desktop, but
  * NOT iOS Safari. Callers should fall back to the embed iframe when
  * `window.Spotify` never arrives.
+ *
+ * Failure modes
+ * -------------
+ * The loader reports failures via the optional `onError` callback:
+ *   - `script-load-failed` — `<script>` emitted an `error` event (CDN blocked,
+ *     CSP violation, network down).
+ *   - `timeout` — neither `error` nor `onSpotifyWebPlaybackSDKReady` fired
+ *     within `SDK_LOAD_TIMEOUT_MS`.
+ * Without this, pending callbacks would sit forever and widgets would render
+ * a permanently disabled play button instead of falling back to the embed.
  */
 
 const SDK_SRC = 'https://sdk.scdn.co/spotify-player.js';
-const pendingCallbacks: (() => void)[] = [];
+const SDK_LOAD_TIMEOUT_MS = 15_000;
 
-export function loadSpotifySdk(callback: () => void): void {
+interface PendingCallback {
+  onReady: () => void;
+  onError?: (err: Error) => void;
+  timeoutId: number;
+}
+
+const pending: PendingCallback[] = [];
+let scriptInjected = false;
+let scriptFailed: Error | null = null;
+
+function fulfillAllReady(): void {
+  while (pending.length) {
+    const cb = pending.shift();
+    if (!cb) continue;
+    window.clearTimeout(cb.timeoutId);
+    cb.onReady();
+  }
+}
+
+function failAllPending(err: Error): void {
+  while (pending.length) {
+    const cb = pending.shift();
+    if (!cb) continue;
+    window.clearTimeout(cb.timeoutId);
+    cb.onError?.(err);
+  }
+}
+
+export function loadSpotifySdk(
+  onReady: () => void,
+  onError?: (err: Error) => void
+): void {
   if (typeof window === 'undefined') return;
   if (window.Spotify?.Player) {
-    callback();
+    onReady();
     return;
   }
-  pendingCallbacks.push(callback);
-  if (document.querySelector(`script[src="${SDK_SRC}"]`)) return;
+  // A previous load attempt definitively failed — don't keep new callers
+  // waiting on a script tag that's never going to load.
+  if (scriptFailed) {
+    onError?.(scriptFailed);
+    return;
+  }
+
+  const timeoutId = window.setTimeout(() => {
+    const err = new Error('timeout');
+    // Mark globally so future callers fail fast too.
+    scriptFailed = err;
+    failAllPending(err);
+  }, SDK_LOAD_TIMEOUT_MS);
+
+  pending.push({ onReady, onError, timeoutId });
+
+  if (scriptInjected) return;
+  scriptInjected = true;
+
   const previousHandler = window.onSpotifyWebPlaybackSDKReady;
   window.onSpotifyWebPlaybackSDKReady = () => {
     if (typeof previousHandler === 'function') previousHandler();
-    pendingCallbacks.splice(0).forEach((cb) => cb());
+    fulfillAllReady();
   };
+
   const tag = document.createElement('script');
   tag.src = SDK_SRC;
   tag.async = true;
+  tag.onerror = () => {
+    const err = new Error('script-load-failed');
+    scriptFailed = err;
+    failAllPending(err);
+  };
   document.head.appendChild(tag);
 }
 

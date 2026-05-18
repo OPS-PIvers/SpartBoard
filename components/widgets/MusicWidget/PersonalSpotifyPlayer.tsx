@@ -26,7 +26,11 @@ import { WidgetData, MusicConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
-import { parseSpotifyResource, playOnDevice } from '@/utils/spotifyAuth';
+import {
+  parseSpotifyResource,
+  playOnDevice,
+  spotifyOpenUrlFromInput,
+} from '@/utils/spotifyAuth';
 import {
   loadSpotifySdk,
   SpotifyPlayer,
@@ -49,7 +53,13 @@ export const PersonalSpotifyPlayer: React.FC<Props> = ({ widget }) => {
 
   const url = config.personalSpotifyUrl ?? '';
   const parsed = url ? parseSpotifyResource(url) : null;
-  const embedUrl = url ? buildSpotifyEmbedUrl(url) : null;
+  // The embed iframe only understands https URLs. If the teacher pasted a
+  // `spotify:track:...` URI, normalize it via `spotifyOpenUrlFromInput` so
+  // the Free-tier fallback below doesn't render a blank card.
+  const openUrlForEmbed = url ? spotifyOpenUrlFromInput(url) : null;
+  const embedUrl = openUrlForEmbed
+    ? buildSpotifyEmbedUrl(openUrlForEmbed)
+    : null;
 
   // ---------- empty / disconnected states ----------
   if (authState.status === 'unknown') {
@@ -168,6 +178,10 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [isPaused, setIsPaused] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Any unrecoverable SDK failure (script never loaded, init/auth/account
+  // errors, connect() returned false) sets this. When true the component
+  // falls back to the embed iframe rather than rendering a broken SDK shell.
+  const [sdkFailed, setSdkFailed] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<{
     name?: string;
     artist?: string;
@@ -180,68 +194,80 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
   useEffect(() => {
     let destroyed = false;
 
-    loadSpotifySdk(async () => {
-      if (destroyed || !window.Spotify) return;
-      const player = new window.Spotify.Player({
-        name: `SpartBoard (widget ${widget.id.slice(0, 6)})`,
-        getOAuthToken: (cb) => {
-          void getAccessToken().then((t) => {
-            if (t) cb(t);
-          });
-        },
-        volume: 0.5,
-      });
+    const failSdk = (message: string) => {
+      if (destroyed) return;
+      setError(message);
+      setSdkFailed(true);
+    };
 
-      player.addListener('ready', ({ device_id }) => {
-        if (destroyed) return;
-        setDeviceId(device_id);
-      });
-      player.addListener('not_ready', () => {
-        if (destroyed) return;
-        setDeviceId(null);
-      });
-      player.addListener('player_state_changed', (s: SpotifyPlayerState) => {
-        if (destroyed || !s) return;
-        setIsPaused(s.paused);
-        const t = s.track_window?.current_track;
-        setCurrentTrack({
-          name: t?.name,
-          artist: t?.artists?.map((a) => a.name).join(', '),
-          image: t?.album?.images?.[0]?.url,
+    loadSpotifySdk(
+      async () => {
+        if (destroyed || !window.Spotify) return;
+        const player = new window.Spotify.Player({
+          name: `SpartBoard (widget ${widget.id.slice(0, 6)})`,
+          getOAuthToken: (cb) => {
+            void getAccessToken().then((t) => {
+              if (t) cb(t);
+            });
+          },
+          volume: 0.5,
         });
-      });
-      player.addListener('initialization_error', ({ message }) => {
-        if (!destroyed) setError(`Spotify SDK init failed: ${message}`);
-      });
-      player.addListener('authentication_error', ({ message }) => {
-        if (!destroyed) setError(`Spotify auth error: ${message}`);
-      });
-      player.addListener('account_error', ({ message }) => {
-        if (!destroyed) {
-          // Most common cause: account isn't Premium. Surface a clean message.
-          setError(
+
+        player.addListener('ready', ({ device_id }) => {
+          if (destroyed) return;
+          setDeviceId(device_id);
+        });
+        player.addListener('not_ready', () => {
+          if (destroyed) return;
+          setDeviceId(null);
+        });
+        player.addListener('player_state_changed', (s: SpotifyPlayerState) => {
+          if (destroyed || !s) return;
+          setIsPaused(s.paused);
+          const t = s.track_window?.current_track;
+          setCurrentTrack({
+            name: t?.name,
+            artist: t?.artists?.map((a) => a.name).join(', '),
+            image: t?.album?.images?.[0]?.url,
+          });
+        });
+        player.addListener('initialization_error', ({ message }) => {
+          failSdk(`Spotify SDK init failed: ${message}`);
+        });
+        player.addListener('authentication_error', ({ message }) => {
+          failSdk(`Spotify auth error: ${message}`);
+        });
+        player.addListener('account_error', ({ message }) => {
+          failSdk(
             message.toLowerCase().includes('premium')
               ? 'Spotify Premium is required for full playback. Falling back to preview.'
               : `Spotify account error: ${message}`
           );
-        }
-      });
-      player.addListener('playback_error', ({ message }) => {
-        if (!destroyed) setError(`Spotify playback error: ${message}`);
-      });
+        });
+        player.addListener('playback_error', ({ message }) => {
+          // Playback errors are usually transient (network blip) — surface
+          // but don't collapse to the embed; the user can retry.
+          if (!destroyed) setError(`Spotify playback error: ${message}`);
+        });
 
-      try {
-        const connected = await player.connect();
-        if (!connected && !destroyed) {
-          setError('Spotify Web Playback SDK could not connect.');
+        try {
+          const connected = await player.connect();
+          if (!connected) {
+            failSdk('Spotify Web Playback SDK could not connect.');
+            return;
+          }
+          playerRef.current = player;
+        } catch (err) {
+          failSdk(err instanceof Error ? err.message : String(err));
         }
-        playerRef.current = player;
-      } catch (err) {
-        if (!destroyed) {
-          setError(err instanceof Error ? err.message : String(err));
-        }
+      },
+      (err) => {
+        // SDK script never loaded (CDN blocked, network failure, timeout).
+        failSdk(
+          `Couldn't load Spotify Web Playback SDK: ${err.message}. Falling back to preview.`
+        );
       }
-    });
+    );
 
     return () => {
       destroyed = true;
@@ -292,9 +318,10 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
     }
   };
 
-  // If the SDK keeps failing for a Premium-required reason, fall back to embed
-  // so the teacher still gets *something* rather than a broken card.
-  if (error && error.toLowerCase().includes('premium') && embedFallbackUrl) {
+  // Any unrecoverable SDK failure → embed iframe so the teacher still gets
+  // *something* rather than a broken card. Covers Premium-required, SDK
+  // script load failure, init/auth errors, and connect()-returned-false.
+  if (sdkFailed && embedFallbackUrl) {
     return <EmbedFallback url={embedFallbackUrl} title={label} />;
   }
 

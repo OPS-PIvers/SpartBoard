@@ -385,11 +385,36 @@ export const refreshSpotifyAccessToken = onCall(
       if (axios.isAxiosError(err)) {
         const spotifyErr = (err.response?.data as { error?: string })?.error;
         if (spotifyErr === 'invalid_grant') {
-          await ref.delete().catch((delErr) => {
-            logWarn('refreshSpotifyAccessToken.deletePoisonDoc', delErr, {
-              uid,
+          // Race-safe delete: another tab may have already rotated the
+          // refresh_token (T0 both tabs read R0; T1 tab A rotates to R1
+          // and writes; T2 tab B's refresh with R0 fails as invalid_grant).
+          // If we unconditionally deleted here we'd erase R1 and force a
+          // re-consent that wasn't actually needed. The transaction reads
+          // the doc again and only deletes if the ciphertext we just used
+          // is still the stored ciphertext — otherwise leave the rotated
+          // token alone.
+          await db
+            .runTransaction(async (tx) => {
+              const fresh = await tx.get(ref);
+              if (!fresh.exists) return;
+              const freshStored = parseStoredSpotifyAuth(fresh.data());
+              if (!freshStored) {
+                tx.delete(ref);
+                return;
+              }
+              if (
+                freshStored.encryptedRefreshToken ===
+                stored.encryptedRefreshToken
+              ) {
+                tx.delete(ref);
+              }
+              // else: another tab rotated the token; leave the new doc in place.
+            })
+            .catch((delErr) => {
+              logWarn('refreshSpotifyAccessToken.deletePoisonDoc', delErr, {
+                uid,
+              });
             });
-          });
           throw needsConsent(
             'invalid-grant',
             'needs-consent: stored Spotify refresh token was revoked.'

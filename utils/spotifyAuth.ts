@@ -137,9 +137,10 @@ export async function connectSpotify(): Promise<ConnectOutcome> {
   const redirectUri = getSpotifyRedirectUri();
   const codeVerifier = randomVerifier();
   const codeChallenge = await s256Challenge(codeVerifier);
-  // Cryptographic state value tying the popup callback back to this exact
-  // connect attempt. Stored in sessionStorage because the popup runs in
-  // the same origin and can read it back when constructing its postMessage.
+  // Random CSRF/state value tying the popup callback back to this exact
+  // connect attempt. Sent as the OAuth `state` query parameter and echoed
+  // back by Spotify in the callback URL; the message listener below
+  // verifies the echoed value matches before accepting the code.
   const state = randomVerifier();
 
   const authUrl = new URL(SPOTIFY_AUTHORIZE_ENDPOINT);
@@ -257,6 +258,14 @@ interface CachedToken {
 
 let cached: CachedToken | null = null;
 let inflightRefresh: Promise<string | null> | null = null;
+/**
+ * Bumped every time the cache is cleared (sign-out, uid switch, disconnect).
+ * Any in-flight refresh started before the bump must check the generation
+ * before writing to the cache — otherwise a refresh request issued for user A
+ * could resolve after user A's session ended and repopulate the token cache
+ * with a stale credential.
+ */
+let cacheGeneration = 0;
 
 export function cacheAccessToken(token: string, expiresIn: number): void {
   cached = { token, expiresAt: Date.now() + expiresIn * 1000 };
@@ -265,6 +274,7 @@ export function cacheAccessToken(token: string, expiresIn: number): void {
 export function clearAccessTokenCache(): void {
   cached = null;
   inflightRefresh = null;
+  cacheGeneration += 1;
 }
 
 /**
@@ -279,6 +289,7 @@ export async function getValidAccessToken(): Promise<string | null> {
   }
   if (inflightRefresh) return inflightRefresh;
 
+  const generationAtStart = cacheGeneration;
   inflightRefresh = (async () => {
     try {
       const refresh = httpsCallable<
@@ -286,33 +297,91 @@ export async function getValidAccessToken(): Promise<string | null> {
         { accessToken: string; expiresIn: number }
       >(functions, 'refreshSpotifyAccessToken');
       const res = await refresh({});
+      // Drop the result if the cache was invalidated mid-flight (sign-out,
+      // disconnect, or uid switch). Without this guard, the stale refresh
+      // would repopulate the cache after the caller intended it cleared.
+      if (cacheGeneration !== generationAtStart) {
+        return null;
+      }
       cacheAccessToken(res.data.accessToken, res.data.expiresIn);
       return res.data.accessToken;
     } catch (err) {
       logError('spotifyAuth.refresh', err);
       const d = detailsFrom(err);
-      if (d?.reason === 'needs-consent') {
+      if (
+        d?.reason === 'needs-consent' &&
+        cacheGeneration === generationAtStart
+      ) {
         cached = null;
       }
       return null;
     } finally {
-      inflightRefresh = null;
+      // Only clear the inflight pointer if it's still ours — a cache reset
+      // (which nulls inflightRefresh) may have already happened.
+      if (cacheGeneration === generationAtStart) {
+        inflightRefresh = null;
+      }
     }
   })();
   return inflightRefresh;
 }
 
-export async function disconnectSpotify(): Promise<void> {
+export type DisconnectOutcome = { ok: true } | { ok: false; message: string };
+
+/**
+ * Disconnects the current user's Spotify integration.
+ *
+ * Returns `{ ok: false, message }` when the backend revoke fails — the
+ * caller must surface this rather than silently flipping the UI to a
+ * disconnected state, otherwise the stored refresh_token survives on the
+ * server and the next page load silently reconnects.
+ *
+ * The local cache is cleared in both branches: even on backend failure the
+ * client-side credential is gone, which limits exposure if the user hits
+ * disconnect because they no longer trust this browser.
+ */
+export async function disconnectSpotify(): Promise<DisconnectOutcome> {
   clearAccessTokenCache();
-  if (isAuthBypass) return;
+  if (isAuthBypass) return { ok: true };
   try {
     const revoke = httpsCallable<Record<string, never>, { revoked: boolean }>(
       functions,
       'revokeSpotifyAuth'
     );
     await revoke({});
+    return { ok: true };
   } catch (err) {
     logError('spotifyAuth.revoke', err);
+    const message =
+      err instanceof FunctionsError
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    return {
+      ok: false,
+      message: `Spotify disconnect didn't reach the server: ${message}. Your local session is cleared, but the stored connection may need to be removed at spotify.com/account/apps.`,
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Connect-error message prettification (shared between hook & UI)
+// ---------------------------------------------------------------------------
+
+/** Translates a raw `ConnectOutcome.reason` string into user-facing copy. */
+export function prettifyConnectErrorReason(reason: string): string {
+  switch (reason) {
+    case 'popup-blocked':
+      return 'Your browser blocked the Spotify sign-in popup. Allow popups for this site and try again.';
+    case 'auth-bypass-mode':
+      return 'Spotify cannot be connected in auth-bypass mode.';
+    case 'callback-missing-code':
+      return 'Spotify did not return an authorization code. Try again.';
+    case 'access_denied':
+      return 'Spotify access was denied. Try connecting again and approve the requested permissions.';
+    default:
+      return reason;
   }
 }
 
@@ -359,6 +428,17 @@ export interface SpotifySearchResult {
   name: string;
   subtitle: string;
   imageUrl?: string;
+}
+
+/**
+ * Returns `https://open.spotify.com/{type}/{id}` for any input that
+ * `parseSpotifyResource` accepts. Useful for the embed iframe, which only
+ * understands https URLs — `spotify:` URIs would break it.
+ */
+export function spotifyOpenUrlFromInput(input: string): string | null {
+  const parsed = parseSpotifyResource(input);
+  if (!parsed) return null;
+  return `https://open.spotify.com/${parsed.type}/${parsed.id}`;
 }
 
 /**
