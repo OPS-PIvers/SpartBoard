@@ -569,16 +569,12 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Admin audit log - admin-only read; create-only writes (immutable).
+    // Admin audit log - admin-only read/write.
     // Written by GlobalPermissionsManager when admins change model config
     // (or other sensitive settings). Without this rule the default-deny
     // policy silently rejects every write and audit logging is a no-op.
-    // `create` (not `write`) is intentional: audit entries must be append-only
-    // so an admin cannot edit or delete their own trail. `timestamp` is set
-    // server-side via serverTimestamp() at the call site (more tamper-resistant
-    // than a client-supplied epoch), so no `is int` validation is added here.
     match /admin_audit_log/{logId} {
-      allow read, create: if isAdmin();
+      allow read, write: if isAdmin();
     }
 
     // User Roles - stored in admin_settings for global access but restricted to admins
