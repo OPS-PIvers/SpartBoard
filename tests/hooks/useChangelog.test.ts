@@ -14,19 +14,19 @@ const SAMPLE = {
       version: '2026.06.01',
       date: '2026-06-01',
       title: 'Latest',
-      highlights: [{ type: 'feature' as const, text: 'A' }],
+      details: [{ type: 'feature' as const, text: 'A' }],
     },
     {
       version: '2026.05.20',
       date: '2026-05-20',
       title: 'Middle',
-      highlights: [{ type: 'fix' as const, text: 'B' }],
+      details: [{ type: 'fix' as const, text: 'B' }],
     },
     {
       version: '2026.05.10',
       date: '2026-05-10',
       title: 'Older',
-      highlights: [{ type: 'improvement' as const, text: 'C' }],
+      details: [{ type: 'improvement' as const, text: 'C' }],
     },
   ],
 };

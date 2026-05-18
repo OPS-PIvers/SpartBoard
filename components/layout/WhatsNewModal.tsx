@@ -73,7 +73,7 @@ const Entry: React.FC<{ entry: ChangelogEntry; isCurrent: boolean }> = ({
   isCurrent,
 }) => {
   const { t } = useTranslation();
-  const groups = useMemo(() => groupHighlights(entry.highlights), [entry]);
+  const groups = useMemo(() => groupHighlights(entry.details), [entry]);
   const labels: Record<ChangelogHighlightType, string> = {
     feature: t('whatsNew.groups.feature', { defaultValue: 'New' }),
     improvement: t('whatsNew.groups.improvement', {

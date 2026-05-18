@@ -3,8 +3,60 @@
     {
       "version": "2026.05.19",
       "date": "2026-05-19",
-      "title": "Collections — plus a Boards manager refresh",
-      "highlights": [
+      "title": "Collections, sharing, and a Boards manager refresh",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Collections",
+          "items": [
+            {
+              "text": "Group your boards into folders so a busy dashboard list stays organized."
+            },
+            {
+              "text": "Pick a color, then drag boards into the Collection from the Boards manager."
+            },
+            {
+              "text": "Share a whole Collection with a colleague, or save it as a template to reuse next year."
+            },
+            {
+              "text": "Pin frequently used boards so they appear at the top regardless of which Collection is active."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Quiz response security",
+          "items": [
+            {
+              "text": "Two new options when publishing quiz results for student review:",
+              "items": [
+                {
+                  "text": "Watermark — a faint identifier behind each student's responses so screenshots are traceable."
+                },
+                {
+                  "text": "Tab-navigation lock — pick how many times a student can leave the results tab before it locks."
+                }
+              ]
+            },
+            {
+              "text": "Unlock one student at a time without reopening the whole assignment."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Boards manager refresh",
+          "items": [
+            {
+              "text": "Every card shows a visual preview of its widgets, and you can drag from anywhere on the card."
+            },
+            {
+              "text": "Collections and Boards each get their own button instead of a shared kebab menu."
+            }
+          ]
+        }
+      ],
+      "details": [
         {
           "type": "feature",
           "text": "Collections — group your boards into folders, share a whole folder with another teacher, or save one as a template to reuse next year."
@@ -43,7 +95,7 @@
       "version": "2026.05.18",
       "date": "2026-05-18",
       "title": "What's New panel introduced",
-      "highlights": [
+      "details": [
         {
           "type": "feature",
           "text": "Click the new \"What's New\" link on the Update Available toast — or open it any time from the bottom of the sidebar menu — to see a friendly summary of what changed before you refresh."

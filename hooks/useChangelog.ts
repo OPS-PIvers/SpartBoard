@@ -2,16 +2,36 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type ChangelogHighlightType = 'feature' | 'improvement' | 'fix';
 
+// Used for the exhaustive details view (one bullet per user-facing change,
+// grouped by type at render time — same shape as the legacy `highlights`).
 export interface ChangelogHighlight {
   type: ChangelogHighlightType;
   text: string;
+}
+
+// Recursive bullet for the overview. `items` holds optional sub-bullets;
+// by convention the Routine prompt caps nesting at one level deep.
+export interface ChangelogBullet {
+  text: string;
+  items?: ChangelogBullet[];
+}
+
+// A themed section under a single type. `subtitle` is optional so
+// theme-less sections (e.g. flat Fixes with no concept grouping)
+// fall out naturally — the renderer just prints the bullets directly
+// under the type heading when `subtitle` is missing.
+export interface ChangelogThemedSection {
+  type: ChangelogHighlightType;
+  subtitle?: string;
+  items: ChangelogBullet[];
 }
 
 export interface ChangelogEntry {
   version: string;
   date: string;
   title: string;
-  highlights: ChangelogHighlight[];
+  overview?: ChangelogThemedSection[];
+  details: ChangelogHighlight[];
 }
 
 interface ChangelogFile {
