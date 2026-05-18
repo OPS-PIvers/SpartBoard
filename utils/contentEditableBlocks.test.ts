@@ -219,12 +219,7 @@ describe('needsBlockNormalization', () => {
 });
 
 describe('ensureTopLevelBlocks', () => {
-  it('wraps inline-only content (the case toggleList needs)', () => {
-    // The toolbar's list buttons silently did nothing on this shape
-    // because `collectSelectedBlocks` iterates `editor.children`, which
-    // excludes text nodes. ensureTopLevelBlocks is the helper that
-    // guarantees there's always at least one block element for the
-    // list command to convert into an <li>.
+  it('wraps a bare top-level text node', () => {
     const editor = buildEditor('hello world');
     ensureTopLevelBlocks(editor);
     expect(editor.children.length).toBe(1);
@@ -232,15 +227,33 @@ describe('ensureTopLevelBlocks', () => {
     expect(editor.children[0].textContent).toBe('hello world');
   });
 
-  it('wraps a single inline element (e.g. <b>headline</b>)', () => {
-    // Distinct from normalizeEditorBlocks, which deliberately skips
-    // this case to avoid stray line-boxes. For list operations, we
-    // need the wrap regardless.
+  it('wraps a single top-level inline element', () => {
+    // normalizeEditorBlocks deliberately skips this shape; ensure does not.
     const editor = buildEditor('<b>headline</b>');
     ensureTopLevelBlocks(editor);
     expect(editor.children.length).toBe(1);
     expect(editor.children[0].tagName).toBe('DIV');
     expect(editor.children[0].innerHTML).toBe('<b>headline</b>');
+  });
+
+  it('keeps text node identity after wrapping (caret/selection survival)', () => {
+    // Live Ranges anchored to a moved node's *parent* collapse per
+    // the DOM spec, but the text node itself survives intact — it's
+    // just reparented. `toggleList` re-reads `window.getSelection()`
+    // after the wrap and works with the live range's new (collapsed)
+    // position, so the only thing this helper has to guarantee is
+    // that the text characters are preserved verbatim and the node
+    // identity stays the same.
+    const editor = buildEditor('hello world');
+    const textNode = editor.firstChild as Text;
+
+    ensureTopLevelBlocks(editor);
+
+    expect(textNode.nodeValue).toBe('hello world');
+    expect(textNode.parentElement).toBe(editor.children[0]);
+    expect(editor.children[0].tagName).toBe('DIV');
+    expect(editor.children[0].childNodes.length).toBe(1);
+    expect(editor.children[0].firstChild).toBe(textNode);
   });
 
   it('is a no-op when content already has block structure', () => {

@@ -261,12 +261,8 @@ const WrittenResponseEditorInner: React.FC<
   const handleListToggle = (listTag: 'ul' | 'ol') => {
     if (disabled || !editorRef.current) return;
     editorRef.current.focus();
-    // Always wrap loose top-level content in `<p>` blocks first. The
-    // weaker `needsBlockNormalization` skips inline-only content (to
-    // avoid stray line-boxes for `<b>hi</b>`-style snippets), but
-    // `toggleList` collects from `editor.children` and silently no-ops
-    // when no element children exist. ensureTopLevelBlocks is a no-op
-    // when content already has blocks.
+    // `toggleList` collects from `editor.children` (excludes text
+    // nodes), so any loose top-level text must be wrapped first.
     ensureTopLevelBlocks(editorRef.current, { wrapTag: 'p' });
     toggleList(editorRef.current, listTag, 'p');
     handleInput();

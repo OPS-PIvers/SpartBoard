@@ -149,6 +149,35 @@ describe('TextWidget', () => {
     expect(ancestorPointerDown).not.toHaveBeenCalled();
   });
 
+  it('Ctrl+Shift+8 wraps inline-only editor content in a bulleted list', () => {
+    // Guards the keyboard shortcut path through `ensureTopLevelBlocks`.
+    // Inline-only content (single typed line, no Enter pressed) has
+    // zero element children, so the old `needsBlockNormalization`
+    // guard skipped wrapping and `toggleList` silently no-opped.
+    render(<TextWidget widget={mockWidget} />);
+    const editableDiv = screen
+      .getByText('Hello World')
+      .closest('div[contentEditable="true"]') as HTMLElement;
+    expect(editableDiv).not.toBeNull();
+
+    // Replace with bare inline-only content and select all of it.
+    editableDiv.innerHTML = 'list me';
+    const textNode = editableDiv.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, textNode.length);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    fireEvent.keyDown(editableDiv, { key: '8', shiftKey: true, ctrlKey: true });
+
+    expect(editableDiv.querySelector('ul')).not.toBeNull();
+    expect(editableDiv.querySelectorAll('li').length).toBe(1);
+    expect(editableDiv.querySelector('li')?.textContent).toBe('list me');
+  });
+
   it('triggers hyperlink prompt on Control+K', async () => {
     mockShowPrompt.mockResolvedValue('https://test.com');
     render(<TextWidget widget={mockWidget} />);

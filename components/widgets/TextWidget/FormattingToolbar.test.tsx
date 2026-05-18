@@ -528,13 +528,7 @@ describe('FormattingToolbar', () => {
     document.body.removeChild(editor);
   });
 
-  it('wraps inline-only editor content in a list (the previously broken case)', () => {
-    // Before the fix the toolbar called `needsBlockNormalization` first
-    // and that helper deliberately skips inline-only content to avoid
-    // stray line-boxes. The list command then ran against an editor
-    // whose `children` was empty (text nodes aren't in `.children`),
-    // collected zero blocks, and silently did nothing. The fix routes
-    // through `ensureTopLevelBlocks` which always wraps loose content.
+  it('wraps inline-only editor content in a bulleted list', () => {
     const editor = mockEditorRef.current;
     if (!editor) throw new Error('mockEditorRef.current is null');
     editor.innerHTML = 'hello world';
@@ -557,7 +551,7 @@ describe('FormattingToolbar', () => {
     document.body.removeChild(editor);
   });
 
-  it('wraps inline-only editor content in a numbered list as well', () => {
+  it('wraps a single inline element in a numbered list', () => {
     const editor = mockEditorRef.current;
     if (!editor) throw new Error('mockEditorRef.current is null');
     editor.innerHTML = '<b>Bold text</b>';

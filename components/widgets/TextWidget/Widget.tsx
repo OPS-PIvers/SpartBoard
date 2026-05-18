@@ -289,9 +289,6 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               : null;
         if (listTag && editorRef.current) {
           e.preventDefault();
-          // ensureTopLevelBlocks (not needsBlockNormalization) so the
-          // shortcut works on inline-only editors too — see runCommand
-          // in FormattingToolbar.tsx for the same reasoning.
           ensureTopLevelBlocks(editorRef.current);
           toggleList(editorRef.current, listTag, 'div');
           handleInput();

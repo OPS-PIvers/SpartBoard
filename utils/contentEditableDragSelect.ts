@@ -1,40 +1,22 @@
 /**
- * Chrome bug workaround: drag-selection inside contenteditable refuses
- * to extend across block boundaries when the initial `mousedown` lands
- * on a text node.
+ * Chromium contenteditable bug workaround: drag-selection clamps to
+ * the anchor text node's block when mousedown lands on text, refusing
+ * to extend across block boundaries. (Padding-area clicks work fine
+ * — the anchor falls on the container instead.)
  *
- * Concrete symptom: in a multi-paragraph editor, if the user begins a
- * drag-selection by clicking on the first character of a line, the
- * selection clamps to that single block — even if the user drags the
- * pointer well past the next paragraph. Starting the same drag from
- * editor padding / whitespace (off any text node) works fine, because
- * the browser anchors the selection to the block container instead
- * of the text node.
+ * `preventDefault()` on mousedown is required because Chromium re-
+ * clamps any bubble-phase `setBaseAndExtent` override on the next
+ * pointer tick, so the only reliable fix is to suppress Chromium's
+ * default drag-selection algorithm entirely. That also blocks the
+ * automatic focus shift and caret placement, so both are re-done
+ * manually: `editor.focus({ preventScroll: true })` + an empty range
+ * at the click point.
  *
- * Prior attempts that listened for `mousemove` and called
- * `setBaseAndExtent` from a bubble-phase listener did not work in
- * Chromium: the browser's internal drag-selection logic clamps the
- * selection as part of mousedown's default action / native input
- * pipeline, and bubble-phase JS overrides get re-clamped on the next
- * pointer tick. The only reliable fix is to suppress Chromium's
- * default drag-selection algorithm entirely by calling
- * `e.preventDefault()` on the initial `mousedown`, then drive the
- * selection ourselves on `mousemove` / `mouseup`.
- *
- * `preventDefault` on mousedown also suppresses the browser's
- * automatic focus shift and caret placement, so we re-do both
- * manually:
- *   1. `editor.focus({ preventScroll: true })` so the editor's
- *      `onFocus` handler still fires and key events route correctly.
- *   2. `selection.removeAllRanges()` + `addRange(...)` to position
- *      the caret at the click point.
- *
- * Double-click word selection, triple-click paragraph selection,
- * shift-click range extension, and modifier-clicks all bypass the
- * enhancer so the browser's existing behavior keeps working for
- * those gestures. Click events still fire as normal (preventDefault
- * on mousedown doesn't suppress click), so links and form controls
- * inside the editor still respond.
+ * Multi-click gestures (`detail >= 2`), shift-click range extension,
+ * and modifier-clicks bypass the enhancer so the browser's existing
+ * behavior keeps working for those. Click events still fire normally
+ * (preventDefault on mousedown doesn't suppress click), so links and
+ * form controls inside the editor still respond.
  */
 
 interface CaretPosition {

@@ -552,14 +552,8 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       ) {
         const editor = editorRef.current;
         if (!editor) return;
-        // Always wrap loose top-level content in a block before toggling
-        // a list. `toggleList` collects from `editor.children`, which
-        // excludes text nodes — so an editor with inline-only content
-        // (e.g. a single typed line that never crossed Enter) has zero
-        // collectable blocks and the list command silently no-ops.
-        // The stronger ensureTopLevelBlocks always wraps inline content
-        // so toggleList has an <li> source; it's a no-op when content
-        // is already in blocks.
+        // `toggleList` collects from `editor.children` (excludes text
+        // nodes), so any loose top-level text must be wrapped first.
         ensureTopLevelBlocks(editor);
         const listTag = command === 'insertUnorderedList' ? 'ul' : 'ol';
         // `paragraphTag: 'div'` matches TextWidget's persistence
