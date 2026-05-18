@@ -80,10 +80,10 @@ describe('pickInitialBoard', () => {
     const result = pickInitialBoard(
       [inColl, rootBoard],
       null,
-      // Literal '__root__' (not the ROOT_COLLECTION_KEY constant) is
+      // Literal '_root_' (not the ROOT_COLLECTION_KEY constant) is
       // deliberate: this verifies the runtime lookup-key contract a caller
       // sees, not which constant the helper happens to import.
-      { __root__: 'r1' },
+      { _root_: 'r1' },
       []
     );
     expect(result?.id).toBe('r1');

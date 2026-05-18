@@ -5075,8 +5075,11 @@ export interface UserProfile {
  * root-level Boards (those with no Collection). All read/write sites of the
  * `lastBoardIdByCollection` map must use this constant instead of a literal
  * string to prevent silent typo bugs.
+ *
+ * Must not both begin and end with `__` — Firestore rejects such field names
+ * (the map is written via dotted field path `lastBoardIdByCollection.${key}`).
  */
-export const ROOT_COLLECTION_KEY = '__root__' as const;
+export const ROOT_COLLECTION_KEY = '_root_' as const;
 
 export interface SharedGroup {
   id: string;
