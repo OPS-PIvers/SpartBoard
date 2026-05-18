@@ -105,6 +105,49 @@ describe('useChangelog', () => {
     expect(r1.current.entries).toHaveLength(3);
     expect(r2.current.entries).toHaveLength(3);
   });
+
+  it('round-trips entries with overview and nested bullets unchanged', async () => {
+    globalFetch.mockResolvedValueOnce({
+      ok: true,
+      json: () =>
+        Promise.resolve({
+          entries: [
+            {
+              version: '2026.07.01',
+              date: '2026-07-01',
+              title: 'Themed release',
+              overview: [
+                {
+                  type: 'feature',
+                  subtitle: 'Collections',
+                  items: [
+                    { text: 'Top-level bullet' },
+                    {
+                      text: 'Parent with nested',
+                      items: [{ text: 'Sub one' }, { text: 'Sub two' }],
+                    },
+                  ],
+                },
+                {
+                  type: 'fix',
+                  // No subtitle — theme-less Fixes section.
+                  items: [{ text: 'Flat fix bullet' }],
+                },
+              ],
+              details: [{ type: 'feature' as const, text: 'D' }],
+            },
+          ],
+        }),
+    });
+    const { result } = renderHook(() => useChangelog());
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const entry = result.current.entries[0];
+    expect(entry.overview).toHaveLength(2);
+    expect(entry.overview?.[0].subtitle).toBe('Collections');
+    expect(entry.overview?.[0].items[1].items).toHaveLength(2);
+    expect(entry.overview?.[0].items[1].items?.[0].text).toBe('Sub one');
+    expect(entry.overview?.[1].subtitle).toBeUndefined();
+  });
 });
 
 describe('writeLastSeenVersion', () => {
