@@ -47,7 +47,10 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
         <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center">
           <Zap className="w-4 h-4 text-amber-500" />
         </div>
-        <h3 className="font-black text-lg text-slate-800">
+        <h3
+          id="quick-access-modal-title"
+          className="font-black text-lg text-slate-800"
+        >
           {t('quickAccess.title', { defaultValue: 'Quick Access Widgets' })}
         </h3>
       </div>
@@ -86,6 +89,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
       className="h-[75vh]"
       contentClassName="px-0 pb-0 flex flex-col"
       customHeader={customHeader}
+      ariaLabelledby="quick-access-modal-title"
     >
       <div className="sticky top-0 z-10 bg-white border-b border-slate-100 p-4">
         <div className="relative">
