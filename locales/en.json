@@ -1050,7 +1050,6 @@
     "error": "Couldn't load the changelog right now.",
     "previewEmpty": "A fresh build is ready. Refresh to get the latest.",
     "browseEmpty": "You're all caught up.",
-    "currentBuild": "Your build",
     "groups": {
       "feature": "New",
       "improvement": "Improvements",

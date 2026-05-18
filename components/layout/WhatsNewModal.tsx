@@ -68,11 +68,20 @@ const Pill: React.FC<{
   );
 };
 
-const Entry: React.FC<{ entry: ChangelogEntry; isCurrent: boolean }> = ({
-  entry,
-  isCurrent,
-}) => {
-  const { t } = useTranslation();
+const formatEntryDate = (iso: string, language: string): string => {
+  // Parse "YYYY-MM-DD" explicitly so the Date isn't shifted by the host
+  // timezone (a bare `new Date('2026-05-19')` is interpreted as UTC midnight
+  // and can render as the previous day in negative-offset zones).
+  const [y, m, d] = iso.split('-').map(Number);
+  const date = new Date(Date.UTC(y, (m ?? 1) - 1, d ?? 1));
+  return new Intl.DateTimeFormat(language, {
+    dateStyle: 'long',
+    timeZone: 'UTC',
+  }).format(date);
+};
+
+const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
+  const { t, i18n } = useTranslation();
   const groups = useMemo(() => groupHighlights(entry.details), [entry]);
   const labels: Record<ChangelogHighlightType, string> = {
     feature: t('whatsNew.groups.feature', { defaultValue: 'New' }),
@@ -84,17 +93,11 @@ const Entry: React.FC<{ entry: ChangelogEntry; isCurrent: boolean }> = ({
 
   return (
     <section className="pt-5 first:pt-0 pb-5 border-b border-slate-100 last:border-b-0">
-      <header className="flex items-baseline gap-3 mb-2 flex-wrap">
+      <header className="mb-3">
         <h4 className="font-black text-base text-slate-900">{entry.title}</h4>
-        <span className="text-xxs font-bold text-slate-400 uppercase tracking-[0.15em]">
-          {entry.version}
-        </span>
-        <span className="text-xxs text-slate-400">{entry.date}</span>
-        {isCurrent && (
-          <span className="text-xxs font-bold text-brand-blue-primary uppercase tracking-wide">
-            {t('whatsNew.currentBuild', { defaultValue: 'Your build' })}
-          </span>
-        )}
+        <p className="mt-0.5 text-xxs text-slate-400">
+          {formatEntryDate(entry.date, i18n.language)}
+        </p>
       </header>
       <div className="flex gap-2 mb-3 flex-wrap">
         {GROUP_ORDER.map((type) =>
@@ -251,11 +254,7 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
         {!loading &&
           !error &&
           visibleEntries.map((entry) => (
-            <Entry
-              key={entry.version}
-              entry={entry}
-              isCurrent={mode === 'browse' && entry.version === currentVersion}
-            />
+            <Entry key={entry.version} entry={entry} />
           ))}
       </div>
     </Modal>
