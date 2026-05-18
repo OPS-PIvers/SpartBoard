@@ -140,6 +140,28 @@ describe('driveAuthErrors', () => {
       reportDriveAuthError(new Error('Google Drive access expired'));
       expect(handler).toHaveBeenCalledTimes(2);
     });
+
+    it('does NOT reset the latch on null → null mounts (no-Drive-auth steady state)', () => {
+      // Regression: ~22 useGoogleDrive consumers each fire onDriveTokenChange
+      // on mount. When the user has no Drive auth (preview, never connected,
+      // or signed out before sign-in), every mount passes `null` — the latch
+      // must stay set so a second failed Drive call doesn't re-spam the
+      // reconnect toast.
+      const handler = vi.fn();
+      setDriveAuthErrorHandler(handler);
+      onDriveTokenChange(null);
+      reportDriveAuthError(new Error('Google Drive access expired'));
+      expect(handler).toHaveBeenCalledTimes(1);
+
+      // Multiple subsequent consumer mounts in the same disconnected state.
+      onDriveTokenChange(null);
+      onDriveTokenChange(null);
+      onDriveTokenChange(null);
+
+      // Another failing Drive call — should NOT re-fire the toast.
+      reportDriveAuthError(new Error('Google Drive access expired'));
+      expect(handler).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('drive-reconnected pub/sub', () => {

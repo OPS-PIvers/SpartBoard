@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo } from 'react';
 import { useAuth } from '../context/useAuth';
 import { GoogleDriveService } from '../utils/googleDriveService';
-import { onDriveTokenChange } from '../utils/driveAuthErrors';
+import { isDriveAuthError, onDriveTokenChange } from '../utils/driveAuthErrors';
 import { APP_NAME } from '../config/constants';
 
 const BACKGROUNDS_FOLDER = 'Backgrounds';
@@ -42,7 +42,10 @@ export const useGoogleDrive = () => {
   // One-time migration: rename the legacy "SPART Board" Drive folder to the
   // current APP_NAME ("SpartBoard") so existing users don't lose their data.
   // The Drive service auto-reports auth errors via the shared toast surface,
-  // so this catch block just logs and lets retry-on-next-load handle it.
+  // so this catch block just logs unexpected failures and lets retry-on-next-load
+  // handle them. Auth errors are swallowed silently — they're the expected
+  // state when the user's token has expired, and the toast already prompts
+  // them to reconnect.
   useEffect(() => {
     if (!driveService || !user?.uid) return;
     const key = migrationKey(user.uid);
@@ -52,6 +55,7 @@ export const useGoogleDrive = () => {
       .migrateAppFolderName(LEGACY_FOLDER_NAME, APP_NAME)
       .then(() => localStorage.setItem(key, MIGRATION_COMPLETED_FLAG))
       .catch((error) => {
+        if (isDriveAuthError(error)) return;
         console.error('Failed to migrate Google Drive folder name:', error);
       });
   }, [driveService, user?.uid]);

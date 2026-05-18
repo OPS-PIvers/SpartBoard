@@ -2245,24 +2245,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         })
         .catch((err: unknown) => {
+          // Drive auth errors are surfaced via the latched
+          // `setDriveAuthErrorHandler` toast that GoogleDriveService fires
+          // from its throw sites (see utils/driveAuthErrors.ts). Duplicating
+          // a per-call addToast here would bypass the latch and spam the
+          // user with one toast per failed background export.
           console.error('[Drive Sync] Background export failed:', err);
-          if (err instanceof Error && err.message.includes('expired')) {
-            addToast(
-              'Google Drive session expired. Please reconnect to keep syncing.',
-              'error',
-              {
-                label: 'Reconnect',
-                onClick: async () => {
-                  const token = await refreshGoogleToken();
-                  if (token) {
-                    addToast('Google Drive session refreshed', 'success');
-                  } else {
-                    addToast('Failed to refresh Drive session', 'error');
-                  }
-                },
-              }
-            );
-          }
         });
     }, 5000);
 
@@ -2277,8 +2265,6 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     activeId,
     loading,
     saveDashboardFirestore,
-    addToast,
-    refreshGoogleToken,
   ]);
 
   // --- PII RESTORE EFFECT ---
@@ -2330,37 +2316,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         );
       })
       .catch((err: unknown) => {
-        // Clear stale file ID if Drive returns 404 (file was manually deleted)
+        // Clear stale file ID if Drive returns 404 (file was manually deleted).
         const isNotFound = err instanceof Error && err.message.includes('404');
-        const isExpired =
-          err instanceof Error && err.message.includes('expired');
-
         if (isNotFound) {
           piiDriveFileIdRef.current.delete(currentId);
+          return;
         }
-
-        if (isExpired) {
-          addToast(
-            'Google Drive session expired. Some names may be hidden.',
-            'error',
-            {
-              label: 'Reconnect',
-              onClick: async () => {
-                const token = await refreshGoogleToken();
-                if (token) {
-                  addToast('Google Drive session refreshed', 'success');
-                } else {
-                  addToast('Failed to refresh Drive session', 'error');
-                }
-              },
-            }
-          );
-        } else {
-          // Silent for other errors — Drive may be unavailable or no supplement exists yet
-          console.warn('[PII Restore] Could not load supplement:', err);
-        }
+        // Drive auth errors are surfaced via the latched
+        // `setDriveAuthErrorHandler` toast that driveService fires from its
+        // throw sites (see utils/driveAuthErrors.ts). The previous code
+        // here added a second message-matched toast per failed restore,
+        // which spammed disconnected users on every board switch.
+        console.warn('[PII Restore] Could not load supplement:', err);
       });
-  }, [activeId, loading, driveService, addToast, refreshGoogleToken]);
+  }, [activeId, loading, driveService]);
 
   // Flush pending saves on page refresh/close
   useEffect(() => {
