@@ -18,6 +18,7 @@ import {
   getDoc,
   getDocs,
   setDoc,
+  updateDoc,
   collection,
   onSnapshot,
   limit,
@@ -281,6 +282,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [resolvedForUser, setResolvedForUser] = useState<User | null>(null);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
+  const [favoriteBackgrounds, setFavoriteBackgrounds] = useState<string[]>([]);
+  const [recentBackgrounds, setRecentBackgrounds] = useState<string[]>([]);
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -953,6 +956,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setDockPositionState('bottom');
       setLastActiveCollectionIdState(undefined);
       setLastBoardIdByCollectionState(undefined);
+      setFavoriteBackgrounds([]);
+      setRecentBackgrounds([]);
 
       if (!user) {
         driveProbedForUidRef.current = null;
@@ -1119,6 +1124,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             );
           } else {
             setLastBoardIdByCollectionState({});
+          }
+
+          // Load background favorites and recents
+          if (
+            'favoriteBackgrounds' in data &&
+            Array.isArray(data.favoriteBackgrounds) &&
+            (data.favoriteBackgrounds as unknown[]).every(
+              (x) => typeof x === 'string'
+            )
+          ) {
+            setFavoriteBackgrounds(data.favoriteBackgrounds as string[]);
+          } else {
+            setFavoriteBackgrounds([]);
+          }
+          if (
+            'recentBackgrounds' in data &&
+            Array.isArray(data.recentBackgrounds) &&
+            (data.recentBackgrounds as unknown[]).every(
+              (x) => typeof x === 'string'
+            )
+          ) {
+            setRecentBackgrounds(data.recentBackgrounds as string[]);
+          } else {
+            setRecentBackgrounds([]);
           }
 
           setProfileLoaded(true);
@@ -1532,6 +1561,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  const RECENT_CAP = 12;
+
+  const toggleFavoriteBackground = useCallback(
+    async (backgroundId: string) => {
+      if (!user?.uid) return;
+      const next = favoriteBackgrounds.includes(backgroundId)
+        ? favoriteBackgrounds.filter((id) => id !== backgroundId)
+        : [...favoriteBackgrounds, backgroundId];
+      setFavoriteBackgrounds(next);
+      await updateDoc(doc(db, 'users', user.uid, 'userProfile', 'profile'), {
+        favoriteBackgrounds: next,
+      });
+    },
+    [user?.uid, favoriteBackgrounds]
+  );
+
+  const recordRecentBackground = useCallback(
+    async (backgroundId: string) => {
+      if (!user?.uid) return;
+      const filtered = recentBackgrounds.filter((id) => id !== backgroundId);
+      const next = [backgroundId, ...filtered].slice(0, RECENT_CAP);
+      setRecentBackgrounds(next);
+      await updateDoc(doc(db, 'users', user.uid, 'userProfile', 'profile'), {
+        recentBackgrounds: next,
+      });
+    },
+    [user?.uid, recentBackgrounds]
+  );
+
   const userGradeLevels = useMemo<GradeLevel[]>(() => {
     const source =
       orgBuildings.length > 0
@@ -1910,6 +1968,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         roleResolved,
         buildingIds,
         orgBuildings,
+        favoriteBackgrounds,
+        recentBackgrounds,
+        toggleFavoriteBackground,
+        recordRecentBackground,
       }}
     >
       {children}

@@ -76,6 +76,14 @@ const mockAuth: AuthContextType = {
   roleResolved: true,
   buildingIds: [],
   orgBuildings: [],
+  favoriteBackgrounds: [],
+  recentBackgrounds: [],
+  toggleFavoriteBackground: async () => {
+    // No-op in student view
+  },
+  recordRecentBackground: async () => {
+    // No-op in student view
+  },
 };
 
 // --- MOCK DASHBOARD ---

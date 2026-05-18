@@ -165,6 +165,14 @@ export interface AuthContextType {
    * Firestore listener instead of each opening its own.
    */
   orgBuildings: BuildingRecord[];
+  /** Background IDs the user has starred as favorites. */
+  favoriteBackgrounds: string[];
+  /** Background IDs recently applied, newest first, capped at 12. */
+  recentBackgrounds: string[];
+  /** Toggle a background's favorite status (add if absent, remove if present). */
+  toggleFavoriteBackground: (backgroundId: string) => Promise<void>;
+  /** Record a background as recently used (deduped, newest first, capped at 12). */
+  recordRecentBackground: (backgroundId: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(
