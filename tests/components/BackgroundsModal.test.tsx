@@ -2,6 +2,8 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+const noop = vi.fn();
+
 // Mock the hooks the modal depends on
 vi.mock('@/hooks/useBackgrounds', () => ({
   useBackgrounds: () => ({
@@ -72,20 +74,20 @@ describe('BackgroundsModal', () => {
   });
 
   it('renders with rail sections', () => {
-    render(<BackgroundsModal isOpen={true} onClose={() => {}} />);
+    render(<BackgroundsModal isOpen={true} onClose={noop} />);
     expect(screen.getByText('Favorites')).toBeInTheDocument();
     expect(screen.getByText('Recent')).toBeInTheDocument();
     expect(screen.getByText('Nature')).toBeInTheDocument();
   });
 
   it('selecting a category renders its items', async () => {
-    render(<BackgroundsModal isOpen={true} onClose={() => {}} />);
+    render(<BackgroundsModal isOpen={true} onClose={noop} />);
     await userEvent.click(screen.getByText('Nature'));
     expect(screen.getByLabelText('Forest')).toBeInTheDocument();
   });
 
   it('clicking a thumbnail calls setBackground', async () => {
-    render(<BackgroundsModal isOpen={true} onClose={() => {}} />);
+    render(<BackgroundsModal isOpen={true} onClose={noop} />);
     await userEvent.click(screen.getByText('Nature'));
     await userEvent.click(screen.getByLabelText('Forest'));
     expect(setBackground).toHaveBeenCalledWith('https://example.com/p1.jpg');
