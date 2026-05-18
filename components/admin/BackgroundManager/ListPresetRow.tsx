@@ -16,6 +16,85 @@ import { extractYouTubeId } from '@/utils/youtube';
 import { PresetCardProps } from './types';
 import { AccessLevel } from '@/types';
 
+interface TagInputProps {
+  tags: string[];
+  onChange: (next: string[]) => void;
+  suggestions: string[];
+}
+
+const TagInput: React.FC<TagInputProps> = ({ tags, onChange, suggestions }) => {
+  const [draft, setDraft] = React.useState('');
+
+  const addTag = (raw: string) => {
+    const t = raw.trim().toLowerCase();
+    if (!t) return;
+    if (tags.includes(t)) return;
+    onChange([...tags, t]);
+    setDraft('');
+  };
+
+  const removeTag = (t: string) => onChange(tags.filter((x) => x !== t));
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-1.5 p-2 border border-slate-200 rounded-lg bg-white min-h-[40px]">
+        {tags.map((tag) => (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 px-2 py-0.5 bg-brand-blue-lighter text-brand-blue-dark text-xs font-bold rounded-full"
+          >
+            {tag}
+            <button
+              type="button"
+              onClick={() => removeTag(tag)}
+              className="text-brand-blue-dark/60 hover:text-brand-blue-dark"
+              aria-label={`Remove tag ${tag}`}
+            >
+              ×
+            </button>
+          </span>
+        ))}
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault();
+              addTag(draft);
+            } else if (
+              e.key === 'Backspace' &&
+              draft === '' &&
+              tags.length > 0
+            ) {
+              removeTag(tags[tags.length - 1]);
+            }
+          }}
+          onBlur={() => addTag(draft)}
+          placeholder="Add tag…"
+          className="flex-1 min-w-[80px] text-xs bg-transparent outline-none"
+        />
+      </div>
+      {suggestions.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {suggestions
+            .filter((s) => !tags.includes(s))
+            .slice(0, 8)
+            .map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => addTag(s)}
+                className="px-2 py-0.5 text-xxs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-full"
+              >
+                + {s}
+              </button>
+            ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const ListPresetRow: React.FC<PresetCardProps> = ({
   preset,
   editingId,
@@ -23,6 +102,7 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
   editingCategoryPresetId,
   editingCategoryValue,
   allCategories,
+  allTags,
   setEditingId,
   setEditName,
   setEditingCategoryPresetId,
@@ -263,6 +343,18 @@ export const ListPresetRow: React.FC<PresetCardProps> = ({
         >
           <Trash2 className="w-4 h-4" />
         </button>
+      </div>
+
+      {/* Tags expanded row */}
+      <div className="border-t border-slate-100 bg-slate-50 px-4 py-3">
+        <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-2 block">
+          Tags
+        </label>
+        <TagInput
+          tags={preset.tags ?? []}
+          onChange={(next) => void updatePreset(preset.id, { tags: next })}
+          suggestions={allTags}
+        />
       </div>
 
       {/* Beta Users expanded row */}

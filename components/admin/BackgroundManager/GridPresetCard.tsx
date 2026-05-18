@@ -13,6 +13,7 @@ export const GridPresetCard: React.FC<PresetCardProps> = ({
   editingCategoryPresetId,
   editingCategoryValue,
   allCategories,
+  allTags: _allTags,
   setEditingId,
   setEditName,
   setEditingCategoryPresetId,
