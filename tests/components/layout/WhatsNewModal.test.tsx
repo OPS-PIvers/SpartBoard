@@ -110,6 +110,84 @@ describe('WhatsNewModal — no-overview entries', () => {
     // in the document rather than in the render container. Query the document.
     expect(document.querySelectorAll('section')).toHaveLength(2);
   });
+
+  it('marks the latest version as seen when the modal opens', () => {
+    renderModal([detailsOnlyEntry]);
+    // The sidebar's unread badge depends on this getting called; a silent
+    // regression here would leave the badge stuck "unread" forever.
+    expect(writeLastSeenVersionMock).toHaveBeenCalledWith('2026.05.18');
+  });
+
+  it('treats an empty overview array as no overview (renders flat details, no disclosure)', () => {
+    // The hook normalizes `overview: []` to undefined before the renderer
+    // ever sees it; this test bypasses the hook via the mock to confirm
+    // the renderer's `hasOverview` gate is its own line of defense.
+    const emptyOverviewEntry: ChangelogEntry = {
+      version: '2026.05.19',
+      date: '2026-05-19',
+      title: 'Empty overview entry',
+      overview: [],
+      details: [
+        {
+          type: 'feature',
+          text: 'The only bullet, rendered flat under "New".',
+        },
+      ],
+    };
+    renderModal([emptyOverviewEntry]);
+    expect(
+      screen.getByText('The only bullet, rendered flat under "New".')
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /read full update/i })
+    ).not.toBeInTheDocument();
+  });
+});
+
+describe('WhatsNewModal — preview mode', () => {
+  beforeEach(() => {
+    useChangelogMock.mockReset();
+    writeLastSeenVersionMock.mockReset();
+  });
+
+  it('renders only entries newer than currentVersion', () => {
+    const newer: ChangelogEntry = {
+      version: '2026.06.01',
+      date: '2026-06-01',
+      title: 'Newer release',
+      details: [{ type: 'feature', text: 'New bullet.' }],
+    };
+    const current: ChangelogEntry = {
+      version: '2026.05.18',
+      date: '2026-05-18',
+      title: "Current build's release",
+      details: [{ type: 'fix', text: 'Old bullet.' }],
+    };
+    // entriesSinceCurrent is the hook's slicing helper; the modal calls
+    // it with `currentVersion` in preview mode and uses the full `entries`
+    // list in browse mode. Mock it to return only the newer entry.
+    useChangelogMock.mockReturnValue({
+      entries: [newer, current],
+      loading: false,
+      error: null,
+      latestVersion: newer.version,
+      entriesSinceCurrent: vi.fn((v: string) =>
+        v === current.version ? [newer] : [newer, current]
+      ),
+    });
+    render(
+      <WhatsNewModal
+        isOpen
+        onClose={vi.fn()}
+        mode="preview"
+        currentVersion={current.version}
+      />
+    );
+    expect(screen.getByText('Newer release')).toBeInTheDocument();
+    expect(
+      screen.queryByText("Current build's release")
+    ).not.toBeInTheDocument();
+  });
 });
 
 describe('WhatsNewModal — overview rendering', () => {
