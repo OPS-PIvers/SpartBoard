@@ -64,6 +64,13 @@ const initPolling = (interval: number) => {
  * React hook that exposes whether a newer version of the app has been
  * detected. Internally backed by a single shared polling loop so multiple
  * consumers (e.g. the update toast and the sidebar) don't duplicate fetches.
+ *
+ * Note: `checkIntervalMs` is read once, by the **first** caller that
+ * triggers `initPolling`. Subsequent callers passing a different interval
+ * are silently ignored — the singleton has already scheduled its timer.
+ * Both current call sites use the default 60s; if a future consumer needs
+ * a faster cadence, refactor `initPolling` to take the minimum of the
+ * existing and incoming interval (or restructure as a context provider).
  */
 export const useAppVersion = (checkIntervalMs = 60000) => {
   // Initialize from the singleton — late subscribers (mounted after an
