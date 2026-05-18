@@ -1,7 +1,6 @@
 import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Collection, Dashboard } from '@/types';
-import { useDashboard } from '@/context/useDashboard';
 import { BoardCard } from './BoardCard';
 import { CollectionCard } from './CollectionCard';
 
@@ -10,7 +9,6 @@ interface BoardGridProps {
   collections: Collection[];
   boards: Dashboard[];
   selectedIds: ReadonlySet<string>;
-  isSelectMode: boolean;
   onSelectCollection: (id: string | null) => void;
   onToggleSelect: (id: string) => void;
   onOpenBoard: (id: string) => void;
@@ -25,14 +23,12 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   collections,
   boards,
   selectedIds,
-  isSelectMode,
   onSelectCollection,
   onToggleSelect,
   onOpenBoard,
   onContextMenu,
 }) => {
   const { t } = useTranslation();
-  const { activeDashboard } = useDashboard();
 
   const subCollections = useMemo(
     () =>
@@ -42,13 +38,26 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
     [collections, selectedCollectionId]
   );
 
-  const boardsHere = useMemo(
-    () =>
-      boards
-        .filter((b) => (b.collectionId ?? null) === selectedCollectionId)
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [boards, selectedCollectionId]
-  );
+  // "All Boards" view (selectedCollectionId === null) shows every Board
+  // regardless of Collection membership, with a per-card badge indicating
+  // which Collection each one lives in. Collection-scoped views still
+  // filter strictly to Boards in that Collection.
+  const isAllBoardsView = selectedCollectionId === null;
+  const boardsHere = useMemo(() => {
+    const list = isAllBoardsView
+      ? boards
+      : boards.filter((b) => (b.collectionId ?? null) === selectedCollectionId);
+    return list.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [boards, selectedCollectionId, isAllBoardsView]);
+
+  // Lookup table for the per-card Collection badge. Only consulted in
+  // "All Boards" view — Collection-scoped views don't need badges because
+  // every visible Board belongs to the same Collection.
+  const collectionById = useMemo(() => {
+    const m = new Map<string, Collection>();
+    for (const c of collections) m.set(c.id, c);
+    return m;
+  }, [collections]);
 
   const childCounts = useMemo(() => {
     const counts = new Map<string, { folders: number; boards: number }>();
@@ -87,7 +96,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
             <div className="mb-6">
               <h3 className="text-xxs font-bold text-slate-500 uppercase tracking-widest mb-3">
                 {t('boardsModal.subCollections', {
-                  defaultValue: 'Sub-Collections',
+                  defaultValue: 'Collections',
                 })}
               </h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
@@ -103,9 +112,8 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                       childCollectionsCount={counts.folders}
                       childBoardsCount={counts.boards}
                       isSelected={selectedIds.has(c.id)}
-                      isSelectMode={isSelectMode}
                       onClick={() => onSelectCollection(c.id)}
-                      onLongPress={() => onToggleSelect(c.id)}
+                      onToggleSelect={() => onToggleSelect(c.id)}
                       onContextMenu={(e) =>
                         onContextMenu(e, { type: 'collection', id: c.id })
                       }
@@ -122,20 +130,28 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                 {t('boardsModal.boards', { defaultValue: 'Boards' })}
               </h3>
               <div className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-3">
-                {boardsHere.map((b) => (
-                  <BoardCard
-                    key={b.id}
-                    board={b}
-                    isActive={activeDashboard?.id === b.id}
-                    isSelected={selectedIds.has(b.id)}
-                    isSelectMode={isSelectMode}
-                    onClick={() => onOpenBoard(b.id)}
-                    onLongPress={() => onToggleSelect(b.id)}
-                    onContextMenu={(e) =>
-                      onContextMenu(e, { type: 'board', id: b.id })
-                    }
-                  />
-                ))}
+                {boardsHere.map((b) => {
+                  const parent = b.collectionId
+                    ? (collectionById.get(b.collectionId) ?? null)
+                    : null;
+                  return (
+                    <BoardCard
+                      key={b.id}
+                      board={b}
+                      isSelected={selectedIds.has(b.id)}
+                      collectionBadge={
+                        isAllBoardsView && parent
+                          ? { name: parent.name, color: parent.color }
+                          : null
+                      }
+                      onClick={() => onOpenBoard(b.id)}
+                      onToggleSelect={() => onToggleSelect(b.id)}
+                      onContextMenu={(e) =>
+                        onContextMenu(e, { type: 'board', id: b.id })
+                      }
+                    />
+                  );
+                })}
               </div>
             </div>
           )}

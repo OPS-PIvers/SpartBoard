@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
 import {
   KeyboardSensor,
   PointerSensor,
@@ -6,6 +6,7 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
 import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useTranslation } from 'react-i18next';
@@ -19,6 +20,10 @@ export const useBoardsModalDnd = () => {
     collectionsApi: { moveCollection },
   } = useDashboard();
   const { t } = useTranslation();
+  // Tracks the currently-dragged item id (e.g. 'board:abc' or
+  // 'collection:xyz') so the parent can render a translucent ghost in
+  // the DragOverlay. Cleared on drag end / cancel.
+  const [activeDragId, setActiveDragId] = useState<string | null>(null);
 
   // Mouse: 15px movement to start drag (matches existing SidebarBoards).
   // Touch: 350ms hold (matches BoardCard long-press).
@@ -30,8 +35,17 @@ export const useBoardsModalDnd = () => {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    setActiveDragId(String(event.active.id));
+  }, []);
+
+  const handleDragCancel = useCallback(() => {
+    setActiveDragId(null);
+  }, []);
+
   const handleDragEnd = useCallback(
     async (event: DragEndEvent) => {
+      setActiveDragId(null);
       const { active, over } = event;
       if (!over) return;
       // Drag IDs encode type + id, e.g., 'board:abc' or 'collection:xyz'
@@ -70,5 +84,11 @@ export const useBoardsModalDnd = () => {
     [moveBoardToCollection, moveCollection, addToast, t]
   );
 
-  return { sensors, handleDragEnd };
+  return {
+    sensors,
+    handleDragStart,
+    handleDragEnd,
+    handleDragCancel,
+    activeDragId,
+  };
 };

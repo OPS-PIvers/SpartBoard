@@ -47,7 +47,8 @@ export interface UseCollectionsResult {
   error: string | null;
   createCollection: (
     name: string,
-    parentCollectionId: string | null
+    parentCollectionId: string | null,
+    metadata?: { color?: string }
   ) => Promise<string>;
   renameCollection: (collectionId: string, nextName: string) => Promise<void>;
   moveCollection: (
@@ -131,7 +132,8 @@ export const useCollections = (
   const createCollection = useCallback(
     async (
       name: string,
-      parentCollectionId: string | null
+      parentCollectionId: string | null,
+      metadata?: { color?: string }
     ): Promise<string> => {
       if (!userId) throw new Error('Not authenticated');
       const trimmed = name.trim();
@@ -144,6 +146,10 @@ export const useCollections = (
         siblingOrders.length === 0 ? 0 : Math.max(...siblingOrders) + 1;
 
       const now = Date.now();
+      // Only set `color` when explicitly provided so Firestore doesn't store
+      // an `undefined` field (which it rejects on the in-memory path's
+      // structural equality checks, and which clutters the doc otherwise).
+      const colorFields = metadata?.color ? { color: metadata.color } : {};
 
       // In auth bypass mode, maintain in-memory state only — no Firestore write.
       if (isAuthBypass) {
@@ -155,6 +161,7 @@ export const useCollections = (
           order: nextOrder,
           createdAt: now,
           updatedAt: now,
+          ...colorFields,
         };
         setCollections((prev) => [...prev, newCollection]);
         return id;
@@ -168,6 +175,7 @@ export const useCollections = (
           order: nextOrder,
           createdAt: now,
           updatedAt: now,
+          ...colorFields,
         }
       );
       return ref.id;

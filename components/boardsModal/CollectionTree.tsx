@@ -48,7 +48,6 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
   }, [boards]);
 
   const rootCollections = childrenByParent.get(null) ?? [];
-  const rootBoards = boardsByCollection.get(null) ?? [];
   const pinnedBoards = useMemo(
     () => boards.filter((b) => b.isPinned),
     [boards]
@@ -93,10 +92,10 @@ export const CollectionTree: React.FC<CollectionTreeProps> = ({
         >
           <span className="flex-1 truncate">
             {t('boardsModal.rootLabel', {
-              defaultValue: 'All Boards (no Collection)',
+              defaultValue: 'All Boards',
             })}
           </span>
-          <span className="text-xxs text-slate-400">{rootBoards.length}</span>
+          <span className="text-xxs text-slate-400">{boards.length}</span>
         </div>
 
         {rootCollections.map((node) => (

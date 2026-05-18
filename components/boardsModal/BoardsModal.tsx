@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { X } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { DndContext, closestCenter } from '@dnd-kit/core';
+import { DndContext, DragOverlay, closestCenter } from '@dnd-kit/core';
 import { useDialog } from '@/context/useDialog';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -12,12 +12,25 @@ import { useMultiSelect } from './useMultiSelect';
 import { BoardContextMenu } from './BoardContextMenu';
 import { CollectionContextMenu } from './CollectionContextMenu';
 import { MoveToCollectionMenu } from './MoveToCollectionMenu';
+import { BoardCardDragPreview } from './BoardCard';
+import { CollectionCardDragPreview } from './CollectionCard';
 import { ShareLinkCreatorModal } from '@/components/share/ShareLinkCreatorModal';
 import { ShareCollectionLinkCreatorModal } from '@/components/share/ShareCollectionLinkCreatorModal';
 import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
+import { CollectionColorPicker } from './CollectionColorPicker';
 import { useBoardsModalDnd } from './useBoardsModalDnd';
 import type { Collection, Dashboard } from '@/types';
+
+// Lightweight target shape for the color picker — covers both flows
+// (right-click on an existing Collection AND immediately-after-create) by
+// holding only the identifying fields the picker needs, decoupled from the
+// `collections` array which may not yet contain a freshly-created entry.
+interface ColorPickerTarget {
+  id: string;
+  name: string;
+  currentColor?: string;
+}
 
 interface BoardsModalProps {
   onClose: () => void;
@@ -56,7 +69,43 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   >(activeDashboard?.collectionId ?? null);
   const [search, setSearch] = useState('');
   const multi = useMultiSelect();
-  const { sensors, handleDragEnd } = useBoardsModalDnd();
+  const {
+    sensors,
+    handleDragStart,
+    handleDragEnd,
+    handleDragCancel,
+    activeDragId,
+  } = useBoardsModalDnd();
+
+  // Resolve the active drag id (e.g. 'board:abc' / 'collection:xyz') into
+  // the underlying object for rendering inside <DragOverlay>. Returns null
+  // when no drag is active or the id no longer matches a live record (e.g.
+  // deleted mid-drag — rare but possible).
+  const dragPreview = (() => {
+    if (!activeDragId) return null;
+    const [kind, id] = activeDragId.split(':');
+    if (kind === 'board') {
+      const board = dashboards.find((d) => d.id === id);
+      if (!board) return null;
+      const parent = board.collectionId
+        ? (collections.find((c) => c.id === board.collectionId) ?? null)
+        : null;
+      return (
+        <BoardCardDragPreview
+          board={board}
+          collectionBadge={
+            parent ? { name: parent.name, color: parent.color } : null
+          }
+        />
+      );
+    }
+    if (kind === 'collection') {
+      const c = collections.find((cc) => cc.id === id);
+      if (!c) return null;
+      return <CollectionCardDragPreview collection={c} />;
+    }
+    return null;
+  })();
   const [contextMenu, setContextMenu] = useState<{
     type: 'board' | 'collection';
     id: string;
@@ -71,6 +120,8 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     useState<Collection | null>(null);
   const [createFromTemplateOpen, setCreateFromTemplateOpen] = useState(false);
   const [moveMenuOpen, setMoveMenuOpen] = useState(false);
+  const [colorPickerTarget, setColorPickerTarget] =
+    useState<ColorPickerTarget | null>(null);
 
   useEffect(() => {
     const handleEscape = (e: KeyboardEvent) => {
@@ -117,11 +168,17 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       }
     );
     if (!name?.trim()) return;
+    const trimmed = name.trim();
     // createCollection re-throws on Firestore failure (the hook itself does
     // not toast). Surface a user-facing toast here so the failure isn't an
     // unhandled rejection in the console.
     try {
-      await createCollection(name.trim(), selectedCollectionId);
+      const newId = await createCollection(trimmed, selectedCollectionId);
+      // Open the color picker for the freshly-created Collection. Decoupled
+      // from the `collections` array — Firestore hasn't necessarily echoed
+      // the new doc back through onSnapshot yet, so we pass id+name directly.
+      // User can dismiss without picking; the Collection stays color-less.
+      setColorPickerTarget({ id: newId, name: trimmed });
     } catch {
       addToast(
         t('boardsModal.createCollectionFailed', {
@@ -469,7 +526,9 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
+          onDragCancel={handleDragCancel}
         >
           <div className="flex-1 overflow-hidden flex">
             <CollectionTree
@@ -483,13 +542,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               collections={filteredCollections}
               boards={filteredBoards}
               selectedIds={multi.selectedIds}
-              isSelectMode={multi.isSelectMode}
               onSelectCollection={setSelectedCollectionId}
               onToggleSelect={multi.toggle}
               onOpenBoard={handleOpenBoard}
               onContextMenu={handleContextMenu}
             />
           </div>
+          <DragOverlay dropAnimation={null}>{dragPreview}</DragOverlay>
         </DndContext>
       </div>
 
@@ -569,37 +628,13 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 setSingleMoveCollectionId(c.id);
                 setMoveMenuOpen(true);
               }}
-              onColor={async () => {
-                const color = await showPrompt(
-                  t('boardsModal.colorPrompt', {
-                    defaultValue: 'Color (hex, e.g., #ad2122)',
-                  }),
-                  {
-                    title: t('boardsModal.menu.color', {
-                      defaultValue: 'Set color',
-                    }),
-                    confirmLabel: 'Save',
-                    placeholder: c.color ?? '#2d3f89',
-                  }
-                );
-                if (!color) return;
-                // Restrict to safe hex — `style={{ color }}` rejects bad
-                // values silently, but unsanitized user input shouldn't be
-                // persisted at all. Accept #RGB / #RRGGBB only.
-                const hex = color.trim();
-                const isValidHex = /^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(hex);
-                if (!isValidHex) {
-                  addToast(
-                    t('boardsModal.colorInvalid', {
-                      defaultValue:
-                        'Invalid color — use hex like #ad2122 or #abc.',
-                    }),
-                    'error'
-                  );
-                  return;
-                }
-                await setCollectionMetadata(c.id, { color: hex });
-              }}
+              onColor={() =>
+                setColorPickerTarget({
+                  id: c.id,
+                  name: c.name,
+                  currentColor: c.color,
+                })
+              }
               onDelete={async () => {
                 const ok = await showConfirm(
                   t('boardsModal.deleteCollectionConfirm', {
@@ -668,6 +703,35 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
         isOpen={createFromTemplateOpen}
         onClose={() => setCreateFromTemplateOpen(false)}
       />
+      {colorPickerTarget && (
+        <CollectionColorPicker
+          collectionName={colorPickerTarget.name}
+          currentColor={colorPickerTarget.currentColor}
+          onSelect={async (color) => {
+            // Optimistically keep the picker open with the new color
+            // highlighted while the write resolves. setCollectionMetadata
+            // re-throws on failure without toasting itself — the catch
+            // below is the only user-facing failure surface, so don't
+            // remove it.
+            try {
+              await setCollectionMetadata(colorPickerTarget.id, { color });
+              setColorPickerTarget((prev) =>
+                prev && prev.id === colorPickerTarget.id
+                  ? { ...prev, currentColor: color }
+                  : prev
+              );
+            } catch {
+              addToast(
+                t('boardsModal.colorSaveFailed', {
+                  defaultValue: 'Failed to save color',
+                }),
+                'error'
+              );
+            }
+          }}
+          onClose={() => setColorPickerTarget(null)}
+        />
+      )}
     </div>
   );
 };
