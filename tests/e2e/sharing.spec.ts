@@ -35,21 +35,15 @@ test.describe('Board Sharing', () => {
   });
 
   test('can share and import a board', async ({ page }) => {
-    // Open the sidebar, then the Boards panel, then "Manage all boards"
-    // (the new flow — old inline SidebarBoards list with per-card Share
-    // buttons was replaced by SidebarBoardsActive + BoardsModal).
+    // Open the sidebar, then click "Boards & Collections" — opens the
+    // BoardsModal directly and closes the sidebar. Per-card Share is on
+    // the right-click context menu of each board card in the modal grid.
     await page.getByTitle('Open Menu').click();
     await expect(page.getByText('SpartBoard', { exact: true })).toBeVisible();
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
       .click();
-
-    const manageAllButton = page
-      .locator('button')
-      .filter({ hasText: /manage all boards/i });
-    await expect(manageAllButton).toBeVisible({ timeout: 5000 });
-    await manageAllButton.click();
 
     const modal = page.getByRole('dialog', { name: /boards/i });
     await expect(modal).toBeVisible({ timeout: 10000 });

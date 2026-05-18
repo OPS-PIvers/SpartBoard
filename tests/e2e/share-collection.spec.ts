@@ -15,13 +15,10 @@ test.describe('Collections — share + import (Copy mode)', () => {
   }) => {
     // 1. Create a Collection with 2 Boards
     await page.getByTitle('Open Menu').click();
+    // "Boards & Collections" opens the BoardsModal directly.
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
-      .click();
-    await page
-      .locator('button')
-      .filter({ hasText: /manage all boards/i })
       .click();
     const modal = page.getByRole('dialog', { name: /boards/i });
 
@@ -41,8 +38,8 @@ test.describe('Collections — share + import (Copy mode)', () => {
     // 2. Navigate back to root so the CollectionCard appears in the grid.
     //    CollectionCards render when their parent collection is selected; "Share
     //    Test Coll" is at root (parentCollectionId = null), so select root first.
-    //    The root node is the "All Boards (no Collection)" item in the tree panel.
-    await modal.getByText(/all boards \(no collection\)/i).click();
+    //    The root node is the "All Boards" item in the tree panel.
+    await modal.getByText(/^all boards$/i).click();
 
     // Right-click the CollectionCard in the grid to get the CollectionContextMenu.
     // CollectionCard renders as div.group with the collection name in bold text.

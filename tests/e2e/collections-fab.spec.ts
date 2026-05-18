@@ -18,13 +18,10 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     // briefly with "All Boards" + the new Board's name. Playwright's
     // auto-wait catches it during the display window.
     await page.getByTitle('Open Menu').click();
+    // "Boards & Collections" opens the BoardsModal directly.
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
-      .click();
-    await page
-      .locator('button')
-      .filter({ hasText: /manage all boards/i })
       .click();
     const modal = page.getByRole('dialog', { name: /boards/i });
     await modal.getByRole('button', { name: /new board/i }).click();
@@ -36,10 +33,12 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     await page.keyboard.press('Escape');
 
     // After closing the modal, BoardNavFab should be visible (2 boards
-    // exist at root). The breadcrumb chip should also be visible.
+    // exist at root). The transient breadcrumb chip ("No Collection › <name>"
+    // — see boardBreadcrumb.root i18n key) should appear briefly within
+    // its 3s display window; Playwright's auto-wait catches it.
     const chip = page
       .locator('button')
-      .filter({ hasText: /All Boards/i })
+      .filter({ hasText: /No Collection/i })
       .filter({ hasText: /Breadcrumb E2E/i });
     await expect(chip.first()).toBeVisible({ timeout: 10000 });
   });
@@ -53,13 +52,10 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     // Collection exists (collections.length >= 1) — two Collections here
     // exercise the menu rendering a list rather than a single entry.
     await page.getByTitle('Open Menu').click();
+    // "Boards & Collections" opens the BoardsModal directly.
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
-      .click();
-    await page
-      .locator('button')
-      .filter({ hasText: /manage all boards/i })
       .click();
     const modal = page.getByRole('dialog', { name: /boards/i });
 

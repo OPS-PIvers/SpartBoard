@@ -17,13 +17,11 @@ test.describe('Collections — save + instantiate via template (Plan 4)', () => 
     test.setTimeout(60000);
     // 1. Open BoardsModal
     await page.getByTitle('Open Menu').click();
+    // "Boards & Collections" opens the BoardsModal directly (no
+    // intermediate sidebar panel anymore).
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
-      .click();
-    await page
-      .locator('button')
-      .filter({ hasText: /manage all boards/i })
       .click();
     const modal = page.getByRole('dialog', { name: /boards/i });
     await expect(modal).toBeVisible({ timeout: 10000 });
@@ -47,8 +45,9 @@ test.describe('Collections — save + instantiate via template (Plan 4)', () => 
       });
     }
 
-    // 4. Navigate back to root so the CollectionCard appears in the grid
-    await modal.getByText(/all boards \(no collection\)/i).click();
+    // 4. Navigate back to root so the CollectionCard appears in the grid.
+    //    The sidebar's root node is now labeled simply "All Boards".
+    await modal.getByText(/^all boards$/i).click();
     const collCard = modal
       .locator('.group')
       .filter({ hasText: 'Plan 4 Test' })

@@ -20,21 +20,13 @@ test.describe('Collections feature', () => {
     // Open the sidebar
     await page.getByTitle('Open Menu').click();
 
-    // Navigate to the Boards section (use same locator pattern as sharing.spec.ts)
+    // Click "Boards & Collections" — opens BoardsModal directly and closes
+    // the sidebar (no intermediate panel anymore). The Boards-prefixed
+    // regex still matches "Boards & Collections" as a substring.
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
       .click();
-
-    // Wait for the "Manage all boards" button to become visible (boards panel slides in).
-    // Use a text-based locator since the button is inside a CSS-visibility-controlled panel.
-    const manageAllButton = page
-      .locator('button')
-      .filter({ hasText: /manage all boards/i });
-    await expect(manageAllButton).toBeVisible({ timeout: 5000 });
-
-    // Click "Manage all boards" to open the BoardsModal
-    await manageAllButton.click();
 
     // The modal is open — it renders with role="dialog" and aria-labelledby="boards-modal-title"
     const modal = page.getByRole('dialog', { name: /boards/i });
