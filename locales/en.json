@@ -1062,6 +1062,11 @@
     "applied": "Applied",
     "apply": "Apply"
   },
+  "quickAccess": {
+    "title": "Quick Access Widgets",
+    "searchPlaceholder": "Search widgets…",
+    "emptyResults": "No widgets match."
+  },
   "whatsNew": {
     "title": "What's New",
     "updateNow": "Update Now",
