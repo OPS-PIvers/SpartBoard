@@ -1,26 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import {
-  inferType,
   filterByType,
   filterByTags,
   filterBySearch,
   uniqueTagsOf,
   BackgroundItem,
 } from '@/components/backgroundsModal/backgroundsHelpers';
-import { BackgroundPreset } from '@/types';
-
-const makePreset = (
-  over: Partial<BackgroundPreset> = {}
-): BackgroundPreset => ({
-  id: 'p1',
-  url: 'https://example.com/p1.jpg',
-  label: 'Preset 1',
-  active: true,
-  accessLevel: 'public',
-  betaUsers: [],
-  createdAt: 0,
-  ...over,
-});
 
 const makeItem = (over: Partial<BackgroundItem> = {}): BackgroundItem => ({
   id: 'i1',
@@ -28,23 +13,6 @@ const makeItem = (over: Partial<BackgroundItem> = {}): BackgroundItem => ({
   type: 'still',
   tags: [],
   ...over,
-});
-
-describe('inferType', () => {
-  it('returns "video" for YouTube URLs', () => {
-    expect(
-      inferType(makePreset({ url: 'https://youtube.com/watch?v=dQw4w9WgXcY' }))
-    ).toBe('video');
-    expect(inferType(makePreset({ url: 'https://youtu.be/dQw4w9WgXcY' }))).toBe(
-      'video'
-    );
-  });
-
-  it('returns "still" for image URLs', () => {
-    expect(
-      inferType(makePreset({ url: 'https://example.com/photo.jpg' }))
-    ).toBe('still');
-  });
 });
 
 describe('filterByType', () => {

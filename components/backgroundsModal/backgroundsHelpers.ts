@@ -1,6 +1,3 @@
-import { BackgroundPreset } from '@/types';
-import { extractYouTubeId } from '@/utils/youtube';
-
 export type BackgroundType =
   | 'all'
   | 'still'
@@ -17,10 +14,6 @@ export interface BackgroundItem {
   thumbnailUrl?: string;
   tags: string[];
   category?: string;
-}
-
-export function inferType(preset: BackgroundPreset): BackgroundType {
-  return extractYouTubeId(preset.url) ? 'video' : 'still';
 }
 
 export function filterByType(
