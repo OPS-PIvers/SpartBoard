@@ -88,19 +88,22 @@ export const StylePanel: React.FC<StylePanelProps> = ({
     [setGlobalStyle, isActiveBoardReadOnly, readOnlyToastShown, addToast, t]
   );
 
-  // Debounced writes for continuous sliders to avoid Firestore write thrash during drag
-  const commitDebounced = useDebouncedCallback(commit, 200);
-
   // Helpers — pass true partials so setGlobalStyle's merger preserves concurrent updates
   const setField = <K extends keyof GlobalStyle>(
     field: K,
     value: GlobalStyle[K]
   ) => commit({ [field]: value });
 
-  const setFieldDebounced = <K extends keyof GlobalStyle>(
-    field: K,
-    value: GlobalStyle[K]
-  ) => commitDebounced({ [field]: value });
+  // Each slider has its own debounced callback so rapid cross-slider drags
+  // don't share a single timer and overwrite each other's pending values.
+  const commitWindowTransparency = useDebouncedCallback(
+    (value: number) => commit({ windowTransparency: value }),
+    200
+  );
+  const commitDockTransparency = useDebouncedCallback(
+    (value: number) => commit({ dockTransparency: value }),
+    200
+  );
 
   // In-flight slider values for immediate visual feedback (thumb follows cursor before debounce fires)
   const [pendingWindowTransparency, setPendingWindowTransparency] = useState<
@@ -273,7 +276,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
                   setPendingWindowTransparency(v);
-                  setFieldDebounced('windowTransparency', v);
+                  commitWindowTransparency(v);
                 }}
                 className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-brand-blue-primary"
               />
@@ -332,7 +335,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 onChange={(e) => {
                   const v = parseFloat(e.target.value);
                   setPendingDockTransparency(v);
-                  setFieldDebounced('dockTransparency', v);
+                  commitDockTransparency(v);
                 }}
                 className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-brand-blue-primary"
               />
