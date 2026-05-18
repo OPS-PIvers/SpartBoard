@@ -5068,9 +5068,18 @@ export interface UserProfile {
    * from being re-seeded on subsequent logins.
    */
   dockInitialized?: boolean;
-  /** Background IDs (urls) the user has starred as favorites. */
+  /**
+   * IDs of backgrounds the user has starred as favorites. May be preset IDs
+   * (Tailwind class strings like `'bg-gradient-to-br from-blue-400'`), HTTPS
+   * URLs (Drive uploads or preset images), or `custom:` values (custom solid
+   * colors or gradients entered via the color picker).
+   */
   favoriteBackgrounds?: string[];
-  /** Background IDs (urls) recently applied, newest first, capped at 12. */
+  /**
+   * Recently applied background IDs, newest first, capped at 12. Same ID
+   * shapes as {@link favoriteBackgrounds}: Tailwind class strings, HTTPS
+   * URLs, or `custom:` values.
+   */
   recentBackgrounds?: string[];
 }
 
