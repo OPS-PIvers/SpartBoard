@@ -11,7 +11,7 @@ export type RailSection =
   | { kind: 'gradients' }
   | { kind: 'uploads' };
 
-export const railSectionKey = (s: RailSection): string =>
+const railSectionKey = (s: RailSection): string =>
   s.kind === 'category' ? `cat:${s.name}` : s.kind;
 
 interface BackgroundsLeftRailProps {

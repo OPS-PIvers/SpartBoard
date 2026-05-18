@@ -49,7 +49,7 @@ export function filterBySearch(
   return items.filter(
     (i) =>
       i.label.toLowerCase().includes(q) ||
-      i.category?.toLowerCase().includes(q) ||
+      (i.category !== undefined && i.category.toLowerCase().includes(q)) ||
       i.tags.some((t) => t.toLowerCase().includes(q))
   );
 }
