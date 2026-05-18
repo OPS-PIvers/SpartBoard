@@ -4,6 +4,7 @@ import { Upload, Loader2 } from 'lucide-react';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useDashboard } from '@/context/useDashboard';
+import { logError } from '@/utils/logError';
 
 interface BackgroundsUploadsPanelProps {
   activeBackground?: string;
@@ -34,7 +35,8 @@ export const BackgroundsUploadsPanel: React.FC<
       try {
         const urls = await getUserBackgroundsFromDrive();
         if (!cancelled) setUserUploads(urls);
-      } catch {
+      } catch (err) {
+        logError('BackgroundsUploadsPanel.fetch', err);
         if (!cancelled)
           addToast('Failed to load past backgrounds from Drive', 'error');
       } finally {
@@ -70,8 +72,13 @@ export const BackgroundsUploadsPanel: React.FC<
       setUserUploads((prev) => [downloadURL, ...prev]);
       addToast('Custom background saved to your Drive', 'success');
     } catch (err) {
-      console.error('Background upload failed:', err);
-      addToast(err instanceof Error ? err.message : 'Upload failed', 'error');
+      logError('BackgroundsUploadsPanel.handleFileUpload', err);
+      addToast(
+        t('backgrounds.uploadFailed', {
+          defaultValue: 'Upload failed. Check your connection and try again.',
+        }),
+        'error'
+      );
     } finally {
       setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

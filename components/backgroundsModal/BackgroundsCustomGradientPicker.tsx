@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { logError } from '@/utils/logError';
 import {
   ArrowRight,
   ArrowDownRight,
@@ -52,6 +53,12 @@ export const BackgroundsCustomGradientPicker: React.FC<
       setAngle(m[1].trim());
       setColor1(m[2]);
       setColor2(m[3]);
+    } else if (activeCustomValue.startsWith('linear-gradient(')) {
+      logError(
+        'BackgroundsCustomGradientPicker.sync',
+        new Error('Could not parse saved gradient'),
+        { value: activeCustomValue }
+      );
     }
   }
 

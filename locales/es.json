@@ -624,7 +624,8 @@
     "directionRight": "Right",
     "directionDownRight": "Down-Right",
     "directionDown": "Down",
-    "directionDownLeft": "Down-Left"
+    "directionDownLeft": "Down-Left",
+    "uploadFailed": "Upload failed. Check your connection and try again."
   },
   "quickAccess": {
     "title": "Quick Access Widgets",

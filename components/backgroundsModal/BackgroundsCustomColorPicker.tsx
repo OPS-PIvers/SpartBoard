@@ -22,7 +22,18 @@ export const BackgroundsCustomColorPicker: React.FC<
   const [prev, setPrev] = useState(activeCustomValue);
   if (activeCustomValue !== prev) {
     setPrev(activeCustomValue);
-    if (activeCustomValue.startsWith('#')) setCustomColor(activeCustomValue);
+    if (activeCustomValue.startsWith('#')) {
+      // <input type="color"> requires 6-digit hex; expand 3-digit shorthand (#abc → #aabbcc)
+      const normalized =
+        activeCustomValue.length === 4
+          ? `#${activeCustomValue
+              .slice(1)
+              .split('')
+              .map((c) => c + c)
+              .join('')}`
+          : activeCustomValue;
+      setCustomColor(normalized);
+    }
   }
 
   const isActive =
