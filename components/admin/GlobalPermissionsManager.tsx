@@ -42,12 +42,14 @@ import {
   Eye,
   ListChecks,
   PlayCircle,
+  Music2,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
+import { PermissionBuildingMultiSelect } from './PermissionBuildingMultiSelect';
 
 const GLOBAL_FEATURES: {
   id: GlobalFeature;
@@ -131,6 +133,13 @@ const GLOBAL_FEATURES: {
     icon: Eye,
     description:
       'Show "N views" on view-only Share cards in the Quiz, Video Activity, Mini App, and Guided Learning archives. Each visible card fires a Firestore aggregation query when the dashboard tab regains focus — keep this Admin-only unless you specifically want every teacher to see open counts.',
+  },
+  {
+    id: 'personal-spotify',
+    label: 'Personal Spotify',
+    icon: Music2,
+    description:
+      'Let teachers connect their personal Spotify account in the Music widget. When off, Music shows only curated stations.',
   },
 ];
 
@@ -535,6 +544,7 @@ export const GlobalPermissionsManager: React.FC = () => {
         accessLevel: defaultAccessLevel,
         betaUsers: [],
         enabled: true,
+        buildings: [],
         config: GEMINI_FEATURES.includes(featureId)
           ? { dailyLimit: defaultLimit, dailyLimitEnabled: true }
           : {},
@@ -1148,6 +1158,17 @@ export const GlobalPermissionsManager: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Building Restriction */}
+                  <div className="border-t border-slate-100 bg-slate-50 p-4 text-left">
+                    <PermissionBuildingMultiSelect
+                      label="Restrict to buildings"
+                      selectedIds={permission.buildings ?? []}
+                      onChange={(buildings) =>
+                        updatePermission(feature.id, { buildings })
+                      }
+                    />
+                  </div>
+
                   {/* Beta Users Panel */}
                   {permission.accessLevel === 'beta' && (
                     <div className="border-t border-slate-100 bg-slate-50 p-4 text-left">
@@ -1418,6 +1439,17 @@ export const GlobalPermissionsManager: React.FC = () => {
                     }
                   />
                 )}
+
+                {/* Building Restriction */}
+                <div className="mb-6">
+                  <PermissionBuildingMultiSelect
+                    label="Restrict to buildings"
+                    selectedIds={permission.buildings ?? []}
+                    onChange={(buildings) =>
+                      updatePermission(feature.id, { buildings })
+                    }
+                  />
+                </div>
 
                 {/* Save Button */}
                 <button
