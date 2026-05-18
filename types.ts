@@ -5385,6 +5385,8 @@ export interface BackgroundPreset {
   createdAt: number;
   /** Admin-defined category label (e.g. "Nature", "Holidays") */
   category?: string;
+  /** Admin-defined tags for filtering (e.g. ["calm", "holiday"]) */
+  tags?: string[];
   /** Building IDs this background is assigned to; empty/undefined = all buildings */
   buildingIds?: string[];
   /** Whether this background is featured in the sidebar overview (max ~6 per category) */
