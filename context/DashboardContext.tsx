@@ -225,6 +225,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     lastActiveCollectionId,
     lastBoardIdByCollection,
     remoteControlEnabled: accountRemoteControlEnabled,
+    recordRecentBackground,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -4669,17 +4670,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [activeId]
   );
 
-  const setBackground = useCallback((bg: string) => {
-    if (!activeIdRef.current) return;
-    if (isActiveBoardReadOnlyRef.current) return;
-    lastLocalUpdateAt.current = Date.now();
-    lastUpdateWasSettingsOnly.current = false;
-    setDashboards((prev) =>
-      prev.map((d) =>
-        d.id === activeIdRef.current ? { ...d, background: bg } : d
-      )
-    );
-  }, []);
+  const setBackground = useCallback(
+    (bg: string) => {
+      if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) =>
+          d.id === activeIdRef.current ? { ...d, background: bg } : d
+        )
+      );
+      // Fire-and-forget; failure doesn't block the user's UX.
+      recordRecentBackground(bg).catch((err) => {
+        console.warn('Failed to record recent background', err);
+      });
+    },
+    [recordRecentBackground]
+  );
 
   const updateDashboardSettings = useCallback(
     (updates: Partial<Dashboard['settings']>) => {
