@@ -260,7 +260,7 @@ describe('BoardNavFab', () => {
       expect(labels[labels.length - 1]).toMatch(/manage all boards/i);
     });
 
-    it('opens BoardsModal when clicked', async () => {
+    it('opens BoardsModal and closes the menu when clicked', async () => {
       mockContext({
         dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
         collections: [],
@@ -275,6 +275,23 @@ describe('BoardNavFab', () => {
       expect(
         screen.getByRole('dialog', { name: 'Boards Modal' })
       ).toBeInTheDocument();
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+    });
+
+    it('returns focus to the Boards trigger when the modal closes', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      const trigger = screen.getByRole('button', { name: /select board/i });
+      await userEvent.click(trigger);
+      await userEvent.click(
+        screen.getByRole('menuitem', { name: /manage all boards/i })
+      );
+      // The stubbed modal exposes a 'close-modal' button.
+      await userEvent.click(screen.getByText('close-modal'));
+      expect(document.activeElement).toBe(trigger);
     });
 
     it('is keyboard-reachable via ArrowDown wraparound', async () => {

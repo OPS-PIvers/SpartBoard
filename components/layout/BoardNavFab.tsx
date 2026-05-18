@@ -307,7 +307,12 @@ export const BoardNavFab: FC = () => {
         )}
       </div>
       {isBoardsModalOpen && (
-        <BoardsModal onClose={() => setIsBoardsModalOpen(false)} />
+        <BoardsModal
+          onClose={() => {
+            setIsBoardsModalOpen(false);
+            boardsTriggerRef.current?.focus();
+          }}
+        />
       )}
     </div>
   );
