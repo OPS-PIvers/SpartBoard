@@ -123,16 +123,18 @@ test.describe('Collections — save + instantiate via template (Plan 4)', () => 
     await page.getByRole('button', { name: /plan 4 template/i }).click();
 
     // 13. Picker heading disappears; a second "Plan 4 Test" Collection appears.
-    //     Each Collection renders in both the sidebar tree AND the grid card —
-    //     so 2 collections × 2 occurrences = 4 total text matches. Verify
-    //     that at least 2 grid cards for the collection name now exist.
+    //     Scope the assertion to CollectionCard titles (.text-sm.font-bold —
+    //     a class combination used only by card titles, not badges or tree
+    //     nodes). Previously the test counted every occurrence of the name
+    //     in the modal, but after the "All Boards" view started showing
+    //     boards with their collection badges the raw count is no longer
+    //     stable (each templated board adds a badge with the parent name).
     await expect(
       page.getByText(/create from template/i).first()
     ).not.toBeVisible({ timeout: 10000 });
-    // The Collection name "Plan 4 Test" appears in both the tree and grid;
-    // 2 collections → at least 4 total text occurrences.
-    await expect(modal.getByText('Plan 4 Test')).toHaveCount(4, {
-      timeout: 10000,
-    });
+    const collectionCardTitles = modal
+      .locator('.text-sm.font-bold')
+      .filter({ hasText: 'Plan 4 Test' });
+    await expect(collectionCardTitles).toHaveCount(2, { timeout: 10000 });
   });
 });
