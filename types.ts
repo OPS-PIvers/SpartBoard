@@ -5088,6 +5088,19 @@ export interface UserProfile {
    * from being re-seeded on subsequent logins.
    */
   dockInitialized?: boolean;
+  /**
+   * IDs of backgrounds the user has starred as favorites. May be preset IDs
+   * (Tailwind class strings like `'bg-gradient-to-br from-blue-400'`), HTTPS
+   * URLs (Drive uploads or preset images), or `custom:` values (custom solid
+   * colors or gradients entered via the color picker).
+   */
+  favoriteBackgrounds?: string[];
+  /**
+   * Recently applied background IDs, newest first, capped at 12. Same ID
+   * shapes as {@link favoriteBackgrounds}: Tailwind class strings, HTTPS
+   * URLs, or `custom:` values.
+   */
+  recentBackgrounds?: string[];
 }
 
 /**
@@ -5405,6 +5418,8 @@ export interface BackgroundPreset {
   createdAt: number;
   /** Admin-defined category label (e.g. "Nature", "Holidays") */
   category?: string;
+  /** Admin-defined tags for filtering (e.g. ["calm", "holiday"]) */
+  tags?: string[];
   /** Building IDs this background is assigned to; empty/undefined = all buildings */
   buildingIds?: string[];
   /** Whether this background is featured in the sidebar overview (max ~6 per category) */

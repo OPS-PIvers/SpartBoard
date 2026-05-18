@@ -80,11 +80,6 @@
       "rootBoards": "Boards",
       "manageAll": "Manage all boards"
     },
-    "backgrounds": {
-      "presets": "Voreinstellungen",
-      "colors": "Farben",
-      "gradients": "Verläufe"
-    },
     "classes": {
       "title": "Meine Klassen",
       "description": "Verwalte hier deine Klassenlisten. Die aktive Klasse wird für Sitzpläne, Zufallsauswahl, Umfragen und mehr verwendet.",
@@ -334,13 +329,13 @@
         "oneFingerLongPress": "1-Finger-Langer Druck",
         "oneFingerDrag": "1-Finger-Ziehen auf Hintergrund",
         "oneFingerSwipeEdge": "1-Finger-Wischen vom linken Rand",
-        "twoFingerSwipeLR": "2-Finger-Wischen \u2190/\u2192",
-        "twoFingerSwipeDown": "2-Finger-Wischen \u2193",
-        "twoFingerSwipeUp": "2-Finger-Wischen \u2191",
+        "twoFingerSwipeLR": "2-Finger-Wischen ←/→",
+        "twoFingerSwipeDown": "2-Finger-Wischen ↓",
+        "twoFingerSwipeUp": "2-Finger-Wischen ↑",
         "twoFingerLongPress": "2-Finger-Langer Druck",
-        "dragDownToDock": "Nach unten zum Dock ziehen \u2193",
-        "widgetTwoFingerSwipeDown": "2-Finger-Wischen \u2193",
-        "widgetTwoFingerSwipeUp": "2-Finger-Wischen \u2191"
+        "dragDownToDock": "Nach unten zum Dock ziehen ↓",
+        "widgetTwoFingerSwipeDown": "2-Finger-Wischen ↓",
+        "widgetTwoFingerSwipeUp": "2-Finger-Wischen ↑"
       }
     },
     "dashboard": {
@@ -473,5 +468,52 @@
     "empty": "No templates available yet.",
     "kindBoard": "Board",
     "kindCollection": "Collection · {{count}} board(s)"
+  },
+  "backgrounds": {
+    "presets": "Voreinstellungen",
+    "colors": "Farben",
+    "gradients": "Verläufe",
+    "title": "Hintergründe",
+    "favorites": "Favoriten",
+    "recent": "Zuletzt verwendet",
+    "media": "Medien",
+    "solids": "Einfarbig",
+    "patterns": "Muster",
+    "yours": "Deine",
+    "uploads": "Meine Uploads",
+    "searchPlaceholder": "Hintergründe suchen…",
+    "emptyFavorites": "Noch keine Favoriten — bewege den Mauszeiger über einen Hintergrund und tippe auf ★",
+    "emptyRecent": "Noch keine aktuellen Hintergründe.",
+    "emptyFiltered": "Keine Hintergründe entsprechen deinen Filtern.",
+    "uploading": "Hochladen…",
+    "uploadCta": "Bild hochladen (max. 5 MB)",
+    "driveNotConnected": "Google Drive muss verbunden sein, um hochzuladen.",
+    "loadingUploads": "Uploads werden geladen…",
+    "noUploadsYet": "Du hast noch keine Hintergründe hochgeladen.",
+    "customColor": "Benutzerdefinierte Farbe",
+    "customGradient": "Benutzerdefinierter Verlauf",
+    "applied": "Angewendet",
+    "apply": "Anwenden",
+    "favoriteSaveFailed": "Could not save favorite. Please try again.",
+    "typeAll": "All",
+    "typeStill": "Stills",
+    "typeVideo": "Video",
+    "typeUpload": "Uploads",
+    "uploadedImage": "Uploaded image",
+    "gradientStart": "Start",
+    "gradientEnd": "End",
+    "directionRight": "Right",
+    "directionDownRight": "Down-Right",
+    "directionDown": "Down",
+    "directionDownLeft": "Down-Left",
+    "uploadFailed": "Upload failed. Check your connection and try again."
+  },
+  "quickAccess": {
+    "title": "Quick Access Widgets",
+    "searchPlaceholder": "Search widgets…",
+    "emptyResults": "No widgets match."
+  },
+  "style": {
+    "readOnlyNotice": "This board is read-only. Style changes are not saved."
   }
 }

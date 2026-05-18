@@ -281,6 +281,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [resolvedForUser, setResolvedForUser] = useState<User | null>(null);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
+  const [favoriteBackgrounds, setFavoriteBackgrounds] = useState<string[]>([]);
+  const [recentBackgrounds, setRecentBackgrounds] = useState<string[]>([]);
+  // Refs that always hold the latest list values so rapid callbacks don't close over stale state
+  const favoritesRef = useRef<string[]>([]);
+  const recentsRef = useRef<string[]>([]);
+  favoritesRef.current = favoriteBackgrounds;
+  recentsRef.current = recentBackgrounds;
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -953,6 +960,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setDockPositionState('bottom');
       setLastActiveCollectionIdState(undefined);
       setLastBoardIdByCollectionState(undefined);
+      setFavoriteBackgrounds([]);
+      setRecentBackgrounds([]);
 
       if (!user) {
         driveProbedForUidRef.current = null;
@@ -1119,6 +1128,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             );
           } else {
             setLastBoardIdByCollectionState({});
+          }
+
+          // Load background favorites and recents
+          if (
+            'favoriteBackgrounds' in data &&
+            Array.isArray(data.favoriteBackgrounds) &&
+            (data.favoriteBackgrounds as unknown[]).every(
+              (x) => typeof x === 'string'
+            )
+          ) {
+            setFavoriteBackgrounds(data.favoriteBackgrounds as string[]);
+          } else {
+            setFavoriteBackgrounds([]);
+          }
+          if (
+            'recentBackgrounds' in data &&
+            Array.isArray(data.recentBackgrounds) &&
+            (data.recentBackgrounds as unknown[]).every(
+              (x) => typeof x === 'string'
+            )
+          ) {
+            setRecentBackgrounds(data.recentBackgrounds as string[]);
+          } else {
+            setRecentBackgrounds([]);
           }
 
           setProfileLoaded(true);
@@ -1532,6 +1565,63 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     [user]
   );
 
+  const RECENT_CAP = 12;
+
+  const toggleFavoriteBackground = useCallback(
+    async (backgroundId: string) => {
+      if (!user?.uid) return;
+      const current = favoritesRef.current;
+      const next = current.includes(backgroundId)
+        ? current.filter((id) => id !== backgroundId)
+        : [...current, backgroundId];
+      // Optimistic update
+      favoritesRef.current = next;
+      setFavoriteBackgrounds(next);
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { favoriteBackgrounds: next },
+          { merge: true }
+        );
+      } catch (err) {
+        // Revert optimistic update so the UI doesn't show a stale state
+        favoritesRef.current = current;
+        setFavoriteBackgrounds(current);
+        logError('AuthContext.toggleFavoriteBackground', err);
+        throw err; // Let caller surface a toast
+      }
+    },
+    [user?.uid]
+  );
+
+  const recordRecentBackground = useCallback(
+    async (backgroundId: string) => {
+      if (!user?.uid) return;
+      const current = recentsRef.current;
+      const filtered = current.filter((id) => id !== backgroundId);
+      const next = [backgroundId, ...filtered].slice(0, RECENT_CAP);
+      // Skip the write if nothing actually changed
+      if (
+        next.length === current.length &&
+        next.every((v, i) => v === current[i])
+      )
+        return;
+      recentsRef.current = next;
+      setRecentBackgrounds(next);
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { recentBackgrounds: next },
+          { merge: true }
+        );
+      } catch (err) {
+        logError('AuthContext.recordRecentBackground', err);
+        // Non-fatal: recents will repopulate from Firestore listener on next change
+      }
+    },
+    [user?.uid]
+  );
+
   const userGradeLevels = useMemo<GradeLevel[]>(() => {
     const source =
       orgBuildings.length > 0
@@ -1910,6 +2000,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         roleResolved,
         buildingIds,
         orgBuildings,
+        favoriteBackgrounds,
+        recentBackgrounds,
+        toggleFavoriteBackground,
+        recordRecentBackground,
       }}
     >
       {children}

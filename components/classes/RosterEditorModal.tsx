@@ -103,8 +103,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               onClick={handleToggleLastNames}
               className={`text-xs font-black uppercase tracking-wider transition-colors ${
                 showLastNames
-                  ? 'text-slate-400 hover:text-red-500'
-                  : 'text-blue-600 hover:text-blue-700'
+                  ? 'text-blue-600 hover:text-blue-700'
+                  : 'text-slate-400 hover:text-slate-500'
               }`}
             >
               {showLastNames
@@ -119,8 +119,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               onClick={() => setShowPins((v) => !v)}
               className={`text-xs font-black uppercase tracking-wider transition-colors ${
                 showPins
-                  ? 'text-slate-400 hover:text-red-500'
-                  : 'text-violet-600 hover:text-violet-700'
+                  ? 'text-violet-600 hover:text-violet-700'
+                  : 'text-slate-400 hover:text-slate-500'
               }`}
             >
               {showPins
@@ -135,8 +135,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               onClick={() => setShowEmails((v) => !v)}
               className={`text-xs font-black uppercase tracking-wider transition-colors ${
                 showEmails
-                  ? 'text-slate-400 hover:text-red-500'
-                  : 'text-emerald-600 hover:text-emerald-700'
+                  ? 'text-emerald-600 hover:text-emerald-700'
+                  : 'text-slate-400 hover:text-slate-500'
               }`}
             >
               {showEmails
@@ -151,8 +151,8 @@ export const RosterEditorModal: React.FC<RosterEditorModalProps> = ({
               onClick={() => setShowRestrictions((v) => !v)}
               className={`text-xs font-black uppercase tracking-wider transition-colors ${
                 showRestrictions
-                  ? 'text-slate-400 hover:text-red-500'
-                  : 'text-amber-600 hover:text-amber-700'
+                  ? 'text-amber-600 hover:text-amber-700'
+                  : 'text-slate-400 hover:text-slate-500'
               }`}
             >
               {showRestrictions

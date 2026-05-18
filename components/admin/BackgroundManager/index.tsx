@@ -571,6 +571,12 @@ export const BackgroundManager: React.FC = () => {
     [presets]
   );
 
+  // Derive all unique tags from presets for quick-add suggestions
+  const allTags = useMemo(
+    () => Array.from(new Set(presets.flatMap((p) => p.tags ?? []))).sort(),
+    [presets]
+  );
+
   const categoryCounts = useMemo(() => {
     const counts = new Map<string, number>();
     presets.forEach((p) => {
@@ -1156,6 +1162,7 @@ export const BackgroundManager: React.FC = () => {
                 editingCategoryPresetId={editingCategoryPresetId}
                 editingCategoryValue={editingCategoryValue}
                 allCategories={allCategories}
+                allTags={allTags}
                 setEditingId={setEditingId}
                 setEditName={setEditName}
                 setEditingCategoryPresetId={setEditingCategoryPresetId}
@@ -1184,6 +1191,7 @@ export const BackgroundManager: React.FC = () => {
                 editingCategoryPresetId={editingCategoryPresetId}
                 editingCategoryValue={editingCategoryValue}
                 allCategories={allCategories}
+                allTags={allTags}
                 setEditingId={setEditingId}
                 setEditName={setEditName}
                 setEditingCategoryPresetId={setEditingCategoryPresetId}

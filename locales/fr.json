@@ -80,11 +80,6 @@
       "rootBoards": "Boards",
       "manageAll": "Manage all boards"
     },
-    "backgrounds": {
-      "presets": "Préréglages",
-      "colors": "Couleurs",
-      "gradients": "Dégradés"
-    },
     "classes": {
       "title": "Mes Classes",
       "description": "Gérez vos listes de classe ici. La classe active est utilisée pour les plans de classe, le sélecteur aléatoire, les sondages, etc.",
@@ -334,13 +329,13 @@
         "oneFingerLongPress": "Appui long à 1 doigt",
         "oneFingerDrag": "Glisser à 1 doigt sur le fond",
         "oneFingerSwipeEdge": "Balayage à 1 doigt depuis le bord gauche",
-        "twoFingerSwipeLR": "Balayage à 2 doigts \u2190/\u2192",
-        "twoFingerSwipeDown": "Balayage à 2 doigts \u2193",
-        "twoFingerSwipeUp": "Balayage à 2 doigts \u2191",
+        "twoFingerSwipeLR": "Balayage à 2 doigts ←/→",
+        "twoFingerSwipeDown": "Balayage à 2 doigts ↓",
+        "twoFingerSwipeUp": "Balayage à 2 doigts ↑",
         "twoFingerLongPress": "Appui long à 2 doigts",
-        "dragDownToDock": "Glisser vers le dock \u2193",
-        "widgetTwoFingerSwipeDown": "Balayage à 2 doigts \u2193",
-        "widgetTwoFingerSwipeUp": "Balayage à 2 doigts \u2191"
+        "dragDownToDock": "Glisser vers le dock ↓",
+        "widgetTwoFingerSwipeDown": "Balayage à 2 doigts ↓",
+        "widgetTwoFingerSwipeUp": "Balayage à 2 doigts ↑"
       }
     },
     "dashboard": {
@@ -473,5 +468,52 @@
     "empty": "No templates available yet.",
     "kindBoard": "Board",
     "kindCollection": "Collection · {{count}} board(s)"
+  },
+  "backgrounds": {
+    "presets": "Préréglages",
+    "colors": "Couleurs",
+    "gradients": "Dégradés",
+    "title": "Arrière-plans",
+    "favorites": "Favoris",
+    "recent": "Récents",
+    "media": "Médias",
+    "solids": "Couleurs unies",
+    "patterns": "Motifs",
+    "yours": "Les vôtres",
+    "uploads": "Mes téléversements",
+    "searchPlaceholder": "Rechercher des arrière-plans…",
+    "emptyFavorites": "Pas encore de favoris — survolez un arrière-plan et cliquez sur ★",
+    "emptyRecent": "Pas encore d'arrière-plans récents.",
+    "emptyFiltered": "Aucun arrière-plan ne correspond à vos filtres.",
+    "uploading": "Téléversement…",
+    "uploadCta": "Téléverser une image (max 5 Mo)",
+    "driveNotConnected": "Google Drive doit être connecté pour téléverser.",
+    "loadingUploads": "Chargement des téléversements…",
+    "noUploadsYet": "Vous n'avez pas encore téléversé d'arrière-plans.",
+    "customColor": "Couleur personnalisée",
+    "customGradient": "Dégradé personnalisé",
+    "applied": "Appliqué",
+    "apply": "Appliquer",
+    "favoriteSaveFailed": "Could not save favorite. Please try again.",
+    "typeAll": "All",
+    "typeStill": "Stills",
+    "typeVideo": "Video",
+    "typeUpload": "Uploads",
+    "uploadedImage": "Uploaded image",
+    "gradientStart": "Start",
+    "gradientEnd": "End",
+    "directionRight": "Right",
+    "directionDownRight": "Down-Right",
+    "directionDown": "Down",
+    "directionDownLeft": "Down-Left",
+    "uploadFailed": "Upload failed. Check your connection and try again."
+  },
+  "quickAccess": {
+    "title": "Quick Access Widgets",
+    "searchPlaceholder": "Search widgets…",
+    "emptyResults": "No widgets match."
+  },
+  "style": {
+    "readOnlyNotice": "This board is read-only. Style changes are not saved."
   }
 }

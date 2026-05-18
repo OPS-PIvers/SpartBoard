@@ -195,6 +195,29 @@ const serializeDashboard = (d: Dashboard): string =>
     settings: d.settings,
   });
 
+/**
+ * Returns true only for background strings that can be stored in recents and
+ * looked up in the backgrounds modal (preset image URLs, Drive upload URLs, or
+ * custom: color/gradient strings). Tailwind class strings like
+ * "bg-gradient-to-br from-blue-400 ..." are not addressable and must not be
+ * recorded — they waste Firestore writes and will never render in the rail.
+ *
+ * Whitelist approach: custom: strings (which include gradients with spaces),
+ * http(s) URLs (Drive uploads, preset images), and data URIs are all valid.
+ * Everything else — Tailwind classes set by widgets like WeatherWidget — is not.
+ */
+const isRecordableBackground = (bg: string): boolean => {
+  if (!bg) return false;
+  // Custom colors and gradients (stored with custom: prefix)
+  if (bg.startsWith('custom:')) return true;
+  // URLs — Drive uploads and preset image URLs
+  if (bg.startsWith('https://') || bg.startsWith('http://')) return true;
+  // Data URIs
+  if (bg.startsWith('data:')) return true;
+  // Everything else (Tailwind classes set by widgets like Weather) is not addressable
+  return false;
+};
+
 /** Capture the serialized state used to populate lastSaved* refs. */
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
@@ -225,6 +248,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     lastActiveCollectionId,
     lastBoardIdByCollection,
     remoteControlEnabled: accountRemoteControlEnabled,
+    recordRecentBackground,
   } = useAuth();
   const { driveService, userDomain } = useGoogleDrive();
   const {
@@ -4669,17 +4693,28 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [activeId]
   );
 
-  const setBackground = useCallback((bg: string) => {
-    if (!activeIdRef.current) return;
-    if (isActiveBoardReadOnlyRef.current) return;
-    lastLocalUpdateAt.current = Date.now();
-    lastUpdateWasSettingsOnly.current = false;
-    setDashboards((prev) =>
-      prev.map((d) =>
-        d.id === activeIdRef.current ? { ...d, background: bg } : d
-      )
-    );
-  }, []);
+  const setBackground = useCallback(
+    (bg: string) => {
+      if (!activeIdRef.current) return;
+      if (isActiveBoardReadOnlyRef.current) return;
+      lastLocalUpdateAt.current = Date.now();
+      lastUpdateWasSettingsOnly.current = false;
+      setDashboards((prev) =>
+        prev.map((d) =>
+          d.id === activeIdRef.current ? { ...d, background: bg } : d
+        )
+      );
+      // Only record addressable backgrounds (preset URLs, Drive uploads,
+      // custom: strings). Tailwind class strings (e.g. from WeatherWidget)
+      // are not stored in the modal and would waste Firestore writes.
+      if (isRecordableBackground(bg)) {
+        recordRecentBackground(bg).catch((err) => {
+          logError('DashboardContext.setBackground.recordRecent', err);
+        });
+      }
+    },
+    [recordRecentBackground]
+  );
 
   const updateDashboardSettings = useCallback(
     (updates: Partial<Dashboard['settings']>) => {

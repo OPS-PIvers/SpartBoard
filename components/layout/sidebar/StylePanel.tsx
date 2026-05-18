@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
-  Save,
   CheckSquare,
   ChevronRight,
   Maximize,
@@ -15,7 +14,8 @@ import {
   GlobalStyle,
   DEFAULT_GLOBAL_STYLE,
 } from '@/types';
-import { StylePreview } from './StylePreview';
+import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { useDashboard } from '@/context/useDashboard';
 
 const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
   { id: 'sans', label: 'Modern Sans', font: 'font-sans' },
@@ -34,8 +34,7 @@ const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
 interface StylePanelProps {
   isVisible: boolean;
   activeDashboard: Dashboard | null | undefined;
-  setGlobalStyle: (style: GlobalStyle) => void;
-  addToast: (message: string, type: 'success' | 'error' | 'info') => void;
+  setGlobalStyle: (style: Partial<GlobalStyle>) => void;
 }
 
 // Derived from DEFAULT_GLOBAL_STYLE so defaults stay in sync across the app
@@ -48,32 +47,98 @@ export const StylePanel: React.FC<StylePanelProps> = ({
   isVisible,
   activeDashboard,
   setGlobalStyle,
-  addToast,
 }) => {
+  const { t } = useTranslation();
+  const { isActiveBoardReadOnly, addToast } = useDashboard();
+
   const [styleTab, setStyleTab] = useState<'window' | 'dock' | 'colors'>(
     'window'
   );
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
-  const [pendingStyle, setPendingStyle] =
-    useState<GlobalStyle>(DEFAULT_GLOBAL_STYLE);
+  const [readOnlyToastShown, setReadOnlyToastShown] = useState(false);
 
-  // State adjustment pattern to reset pendingStyle when opening
-  const [prevIsVisible, setPrevIsVisible] = useState(isVisible);
-  const [prevDashboardId, setPrevDashboardId] = useState(activeDashboard?.id);
-
-  if (isVisible && !prevIsVisible) {
-    setPrevIsVisible(true);
-    setPendingStyle(activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE);
-  } else if (!isVisible && prevIsVisible) {
-    setPrevIsVisible(false);
+  // Reset the one-time toast latch when the active board changes so the user
+  // gets the notice again if they switch to a different read-only board.
+  const [prevBoardId, setPrevBoardId] = useState(activeDashboard?.id);
+  if (activeDashboard?.id !== prevBoardId) {
+    setPrevBoardId(activeDashboard?.id);
+    setReadOnlyToastShown(false);
   }
 
-  if (activeDashboard?.id !== prevDashboardId) {
-    setPrevDashboardId(activeDashboard?.id);
-    if (isVisible) {
-      setPendingStyle(activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE);
+  const currentStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
+
+  // Immediate writes for discrete controls (font, corner-radius buttons, color pickers, toggles)
+  const commit = useCallback(
+    (next: Partial<GlobalStyle>) => {
+      if (isActiveBoardReadOnly) {
+        if (!readOnlyToastShown) {
+          addToast(
+            t('style.readOnlyNotice', {
+              defaultValue:
+                'This board is read-only. Style changes are not saved.',
+            }),
+            'info'
+          );
+          setReadOnlyToastShown(true);
+        }
+        return;
+      }
+      setGlobalStyle(next);
+    },
+    [setGlobalStyle, isActiveBoardReadOnly, readOnlyToastShown, addToast, t]
+  );
+
+  // Helpers — pass true partials so setGlobalStyle's merger preserves concurrent updates
+  const setField = <K extends keyof GlobalStyle>(
+    field: K,
+    value: GlobalStyle[K]
+  ) => commit({ [field]: value });
+
+  // Each slider has its own debounced callback so rapid cross-slider drags
+  // don't share a single timer and overwrite each other's pending values.
+  const commitWindowTransparency = useDebouncedCallback(
+    (value: number) => commit({ windowTransparency: value }),
+    200
+  );
+  const commitDockTransparency = useDebouncedCallback(
+    (value: number) => commit({ dockTransparency: value }),
+    200
+  );
+
+  // In-flight slider values for immediate visual feedback (thumb follows cursor before debounce fires)
+  const [pendingWindowTransparency, setPendingWindowTransparency] = useState<
+    number | null
+  >(null);
+  const [pendingDockTransparency, setPendingDockTransparency] = useState<
+    number | null
+  >(null);
+
+  // "Adjusting state while rendering" pattern — clear pending value once the committed state catches up
+  const [prevCommittedWindow, setPrevCommittedWindow] = useState(
+    currentStyle.windowTransparency
+  );
+  if (prevCommittedWindow !== currentStyle.windowTransparency) {
+    setPrevCommittedWindow(currentStyle.windowTransparency);
+    if (pendingWindowTransparency === currentStyle.windowTransparency) {
+      setPendingWindowTransparency(null);
     }
   }
+
+  const [prevCommittedDock, setPrevCommittedDock] = useState(
+    currentStyle.dockTransparency
+  );
+  if (prevCommittedDock !== currentStyle.dockTransparency) {
+    setPrevCommittedDock(currentStyle.dockTransparency);
+    if (pendingDockTransparency === currentStyle.dockTransparency) {
+      setPendingDockTransparency(null);
+    }
+  }
+
+  // Prefer in-flight value for display; fall back to committed
+  const displayWindowTransparency =
+    pendingWindowTransparency ?? currentStyle.windowTransparency;
+  const displayDockTransparency =
+    pendingDockTransparency ?? currentStyle.dockTransparency;
 
   return (
     <div
@@ -83,17 +148,8 @@ export const StylePanel: React.FC<StylePanelProps> = ({
           : 'translate-x-full opacity-0 invisible'
       }`}
     >
-      {/* TABS & MOBILE PREVIEW */}
-      <div className="bg-white border-b border-slate-100 sticky top-0 z-20 flex flex-col">
-        {/* Mobile Preview only */}
-        <div className="lg:hidden p-4 pb-0">
-          <StylePreview
-            pendingStyle={pendingStyle}
-            background={activeDashboard?.background}
-          />
-        </div>
-
-        {/* Sub-tabs */}
+      {/* TABS */}
+      <div className="bg-white border-b border-slate-100 sticky top-0 z-20">
         <div className="p-4">
           <div className="flex bg-slate-100 p-0.5 rounded-lg text-xxs font-bold uppercase tracking-widest">
             <button
@@ -132,7 +188,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-40">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-6">
         {/* Global Font Family - Always visible */}
         <div className="space-y-3">
           <div className="flex justify-between items-center px-1">
@@ -154,10 +210,10 @@ export const StylePanel: React.FC<StylePanelProps> = ({
               className="w-full flex items-center justify-between p-3 rounded-lg border bg-white border-slate-200 text-slate-800"
             >
               <span
-                className={`text-sm font-bold font-${pendingStyle.fontFamily}`}
+                className={`text-sm font-bold font-${currentStyle.fontFamily}`}
               >
                 {
-                  FONT_OPTIONS.find((f) => f.id === pendingStyle.fontFamily)
+                  FONT_OPTIONS.find((f) => f.id === currentStyle.fontFamily)
                     ?.label
                 }
               </span>
@@ -177,14 +233,11 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   <button
                     key={f.id}
                     onClick={() => {
-                      setPendingStyle({
-                        ...pendingStyle,
-                        fontFamily: f.id,
-                      });
+                      setField('fontFamily', f.id);
                       setIsFontMenuOpen(false);
                     }}
                     className={`w-full flex items-center justify-between p-2.5 rounded-md transition-all ${
-                      pendingStyle.fontFamily === f.id
+                      currentStyle.fontFamily === f.id
                         ? 'bg-brand-blue-primary text-white shadow-sm'
                         : 'bg-white hover:bg-slate-50 text-slate-600'
                     }`}
@@ -192,7 +245,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                     <span className={`text-xs font-bold ${f.font}`}>
                       {f.label}
                     </span>
-                    {pendingStyle.fontFamily === f.id && (
+                    {currentStyle.fontFamily === f.id && (
                       <CheckSquare className="w-3.5 h-3.5 text-white" />
                     )}
                   </button>
@@ -211,7 +264,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   Transparency
                 </h3>
                 <span className="text-xxs font-mono font-bold text-brand-blue-primary">
-                  {Math.round(pendingStyle.windowTransparency * 100)}%
+                  {Math.round(displayWindowTransparency * 100)}%
                 </span>
               </div>
               <input
@@ -219,13 +272,12 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 min="0"
                 max="1"
                 step="0.05"
-                value={pendingStyle.windowTransparency}
-                onChange={(e) =>
-                  setPendingStyle({
-                    ...pendingStyle,
-                    windowTransparency: parseFloat(e.target.value),
-                  })
-                }
+                value={displayWindowTransparency}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setPendingWindowTransparency(v);
+                  commitWindowTransparency(v);
+                }}
                 className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-brand-blue-primary"
               />
             </div>
@@ -245,14 +297,13 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   <button
                     key={r.id}
                     onClick={() =>
-                      setPendingStyle({
-                        ...pendingStyle,
-                        windowBorderRadius:
-                          r.id as GlobalStyle['windowBorderRadius'],
-                      })
+                      setField(
+                        'windowBorderRadius',
+                        r.id as GlobalStyle['windowBorderRadius']
+                      )
                     }
                     className={`flex-1 py-1.5 rounded-md text-xxs font-bold uppercase transition-all ${
-                      pendingStyle.windowBorderRadius === r.id
+                      currentStyle.windowBorderRadius === r.id
                         ? 'bg-white shadow-sm text-brand-blue-primary'
                         : 'text-slate-500'
                     }`}
@@ -272,7 +323,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   Transparency
                 </h3>
                 <span className="text-xxs font-mono font-bold text-brand-blue-primary">
-                  {Math.round(pendingStyle.dockTransparency * 100)}%
+                  {Math.round(displayDockTransparency * 100)}%
                 </span>
               </div>
               <input
@@ -280,13 +331,12 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 min="0"
                 max="1"
                 step="0.05"
-                value={pendingStyle.dockTransparency}
-                onChange={(e) =>
-                  setPendingStyle({
-                    ...pendingStyle,
-                    dockTransparency: parseFloat(e.target.value),
-                  })
-                }
+                value={displayDockTransparency}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setPendingDockTransparency(v);
+                  commitDockTransparency(v);
+                }}
                 className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-brand-blue-primary"
               />
             </div>
@@ -306,14 +356,13 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   <button
                     key={r.id}
                     onClick={() =>
-                      setPendingStyle({
-                        ...pendingStyle,
-                        dockBorderRadius:
-                          r.id as GlobalStyle['dockBorderRadius'],
-                      })
+                      setField(
+                        'dockBorderRadius',
+                        r.id as GlobalStyle['dockBorderRadius']
+                      )
                     }
                     className={`flex-1 py-1.5 rounded-md text-xxs font-bold uppercase transition-all ${
-                      pendingStyle.dockBorderRadius === r.id
+                      currentStyle.dockBorderRadius === r.id
                         ? 'bg-white shadow-sm text-brand-blue-primary'
                         : 'text-slate-500'
                     }`}
@@ -333,13 +382,8 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-100">
                   <input
                     type="color"
-                    value={pendingStyle.dockTextColor}
-                    onChange={(e) =>
-                      setPendingStyle({
-                        ...pendingStyle,
-                        dockTextColor: e.target.value,
-                      })
-                    }
+                    value={currentStyle.dockTextColor}
+                    onChange={(e) => setField('dockTextColor', e.target.value)}
                     className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
                   />
                   <span className="text-xxs font-bold text-slate-600 uppercase">
@@ -349,13 +393,10 @@ export const StylePanel: React.FC<StylePanelProps> = ({
 
                 <button
                   onClick={() =>
-                    setPendingStyle({
-                      ...pendingStyle,
-                      dockTextShadow: !pendingStyle.dockTextShadow,
-                    })
+                    setField('dockTextShadow', !currentStyle.dockTextShadow)
                   }
                   className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
-                    pendingStyle.dockTextShadow
+                    currentStyle.dockTextShadow
                       ? 'bg-white border-brand-blue-primary text-brand-blue-dark shadow-sm'
                       : 'bg-white border-slate-100 text-slate-500'
                   }`}
@@ -363,7 +404,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   <span className="text-xxs font-bold uppercase tracking-wider">
                     Text Shadow
                   </span>
-                  {pendingStyle.dockTextShadow && (
+                  {currentStyle.dockTextShadow && (
                     <CheckSquare className="w-4 h-4 text-brand-blue-primary" />
                   )}
                 </button>
@@ -384,12 +425,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   Primary Color
                 </h3>
                 <button
-                  onClick={() =>
-                    setPendingStyle({
-                      ...pendingStyle,
-                      primaryColor: undefined,
-                    })
-                  }
+                  onClick={() => setField('primaryColor', undefined)}
                   className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
                   title="Reset to default"
                 >
@@ -399,13 +435,8 @@ export const StylePanel: React.FC<StylePanelProps> = ({
               <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-100">
                 <input
                   type="color"
-                  value={pendingStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
-                  onChange={(e) =>
-                    setPendingStyle({
-                      ...pendingStyle,
-                      primaryColor: e.target.value,
-                    })
-                  }
+                  value={currentStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
+                  onChange={(e) => setField('primaryColor', e.target.value)}
                   className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
                 />
                 <div className="flex flex-col">
@@ -413,7 +444,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                     Brand Primary
                   </span>
                   <span className="text-xxs font-mono text-slate-400">
-                    {pendingStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
+                    {currentStyle.primaryColor ?? DEFAULT_PRIMARY_COLOR}
                   </span>
                 </div>
               </div>
@@ -426,12 +457,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   Accent Color
                 </h3>
                 <button
-                  onClick={() =>
-                    setPendingStyle({
-                      ...pendingStyle,
-                      accentColor: undefined,
-                    })
-                  }
+                  onClick={() => setField('accentColor', undefined)}
                   className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
                   title="Reset to default"
                 >
@@ -441,13 +467,8 @@ export const StylePanel: React.FC<StylePanelProps> = ({
               <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-100">
                 <input
                   type="color"
-                  value={pendingStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
-                  onChange={(e) =>
-                    setPendingStyle({
-                      ...pendingStyle,
-                      accentColor: e.target.value,
-                    })
-                  }
+                  value={currentStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
+                  onChange={(e) => setField('accentColor', e.target.value)}
                   className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
                 />
                 <div className="flex flex-col">
@@ -455,7 +476,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                     Brand Accent
                   </span>
                   <span className="text-xxs font-mono text-slate-400">
-                    {pendingStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
+                    {currentStyle.accentColor ?? DEFAULT_ACCENT_COLOR}
                   </span>
                 </div>
               </div>
@@ -468,12 +489,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   Window Title Color
                 </h3>
                 <button
-                  onClick={() =>
-                    setPendingStyle({
-                      ...pendingStyle,
-                      windowTitleColor: undefined,
-                    })
-                  }
+                  onClick={() => setField('windowTitleColor', undefined)}
                   className="text-xxs font-bold uppercase text-slate-400 hover:text-brand-blue-primary flex items-center gap-1"
                   title="Reset to default"
                 >
@@ -484,14 +500,9 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 <input
                   type="color"
                   value={
-                    pendingStyle.windowTitleColor ?? DEFAULT_WINDOW_TITLE_COLOR
+                    currentStyle.windowTitleColor ?? DEFAULT_WINDOW_TITLE_COLOR
                   }
-                  onChange={(e) =>
-                    setPendingStyle({
-                      ...pendingStyle,
-                      windowTitleColor: e.target.value,
-                    })
-                  }
+                  onChange={(e) => setField('windowTitleColor', e.target.value)}
                   className="w-8 h-8 rounded-md border border-slate-200 bg-white cursor-pointer"
                 />
                 <div className="flex flex-col">
@@ -499,7 +510,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                     Widget Title Text
                   </span>
                   <span className="text-xxs font-mono text-slate-400">
-                    {pendingStyle.windowTitleColor ??
+                    {currentStyle.windowTitleColor ??
                       DEFAULT_WINDOW_TITLE_COLOR}
                   </span>
                 </div>
@@ -509,8 +520,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
             {/* Reset All Colors */}
             <button
               onClick={() =>
-                setPendingStyle({
-                  ...pendingStyle,
+                commit({
                   primaryColor: undefined,
                   accentColor: undefined,
                   windowTitleColor: undefined,
@@ -523,55 +533,6 @@ export const StylePanel: React.FC<StylePanelProps> = ({
           </div>
         ) : null}
       </div>
-
-      {/* ACTION BUTTONS */}
-      <div className="mt-auto p-4 bg-white border-t border-slate-100 flex gap-2">
-        <button
-          onClick={() => {
-            setGlobalStyle(pendingStyle);
-            addToast('Global style applied', 'success');
-          }}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-blue-primary text-white rounded-xl font-bold text-xxs uppercase tracking-widest shadow-sm hover:bg-brand-blue-dark transition-all"
-        >
-          <Save className="w-3.5 h-3.5" /> Save
-        </button>
-
-        <button
-          onClick={() => {
-            if (activeDashboard) {
-              setPendingStyle(
-                activeDashboard.globalStyle ?? DEFAULT_GLOBAL_STYLE
-              );
-            }
-          }}
-          className="flex-1 py-2.5 bg-slate-100 text-slate-500 rounded-xl font-bold text-xxs uppercase tracking-widest hover:bg-slate-200 transition-all"
-        >
-          Discard
-        </button>
-      </div>
-
-      {/* Attached Style Preview for Desktop */}
-      {isVisible &&
-        createPortal(
-          <div className="hidden lg:flex flex-col justify-center p-12 animate-in fade-in slide-in-from-left-8 duration-500 pointer-events-none fixed left-72 top-0 bottom-0 z-modal">
-            <div className="w-[450px] pointer-events-auto">
-              <div className="flex flex-col gap-3 mb-6 drop-shadow-2xl">
-                <h3 className="text-sm font-black text-white uppercase tracking-[0.3em] drop-shadow-lg">
-                  Style Preview
-                </h3>
-                <div className="h-1 w-12 bg-white/50 rounded-full" />
-              </div>
-              <StylePreview
-                pendingStyle={pendingStyle}
-                background={activeDashboard?.background}
-              />
-              <p className="mt-6 text-xxs font-bold text-white/60 uppercase tracking-[0.2em] text-center drop-shadow-md">
-                Preview updates live as you adjust settings
-              </p>
-            </div>
-          </div>,
-          document.body
-        )}
     </div>
   );
 };
