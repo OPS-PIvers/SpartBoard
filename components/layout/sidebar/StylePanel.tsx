@@ -32,7 +32,7 @@ const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
 interface StylePanelProps {
   isVisible: boolean;
   activeDashboard: Dashboard | null | undefined;
-  setGlobalStyle: (style: GlobalStyle) => void;
+  setGlobalStyle: (style: Partial<GlobalStyle>) => void;
   addToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
@@ -56,23 +56,58 @@ export const StylePanel: React.FC<StylePanelProps> = ({
 
   // Immediate writes for discrete controls (font, corner-radius buttons, color pickers, toggles)
   const commit = useCallback(
-    (next: GlobalStyle) => setGlobalStyle(next),
+    (next: Partial<GlobalStyle>) => setGlobalStyle(next),
     [setGlobalStyle]
   );
 
   // Debounced writes for continuous sliders to avoid Firestore write thrash during drag
   const commitDebounced = useDebouncedCallback(commit, 200);
 
-  // Helpers
+  // Helpers — pass true partials so setGlobalStyle's merger preserves concurrent updates
   const setField = <K extends keyof GlobalStyle>(
     field: K,
     value: GlobalStyle[K]
-  ) => commit({ ...currentStyle, [field]: value });
+  ) => commit({ [field]: value });
 
   const setFieldDebounced = <K extends keyof GlobalStyle>(
     field: K,
     value: GlobalStyle[K]
-  ) => commitDebounced({ ...currentStyle, [field]: value });
+  ) => commitDebounced({ [field]: value });
+
+  // In-flight slider values for immediate visual feedback (thumb follows cursor before debounce fires)
+  const [pendingWindowTransparency, setPendingWindowTransparency] = useState<
+    number | null
+  >(null);
+  const [pendingDockTransparency, setPendingDockTransparency] = useState<
+    number | null
+  >(null);
+
+  // "Adjusting state while rendering" pattern — clear pending value once the committed state catches up
+  const [prevCommittedWindow, setPrevCommittedWindow] = useState(
+    currentStyle.windowTransparency
+  );
+  if (prevCommittedWindow !== currentStyle.windowTransparency) {
+    setPrevCommittedWindow(currentStyle.windowTransparency);
+    if (pendingWindowTransparency === currentStyle.windowTransparency) {
+      setPendingWindowTransparency(null);
+    }
+  }
+
+  const [prevCommittedDock, setPrevCommittedDock] = useState(
+    currentStyle.dockTransparency
+  );
+  if (prevCommittedDock !== currentStyle.dockTransparency) {
+    setPrevCommittedDock(currentStyle.dockTransparency);
+    if (pendingDockTransparency === currentStyle.dockTransparency) {
+      setPendingDockTransparency(null);
+    }
+  }
+
+  // Prefer in-flight value for display; fall back to committed
+  const displayWindowTransparency =
+    pendingWindowTransparency ?? currentStyle.windowTransparency;
+  const displayDockTransparency =
+    pendingDockTransparency ?? currentStyle.dockTransparency;
 
   return (
     <div
@@ -198,7 +233,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   Transparency
                 </h3>
                 <span className="text-xxs font-mono font-bold text-brand-blue-primary">
-                  {Math.round(currentStyle.windowTransparency * 100)}%
+                  {Math.round(displayWindowTransparency * 100)}%
                 </span>
               </div>
               <input
@@ -206,13 +241,12 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 min="0"
                 max="1"
                 step="0.05"
-                value={currentStyle.windowTransparency}
-                onChange={(e) =>
-                  setFieldDebounced(
-                    'windowTransparency',
-                    parseFloat(e.target.value)
-                  )
-                }
+                value={displayWindowTransparency}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setPendingWindowTransparency(v);
+                  setFieldDebounced('windowTransparency', v);
+                }}
                 className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-brand-blue-primary"
               />
             </div>
@@ -258,7 +292,7 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                   Transparency
                 </h3>
                 <span className="text-xxs font-mono font-bold text-brand-blue-primary">
-                  {Math.round(currentStyle.dockTransparency * 100)}%
+                  {Math.round(displayDockTransparency * 100)}%
                 </span>
               </div>
               <input
@@ -266,13 +300,12 @@ export const StylePanel: React.FC<StylePanelProps> = ({
                 min="0"
                 max="1"
                 step="0.05"
-                value={currentStyle.dockTransparency}
-                onChange={(e) =>
-                  setFieldDebounced(
-                    'dockTransparency',
-                    parseFloat(e.target.value)
-                  )
-                }
+                value={displayDockTransparency}
+                onChange={(e) => {
+                  const v = parseFloat(e.target.value);
+                  setPendingDockTransparency(v);
+                  setFieldDebounced('dockTransparency', v);
+                }}
                 className="w-full h-1.5 bg-slate-200 rounded-full appearance-none cursor-pointer accent-brand-blue-primary"
               />
             </div>
@@ -457,7 +490,6 @@ export const StylePanel: React.FC<StylePanelProps> = ({
             <button
               onClick={() =>
                 commit({
-                  ...currentStyle,
                   primaryColor: undefined,
                   accentColor: undefined,
                   windowTitleColor: undefined,
