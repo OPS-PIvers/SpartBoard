@@ -14,16 +14,6 @@ interface BackgroundsFilterBarProps {
   onToggleTag: (tag: string) => void;
 }
 
-const TYPE_LABELS: Record<BackgroundType, string> = {
-  all: 'All',
-  still: 'Stills',
-  video: 'Video',
-  color: 'Colors',
-  pattern: 'Patterns',
-  gradient: 'Gradients',
-  upload: 'Uploads',
-};
-
 export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
   search,
   onSearchChange,
@@ -35,6 +25,25 @@ export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
   onToggleTag,
 }) => {
   const { t } = useTranslation();
+
+  const typeLabel = (bgType: BackgroundType): string => {
+    switch (bgType) {
+      case 'all':
+        return t('backgrounds.typeAll', { defaultValue: 'All' });
+      case 'still':
+        return t('backgrounds.typeStill', { defaultValue: 'Stills' });
+      case 'video':
+        return t('backgrounds.typeVideo', { defaultValue: 'Video' });
+      case 'color':
+        return t('backgrounds.colors', { defaultValue: 'Colors' });
+      case 'pattern':
+        return t('backgrounds.patterns', { defaultValue: 'Patterns' });
+      case 'gradient':
+        return t('backgrounds.gradients', { defaultValue: 'Gradients' });
+      case 'upload':
+        return t('backgrounds.typeUpload', { defaultValue: 'Uploads' });
+    }
+  };
 
   return (
     <div className="sticky top-0 z-10 bg-white border-b border-slate-100 px-4 py-3 flex flex-col gap-2">
@@ -67,7 +76,7 @@ export const BackgroundsFilterBar: React.FC<BackgroundsFilterBarProps> = ({
                   : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
               }`}
             >
-              {TYPE_LABELS[tt]}
+              {typeLabel(tt)}
             </button>
           ))}
         </div>

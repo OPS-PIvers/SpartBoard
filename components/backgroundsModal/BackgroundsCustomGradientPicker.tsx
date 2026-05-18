@@ -10,10 +10,18 @@ import { useDashboard } from '@/context/useDashboard';
 import { isCustomBackground } from '@/utils/backgrounds';
 
 const GRADIENT_DIRECTIONS = [
-  { angle: '90deg', label: 'Right', icon: ArrowRight },
-  { angle: '135deg', label: 'Down-Right', icon: ArrowDownRight },
-  { angle: '180deg', label: 'Down', icon: ArrowDown },
-  { angle: '225deg', label: 'Down-Left', icon: ArrowDownLeft },
+  { angle: '90deg', labelKey: 'backgrounds.directionRight', icon: ArrowRight },
+  {
+    angle: '135deg',
+    labelKey: 'backgrounds.directionDownRight',
+    icon: ArrowDownRight,
+  },
+  { angle: '180deg', labelKey: 'backgrounds.directionDown', icon: ArrowDown },
+  {
+    angle: '225deg',
+    labelKey: 'backgrounds.directionDownLeft',
+    icon: ArrowDownLeft,
+  },
 ] as const;
 
 interface BackgroundsCustomGradientPickerProps {
@@ -58,7 +66,9 @@ export const BackgroundsCustomGradientPicker: React.FC<
 
       <div className="grid grid-cols-2 gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-xxs font-bold text-slate-500">Start</span>
+          <span className="text-xxs font-bold text-slate-500">
+            {t('backgrounds.gradientStart', { defaultValue: 'Start' })}
+          </span>
           <input
             type="color"
             value={color1}
@@ -67,7 +77,9 @@ export const BackgroundsCustomGradientPicker: React.FC<
           />
         </label>
         <label className="flex flex-col gap-1">
-          <span className="text-xxs font-bold text-slate-500">End</span>
+          <span className="text-xxs font-bold text-slate-500">
+            {t('backgrounds.gradientEnd', { defaultValue: 'End' })}
+          </span>
           <input
             type="color"
             value={color2}
@@ -86,7 +98,7 @@ export const BackgroundsCustomGradientPicker: React.FC<
               key={d.angle}
               type="button"
               onClick={() => setAngle(d.angle)}
-              aria-label={d.label}
+              aria-label={t(d.labelKey)}
               className={`flex-1 p-2 rounded-md transition-colors ${
                 active
                   ? 'bg-brand-blue-primary text-white'

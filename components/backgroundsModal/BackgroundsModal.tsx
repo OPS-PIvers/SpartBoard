@@ -25,6 +25,44 @@ interface BackgroundsModalProps {
   onClose: () => void;
 }
 
+/**
+ * Synthesize a minimal BackgroundItem for IDs not found in allItems
+ * (uploads, custom colors/gradients). Pure function — lifted outside the
+ * component so it can be referenced in useMemo deps without triggering
+ * exhaustive-deps warnings.
+ */
+function resolveBackgroundItem(
+  byId: Map<string, BackgroundItem>,
+  id: string,
+  t: (key: string, opts?: { defaultValue?: string }) => string
+): BackgroundItem | undefined {
+  const preset = byId.get(id);
+  if (preset) return preset;
+  if (id.startsWith('custom:')) {
+    const value = id.slice('custom:'.length);
+    const isGradient = value.startsWith('linear-gradient(');
+    return {
+      id,
+      label: isGradient
+        ? t('backgrounds.customGradient', { defaultValue: 'Custom Gradient' })
+        : t('backgrounds.customColor', { defaultValue: 'Custom Color' }),
+      type: isGradient ? 'gradient' : 'color',
+      tags: [],
+      // No thumbnailUrl — BackgroundThumbnail will render the CSS background
+    };
+  }
+  if (id.startsWith('https://') || id.startsWith('http://')) {
+    return {
+      id,
+      label: t('backgrounds.uploadedImage', { defaultValue: 'Uploaded image' }),
+      type: 'upload',
+      thumbnailUrl: id,
+      tags: [],
+    };
+  }
+  return undefined;
+}
+
 export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
   isOpen,
   onClose,
@@ -83,47 +121,17 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
     return [...set].sort();
   }, [allItems]);
 
-  /** Synthesize a minimal BackgroundItem for IDs not found in allItems (uploads, custom colors/gradients). */
-  const resolveBackgroundItem = (
-    id: string,
-    byId: Map<string, BackgroundItem>
-  ): BackgroundItem | undefined => {
-    const preset = byId.get(id);
-    if (preset) return preset;
-    if (id.startsWith('custom:')) {
-      const value = id.slice('custom:'.length);
-      const isGradient = value.startsWith('linear-gradient(');
-      return {
-        id,
-        label: isGradient ? 'Custom Gradient' : 'Custom Color',
-        type: isGradient ? 'gradient' : 'color',
-        tags: [],
-        // No thumbnailUrl — BackgroundThumbnail will render the CSS background
-      };
-    }
-    if (id.startsWith('https://') || id.startsWith('http://')) {
-      return {
-        id,
-        label: 'Uploaded Image',
-        type: 'upload',
-        thumbnailUrl: id,
-        tags: [],
-      };
-    }
-    return undefined;
-  };
-
   // Pre-filter by rail section
   const sectionItems = useMemo<BackgroundItem[]>(() => {
     const byId = new Map(allItems.map((i) => [i.id, i]));
     switch (section.kind) {
       case 'favorites':
         return favoriteBackgrounds
-          .map((id) => resolveBackgroundItem(id, byId))
+          .map((id) => resolveBackgroundItem(byId, id, t))
           .filter(Boolean) as BackgroundItem[];
       case 'recent':
         return recentBackgrounds
-          .map((id) => resolveBackgroundItem(id, byId))
+          .map((id) => resolveBackgroundItem(byId, id, t))
           .filter(Boolean) as BackgroundItem[];
       case 'category':
         return allItems.filter((i) => i.category === section.name);
@@ -136,7 +144,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
       case 'uploads':
         return [];
     }
-  }, [section, allItems, favoriteBackgrounds, recentBackgrounds]);
+  }, [section, allItems, favoriteBackgrounds, recentBackgrounds, t]);
 
   // Available type chips depend on the section
   const availableTypes = useMemo<BackgroundType[]>(() => {
