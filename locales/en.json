@@ -1046,6 +1046,8 @@
     "updateNow": "Update Now",
     "later": "Later",
     "close": "Close",
+    "readFullUpdate": "Read full update",
+    "showLess": "Show less",
     "loading": "Loading release notes…",
     "error": "Couldn't load the changelog right now.",
     "previewEmpty": "A fresh build is ready. Refresh to get the latest.",
