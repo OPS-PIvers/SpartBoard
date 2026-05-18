@@ -58,6 +58,7 @@ export const UpdateNotification = ({
             <button
               type="button"
               onClick={() => setShowWhatsNew(true)}
+              aria-label="See what's new in this update"
               className="text-xs font-medium text-blue-300 hover:text-blue-100 underline-offset-2 hover:underline mt-1.5"
             >
               What&apos;s New

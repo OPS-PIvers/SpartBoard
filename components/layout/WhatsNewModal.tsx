@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { RefreshCw, Sparkles, Wrench, ArrowUpRight } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
@@ -144,12 +144,37 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
   const { t } = useTranslation();
   const { entries, loading, error, latestVersion, entriesSinceCurrent } =
     useChangelog();
+  const contentRef = useRef<HTMLDivElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
 
+  // Mark this version as seen when the modal opens (semantically: opening
+  // the modal *is* the act of seeing the changelog, regardless of which
+  // button the user clicks next). The dispatched event syncs sibling
+  // consumers (the sidebar unread badge) without prop drilling.
   useEffect(() => {
     if (isOpen && latestVersion) {
       writeLastSeenVersion(latestVersion);
     }
   }, [isOpen, latestVersion]);
+
+  // Focus management: when the modal opens, move focus into the content area
+  // (the underlying Modal primitive doesn't trap or restore focus). Restore
+  // the previously-focused element on close so keyboard users land back
+  // where they were.
+  useEffect(() => {
+    if (!isOpen) return;
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    const id = window.requestAnimationFrame(() => {
+      contentRef.current?.focus();
+    });
+    return () => {
+      window.cancelAnimationFrame(id);
+      const previous = previousFocusRef.current;
+      if (previous && typeof previous.focus === 'function') {
+        previous.focus();
+      }
+    };
+  }, [isOpen]);
 
   const visibleEntries = useMemo(() => {
     if (mode === 'preview') return entriesSinceCurrent(currentVersion);
@@ -191,7 +216,11 @@ export const WhatsNewModal: React.FC<WhatsNewModalProps> = ({
       footer={footer}
       ariaLabel="What's New release notes"
     >
-      <div className="pb-2">
+      <div
+        ref={contentRef}
+        tabIndex={-1}
+        className="pb-2 outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light/40 rounded-md"
+      >
         {loading && (
           <p className="text-sm text-slate-500 py-6 text-center">
             {t('whatsNew.loading', { defaultValue: 'Loading release notes…' })}

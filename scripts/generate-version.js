@@ -21,7 +21,13 @@ const readLatestChangelogVersion = () => {
     if (!fs.existsSync(changelogPath)) return null;
     const raw = fs.readFileSync(changelogPath, 'utf8');
     const parsed = JSON.parse(raw);
-    const first = parsed?.entries?.[0]?.version;
+    if (!Array.isArray(parsed?.entries)) {
+      console.warn(
+        'changelog.json is missing an "entries" array, falling back to timestamp.'
+      );
+      return null;
+    }
+    const first = parsed.entries[0]?.version;
     return typeof first === 'string' && first.length > 0 ? first : null;
   } catch (error) {
     console.warn(

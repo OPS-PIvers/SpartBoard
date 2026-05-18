@@ -37,10 +37,16 @@ const readLastEntryDate = () => {
 const since = sinceOverride ?? readLastEntryDate();
 const sinceArg = since ? `--since=${since}` : '--max-count=50';
 
-const rawLog = execSync(
-  `git log ${sinceArg} --pretty=format:'%s' --no-merges`,
-  { encoding: 'utf8' }
-).trim();
+let rawLog = '';
+try {
+  rawLog = execSync(`git log ${sinceArg} --pretty=format:'%s' --no-merges`, {
+    encoding: 'utf8',
+  }).trim();
+} catch (err) {
+  console.warn(
+    `git log failed (${err.message}); emitting an empty draft so you can fill it in by hand.`
+  );
+}
 
 const lines = rawLog ? rawLog.split('\n') : [];
 
@@ -62,13 +68,28 @@ const stripPrefix = (subject) =>
     .trim();
 
 const highlights = [];
+const skipped = [];
 for (const line of lines) {
   const type = classify(line);
-  if (!type) continue;
+  if (!type) {
+    skipped.push(line);
+    continue;
+  }
   highlights.push({
     type,
     text: stripPrefix(line) + ' [TODO: rewrite for users]',
   });
+}
+
+if (skipped.length > 0) {
+  // Surface skipped commits on stderr so devs can spot commits that didn't
+  // match a conventional prefix (e.g. capitalized subjects, plain merges).
+  // Keeps stdout pure JSON so it can be piped/redirected cleanly.
+  console.warn(
+    `\nSkipped ${skipped.length} commit(s) with no recognized prefix:`
+  );
+  for (const s of skipped) console.warn(`  - ${s}`);
+  console.warn('');
 }
 
 const today = new Date().toISOString().slice(0, 10);

@@ -72,9 +72,15 @@ User-facing release notes live in `public/changelog.json` (committed). The lates
 When you're ready to ship a release:
 
 1. Run `pnpm changelog:draft` to print a draft entry sourced from your recent commits.
-2. Paste it at the top of `public/changelog.json`'s `entries` array.
+   - Output goes to stdout; redirect or pipe it as you prefer:
+     ```bash
+     pnpm changelog:draft > /tmp/entry.json    # save to a scratch file
+     pnpm changelog:draft | pbcopy             # macOS: copy straight to clipboard
+     ```
+   - Stderr lists any commits that were skipped (no recognized `feat:`/`fix:` prefix) so you can manually fold them in.
+2. Paste the JSON object at the top of `public/changelog.json`'s `entries` array.
 3. **Rewrite each highlight in user-friendly language** — short, plain, what changed from a teacher's perspective. Drop anything internal-only.
-4. Pick a `version` (default is today's date as `YYYY.MM.DD`; add `.2`, `.3` for additional same-day releases).
+4. Pick a `version` (default is today's date as `YYYY.MM.DD`; add `.2`, `.3` for additional same-day releases). Keep entries newest-first — the consumer hook will log a console warning if it spots them out of order.
 5. Commit alongside the rest of your changes.
 
 The next build will pick up the new version automatically, the "Update Available" toast will offer a "What's New" link, and the sidebar's "What's New" entry will show a red "New" badge until users open it.

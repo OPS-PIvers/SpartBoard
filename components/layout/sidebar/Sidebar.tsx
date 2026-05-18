@@ -35,7 +35,12 @@ import { useAuth } from '@/context/useAuth';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { ShortLinkQuickCreate } from '@/components/admin/ShortLinkQuickCreate';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
-import { useChangelog, readLastSeenVersion } from '@/hooks/useChangelog';
+import {
+  useChangelog,
+  readLastSeenVersion,
+  WHATSNEW_SEEN_EVENT_NAME,
+  WHATSNEW_LAST_SEEN_STORAGE_KEY,
+} from '@/hooks/useChangelog';
 import { useAppVersion } from '@/hooks/useAppVersion';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
@@ -204,6 +209,26 @@ export const Sidebar: React.FC = () => {
     setShowWhatsNew(false);
     setLastSeenWhatsNew(readLastSeenVersion());
   };
+
+  // Keep the unread badge in sync when the modal is opened from another
+  // entry point (the update toast) in the same tab, and across tabs via
+  // the native `storage` event.
+  useEffect(() => {
+    const onSeen = (e: Event) => {
+      const next = (e as CustomEvent<string | null>).detail ?? null;
+      setLastSeenWhatsNew(next ?? readLastSeenVersion());
+    };
+    const onStorage = (e: StorageEvent) => {
+      if (e.key !== WHATSNEW_LAST_SEEN_STORAGE_KEY) return;
+      setLastSeenWhatsNew(e.newValue);
+    };
+    window.addEventListener(WHATSNEW_SEEN_EVENT_NAME, onSeen);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener(WHATSNEW_SEEN_EVENT_NAME, onSeen);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
 
   // The currently-open PLC dashboard tracks against the live `plcs` array so
   // a feature toggle by another member shows up immediately. If the PLC
@@ -617,11 +642,21 @@ export const Sidebar: React.FC = () => {
                       })}
                     </span>
                     {hasUnreadWhatsNew && (
-                      <span className="text-xxs font-bold text-brand-red-primary uppercase tracking-wide">
-                        {t('sidebar.nav.whatsNewBadge', {
-                          defaultValue: 'New',
-                        })}
-                      </span>
+                      <>
+                        <span className="sr-only">
+                          {t('sidebar.nav.whatsNewSrAnnouncement', {
+                            defaultValue: 'New release notes available',
+                          })}
+                        </span>
+                        <span
+                          className="text-xxs font-bold text-brand-red-primary group-hover:text-brand-red-dark uppercase tracking-wide transition-colors"
+                          aria-hidden="true"
+                        >
+                          {t('sidebar.nav.whatsNewBadge', {
+                            defaultValue: 'New',
+                          })}
+                        </span>
+                      </>
                     )}
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>

@@ -19,6 +19,43 @@ interface ChangelogFile {
 }
 
 const LAST_SEEN_KEY = 'whatsnew-last-seen';
+const WHATSNEW_SEEN_EVENT = 'whatsnew-seen';
+const CHANGELOG_ENDPOINT = '/changelog.json';
+const FETCH_TIMEOUT_MS = 5000;
+
+// Module-level cache so concurrent consumers (sidebar + modal) share a single
+// in-flight request rather than each hitting the network. Reset on failure
+// so the next mount can retry.
+let changelogPromise: Promise<ChangelogFile> | null = null;
+
+const fetchChangelog = (): Promise<ChangelogFile> => {
+  if (changelogPromise) return changelogPromise;
+
+  const url = new URL(CHANGELOG_ENDPOINT, window.location.origin);
+  url.searchParams.set('t', Date.now().toString());
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  changelogPromise = fetch(url, {
+    cache: 'no-store',
+    signal: controller.signal,
+  })
+    .then((res) => {
+      clearTimeout(timeoutId);
+      if (!res.ok) {
+        throw new Error(`changelog fetch failed: ${res.status}`);
+      }
+      return res.json() as Promise<ChangelogFile>;
+    })
+    .catch((err: unknown) => {
+      clearTimeout(timeoutId);
+      changelogPromise = null;
+      throw err;
+    });
+
+  return changelogPromise;
+};
 
 export const useChangelog = () => {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
@@ -27,30 +64,41 @@ export const useChangelog = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const load = async () => {
-      try {
-        const response = await fetch(`/changelog.json?t=${Date.now()}`, {
-          cache: 'no-store',
-        });
-        if (!response.ok) {
-          throw new Error(`changelog fetch failed: ${response.status}`);
-        }
-        const data = (await response.json()) as ChangelogFile;
+    fetchChangelog()
+      .then((data) => {
         if (cancelled) return;
-        setEntries(Array.isArray(data.entries) ? data.entries : []);
-      } catch (err) {
+        const next = Array.isArray(data.entries) ? data.entries : [];
+        // entriesSinceCurrent assumes newest-first ordering. Warn loudly if
+        // the curator accidentally appended a new entry at the bottom.
+        for (let i = 0; i < next.length - 1; i += 1) {
+          if (next[i].date < next[i + 1].date) {
+            console.warn(
+              `changelog.json entries appear out of order at index ${i}: ` +
+                `"${next[i].version}" (${next[i].date}) should not precede ` +
+                `"${next[i + 1].version}" (${next[i + 1].date}). ` +
+                `Entries must be newest-first.`
+            );
+            break;
+          }
+        }
+        setEntries(next);
+      })
+      .catch((err: unknown) => {
         if (cancelled) return;
         setError(err instanceof Error ? err : new Error(String(err)));
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    };
-    void load();
+      });
     return () => {
       cancelled = true;
     };
   }, []);
 
+  // Entries are expected newest-first; this returns everything before the
+  // user's current version (i.e. newer than their build). Returns all entries
+  // when the user's version isn't found, which covers users coming from a
+  // pre-changelog build.
   const entriesSinceCurrent = useCallback(
     (currentVersion: string): ChangelogEntry[] => {
       if (entries.length === 0) return [];
@@ -87,4 +135,22 @@ export const writeLastSeenVersion = (version: string | null): void => {
   } catch {
     // localStorage may be unavailable (private mode); silently no-op.
   }
+  // Notify same-tab listeners. Cross-tab is handled via the native `storage`
+  // event, which fires automatically on other tabs after setItem succeeds.
+  try {
+    window.dispatchEvent(
+      new CustomEvent(WHATSNEW_SEEN_EVENT, { detail: version })
+    );
+  } catch {
+    // CustomEvent unavailable in some non-browser test envs; ignore.
+  }
+};
+
+export const WHATSNEW_SEEN_EVENT_NAME = WHATSNEW_SEEN_EVENT;
+export const WHATSNEW_LAST_SEEN_STORAGE_KEY = LAST_SEEN_KEY;
+
+// Test-only: clears the module-level fetch cache so each test gets a fresh
+// network call. Production code should never need this.
+export const __resetChangelogCacheForTests = (): void => {
+  changelogPromise = null;
 };
