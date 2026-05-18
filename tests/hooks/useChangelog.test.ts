@@ -118,7 +118,7 @@ describe('useChangelog', () => {
               title: 'Themed release',
               overview: [
                 {
-                  type: 'feature',
+                  type: 'feature' as const,
                   subtitle: 'Collections',
                   items: [
                     { text: 'Top-level bullet' },
@@ -129,7 +129,7 @@ describe('useChangelog', () => {
                   ],
                 },
                 {
-                  type: 'fix',
+                  type: 'fix' as const,
                   // No subtitle — theme-less Fixes section.
                   items: [{ text: 'Flat fix bullet' }],
                 },
