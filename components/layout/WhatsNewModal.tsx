@@ -244,7 +244,10 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
           </div>
 
           {expanded && (
-            <div id={detailsId} className="border-t border-slate-100 pt-4 mt-3">
+            <div
+              id={detailsId}
+              className="border-t border-slate-100 pt-4 mt-3 animate-disclosure-expand"
+            >
               {detailsList}
             </div>
           )}
