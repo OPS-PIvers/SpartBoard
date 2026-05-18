@@ -1824,14 +1824,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         case 'admin':
           return false;
         case 'beta':
-          return isBetaUser(permission.betaUsers, userEmail);
+          if (!isBetaUser(permission.betaUsers, userEmail)) return false;
+          break;
         case 'public':
-          return true;
+          break;
         default:
           return false;
       }
+      // Building check applies only when explicitly restricted. An empty
+      // array or `undefined` means "no building restriction" — the feature
+      // applies to anyone who passed the access-level check above. When set,
+      // the user must have at least one of these buildings in their
+      // `selectedBuildings` (self-managed in General Settings).
+      if (permission.buildings && permission.buildings.length > 0) {
+        const allowed = new Set(permission.buildings);
+        const hasMatch = selectedBuildings.some((b) => allowed.has(b));
+        if (!hasMatch) return false;
+      }
+      return true;
     },
-    [isAdmin, isBetaUser]
+    [isAdmin, isBetaUser, selectedBuildings]
   );
 
   const canAccessFeature = useCallback(
