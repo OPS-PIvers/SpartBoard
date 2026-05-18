@@ -83,17 +83,47 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
     return [...set].sort();
   }, [allItems]);
 
+  /** Synthesize a minimal BackgroundItem for IDs not found in allItems (uploads, custom colors/gradients). */
+  const resolveBackgroundItem = (
+    id: string,
+    byId: Map<string, BackgroundItem>
+  ): BackgroundItem | undefined => {
+    const preset = byId.get(id);
+    if (preset) return preset;
+    if (id.startsWith('custom:')) {
+      const value = id.slice('custom:'.length);
+      const isGradient = value.startsWith('linear-gradient(');
+      return {
+        id,
+        label: isGradient ? 'Custom Gradient' : 'Custom Color',
+        type: isGradient ? 'gradient' : 'color',
+        tags: [],
+        // No thumbnailUrl — BackgroundThumbnail will render the CSS background
+      };
+    }
+    if (id.startsWith('https://') || id.startsWith('http://')) {
+      return {
+        id,
+        label: 'Uploaded Image',
+        type: 'upload',
+        thumbnailUrl: id,
+        tags: [],
+      };
+    }
+    return undefined;
+  };
+
   // Pre-filter by rail section
   const sectionItems = useMemo<BackgroundItem[]>(() => {
     const byId = new Map(allItems.map((i) => [i.id, i]));
     switch (section.kind) {
       case 'favorites':
         return favoriteBackgrounds
-          .map((id) => byId.get(id))
+          .map((id) => resolveBackgroundItem(id, byId))
           .filter(Boolean) as BackgroundItem[];
       case 'recent':
         return recentBackgrounds
-          .map((id) => byId.get(id))
+          .map((id) => resolveBackgroundItem(id, byId))
           .filter(Boolean) as BackgroundItem[];
       case 'category':
         return allItems.filter((i) => i.category === section.name);

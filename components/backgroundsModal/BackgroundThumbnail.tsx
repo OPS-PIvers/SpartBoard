@@ -36,6 +36,11 @@ export const BackgroundThumbnail: React.FC<BackgroundThumbnailProps> = ({
           decoding="async"
           className="w-full h-full object-cover"
         />
+      ) : item.id.startsWith('custom:') ? (
+        <div
+          className="w-full h-full"
+          style={{ background: item.id.slice('custom:'.length) }}
+        />
       ) : (
         <div className="w-full h-full bg-slate-200" />
       )}
