@@ -156,4 +156,25 @@ describe('BoardBreadcrumb (transient)', () => {
       screen.getByRole('dialog', { name: 'Boards Modal' })
     ).toBeInTheDocument();
   });
+
+  it('keeps the modal open after the display window expires', () => {
+    useDashboardMock.mockReturnValue({
+      activeDashboard: { id: 'd1', name: 'Board A', collectionId: null },
+      collectionsApi: { collections: [] },
+    });
+    render(<BoardBreadcrumb />);
+    act(() => {
+      fireEvent.click(screen.getByRole('button', { name: /manage boards/i }));
+    });
+    expect(
+      screen.getByRole('dialog', { name: 'Boards Modal' })
+    ).toBeInTheDocument();
+    act(() => {
+      vi.advanceTimersByTime(3500);
+    });
+    // Component must NOT return null while modal is open.
+    expect(
+      screen.getByRole('dialog', { name: 'Boards Modal' })
+    ).toBeInTheDocument();
+  });
 });
