@@ -4,7 +4,10 @@ import { Upload, Loader2 } from 'lucide-react';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDriveReconnected } from '@/hooks/useDriveReconnected';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { logError } from '@/utils/logError';
+import { BackgroundThumbnail } from './BackgroundThumbnail';
+import type { BackgroundItem } from './backgroundsHelpers';
 
 interface BackgroundsUploadsPanelProps {
   activeBackground?: string;
@@ -20,6 +23,7 @@ export const BackgroundsUploadsPanel: React.FC<
     isInitialized,
   } = useGoogleDrive();
   const { setBackground, addToast } = useDashboard();
+  const { favoriteBackgrounds, toggleFavoriteBackground } = useAuth();
 
   const [userUploads, setUserUploads] = useState<string[]>([]);
   const [loadingUploads, setLoadingUploads] = useState(false);
@@ -85,6 +89,28 @@ export const BackgroundsUploadsPanel: React.FC<
     }
   };
 
+  const handleToggleFavorite = (id: string) => {
+    toggleFavoriteBackground(id).catch((err) => {
+      logError('BackgroundsUploadsPanel.toggleFavorite', err);
+      addToast(
+        t('backgrounds.favoriteSaveFailed', {
+          defaultValue: 'Could not update favorites. Try again.',
+        }),
+        'error'
+      );
+    });
+  };
+
+  // Build BackgroundItem shapes from the raw URL list so the shared
+  // BackgroundThumbnail component can render them with the favorite affordance.
+  const uploadItems: BackgroundItem[] = userUploads.map((url) => ({
+    id: url,
+    label: t('backgrounds.uploadedImage', { defaultValue: 'Uploaded image' }),
+    type: 'upload' as const,
+    thumbnailUrl: url,
+    tags: [],
+  }));
+
   return (
     <div className="flex flex-col gap-4 p-4">
       <div>
@@ -97,6 +123,9 @@ export const BackgroundsUploadsPanel: React.FC<
         />
         <button
           type="button"
+          aria-label={t('backgrounds.uploadCta', {
+            defaultValue: 'Upload an image (max 5MB)',
+          })}
           onClick={() => fileInputRef.current?.click()}
           disabled={uploading || !isInitialized}
           className="w-full flex items-center justify-center gap-2 p-3 bg-brand-blue-primary text-white rounded-lg font-bold text-sm hover:bg-brand-blue-dark transition-colors disabled:opacity-50"
@@ -131,7 +160,7 @@ export const BackgroundsUploadsPanel: React.FC<
             defaultValue: 'Loading your uploads…',
           })}
         </div>
-      ) : userUploads.length === 0 ? (
+      ) : uploadItems.length === 0 ? (
         <p className="text-center text-sm text-slate-400 py-8">
           {t('backgrounds.noUploadsYet', {
             defaultValue: 'You have not uploaded any backgrounds yet.',
@@ -139,24 +168,15 @@ export const BackgroundsUploadsPanel: React.FC<
         </p>
       ) : (
         <div className="grid grid-cols-4 gap-3">
-          {userUploads.map((url) => (
-            <button
-              key={url}
-              type="button"
-              onClick={() => setBackground(url)}
-              className={`block w-full aspect-video rounded-lg overflow-hidden border-2 transition-all ${
-                activeBackground === url
-                  ? 'border-brand-blue-primary ring-2 ring-brand-blue-lighter'
-                  : 'border-transparent hover:border-slate-300'
-              }`}
-            >
-              <img
-                src={url}
-                alt=""
-                loading="lazy"
-                className="w-full h-full object-cover"
-              />
-            </button>
+          {uploadItems.map((item) => (
+            <BackgroundThumbnail
+              key={item.id}
+              item={item}
+              isActive={item.id === activeBackground}
+              isFavorite={favoriteBackgrounds.includes(item.id)}
+              onSelect={setBackground}
+              onToggleFavorite={handleToggleFavorite}
+            />
           ))}
         </div>
       )}
