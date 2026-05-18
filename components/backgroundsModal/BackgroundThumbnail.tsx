@@ -27,6 +27,7 @@ export const BackgroundThumbnail: React.FC<BackgroundThumbnailProps> = ({
           : 'border-transparent hover:border-slate-300'
       }`}
       aria-label={item.label}
+      aria-pressed={isActive}
     >
       {item.thumbnailUrl ? (
         <img
@@ -41,8 +42,18 @@ export const BackgroundThumbnail: React.FC<BackgroundThumbnailProps> = ({
           className="w-full h-full"
           style={{ background: item.id.slice('custom:'.length) }}
         />
+      ) : item.id.startsWith('http://') || item.id.startsWith('https://') ? (
+        <img
+          src={item.id}
+          alt={item.label}
+          loading="lazy"
+          decoding="async"
+          className="w-full h-full object-cover"
+        />
       ) : (
-        <div className="w-full h-full bg-slate-200" />
+        // Tailwind class string (built-in colors, patterns, gradients).
+        // Apply directly as className so the swatch renders correctly.
+        <div className={`w-full h-full ${item.id}`} />
       )}
       <span className="sr-only">{item.label}</span>
     </button>

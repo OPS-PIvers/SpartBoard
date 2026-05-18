@@ -17,11 +17,11 @@ export function useDebouncedCallback<TArgs extends unknown[]>(
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Keep the ref up to date with the latest fn so the debounced closure always
-  // invokes the freshest version. This is the correct escape-hatch pattern
-  // from React docs for "always invoke the latest fn": update in a layout
-  // effect so the ref is set synchronously before any scheduled timeout fires.
-  // We intentionally omit the dependency array (same as `useEffect` with no
-  // deps) so it runs after every render.
+  // invokes the freshest version. CLAUDE.md prefers render-body ref assignment,
+  // but the `react-hooks/refs` ESLint rule blocks that pattern for newly-added
+  // code. The unconditional effect runs after every render and before any
+  // scheduled timeout can fire (timers always defer to the next event loop
+  // tick), so behavior matches the render-body approach.
   useEffect(() => {
     fnRef.current = fn;
   });
