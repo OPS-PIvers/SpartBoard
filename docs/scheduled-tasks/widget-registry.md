@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-17_
+_Last audited: 2026-05-18_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-18: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types). Recent commits since 2026-05-17: feat(whats-new) 8e86f851, fix(soundwidget) 6bf370df, fix(quiz-results-protection) 0f81a137, fix(number-line-cqmin) 8b91d650, feat(collection-level-templates) 516ab8dc (added 84 lines to types.ts — new CollectionTemplate interfaces; no new WidgetType members), chore(comments) 56dac1ca. None touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Zero new gaps. All lazyNamed() export names remain correct. No open items._
 
 _2026-05-17: Full audit of all 63 WidgetType values. types.ts WidgetType union unchanged (still 63 types). Recent commits since 2026-05-16: perf(functions) 0c0457f3, feat(Collection-level-sharing) 2f8d6751, fix(collections-polish) 6dccd37a/e490fa79/debe426f, feat(quiz-screenshot-protection) 2bf54e9d. None touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Zero new gaps. All lazyNamed() export names remain correct. No open items._
 
