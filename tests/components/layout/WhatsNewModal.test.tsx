@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import type { ChangelogEntry } from '@/hooks/useChangelog';
@@ -288,7 +288,3 @@ describe('WhatsNewModal — disclosure', () => {
     expect(document.getElementById(controlsId)).not.toBeNull();
   });
 });
-
-// `within` is exported for use in later tasks; pull it into a no-op
-// reference here to keep the import alive across edits.
-void within;

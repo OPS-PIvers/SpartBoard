@@ -24,14 +24,14 @@ interface WhatsNewModalProps {
 const GROUP_ORDER: ChangelogHighlightType[] = ['feature', 'improvement', 'fix'];
 
 const groupHighlights = (
-  highlights: ChangelogHighlight[]
+  details: ChangelogHighlight[]
 ): Record<ChangelogHighlightType, ChangelogHighlight[]> => {
   const groups: Record<ChangelogHighlightType, ChangelogHighlight[]> = {
     feature: [],
     improvement: [],
     fix: [],
   };
-  for (const h of highlights) {
+  for (const h of details) {
     if (groups[h.type]) groups[h.type].push(h);
   }
   return groups;
