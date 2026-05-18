@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp, RefreshCw, Sparkles } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import {
   ChangelogBullet,
+  ChangelogBulletChild,
   ChangelogEntry,
   ChangelogHighlight,
   ChangelogHighlightType,
@@ -51,27 +52,33 @@ const groupOverviewByType = (
   return groups;
 };
 
-const OverviewBulletList: React.FC<{
-  items: ChangelogBullet[];
-  nested?: boolean;
-}> = ({ items, nested = false }) => (
-  <ul
-    className={
-      nested ? 'flex flex-col gap-1 pl-4 mt-1.5' : 'flex flex-col gap-1.5'
-    }
-  >
+const ChildBulletList: React.FC<{ items: ChangelogBulletChild[] }> = ({
+  items,
+}) => (
+  <ul className="flex flex-col gap-1 pl-4 mt-1.5">
     {items.map((bullet, idx) => (
       <li
         key={idx}
-        className={
-          nested
-            ? 'text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-100'
-            : 'text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-200'
-        }
+        className="text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-100"
+      >
+        {bullet.text}
+      </li>
+    ))}
+  </ul>
+);
+
+const OverviewBulletList: React.FC<{ items: ChangelogBullet[] }> = ({
+  items,
+}) => (
+  <ul className="flex flex-col gap-1.5">
+    {items.map((bullet, idx) => (
+      <li
+        key={idx}
+        className="text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-200"
       >
         {bullet.text}
         {bullet.items && bullet.items.length > 0 && (
-          <OverviewBulletList items={bullet.items} nested />
+          <ChildBulletList items={bullet.items} />
         )}
       </li>
     ))}

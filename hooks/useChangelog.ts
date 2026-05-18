@@ -7,11 +7,18 @@ export interface ChangelogHighlight {
   text: string;
 }
 
-// Recursive bullet for the overview. `items` holds optional sub-bullets;
-// by convention the Routine prompt caps nesting at one level deep.
+// A leaf-level sub-bullet — has no further nesting. The one-level cap
+// is enforced here in the type system, not only as a Routine-prompt
+// convention, so a deeper nest is a compile-time error.
+export interface ChangelogBulletChild {
+  text: string;
+}
+
+// Top-level overview bullet. May carry `items` (sub-bullets), but the
+// children's type cannot nest further.
 export interface ChangelogBullet {
   text: string;
-  items?: ChangelogBullet[];
+  items?: ChangelogBulletChild[];
 }
 
 // A themed section under a single type. `subtitle` is optional so
