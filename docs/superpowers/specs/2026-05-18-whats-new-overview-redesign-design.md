@@ -208,15 +208,15 @@ Example of the 2026.05.19 entry after migration:
 
 ### i18n
 
-`locales/en.json` (and the other locales `de`, `es`, `fr`) under `whatsNew.*`:
+Only `locales/en.json` contains the modal's deeper `whatsNew.*` keys today; `de`/`es`/`fr` only carry the sidebar's `whatsNew` and `whatsNewBadge` entries. The modal relies on the `defaultValue` fallback in every `t()` call for non-English locales — that convention is unchanged here, so only `en.json` is edited.
+
+In `locales/en.json` under `whatsNew.*`:
 
 - **Add:** `whatsNew.readFullUpdate` → `"Read full update"`
 - **Add:** `whatsNew.showLess` → `"Show less"`
 - **Remove:** `whatsNew.currentBuild` (`"Your build"`) — no longer rendered.
 - **Keep:** existing `whatsNew.groups.feature` / `whatsNew.groups.improvement` / `whatsNew.groups.fix` ("New" / "Improvements" / "Fixes") — used by both overview type headings and details view.
 - Date formatting uses `Intl.DateTimeFormat(i18n.language, { dateStyle: 'long' })` — no translation keys needed.
-
-For the non-English locales (`de`, `es`, `fr`), I'll add provisional translations of the two new keys following the same simple-imperative style as the existing keys. If any locale's existing keys turn out to use a different convention, I'll match that locale's voice instead of forcing a literal translation.
 
 ## Code touch points
 
@@ -241,7 +241,7 @@ For the non-English locales (`de`, `es`, `fr`), I'll add provisional translation
   - Add overview-rendering helpers: `OverviewSection` (renders one themed section), `OverviewBulletList` (recursive for sub-bullets).
   - Keep details-rendering logic factored into a sibling helper (`DetailsList`) — used both from the details-only path and the expanded path under overview.
 
-- **`locales/en.json` + `locales/de.json` + `locales/es.json` + `locales/fr.json`**
+- **`locales/en.json`** (only locale carrying the modal's deeper keys)
   - Add `whatsNew.readFullUpdate` and `whatsNew.showLess`.
   - Remove `whatsNew.currentBuild`.
 
