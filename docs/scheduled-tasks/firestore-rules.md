@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Monday_
 _Last audited: 2026-05-18_
-_Last action: 2026-05-18 (admin_audit_log immutability hardening)_
+_Last action: never_
 
 ---
 
@@ -34,7 +34,9 @@ _Nothing currently in progress._
 
 ## Completed
 
-### HIGH `admin_audit_log` collection has no Firestore security rule
+_2026-05-18: Full collection audit. Frontend collections (18 unique names via `db, '...'` pattern scan) and functions collections cross-referenced against match blocks in firestore.rules (now 2963+ lines). New collection since 2026-05-13: `shared_collections` — added in Collection-level sharing PRs (2f8d6751, f691e285) and covered at firestore.rules:852 with full read/write/subcollection rules for boards. Default-deny catch-all at final line confirmed present. `admin_audit_log` HIGH open item remains unfixed. No new unmatched collections._
+
+_2026-05-13: Full collection audit. Frontend collections (23 unique names) and functions collections (12 unique names) cross-referenced against match blocks in firestore.rules (2573 lines). All collections verified to have match rules except `admin_audit_log` (confirmed HIGH open item remains unfixed). Default-deny catch-all at line 2569 confirmed present. No new unmatched collections introduced since 2026-05-04. New functions-only collections since last audit: none — functions code stable._
 
 - **Detected:** 2026-04-13
 - **Completed:** 2026-05-18
