@@ -195,6 +195,19 @@ const makeHybridBypassUser = (anonUser: User): User =>
     },
   });
 
+/**
+ * Per-feature default for `canAccessFeature` when no permission doc exists
+ * in `global_permissions`. Features not listed here default to `true`
+ * (public). Add an entry here when a feature must stay off until an admin
+ * explicitly seeds the doc — e.g. when it depends on external configuration
+ * (OAuth setup, API keys) that the code can't verify on its own.
+ */
+const CANACCESSFEATURE_MISSING_DOC_DEFAULT: Partial<
+  Record<GlobalFeature, boolean>
+> = {
+  'personal-spotify': false,
+};
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
@@ -1855,8 +1868,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (p) => p.featureId === featureId
       );
 
-      // Public default for missing record — see resolvePermissionAccess docs.
-      if (!permission) return true;
+      // Per-feature override; defaults to public (`true`) for any feature
+      // not listed in CANACCESSFEATURE_MISSING_DOC_DEFAULT.
+      if (!permission) {
+        return CANACCESSFEATURE_MISSING_DOC_DEFAULT[featureId] ?? true;
+      }
       return resolvePermissionAccess(permission, user.email);
     },
     [user, globalPermissions, resolvePermissionAccess]
