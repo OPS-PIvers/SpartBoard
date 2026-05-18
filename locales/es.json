@@ -448,13 +448,13 @@
         "oneFingerLongPress": "Mantener presionado con 1 dedo",
         "oneFingerDrag": "Arrastrar con 1 dedo sobre el fondo",
         "oneFingerSwipeEdge": "Deslizar 1 dedo desde el borde izquierdo",
-        "twoFingerSwipeLR": "Deslizar 2 dedos \u2190/\u2192",
-        "twoFingerSwipeDown": "Deslizar 2 dedos \u2193",
-        "twoFingerSwipeUp": "Deslizar 2 dedos \u2191",
+        "twoFingerSwipeLR": "Deslizar 2 dedos ←/→",
+        "twoFingerSwipeDown": "Deslizar 2 dedos ↓",
+        "twoFingerSwipeUp": "Deslizar 2 dedos ↑",
         "twoFingerLongPress": "Mantener 2 dedos (~0,6 s)",
-        "dragDownToDock": "Arrastrar al dock \u2193",
-        "widgetTwoFingerSwipeDown": "Deslizar 2 dedos \u2193",
-        "widgetTwoFingerSwipeUp": "Deslizar 2 dedos \u2191"
+        "dragDownToDock": "Arrastrar al dock ↓",
+        "widgetTwoFingerSwipeDown": "Deslizar 2 dedos ↓",
+        "widgetTwoFingerSwipeUp": "Deslizar 2 dedos ↑"
       }
     },
     "dashboard": {
@@ -471,7 +471,7 @@
     "root": "All Boards (root)"
   },
   "boardsModal": {
-    "title": "Boards",
+    "title": "Boards & Collections",
     "close": "Close",
     "searchPlaceholder": "Search Boards & Collections",
     "newBoard": "New Board",
@@ -613,5 +613,10 @@
     "customGradient": "Degradado personalizado",
     "applied": "Aplicado",
     "apply": "Aplicar"
+  },
+  "quickAccess": {
+    "title": "Quick Access Widgets",
+    "searchPlaceholder": "Search widgets…",
+    "emptyResults": "No widgets match."
   }
 }
