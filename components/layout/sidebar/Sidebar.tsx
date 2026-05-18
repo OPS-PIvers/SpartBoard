@@ -46,7 +46,6 @@ import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
 import { StylePanel } from './StylePanel';
-import { SidebarBoardsActive } from './SidebarBoardsActive';
 import { BackgroundsModal } from '@/components/backgroundsModal/BackgroundsModal';
 import { QuickAccessModal } from '@/components/quickAccessModal/QuickAccessModal';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
@@ -64,7 +63,6 @@ declare const __APP_VERSION__: string;
 
 type MenuSection =
   | 'main'
-  | 'boards'
   | 'classes'
   | 'plcs'
   | 'style'
@@ -688,16 +686,6 @@ export const Sidebar: React.FC = () => {
                   </button>
                 </div>
               </nav>
-
-              {/* BOARDS SECTION */}
-              <SidebarBoardsActive
-                isVisible={activeSection === 'boards'}
-                onOpenModal={() => {
-                  setIsBoardsModalOpen(true);
-                  setIsOpen(false);
-                  setActiveSection('main');
-                }}
-              />
 
               {/* CLASSES SECTION */}
               <SidebarClasses isVisible={activeSection === 'classes'} />
