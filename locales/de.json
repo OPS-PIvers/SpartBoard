@@ -493,7 +493,8 @@
     "customColor": "Benutzerdefinierte Farbe",
     "customGradient": "Benutzerdefinierter Verlauf",
     "applied": "Angewendet",
-    "apply": "Anwenden"
+    "apply": "Anwenden",
+    "favoriteSaveFailed": "Could not save favorite. Please try again."
   },
   "quickAccess": {
     "title": "Quick Access Widgets",

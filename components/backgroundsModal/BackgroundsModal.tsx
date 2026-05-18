@@ -31,7 +31,7 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
 }) => {
   const { t } = useTranslation();
   const { presets, colors, patterns, gradients } = useBackgrounds();
-  const { activeDashboard, setBackground } = useDashboard();
+  const { activeDashboard, setBackground, addToast } = useDashboard();
   const { favoriteBackgrounds, recentBackgrounds, toggleFavoriteBackground } =
     useAuth();
 
@@ -164,8 +164,13 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
   };
 
   const handleToggleFavorite = (id: string) => {
-    toggleFavoriteBackground(id).catch((err) => {
-      console.warn('Failed to toggle favorite background', err);
+    toggleFavoriteBackground(id).catch(() => {
+      addToast(
+        t('backgrounds.favoriteSaveFailed', {
+          defaultValue: 'Could not save favorite. Please try again.',
+        }),
+        'error'
+      );
     });
   };
 

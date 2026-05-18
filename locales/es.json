@@ -612,7 +612,8 @@
     "customColor": "Color personalizado",
     "customGradient": "Degradado personalizado",
     "applied": "Aplicado",
-    "apply": "Aplicar"
+    "apply": "Aplicar",
+    "favoriteSaveFailed": "Could not save favorite. Please try again."
   },
   "quickAccess": {
     "title": "Quick Access Widgets",
