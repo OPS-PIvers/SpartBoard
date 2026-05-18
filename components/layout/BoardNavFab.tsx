@@ -13,7 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Folder,
-  MoreVertical,
+  LayoutGrid,
   Star,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
@@ -31,10 +31,11 @@ export const BoardNavFab: FC = () => {
     setActiveCollectionId,
     collectionsApi: { collections },
   } = useDashboard();
-  const [isPickerOpen, setIsPickerOpen] = useState(false);
+  const [isBoardsMenuOpen, setIsBoardsMenuOpen] = useState(false);
   const [isCollectionMenuOpen, setIsCollectionMenuOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
-  const triggerRef = useRef<HTMLButtonElement>(null);
+  const boardsTriggerRef = useRef<HTMLButtonElement>(null);
+  const collectionsTriggerRef = useRef<HTMLButtonElement>(null);
   const itemRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const headerId = useId();
 
@@ -52,47 +53,50 @@ export const BoardNavFab: FC = () => {
     return boardsInCollection.findIndex((d) => d.id === activeDashboard.id);
   }, [boardsInCollection, activeDashboard]);
 
-  const closePicker = useCallback(
+  const showCollectionsButton = collections.length >= 2;
+  const showPrevNext = boardsInCollection.length >= 2;
+  // Render the row whenever there's anything navigable. Without this guard the
+  // single-board user would lose their only path to BoardsModal once the
+  // always-on breadcrumb pill becomes transient.
+  const showFabRow = dashboards.length > 1 || collections.length > 0;
+
+  const closeBoardsMenu = useCallback(
     (returnFocus = true) => {
-      setIsPickerOpen(false);
-      if (returnFocus) triggerRef.current?.focus();
+      setIsBoardsMenuOpen(false);
+      if (returnFocus) boardsTriggerRef.current?.focus();
     },
-    [setIsPickerOpen]
+    [setIsBoardsMenuOpen]
   );
 
   const handleClickOutside = useCallback(() => {
-    closePicker(false);
+    setIsBoardsMenuOpen(false);
     setIsCollectionMenuOpen(false);
-  }, [closePicker]);
+  }, []);
 
   useClickOutside(containerRef, handleClickOutside);
 
-  // Move focus into the menu the first time it opens; default to the active
-  // board. Tracks "already focused this open-cycle" via a ref so a Firestore
-  // snapshot reordering dashboards (which bumps currentIndex) doesn't yank
-  // focus from wherever the keyboard user has navigated since.
+  // Seed focus to the active board (or first item) on first menu open. Tracks
+  // "already focused this open cycle" via a ref so Firestore snapshots that
+  // reorder dashboards don't yank focus from where the user navigated.
   const didFocusOnOpenRef = useRef(false);
   useEffect(() => {
-    if (!isPickerOpen) {
+    if (!isBoardsMenuOpen) {
       didFocusOnOpenRef.current = false;
       return;
     }
     if (didFocusOnOpenRef.current) return;
     didFocusOnOpenRef.current = true;
-    const switchSlot = collections.length > 0 ? 1 : 0;
-    const targetIdx =
-      currentIndex >= 0 ? currentIndex + switchSlot : switchSlot;
+    const targetIdx = currentIndex >= 0 ? currentIndex : 0;
     itemRefs.current[targetIdx]?.focus();
-  }, [isPickerOpen, currentIndex, collections.length]);
+  }, [isBoardsMenuOpen, currentIndex]);
 
   // Drop trailing ref slots when the dashboard list shrinks so we don't
   // dispatch focus to detached buttons after a board is deleted.
   useEffect(() => {
-    const switchSlot = collections.length > 0 ? 1 : 0;
-    itemRefs.current.length = switchSlot + boardsInCollection.length;
-  }, [boardsInCollection.length, collections.length]);
+    itemRefs.current.length = boardsInCollection.length;
+  }, [boardsInCollection.length]);
 
-  if (boardsInCollection.length <= 1) return null;
+  if (!showFabRow) return null;
 
   const goPrev = () => {
     if (currentIndex < 0) return;
@@ -109,10 +113,9 @@ export const BoardNavFab: FC = () => {
   };
 
   const focusItem = (idx: number) => {
-    const switchSlot = collections.length > 0 ? 1 : 0;
-    const totalItems = switchSlot + boardsInCollection.length;
-    if (totalItems === 0) return;
-    const wrapped = ((idx % totalItems) + totalItems) % totalItems;
+    const total = boardsInCollection.length;
+    if (total === 0) return;
+    const wrapped = ((idx % total) + total) % total;
     itemRefs.current[wrapped]?.focus();
   };
 
@@ -123,7 +126,7 @@ export const BoardNavFab: FC = () => {
     switch (e.key) {
       case 'Escape':
         e.preventDefault();
-        closePicker();
+        closeBoardsMenu();
         break;
       case 'ArrowDown':
         e.preventDefault();
@@ -132,9 +135,7 @@ export const BoardNavFab: FC = () => {
       case 'ArrowUp':
         e.preventDefault();
         focusItem(
-          focusedIdx < 0
-            ? (collections.length > 0 ? 1 : 0) + boardsInCollection.length - 1
-            : focusedIdx - 1
+          focusedIdx < 0 ? boardsInCollection.length - 1 : focusedIdx - 1
         );
         break;
       case 'Home':
@@ -143,13 +144,10 @@ export const BoardNavFab: FC = () => {
         break;
       case 'End':
         e.preventDefault();
-        focusItem(
-          (collections.length > 0 ? 1 : 0) + boardsInCollection.length - 1
-        );
+        focusItem(boardsInCollection.length - 1);
         break;
       case 'Tab':
-        // Tab takes focus out of the menu — close to keep state consistent.
-        closePicker(false);
+        closeBoardsMenu(false);
         break;
     }
   };
@@ -172,16 +170,12 @@ export const BoardNavFab: FC = () => {
           onSelect={(id) => setActiveCollectionId(id)}
           onClose={() => {
             setIsCollectionMenuOpen(false);
-            // Restore focus to the trigger button so keyboard users aren't
-            // dropped on document.body when the submenu unmounts. Use
-            // requestAnimationFrame to let React commit the unmount before
-            // attempting focus (the board-list menu may still be mid-update).
-            requestAnimationFrame(() => triggerRef.current?.focus());
+            requestAnimationFrame(() => collectionsTriggerRef.current?.focus());
           }}
         />
       )}
 
-      {isPickerOpen && !isCollectionMenuOpen && (
+      {isBoardsMenuOpen && !isCollectionMenuOpen && (
         <div
           role="menu"
           aria-labelledby={headerId}
@@ -194,40 +188,18 @@ export const BoardNavFab: FC = () => {
           >
             {boardListLabel}
           </div>
-          {collections.length > 0 && (
-            <button
-              ref={(el) => {
-                itemRefs.current[0] = el;
-              }}
-              role="menuitem"
-              onClick={() => {
-                setIsPickerOpen(false);
-                setIsCollectionMenuOpen(true);
-              }}
-              className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm text-white/80 hover:bg-white/10 border-b border-white/10 mb-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
-            >
-              <Folder className="w-3.5 h-3.5 flex-shrink-0" />
-              {t('boardNav.switchCollection', {
-                defaultValue: 'Switch Collection…',
-              })}
-            </button>
-          )}
           {boardsInCollection.map((db, idx) => {
             const isActive = activeDashboard?.id === db.id;
-            // Offset board indices by 1 when the Switch Collection item occupies
-            // itemRefs[0]. Keeps Arrow-key navigation inclusive of both the
-            // collection switcher and every board in the active collection.
-            const refIdx = collections.length > 0 ? idx + 1 : idx;
             return (
               <button
                 key={db.id}
                 ref={(el) => {
-                  itemRefs.current[refIdx] = el;
+                  itemRefs.current[idx] = el;
                 }}
                 role="menuitem"
                 onClick={() => {
                   loadDashboard(db.id);
-                  closePicker();
+                  closeBoardsMenu();
                 }}
                 className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
                   isActive
@@ -256,40 +228,68 @@ export const BoardNavFab: FC = () => {
       </div>
 
       <div className="flex items-center gap-1">
+        {showPrevNext && (
+          <button
+            type="button"
+            onClick={goPrev}
+            aria-label={t('boardNav.previous', {
+              defaultValue: 'Previous board',
+            })}
+            title={t('boardNav.previous', { defaultValue: 'Previous board' })}
+            className={FAB_BASE}
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        )}
+        {showCollectionsButton && (
+          <button
+            ref={collectionsTriggerRef}
+            type="button"
+            onClick={() => {
+              setIsBoardsMenuOpen(false);
+              setIsCollectionMenuOpen((v) => !v);
+            }}
+            aria-label={t('boardNav.selectCollection', {
+              defaultValue: 'Select collection',
+            })}
+            aria-haspopup="menu"
+            aria-expanded={isCollectionMenuOpen}
+            title={t('boardNav.selectCollection', {
+              defaultValue: 'Select collection',
+            })}
+            className={FAB_BASE}
+          >
+            <Folder className="w-4 h-4" />
+          </button>
+        )}
         <button
+          ref={boardsTriggerRef}
           type="button"
-          onClick={goPrev}
-          aria-label={t('boardNav.previous', {
-            defaultValue: 'Previous board',
-          })}
-          title={t('boardNav.previous', { defaultValue: 'Previous board' })}
-          className={FAB_BASE}
-        >
-          <ChevronLeft className="w-4 h-4" />
-        </button>
-        <button
-          ref={triggerRef}
-          type="button"
-          onClick={() => setIsPickerOpen((v) => !v)}
+          onClick={() => {
+            setIsCollectionMenuOpen(false);
+            setIsBoardsMenuOpen((v) => !v);
+          }}
           aria-label={t('boardNav.selectBoard', {
             defaultValue: 'Select board',
           })}
           aria-haspopup="menu"
-          aria-expanded={isPickerOpen || isCollectionMenuOpen}
+          aria-expanded={isBoardsMenuOpen}
           title={activeName}
           className={FAB_BASE}
         >
-          <MoreVertical className="w-4 h-4" />
+          <LayoutGrid className="w-4 h-4" />
         </button>
-        <button
-          type="button"
-          onClick={goNext}
-          aria-label={t('boardNav.next', { defaultValue: 'Next board' })}
-          title={t('boardNav.next', { defaultValue: 'Next board' })}
-          className={FAB_BASE}
-        >
-          <ChevronRight className="w-4 h-4" />
-        </button>
+        {showPrevNext && (
+          <button
+            type="button"
+            onClick={goNext}
+            aria-label={t('boardNav.next', { defaultValue: 'Next board' })}
+            title={t('boardNav.next', { defaultValue: 'Next board' })}
+            className={FAB_BASE}
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        )}
       </div>
     </div>
   );
