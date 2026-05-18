@@ -21,8 +21,10 @@
     "previous": "Previous board",
     "next": "Next board",
     "selectBoard": "Select board",
+    "selectCollection": "Select collection",
     "boardList": "All boards",
-    "switchCollection": "Switch Collection…"
+    "switchCollection": "Switch Collection…",
+    "manageAllBoards": "Manage all boards…"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
