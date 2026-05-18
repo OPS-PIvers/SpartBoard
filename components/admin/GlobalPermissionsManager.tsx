@@ -156,7 +156,11 @@ const GLOBAL_FEATURES: {
  * record as admin-only.
  */
 const ADMIN_ONLY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
-  new Set<GlobalFeature>(['embed-mini-app', 'share-link-tracking']);
+  new Set<GlobalFeature>([
+    'embed-mini-app',
+    'share-link-tracking',
+    'personal-spotify', // align with CANACCESSFEATURE_MISSING_DOC_DEFAULT (default-off)
+  ]);
 
 /**
  * Widgets surfaced in the Assignment Modes admin section. All four widgets
