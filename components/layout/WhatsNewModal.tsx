@@ -1,6 +1,13 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { RefreshCw, Sparkles, Wrench, ArrowUpRight } from 'lucide-react';
+import {
+  ArrowUpRight,
+  ChevronDown,
+  ChevronUp,
+  RefreshCw,
+  Sparkles,
+  Wrench,
+} from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import {
   ChangelogBullet,
@@ -79,7 +86,9 @@ const OverviewSection: React.FC<{ section: ChangelogThemedSection }> = ({
   </div>
 );
 
-const PillIcon: React.FC<{ type: ChangelogHighlightType }> = ({ type }) => {
+// _PillIcon and _Pill are preserved here for Task 10 removal; they are no
+// longer rendered after Task 7 removed the pill strip from both entry paths.
+const _PillIcon: React.FC<{ type: ChangelogHighlightType }> = ({ type }) => {
   if (type === 'feature') {
     return <Sparkles className="w-3 h-3" />;
   }
@@ -89,7 +98,7 @@ const PillIcon: React.FC<{ type: ChangelogHighlightType }> = ({ type }) => {
   return <Wrench className="w-3 h-3" />;
 };
 
-const Pill: React.FC<{
+const _Pill: React.FC<{
   type: ChangelogHighlightType;
   label: string;
   count: number;
@@ -104,7 +113,7 @@ const Pill: React.FC<{
     <div
       className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xxs font-bold uppercase tracking-wide ${styles}`}
     >
-      <PillIcon type={type} />
+      <_PillIcon type={type} />
       {label}
       <span className="opacity-60">·</span>
       <span>{count}</span>
@@ -127,6 +136,17 @@ const formatEntryDate = (iso: string, language: string): string => {
 const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
   const { t, i18n } = useTranslation();
   const groups = useMemo(() => groupHighlights(entry.details), [entry]);
+  const overviewByType = useMemo(
+    () => (entry.overview ? groupOverviewByType(entry.overview) : null),
+    [entry.overview]
+  );
+  const hasOverview =
+    overviewByType !== null &&
+    GROUP_ORDER.some((type) => overviewByType[type].length > 0);
+
+  const [expanded, setExpanded] = useState(false);
+  const detailsId = useId();
+
   const labels: Record<ChangelogHighlightType, string> = {
     feature: t('whatsNew.groups.feature', { defaultValue: 'New' }),
     improvement: t('whatsNew.groups.improvement', {
@@ -135,13 +155,32 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
     fix: t('whatsNew.groups.fix', { defaultValue: 'Fixes' }),
   };
 
-  const overviewByType = useMemo(
-    () => (entry.overview ? groupOverviewByType(entry.overview) : null),
-    [entry.overview]
+  // Details list: rendered inline when there's no overview, OR inside the
+  // expanded disclosure. Extracted so we only have one source of truth for
+  // the by-type render.
+  const detailsList = (
+    <div className="flex flex-col gap-3">
+      {GROUP_ORDER.map((type) =>
+        groups[type].length > 0 ? (
+          <div key={type}>
+            <h5 className="text-xxs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+              {labels[type]}
+            </h5>
+            <ul className="flex flex-col gap-1.5">
+              {groups[type].map((h, idx) => (
+                <li
+                  key={idx}
+                  className="text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-200"
+                >
+                  {h.text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null
+      )}
+    </div>
   );
-  const hasOverview =
-    overviewByType !== null &&
-    GROUP_ORDER.some((type) => overviewByType[type].length > 0);
 
   return (
     <section className="pt-5 first:pt-0 pb-5 border-b border-slate-100 last:border-b-0">
@@ -151,57 +190,56 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
           {formatEntryDate(entry.date, i18n.language)}
         </p>
       </header>
-      {hasOverview && overviewByType && (
-        <div className="flex flex-col gap-3 mb-3">
-          {GROUP_ORDER.map((type) =>
-            overviewByType[type].length > 0 ? (
-              <div key={type}>
-                <h5 className="text-xxs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                  {labels[type]}
-                </h5>
-                <div className="flex flex-col gap-3">
-                  {overviewByType[type].map((section, idx) => (
-                    <OverviewSection key={idx} section={section} />
-                  ))}
+
+      {hasOverview && overviewByType ? (
+        <>
+          <div className="flex flex-col gap-3">
+            {GROUP_ORDER.map((type) =>
+              overviewByType[type].length > 0 ? (
+                <div key={type}>
+                  <h5 className="text-xxs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                    {labels[type]}
+                  </h5>
+                  <div className="flex flex-col gap-3">
+                    {overviewByType[type].map((section, idx) => (
+                      <OverviewSection key={idx} section={section} />
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ) : null
-          )}
-        </div>
-      )}
-      <div className="flex gap-2 mb-3 flex-wrap">
-        {GROUP_ORDER.map((type) =>
-          groups[type].length > 0 ? (
-            <Pill
-              key={type}
-              type={type}
-              label={labels[type]}
-              count={groups[type].length}
-            />
-          ) : null
-        )}
-      </div>
-      <div className="flex flex-col gap-3">
-        {GROUP_ORDER.map((type) =>
-          groups[type].length > 0 ? (
-            <div key={type}>
-              <h5 className="text-xxs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                {labels[type]}
-              </h5>
-              <ul className="flex flex-col gap-1.5">
-                {groups[type].map((h, idx) => (
-                  <li
-                    key={idx}
-                    className="text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-200"
-                  >
-                    {h.text}
-                  </li>
-                ))}
-              </ul>
+              ) : null
+            )}
+          </div>
+
+          <div className="flex justify-end mt-3">
+            <button
+              type="button"
+              onClick={() => setExpanded((prev) => !prev)}
+              aria-expanded={expanded}
+              aria-controls={detailsId}
+              className="text-xs font-semibold text-brand-blue-primary hover:text-brand-blue-dark inline-flex items-center gap-1"
+            >
+              {expanded
+                ? t('whatsNew.showLess', { defaultValue: 'Show less' })
+                : t('whatsNew.readFullUpdate', {
+                    defaultValue: 'Read full update',
+                  })}
+              {expanded ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+            </button>
+          </div>
+
+          {expanded && (
+            <div id={detailsId} className="border-t border-slate-100 pt-4 mt-3">
+              {detailsList}
             </div>
-          ) : null
-        )}
-      </div>
+          )}
+        </>
+      ) : (
+        detailsList
+      )}
     </section>
   );
 };

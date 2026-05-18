@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
 import type { ChangelogEntry } from '@/hooks/useChangelog';
 
@@ -70,9 +71,7 @@ describe('WhatsNewModal — no-overview entries', () => {
   it('renders the details list flat under the type heading', () => {
     renderModal([detailsOnlyEntry]);
     expect(screen.getByText("What's New panel introduced")).toBeInTheDocument();
-    // The "New" type heading appears as an <h5> and in the pill; getAllByText
-    // confirms at least one instance is present without failing on duplicates.
-    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
+    expect(screen.getByText('New')).toBeInTheDocument();
     expect(
       screen.getByText(/single, themeless feature bullet/)
     ).toBeInTheDocument();
@@ -158,11 +157,9 @@ describe('WhatsNewModal — overview rendering', () => {
   it('renders themed subtitles under the right type buckets', () => {
     renderModal([overviewEntry]);
     // Type headings appear in fixed order — New, Improvements, Fixes.
-    // (Use getAllByText since the same labels also appear as pill text
-    // until Task 7 removes the pills.)
-    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Improvements').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Fixes').length).toBeGreaterThan(0);
+    expect(screen.getByText('New')).toBeInTheDocument();
+    expect(screen.getByText('Improvements')).toBeInTheDocument();
+    expect(screen.getByText('Fixes')).toBeInTheDocument();
     // Themed subheads appear as bold text on their own.
     expect(screen.getByText('Collections')).toBeInTheDocument();
     expect(screen.getByText('Quiz response security')).toBeInTheDocument();
@@ -185,6 +182,73 @@ describe('WhatsNewModal — overview rendering', () => {
     expect(
       screen.getByText('A direct fix bullet under the Fixes heading.')
     ).toBeInTheDocument();
+  });
+});
+
+describe('WhatsNewModal — disclosure', () => {
+  beforeEach(() => {
+    useChangelogMock.mockReset();
+    writeLastSeenVersionMock.mockReset();
+  });
+
+  const overviewEntry: ChangelogEntry = {
+    version: '2026.05.19',
+    date: '2026-05-19',
+    title: 'Disclosure test entry',
+    overview: [
+      {
+        type: 'feature',
+        subtitle: 'Headline theme',
+        items: [{ text: 'Curated overview bullet that is always visible.' }],
+      },
+    ],
+    details: [
+      {
+        type: 'feature',
+        text: 'Exhaustive detail bullet that is hidden until expanded.',
+      },
+      { type: 'fix', text: 'Bug fix from the patch notes.' },
+    ],
+  };
+
+  it('shows the "Read full update" button when overview is present', () => {
+    renderModal([overviewEntry]);
+    expect(
+      screen.getByRole('button', { name: /read full update/i })
+    ).toBeInTheDocument();
+  });
+
+  it('does not render the details list when collapsed', () => {
+    renderModal([overviewEntry]);
+    expect(
+      screen.queryByText(/exhaustive detail bullet/i)
+    ).not.toBeInTheDocument();
+  });
+
+  it('reveals details and swaps to "Show less" when the disclosure is clicked', async () => {
+    const user = userEvent.setup();
+    renderModal([overviewEntry]);
+    const button = screen.getByRole('button', { name: /read full update/i });
+    await user.click(button);
+    expect(screen.getByText(/exhaustive detail bullet/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /show less/i })
+    ).toBeInTheDocument();
+  });
+
+  it('wires aria-expanded and aria-controls to the details region', async () => {
+    const user = userEvent.setup();
+    renderModal([overviewEntry]);
+    const button = screen.getByRole('button', { name: /read full update/i });
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    const controlsId = button.getAttribute('aria-controls');
+    expect(controlsId).toBeTruthy();
+    if (!controlsId) return; // type-guard so getElementById calls below stay clean
+    // Controlled element is not in the DOM while collapsed (unmounted).
+    expect(document.getElementById(controlsId)).toBeNull();
+    await user.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+    expect(document.getElementById(controlsId)).not.toBeNull();
   });
 });
 
