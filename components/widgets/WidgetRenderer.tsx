@@ -76,6 +76,18 @@ interface WidgetRendererProps {
   dashboardBackground?: string;
   dashboardSettings?: DashboardSettings;
   updateDashboardSettings?: (updates: Partial<DashboardSettings>) => void;
+  /**
+   * True when this widget's host Board is currently visible (active).
+   * False when the Board is mounted-but-hidden via the LRU cache
+   * (`MOUNTED_BOARD_CACHE_SIZE`). Resource-heavy widgets (Webcam,
+   * SoundWidget, SmartNotebook) gate their MediaStream/AudioContext/
+   * onSnapshot acquisitions on this flag so a hidden Board doesn't keep
+   * the camera engaged, the mic open, etc. Defaults to `true` for
+   * student-facing surfaces and any context that doesn't use the
+   * mounted-set cache. Phase C of Plan 2 wires it into individual
+   * resource-heavy widgets; most widgets ignore the prop.
+   */
+  isActive?: boolean;
 }
 
 const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
@@ -96,6 +108,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
   globalStyle,
   dashboardBackground,
   dashboardSettings,
+  isActive = true,
 }) => {
   const isSpotlighted = dashboardSettings?.spotlightWidgetId === widget.id;
   const windowSize = useWindowSize(!!widget.maximized);
@@ -232,6 +245,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
           isStudentView={isStudentView}
           studentPin={studentPin}
           isSpotlighted={isSpotlighted}
+          isActive={isActive}
         />
       );
     },
@@ -254,6 +268,7 @@ const WidgetRendererComponent: React.FC<WidgetRendererProps> = ({
       positionKey,
       isStudentView,
       isSpotlighted,
+      isActive,
     ]
   );
 
@@ -368,6 +383,7 @@ interface InnerWidgetRendererProps {
   isStudentView: boolean;
   studentPin?: string | null;
   isSpotlighted: boolean;
+  isActive: boolean;
 }
 
 const InnerWidgetRenderer = memo(
@@ -379,6 +395,7 @@ const InnerWidgetRenderer = memo(
     isStudentView,
     studentPin,
     isSpotlighted,
+    isActive,
   }: InnerWidgetRendererProps) {
     return (
       <WidgetLayoutWrapper
@@ -389,6 +406,7 @@ const InnerWidgetRenderer = memo(
         isStudentView={isStudentView}
         studentPin={studentPin}
         isSpotlighted={isSpotlighted}
+        isActive={isActive}
       />
     );
   },
@@ -400,6 +418,7 @@ const InnerWidgetRenderer = memo(
     if (prev.isStudentView !== next.isStudentView) return false;
     if (prev.studentPin !== next.studentPin) return false;
     if (prev.isSpotlighted !== next.isSpotlighted) return false;
+    if (prev.isActive !== next.isActive) return false;
 
     // Check widget props - explicitly ignoring x, y, z
     const pw = prev.widget;

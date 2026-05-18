@@ -35,24 +35,30 @@ test.describe('Board Sharing', () => {
   });
 
   test('can share and import a board', async ({ page }) => {
+    // Open the sidebar, then the Boards panel, then "Manage all boards"
+    // (the new flow — old inline SidebarBoards list with per-card Share
+    // buttons was replaced by SidebarBoardsActive + BoardsModal).
     await page.getByTitle('Open Menu').click();
     await expect(page.getByText('SpartBoard', { exact: true })).toBeVisible();
-    // Use a specific locator for the Sidebar Boards button to avoid ambiguity with the Dock button
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
       .click();
-    await expect(page.getByText('My Boards')).toBeVisible();
 
-    const boardCard = page
-      .locator('.group.relative')
-      .filter({ has: page.getByTitle('Share') })
-      .first();
-    await expect(boardCard).toBeVisible();
-    await boardCard.hover();
+    const manageAllButton = page
+      .locator('button')
+      .filter({ hasText: /manage all boards/i });
+    await expect(manageAllButton).toBeVisible({ timeout: 5000 });
+    await manageAllButton.click();
 
-    const shareButton = boardCard.getByTitle('Share');
-    await expect(shareButton).toBeVisible();
+    const modal = page.getByRole('dialog', { name: /boards/i });
+    await expect(modal).toBeVisible({ timeout: 10000 });
+
+    // Locate a Board card in the modal grid. BoardCard renders the board
+    // name as bold text inside a `.group` card; we pick the first one and
+    // right-click to open its context menu (which contains "Share…").
+    const firstBoardCard = modal.locator('.group').first();
+    await expect(firstBoardCard).toBeVisible({ timeout: 10000 });
 
     let clipboardText = '';
     await page.exposeFunction('mockWriteText', (text: string) => {
@@ -69,43 +75,38 @@ test.describe('Board Sharing', () => {
       }
     });
 
-    // Force click to ensure it registers even if there are layout shifts
-    await shareButton.click({ force: true });
+    await firstBoardCard.click({ button: 'right' });
 
-    // Share now opens `ShareLinkCreatorModal` (host picks a mode, then
-    // clicks "Create link"). Wait for the modal then click through.
+    // BoardContextMenu items render as role="menuitem" (not "button").
+    // Wait for the menu, then click the "Share…" item.
+    const contextMenu = page.getByRole('menu');
+    await expect(contextMenu).toBeVisible({ timeout: 5000 });
+    await contextMenu.getByRole('menuitem', { name: /share/i }).click();
+
+    // ShareLinkCreatorModal opens. Default mode is "Synced" — just hit
+    // "Create link".
     await expect(
       page.getByRole('heading', { name: 'Share board' })
     ).toBeVisible({
       timeout: 15000,
     });
-    // The default "Synced" mode is fine for this test — no need to click a
-    // mode option first.
     await page.getByRole('button', { name: /create link/i }).click();
 
     // The result panel shows the URL in an input (aria-label "Share link
-    // URL"). Wait for it to appear AND validate the URL shape directly on
-    // the input — the input's value is the source of truth and works even
-    // when the clipboard mock fails to capture the auto-copy. This
-    // replaces the legacy "Link copied" toast assertion.
+    // URL"). Validate the URL shape directly on the input — the input's
+    // value is the source of truth even when the clipboard mock fails.
     const shareUrlInput = page.getByLabel('Share link URL');
     await expect(shareUrlInput).toBeVisible({ timeout: 15000 });
     await expect(shareUrlInput).toHaveValue(/\/share\//, { timeout: 15000 });
 
-    // Prefer the clipboard-mock value when present (covers the auto-copy
-    // path); fall back to reading the input directly so the import
-    // roundtrip below always has a URL to navigate to.
     if (!clipboardText) {
       clipboardText = await shareUrlInput.inputValue();
     }
     expect(clipboardText).toContain('/share/');
 
-    // Visit the share URL. The recipient flow is the new
-    // `ImportShareModePicker` in confirmation mode (the host already
-    // chose "synced" by default in `ShareLinkCreatorModal`), so the
-    // dialog shows heading "Import shared board" and a single primary
-    // action button labelled "Import synced board" — not the legacy
-    // 3-option picker.
+    // Visit the share URL. The recipient flow is `ImportShareModePicker`
+    // in confirmation mode (host already chose "synced" by default), so
+    // the dialog shows "Import shared board" + "Import synced board".
     const shareUrl = clipboardText;
     // eslint-disable-next-line no-console
     console.log('Share URL:', shareUrl);
@@ -117,27 +118,22 @@ test.describe('Board Sharing', () => {
     });
     await expect(importHeading).toBeVisible({ timeout: 15000 });
 
-    // Default host mode is "synced" → button text is "Import synced board".
     await page.getByRole('button', { name: /import synced board/i }).click();
 
     // Modal dismisses on import success.
     await expect(importHeading).not.toBeVisible();
 
+    // After import the imported board's name carries a "(Synced)" suffix
+    // (see `importSharedBoard` in DashboardContext.tsx). It shows up in
+    // the SidebarBoardsActive picker (root collection).
     await page.getByTitle('Open Menu').click();
     await page
       .locator('nav button')
       .filter({ hasText: /Boards/i })
       .click();
 
-    // The imported board's name carries a " (Synced)" suffix (see
-    // `importSharedBoard` in DashboardContext.tsx). Use the suffix as
-    // the locator so the assertion doesn't depend on the source board's
-    // name.
-    await expect(
-      page
-        .locator('.group.relative')
-        .filter({ hasText: /\(Synced\)/ })
-        .first()
-    ).toBeVisible({ timeout: 15000 });
+    await expect(page.getByText(/\(Synced\)/).first()).toBeVisible({
+      timeout: 15000,
+    });
   });
 });

@@ -386,6 +386,16 @@ interface QuizManagerProps {
   /** Org-wide assignment mode. Drives Assign-vs-Share button labels and the
    *  In-Progress-vs-Shared tab label. Defaults to `'submissions'`. */
   assignmentMode?: AssignmentMode;
+  /**
+   * Number of students in the currently-active assignment's session whose
+   * results view is locked out (`response.resultsLockedOut === true`).
+   * When `> 0`, the Monitor primary action on the matching assignment's
+   * row renders a small rose badge so teachers see the attention-needing
+   * count without opening the monitor. Only the active assignment's count
+   * is available because we reuse the existing teacher session listener —
+   * other assignments are not subscribed to.
+   */
+  activeAssignmentLockedCount?: number;
 }
 
 /* ─── Status resolver for archive cards ───────────────────────────────────── */
@@ -519,6 +529,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   onSyncAssignment,
   assignmentMode = 'submissions',
   onCreateViewOnlyShare,
+  activeAssignmentLockedCount = 0,
 }) => {
   const isViewOnly = assignmentMode === 'view-only';
   const primaryActionLabel = isViewOnly ? 'Share' : 'Assign';
@@ -894,6 +905,8 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       label: string;
       icon: React.ComponentType<{ size?: number; className?: string }>;
       onClick: () => void;
+      badgeCount?: number;
+      badgeAriaLabel?: string;
     } | null;
     secondaries: LibraryMenuAction[];
   } => {
@@ -976,12 +989,33 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     }
 
     if (mode === 'active') {
+      // Surface a rose badge on the Monitor button when the currently-
+      // active assignment's session has students whose results view is
+      // locked out. Only the active assignment carries a live `responses`
+      // subscription (via `useQuizSessionTeacher` in Widget.tsx), so the
+      // badge is gated on `a.id === config.activeAssignmentId` — other
+      // rows have no count to display. The badge auto-clears when the
+      // teacher unlocks the last student because the same Firestore
+      // listener that drives the per-row monitor view also drives this
+      // count.
+      const showMonitorBadge =
+        isActive &&
+        a.id === config.activeAssignmentId &&
+        activeAssignmentLockedCount > 0;
       // Primary: Monitor (active) or Start (paused)
       const primary = isActive
         ? {
             label: 'Monitor',
             icon: Monitor,
             onClick: () => void (onArchiveMonitor ?? noop)(a),
+            ...(showMonitorBadge
+              ? {
+                  badgeCount: activeAssignmentLockedCount,
+                  badgeAriaLabel: `${activeAssignmentLockedCount} student${
+                    activeAssignmentLockedCount === 1 ? '' : 's'
+                  } locked`,
+                }
+              : {}),
           }
         : {
             label: 'Start',
@@ -1923,6 +1957,8 @@ const AssignmentsList: React.FC<{
       label: string;
       icon: React.ComponentType<{ size?: number; className?: string }>;
       onClick: () => void;
+      badgeCount?: number;
+      badgeAriaLabel?: string;
     } | null;
     secondaries: LibraryMenuAction[];
   };
@@ -1991,6 +2027,8 @@ interface QuizArchiveRowProps {
       label: string;
       icon: React.ComponentType<{ size?: number; className?: string }>;
       onClick: () => void;
+      badgeCount?: number;
+      badgeAriaLabel?: string;
     } | null;
     secondaries: LibraryMenuAction[];
   };
@@ -2132,6 +2170,8 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
               label: primary.label,
               icon: primary.icon,
               onClick: primary.onClick,
+              badgeCount: primary.badgeCount,
+              badgeAriaLabel: primary.badgeAriaLabel,
             }
           : undefined
       }

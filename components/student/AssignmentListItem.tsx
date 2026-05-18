@@ -1,13 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { httpsCallable } from 'firebase/functions';
-import { CheckCircle2, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2, Lock } from 'lucide-react';
 import { db, functions } from '@/config/firebase';
 import {
   KIND_CONFIG,
   type AssignmentSummary,
 } from '@/hooks/useStudentAssignments';
 import type { ClassDirectoryEntry } from '@/hooks/useStudentClassDirectory';
+import { useDialog } from '@/context/useDialog';
+import { logError } from '@/utils/logError';
 
 /**
  * Lazy completion check — same pattern as the previous AssignmentCard but
@@ -140,6 +142,11 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
   pendingVerification,
 }) => {
   const [completion, setCompletion] = useState<CompletionState>('unknown');
+  // Only the quiz kind has `resultsLockedOut` on its response doc. Other
+  // assignment kinds don't carry this field — strict equality below means a
+  // missing/undefined field never trips the locked state.
+  const [lockedOut, setLockedOut] = useState(false);
+  const { showAlert } = useDialog();
   const config = KIND_CONFIG[assignment.kind];
   const responseSub = RESPONSE_SUBCOLLECTION[assignment.kind];
   const docIdStrategy = DOC_ID_STRATEGY[assignment.kind];
@@ -171,6 +178,12 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
           ? 'completed'
           : 'not-completed';
         setCompletion(next);
+        // Quiz-only: surface the teacher-controlled lockout flag so the row
+        // can render a Locked badge and intercept the tap. Strict equality
+        // keeps legacy responses (no field) out of the locked state.
+        if (assignment.kind === 'quiz' && snap.exists()) {
+          setLockedOut(snap.data()?.resultsLockedOut === true);
+        }
         onCompletionResolved?.(assignment.sessionId, assignment.kind, next);
       } catch {
         // Silent: a failed completion check shouldn't block the student
@@ -201,10 +214,99 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
 
   const isGraded = assignment.gradingState === 'graded';
 
+  /**
+   * Re-check the live `resultsLockedOut` state from Firestore before either
+   * blocking the click or surfacing the alert. Our row-level `lockedOut`
+   * comes from a one-shot `getDoc` during the completion check and never
+   * subscribes to changes — so if the teacher has unlocked the response
+   * since the page rendered, the stale flag would otherwise strand the
+   * student behind a "Locked" badge until they refreshed. On any error
+   * (network, missing doc, etc.) we fall through to the alert as if still
+   * locked — failing closed is safer than allowing access on an unknown.
+   */
+  const recheckLockAndProceed = async (): Promise<void> => {
+    if (!responseSub || docIdStrategy === 'none' || !pseudonymUid) {
+      void showAlert(
+        'Locked by your teacher. Ask them to unlock your results.',
+        { title: 'Results locked', variant: 'warning' }
+      );
+      return;
+    }
+    try {
+      const docId =
+        docIdStrategy === 'assignment-pseudonym'
+          ? await getCachedPseudonym(assignment.sessionId, pseudonymUid)
+          : pseudonymUid;
+      const snap = await getDoc(
+        doc(db, config.collectionName, assignment.sessionId, responseSub, docId)
+      );
+      const stillLocked =
+        snap.exists() && snap.data()?.resultsLockedOut === true;
+      if (!stillLocked) {
+        setLockedOut(false);
+        // Teacher has unlocked since our initial check. Since we stripped
+        // `href` to defeat middle-click bypass, navigate programmatically.
+        window.location.assign(assignment.openHref);
+        return;
+      }
+    } catch (err) {
+      // Re-check failed (network, permission, transient Firestore error).
+      // We don't know the live state — surface a recoverable message rather
+      // than a misleading "your teacher locked this" alert, and log so
+      // operators can see the failure rate.
+      logError('AssignmentListItem.recheckLock', err, {
+        sessionId: assignment.sessionId,
+        kind: assignment.kind,
+      });
+      void showAlert(
+        'Could not verify your results status. Check your connection and try again in a moment.',
+        { title: 'Connection issue', variant: 'warning' }
+      );
+      return;
+    }
+    void showAlert('Locked by your teacher. Ask them to unlock your results.', {
+      title: 'Results locked',
+      variant: 'warning',
+    });
+  };
+
+  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>): void => {
+    if (!lockedOut) return;
+    // Quiz results have been locked by the teacher. Block the default
+    // navigation, then re-check the live state — the teacher may have
+    // unlocked since the row's initial completion check resolved.
+    e.preventDefault();
+    e.stopPropagation();
+    void recheckLockAndProceed();
+  };
+
+  // An <a> without href is no longer in the natural tab order. To keep the
+  // locked row reachable by keyboard, we force `tabIndex={0}` and handle
+  // Enter / Space ourselves so screen-reader / keyboard users get the same
+  // re-check-and-alert behavior as mouse users.
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLAnchorElement>): void => {
+    if (!lockedOut) return;
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    e.stopPropagation();
+    void recheckLockAndProceed();
+  };
+
   return (
     <a
-      href={assignment.openHref}
+      // Omit href entirely when locked so middle-click, cmd-click, ctrl-click,
+      // and shift-click can't bypass the onClick guard (which only blocks
+      // primary-button left clicks). An hrefless <a> is non-navigable in all
+      // click modes, making aria-disabled semantically truthful. We then
+      // restore keyboard focusability via tabIndex={0} so the row stays
+      // reachable by Tab — see handleKeyDown for Enter/Space handling.
+      href={lockedOut ? undefined : assignment.openHref}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
+      tabIndex={lockedOut ? 0 : undefined}
+      role={lockedOut ? 'button' : undefined}
       aria-busy={isPending ? true : undefined}
+      aria-disabled={lockedOut ? true : undefined}
       className={`group flex items-center gap-3 rounded-xl border px-4 py-3 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-primary focus-visible:ring-offset-2 ${
         isPending
           ? 'border-dashed border-slate-200 bg-slate-50'
@@ -246,14 +348,29 @@ export const AssignmentListItem: React.FC<AssignmentListItemProps> = ({
         </p>
       </div>
 
-      <span
-        className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
-          { isPending, isCompleted, isGraded }
-        )}`}
-        aria-hidden="true"
-      >
-        {getChipLabel({ isPending, isCompleted, isGraded })}
-      </span>
+      {lockedOut && (
+        <span
+          aria-label="Results locked by your teacher"
+          className="inline-flex shrink-0 items-center gap-1 rounded-full bg-rose-500/15 px-2 py-0.5 text-xs font-medium text-rose-600"
+        >
+          <Lock className="h-3 w-3" />
+          Locked
+        </span>
+      )}
+
+      {/* Suppress the right-side status chip when locked so the "Locked" pill
+          is the single, dominant signal on a locked row — otherwise the chip
+          (e.g. "View results") contradicts the badge. */}
+      {!lockedOut && (
+        <span
+          className={`hidden shrink-0 rounded-lg px-3 py-1.5 text-xs font-semibold transition sm:inline-flex ${getChipClass(
+            { isPending, isCompleted, isGraded }
+          )}`}
+          aria-hidden="true"
+        >
+          {getChipLabel({ isPending, isCompleted, isGraded })}
+        </span>
+      )}
     </a>
   );
 };

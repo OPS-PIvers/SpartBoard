@@ -18,7 +18,8 @@
     "previous": "Vorherige Tafel",
     "next": "Nächste Tafel",
     "selectBoard": "Tafel auswählen",
-    "boardList": "Alle Tafeln"
+    "boardList": "Alle Tafeln",
+    "switchCollection": "Switch Collection…"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -75,7 +76,10 @@
       "enterNewName": "Gib einen neuen Namen für deine Tafel ein.",
       "newBoardTitle": "Neue Tafel",
       "enterName": "Gib einen Namen für deine neue Tafel ein.",
-      "boardName": "Tafelname"
+      "boardName": "Tafelname",
+      "activeCollection": "Active Collection",
+      "rootBoards": "Boards",
+      "manageAll": "Manage all boards"
     },
     "backgrounds": {
       "presets": "Voreinstellungen",
@@ -344,5 +348,131 @@
       "emptyBoardHint": "Ziehen Sie Werkzeuge aus dem Dock unten, um zu beginnen",
       "switchBoardsHint": "Verwenden Sie die Tafelnavigation unten links, um zwischen Tafeln zu wechseln"
     }
+  },
+  "boardBreadcrumb": {
+    "root": "All Boards",
+    "openManager": "Manage Boards"
+  },
+  "collectionSwitcher": {
+    "title": "Switch Collection",
+    "root": "All Boards (root)"
+  },
+  "boardsModal": {
+    "title": "Boards",
+    "close": "Close",
+    "searchPlaceholder": "Search Boards & Collections",
+    "newBoard": "New Board",
+    "newBoardPrompt": "Board name",
+    "newCollection": "New Collection",
+    "newCollectionPrompt": "Collection name",
+    "manageAll": "Manage all boards",
+    "pinned": "Pinned",
+    "pinnedEmpty": "Pin Boards to keep them one tap away",
+    "allBoards": "Boards",
+    "rootLabel": "All Boards (no Collection)",
+    "subCollections": "Sub-Collections",
+    "boards": "Boards",
+    "empty": "This Collection is empty — drag Boards here or create one.",
+    "selectedCount": "{{count}} selected",
+    "clearSelection": "Clear selection",
+    "pin": "Pin",
+    "unpin": "Unpin",
+    "move": "Move…",
+    "moveTitle": "Move to Collection",
+    "moveDestination": "Collection name to move to (or leave blank for root)",
+    "rootDestination": "Root (no Collection)",
+    "delete": "Delete",
+    "bulkDeleteConfirm": "Delete {{count}} item(s)? This cannot be undone.",
+    "deleteBoardConfirm": "Delete this Board?",
+    "deleteCollectionConfirm": "Delete this Collection? Boards inside will move to its parent.",
+    "unpinBoard": "Unpin Board",
+    "dragToMove": "Drag to move",
+    "colorPrompt": "Color (hex, e.g., #ad2122)",
+    "colorInvalid": "Invalid color — use hex like #ad2122 or #abc.",
+    "dndFailed": "Move failed — please retry",
+    "bulkDeleteSuccess": "Deleted {{count}} item(s)",
+    "bulkPinSuccess": "Pinned {{count}} board(s)",
+    "bulkUnpinSuccess": "Unpinned {{count}} board(s)",
+    "bulkMoveSuccess": "Moved {{count}} board(s)",
+    "bulkPartialFailure": "Updated {{succeeded}} item(s) — {{failed}} failed",
+    "bulkAllFailed": "No items could be updated — please retry",
+    "noBoardsInSelection": "No Boards in selection — Collections can't be used here",
+    "createCollectionFailed": "Failed to create Collection",
+    "header": {
+      "createFromTemplate": "+ from Template"
+    },
+    "menu": {
+      "open": "Open",
+      "openCollection": "Open",
+      "rename": "Rename",
+      "duplicate": "Duplicate (fresh)",
+      "setDefault": "Set as default in this Collection",
+      "pin": "Pin",
+      "unpin": "Unpin",
+      "move": "Move to…",
+      "color": "Set color",
+      "share": "Share…",
+      "saveAsTemplate": "Save as Template…",
+      "delete": "Delete"
+    }
+  },
+  "shareCollection": {
+    "title": "Share Collection",
+    "subtitle": "Sharing {{count}} board(s) from this Collection.",
+    "mode": "Share Mode",
+    "copyMode": "Copy",
+    "copyModeHint": "Recipient imports a full copy into their account.",
+    "substituteMode": "Substitute (view-only)",
+    "substituteModeHint": "A sub teacher sees the Collection in /subs for the window you choose.",
+    "expiresIn": "Expires in",
+    "building": "Building",
+    "buildingRequired": "Select a building before sharing with a sub.",
+    "selectBuilding": "— Select building —",
+    "createLink": "Create link",
+    "creating": "Creating…",
+    "createFailed": "Failed to create Collection share",
+    "linkReady": "Share link ready.",
+    "linkCopied": "Share link copied to clipboard.",
+    "linkCopyFailed": "Copy the link below — clipboard access was blocked.",
+    "copy": "Copy",
+    "urlLabel": "Share collection URL",
+    "imported": "Imported Collection with {{count}} board(s)",
+    "partialImport": "Imported {{succeeded}} board(s) — {{failed}} failed",
+    "importFailed": "Failed to import shared Collection",
+    "notFound": "Shared Collection not found or expired",
+    "empty": "Shared Collection is empty",
+    "invalidShareUrl": "Invalid share link — missing share id.",
+    "substituteImportRejected": "Substitute shares are view-only. Open this link in /subs to view."
+  },
+  "importSharedCollection": {
+    "title": "Import shared Collection",
+    "loading": "Loading shared Collection…",
+    "notFound": "Shared Collection not found or expired.",
+    "shared": "Shared by {{name}}",
+    "boardCount": "{{count}} board(s)",
+    "importing": "Importing…",
+    "import": "Import Collection",
+    "substituteOnly": "This is a substitute (view-only) share. Open it in /subs."
+  },
+  "subCollections": {
+    "loading": "Loading shared Collections…",
+    "loadError": "Couldn't load shared Collections — refresh to retry.",
+    "heading": "Collections",
+    "boardCount": "{{count}} board(s)",
+    "boardPlaceholder": "Board …{{id}}",
+    "comingSoon": "Board view in /subs coming soon — open in the teacher app for now",
+    "comingSoonLabel": "Coming soon"
+  },
+  "collectionMenu": {
+    "share": "Share Collection…",
+    "saveAsTemplate": "Save as Template…"
+  },
+  "templatePicker": {
+    "title": "Create from Template",
+    "loading": "Loading templates…",
+    "loadError": "Couldn't load templates — refresh to retry.",
+    "empty": "No templates available yet.",
+    "kindBoard": "Board",
+    "kindCollection": "Collection · {{count}} board(s)"
   }
 }

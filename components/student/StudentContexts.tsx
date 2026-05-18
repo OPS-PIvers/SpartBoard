@@ -68,6 +68,8 @@ const mockAuth: AuthContextType = {
   updateAccountPreferences: async () => {
     // No-op in student view
   },
+  lastActiveCollectionId: undefined,
+  lastBoardIdByCollection: undefined,
   orgId: null,
   roleId: null,
   isStudentRole: false,
@@ -84,6 +86,18 @@ const mockAuth: AuthContextType = {
 // See studentViewConfig.ts for widget compatibility details.
 const mockDashboard: DashboardContextValue = {
   driveService: null,
+  collectionsApi: {
+    collections: [],
+    loading: false,
+    error: null,
+    createCollection: () => Promise.resolve(''),
+    renameCollection: () => Promise.resolve(),
+    moveCollection: () => Promise.resolve(),
+    deleteCollection: () => Promise.resolve(),
+    reorderSiblings: () => Promise.resolve(),
+    setCollectionMetadata: () => Promise.resolve(),
+    setCollectionDefaultBoard: () => Promise.resolve(),
+  },
   dashboards: [],
   activeDashboard: null,
   toasts: [],
@@ -100,9 +114,7 @@ const mockDashboard: DashboardContextValue = {
   removeToast: () => {
     // No-op
   },
-  createNewDashboard: async () => {
-    // No-op
-  },
+  createNewDashboard: () => Promise.resolve(undefined),
   saveCurrentDashboard: async () => {
     // No-op
   },
@@ -121,7 +133,19 @@ const mockDashboard: DashboardContextValue = {
   reorderDashboards: async () => {
     // No-op
   },
-  setDefaultDashboard: () => {
+  setDefaultDashboard: async () => {
+    // No-op
+  },
+  moveBoardToCollection: async () => {
+    // No-op
+  },
+  pinBoard: async () => {
+    // No-op
+  },
+  unpinBoard: async () => {
+    // No-op
+  },
+  setActiveCollectionId: () => {
     // No-op
   },
   resetDockToDefaults: () => {
@@ -247,6 +271,20 @@ const mockDashboard: DashboardContextValue = {
   },
 
   clearAllStickers: () => {
+    // No-op
+  },
+  // Collection sharing system mocks
+  shareCollection: () => Promise.resolve(''),
+  shareSubstituteCollection: () => Promise.resolve(''),
+  loadSharedCollection: () =>
+    Promise.resolve({ ok: false as const, reason: 'not-found' as const }),
+  loadSharedCollectionBoards: () => Promise.resolve([]),
+  importSharedCollection: () => Promise.resolve(null),
+  pendingSharedCollectionId: null,
+  setPendingSharedCollectionId: () => {
+    // No-op
+  },
+  clearPendingSharedCollection: () => {
     // No-op
   },
   // Sharing system mocks

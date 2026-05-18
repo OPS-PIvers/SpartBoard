@@ -19,9 +19,10 @@ import { parseNotebookFile } from '@/utils/notebookParser';
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
 
-export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
-  widget,
-}) => {
+export const SmartNotebookWidget: React.FC<{
+  widget: WidgetData;
+  isActive?: boolean;
+}> = ({ widget, isActive = true }) => {
   const { updateWidget, addToast } = useDashboard();
   const { user } = useAuth();
   const { showConfirm } = useDialog();
@@ -35,9 +36,14 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
   const [showAssets, setShowAssets] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch notebooks from Firestore
+  // Fetch notebooks from Firestore.
+  // The subscription is gated on `isActive`: when the host Board is hidden by
+  // the LRU cache we unsubscribe to avoid listener proliferation. Local state
+  // retains the last-known list; it refreshes on the next snapshot after the
+  // Board becomes active again — an acceptable trade-off vs. keeping an open
+  // Firestore connection for every mounted-but-hidden Board.
   useEffect(() => {
-    if (!user) return;
+    if (!user || !isActive) return;
     const q = query(
       collection(db, 'users', user.uid, 'notebooks'),
       orderBy('createdAt', 'desc')
@@ -57,7 +63,7 @@ export const SmartNotebookWidget: React.FC<{ widget: WidgetData }> = ({
       setNotebooks(items);
     });
     return () => unsubscribe();
-  }, [user]);
+  }, [user, isActive]);
 
   // Derive active notebook directly — no redundant state
   const activeNotebook = React.useMemo(

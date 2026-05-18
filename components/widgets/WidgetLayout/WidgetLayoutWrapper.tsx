@@ -17,6 +17,7 @@ interface WidgetLayoutWrapperProps {
   isStudentView?: boolean;
   studentPin?: string | null;
   isSpotlighted?: boolean;
+  isActive?: boolean;
 }
 
 /**
@@ -31,6 +32,7 @@ export const WidgetLayoutWrapper: React.FC<WidgetLayoutWrapperProps> = ({
   isStudentView = false,
   studentPin,
   isSpotlighted,
+  isActive = true,
 }) => {
   const WidgetComponent = WIDGET_COMPONENTS[widget.type];
 
@@ -48,6 +50,7 @@ export const WidgetLayoutWrapper: React.FC<WidgetLayoutWrapperProps> = ({
     isStudentView,
     studentPin,
     isSpotlighted,
+    isActive,
   };
 
   return (

@@ -70,6 +70,8 @@ vi.mock('@/context/useAuth', () => ({
     quizMonitorColorsEnabled: true,
     quizMonitorScoreDisplay: 'percent',
     updateAccountPreferences: vi.fn(),
+    lastActiveCollectionId: undefined,
+    lastBoardIdByCollection: undefined,
   })),
 }));
 
@@ -421,6 +423,8 @@ describe('EmbedWidget', () => {
         quizMonitorColorsEnabled: true,
         quizMonitorScoreDisplay: 'percent',
         updateAccountPreferences: vi.fn(),
+        lastActiveCollectionId: undefined,
+        lastBoardIdByCollection: undefined,
         orgId: null,
         roleId: null,
         isStudentRole: false,

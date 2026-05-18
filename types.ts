@@ -2681,6 +2681,20 @@ export interface QuizSession {
    * canonical answer in one batch.
    */
   scoreVisibility?: QuizScoreVisibility;
+  /**
+   * Mirror of QuizAssignment.protection so the student app — which only reads
+   * /quiz_sessions — can decide whether to mount watermark + tab-warning UI.
+   * Cleared by `unpublishAssignmentScores`.
+   */
+  protection?: ResultsProtection;
+  /**
+   * Server-set timestamp for the most recent `publishAssignmentScores` call.
+   * Mirrored from the assignment doc so the student app (which only reads
+   * `/quiz_sessions`) can stamp the watermark with a publish time without
+   * needing access to the teacher's assignment doc. Cleared by
+   * `unpublishAssignmentScores`.
+   */
+  scorePublishedAt?: number;
 }
 
 export interface QuizResponseAnswer {
@@ -2771,6 +2785,22 @@ export interface QuizResponse {
    * Used for maintaining quiz integrity.
    */
   tabSwitchWarnings?: number;
+  /**
+   * Number of tab-switch / focus-loss events the student has accumulated while
+   * viewing **published results**. Distinct from `tabSwitchWarnings`, which
+   * tracks tab switches during the active quiz-taking attempt. Server-rule
+   * enforced to only ever increase from a student write — teacher writes (via
+   * `unlockResultsForStudent`) can decrement.
+   */
+  resultsTabWarnings?: number;
+  /**
+   * True once `resultsTabWarnings` reaches `session.protection.tabWarningThreshold`.
+   * Read by the student app to redirect to My Assignments, and by the teacher's
+   * monitor to surface the lock badge + unlock affordance.
+   */
+  resultsLockedOut?: boolean;
+  /** Wall-clock ms when `resultsLockedOut` last flipped from false → true. */
+  resultsLockedOutAt?: number;
   /** Which class period the student selected when joining (multi-class support). */
   classPeriod?: string;
   /**
@@ -3075,6 +3105,34 @@ export type QuizScoreVisibility =
   | 'score-responses-and-answers';
 
 /**
+ * Anti-screenshot protections applied to a student's view of published quiz
+ * results. Mirrored from QuizAssignment → QuizSession at publish time so the
+ * student app (which only reads sessions) can render protection without
+ * needing access to the teacher's assignment doc.
+ */
+export interface ResultsProtection {
+  /** Show a repeating low-opacity overlay with student name + publish timestamp. */
+  watermarkEnabled: boolean;
+  /** Detect visibility/focus changes and warn → lock student when threshold hit. */
+  tabWarningEnabled: boolean;
+  /**
+   * Number of warnings before lockout. 1–10 inclusive. Only meaningful when
+   * `tabWarningEnabled` is true. Defaults to 3 in the UI but persisted
+   * explicitly so historical assignments stay accurate after the default changes.
+   */
+  tabWarningThreshold: number;
+}
+
+export const RESULTS_PROTECTION_DEFAULTS: ResultsProtection = {
+  watermarkEnabled: true,
+  tabWarningEnabled: false,
+  tabWarningThreshold: 3,
+};
+
+export const RESULTS_TAB_WARNING_THRESHOLD_MIN = 1;
+export const RESULTS_TAB_WARNING_THRESHOLD_MAX = 10;
+
+/**
  * PLC linkage for a quiz assignment. Present iff the assignment is in PLC
  * mode (the originator opted into "Share with PLC" at create time, or the
  * importer is a member of the originator's PLC). The presence of this
@@ -3220,6 +3278,12 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * `QuizSession` doc by `publishAssignmentScores`.
    */
   scoreVisibility?: QuizScoreVisibility;
+  /**
+   * Anti-screenshot protections applied when results are visible to students.
+   * `undefined` = no protection (legacy assignments pre-feature). Mirrored to
+   * the session doc by `publishAssignmentScores`.
+   */
+  protection?: ResultsProtection;
   /**
    * Timestamp of the most recent `publishAssignmentScores` call. Used by
    * the archive UI to surface "Published <date>" text on cards whose
@@ -4803,6 +4867,15 @@ export interface WidgetComponentProps {
   studentPin?: string | null;
   isSpotlighted?: boolean;
   updateDashboardSettings?: (updates: Partial<DashboardSettings>) => void;
+  /**
+   * True when this widget's host Board is currently visible (active).
+   * False when the Board is mounted-but-hidden via the LRU cache.
+   * Resource-heavy widgets (Webcam, SoundWidget, SmartNotebook) gate their
+   * MediaStream/AudioContext/onSnapshot acquisitions on this flag so hidden
+   * Boards release their hardware/listeners. Most widgets ignore it.
+   * Defaults to `true` so student-facing and non-LRU surfaces are unaffected.
+   */
+  isActive?: boolean;
 }
 
 export interface WidgetLayout {
@@ -4867,7 +4940,12 @@ export interface WidgetData {
   customTitle?: string | null;
   isLive?: boolean;
   isLocked?: boolean; // When true: widget cannot be moved, resized, or deleted by end-users
-  isPinned?: boolean; // User-pinned: drag, resize, maximize, snap disabled
+  /**
+   * User-pinned widget: drag, resize, maximize, and snap are disabled. This is
+   * a widget-level interaction lock — distinct from `Dashboard.isPinned`, which
+   * marks a Board for the modal/FAB Pinned quick-access section.
+   */
+  isPinned?: boolean;
   transparency?: number;
   annotation?: DrawingConfig;
   /** Override which building's admin defaults this widget uses (falls back to user's primary building) */
@@ -4944,6 +5022,18 @@ export interface UserProfile {
   savedWidgetConfigs?: Partial<Record<WidgetType, Partial<WidgetConfig>>>;
   /** True after the user has completed the first-time setup wizard */
   setupCompleted?: boolean;
+  /**
+   * The Collection the teacher was most recently in. App-open restores
+   * this. `null` means "root level (no collection)". Set by
+   * `loadDashboard` in DashboardContext when a Board is opened.
+   */
+  lastActiveCollectionId?: string | null;
+  /**
+   * Per-Collection last-visited Board memory. Keys are Collection ids
+   * (or {@link ROOT_COLLECTION_KEY} for root-level Boards).
+   * Populated whenever a Board within a Collection is opened.
+   */
+  lastBoardIdByCollection?: Record<string, string>;
   /** Skip the confirmation dialog when closing widgets (account-level) */
   disableCloseConfirmation?: boolean;
   /** Whether remote control is enabled for all boards (account-level) */
@@ -4980,6 +5070,14 @@ export interface UserProfile {
   dockInitialized?: boolean;
 }
 
+/**
+ * Sentinel key used in {@link UserProfile.lastBoardIdByCollection} for
+ * root-level Boards (those with no Collection). All read/write sites of the
+ * `lastBoardIdByCollection` map must use this constant instead of a literal
+ * string to prevent silent typo bugs.
+ */
+export const ROOT_COLLECTION_KEY = '__root__' as const;
+
 export interface SharedGroup {
   id: string;
   name: string;
@@ -5013,6 +5111,19 @@ export interface Dashboard {
   createdAt: number;
   isDefault?: boolean;
   order?: number;
+  /**
+   * Parent collection id, or `null` for root-level Boards (no collection).
+   * Optional during the migration window; populated by
+   * `collectionsMigration.ts` the first time a legacy dashboard loads.
+   */
+  collectionId?: string | null;
+  /**
+   * When true, this Board appears in the Pinned section of the Boards
+   * modal and the FAB kebab popover. Independent of `collectionId` —
+   * pinned Boards still belong to their Collection. Distinct from
+   * `WidgetData.isPinned`, which is a widget-level interaction lock.
+   */
+  isPinned?: boolean;
   settings?: DashboardSettings;
   libraryOrder?: (WidgetType | InternalToolType)[];
   updatedAt?: number;
@@ -5166,6 +5277,13 @@ export type AssignmentModesConfig = Partial<
 export interface AppSettings {
   geminiDailyLimit: number;
   logoUrl?: string;
+  /**
+   * The protection settings the teacher last published with. Used as the
+   * pre-fill for the next "Publish Results" dialog so teachers don't have to
+   * re-pick on every publish. Initialised from `RESULTS_PROTECTION_DEFAULTS`
+   * if unset.
+   */
+  lastResultsProtection?: ResultsProtection;
 }
 
 /**
@@ -5422,6 +5540,13 @@ export interface DashboardTemplate {
   id: string;
   name: string;
   description: string;
+  /**
+   * Discriminates Board templates (this interface) from Collection
+   * templates (see CollectionTemplate). Optional + literal 'board' so
+   * legacy docs without the field deserialize as Board templates with
+   * zero migration. Always pass 'board' when writing new docs.
+   */
+  type?: 'board';
   /** Snapshot of widgets to pre-populate the dashboard with */
   widgets: WidgetData[];
   /** Optional global style override applied when template is deployed */
@@ -5442,6 +5567,83 @@ export interface DashboardTemplate {
   updatedAt: number;
   createdBy: string; // admin email
 }
+
+/**
+ * A single Board's snapshot when embedded inside a CollectionTemplate.
+ * Mirrors the fields that `sanitizeBoardSnapshot` preserves — the rest
+ * of a Dashboard's surface is host-specific and stripped at capture
+ * time. `id` is the host's original Board id; the importer assigns a
+ * fresh id during instantiation, so this id is for ordering / debugging
+ * only.
+ */
+export interface BoardTemplateSnapshot {
+  id: string;
+  name: string;
+  background: string;
+  widgets: WidgetData[];
+  globalStyle?: Partial<GlobalStyle>;
+  settings?: DashboardSettings;
+  libraryOrder?: (WidgetType | InternalToolType)[];
+  viewportWidth?: number;
+  viewportHeight?: number;
+  createdAt: number;
+}
+
+/**
+ * A Collection's metadata captured for the template browser. Mirrors the
+ * subset of `Collection` that admins curate; the recipient's
+ * createCollection action stamps fresh `id`, `order`, `createdAt` /
+ * `updatedAt`, and `parentCollectionId: null` (templates always land at
+ * root — admins or teachers move them after).
+ */
+export interface CollectionTemplateSnapshot {
+  name: string;
+  color?: string;
+  icon?: string;
+  /**
+   * Optional default-board hint: the snapshot id of the Board that
+   * should be marked as the Collection's default on first open. Stored
+   * as the `BoardTemplateSnapshot.id`; resolved to the recipient's new
+   * Board id at hydration time. Undefined means no default.
+   */
+  defaultBoardSnapshotId?: string;
+}
+
+/**
+ * A Collection-level template. Same Firestore collection as
+ * `DashboardTemplate` (`/dashboard_templates/`) — the `type` field
+ * discriminates. Admin-curated, authed-read, same rule gate.
+ */
+export interface CollectionTemplate {
+  id: string;
+  type: 'collection';
+  name: string;
+  description: string;
+  collectionSnapshot: CollectionTemplateSnapshot;
+  /** Ordered list — defines the order child Boards appear in the new Collection. */
+  boardSnapshots: BoardTemplateSnapshot[];
+  tags: string[];
+  targetGradeLevels: GradeLevel[];
+  targetBuildings: string[];
+  enabled: boolean;
+  accessLevel: 'admin' | 'beta' | 'public';
+  createdAt: number;
+  updatedAt: number;
+  createdBy: string;
+}
+
+/**
+ * Union of every doc shape stored in `/dashboard_templates/`. Read sites
+ * MUST discriminate via `isCollectionTemplate` / `isBoardTemplate` before
+ * accessing Board-only fields like `widgets`.
+ */
+export type AnyTemplate = DashboardTemplate | CollectionTemplate;
+
+export const isCollectionTemplate = (t: AnyTemplate): t is CollectionTemplate =>
+  t.type === 'collection';
+
+export const isBoardTemplate = (t: AnyTemplate): t is DashboardTemplate =>
+  t.type === 'board' || t.type === undefined;
 
 // --- CUSTOM WIDGET TYPES (Phase 3: No-Code Widget Builder) ---
 
@@ -6026,6 +6228,96 @@ export interface LibraryFolder {
   createdAt: number;
   /** Epoch ms at last rename / move / reorder. Optional on legacy records. */
   updatedAt?: number;
+}
+
+/**
+ * A Board collection (folder) stored at
+ * `/users/{userId}/collections/{collectionId}`.
+ *
+ * Collections are nestable: `parentCollectionId === null` means root-level.
+ * Sibling collections within a given parent are ordered by `order` ascending.
+ *
+ * `defaultBoardId` is the Board that loads when a teacher first enters this
+ * Collection (before any per-Collection history is recorded). Only one Board
+ * per Collection may be the default; the constraint is enforced in
+ * `useCollections.setCollectionDefaultBoard`.
+ */
+export interface Collection {
+  id: string;
+  name: string;
+  /** Parent collection id, or `null` for root-level collections. */
+  parentCollectionId: string | null;
+  /** Sort order among siblings (ascending). */
+  order: number;
+  /** Optional accent color (any CSS color string, e.g. '#ad2122'). */
+  color?: string;
+  /** Optional lucide-react icon name (e.g., 'BookOpen'). */
+  icon?: string;
+  /** Board id to load on first entry to this collection. */
+  defaultBoardId?: string;
+  /** Epoch ms at create. */
+  createdAt: number;
+  /** Epoch ms at last rename / move / reorder / metadata change. */
+  updatedAt?: number;
+}
+
+/**
+ * Mode applied to a shared-Collection import. NOT including 'synced' —
+ * live-mirroring N boards is unbounded cost. Substitute is a frozen,
+ * time-boxed view-only flavor used by the /subs portal.
+ */
+export type SharedCollectionImportMode = 'copy' | 'substitute';
+
+/**
+ * Frozen snapshot stored at `/shared_collections/{shareId}`. Each Board
+ * in the Collection is stored as a separate doc under
+ * `/shared_collections/{shareId}/boards/{boardId}` to dodge Firestore's
+ * 1MB-per-doc limit. The parent doc stores Collection metadata + an
+ * ordered `boardIds` list for the recipient flow.
+ */
+export interface SharedCollection {
+  shareId: string;
+  hostUid: string;
+  hostDisplayName: string | null;
+  intendedMode: SharedCollectionImportMode;
+  /** Frozen Collection metadata at share time (NOT the live Collection). */
+  collection: {
+    name: string;
+    color?: string;
+    icon?: string;
+  };
+  /** Ordered Board IDs — recipient reads from subcollection by these IDs. */
+  boardIds: string[];
+  /** ms epoch. */
+  createdAt: number;
+  /** Substitute-only: ms epoch when this share expires. */
+  expiresAt?: number;
+  /** Substitute-only: building id (config/buildings.ts) for /subs scoping. */
+  buildingId?: string;
+}
+
+/**
+ * One Board snapshot inside a Collection share. Stored at
+ * `/shared_collections/{shareId}/boards/{boardId}`. Mirrors the existing
+ * `Dashboard` shape minus any `linkedShareId`/`linkedShareRole` fields
+ * (a share-import is never itself a share host).
+ */
+export interface SharedCollectionBoardDoc {
+  boardId: string;
+  /** Frozen `Dashboard` at share time. */
+  dashboard: Dashboard;
+}
+
+/**
+ * Input to `shareSubstituteCollection()`. Mirrors `SubstituteShareInput`
+ * for single Boards but operates on a whole Collection.
+ */
+export interface CollectionSubstituteShareInput {
+  collectionId: string;
+  expiresAt: number;
+  buildingId: string;
+  subEmails?: string[];
+  rosterDriveFileIds?: string[];
 }
 
 /**

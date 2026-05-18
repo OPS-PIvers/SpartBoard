@@ -18,7 +18,10 @@ interface CustomWindow extends Window {
   webkitAudioContext: typeof AudioContext;
 }
 
-export const SoundWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+export const SoundWidget: React.FC<{
+  widget: WidgetData;
+  isActive?: boolean;
+}> = ({ widget, isActive = true }) => {
   const { updateWidget, activeDashboard } = useDashboard();
   const [volume, setVolume] = useState(0);
   const [history, setHistory] = useState<number[]>(new Array(50).fill(0));
@@ -89,12 +92,77 @@ export const SoundWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     updateWidget,
   ]);
 
+  // Two cooperating effects so the suspend/resume seam works as intended:
+  //
+  //   (1) Per-`isActive` effect: controls the RAF loop and suspends/resumes
+  //       the running AudioContext when the host Board is hidden/shown.
+  //       Does NOT close the AudioContext or release the mic — keeping them
+  //       alive across hide→show toggles is what makes the "resume existing
+  //       context" path reachable. (Cleanup that closed on every toggle
+  //       made the resume branch dead code; the next activation would always
+  //       fall through to the first-activation `getUserMedia` path and the
+  //       browser would re-prompt the mic icon.)
+  //
+  //   (2) Mount-only effect: owns full teardown — stops the stream and
+  //       closes the AudioContext. Runs exactly once on unmount.
+  //
+  // The mic indicator stays visible while the Board is hidden (the stream
+  // is still live). That's the deliberate trade for instant resume on
+  // re-show; if a user wants the mic released, they remove the widget.
   useEffect(() => {
+    if (!isActive) {
+      if (animationRef.current !== null) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      void audioContextRef.current?.suspend();
+      return undefined;
+    }
+
+    // If we already have a running AudioContext (board was hidden then
+    // shown again), just resume and restart the RAF loop without
+    // re-acquiring the mic.
+    if (audioContextRef.current && analyserRef.current) {
+      void audioContextRef.current.resume();
+
+      const bufferLength = analyserRef.current.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+
+      const resumeLoop = () => {
+        if (!analyserRef.current) return;
+        analyserRef.current.getByteFrequencyData(dataArray);
+        const sum = dataArray.reduce((a, b) => a + b, 0);
+        const average = sum / bufferLength;
+        const normalized = Math.min(
+          100,
+          average * (sensitivityRef.current * 2)
+        );
+        setVolume(normalized);
+        setHistory((prev) => [...prev.slice(-49), normalized]);
+        animationRef.current = requestAnimationFrame(resumeLoop);
+      };
+      resumeLoop();
+      // Cleanup limited to cancelling the RAF — the AudioContext + stream
+      // outlive the isActive toggle.
+      return () => {
+        if (animationRef.current !== null) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+      };
+    }
+
+    // First activation: acquire the mic and set up AudioContext fresh.
+    let cancelled = false;
     const startAudio = async () => {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: true,
         });
+        if (cancelled) {
+          stream.getTracks().forEach((t) => t.stop());
+          return;
+        }
         streamRef.current = stream;
         const AudioContextClass =
           window.AudioContext ||
@@ -131,10 +199,26 @@ export const SoundWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     };
     void startAudio();
     return () => {
-      if (animationRef.current !== null)
+      cancelled = true;
+      if (animationRef.current !== null) {
         cancelAnimationFrame(animationRef.current);
+        animationRef.current = null;
+      }
+      // NOTE: do NOT close the AudioContext or stop the stream here. Full
+      // teardown lives in the mount-only effect below so the resume path
+      // above stays reachable on hide→show toggles. If `getUserMedia`
+      // rejected, both refs stayed null and the next activation re-tries.
+    };
+  }, [isActive]);
+
+  // Mount-only teardown: release the mic and AudioContext on unmount.
+  useEffect(() => {
+    return () => {
       streamRef.current?.getTracks().forEach((t) => t.stop());
       void audioContextRef.current?.close();
+      audioContextRef.current = null;
+      analyserRef.current = null;
+      streamRef.current = null;
     };
   }, []);
 

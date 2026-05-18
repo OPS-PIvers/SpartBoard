@@ -96,10 +96,44 @@ function encryptRefreshToken(plaintext: string, key: string): Ciphertext {
 }
 
 function decryptRefreshToken(ciphertext: Ciphertext, key: string): string {
-  const decrypted = CryptoJS.AES.decrypt(ciphertext, key).toString(
-    CryptoJS.enc.Utf8
-  );
-  if (!decrypted) {
+  // CryptoJS's behavior on a truly invalid ciphertext is platform-dependent:
+  //   - some builds throw "Malformed UTF-8 data" from `.toString(enc.Utf8)`
+  //   - some return an empty string
+  //   - some return garbage bytes that happen to decode as valid UTF-8
+  // We need to treat ALL three as a decryption failure so the caller can
+  // force re-consent instead of sending nonsense to Google. The
+  // control-character guard catches the third (most insidious) case: a
+  // real Google refresh token is printable ASCII; any NUL/control byte is
+  // a sure sign of a bad decrypt.
+  let decrypted: string;
+  try {
+    decrypted = CryptoJS.AES.decrypt(ciphertext, key).toString(
+      CryptoJS.enc.Utf8
+    );
+  } catch (err) {
+    // Preserve the underlying CryptoJS error in Cloud Functions logs so a
+    // future library upgrade that changes failure shape (e.g. a different
+    // throw message) is debuggable. The HttpsError swallows the cause
+    // from the client by design — we don't expose internal exception
+    // detail across the API boundary.
+    console.error('[decryptRefreshToken] CryptoJS decrypt threw', err);
+    throw new HttpsError(
+      'internal',
+      'Failed to decrypt stored refresh token. The encryption key may have rotated.'
+    );
+  }
+  // eslint-disable-next-line no-control-regex
+  const hasControlChars = /[\x00-\x08\x0e-\x1f\x7f]/.test(decrypted);
+  if (!decrypted || hasControlChars) {
+    // Tag the failure mode so the two non-throwing failure paths
+    // (empty-string vs. garbage-with-control-chars) are distinguishable
+    // in logs. Both indicate a key/ciphertext mismatch but only the second
+    // would silently forward bytes to Google if the guard regressed.
+    console.error('[decryptRefreshToken] CryptoJS decrypt returned bad data', {
+      empty: !decrypted,
+      hasControlChars,
+      length: decrypted.length,
+    });
     throw new HttpsError(
       'internal',
       'Failed to decrypt stored refresh token. The encryption key may have rotated.'

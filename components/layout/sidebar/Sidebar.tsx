@@ -46,7 +46,7 @@ import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
 import { StylePanel } from './StylePanel';
-import { SidebarBoards } from './SidebarBoards';
+import { SidebarBoardsActive } from './SidebarBoardsActive';
 import { SidebarBackgrounds } from './SidebarBackgrounds';
 import { SidebarQuickAccess } from './SidebarQuickAccess';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
@@ -58,6 +58,7 @@ import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { PlcDashboard } from '@/components/plc/PlcDashboard';
+import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 
 declare const __APP_VERSION__: string;
 
@@ -201,6 +202,7 @@ export const Sidebar: React.FC = () => {
   const [lastSeenWhatsNew, setLastSeenWhatsNew] = useState<string | null>(() =>
     readLastSeenVersion()
   );
+  const [isBoardsModalOpen, setIsBoardsModalOpen] = useState(false);
   const { latestVersion } = useChangelog();
   const { updateAvailable, reloadApp } = useAppVersion();
   const hasUnreadWhatsNew =
@@ -383,6 +385,10 @@ export const Sidebar: React.FC = () => {
           plc={openPlcDashboardPlc}
           onClose={() => setOpenPlcDashboardId(null)}
         />
+      )}
+
+      {isBoardsModalOpen && (
+        <BoardsModal onClose={() => setIsBoardsModalOpen(false)} />
       )}
 
       {isOpen && (
@@ -664,7 +670,14 @@ export const Sidebar: React.FC = () => {
               </nav>
 
               {/* BOARDS SECTION */}
-              <SidebarBoards isVisible={activeSection === 'boards'} />
+              <SidebarBoardsActive
+                isVisible={activeSection === 'boards'}
+                onOpenModal={() => {
+                  setIsBoardsModalOpen(true);
+                  setIsOpen(false);
+                  setActiveSection('main');
+                }}
+              />
 
               {/* BACKGROUNDS SECTION */}
               <SidebarBackgrounds isVisible={activeSection === 'backgrounds'} />
