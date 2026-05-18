@@ -336,7 +336,14 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
           </div>
 
           {/* Helpful tooltip/legend */}
-          <div className="absolute bottom-2 left-4 text-xs text-slate-400 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity">
+          <div
+            className="absolute text-slate-400 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{
+              bottom: 'min(8px, 4cqmin)',
+              left: 'min(16px, 8cqmin)',
+              fontSize: 'min(12px, 6cqmin)',
+            }}
+          >
             Click axis to add markers. Use settings to add jumps.
           </div>
         </div>
