@@ -5068,6 +5068,10 @@ export interface UserProfile {
    * from being re-seeded on subsequent logins.
    */
   dockInitialized?: boolean;
+  /** Background IDs (urls) the user has starred as favorites. */
+  favoriteBackgrounds?: string[];
+  /** Background IDs (urls) recently applied, newest first, capped at 12. */
+  recentBackgrounds?: string[];
 }
 
 /**
