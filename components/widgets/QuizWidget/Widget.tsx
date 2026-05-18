@@ -833,6 +833,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         tabWarningsEnabled={liveSession?.tabWarningsEnabled ?? true}
         session={liveSession}
         onDeleteResponse={removeStudent}
+        onUnlockResultsForStudent={unlockResultsForStudent}
         onPlcSheetUrlReplaced={async (newUrl) => {
           // After QuizResults regenerates a stale PLC sheet (404
           // recovery), replace the URL on this widget's config so future

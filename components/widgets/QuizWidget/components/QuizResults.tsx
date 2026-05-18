@@ -29,6 +29,7 @@ import {
   Hash,
   Trash2,
   RefreshCw,
+  Lock,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -130,6 +131,14 @@ interface QuizResultsProps {
    */
   onDeleteResponse?: (responseKey: string) => Promise<void>;
   /**
+   * Unlock a student's results-view lockout (triggered when the
+   * `resultsTabWarnings` threshold was hit while viewing published results).
+   * Decrements warnings by 1 and clears the lockout — one more tab-switch
+   * after this re-locks them. Pass the response's deterministic doc key
+   * (`getResponseDocKey(r)`), same key used by `onDeleteResponse`.
+   */
+  onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
+  /**
    * Called after the 404 stale-sheet recovery replaces a missing PLC sheet
    * with a fresh one. Lets the parent widget persist the new URL onto the
    * widget config and the active assignment doc so future exports don't
@@ -198,6 +207,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   tabWarningsEnabled,
   session,
   onDeleteResponse,
+  onUnlockResultsForStudent,
   onPlcSheetUrlReplaced,
   initialExportUrl,
   plcSheetUrl: assignmentPlcSheetUrl,
@@ -1464,6 +1474,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
                 tabWarningsEnabled={tabWarningsEnabled ?? true}
                 session={session}
                 onDeleteResponse={onDeleteResponse}
+                onUnlockResultsForStudent={onUnlockResultsForStudent}
+                resultsTabWarningThreshold={
+                  session?.protection?.tabWarningThreshold ?? 3
+                }
                 addToast={addToast}
               />
             )}
@@ -1777,6 +1791,8 @@ const StudentsTab: React.FC<{
   tabWarningsEnabled: boolean;
   session?: import('@/types').QuizSession | null;
   onDeleteResponse?: (responseKey: string) => Promise<void>;
+  onUnlockResultsForStudent?: (responseKey: string) => Promise<void>;
+  resultsTabWarningThreshold: number;
   addToast: (message: string, type?: import('@/types').Toast['type']) => void;
 }> = ({
   responses,
@@ -1786,15 +1802,46 @@ const StudentsTab: React.FC<{
   tabWarningsEnabled,
   session,
   onDeleteResponse,
+  onUnlockResultsForStudent,
+  resultsTabWarningThreshold,
   addToast,
 }) => {
   const [showResults, setShowResults] = useState(false);
   const [confirmDeleteKey, setConfirmDeleteKey] =
     useState<ResponseDocKey | null>(null);
   const [deletingKey, setDeletingKey] = useState<ResponseDocKey | null>(null);
+  const [unlockingKey, setUnlockingKey] = useState<ResponseDocKey | null>(null);
   const maxPoints = questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
   const gamified = isGamificationActive(session);
   const suffix = getScoreSuffix(session);
+
+  // Mirror QuizLiveMonitor.handleUnlockResultsForStudent — same toast copy
+  // and same one-shot semantics (decrement warnings by 1; one more
+  // tab-switch re-locks). Surfacing this on the post-session Results view
+  // matters because the live monitor goes away once the assignment ends,
+  // but the lockout flag persists on the response doc.
+  const handleUnlockResultsForStudent = useCallback(
+    async (responseKey: ResponseDocKey, displayName: string) => {
+      if (!onUnlockResultsForStudent) return;
+      setUnlockingKey(responseKey);
+      try {
+        await onUnlockResultsForStudent(responseKey);
+        addToast(
+          `${displayName} can view results again — one more tab-switch will re-lock them.`,
+          'success'
+        );
+      } catch (err) {
+        logError('QuizResults.unlockResultsForStudent', err);
+        addToast(
+          `Could not unlock ${displayName}'s results — try again or check your connection.`,
+          'error'
+        );
+      } finally {
+        setUnlockingKey((k) => (k === responseKey ? null : k));
+      }
+    },
+    [onUnlockResultsForStudent, addToast]
+  );
 
   return (
     <div className="space-y-2">
@@ -1854,6 +1901,8 @@ const StudentsTab: React.FC<{
             const score = getDisplayScore(r, questions, session);
             const earned = getEarnedPoints(r, questions, session);
             const warnings = r.tabSwitchWarnings ?? 0;
+            const resultsLockedOut = r.resultsLockedOut === true;
+            const resultsTabWarnings = r.resultsTabWarnings ?? 0;
 
             const displayName = resolveResponseDisplayName(
               r,
@@ -1867,8 +1916,11 @@ const StudentsTab: React.FC<{
             const isResolved = !r.pin || displayName !== `PIN ${r.pin}`;
             const rowKey = getResponseDocKey(r);
             const canDelete = Boolean(onDeleteResponse);
+            const canUnlockResults =
+              resultsLockedOut && Boolean(onUnlockResultsForStudent);
             const isConfirming = confirmDeleteKey === rowKey;
             const isDeleting = deletingKey === rowKey;
+            const isUnlocking = unlockingKey === rowKey;
 
             if (isConfirming) {
               return (
@@ -1942,8 +1994,38 @@ const StudentsTab: React.FC<{
                         style={{ fontSize: 'min(10px, 3cqmin)' }}
                         title={`${warnings} Tab Switch Warning(s)`}
                       >
-                        <AlertTriangle style={{ width: 10, height: 10 }} />
+                        <AlertTriangle
+                          style={{
+                            width: 'min(10px, 3cqmin)',
+                            height: 'min(10px, 3cqmin)',
+                          }}
+                        />
                         {warnings}
+                      </span>
+                    )}
+                    {/* Results-view lockout indicator. Student crossed the
+                        `protection.tabWarningThreshold` while viewing
+                        published results — the student app redirected
+                        them out and wrote `resultsLockedOut: true`. Sits
+                        next to the in-quiz tab-switch warning badge above
+                        because both come from the same "nav warning"
+                        family but track different surfaces (live attempt
+                        vs. published results). */}
+                    {resultsLockedOut && (
+                      <span
+                        aria-label="Results locked"
+                        className="flex items-center gap-1 bg-rose-100 text-rose-800 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
+                        style={{ fontSize: 'min(10px, 3cqmin)' }}
+                        title={`Results locked after ${resultsTabWarnings} of ${resultsTabWarningThreshold} tab-switch warnings`}
+                      >
+                        <Lock
+                          style={{
+                            width: 'min(10px, 3cqmin)',
+                            height: 'min(10px, 3cqmin)',
+                          }}
+                        />
+                        Locked ({resultsTabWarnings}/
+                        {resultsTabWarningThreshold})
                       </span>
                     )}
                   </div>
@@ -1992,6 +2074,44 @@ const StudentsTab: React.FC<{
                     </div>
                   )}
                 </div>
+
+                {/* Unlock-results action — only when this student is
+                    currently locked out of viewing published results.
+                    Decrements `resultsTabWarnings` by 1 and clears the
+                    flag; one more tab-switch re-locks them (zero grace
+                    warnings post-unlock, matching QuizLiveMonitor's
+                    behavior). */}
+                {canUnlockResults && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      void handleUnlockResultsForStudent(rowKey, displayName)
+                    }
+                    disabled={isUnlocking}
+                    title="Decrement warnings by 1 and reopen the results view for this student"
+                    aria-label={`Unlock results for ${displayName}`}
+                    className="ml-2 shrink-0 bg-amber-400 hover:bg-amber-300 disabled:opacity-50 text-slate-900 font-bold rounded-lg px-3 py-1.5 transition-colors flex items-center gap-1"
+                    style={{ fontSize: 'min(11px, 3cqmin)' }}
+                  >
+                    {isUnlocking ? (
+                      <Loader2
+                        className="animate-spin"
+                        style={{
+                          width: 'min(14px, 4cqmin)',
+                          height: 'min(14px, 4cqmin)',
+                        }}
+                      />
+                    ) : (
+                      <Lock
+                        style={{
+                          width: 'min(14px, 4cqmin)',
+                          height: 'min(14px, 4cqmin)',
+                        }}
+                      />
+                    )}
+                    Unlock results
+                  </button>
+                )}
 
                 {canDelete && (
                   <button
