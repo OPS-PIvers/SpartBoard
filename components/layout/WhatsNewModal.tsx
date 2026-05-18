@@ -58,16 +58,28 @@ const groupOverviewByType = (
   return groups;
 };
 
-const OverviewBulletList: React.FC<{ items: ChangelogBullet[] }> = ({
-  items,
-}) => (
-  <ul className="flex flex-col gap-1.5">
+const OverviewBulletList: React.FC<{
+  items: ChangelogBullet[];
+  nested?: boolean;
+}> = ({ items, nested = false }) => (
+  <ul
+    className={
+      nested ? 'flex flex-col gap-1 pl-4 mt-1.5' : 'flex flex-col gap-1.5'
+    }
+  >
     {items.map((bullet, idx) => (
       <li
         key={idx}
-        className="text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-200"
+        className={
+          nested
+            ? 'text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-100'
+            : 'text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-200'
+        }
       >
         {bullet.text}
+        {bullet.items && bullet.items.length > 0 && (
+          <OverviewBulletList items={bullet.items} nested />
+        )}
       </li>
     ))}
   </ul>

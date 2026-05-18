@@ -183,6 +183,43 @@ describe('WhatsNewModal — overview rendering', () => {
       screen.getByText('A direct fix bullet under the Fixes heading.')
     ).toBeInTheDocument();
   });
+
+  it('renders nested sub-bullets under their parent', () => {
+    const nestedEntry: ChangelogEntry = {
+      version: '2026.05.19',
+      date: '2026-05-19',
+      title: 'Nested bullets entry',
+      overview: [
+        {
+          type: 'improvement',
+          subtitle: 'Quiz response security',
+          items: [
+            {
+              text: 'Two new options when publishing quiz results:',
+              items: [
+                { text: 'Watermark for screenshots.' },
+                { text: 'Tab-navigation lock.' },
+              ],
+            },
+          ],
+        },
+      ],
+      details: [{ type: 'improvement', text: 'Patch-notes entry.' }],
+    };
+    renderModal([nestedEntry]);
+    expect(
+      screen.getByText('Two new options when publishing quiz results:')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Watermark for screenshots.')).toBeInTheDocument();
+    expect(screen.getByText('Tab-navigation lock.')).toBeInTheDocument();
+
+    // Sub-bullets render as a nested <ul> under the parent <li>.
+    const parentLi = screen
+      .getByText('Two new options when publishing quiz results:')
+      .closest('li');
+    expect(parentLi).not.toBeNull();
+    expect(parentLi!.querySelector('ul')).not.toBeNull();
+  });
 });
 
 describe('WhatsNewModal — disclosure', () => {
