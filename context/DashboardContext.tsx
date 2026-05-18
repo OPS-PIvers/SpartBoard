@@ -195,6 +195,21 @@ const serializeDashboard = (d: Dashboard): string =>
     settings: d.settings,
   });
 
+/**
+ * Returns true only for background strings that can be stored in recents and
+ * looked up in the backgrounds modal (preset image URLs, Drive upload URLs, or
+ * custom: color/gradient strings). Tailwind class strings like
+ * "bg-gradient-to-br from-blue-400 ..." are not addressable and must not be
+ * recorded — they waste Firestore writes and will never render in the rail.
+ */
+const isRecordableBackground = (bg: string): boolean => {
+  if (!bg) return false;
+  // Tailwind class strings contain whitespace or start with bg-/from-/to-/via-
+  if (/\s/.test(bg)) return false;
+  if (/^(bg-|from-|to-|via-)/.test(bg)) return false;
+  return true;
+};
+
 /** Capture the serialized state used to populate lastSaved* refs. */
 const getDashboardSaveState = (d: Dashboard) => ({
   serializedData: serializeDashboard(d),
@@ -4681,10 +4696,14 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           d.id === activeIdRef.current ? { ...d, background: bg } : d
         )
       );
-      // Fire-and-forget; failure doesn't block the user's UX.
-      recordRecentBackground(bg).catch((err) => {
-        console.warn('Failed to record recent background', err);
-      });
+      // Only record addressable backgrounds (preset URLs, Drive uploads,
+      // custom: strings). Tailwind class strings (e.g. from WeatherWidget)
+      // are not stored in the modal and would waste Firestore writes.
+      if (isRecordableBackground(bg)) {
+        recordRecentBackground(bg).catch((err) => {
+          console.warn('Failed to record recent background', err);
+        });
+      }
     },
     [recordRecentBackground]
   );
