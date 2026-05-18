@@ -353,27 +353,51 @@ export const refreshSpotifyAccessToken = onCall(
         throw transientError('Spotify refresh returned no access_token.');
       }
 
-      // Spotify rotates refresh_tokens — re-encrypt and persist if one came back.
+      // Spotify rotates refresh_tokens — re-encrypt and persist if one came
+      // back. This is the load-bearing write: if Spotify rotated and we fail
+      // to persist, the OLD refresh_token is now invalid and the next refresh
+      // call will hit `invalid_grant` and force the teacher to re-consent.
+      // Retry the Firestore write a few times before giving up.
       if (res.data.refresh_token) {
         const reEncrypted = encryptRefreshToken(
           res.data.refresh_token,
           SPOTIFY_OAUTH_REFRESH_TOKEN_KEY.value()
         );
-        await ref
-          .set(
+        const rotated: StoredSpotifyAuth = {
+          encryptedRefreshToken: reEncrypted,
+          updatedAt: Date.now(),
+          scope: res.data.scope ?? stored.scope,
+        };
+        const persistDelaysMs = [0, 200, 500];
+        let persistErr: unknown = null;
+        for (const delay of persistDelaysMs) {
+          if (delay) await new Promise((r) => setTimeout(r, delay));
+          try {
+            await ref.set(rotated, { merge: true });
+            persistErr = null;
+            break;
+          } catch (err) {
+            persistErr = err;
+          }
+        }
+        if (persistErr) {
+          // All retries failed. We must NOT return the access_token as if
+          // everything is fine — the next call will fail with invalid_grant.
+          // Surface as transient so the client retries; if the Firestore
+          // outage clears, the next call grabs the still-valid refresh_token
+          // by way of the original stored ciphertext (Spotify allows brief
+          // overlap on rotation).
+          logWarn(
+            'refreshSpotifyAccessToken.persistRotatedExhausted',
+            persistErr,
             {
-              encryptedRefreshToken: reEncrypted,
-              updatedAt: Date.now(),
-              scope: res.data.scope ?? stored.scope,
-            } satisfies StoredSpotifyAuth,
-            { merge: true }
-          )
-          .catch((err) => {
-            // Persist failure is non-fatal — the old refresh_token still
-            // works for at least one more cycle. Surface it in logs so
-            // sustained failures are debuggable.
-            logWarn('refreshSpotifyAccessToken.persistRotated', err, { uid });
-          });
+              uid,
+            }
+          );
+          throw transientError(
+            'Spotify token rotated but could not be persisted. Try again in a moment.'
+          );
+        }
       }
 
       return {
@@ -385,14 +409,16 @@ export const refreshSpotifyAccessToken = onCall(
       if (axios.isAxiosError(err)) {
         const spotifyErr = (err.response?.data as { error?: string })?.error;
         if (spotifyErr === 'invalid_grant') {
-          // Race-safe delete: another tab may have already rotated the
+          // Race-safe handling: another tab may have already rotated the
           // refresh_token (T0 both tabs read R0; T1 tab A rotates to R1
           // and writes; T2 tab B's refresh with R0 fails as invalid_grant).
-          // If we unconditionally deleted here we'd erase R1 and force a
-          // re-consent that wasn't actually needed. The transaction reads
-          // the doc again and only deletes if the ciphertext we just used
-          // is still the stored ciphertext — otherwise leave the rotated
-          // token alone.
+          // Two outcomes:
+          //  - ciphertext unchanged → token was revoked for real, delete & needs-consent
+          //  - ciphertext rotated   → another tab won the race, surface as
+          //                           transient so the client retries against
+          //                           the freshly-written token instead of
+          //                           forcing a needless re-consent
+          let anotherTabRotated = false;
           await db
             .runTransaction(async (tx) => {
               const fresh = await tx.get(ref);
@@ -407,14 +433,21 @@ export const refreshSpotifyAccessToken = onCall(
                 stored.encryptedRefreshToken
               ) {
                 tx.delete(ref);
+              } else {
+                anotherTabRotated = true;
               }
-              // else: another tab rotated the token; leave the new doc in place.
             })
             .catch((delErr) => {
               logWarn('refreshSpotifyAccessToken.deletePoisonDoc', delErr, {
                 uid,
               });
             });
+
+          if (anotherTabRotated) {
+            throw transientError(
+              'Spotify token refresh raced with another tab. Retry.'
+            );
+          }
           throw needsConsent(
             'invalid-grant',
             'needs-consent: stored Spotify refresh token was revoked.'

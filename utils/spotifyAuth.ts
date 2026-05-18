@@ -119,8 +119,21 @@ function detailsFrom(err: unknown): SpotifyRefreshErrorDetails | null {
   return null;
 }
 
-/** Drive the popup auth flow and exchange the resulting code via the backend. */
-export async function connectSpotify(): Promise<ConnectOutcome> {
+/** Drive the Spotify consent popup. Returns the PKCE code + verifier, or a cancel/error result. */
+export type PopupOutcome =
+  | { kind: 'success'; code: string; codeVerifier: string; redirectUri: string }
+  | { kind: 'cancelled' }
+  | { kind: 'error'; reason: string };
+
+/**
+ * Open the Spotify OAuth popup and wait for the callback.
+ *
+ * Split from {@link exchangeSpotifyCode} so the caller can re-check the
+ * Firebase uid between the popup and the backend exchange. Without that
+ * check, a uid switch mid-popup could store user A's refresh token under
+ * user B's Firestore path (server uses `req.auth.uid`).
+ */
+export async function runSpotifyAuthPopup(): Promise<PopupOutcome> {
   if (isAuthBypass) {
     return { kind: 'error', reason: 'auth-bypass-mode' };
   }
@@ -212,17 +225,34 @@ export async function connectSpotify(): Promise<ConnectOutcome> {
     if (codeOrError.error === 'access_denied') return { kind: 'cancelled' };
     return { kind: 'error', reason: codeOrError.error };
   }
+  return {
+    kind: 'success',
+    code: codeOrError.code,
+    codeVerifier,
+    redirectUri,
+  };
+}
 
+/**
+ * Send the PKCE code to the backend for token exchange. Stores the
+ * refresh_token under the calling user's `/users/{uid}/private/spotifyAuth`.
+ *
+ * IMPORTANT: the server keys the stored token off the current Firebase
+ * `request.auth.uid` — never call this without first confirming the uid
+ * hasn't switched since the popup opened, or you'll write user A's
+ * Spotify refresh_token under user B's path.
+ */
+export async function exchangeSpotifyCode(args: {
+  code: string;
+  codeVerifier: string;
+  redirectUri: string;
+}): Promise<ConnectOutcome> {
   try {
     const exchange = httpsCallable<
       { code: string; redirectUri: string; codeVerifier: string },
       { accessToken: string; expiresIn: number; hasRefreshToken: boolean }
     >(functions, 'exchangeSpotifyAuthCode');
-    const res = await exchange({
-      code: codeOrError.code,
-      redirectUri,
-      codeVerifier,
-    });
+    const res = await exchange(args);
     return {
       kind: 'success',
       result: {
@@ -246,6 +276,21 @@ export async function connectSpotify(): Promise<ConnectOutcome> {
   }
 }
 
+/**
+ * @deprecated Prefer {@link runSpotifyAuthPopup} + {@link exchangeSpotifyCode}
+ * with a uid-stability check between them. Kept only for callers that don't
+ * need uid-switch protection.
+ */
+export async function connectSpotify(): Promise<ConnectOutcome> {
+  const popup = await runSpotifyAuthPopup();
+  if (popup.kind !== 'success') return popup;
+  return exchangeSpotifyCode({
+    code: popup.code,
+    codeVerifier: popup.codeVerifier,
+    redirectUri: popup.redirectUri,
+  });
+}
+
 // ---------------------------------------------------------------------------
 // Access-token cache + auto-refresh
 // ---------------------------------------------------------------------------
@@ -257,7 +302,7 @@ interface CachedToken {
 }
 
 let cached: CachedToken | null = null;
-let inflightRefresh: Promise<string | null> | null = null;
+let inflightRefresh: Promise<AccessTokenResult> | null = null;
 /**
  * Bumped every time the cache is cleared (sign-out, uid switch, disconnect).
  * Any in-flight refresh started before the bump must check the generation
@@ -278,19 +323,39 @@ export function clearAccessTokenCache(): void {
 }
 
 /**
- * Returns a valid access_token, refreshing via the backend if needed.
- * Returns null if the user is not connected or the refresh failed terminally.
+ * Verbose result of {@link getValidAccessToken}.
+ *
+ * Distinguishing `transient` from `needs-consent` matters: a 500 from the
+ * refresh callable or a Spotify outage is `transient` (the stored refresh
+ * token is still valid, the user is still "connected"), whereas
+ * `needs-consent` means the stored grant is gone and the user must re-auth.
+ * Callers that conflate these into "no token = disconnected" will push
+ * teachers into a re-consent flow during any backend hiccup.
  */
-export async function getValidAccessToken(): Promise<string | null> {
-  if (isAuthBypass) return null;
+export type AccessTokenResult =
+  | { status: 'ok'; token: string }
+  | { status: 'needs-consent' }
+  | { status: 'transient'; message: string }
+  | {
+      status: 'no-cache-bump'; /** swallowed because the cache was cleared mid-refresh */
+    };
+
+/**
+ * Returns the current access_token, refreshing via the backend if needed.
+ *
+ * The full {@link AccessTokenResult} discriminator lets callers tell
+ * `needs-consent` from `transient` — see the type's docs for why.
+ */
+export async function getValidAccessToken(): Promise<AccessTokenResult> {
+  if (isAuthBypass) return { status: 'needs-consent' };
   // 60-second skew so a token never expires mid-API-call.
   if (cached && cached.expiresAt - 60_000 > Date.now()) {
-    return cached.token;
+    return { status: 'ok', token: cached.token };
   }
   if (inflightRefresh) return inflightRefresh;
 
   const generationAtStart = cacheGeneration;
-  inflightRefresh = (async () => {
+  inflightRefresh = (async (): Promise<AccessTokenResult> => {
     try {
       const refresh = httpsCallable<
         Record<string, never>,
@@ -301,20 +366,24 @@ export async function getValidAccessToken(): Promise<string | null> {
       // disconnect, or uid switch). Without this guard, the stale refresh
       // would repopulate the cache after the caller intended it cleared.
       if (cacheGeneration !== generationAtStart) {
-        return null;
+        return { status: 'no-cache-bump' };
       }
       cacheAccessToken(res.data.accessToken, res.data.expiresIn);
-      return res.data.accessToken;
+      return { status: 'ok', token: res.data.accessToken };
     } catch (err) {
       logError('spotifyAuth.refresh', err);
       const d = detailsFrom(err);
-      if (
-        d?.reason === 'needs-consent' &&
-        cacheGeneration === generationAtStart
-      ) {
-        cached = null;
+      if (d?.reason === 'needs-consent') {
+        if (cacheGeneration === generationAtStart) cached = null;
+        return { status: 'needs-consent' };
       }
-      return null;
+      const message =
+        err instanceof FunctionsError
+          ? err.message
+          : err instanceof Error
+            ? err.message
+            : String(err);
+      return { status: 'transient', message };
     } finally {
       // Only clear the inflight pointer if it's still ours — a cache reset
       // (which nulls inflightRefresh) may have already happened.
@@ -324,6 +393,16 @@ export async function getValidAccessToken(): Promise<string | null> {
     }
   })();
   return inflightRefresh;
+}
+
+/**
+ * Thin wrapper for callers that don't care to distinguish failure modes
+ * (e.g. fire-and-forget search, single play attempt). Returns the token or
+ * null on any non-`ok` outcome.
+ */
+export async function getValidAccessTokenOrNull(): Promise<string | null> {
+  const result = await getValidAccessToken();
+  return result.status === 'ok' ? result.token : null;
 }
 
 export type DisconnectOutcome = { ok: true } | { ok: false; message: string };

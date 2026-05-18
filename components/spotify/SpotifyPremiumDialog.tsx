@@ -1,21 +1,28 @@
 /**
- * One-time-per-user notice that personal Spotify playback in the Music
- * widget needs a Spotify Premium subscription. Free accounts can still
- * connect, but the Web Playback SDK refuses to start playback; Spotify
- * will reject `PUT /me/player/play` with 403 and the widget falls back
- * to the embed iframe (which limits Free users to 30-sec previews).
+ * Notice that personal Spotify playback in the Music widget needs a Spotify
+ * Premium subscription. Free accounts can still connect, but the Web
+ * Playback SDK refuses to start playback; Spotify will reject
+ * `PUT /me/player/play` with 403 and the widget falls back to the embed
+ * iframe (which limits Free users to 30-sec previews).
  *
  * Three exits:
- *   - "Got it, continue" — proceeds; remembered as shown for this session
- *   - "Don't show this again" + "Continue" — saves the preference and proceeds
+ *   - "Got it, continue" — proceeds with the connect flow
+ *   - "Don't show this again" + "Continue" — persists the suppression and
+ *     proceeds; future connect attempts skip this dialog
  *   - "Cancel" — caller reverts to curated-stations source
  *
  * The "don't show again" preference lives in `utils/spotifyPremiumNotice.ts`
  * so this file exports only a React component (keeps Vite's react-refresh
  * happy).
+ *
+ * Portalled to `document.body`. The widget's settings panel applies
+ * `will-change: transform`, which establishes a containing block for fixed
+ * descendants — a `position: fixed` modal rendered as a child would be
+ * clipped to the panel instead of the viewport.
  */
 
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Music2, X } from 'lucide-react';
 import { setSpotifyPremiumNoticeDismissed } from '@/utils/spotifyPremiumNotice';
 
@@ -37,7 +44,10 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
     onContinue();
   };
 
-  return (
+  // Guard against SSR / test environments without a DOM.
+  if (typeof document === 'undefined') return null;
+
+  return createPortal(
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
       role="dialog"
@@ -110,6 +120,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

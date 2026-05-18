@@ -14,6 +14,18 @@
  * globally, not per uid. We explicitly clear it whenever Firebase's signed-in
  * uid changes so user B can't inherit user A's still-valid Spotify session in
  * the same browser tab.
+ *
+ * Uid races
+ * ---------
+ * Two paths are guarded against rapid sign-in switches:
+ *   1. `initializeForUid` reads `initializedForUid` after every await and
+ *      bails if it changed. The in-flight init is keyed by uid so a new
+ *      sign-in doesn't get back the previous user's probe promise.
+ *   2. `connect` captures the starting uid, opens the Spotify popup, then
+ *      verifies the uid is still current BEFORE calling the backend
+ *      exchange. Without that check the exchange would run under the new
+ *      user's auth and persist the previous user's refresh_token under
+ *      the wrong `/users/{uid}/private/spotifyAuth` path.
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -22,12 +34,14 @@ import {
   ConnectOutcome,
   cacheAccessToken,
   clearAccessTokenCache,
-  connectSpotify,
   disconnectSpotify,
   DisconnectOutcome,
+  exchangeSpotifyCode,
   fetchSpotifyProfile,
   getValidAccessToken,
+  getValidAccessTokenOrNull,
   prettifyConnectErrorReason,
+  runSpotifyAuthPopup,
   SpotifyUserProfile,
 } from '@/utils/spotifyAuth';
 
@@ -55,37 +69,47 @@ let sharedState: SpotifyConnectionState = { status: 'unknown' };
 const subscribers = new Set<(s: SpotifyConnectionState) => void>();
 /** uid the singleton state was initialized for. `null` = signed out or not yet seen. */
 let initializedForUid: string | null = null;
-/** Guards against duplicate initial-probe round-trips when multiple hooks mount at once. */
-let inflightInit: Promise<void> | null = null;
+/**
+ * In-flight initial probe, keyed by uid. Sharing across concurrent mounts
+ * avoids duplicate round-trips. Keying by uid prevents a rapid switch from
+ * returning the previous user's probe — the new uid kicks off its own.
+ */
+let inflight: { uid: string; promise: Promise<void> } | null = null;
 
 function setSharedState(next: SpotifyConnectionState): void {
   sharedState = next;
   subscribers.forEach((cb) => cb(next));
 }
 
-/**
- * Run the initial "is this user already connected?" probe exactly once per
- * uid, broadcasting the result to every mounted hook instance via
- * `setSharedState`. Concurrent mounts share the same in-flight promise so we
- * don't fire duplicate `refreshSpotifyAccessToken` + `/me` round-trips.
- */
 function initializeForUid(uid: string): Promise<void> {
   if (initializedForUid === uid && sharedState.status !== 'unknown') {
     return Promise.resolve();
   }
-  if (inflightInit) return inflightInit;
+  if (inflight && inflight.uid === uid) return inflight.promise;
   initializedForUid = uid;
-  inflightInit = (async () => {
+  const promise = (async () => {
     setSharedState({ status: 'unknown' });
-    const token = await getValidAccessToken();
-    // Uid may have changed mid-probe (rapid sign-out/sign-in). Re-check.
+    const result = await getValidAccessToken();
     if (initializedForUid !== uid) return;
-    if (!token) {
+    if (result.status === 'needs-consent') {
       setSharedState({ status: 'disconnected' });
       return;
     }
+    if (result.status === 'transient') {
+      // Don't flip to "disconnected" for a transient backend failure —
+      // the stored refresh_token is still valid, the next probe will
+      // pick it up. Surface as an error so the teacher can retry.
+      setSharedState({ status: 'error', message: result.message });
+      return;
+    }
+    if (result.status === 'no-cache-bump') {
+      // Cache was cleared mid-flight (sign-out, disconnect, or uid switch
+      // landed concurrently). The new state was already set by whichever
+      // path did the invalidation; don't overwrite it.
+      return;
+    }
     try {
-      const profile = await fetchSpotifyProfile(token);
+      const profile = await fetchSpotifyProfile(result.token);
       if (initializedForUid !== uid) return;
       setSharedState({ status: 'connected', profile });
     } catch (err) {
@@ -96,9 +120,12 @@ function initializeForUid(uid: string): Promise<void> {
       });
     }
   })().finally(() => {
-    inflightInit = null;
+    // Only clear if it's still ours — a uid switch may have replaced it
+    // with a new probe whose `finally` should be the one that clears.
+    if (inflight && inflight.uid === uid) inflight = null;
   });
-  return inflightInit;
+  inflight = { uid, promise };
+  return promise;
 }
 
 export function useSpotifyAuth(): UseSpotifyAuth {
@@ -124,10 +151,9 @@ export function useSpotifyAuth(): UseSpotifyAuth {
   // React to sign-in/sign-out/uid-switch.
   useEffect(() => {
     if (!user) {
-      // Sign-out — clear token cache and state so a different signed-in user
-      // doesn't inherit the previous session.
       if (initializedForUid !== null) {
         initializedForUid = null;
+        inflight = null;
         clearAccessTokenCache();
         setSharedState({ status: 'disconnected' });
       }
@@ -135,42 +161,95 @@ export function useSpotifyAuth(): UseSpotifyAuth {
     }
     // Uid switch (user A → user B in the same tab). Invalidate the global
     // token cache before probing — otherwise user B's first getValidAccessToken()
-    // call returns user A's still-valid cached access_token.
+    // call returns user A's still-valid cached access_token. Clearing
+    // `inflight` here forces a fresh probe for B even if A's probe is still
+    // in flight.
     if (initializedForUid !== null && initializedForUid !== user.uid) {
       clearAccessTokenCache();
       initializedForUid = null;
+      inflight = null;
       setSharedState({ status: 'unknown' });
     }
     void initializeForUid(user.uid);
   }, [user]);
 
   const connect = useCallback(async (): Promise<ConnectOutcome> => {
+    const startUid = user?.uid ?? null;
+    if (!startUid) {
+      return { kind: 'error', reason: 'not-signed-in' };
+    }
     setSharedState({ status: 'connecting' });
-    const outcome = await connectSpotify();
+
+    // Step 1: popup. No backend call here — the popup just collects the
+    // PKCE code from Spotify's consent screen.
+    const popup = await runSpotifyAuthPopup();
+
+    // Uid check #1: bail BEFORE the backend exchange if the user switched
+    // during consent. Calling exchange under user B's auth would store
+    // user A's refresh_token under `/users/B/private/spotifyAuth` — a
+    // cross-user credential write that the server can't detect.
+    if (initializedForUid !== startUid) {
+      // The effect's uid-switch path has already set state to 'unknown'
+      // and kicked off the new uid's probe; don't overwrite it.
+      return { kind: 'cancelled' };
+    }
+
+    if (popup.kind === 'cancelled') {
+      setSharedState({ status: 'disconnected' });
+      return { kind: 'cancelled' };
+    }
+    if (popup.kind === 'error') {
+      setSharedState({
+        status: 'error',
+        message: prettifyConnectErrorReason(popup.reason),
+      });
+      return { kind: 'error', reason: popup.reason };
+    }
+
+    // Step 2: exchange the code for tokens. Now safe because startUid is
+    // confirmed current.
+    const outcome = await exchangeSpotifyCode({
+      code: popup.code,
+      codeVerifier: popup.codeVerifier,
+      redirectUri: popup.redirectUri,
+    });
+
+    // Uid check #2: belt-and-suspenders. The exchange itself was fast
+    // (< 1s typically) but if a switch landed during it, don't pollute
+    // the new uid's state machine with the previous account.
+    if (initializedForUid !== startUid) return { kind: 'cancelled' };
+
     if (outcome.kind === 'success') {
       cacheAccessToken(outcome.result.accessToken, outcome.result.expiresIn);
       try {
         const profile = await fetchSpotifyProfile(outcome.result.accessToken);
+        if (initializedForUid !== startUid) return { kind: 'cancelled' };
         setSharedState({ status: 'connected', profile });
       } catch (err) {
+        if (initializedForUid !== startUid) return { kind: 'cancelled' };
         setSharedState({
           status: 'error',
           message: err instanceof Error ? err.message : String(err),
         });
       }
-    } else if (outcome.kind === 'cancelled') {
-      setSharedState({ status: 'disconnected' });
-    } else {
+    } else if (outcome.kind === 'needs-consent') {
       setSharedState({
         status: 'error',
-        message:
-          outcome.kind === 'error'
-            ? prettifyConnectErrorReason(outcome.reason)
-            : `Spotify needs re-consent (${outcome.cause}). Try connecting again.`,
+        message: `Spotify needs re-consent (${outcome.cause}). Try connecting again.`,
       });
+    } else if (outcome.kind === 'error') {
+      setSharedState({
+        status: 'error',
+        message: prettifyConnectErrorReason(outcome.reason),
+      });
+    } else {
+      // `cancelled` from exchangeSpotifyCode is unreachable in practice (the
+      // popup handles cancellation), but the discriminated union allows it
+      // so we fall back to the same path the popup-cancel branch uses.
+      setSharedState({ status: 'disconnected' });
     }
     return outcome;
-  }, []);
+  }, [user]);
 
   const disconnect = useCallback(async (): Promise<DisconnectOutcome> => {
     const result = await disconnectSpotify();
@@ -182,7 +261,7 @@ export function useSpotifyAuth(): UseSpotifyAuth {
     return result;
   }, []);
 
-  const getAccessToken = useCallback(() => getValidAccessToken(), []);
+  const getAccessToken = useCallback(() => getValidAccessTokenOrNull(), []);
 
   return {
     state,

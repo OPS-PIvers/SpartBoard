@@ -301,9 +301,15 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg === 'spotify-premium-required') {
+          // Premium-required can surface here too (Spotify returns 403 on the
+          // play API even when the SDK itself initialized fine — e.g. account
+          // downgraded between connect and first play). Flip sdkFailed so the
+          // render-time guard below swaps in the embed iframe; without this
+          // the user sees a permanently-broken play button.
           setError(
             'Spotify rejected playback (Premium required). Falling back to preview.'
           );
+          setSdkFailed(true);
         } else {
           setError(msg);
         }
