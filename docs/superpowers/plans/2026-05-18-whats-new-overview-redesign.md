@@ -6,7 +6,7 @@
 
 **Architecture:** Schema migration first (atomic: types + JSON + minimal modal field rename), then surgical visual cleanups (drop version slug + "Your build" badge + type-count pills, format date with `Intl`), then a TDD-driven renderer refactor in `WhatsNewModal.tsx` that adds overview rendering, disclosure mechanics with ARIA, nested sub-bullets, and a motion-respecting fade-in. No new files in `components/` — all renderer changes stay inside `WhatsNewModal.tsx` (it's still a focused file).
 
-**Tech Stack:** React 19, TypeScript, Tailwind CSS (`animate-in` + `motion-reduce:` utilities), Vitest + React Testing Library, lucide-react icons, i18next, `Intl.DateTimeFormat`.
+**Tech Stack:** React 19, TypeScript, Tailwind CSS, plain CSS keyframes (project convention in `index.css`), Vitest + React Testing Library, lucide-react icons, i18next, `Intl.DateTimeFormat`.
 
 **Spec:** [docs/superpowers/specs/2026-05-18-whats-new-overview-redesign-design.md](../specs/2026-05-18-whats-new-overview-redesign-design.md)
 
