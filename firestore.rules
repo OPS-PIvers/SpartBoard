@@ -2412,7 +2412,15 @@ service cloud.firestore {
             request.resource.data.get('name', null) == resource.data.get('name', null) &&
             request.resource.data.get('joinedAt', null) == resource.data.get('joinedAt', null) &&
             request.resource.data.score == resource.data.score &&
-            request.resource.data.diff(resource.data).changedKeys().hasOnly([
+            // `affectedKeys()` (not `changedKeys()`) — the former covers
+            // added/removed/changed; the latter only covers keys present on
+            // both sides with different values, so a brand-new arbitrary
+            // field smuggled in by the write would slip past the whitelist.
+            // The `score == resource.data.score` immutability above blocks
+            // score-smuggling specifically, but any other injected field
+            // (current or future protection fields, metadata, etc.) would
+            // be wide open without this guard.
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly([
               'answers',
               'completedAt',
               'tabSwitchWarnings',
