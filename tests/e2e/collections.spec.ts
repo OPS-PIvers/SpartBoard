@@ -41,9 +41,12 @@ test.describe('Collections feature', () => {
     const promptDialog = page.getByRole('dialog', { name: /new collection/i });
     await expect(promptDialog).toBeVisible({ timeout: 5000 });
 
-    // Fill the name and confirm
+    // Fill the name and confirm. The picker auto-opens after each
+    // successful create — dismiss it with Escape so it doesn't overlay
+    // the modal and block subsequent clicks.
     await promptDialog.getByRole('textbox').fill('Math E2E');
     await promptDialog.getByRole('button', { name: /^create$/i }).click();
+    await page.keyboard.press('Escape');
 
     // The collection should now appear in the left-hand tree.
     // Use .first() since "Math E2E" may also appear in the grid as a CollectionCard.

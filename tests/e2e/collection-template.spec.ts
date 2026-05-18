@@ -26,11 +26,14 @@ test.describe('Collections — save + instantiate via template (Plan 4)', () => 
     const modal = page.getByRole('dialog', { name: /boards/i });
     await expect(modal).toBeVisible({ timeout: 10000 });
 
-    // 2. Create Collection "Plan 4 Test"
+    // 2. Create Collection "Plan 4 Test". BoardsModal auto-opens the
+    //    CollectionColorPicker after each successful create — dismiss it
+    //    with Escape so it doesn't block subsequent modal interactions.
     await modal.getByRole('button', { name: /new collection/i }).click();
     const cPrompt = page.getByRole('dialog', { name: /new collection/i });
     await cPrompt.getByRole('textbox').fill('Plan 4 Test');
     await cPrompt.getByRole('button', { name: /^create$/i }).click();
+    await page.keyboard.press('Escape');
 
     // 3. Open the Collection and add 2 Boards
     await modal.getByText('Plan 4 Test').first().click();

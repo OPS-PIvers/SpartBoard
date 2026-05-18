@@ -26,6 +26,9 @@ test.describe('Collections — share + import (Copy mode)', () => {
     const cPrompt = page.getByRole('dialog', { name: /new collection/i });
     await cPrompt.getByRole('textbox').fill('Share Test Coll');
     await cPrompt.getByRole('button', { name: /^create$/i }).click();
+    // BoardsModal auto-opens the CollectionColorPicker after create —
+    // dismiss it so the next click reaches the modal grid.
+    await page.keyboard.press('Escape');
     await modal.getByText('Share Test Coll').first().click();
 
     for (const name of ['Share-A', 'Share-B']) {

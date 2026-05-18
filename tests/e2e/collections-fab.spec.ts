@@ -59,17 +59,23 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
       .click();
     const modal = page.getByRole('dialog', { name: /boards/i });
 
-    // Collection 1.
+    // Collection 1. Note: BoardsModal auto-opens the CollectionColorPicker
+    // immediately after each successful create so the teacher can pick a
+    // color in-flow — dismiss it with Escape before moving on. Without
+    // this dismissal the picker overlays the modal and blocks every
+    // subsequent click.
     await modal.getByRole('button', { name: /new collection/i }).click();
     let cPrompt = page.getByRole('dialog', { name: /new collection/i });
     await cPrompt.getByRole('textbox').fill('Coll One');
     await cPrompt.getByRole('button', { name: /^create$/i }).click();
+    await page.keyboard.press('Escape');
 
-    // Collection 2 — needed so the [Collections] FAB button appears.
+    // Collection 2 — the [Collections] FAB button only shows at >= 2.
     await modal.getByRole('button', { name: /new collection/i }).click();
     cPrompt = page.getByRole('dialog', { name: /new collection/i });
     await cPrompt.getByRole('textbox').fill('Coll Two');
     await cPrompt.getByRole('button', { name: /^create$/i }).click();
+    await page.keyboard.press('Escape');
 
     // Open Coll Two and add 2 boards so we land inside it after closing.
     await modal.getByText('Coll Two').first().click();
