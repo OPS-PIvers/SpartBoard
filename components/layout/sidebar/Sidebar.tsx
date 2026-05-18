@@ -391,10 +391,12 @@ export const Sidebar: React.FC = () => {
         <BoardsModal onClose={() => setIsBoardsModalOpen(false)} />
       )}
 
-      <BackgroundsModal
-        isOpen={isBackgroundsModalOpen}
-        onClose={() => setIsBackgroundsModalOpen(false)}
-      />
+      {isBackgroundsModalOpen && (
+        <BackgroundsModal
+          isOpen={isBackgroundsModalOpen}
+          onClose={() => setIsBackgroundsModalOpen(false)}
+        />
+      )}
 
       {isOpen && (
         <div className="fixed inset-0 z-modal flex">
