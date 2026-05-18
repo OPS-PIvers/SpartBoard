@@ -2,6 +2,7 @@ import React from 'react';
 import { LayoutGrid, Music, Music2, Palette, Radio } from 'lucide-react';
 import { WidgetData, MusicConfig, MusicLayout, MusicSource } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { Toggle } from '@/components/common/Toggle';
 import {
@@ -108,6 +109,8 @@ const SOURCE_OPTIONS: {
 
 export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
+  const { canAccessFeature } = useAuth();
+  const canUsePersonal = canAccessFeature('personal-spotify');
   const config = widget.config as MusicConfig;
   const { stations, isLoading } = useMusicStations();
   const { layout = 'default', source = 'curated' } = config;
@@ -123,49 +126,51 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   return (
     <div className="space-y-5">
-      {/* ── Source selector ── */}
-      <div className="space-y-2">
-        <SettingsLabel icon={Music2}>Source</SettingsLabel>
-        <div className="grid grid-cols-2 gap-2">
-          {SOURCE_OPTIONS.map((opt) => {
-            const isActive = source === opt.value;
-            const Icon = opt.icon;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() =>
-                  updateWidget(widget.id, {
-                    config: {
-                      ...config,
-                      source: opt.value,
-                      // Disable Time-Tool sync when switching to Spotify-based source.
-                      ...(opt.value === 'personal' && config.syncWithTimeTool
-                        ? { syncWithTimeTool: false }
-                        : {}),
-                    },
-                  })
-                }
-                title={opt.description}
-                className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-left ${
-                  isActive
-                    ? 'border-green-500 bg-green-50 shadow-sm'
-                    : 'border-slate-100 hover:border-slate-300 bg-white'
-                }`}
-              >
-                <Icon
-                  className={`w-4 h-4 shrink-0 ${isActive ? 'text-green-700' : 'text-slate-500'}`}
-                />
-                <span
-                  className={`text-xs font-bold truncate ${isActive ? 'text-green-800' : 'text-slate-700'}`}
+      {/* ── Source selector (gated behind personal-spotify feature) ── */}
+      {canUsePersonal && (
+        <div className="space-y-2">
+          <SettingsLabel icon={Music2}>Source</SettingsLabel>
+          <div className="grid grid-cols-2 gap-2">
+            {SOURCE_OPTIONS.map((opt) => {
+              const isActive = source === opt.value;
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    updateWidget(widget.id, {
+                      config: {
+                        ...config,
+                        source: opt.value,
+                        // Disable Time-Tool sync when switching to Spotify-based source.
+                        ...(opt.value === 'personal' && config.syncWithTimeTool
+                          ? { syncWithTimeTool: false }
+                          : {}),
+                      },
+                    })
+                  }
+                  title={opt.description}
+                  className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-left ${
+                    isActive
+                      ? 'border-green-500 bg-green-50 shadow-sm'
+                      : 'border-slate-100 hover:border-slate-300 bg-white'
+                  }`}
                 >
-                  {opt.label}
-                </span>
-              </button>
-            );
-          })}
+                  <Icon
+                    className={`w-4 h-4 shrink-0 ${isActive ? 'text-green-700' : 'text-slate-500'}`}
+                  />
+                  <span
+                    className={`text-xs font-bold truncate ${isActive ? 'text-green-800' : 'text-slate-700'}`}
+                  >
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* ── Layout selector ── */}
       <div className="space-y-2 pt-1 border-t border-slate-100">
@@ -201,7 +206,7 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       </div>
 
       {/* ── Source-specific body ── */}
-      {source === 'personal' ? (
+      {source === 'personal' && canUsePersonal ? (
         <div className="pt-1 border-t border-slate-100">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider pt-4 pb-2">
             Personal Spotify
