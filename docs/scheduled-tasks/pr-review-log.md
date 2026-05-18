@@ -4,6 +4,26 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-18
+
+- PRs reviewed:
+  - #1657 — fix(rules): add admin_audit_log Firestore rule (HIGH) (base `dev-paul`, head `scheduled-tasks`, draft)
+  - #1655 — Collections, templates, what's new, and bug fixes (base `main`, head `dev-paul`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`, head `docs/line-endings-normalization-plan`)
+- Comments processed: 2 unresolved comment threads (both on PR #1657 from gemini-code-assist) — 1 fixed and 1 partially fixed/partially explained. PR #1655's three inline review threads were already resolved in earlier commits on the branch; PR #1655's three PR-level comments were already replied to in prior sweeps. PR #1366's remaining `.editorconfig` proposal continues to be deferred (third sweep — author decision pending).
+- Fixes pushed: 1
+  - PR #1657 / `scheduled-tasks` (`19ba1e8`): two-part fix for gemini-code-assist comments on the new `admin_audit_log` rule. (a) `firestore.rules` — changed `allow read, write` to `allow read, create` so audit entries are append-only (admins cannot edit/delete their own trail); expanded the inline comment to document why `create` (not `write`) is intentional so a future audit can't loosen it. (b) Kept `serverTimestamp()` at the call site — the reviewer's suggestion to switch to `Date.now()` + `is int` validation would WEAKEN security for an audit log (a client-supplied epoch is forgeable, server-set timestamps are not), so the consistency argument applies to data the client should own, not tamper-evident records. Added a rule comment documenting this choice. (c) `docs/scheduled-tasks/firestore-rules.md` — corrected line-range reference (`572-582` after the expanded comment grew the block, was `574-578`) and rewrote the 2026-05-18 audit-note bottom matter from "`admin_audit_log` HIGH open item remains unfixed" to "`admin_audit_log` HIGH item resolved in this PR — match block at lines 572-582 with append-only (`create` not `write`) permission." Verified: prettier ✓, lint ✓, type-check ✓ (test:rules requires firebase emulator not available in this env).
+- Reviews posted: 3
+  - PR #1657 admin_audit_log rule: Ready with minor notes — solid fix; follow-up suggestion to add `tests/rules/admin_audit_log.test.ts` locking in the immutability invariant (~30 lines, non-blocking), and to route the audit-write `catch` through the existing `logError()` utility so the next silent-deny class of bug surfaces faster. Reminder about post-merge `firebase deploy --only firestore:rules`.
+  - PR #1655 Collections + Results Protection: Ready with notes — 146 files / ~17K+ additions, all 14 CI checks green, three prior inline review threads (DashboardContext dot-notation, SoundWidget unreachable resume, useResultsTabWarnings race) already validated and fixed earlier on the branch. Substantial new test coverage shipped (rebutting the prior "12 empty test files" claim — verified again, files have real content). Two human-attention items flagged: (1) PR title is better than the original `"Implement custom list toggling and drag-select enhancements"` but worth a final pass for git-log searchability, and (2) `context/DashboardContext.tsx` (+708/-35) + `types.ts` (+293/-1) + LRU mounting cache lifecycle warrant a manual walkthrough — the dot-notation `setDoc({merge:true})` bug fixed earlier in the same PR is the exact class of subtle Firestore-pipeline regression CLAUDE.md flags this file as prone to.
+  - PR #1366 line-endings plan: Ready — no new edits this sweep, all reviewer items already addressed across the previous three sweeps. The single deferred item (`.editorconfig` proposal) carried forward; also flagged that the plan now self-handles the "PR 2 may be a no-op if blobs are already LF" case (`git status` probe between `git add --renormalize .` and `git commit`), so the author can probe locally before scheduling the dedicated window and possibly collapse the rollout to PR 1 + cleanup.
+- Notes:
+  - Branch safety: All fixes pushed only to `scheduled-tasks` (fair game per CRITICAL BRANCH SAFETY RULE). No push to `main`. `dev-paul` not pushed to this run — PR #1655's comments were already addressed by the author in earlier commits and no new fixes were needed, so the dev-paul push-permission did not need to be exercised.
+  - Two of the three PRs (#1655 and #1366) had every actionable reviewer comment addressed before this sweep — these reviews are purely fresh-eyes reads. Only PR #1657 needed new code pushed.
+  - Gemini-code-assist's `serverTimestamp() → Date.now()` suggestion on PR #1657 was a generic project-convention rule applied incorrectly to a tamper-evidence context. The reply on the inline comment explains the security rationale for keeping `serverTimestamp()` so the same suggestion isn't re-applied in future passes.
+
+---
+
 ## 2026-05-15
 
 - PRs reviewed:
