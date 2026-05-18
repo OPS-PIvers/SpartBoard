@@ -28,13 +28,14 @@ const TagInput: React.FC<TagInputProps> = ({ tags, onChange, suggestions }) => {
   // Keep a ref that always holds the latest tag list so rapid additions
   // (e.g. clicking several suggestion chips before the parent's Firestore
   // write completes) each start from the current list rather than the same
-  // stale `tags` prop snapshot that would overwrite earlier additions.
-  // The ref is updated in an effect (after render) to satisfy the
-  // react-hooks/refs rule that forbids assigning `ref.current` during render.
-  const tagsRef = React.useRef(tags);
-  React.useEffect(() => {
-    tagsRef.current = tags;
-  }, [tags]);
+  // stale `tags` prop snapshot. Per the project styleguide, refs that mirror
+  // a value should be assigned in the render body rather than via useEffect.
+  // The react-hooks/refs rule's strict reading flags this; the local disable
+  // is intentional and matches the same pattern used in
+  // context/AuthContext.tsx for `favoritesRef` / `recentsRef`.
+  const tagsRef = React.useRef<string[]>([]);
+  // eslint-disable-next-line react-hooks/refs
+  tagsRef.current = tags;
 
   const addTag = (raw: string) => {
     const t = raw.trim().toLowerCase();
