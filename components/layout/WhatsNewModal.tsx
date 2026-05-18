@@ -3,9 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { RefreshCw, Sparkles, Wrench, ArrowUpRight } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import {
+  ChangelogBullet,
   ChangelogEntry,
   ChangelogHighlight,
   ChangelogHighlightType,
+  ChangelogThemedSection,
   useChangelog,
   writeLastSeenVersion,
 } from '@/hooks/useChangelog';
@@ -34,6 +36,48 @@ const groupHighlights = (
   }
   return groups;
 };
+
+const groupOverviewByType = (
+  sections: ChangelogThemedSection[]
+): Record<ChangelogHighlightType, ChangelogThemedSection[]> => {
+  const groups: Record<ChangelogHighlightType, ChangelogThemedSection[]> = {
+    feature: [],
+    improvement: [],
+    fix: [],
+  };
+  for (const section of sections) {
+    if (groups[section.type]) groups[section.type].push(section);
+  }
+  return groups;
+};
+
+const OverviewBulletList: React.FC<{ items: ChangelogBullet[] }> = ({
+  items,
+}) => (
+  <ul className="flex flex-col gap-1.5">
+    {items.map((bullet, idx) => (
+      <li
+        key={idx}
+        className="text-[13px] text-slate-700 leading-relaxed pl-3 border-l-2 border-slate-200"
+      >
+        {bullet.text}
+      </li>
+    ))}
+  </ul>
+);
+
+const OverviewSection: React.FC<{ section: ChangelogThemedSection }> = ({
+  section,
+}) => (
+  <div>
+    {section.subtitle && (
+      <p className="text-sm font-bold text-slate-800 mb-1.5">
+        {section.subtitle}
+      </p>
+    )}
+    <OverviewBulletList items={section.items} />
+  </div>
+);
 
 const PillIcon: React.FC<{ type: ChangelogHighlightType }> = ({ type }) => {
   if (type === 'feature') {
@@ -91,6 +135,14 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
     fix: t('whatsNew.groups.fix', { defaultValue: 'Fixes' }),
   };
 
+  const overviewByType = useMemo(
+    () => (entry.overview ? groupOverviewByType(entry.overview) : null),
+    [entry.overview]
+  );
+  const hasOverview =
+    overviewByType !== null &&
+    GROUP_ORDER.some((type) => overviewByType[type].length > 0);
+
   return (
     <section className="pt-5 first:pt-0 pb-5 border-b border-slate-100 last:border-b-0">
       <header className="mb-3">
@@ -99,6 +151,24 @@ const Entry: React.FC<{ entry: ChangelogEntry }> = ({ entry }) => {
           {formatEntryDate(entry.date, i18n.language)}
         </p>
       </header>
+      {hasOverview && overviewByType && (
+        <div className="flex flex-col gap-3 mb-3">
+          {GROUP_ORDER.map((type) =>
+            overviewByType[type].length > 0 ? (
+              <div key={type}>
+                <h5 className="text-xxs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                  {labels[type]}
+                </h5>
+                <div className="flex flex-col gap-3">
+                  {overviewByType[type].map((section, idx) => (
+                    <OverviewSection key={idx} section={section} />
+                  ))}
+                </div>
+              </div>
+            ) : null
+          )}
+        </div>
+      )}
       <div className="flex gap-2 mb-3 flex-wrap">
         {GROUP_ORDER.map((type) =>
           groups[type].length > 0 ? (

@@ -113,6 +113,81 @@ describe('WhatsNewModal — no-overview entries', () => {
   });
 });
 
+describe('WhatsNewModal — overview rendering', () => {
+  beforeEach(() => {
+    useChangelogMock.mockReset();
+    writeLastSeenVersionMock.mockReset();
+  });
+
+  const overviewEntry: ChangelogEntry = {
+    version: '2026.05.19',
+    date: '2026-05-19',
+    title: 'Collections release',
+    overview: [
+      {
+        type: 'feature',
+        subtitle: 'Collections',
+        items: [
+          { text: 'Group your boards into folders.' },
+          { text: 'Share a whole Collection.' },
+        ],
+      },
+      {
+        type: 'improvement',
+        subtitle: 'Quiz response security',
+        items: [{ text: 'Unlock one student at a time.' }],
+      },
+      {
+        type: 'fix',
+        // No subtitle — theme-less Fixes section.
+        items: [{ text: 'A direct fix bullet under the Fixes heading.' }],
+      },
+    ],
+    details: [
+      {
+        type: 'feature',
+        text: 'Collections — group your boards into folders.',
+      },
+      {
+        type: 'fix',
+        text: 'A patch-notes fix bullet (different from the overview Fixes bullet).',
+      },
+    ],
+  };
+
+  it('renders themed subtitles under the right type buckets', () => {
+    renderModal([overviewEntry]);
+    // Type headings appear in fixed order — New, Improvements, Fixes.
+    // (Use getAllByText since the same labels also appear as pill text
+    // until Task 7 removes the pills.)
+    expect(screen.getAllByText('New').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Improvements').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Fixes').length).toBeGreaterThan(0);
+    // Themed subheads appear as bold text on their own.
+    expect(screen.getByText('Collections')).toBeInTheDocument();
+    expect(screen.getByText('Quiz response security')).toBeInTheDocument();
+  });
+
+  it('renders bullets under each themed section', () => {
+    renderModal([overviewEntry]);
+    expect(
+      screen.getByText('Group your boards into folders.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('Share a whole Collection.')).toBeInTheDocument();
+    expect(
+      screen.getByText('Unlock one student at a time.')
+    ).toBeInTheDocument();
+  });
+
+  it('renders a theme-less section with no subtitle, bullets flat under the type heading', () => {
+    renderModal([overviewEntry]);
+    // The Fixes bullet renders even though its section has no subtitle.
+    expect(
+      screen.getByText('A direct fix bullet under the Fixes heading.')
+    ).toBeInTheDocument();
+  });
+});
+
 // `within` is exported for use in later tasks; pull it into a no-op
 // reference here to keep the import alive across edits.
 void within;
