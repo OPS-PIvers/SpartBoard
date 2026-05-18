@@ -217,8 +217,8 @@ describe('WhatsNewModal — overview rendering', () => {
     const parentLi = screen
       .getByText('Two new options when publishing quiz results:')
       .closest('li');
-    expect(parentLi).not.toBeNull();
-    expect(parentLi!.querySelector('ul')).not.toBeNull();
+    if (!parentLi) throw new Error('expected parent <li> to exist');
+    expect(parentLi.querySelector('ul')).not.toBeNull();
   });
 });
 
