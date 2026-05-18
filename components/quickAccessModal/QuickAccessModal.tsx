@@ -8,6 +8,13 @@ import type { WidgetType, InternalToolType } from '@/types';
 
 const MAX_SLOTS = 2;
 
+/**
+ * Internal tool types that live in TOOLS for dock/library use but cannot be
+ * added to Quick Access — they're handled with bespoke logic in the dock
+ * (record, magic) or are not a real WidgetType at all (remote).
+ */
+const INTERNAL_TOOL_TYPES = new Set<string>(['remote', 'record', 'magic']);
+
 interface QuickAccessModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -25,8 +32,12 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
 
   const visibleTools = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return TOOLS;
-    return TOOLS.filter((tool) => tool.label.toLowerCase().includes(q));
+    // Exclude internal tools that can't be added as widgets from Quick Access
+    const pickable = TOOLS.filter(
+      (tool) => !INTERNAL_TOOL_TYPES.has(tool.type)
+    );
+    if (!q) return pickable;
+    return pickable.filter((tool) => tool.label.toLowerCase().includes(q));
   }, [query]);
 
   const handleToggle = (type: WidgetType | InternalToolType) => {
@@ -127,6 +138,7 @@ export const QuickAccessModal: React.FC<QuickAccessModalProps> = ({
                   onClick={() => handleToggle(tool.type)}
                   disabled={isFull}
                   aria-label={tool.label}
+                  aria-pressed={isSelected}
                   className={`flex flex-col items-center justify-center gap-2 p-3 rounded-xl transition-all ${
                     isSelected
                       ? 'bg-brand-blue-primary text-white shadow-md ring-2 ring-brand-blue-primary/20'
