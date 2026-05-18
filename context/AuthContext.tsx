@@ -284,6 +284,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
   const [favoriteBackgrounds, setFavoriteBackgrounds] = useState<string[]>([]);
   const [recentBackgrounds, setRecentBackgrounds] = useState<string[]>([]);
+  // Refs that always hold the latest list values so rapid callbacks don't close over stale state
+  const favoritesRef = useRef<string[]>([]);
+  const recentsRef = useRef<string[]>([]);
+  favoritesRef.current = favoriteBackgrounds;
+  recentsRef.current = recentBackgrounds;
   // Tracks the latest setSelectedBuildings / setLanguage call to detect and suppress stale writes
   const writeTokenRef = useRef(0);
   const widgetConfigTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -1566,28 +1571,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const toggleFavoriteBackground = useCallback(
     async (backgroundId: string) => {
       if (!user?.uid) return;
-      const next = favoriteBackgrounds.includes(backgroundId)
-        ? favoriteBackgrounds.filter((id) => id !== backgroundId)
-        : [...favoriteBackgrounds, backgroundId];
+      const current = favoritesRef.current;
+      const next = current.includes(backgroundId)
+        ? current.filter((id) => id !== backgroundId)
+        : [...current, backgroundId];
+      favoritesRef.current = next;
       setFavoriteBackgrounds(next);
       await updateDoc(doc(db, 'users', user.uid, 'userProfile', 'profile'), {
         favoriteBackgrounds: next,
       });
     },
-    [user?.uid, favoriteBackgrounds]
+    [user?.uid]
   );
 
   const recordRecentBackground = useCallback(
     async (backgroundId: string) => {
       if (!user?.uid) return;
-      const filtered = recentBackgrounds.filter((id) => id !== backgroundId);
+      const current = recentsRef.current;
+      const filtered = current.filter((id) => id !== backgroundId);
       const next = [backgroundId, ...filtered].slice(0, RECENT_CAP);
+      // Skip the write if nothing actually changed
+      if (
+        next.length === current.length &&
+        next.every((v, i) => v === current[i])
+      )
+        return;
+      recentsRef.current = next;
       setRecentBackgrounds(next);
       await updateDoc(doc(db, 'users', user.uid, 'userProfile', 'profile'), {
         recentBackgrounds: next,
       });
     },
-    [user?.uid, recentBackgrounds]
+    [user?.uid]
   );
 
   const userGradeLevels = useMemo<GradeLevel[]>(() => {
