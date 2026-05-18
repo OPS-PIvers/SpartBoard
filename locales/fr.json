@@ -352,7 +352,7 @@
     "root": "All Boards (root)"
   },
   "boardsModal": {
-    "title": "Boards & Collections",
+    "title": "Boards",
     "close": "Close",
     "searchPlaceholder": "Search Boards & Collections",
     "newBoard": "New Board",

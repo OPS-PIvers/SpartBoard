@@ -352,7 +352,7 @@
     "root": "All Boards (root)"
   },
   "boardsModal": {
-    "title": "Boards & Collections",
+    "title": "Boards",
     "close": "Close",
     "searchPlaceholder": "Search Boards & Collections",
     "newBoard": "New Board",
@@ -482,7 +482,7 @@
     "yours": "Deine",
     "uploads": "Meine Uploads",
     "searchPlaceholder": "Hintergründe suchen…",
-    "emptyFavorites": "Noch keine Favoriten — hover a background and tap ★",
+    "emptyFavorites": "Noch keine Favoriten — bewege den Mauszeiger über einen Hintergrund und tippe auf ★",
     "emptyRecent": "Noch keine aktuellen Hintergründe.",
     "emptyFiltered": "Keine Hintergründe entsprechen deinen Filtern.",
     "uploading": "Hochladen…",
