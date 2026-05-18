@@ -60,13 +60,10 @@ export const BoardNavFab: FC = () => {
   // always-on breadcrumb pill becomes transient.
   const showFabRow = dashboards.length > 1 || collections.length > 0;
 
-  const closeBoardsMenu = useCallback(
-    (returnFocus = true) => {
-      setIsBoardsMenuOpen(false);
-      if (returnFocus) boardsTriggerRef.current?.focus();
-    },
-    [setIsBoardsMenuOpen]
-  );
+  const closeBoardsMenu = useCallback((returnFocus = true) => {
+    setIsBoardsMenuOpen(false);
+    if (returnFocus) boardsTriggerRef.current?.focus();
+  }, []);
 
   const handleClickOutside = useCallback(() => {
     setIsBoardsMenuOpen(false);

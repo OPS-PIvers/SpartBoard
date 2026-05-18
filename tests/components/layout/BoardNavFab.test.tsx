@@ -214,5 +214,34 @@ describe('BoardNavFab', () => {
       await userEvent.click(screen.getByRole('menuitem', { name: /B/ }));
       expect(loadDashboard).toHaveBeenCalledWith('d2');
     });
+
+    it('moves focus to the next board on ArrowDown', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select board/i })
+      );
+      // The open-effect seeds focus to the active board (index 0 → 'A').
+      expect(document.activeElement?.textContent?.trim()).toBe('A');
+      await userEvent.keyboard('{ArrowDown}');
+      expect(document.activeElement?.textContent?.trim()).toBe('B');
+    });
+
+    it('closes the menu and returns focus to the trigger on Escape', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      const trigger = screen.getByRole('button', { name: /select board/i });
+      await userEvent.click(trigger);
+      expect(screen.getByRole('menu')).toBeInTheDocument();
+      await userEvent.keyboard('{Escape}');
+      expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+      expect(document.activeElement).toBe(trigger);
+    });
   });
 });
