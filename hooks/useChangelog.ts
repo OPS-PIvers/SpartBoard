@@ -2,8 +2,6 @@ import { useCallback, useEffect, useState } from 'react';
 
 export type ChangelogHighlightType = 'feature' | 'improvement' | 'fix';
 
-// Used for the exhaustive details view (one bullet per user-facing change,
-// grouped by type at render time — same shape as the legacy `highlights`).
 export interface ChangelogHighlight {
   type: ChangelogHighlightType;
   text: string;
