@@ -46,7 +46,6 @@ import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
 import { StylePanel } from './StylePanel';
-import { SidebarBoardsActive } from './SidebarBoardsActive';
 import { SidebarBackgrounds } from './SidebarBackgrounds';
 import { SidebarQuickAccess } from './SidebarQuickAccess';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
@@ -64,7 +63,6 @@ declare const __APP_VERSION__: string;
 
 type MenuSection =
   | 'main'
-  | 'boards'
   | 'backgrounds'
   | 'classes'
   | 'plcs'
@@ -465,7 +463,14 @@ export const Sidebar: React.FC = () => {
                 </div>
                 <div className="flex flex-col px-2.5 mb-1">
                   <button
-                    onClick={() => setActiveSection('boards')}
+                    onClick={() => {
+                      // Skip the intermediate sidebar "boards" panel — its
+                      // board list duplicates what the FAB already exposes.
+                      // Open the full management modal instead and close
+                      // the sidebar so the user lands directly on Boards.
+                      setIsBoardsModalOpen(true);
+                      setIsOpen(false);
+                    }}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
                     <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
@@ -668,16 +673,6 @@ export const Sidebar: React.FC = () => {
                   </button>
                 </div>
               </nav>
-
-              {/* BOARDS SECTION */}
-              <SidebarBoardsActive
-                isVisible={activeSection === 'boards'}
-                onOpenModal={() => {
-                  setIsBoardsModalOpen(true);
-                  setIsOpen(false);
-                  setActiveSection('main');
-                }}
-              />
 
               {/* BACKGROUNDS SECTION */}
               <SidebarBackgrounds isVisible={activeSection === 'backgrounds'} />

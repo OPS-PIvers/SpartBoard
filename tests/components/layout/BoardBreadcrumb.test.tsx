@@ -41,13 +41,13 @@ describe('BoardBreadcrumb (transient)', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
-  it('renders on first mount with "All Boards" when active board has no Collection', () => {
+  it('renders on first mount with "No Collection" when active board has no Collection', () => {
     useDashboardMock.mockReturnValue({
       activeDashboard: { id: 'd1', name: 'My Board', collectionId: null },
       collectionsApi: { collections: [] },
     });
     render(<BoardBreadcrumb />);
-    expect(screen.getByText('All Boards')).toBeInTheDocument();
+    expect(screen.getByText('No Collection')).toBeInTheDocument();
     expect(screen.getByText('My Board')).toBeInTheDocument();
   });
 

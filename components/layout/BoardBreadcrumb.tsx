@@ -50,7 +50,7 @@ export const BoardBreadcrumb: FC = () => {
     : null;
   const collectionLabel = collection
     ? collection.name
-    : t('boardBreadcrumb.root', { defaultValue: 'All Boards' });
+    : t('boardBreadcrumb.root', { defaultValue: 'No Collection' });
 
   return (
     <>

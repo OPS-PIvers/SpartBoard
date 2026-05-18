@@ -140,7 +140,7 @@ export const CollectionSwitcherMenu: FC<CollectionSwitcherMenuProps> = ({
         }`}
       >
         <Home className="w-3.5 h-3.5 flex-shrink-0" />
-        {t('collectionSwitcher.root', { defaultValue: 'All Boards (root)' })}
+        {t('collectionSwitcher.root', { defaultValue: 'No Collection' })}
       </button>
       {flat.map(({ c, depth }, index) => {
         const isActive = activeCollectionId === c.id;

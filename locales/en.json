@@ -23,7 +23,8 @@
     "selectBoard": "Select board",
     "selectCollection": "Select collection",
     "boardList": "All boards",
-    "manageAllBoards": "Manage all boards…"
+    "manageAllBoards": "Manage all boards…",
+    "pinned": "Pinned"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -67,7 +68,7 @@
     "nav": {
       "workspace": "Workspace",
       "configuration": "Configuration",
-      "boards": "Boards",
+      "boards": "Boards & Collections",
       "backgrounds": "Backgrounds",
       "classes": "My Classes",
       "plcs": "My PLCs",
@@ -882,12 +883,12 @@
     }
   },
   "boardBreadcrumb": {
-    "root": "All Boards",
+    "root": "No Collection",
     "openManager": "Manage Boards"
   },
   "collectionSwitcher": {
     "title": "Switch Collection",
-    "root": "All Boards (root)"
+    "root": "No Collection"
   },
   "boardsModal": {
     "title": "Boards",
@@ -901,8 +902,8 @@
     "pinned": "Pinned",
     "pinnedEmpty": "Pin Boards to keep them one tap away",
     "allBoards": "Boards",
-    "rootLabel": "All Boards (no Collection)",
-    "subCollections": "Sub-Collections",
+    "rootLabel": "All Boards",
+    "subCollections": "Collections",
     "boards": "Boards",
     "empty": "This Collection is empty — drag Boards here or create one.",
     "selectedCount": "{{count}} selected",
@@ -919,8 +920,17 @@
     "deleteCollectionConfirm": "Delete this Collection? Boards inside will move to its parent.",
     "unpinBoard": "Unpin Board",
     "dragToMove": "Drag to move",
-    "colorPrompt": "Color (hex, e.g., #ad2122)",
-    "colorInvalid": "Invalid color — use hex like #ad2122 or #abc.",
+    "select": "Select",
+    "deselect": "Deselect",
+    "colorSaveFailed": "Failed to save color",
+    "collectionMoved": "Collection moved",
+    "collectionMoveFailed": "Failed to move Collection",
+    "colorPicker": {
+      "title": "Collection color",
+      "swatches": "Pick a color",
+      "custom": "Custom",
+      "applyCustom": "Apply custom"
+    },
     "dndFailed": "Move failed — please retry",
     "bulkDeleteSuccess": "Deleted {{count}} item(s)",
     "bulkPinSuccess": "Pinned {{count}} board(s)",

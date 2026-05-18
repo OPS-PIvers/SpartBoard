@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Folder,
   LayoutGrid,
+  Pin,
   Settings,
   Star,
 } from 'lucide-react';
@@ -51,12 +52,39 @@ export const BoardNavFab: FC = () => {
     [dashboards, activeCollectionId]
   );
 
+  // Pinned section sits at the top of the Boards menu — surfaces every
+  // pinned board from OTHER Collections so a teacher can jump to a
+  // frequently-used board without remembering which Collection it lives in.
+  // Pinned boards inside the current Collection are excluded here: they'd
+  // already appear in the in-collection list below and showing them twice
+  // is just noise. Sorted alphabetically for predictability (pin order
+  // isn't meaningful when the source set is "boards from anywhere").
+  const pinnedBoards = useMemo(
+    () =>
+      dashboards
+        .filter(
+          (d) => d.isPinned && (d.collectionId ?? null) !== activeCollectionId
+        )
+        .sort((a, b) => a.name.localeCompare(b.name)),
+    [dashboards, activeCollectionId]
+  );
+
   const currentIndex = useMemo(() => {
     if (!activeDashboard) return -1;
     return boardsInCollection.findIndex((d) => d.id === activeDashboard.id);
   }, [boardsInCollection, activeDashboard]);
 
-  const showCollectionsButton = collections.length >= 2;
+  // Slot layout in itemRefs:
+  //   [0 .. pinnedBoards.length - 1]                              pinned items
+  //   [pinnedBoards.length .. pinnedBoards.length + n - 1]         in-collection items
+  //   [pinnedBoards.length + n]                                    "Manage all boards…"
+  // Keep this offset in one named constant so the render, keyboard nav,
+  // and focus-on-open all agree.
+  const collectionSlotStart = pinnedBoards.length;
+  const manageSlot = pinnedBoards.length + boardsInCollection.length;
+  const totalMenuItems = manageSlot + 1;
+
+  const showCollectionsButton = collections.length >= 1;
   const showPrevNext = boardsInCollection.length >= 2;
   // Render the row whenever there's anything navigable. Without this guard the
   // single-board user would lose their only path to BoardsModal once the
@@ -86,16 +114,19 @@ export const BoardNavFab: FC = () => {
     }
     if (didFocusOnOpenRef.current) return;
     didFocusOnOpenRef.current = true;
-    const targetIdx = currentIndex >= 0 ? currentIndex : 0;
+    // Offset into the collection section since pinned items occupy the
+    // leading slots. Falls back to the first menu item (pinned or
+    // in-collection) when the active board isn't represented.
+    const targetIdx =
+      currentIndex >= 0 ? collectionSlotStart + currentIndex : 0;
     itemRefs.current[targetIdx]?.focus();
-  }, [isBoardsMenuOpen, currentIndex]);
+  }, [isBoardsMenuOpen, currentIndex, collectionSlotStart]);
 
   // Drop trailing ref slots when the dashboard list shrinks so we don't
   // dispatch focus to detached buttons after a board is deleted.
   useEffect(() => {
-    // +1 for the "Manage all boards…" footer item.
-    itemRefs.current.length = boardsInCollection.length + 1;
-  }, [boardsInCollection.length]);
+    itemRefs.current.length = totalMenuItems;
+  }, [totalMenuItems]);
 
   if (!showFabRow) return null;
 
@@ -114,9 +145,7 @@ export const BoardNavFab: FC = () => {
   };
 
   const focusItem = (idx: number) => {
-    // +1 for the "Manage all boards…" footer slot.
-    const total = boardsInCollection.length + 1;
-    const wrapped = ((idx % total) + total) % total;
+    const wrapped = ((idx % totalMenuItems) + totalMenuItems) % totalMenuItems;
     itemRefs.current[wrapped]?.focus();
   };
 
@@ -135,7 +164,7 @@ export const BoardNavFab: FC = () => {
         break;
       case 'ArrowUp':
         e.preventDefault();
-        focusItem(focusedIdx < 0 ? boardsInCollection.length : focusedIdx - 1);
+        focusItem(focusedIdx < 0 ? manageSlot : focusedIdx - 1);
         break;
       case 'Home':
         e.preventDefault();
@@ -143,7 +172,7 @@ export const BoardNavFab: FC = () => {
         break;
       case 'End':
         e.preventDefault();
-        focusItem(boardsInCollection.length);
+        focusItem(manageSlot);
         break;
       case 'Tab':
         closeBoardsMenu(false);
@@ -177,23 +206,77 @@ export const BoardNavFab: FC = () => {
       {isBoardsMenuOpen && !isCollectionMenuOpen && (
         <div
           role="menu"
-          aria-labelledby={headerId}
+          // Fall back to an inline aria-label when the in-collection section
+          // (which owns the labeled header) isn't rendered — otherwise
+          // aria-labelledby would point at a non-existent element and
+          // screen readers would announce no accessible name for the menu.
+          {...(boardsInCollection.length > 0
+            ? { 'aria-labelledby': headerId }
+            : {
+                'aria-label': t('boardNav.boardList', {
+                  defaultValue: 'All boards',
+                }),
+              })}
           onKeyDown={handleMenuKeyDown}
           className="absolute bottom-full left-0 mb-2 w-64 max-h-[60vh] overflow-y-auto rounded-2xl border border-white/20 bg-slate-900/80 backdrop-blur-xl shadow-2xl py-1.5 animate-in fade-in slide-in-from-bottom-2 duration-150"
         >
-          <div
-            id={headerId}
-            className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40"
-          >
-            {boardListLabel}
-          </div>
+          {pinnedBoards.length > 0 && (
+            <>
+              <div className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40">
+                {t('boardNav.pinned', { defaultValue: 'Pinned' })}
+              </div>
+              {pinnedBoards.map((db, idx) => {
+                const isActive = activeDashboard?.id === db.id;
+                return (
+                  <button
+                    key={`pinned-${db.id}`}
+                    ref={(el) => {
+                      itemRefs.current[idx] = el;
+                    }}
+                    role="menuitem"
+                    onClick={() => {
+                      loadDashboard(db.id);
+                      closeBoardsMenu();
+                    }}
+                    className={`w-full flex items-center gap-2 px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50 ${
+                      isActive
+                        ? 'bg-brand-blue-primary text-white'
+                        : 'text-white/80 hover:bg-white/10'
+                    }`}
+                  >
+                    <Pin
+                      className={`w-3 h-3 flex-shrink-0 ${
+                        isActive
+                          ? 'fill-white text-white'
+                          : 'fill-amber-400 text-amber-400'
+                      }`}
+                    />
+                    <span className="truncate">{db.name}</span>
+                  </button>
+                );
+              })}
+              {boardsInCollection.length > 0 && (
+                <div className="my-1 border-t border-white/10" />
+              )}
+            </>
+          )}
+
+          {boardsInCollection.length > 0 && (
+            <div
+              id={headerId}
+              className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider text-white/40"
+            >
+              {boardListLabel}
+            </div>
+          )}
           {boardsInCollection.map((db, idx) => {
             const isActive = activeDashboard?.id === db.id;
+            const slot = collectionSlotStart + idx;
             return (
               <button
                 key={db.id}
                 ref={(el) => {
-                  itemRefs.current[idx] = el;
+                  itemRefs.current[slot] = el;
                 }}
                 role="menuitem"
                 onClick={() => {
@@ -221,7 +304,7 @@ export const BoardNavFab: FC = () => {
           })}
           <button
             ref={(el) => {
-              itemRefs.current[boardsInCollection.length] = el;
+              itemRefs.current[manageSlot] = el;
             }}
             role="menuitem"
             onClick={() => {

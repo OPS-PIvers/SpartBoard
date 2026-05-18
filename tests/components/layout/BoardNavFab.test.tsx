@@ -128,15 +128,15 @@ describe('BoardNavFab', () => {
       ).not.toBeInTheDocument();
     });
 
-    it('is hidden when collections.length is 1', () => {
+    it('is visible when collections.length is 1 (Root <-> Collection swap is meaningful)', () => {
       mockContext({
         dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
         collections: [collection('c1', 'Math')],
       });
       render(<BoardNavFab />);
       expect(
-        screen.queryByRole('button', { name: /select collection/i })
-      ).not.toBeInTheDocument();
+        screen.getByRole('button', { name: /select collection/i })
+      ).toBeInTheDocument();
     });
 
     it('is visible when collections.length is 2+', () => {
@@ -159,9 +159,9 @@ describe('BoardNavFab', () => {
       await userEvent.click(
         screen.getByRole('button', { name: /select collection/i })
       );
-      // CollectionSwitcherMenu renders the root + each collection.
+      // CollectionSwitcherMenu renders the "No Collection" entry + each collection.
       expect(
-        screen.getByRole('menuitem', { name: /all boards \(root\)/i })
+        screen.getByRole('menuitem', { name: /no collection/i })
       ).toBeInTheDocument();
       expect(
         screen.getByRole('menuitem', { name: 'Math' })

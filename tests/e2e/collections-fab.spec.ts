@@ -49,9 +49,9 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
   }) => {
     // Create 2 Collections + 2 Boards inside the second one. Then verify
     // the FAB exposes a dedicated [Collections] button that opens
-    // CollectionSwitcherMenu directly. The button only renders when
-    // collections.length >= 2 (with 1 collection there's nothing
-    // meaningful to switch between from the FAB).
+    // CollectionSwitcherMenu directly. The button renders whenever any
+    // Collection exists (collections.length >= 1) — two Collections here
+    // exercise the menu rendering a list rather than a single entry.
     await page.getByTitle('Open Menu').click();
     await page
       .locator('nav button')
@@ -91,9 +91,9 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     // The FAB row should expose a dedicated Collections button (Folder icon).
     await page.getByLabel('Select collection').click();
 
-    // Clicking it opens CollectionSwitcherMenu listing root + both collections.
+    // Clicking it opens CollectionSwitcherMenu listing "No Collection" + both collections.
     await expect(
-      page.getByRole('menuitem', { name: /all boards \(root\)/i })
+      page.getByRole('menuitem', { name: /no collection/i })
     ).toBeVisible({ timeout: 5000 });
     await expect(
       page.getByRole('menuitem', { name: 'Coll One' })
