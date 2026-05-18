@@ -65,6 +65,20 @@ Once you're happy with your changes on your dev branch:
   git push origin dev-lead
   ```
 
+## Release Notes ("What's New")
+
+User-facing release notes live in `public/changelog.json` (committed). The latest entry's `version` is what `scripts/generate-version.js` writes into `version.json`, which is what the running app polls to detect "Update Available". So adding a new changelog entry **is** cutting a release as far as the toast is concerned.
+
+When you're ready to ship a release:
+
+1. Run `pnpm changelog:draft` to print a draft entry sourced from your recent commits.
+2. Paste it at the top of `public/changelog.json`'s `entries` array.
+3. **Rewrite each highlight in user-friendly language** — short, plain, what changed from a teacher's perspective. Drop anything internal-only.
+4. Pick a `version` (default is today's date as `YYYY.MM.DD`; add `.2`, `.3` for additional same-day releases).
+5. Commit alongside the rest of your changes.
+
+The next build will pick up the new version automatically, the "Update Available" toast will offer a "What's New" link, and the sidebar's "What's New" entry will show a red "New" badge until users open it.
+
 ## Workflow Files
 
 - **Production**: [`.github/workflows/firebase-deploy.yml`](.github/workflows/firebase-deploy.yml) - Deploys `main` to live site

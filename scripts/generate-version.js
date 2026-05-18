@@ -10,15 +10,36 @@ const isDev =
   process.env.NODE_ENV === 'development' ||
   process.env.npm_lifecycle_event === 'dev';
 
-const version = isDev ? 'dev' : new Date().getTime().toString();
+const publicDir = path.resolve(__dirname, '../public');
+
+// Try to derive the release id from the curated changelog so the toast,
+// the served version, and the modal all show the same value. Fall back to
+// a timestamp if the changelog is missing or empty.
+const readLatestChangelogVersion = () => {
+  try {
+    const changelogPath = path.join(publicDir, 'changelog.json');
+    if (!fs.existsSync(changelogPath)) return null;
+    const raw = fs.readFileSync(changelogPath, 'utf8');
+    const parsed = JSON.parse(raw);
+    const first = parsed?.entries?.[0]?.version;
+    return typeof first === 'string' && first.length > 0 ? first : null;
+  } catch (error) {
+    console.warn(
+      'Could not read changelog.json, falling back to timestamp:',
+      error.message
+    );
+    return null;
+  }
+};
+
+const timestamp = new Date().getTime().toString();
+const version = isDev ? 'dev' : (readLatestChangelogVersion() ?? timestamp);
 const buildDate = isDev ? 'dev' : new Date().toISOString();
 
 const versionInfo = {
   version,
   buildDate,
 };
-
-const publicDir = path.resolve(__dirname, '../public');
 
 try {
   if (!fs.existsSync(publicDir)) {

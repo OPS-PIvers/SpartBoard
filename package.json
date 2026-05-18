@@ -12,6 +12,7 @@
   "scripts": {
     "dev": "node scripts/generate-version.js && vite",
     "build": "node scripts/generate-version.js && vite build",
+    "changelog:draft": "node scripts/draft-changelog-entry.js",
     "preview": "vite preview",
     "lint": "eslint . --max-warnings 0",
     "lint:fix": "eslint . --fix",

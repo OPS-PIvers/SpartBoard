@@ -1,0 +1,15 @@
+{
+  "entries": [
+    {
+      "version": "2026.05.18",
+      "date": "2026-05-18",
+      "title": "What's New panel introduced",
+      "highlights": [
+        {
+          "type": "feature",
+          "text": "Click the new \"What's New\" link on the Update Available toast — or open it any time from the bottom of the sidebar menu — to see a friendly summary of what changed before you refresh."
+        }
+      ]
+    }
+  ]
+}

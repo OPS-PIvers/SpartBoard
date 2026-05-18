@@ -26,6 +26,7 @@ import {
   Users,
   Users2,
   Link2,
+  Sparkles,
 } from 'lucide-react';
 import { GoogleDriveIcon } from '@/components/common/GoogleDriveIcon';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
@@ -33,6 +34,9 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { AdminSettings } from '@/components/admin/AdminSettings';
 import { ShortLinkQuickCreate } from '@/components/admin/ShortLinkQuickCreate';
+import { WhatsNewModal } from '@/components/layout/WhatsNewModal';
+import { useChangelog, readLastSeenVersion } from '@/hooks/useChangelog';
+import { useAppVersion } from '@/hooks/useAppVersion';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
@@ -49,6 +53,8 @@ import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
 import { usePlcInvitations } from '@/hooks/usePlcInvitations';
 import { PlcDashboard } from '@/components/plc/PlcDashboard';
+
+declare const __APP_VERSION__: string;
 
 type MenuSection =
   | 'main'
@@ -186,6 +192,18 @@ export const Sidebar: React.FC = () => {
   const [showAdminSettings, setShowAdminSettings] = useState(false);
   const [showShortLinkQuickCreate, setShowShortLinkQuickCreate] =
     useState(false);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [lastSeenWhatsNew, setLastSeenWhatsNew] = useState<string | null>(() =>
+    readLastSeenVersion()
+  );
+  const { latestVersion } = useChangelog();
+  const { updateAvailable, reloadApp } = useAppVersion();
+  const hasUnreadWhatsNew =
+    latestVersion !== null && latestVersion !== lastSeenWhatsNew;
+  const closeWhatsNew = () => {
+    setShowWhatsNew(false);
+    setLastSeenWhatsNew(readLastSeenVersion());
+  };
 
   // The currently-open PLC dashboard tracks against the live `plcs` array so
   // a feature toggle by another member shows up immediately. If the PLC
@@ -321,6 +339,17 @@ export const Sidebar: React.FC = () => {
       {showShortLinkQuickCreate && (
         <ShortLinkQuickCreate
           onClose={() => setShowShortLinkQuickCreate(false)}
+        />
+      )}
+
+      {showWhatsNew && (
+        <WhatsNewModal
+          isOpen={showWhatsNew}
+          onClose={closeWhatsNew}
+          mode="browse"
+          currentVersion={__APP_VERSION__}
+          updateAvailable={updateAvailable}
+          onUpdate={reloadApp}
         />
       )}
 
@@ -567,6 +596,33 @@ export const Sidebar: React.FC = () => {
                         defaultValue: 'Preferences',
                       })}
                     </span>
+                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
+                  </button>
+                  <button
+                    onClick={() => setShowWhatsNew(true)}
+                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
+                  >
+                    <div className="relative w-8 h-8 rounded-lg bg-emerald-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
+                      <Sparkles className="w-4 h-4 text-emerald-500 group-hover:text-brand-blue-primary transition-colors" />
+                      {hasUnreadWhatsNew && (
+                        <span
+                          className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-brand-red-primary border-2 border-white"
+                          aria-hidden="true"
+                        />
+                      )}
+                    </div>
+                    <span className="flex-grow text-[13px]">
+                      {t('sidebar.nav.whatsNew', {
+                        defaultValue: "What's New",
+                      })}
+                    </span>
+                    {hasUnreadWhatsNew && (
+                      <span className="text-xxs font-bold text-brand-red-primary uppercase tracking-wide">
+                        {t('sidebar.nav.whatsNewBadge', {
+                          defaultValue: 'New',
+                        })}
+                      </span>
+                    )}
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                 </div>
