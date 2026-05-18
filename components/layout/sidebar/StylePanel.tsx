@@ -33,7 +33,6 @@ interface StylePanelProps {
   isVisible: boolean;
   activeDashboard: Dashboard | null | undefined;
   setGlobalStyle: (style: Partial<GlobalStyle>) => void;
-  addToast: (message: string, type: 'success' | 'error' | 'info') => void;
 }
 
 // Derived from DEFAULT_GLOBAL_STYLE so defaults stay in sync across the app

@@ -122,7 +122,6 @@ export const Sidebar: React.FC = () => {
     isSaving,
     clearAllWidgets,
     setGlobalStyle,
-    addToast,
     rosters,
     annotationActive,
     openAnnotation,
@@ -717,7 +716,6 @@ export const Sidebar: React.FC = () => {
                 isVisible={activeSection === 'style'}
                 activeDashboard={activeDashboard}
                 setGlobalStyle={setGlobalStyle}
-                addToast={addToast}
               />
 
               {/* QUICK ACCESS SECTION */}
