@@ -82,6 +82,48 @@ const fetchChangelog = (): Promise<ChangelogFile> => {
   return changelogPromise;
 };
 
+// Defensive normalization for shapes the type system can't (or doesn't)
+// enforce: empty `details`, empty overview arrays, empty sections. Each
+// drop is warned so a curator mistake surfaces in the console rather than
+// rendering a blank entry / section / overview.
+const normalizeEntries = (raw: ChangelogEntry[]): ChangelogEntry[] => {
+  const result: ChangelogEntry[] = [];
+  for (const entry of raw) {
+    if (!Array.isArray(entry.details) || entry.details.length === 0) {
+      console.warn(
+        `changelog.json entry "${entry.version}" has no details — dropped.`
+      );
+      continue;
+    }
+
+    let overview = entry.overview;
+    if (overview !== undefined) {
+      if (!Array.isArray(overview) || overview.length === 0) {
+        console.warn(
+          `changelog.json entry "${entry.version}" has an empty overview ` +
+            `array — treating as no overview.`
+        );
+        overview = undefined;
+      } else {
+        const sectionsWithItems = overview.filter((section) => {
+          if (Array.isArray(section.items) && section.items.length > 0) {
+            return true;
+          }
+          console.warn(
+            `changelog.json entry "${entry.version}" has an empty overview ` +
+              `section (type: ${section.type}, subtitle: ${section.subtitle ?? '<none>'}) — section dropped.`
+          );
+          return false;
+        });
+        overview = sectionsWithItems.length > 0 ? sectionsWithItems : undefined;
+      }
+    }
+
+    result.push({ ...entry, overview });
+  }
+  return result;
+};
+
 export const useChangelog = () => {
   const [entries, setEntries] = useState<ChangelogEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +134,8 @@ export const useChangelog = () => {
     fetchChangelog()
       .then((data) => {
         if (cancelled) return;
-        const next = Array.isArray(data.entries) ? data.entries : [];
+        const raw = Array.isArray(data.entries) ? data.entries : [];
+        const next = normalizeEntries(raw);
         // entriesSinceCurrent assumes newest-first ordering. Warn loudly if
         // the curator accidentally appended a new entry at the bottom.
         for (let i = 0; i < next.length - 1; i += 1) {
