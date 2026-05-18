@@ -12,6 +12,7 @@ import {
   buildSpotifyEmbedUrl,
   YTPlayer,
 } from '@/utils/youtube';
+import { PersonalSpotifyPlayer } from './PersonalSpotifyPlayer';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -76,7 +77,20 @@ const PlayButton: React.FC<PlayButtonProps> = ({
 // MusicWidget — front face
 // ---------------------------------------------------------------------------
 
+/**
+ * Top-level dispatch: personal-Spotify mode mounts the dedicated SDK player
+ * (with its own hooks); curated mode mounts the original station-based
+ * widget. Splitting them this way keeps both branches' hooks unconditional.
+ */
 export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+  const source = (widget.config as MusicConfig).source ?? 'curated';
+  if (source === 'personal') {
+    return <PersonalSpotifyPlayer widget={widget} />;
+  }
+  return <CuratedMusicWidget widget={widget} />;
+};
+
+const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard } = useDashboard();
   const config = widget.config as MusicConfig;
   const {

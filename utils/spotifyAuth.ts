@@ -1,0 +1,537 @@
+/**
+ * Client-side glue for the Spotify OAuth Authorization-Code-with-PKCE flow.
+ *
+ * Flow:
+ * 1. `connectSpotify()` — generates a PKCE verifier + challenge, opens a
+ *    centered popup window to Spotify's authorize endpoint, and waits for
+ *    the popup to postMessage the resulting authorization code back.
+ * 2. The popup lands on `/spotify-callback` (handled by `SpotifyCallback.tsx`),
+ *    which extracts `?code=...` and posts it to `window.opener` before closing.
+ * 3. `connectSpotify()` calls the `exchangeSpotifyAuthCode` Cloud Function
+ *    with the code + PKCE verifier. The server persists the encrypted
+ *    refresh_token and returns a fresh access_token.
+ *
+ * The refresh_token NEVER reaches the browser. Token refresh goes through
+ * `refreshAccessToken()` which calls the backend callable.
+ *
+ * In-memory cache: `getValidAccessToken()` keeps the current access_token
+ * with its expiry and refreshes it 60s before expiry. Cleared on disconnect.
+ */
+
+import { httpsCallable, FunctionsError } from 'firebase/functions';
+import { functions, isAuthBypass } from '@/config/firebase';
+import { logError } from '@/utils/logError';
+
+/** Spotify OAuth scopes required by the Music widget. Kept in sync with the backend. */
+export const SPOTIFY_SCOPES = [
+  'streaming',
+  'user-read-email',
+  'user-read-private',
+  'user-modify-playback-state',
+  'user-read-playback-state',
+] as const;
+
+export const SPOTIFY_AUTHORIZE_ENDPOINT =
+  'https://accounts.spotify.com/authorize';
+
+/** Returns the OAuth redirect URI the popup will land on after Spotify consent. */
+export function getSpotifyRedirectUri(): string {
+  return `${window.location.origin}/spotify-callback`;
+}
+
+function getClientId(): string {
+  const id = import.meta.env.VITE_SPOTIFY_CLIENT_ID as string | undefined;
+  if (!id) {
+    throw new Error(
+      'VITE_SPOTIFY_CLIENT_ID is not configured. Add it to .env.local and register a Spotify app at https://developer.spotify.com/dashboard.'
+    );
+  }
+  return id;
+}
+
+// ---------------------------------------------------------------------------
+// PKCE helpers (Web Crypto)
+// ---------------------------------------------------------------------------
+
+function base64UrlEncode(bytes: Uint8Array): string {
+  let str = '';
+  for (const b of bytes) str += String.fromCharCode(b);
+  return btoa(str).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+function randomVerifier(): string {
+  const bytes = new Uint8Array(64);
+  window.crypto.getRandomValues(bytes);
+  return base64UrlEncode(bytes);
+}
+
+async function s256Challenge(verifier: string): Promise<string> {
+  const data = new TextEncoder().encode(verifier);
+  const digest = await window.crypto.subtle.digest('SHA-256', data);
+  return base64UrlEncode(new Uint8Array(digest));
+}
+
+// ---------------------------------------------------------------------------
+// Popup-based code capture
+// ---------------------------------------------------------------------------
+
+/** Message posted by `/spotify-callback` back to the opener. */
+export interface SpotifyCallbackMessage {
+  source: 'spartboard-spotify-callback';
+  code?: string;
+  state?: string;
+  error?: string;
+}
+
+function openCenteredPopup(url: string, name: string): Window | null {
+  const w = 480;
+  const h = 760;
+  const left = window.screenX + (window.outerWidth - w) / 2;
+  const top = window.screenY + (window.outerHeight - h) / 2;
+  return window.open(
+    url,
+    name,
+    `width=${w},height=${h},left=${Math.max(0, left)},top=${Math.max(0, top)},popup=yes`
+  );
+}
+
+interface ConnectResult {
+  accessToken: string;
+  expiresIn: number;
+}
+
+export type ConnectOutcome =
+  | { kind: 'success'; result: ConnectResult }
+  | { kind: 'cancelled' }
+  | { kind: 'error'; reason: string }
+  | { kind: 'needs-consent'; cause: string };
+
+interface SpotifyRefreshErrorDetails {
+  reason?: 'needs-consent' | 'transient';
+  cause?: string;
+}
+
+function detailsFrom(err: unknown): SpotifyRefreshErrorDetails | null {
+  if (err instanceof FunctionsError) {
+    const d = err.details;
+    if (d && typeof d === 'object') return d as SpotifyRefreshErrorDetails;
+  }
+  return null;
+}
+
+/** Drive the popup auth flow and exchange the resulting code via the backend. */
+export async function connectSpotify(): Promise<ConnectOutcome> {
+  if (isAuthBypass) {
+    return { kind: 'error', reason: 'auth-bypass-mode' };
+  }
+  let clientId: string;
+  try {
+    clientId = getClientId();
+  } catch (err) {
+    return {
+      kind: 'error',
+      reason: err instanceof Error ? err.message : String(err),
+    };
+  }
+
+  const redirectUri = getSpotifyRedirectUri();
+  const codeVerifier = randomVerifier();
+  const codeChallenge = await s256Challenge(codeVerifier);
+  // Cryptographic state value tying the popup callback back to this exact
+  // connect attempt. Stored in sessionStorage because the popup runs in
+  // the same origin and can read it back when constructing its postMessage.
+  const state = randomVerifier();
+
+  const authUrl = new URL(SPOTIFY_AUTHORIZE_ENDPOINT);
+  authUrl.searchParams.set('client_id', clientId);
+  authUrl.searchParams.set('response_type', 'code');
+  authUrl.searchParams.set('redirect_uri', redirectUri);
+  authUrl.searchParams.set('scope', SPOTIFY_SCOPES.join(' '));
+  authUrl.searchParams.set('code_challenge_method', 'S256');
+  authUrl.searchParams.set('code_challenge', codeChallenge);
+  authUrl.searchParams.set('state', state);
+
+  const popup = openCenteredPopup(authUrl.toString(), 'spotify-auth');
+  if (!popup) {
+    return { kind: 'error', reason: 'popup-blocked' };
+  }
+
+  const codeOrError = await new Promise<
+    { code: string } | { error: string } | { cancelled: true }
+  >((resolve) => {
+    const expectedOrigin = window.location.origin;
+    let resolved = false;
+
+    const cleanup = () => {
+      window.removeEventListener('message', onMessage);
+      window.clearInterval(closedCheck);
+    };
+
+    const onMessage = (evt: MessageEvent) => {
+      if (evt.origin !== expectedOrigin) return;
+      const data = evt.data as SpotifyCallbackMessage | undefined;
+      if (!data || data.source !== 'spartboard-spotify-callback') return;
+      if (data.state !== state) {
+        // State mismatch — a different connect attempt or a forged message.
+        // Ignore rather than fail, so the real callback can still arrive.
+        return;
+      }
+      resolved = true;
+      cleanup();
+      try {
+        popup.close();
+      } catch {
+        /* popup may already be closed */
+      }
+      if (data.error) {
+        resolve({ error: data.error });
+      } else if (data.code) {
+        resolve({ code: data.code });
+      } else {
+        resolve({ error: 'callback-missing-code' });
+      }
+    };
+
+    window.addEventListener('message', onMessage);
+
+    // The user closing the popup window without finishing consent has to be
+    // detected by polling — there is no `popupclosed` event. 500ms cadence
+    // is the standard tradeoff between latency and CPU.
+    const closedCheck = window.setInterval(() => {
+      if (resolved) return;
+      if (popup.closed) {
+        cleanup();
+        resolve({ cancelled: true });
+      }
+    }, 500);
+  });
+
+  if ('cancelled' in codeOrError) return { kind: 'cancelled' };
+  if ('error' in codeOrError) {
+    if (codeOrError.error === 'access_denied') return { kind: 'cancelled' };
+    return { kind: 'error', reason: codeOrError.error };
+  }
+
+  try {
+    const exchange = httpsCallable<
+      { code: string; redirectUri: string; codeVerifier: string },
+      { accessToken: string; expiresIn: number; hasRefreshToken: boolean }
+    >(functions, 'exchangeSpotifyAuthCode');
+    const res = await exchange({
+      code: codeOrError.code,
+      redirectUri,
+      codeVerifier,
+    });
+    return {
+      kind: 'success',
+      result: {
+        accessToken: res.data.accessToken,
+        expiresIn: res.data.expiresIn,
+      },
+    };
+  } catch (err) {
+    logError('spotifyAuth.exchange', err);
+    const d = detailsFrom(err);
+    if (d?.reason === 'needs-consent') {
+      return { kind: 'needs-consent', cause: d.cause ?? 'unknown' };
+    }
+    const message =
+      err instanceof FunctionsError
+        ? err.message
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    return { kind: 'error', reason: message };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Access-token cache + auto-refresh
+// ---------------------------------------------------------------------------
+
+interface CachedToken {
+  token: string;
+  /** Epoch ms when this access_token expires. */
+  expiresAt: number;
+}
+
+let cached: CachedToken | null = null;
+let inflightRefresh: Promise<string | null> | null = null;
+
+export function cacheAccessToken(token: string, expiresIn: number): void {
+  cached = { token, expiresAt: Date.now() + expiresIn * 1000 };
+}
+
+export function clearAccessTokenCache(): void {
+  cached = null;
+  inflightRefresh = null;
+}
+
+/**
+ * Returns a valid access_token, refreshing via the backend if needed.
+ * Returns null if the user is not connected or the refresh failed terminally.
+ */
+export async function getValidAccessToken(): Promise<string | null> {
+  if (isAuthBypass) return null;
+  // 60-second skew so a token never expires mid-API-call.
+  if (cached && cached.expiresAt - 60_000 > Date.now()) {
+    return cached.token;
+  }
+  if (inflightRefresh) return inflightRefresh;
+
+  inflightRefresh = (async () => {
+    try {
+      const refresh = httpsCallable<
+        Record<string, never>,
+        { accessToken: string; expiresIn: number }
+      >(functions, 'refreshSpotifyAccessToken');
+      const res = await refresh({});
+      cacheAccessToken(res.data.accessToken, res.data.expiresIn);
+      return res.data.accessToken;
+    } catch (err) {
+      logError('spotifyAuth.refresh', err);
+      const d = detailsFrom(err);
+      if (d?.reason === 'needs-consent') {
+        cached = null;
+      }
+      return null;
+    } finally {
+      inflightRefresh = null;
+    }
+  })();
+  return inflightRefresh;
+}
+
+export async function disconnectSpotify(): Promise<void> {
+  clearAccessTokenCache();
+  if (isAuthBypass) return;
+  try {
+    const revoke = httpsCallable<Record<string, never>, { revoked: boolean }>(
+      functions,
+      'revokeSpotifyAuth'
+    );
+    await revoke({});
+  } catch (err) {
+    logError('spotifyAuth.revoke', err);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Spotify Web API helpers used by the widget
+// ---------------------------------------------------------------------------
+
+export interface SpotifyUserProfile {
+  id: string;
+  email?: string;
+  displayName?: string;
+  isPremium: boolean;
+}
+
+export async function fetchSpotifyProfile(
+  accessToken: string
+): Promise<SpotifyUserProfile> {
+  const res = await fetch('https://api.spotify.com/v1/me', {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    throw new Error(`Spotify /me returned ${res.status}`);
+  }
+  const data = (await res.json()) as {
+    id: string;
+    email?: string;
+    display_name?: string;
+    product?: string;
+  };
+  return {
+    id: data.id,
+    email: data.email,
+    displayName: data.display_name,
+    isPremium: data.product === 'premium',
+  };
+}
+
+export type SpotifyResourceType = 'track' | 'album' | 'playlist' | 'artist';
+
+export interface SpotifySearchResult {
+  type: SpotifyResourceType;
+  uri: string;
+  id: string;
+  name: string;
+  subtitle: string;
+  imageUrl?: string;
+}
+
+/**
+ * Extracts `{ type, id }` from any Spotify URL or URI. Supports:
+ *   - https://open.spotify.com/track/{id}
+ *   - https://open.spotify.com/playlist/{id}?si=...
+ *   - spotify:track:{id}
+ * Returns null for anything else (including invalid types like `user`).
+ */
+export function parseSpotifyResource(
+  input: string
+): { type: SpotifyResourceType; id: string; uri: string } | null {
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+
+  if (trimmed.startsWith('spotify:')) {
+    const parts = trimmed.split(':');
+    if (parts.length >= 3) {
+      const type = parts[1];
+      const id = parts[2];
+      if (
+        (type === 'track' ||
+          type === 'album' ||
+          type === 'playlist' ||
+          type === 'artist') &&
+        /^[A-Za-z0-9]+$/.test(id)
+      ) {
+        return { type, id, uri: `spotify:${type}:${id}` };
+      }
+    }
+    return null;
+  }
+
+  try {
+    const url = new URL(trimmed);
+    if (
+      url.protocol !== 'https:' ||
+      (url.hostname !== 'open.spotify.com' &&
+        !url.hostname.endsWith('.spotify.com'))
+    ) {
+      return null;
+    }
+    const segments = url.pathname.split('/').filter(Boolean);
+    // Spotify URLs may be locale-prefixed: /intl-de/track/{id}
+    const typeIdx = segments.findIndex((s) =>
+      ['track', 'album', 'playlist', 'artist'].includes(s)
+    );
+    if (typeIdx < 0 || typeIdx + 1 >= segments.length) return null;
+    const type = segments[typeIdx] as SpotifyResourceType;
+    const id = segments[typeIdx + 1];
+    if (!/^[A-Za-z0-9]+$/.test(id)) return null;
+    return { type, id, uri: `spotify:${type}:${id}` };
+  } catch {
+    return null;
+  }
+}
+
+interface SpotifySearchApiResponse {
+  tracks?: {
+    items: Array<{
+      id: string;
+      name: string;
+      uri: string;
+      artists: Array<{ name: string }>;
+      album?: { images?: Array<{ url: string }> };
+    }>;
+  };
+  albums?: {
+    items: Array<{
+      id: string;
+      name: string;
+      uri: string;
+      artists: Array<{ name: string }>;
+      images?: Array<{ url: string }>;
+    }>;
+  };
+  playlists?: {
+    items: Array<{
+      id: string;
+      name: string;
+      uri: string;
+      owner?: { display_name?: string };
+      images?: Array<{ url: string }>;
+    }>;
+  };
+}
+
+export async function searchSpotify(
+  accessToken: string,
+  query: string,
+  signal?: AbortSignal
+): Promise<SpotifySearchResult[]> {
+  const trimmed = query.trim();
+  if (!trimmed) return [];
+  const url = new URL('https://api.spotify.com/v1/search');
+  url.searchParams.set('q', trimmed);
+  url.searchParams.set('type', 'track,album,playlist');
+  url.searchParams.set('limit', '6');
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal,
+  });
+  if (!res.ok) {
+    throw new Error(`Spotify search returned ${res.status}`);
+  }
+  const data = (await res.json()) as SpotifySearchApiResponse;
+  const out: SpotifySearchResult[] = [];
+  for (const t of data.tracks?.items ?? []) {
+    out.push({
+      type: 'track',
+      uri: t.uri,
+      id: t.id,
+      name: t.name,
+      subtitle: t.artists.map((a) => a.name).join(', '),
+      imageUrl: t.album?.images?.[0]?.url,
+    });
+  }
+  for (const a of data.albums?.items ?? []) {
+    out.push({
+      type: 'album',
+      uri: a.uri,
+      id: a.id,
+      name: a.name,
+      subtitle: `Album · ${a.artists.map((x) => x.name).join(', ')}`,
+      imageUrl: a.images?.[0]?.url,
+    });
+  }
+  for (const p of data.playlists?.items ?? []) {
+    out.push({
+      type: 'playlist',
+      uri: p.uri,
+      id: p.id,
+      name: p.name,
+      subtitle: `Playlist · ${p.owner?.display_name ?? 'Spotify'}`,
+      imageUrl: p.images?.[0]?.url,
+    });
+  }
+  return out;
+}
+
+/**
+ * Issue `play` on the given device. Pass either a context URI (album/playlist/artist)
+ * via `contextUri`, or a list of track URIs via `uris`, but not both.
+ */
+export async function playOnDevice(
+  accessToken: string,
+  deviceId: string,
+  payload: { contextUri?: string; uris?: string[] }
+): Promise<void> {
+  const body: Record<string, unknown> = {};
+  if (payload.contextUri) body.context_uri = payload.contextUri;
+  if (payload.uris) body.uris = payload.uris;
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: 'PUT',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    }
+  );
+  // 204 is success; some non-Premium accounts return 403.
+  if (res.status === 403) {
+    throw new Error('spotify-premium-required');
+  }
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Spotify play returned ${res.status}`);
+  }
+}
+
+/** Build the Spotify resource URI (track/album/playlist) for a given input. */
+export function spotifyUriFromInput(input: string): string | null {
+  return parseSpotifyResource(input)?.uri ?? null;
+}

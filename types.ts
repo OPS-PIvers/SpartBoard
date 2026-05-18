@@ -4072,6 +4072,14 @@ export interface MusicStation {
   buildingIds?: string[];
 }
 
+/**
+ * Music widget audio source.
+ * - `curated` — pick from admin-managed stations (`global_music_stations`).
+ * - `personal` — teacher's own Spotify account (requires OAuth connection;
+ *   full playback requires Spotify Premium, free accounts fall back to embed).
+ */
+export type MusicSource = 'curated' | 'personal';
+
 export interface MusicConfig {
   stationId: string;
   syncWithTimeTool?: boolean;
@@ -4079,6 +4087,18 @@ export interface MusicConfig {
   textColor?: string;
   /** Widget display layout */
   layout?: MusicLayout;
+  /** Audio source — defaults to 'curated' for backward compatibility. */
+  source?: MusicSource;
+  /**
+   * Personal Spotify resource URL or URI to play when `source === 'personal'`.
+   * Supports https://open.spotify.com/{track|album|playlist}/{id} or
+   * spotify:{type}:{id}. Validated at play-time via `parseSpotifyResource`.
+   */
+  personalSpotifyUrl?: string;
+  /** Human-readable label for the personal selection (track/album/playlist name). */
+  personalSpotifyLabel?: string;
+  /** Optional thumbnail for the personal selection. */
+  personalSpotifyThumbnail?: string;
 }
 
 export interface OrganizerNode {
