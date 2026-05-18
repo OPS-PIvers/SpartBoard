@@ -1994,7 +1994,12 @@ const StudentsTab: React.FC<{
                         style={{ fontSize: 'min(10px, 3cqmin)' }}
                         title={`${warnings} Tab Switch Warning(s)`}
                       >
-                        <AlertTriangle style={{ width: 10, height: 10 }} />
+                        <AlertTriangle
+                          style={{
+                            width: 'min(10px, 3cqmin)',
+                            height: 'min(10px, 3cqmin)',
+                          }}
+                        />
                         {warnings}
                       </span>
                     )}
@@ -2013,7 +2018,12 @@ const StudentsTab: React.FC<{
                         style={{ fontSize: 'min(10px, 3cqmin)' }}
                         title={`Results locked after ${resultsTabWarnings} of ${resultsTabWarningThreshold} tab-switch warnings`}
                       >
-                        <Lock style={{ width: 10, height: 10 }} />
+                        <Lock
+                          style={{
+                            width: 'min(10px, 3cqmin)',
+                            height: 'min(10px, 3cqmin)',
+                          }}
+                        />
                         Locked ({resultsTabWarnings}/
                         {resultsTabWarningThreshold})
                       </span>
