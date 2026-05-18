@@ -13,6 +13,7 @@ import {
   YTPlayer,
 } from '@/utils/youtube';
 import { PersonalSpotifyPlayer } from './PersonalSpotifyPlayer';
+import { useAuth } from '@/context/useAuth';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -83,8 +84,16 @@ const PlayButton: React.FC<PlayButtonProps> = ({
  * widget. Splitting them this way keeps both branches' hooks unconditional.
  */
 export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const source = (widget.config as MusicConfig).source ?? 'curated';
-  if (source === 'personal') {
+  const { canAccessFeature } = useAuth();
+  const canUsePersonal = canAccessFeature('personal-spotify');
+  const storedSource = (widget.config as MusicConfig).source ?? 'curated';
+  // When the gate is off, treat any stored `source: 'personal'` as curated.
+  // The stored config is preserved — re-enabling the gate restores personal
+  // playback without the user doing anything.
+  const effectiveSource =
+    canUsePersonal && storedSource === 'personal' ? 'personal' : 'curated';
+
+  if (effectiveSource === 'personal') {
     return <PersonalSpotifyPlayer widget={widget} />;
   }
   return <CuratedMusicWidget widget={widget} />;
