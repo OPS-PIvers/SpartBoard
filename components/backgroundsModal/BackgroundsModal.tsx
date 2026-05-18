@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { X } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useDashboard } from '@/context/useDashboard';
@@ -225,7 +226,24 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
       maxWidth="max-w-5xl"
       className="h-[85vh]"
       contentClassName="px-0 pb-0 flex"
-      title={t('backgrounds.title', { defaultValue: 'Backgrounds' })}
+      ariaLabelledby="backgrounds-modal-title"
+      customHeader={
+        <div className="flex items-center justify-between p-6 pb-4 shrink-0 border-b border-slate-100">
+          <h3
+            id="backgrounds-modal-title"
+            className="font-black text-lg text-slate-800"
+          >
+            {t('backgrounds.title', { defaultValue: 'Backgrounds' })}
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
+            aria-label={t('common.close', { defaultValue: 'Close' })}
+          >
+            <X size={20} />
+          </button>
+        </div>
+      }
     >
       <BackgroundsLeftRail
         categories={categories}

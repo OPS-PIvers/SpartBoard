@@ -39,11 +39,13 @@ vi.mock('@/context/useDashboard', () => ({
 }));
 
 const toggleFavoriteBackground = vi.fn().mockResolvedValue(undefined);
+const recordRecentBackground = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({
     favoriteBackgrounds: [],
     recentBackgrounds: [],
     toggleFavoriteBackground,
+    recordRecentBackground,
   }),
 }));
 
