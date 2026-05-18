@@ -1083,5 +1083,8 @@
       "improvement": "Improvements",
       "fix": "Fixes"
     }
+  },
+  "style": {
+    "readOnlyNotice": "This board is read-only. Style changes are not saved."
   }
 }

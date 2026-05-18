@@ -619,5 +619,8 @@
     "title": "Quick Access Widgets",
     "searchPlaceholder": "Search widgets…",
     "emptyResults": "No widgets match."
+  },
+  "style": {
+    "readOnlyNotice": "This board is read-only. Style changes are not saved."
   }
 }

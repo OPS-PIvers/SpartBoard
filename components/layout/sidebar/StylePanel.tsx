@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CheckSquare,
   ChevronRight,
@@ -14,6 +15,7 @@ import {
   DEFAULT_GLOBAL_STYLE,
 } from '@/types';
 import { useDebouncedCallback } from '@/hooks/useDebouncedCallback';
+import { useDashboard } from '@/context/useDashboard';
 
 const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
   { id: 'sans', label: 'Modern Sans', font: 'font-sans' },
@@ -46,17 +48,44 @@ export const StylePanel: React.FC<StylePanelProps> = ({
   activeDashboard,
   setGlobalStyle,
 }) => {
+  const { t } = useTranslation();
+  const { isActiveBoardReadOnly, addToast } = useDashboard();
+
   const [styleTab, setStyleTab] = useState<'window' | 'dock' | 'colors'>(
     'window'
   );
   const [isFontMenuOpen, setIsFontMenuOpen] = useState(false);
+  const [readOnlyToastShown, setReadOnlyToastShown] = useState(false);
+
+  // Reset the one-time toast latch when the active board changes so the user
+  // gets the notice again if they switch to a different read-only board.
+  const [prevBoardId, setPrevBoardId] = useState(activeDashboard?.id);
+  if (activeDashboard?.id !== prevBoardId) {
+    setPrevBoardId(activeDashboard?.id);
+    setReadOnlyToastShown(false);
+  }
 
   const currentStyle = activeDashboard?.globalStyle ?? DEFAULT_GLOBAL_STYLE;
 
   // Immediate writes for discrete controls (font, corner-radius buttons, color pickers, toggles)
   const commit = useCallback(
-    (next: Partial<GlobalStyle>) => setGlobalStyle(next),
-    [setGlobalStyle]
+    (next: Partial<GlobalStyle>) => {
+      if (isActiveBoardReadOnly) {
+        if (!readOnlyToastShown) {
+          addToast(
+            t('style.readOnlyNotice', {
+              defaultValue:
+                'This board is read-only. Style changes are not saved.',
+            }),
+            'info'
+          );
+          setReadOnlyToastShown(true);
+        }
+        return;
+      }
+      setGlobalStyle(next);
+    },
+    [setGlobalStyle, isActiveBoardReadOnly, readOnlyToastShown, addToast, t]
   );
 
   // Debounced writes for continuous sliders to avoid Firestore write thrash during drag
