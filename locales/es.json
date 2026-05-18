@@ -18,8 +18,7 @@
     "previous": "Tablero anterior",
     "next": "Tablero siguiente",
     "selectBoard": "Seleccionar tablero",
-    "boardList": "Todos los tableros",
-    "switchCollection": "Switch Collection…"
+    "boardList": "Todos los tableros"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",

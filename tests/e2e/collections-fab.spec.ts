@@ -13,10 +13,10 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
   test('breadcrumb chip shows the active Collection and Board name', async ({
     page,
   }) => {
-    // With no Collection yet, the chip should show "All Boards" + the
-    // active Board's name. The breadcrumb mounts inside BoardNavFab so
-    // it only renders when boardsInCollection.length > 1; create a
-    // second Board so the FAB (and chip) become visible.
+    // After creating a second board the new board becomes active. The
+    // BoardBreadcrumb pill (transient — fades after 3s) should appear
+    // briefly with "All Boards" + the new Board's name. Playwright's
+    // auto-wait catches it during the display window.
     await page.getByTitle('Open Menu').click();
     await page
       .locator('nav button')
@@ -44,12 +44,14 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
     await expect(chip.first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('FAB Collection submenu lets the user switch Collections', async ({
+  test('FAB Collections button opens the Collection switcher', async ({
     page,
   }) => {
-    // Create a Collection + 2 Boards inside it. Then verify the FAB's
-    // kebab popover has a "Switch Collection…" entry that opens a
-    // submenu listing the new Collection.
+    // Create 2 Collections + 2 Boards inside the second one. Then verify
+    // the FAB exposes a dedicated [Collections] button that opens
+    // CollectionSwitcherMenu directly. The button only renders when
+    // collections.length >= 2 (with 1 collection there's nothing
+    // meaningful to switch between from the FAB).
     await page.getByTitle('Open Menu').click();
     await page
       .locator('nav button')
@@ -61,44 +63,43 @@ test.describe('Collections — FAB + Breadcrumb + app-open', () => {
       .click();
     const modal = page.getByRole('dialog', { name: /boards/i });
 
+    // Collection 1.
     await modal.getByRole('button', { name: /new collection/i }).click();
-    const cPrompt = page.getByRole('dialog', { name: /new collection/i });
-    await cPrompt.getByRole('textbox').fill('FAB Switch Coll');
+    let cPrompt = page.getByRole('dialog', { name: /new collection/i });
+    await cPrompt.getByRole('textbox').fill('Coll One');
     await cPrompt.getByRole('button', { name: /^create$/i }).click();
-    await modal.getByText('FAB Switch Coll').first().click();
 
-    // Create 2 boards inside the new Collection.
+    // Collection 2 — needed so the [Collections] FAB button appears.
+    await modal.getByRole('button', { name: /new collection/i }).click();
+    cPrompt = page.getByRole('dialog', { name: /new collection/i });
+    await cPrompt.getByRole('textbox').fill('Coll Two');
+    await cPrompt.getByRole('button', { name: /^create$/i }).click();
+
+    // Open Coll Two and add 2 boards so we land inside it after closing.
+    await modal.getByText('Coll Two').first().click();
     for (const name of ['FAB-A', 'FAB-B']) {
       await modal.getByRole('button', { name: /new board/i }).click();
       const bPrompt = page.getByRole('dialog', { name: /new board/i });
       await bPrompt.getByRole('textbox').fill(name);
       await bPrompt.getByRole('button', { name: /^create$/i }).click();
     }
-    // Dismiss via Escape — a success toast may overlap the Close button in
-    // the top-right corner, making a pointer click unreliable.
+
+    // Dismiss the modal.
     await page.keyboard.press('Escape');
-    // Wait for the modal to be fully dismissed before interacting with the FAB.
     await expect(modal).not.toBeVisible({ timeout: 5000 });
 
-    // Now the active Collection is "FAB Switch Coll" with 2 boards.
-    // The FAB picker should expose "Switch Collection…" at the top.
-    await page.getByLabel('Select board').click();
-    await expect(
-      page.getByRole('menuitem', { name: /switch collection/i })
-    ).toBeVisible({ timeout: 5000 });
+    // The FAB row should expose a dedicated Collections button (Folder icon).
+    await page.getByLabel('Select collection').click();
 
-    // Clicking it opens the Collection switcher submenu.
-    await page.getByRole('menuitem', { name: /switch collection/i }).click();
-    await expect(
-      page.getByRole('menu', { name: /switch collection/i })
-    ).toBeVisible();
-
-    // The submenu should list both "All Boards (root)" and "FAB Switch Coll".
+    // Clicking it opens CollectionSwitcherMenu listing root + both collections.
     await expect(
       page.getByRole('menuitem', { name: /all boards \(root\)/i })
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      page.getByRole('menuitem', { name: 'Coll One' })
     ).toBeVisible();
     await expect(
-      page.getByRole('menuitem', { name: 'FAB Switch Coll' })
+      page.getByRole('menuitem', { name: 'Coll Two' })
     ).toBeVisible();
   });
 });

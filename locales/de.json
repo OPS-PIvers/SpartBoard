@@ -18,8 +18,7 @@
     "previous": "Vorherige Tafel",
     "next": "Nächste Tafel",
     "selectBoard": "Tafel auswählen",
-    "boardList": "Alle Tafeln",
-    "switchCollection": "Switch Collection…"
+    "boardList": "Alle Tafeln"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
