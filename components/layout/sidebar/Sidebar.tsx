@@ -46,7 +46,8 @@ import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
 import { StylePanel } from './StylePanel';
-import { SidebarBackgrounds } from './SidebarBackgrounds';
+import { SidebarBoardsActive } from './SidebarBoardsActive';
+import { BackgroundsModal } from '@/components/backgroundsModal/BackgroundsModal';
 import { SidebarQuickAccess } from './SidebarQuickAccess';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
 import { SidebarLanguageRegion } from './SidebarLanguageRegion';
@@ -63,7 +64,7 @@ declare const __APP_VERSION__: string;
 
 type MenuSection =
   | 'main'
-  | 'backgrounds'
+  | 'boards'
   | 'classes'
   | 'plcs'
   | 'style'
@@ -201,6 +202,7 @@ export const Sidebar: React.FC = () => {
     readLastSeenVersion()
   );
   const [isBoardsModalOpen, setIsBoardsModalOpen] = useState(false);
+  const [isBackgroundsModalOpen, setIsBackgroundsModalOpen] = useState(false);
   const { latestVersion } = useChangelog();
   const { updateAvailable, reloadApp } = useAppVersion();
   const hasUnreadWhatsNew =
@@ -389,6 +391,11 @@ export const Sidebar: React.FC = () => {
         <BoardsModal onClose={() => setIsBoardsModalOpen(false)} />
       )}
 
+      <BackgroundsModal
+        isOpen={isBackgroundsModalOpen}
+        onClose={() => setIsBackgroundsModalOpen(false)}
+      />
+
       {isOpen && (
         <div className="fixed inset-0 z-modal flex">
           <div
@@ -485,7 +492,7 @@ export const Sidebar: React.FC = () => {
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
-                    onClick={() => setActiveSection('backgrounds')}
+                    onClick={() => setIsBackgroundsModalOpen(true)}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
                     <div className="w-8 h-8 rounded-lg bg-pink-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
@@ -674,8 +681,15 @@ export const Sidebar: React.FC = () => {
                 </div>
               </nav>
 
-              {/* BACKGROUNDS SECTION */}
-              <SidebarBackgrounds isVisible={activeSection === 'backgrounds'} />
+              {/* BOARDS SECTION */}
+              <SidebarBoardsActive
+                isVisible={activeSection === 'boards'}
+                onOpenModal={() => {
+                  setIsBoardsModalOpen(true);
+                  setIsOpen(false);
+                  setActiveSection('main');
+                }}
+              />
 
               {/* CLASSES SECTION */}
               <SidebarClasses isVisible={activeSection === 'classes'} />
