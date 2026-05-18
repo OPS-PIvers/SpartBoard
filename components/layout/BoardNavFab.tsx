@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Folder,
   LayoutGrid,
+  Settings,
   Star,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
@@ -21,6 +22,7 @@ import { useClickOutside } from '@/hooks/useClickOutside';
 import { FAB_BASE } from './fabClasses';
 import { BoardBreadcrumb } from './BoardBreadcrumb';
 import { CollectionSwitcherMenu } from './CollectionSwitcherMenu';
+import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 
 export const BoardNavFab: FC = () => {
   const { t } = useTranslation();
@@ -33,6 +35,7 @@ export const BoardNavFab: FC = () => {
   } = useDashboard();
   const [isBoardsMenuOpen, setIsBoardsMenuOpen] = useState(false);
   const [isCollectionMenuOpen, setIsCollectionMenuOpen] = useState(false);
+  const [isBoardsModalOpen, setIsBoardsModalOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const boardsTriggerRef = useRef<HTMLButtonElement>(null);
   const collectionsTriggerRef = useRef<HTMLButtonElement>(null);
@@ -90,7 +93,8 @@ export const BoardNavFab: FC = () => {
   // Drop trailing ref slots when the dashboard list shrinks so we don't
   // dispatch focus to detached buttons after a board is deleted.
   useEffect(() => {
-    itemRefs.current.length = boardsInCollection.length;
+    // +1 for the "Manage all boards…" footer item.
+    itemRefs.current.length = boardsInCollection.length + 1;
   }, [boardsInCollection.length]);
 
   if (!showFabRow) return null;
@@ -110,8 +114,8 @@ export const BoardNavFab: FC = () => {
   };
 
   const focusItem = (idx: number) => {
-    const total = boardsInCollection.length;
-    if (total === 0) return;
+    // +1 for the "Manage all boards…" footer slot.
+    const total = boardsInCollection.length + 1;
     const wrapped = ((idx % total) + total) % total;
     itemRefs.current[wrapped]?.focus();
   };
@@ -131,9 +135,7 @@ export const BoardNavFab: FC = () => {
         break;
       case 'ArrowUp':
         e.preventDefault();
-        focusItem(
-          focusedIdx < 0 ? boardsInCollection.length - 1 : focusedIdx - 1
-        );
+        focusItem(focusedIdx < 0 ? boardsInCollection.length : focusedIdx - 1);
         break;
       case 'Home':
         e.preventDefault();
@@ -141,7 +143,7 @@ export const BoardNavFab: FC = () => {
         break;
       case 'End':
         e.preventDefault();
-        focusItem(boardsInCollection.length - 1);
+        focusItem(boardsInCollection.length);
         break;
       case 'Tab':
         closeBoardsMenu(false);
@@ -217,6 +219,22 @@ export const BoardNavFab: FC = () => {
               </button>
             );
           })}
+          <button
+            ref={(el) => {
+              itemRefs.current[boardsInCollection.length] = el;
+            }}
+            role="menuitem"
+            onClick={() => {
+              setIsBoardsModalOpen(true);
+              closeBoardsMenu(false);
+            }}
+            className="w-full flex items-center gap-2 px-3 py-2 mt-1 text-left text-sm text-white/80 hover:bg-white/10 border-t border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-white/50"
+          >
+            <Settings className="w-3.5 h-3.5 flex-shrink-0" />
+            {t('boardNav.manageAllBoards', {
+              defaultValue: 'Manage all boards…',
+            })}
+          </button>
         </div>
       )}
 
@@ -288,6 +306,9 @@ export const BoardNavFab: FC = () => {
           </button>
         )}
       </div>
+      {isBoardsModalOpen && (
+        <BoardsModal onClose={() => setIsBoardsModalOpen(false)} />
+      )}
     </div>
   );
 };

@@ -244,4 +244,53 @@ describe('BoardNavFab', () => {
       expect(document.activeElement).toBe(trigger);
     });
   });
+
+  describe('Manage all boards menu item', () => {
+    it('appears as the last item in the Boards menu', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select board/i })
+      );
+      const items = screen.getAllByRole('menuitem');
+      const labels = items.map((el) => el.textContent?.trim());
+      expect(labels[labels.length - 1]).toMatch(/manage all boards/i);
+    });
+
+    it('opens BoardsModal when clicked', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select board/i })
+      );
+      await userEvent.click(
+        screen.getByRole('menuitem', { name: /manage all boards/i })
+      );
+      expect(
+        screen.getByRole('dialog', { name: 'Boards Modal' })
+      ).toBeInTheDocument();
+    });
+
+    it('is keyboard-reachable via ArrowDown wraparound', async () => {
+      mockContext({
+        dashboards: [dashboard('d1', 'A'), dashboard('d2', 'B')],
+        collections: [],
+      });
+      render(<BoardNavFab />);
+      await userEvent.click(
+        screen.getByRole('button', { name: /select board/i })
+      );
+      // Initial focus lands on the active board (d1). End jumps to the last item.
+      await userEvent.keyboard('{End}');
+      expect(document.activeElement?.textContent?.trim()).toMatch(
+        /manage all boards/i
+      );
+    });
+  });
 });
