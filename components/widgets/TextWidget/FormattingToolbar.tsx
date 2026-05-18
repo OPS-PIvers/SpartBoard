@@ -32,10 +32,7 @@ import { IconButton } from '@/components/common/IconButton';
 import { FONT_COLORS } from '@/config/fonts';
 import { HIGHLIGHT_PALETTE, STICKY_NOTE_COLORS } from '@/config/colors';
 import { useDialog } from '@/context/useDialog';
-import {
-  needsBlockNormalization,
-  normalizeEditorBlocks,
-} from '@/utils/contentEditableBlocks';
+import { ensureTopLevelBlocks } from '@/utils/contentEditableBlocks';
 import { toggleList } from '@/utils/contentEditableLists';
 
 interface FormattingToolbarProps {
@@ -555,13 +552,9 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
       ) {
         const editor = editorRef.current;
         if (!editor) return;
-        // Normalize first so the live mixed-bare-text-then-<div>
-        // structure that Chrome produces in fresh editors doesn't
-        // confuse the block collection. No-op for already-uniform
-        // structures.
-        if (needsBlockNormalization(editor)) {
-          normalizeEditorBlocks(editor);
-        }
+        // `toggleList` collects from `editor.children` (excludes text
+        // nodes), so any loose top-level text must be wrapped first.
+        ensureTopLevelBlocks(editor);
         const listTag = command === 'insertUnorderedList' ? 'ul' : 'ol';
         // `paragraphTag: 'div'` matches TextWidget's persistence
         // shape (`sanitizeHtml` allows `<div>`).

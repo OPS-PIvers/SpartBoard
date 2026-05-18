@@ -528,6 +528,50 @@ describe('FormattingToolbar', () => {
     document.body.removeChild(editor);
   });
 
+  it('wraps inline-only editor content in a bulleted list', () => {
+    const editor = mockEditorRef.current;
+    if (!editor) throw new Error('mockEditorRef.current is null');
+    editor.innerHTML = 'hello world';
+    document.body.appendChild(editor);
+    const textNode = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, textNode.length);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    render(<FormattingToolbar {...defaultProps} />);
+    fireEvent.click(screen.getByTitle(/Bulleted List/));
+
+    expect(editor.querySelector('ul')).not.toBeNull();
+    expect(editor.querySelectorAll('li').length).toBe(1);
+    expect(editor.querySelector('li')?.textContent).toBe('hello world');
+    document.body.removeChild(editor);
+  });
+
+  it('wraps a single inline element in a numbered list', () => {
+    const editor = mockEditorRef.current;
+    if (!editor) throw new Error('mockEditorRef.current is null');
+    editor.innerHTML = '<b>Bold text</b>';
+    document.body.appendChild(editor);
+    const range = document.createRange();
+    range.selectNodeContents(editor);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    render(<FormattingToolbar {...defaultProps} />);
+    fireEvent.click(screen.getByTitle(/Numbered List/));
+
+    expect(editor.querySelector('ol')).not.toBeNull();
+    expect(editor.querySelectorAll('li').length).toBe(1);
+    expect(editor.querySelector('li b')?.textContent).toBe('Bold text');
+    document.body.removeChild(editor);
+  });
+
   it('reflects list toggle state via aria-pressed', () => {
     // Mock queryCommandState to simulate the caret being inside a list.
     const queryCommandStateMock = vi.fn(
