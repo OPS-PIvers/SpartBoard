@@ -1,6 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
-import { useAppVersion } from '../../hooks/useAppVersion';
+import {
+  useAppVersion,
+  __resetAppVersionForTests,
+} from '../../hooks/useAppVersion';
 import { vi, Mock } from 'vitest';
 
 // The hook reads the build-time constant __APP_VERSION__.
@@ -24,11 +27,15 @@ describe('useAppVersion', () => {
       json: () =>
         Promise.resolve({ version: '1.0.0', buildDate: '2023-01-01' }),
     });
+
+    // Reset the module-level singleton so each test gets a fresh polling loop.
+    __resetAppVersionForTests();
   });
 
   afterEach(() => {
     vi.clearAllMocks();
     vi.useRealTimers();
+    __resetAppVersionForTests();
     delete (globalThis as Record<string, unknown>).__APP_VERSION__;
   });
 

@@ -64,7 +64,9 @@
       "plcs": "Meine PLCs",
       "widgets": "Widgets",
       "globalStyle": "Globaler Stil",
-      "generalSettings": "Allgemeine Einstellungen"
+      "generalSettings": "Allgemeine Einstellungen",
+      "whatsNew": "Was ist neu",
+      "whatsNewBadge": "Neu"
     },
     "boards": {
       "newBoard": "Neue Tafel",

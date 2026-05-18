@@ -64,7 +64,9 @@
       "plcs": "Mis PLCs",
       "widgets": "Widgets",
       "globalStyle": "Estilo Global",
-      "generalSettings": "Ajustes Generales"
+      "generalSettings": "Ajustes Generales",
+      "whatsNew": "Novedades",
+      "whatsNewBadge": "Nuevo"
     },
     "boards": {
       "newBoard": "Nuevo Tablero",

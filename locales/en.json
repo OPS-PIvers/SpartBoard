@@ -72,7 +72,10 @@
       "plcs": "My PLCs",
       "widgets": "Widgets",
       "globalStyle": "Global Style",
-      "generalSettings": "General Settings"
+      "generalSettings": "General Settings",
+      "whatsNew": "What's New",
+      "whatsNewBadge": "New",
+      "whatsNewSrAnnouncement": "New release notes available"
     },
     "boards": {
       "newBoard": "New Board",
@@ -1025,6 +1028,22 @@
       "deleteSticker": "Delete Sticker",
       "dragFromLibrary": "Drag stickers from library to the board",
       "stickerAdded": "Sticker added to board!"
+    }
+  },
+  "whatsNew": {
+    "title": "What's New",
+    "updateNow": "Update Now",
+    "later": "Later",
+    "close": "Close",
+    "loading": "Loading release notes…",
+    "error": "Couldn't load the changelog right now.",
+    "previewEmpty": "A fresh build is ready. Refresh to get the latest.",
+    "browseEmpty": "You're all caught up.",
+    "currentBuild": "Your build",
+    "groups": {
+      "feature": "New",
+      "improvement": "Improvements",
+      "fix": "Fixes"
     }
   }
 }
