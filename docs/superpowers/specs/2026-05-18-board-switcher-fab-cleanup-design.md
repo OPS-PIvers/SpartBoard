@@ -23,7 +23,7 @@ The current pill is on-screen 100% of the time but is only useful at the moment 
 ```
 
 - `[<]` `[>]` — unchanged prev/next within the active Collection.
-- `[📁 Collections]` — opens `CollectionSwitcherMenu` directly. Hidden when `collections.length === 0` (no value, takes up space).
+- `[📁 Collections]` — opens `CollectionSwitcherMenu` directly. Hidden when `collections.length < 2` (with only one named Collection, there's nothing meaningful to "switch between" from this FAB — Root↔single-Collection traversal in that edge case goes through `Manage all boards…`). Other buttons reflow naturally to fill the gap.
 - `[▦ Boards]` — opens the lightweight Board switcher (today's kebab menu), with two changes:
   - The "Switch Collection…" item at the top is removed (the new Collections button replaces it).
   - A `⚙ Manage all boards…` item is appended at the bottom; opens the full `BoardsModal`. Visually separated by a top border, same pattern as the existing "Switch Collection…" bottom border.
@@ -35,7 +35,7 @@ The boards button icon is `LayoutGrid` from lucide-react.
 - Renders when `dashboards.length > 1` OR `collections.length > 0`
 - Inside the row:
   - `[<]` / `[>]` render only when `boardsInCollection.length >= 2` (no point if there's nothing to flip to)
-  - `[📁 Collections]` renders only when `collections.length > 0` (unchanged from the design above)
+  - `[📁 Collections]` renders only when `collections.length >= 2` (matches the per-button rule above; remaining buttons reflow naturally via flex layout)
   - `[▦ Boards]` always renders when the row is up — it owns the only path to `BoardsModal` from this surface now that the persistent pill is gone
 
 This preserves access to `BoardsModal` and Collections-switching even when the user has a single Board in the active Collection.
@@ -99,7 +99,8 @@ Appended at the bottom of the Boards menu with a top divider, matching the visua
 - **`tests/components/layout/CollectionSwitcherMenu.test.tsx`** — existing behavior unchanged; add a test that asserts it can be triggered directly (not only from the kebab path) — or just rely on `BoardNavFab.test.tsx` to cover the new trigger.
 
 - **New: `tests/components/layout/BoardNavFab.test.tsx`** (or extend if it exists)
-  - Collections button visible only when `collections.length > 0`
+  - Collections button hidden when `collections.length < 2`; visible when `collections.length >= 2`
+  - With 1 collection, the row still renders (so users have a path to BoardsModal via the Boards menu) but Collections button is omitted and siblings reflow
   - Collections button click opens `CollectionSwitcherMenu`
   - Boards button click opens the boards menu
   - Boards menu no longer contains "Switch Collection…"
