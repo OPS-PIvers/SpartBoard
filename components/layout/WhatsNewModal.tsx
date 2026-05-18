@@ -1,13 +1,6 @@
 import React, { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  ArrowUpRight,
-  ChevronDown,
-  ChevronUp,
-  RefreshCw,
-  Sparkles,
-  Wrench,
-} from 'lucide-react';
+import { ChevronDown, ChevronUp, RefreshCw, Sparkles } from 'lucide-react';
 import { Modal } from '@/components/common/Modal';
 import {
   ChangelogBullet,
@@ -97,41 +90,6 @@ const OverviewSection: React.FC<{ section: ChangelogThemedSection }> = ({
     <OverviewBulletList items={section.items} />
   </div>
 );
-
-// _PillIcon and _Pill are preserved here for Task 10 removal; they are no
-// longer rendered after Task 7 removed the pill strip from both entry paths.
-const _PillIcon: React.FC<{ type: ChangelogHighlightType }> = ({ type }) => {
-  if (type === 'feature') {
-    return <Sparkles className="w-3 h-3" />;
-  }
-  if (type === 'improvement') {
-    return <ArrowUpRight className="w-3 h-3" />;
-  }
-  return <Wrench className="w-3 h-3" />;
-};
-
-const _Pill: React.FC<{
-  type: ChangelogHighlightType;
-  label: string;
-  count: number;
-}> = ({ type, label, count }) => {
-  const styles =
-    type === 'feature'
-      ? 'bg-emerald-50 text-emerald-700'
-      : type === 'improvement'
-        ? 'bg-blue-50 text-blue-700'
-        : 'bg-amber-50 text-amber-700';
-  return (
-    <div
-      className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xxs font-bold uppercase tracking-wide ${styles}`}
-    >
-      <_PillIcon type={type} />
-      {label}
-      <span className="opacity-60">·</span>
-      <span>{count}</span>
-    </div>
-  );
-};
 
 const formatEntryDate = (iso: string, language: string): string => {
   // Parse "YYYY-MM-DD" explicitly so the Date isn't shifted by the host
