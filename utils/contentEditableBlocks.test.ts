@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ensureTopLevelBlocks,
   needsBlockNormalization,
   normalizeEditorBlocks,
 } from './contentEditableBlocks';
@@ -214,5 +215,67 @@ describe('needsBlockNormalization', () => {
         wrapTag: 'p',
       })
     ).toBe(false);
+  });
+});
+
+describe('ensureTopLevelBlocks', () => {
+  it('wraps inline-only content (the case toggleList needs)', () => {
+    // The toolbar's list buttons silently did nothing on this shape
+    // because `collectSelectedBlocks` iterates `editor.children`, which
+    // excludes text nodes. ensureTopLevelBlocks is the helper that
+    // guarantees there's always at least one block element for the
+    // list command to convert into an <li>.
+    const editor = buildEditor('hello world');
+    ensureTopLevelBlocks(editor);
+    expect(editor.children.length).toBe(1);
+    expect(editor.children[0].tagName).toBe('DIV');
+    expect(editor.children[0].textContent).toBe('hello world');
+  });
+
+  it('wraps a single inline element (e.g. <b>headline</b>)', () => {
+    // Distinct from normalizeEditorBlocks, which deliberately skips
+    // this case to avoid stray line-boxes. For list operations, we
+    // need the wrap regardless.
+    const editor = buildEditor('<b>headline</b>');
+    ensureTopLevelBlocks(editor);
+    expect(editor.children.length).toBe(1);
+    expect(editor.children[0].tagName).toBe('DIV');
+    expect(editor.children[0].innerHTML).toBe('<b>headline</b>');
+  });
+
+  it('is a no-op when content already has block structure', () => {
+    const html = '<div>One</div><div>Two</div>';
+    const editor = buildEditor(html);
+    ensureTopLevelBlocks(editor);
+    expect(editor.innerHTML).toBe(html);
+  });
+
+  it('wraps with <p> when requested (WrittenResponseEditor mode)', () => {
+    const editor = buildEditor('hello world');
+    ensureTopLevelBlocks(editor, { wrapTag: 'p' });
+    expect(editor.children.length).toBe(1);
+    expect(editor.children[0].tagName).toBe('P');
+  });
+
+  it('handles the mixed bare-text-then-<div> case (Chrome default)', () => {
+    const editor = buildEditor('First<div>Second</div>');
+    ensureTopLevelBlocks(editor);
+    expect(editor.children.length).toBe(2);
+    expect(editor.children[0].textContent).toBe('First');
+    expect(editor.children[1].textContent).toBe('Second');
+  });
+
+  it('drops top-level <br> separators', () => {
+    const editor = buildEditor('a<br/>b');
+    ensureTopLevelBlocks(editor);
+    expect(editor.querySelector('br')).toBeNull();
+    expect(editor.children.length).toBe(2);
+    expect(editor.textContent).toBe('ab');
+  });
+
+  it('is a no-op on an empty editor', () => {
+    const editor = buildEditor('');
+    ensureTopLevelBlocks(editor);
+    expect(editor.innerHTML).toBe('');
   });
 });

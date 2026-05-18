@@ -135,9 +135,36 @@ export const normalizeEditorBlocks = (
   options?: NormalizeOptions
 ): void => {
   if (!needsBlockNormalization(editor, options)) return;
+  wrapTopLevelContent(editor, options?.wrapTag ?? 'div');
+};
 
-  const wrapTag = options?.wrapTag ?? 'div';
+/** Stronger normalization for list operations: always wraps loose top-
+ *  level text/inline content into a block, even when the editor is
+ *  inline-only (e.g. a single text node "hello world" the user typed
+ *  without pressing Enter).
+ *
+ *  `normalizeEditorBlocks` deliberately skips inline-only content to
+ *  avoid adding stray line-boxes for cases like `<b>headline</b>`.
+ *  But `toggleList` iterates `editor.children` to find blocks to wrap
+ *  into `<li>`s, and `editor.children` excludes text nodes — so when
+ *  the editor has only a bare text node at the top level, the list
+ *  command silently does nothing. This helper forces the wrap so the
+ *  list command always has a block to act on.
+ *
+ *  Same node-relocation semantics as `normalizeEditorBlocks`: only
+ *  moves nodes, never clones, so live Range references survive.
+ */
+export const ensureTopLevelBlocks = (
+  editor: HTMLDivElement,
+  options?: NormalizeOptions
+): void => {
+  wrapTopLevelContent(editor, options?.wrapTag ?? 'div');
+};
 
+const wrapTopLevelContent = (
+  editor: HTMLDivElement,
+  wrapTag: 'div' | 'p'
+): void => {
   let pending: Node[] = [];
   const flushPending = (insertBefore: Node | null) => {
     if (pending.length === 0) return;

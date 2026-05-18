@@ -13,6 +13,7 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { FormattingToolbar } from './FormattingToolbar';
 import { PLACEHOLDER_TEXT } from './constants';
 import {
+  ensureTopLevelBlocks,
   needsBlockNormalization,
   normalizeEditorBlocks,
 } from '@/utils/contentEditableBlocks';
@@ -288,9 +289,10 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               : null;
         if (listTag && editorRef.current) {
           e.preventDefault();
-          if (needsBlockNormalization(editorRef.current)) {
-            normalizeEditorBlocks(editorRef.current);
-          }
+          // ensureTopLevelBlocks (not needsBlockNormalization) so the
+          // shortcut works on inline-only editors too — see runCommand
+          // in FormattingToolbar.tsx for the same reasoning.
+          ensureTopLevelBlocks(editorRef.current);
           toggleList(editorRef.current, listTag, 'div');
           handleInput();
           return;
