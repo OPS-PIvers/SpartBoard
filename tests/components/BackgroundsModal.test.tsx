@@ -29,10 +29,12 @@ vi.mock('@/hooks/useBackgrounds', () => ({
 }));
 
 const setBackground = vi.fn();
+const addToast = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
   useDashboard: () => ({
     activeDashboard: { id: 'd1', background: 'https://example.com/p1.jpg' },
     setBackground,
+    addToast,
   }),
 }));
 
