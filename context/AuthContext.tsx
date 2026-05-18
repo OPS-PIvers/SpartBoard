@@ -18,7 +18,6 @@ import {
   getDoc,
   getDocs,
   setDoc,
-  updateDoc,
   collection,
   onSnapshot,
   limit,
@@ -1575,11 +1574,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       const next = current.includes(backgroundId)
         ? current.filter((id) => id !== backgroundId)
         : [...current, backgroundId];
+      // Optimistic update
       favoritesRef.current = next;
       setFavoriteBackgrounds(next);
-      await updateDoc(doc(db, 'users', user.uid, 'userProfile', 'profile'), {
-        favoriteBackgrounds: next,
-      });
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { favoriteBackgrounds: next },
+          { merge: true }
+        );
+      } catch (err) {
+        // Revert optimistic update so the UI doesn't show a stale state
+        favoritesRef.current = current;
+        setFavoriteBackgrounds(current);
+        logError('AuthContext.toggleFavoriteBackground', err);
+        throw err; // Let caller surface a toast
+      }
     },
     [user?.uid]
   );
@@ -1598,9 +1608,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return;
       recentsRef.current = next;
       setRecentBackgrounds(next);
-      await updateDoc(doc(db, 'users', user.uid, 'userProfile', 'profile'), {
-        recentBackgrounds: next,
-      });
+      try {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          { recentBackgrounds: next },
+          { merge: true }
+        );
+      } catch (err) {
+        logError('AuthContext.recordRecentBackground', err);
+        // Non-fatal: recents will repopulate from Firestore listener on next change
+      }
     },
     [user?.uid]
   );
