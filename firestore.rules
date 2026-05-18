@@ -569,6 +569,14 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // Admin audit log - admin-only read/write.
+    // Written by GlobalPermissionsManager when admins change model config
+    // (or other sensitive settings). Without this rule the default-deny
+    // policy silently rejects every write and audit logging is a no-op.
+    match /admin_audit_log/{logId} {
+      allow read, write: if isAdmin();
+    }
+
     // User Roles - stored in admin_settings for global access but restricted to admins
     match /admin_settings/user_roles {
       allow read, write: if isAdmin();
