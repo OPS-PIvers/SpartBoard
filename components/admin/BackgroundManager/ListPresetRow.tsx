@@ -25,15 +25,32 @@ interface TagInputProps {
 const TagInput: React.FC<TagInputProps> = ({ tags, onChange, suggestions }) => {
   const [draft, setDraft] = React.useState('');
 
+  // Keep a ref that always holds the latest tag list so rapid additions
+  // (e.g. clicking several suggestion chips before the parent's Firestore
+  // write completes) each start from the current list rather than the same
+  // stale `tags` prop snapshot that would overwrite earlier additions.
+  // The ref is updated in an effect (after render) to satisfy the
+  // react-hooks/refs rule that forbids assigning `ref.current` during render.
+  const tagsRef = React.useRef(tags);
+  React.useEffect(() => {
+    tagsRef.current = tags;
+  }, [tags]);
+
   const addTag = (raw: string) => {
     const t = raw.trim().toLowerCase();
     if (!t) return;
-    if (tags.includes(t)) return;
-    onChange([...tags, t]);
+    if (tagsRef.current.includes(t)) return;
+    const next = [...tagsRef.current, t];
+    tagsRef.current = next; // optimistic — next addTag sees the updated list
+    onChange(next);
     setDraft('');
   };
 
-  const removeTag = (t: string) => onChange(tags.filter((x) => x !== t));
+  const removeTag = (t: string) => {
+    const next = tagsRef.current.filter((x) => x !== t);
+    tagsRef.current = next;
+    onChange(next);
+  };
 
   return (
     <div className="flex flex-col gap-2">
