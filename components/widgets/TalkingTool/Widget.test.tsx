@@ -75,6 +75,8 @@ const mockAuthContext = (
   updateAccountPreferences: async () => {
     /* mock */
   },
+  lastActiveCollectionId: undefined,
+  lastBoardIdByCollection: undefined,
   orgId: null,
   roleId: null,
   isStudentRole: false,

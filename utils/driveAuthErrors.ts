@@ -149,9 +149,13 @@ export const authError = (
  * each time a consumer mounted, defeating the de-dupe. Comparing against
  * `lastSeenToken` makes the reset fire exactly once per real token rotation.
  *
- * Sign-out (`token === null`) also resets the latch so a subsequent sign-in
- * with the same cached token (rare but possible: re-entering an unexpired
- * session) re-arms the toast for that session's first stale episode.
+ * Sign-out transition (`A → null`) also resets the latch so a subsequent
+ * sign-in with the same cached token (rare but possible: re-entering an
+ * unexpired session) re-arms the toast for that session's first stale
+ * episode. Note: we only reset on an actual transition (`lastSeenToken`
+ * was non-null) — a `null → null` mount from any of the ~20 consumers
+ * that read `googleAccessToken` would otherwise reset the latch and let
+ * the next failed Drive call re-fire the reconnect toast.
  *
  * Side effect: any `token !== lastSeenToken` transition (including the
  * initial null → token at sign-in, and subsequent tokenA → tokenB
@@ -168,7 +172,10 @@ export const onDriveTokenChange = (token: string | null): void => {
     lastSeenToken = token;
     driveAuthErrorLatched = false;
     notifyDriveReconnected();
-  } else if (!token) {
+  } else if (!token && lastSeenToken !== null) {
+    // Real sign-out transition. `null → null` mounts (the steady state
+    // when the user has no Drive auth) do NOT reset the latch — that
+    // would unsuppress the toast on every consumer mount.
     lastSeenToken = null;
     driveAuthErrorLatched = false;
   }

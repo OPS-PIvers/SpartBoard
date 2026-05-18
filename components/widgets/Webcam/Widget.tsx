@@ -22,9 +22,10 @@ import Tesseract from 'tesseract.js';
 import { WidgetLayout } from '../WidgetLayout';
 import { CapturedItem } from './types';
 
-export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
-  widget: _widget,
-}) => {
+export const WebcamWidget: React.FC<{
+  widget: WidgetData;
+  isActive?: boolean;
+}> = ({ widget: _widget, isActive = true }) => {
   const { canAccessFeature } = useAuth();
   const { addWidget, addToast, updateWidget } = useDashboard();
   const { showAlert, showConfirm } = useDialog();
@@ -49,6 +50,19 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
   const videoRef = useRef<HTMLVideoElement>(null);
 
   useEffect(() => {
+    // When the host Board becomes inactive, release the camera immediately so
+    // another Board's Webcam widget (or the OS) can acquire it.
+    if (!isActive) {
+      const existing = videoRef.current?.srcObject;
+      if (existing instanceof MediaStream) {
+        existing.getTracks().forEach((track) => track.stop());
+        if (videoRef.current) videoRef.current.srcObject = null;
+      }
+      setStream(null);
+      return;
+    }
+
+    let cancelled = false;
     let currentStream: MediaStream | null = null;
 
     async function startCamera() {
@@ -56,6 +70,7 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
         // Enumerate devices if not already done
         if (devices.length === 0) {
           const allDevices = await navigator.mediaDevices.enumerateDevices();
+          if (cancelled) return;
           const videoDevices = allDevices.filter(
             (d) => d.kind === 'videoinput'
           );
@@ -74,6 +89,10 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
 
         const mediaStream =
           await navigator.mediaDevices.getUserMedia(constraints);
+        if (cancelled) {
+          mediaStream.getTracks().forEach((track) => track.stop());
+          return;
+        }
         currentStream = mediaStream;
         setStream(mediaStream);
         if (videoRef.current) {
@@ -89,11 +108,12 @@ export const WebcamWidget: React.FC<{ widget: WidgetData }> = ({
     void startCamera();
 
     return () => {
+      cancelled = true;
       if (currentStream) {
         currentStream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [selectedDeviceId, devices.length]);
+  }, [isActive, selectedDeviceId, devices.length]);
 
   const switchCamera = useCallback(() => {
     if (devices.length < 2) return;

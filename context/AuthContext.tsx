@@ -257,6 +257,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [quizMonitorScoreDisplay, setQuizMonitorScoreDisplayState] = useState<
     'percent' | 'count' | 'hidden'
   >('percent');
+  const [lastActiveCollectionId, setLastActiveCollectionIdState] = useState<
+    string | null | undefined
+  >(undefined);
+  const [lastBoardIdByCollection, setLastBoardIdByCollectionState] = useState<
+    Record<string, string> | undefined
+  >(undefined);
   const [orgId, setOrgId] = useState<string | null>(
     isAuthBypass ? DEFAULT_ORG_ID : null
   );
@@ -945,6 +951,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       setDisableCloseConfirmationState(false);
       setRemoteControlEnabledState(true);
       setDockPositionState('bottom');
+      setLastActiveCollectionIdState(undefined);
+      setLastBoardIdByCollectionState(undefined);
 
       if (!user) {
         driveProbedForUidRef.current = null;
@@ -1089,6 +1097,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             setQuizMonitorScoreDisplayState(data.quizMonitorScoreDisplay);
           } else {
             setQuizMonitorScoreDisplayState('percent');
+          }
+
+          // Load Collections navigation memory
+          if ('lastActiveCollectionId' in data) {
+            const val = data.lastActiveCollectionId;
+            setLastActiveCollectionIdState(
+              typeof val === 'string' || val === null ? val : null
+            );
+          } else {
+            setLastActiveCollectionIdState(null);
+          }
+          if (
+            'lastBoardIdByCollection' in data &&
+            typeof data.lastBoardIdByCollection === 'object' &&
+            data.lastBoardIdByCollection !== null &&
+            !Array.isArray(data.lastBoardIdByCollection)
+          ) {
+            setLastBoardIdByCollectionState(
+              data.lastBoardIdByCollection as Record<string, string>
+            );
+          } else {
+            setLastBoardIdByCollectionState({});
           }
 
           setProfileLoaded(true);
@@ -1872,6 +1902,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         quizMonitorColorsEnabled,
         quizMonitorScoreDisplay,
         updateAccountPreferences,
+        lastActiveCollectionId,
+        lastBoardIdByCollection,
         orgId,
         roleId,
         isStudentRole,

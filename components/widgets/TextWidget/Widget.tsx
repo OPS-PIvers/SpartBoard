@@ -15,7 +15,9 @@ import { PLACEHOLDER_TEXT } from './constants';
 import {
   needsBlockNormalization,
   normalizeEditorBlocks,
-} from './normalizeBlocks';
+} from '@/utils/contentEditableBlocks';
+import { toggleList } from '@/utils/contentEditableLists';
+import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 
 /** Gap (px) between the toolbar and the widget edge. */
 const TOOLBAR_GAP = 8;
@@ -163,6 +165,19 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }
   }, [content]);
 
+  // Install the drag-select enhancer once the editor is mounted.
+  // Chrome's default drag-selection inside contenteditable anchors to
+  // the clicked text node and refuses to extend across block
+  // boundaries — clicking the first character of paragraph 1 and
+  // dragging through paragraph 3 only selects paragraph 1. The
+  // enhancer overrides extension on every mousemove using
+  // `caretPositionFromPoint` so the selection always reaches the
+  // pointer's actual position.
+  useEffect(() => {
+    if (!editorRef.current) return undefined;
+    return installDragSelectEnhancer(editorRef.current);
+  }, []);
+
   const isPlaceholder = !content || content === PLACEHOLDER_TEXT;
 
   const handleFocus = useCallback(() => {
@@ -258,18 +273,25 @@ export const TextWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       // Ctrl/Cmd+Shift+8 → bulleted list, Ctrl/Cmd+Shift+7 → numbered list.
       // Matches Google Docs / Word conventions; pairs the toolbar's new
       // top-level Lists buttons with keyboard parity to B/I/U/K.
+      //
+      // Routed through our custom `toggleList` rather than
+      // `execCommand('insertUnorderedList' | 'insertOrderedList')`.
+      // Chrome's execCommand only formats the cursor's paragraph when
+      // the selection spans multiple blocks; toggleList mutates the DOM
+      // directly and handles any selection shape.
       if ((e.ctrlKey || e.metaKey) && e.shiftKey) {
-        if (e.key === '8' || e.code === 'Digit8') {
+        const listTag: 'ul' | 'ol' | null =
+          e.key === '8' || e.code === 'Digit8'
+            ? 'ul'
+            : e.key === '7' || e.code === 'Digit7'
+              ? 'ol'
+              : null;
+        if (listTag && editorRef.current) {
           e.preventDefault();
-          document.execCommand('styleWithCSS', false, 'true');
-          document.execCommand('insertUnorderedList', false);
-          handleInput();
-          return;
-        }
-        if (e.key === '7' || e.code === 'Digit7') {
-          e.preventDefault();
-          document.execCommand('styleWithCSS', false, 'true');
-          document.execCommand('insertOrderedList', false);
+          if (needsBlockNormalization(editorRef.current)) {
+            normalizeEditorBlocks(editorRef.current);
+          }
+          toggleList(editorRef.current, listTag, 'div');
           handleInput();
           return;
         }

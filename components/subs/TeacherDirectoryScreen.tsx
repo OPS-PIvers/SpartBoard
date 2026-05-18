@@ -16,6 +16,7 @@ import {
   teacherCardAccent,
   teacherInitials,
 } from './subsView';
+import { SubCollectionsList } from './SubCollectionsList';
 
 interface TeacherDirectoryScreenProps {
   buildingId: string;
@@ -182,6 +183,11 @@ export const TeacherDirectoryScreen: React.FC<TeacherDirectoryScreenProps> = ({
               })}
             </div>
           )}
+
+          {/* Collections shared with subs — shown below individual boards. */}
+          <div className="mt-10">
+            <SubCollectionsList buildingId={buildingId} />
+          </div>
         </div>
       </main>
     </div>

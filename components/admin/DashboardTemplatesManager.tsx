@@ -10,9 +10,17 @@ import {
   addDoc,
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { DashboardTemplate } from '@/types';
+import { mockTemplateStore } from '@/hooks/useTemplateStore';
+import {
+  AnyTemplate,
+  DashboardTemplate,
+  CollectionTemplate,
+  isCollectionTemplate,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
+import { logError } from '@/utils/logError';
 import { Toggle } from '@/components/common/Toggle';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import {
@@ -62,14 +70,19 @@ const DEFAULT_FORM: NewTemplateFormState = { name: '', description: '' };
 export const DashboardTemplatesManager: React.FC = () => {
   const { user } = useAuth();
   const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
   const BUILDINGS = useAdminBuildings();
 
-  const [templates, setTemplates] = useState<DashboardTemplate[]>([]);
+  const [templates, setTemplates] = useState<AnyTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [errored, setErrored] = useState(false);
+  const [typeFilter, setTypeFilter] = useState<'all' | 'board' | 'collection'>(
+    'all'
+  );
 
   // Local editable copies keyed by template id
   const [localTemplates, setLocalTemplates] = useState<
-    Map<string, DashboardTemplate>
+    Map<string, AnyTemplate>
   >(new Map());
   const [unsavedIds, setUnsavedIds] = useState<Set<string>>(new Set());
   const [savingIds, setSavingIds] = useState<Set<string>>(new Set());
@@ -93,7 +106,7 @@ export const DashboardTemplatesManager: React.FC = () => {
       q,
       (snap) => {
         const loaded = snap.docs.map((d) => ({
-          ...(d.data() as DashboardTemplate),
+          ...(d.data() as AnyTemplate),
           id: d.id,
         }));
         setTemplates(loaded);
@@ -113,10 +126,12 @@ export const DashboardTemplatesManager: React.FC = () => {
           }
           return next;
         });
+        setErrored(false);
         setLoading(false);
       },
       (err) => {
-        console.error('Failed to load dashboard templates:', err);
+        logError('DashboardTemplatesManager.subscribe', err);
+        setErrored(true);
         setLoading(false);
       }
     );
@@ -124,11 +139,14 @@ export const DashboardTemplatesManager: React.FC = () => {
   }, []);
 
   const updateLocal = useCallback(
-    (id: string, updates: Partial<DashboardTemplate>) => {
+    (
+      id: string,
+      updates: Partial<DashboardTemplate> & Partial<CollectionTemplate>
+    ) => {
       setLocalTemplates((prev) => {
         const current = prev.get(id);
         if (!current) return prev;
-        return new Map(prev).set(id, { ...current, ...updates });
+        return new Map(prev).set(id, { ...current, ...updates } as AnyTemplate);
       });
       setUnsavedIds((prev) => new Set(prev).add(id));
     },
@@ -141,17 +159,24 @@ export const DashboardTemplatesManager: React.FC = () => {
       if (!local) return;
       setSavingIds((prev) => new Set(prev).add(id));
       try {
-        await setDoc(doc(db, TEMPLATES_COLLECTION, id), {
-          ...local,
-          updatedAt: Date.now(),
-        });
+        if (isAuthBypass) {
+          mockTemplateStore.save({ ...local, updatedAt: Date.now() });
+        } else {
+          await setDoc(doc(db, TEMPLATES_COLLECTION, id), {
+            ...local,
+            updatedAt: Date.now(),
+          });
+        }
         setUnsavedIds((prev) => {
           const next = new Set(prev);
           next.delete(id);
           return next;
         });
       } catch (err) {
-        console.error('Failed to save template:', err);
+        addToast('Failed to save template — try again.', 'error');
+        logError('DashboardTemplatesManager.handleSave', err, {
+          templateId: id,
+        });
       } finally {
         setSavingIds((prev) => {
           const next = new Set(prev);
@@ -160,24 +185,32 @@ export const DashboardTemplatesManager: React.FC = () => {
         });
       }
     },
-    [localTemplates]
+    [addToast, localTemplates]
   );
 
   const handleDelete = useCallback(
-    async (template: DashboardTemplate) => {
+    async (template: AnyTemplate) => {
       const confirmed = await showConfirm(
         `Delete template "${template.name}"? This cannot be undone.`,
         { title: 'Delete Template', variant: 'danger', confirmLabel: 'Delete' }
       );
       if (confirmed) {
         try {
-          await deleteDoc(doc(db, TEMPLATES_COLLECTION, template.id));
+          if (isAuthBypass) {
+            mockTemplateStore.remove(template.id);
+            setTemplates((prev) => prev.filter((t) => t.id !== template.id));
+          } else {
+            await deleteDoc(doc(db, TEMPLATES_COLLECTION, template.id));
+          }
         } catch (err) {
-          console.error('Failed to delete template:', err);
+          addToast('Failed to delete template — try again.', 'error');
+          logError('DashboardTemplatesManager.handleDelete', err, {
+            templateId: template.id,
+          });
         }
       }
     },
-    [showConfirm]
+    [addToast, showConfirm]
   );
 
   const handleCreate = useCallback(async () => {
@@ -186,6 +219,7 @@ export const DashboardTemplatesManager: React.FC = () => {
     try {
       const now = Date.now();
       const newTemplate: Omit<DashboardTemplate, 'id'> = {
+        type: 'board' as const,
         name: form.name.trim(),
         description: form.description.trim(),
         widgets: [],
@@ -198,15 +232,25 @@ export const DashboardTemplatesManager: React.FC = () => {
         updatedAt: now,
         createdBy: user.email,
       };
-      await addDoc(collection(db, TEMPLATES_COLLECTION), newTemplate);
+      if (isAuthBypass) {
+        const newId = crypto.randomUUID();
+        const finalTemplate = { ...newTemplate, id: newId } as AnyTemplate;
+        mockTemplateStore.save(finalTemplate);
+        setTemplates((prev) => [finalTemplate, ...prev]);
+      } else {
+        await addDoc(collection(db, TEMPLATES_COLLECTION), newTemplate);
+      }
       setForm(DEFAULT_FORM);
       setShowForm(false);
     } catch (err) {
-      console.error('Failed to create template:', err);
+      addToast('Failed to create template — try again.', 'error');
+      logError('DashboardTemplatesManager.handleCreate', err, {
+        name: form.name,
+      });
     } finally {
       setCreating(false);
     }
-  }, [form, user]);
+  }, [addToast, form, user]);
 
   const toggleBuilding = (id: string, buildingId: string) => {
     const local = localTemplates.get(id);
@@ -313,6 +357,10 @@ export const DashboardTemplatesManager: React.FC = () => {
           <Loader2 className="w-5 h-5 animate-spin mr-2" />
           <span className="text-sm">Loading templates…</span>
         </div>
+      ) : errored ? (
+        <p className="text-sm text-rose-300/80 italic mb-3">
+          Couldn&apos;t load templates — refresh to retry.
+        </p>
       ) : templates.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-slate-400 gap-3">
           <LayoutTemplate className="w-10 h-10 opacity-40" />
@@ -324,168 +372,232 @@ export const DashboardTemplatesManager: React.FC = () => {
         </div>
       ) : (
         <div className="space-y-3">
-          {templates.map((template) => {
-            const local = localTemplates.get(template.id) ?? template;
-            const hasUnsaved = unsavedIds.has(template.id);
-            const isSaving = savingIds.has(template.id);
-
-            return (
-              <div
-                key={template.id}
-                className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
+          {/* Type filter */}
+          <div className="flex items-center gap-1.5 mb-3">
+            {(['all', 'board', 'collection'] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                onClick={() => setTypeFilter(k)}
+                className={`px-3 py-1 rounded-full text-xs font-bold border transition-colors ${
+                  typeFilter === k
+                    ? 'bg-brand-blue-primary text-white border-brand-blue-primary'
+                    : 'bg-white text-slate-600 border-slate-200 hover:border-brand-blue-primary'
+                }`}
               >
-                <div className="flex items-center gap-4 p-3 flex-wrap">
-                  {/* Identity */}
-                  <div className="flex items-center gap-3 w-60 shrink-0 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-brand-blue-primary/10 flex items-center justify-center shrink-0">
-                      <LayoutTemplate className="w-4 h-4 text-brand-blue-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <input
-                        type="text"
-                        value={local.name}
-                        onChange={(e) =>
-                          updateLocal(template.id, { name: e.target.value })
-                        }
-                        className="w-full font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 text-sm transition-colors"
-                        placeholder="Template name"
-                      />
-                      <input
-                        type="text"
-                        value={local.description}
-                        onChange={(e) =>
-                          updateLocal(template.id, {
-                            description: e.target.value,
-                          })
-                        }
-                        className="w-full text-xs text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
-                        placeholder="Add description…"
-                      />
-                    </div>
-                  </div>
+                {k === 'all' ? 'All' : k === 'board' ? 'Boards' : 'Collections'}
+              </button>
+            ))}
+          </div>
+          {(() => {
+            const visibleTemplates = templates.filter((tpl) => {
+              if (typeFilter === 'all') return true;
+              if (typeFilter === 'collection') return isCollectionTemplate(tpl);
+              return !isCollectionTemplate(tpl);
+            });
+            return visibleTemplates.length === 0 ? (
+              <p className="text-sm text-slate-400 text-center py-8">
+                No {typeFilter === 'board' ? 'board' : 'collection'} templates
+                yet.
+              </p>
+            ) : (
+              visibleTemplates.map((template) => {
+                const local = localTemplates.get(template.id) ?? template;
+                const hasUnsaved = unsavedIds.has(template.id);
+                const isSaving = savingIds.has(template.id);
 
-                  <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
+                return (
+                  <div
+                    key={template.id}
+                    className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
+                  >
+                    <div className="flex items-center gap-4 p-3 flex-wrap">
+                      {/* Identity */}
+                      <div className="flex items-center gap-3 w-60 shrink-0 min-w-0">
+                        <div className="w-9 h-9 rounded-xl bg-brand-blue-primary/10 flex items-center justify-center shrink-0">
+                          <LayoutTemplate className="w-4 h-4 text-brand-blue-primary" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 mb-0.5">
+                            <input
+                              type="text"
+                              value={local.name}
+                              onChange={(e) =>
+                                updateLocal(template.id, {
+                                  name: e.target.value,
+                                })
+                              }
+                              className="flex-1 min-w-0 font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 text-sm transition-colors"
+                              placeholder="Template name"
+                            />
+                            <span
+                              className={`shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                                isCollectionTemplate(template)
+                                  ? 'bg-amber-100 text-amber-800'
+                                  : 'bg-sky-100 text-sky-800'
+                              }`}
+                            >
+                              {isCollectionTemplate(template)
+                                ? 'Collection'
+                                : 'Board'}
+                            </span>
+                          </div>
+                          <input
+                            type="text"
+                            value={local.description}
+                            onChange={(e) =>
+                              updateLocal(template.id, {
+                                description: e.target.value,
+                              })
+                            }
+                            className="w-full text-xs text-slate-500 bg-transparent border-b border-transparent hover:border-slate-200 focus:border-brand-blue-primary focus:outline-none px-0 py-0.5 transition-colors"
+                            placeholder="Add description…"
+                          />
+                        </div>
+                      </div>
 
-                  {/* Enabled toggle */}
-                  <div className="flex flex-col items-center gap-1 shrink-0">
-                    <span className="text-xxs font-bold text-slate-400 uppercase">
-                      Enabled
-                    </span>
-                    <Toggle
-                      checked={local.enabled}
-                      onChange={(checked) =>
-                        updateLocal(template.id, { enabled: checked })
-                      }
-                      size="sm"
-                    />
-                  </div>
-
-                  <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
-
-                  {/* Access level */}
-                  <div className="flex items-center gap-1">
-                    {(['admin', 'beta', 'public'] as AccessLevel[]).map(
-                      (level) => (
-                        <button
-                          key={level}
-                          onClick={() =>
-                            updateLocal(template.id, { accessLevel: level })
-                          }
-                          className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
-                            local.accessLevel === level
-                              ? getAccessLevelColor(level)
-                              : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
-                          }`}
-                        >
-                          {getAccessLevelIcon(level)}
-                          <span className="capitalize">{level}</span>
-                        </button>
-                      )
-                    )}
-                  </div>
-
-                  {/* Building selector */}
-                  {BUILDINGS.length > 0 && (
-                    <>
                       <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
-                      <div className="flex items-center gap-1 flex-wrap">
-                        {BUILDINGS.map((b) => {
-                          const selected = local.targetBuildings.includes(b.id);
-                          return (
+
+                      {/* Enabled toggle */}
+                      <div className="flex flex-col items-center gap-1 shrink-0">
+                        <span className="text-xxs font-bold text-slate-400 uppercase">
+                          Enabled
+                        </span>
+                        <Toggle
+                          checked={local.enabled}
+                          onChange={(checked) =>
+                            updateLocal(template.id, { enabled: checked })
+                          }
+                          size="sm"
+                        />
+                      </div>
+
+                      <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
+
+                      {/* Access level */}
+                      <div className="flex items-center gap-1">
+                        {(['admin', 'beta', 'public'] as AccessLevel[]).map(
+                          (level) => (
                             <button
-                              key={b.id}
-                              onClick={() => toggleBuilding(template.id, b.id)}
-                              title={b.name}
+                              key={level}
+                              onClick={() =>
+                                updateLocal(template.id, { accessLevel: level })
+                              }
+                              className={`px-2 py-1.5 rounded-md border text-xs font-medium flex items-center gap-1 transition-all ${
+                                local.accessLevel === level
+                                  ? getAccessLevelColor(level)
+                                  : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300'
+                              }`}
+                            >
+                              {getAccessLevelIcon(level)}
+                              <span className="capitalize">{level}</span>
+                            </button>
+                          )
+                        )}
+                      </div>
+
+                      {/* Building selector */}
+                      {BUILDINGS.length > 0 && (
+                        <>
+                          <div className="w-px h-8 bg-slate-100 mx-1 shrink-0" />
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {BUILDINGS.map((b) => {
+                              const selected = local.targetBuildings.includes(
+                                b.id
+                              );
+                              return (
+                                <button
+                                  key={b.id}
+                                  onClick={() =>
+                                    toggleBuilding(template.id, b.id)
+                                  }
+                                  title={b.name}
+                                  className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
+                                    selected
+                                      ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
+                                      : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                                  }`}
+                                >
+                                  {b.gradeLabel}
+                                </button>
+                              );
+                            })}
+                            <button
+                              onClick={() =>
+                                updateLocal(template.id, {
+                                  targetBuildings: [],
+                                })
+                              }
                               className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                                selected
+                                local.targetBuildings.length === 0
                                   ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
                                   : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
                               }`}
                             >
-                              {b.gradeLabel}
+                              ALL
                             </button>
-                          );
-                        })}
+                          </div>
+                        </>
+                      )}
+
+                      {/* Actions */}
+                      <div className="flex items-center gap-1 ml-auto pl-3 border-l border-slate-100 shrink-0">
                         <button
-                          onClick={() =>
-                            updateLocal(template.id, { targetBuildings: [] })
+                          onClick={() => void handleSave(template.id)}
+                          disabled={isSaving || !hasUnsaved}
+                          title={
+                            hasUnsaved ? 'Save changes' : 'No changes to save'
                           }
-                          className={`px-2 py-1 rounded-md text-xxs font-bold border transition-all ${
-                            local.targetBuildings.length === 0
-                              ? 'bg-brand-blue-primary text-white border-brand-blue-primary shadow-sm'
-                              : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
+                          className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                            hasUnsaved
+                              ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                              : 'text-slate-300 hover:bg-brand-blue-primary hover:text-white'
                           }`}
                         >
-                          ALL
+                          {isSaving ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Save className="w-4 h-4" />
+                          )}
+                        </button>
+                        <button
+                          onClick={() => void handleDelete(template)}
+                          title="Delete template"
+                          className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
-                    </>
-                  )}
+                    </div>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-1 ml-auto pl-3 border-l border-slate-100 shrink-0">
-                    <button
-                      onClick={() => void handleSave(template.id)}
-                      disabled={isSaving || !hasUnsaved}
-                      title={hasUnsaved ? 'Save changes' : 'No changes to save'}
-                      className={`p-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        hasUnsaved
-                          ? 'bg-orange-500 hover:bg-orange-600 text-white'
-                          : 'text-slate-300 hover:bg-brand-blue-primary hover:text-white'
-                      }`}
-                    >
-                      {isSaving ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
+                    {/* Widget / board count footer */}
+                    <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-xxs text-slate-400">
+                      {isCollectionTemplate(template) ? (
+                        <span>
+                          {template.boardSnapshots.length} board
+                          {template.boardSnapshots.length !== 1 ? 's' : ''}{' '}
+                          captured
+                        </span>
                       ) : (
-                        <Save className="w-4 h-4" />
+                        <span>
+                          {template.widgets.length} widget
+                          {template.widgets.length !== 1 ? 's' : ''} captured
+                        </span>
                       )}
-                    </button>
-                    <button
-                      onClick={() => void handleDelete(template)}
-                      title="Delete template"
-                      className="p-2 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 transition-colors"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
+                      {template.targetBuildings.length > 0 && (
+                        <>
+                          {' '}
+                          · {template.targetBuildings.length} building
+                          {template.targetBuildings.length !== 1 ? 's' : ''}
+                        </>
+                      )}
+                      {' · '}by {template.createdBy}
+                    </div>
                   </div>
-                </div>
-
-                {/* Widget count footer */}
-                <div className="px-4 py-2 bg-slate-50 border-t border-slate-100 text-xxs text-slate-400">
-                  {template.widgets.length} widget
-                  {template.widgets.length !== 1 ? 's' : ''} captured
-                  {template.targetBuildings.length > 0 && (
-                    <>
-                      {' '}
-                      · {template.targetBuildings.length} building
-                      {template.targetBuildings.length !== 1 ? 's' : ''}
-                    </>
-                  )}
-                  {' · '}by {template.createdBy}
-                </div>
-              </div>
+                );
+              })
             );
-          })}
+          })()}
         </div>
       )}
     </div>

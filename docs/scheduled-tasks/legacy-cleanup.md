@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-03_
+_Last audited: 2026-05-17_
 _Last action: never_
 
 ---
@@ -23,9 +23,31 @@ _Nothing currently in progress._
 - **Detail:** The `scripts/tools/` directory contains 9 Python/Playwright scripts. All are either one-off refactoring tasks that have already been executed (refactor*manager.py, fix_buttons.py) or manual test/debug inspection scripts (verify*\_.py, inspect\_\_.py, debug\_\*.py). None are wired into any CI pipeline, build step, or npm script. They provide no automated value and their presence in the repository creates confusion about what testing tools are canonical.
 - **Fix:** Delete `scripts/tools/` directory entirely. Ongoing E2E testing is handled by `tests/e2e/` via Playwright and pnpm test:e2e.
 
+### LOW `hooks/useScaledFont.ts` — dead hook with no production imports
+
+- **Detected:** 2026-05-17
+- **File:** hooks/useScaledFont.ts
+- **Detail:** `useScaledFont` was introduced in PR #1213 (Expectations Widget Enhancements). It calculates a font size based on widget width/height using the CSS `transform: scale()` era approach. The project subsequently adopted CSS container queries (`cqmin`/`cqw`/`cqh` units) as the standard scaling mechanism, and `useScaledFont` was never called from any production file. Zero imports found in components/, context/, hooks/, utils/ (only the file's own exports exist). The file has a JSDoc block and looks legitimate but is dead code.
+- **Fix:** Delete `hooks/useScaledFont.ts`. Confirm no test file imports it, then remove. Run `pnpm type-check` and `pnpm lint` to verify clean.
+
+### LOW `utils/videoActivityDriveService.ts` — export added 2026-05-08 with no production call site
+
+- **Detected:** 2026-05-17
+- **File:** utils/videoActivityDriveService.ts (added in commit 97afb1d5, PR #1558)
+- **Detail:** This file exports `buildVideoActivityResultsSheetData` — a wrapper that builds Google Sheets export data for Video Activity results using VA's grader (`gradeVideoActivityAnswer`). The intent per the JSDoc is to fix a bug where Quiz's grader returned 0 points for MA (Multiple Answer) question types in VA exports. A test file (`tests/utils/videoActivityDriveService.test.ts`) exists for this function. However, `buildVideoActivityResultsSheetData` is never imported in any production file (components/, hooks/, utils/ excluding the file itself). The file also re-exports `formatExportPoints` from `assignmentExportShared.ts`, but that re-export is also unused in production. The underlying bug this file was meant to fix (MA answers scored as 0 in VA Drive exports) may still exist.
+- **Fix:** (a) Wire up the existing function: find the Video Activity export-to-Drive call site (likely in `components/widgets/VideoActivityWidget/components/VideoActivityManager.tsx` or a hook) and import `buildVideoActivityResultsSheetData` from this file instead of building export data inline; or (b) if the VA Drive export feature has been removed or deferred, delete the file and its test.
+
 ---
 
 ## Clean (no issues found)
+
+Migration code audit (2026-05-17, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only referenced in `utils/migration.ts:71-80` — correct. Not generated anywhere else.
+- Old type string 'workSymbols': Only referenced in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Actively called in `context/DashboardContext.tsx:1928`. Still needed.
+- Commented-out code: None found. All detected blocks are legitimate JSDoc.
+- console.log(): Zero in components/, context/, hooks/, utils/.
 
 Migration code audit (2026-05-03):
 

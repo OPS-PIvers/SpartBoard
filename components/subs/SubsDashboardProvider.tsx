@@ -203,6 +203,18 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
     return {
       // === Real implementations (the four that matter) =====================
       driveService: null,
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: () => Promise.resolve(''),
+        renameCollection: () => Promise.resolve(),
+        moveCollection: () => Promise.resolve(),
+        deleteCollection: () => Promise.resolve(),
+        reorderSiblings: () => Promise.resolve(),
+        setCollectionMetadata: () => Promise.resolve(),
+        setCollectionDefaultBoard: () => Promise.resolve(),
+      },
       dashboards: [activeDashboard],
       activeDashboard,
       isActiveBoardReadOnly: true,
@@ -244,7 +256,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       createNewDashboard: NOOP_ASYNC as (
         name: string,
         data?: Dashboard
-      ) => Promise<void>,
+      ) => Promise<string | undefined>,
       saveCurrentDashboard: NOOP_ASYNC,
       deleteDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
       duplicateDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
@@ -254,7 +266,14 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       ) => Promise<void>,
       loadDashboard: NOOP,
       reorderDashboards: NOOP_ASYNC as (ids: string[]) => Promise<void>,
-      setDefaultDashboard: NOOP,
+      setDefaultDashboard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      moveBoardToCollection: NOOP_ASYNC as (
+        boardId: string,
+        collectionId: string | null
+      ) => Promise<void>,
+      pinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      unpinBoard: NOOP_ASYNC as (boardId: string) => Promise<void>,
+      setActiveCollectionId: NOOP,
       resetDockToDefaults: NOOP,
       setGradeFilter: NOOP,
 
@@ -310,6 +329,20 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       groupWidgets: NOOP,
       ungroupWidgets: NOOP,
       setGroupBuildMode: NOOP,
+
+      // Collection sharing — subs never originate collection shares.
+      shareCollection: () => Promise.resolve(''),
+      shareSubstituteCollection: () => Promise.resolve(''),
+      loadSharedCollection: () =>
+        Promise.resolve({
+          ok: false as const,
+          reason: 'not-found' as const,
+        }),
+      loadSharedCollectionBoards: () => Promise.resolve([]),
+      importSharedCollection: () => Promise.resolve(null),
+      pendingSharedCollectionId: null,
+      setPendingSharedCollectionId: NOOP,
+      clearPendingSharedCollection: NOOP,
 
       // Sharing — subs never originate shares of their own.
       shareDashboard: NOOP_ASYNC_STRING as (

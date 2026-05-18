@@ -40,7 +40,7 @@ import { QuizResults } from './components/QuizResults';
 import { QuizAssignmentSettingsModal } from './components/QuizAssignmentSettingsModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PublishScoresModal } from '@/components/common/library/PublishScoresModal';
-import type { QuizAssignment } from '@/types';
+import { RESULTS_PROTECTION_DEFAULTS, type QuizAssignment } from '@/types';
 import {
   buildPinToNameMap,
   buildScoreboardTeams,
@@ -98,7 +98,14 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     pendingAssignmentEditId,
     clearPendingAssignmentEdit,
   } = useDashboard();
-  const { user, googleAccessToken, orgId, getAssignmentMode } = useAuth();
+  const {
+    user,
+    googleAccessToken,
+    orgId,
+    getAssignmentMode,
+    appSettings,
+    updateAppSettings,
+  } = useAuth();
   const quizAssignmentMode = getAssignmentMode('quiz');
   const { showConfirm } = useDialog();
   const config = widget.config as QuizConfig;
@@ -128,9 +135,20 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     endQuizSession,
     removeStudent,
     unlockStudentAttempt,
+    unlockResultsForStudent,
     revealAnswer,
     hideAnswer,
   } = useQuizSessionTeacher(config.activeAssignmentId);
+
+  // Count of students in the active session whose results view is locked
+  // out (tab-warning threshold breached). Surfaced on the Monitor button
+  // in QuizManager so teachers see attention-needing state without opening
+  // the live monitor. Derived from the same `responses` snapshot that
+  // QuizLiveMonitor consumes — no second listener.
+  const activeAssignmentLockedCount = useMemo(
+    () => responses.filter((r) => r.resultsLockedOut === true).length,
+    [responses]
+  );
 
   // Assignment archive — per-teacher list of past/current assignments.
   const {
@@ -815,6 +833,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         tabWarningsEnabled={liveSession?.tabWarningsEnabled ?? true}
         session={liveSession}
         onDeleteResponse={removeStudent}
+        onUnlockResultsForStudent={unlockResultsForStudent}
         onPlcSheetUrlReplaced={async (newUrl) => {
           // After QuizResults regenerates a stale PLC sheet (404
           // recovery), replace the URL on this widget's config so future
@@ -982,6 +1001,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onUpdateConfig={handleUpdateQuizConfig}
         onRemoveStudent={removeStudent}
         onUnlockStudent={unlockStudentAttempt}
+        onUnlockResultsForStudent={unlockResultsForStudent}
         onRevealAnswer={revealAnswer}
         onHideAnswer={hideAnswer}
         onBack={() => {
@@ -1519,6 +1539,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         onTabChange={(tab) => handleUpdateQuizConfig({ managerTab: tab })}
         assignments={assignments}
         assignmentsLoading={assignmentsLoading}
+        activeAssignmentLockedCount={activeAssignmentLockedCount}
         onArchiveCopyUrl={(a) => {
           const url = `${window.location.origin}/quiz?code=${a.code}`;
           if (typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -1910,8 +1931,12 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         <PublishScoresModal
           assignmentTitle={publishingAssignment.quizTitle}
           currentVisibility={publishingAssignment.scoreVisibility}
+          showProtection
+          initialProtection={
+            appSettings?.lastResultsProtection ?? RESULTS_PROTECTION_DEFAULTS
+          }
           onClose={() => setPublishingAssignment(null)}
-          onConfirm={async (visibility) => {
+          onConfirm={async (visibility, protection) => {
             // `'none'` routes to the dedicated `unpublishAssignmentScores`
             // (no Drive lookup, no grading). Other levels resolve the
             // canonical quiz from Drive so the score computation has
@@ -1938,7 +1963,8 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               const result = await publishAssignmentScores(
                 target.id,
                 data,
-                visibility
+                visibility,
+                protection
               );
               addToast(
                 result.responsesUpdated > 0
@@ -1948,10 +1974,34 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               );
               setPublishingAssignment(null);
             } catch (err) {
+              logError('QuizWidget.publishAssignmentScores', err, {
+                assignmentId: target.id,
+                visibility,
+              });
               addToast(
                 err instanceof Error ? err.message : 'Failed to publish scores',
                 'error'
               );
+              return;
+            }
+            // Persist the teacher's last protection choice so the next
+            // publish dialog opens pre-filled. Best-effort — this is a UI
+            // preference, not part of the publish contract. Kept out of the
+            // publish try/catch so a preference-save failure does NOT
+            // surface as "Failed to publish scores" (the publish already
+            // succeeded, and re-publishing on perceived failure would
+            // double the Firestore write cost on PLC-shared assignments
+            // with hundreds of responses).
+            if (protection) {
+              try {
+                await updateAppSettings({
+                  lastResultsProtection: protection,
+                });
+              } catch (err) {
+                logError('QuizWidget.updateAppSettings.lastProtection', err, {
+                  assignmentId: target.id,
+                });
+              }
             }
           }}
         />

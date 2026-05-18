@@ -1,50 +1,66 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import { GoogleDriveIcon } from './GoogleDriveIcon';
 import { useAuth } from '@/context/useAuth';
 
-/** How long the banner stays dismissed after clicking the X (ms). */
 const DISMISS_DURATION_MS = 5 * 60 * 1000; // 5 minutes
+// Persisting the dismiss expiry survives dev-mode HMR remounts and full
+// page reloads, so a teacher who clicks X actually gets the 5-minute
+// reprieve they expect instead of having the banner pop back on the
+// next render that happens to remount this component.
+const DISMISS_STORAGE_KEY = 'spart_drive_banner_dismissed_until';
+
+const readStoredDismissUntil = (): number => {
+  try {
+    const raw = localStorage.getItem(DISMISS_STORAGE_KEY);
+    return raw ? Number(raw) || 0 : 0;
+  } catch {
+    return 0;
+  }
+};
+
+const writeStoredDismissUntil = (value: number | null): void => {
+  try {
+    if (value === null) {
+      localStorage.removeItem(DISMISS_STORAGE_KEY);
+    } else {
+      localStorage.setItem(DISMISS_STORAGE_KEY, String(value));
+    }
+  } catch {
+    // localStorage unavailable — dismiss falls back to in-memory only.
+  }
+};
 
 export const DriveDisconnectBanner: React.FC = () => {
   const { user, googleAccessToken, connectGoogleDrive } = useAuth();
-  const [dismissed, setDismissed] = useState(false);
+  const [dismissedUntil, setDismissedUntil] = useState(readStoredDismissUntil);
   const [isConnecting, setIsConnecting] = useState(false);
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isConnected = !!googleAccessToken;
+  const isDismissed = dismissedUntil > Date.now();
 
-  // When Drive reconnects, clear the dismiss state and any pending re-show
-  // timer so that a future disconnection can show the banner again.
+  // When Drive reconnects, clear the dismiss state so a future disconnection
+  // shows the banner again.
   useEffect(() => {
     if (isConnected) {
-      setDismissed(false);
-      if (dismissTimerRef.current) {
-        clearTimeout(dismissTimerRef.current);
-        dismissTimerRef.current = null;
-      }
+      setDismissedUntil(0);
+      writeStoredDismissUntil(null);
     }
   }, [isConnected]);
 
-  // Clean up timer on unmount
+  // Schedule a single re-show timer at the persisted expiry. Re-runs when
+  // dismissedUntil changes (mount seed, click-dismiss, reconnect clear).
   useEffect(() => {
-    return () => {
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-    };
-  }, []);
+    if (dismissedUntil <= Date.now()) return;
+    const remainingMs = dismissedUntil - Date.now();
+    const id = setTimeout(() => setDismissedUntil(0), remainingMs);
+    return () => clearTimeout(id);
+  }, [dismissedUntil]);
 
   const handleDismiss = () => {
-    // Clear any previous dismiss timer before setting a new one so that
-    // multiple rapid clicks don't queue up redundant re-show callbacks.
-    if (dismissTimerRef.current) {
-      clearTimeout(dismissTimerRef.current);
-    }
-    setDismissed(true);
-    // Re-show the banner after the dismiss duration
-    dismissTimerRef.current = setTimeout(() => {
-      setDismissed(false);
-      dismissTimerRef.current = null;
-    }, DISMISS_DURATION_MS);
+    const until = Date.now() + DISMISS_DURATION_MS;
+    setDismissedUntil(until);
+    writeStoredDismissUntil(until);
   };
 
   const handleConnect = async () => {
@@ -57,7 +73,7 @@ export const DriveDisconnectBanner: React.FC = () => {
   };
 
   // Only show for authenticated users when Drive is not connected
-  if (!user || isConnected || dismissed) return null;
+  if (!user || isConnected || isDismissed) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-system-banner animate-in slide-in-from-bottom-2 duration-300">

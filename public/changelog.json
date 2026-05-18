@@ -1,0 +1,54 @@
+{
+  "entries": [
+    {
+      "version": "2026.05.19",
+      "date": "2026-05-19",
+      "title": "Collections — plus a Boards manager refresh",
+      "highlights": [
+        {
+          "type": "feature",
+          "text": "Collections — group your boards into folders, share a whole folder with another teacher, or save one as a template to reuse next year."
+        },
+        {
+          "type": "feature",
+          "text": "Pin boards across Collections — your favorites now appear at the top of the bottom-left Boards menu no matter which folder they live in."
+        },
+        {
+          "type": "feature",
+          "text": "Quiz results — watermark + warning if students try to screenshot, and you can now unlock one student at a time without reopening the whole assignment."
+        },
+        {
+          "type": "improvement",
+          "text": "Boards manager refreshed — every card now shows a visual preview of the widgets, you can drag from anywhere on the card, and Collections/Boards each get their own button instead of a single kebab."
+        },
+        {
+          "type": "improvement",
+          "text": "Quieter Google Drive reconnect prompt — one banner per session instead of one for every failed sync."
+        },
+        {
+          "type": "fix",
+          "text": "Quiz rapid-tap lockout now fires reliably on the first tap — answers no longer slip past after a fast double-tap."
+        },
+        {
+          "type": "fix",
+          "text": "Sound Widget no longer gets stuck silent after switching browser tabs."
+        },
+        {
+          "type": "fix",
+          "text": "Text editor selection now extends across paragraphs and list items instead of stopping at the first block."
+        }
+      ]
+    },
+    {
+      "version": "2026.05.18",
+      "date": "2026-05-18",
+      "title": "What's New panel introduced",
+      "highlights": [
+        {
+          "type": "feature",
+          "text": "Click the new \"What's New\" link on the Update Available toast — or open it any time from the bottom of the sidebar menu — to see a friendly summary of what changed before you refresh."
+        }
+      ]
+    }
+  ]
+}

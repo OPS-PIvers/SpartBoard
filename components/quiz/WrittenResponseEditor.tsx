@@ -25,6 +25,12 @@ import {
   Underline,
 } from 'lucide-react';
 import { sanitizeQuizResponse } from '@/utils/security';
+import {
+  needsBlockNormalization,
+  normalizeEditorBlocks,
+} from '@/utils/contentEditableBlocks';
+import { toggleList } from '@/utils/contentEditableLists';
+import { installDragSelectEnhancer } from '@/utils/contentEditableDragSelect';
 
 interface WrittenResponseEditorProps {
   /** Initial HTML content. Sanitized on render. */
@@ -169,13 +175,35 @@ const WrittenResponseEditorInner: React.FC<
     return () => window.removeEventListener('resize', onResize);
   }, [minHeight]);
 
+  // Install the drag-select enhancer once the editor is mounted.
+  // Chrome's default drag-selection inside contenteditable anchors to
+  // the clicked text node and refuses to extend across block
+  // boundaries — clicking the first character of paragraph 1 and
+  // dragging through paragraph 3 only selects paragraph 1. The
+  // enhancer overrides extension on every mousemove using
+  // `caretPositionFromPoint` so the selection always reaches the
+  // pointer's actual position.
+  useEffect(() => {
+    if (!editorRef.current) return undefined;
+    return installDragSelectEnhancer(editorRef.current);
+  }, []);
+
   // Seed innerHTML once on mount. Subsequent edits are driven by the
   // contenteditable element itself — re-writing innerHTML on every value
   // change would reset the caret on every keystroke.
+  //
+  // After seeding, normalize the block structure to uniform `<p>` blocks
+  // so a resumed response with legacy mixed content (bare text + <br>
+  // from earlier Phase 1 saves) renders with the same selection / list-
+  // command behavior the live editor uses. No-op for already-uniform
+  // content. `wrapTag: 'p'` because `sanitizeQuizResponse` allows `<p>`
+  // but strips `<div>` — using `<div>` here would lose paragraph
+  // structure on the next save.
   useEffect(() => {
     if (!editorRef.current) return;
     const initial = sanitizeQuizResponse(value);
     editorRef.current.innerHTML = initial;
+    normalizeEditorBlocks(editorRef.current, { wrapTag: 'p' });
     setWordCount(countWords(initial));
     setIsEmpty(!editorRef.current.textContent?.trim());
     // We intentionally don't depend on `value` — the `questionKey`-driven
@@ -185,6 +213,19 @@ const WrittenResponseEditorInner: React.FC<
 
   const handleInput = () => {
     if (!editorRef.current) return;
+    // Normalize the live editor structure before reading innerHTML.
+    // Chrome leaves the FIRST line as a bare text node and only wraps
+    // subsequent Enter-separated lines in `<div>` blocks — that mixed
+    // shape (a) collapses drag-selection at the paragraph boundary,
+    // (b) makes `insertUnorderedList` / `insertOrderedList` apply to
+    // only the cursor's paragraph instead of the visible selection,
+    // and (c) loses paragraph structure on save because
+    // `sanitizeQuizResponse` strips `<div>`. The helper is a fast
+    // no-op for already-uniform structures and only moves nodes
+    // (never clones), so the user's caret survives per the DOM spec.
+    if (needsBlockNormalization(editorRef.current, { wrapTag: 'p' })) {
+      normalizeEditorBlocks(editorRef.current, { wrapTag: 'p' });
+    }
     const raw = editorRef.current.innerHTML;
     const clean = sanitizeQuizResponse(raw);
     setWordCount(countWords(clean));
@@ -207,6 +248,26 @@ const WrittenResponseEditorInner: React.FC<
     if (disabled) return;
     editorRef.current?.focus();
     document.execCommand(command);
+    handleInput();
+  };
+
+  // Custom list handler that bypasses the broken Chrome
+  // `execCommand('insertUnorderedList' | 'insertOrderedList')` —
+  // see `utils/contentEditableLists.ts` for the underlying bug.
+  // Wraps every paragraph the selection touches into a single
+  // `<ul>`/`<ol>`, or toggles it back to `<p>` blocks if every
+  // selected item is already in the target list type.
+  const handleListToggle = (listTag: 'ul' | 'ol') => {
+    if (disabled || !editorRef.current) return;
+    editorRef.current.focus();
+    // Run normalization first so any in-progress mixed structure
+    // (Chrome's bare-first-line + <div>-wrapped-rest pattern after
+    // typing Enter) becomes uniform `<p>` blocks. Then the list
+    // toggle operates on a clean tree.
+    if (needsBlockNormalization(editorRef.current, { wrapTag: 'p' })) {
+      normalizeEditorBlocks(editorRef.current, { wrapTag: 'p' });
+    }
+    toggleList(editorRef.current, listTag, 'p');
     handleInput();
   };
 
@@ -241,14 +302,14 @@ const WrittenResponseEditorInner: React.FC<
             <div className="w-px h-5 bg-slate-700 mx-1" />
             <ToolbarButton
               label="Bulleted list"
-              onClick={() => exec('insertUnorderedList')}
+              onClick={() => handleListToggle('ul')}
               disabled={disabled}
             >
               <List className="w-4 h-4" />
             </ToolbarButton>
             <ToolbarButton
               label="Numbered list"
-              onClick={() => exec('insertOrderedList')}
+              onClick={() => handleListToggle('ol')}
               disabled={disabled}
             >
               <ListOrdered className="w-4 h-4" />

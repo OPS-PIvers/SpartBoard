@@ -104,6 +104,19 @@ export interface AuthContextType {
   quizMonitorColorsEnabled: boolean;
   /** What the quiz live-monitor shows in the right-side score pill. */
   quizMonitorScoreDisplay: 'percent' | 'count' | 'hidden';
+  /**
+   * The Collection the teacher was most recently in. Restored from the
+   * userProfile doc on sign-in so the app can re-open the correct Collection
+   * after a page refresh. `null` means root level. `undefined` means the
+   * profile has not yet been loaded.
+   */
+  lastActiveCollectionId: string | null | undefined;
+  /**
+   * Per-Collection last-visited Board memory, keyed by Collection id
+   * (or {@link ROOT_COLLECTION_KEY} for root-level Boards). Restored from the
+   * userProfile doc on sign-in. `undefined` until the profile loads.
+   */
+  lastBoardIdByCollection: Record<string, string> | undefined;
   /** Update account-level preferences */
   updateAccountPreferences: (updates: {
     disableCloseConfirmation?: boolean;

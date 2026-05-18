@@ -433,41 +433,62 @@ describe('TextWidget', () => {
     expect(editableDiv.textContent).toBe('First lineSecond lineThird line');
   });
 
-  it('triggers Bulleted List from Ctrl+Shift+8', () => {
+  it('wraps a selection in a <ul> from Ctrl+Shift+8', () => {
+    // Ctrl+Shift+8 routes through our custom `toggleList` helper (NOT
+    // `execCommand('insertUnorderedList')`, which is broken in Chrome
+    // for multi-block selections). The assertion is the observable
+    // DOM change — a `<ul>` element appears in the editor — rather
+    // than an execCommand spy call, because the new path bypasses
+    // execCommand entirely.
     render(<TextWidget widget={mockWidget} />);
     const editableDiv = screen
       .getByText('Hello World')
       .closest('div[contentEditable="true"]');
     expect(editableDiv).not.toBeNull();
-    if (editableDiv) {
-      fireEvent.keyDown(editableDiv, {
-        key: '8',
-        code: 'Digit8',
-        ctrlKey: true,
-        shiftKey: true,
-      });
-      expect(execCommandMock).toHaveBeenCalledWith(
-        'insertUnorderedList',
-        false
-      );
-    }
+    if (!editableDiv) return;
+    editableDiv.innerHTML = '<div>Line one</div><div>Line two</div>';
+    const range = document.createRange();
+    range.selectNodeContents(editableDiv);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    fireEvent.keyDown(editableDiv, {
+      key: '8',
+      code: 'Digit8',
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(editableDiv.querySelector('ul')).not.toBeNull();
+    expect(editableDiv.querySelectorAll('li').length).toBe(2);
   });
 
-  it('triggers Numbered List from Ctrl+Shift+7', () => {
+  it('wraps a selection in a <ol> from Ctrl+Shift+7', () => {
     render(<TextWidget widget={mockWidget} />);
     const editableDiv = screen
       .getByText('Hello World')
       .closest('div[contentEditable="true"]');
     expect(editableDiv).not.toBeNull();
-    if (editableDiv) {
-      fireEvent.keyDown(editableDiv, {
-        key: '7',
-        code: 'Digit7',
-        ctrlKey: true,
-        shiftKey: true,
-      });
-      expect(execCommandMock).toHaveBeenCalledWith('insertOrderedList', false);
-    }
+    if (!editableDiv) return;
+    editableDiv.innerHTML = '<div>Line one</div><div>Line two</div>';
+    const range = document.createRange();
+    range.selectNodeContents(editableDiv);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+
+    fireEvent.keyDown(editableDiv, {
+      key: '7',
+      code: 'Digit7',
+      ctrlKey: true,
+      shiftKey: true,
+    });
+
+    expect(editableDiv.querySelector('ol')).not.toBeNull();
+    expect(editableDiv.querySelectorAll('li').length).toBe(2);
   });
 
   it('normalizes empty browser markup to empty string on input', () => {

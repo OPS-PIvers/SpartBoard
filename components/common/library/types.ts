@@ -79,6 +79,19 @@ export interface LibraryPrimaryAction {
   onClick: () => void;
   disabled?: boolean;
   disabledReason?: string;
+  /**
+   * Optional count rendered as a small rose-coloured badge over the top-right
+   * corner of the button. Hidden when undefined or `<= 0`. Used to surface
+   * attention-needing state, e.g. number of quiz students whose results are
+   * currently locked out and awaiting teacher action.
+   */
+  badgeCount?: number;
+  /**
+   * Accessible label override for the badge. Required when `badgeCount` is
+   * set so screen readers get a meaningful announcement (e.g. "3 students
+   * locked") rather than just the raw count.
+   */
+  badgeAriaLabel?: string;
 }
 
 /**

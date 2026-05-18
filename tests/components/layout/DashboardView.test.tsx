@@ -111,6 +111,25 @@ vi.mock('@/components/widgets/WidgetRenderer', () => ({
   WidgetRenderer: () => <div data-testid="widget">Widget</div>,
 }));
 
+vi.mock('@/hooks/useCollections', () => ({
+  useCollections: () => ({
+    collections: [],
+    loading: false,
+    error: null,
+    createCollection: vi.fn(),
+    renameCollection: vi.fn(),
+    moveCollection: vi.fn(),
+    deleteCollection: vi.fn(),
+    reorderSiblings: vi.fn(),
+    setCollectionMetadata: vi.fn(),
+    setCollectionDefaultBoard: vi.fn(),
+  }),
+}));
+
+vi.mock('@/components/boardsModal/BoardsModal', () => ({
+  BoardsModal: () => null,
+}));
+
 describe('DashboardView Gestures & Navigation', () => {
   const mockLoadDashboard = vi.fn();
   const mockAddWidget = vi.fn();
@@ -177,6 +196,18 @@ describe('DashboardView Gestures & Navigation', () => {
       deleteAllWidgets: vi.fn(),
       zoom: 1,
       setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
     });
   });
 
@@ -219,6 +250,18 @@ describe('DashboardView Gestures & Navigation', () => {
       toasts: [],
       zoom: 1,
       setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
     });
 
     render(<DashboardView />);
@@ -236,6 +279,18 @@ describe('DashboardView Gestures & Navigation', () => {
       toasts: [],
       zoom: 1,
       setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
     });
 
     render(<DashboardView />);
@@ -244,6 +299,18 @@ describe('DashboardView Gestures & Navigation', () => {
   });
 
   it('wraps around when navigating at boundaries', () => {
+    const collectionsStub = {
+      collections: [],
+      loading: false,
+      error: null,
+      createCollection: vi.fn(),
+      renameCollection: vi.fn(),
+      moveCollection: vi.fn(),
+      deleteCollection: vi.fn(),
+      reorderSiblings: vi.fn(),
+      setCollectionMetadata: vi.fn(),
+      setCollectionDefaultBoard: vi.fn(),
+    };
     // Case 1: First board, navigate left -> should go to last board
     (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
       activeDashboard: mockDashboards[0],
@@ -257,6 +324,7 @@ describe('DashboardView Gestures & Navigation', () => {
       deleteAllWidgets: vi.fn(),
       zoom: 1,
       setZoom: vi.fn(),
+      collectionsApi: collectionsStub,
     });
 
     const { unmount } = render(<DashboardView />);
@@ -278,6 +346,7 @@ describe('DashboardView Gestures & Navigation', () => {
       deleteAllWidgets: vi.fn(),
       zoom: 1,
       setZoom: vi.fn(),
+      collectionsApi: collectionsStub,
     });
 
     render(<DashboardView />);
@@ -516,6 +585,18 @@ describe('DashboardView Gestures & Navigation', () => {
       updateDashboard: vi.fn(),
       zoom: 1,
       setZoom: vi.fn(),
+      collectionsApi: {
+        collections: [],
+        loading: false,
+        error: null,
+        createCollection: vi.fn(),
+        renameCollection: vi.fn(),
+        moveCollection: vi.fn(),
+        deleteCollection: vi.fn(),
+        reorderSiblings: vi.fn(),
+        setCollectionMetadata: vi.fn(),
+        setCollectionDefaultBoard: vi.fn(),
+      },
     });
 
     render(<DashboardView />);

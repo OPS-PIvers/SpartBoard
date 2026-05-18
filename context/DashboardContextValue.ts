@@ -14,9 +14,13 @@ import {
   AddWidgetOverrides,
   GridPosition,
   DrawableObject,
+  Collection,
+  CollectionSubstituteShareInput,
 } from '../types';
 import type { RosterCreateMeta } from '../hooks/useRosters';
 import type { GoogleDriveService } from '../utils/googleDriveService';
+import type { UseCollectionsResult } from '../hooks/useCollections';
+import type { LoadSharedCollectionResult } from '../hooks/useSharedCollection';
 
 /**
  * Mode applied to a shared-board import. Substitute shares are intentionally
@@ -109,6 +113,14 @@ export interface DashboardContextValue {
    * most once per session.
    */
   driveService: GoogleDriveService | null;
+  /**
+   * Single shared instance of the collections hook result. All consumers
+   * must read from this instead of calling `useCollections(user?.uid)`
+   * directly — using the single source of truth avoids duplicate Firestore
+   * subscriptions and ensures in-memory state (auth bypass / E2E) is shared
+   * across every component.
+   */
+  collectionsApi: UseCollectionsResult;
   dashboards: Dashboard[];
   activeDashboard: Dashboard | null;
   toasts: Toast[];
@@ -124,14 +136,32 @@ export interface DashboardContextValue {
     action?: Toast['action']
   ) => void;
   removeToast: (id: string) => void;
-  createNewDashboard: (name: string, data?: Dashboard) => Promise<void>;
+  createNewDashboard: (
+    name: string,
+    data?: Dashboard,
+    options?: { collectionId?: string | null; silent?: boolean }
+  ) => Promise<string | undefined>;
   saveCurrentDashboard: () => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;
   duplicateDashboard: (id: string) => Promise<void>;
   renameDashboard: (id: string, name: string) => Promise<void>;
   loadDashboard: (id: string) => void;
   reorderDashboards: (ids: string[]) => Promise<void>;
-  setDefaultDashboard: (id: string) => void;
+  setDefaultDashboard: (
+    boardId: string,
+    options?: { silent?: boolean }
+  ) => Promise<void>;
+  moveBoardToCollection: (
+    boardId: string,
+    collectionId: string | null,
+    options?: { silent?: boolean }
+  ) => Promise<void>;
+  pinBoard: (boardId: string, options?: { silent?: boolean }) => Promise<void>;
+  unpinBoard: (
+    boardId: string,
+    options?: { silent?: boolean }
+  ) => Promise<void>;
+  setActiveCollectionId: (collectionId: string | null) => void;
   resetDockToDefaults: () => void;
   addWidget: (type: WidgetType, overrides?: AddWidgetOverrides) => void;
   addWidgets: (
@@ -270,6 +300,31 @@ export interface DashboardContextValue {
   pendingAssignmentEditId: string | null;
   setPendingAssignmentEdit: (assignmentId: string | null) => void;
   clearPendingAssignmentEdit: () => void;
+
+  // Collection sharing system
+  shareCollection: (input: {
+    collection: Collection;
+    boards: Dashboard[];
+  }) => Promise<string>;
+  shareSubstituteCollection: (
+    input: CollectionSubstituteShareInput & {
+      collection: Collection;
+      boards: Dashboard[];
+    }
+  ) => Promise<string>;
+  loadSharedCollection: (
+    shareId: string
+  ) => Promise<LoadSharedCollectionResult>;
+  loadSharedCollectionBoards: (
+    shareId: string,
+    boardIds: string[]
+  ) => Promise<Dashboard[]>;
+  importSharedCollection: (
+    shareId: string
+  ) => Promise<{ collectionId: string; firstBoardId: string | null } | null>;
+  pendingSharedCollectionId: string | null;
+  setPendingSharedCollectionId: (id: string | null) => void;
+  clearPendingSharedCollection: () => void;
 
   // Roster system
   rosters: ClassRoster[];
