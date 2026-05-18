@@ -48,7 +48,7 @@ import { Z_INDEX } from '@/config/zIndex';
 import { StylePanel } from './StylePanel';
 import { SidebarBoardsActive } from './SidebarBoardsActive';
 import { BackgroundsModal } from '@/components/backgroundsModal/BackgroundsModal';
-import { SidebarQuickAccess } from './SidebarQuickAccess';
+import { QuickAccessModal } from '@/components/quickAccessModal/QuickAccessModal';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
 import { SidebarLanguageRegion } from './SidebarLanguageRegion';
 import { SidebarBuildings } from './SidebarBuildings';
@@ -68,7 +68,6 @@ type MenuSection =
   | 'classes'
   | 'plcs'
   | 'style'
-  | 'quick-access'
   | 'google-drive'
   | 'language'
   | 'buildings'
@@ -202,6 +201,7 @@ export const Sidebar: React.FC = () => {
   );
   const [isBoardsModalOpen, setIsBoardsModalOpen] = useState(false);
   const [isBackgroundsModalOpen, setIsBackgroundsModalOpen] = useState(false);
+  const [isQuickAccessModalOpen, setIsQuickAccessModalOpen] = useState(false);
   const { latestVersion } = useChangelog();
   const { updateAvailable, reloadApp } = useAppVersion();
   const hasUnreadWhatsNew =
@@ -397,6 +397,13 @@ export const Sidebar: React.FC = () => {
         />
       )}
 
+      {isQuickAccessModalOpen && (
+        <QuickAccessModal
+          isOpen={isQuickAccessModalOpen}
+          onClose={() => setIsQuickAccessModalOpen(false)}
+        />
+      )}
+
       {isOpen && (
         <div className="fixed inset-0 z-modal flex">
           <div
@@ -568,7 +575,7 @@ export const Sidebar: React.FC = () => {
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
-                    onClick={() => setActiveSection('quick-access')}
+                    onClick={() => setIsQuickAccessModalOpen(true)}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
                     <div className="w-8 h-8 rounded-lg bg-amber-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
@@ -718,10 +725,7 @@ export const Sidebar: React.FC = () => {
                 setGlobalStyle={setGlobalStyle}
               />
 
-              {/* QUICK ACCESS SECTION */}
-              <SidebarQuickAccess
-                isVisible={activeSection === 'quick-access'}
-              />
+              {/* QUICK ACCESS — now handled by QuickAccessModal */}
 
               {/* GOOGLE DRIVE SECTION */}
               <SidebarGoogleDrive
