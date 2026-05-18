@@ -80,11 +80,6 @@
       "rootBoards": "Boards",
       "manageAll": "Manage all boards"
     },
-    "backgrounds": {
-      "presets": "Voreinstellungen",
-      "colors": "Farben",
-      "gradients": "Verläufe"
-    },
     "classes": {
       "title": "Meine Klassen",
       "description": "Verwalte hier deine Klassenlisten. Die aktive Klasse wird für Sitzpläne, Zufallsauswahl, Umfragen und mehr verwendet.",
@@ -473,5 +468,31 @@
     "empty": "No templates available yet.",
     "kindBoard": "Board",
     "kindCollection": "Collection · {{count}} board(s)"
+  },
+  "backgrounds": {
+    "presets": "Voreinstellungen",
+    "colors": "Farben",
+    "gradients": "Verläufe",
+    "title": "Hintergründe",
+    "favorites": "Favoriten",
+    "recent": "Zuletzt verwendet",
+    "media": "Medien",
+    "solids": "Einfarbig",
+    "patterns": "Muster",
+    "yours": "Deine",
+    "uploads": "Meine Uploads",
+    "searchPlaceholder": "Hintergründe suchen…",
+    "emptyFavorites": "Noch keine Favoriten — hover a background and tap ★",
+    "emptyRecent": "Noch keine aktuellen Hintergründe.",
+    "emptyFiltered": "Keine Hintergründe entsprechen deinen Filtern.",
+    "uploading": "Hochladen…",
+    "uploadCta": "Bild hochladen (max. 5 MB)",
+    "driveNotConnected": "Google Drive muss verbunden sein, um hochzuladen.",
+    "loadingUploads": "Uploads werden geladen…",
+    "noUploadsYet": "Du hast noch keine Hintergründe hochgeladen.",
+    "customColor": "Benutzerdefinierte Farbe",
+    "customGradient": "Benutzerdefinierter Verlauf",
+    "applied": "Angewendet",
+    "apply": "Anwenden"
   }
 }

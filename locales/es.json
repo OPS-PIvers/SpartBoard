@@ -83,11 +83,6 @@
       "rootBoards": "Boards",
       "manageAll": "Manage all boards"
     },
-    "backgrounds": {
-      "presets": "Presets",
-      "colors": "Colores",
-      "gradients": "Degradados"
-    },
     "classes": {
       "title": "Mis Clases",
       "description": "Administra tus listas de clase aquí. La clase activa se usa en los planos de asientos, selección aleatoria, encuestas y más.",
@@ -592,5 +587,31 @@
     "empty": "No templates available yet.",
     "kindBoard": "Board",
     "kindCollection": "Collection · {{count}} board(s)"
+  },
+  "backgrounds": {
+    "presets": "Presets",
+    "colors": "Colores",
+    "gradients": "Degradados",
+    "title": "Fondos",
+    "favorites": "Favoritos",
+    "recent": "Recientes",
+    "media": "Medios",
+    "solids": "Sólidos",
+    "patterns": "Patrones",
+    "yours": "Los tuyos",
+    "uploads": "Mis cargas",
+    "searchPlaceholder": "Buscar fondos…",
+    "emptyFavorites": "Aún no hay favoritos — pasa el cursor sobre un fondo y toca ★",
+    "emptyRecent": "Aún no hay fondos recientes.",
+    "emptyFiltered": "Ningún fondo coincide con tus filtros.",
+    "uploading": "Cargando…",
+    "uploadCta": "Subir una imagen (máx. 5 MB)",
+    "driveNotConnected": "Google Drive debe estar conectado para subir.",
+    "loadingUploads": "Cargando tus subidas…",
+    "noUploadsYet": "Aún no has subido ningún fondo.",
+    "customColor": "Color personalizado",
+    "customGradient": "Degradado personalizado",
+    "applied": "Aplicado",
+    "apply": "Aplicar"
   }
 }

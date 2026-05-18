@@ -80,11 +80,6 @@
       "rootBoards": "Boards",
       "manageAll": "Manage all boards"
     },
-    "backgrounds": {
-      "presets": "Préréglages",
-      "colors": "Couleurs",
-      "gradients": "Dégradés"
-    },
     "classes": {
       "title": "Mes Classes",
       "description": "Gérez vos listes de classe ici. La classe active est utilisée pour les plans de classe, le sélecteur aléatoire, les sondages, etc.",
@@ -473,5 +468,31 @@
     "empty": "No templates available yet.",
     "kindBoard": "Board",
     "kindCollection": "Collection · {{count}} board(s)"
+  },
+  "backgrounds": {
+    "presets": "Préréglages",
+    "colors": "Couleurs",
+    "gradients": "Dégradés",
+    "title": "Arrière-plans",
+    "favorites": "Favoris",
+    "recent": "Récents",
+    "media": "Médias",
+    "solids": "Couleurs unies",
+    "patterns": "Motifs",
+    "yours": "Les vôtres",
+    "uploads": "Mes téléversements",
+    "searchPlaceholder": "Rechercher des arrière-plans…",
+    "emptyFavorites": "Pas encore de favoris — survolez un arrière-plan et cliquez sur ★",
+    "emptyRecent": "Pas encore d'arrière-plans récents.",
+    "emptyFiltered": "Aucun arrière-plan ne correspond à vos filtres.",
+    "uploading": "Téléversement…",
+    "uploadCta": "Téléverser une image (max 5 Mo)",
+    "driveNotConnected": "Google Drive doit être connecté pour téléverser.",
+    "loadingUploads": "Chargement des téléversements…",
+    "noUploadsYet": "Vous n'avez pas encore téléversé d'arrière-plans.",
+    "customColor": "Couleur personnalisée",
+    "customGradient": "Dégradé personnalisé",
+    "applied": "Appliqué",
+    "apply": "Appliquer"
   }
 }
