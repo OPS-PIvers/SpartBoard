@@ -3533,7 +3533,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           source.color ? { color: source.color } : undefined
         );
       } catch (err) {
-        console.error('Duplicate collection failed:', err);
+        logError('DashboardContext.duplicateCollection', err, { id });
         addToast('Failed to duplicate collection', 'error');
         return;
       }
@@ -3548,10 +3548,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         (m, db) => Math.max(m, db.order ?? 0),
         0
       );
+      // Deep-clone each board so widget configs and arrays aren't shared by
+      // reference between the original and the duplicate. Mirrors the pattern
+      // in `importSharedCollection` and `duplicateWidget` (same file).
       const results = await Promise.allSettled(
         children.map((dash, i) =>
           saveDashboard({
-            ...dash,
+            ...structuredClone(dash),
             id: crypto.randomUUID(),
             isDefault: false,
             createdAt: Date.now(),
@@ -3566,12 +3569,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         addToast(`Collection "${source.name}" duplicated`);
       } else if (failed === children.length) {
         addToast(
-          `Collection duplicated but ${failed} board(s) failed to copy`,
+          `Collection "${source.name}" duplicated, but all ${failed} board(s) failed to copy`,
           'error'
         );
       } else {
         addToast(
-          `Collection duplicated — ${failed} of ${children.length} board(s) failed`,
+          `Collection "${source.name}" duplicated, but ${failed} of ${children.length} board(s) failed to copy`,
           'error'
         );
       }

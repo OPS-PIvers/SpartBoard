@@ -135,9 +135,9 @@ export const BoardCard: React.FC<BoardCardProps> = ({
       <div className="text-xxs text-slate-400 mb-1 pr-20">
         {widgetCount} widgets · edited {lastEdited}
       </div>
-      {collectionBadge &&
-        (collectionBadge.color ? (
-          <div className="pr-20">
+      {collectionBadge && (
+        <div className="pr-20">
+          {collectionBadge.color ? (
             <div
               className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xxs font-bold max-w-full"
               style={{
@@ -148,15 +148,14 @@ export const BoardCard: React.FC<BoardCardProps> = ({
               <Folder className="w-2.5 h-2.5 flex-shrink-0" />
               <span className="truncate">{collectionBadge.name}</span>
             </div>
-          </div>
-        ) : (
-          <div className="pr-20">
+          ) : (
             <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-xxs text-slate-600 max-w-full">
               <Folder className="w-2.5 h-2.5 flex-shrink-0" />
               <span className="truncate">{collectionBadge.name}</span>
             </div>
-          </div>
-        ))}
+          )}
+        </div>
+      )}
 
       {/* Always-visible action row — touch-discoverable surface for the
           actions teachers need at-a-glance (share, duplicate, pin).
