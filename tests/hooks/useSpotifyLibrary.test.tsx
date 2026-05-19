@@ -118,4 +118,29 @@ describe('useSpotifyLibrary', () => {
       expect(result.current.error).toEqual({ kind: 'generic', message: '500' });
     });
   });
+
+  it('refetches after TTL expiry (cache-reset proxy)', async () => {
+    // First mount — populates the cache.
+    const first = renderHook(() => useSpotifyLibrary());
+    await waitFor(() => expect(first.result.current.isLoading).toBe(false));
+    expect(mockFetchPlaylists).toHaveBeenCalledTimes(1);
+
+    first.unmount();
+    mockFetchPlaylists.mockClear();
+    mockFetchRecents.mockClear();
+
+    // Simulate TTL expiry by resetting the module-level cache.
+    __resetCacheForTests();
+
+    // Re-mount the hook — cache miss should trigger a new fetch.
+    const second = renderHook(() => useSpotifyLibrary());
+
+    expect(second.result.current.isLoading).toBe(true);
+
+    await waitFor(() => expect(second.result.current.isLoading).toBe(false));
+
+    expect(mockFetchPlaylists).toHaveBeenCalledTimes(1);
+    expect(mockFetchRecents).toHaveBeenCalledTimes(1);
+    expect(second.result.current.playlists).toHaveLength(1);
+  });
 });

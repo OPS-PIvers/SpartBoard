@@ -54,12 +54,12 @@ export function useSpotifyLibrary(): UseSpotifyLibraryReturn {
 
   const load = useCallback(async () => {
     if (!isConnected) return;
+    setError(null);
+    setIsLoading(true);
     if (inflight) {
       await inflight;
       return;
     }
-    setError(null);
-    setIsLoading(true);
     inflight = (async () => {
       const token = await getAccessToken();
       if (!token) throw new Error('No Spotify access token available');
@@ -77,6 +77,7 @@ export function useSpotifyLibrary(): UseSpotifyLibraryReturn {
     })();
     try {
       await inflight;
+      notifySubscribers();
     } catch (err) {
       if (err instanceof SpotifyScopeError) {
         setError({ kind: 'scope' });
@@ -89,7 +90,6 @@ export function useSpotifyLibrary(): UseSpotifyLibraryReturn {
     } finally {
       inflight = null;
       setIsLoading(false);
-      notifySubscribers();
     }
   }, [getAccessToken, isConnected]);
 
