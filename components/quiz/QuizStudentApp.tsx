@@ -920,7 +920,10 @@ const ActiveQuiz: React.FC<{
   // modal). See `hooks/useFocusLossPoll.ts` for the snapshot-race the
   // first-mount-only seed protects against.
   useFocusLossPoll({
-    enabled: tabWarningsEnabled,
+    enabled:
+      tabWarningsEnabled &&
+      session.status === 'active' &&
+      myResponse?.status !== 'completed',
     onFocusLoss: () => window.dispatchEvent(new Event('blur')),
   });
 
