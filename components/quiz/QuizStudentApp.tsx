@@ -74,6 +74,7 @@ import { usePreviewMode } from '@/hooks/usePreviewMode';
 import { ResultsWatermark } from './ResultsWatermark';
 import { ResultsTabWarningModal } from './ResultsTabWarningModal';
 import { useResultsTabWarnings } from '@/hooks/useResultsTabWarnings';
+import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
 import {
   getScoreSuffix,
   isGamificationActive,
@@ -908,6 +909,20 @@ const ActiveQuiz: React.FC<{
     myResponse?.status,
     myResponse?.unlocked,
   ]);
+
+  // Modern Chrome/Firefox don't fire `window.blur` when focus shifts to
+  // the URL bar, bookmark dropdowns, or other browser-chrome targets, so
+  // the listeners above miss those interactions. `document.hasFocus()`
+  // still flips false in all those cases — `useFocusLossPoll` watches the
+  // `true → false` edge on a 250 ms timer and dispatches a synthetic
+  // `blur` so the existing `handleVisibilityChange` listener owns the
+  // full response logic in one place (guard checks, debounce, increment,
+  // modal). See `hooks/useFocusLossPoll.ts` for the snapshot-race the
+  // first-mount-only seed protects against.
+  useFocusLossPoll({
+    enabled: tabWarningsEnabled,
+    onFocusLoss: () => window.dispatchEvent(new Event('blur')),
+  });
 
   // For student-paced mode, the student maintains their own local index
   const [localIndex, setLocalIndex] = useState(0);

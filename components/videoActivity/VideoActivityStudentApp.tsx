@@ -36,6 +36,7 @@ import { VideoPlayer } from './VideoPlayer';
 import { QuestionOverlay } from './QuestionOverlay';
 import { TeacherPreviewBanner } from '@/components/student/TeacherPreviewBanner';
 import { usePreviewMode } from '@/hooks/usePreviewMode';
+import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
 
 /**
  * Resolve the SSO student's class period from the session's
@@ -545,6 +546,25 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     myResponse?.unlocked,
     sessionId,
   ]);
+
+  // Modern Chrome/Firefox don't fire `window.blur` when focus shifts to
+  // the URL bar, bookmark dropdowns, or other browser-chrome targets, so
+  // the listeners above miss those interactions. `document.hasFocus()`
+  // still flips false in all those cases — `useFocusLossPoll` watches the
+  // `true → false` edge on a 250 ms timer and dispatches a synthetic
+  // `blur` so the existing `handleVisibilityChange` listener owns the
+  // full response logic in one place. The poll is gated by the same
+  // conditions as the listener effect; without them, a focus loss
+  // outside an active session would still fire.
+  const focusPollEnabled =
+    tabWarningsEnabled &&
+    joinStatus === 'joined' &&
+    session?.status === 'active' &&
+    !isViewOnly;
+  useFocusLossPoll({
+    enabled: focusPollEnabled,
+    onFocusLoss: () => window.dispatchEvent(new Event('blur')),
+  });
 
   // ── Invalid / missing session ID ──────────────────────────────────────────
 
