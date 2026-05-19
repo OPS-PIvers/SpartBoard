@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-12_
+_Last audited: 2026-05-19_
 _Last action: 2026-05-12_
 
 ---
@@ -16,6 +16,40 @@ _Nothing currently in progress._
 
 ## Open
 
+### HIGH `lodash-es@4.17.23` code injection via `@imgly/background-removal` — in production dep chain
+
+- **Detected:** 2026-05-19
+- **File:** package.json (production dependency `@imgly/background-removal@^1.7.0`)
+- **Detail:** HIGH — `lodash-es` <=4.17.23 allows code injection via `_.template` (GHSA-gquv-pc4w-3hgv, same root cause as lodash non-ES build). This is reached via `@imgly/background-removal@1.7.0` which declares `lodash-es@4.17.23` as a direct dependency. `@imgly/background-removal` is a **production** dependency (in `dependencies`, not `devDependencies`) — the code injection vulnerability is present in the production bundle. `pnpm why lodash-es` confirms a single resolution: `lodash-es@4.17.23 <- @imgly/background-removal@1.7.0 <- spart-board (dependencies)`. Note: no lodash-es 4.18.x has been published (lodash-es mirrors lodash 4.x which is in maintenance mode with no planned 4.18 release) — the fix must come from @imgly updating its dependency or from overriding lodash-es at the pnpm level, though the latter may break @imgly's internal usage.
+- **Fix:** Check if a newer version of `@imgly/background-removal` (>1.7.0) drops or replaces its lodash-es dependency. If not, add `"lodash-es": ">=4.18.0"` to `pnpm.overrides` as a future-proof gate (it will not resolve until lodash-es 4.18.0 is published). Until then, assess whether the `_.template` code path is reachable in @imgly's actual usage in this app — if the background-removal widget uses only image-processing APIs and not lodash's template function, the exploitability is theoretical.
+
+### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
+
+- **Detected:** 2026-05-19
+- **File:** package.json (devDependency via `eslint > file-entry-cache > flat-cache > flatted`)
+- **Detail:** Two CVEs affect `flatted` <3.4.2:
+  - Unbounded recursion DoS via deeply nested circular structures passed to `parse()` — `flatted@3.3.3` is vulnerable (<3.4.0 fix).
+  - Prototype pollution via `parse()` — affects `flatted` <=3.4.1, fix >=3.4.2.
+    The installed version is `flatted@3.3.3`. This is dev-only (ESLint toolchain, not shipped to users). `pnpm audit` reports both advisories. The dep chain is `eslint@9.39.2 > file-entry-cache@8.0.0 > flat-cache@4.0.1 > flatted@3.3.3`.
+- **Fix:** Add `"flatted": ">=3.4.2"` to `pnpm.overrides` in `package.json`. This forces flatted to resolve to >=3.4.2 across the eslint dependency chain. Verify with `pnpm why flatted` after `pnpm install`. Dev/CI tooling only — no production runtime impact.
+
+### MEDIUM `ws@8.19.0` + `ws@8.20.0` uninitialized memory disclosure — via jsdom/vitest
+
+- **Detected:** 2026-05-19
+- **File:** package.json (devDependencies via `jsdom@27.4.0` and `vitest@4.0.18`)
+- **Detail:** `ws` >=8.0.0 <8.20.1 has an uninitialized memory disclosure vulnerability. Two vulnerable versions are installed:
+  - `ws@8.19.0` — via `jsdom@27.4.0` and `vitest@4.0.18 > @vitest/mocker`
+  - `ws@8.20.0` — via another dev dep chain
+    Both are in the vulnerable range (fix is >=8.20.1). `ws@7.5.10` (via firebase-tools) is NOT in the vulnerable range. Dev-only — not shipped to users.
+- **Fix:** Add `"ws": ">=8.20.1"` to `pnpm.overrides` in `package.json`. Alternatively, update `jsdom` and `vitest` to versions that pull in ws@8.20.1+. The `vitest` major version update (4.x → latest) is tracked in the LOW major versions item and would naturally resolve this.
+
+### MEDIUM `yaml@2.8.2` stack overflow via deeply nested input — via dev toolchain
+
+- **Detected:** 2026-05-19
+- **File:** package.json (devDependencies via `firebase-tools`, `lint-staged`, `tailwindcss`, `vite`)
+- **Detail:** `yaml` >=2.0.0 <2.8.3 has a stack overflow DoS vulnerability. Installed version is `yaml@2.8.2` (fix requires >=2.8.3). Reaches the codebase via multiple dev tool chains: `firebase-tools@15.8.0`, `lint-staged@16.2.7`, `tailwindcss@3.4.19 > postcss-load-config`, and `vite@6.4.2`. All are dev-only.
+- **Fix:** Add `"yaml": ">=2.8.3"` to `pnpm.overrides` in `package.json`. This is a safe override since yaml 2.x has a stable API. Verify with `pnpm why yaml` after install. No production impact.
+
 ### MEDIUM `hono@4.12.15` has two MODERATE CVEs — patched in >=4.12.18
 
 - **Detected:** 2026-05-12
@@ -26,28 +60,34 @@ _Nothing currently in progress._
     `pnpm outdated` confirms current is 4.12.15, latest is 4.12.18. The `pnpm.overrides.hono` entry is what pins this across the dep graph.
 - **Fix:** In `package.json`, update both `devDependencies.hono` and `pnpm.overrides.hono` from `^4.12.14` → `^4.12.18`, then run `pnpm install`. Verify `pnpm audit` no longer reports hono advisories. Run `pnpm type-check`, `pnpm lint`, and `pnpm test` to confirm no regressions.
 
-### MEDIUM `axios@1.15.0` still has two MODERATE CVEs — patched in >=1.15.1
+### MEDIUM `axios@1.15.0` has multiple CVEs — several require >=1.15.2, full fix in >=1.16.0
 
 - **Detected:** 2026-05-05
+- **Updated:** 2026-05-19
 - **File:** package.json (direct devDependency), functions/package.json (direct dependency)
-- **Detail:** Two moderate CVEs appear in `pnpm audit` for both root and functions/ against the current `axios@1.15.0`:
-  - **GHSA-vf2m-468p-8v99** (moderate): HTTP adapter streamed responses bypass `maxContentLength` — allows a malicious server to return a response larger than the configured limit. Patched in `>=1.15.1`.
-  - **GHSA-xx6v-rp6x-q39c** (moderate): XSRF Token Cross-Origin Leakage via Prototype Pollution gadget in `withXSRFToken` Boolean coercion. Patched in `>=1.15.1`.
-    The previous upgrade to `1.15.0` (2026-04-14 completed item) patched the three CRITICAL CVEs. These two MODERATE CVEs are distinct advisories with `>=1.15.1` patch requirement. `pnpm outdated` shows latest is `1.16.0`.
-- **Fix:** `pnpm up axios@^1.16.0` in root and `pnpm -C functions up axios@^1.16.0` in functions/. Both advisories are patched in `>=1.15.1`; upgrading to `1.16.0` (latest) addresses both. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
+- **Detail:** Six CVEs now appear in `pnpm audit` against the current `axios@1.15.0` (root and functions/):
+  - **GHSA-vf2m-468p-8v99** (moderate): HTTP adapter streamed responses bypass `maxContentLength`. Patched >=1.15.1.
+  - **GHSA-xx6v-rp6x-q39c** (moderate): XSRF Token Cross-Origin Leakage via Prototype Pollution. Patched >=1.15.1.
+  - **NO_PROXY bypass** (high): Incomplete fix for CVE-2025-62718 — `NO_PROXY` hostname normalization bypass via SSRF. Patched >=1.15.1.
+  - **Prototype Pollution Gadgets - Response** (high): Response object prototype pollution allowing manipulation of subsequent requests. Patched >=1.15.1.
+  - **Header Injection via Prototype Pollution** (high): Header values can be injected via prototype-polluted objects. Patched >=1.15.1.
+  - **Prototype pollution read-side gadgets** (high): Read-side prototype pollution in response parsing. Patched **>=1.15.2**.
+    The last CVE requires >=1.15.2 — upgrading to 1.15.1 would not be sufficient. `pnpm outdated` shows latest is `1.16.0`.
+- **Fix:** `pnpm up axios@^1.16.0` in root and `pnpm -C functions up axios@^1.16.0` in functions/. All 6 CVEs are patched in `>=1.15.2`; upgrading to `1.16.0` (latest) addresses all. Verify `pnpm type-check`, `pnpm lint`, and `pnpm test` pass after upgrade.
 
 ### MEDIUM `firebase-tools` brings in multiple vulnerable transitive deps
 
 - **Detected:** 2026-04-14
+- **Updated:** 2026-05-19
 - **File:** package.json (devDependency `firebase-tools`)
 - **Detail:** firebase-tools pulls in several vulnerable transitive packages:
-  - `basic-ftp` <5.2.0: CRITICAL path traversal in `downloadToDir()` (via proxy-agent)
-  - `tar` <7.5.7 and <7.5.8: HIGH arbitrary file write (two CVEs) (via superstatic > re2 > node-gyp)
-  - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs
-  - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption
+  - `basic-ftp` <5.2.0: CRITICAL path traversal in `downloadToDir()` (via proxy-agent). Additional: incomplete CRLF injection protection (<=5.2.1), DoS (<=5.2.2), malicious FTP server RCE (<=5.3.0) — needs >=5.3.1.
+  - `tar` (via superstatic > re2 > node-gyp): The `pnpm.overrides` entry `"tar": "^7.5.4"` resolves to `tar@7.5.6`. Four HIGH CVEs are now published requiring progressively higher versions: path traversal via hardlink (<7.5.7), file read/write via hardlink target escape (<7.5.8), hardlink path traversal via drive-relative (<=7.5.9, fix >=7.5.10), and symlink path traversal via drive-relative (<=7.5.10, fix **>=7.5.11**). The current override resolves to 7.5.6 — insufficient. The override must be updated to `"tar": ">=7.5.11"`.
+  - `minimatch` (multiple versions): HIGH ReDoS via repeated wildcards and extglobs.
+  - `@isaacs/brace-expansion` <=5.0.0: HIGH uncontrolled resource consumption.
     All via firebase-tools devDependency chain. These do not affect production runtime.
-    Current: 15.8.0, Latest: 15.17.0 — updating may resolve several transitively. (Updated: Latest moved from 15.16.0 → 15.17.0 as of 2026-05-12.)
-- **Fix:** `pnpm up firebase-tools@^15.17.0` in dev dependencies. Check that firebase deploy commands still work after upgrade.
+    Current: 15.8.0, Latest: 15.17.0 — updating may resolve several transitively.
+- **Fix:** (1) Update `pnpm.overrides.tar` from `"^7.5.4"` to `">=7.5.11"` to address all four tar CVEs. (2) `pnpm up firebase-tools@^15.17.0` in dev dependencies and check that firebase deploy commands still work.
 
 ### MEDIUM `firebase-admin` (root + functions) brings in `fast-xml-parser` and `node-forge` CVEs
 
@@ -81,40 +121,28 @@ _Nothing currently in progress._
 - **Detail:** HIGH — lodash >=4.0.0 <=4.17.23 vulnerable to code injection via `_.template`. This comes via `firebase-functions-test > lodash`. Only in test infrastructure, not production runtime.
 - **Fix:** Update `firebase-functions-test` from 3.4.1 to latest — check if newer version depends on a patched lodash. This is a test-only devDependency.
 
-### MEDIUM `dompurify` has multiple XSS/sanitization bypasses — three CVEs
-
-- **Detected:** 2026-04-21
-- **Updated:** 2026-04-28
-- **File:** package.json (transitive via `@monaco-editor/react > monaco-editor > dompurify`)
-- **Detail:** Three CVEs affect the dompurify version pinned by `monaco-editor`, all patched in >=3.4.0:
-  - GHSA-39q2-94rc-95cp (moderate): `ADD_TAGS` bypasses `FORBID_TAGS` via short-circuit evaluation in <=3.3.3.
-  - GHSA-crv5-9vww-q3g8 (moderate): `SAFE_FOR_TEMPLATES` bypass in `RETURN_DOM` mode in >=1.0.10 <3.4.0.
-  - GHSA-v9jr-rg53-9pgp (moderate): Prototype pollution XSS bypass via `CUSTOM_ELEMENT_HANDLING` fallback in >=3.0.1 <3.4.0.
-    All three affect the Monaco editor used in the widget builder. Not directly exploitable by end users unless they can craft input through the Monaco sanitization path.
-- **Fix:** Transitive dep three levels deep. Run `pnpm why dompurify` to trace the resolution; run `pnpm up @monaco-editor/react@latest` if a newer `monaco-editor` pins `dompurify >= 3.4.0`. If not resolved transitively, add a `pnpm.overrides` entry: `"dompurify": ">=3.4.0"`.
-
 ### LOW Major version updates available — require planned migration
 
 - **Detected:** 2026-04-14
-- **Updated:** 2026-05-12
+- **Updated:** 2026-05-19
 - **File:** package.json
 - **Detail:** Several packages have major version releases available that require migration planning (breaking changes):
   - `tailwindcss`: 3.4.19 → **4.3.0** (major — config format changed completely)
-  - `vite`: 6.4.2 → **8.0.12** (2 majors ahead; focus on patching within v6 first)
-  - `eslint`: 9.39.2 → **10.3.0** (major — verify flat config compatibility)
+  - `vite`: 6.4.2 → **8.0.13** (2 majors ahead; focus on patching within v6 first)
+  - `eslint`: 9.39.2 → **10.4.0** (major — verify flat config compatibility)
   - `@eslint/js`: 9.39.2 → **10.0.1** (paired with eslint)
   - `typescript`: 5.9.3 → **6.0.3** (major — strict mode changes)
-  - `i18next`: 25.8.13 → **26.1.0** (major — API changes)
-  - `react-i18next`: 16.5.4 → **17.0.7** (paired with i18next)
-  - `lucide-react`: 0.563.0 → **1.14.0** (first stable major — icon API changes possible)
-  - `@vitejs/plugin-react`: 5.1.2 → **6.0.1** (major)
-  - `@types/node`: 24.12.2 → **25.7.0** (major — verify Node 24 compat)
-  - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only)
-  - `lint-staged`: 16.2.7 → **17.0.4** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.0.1** (major — AI API surface may have breaking changes; test all generation flows after upgrade)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.6, `firebase-tools` 15.8.0 → 15.17.0, `firebase` 12.8.0 → 12.13.0, `firebase-admin` 13.6.0 → 13.9.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.59.3, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.6.
+  - `i18next`: 25.8.13 → **26.2.0** (major — API changes)
+  - `react-i18next`: 16.5.4 → **17.0.8** (paired with i18next)
+  - `lucide-react`: 0.563.0 → **1.16.0** (first stable major — icon API changes possible)
+  - `@vitejs/plugin-react`: 5.1.2 → **6.0.2** (major)
+  - `@types/node`: 24.12.2 → **25.9.0** (major — verify Node 24 compat)
+  - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
+  - `lint-staged`: 16.2.7 → **17.0.5** (major — check husky integration compatibility)
+  - `@google/genai`: 1.51.0 → **2.4.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.6, `firebase-tools` 15.8.0 → 15.17.0, `firebase` 12.8.0 → 12.13.0, `firebase-admin` 13.6.0 → 13.10.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.59.3, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.6.
     These should not be done in a single commit — each needs its own migration PR with testing.
-- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.).
+- **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 
 ---
 
@@ -135,6 +163,14 @@ _Nothing currently in progress._
 - **File:** package.json (transitive via `@google/genai > protobufjs`), functions/package.json (same path)
 - **Detail:** GHSA-xq3m-2v4x-88gg (critical): `protobufjs` versions <7.5.5 allow arbitrary code execution via a maliciously crafted protobuf message. Affected both root (`@google/genai: 1.39.0`) and functions/ (`@google/genai: 1.38.0`).
 - **Resolution:** Ran `pnpm up "@google/genai@^1.50.1"` (root) and `pnpm -C functions up "@google/genai@^1.50.1"` (functions). Both bumped to `@google/genai@1.51.0`. `pnpm why protobufjs` confirms `@google/genai@1.51.0` now resolves to `protobufjs@7.5.6` (patched) on both sides — the vulnerable `protobufjs@7.5.4` no longer comes via `@google/genai`. A separate `protobufjs@7.5.4` resolution still exists via `firebase-functions@7.0.5 / @google-cloud/firestore` chains (untouched by this fix; not in the @google/genai path the journal targeted). The bundled `@modelcontextprotocol/sdk` did **not** advance past 1.25.2 with this upgrade — that MEDIUM entry has been updated and remains Open. Verified clean: `pnpm type-check` (root + functions) 0 errors; `pnpm lint --max-warnings 0` 0 errors/warnings; `pnpm format:check` clean; `pnpm test` 1672/1672 pass across 175 files; `pnpm build` (21.4s) and `pnpm -C functions build` both succeed.
+
+### MEDIUM `dompurify` multiple XSS/sanitization CVEs — resolved via direct production dependency
+
+- **Detected:** 2026-04-21
+- **Completed:** 2026-05-19
+- **File:** package.json
+- **Detail:** Three CVEs (GHSA-39q2-94rc-95cp, GHSA-crv5-9vww-q3g8, GHSA-v9jr-rg53-9pgp) affected dompurify <=3.3.3 transitive via `@monaco-editor/react > monaco-editor > dompurify`. The open item recommended either `pnpm up @monaco-editor/react@latest` or adding `pnpm.overrides "dompurify": ">=3.4.0"`.
+- **Resolution:** Resolved outside journal workflow. `dompurify@^3.4.2` is now declared as a direct production dependency in `package.json` (in `dependencies`, not `devDependencies`). The installed version is `dompurify@3.4.2` which is past the vulnerable range (all three CVEs patched in >=3.4.0, >=3.3.2 for the ADD_ATTR issue). `pnpm audit` no longer reports any dompurify advisories. The 2026-05-19 `pnpm audit` run confirms clean for this package.
 
 ### HIGH `hono` has authorization bypass, arbitrary file access, and HTML injection vulnerabilities
 

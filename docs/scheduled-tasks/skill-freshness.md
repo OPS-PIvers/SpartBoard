@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-12_
+_Last audited: 2026-05-19_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-19: Skill files ARE accessible at `/mnt/skills/user/` in this environment (unlike prior runs at 2026-05-12). Both skill files read and verified. Codebase-side verification confirms: `components/widgets/SpecialistSchedule/` contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, and `index.ts` — there is NO `Widget.tsx`. This means the MEDIUM open item referencing `SpecialistSchedule/Widget.tsx` remains valid. Similarly `SpecialistScheduleSettings.tsx` does not exist (actual path: `components/widgets/SpecialistSchedule/Settings.tsx`) — MEDIUM item #2 remains valid. `FeaturePermissionsManager.tsx` exclusion array (lines 941–953) contains 13 types — LOW item #1 remains valid (array in skill still outdated). `FeatureConfigurationPanel.tsx` secondary exclusion gate undocumented in skill — LOW item #2 remains valid. lazyNamed() convention confirmed correct. No new stale references detected. All 4 open items remain valid._
 
 _2026-05-12: Skill files not accessible at `/mnt/skills/user/` in this audit environment (path does not exist). Codebase-side verifications performed: (1) `SpecialistSchedule/SpecialistScheduleWidget.tsx` still exists; the directory contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, and `index.ts` — Widget.tsx still absent. (2) `FeaturePermissionsManager.tsx` exclusion array (lines 939–953) now contains 13 types: `blooms-taxonomy`, `calendar`, `catalyst`, `graphic-organizer`, `instructionalRoutines`, `miniApp`, `music`, `pdf`, `specialist-schedule`, `starter-pack`, `stickers`, `video-activity`, `work-symbols`. The skill example remains stale. (3) `lazyNamed()` convention confirmed correct across WidgetRegistry.ts. All four open items remain valid._
 
