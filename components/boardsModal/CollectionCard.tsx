@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder, Copy, Share2 } from 'lucide-react';
+import { Folder, Copy, Share2, Loader2 } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import type { Collection } from '@/types';
@@ -11,6 +11,10 @@ interface CollectionCardProps {
   childBoardsCount: number;
   isSelected: boolean;
   canShare: boolean;
+  // True while a duplicate of this collection is in-flight. Disables the
+  // Duplicate button and swaps its icon for a spinner so rapid clicks
+  // don't queue multiple copies.
+  isDuplicating?: boolean;
   onClick: () => void;
   onToggleSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -24,6 +28,7 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
   childBoardsCount,
   isSelected,
   canShare,
+  isDuplicating = false,
   onClick,
   onToggleSelect,
   onContextMenu,
@@ -177,17 +182,24 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (isDuplicating) return;
             onDuplicate();
           }}
           onPointerDown={(e) => e.stopPropagation()}
+          disabled={isDuplicating}
+          aria-busy={isDuplicating}
           aria-label={t('collectionMenu.duplicate', {
             defaultValue: 'Duplicate Collection',
           })}
-          className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition ${
+          className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
             collection.color ? 'text-slate-500' : 'text-slate-300'
           }`}
         >
-          <Copy className="w-3.5 h-3.5" />
+          {isDuplicating ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
         </button>
       </div>
     </div>

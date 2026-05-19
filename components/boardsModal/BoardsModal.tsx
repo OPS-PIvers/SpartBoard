@@ -20,6 +20,7 @@ import { SaveAsTemplateModal } from '@/components/admin/SaveAsTemplateModal';
 import { CreateFromTemplateModal } from './CreateFromTemplateModal';
 import { CollectionColorPicker } from './CollectionColorPicker';
 import { useBoardsModalDnd } from './useBoardsModalDnd';
+import { useBusyIdSet } from '@/hooks/useBusyIdSet';
 import type { Collection, Dashboard } from '@/types';
 
 // Lightweight target shape for the color picker — covers both flows
@@ -70,6 +71,12 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
   >(activeDashboard?.collectionId ?? null);
   const [search, setSearch] = useState('');
   const multi = useMultiSelect();
+  // Per-id busy tracking for the Duplicate buttons. Gives a synchronous
+  // rapid-click guard (the underlying ref is checked before the React
+  // state update commits) plus a snapshot that drives the spinner +
+  // disabled-state re-render on each card.
+  const boardDuplicateBusy = useBusyIdSet();
+  const collectionDuplicateBusy = useBusyIdSet();
   const {
     sensors,
     handleDragStart,
@@ -548,8 +555,16 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               onToggleSelect={multi.toggle}
               onOpenBoard={handleOpenBoard}
               onContextMenu={handleContextMenu}
-              onDuplicateBoard={(id) => void duplicateDashboard(id)}
-              onDuplicateCollection={(id) => void duplicateCollection(id)}
+              onDuplicateBoard={(id) =>
+                void boardDuplicateBusy.run(id, () => duplicateDashboard(id))
+              }
+              onDuplicateCollection={(id) =>
+                void collectionDuplicateBusy.run(id, () =>
+                  duplicateCollection(id)
+                )
+              }
+              isBoardDuplicating={boardDuplicateBusy.isBusy}
+              isCollectionDuplicating={collectionDuplicateBusy.isBusy}
               onShareBoard={(b) => setShareTarget(b)}
               onShareCollection={(c) => setShareCollectionTarget(c)}
             />
@@ -581,7 +596,11 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
                 );
                 if (next?.trim()) await renameDashboard(board.id, next.trim());
               }}
-              onDuplicate={() => void duplicateDashboard(board.id)}
+              onDuplicate={() =>
+                void boardDuplicateBusy.run(board.id, () =>
+                  duplicateDashboard(board.id)
+                )
+              }
               onSetDefault={() => {
                 // Action toasts on failure; .catch prevents the rethrow
                 // from surfacing as an unhandled rejection in the console.

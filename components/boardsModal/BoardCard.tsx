@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Pin, Folder, Copy, Share2 } from 'lucide-react';
+import { Star, Pin, Folder, Copy, Share2, Loader2 } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import type { Dashboard } from '@/types';
@@ -17,6 +17,10 @@ interface BoardCardProps {
   // header Collection already) or when the Board is at root.
   collectionBadge?: { name: string; color?: string } | null;
   canShare: boolean;
+  // True while a duplicate of this board is in-flight. Disables the
+  // Duplicate button and swaps its icon for a spinner so rapid clicks
+  // don't queue multiple copies.
+  isDuplicating?: boolean;
   onClick: () => void;
   onToggleSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
@@ -29,6 +33,7 @@ export const BoardCard: React.FC<BoardCardProps> = ({
   isSelected,
   collectionBadge,
   canShare,
+  isDuplicating = false,
   onClick,
   onToggleSelect,
   onContextMenu,
@@ -181,13 +186,20 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           type="button"
           onClick={(e) => {
             e.stopPropagation();
+            if (isDuplicating) return;
             onDuplicate();
           }}
           onPointerDown={(e) => e.stopPropagation()}
+          disabled={isDuplicating}
+          aria-busy={isDuplicating}
           aria-label={t('boardsModal.duplicate', { defaultValue: 'Duplicate' })}
-          className="p-1 rounded text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition"
+          className="p-1 rounded text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-slate-300"
         >
-          <Copy className="w-3.5 h-3.5" />
+          {isDuplicating ? (
+            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          ) : (
+            <Copy className="w-3.5 h-3.5" />
+          )}
         </button>
         <button
           type="button"
