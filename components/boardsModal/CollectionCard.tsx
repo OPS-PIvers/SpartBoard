@@ -1,5 +1,5 @@
 import React from 'react';
-import { Folder } from 'lucide-react';
+import { Folder, Copy, Share2 } from 'lucide-react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import type { Collection } from '@/types';
@@ -10,9 +10,12 @@ interface CollectionCardProps {
   childCollectionsCount: number;
   childBoardsCount: number;
   isSelected: boolean;
+  canShare: boolean;
   onClick: () => void;
   onToggleSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onDuplicate: () => void;
+  onShare: () => void;
 }
 
 export const CollectionCard: React.FC<CollectionCardProps> = ({
@@ -20,9 +23,12 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
   childCollectionsCount,
   childBoardsCount,
   isSelected,
+  canShare,
   onClick,
   onToggleSelect,
   onContextMenu,
+  onDuplicate,
+  onShare,
 }) => {
   const { t } = useTranslation();
 
@@ -135,11 +141,54 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
         {collection.name}
       </div>
       <div
-        className={`text-xxs ${textColor ? '' : 'text-slate-400'}`}
+        className={`text-xxs pr-14 ${textColor ? '' : 'text-slate-400'}`}
         style={textColor ? { color: textColor, opacity: 0.6 } : undefined}
       >
         {childCollectionsCount > 0 && `${childCollectionsCount} folders · `}
         {childBoardsCount} boards
+      </div>
+
+      {/* Always-visible action row — touch-discoverable surface for Share
+          + Duplicate. Right-click context menu still lists these too. Each
+          button stops propagation on click + pointerdown so it doesn't
+          trigger card-open or dnd-kit drag-start. On tinted Collections
+          the default text-slate-300 washes out — bump to slate-500 inline
+          so the icons stay legible against the color tint. */}
+      <div className="absolute bottom-2 right-2 flex items-center gap-0.5">
+        {canShare && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label={t('collectionMenu.share', {
+              defaultValue: 'Share Collection',
+            })}
+            className={`p-1 rounded hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition ${
+              collection.color ? 'text-slate-500' : 'text-slate-300'
+            }`}
+          >
+            <Share2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={t('collectionMenu.duplicate', {
+            defaultValue: 'Duplicate Collection',
+          })}
+          className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition ${
+            collection.color ? 'text-slate-500' : 'text-slate-300'
+          }`}
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </button>
       </div>
     </div>
   );

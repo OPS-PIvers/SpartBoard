@@ -9,6 +9,7 @@ interface BoardGridProps {
   collections: Collection[];
   boards: Dashboard[];
   selectedIds: ReadonlySet<string>;
+  canShare: boolean;
   onSelectCollection: (id: string | null) => void;
   onToggleSelect: (id: string) => void;
   onOpenBoard: (id: string) => void;
@@ -16,6 +17,10 @@ interface BoardGridProps {
     e: React.MouseEvent,
     target: { type: 'board' | 'collection'; id: string }
   ) => void;
+  onDuplicateBoard: (id: string) => void;
+  onDuplicateCollection: (id: string) => void;
+  onShareBoard: (board: Dashboard) => void;
+  onShareCollection: (collection: Collection) => void;
 }
 
 export const BoardGrid: React.FC<BoardGridProps> = ({
@@ -23,10 +28,15 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   collections,
   boards,
   selectedIds,
+  canShare,
   onSelectCollection,
   onToggleSelect,
   onOpenBoard,
   onContextMenu,
+  onDuplicateBoard,
+  onDuplicateCollection,
+  onShareBoard,
+  onShareCollection,
 }) => {
   const { t } = useTranslation();
 
@@ -112,11 +122,14 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                       childCollectionsCount={counts.folders}
                       childBoardsCount={counts.boards}
                       isSelected={selectedIds.has(c.id)}
+                      canShare={canShare}
                       onClick={() => onSelectCollection(c.id)}
                       onToggleSelect={() => onToggleSelect(c.id)}
                       onContextMenu={(e) =>
                         onContextMenu(e, { type: 'collection', id: c.id })
                       }
+                      onDuplicate={() => onDuplicateCollection(c.id)}
+                      onShare={() => onShareCollection(c)}
                     />
                   );
                 })}
@@ -144,11 +157,14 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                           ? { name: parent.name, color: parent.color }
                           : null
                       }
+                      canShare={canShare}
                       onClick={() => onOpenBoard(b.id)}
                       onToggleSelect={() => onToggleSelect(b.id)}
                       onContextMenu={(e) =>
                         onContextMenu(e, { type: 'board', id: b.id })
                       }
+                      onDuplicate={() => onDuplicateBoard(b.id)}
+                      onShare={() => onShareBoard(b)}
                     />
                   );
                 })}

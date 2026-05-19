@@ -52,6 +52,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
     unpinBoard,
     renameDashboard,
     duplicateDashboard,
+    duplicateCollection,
     setDefaultDashboard,
     addToast,
     collectionsApi: {
@@ -542,10 +543,15 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
               collections={filteredCollections}
               boards={filteredBoards}
               selectedIds={multi.selectedIds}
+              canShare={canShare}
               onSelectCollection={setSelectedCollectionId}
               onToggleSelect={multi.toggle}
               onOpenBoard={handleOpenBoard}
               onContextMenu={handleContextMenu}
+              onDuplicateBoard={(id) => void duplicateDashboard(id)}
+              onDuplicateCollection={(id) => void duplicateCollection(id)}
+              onShareBoard={(b) => setShareTarget(b)}
+              onShareCollection={(c) => setShareCollectionTarget(c)}
             />
           </div>
           <DragOverlay dropAnimation={null}>{dragPreview}</DragOverlay>

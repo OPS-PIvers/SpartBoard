@@ -260,6 +260,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       saveCurrentDashboard: NOOP_ASYNC,
       deleteDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
       duplicateDashboard: NOOP_ASYNC as (id: string) => Promise<void>,
+      duplicateCollection: NOOP_ASYNC as (id: string) => Promise<void>,
       renameDashboard: NOOP_ASYNC as (
         id: string,
         name: string

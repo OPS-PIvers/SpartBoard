@@ -144,6 +144,12 @@ export interface DashboardContextValue {
   saveCurrentDashboard: () => Promise<void>;
   deleteDashboard: (id: string) => Promise<void>;
   duplicateDashboard: (id: string) => Promise<void>;
+  /**
+   * Flat clone: creates a new Collection (same parent, color) with `(Copy)`
+   * suffix and duplicates each direct child Board into it. Sub-Collections
+   * are NOT recursed — keeps the write bounded and predictable.
+   */
+  duplicateCollection: (id: string) => Promise<void>;
   renameDashboard: (id: string, name: string) => Promise<void>;
   loadDashboard: (id: string) => void;
   reorderDashboards: (ids: string[]) => Promise<void>;
