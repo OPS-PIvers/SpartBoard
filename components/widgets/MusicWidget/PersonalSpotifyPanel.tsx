@@ -236,14 +236,44 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
           <div className="p-3 bg-red-50 rounded-lg border border-red-200 text-xs text-red-700">
             <p className="font-semibold mb-1">Couldn&apos;t connect Spotify</p>
             <p>{state.message}</p>
+            {state.message.toLowerCase().includes('403') && (
+              <p className="mt-2 text-xs text-red-600">
+                If you connected the wrong Spotify account: click{' '}
+                <span className="font-semibold">Disconnect</span> below, then
+                log out at{' '}
+                <a
+                  href="https://accounts.spotify.com/logout"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline font-medium"
+                >
+                  accounts.spotify.com/logout
+                </a>{' '}
+                before clicking Connect again.
+              </p>
+            )}
           </div>
-          <button
-            type="button"
-            onClick={handleConnectClick}
-            className="w-full px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition"
-          >
-            Try again
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={triggerDisconnect}
+              className="flex-1 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg text-sm font-medium transition"
+            >
+              Disconnect
+            </button>
+            <button
+              type="button"
+              onClick={handleConnectClick}
+              className="flex-1 px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-sm font-medium transition"
+            >
+              Try again
+            </button>
+          </div>
+          {disconnectWarning && (
+            <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+              {disconnectWarning}
+            </div>
+          )}
         </div>
       )}
 

@@ -164,6 +164,16 @@ export async function runSpotifyAuthPopup(): Promise<PopupOutcome> {
   authUrl.searchParams.set('code_challenge_method', 'S256');
   authUrl.searchParams.set('code_challenge', codeChallenge);
   authUrl.searchParams.set('state', state);
+  // Force Spotify to show the consent dialog on every connect attempt
+  // (default behavior auto-redirects if the user previously consented).
+  // Without this, a stale cached session at accounts.spotify.com — e.g.
+  // from a prior connect attempt on a different/wrong account — silently
+  // re-consents the same wrong account every time the user clicks Connect,
+  // making the "Try again" loop in PersonalSpotifyPanel impossible to
+  // escape from inside the app. With show_dialog=true the user at least
+  // sees which account is about to be connected and can back out / log
+  // out of Spotify itself.
+  authUrl.searchParams.set('show_dialog', 'true');
 
   const popup = openCenteredPopup(authUrl.toString(), 'spotify-auth');
   if (!popup) {
