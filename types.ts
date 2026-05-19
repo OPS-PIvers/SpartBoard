@@ -5277,13 +5277,21 @@ export type GlobalFeature =
   | 'ai-file-context'
   | 'org-admin-writes'
   | 'assignment-modes'
-  | 'share-link-tracking';
+  | 'share-link-tracking'
+  | 'personal-spotify';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
   accessLevel: AccessLevel;
   betaUsers: string[];
   enabled: boolean;
+  /**
+   * Building IDs allowed access. Empty array or `undefined` means
+   * "no building restriction" — the feature applies org-wide.
+   * Non-empty array means: user must have at least one of these
+   * buildings in their `selectedBuildings` to pass the gate.
+   */
+  buildings?: string[];
   config?: Record<string, unknown>;
 }
 

@@ -53,12 +53,14 @@ import {
 import i18n from '../i18n';
 import { GoogleDriveService } from '../utils/googleDriveService';
 import { onDriveTokenChange } from '../utils/driveAuthErrors';
+import { reportGlobalPermissionsError } from '../utils/globalPermissionsErrors';
 import {
   refreshAccessTokenViaBackend,
   requestAndExchangeAuthCode,
   revokeBackendRefreshToken,
 } from '../utils/googleOAuthRefresh';
 import { logError } from '../utils/logError';
+import { FEATURE_DEFAULTS } from '../config/featureDefaults';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
 import {
@@ -281,6 +283,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [resolvedForUser, setResolvedForUser] = useState<User | null>(null);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
+  const [orgBuildingsLoaded, setOrgBuildingsLoaded] =
+    useState<boolean>(isAuthBypass);
   const [favoriteBackgrounds, setFavoriteBackgrounds] = useState<string[]>([]);
   const [recentBackgrounds, setRecentBackgrounds] = useState<string[]>([]);
   // Refs that always hold the latest list values so rapid callbacks don't close over stale state
@@ -901,13 +905,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setGlobalPermissions(permissions);
       },
       (error) => {
-        // Log error with more context to help debugging if it persists
+        // Log unconditionally via `logError` so production monitoring
+        // sees snapshot failures (the old `console.error` was guarded on
+        // `auth.currentUser` and only landed in the dev console). The
+        // `code` is what we typically need to triage — permission-denied
+        // vs unavailable vs internal — so capture it as structured ctx.
         if (auth.currentUser) {
-          console.error(
-            `[AuthContext] Firestore Error (${error.code}):`,
-            error.message
-          );
+          logError('AuthContext.globalPermissions.onSnapshot', error, {
+            code: error.code,
+          });
         }
+        // Surface a toast ONCE per session so a teacher whose snapshot
+        // is broken doesn't silently see stale feature availability.
+        // The latch in `reportGlobalPermissionsError` keeps a retry
+        // storm from fanning out a queue of identical toasts.
+        reportGlobalPermissionsError();
       }
     );
 
@@ -923,6 +935,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isAuthBypass) return;
     if (!user || !orgId) {
       setOrgBuildings([]);
+      setOrgBuildingsLoaded(true);
       return;
     }
 
@@ -933,12 +946,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           (d) => ({ id: d.id, ...d.data() }) as BuildingRecord
         );
         setOrgBuildings(items);
+        setOrgBuildingsLoaded(true);
       },
       (err) => {
         console.error(
           `[AuthContext] org buildings snapshot error (${orgId}):`,
           err
         );
+        setOrgBuildingsLoaded(true);
       }
     );
     return unsub;
@@ -1246,7 +1261,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setSelectedBuildingsState(canonical);
         }
       } catch (e) {
-        console.warn('[AuthContext] Returning-user Firestore probe failed:', e);
+        // Promote from `console.warn` to structured logError so probe
+        // failures surface in production monitoring. The probe runs once
+        // per session and is the gate between "show setup wizard" and
+        // "land on dashboard" for users without a profile doc — a silent
+        // failure here is a regressed first-run UX we want to triage.
+        // Guard on `auth.currentUser` to avoid logging post-signout race
+        // failures where the probe was already in flight when the user
+        // signed out.
+        if (auth.currentUser) {
+          logError('AuthContext.returningUserProbe', e, {
+            uid: probeUid,
+          });
+        }
       }
     })();
   }, [user, profileLoaded, setupCompleted]);
@@ -1824,14 +1851,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         case 'admin':
           return false;
         case 'beta':
-          return isBetaUser(permission.betaUsers, userEmail);
+          if (!isBetaUser(permission.betaUsers, userEmail)) return false;
+          break;
         case 'public':
-          return true;
+          break;
         default:
           return false;
       }
+      // Building check applies only when explicitly restricted. An empty
+      // array or `undefined` means "no building restriction" — the feature
+      // applies to anyone who passed the access-level check above. When set,
+      // the user must have at least one of these buildings in their
+      // `selectedBuildings` (self-managed in General Settings).
+      if (permission.buildings && permission.buildings.length > 0) {
+        const allowed = new Set(permission.buildings);
+        const hasMatch = selectedBuildings.some((b) => allowed.has(b));
+        if (!hasMatch) return false;
+      }
+      return true;
     },
-    [isAdmin, isBetaUser]
+    [isAdmin, isBetaUser, selectedBuildings]
   );
 
   const canAccessFeature = useCallback(
@@ -1843,8 +1882,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (p) => p.featureId === featureId
       );
 
-      // Public default for missing record — see resolvePermissionAccess docs.
-      if (!permission) return true;
+      // Per-feature default from the single FEATURE_DEFAULTS table.
+      // `missingDocPublic: true` (the historical baseline) returns true
+      // when no doc exists; `false` keeps the feature off until an
+      // admin explicitly persists settings — used for features that
+      // depend on external config (OAuth, API keys) the code can't
+      // verify on its own.
+      if (!permission) {
+        return FEATURE_DEFAULTS[featureId].missingDocPublic;
+      }
       return resolvePermissionAccess(permission, user.email);
     },
     [user, globalPermissions, resolvePermissionAccess]
@@ -2000,6 +2046,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         roleResolved,
         buildingIds,
         orgBuildings,
+        orgBuildingsLoaded,
         favoriteBackgrounds,
         recentBackgrounds,
         toggleFavoriteBackground,

@@ -42,12 +42,16 @@ import {
   Eye,
   ListChecks,
   PlayCircle,
+  Music2,
 } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { logError } from '@/utils/logError';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
+import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
+import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 
 const GLOBAL_FEATURES: {
   id: GlobalFeature;
@@ -132,22 +136,14 @@ const GLOBAL_FEATURES: {
     description:
       'Show "N views" on view-only Share cards in the Quiz, Video Activity, Mini App, and Guided Learning archives. Each visible card fires a Firestore aggregation query when the dashboard tab regains focus — keep this Admin-only unless you specifically want every teacher to see open counts.',
   },
+  {
+    id: 'personal-spotify',
+    label: 'Personal Spotify',
+    icon: Music2,
+    description:
+      'Let teachers connect their personal Spotify account in the Music widget. When off, Music shows only curated stations.',
+  },
 ];
-
-/**
- * Features whose missing-permission default is `'admin'` instead of the
- * usual `'public'`. Both `getPermission` (the editor's persisted-or-default
- * resolver) and `filteredFeatures` (the toolbar filter's fallback) read
- * from this set so the fallback rule is defined once. Any divergence
- * between the two would silently mis-categorize a feature in the access-
- * level filter when no permission doc exists yet.
- *
- * Keep this aligned with the runtime-side defaults in `AuthContext` —
- * `canSeeShareTracking` likewise treats a missing 'share-link-tracking'
- * record as admin-only.
- */
-const ADMIN_ONLY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
-  new Set<GlobalFeature>(['embed-mini-app', 'share-link-tracking']);
 
 /**
  * Widgets surfaced in the Assignment Modes admin section. All four widgets
@@ -517,11 +513,7 @@ export const GlobalPermissionsManager: React.FC = () => {
   }, [loadPermissions]);
 
   const getPermission = (featureId: GlobalFeature): GlobalFeaturePermission => {
-    const defaultAccessLevel: AccessLevel = ADMIN_ONLY_DEFAULT_FEATURES.has(
-      featureId
-    )
-      ? 'admin'
-      : 'public';
+    const defaults = FEATURE_DEFAULTS[featureId];
 
     // Set smart default limits
     let defaultLimit = 20;
@@ -532,9 +524,10 @@ export const GlobalPermissionsManager: React.FC = () => {
     return (
       permissions.get(featureId) ?? {
         featureId,
-        accessLevel: defaultAccessLevel,
+        accessLevel: defaults.defaultAccessLevel,
         betaUsers: [],
-        enabled: true,
+        enabled: defaults.defaultEnabled,
+        buildings: [],
         config: GEMINI_FEATURES.includes(featureId)
           ? { dailyLimit: defaultLimit, dailyLimitEnabled: true }
           : {},
@@ -579,8 +572,16 @@ export const GlobalPermissionsManager: React.FC = () => {
               (permission.config?.standardModel as string) || '(default)',
           });
         } catch (auditErr) {
-          // Non-blocking — don't fail the save if audit logging fails
-          console.error('Failed to write audit log:', auditErr);
+          // Non-blocking — don't fail the save if audit logging fails.
+          // Route through `logError` so the failure surfaces in structured
+          // logs / future Sentry, not just the local browser console. The
+          // save itself already succeeded; this is purely an audit-trail
+          // gap that ops needs to be able to see and triage.
+          logError(
+            'GlobalPermissionsManager.savePermission.auditLog',
+            auditErr,
+            { featureId, email: user?.email ?? null }
+          );
         }
       }
 
@@ -655,13 +656,12 @@ export const GlobalPermissionsManager: React.FC = () => {
       a.label.localeCompare(b.label)
     );
     return sorted.filter((feature) => {
+      const defaults = FEATURE_DEFAULTS[feature.id];
       const perm = permissions.get(feature.id) ?? {
         featureId: feature.id,
-        accessLevel: (ADMIN_ONLY_DEFAULT_FEATURES.has(feature.id)
-          ? 'admin'
-          : 'public') as AccessLevel,
+        accessLevel: defaults.defaultAccessLevel,
         betaUsers: [] as string[],
-        enabled: true,
+        enabled: defaults.defaultEnabled,
         config: feature.id === 'gemini-functions' ? { dailyLimit: 20 } : {},
       };
       if (filterEnabled === 'on' && !perm.enabled) return false;
@@ -998,6 +998,22 @@ export const GlobalPermissionsManager: React.FC = () => {
           {filteredFeatures.map((feature) => {
             const permission = getPermission(feature.id);
             const isSaving = saving.has(feature.id);
+            // True when there's no persisted permission doc yet — the
+            // controls below are showing the synthetic default from
+            // `getPermission`. If an admin saves now, the defaults
+            // (including `enabled` and `accessLevel`) are what land in
+            // Firestore — for features that default to disabled, that
+            // means saving with no other changes leaves the feature
+            // off. Surface a banner so the admin understands.
+            const isSyntheticDefault = !permissions.has(feature.id);
+            const syntheticDefaultNotice = isSyntheticDefault ? (
+              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
+                <strong>No saved settings.</strong> The values below are
+                defaults; they&apos;ll be persisted to Firestore when you click
+                Save. For features that default to disabled, toggle{' '}
+                <em>Enabled</em> on before saving.
+              </div>
+            ) : null;
 
             if (effectiveViewMode === 'list') {
               return (
@@ -1005,6 +1021,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                   key={feature.id}
                   className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
                 >
+                  {syntheticDefaultNotice}
                   <div className="flex items-center gap-4 p-3">
                     {/* Identity Section */}
                     <div className="flex items-center gap-3 w-56 xl:w-72 shrink-0">
@@ -1148,6 +1165,17 @@ export const GlobalPermissionsManager: React.FC = () => {
                     </div>
                   </div>
 
+                  {/* Building Restriction */}
+                  <div className="border-t border-slate-100 bg-slate-50 p-4 text-left">
+                    <PermissionBuildingMultiSelect
+                      label="Restrict to buildings"
+                      selectedIds={permission.buildings ?? []}
+                      onChange={(buildings) =>
+                        updatePermission(feature.id, { buildings })
+                      }
+                    />
+                  </div>
+
                   {/* Beta Users Panel */}
                   {permission.accessLevel === 'beta' && (
                     <div className="border-t border-slate-100 bg-slate-50 p-4 text-left">
@@ -1222,6 +1250,14 @@ export const GlobalPermissionsManager: React.FC = () => {
                 key={feature.id}
                 className="bg-white border-2 border-slate-200 rounded-2xl p-6 hover:border-brand-blue-light transition-all text-left"
               >
+                {isSyntheticDefault && (
+                  <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-snug">
+                    <strong>No saved settings.</strong> The values below are
+                    defaults; they&apos;ll be persisted to Firestore when you
+                    click Save. For features that default to disabled, toggle{' '}
+                    <em>Enabled</em> on before saving.
+                  </div>
+                )}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
                     <feature.icon className="w-6 h-6" />
@@ -1418,6 +1454,17 @@ export const GlobalPermissionsManager: React.FC = () => {
                     }
                   />
                 )}
+
+                {/* Building Restriction */}
+                <div className="mb-6">
+                  <PermissionBuildingMultiSelect
+                    label="Restrict to buildings"
+                    selectedIds={permission.buildings ?? []}
+                    onChange={(buildings) =>
+                      updatePermission(feature.id, { buildings })
+                    }
+                  />
+                </div>
 
                 {/* Save Button */}
                 <button
