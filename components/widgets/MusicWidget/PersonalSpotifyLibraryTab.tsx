@@ -28,8 +28,14 @@ const Skeleton: React.FC = () => (
       style={{ width: 'min(28px, 7cqmin)', height: 'min(28px, 7cqmin)' }}
     />
     <div className="flex-1 space-y-1">
-      <div className="h-3 bg-slate-700 rounded w-3/4" />
-      <div className="h-2 bg-slate-800 rounded w-1/2" />
+      <div
+        className="bg-slate-700 rounded"
+        style={{ height: 'min(10px, 2.5cqmin)', width: '75%' }}
+      />
+      <div
+        className="bg-slate-800 rounded"
+        style={{ height: 'min(7px, 2cqmin)', width: '50%' }}
+      />
     </div>
   </div>
 );
@@ -38,10 +44,10 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
   <div
-    className="text-slate-500 uppercase tracking-wider px-2"
+    className="text-slate-500 uppercase tracking-wider"
     style={{
       fontSize: 'min(10px, 3cqmin)',
-      letterSpacing: '0.05em',
+      padding: '0 min(8px, 2cqmin)',
       marginTop: 'min(12px, 3cqmin)',
       marginBottom: 'min(4px, 1cqmin)',
     }}
@@ -66,17 +72,26 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
           fontSize: 'min(12px, 3.5cqmin)',
         }}
       >
-        <div className="mb-2 font-semibold">
+        <div
+          style={{ marginBottom: 'min(8px, 2cqmin)' }}
+          className="font-semibold"
+        >
           Spotify connection needs an update
         </div>
-        <div className="mb-3 text-amber-200/80">
+        <div
+          style={{ marginBottom: 'min(12px, 3cqmin)' }}
+          className="text-amber-200/80"
+        >
           Your access has expanded. Reconnect to unlock playlists and recents.
         </div>
         <button
           type="button"
           onClick={onReconnect}
-          className="px-3 py-1 rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
-          style={{ fontSize: 'min(12px, 3.5cqmin)' }}
+          className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
+          style={{
+            fontSize: 'min(12px, 3.5cqmin)',
+            padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
+          }}
         >
           Reconnect
         </button>
