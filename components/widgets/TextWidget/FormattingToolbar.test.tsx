@@ -572,6 +572,140 @@ describe('FormattingToolbar', () => {
     document.body.removeChild(editor);
   });
 
+  // Regression for PR #1668: the toolbar's `runCommand` used to call
+  // `restoreSelection()` BEFORE `ensureTopLevelBlocks()` on the list
+  // path. When the user had already clicked into the editor (so
+  // selectionchange populated savedRangeRef) and then clicked the list
+  // button, `ensureTopLevelBlocks` would reparent the loose text nodes
+  // — which can collapse the live Range that restoreSelection just
+  // installed in window.getSelection — and toggleList would silently
+  // no-op on an empty selection. The fix swaps the order so blocks are
+  // normalized first, then the saved selection is applied to the
+  // already-stable DOM. These tests exercise the realistic user flow
+  // (selectionchange fires before the button click), which the older
+  // tests above don't — they install the selection before the toolbar
+  // mounts, so savedRangeRef stays null and restoreSelection no-ops.
+  const renderToolbarWithCapturedSelection = (innerHTML: string) => {
+    const editor = document.createElement('div');
+    editor.innerHTML = innerHTML;
+    document.body.appendChild(editor);
+    const editorRef = {
+      current: editor,
+    } as React.RefObject<HTMLDivElement>;
+
+    render(<FormattingToolbar {...defaultProps} editorRef={editorRef} />);
+
+    // Mirror what the browser does when the user clicks into the editor:
+    // install a real range on the live selection, then fire the
+    // selectionchange event so the toolbar's captureSelection callback
+    // clones it into savedRangeRef.current.
+    const textNode = editor.firstChild as Text;
+    const range = document.createRange();
+    range.setStart(textNode, 0);
+    range.setEnd(textNode, textNode.length);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+
+    return { editor };
+  };
+
+  it('wraps inline-only content in a bulleted list when the selection was captured before the click', () => {
+    const { editor } = renderToolbarWithCapturedSelection('hello world');
+
+    fireEvent.click(screen.getByTitle(/Bulleted List/));
+
+    expect(editor.querySelector('ul')).not.toBeNull();
+    expect(editor.querySelectorAll('li').length).toBe(1);
+    expect(editor.querySelector('li')?.textContent).toBe('hello world');
+
+    document.body.removeChild(editor);
+  });
+
+  it('wraps inline-only content in a numbered list when the selection was captured before the click', () => {
+    const { editor } = renderToolbarWithCapturedSelection('hello world');
+
+    fireEvent.click(screen.getByTitle(/Numbered List/));
+
+    expect(editor.querySelector('ol')).not.toBeNull();
+    expect(editor.querySelectorAll('li').length).toBe(1);
+    expect(editor.querySelector('li')?.textContent).toBe('hello world');
+
+    document.body.removeChild(editor);
+  });
+
+  it('toggles a bulleted list off after toggling it on with the selection captured', () => {
+    const { editor } = renderToolbarWithCapturedSelection('hello world');
+
+    const bulletButton = screen.getByTitle(/Bulleted List/);
+    fireEvent.click(bulletButton);
+    expect(editor.querySelector('ul')).not.toBeNull();
+
+    // Re-capture selection so savedRangeRef reflects the post-toggle DOM
+    // (the text node is now inside an <li>). Without this, the saved
+    // range still points at the original loose text node, which is no
+    // longer in the document.
+    const li = editor.querySelector('li');
+    if (!li || !li.firstChild) throw new Error('li firstChild missing');
+    const range = document.createRange();
+    range.setStart(li.firstChild, 0);
+    range.setEnd(li.firstChild, (li.firstChild as Text).length);
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    sel.removeAllRanges();
+    sel.addRange(range);
+    act(() => {
+      document.dispatchEvent(new Event('selectionchange'));
+    });
+
+    fireEvent.click(bulletButton);
+
+    expect(editor.querySelector('ul')).toBeNull();
+    expect(editor.querySelector('ol')).toBeNull();
+    expect(editor.textContent).toBe('hello world');
+
+    document.body.removeChild(editor);
+  });
+
+  it('normalizes blocks before installing the saved selection on the list path', () => {
+    // Stronger regression guard: even if jsdom doesn't collapse a live
+    // Range when its containers are reparented (real Chrome may, per the
+    // ensureTopLevelBlocks docstring), this test pins the operation order
+    // directly. If a future refactor re-introduces the
+    // `restoreSelection → ensureTopLevelBlocks` ordering, this fails
+    // regardless of the runtime's Range semantics.
+    const { editor } = renderToolbarWithCapturedSelection('hello world');
+
+    const events: string[] = [];
+    const sel = window.getSelection();
+    if (!sel) throw new Error('window.getSelection() unavailable');
+    const originalAddRange = sel.addRange.bind(sel);
+    sel.addRange = (r: Range) => {
+      events.push('addRange');
+      originalAddRange(r);
+    };
+    const originalInsertBefore = editor.insertBefore.bind(editor);
+    editor.insertBefore = <T extends Node>(node: T, ref: Node | null): T =>
+      (() => {
+        events.push('insertBefore');
+        return originalInsertBefore(node, ref);
+      })();
+
+    fireEvent.click(screen.getByTitle(/Bulleted List/));
+
+    const firstInsertBefore = events.indexOf('insertBefore');
+    const firstAddRange = events.indexOf('addRange');
+    expect(firstInsertBefore).toBeGreaterThanOrEqual(0);
+    expect(firstAddRange).toBeGreaterThanOrEqual(0);
+    expect(firstInsertBefore).toBeLessThan(firstAddRange);
+
+    document.body.removeChild(editor);
+  });
+
   it('reflects list toggle state via aria-pressed', () => {
     // Mock queryCommandState to simulate the caret being inside a list.
     const queryCommandStateMock = vi.fn(
