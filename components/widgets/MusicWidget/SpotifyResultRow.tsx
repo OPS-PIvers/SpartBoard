@@ -19,7 +19,7 @@ export const SpotifyResultRow: React.FC<Props> = ({
   <button
     type="button"
     onClick={onClick}
-    className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-white/5 text-left transition-colors"
+    className="w-full flex items-center rounded-md hover:bg-white/5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
     style={{
       gap: 'min(8px, 2cqmin)',
       padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
