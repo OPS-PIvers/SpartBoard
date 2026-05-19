@@ -32,6 +32,11 @@ vi.mock('firebase/firestore', () => ({
   getDoc: vi.fn(),
   setDoc: vi.fn().mockResolvedValue(undefined),
   onSnapshot: vi.fn(() => () => undefined),
+  // Silences "No 'X' export defined on the firebase/firestore mock" stderr
+  // noise from the returning-user probe at AuthContext.tsx:~1217.
+  getDocs: vi.fn().mockResolvedValue({ empty: true, docs: [] }),
+  query: vi.fn((c: unknown) => c),
+  limit: vi.fn(() => undefined),
 }));
 
 const ctxHolder: { current: AuthContextType | null } = { current: null };

@@ -109,8 +109,13 @@ const SOURCE_OPTIONS: {
 
 export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
-  const { canAccessFeature } = useAuth();
-  const canUsePersonal = canAccessFeature('personal-spotify');
+  const { canAccessFeature, profileLoaded } = useAuth();
+  // While the profile is loading, optimistically show the source toggle (matches
+  // what gated-in users see). Only hide it once profileLoaded is true AND the
+  // gate explicitly denies — prevents a brief flicker that would unmount the
+  // settings UI for users who do have access.
+  const gateDenied = profileLoaded && !canAccessFeature('personal-spotify');
+  const canUsePersonal = !gateDenied;
   const config = widget.config as MusicConfig;
   const { stations, isLoading } = useMusicStations();
   const { layout = 'default', source = 'curated' } = config;

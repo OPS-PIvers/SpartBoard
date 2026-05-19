@@ -431,6 +431,7 @@ describe('EmbedWidget', () => {
         roleResolved: true,
         buildingIds: [],
         orgBuildings: [],
+        orgBuildingsLoaded: true,
         favoriteBackgrounds: [],
         recentBackgrounds: [],
         toggleFavoriteBackground: vi.fn(),

@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
+import { useAdminBuildingsState } from '@/hooks/useAdminBuildings';
 
 vi.mock('@/hooks/useAdminBuildings', () => ({
   useAdminBuildings: () => [
@@ -9,6 +10,14 @@ vi.mock('@/hooks/useAdminBuildings', () => ({
     { id: 'mid', name: 'Middle' },
     { id: 'high', name: 'High School' },
   ],
+  useAdminBuildingsState: vi.fn(() => ({
+    buildings: [
+      { id: 'elem', name: 'Elementary' },
+      { id: 'mid', name: 'Middle' },
+      { id: 'high', name: 'High School' },
+    ],
+    isLoading: false,
+  })),
 }));
 
 describe('PermissionBuildingMultiSelect', () => {
@@ -81,5 +90,19 @@ describe('PermissionBuildingMultiSelect', () => {
     expect(orphanChip).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(orphanChip);
     expect(onChange).toHaveBeenCalledWith(['elem']);
+  });
+
+  it('suppresses orphan chips while buildings are loading', () => {
+    vi.mocked(useAdminBuildingsState).mockReturnValueOnce({
+      buildings: [],
+      isLoading: true,
+    });
+    render(
+      <PermissionBuildingMultiSelect
+        selectedIds={['orphan-id']}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/unknown building/i)).not.toBeInTheDocument();
   });
 });

@@ -294,6 +294,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [resolvedForUser, setResolvedForUser] = useState<User | null>(null);
   const [buildingIds, setBuildingIds] = useState<string[]>([]);
   const [orgBuildings, setOrgBuildings] = useState<BuildingRecord[]>([]);
+  const [orgBuildingsLoaded, setOrgBuildingsLoaded] =
+    useState<boolean>(isAuthBypass);
   const [favoriteBackgrounds, setFavoriteBackgrounds] = useState<string[]>([]);
   const [recentBackgrounds, setRecentBackgrounds] = useState<string[]>([]);
   // Refs that always hold the latest list values so rapid callbacks don't close over stale state
@@ -936,6 +938,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     if (isAuthBypass) return;
     if (!user || !orgId) {
       setOrgBuildings([]);
+      setOrgBuildingsLoaded(true);
       return;
     }
 
@@ -946,12 +949,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           (d) => ({ id: d.id, ...d.data() }) as BuildingRecord
         );
         setOrgBuildings(items);
+        setOrgBuildingsLoaded(true);
       },
       (err) => {
         console.error(
           `[AuthContext] org buildings snapshot error (${orgId}):`,
           err
         );
+        setOrgBuildingsLoaded(true);
       }
     );
     return unsub;
@@ -2028,6 +2033,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         roleResolved,
         buildingIds,
         orgBuildings,
+        orgBuildingsLoaded,
         favoriteBackgrounds,
         recentBackgrounds,
         toggleFavoriteBackground,

@@ -159,7 +159,11 @@ const ADMIN_ONLY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
   new Set<GlobalFeature>([
     'embed-mini-app',
     'share-link-tracking',
-    'personal-spotify', // align with CANACCESSFEATURE_MISSING_DOC_DEFAULT (default-off)
+    // personal-spotify intentionally omitted: DISABLED_BY_DEFAULT_FEATURES
+    // already gates it to enabled:false, so the accessLevel default is
+    // irrelevant until an admin explicitly saves the doc. Listing it here
+    // too would be misleading — the gate is off because enabled:false
+    // short-circuits, not because of the accessLevel.
   ]);
 
 /**

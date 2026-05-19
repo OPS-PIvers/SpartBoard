@@ -76,6 +76,7 @@ const mockAuth: AuthContextType = {
   roleResolved: true,
   buildingIds: [],
   orgBuildings: [],
+  orgBuildingsLoaded: true,
   favoriteBackgrounds: [],
   recentBackgrounds: [],
   toggleFavoriteBackground: async () => {

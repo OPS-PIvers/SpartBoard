@@ -55,10 +55,11 @@ canAccessFeature(featureId):
   permission = globalPermissions.find(featureId)
   if !permission         → false   (see "Defaults" below)
   if !permission.enabled → false
+  if isAdmin             → true   (short-circuit BEFORE per-level checks)
 
-  accessLevelOk = check accessLevel against user
-    admin   → isAdmin
-    beta    → isAdmin OR user.email in betaUsers
+  accessLevelOk = match accessLevel against user
+    admin   → false   (isAdmin already returned true above)
+    beta    → user.email in betaUsers
     public  → true
   if !accessLevelOk → false
 

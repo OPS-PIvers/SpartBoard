@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, Music, Pause, Play, Radio } from 'lucide-react';
-import { WidgetData, MusicConfig, TimeToolConfig } from '@/types';
+import { WidgetData, MusicConfig, MusicSource, TimeToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -84,14 +84,16 @@ const PlayButton: React.FC<PlayButtonProps> = ({
  * widget. Splitting them this way keeps both branches' hooks unconditional.
  */
 export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { canAccessFeature } = useAuth();
-  const canUsePersonal = canAccessFeature('personal-spotify');
-  const storedSource = (widget.config as MusicConfig).source ?? 'curated';
-  // When the gate is off, treat any stored `source: 'personal'` as curated.
-  // The stored config is preserved — re-enabling the gate restores personal
-  // playback without the user doing anything.
-  const effectiveSource =
-    canUsePersonal && storedSource === 'personal' ? 'personal' : 'curated';
+  const { canAccessFeature, profileLoaded } = useAuth();
+  const storedSource =
+    (widget.config as MusicConfig | undefined)?.source ?? 'curated';
+  // During the profile-load window, trust the stored source — users with
+  // access see no flicker, and the rare lost-access case briefly shows
+  // personal before being swapped to curated. We only "downgrade" to
+  // curated when profileLoaded is true AND the gate explicitly denies.
+  const gateDenied = profileLoaded && !canAccessFeature('personal-spotify');
+  const effectiveSource: MusicSource =
+    !gateDenied && storedSource === 'personal' ? 'personal' : 'curated';
 
   if (effectiveSource === 'personal') {
     return <PersonalSpotifyPlayer widget={widget} />;
