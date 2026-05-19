@@ -1264,7 +1264,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           setSelectedBuildingsState(canonical);
         }
       } catch (e) {
-        console.warn('[AuthContext] Returning-user Firestore probe failed:', e);
+        // Promote from `console.warn` to structured logError so probe
+        // failures surface in production monitoring. The probe runs once
+        // per session and is the gate between "show setup wizard" and
+        // "land on dashboard" for users without a profile doc — a silent
+        // failure here is a regressed first-run UX we want to triage.
+        // Guard on `auth.currentUser` to avoid logging post-signout race
+        // failures where the probe was already in flight when the user
+        // signed out.
+        if (auth.currentUser) {
+          logError('AuthContext.returningUserProbe', e, {
+            uid: probeUid,
+          });
+        }
       }
     })();
   }, [user, profileLoaded, setupCompleted]);
