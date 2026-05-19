@@ -29,6 +29,9 @@ export const SPOTIFY_SCOPES = [
   'user-read-private',
   'user-modify-playback-state',
   'user-read-playback-state',
+  'user-read-recently-played',
+  'playlist-read-private',
+  'playlist-read-collaborative',
 ] as const;
 
 export const SPOTIFY_AUTHORIZE_ENDPOINT =
