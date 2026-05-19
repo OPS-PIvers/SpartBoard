@@ -75,32 +75,43 @@ export const BackgroundsUploadsPanel: React.FC<
   useDriveReconnected(() => setHasFetchedDrive(false));
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      addToast('Image too large (Max 5MB)', 'error');
-      return;
-    }
-    if (!isInitialized) {
-      addToast('Google Drive is not connected. Please sign in again.', 'error');
-      return;
-    }
-    setUploading(true);
+    // Outer try/finally always clears the file input, even when a validation
+    // early-return fires (oversize file or Drive not initialized). Without
+    // this, the input keeps the last selection and the user can't re-pick
+    // the same file after dismissing an error toast — selecting the same
+    // path doesn't fire a `change` event.
     try {
-      const downloadURL = await uploadBackgroundToDrive(file);
-      applyUpload(downloadURL);
-      setUserUploads((prev) => [downloadURL, ...prev]);
-      addToast('Custom background saved to your Drive', 'success');
-    } catch (err) {
-      logError('BackgroundsUploadsPanel.handleFileUpload', err);
-      addToast(
-        t('backgrounds.uploadFailed', {
-          defaultValue: 'Upload failed. Check your connection and try again.',
-        }),
-        'error'
-      );
+      const file = e.target.files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        addToast('Image too large (Max 5MB)', 'error');
+        return;
+      }
+      if (!isInitialized) {
+        addToast(
+          'Google Drive is not connected. Please sign in again.',
+          'error'
+        );
+        return;
+      }
+      setUploading(true);
+      try {
+        const downloadURL = await uploadBackgroundToDrive(file);
+        applyUpload(downloadURL);
+        setUserUploads((prev) => [downloadURL, ...prev]);
+        addToast('Custom background saved to your Drive', 'success');
+      } catch (err) {
+        logError('BackgroundsUploadsPanel.handleFileUpload', err);
+        addToast(
+          t('backgrounds.uploadFailed', {
+            defaultValue: 'Upload failed. Check your connection and try again.',
+          }),
+          'error'
+        );
+      } finally {
+        setUploading(false);
+      }
     } finally {
-      setUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };

@@ -122,9 +122,12 @@ export const installDragSelectEnhancer = (
 
     // Don't intercept clicks on interactive descendants (links, form
     // controls). preventDefault would suppress their default actions
-    // and break expected behavior like following a link.
+    // and break expected behavior like following a link. `label` is
+    // included because clicking a <label> should activate its associated
+    // form control (focus an input, toggle a checkbox, etc.) — intercepting
+    // would swallow that behavior.
     if (target instanceof Element) {
-      if (target.closest('a, input, textarea, select, button')) return;
+      if (target.closest('a, input, textarea, select, button, label')) return;
     }
 
     const pos = caretPositionFromPoint(e.clientX, e.clientY);

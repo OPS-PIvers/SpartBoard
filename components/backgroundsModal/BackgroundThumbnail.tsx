@@ -63,7 +63,14 @@ export const BackgroundThumbnail: React.FC<BackgroundThumbnailProps> = ({
         e.stopPropagation();
         onToggleFavorite(item.id);
       }}
-      aria-label={isFavorite ? 'Unfavorite' : 'Favorite'}
+      // Include the item label so screen-reader users can distinguish stars
+      // in a grid of thumbnails (otherwise the user hears "Favorite,
+      // Favorite, Favorite..." with no context). aria-pressed conveys the
+      // toggle semantics regardless of how the label is read.
+      aria-label={
+        isFavorite ? `Unfavorite ${item.label}` : `Favorite ${item.label}`
+      }
+      aria-pressed={isFavorite}
       className={`absolute top-1.5 right-1.5 p-1 rounded-full transition-all ${
         isFavorite
           ? 'bg-amber-400 text-white opacity-100'
