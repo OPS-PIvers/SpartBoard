@@ -39,35 +39,41 @@ export const PersonalSpotifySearchTab: React.FC<Props> = ({
     }
     setIsSearching(true);
     setSearchError(null);
+    let cancelled = false;
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
         const token = await getAccessToken();
+        if (cancelled) return;
         if (!token) {
           setSearchError('Spotify session expired — reconnect.');
           setResults([]);
           return;
         }
         const out = await searchSpotify(token, trimmed, controller.signal);
+        if (cancelled) return;
         setResults(out);
       } catch (err) {
+        if (cancelled) return;
         if ((err as { name?: string }).name === 'AbortError') return;
         setSearchError(err instanceof Error ? err.message : 'Search failed.');
         setResults([]);
       } finally {
-        setIsSearching(false);
+        if (!cancelled) setIsSearching(false);
       }
     }, DEBOUNCE_MS);
 
     return () => {
+      cancelled = true;
       controller.abort();
       clearTimeout(timer);
     };
   }, [query, getAccessToken]);
 
   const handlePlay = (r: SpotifySearchResult) => {
-    const type = r.type as SpotifyPlayablePick['type'];
-    onPlay({ type, uri: r.uri });
+    if (r.type !== 'track' && r.type !== 'album' && r.type !== 'playlist')
+      return;
+    onPlay({ type: r.type, uri: r.uri });
   };
 
   return (
