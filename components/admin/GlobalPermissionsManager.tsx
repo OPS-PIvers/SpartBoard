@@ -47,6 +47,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { logError } from '@/utils/logError';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
@@ -608,8 +609,16 @@ export const GlobalPermissionsManager: React.FC = () => {
               (permission.config?.standardModel as string) || '(default)',
           });
         } catch (auditErr) {
-          // Non-blocking — don't fail the save if audit logging fails
-          console.error('Failed to write audit log:', auditErr);
+          // Non-blocking — don't fail the save if audit logging fails.
+          // Route through `logError` so the failure surfaces in structured
+          // logs / future Sentry, not just the local browser console. The
+          // save itself already succeeded; this is purely an audit-trail
+          // gap that ops needs to be able to see and triage.
+          logError(
+            'GlobalPermissionsManager.savePermission.auditLog',
+            auditErr,
+            { featureId, email: user?.email ?? null }
+          );
         }
       }
 
