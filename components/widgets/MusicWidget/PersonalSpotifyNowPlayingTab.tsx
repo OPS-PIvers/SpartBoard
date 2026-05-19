@@ -39,11 +39,15 @@ import { buildSpotifyEmbedUrl } from './utils';
 
 interface Props {
   url: string | null;
+  thumbnail?: string;
+  label?: string;
   onSwitchToLibrary: () => void;
 }
 
 export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
   url,
+  thumbnail,
+  label,
   onSwitchToLibrary,
 }) => {
   const { isPremium, getAccessToken } = useSpotifyAuth();
@@ -82,19 +86,21 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
 
   // ── 3. Free tier → embed iframe ─────────────────────────────────────────────
   if (!isPremium) {
-    return embedUrl ? <EmbedFallback url={embedUrl} /> : null;
+    return embedUrl ? <EmbedFallback url={embedUrl} title={label} /> : null;
   }
 
   // ── 4. Premium + parsed → SDK player ────────────────────────────────────────
   if (!parsed) {
     // URL is set but not parseable — the embed at least gives 30-second preview.
-    return embedUrl ? <EmbedFallback url={embedUrl} /> : null;
+    return embedUrl ? <EmbedFallback url={embedUrl} title={label} /> : null;
   }
 
   return (
     <PremiumSdkPlayer
       contextUri={parsed.type === 'track' ? null : parsed.uri}
       trackUri={parsed.type === 'track' ? parsed.uri : null}
+      thumbnail={thumbnail}
+      label={label}
       getAccessToken={getAccessToken}
       embedFallbackUrl={embedUrl}
     />
@@ -133,6 +139,8 @@ const EmbedFallback: React.FC<{ url: string; title?: string }> = ({
 interface PremiumProps {
   contextUri: string | null;
   trackUri: string | null;
+  thumbnail?: string;
+  label?: string;
   embedFallbackUrl: string | null;
   getAccessToken: () => Promise<string | null>;
 }
@@ -140,6 +148,8 @@ interface PremiumProps {
 const PremiumSdkPlayer: React.FC<PremiumProps> = ({
   contextUri,
   trackUri,
+  thumbnail,
+  label,
   embedFallbackUrl,
   getAccessToken,
 }) => {
@@ -298,11 +308,11 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
   // *something* rather than a broken card. Covers Premium-required, SDK
   // script load failure, init/auth errors, and connect()-returned-false.
   if (sdkFailed && embedFallbackUrl) {
-    return <EmbedFallback url={embedFallbackUrl} />;
+    return <EmbedFallback url={embedFallbackUrl} title={label} />;
   }
 
-  const displayImage = currentTrack.image;
-  const displayName = currentTrack.name ?? 'Spotify';
+  const displayImage = currentTrack.image ?? thumbnail;
+  const displayName = currentTrack.name ?? label ?? 'Spotify';
   const displayArtist = currentTrack.artist ?? '';
 
   return (

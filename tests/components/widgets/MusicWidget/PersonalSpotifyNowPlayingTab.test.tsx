@@ -6,7 +6,7 @@
  * the manual-verification checklist (Task 13).
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { PersonalSpotifyNowPlayingTab } from '@/components/widgets/MusicWidget/PersonalSpotifyNowPlayingTab';
 
 vi.mock('@/hooks/useSpotifyAuth', () => ({
@@ -34,5 +34,14 @@ describe('PersonalSpotifyNowPlayingTab', () => {
     expect(
       screen.getByRole('button', { name: /Open library/i })
     ).toBeInTheDocument();
+  });
+
+  it('calls onSwitchToLibrary when Open library is clicked', () => {
+    const onSwitch = vi.fn();
+    render(
+      <PersonalSpotifyNowPlayingTab url={null} onSwitchToLibrary={onSwitch} />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Open library/i }));
+    expect(onSwitch).toHaveBeenCalledOnce();
   });
 });
