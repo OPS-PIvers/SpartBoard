@@ -19,6 +19,13 @@
  * scroll lock, and `createPortal` to `document.body` (which also escapes
  * the settings panel's `will-change: transform` containing block, so a
  * `position: fixed` modal renders against the viewport).
+ *
+ * Rendered at `z-dialog` (15000) — above the standard `z-modal` (10000)
+ * tier and above maximized widgets (`z-maximized` = 10500). The default
+ * `z-modal` tier loses to widgets that have been clicked many times or
+ * are currently maximized, which made the dialog appear behind the Music
+ * widget's settings panel when the panel happened to overlap the
+ * viewport center.
  */
 
 import React, { useState } from 'react';
@@ -82,6 +89,7 @@ export const SpotifyPremiumDialog: React.FC<Props> = ({
       isOpen
       onClose={onCancel}
       maxWidth="max-w-md"
+      zIndex="z-dialog"
       ariaLabelledby="spotify-premium-title"
       customHeader={customHeader}
       contentClassName="px-0 pb-0"

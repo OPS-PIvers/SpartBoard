@@ -38,6 +38,7 @@ jobs:
           VITE_OPENWEATHER_API_KEY: ${{ secrets.VITE_OPENWEATHER_API_KEY }}
           VITE_GOOGLE_CLIENT_ID: ${{ secrets.VITE_GOOGLE_CLIENT_ID }}
           VITE_PEXELS_API_KEY: ${{ secrets.VITE_PEXELS_API_KEY }}
+          VITE_SPOTIFY_CLIENT_ID: ${{ secrets.VITE_SPOTIFY_CLIENT_ID }}
 
   deploy:
     needs: [lint, type-check, test]
@@ -58,6 +59,7 @@ jobs:
           echo "VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY }}" >> .env
           echo "VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID }}" >> .env
           echo "VITE_PEXELS_API_KEY=${{ secrets.VITE_PEXELS_API_KEY }}" >> .env
+          echo "VITE_SPOTIFY_CLIENT_ID=${{ secrets.VITE_SPOTIFY_CLIENT_ID }}" >> .env
 
       - name: Build project
         run: pnpm run build:all
