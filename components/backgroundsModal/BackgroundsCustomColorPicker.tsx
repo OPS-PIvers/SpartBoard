@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { isCustomBackground } from '@/utils/backgrounds';
+import { logError } from '@/utils/logError';
 
 interface BackgroundsCustomColorPickerProps {
   activeBackground?: string;
@@ -12,7 +14,16 @@ export const BackgroundsCustomColorPicker: React.FC<
 > = ({ activeBackground }) => {
   const { t } = useTranslation();
   const { setBackground } = useDashboard();
+  const { recordRecentBackground } = useAuth();
   const [customColor, setCustomColor] = useState('#3b82f6');
+
+  const applyCustomColor = () => {
+    const id = `custom:${customColor}`;
+    setBackground(id);
+    recordRecentBackground(id).catch((err) => {
+      logError('BackgroundsCustomColorPicker.apply.recordRecent', err);
+    });
+  };
 
   // Read current dashboard background — if it's a custom color, sync the picker
   const activeCustomValue =
@@ -54,7 +65,7 @@ export const BackgroundsCustomColorPicker: React.FC<
         <span className="font-mono text-xs text-slate-500">{customColor}</span>
         <button
           type="button"
-          onClick={() => setBackground(`custom:${customColor}`)}
+          onClick={applyCustomColor}
           disabled={isActive}
           className="ml-auto px-3 py-1.5 text-xxs font-bold uppercase tracking-wider bg-brand-blue-primary text-white rounded-md hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
         >

@@ -8,6 +8,7 @@ import {
   ArrowDownLeft,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { isCustomBackground } from '@/utils/backgrounds';
 
 const GRADIENT_DIRECTIONS = [
@@ -34,11 +35,17 @@ export const BackgroundsCustomGradientPicker: React.FC<
 > = ({ activeBackground }) => {
   const { t } = useTranslation();
   const { setBackground } = useDashboard();
+  const { recordRecentBackground } = useAuth();
   const [color1, setColor1] = useState('#3b82f6');
   const [color2, setColor2] = useState('#8b5cf6');
   const [angle, setAngle] = useState('135deg');
 
-  // Sync from active custom gradient
+  // Sync from active custom gradient using the "adjusting state while rendering"
+  // pattern (https://react.dev/reference/react/useState#storing-information-from-previous-renders)
+  // recommended in CLAUDE.md for prop-derived state resets — cheaper than a
+  // useEffect round-trip and avoids the post-commit flicker. The `setState`
+  // calls below are React-safe in this pattern; we defer the `logError`
+  // side effect with `queueMicrotask` so render itself stays pure.
   const activeCustomValue =
     activeBackground && isCustomBackground(activeBackground)
       ? activeBackground.slice('custom:'.length)
@@ -54,16 +61,30 @@ export const BackgroundsCustomGradientPicker: React.FC<
       setColor1(m[2]);
       setColor2(m[3]);
     } else if (activeCustomValue.startsWith('linear-gradient(')) {
-      logError(
-        'BackgroundsCustomGradientPicker.sync',
-        new Error('Could not parse saved gradient'),
-        { value: activeCustomValue }
-      );
+      // Defer past the render phase so we don't introduce an
+      // observable side effect during render. The error is informational —
+      // the picker stays on its previous values either way.
+      const unparseable = activeCustomValue;
+      queueMicrotask(() => {
+        logError(
+          'BackgroundsCustomGradientPicker.sync',
+          new Error('Could not parse saved gradient'),
+          { value: unparseable }
+        );
+      });
     }
   }
 
   const gradientValue = `linear-gradient(${angle}, ${color1}, ${color2})`;
   const isActive = activeCustomValue === gradientValue;
+
+  const applyCustomGradient = () => {
+    const id = `custom:${gradientValue}`;
+    setBackground(id);
+    recordRecentBackground(id).catch((err) => {
+      logError('BackgroundsCustomGradientPicker.apply.recordRecent', err);
+    });
+  };
 
   return (
     <div className="flex flex-col gap-3 p-3 rounded-lg border border-slate-200 bg-white">
@@ -125,7 +146,7 @@ export const BackgroundsCustomGradientPicker: React.FC<
 
       <button
         type="button"
-        onClick={() => setBackground(`custom:${gradientValue}`)}
+        onClick={applyCustomGradient}
         disabled={isActive}
         className="px-3 py-1.5 text-xxs font-bold uppercase tracking-wider bg-brand-blue-primary text-white rounded-md hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed"
       >

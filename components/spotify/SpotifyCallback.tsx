@@ -14,6 +14,7 @@
 import React, { useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import type { SpotifyCallbackMessage } from '@/utils/spotifyAuth';
+import { logError } from '@/utils/logError';
 
 interface InitialState {
   status: 'posting' | 'orphaned';
@@ -59,7 +60,7 @@ export const SpotifyCallback: React.FC = () => {
     try {
       opener.postMessage(initial.message, window.location.origin);
     } catch (err) {
-      console.error('[SpotifyCallback] postMessage failed', err);
+      logError('SpotifyCallback.postMessage', err);
       // Defer the state update past the effect's synchronous body so
       // `react-hooks/set-state-in-effect` doesn't flag a cascading render.
       // postMessage failures here are terminal (the opener can't receive

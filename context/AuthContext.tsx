@@ -939,6 +939,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return;
     }
 
+    // Reset to loading=false BEFORE attaching the snapshot so consumers gating
+    // on `useAdminBuildingsState().isLoading` (e.g. PermissionBuildingMultiSelect's
+    // orphan-chip suppression) re-enter the loading window on sign-out→sign-in
+    // or org switch. Without this, the previous user's "loaded" state leaks
+    // into the new user's initial snapshot gap and destructive actions can
+    // fire against a stale building list.
+    setOrgBuildingsLoaded(false);
+
     const unsub = onSnapshot(
       collection(db, 'organizations', orgId, 'buildings'),
       (snapshot) => {

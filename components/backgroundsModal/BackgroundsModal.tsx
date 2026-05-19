@@ -5,6 +5,7 @@ import { Modal } from '@/components/common/Modal';
 import { useBackgrounds } from '@/hooks/useBackgrounds';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+import { logError } from '@/utils/logError';
 import {
   BackgroundItem,
   BackgroundType,
@@ -71,8 +72,12 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
   const { t } = useTranslation();
   const { presets, colors, patterns, gradients } = useBackgrounds();
   const { activeDashboard, setBackground, addToast } = useDashboard();
-  const { favoriteBackgrounds, recentBackgrounds, toggleFavoriteBackground } =
-    useAuth();
+  const {
+    favoriteBackgrounds,
+    recentBackgrounds,
+    toggleFavoriteBackground,
+    recordRecentBackground,
+  } = useAuth();
 
   const [section, setSection] = useState<RailSection>({ kind: 'favorites' });
   const [search, setSearch] = useState('');
@@ -170,6 +175,11 @@ export const BackgroundsModal: React.FC<BackgroundsModalProps> = ({
 
   const handleSelect = (id: string) => {
     setBackground(id);
+    // Record the user's pick as a recent. Fire-and-forget — a failed write
+    // shouldn't block the visual state change the user already saw.
+    recordRecentBackground(id).catch((err) => {
+      logError('BackgroundsModal.handleSelect.recordRecent', err);
+    });
   };
 
   const handleToggleFavorite = (id: string) => {

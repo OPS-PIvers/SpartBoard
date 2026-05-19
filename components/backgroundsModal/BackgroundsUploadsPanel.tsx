@@ -23,7 +23,23 @@ export const BackgroundsUploadsPanel: React.FC<
     isInitialized,
   } = useGoogleDrive();
   const { setBackground, addToast } = useDashboard();
-  const { favoriteBackgrounds, toggleFavoriteBackground } = useAuth();
+  const {
+    favoriteBackgrounds,
+    toggleFavoriteBackground,
+    recordRecentBackground,
+  } = useAuth();
+
+  /**
+   * Apply an upload and record it as a recent. Fire-and-forget on the
+   * record — a failed Firestore write should not block the visual change
+   * the user already saw on screen.
+   */
+  const applyUpload = (url: string) => {
+    setBackground(url);
+    recordRecentBackground(url).catch((err) => {
+      logError('BackgroundsUploadsPanel.applyUpload.recordRecent', err);
+    });
+  };
 
   const [userUploads, setUserUploads] = useState<string[]>([]);
   const [loadingUploads, setLoadingUploads] = useState(false);
@@ -72,7 +88,7 @@ export const BackgroundsUploadsPanel: React.FC<
     setUploading(true);
     try {
       const downloadURL = await uploadBackgroundToDrive(file);
-      setBackground(downloadURL);
+      applyUpload(downloadURL);
       setUserUploads((prev) => [downloadURL, ...prev]);
       addToast('Custom background saved to your Drive', 'success');
     } catch (err) {
@@ -174,7 +190,7 @@ export const BackgroundsUploadsPanel: React.FC<
               item={item}
               isActive={item.id === activeBackground}
               isFavorite={favoriteBackgrounds.includes(item.id)}
-              onSelect={setBackground}
+              onSelect={applyUpload}
               onToggleFavorite={handleToggleFavorite}
             />
           ))}

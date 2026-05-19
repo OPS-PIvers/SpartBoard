@@ -9,11 +9,17 @@ import type { WidgetType, InternalToolType } from '@/types';
 const MAX_SLOTS = 2;
 
 /**
- * Internal tool types that live in TOOLS for dock/library use but cannot be
- * added to Quick Access — they're handled with bespoke logic in the dock
- * (record, magic) or are not a real WidgetType at all (remote).
+ * Tool types that live in TOOLS for dock/library use but cannot be added to
+ * Quick Access. Only `remote` is excluded — it's not a real `WidgetType` and
+ * the dock's QuickAccessButton onClick handler has no branch for it.
+ *
+ * `record` and `magic` ARE first-class Quick Access types: the dock's
+ * onClick handler in `components/layout/Dock.tsx` explicitly special-cases
+ * both (record → start/stopRecording; magic → setShowMagicLayout(true)).
+ * Excluding them here would also strand any dashboard that already has
+ * them in `quickAccessWidgets` — the user would see no way to deselect.
  */
-const INTERNAL_TOOL_TYPES = new Set<string>(['remote', 'record', 'magic']);
+const INTERNAL_TOOL_TYPES = new Set<string>(['remote']);
 
 interface QuickAccessModalProps {
   isOpen: boolean;
