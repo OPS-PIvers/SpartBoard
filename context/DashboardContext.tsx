@@ -59,6 +59,7 @@ import {
 } from '../utils/dashboardPII';
 import { migrateBoardForCollections } from '../utils/collectionsMigration';
 import { pickInitialBoard } from '../utils/pickInitialBoard';
+import { sanitizeBoardSnapshot } from '../utils/dashboardSanitize';
 import { logError } from '../utils/logError';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
@@ -3492,20 +3493,49 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         0
       );
 
+      // Deep-clone so widget configs / arrays aren't shared by reference
+      // between the original and the optimistic copy (Firestore snapshot
+      // will later reconcile with the same id — same shape).
+      //
+      // Sanitize first to strip host-specific linkage fields:
+      //   - `driveFileId` would cause `saveDashboard` → `exportDashboard`
+      //     to PATCH the SOURCE's Drive file with the copy's contents.
+      //   - `linkedShareId` / `linkedShareRole` / `linkedShareHostName` /
+      //     `linkedShareEnded` would falsely enroll the copy in the
+      //     source's live-share linkage.
+      //   - `thumbnailUrl`, `sharedGroups`, `annotationOverlay`,
+      //     `isDefault`, `isPinned`, `updatedAt`, `collectionId` are
+      //     also stripped — see `sanitizeBoardSnapshot` for the why.
+      //
+      // We re-apply `collectionId` so the copy stays in the same
+      // Collection as the source (the typical user expectation for
+      // single-board duplicate). `updatedAt` is stamped to `Date.now()`
+      // so the optimistic card shows a "just edited" date instead of
+      // inheriting the source's last-edit timestamp while we wait for
+      // Firestore to ack.
       const duplicated: Dashboard = {
-        ...dashboard,
+        ...sanitizeBoardSnapshot(structuredClone(dashboard)),
         id: crypto.randomUUID(),
         name: `${dashboard.name} (Copy)`,
-        isDefault: false,
+        collectionId: dashboard.collectionId,
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         order: maxOrder + 1,
       };
+
+      // Optimistic insert — the new card appears in the modal immediately.
+      // Mirrors the pattern in `renameDashboard` below. The Firestore
+      // snapshot listener will later arrive with the same id and reconcile
+      // silently (no flicker, same shape).
+      setDashboards((prev) => [...prev, duplicated]);
 
       try {
         await saveDashboard(duplicated);
         addToast(`Board "${dashboard.name}" duplicated`);
       } catch (err) {
         console.error('Duplicate failed:', err);
+        // Revert the optimistic insert so the user doesn't see a ghost row.
+        setDashboards((prev) => prev.filter((d) => d.id !== duplicated.id));
         addToast('Duplicate failed', 'error');
       }
     },
@@ -3551,20 +3581,39 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Deep-clone each board so widget configs and arrays aren't shared by
       // reference between the original and the duplicate. Mirrors the pattern
       // in `importSharedCollection` and `duplicateWidget` (same file).
+      //
+      // `sanitizeBoardSnapshot` strips host-specific linkage (driveFileId,
+      // linkedShare*, thumbnailUrl, sharedGroups, annotationOverlay,
+      // isDefault, isPinned, updatedAt, collectionId) so the copy doesn't
+      // PATCH the source's Drive file or inherit live-share state. We
+      // then reassign `collectionId` to the new Collection and stamp
+      // `updatedAt` so the optimistic card shows a "just edited" date.
+      const clones: Dashboard[] = children.map((dash, i) => ({
+        ...sanitizeBoardSnapshot(structuredClone(dash)),
+        id: crypto.randomUUID(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        order: maxOrder + 1 + i,
+        collectionId: newCollectionId,
+      }));
+
+      // Optimistic insert — all child duplicates appear in the modal
+      // immediately. The Firestore snapshot will reconcile silently with
+      // the same ids. Per-child failures revert their row below.
+      setDashboards((prev) => [...prev, ...clones]);
+
       const results = await Promise.allSettled(
-        children.map((dash, i) =>
-          saveDashboard({
-            ...structuredClone(dash),
-            id: crypto.randomUUID(),
-            isDefault: false,
-            createdAt: Date.now(),
-            order: maxOrder + 1 + i,
-            collectionId: newCollectionId,
-          })
-        )
+        clones.map((clone) => saveDashboard(clone))
       );
 
-      const failed = results.filter((r) => r.status === 'rejected').length;
+      const failedIds = clones
+        .filter((_, i) => results[i].status === 'rejected')
+        .map((c) => c.id);
+      if (failedIds.length > 0) {
+        setDashboards((prev) => prev.filter((d) => !failedIds.includes(d.id)));
+      }
+
+      const failed = failedIds.length;
       if (failed === 0) {
         addToast(`Collection "${source.name}" duplicated`);
       } else if (failed === children.length) {

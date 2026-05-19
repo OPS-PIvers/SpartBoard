@@ -19,6 +19,11 @@ interface BoardGridProps {
   ) => void;
   onDuplicateBoard: (id: string) => void;
   onDuplicateCollection: (id: string) => void;
+  // Probe functions from `useBusyIdSet` — return true while the
+  // corresponding duplicate is in-flight, so the per-card spinner +
+  // disabled state can render.
+  isBoardDuplicating: (id: string) => boolean;
+  isCollectionDuplicating: (id: string) => boolean;
   onShareBoard: (board: Dashboard) => void;
   onShareCollection: (collection: Collection) => void;
 }
@@ -35,6 +40,8 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
   onContextMenu,
   onDuplicateBoard,
   onDuplicateCollection,
+  isBoardDuplicating,
+  isCollectionDuplicating,
   onShareBoard,
   onShareCollection,
 }) => {
@@ -123,6 +130,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                       childBoardsCount={counts.boards}
                       isSelected={selectedIds.has(c.id)}
                       canShare={canShare}
+                      isDuplicating={isCollectionDuplicating(c.id)}
                       onClick={() => onSelectCollection(c.id)}
                       onToggleSelect={() => onToggleSelect(c.id)}
                       onContextMenu={(e) =>
@@ -158,6 +166,7 @@ export const BoardGrid: React.FC<BoardGridProps> = ({
                           : null
                       }
                       canShare={canShare}
+                      isDuplicating={isBoardDuplicating(b.id)}
                       onClick={() => onOpenBoard(b.id)}
                       onToggleSelect={() => onToggleSelect(b.id)}
                       onContextMenu={(e) =>
