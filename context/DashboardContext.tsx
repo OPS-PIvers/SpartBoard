@@ -59,6 +59,7 @@ import {
 } from '../utils/dashboardPII';
 import { migrateBoardForCollections } from '../utils/collectionsMigration';
 import { pickInitialBoard } from '../utils/pickInitialBoard';
+import { sanitizeBoardSnapshot } from '../utils/dashboardSanitize';
 import { logError } from '../utils/logError';
 import { useRosters } from '../hooks/useRosters';
 import { useGoogleDrive } from '../hooks/useGoogleDrive';
@@ -3495,12 +3496,30 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Deep-clone so widget configs / arrays aren't shared by reference
       // between the original and the optimistic copy (Firestore snapshot
       // will later reconcile with the same id — same shape).
+      //
+      // Sanitize first to strip host-specific linkage fields:
+      //   - `driveFileId` would cause `saveDashboard` → `exportDashboard`
+      //     to PATCH the SOURCE's Drive file with the copy's contents.
+      //   - `linkedShareId` / `linkedShareRole` / `linkedShareHostName` /
+      //     `linkedShareEnded` would falsely enroll the copy in the
+      //     source's live-share linkage.
+      //   - `thumbnailUrl`, `sharedGroups`, `annotationOverlay`,
+      //     `isDefault`, `isPinned`, `updatedAt`, `collectionId` are
+      //     also stripped — see `sanitizeBoardSnapshot` for the why.
+      //
+      // We re-apply `collectionId` so the copy stays in the same
+      // Collection as the source (the typical user expectation for
+      // single-board duplicate). `updatedAt` is stamped to `Date.now()`
+      // so the optimistic card shows a "just edited" date instead of
+      // inheriting the source's last-edit timestamp while we wait for
+      // Firestore to ack.
       const duplicated: Dashboard = {
-        ...structuredClone(dashboard),
+        ...sanitizeBoardSnapshot(structuredClone(dashboard)),
         id: crypto.randomUUID(),
         name: `${dashboard.name} (Copy)`,
-        isDefault: false,
+        collectionId: dashboard.collectionId,
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         order: maxOrder + 1,
       };
 
@@ -3562,11 +3581,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       // Deep-clone each board so widget configs and arrays aren't shared by
       // reference between the original and the duplicate. Mirrors the pattern
       // in `importSharedCollection` and `duplicateWidget` (same file).
+      //
+      // `sanitizeBoardSnapshot` strips host-specific linkage (driveFileId,
+      // linkedShare*, thumbnailUrl, sharedGroups, annotationOverlay,
+      // isDefault, isPinned, updatedAt, collectionId) so the copy doesn't
+      // PATCH the source's Drive file or inherit live-share state. We
+      // then reassign `collectionId` to the new Collection and stamp
+      // `updatedAt` so the optimistic card shows a "just edited" date.
       const clones: Dashboard[] = children.map((dash, i) => ({
-        ...structuredClone(dash),
+        ...sanitizeBoardSnapshot(structuredClone(dash)),
         id: crypto.randomUUID(),
-        isDefault: false,
         createdAt: Date.now(),
+        updatedAt: Date.now(),
         order: maxOrder + 1 + i,
         collectionId: newCollectionId,
       }));
