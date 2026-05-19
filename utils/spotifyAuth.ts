@@ -554,6 +554,14 @@ export interface SpotifyPlaylist {
   imageUrl?: string;
 }
 
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  uri: string;
+  artist: string;
+  imageUrl?: string;
+}
+
 export interface SpotifySearchResult {
   type: SpotifyResourceType;
   uri: string;
@@ -771,6 +779,68 @@ export async function fetchUserPlaylists(
       uri: p.uri,
       owner: p.owner?.display_name ?? 'Spotify',
       imageUrl: p.images?.[0]?.url,
+    });
+  }
+  return out;
+}
+
+interface SpotifyRecentlyPlayedApiResponse {
+  items: Array<{
+    track: {
+      id: string;
+      name: string;
+      uri: string;
+      artists: Array<{ name: string }>;
+      album?: { images?: Array<{ url: string }> };
+    } | null;
+  } | null>;
+}
+
+/**
+ * GET /me/player/recently-played for the connected user. Returns up to 20
+ * tracks. Tolerates null `items[]` entries and null `items[].track`
+ * (Spotify omits the track when it has been removed from the catalog).
+ *
+ * Throws SpotifyScopeError on 403/insufficient_scope.
+ */
+export async function fetchRecentlyPlayed(
+  accessToken: string,
+  signal?: AbortSignal
+): Promise<SpotifyTrack[]> {
+  const url = new URL('https://api.spotify.com/v1/me/player/recently-played');
+  url.searchParams.set('limit', '20');
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal,
+  });
+  if (!res.ok) {
+    if (res.status === 403) {
+      let body = '';
+      try {
+        body = (await res.text()).toLowerCase();
+      } catch {
+        // ignore
+      }
+      if (body.includes('scope')) {
+        throw new SpotifyScopeError(
+          'Spotify recently-played: insufficient scope'
+        );
+      }
+    }
+    throw new Error(`Spotify recently-played returned ${res.status}`);
+  }
+  const data = (await res.json()) as SpotifyRecentlyPlayedApiResponse;
+  const out: SpotifyTrack[] = [];
+  for (const item of data.items ?? []) {
+    if (!item) continue;
+    const t = item.track;
+    if (!t) continue;
+    out.push({
+      id: t.id,
+      name: t.name,
+      uri: t.uri,
+      artist: t.artists.map((a) => a.name).join(', '),
+      imageUrl: t.album?.images?.[0]?.url,
     });
   }
   return out;

@@ -4,7 +4,7 @@
  * null-item quirk, and our utilities must tolerate it without throwing.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { fetchUserPlaylists } from '@/utils/spotifyAuth';
+import { fetchUserPlaylists, fetchRecentlyPlayed } from '@/utils/spotifyAuth';
 
 describe('fetchUserPlaylists', () => {
   beforeEach(() => {
@@ -94,5 +94,88 @@ describe('fetchUserPlaylists', () => {
     );
 
     await expect(fetchUserPlaylists('tok')).rejects.toThrow(/500/);
+  });
+});
+
+describe('fetchRecentlyPlayed', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn());
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const respond = (body: unknown, ok = true, status = 200) =>
+    Promise.resolve({
+      ok,
+      status,
+      json: () => Promise.resolve(body),
+      text: () => Promise.resolve(JSON.stringify(body)),
+    } as Response);
+
+  it('flattens items[].track and normalizes shape', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      respond({
+        items: [
+          {
+            track: {
+              id: 't1',
+              name: 'Banana Pancakes',
+              uri: 'spotify:track:t1',
+              artists: [{ name: 'Jack Johnson' }],
+              album: { images: [{ url: 'https://img/t1.jpg' }] },
+            },
+          },
+        ],
+      })
+    );
+
+    const out = await fetchRecentlyPlayed('tok');
+
+    expect(out).toEqual([
+      {
+        id: 't1',
+        name: 'Banana Pancakes',
+        uri: 'spotify:track:t1',
+        artist: 'Jack Johnson',
+        imageUrl: 'https://img/t1.jpg',
+      },
+    ]);
+  });
+
+  it('tolerates null items and null nested track', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      respond({
+        items: [
+          null,
+          { track: null },
+          {
+            track: {
+              id: 't1',
+              name: 'Song',
+              uri: 'spotify:track:t1',
+              artists: [{ name: 'Artist' }],
+              album: { images: [] },
+            },
+          },
+        ],
+      })
+    );
+
+    const out = await fetchRecentlyPlayed('tok');
+
+    expect(out).toHaveLength(1);
+    expect(out[0].id).toBe('t1');
+  });
+
+  it('throws SpotifyScopeError on 403/scope', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      respond({ error: { message: 'Insufficient client scope' } }, false, 403)
+    );
+
+    await expect(fetchRecentlyPlayed('tok')).rejects.toMatchObject({
+      name: 'SpotifyScopeError',
+    });
   });
 });
