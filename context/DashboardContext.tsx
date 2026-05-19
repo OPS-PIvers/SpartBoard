@@ -3512,6 +3512,76 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, saveDashboard, addToast]
   );
 
+  // Flat clone: copies the Collection's metadata (name, parent, color) and
+  // each direct child Board into the new Collection. Sub-Collections are
+  // intentionally NOT recursed — keeps the operation bounded and predictable.
+  const duplicateCollection = useCallback(
+    async (id: string) => {
+      if (!user) {
+        addToast('Must be signed in to duplicate', 'error');
+        return;
+      }
+
+      const source = collections.find((c) => c.id === id);
+      if (!source) return;
+
+      let newCollectionId: string;
+      try {
+        newCollectionId = await collectionsApi.createCollection(
+          `${source.name} (Copy)`,
+          source.parentCollectionId ?? null,
+          source.color ? { color: source.color } : undefined
+        );
+      } catch (err) {
+        logError('DashboardContext.duplicateCollection', err, { id });
+        addToast('Failed to duplicate collection', 'error');
+        return;
+      }
+
+      const children = dashboards.filter((d) => d.collectionId === id);
+      if (children.length === 0) {
+        addToast(`Collection "${source.name}" duplicated`);
+        return;
+      }
+
+      const maxOrder = dashboards.reduce(
+        (m, db) => Math.max(m, db.order ?? 0),
+        0
+      );
+      // Deep-clone each board so widget configs and arrays aren't shared by
+      // reference between the original and the duplicate. Mirrors the pattern
+      // in `importSharedCollection` and `duplicateWidget` (same file).
+      const results = await Promise.allSettled(
+        children.map((dash, i) =>
+          saveDashboard({
+            ...structuredClone(dash),
+            id: crypto.randomUUID(),
+            isDefault: false,
+            createdAt: Date.now(),
+            order: maxOrder + 1 + i,
+            collectionId: newCollectionId,
+          })
+        )
+      );
+
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed === 0) {
+        addToast(`Collection "${source.name}" duplicated`);
+      } else if (failed === children.length) {
+        addToast(
+          `Collection "${source.name}" duplicated, but all ${failed} board(s) failed to copy`,
+          'error'
+        );
+      } else {
+        addToast(
+          `Collection "${source.name}" duplicated, but ${failed} of ${children.length} board(s) failed to copy`,
+          'error'
+        );
+      }
+    },
+    [user, dashboards, collections, collectionsApi, saveDashboard, addToast]
+  );
+
   const renameDashboard = useCallback(
     async (id: string, name: string) => {
       if (!user) {
@@ -4915,6 +4985,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       saveCurrentDashboard,
       deleteDashboard,
       duplicateDashboard,
+      duplicateCollection,
       renameDashboard,
       loadDashboard,
       reorderDashboards,
@@ -5035,6 +5106,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       saveCurrentDashboard,
       deleteDashboard,
       duplicateDashboard,
+      duplicateCollection,
       renameDashboard,
       loadDashboard,
       reorderDashboards,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Pin, Folder } from 'lucide-react';
+import { Star, Pin, Folder, Copy, Share2 } from 'lucide-react';
 import { useDraggable } from '@dnd-kit/core';
 import { useTranslation } from 'react-i18next';
 import type { Dashboard } from '@/types';
@@ -16,18 +16,24 @@ interface BoardCardProps {
   // null when in a Collection-scoped view (every Board there shares the
   // header Collection already) or when the Board is at root.
   collectionBadge?: { name: string; color?: string } | null;
+  canShare: boolean;
   onClick: () => void;
   onToggleSelect: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
+  onDuplicate: () => void;
+  onShare: () => void;
 }
 
 export const BoardCard: React.FC<BoardCardProps> = ({
   board,
   isSelected,
   collectionBadge,
+  canShare,
   onClick,
   onToggleSelect,
   onContextMenu,
+  onDuplicate,
+  onShare,
 }) => {
   const { unpinBoard, pinBoard } = useDashboard();
   const { t } = useTranslation();
@@ -123,49 +129,90 @@ export const BoardCard: React.FC<BoardCardProps> = ({
           {board.name}
         </div>
       </div>
-      <div className="text-xxs text-slate-400 mb-1">
+      {/* Reserve right-side runway for the absolute-positioned action row
+          below. Without this padding the metadata + collection badge run
+          under the Share/Duplicate/Pin icons on narrower cards. */}
+      <div className="text-xxs text-slate-400 mb-1 pr-20">
         {widgetCount} widgets · edited {lastEdited}
       </div>
-      {collectionBadge &&
-        (collectionBadge.color ? (
-          <div
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xxs font-bold max-w-full"
-            style={{
-              backgroundColor: collectionBadge.color,
-              color: pickReadableForeground(collectionBadge.color),
-            }}
-          >
-            <Folder className="w-2.5 h-2.5 flex-shrink-0" />
-            <span className="truncate">{collectionBadge.name}</span>
-          </div>
-        ) : (
-          <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-xxs text-slate-600 max-w-full">
-            <Folder className="w-2.5 h-2.5 flex-shrink-0" />
-            <span className="truncate">{collectionBadge.name}</span>
-          </div>
-        ))}
+      {collectionBadge && (
+        <div className="pr-20">
+          {collectionBadge.color ? (
+            <div
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-xxs font-bold max-w-full"
+              style={{
+                backgroundColor: collectionBadge.color,
+                color: pickReadableForeground(collectionBadge.color),
+              }}
+            >
+              <Folder className="w-2.5 h-2.5 flex-shrink-0" />
+              <span className="truncate">{collectionBadge.name}</span>
+            </div>
+          ) : (
+            <div className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-xxs text-slate-600 max-w-full">
+              <Folder className="w-2.5 h-2.5 flex-shrink-0" />
+              <span className="truncate">{collectionBadge.name}</span>
+            </div>
+          )}
+        </div>
+      )}
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          // Action toasts + rolls back on failure; .catch keeps the
-          // rethrow from surfacing as an unhandled rejection.
-          const op = board.isPinned ? unpinBoard(board.id) : pinBoard(board.id);
-          op.catch(() => undefined);
-        }}
-        onPointerDown={(e) => e.stopPropagation()}
-        aria-label={
-          board.isPinned
-            ? t('boardsModal.unpin', { defaultValue: 'Unpin' })
-            : t('boardsModal.pin', { defaultValue: 'Pin' })
-        }
-        className="absolute bottom-2 right-2 p-1 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition"
-      >
-        <Pin
-          className={`w-3.5 h-3.5 ${board.isPinned ? 'fill-amber-500 text-amber-500' : ''}`}
-        />
-      </button>
+      {/* Always-visible action row — touch-discoverable surface for the
+          actions teachers need at-a-glance (share, duplicate, pin).
+          Right-click context menu still lists these too. Each button stops
+          propagation on click + pointerdown so it doesn't trigger card-open
+          or dnd-kit drag-start. */}
+      <div className="absolute bottom-2 right-2 flex items-center gap-0.5">
+        {canShare && (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onShare();
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            aria-label={t('boardsModal.share', { defaultValue: 'Share' })}
+            className="p-1 rounded text-slate-300 hover:text-brand-blue-primary hover:bg-brand-blue-lighter transition"
+          >
+            <Share2 className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDuplicate();
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={t('boardsModal.duplicate', { defaultValue: 'Duplicate' })}
+          className="p-1 rounded text-slate-300 hover:text-slate-700 hover:bg-slate-100 transition"
+        >
+          <Copy className="w-3.5 h-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Action toasts + rolls back on failure; .catch keeps the
+            // rethrow from surfacing as an unhandled rejection.
+            const op = board.isPinned
+              ? unpinBoard(board.id)
+              : pinBoard(board.id);
+            op.catch(() => undefined);
+          }}
+          onPointerDown={(e) => e.stopPropagation()}
+          aria-label={
+            board.isPinned
+              ? t('boardsModal.unpin', { defaultValue: 'Unpin' })
+              : t('boardsModal.pin', { defaultValue: 'Pin' })
+          }
+          className="p-1 rounded text-slate-300 hover:text-amber-500 hover:bg-amber-50 transition"
+        >
+          <Pin
+            className={`w-3.5 h-3.5 ${board.isPinned ? 'fill-amber-500 text-amber-500' : ''}`}
+          />
+        </button>
+      </div>
     </div>
   );
 };

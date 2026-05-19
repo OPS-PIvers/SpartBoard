@@ -133,6 +133,9 @@ const mockDashboard: DashboardContextValue = {
   duplicateDashboard: async () => {
     /* mock */
   },
+  duplicateCollection: async () => {
+    /* mock */
+  },
   renameDashboard: async () => {
     /* mock */
   },
