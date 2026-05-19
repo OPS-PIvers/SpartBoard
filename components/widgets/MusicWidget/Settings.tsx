@@ -144,9 +144,10 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   key={opt.value}
                   type="button"
                   onClick={() =>
+                    // updateWidget merges partial config into existing state
+                    // in DashboardContext, so only the changed keys are passed.
                     updateWidget(widget.id, {
                       config: {
-                        ...config,
                         source: opt.value,
                         // Disable Time-Tool sync when switching to Spotify-based source.
                         ...(opt.value === 'personal' && config.syncWithTimeTool
@@ -188,7 +189,7 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 key={opt.value}
                 onClick={() =>
                   updateWidget(widget.id, {
-                    config: { ...config, layout: opt.value },
+                    config: { layout: opt.value },
                   })
                 }
                 title={opt.description}
@@ -245,9 +246,11 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     onClick={() => {
                       const selectedIsSpotify =
                         buildSpotifyEmbedUrl(station.url) !== null;
+                      // updateWidget merges partial config into existing
+                      // state in DashboardContext, so only the changed keys
+                      // are passed here.
                       updateWidget(widget.id, {
                         config: {
-                          ...config,
                           stationId: station.id,
                           ...(selectedIsSpotify && config.syncWithTimeTool
                             ? { syncWithTimeTool: false }
@@ -299,7 +302,7 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             checked={!!config.syncWithTimeTool}
             onChange={(checked: boolean) =>
               updateWidget(widget.id, {
-                config: { ...config, syncWithTimeTool: checked },
+                config: { syncWithTimeTool: checked },
               })
             }
             disabled={syncDisabled}
@@ -342,7 +345,7 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               key={c.hex}
               onClick={() =>
                 updateWidget(widget.id, {
-                  config: { ...config, bgColor: c.hex },
+                  config: { bgColor: c.hex },
                 })
               }
               className={`w-6 h-6 rounded-full border-2 transition-all ${
@@ -368,7 +371,7 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               key={c}
               onClick={() =>
                 updateWidget(widget.id, {
-                  config: { ...config, textColor: c },
+                  config: { textColor: c },
                 })
               }
               className={`w-6 h-6 rounded-full border-2 transition-all ${

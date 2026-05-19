@@ -143,15 +143,18 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
   const handlePremiumCancel = useCallback(() => {
     setShowPremiumDialog(false);
     // Revert source so the widget goes back to curated stations.
-    updateWidget(widget.id, { config: { ...config, source: 'curated' } });
-  }, [config, widget.id, updateWidget]);
+    // updateWidget merges partial config into existing state in
+    // DashboardContext, so only the changed key is passed.
+    updateWidget(widget.id, { config: { source: 'curated' } });
+  }, [widget.id, updateWidget]);
 
   const handleUrlBlur = useCallback(() => {
     const trimmed = urlInput.trim();
+    // updateWidget merges partial config into existing state in
+    // DashboardContext, so only the changed keys are passed here.
     if (!trimmed) {
       updateWidget(widget.id, {
         config: {
-          ...config,
           personalSpotifyUrl: '',
           personalSpotifyLabel: '',
           personalSpotifyThumbnail: '',
@@ -167,20 +170,20 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
     if (trimmed === config.personalSpotifyUrl) return;
     updateWidget(widget.id, {
       config: {
-        ...config,
         personalSpotifyUrl: trimmed,
         personalSpotifyLabel: '',
         personalSpotifyThumbnail: '',
       },
     });
-  }, [urlInput, config, widget.id, updateWidget]);
+  }, [urlInput, config.personalSpotifyUrl, widget.id, updateWidget]);
 
   const pickResult = useCallback(
     (result: SpotifySearchResult) => {
       const openUrl = spotifyOpenUrlFromInput(result.uri) ?? result.uri;
+      // updateWidget merges partial config into existing state in
+      // DashboardContext, so only the changed keys are passed here.
       updateWidget(widget.id, {
         config: {
-          ...config,
           personalSpotifyUrl: openUrl,
           personalSpotifyLabel: `${result.name} — ${result.subtitle}`,
           personalSpotifyThumbnail: result.imageUrl ?? '',
@@ -189,7 +192,7 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
       setUrlInput(openUrl);
       setSearchResults([]);
     },
-    [config, widget.id, updateWidget]
+    [widget.id, updateWidget]
   );
 
   return (
