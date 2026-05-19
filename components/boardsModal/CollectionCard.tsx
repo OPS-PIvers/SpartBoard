@@ -192,7 +192,9 @@ export const CollectionCard: React.FC<CollectionCardProps> = ({
             defaultValue: 'Duplicate Collection',
           })}
           className={`p-1 rounded hover:text-slate-700 hover:bg-slate-100 transition disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent ${
-            collection.color ? 'text-slate-500' : 'text-slate-300'
+            collection.color
+              ? 'text-slate-500 disabled:hover:text-slate-500'
+              : 'text-slate-300 disabled:hover:text-slate-300'
           }`}
         >
           {isDuplicating ? (
