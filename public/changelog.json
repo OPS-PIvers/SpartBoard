@@ -3,31 +3,8 @@
     {
       "version": "2026.05.19.2",
       "date": "2026-05-19",
-      "title": "My Spotify in Music, refreshed sidebar modals",
+      "title": "Refreshed sidebar modals",
       "overview": [
-        {
-          "type": "feature",
-          "subtitle": "My Spotify in the Music widget",
-          "items": [
-            {
-              "text": "Connect your own Spotify account from the Music widget settings and play any track straight on the dashboard."
-            },
-            {
-              "text": "Paste a Spotify link or search from inside the widget — playback depends on your Spotify plan:",
-              "items": [
-                {
-                  "text": "Premium plays the full track with play/pause controls."
-                },
-                {
-                  "text": "Free shows a 30-second preview."
-                }
-              ]
-            },
-            {
-              "text": "Your district admin enables this for your school in Global Settings."
-            }
-          ]
-        },
         {
           "type": "feature",
           "subtitle": "Refreshed sidebar modals",
@@ -56,10 +33,6 @@
         }
       ],
       "details": [
-        {
-          "type": "feature",
-          "text": "My Spotify in the Music widget — connect your own Spotify account from widget settings and play any track or search result on the dashboard. Premium accounts get full play/pause control; Free accounts fall back to a 30-second preview. Your district admin can enable this for your school in Global Settings."
-        },
         {
           "type": "feature",
           "text": "Backgrounds picker redesigned — new full modal with a left rail of Favorites, Recents, Media categories, Colors, Patterns, Gradients, and My Uploads. Star any background to favorite it, and recently used backgrounds are tracked automatically. Custom colors, gradients, and Drive uploads all live in the same place."
