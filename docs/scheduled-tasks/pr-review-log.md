@@ -4,6 +4,27 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-19
+
+- PRs reviewed:
+  - #1666 — fix(deps): override lodash-es to ^4.18.1 to close HIGH code-injection CVEs (base `dev-paul`, head `scheduled-tasks`, draft)
+  - #1665 — feat(admin): personal-spotify global feature gate with building scoping (base `dev-paul`, head `feat/personal-spotify-gate`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`, head `docs/line-endings-normalization-plan`)
+- Comments processed: 1 actionable unresolved review comment (PR #1666, gemini-code-assist proposing scope expansion to also override `flatted`/`ws`/`yaml`). PR #1665's six review threads are all already resolved. PR #1366's remaining `.editorconfig` proposal continues to be deferred (fourth sweep — still pending author decision).
+- Fixes pushed: 0
+  - PR #1666 gemini comment was a MEDIUM scope-expansion suggestion against an intentionally HIGH-only, single-line `pnpm.overrides` PR. The `flatted`/`ws`/`yaml` items are tracked individually as Open in `docs/scheduled-tasks/dependency-audit.md` and warrant per-override verification on the Tuesday cadence rather than being bundled into a focused production-bundle CVE fix. Replied inline with the scope rationale; no code change pushed.
+- Reviews posted: 3
+  - PR #1666 lodash-es override: Ready — focused security fix, lockfile change is a single resolution swap, all verification (audit, type-check, lint, format, tests 2809/2809, build) documented in the PR description. Companion audit-doc updates (axios → 1.16.0, tar override → >=7.5.11) are tracked Open items, not blockers.
+  - PR #1665 personal-spotify gate: Ready — generalized `buildings?: string[]` field on `GlobalFeaturePermission` is small/additive (existing 15 features unaffected), `FEATURE_DEFAULTS` table centralizes missing-doc default behavior with `personal-spotify` matching the `canSeeShareTracking` precedent (default-off until explicit admin enable). Four new test files (477+ lines) cover the gate matrix, orphan-chip flow, transparent fallback. CI green across all 7 checks. Flagged `context/AuthContext.tsx`'s `canAccessFeature` as the highest-leverage change (called on every gate check) but coverage is good.
+  - PR #1366 line-endings plan: Ready with minor notes — no new edits this sweep; all reviewer threads resolved across the prior four sweeps; only `.editorconfig` proposal continues deferred. Observation flagged: the PR is the canonical example of why execution is hard — 12+ revisions over 4 weeks because the renormalize-window precondition keeps reopening as new PRs land. Merging the docs is safe now; executing the plan still requires the quiet window.
+- Notes:
+  - Branch safety: zero pushes this run (no actionable code fixes needed). All three open PRs had either no actionable comments or pre-existing author replies. The `dev-paul` push permission was not exercised.
+  - PR #1665 is the only ready-for-review (non-draft) PR open against `dev-paul` this sweep. CI is green. Author has already swept all six review threads in prior commits.
+  - PR #1666 marks `scheduled-tasks` (the daily-audit / scripted-housekeeping branch) → `dev-paul`. Targeting `dev-paul` rather than `main` keeps the auto-deploy preview pipeline opt-in; expected behavior per the dev-\* deploy convention.
+  - PR #1366's deferred `.editorconfig` proposal has now been carried forward across four sweeps. Worth a sentence in a future status nudge: either bundle it into PR 1 when the plan is finally executed, or close it explicitly. Not pushing without author input.
+
+---
+
 ## 2026-05-18
 
 - PRs reviewed:
