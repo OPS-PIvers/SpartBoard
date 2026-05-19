@@ -78,6 +78,23 @@ export const PermissionBuildingMultiSelect: React.FC<Props> = ({
             </button>
           );
         })}
+        {/* Render orphan (deleted) building IDs so admins can clear them */}
+        {selectedIds
+          .filter((id) => !buildings.some((b) => b.id === id))
+          .map((id) => (
+            <button
+              key={id}
+              type="button"
+              onClick={() => onChange(selectedIds.filter((b) => b !== id))}
+              aria-label={`Remove unknown building ${id}`}
+              aria-pressed="true"
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold border border-dashed border-amber-400 bg-amber-50 text-amber-800 transition-colors hover:bg-amber-100"
+              title={`Building "${id}" no longer exists. Click to remove.`}
+            >
+              <X className="w-3 h-3" />
+              Unknown building ({id})
+            </button>
+          ))}
       </div>
     </div>
   );

@@ -49,7 +49,7 @@ import { useStorage } from '@/hooks/useStorage';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
-import { PermissionBuildingMultiSelect } from './PermissionBuildingMultiSelect';
+import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
 
 const GLOBAL_FEATURES: {
   id: GlobalFeature;
@@ -161,6 +161,17 @@ const ADMIN_ONLY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
     'share-link-tracking',
     'personal-spotify', // align with CANACCESSFEATURE_MISSING_DOC_DEFAULT (default-off)
   ]);
+
+/**
+ * Features that default to `enabled: false` for the in-memory permission
+ * object returned by getPermission(). MUST mirror runtime
+ * `canAccessFeature` missing-doc defaults that return false (currently
+ * just `personal-spotify` via CANACCESSFEATURE_MISSING_DOC_DEFAULT in
+ * context/AuthContext.tsx), so the admin UI display matches what
+ * end-users actually experience until a doc is saved.
+ */
+const DISABLED_BY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
+  new Set<GlobalFeature>(['personal-spotify']);
 
 /**
  * Widgets surfaced in the Assignment Modes admin section. All four widgets
@@ -547,7 +558,7 @@ export const GlobalPermissionsManager: React.FC = () => {
         featureId,
         accessLevel: defaultAccessLevel,
         betaUsers: [],
-        enabled: true,
+        enabled: !DISABLED_BY_DEFAULT_FEATURES.has(featureId),
         buildings: [],
         config: GEMINI_FEATURES.includes(featureId)
           ? { dailyLimit: defaultLimit, dailyLimitEnabled: true }

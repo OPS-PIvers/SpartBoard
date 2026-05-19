@@ -65,4 +65,21 @@ describe('PermissionBuildingMultiSelect', () => {
     fireEvent.click(screen.getByRole('button', { name: /remove elementary/i }));
     expect(onChange).toHaveBeenCalledWith(['high']);
   });
+
+  it('renders orphan IDs as amber chips and removes them on click', () => {
+    const onChange = vi.fn();
+    render(
+      <PermissionBuildingMultiSelect
+        selectedIds={['elem', 'deleted-bldg-99']}
+        onChange={onChange}
+      />
+    );
+    const orphanChip = screen.getByRole('button', {
+      name: /remove unknown building deleted-bldg-99/i,
+    });
+    expect(orphanChip).toBeInTheDocument();
+    expect(orphanChip).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(orphanChip);
+    expect(onChange).toHaveBeenCalledWith(['elem']);
+  });
 });

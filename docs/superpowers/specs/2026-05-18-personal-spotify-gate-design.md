@@ -1,7 +1,7 @@
 # Personal Spotify Global Feature Gate
 
 **Date:** 2026-05-18
-**Status:** Design — approved, pending implementation plan
+**Status:** Implemented (PR #1665)
 **Related:** PR #1662 (per-teacher Spotify auth in Music widget)
 
 ## Problem
