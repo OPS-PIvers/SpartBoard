@@ -51,6 +51,7 @@ import { logError } from '@/utils/logError';
 import { Toggle } from '../common/Toggle';
 import { Toast } from '../common/Toast';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
+import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 
 const GLOBAL_FEATURES: {
   id: GlobalFeature;
@@ -143,40 +144,6 @@ const GLOBAL_FEATURES: {
       'Let teachers connect their personal Spotify account in the Music widget. When off, Music shows only curated stations.',
   },
 ];
-
-/**
- * Features whose missing-permission default is `'admin'` instead of the
- * usual `'public'`. Both `getPermission` (the editor's persisted-or-default
- * resolver) and `filteredFeatures` (the toolbar filter's fallback) read
- * from this set so the fallback rule is defined once. Any divergence
- * between the two would silently mis-categorize a feature in the access-
- * level filter when no permission doc exists yet.
- *
- * Keep this aligned with the runtime-side defaults in `AuthContext` —
- * `canSeeShareTracking` likewise treats a missing 'share-link-tracking'
- * record as admin-only.
- */
-const ADMIN_ONLY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
-  new Set<GlobalFeature>([
-    'embed-mini-app',
-    'share-link-tracking',
-    // personal-spotify intentionally omitted: DISABLED_BY_DEFAULT_FEATURES
-    // already gates it to enabled:false, so the accessLevel default is
-    // irrelevant until an admin explicitly saves the doc. Listing it here
-    // too would be misleading — the gate is off because enabled:false
-    // short-circuits, not because of the accessLevel.
-  ]);
-
-/**
- * Features that default to `enabled: false` for the in-memory permission
- * object returned by getPermission(). MUST mirror runtime
- * `canAccessFeature` missing-doc defaults that return false (currently
- * just `personal-spotify` via CANACCESSFEATURE_MISSING_DOC_DEFAULT in
- * context/AuthContext.tsx), so the admin UI display matches what
- * end-users actually experience until a doc is saved.
- */
-const DISABLED_BY_DEFAULT_FEATURES: ReadonlySet<GlobalFeature> =
-  new Set<GlobalFeature>(['personal-spotify']);
 
 /**
  * Widgets surfaced in the Assignment Modes admin section. All four widgets
@@ -546,11 +513,7 @@ export const GlobalPermissionsManager: React.FC = () => {
   }, [loadPermissions]);
 
   const getPermission = (featureId: GlobalFeature): GlobalFeaturePermission => {
-    const defaultAccessLevel: AccessLevel = ADMIN_ONLY_DEFAULT_FEATURES.has(
-      featureId
-    )
-      ? 'admin'
-      : 'public';
+    const defaults = FEATURE_DEFAULTS[featureId];
 
     // Set smart default limits
     let defaultLimit = 20;
@@ -561,9 +524,9 @@ export const GlobalPermissionsManager: React.FC = () => {
     return (
       permissions.get(featureId) ?? {
         featureId,
-        accessLevel: defaultAccessLevel,
+        accessLevel: defaults.defaultAccessLevel,
         betaUsers: [],
-        enabled: !DISABLED_BY_DEFAULT_FEATURES.has(featureId),
+        enabled: defaults.defaultEnabled,
         buildings: [],
         config: GEMINI_FEATURES.includes(featureId)
           ? { dailyLimit: defaultLimit, dailyLimitEnabled: true }
@@ -693,13 +656,12 @@ export const GlobalPermissionsManager: React.FC = () => {
       a.label.localeCompare(b.label)
     );
     return sorted.filter((feature) => {
+      const defaults = FEATURE_DEFAULTS[feature.id];
       const perm = permissions.get(feature.id) ?? {
         featureId: feature.id,
-        accessLevel: (ADMIN_ONLY_DEFAULT_FEATURES.has(feature.id)
-          ? 'admin'
-          : 'public') as AccessLevel,
+        accessLevel: defaults.defaultAccessLevel,
         betaUsers: [] as string[],
-        enabled: true,
+        enabled: defaults.defaultEnabled,
         config: feature.id === 'gemini-functions' ? { dailyLimit: 20 } : {},
       };
       if (filterEnabled === 'on' && !perm.enabled) return false;

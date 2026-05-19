@@ -60,6 +60,7 @@ import {
   revokeBackendRefreshToken,
 } from '../utils/googleOAuthRefresh';
 import { logError } from '../utils/logError';
+import { FEATURE_DEFAULTS } from '../config/featureDefaults';
 import { stripTransientKeys } from '../utils/widgetConfigPersistence';
 import { parseAssignmentModesConfig } from '../utils/assignmentModesConfig';
 import {
@@ -195,19 +196,6 @@ const makeHybridBypassUser = (anonUser: User): User =>
         : value;
     },
   });
-
-/**
- * Per-feature default for `canAccessFeature` when no permission doc exists
- * in `global_permissions`. Features not listed here default to `true`
- * (public). Add an entry here when a feature must stay off until an admin
- * explicitly seeds the doc — e.g. when it depends on external configuration
- * (OAuth setup, API keys) that the code can't verify on its own.
- */
-const CANACCESSFEATURE_MISSING_DOC_DEFAULT: Partial<
-  Record<GlobalFeature, boolean>
-> = {
-  'personal-spotify': false,
-};
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
@@ -1894,10 +1882,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         (p) => p.featureId === featureId
       );
 
-      // Per-feature override; defaults to public (`true`) for any feature
-      // not listed in CANACCESSFEATURE_MISSING_DOC_DEFAULT.
+      // Per-feature default from the single FEATURE_DEFAULTS table.
+      // `missingDocPublic: true` (the historical baseline) returns true
+      // when no doc exists; `false` keeps the feature off until an
+      // admin explicitly persists settings — used for features that
+      // depend on external config (OAuth, API keys) the code can't
+      // verify on its own.
       if (!permission) {
-        return CANACCESSFEATURE_MISSING_DOC_DEFAULT[featureId] ?? true;
+        return FEATURE_DEFAULTS[featureId].missingDocPublic;
       }
       return resolvePermissionAccess(permission, user.email);
     },
