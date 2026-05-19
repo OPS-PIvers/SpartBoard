@@ -1,6 +1,93 @@
 {
   "entries": [
     {
+      "version": "2026.05.19.3",
+      "date": "2026-05-19",
+      "title": "Boards card actions and follow-up fixes",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Boards manager",
+          "items": [
+            {
+              "text": "Share and Duplicate icons now sit directly on every Board and Collection card — no more digging into the right-click menu on tablets and projector touchscreens."
+            },
+            {
+              "text": "Duplicate a whole Collection at once — name, color, and every board inside come along (sub-collections are left in place)."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "Duplicate feels instant: the new card appears in the grid immediately, the icon shows a spinner while the save finishes, and rapid clicks no longer create extra copies."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "subtitle": "Sidebar modal follow-ups",
+          "items": [
+            {
+              "text": "The new Backgrounds modal now tracks built-in colors, patterns, and gradients in Recents (not just custom uploads)."
+            },
+            {
+              "text": "If a background upload is rejected, picking the same file again now works instead of appearing stuck."
+            },
+            {
+              "text": "Record and Magic can be removed from Quick Access slots again after they were chosen."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Quiz and Video Activity now catch students clicking into the browser's URL bar or bookmark dropdown — recent browser changes had quietly let some focus-loss events slip past."
+            },
+            {
+              "text": "Text Widget bullet and numbered list toolbar buttons now apply formatting on a fresh single-line block (keyboard shortcuts were unaffected)."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Boards manager — Share and Duplicate icons now sit alongside Pin on every Board and Collection card, so the most common actions are one tap away on tablets and projector touchscreens. The Share icon honors your existing dashboard-sharing permission setting, and the right-click menu still works exactly the same way."
+        },
+        {
+          "type": "feature",
+          "text": "Duplicate a Collection — copy a whole Collection (name + color) along with every board inside it in one action. Sub-collections are left in place so the operation stays bounded; you can re-run Duplicate on any sub-folder you also want to copy."
+        },
+        {
+          "type": "improvement",
+          "text": "Duplicate (Boards and Collections) now feels instant — the new card appears in the grid immediately, the icon flips to a spinner while the save finishes in the background, and rapid taps no longer queue up multiple copies. If the save fails, the optimistic card is removed and the existing error toast still fires."
+        },
+        {
+          "type": "fix",
+          "text": "Quiz and Video Activity tab-switch detection now catches clicks into the browser's URL bar, bookmark dropdown, devtools, and other browser-chrome targets. Recent Chrome and Firefox changes had quietly stopped firing focus-loss events for those targets, so a few students could leave the tab without triggering the warning overlay. The published-results view is intentionally unchanged so a quick URL-bar click on a posted score doesn't lock students out."
+        },
+        {
+          "type": "fix",
+          "text": "Text Widget bullet-list and numbered-list toolbar buttons now apply the list formatting on a fresh single-line text block instead of just showing the button as active. Keyboard shortcuts (Ctrl+Shift+7 / Ctrl+Shift+8) were not affected."
+        },
+        {
+          "type": "fix",
+          "text": "Backgrounds modal — built-in colors, patterns, and gradients are now tracked in Recents alongside custom uploads, instead of only My Uploads showing up there."
+        },
+        {
+          "type": "fix",
+          "text": "Backgrounds upload — if a file is rejected (too large, Drive not ready, etc.), selecting the same file again now triggers a new upload attempt instead of silently doing nothing."
+        },
+        {
+          "type": "fix",
+          "text": "Quick Access Widgets modal — Record and Magic can now be removed from your slots once added. They were previously stranded in the selected list with no way to deselect."
+        }
+      ]
+    },
+    {
       "version": "2026.05.19.2",
       "date": "2026-05-19",
       "title": "Refreshed sidebar modals",
