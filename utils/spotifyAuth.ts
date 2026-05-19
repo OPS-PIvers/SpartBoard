@@ -532,6 +532,26 @@ export async function fetchSpotifyProfile(
 
 export type SpotifyResourceType = 'track' | 'album' | 'playlist' | 'artist';
 
+/**
+ * Thrown when the server returns 403 specifically because the token lacks a
+ * scope. The browse face catches this distinctly to show a "Reconnect to
+ * unlock playlists and recents" banner instead of a generic error.
+ */
+export class SpotifyScopeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpotifyScopeError';
+  }
+}
+
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  uri: string;
+  owner: string;
+  imageUrl?: string;
+}
+
 export interface SpotifySearchResult {
   type: SpotifyResourceType;
   uri: string;
@@ -691,6 +711,63 @@ export async function searchSpotify(
       id: p.id,
       name: p.name,
       subtitle: `Playlist · ${p.owner?.display_name ?? 'Spotify'}`,
+      imageUrl: p.images?.[0]?.url,
+    });
+  }
+  return out;
+}
+
+interface SpotifyPlaylistsApiResponse {
+  items: Array<{
+    id: string;
+    name: string;
+    uri: string;
+    owner?: { display_name?: string };
+    images?: Array<{ url: string }>;
+  } | null>;
+}
+
+/**
+ * GET /me/playlists for the connected user. Returns up to 50 playlists.
+ * Tolerates Spotify's documented null-item quirk in items[].
+ *
+ * Throws SpotifyScopeError on 403/insufficient_scope so the browse face
+ * can surface the dedicated reconnect banner; throws a generic Error on
+ * any other non-2xx so the surrounding tab can render a retry affordance.
+ */
+export async function fetchUserPlaylists(
+  accessToken: string,
+  signal?: AbortSignal
+): Promise<SpotifyPlaylist[]> {
+  const url = new URL('https://api.spotify.com/v1/me/playlists');
+  url.searchParams.set('limit', '50');
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal,
+  });
+  if (!res.ok) {
+    if (res.status === 403) {
+      let body = '';
+      try {
+        body = (await res.text()).toLowerCase();
+      } catch {
+        // ignore — body read failed, fall through to generic 403
+      }
+      if (body.includes('scope')) {
+        throw new SpotifyScopeError('Spotify playlists: insufficient scope');
+      }
+    }
+    throw new Error(`Spotify playlists returned ${res.status}`);
+  }
+  const data = (await res.json()) as SpotifyPlaylistsApiResponse;
+  const out: SpotifyPlaylist[] = [];
+  for (const p of data.items ?? []) {
+    if (!p) continue;
+    out.push({
+      id: p.id,
+      name: p.name,
+      uri: p.uri,
+      owner: p.owner?.display_name ?? 'Spotify',
       imageUrl: p.images?.[0]?.url,
     });
   }
