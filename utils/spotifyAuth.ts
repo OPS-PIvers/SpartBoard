@@ -482,7 +482,26 @@ export async function fetchSpotifyProfile(
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (!res.ok) {
-    throw new Error(`Spotify /me returned ${res.status}`);
+    // Spotify returns a JSON error body with a `message` field that's far
+    // more actionable than a bare status code. 403 in particular has
+    // several distinct causes (User Management allowlist mismatch in
+    // Development Mode, region/age restrictions, scope/grant problems);
+    // the body tells us which one.
+    let detail = '';
+    try {
+      const body = (await res.json()) as {
+        error?: { message?: string; status?: number };
+      };
+      if (body.error?.message) detail = `: ${body.error.message}`;
+    } catch {
+      try {
+        const text = await res.text();
+        if (text) detail = `: ${text.slice(0, 200)}`;
+      } catch {
+        /* nothing useful to surface */
+      }
+    }
+    throw new Error(`Spotify /me returned ${res.status}${detail}`);
   }
   const data = (await res.json()) as {
     id: string;
