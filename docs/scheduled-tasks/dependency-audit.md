@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-05-19_
-_Last action: 2026-05-19_
+_Last action: 2026-05-12_
 
 ---
 
@@ -15,6 +15,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### HIGH `lodash-es@4.17.23` code injection via `@imgly/background-removal` — in production dep chain
+
+- **Detected:** 2026-05-19
+- **File:** package.json (production dependency `@imgly/background-removal@^1.7.0`)
+- **Detail:** HIGH — `lodash-es` <=4.17.23 allows code injection via `_.template` (GHSA-gquv-pc4w-3hgv, same root cause as lodash non-ES build). This is reached via `@imgly/background-removal@1.7.0` which declares `lodash-es@4.17.23` as a direct dependency. `@imgly/background-removal` is a **production** dependency (in `dependencies`, not `devDependencies`) — the code injection vulnerability is present in the production bundle. `pnpm why lodash-es` confirms a single resolution: `lodash-es@4.17.23 <- @imgly/background-removal@1.7.0 <- spart-board (dependencies)`. Note: no lodash-es 4.18.x has been published (lodash-es mirrors lodash 4.x which is in maintenance mode with no planned 4.18 release) — the fix must come from @imgly updating its dependency or from overriding lodash-es at the pnpm level, though the latter may break @imgly's internal usage.
+- **Fix:** Check if a newer version of `@imgly/background-removal` (>1.7.0) drops or replaces its lodash-es dependency. If not, add `"lodash-es": ">=4.18.0"` to `pnpm.overrides` as a future-proof gate (it will not resolve until lodash-es 4.18.0 is published). Until then, assess whether the `_.template` code path is reachable in @imgly's actual usage in this app — if the background-removal widget uses only image-processing APIs and not lodash's template function, the exploitability is theoretical.
 
 ### MEDIUM `flatted@3.3.3` has unbounded recursion DoS + prototype pollution — via eslint chain
 
@@ -140,14 +147,6 @@ _Nothing currently in progress._
 ---
 
 ## Completed
-
-### HIGH `lodash-es@4.17.23` code injection via `@imgly/background-removal` — in production dep chain
-
-- **Detected:** 2026-05-19
-- **Completed:** 2026-05-19
-- **File:** package.json (`pnpm.overrides`)
-- **Detail:** HIGH — `lodash-es` <=4.17.23 was vulnerable to code injection via `_.template` (GHSA-r5fr-rjxr-66jc and GHSA-f23m-r3pf-42rh, both patched in >=4.18.0). Reached via the production dep chain `@imgly/background-removal@1.7.0 > lodash-es@4.17.23`. The 2026-05-19 audit note speculated that no lodash-es 4.18.x had been published, but `npm view lodash-es versions` confirmed 4.18.0 (released ~1 month ago) and 4.18.1 are both available, and `@imgly/background-removal@1.7.0` declares `lodash-es: ^4.17.21` — a range that accepts 4.18.x. A pnpm override is therefore feasible without waiting on upstream @imgly.
-- **Resolution:** Added `"lodash-es": "^4.18.1"` to the `pnpm.overrides` block in root `package.json`. After `pnpm install`, `pnpm why lodash-es` confirms a single resolution `lodash-es@4.18.1 <- @imgly/background-removal@1.7.0 <- spart-board (dependencies)`. `pnpm audit --json | grep -c "lodash-es"` returns 0 — both advisories cleared. Verified clean: `pnpm type-check` (0 errors), `pnpm lint --max-warnings 0` (0 errors/warnings), `pnpm format:check` (clean), `pnpm test` (2809 tests across 283 files all pass), `pnpm build` (19.26s, successful — `imgly-bg-removal` chunk still emits at 82.77 kB, confirming @imgly's lodash-es consumers still resolve correctly under the override).
 
 ### HIGH `protobufjs` CRITICAL arbitrary code execution via `firebase-functions` path
 
