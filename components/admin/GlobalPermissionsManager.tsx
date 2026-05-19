@@ -1036,6 +1036,22 @@ export const GlobalPermissionsManager: React.FC = () => {
           {filteredFeatures.map((feature) => {
             const permission = getPermission(feature.id);
             const isSaving = saving.has(feature.id);
+            // True when there's no persisted permission doc yet — the
+            // controls below are showing the synthetic default from
+            // `getPermission`. If an admin saves now, the defaults
+            // (including `enabled` and `accessLevel`) are what land in
+            // Firestore — for features that default to disabled, that
+            // means saving with no other changes leaves the feature
+            // off. Surface a banner so the admin understands.
+            const isSyntheticDefault = !permissions.has(feature.id);
+            const syntheticDefaultNotice = isSyntheticDefault ? (
+              <div className="px-4 py-2 bg-amber-50 border-b border-amber-200 text-xs text-amber-800">
+                <strong>No saved settings.</strong> The values below are
+                defaults; they&apos;ll be persisted to Firestore when you click
+                Save. For features that default to disabled, toggle{' '}
+                <em>Enabled</em> on before saving.
+              </div>
+            ) : null;
 
             if (effectiveViewMode === 'list') {
               return (
@@ -1043,6 +1059,7 @@ export const GlobalPermissionsManager: React.FC = () => {
                   key={feature.id}
                   className="bg-white border-2 border-slate-200 rounded-xl hover:border-brand-blue-light transition-colors overflow-hidden"
                 >
+                  {syntheticDefaultNotice}
                   <div className="flex items-center gap-4 p-3">
                     {/* Identity Section */}
                     <div className="flex items-center gap-3 w-56 xl:w-72 shrink-0">
@@ -1271,6 +1288,14 @@ export const GlobalPermissionsManager: React.FC = () => {
                 key={feature.id}
                 className="bg-white border-2 border-slate-200 rounded-2xl p-6 hover:border-brand-blue-light transition-all text-left"
               >
+                {isSyntheticDefault && (
+                  <div className="mb-4 px-3 py-2 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-800 leading-snug">
+                    <strong>No saved settings.</strong> The values below are
+                    defaults; they&apos;ll be persisted to Firestore when you
+                    click Save. For features that default to disabled, toggle{' '}
+                    <em>Enabled</em> on before saving.
+                  </div>
+                )}
                 <div className="flex items-center gap-4 mb-6">
                   <div className="bg-brand-blue-lighter p-3 rounded-xl text-brand-blue-primary">
                     <feature.icon className="w-6 h-6" />
