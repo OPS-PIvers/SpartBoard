@@ -604,6 +604,10 @@ export function parseSpotifyResource(
   }
 }
 
+// Spotify's search API is known to return literal `null` entries inside
+// `items[]` — most often in `playlists.items` for deleted/private playlists,
+// but it has been observed in tracks/albums too. Type all three as nullable
+// and skip null entries at the call site.
 interface SpotifySearchApiResponse {
   tracks?: {
     items: Array<{
@@ -612,7 +616,7 @@ interface SpotifySearchApiResponse {
       uri: string;
       artists: Array<{ name: string }>;
       album?: { images?: Array<{ url: string }> };
-    }>;
+    } | null>;
   };
   albums?: {
     items: Array<{
@@ -621,7 +625,7 @@ interface SpotifySearchApiResponse {
       uri: string;
       artists: Array<{ name: string }>;
       images?: Array<{ url: string }>;
-    }>;
+    } | null>;
   };
   playlists?: {
     items: Array<{
@@ -630,7 +634,7 @@ interface SpotifySearchApiResponse {
       uri: string;
       owner?: { display_name?: string };
       images?: Array<{ url: string }>;
-    }>;
+    } | null>;
   };
 }
 
@@ -655,6 +659,7 @@ export async function searchSpotify(
   const data = (await res.json()) as SpotifySearchApiResponse;
   const out: SpotifySearchResult[] = [];
   for (const t of data.tracks?.items ?? []) {
+    if (!t) continue;
     out.push({
       type: 'track',
       uri: t.uri,
@@ -665,6 +670,7 @@ export async function searchSpotify(
     });
   }
   for (const a of data.albums?.items ?? []) {
+    if (!a) continue;
     out.push({
       type: 'album',
       uri: a.uri,
@@ -675,6 +681,7 @@ export async function searchSpotify(
     });
   }
   for (const p of data.playlists?.items ?? []) {
+    if (!p) continue;
     out.push({
       type: 'playlist',
       uri: p.uri,
