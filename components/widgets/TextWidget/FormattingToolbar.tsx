@@ -32,10 +32,7 @@ import { IconButton } from '@/components/common/IconButton';
 import { FONT_COLORS } from '@/config/fonts';
 import { HIGHLIGHT_PALETTE, STICKY_NOTE_COLORS } from '@/config/colors';
 import { useDialog } from '@/context/useDialog';
-import {
-  needsBlockNormalization,
-  normalizeEditorBlocks,
-} from '@/utils/contentEditableBlocks';
+import { ensureTopLevelBlocks } from '@/utils/contentEditableBlocks';
 import { toggleList } from '@/utils/contentEditableLists';
 
 interface FormattingToolbarProps {
@@ -548,20 +545,24 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
    *  directly and works across any selection shape. */
   const runCommand = useCallback(
     (command: string, value: string = '') => {
-      restoreSelection();
       if (
         command === 'insertUnorderedList' ||
         command === 'insertOrderedList'
       ) {
         const editor = editorRef.current;
         if (!editor) return;
-        // Normalize first so the live mixed-bare-text-then-<div>
-        // structure that Chrome produces in fresh editors doesn't
-        // confuse the block collection. No-op for already-uniform
-        // structures.
-        if (needsBlockNormalization(editor)) {
-          normalizeEditorBlocks(editor);
-        }
+        // Normalize block structure BEFORE restoring the saved selection:
+        // `ensureTopLevelBlocks` reparents loose top-level text nodes into
+        // a wrapper `<div>`, which collapses a live Range that had just
+        // been installed in `window.getSelection()` — leaving `toggleList`
+        // with an empty selection so the button silently no-ops on
+        // inline-only content. The saved Range in `savedRangeRef`
+        // references the same text nodes (only moved, not cloned, per
+        // `ensureTopLevelBlocks`'s contract), so restoring it after the
+        // wrap puts the caret/highlight back where the user had it, now
+        // inside a stable block structure `toggleList` can act on.
+        ensureTopLevelBlocks(editor);
+        restoreSelection();
         const listTag = command === 'insertUnorderedList' ? 'ul' : 'ol';
         // `paragraphTag: 'div'` matches TextWidget's persistence
         // shape (`sanitizeHtml` allows `<div>`).
@@ -574,6 +575,7 @@ export const FormattingToolbar: React.FC<FormattingToolbarProps> = ({
         editor.dispatchEvent(new InputEvent('input', { bubbles: true }));
         return;
       }
+      restoreSelection();
       document.execCommand('styleWithCSS', false, 'true');
       document.execCommand(command, false, value);
       editorRef.current?.focus();

@@ -1,10 +1,129 @@
 {
   "entries": [
     {
+      "version": "2026.05.19.2",
+      "date": "2026-05-19",
+      "title": "Refreshed sidebar modals",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Refreshed sidebar modals",
+          "items": [
+            {
+              "text": "Backgrounds — a new full modal with Favorites, Recents, dynamic Media categories, Colors, Patterns, Gradients, and My Uploads. Click the star on any background to favorite it."
+            },
+            {
+              "text": "Quick Access Widgets — new modal with a search bar, a 6-column grid, and an \"X/2 slots\" counter that updates as you pick."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "Roster editor now shows PIN, first name, last name, and restrictions by default, and toggle colors match the rest of the app (colored = on, gray = off)."
+            },
+            {
+              "text": "Sidebar Style panel applies every change live — the Save/Discard step is gone and sliders feel smoother."
+            },
+            {
+              "text": "Modals, popovers, banners, toasts, and menus across the app now fade and slide in as designed instead of popping in instantly."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Backgrounds picker redesigned — new full modal with a left rail of Favorites, Recents, Media categories, Colors, Patterns, Gradients, and My Uploads. Star any background to favorite it, and recently used backgrounds are tracked automatically. Custom colors, gradients, and Drive uploads all live in the same place."
+        },
+        {
+          "type": "feature",
+          "text": "Quick Access Widgets redesigned — new modal with sticky search, a 6-column grid, an \"X/2 slots\" counter, and live-apply when you click a tile."
+        },
+        {
+          "type": "feature",
+          "text": "What's New panel redesigned with a curated, themed overview by default and a \"Read full update\" link for the full patch notes. The date now formats in your language and the redundant version label is gone."
+        },
+        {
+          "type": "feature",
+          "text": "Admins can tag background presets directly from the Background Manager (suggestions are pulled from your existing tags) to keep large libraries organized and easier to find."
+        },
+        {
+          "type": "feature",
+          "text": "Admins can restrict any global feature to specific buildings in Global Settings — roll a feature out school by school instead of district-wide."
+        },
+        {
+          "type": "improvement",
+          "text": "Roster (My Classes) editor — PIN, first name, last name, and restrictions are visible by default, and the toggle button colors flipped to match the rest of the app (colored = on, gray = off). Email stays off by default for privacy."
+        },
+        {
+          "type": "improvement",
+          "text": "Sidebar Style panel — removed the Save/Discard footer; every control now applies live as you change it, with smoother sliders."
+        },
+        {
+          "type": "improvement",
+          "text": "Animations restored — modals, popovers, banners, toasts, FAB menus, and sidebar tabs now fade and slide in as designed instead of mounting instantly."
+        }
+      ]
+    },
+    {
       "version": "2026.05.19",
       "date": "2026-05-19",
-      "title": "Collections — plus a Boards manager refresh",
-      "highlights": [
+      "title": "Collections, sharing, and a Boards manager refresh",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Collections",
+          "items": [
+            {
+              "text": "Group your boards into folders so a busy dashboard list stays organized."
+            },
+            {
+              "text": "Pick a color, then drag boards into the Collection from the Boards manager."
+            },
+            {
+              "text": "Share a whole Collection with a colleague, or save it as a template to reuse next year."
+            },
+            {
+              "text": "Pin frequently used boards so they appear at the top regardless of which Collection is active."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Quiz response security",
+          "items": [
+            {
+              "text": "Two new options when publishing quiz results for student review:",
+              "items": [
+                {
+                  "text": "Watermark — a faint identifier behind each student's responses so screenshots are traceable."
+                },
+                {
+                  "text": "Tab-navigation lock — pick how many times a student can leave the results tab before it locks."
+                }
+              ]
+            },
+            {
+              "text": "Unlock one student at a time without reopening the whole assignment."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Boards manager refresh",
+          "items": [
+            {
+              "text": "Every card shows a visual preview of its widgets, and you can drag from anywhere on the card."
+            },
+            {
+              "text": "Collections and Boards each get their own button instead of a shared kebab menu."
+            }
+          ]
+        }
+      ],
+      "details": [
         {
           "type": "feature",
           "text": "Collections — group your boards into folders, share a whole folder with another teacher, or save one as a template to reuse next year."
@@ -43,7 +162,7 @@
       "version": "2026.05.18",
       "date": "2026-05-18",
       "title": "What's New panel introduced",
-      "highlights": [
+      "details": [
         {
           "type": "feature",
           "text": "Click the new \"What's New\" link on the Update Available toast — or open it any time from the bottom of the sidebar menu — to see a friendly summary of what changed before you refresh."

@@ -123,6 +123,11 @@ const SubsApp = lazy(() =>
     default: module.SubsApp,
   }))
 );
+const SpotifyCallback = lazy(() =>
+  import('./components/spotify/SpotifyCallback').then((module) => ({
+    default: module.SpotifyCallback,
+  }))
+);
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -329,6 +334,17 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <ShortLinkRedirect />
+      </Suspense>
+    );
+  }
+
+  // Spotify OAuth callback — loaded into the popup window opened by
+  // `connectSpotify()`. Posts the auth code back to `window.opener` and
+  // closes itself; no providers, no auth, no Firestore listeners needed.
+  if (pathname === '/spotify-callback') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <SpotifyCallback />
       </Suspense>
     );
   }

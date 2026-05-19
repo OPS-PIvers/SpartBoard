@@ -43,3 +43,38 @@ export function useAdminBuildings(): Building[] {
     return orgBuildings.map(buildingRecordToBuilding);
   }, [orgBuildings]);
 }
+
+/**
+ * Like {@link useAdminBuildings} but also exposes a loading signal.
+ *
+ * `isLoading` is `true` during the window between sign-in and the first
+ * `orgBuildings` snapshot resolving. During this window the hook returns
+ * the `BUILDINGS` seed list as a placeholder — consumers that need to
+ * distinguish "definitive empty result" from "still loading" (e.g.
+ * {@link PermissionBuildingMultiSelect} suppressing orphan chips) should
+ * gate on `isLoading` instead of using the plain `useAdminBuildings()` hook.
+ *
+ * Does not break existing consumers of `useAdminBuildings`, which continues
+ * to return `Building[]` unchanged.
+ */
+export function useAdminBuildingsState(): {
+  buildings: Building[];
+  isLoading: boolean;
+} {
+  const auth = useContext(AuthContext);
+  const orgBuildings = auth?.orgBuildings;
+  // `orgBuildingsLoaded` flips to true after the first snapshot (or the
+  // "no org" reset). The seed fallback is returned in the loading window so
+  // the UI never shows blank, but consumers can suppress destructive actions
+  // (like removing orphan chips) until the list is confirmed.
+  const orgBuildingsLoaded = auth?.orgBuildingsLoaded ?? false;
+
+  const buildings = useMemo(() => {
+    if (!orgBuildings || orgBuildings.length === 0) {
+      return BUILDINGS;
+    }
+    return orgBuildings.map(buildingRecordToBuilding);
+  }, [orgBuildings]);
+
+  return { buildings, isLoading: !orgBuildingsLoaded };
+}

@@ -135,9 +135,31 @@ export const normalizeEditorBlocks = (
   options?: NormalizeOptions
 ): void => {
   if (!needsBlockNormalization(editor, options)) return;
+  wrapTopLevelContent(editor, options?.wrapTag ?? 'div');
+};
 
-  const wrapTag = options?.wrapTag ?? 'div';
+/** Like `normalizeEditorBlocks` but unconditional — wraps inline-only
+ *  content too. Use before list operations: `toggleList` collects from
+ *  `editor.children` (excludes text nodes), so loose top-level text
+ *  must first be wrapped in a block or the command silently no-ops.
+ *
+ *  Only moves nodes, never clones, so node identity is preserved. The
+ *  user's selection (a live Range) may collapse to the editor when its
+ *  startContainer's ancestor is reparented per the DOM spec; callers
+ *  that need the post-wrap range should re-read it from `window.
+ *  getSelection()` rather than relying on a saved Range object.
+ */
+export const ensureTopLevelBlocks = (
+  editor: HTMLDivElement,
+  options?: NormalizeOptions
+): void => {
+  wrapTopLevelContent(editor, options?.wrapTag ?? 'div');
+};
 
+const wrapTopLevelContent = (
+  editor: HTMLDivElement,
+  wrapTag: 'div' | 'p'
+): void => {
   let pending: Node[] = [];
   const flushPending = (insertBefore: Node | null) => {
     if (pending.length === 0) return;

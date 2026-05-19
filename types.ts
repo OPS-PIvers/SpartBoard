@@ -4072,6 +4072,14 @@ export interface MusicStation {
   buildingIds?: string[];
 }
 
+/**
+ * Music widget audio source.
+ * - `curated` — pick from admin-managed stations (`global_music_stations`).
+ * - `personal` — teacher's own Spotify account (requires OAuth connection;
+ *   full playback requires Spotify Premium, free accounts fall back to embed).
+ */
+export type MusicSource = 'curated' | 'personal';
+
 export interface MusicConfig {
   stationId: string;
   syncWithTimeTool?: boolean;
@@ -4079,6 +4087,18 @@ export interface MusicConfig {
   textColor?: string;
   /** Widget display layout */
   layout?: MusicLayout;
+  /** Audio source — defaults to 'curated' for backward compatibility. */
+  source?: MusicSource;
+  /**
+   * Personal Spotify resource URL or URI to play when `source === 'personal'`.
+   * Supports https://open.spotify.com/{track|album|playlist}/{id} or
+   * spotify:{type}:{id}. Validated at play-time via `parseSpotifyResource`.
+   */
+  personalSpotifyUrl?: string;
+  /** Human-readable label for the personal selection (track/album/playlist name). */
+  personalSpotifyLabel?: string;
+  /** Optional thumbnail for the personal selection. */
+  personalSpotifyThumbnail?: string;
 }
 
 export interface OrganizerNode {
@@ -5068,6 +5088,19 @@ export interface UserProfile {
    * from being re-seeded on subsequent logins.
    */
   dockInitialized?: boolean;
+  /**
+   * IDs of backgrounds the user has starred as favorites. May be preset IDs
+   * (Tailwind class strings like `'bg-gradient-to-br from-blue-400'`), HTTPS
+   * URLs (Drive uploads or preset images), or `custom:` values (custom solid
+   * colors or gradients entered via the color picker).
+   */
+  favoriteBackgrounds?: string[];
+  /**
+   * Recently applied background IDs, newest first, capped at 12. Same ID
+   * shapes as {@link favoriteBackgrounds}: Tailwind class strings, HTTPS
+   * URLs, or `custom:` values.
+   */
+  recentBackgrounds?: string[];
 }
 
 /**
@@ -5244,13 +5277,21 @@ export type GlobalFeature =
   | 'ai-file-context'
   | 'org-admin-writes'
   | 'assignment-modes'
-  | 'share-link-tracking';
+  | 'share-link-tracking'
+  | 'personal-spotify';
 
 export interface GlobalFeaturePermission {
   featureId: GlobalFeature;
   accessLevel: AccessLevel;
   betaUsers: string[];
   enabled: boolean;
+  /**
+   * Building IDs allowed access. Empty array or `undefined` means
+   * "no building restriction" — the feature applies org-wide.
+   * Non-empty array means: user must have at least one of these
+   * buildings in their `selectedBuildings` to pass the gate.
+   */
+  buildings?: string[];
   config?: Record<string, unknown>;
 }
 
@@ -5385,6 +5426,8 @@ export interface BackgroundPreset {
   createdAt: number;
   /** Admin-defined category label (e.g. "Nature", "Holidays") */
   category?: string;
+  /** Admin-defined tags for filtering (e.g. ["calm", "holiday"]) */
+  tags?: string[];
   /** Building IDs this background is assigned to; empty/undefined = all buildings */
   buildingIds?: string[];
   /** Whether this background is featured in the sidebar overview (max ~6 per category) */

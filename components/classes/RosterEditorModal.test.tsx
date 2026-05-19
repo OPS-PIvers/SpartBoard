@@ -8,6 +8,11 @@ import { ClassRoster } from '@/types';
  * Tests for the row-based roster editor. Each student is a directly
  * editable row (not a textarea slice). Tests add rows via "+ Add Student"
  * and type into per-row inputs to simulate the real UX.
+ *
+ * Default state (Slice 4): showLastNames=true, showPins=true,
+ * showRestrictions=true, showEmails=false.
+ * Tests that rely on the old single-name ("Full name") placeholder must
+ * explicitly toggle last-names OFF first.
  */
 describe('RosterEditorModal', () => {
   it('renders empty state for a new roster', () => {
@@ -24,18 +29,18 @@ describe('RosterEditorModal', () => {
     expect(screen.getByText(/no students yet/i)).toBeInTheDocument();
     // No rows yet, so no name inputs
     expect(
-      screen.queryByPlaceholderText(/^full name$/i)
+      screen.queryByPlaceholderText(/^first name$/i)
     ).not.toBeInTheDocument();
-    // Toggle buttons always visible
+    // Toggle buttons always visible — last names ON by default so label is "−"
     expect(
-      screen.getByRole('button', { name: /\+ last name/i })
+      screen.getByRole('button', { name: /− last name/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole('button', { name: /\+ quiz pin/i })
+      screen.getByRole('button', { name: /− quiz pin/i })
     ).toBeInTheDocument();
   });
 
-  it('adds a row via "+ Add Student" and toggles to dual name fields', async () => {
+  it('adds a row via "+ Add Student" and shows dual name fields by default', async () => {
     const user = userEvent.setup();
     render(
       <RosterEditorModal
@@ -46,15 +51,20 @@ describe('RosterEditorModal', () => {
       />
     );
 
+    // Last names are ON by default — adding a row yields "First name"/"Last name"
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    expect(screen.getByPlaceholderText(/^full name$/i)).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: /\+ last name/i }));
     expect(screen.getByPlaceholderText(/^first name$/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/^last name$/i)).toBeInTheDocument();
-    // Toggle label flips to minus
+    // Toggle label is "− Last Name" (currently active)
     expect(
       screen.getByRole('button', { name: /− last name/i })
+    ).toBeInTheDocument();
+
+    // Clicking the toggle collapses to single-name mode
+    await user.click(screen.getByRole('button', { name: /− last name/i }));
+    expect(screen.getByPlaceholderText(/^full name$/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /\+ last name/i })
     ).toBeInTheDocument();
   });
 
@@ -73,6 +83,10 @@ describe('RosterEditorModal', () => {
     );
 
     await user.type(screen.getByPlaceholderText(/class name/i), 'New Class');
+
+    // Collapse last-name column so inputs show "Full name" placeholder
+    await user.click(screen.getByRole('button', { name: /− last name/i }));
+
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     await user.type(screen.getByPlaceholderText(/^full name$/i), 'Alice Smith');
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
@@ -111,7 +125,7 @@ describe('RosterEditorModal', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /\+ last name/i }));
+    // Last names are already visible by default — no toggle needed
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
 
     const firstInputs = screen.getAllByPlaceholderText(/^first name$/i);
@@ -149,6 +163,9 @@ describe('RosterEditorModal', () => {
       />
     );
 
+    // Start in single-name mode by collapsing the last-name column first
+    await user.click(screen.getByRole('button', { name: /− last name/i }));
+
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     await user.type(screen.getByPlaceholderText(/^full name$/i), 'Alice Smith');
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
@@ -158,6 +175,7 @@ describe('RosterEditorModal', () => {
     names = screen.getAllByPlaceholderText(/^full name$/i);
     await user.type(names[2], 'Charlie');
 
+    // Now expand last-name column — names should be split
     await user.click(screen.getByRole('button', { name: /\+ last name/i }));
 
     const firsts = screen.getAllByPlaceholderText(/^first name$/i);
@@ -181,7 +199,7 @@ describe('RosterEditorModal', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /\+ last name/i }));
+    // Last names are already visible by default — add students directly
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
     await user.type(screen.getByPlaceholderText(/^first name$/i), 'Alice');
     await user.type(screen.getByPlaceholderText(/^last name$/i), 'Smith');
@@ -192,7 +210,7 @@ describe('RosterEditorModal', () => {
     await user.type(firsts[1], 'Bob');
     await user.type(lasts[1], 'Jones');
 
-    // Toggle off — label is now "− Last Name"
+    // Toggle off — label is "− Last Name" (active state)
     await user.click(screen.getByRole('button', { name: /− last name/i }));
 
     const fullNames = screen.getAllByPlaceholderText(/^full name$/i);
@@ -200,7 +218,7 @@ describe('RosterEditorModal', () => {
     expect(fullNames[1]).toHaveValue('Bob Jones');
   });
 
-  it('shows "+ Quiz PIN" button and toggles PIN column', async () => {
+  it('shows "− Quiz PIN" button (visible by default) and toggles PIN column off/on', async () => {
     const user = userEvent.setup();
     render(
       <RosterEditorModal
@@ -211,9 +229,15 @@ describe('RosterEditorModal', () => {
       />
     );
 
+    // PINs are visible by default — add a student and confirm PIN column appears
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
+    expect(screen.getByPlaceholderText('01')).toBeInTheDocument();
+
+    // Toggle hides PIN column
+    await user.click(screen.getByRole('button', { name: /− quiz pin/i }));
     expect(screen.queryByPlaceholderText('01')).not.toBeInTheDocument();
 
+    // Toggle again restores it
     await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
     expect(screen.getByPlaceholderText('01')).toBeInTheDocument();
   });
@@ -232,13 +256,14 @@ describe('RosterEditorModal', () => {
     );
 
     await user.type(screen.getByPlaceholderText(/class name/i), 'PIN Class');
+
+    // PINs are visible by default — add students using "First name" placeholder
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    await user.type(screen.getByPlaceholderText(/^full name$/i), 'Alice');
+    await user.type(screen.getByPlaceholderText(/^first name$/i), 'Alice');
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    const nameInputs = screen.getAllByPlaceholderText(/^full name$/i);
+    const nameInputs = screen.getAllByPlaceholderText(/^first name$/i);
     await user.type(nameInputs[1], 'Bob');
 
-    await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
     const pinInputs = screen.getAllByPlaceholderText('01');
     await user.type(pinInputs[0], '12');
     await user.type(pinInputs[1], '42');
@@ -264,13 +289,13 @@ describe('RosterEditorModal', () => {
       />
     );
 
+    // PINs visible by default — add students using "First name" placeholder
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    await user.type(screen.getByPlaceholderText(/^full name$/i), 'Alice');
+    await user.type(screen.getByPlaceholderText(/^first name$/i), 'Alice');
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    const names = screen.getAllByPlaceholderText(/^full name$/i);
+    const names = screen.getAllByPlaceholderText(/^first name$/i);
     await user.type(names[1], 'Bob');
 
-    await user.click(screen.getByRole('button', { name: /\+ quiz pin/i }));
     const pinInputs = screen.getAllByPlaceholderText('01');
     await user.type(pinInputs[0], '42');
     await user.type(pinInputs[1], '42');
@@ -312,10 +337,12 @@ describe('RosterEditorModal', () => {
     );
 
     await user.type(screen.getByPlaceholderText(/class name/i), 'Delete Test');
+
+    // Add students using "First name" placeholder (last names visible by default)
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    await user.type(screen.getByPlaceholderText(/^full name$/i), 'Alice');
+    await user.type(screen.getByPlaceholderText(/^first name$/i), 'Alice');
     await user.click(screen.getByRole('button', { name: /\+ add student/i }));
-    const names = screen.getAllByPlaceholderText(/^full name$/i);
+    const names = screen.getAllByPlaceholderText(/^first name$/i);
     await user.type(names[1], 'Bob');
 
     // Delete the first row

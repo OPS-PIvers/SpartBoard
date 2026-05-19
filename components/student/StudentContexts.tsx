@@ -76,6 +76,15 @@ const mockAuth: AuthContextType = {
   roleResolved: true,
   buildingIds: [],
   orgBuildings: [],
+  orgBuildingsLoaded: true,
+  favoriteBackgrounds: [],
+  recentBackgrounds: [],
+  toggleFavoriteBackground: async () => {
+    // No-op in student view
+  },
+  recordRecentBackground: async () => {
+    // No-op in student view
+  },
 };
 
 // --- MOCK DASHBOARD ---
@@ -122,6 +131,9 @@ const mockDashboard: DashboardContextValue = {
     /* mock */
   },
   duplicateDashboard: async () => {
+    /* mock */
+  },
+  duplicateCollection: async () => {
     /* mock */
   },
   renameDashboard: async () => {

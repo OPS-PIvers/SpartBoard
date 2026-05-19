@@ -8,6 +8,7 @@ export interface PresetCardProps {
   editingCategoryPresetId: string | null;
   editingCategoryValue: string;
   allCategories: string[];
+  allTags: string[];
   setEditingId: (id: string | null) => void;
   setEditName: (name: string) => void;
   setEditingCategoryPresetId: (id: string | null) => void;

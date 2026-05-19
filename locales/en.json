@@ -95,11 +95,6 @@
       "rootBoards": "Boards",
       "manageAll": "Manage all boards"
     },
-    "backgrounds": {
-      "presets": "Presets",
-      "colors": "Colors",
-      "gradients": "Gradients"
-    },
     "classes": {
       "title": "My Classes",
       "description": "Manage your class rosters here. The active class is used by seating charts, random picker, polls, and more.",
@@ -1041,20 +1036,68 @@
       "stickerAdded": "Sticker added to board!"
     }
   },
+  "backgrounds": {
+    "presets": "Presets",
+    "colors": "Colors",
+    "gradients": "Gradients",
+    "title": "Backgrounds",
+    "favorites": "Favorites",
+    "recent": "Recent",
+    "media": "Media",
+    "solids": "Solids",
+    "patterns": "Patterns",
+    "yours": "Yours",
+    "uploads": "My Uploads",
+    "searchPlaceholder": "Search backgrounds…",
+    "emptyFavorites": "No favorites yet — hover a background and tap ★",
+    "emptyRecent": "No recent backgrounds yet.",
+    "emptyFiltered": "No backgrounds match your filters.",
+    "uploading": "Uploading…",
+    "uploadCta": "Upload an image (max 5MB)",
+    "driveNotConnected": "Google Drive must be connected to upload.",
+    "loadingUploads": "Loading your uploads…",
+    "noUploadsYet": "You have not uploaded any backgrounds yet.",
+    "customColor": "Custom Color",
+    "customGradient": "Custom Gradient",
+    "applied": "Applied",
+    "apply": "Apply",
+    "favoriteSaveFailed": "Could not save favorite. Please try again.",
+    "typeAll": "All",
+    "typeStill": "Stills",
+    "typeVideo": "Video",
+    "typeUpload": "Uploads",
+    "uploadedImage": "Uploaded image",
+    "gradientStart": "Start",
+    "gradientEnd": "End",
+    "directionRight": "Right",
+    "directionDownRight": "Down-Right",
+    "directionDown": "Down",
+    "directionDownLeft": "Down-Left",
+    "uploadFailed": "Upload failed. Check your connection and try again."
+  },
+  "quickAccess": {
+    "title": "Quick Access Widgets",
+    "searchPlaceholder": "Search widgets…",
+    "emptyResults": "No widgets match."
+  },
   "whatsNew": {
     "title": "What's New",
     "updateNow": "Update Now",
     "later": "Later",
     "close": "Close",
+    "readFullUpdate": "Read full update",
+    "showLess": "Show less",
     "loading": "Loading release notes…",
     "error": "Couldn't load the changelog right now.",
     "previewEmpty": "A fresh build is ready. Refresh to get the latest.",
     "browseEmpty": "You're all caught up.",
-    "currentBuild": "Your build",
     "groups": {
       "feature": "New",
       "improvement": "Improvements",
       "fix": "Fixes"
     }
+  },
+  "style": {
+    "readOnlyNotice": "This board is read-only. Style changes are not saved."
   }
 }

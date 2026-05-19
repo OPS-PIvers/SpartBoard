@@ -83,6 +83,15 @@ const mockAuthContext = (
   roleResolved: true,
   buildingIds: [],
   orgBuildings: [],
+  orgBuildingsLoaded: true,
+  favoriteBackgrounds: [],
+  recentBackgrounds: [],
+  toggleFavoriteBackground: async () => {
+    /* mock */
+  },
+  recordRecentBackground: async () => {
+    /* mock */
+  },
   ...overrides,
 });
 

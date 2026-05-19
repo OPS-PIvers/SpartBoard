@@ -1,7 +1,8 @@
 import React from 'react';
-import { LayoutGrid, Music, Palette } from 'lucide-react';
-import { WidgetData, MusicConfig, MusicLayout } from '@/types';
+import { LayoutGrid, Music, Music2, Palette, Radio } from 'lucide-react';
+import { WidgetData, MusicConfig, MusicLayout, MusicSource } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { Toggle } from '@/components/common/Toggle';
 import {
@@ -11,6 +12,7 @@ import {
 } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { buildSpotifyEmbedUrl } from './utils';
+import { PersonalSpotifyPanel } from './PersonalSpotifyPanel';
 
 // ---------------------------------------------------------------------------
 // Layout option descriptor
@@ -85,21 +87,99 @@ const LAYOUT_OPTIONS: {
 // MusicSettings — back face
 // ---------------------------------------------------------------------------
 
+const SOURCE_OPTIONS: {
+  value: MusicSource;
+  label: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
+  {
+    value: 'curated',
+    label: 'Curated stations',
+    description: 'Pick from stations your admin has added.',
+    icon: Radio,
+  },
+  {
+    value: 'personal',
+    label: 'My Spotify',
+    description: 'Connect your own Spotify account (Premium recommended).',
+    icon: Music2,
+  },
+];
+
 export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget } = useDashboard();
+  const { canAccessFeature, profileLoaded } = useAuth();
+  // While the profile is loading, optimistically show the source toggle (matches
+  // what gated-in users see). Only hide it once profileLoaded is true AND the
+  // gate explicitly denies — prevents a brief flicker that would unmount the
+  // settings UI for users who do have access.
+  const gateDenied = profileLoaded && !canAccessFeature('personal-spotify');
+  const canUsePersonal = !gateDenied;
   const config = widget.config as MusicConfig;
   const { stations, isLoading } = useMusicStations();
-  const { layout = 'default' } = config;
+  const { layout = 'default', source = 'curated' } = config;
 
   const activeStation = stations.find((s) => s.id === config.stationId);
-  const isSpotify = activeStation?.url
+  const isCuratedSpotify = activeStation?.url
     ? buildSpotifyEmbedUrl(activeStation.url) !== null
     : false;
+  // The Time-Tool sync depends on the YouTube IFrame API; it's never available
+  // for Spotify content (curated or personal) because Spotify embeds and the
+  // Web Playback SDK don't expose the same hooks.
+  const syncDisabled = isCuratedSpotify || source === 'personal';
 
   return (
     <div className="space-y-5">
+      {/* ── Source selector (gated behind personal-spotify feature) ── */}
+      {canUsePersonal && (
+        <div className="space-y-2">
+          <SettingsLabel icon={Music2}>Source</SettingsLabel>
+          <div className="grid grid-cols-2 gap-2">
+            {SOURCE_OPTIONS.map((opt) => {
+              const isActive = source === opt.value;
+              const Icon = opt.icon;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() =>
+                    // updateWidget merges partial config into existing state
+                    // in DashboardContext, so only the changed keys are passed.
+                    updateWidget(widget.id, {
+                      config: {
+                        source: opt.value,
+                        // Disable Time-Tool sync when switching to Spotify-based source.
+                        ...(opt.value === 'personal' && config.syncWithTimeTool
+                          ? { syncWithTimeTool: false }
+                          : {}),
+                      },
+                    })
+                  }
+                  title={opt.description}
+                  className={`flex items-center gap-2 p-3 rounded-xl border-2 transition-all text-left ${
+                    isActive
+                      ? 'border-green-500 bg-green-50 shadow-sm'
+                      : 'border-slate-100 hover:border-slate-300 bg-white'
+                  }`}
+                >
+                  <Icon
+                    className={`w-4 h-4 shrink-0 ${isActive ? 'text-green-700' : 'text-slate-500'}`}
+                  />
+                  <span
+                    className={`text-xs font-bold truncate ${isActive ? 'text-green-800' : 'text-slate-700'}`}
+                  >
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* ── Layout selector ── */}
-      <div className="space-y-2">
+      <div className="space-y-2 pt-1 border-t border-slate-100">
         <SettingsLabel icon={LayoutGrid}>Layout</SettingsLabel>
         <div className="grid grid-cols-3 gap-2">
           {LAYOUT_OPTIONS.map((opt) => {
@@ -109,7 +189,7 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 key={opt.value}
                 onClick={() =>
                   updateWidget(widget.id, {
-                    config: { ...config, layout: opt.value },
+                    config: { layout: opt.value },
                   })
                 }
                 title={opt.description}
@@ -131,73 +211,86 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </div>
       </div>
 
-      {/* ── Station selector ── */}
-      <div className="space-y-2 pt-1 border-t border-slate-100">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider pt-4">
-          Select a Station
-        </p>
-
-        {isLoading ? (
-          <p className="text-xs text-slate-400 animate-pulse">
-            Loading stations...
+      {/* ── Source-specific body ── */}
+      {source === 'personal' && canUsePersonal ? (
+        <div className="pt-1 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider pt-4 pb-2">
+            Personal Spotify
           </p>
-        ) : stations.length === 0 ? (
-          <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
-            <p className="text-xs text-slate-500">
-              No stations available. An admin needs to add them in Admin
-              Settings.
+          <PersonalSpotifyPanel widget={widget} />
+        </div>
+      ) : (
+        <div className="space-y-2 pt-1 border-t border-slate-100">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider pt-4">
+            Select a Station
+          </p>
+
+          {isLoading ? (
+            <p className="text-xs text-slate-400 animate-pulse">
+              Loading stations...
             </p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
-            {stations.map((station) => {
-              const isActive = config.stationId === station.id;
-              return (
-                <button
-                  key={station.id}
-                  onClick={() => {
-                    const selectedIsSpotify =
-                      buildSpotifyEmbedUrl(station.url) !== null;
-                    updateWidget(widget.id, {
-                      config: {
-                        ...config,
-                        stationId: station.id,
-                        ...(selectedIsSpotify && config.syncWithTimeTool
-                          ? { syncWithTimeTool: false }
-                          : {}),
-                      },
-                    });
-                  }}
-                  className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${
-                    isActive
-                      ? 'border-indigo-500 bg-indigo-50 shadow-sm'
-                      : 'border-slate-100 hover:border-slate-300 bg-white'
-                  }`}
-                >
-                  {station.thumbnail ? (
-                    <div
-                      className="w-10 h-10 rounded-full bg-cover bg-center shadow-sm"
-                      style={{ backgroundImage: `url(${station.thumbnail})` }}
-                    />
-                  ) : (
-                    <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
-                      <Music className="w-4 h-4 text-slate-400" />
-                    </div>
-                  )}
-                  <span className="text-xxs font-bold block w-full truncate text-slate-800">
-                    {station.title}
-                  </span>
-                  {station.genre && (
-                    <span className="text-xxs text-slate-400 font-normal truncate w-full">
-                      {station.genre}
+          ) : stations.length === 0 ? (
+            <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg">
+              <p className="text-xs text-slate-500">
+                No stations available. An admin needs to add them in Admin
+                Settings.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+              {stations.map((station) => {
+                const isActive = config.stationId === station.id;
+                return (
+                  <button
+                    key={station.id}
+                    onClick={() => {
+                      const selectedIsSpotify =
+                        buildSpotifyEmbedUrl(station.url) !== null;
+                      // updateWidget merges partial config into existing
+                      // state in DashboardContext, so only the changed keys
+                      // are passed here.
+                      updateWidget(widget.id, {
+                        config: {
+                          stationId: station.id,
+                          ...(selectedIsSpotify && config.syncWithTimeTool
+                            ? { syncWithTimeTool: false }
+                            : {}),
+                        },
+                      });
+                    }}
+                    className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border-2 transition-all text-center ${
+                      isActive
+                        ? 'border-indigo-500 bg-indigo-50 shadow-sm'
+                        : 'border-slate-100 hover:border-slate-300 bg-white'
+                    }`}
+                  >
+                    {station.thumbnail ? (
+                      <div
+                        className="w-10 h-10 rounded-full bg-cover bg-center shadow-sm"
+                        style={{
+                          backgroundImage: `url(${station.thumbnail})`,
+                        }}
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center">
+                        <Music className="w-4 h-4 text-slate-400" />
+                      </div>
+                    )}
+                    <span className="text-xxs font-bold block w-full truncate text-slate-800">
+                      {station.title}
                     </span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        )}
-      </div>
+                    {station.genre && (
+                      <span className="text-xxs text-slate-400 font-normal truncate w-full">
+                        {station.genre}
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Nexus sync toggle ── */}
       <div className="pt-4 border-t border-slate-100">
@@ -209,15 +302,15 @@ export const MusicSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             checked={!!config.syncWithTimeTool}
             onChange={(checked: boolean) =>
               updateWidget(widget.id, {
-                config: { ...config, syncWithTimeTool: checked },
+                config: { syncWithTimeTool: checked },
               })
             }
-            disabled={isSpotify}
+            disabled={syncDisabled}
             size="sm"
           />
         </div>
         <p className="text-xs text-slate-400 mt-1.5">
-          {isSpotify
+          {syncDisabled
             ? 'Auto-sync is only available for YouTube stations due to Spotify browser restrictions.'
             : 'Music will automatically play and pause with your active Time Tool.'}
         </p>
@@ -252,7 +345,7 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               key={c.hex}
               onClick={() =>
                 updateWidget(widget.id, {
-                  config: { ...config, bgColor: c.hex },
+                  config: { bgColor: c.hex },
                 })
               }
               className={`w-6 h-6 rounded-full border-2 transition-all ${
@@ -278,7 +371,7 @@ export const MusicAppearanceSettings: React.FC<{ widget: WidgetData }> = ({
               key={c}
               onClick={() =>
                 updateWidget(widget.id, {
-                  config: { ...config, textColor: c },
+                  config: { textColor: c },
                 })
               }
               className={`w-6 h-6 rounded-full border-2 transition-all ${

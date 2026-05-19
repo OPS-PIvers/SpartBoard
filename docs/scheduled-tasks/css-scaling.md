@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-18_
+_Last audited: 2026-05-19_
 _Last action: 2026-05-16_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-19: Scanned all Widget.tsx / index.tsx files for anti-patterns. New commits since 2026-05-18: Sidebar Cohesion Pass (89b66431 — modal/sidebar UI only, no widget canvas changes), feat(music) 94f21d0f (Spotify Web Playback SDK in MusicWidget). MusicWidget changes: uses cqh-based sizing throughout per the widget's short/wide layout (baseHeight: 80). Pre-existing `size="40%"` and `size="30%"` on `PlayButton` are explicitly documented in the component's interface as valid CSS dimension strings; the primary play-button correctly uses `size="min(56px, 40cqh)"`. DrawingWidget's `size="icon"` on buttons is irrelevant — `skipScaling: false` uses CSS `transform: scale()`, not container queries. ActivityWall `max-h-[75vh]` at 2101/2107/2110 is inside a fullscreen submission-preview overlay outside the widget canvas container query context — confirmed valid per 2026-05-14/16 investigations. No new Widget.tsx front-face scaling violations. All pre-existing open items remain valid._
 
 _2026-05-18: Scanned all Widget.tsx / index.tsx files for anti-patterns. New commits since 2026-05-17: feat(whats-new) 8e86f851 (new changelog modal in Sidebar — not a widget file), fix(soundwidget) 6bf370df (AudioContext resume path split — logic only, no className changes), fix(quiz) 0f81a137 (results-protection error paths — not a widget front-face), fix(number-line) 8b91d650 (the cqmin hover-hint fix already marked completed 2026-05-16), feat(collection-level-templates) 516ab8dc. None introduced new Widget.tsx front-face scaling violations. All pre-existing open items remain valid. No new anti-patterns detected._
 

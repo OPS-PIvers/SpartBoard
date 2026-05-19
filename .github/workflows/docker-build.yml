@@ -40,3 +40,4 @@ jobs:
             VITE_GEMINI_API_KEY=${{ secrets.VITE_GEMINI_API_KEY || 'dummy' }}
             VITE_OPENWEATHER_API_KEY=${{ secrets.VITE_OPENWEATHER_API_KEY || 'dummy' }}
             VITE_GOOGLE_CLIENT_ID=${{ secrets.VITE_GOOGLE_CLIENT_ID || 'dummy' }}
+            VITE_SPOTIFY_CLIENT_ID=${{ secrets.VITE_SPOTIFY_CLIENT_ID || 'dummy' }}

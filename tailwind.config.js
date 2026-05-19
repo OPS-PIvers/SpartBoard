@@ -1,3 +1,4 @@
+import tailwindcssAnimate from 'tailwindcss-animate';
 import { Z_INDEX } from './config/zIndex';
 import { HIGHLIGHT_BG_CLASSES } from './utils/writtenAnnotations';
 
@@ -234,5 +235,5 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [tailwindcssAnimate],
 };

@@ -66,6 +66,7 @@ import { useDriveReconnected } from '../hooks/useDriveReconnected';
 import { useCollections } from '../hooks/useCollections';
 import { useSharedCollection } from '../hooks/useSharedCollection';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
+import { setGlobalPermissionsErrorHandler } from '../utils/globalPermissionsErrors';
 import {
   setAiModelConfigFallbackHandler,
   resetAiModelConfigFallbackLatch,
@@ -613,6 +614,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     return () => setDriveAuthErrorHandler(null);
   }, [addToast, refreshGoogleToken]);
+
+  // Register a one-time toast for `global_permissions` snapshot failures.
+  // AuthContext can't push toasts directly because DashboardContext (the
+  // toast queue owner) consumes AuthContext — same provider-ordering
+  // problem the Drive handler above solves. The latch lives in the
+  // util so retry storms don't fan out repeated toasts. Refresh is the
+  // user's only retry path; we don't try to auto-clear the latch.
+  useEffect(() => {
+    setGlobalPermissionsErrorHandler(() => {
+      addToast(
+        'Feature availability may not reflect current settings. Refresh to retry.',
+        'error'
+      );
+    });
+    return () => setGlobalPermissionsErrorHandler(null);
+  }, [addToast]);
 
   // Fire a toast (and clean the URL) when the user landed on /share-collection/
   // with no share ID. The initializer for hadEmptyShareCollectionUrl captures
@@ -3495,6 +3512,76 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [user, dashboards, saveDashboard, addToast]
   );
 
+  // Flat clone: copies the Collection's metadata (name, parent, color) and
+  // each direct child Board into the new Collection. Sub-Collections are
+  // intentionally NOT recursed — keeps the operation bounded and predictable.
+  const duplicateCollection = useCallback(
+    async (id: string) => {
+      if (!user) {
+        addToast('Must be signed in to duplicate', 'error');
+        return;
+      }
+
+      const source = collections.find((c) => c.id === id);
+      if (!source) return;
+
+      let newCollectionId: string;
+      try {
+        newCollectionId = await collectionsApi.createCollection(
+          `${source.name} (Copy)`,
+          source.parentCollectionId ?? null,
+          source.color ? { color: source.color } : undefined
+        );
+      } catch (err) {
+        logError('DashboardContext.duplicateCollection', err, { id });
+        addToast('Failed to duplicate collection', 'error');
+        return;
+      }
+
+      const children = dashboards.filter((d) => d.collectionId === id);
+      if (children.length === 0) {
+        addToast(`Collection "${source.name}" duplicated`);
+        return;
+      }
+
+      const maxOrder = dashboards.reduce(
+        (m, db) => Math.max(m, db.order ?? 0),
+        0
+      );
+      // Deep-clone each board so widget configs and arrays aren't shared by
+      // reference between the original and the duplicate. Mirrors the pattern
+      // in `importSharedCollection` and `duplicateWidget` (same file).
+      const results = await Promise.allSettled(
+        children.map((dash, i) =>
+          saveDashboard({
+            ...structuredClone(dash),
+            id: crypto.randomUUID(),
+            isDefault: false,
+            createdAt: Date.now(),
+            order: maxOrder + 1 + i,
+            collectionId: newCollectionId,
+          })
+        )
+      );
+
+      const failed = results.filter((r) => r.status === 'rejected').length;
+      if (failed === 0) {
+        addToast(`Collection "${source.name}" duplicated`);
+      } else if (failed === children.length) {
+        addToast(
+          `Collection "${source.name}" duplicated, but all ${failed} board(s) failed to copy`,
+          'error'
+        );
+      } else {
+        addToast(
+          `Collection "${source.name}" duplicated, but ${failed} of ${children.length} board(s) failed to copy`,
+          'error'
+        );
+      }
+    },
+    [user, dashboards, collections, collectionsApi, saveDashboard, addToast]
+  );
+
   const renameDashboard = useCallback(
     async (id: string, name: string) => {
       if (!user) {
@@ -4679,6 +4766,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         d.id === activeIdRef.current ? { ...d, background: bg } : d
       )
     );
+    // Recording the choice as a "recent" is intentionally NOT done here.
+    // setBackground is also called by widgets that drive the background
+    // (e.g. WeatherWidget reflecting the current condition) — recording
+    // those would waste Firestore writes on values that aren't user picks.
+    // Modal-side call sites (BackgroundsModal handleSelect, uploads, custom
+    // color/gradient apply buttons) explicitly call `recordRecentBackground`
+    // from useAuth after invoking setBackground.
   }, []);
 
   const updateDashboardSettings = useCallback(
@@ -4891,6 +4985,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       saveCurrentDashboard,
       deleteDashboard,
       duplicateDashboard,
+      duplicateCollection,
       renameDashboard,
       loadDashboard,
       reorderDashboards,
@@ -5011,6 +5106,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       saveCurrentDashboard,
       deleteDashboard,
       duplicateDashboard,
+      duplicateCollection,
       renameDashboard,
       loadDashboard,
       reorderDashboards,

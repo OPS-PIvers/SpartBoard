@@ -41,22 +41,17 @@ export function useRosterRowsState(roster: ClassRoster | null) {
         restrictedStudentIds: s.restrictedStudentIds,
       })) ?? []
   );
-  const [showLastNames, setShowLastNames] = useState(
-    roster?.students.some((s) => s.lastName.trim() !== '') ?? false
-  );
-  const [showPins, setShowPins] = useState(
-    roster?.students.some((s) => s.pin.trim() !== '') ?? false
-  );
-  // Auto-show email column when at least one student has an email — so
-  // freshly imported ClassLink/test-class rosters reveal it immediately
-  // without requiring the teacher to find the toggle.
+  const [showLastNames, setShowLastNames] = useState(true);
+  const [showPins, setShowPins] = useState(true);
+  // Email column visibility: auto-show when at least one student already has
+  // an email address (so freshly imported ClassLink or test-class rosters
+  // reveal the column without requiring the teacher to find the toggle).
+  // For new or email-free rosters the column defaults to hidden — a
+  // privacy-conscious default for PII that most classes don't need visible.
   const [showEmails, setShowEmails] = useState(
     roster?.students.some((s) => (s.email ?? '').trim() !== '') ?? false
   );
-  const [showRestrictions, setShowRestrictions] = useState(
-    roster?.students.some((s) => (s.restrictedStudentIds?.length ?? 0) > 0) ??
-      false
-  );
+  const [showRestrictions, setShowRestrictions] = useState(true);
 
   const addRow = useCallback(() => {
     setRows((rs) => [

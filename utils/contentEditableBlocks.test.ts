@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
+  ensureTopLevelBlocks,
   needsBlockNormalization,
   normalizeEditorBlocks,
 } from './contentEditableBlocks';
@@ -214,5 +215,80 @@ describe('needsBlockNormalization', () => {
         wrapTag: 'p',
       })
     ).toBe(false);
+  });
+});
+
+describe('ensureTopLevelBlocks', () => {
+  it('wraps a bare top-level text node', () => {
+    const editor = buildEditor('hello world');
+    ensureTopLevelBlocks(editor);
+    expect(editor.children.length).toBe(1);
+    expect(editor.children[0].tagName).toBe('DIV');
+    expect(editor.children[0].textContent).toBe('hello world');
+  });
+
+  it('wraps a single top-level inline element', () => {
+    // normalizeEditorBlocks deliberately skips this shape; ensure does not.
+    const editor = buildEditor('<b>headline</b>');
+    ensureTopLevelBlocks(editor);
+    expect(editor.children.length).toBe(1);
+    expect(editor.children[0].tagName).toBe('DIV');
+    expect(editor.children[0].innerHTML).toBe('<b>headline</b>');
+  });
+
+  it('keeps text node identity after wrapping (caret/selection survival)', () => {
+    // Live Ranges anchored to a moved node's *parent* collapse per
+    // the DOM spec, but the text node itself survives intact — it's
+    // just reparented. `toggleList` re-reads `window.getSelection()`
+    // after the wrap and works with the live range's new (collapsed)
+    // position, so the only thing this helper has to guarantee is
+    // that the text characters are preserved verbatim and the node
+    // identity stays the same.
+    const editor = buildEditor('hello world');
+    const textNode = editor.firstChild as Text;
+
+    ensureTopLevelBlocks(editor);
+
+    expect(textNode.nodeValue).toBe('hello world');
+    expect(textNode.parentElement).toBe(editor.children[0]);
+    expect(editor.children[0].tagName).toBe('DIV');
+    expect(editor.children[0].childNodes.length).toBe(1);
+    expect(editor.children[0].firstChild).toBe(textNode);
+  });
+
+  it('is a no-op when content already has block structure', () => {
+    const html = '<div>One</div><div>Two</div>';
+    const editor = buildEditor(html);
+    ensureTopLevelBlocks(editor);
+    expect(editor.innerHTML).toBe(html);
+  });
+
+  it('wraps with <p> when requested (WrittenResponseEditor mode)', () => {
+    const editor = buildEditor('hello world');
+    ensureTopLevelBlocks(editor, { wrapTag: 'p' });
+    expect(editor.children.length).toBe(1);
+    expect(editor.children[0].tagName).toBe('P');
+  });
+
+  it('handles the mixed bare-text-then-<div> case (Chrome default)', () => {
+    const editor = buildEditor('First<div>Second</div>');
+    ensureTopLevelBlocks(editor);
+    expect(editor.children.length).toBe(2);
+    expect(editor.children[0].textContent).toBe('First');
+    expect(editor.children[1].textContent).toBe('Second');
+  });
+
+  it('drops top-level <br> separators', () => {
+    const editor = buildEditor('a<br/>b');
+    ensureTopLevelBlocks(editor);
+    expect(editor.querySelector('br')).toBeNull();
+    expect(editor.children.length).toBe(2);
+    expect(editor.textContent).toBe('ab');
+  });
+
+  it('is a no-op on an empty editor', () => {
+    const editor = buildEditor('');
+    ensureTopLevelBlocks(editor);
+    expect(editor.innerHTML).toBe('');
   });
 });

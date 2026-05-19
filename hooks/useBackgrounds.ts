@@ -16,6 +16,7 @@ export interface BackgroundPresetItem {
   thumbnailUrl?: string;
   category: string;
   featured: boolean;
+  tags: string[];
 }
 
 export const useBackgrounds = () => {
@@ -149,6 +150,7 @@ export const useBackgrounds = () => {
       thumbnailUrl: bg.thumbnailUrl,
       category: resolveCategory(bg.label, bg.category),
       featured: bg.featured ?? false,
+      tags: bg.tags ?? [],
     }));
   }, [managedBackgrounds]);
 

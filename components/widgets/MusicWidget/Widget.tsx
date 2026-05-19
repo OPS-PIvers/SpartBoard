@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, Music, Pause, Play, Radio } from 'lucide-react';
-import { WidgetData, MusicConfig, TimeToolConfig } from '@/types';
+import { WidgetData, MusicConfig, MusicSource, TimeToolConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useMusicStations } from '@/hooks/useMusicStations';
 import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
@@ -12,6 +12,8 @@ import {
   buildSpotifyEmbedUrl,
   YTPlayer,
 } from '@/utils/youtube';
+import { PersonalSpotifyPlayer } from './PersonalSpotifyPlayer';
+import { useAuth } from '@/context/useAuth';
 
 // ---------------------------------------------------------------------------
 // Shared play/pause overlay button
@@ -76,7 +78,30 @@ const PlayButton: React.FC<PlayButtonProps> = ({
 // MusicWidget — front face
 // ---------------------------------------------------------------------------
 
+/**
+ * Top-level dispatch: personal-Spotify mode mounts the dedicated SDK player
+ * (with its own hooks); curated mode mounts the original station-based
+ * widget. Splitting them this way keeps both branches' hooks unconditional.
+ */
 export const MusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
+  const { canAccessFeature, profileLoaded } = useAuth();
+  const storedSource =
+    (widget.config as MusicConfig | undefined)?.source ?? 'curated';
+  // During the profile-load window, trust the stored source — users with
+  // access see no flicker, and the rare lost-access case briefly shows
+  // personal before being swapped to curated. We only "downgrade" to
+  // curated when profileLoaded is true AND the gate explicitly denies.
+  const gateDenied = profileLoaded && !canAccessFeature('personal-spotify');
+  const effectiveSource: MusicSource =
+    !gateDenied && storedSource === 'personal' ? 'personal' : 'curated';
+
+  if (effectiveSource === 'personal') {
+    return <PersonalSpotifyPlayer widget={widget} />;
+  }
+  return <CuratedMusicWidget widget={widget} />;
+};
+
+const CuratedMusicWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard } = useDashboard();
   const config = widget.config as MusicConfig;
   const {

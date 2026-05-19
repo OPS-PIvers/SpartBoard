@@ -165,6 +165,22 @@ export interface AuthContextType {
    * Firestore listener instead of each opening its own.
    */
   orgBuildings: BuildingRecord[];
+  /**
+   * True once the first `orgBuildings` snapshot (or the explicit "no org"
+   * reset) has resolved. Consumers that need to distinguish a genuine empty
+   * result from an in-flight load (e.g. suppressing orphan building chips
+   * until the list is confirmed) should gate on this flag instead of checking
+   * `orgBuildings.length === 0`.
+   */
+  orgBuildingsLoaded: boolean;
+  /** Background IDs the user has starred as favorites. */
+  favoriteBackgrounds: string[];
+  /** Background IDs recently applied, newest first, capped at 12. */
+  recentBackgrounds: string[];
+  /** Toggle a background's favorite status (add if absent, remove if present). */
+  toggleFavoriteBackground: (backgroundId: string) => Promise<void>;
+  /** Record a background as recently used (deduped, newest first, capped at 12). */
+  recordRecentBackground: (backgroundId: string) => Promise<void>;
 }
 
 export const AuthContext = createContext<AuthContextType | undefined>(

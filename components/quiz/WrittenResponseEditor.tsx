@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { sanitizeQuizResponse } from '@/utils/security';
 import {
+  ensureTopLevelBlocks,
   needsBlockNormalization,
   normalizeEditorBlocks,
 } from '@/utils/contentEditableBlocks';
@@ -260,13 +261,9 @@ const WrittenResponseEditorInner: React.FC<
   const handleListToggle = (listTag: 'ul' | 'ol') => {
     if (disabled || !editorRef.current) return;
     editorRef.current.focus();
-    // Run normalization first so any in-progress mixed structure
-    // (Chrome's bare-first-line + <div>-wrapped-rest pattern after
-    // typing Enter) becomes uniform `<p>` blocks. Then the list
-    // toggle operates on a clean tree.
-    if (needsBlockNormalization(editorRef.current, { wrapTag: 'p' })) {
-      normalizeEditorBlocks(editorRef.current, { wrapTag: 'p' });
-    }
+    // `toggleList` collects from `editor.children` (excludes text
+    // nodes), so any loose top-level text must be wrapped first.
+    ensureTopLevelBlocks(editorRef.current, { wrapTag: 'p' });
     toggleList(editorRef.current, listTag, 'p');
     handleInput();
   };

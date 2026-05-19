@@ -43,6 +43,11 @@ export {
   refreshGoogleAccessToken,
   revokeGoogleRefreshToken,
 } from './googleOAuth';
+export {
+  exchangeSpotifyAuthCode,
+  refreshSpotifyAccessToken,
+  revokeSpotifyAuth,
+} from './spotifyOAuth';
 
 setGlobalOptions({ region: 'us-central1' });
 
