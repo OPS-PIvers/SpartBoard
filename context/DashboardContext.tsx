@@ -66,6 +66,7 @@ import { useDriveReconnected } from '../hooks/useDriveReconnected';
 import { useCollections } from '../hooks/useCollections';
 import { useSharedCollection } from '../hooks/useSharedCollection';
 import { setDriveAuthErrorHandler } from '../utils/driveAuthErrors';
+import { setGlobalPermissionsErrorHandler } from '../utils/globalPermissionsErrors';
 import {
   setAiModelConfigFallbackHandler,
   resetAiModelConfigFallbackLatch,
@@ -637,6 +638,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     });
     return () => setDriveAuthErrorHandler(null);
   }, [addToast, refreshGoogleToken]);
+
+  // Register a one-time toast for `global_permissions` snapshot failures.
+  // AuthContext can't push toasts directly because DashboardContext (the
+  // toast queue owner) consumes AuthContext — same provider-ordering
+  // problem the Drive handler above solves. The latch lives in the
+  // util so retry storms don't fan out repeated toasts. Refresh is the
+  // user's only retry path; we don't try to auto-clear the latch.
+  useEffect(() => {
+    setGlobalPermissionsErrorHandler(() => {
+      addToast(
+        'Feature availability may not reflect current settings. Refresh to retry.',
+        'error'
+      );
+    });
+    return () => setGlobalPermissionsErrorHandler(null);
+  }, [addToast]);
 
   // Fire a toast (and clean the URL) when the user landed on /share-collection/
   // with no share ID. The initializer for hadEmptyShareCollectionUrl captures

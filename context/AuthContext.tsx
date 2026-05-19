@@ -53,6 +53,7 @@ import {
 import i18n from '../i18n';
 import { GoogleDriveService } from '../utils/googleDriveService';
 import { onDriveTokenChange } from '../utils/driveAuthErrors';
+import { reportGlobalPermissionsError } from '../utils/globalPermissionsErrors';
 import {
   refreshAccessTokenViaBackend,
   requestAndExchangeAuthCode,
@@ -916,13 +917,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setGlobalPermissions(permissions);
       },
       (error) => {
-        // Log error with more context to help debugging if it persists
+        // Log unconditionally via `logError` so production monitoring
+        // sees snapshot failures (the old `console.error` was guarded on
+        // `auth.currentUser` and only landed in the dev console). The
+        // `code` is what we typically need to triage — permission-denied
+        // vs unavailable vs internal — so capture it as structured ctx.
         if (auth.currentUser) {
-          console.error(
-            `[AuthContext] Firestore Error (${error.code}):`,
-            error.message
-          );
+          logError('AuthContext.globalPermissions.onSnapshot', error, {
+            code: error.code,
+          });
         }
+        // Surface a toast ONCE per session so a teacher whose snapshot
+        // is broken doesn't silently see stale feature availability.
+        // The latch in `reportGlobalPermissionsError` keeps a retry
+        // storm from fanning out a queue of identical toasts.
+        reportGlobalPermissionsError();
       }
     );
 
