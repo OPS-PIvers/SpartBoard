@@ -4,9 +4,9 @@ import { useFocusLossPoll } from '@/hooks/useFocusLossPoll';
 
 /**
  * The hook detects focus loss via a `document.hasFocus()` poll. jsdom's
- * implementation always returns `true`, so we override it through the
- * descriptor so individual tests can flip the return value mid-run.
- * The afterEach restores the original to keep these tests hermetic.
+ * implementation always returns `true`, so we spy on it with vitest and
+ * stub the return value per-test. `vi.restoreAllMocks()` in afterEach
+ * un-installs the spy so the tests stay hermetic.
  */
 function setHasFocus(value: boolean): void {
   vi.spyOn(document, 'hasFocus').mockReturnValue(value);
