@@ -541,6 +541,8 @@ export class SpotifyScopeError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'SpotifyScopeError';
+    // Restore the prototype chain when targeting older transpile targets.
+    Object.setPrototypeOf(this, SpotifyScopeError.prototype);
   }
 }
 
