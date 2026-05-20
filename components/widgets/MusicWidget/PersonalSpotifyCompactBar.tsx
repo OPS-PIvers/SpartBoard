@@ -14,10 +14,11 @@
  */
 
 import React from 'react';
-import { Music2, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import { Music2 } from 'lucide-react';
 import { spotifyOpenUrlFromInput } from '@/utils/spotifyAuth';
 import { SpotifyPlaybackTrack } from '@/hooks/useSpotifyWebPlayback';
 import { buildSpotifyEmbedUrl } from './utils';
+import { SpotifyTransportControls } from './SpotifyTransportControls';
 
 interface Props {
   url: string | null;
@@ -28,9 +29,15 @@ interface Props {
   isReady: boolean;
   currentTrack: SpotifyPlaybackTrack | null;
   isPlaying: boolean;
+  /** Current repeat mode: 0 = off, 1 = repeat-context, 2 = repeat-track. */
+  repeatMode: number;
+  /** Native Spotify shuffle on/off. */
+  shuffle: boolean;
   onTogglePlay: () => void;
   onNext: () => void;
   onPrevious: () => void;
+  onCycleRepeat: () => void;
+  onToggleShuffle: () => void;
 }
 
 export const PersonalSpotifyCompactBar: React.FC<Props> = ({
@@ -42,9 +49,13 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
   isReady,
   currentTrack,
   isPlaying,
+  repeatMode,
+  shuffle,
   onTogglePlay,
   onNext,
   onPrevious,
+  onCycleRepeat,
+  onToggleShuffle,
 }) => {
   // Free tier / SDK failure → the embed iframe owns playback. Spotify's embed
   // auto-compacts to its mini player at small heights, so it fills the strip.
@@ -127,72 +138,18 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
         {artAndTitle}
       </div>
 
-      <div
-        className="flex items-center flex-shrink-0"
-        style={{ gap: 'min(6px, 5cqh)' }}
-      >
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onPrevious();
-          }}
-          disabled={!isReady || !url}
-          aria-label="Previous"
-          className="flex items-center justify-center rounded-full text-white/80 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
-          style={{ width: 'min(30px, 30cqh)', height: 'min(30px, 30cqh)' }}
-        >
-          <SkipBack
-            fill="currentColor"
-            style={{ width: '70%', height: '70%' }}
-          />
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onTogglePlay();
-          }}
-          disabled={!isReady || !url}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          className="flex items-center justify-center rounded-full bg-white text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
-          style={{ width: 'min(44px, 44cqh)', height: 'min(44px, 44cqh)' }}
-        >
-          {isPlaying ? (
-            <Pause
-              fill="currentColor"
-              style={{
-                width: '45%',
-                height: '45%',
-              }}
-            />
-          ) : (
-            <Play
-              fill="currentColor"
-              style={{
-                width: '45%',
-                height: '45%',
-              }}
-            />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onNext();
-          }}
-          disabled={!isReady || !url}
-          aria-label="Next"
-          className="flex items-center justify-center rounded-full text-white/80 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
-          style={{ width: 'min(30px, 30cqh)', height: 'min(30px, 30cqh)' }}
-        >
-          <SkipForward
-            fill="currentColor"
-            style={{ width: '70%', height: '70%' }}
-          />
-        </button>
-      </div>
+      <SpotifyTransportControls
+        size="sm"
+        isReady={isReady && !!url}
+        isPlaying={isPlaying}
+        repeatMode={repeatMode}
+        shuffle={shuffle}
+        onTogglePlay={onTogglePlay}
+        onPrevious={onPrevious}
+        onNext={onNext}
+        onCycleRepeat={onCycleRepeat}
+        onToggleShuffle={onToggleShuffle}
+      />
     </div>
   );
 };

@@ -18,9 +18,13 @@ const base = {
     image: 'https://img/t1.jpg',
   },
   isPlaying: false,
+  repeatMode: 0,
+  shuffle: false,
   onTogglePlay: vi.fn(),
   onNext: vi.fn(),
   onPrevious: vi.fn(),
+  onCycleRepeat: vi.fn(),
+  onToggleShuffle: vi.fn(),
 };
 
 describe('PersonalSpotifyCompactBar', () => {
@@ -62,6 +66,34 @@ describe('PersonalSpotifyCompactBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /Next/i }));
     expect(onPrevious).toHaveBeenCalledOnce();
     expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('renders Shuffle/Repeat controls that forward to their handlers', () => {
+    const onToggleShuffle = vi.fn();
+    const onCycleRepeat = vi.fn();
+    render(
+      <PersonalSpotifyCompactBar
+        {...base}
+        onToggleShuffle={onToggleShuffle}
+        onCycleRepeat={onCycleRepeat}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Shuffle/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Repeat/i }));
+    expect(onToggleShuffle).toHaveBeenCalledOnce();
+    expect(onCycleRepeat).toHaveBeenCalledOnce();
+  });
+
+  it('reflects active shuffle/repeat state via aria-pressed', () => {
+    render(<PersonalSpotifyCompactBar {...base} shuffle repeatMode={1} />);
+    expect(screen.getByRole('button', { name: /Shuffle/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: /Repeat all/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
   });
 
   it('renders no browse affordance — it is a pure player surface', () => {

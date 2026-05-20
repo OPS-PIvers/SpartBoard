@@ -19,9 +19,13 @@ const base = {
     image: 'https://img/t1.jpg',
   },
   isPlaying: false,
+  repeatMode: 0,
+  shuffle: false,
   onTogglePlay: vi.fn(),
   onNext: vi.fn(),
   onPrevious: vi.fn(),
+  onCycleRepeat: vi.fn(),
+  onToggleShuffle: vi.fn(),
 };
 
 describe('PersonalSpotifyMinimalView', () => {
@@ -46,6 +50,40 @@ describe('PersonalSpotifyMinimalView', () => {
     fireEvent.click(screen.getByRole('button', { name: /Next/i }));
     expect(onPrevious).toHaveBeenCalledOnce();
     expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('renders Shuffle/Repeat controls that forward to their handlers', () => {
+    const onToggleShuffle = vi.fn();
+    const onCycleRepeat = vi.fn();
+    render(
+      <PersonalSpotifyMinimalView
+        {...base}
+        onToggleShuffle={onToggleShuffle}
+        onCycleRepeat={onCycleRepeat}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Shuffle/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Repeat/i }));
+    expect(onToggleShuffle).toHaveBeenCalledOnce();
+    expect(onCycleRepeat).toHaveBeenCalledOnce();
+  });
+
+  it('reflects active shuffle/repeat state via aria-pressed', () => {
+    render(<PersonalSpotifyMinimalView {...base} shuffle repeatMode={2} />);
+    expect(screen.getByRole('button', { name: /Shuffle/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: /Repeat one/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('disables Shuffle/Repeat until the device is ready', () => {
+    render(<PersonalSpotifyMinimalView {...base} isReady={false} />);
+    expect(screen.getByRole('button', { name: /Shuffle/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Repeat/i })).toBeDisabled();
   });
 
   it('renders no browse affordance — it is a pure player surface', () => {

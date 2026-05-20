@@ -872,6 +872,38 @@ async function transferPlaybackToDevice(
 }
 
 /**
+ * Issue a PUT to a Spotify player endpoint that targets a specific device,
+ * self-healing the "Device not found" (404) case: a freshly-`ready` Web
+ * Playback SDK device is registered locally but is often not yet a valid
+ * Spotify Connect target. On 404 we transfer playback to the device to
+ * activate it, give Spotify ~400ms to register it, then retry the PUT once.
+ *
+ * Shared by playOnDevice / setRepeatMode / setShuffle so the activation
+ * dance lives in exactly one place.
+ */
+async function putWithDeviceActivation(
+  url: string,
+  accessToken: string,
+  deviceId: string,
+  init?: RequestInit
+): Promise<Response> {
+  const send = () =>
+    fetch(url, {
+      method: 'PUT',
+      ...init,
+      headers: { Authorization: `Bearer ${accessToken}`, ...init?.headers },
+    });
+
+  let res = await send();
+  if (res.status === 404) {
+    await transferPlaybackToDevice(accessToken, deviceId);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    res = await send();
+  }
+  return res;
+}
+
+/**
  * Issue `play` on the given device. Pass either a context URI (album/playlist/artist)
  * via `contextUri`, or a list of track URIs via `uris`, but not both.
  *
@@ -889,28 +921,17 @@ export async function playOnDevice(
   if (payload.contextUri) body.context_uri = payload.contextUri;
   if (payload.uris) body.uris = payload.uris;
 
-  const sendPlay = () =>
-    fetch(
-      `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
-      {
-        method: 'PUT',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-      }
-    );
-
-  let res = await sendPlay();
-
-  // 404 = device not (yet) an active Connect target. Activate it via a
-  // transfer, give Spotify a moment to register it, then retry once.
-  if (res.status === 404) {
-    await transferPlaybackToDevice(accessToken, deviceId);
-    await new Promise((resolve) => setTimeout(resolve, 400));
-    res = await sendPlay();
-  }
+  // 404 (device not yet an active Connect target) self-heals via
+  // putWithDeviceActivation: transfer playback to the device, then retry once.
+  const res = await putWithDeviceActivation(
+    `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+    accessToken,
+    deviceId,
+    {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }
+  );
 
   // 204 is success; some non-Premium accounts return 403.
   if (res.status === 403) {
@@ -928,21 +949,20 @@ export async function playOnDevice(
  *   - 'context' → repeat the current context (playlist/album)
  *
  * Mirrors playOnDevice's fetch/error style: 204 is success, 403 means the
- * account isn't Premium, any other non-2xx throws. Repeat/shuffle on an
- * inactive device may 404 — that surfaces here as a thrown error the caller
- * treats as best-effort (console.warn, no UI break).
+ * account isn't Premium, any other non-2xx throws. Self-heals the same 404
+ * "device not yet an active Connect target" case as playOnDevice via
+ * putWithDeviceActivation (transfer → retry once) — a just-`ready` SDK device
+ * otherwise silently 404s here and the toggle does nothing.
  */
 export async function setRepeatMode(
   accessToken: string,
   deviceId: string,
   state: 'off' | 'track' | 'context'
 ): Promise<void> {
-  const res = await fetch(
+  const res = await putWithDeviceActivation(
     `https://api.spotify.com/v1/me/player/repeat?state=${state}&device_id=${encodeURIComponent(deviceId)}`,
-    {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    accessToken,
+    deviceId
   );
   if (res.status === 403) {
     throw new Error('spotify-premium-required');
@@ -954,19 +974,18 @@ export async function setRepeatMode(
 
 /**
  * Toggle native Spotify shuffle on the given device. Same fetch/error style as
- * setRepeatMode (204 success, 403 → premium-required, other non-2xx throws).
+ * setRepeatMode (204 success, 403 → premium-required, other non-2xx throws),
+ * including the 404 transfer-then-retry self-heal for a freshly-ready device.
  */
 export async function setShuffle(
   accessToken: string,
   deviceId: string,
   on: boolean
 ): Promise<void> {
-  const res = await fetch(
+  const res = await putWithDeviceActivation(
     `https://api.spotify.com/v1/me/player/shuffle?state=${on ? 'true' : 'false'}&device_id=${encodeURIComponent(deviceId)}`,
-    {
-      method: 'PUT',
-      headers: { Authorization: `Bearer ${accessToken}` },
-    }
+    accessToken,
+    deviceId
   );
   if (res.status === 403) {
     throw new Error('spotify-premium-required');

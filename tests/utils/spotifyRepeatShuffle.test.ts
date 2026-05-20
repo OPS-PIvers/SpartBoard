@@ -1,11 +1,15 @@
 /**
  * setRepeatMode / setShuffle issue PUT requests to the Spotify player REST
  * endpoints with the right state + device_id query params. They mirror
- * playOnDevice's error handling: 204 success, 403 → premium-required, any
- * other non-2xx throws.
+ * playOnDevice's behavior: 204 success, 403 → premium-required, any other
+ * non-2xx throws, AND self-heal the "Device not found" (404) case by
+ * transferring playback to the device (PUT /me/player) then retrying once —
+ * a freshly-`ready` SDK device otherwise silently 404s and the toggle no-ops.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { setRepeatMode, setShuffle } from '@/utils/spotifyAuth';
+
+const TRANSFER_URL = 'https://api.spotify.com/v1/me/player';
 
 const resp = (status: number) =>
   ({ ok: status >= 200 && status < 300, status }) as unknown as Response;
@@ -21,6 +25,7 @@ describe('setRepeatMode', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -48,6 +53,28 @@ describe('setRepeatMode', () => {
     expect(callUrl(fetchMock.mock.calls, 1)).toContain('state=off');
   });
 
+  it('on 404 transfers playback to the device then retries the repeat PUT', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(resp(404)) // first repeat PUT → device not found
+      .mockResolvedValueOnce(resp(204)) // transfer
+      .mockResolvedValueOnce(resp(204)); // retry repeat PUT
+
+    const promise = setRepeatMode('tok', 'dev1', 'track');
+    await vi.advanceTimersByTimeAsync(500);
+    await promise;
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(callUrl(fetchMock.mock.calls, 0)).toContain('/me/player/repeat');
+    expect(callUrl(fetchMock.mock.calls, 1)).toBe(TRANSFER_URL);
+    const transferBody = JSON.parse(
+      (fetchMock.mock.calls[1][1]?.body as string) ?? '{}'
+    ) as unknown;
+    expect(transferBody).toEqual({ device_ids: ['dev1'], play: false });
+    expect(callUrl(fetchMock.mock.calls, 2)).toContain('/me/player/repeat');
+  });
+
   it('throws spotify-premium-required on 403', async () => {
     vi.mocked(fetch).mockResolvedValue(resp(403));
     await expect(setRepeatMode('tok', 'dev1', 'off')).rejects.toThrow(
@@ -55,9 +82,23 @@ describe('setRepeatMode', () => {
     );
   });
 
-  it('throws on a non-2xx that is not 403/204', async () => {
-    vi.mocked(fetch).mockResolvedValue(resp(404));
-    await expect(setRepeatMode('tok', 'dev1', 'off')).rejects.toThrow(/404/);
+  it('throws on a non-2xx that is not 404/403/204', async () => {
+    vi.mocked(fetch).mockResolvedValue(resp(500));
+    await expect(setRepeatMode('tok', 'dev1', 'off')).rejects.toThrow(/500/);
+  });
+
+  it('throws if the retry after a 404 transfer still fails', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(resp(404)) // first PUT
+      .mockResolvedValueOnce(resp(204)) // transfer
+      .mockResolvedValueOnce(resp(404)); // retry still 404
+
+    const promise = setRepeatMode('tok', 'dev1', 'off');
+    const assertion = expect(promise).rejects.toThrow(/404/);
+    await vi.advanceTimersByTimeAsync(500);
+    await assertion;
   });
 });
 
@@ -67,6 +108,7 @@ describe('setShuffle', () => {
   });
   afterEach(() => {
     vi.unstubAllGlobals();
+    vi.useRealTimers();
     vi.clearAllMocks();
   });
 
@@ -89,6 +131,24 @@ describe('setShuffle', () => {
     await setShuffle('tok', 'dev1', false);
 
     expect(callUrl(fetchMock.mock.calls, 0)).toContain('state=false');
+  });
+
+  it('on 404 transfers playback to the device then retries the shuffle PUT', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(resp(404)) // first shuffle PUT → device not found
+      .mockResolvedValueOnce(resp(204)) // transfer
+      .mockResolvedValueOnce(resp(204)); // retry shuffle PUT
+
+    const promise = setShuffle('tok', 'dev1', true);
+    await vi.advanceTimersByTimeAsync(500);
+    await promise;
+
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(callUrl(fetchMock.mock.calls, 0)).toContain('/me/player/shuffle');
+    expect(callUrl(fetchMock.mock.calls, 1)).toBe(TRANSFER_URL);
+    expect(callUrl(fetchMock.mock.calls, 2)).toContain('/me/player/shuffle');
   });
 
   it('throws spotify-premium-required on 403', async () => {
