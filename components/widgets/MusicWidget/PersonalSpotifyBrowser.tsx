@@ -26,15 +26,17 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   // PersonalSpotifyLibraryTab for clarity.
   const { isPremium, getAccessToken, disconnect, connect } = useSpotifyAuth();
 
+  const [activeTab, setActiveTab] = useState<SpotifyBrowserTab>('library');
+
+  const currentUri = config.personalSpotifyUrl ?? null;
+
   // The Web Playback SDK is owned here (above the tabs) so the playback device
   // survives tab switches — a track tapped in Library plays even before the
   // Now Playing tab is opened, and leaving Now Playing doesn't stop the music.
   // Disabled for Free accounts (SDK requires Premium); they get the embed.
-  const playback = useSpotifyWebPlayback(isPremium, getAccessToken);
+  // currentUri is the target the device starts on first play (reload-resume).
+  const playback = useSpotifyWebPlayback(isPremium, getAccessToken, currentUri);
 
-  const [activeTab, setActiveTab] = useState<SpotifyBrowserTab>('library');
-
-  const currentUri = config.personalSpotifyUrl ?? null;
   const isAudioActive =
     playback.isPlaying || (!isPremium && Boolean(currentUri));
 
@@ -92,6 +94,7 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
               label={config.personalSpotifyLabel}
               isPremium={isPremium}
               sdkFailed={playback.sdkFailed}
+              isReady={playback.isReady}
               currentTrack={playback.currentTrack}
               isPlaying={playback.isPlaying}
               onTogglePlay={() => void playback.togglePlay()}

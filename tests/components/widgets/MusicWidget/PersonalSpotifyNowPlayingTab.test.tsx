@@ -13,6 +13,7 @@ const baseProps = {
   url: null as string | null,
   isPremium: true,
   sdkFailed: false,
+  isReady: true,
   currentTrack: null as SpotifyPlaybackTrack | null,
   isPlaying: false,
   onTogglePlay: vi.fn(),
@@ -78,6 +79,33 @@ describe('PersonalSpotifyNowPlayingTab', () => {
       />
     );
     expect(screen.getByRole('button', { name: /Pause/i })).toBeInTheDocument();
+  });
+
+  it('disables the play button until the device is ready', () => {
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium
+        isReady={false}
+        currentTrack={null}
+      />
+    );
+    // Device not connected yet → button present but disabled (no spinner).
+    expect(screen.getByRole('button', { name: /Play/i })).toBeDisabled();
+  });
+
+  it('enables the play button once the device is ready', () => {
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium
+        isReady
+        currentTrack={null}
+      />
+    );
+    expect(screen.getByRole('button', { name: /Play/i })).toBeEnabled();
   });
 
   it('renders the embed iframe for Free-tier accounts', () => {

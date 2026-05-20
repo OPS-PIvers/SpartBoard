@@ -13,7 +13,7 @@
  */
 
 import React from 'react';
-import { Loader2, Music2, Pause, Play } from 'lucide-react';
+import { Music2, Pause, Play } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { spotifyOpenUrlFromInput } from '@/utils/spotifyAuth';
 import { SpotifyPlaybackTrack } from '@/hooks/useSpotifyWebPlayback';
@@ -25,6 +25,8 @@ interface Props {
   label?: string;
   isPremium: boolean;
   sdkFailed: boolean;
+  /** Device-connected signal from the hook (ready event fired). */
+  isReady: boolean;
   currentTrack: SpotifyPlaybackTrack | null;
   isPlaying: boolean;
   onTogglePlay: () => void;
@@ -37,6 +39,7 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
   label,
   isPremium,
   sdkFailed,
+  isReady,
   currentTrack,
   isPlaying,
   onTogglePlay,
@@ -80,9 +83,6 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
   const displayImage = currentTrack?.image ?? thumbnail;
   const displayName = currentTrack?.name ?? label ?? 'Spotify';
   const displayArtist = currentTrack?.artist ?? '';
-  // No track has loaded yet (device still spinning up) — show a loading
-  // affordance on the play button until the first state arrives.
-  const isReady = currentTrack !== null;
 
   return (
     <WidgetLayout
@@ -145,19 +145,15 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
             <button
               type="button"
               onClick={onTogglePlay}
+              disabled={!isReady}
               aria-label={isPlaying ? 'Pause' : 'Play'}
-              className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed"
+              className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
               style={{
                 width: 'min(56px, 20cqmin)',
                 height: 'min(56px, 20cqmin)',
               }}
             >
-              {!isReady ? (
-                <Loader2
-                  className="animate-spin"
-                  style={{ width: '40%', height: '40%' }}
-                />
-              ) : isPlaying ? (
+              {isPlaying ? (
                 <Pause
                   className="fill-current"
                   style={{ width: '40%', height: '40%' }}
