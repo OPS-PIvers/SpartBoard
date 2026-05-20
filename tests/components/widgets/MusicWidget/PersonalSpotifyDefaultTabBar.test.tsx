@@ -1,7 +1,10 @@
 /**
- * PersonalSpotifyDefaultTabBar — the Songs/Playlists pills + search-icon strip
- * shown above the player while the Default-layout widget is selected. Verifies
- * pill selection wiring and the search expand/collapse toggle.
+ * PersonalSpotifyDefaultTabBar — three left-aligned icon+text pills
+ * (Songs / Playlists / Search) shown above the player while the Default-layout
+ * widget is selected. Verifies pill selection wiring and the search
+ * expand/collapse toggle. (ResizeObserver is a no-op in tests/setup.ts, so the
+ * text labels stay visible — we query by accessible name, which works in either
+ * icon-only or icon+text mode.)
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -17,13 +20,37 @@ const baseProps = {
 };
 
 describe('PersonalSpotifyDefaultTabBar', () => {
-  it('renders Songs + Playlists pills and a search button (collapsed)', () => {
+  it('renders three pills — Songs, Playlists, Search — with accessible names', () => {
     render(<PersonalSpotifyDefaultTabBar {...baseProps} />);
     expect(screen.getByRole('button', { name: 'Songs' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Playlists' })
     ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Search' })).toBeInTheDocument();
+  });
+
+  it('renders the pills left-aligned in Songs, Playlists, Search order', () => {
+    render(<PersonalSpotifyDefaultTabBar {...baseProps} />);
+    const names = screen
+      .getAllByRole('button')
+      .map((b) => b.getAttribute('aria-label'));
+    expect(names).toEqual(['Songs', 'Playlists', 'Search']);
+  });
+
+  it('marks the Search pill with aria-expanded reflecting search state', () => {
+    const { rerender } = render(
+      <PersonalSpotifyDefaultTabBar {...baseProps} />
+    );
+    expect(screen.getByRole('button', { name: 'Search' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    rerender(<PersonalSpotifyDefaultTabBar {...baseProps} searchOpen />);
+    // When open the visible Search trigger is the input; the collapsed pill is
+    // hidden, so just assert the input rendered (covered below).
+    expect(
+      screen.getByRole('textbox', { name: /Search Spotify/i })
+    ).toBeInTheDocument();
   });
 
   it('clicking Songs selects the songs view', () => {

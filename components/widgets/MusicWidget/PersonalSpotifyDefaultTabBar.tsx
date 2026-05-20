@@ -3,17 +3,25 @@
  * Default layout, but only while the widget is selected/active.
  *
  * Two visual states:
- *  - default: [ Songs ] [ Playlists ]  …………………………  ( search-icon )
+ *  - default: [ Songs ] [ Playlists ] [ Search ]  — three left-aligned
+ *    icon+text pills, in that order. (Search is no longer a floating icon in
+ *    the top-right corner, which used to collide with the draggable-window
+ *    drag/resize zone and was nearly unclickable.)
  *  - search open: the bar morphs into a full-width search input + an X to
  *    close, animating via a CSS width/opacity transition (the "expands left to
  *    fill the top" effect from the mockup).
  *
+ * Responsive labels: a ResizeObserver measures the bar width and collapses the
+ * pills to icon-only when narrow so all three fit; aria-labels keep them
+ * accessible in either mode.
+ *
  * Presentation/wiring only — view + query state lives in the parent
- * PersonalSpotifyDefaultLayout. The "player" view leaves both pills unselected.
+ * PersonalSpotifyDefaultLayout. The "player" view leaves both nav pills
+ * unselected.
  */
 
-import React, { useEffect, useRef } from 'react';
-import { Search, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Disc3, ListMusic, Search, X } from 'lucide-react';
 
 export type DefaultTabView = 'player' | 'songs' | 'playlists';
 
@@ -26,10 +34,21 @@ interface Props {
   onQueryChange: (query: string) => void;
 }
 
-const PILLS: { view: Exclude<DefaultTabView, 'player'>; label: string }[] = [
-  { view: 'songs', label: 'Songs' },
-  { view: 'playlists', label: 'Playlists' },
+const NAV_PILLS: {
+  view: Exclude<DefaultTabView, 'player'>;
+  label: string;
+  Icon: typeof Disc3;
+}[] = [
+  { view: 'songs', label: 'Songs', Icon: Disc3 },
+  { view: 'playlists', label: 'Playlists', Icon: ListMusic },
 ];
+
+// Below this bar width the three icon+text pills no longer fit comfortably, so
+// we drop the text labels and show icon-only pills.
+const LABEL_COLLAPSE_WIDTH = 260;
+
+const PILL_BASE =
+  'rounded-full transition-colors whitespace-nowrap flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70';
 
 export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
   activeView,
@@ -40,6 +59,8 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
   onQueryChange,
 }) => {
   const inputRef = useRef<HTMLInputElement>(null);
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [showLabels, setShowLabels] = useState(true);
 
   // Autofocus the search field when the bar morphs into search mode. This is a
   // genuine DOM side-effect (focus), so an effect is the right tool.
@@ -47,8 +68,36 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
     if (searchOpen) inputRef.current?.focus();
   }, [searchOpen]);
 
+  // Responsive labels — observe the bar's own width and collapse the text
+  // labels to icon-only when narrow. A ResizeObserver is the right tool for
+  // syncing with an element's measured size (an external system).
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? el.clientWidth;
+      setShowLabels(width >= LABEL_COLLAPSE_WIDTH);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const pillStyle: React.CSSProperties = {
+    gap: showLabels ? 'min(8px, 2cqmin)' : 0,
+    padding: showLabels
+      ? 'min(8px, 2cqmin) min(16px, 4cqmin)'
+      : 'min(8px, 2cqmin)',
+    fontSize: 'min(16px, 5cqmin)',
+  };
+  const iconStyle: React.CSSProperties = {
+    width: 'min(18px, 5cqmin)',
+    height: 'min(18px, 5cqmin)',
+    flexShrink: 0,
+  };
+
   return (
     <div
+      ref={rootRef}
       className="flex items-center"
       style={{
         gap: 'min(8px, 2cqmin)',
@@ -66,7 +115,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
           flex: searchOpen ? '0 0 auto' : '1 1 auto',
         }}
       >
-        {PILLS.map(({ view, label }) => {
+        {NAV_PILLS.map(({ view, label, Icon }) => {
           const isOn = activeView === view && !searchOpen;
           return (
             <button
@@ -75,20 +124,33 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
               tabIndex={searchOpen ? -1 : 0}
               onClick={() => onSelectView(isOn ? 'player' : view)}
               aria-pressed={isOn}
-              className={`rounded-full transition-colors whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 ${
+              aria-label={label}
+              className={`${PILL_BASE} ${
                 isOn
                   ? 'bg-green-500 text-slate-950 font-semibold shadow-md'
                   : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
               }`}
-              style={{
-                padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
-                fontSize: 'min(16px, 5cqmin)',
-              }}
+              style={pillStyle}
             >
-              {label}
+              <Icon style={iconStyle} aria-hidden="true" />
+              {showLabels && <span>{label}</span>}
             </button>
           );
         })}
+        {/* Search pill — same shape as the nav pills; tapping it opens the
+            expanding search input below. */}
+        <button
+          type="button"
+          tabIndex={searchOpen ? -1 : 0}
+          onClick={() => onToggleSearch(true)}
+          aria-label="Search"
+          aria-expanded={searchOpen}
+          className={`${PILL_BASE} bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white`}
+          style={pillStyle}
+        >
+          <Search style={iconStyle} aria-hidden="true" />
+          {showLabels && <span>Search</span>}
+        </button>
       </div>
 
       {/* Search input — expands to fill the row when open. */}
@@ -96,10 +158,12 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
         className="relative overflow-hidden transition-all duration-200 ease-out"
         style={{
           flex: searchOpen ? '1 1 auto' : '0 0 auto',
-          width: searchOpen ? '100%' : 'auto',
+          width: searchOpen ? '100%' : 0,
+          maxWidth: searchOpen ? '100%' : 0,
         }}
+        aria-hidden={!searchOpen}
       >
-        {searchOpen ? (
+        {searchOpen && (
           <>
             <Search
               className="absolute text-slate-500 pointer-events-none"
@@ -143,24 +207,6 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
               <X style={{ width: '60%', height: '60%' }} />
             </button>
           </>
-        ) : (
-          <button
-            type="button"
-            onClick={() => onToggleSearch(true)}
-            aria-label="Search"
-            className="rounded-full bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white transition-colors flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
-            style={{
-              width: 'min(36px, 10cqmin)',
-              height: 'min(36px, 10cqmin)',
-            }}
-          >
-            <Search
-              style={{
-                width: 'min(18px, 5cqmin)',
-                height: 'min(18px, 5cqmin)',
-              }}
-            />
-          </button>
         )}
       </div>
     </div>

@@ -111,40 +111,50 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-800 to-green-950 flex flex-col">
       <div
-        className="flex-1 flex flex-col items-center justify-center text-center"
+        className="flex-1 min-h-0 flex flex-col items-center justify-center text-center"
         style={{
           padding: 'min(16px, 5cqmin)',
           gap: 'min(12px, 4cqmin)',
         }}
       >
-        {displayImage ? (
-          <img
-            src={displayImage}
-            alt=""
-            className="rounded-xl object-cover shadow-2xl"
-            style={{
-              width: 'min(140px, 50cqmin)',
-              height: 'min(140px, 50cqmin)',
-            }}
-          />
-        ) : (
-          <div
-            className="rounded-xl bg-slate-700 flex items-center justify-center shadow-2xl"
-            style={{
-              width: 'min(140px, 50cqmin)',
-              height: 'min(140px, 50cqmin)',
-            }}
-          >
-            <Music2
-              className="text-slate-400"
+        {/* Album art lives in a flex-1 min-h-0 region so it shrinks to whatever
+            vertical space is left (e.g. when the tab bar appears) instead of
+            overflowing and clipping the transport row below. */}
+        <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+          {displayImage ? (
+            <img
+              src={displayImage}
+              alt=""
+              className="rounded-xl object-contain shadow-2xl"
               style={{
-                width: 'min(48px, 20cqmin)',
-                height: 'min(48px, 20cqmin)',
+                width: 'min(140px, 38cqh)',
+                height: 'min(140px, 38cqh)',
+                maxWidth: '100%',
+                maxHeight: '100%',
               }}
             />
-          </div>
-        )}
-        <div className="w-full">
+          ) : (
+            <div
+              className="rounded-xl bg-slate-700 flex items-center justify-center shadow-2xl"
+              style={{
+                width: 'min(140px, 38cqh)',
+                height: 'min(140px, 38cqh)',
+                maxWidth: '100%',
+                maxHeight: '100%',
+              }}
+            >
+              <Music2
+                className="text-slate-400"
+                style={{
+                  width: 'min(48px, 20cqmin)',
+                  height: 'min(48px, 20cqmin)',
+                }}
+              />
+            </div>
+          )}
+        </div>
+        {/* Title + transport stay shrink-0 so they are never pushed off / clipped. */}
+        <div className="w-full shrink-0">
           <p
             className="font-black text-white truncate"
             style={{ fontSize: 'min(16px, 7cqmin)' }}
@@ -163,7 +173,10 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
             </p>
           )}
         </div>
-        <div className="flex items-center" style={{ gap: 'min(16px, 6cqmin)' }}>
+        <div
+          className="flex items-center shrink-0"
+          style={{ gap: 'min(16px, 6cqmin)' }}
+        >
           <button
             type="button"
             onClick={onToggleShuffle}
