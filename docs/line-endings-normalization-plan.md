@@ -117,9 +117,13 @@ git add --renormalize .
 #    blobs are already LF (the Context section above explains why this is
 #    typical when core.autocrlf=true has been used consistently), nothing
 #    will be staged and the commit below will fail with "nothing to commit".
-#    In that case PR 2 is a no-op — close the branch without merging and
-#    proceed straight to Step 5 post-merge cleanup, since `.gitattributes`
-#    from PR 1 is sufficient.
+#    In that case PR 2 is a no-op — close the branch without merging. No
+#    renormalize commit is needed because the repository blobs are already
+#    LF. NOTE: this is "sufficient" only at the repository level. Existing
+#    Windows clones still have CRLF files on disk (core.autocrlf rewrote them
+#    on checkout), so Windows developers must still run the working-tree
+#    refresh from the "If PR 2 is a no-op" block below — triggered by PR 1
+#    merging, not PR 2 — to replace their on-disk CRLF files with LF.
 git status
 
 # 7. Commit the churn (skip if Step 6 showed nothing staged)
@@ -136,6 +140,20 @@ gh pr create --base main \
 **Title PR 2 exactly as `chore: normalize line endings to LF per .gitattributes`** (the `gh pr create` line above sets this). GitHub's "Squash and merge" uses the **PR title** (not the branch commit message) as the squash commit subject, and Step 4 greps that subject (case-insensitive, for `"normalize line endings"`) to discover the hash. If the PR title is renamed before merging, Step 4's grep returns nothing and the hard-fail guard triggers — leaving the operator with a confusing error and no easy way to diagnose the root cause.
 
 **Do not add the commit hash to `.git-blame-ignore-revs` in this PR.** This repo uses "Squash and merge" (see [PR #1365](https://github.com/OPS-PIvers/SpartBoard/pull/1365)), so the hash on your PR branch will **not** be the hash that lands on `main` — the squash produces a new commit. Pre-capturing a hash here records a ref that never exists on `main`, silently breaking blame-ignore.
+
+**If PR 2 is a no-op** (Step 6 above showed nothing staged), there is no merge event to trigger Step 5's post-merge cleanup — but Windows clones still hold CRLF files on disk and will keep producing `Delete ␍` lint errors until refreshed. Once **PR 1** has merged, every Windows developer must run the working-tree refresh on a clean tree:
+
+```bash
+# Run after PR 1 merges (the no-op path skips PR 2 entirely).
+git checkout main
+git pull
+git status            # confirm clean — the next commands discard uncommitted changes
+git rm --cached -r .
+git reset --hard
+git status            # should still be clean; files on disk are now LF
+```
+
+This is the same refresh Step 5 describes; the only difference is the trigger (PR 1 merging rather than PR 2).
 
 ### Step 3 — verify before merging PR 2
 
@@ -222,12 +240,23 @@ Immediately after PR 2 merges:
   ```bash
   git rm --cached -r .
   git reset --hard
+
+  # Rebase rewrote the branch's commits, so the remote tracking branch has
+  # diverged — a regular push is rejected. --force-with-lease is safer than
+  # --force: it fails if someone pushed to the branch since your last fetch.
+  git push --force-with-lease origin <branch-name>
   ```
 
-  This step must run unconditionally. A conflict-free rebase never pauses for `--continue`, so an operator following the conflict-resolution block alone would skip the refresh and end up with a rebased branch whose files on disk are still CRLF.
+  This step must run unconditionally. A conflict-free rebase never pauses for `--continue`, so an operator following the conflict-resolution block alone would skip the refresh and end up with a rebased branch whose files on disk are still CRLF. The force-push is required too: without it the rebase lives only in the local clone, and the open PR on GitHub still shows the pre-rebase commits based on un-normalized `main`.
 
   `git checkout --theirs -- <file>` overwrites the conflicted file but does **not** stage it — without `git add` the rebase will not recognize the conflict as resolved, and without `git rebase --continue` it will sit paused indefinitely.
   - **Note on `--theirs` semantics:** during `git rebase`, `--ours`/`--theirs` are **reversed** relative to `git merge`. In a rebase, `--ours` refers to the base you're rebasing **onto** (`main`, already LF), and `--theirs` refers to the commit being **replayed** (your branch, possibly CRLF). `--theirs` is correct here because the subsequent `git rm --cached -r . && git reset --hard` re-normalizes everything to LF; do not swap to `--ours`, which would silently discard any actual content changes in your branch commit if a "conflict" turns out to be more than line endings.
+
+- In each clone, point local git at the blame-ignore file so terminal `git blame` actually skips the renormalize commit (Step 4 only creates the file — local git ignores it until configured). GitHub's web blame view honors it automatically; this is only needed for `git blame` in a terminal:
+
+  ```bash
+  git config --local blame.ignoreRevsFile .git-blame-ignore-revs
+  ```
 
 - Inform teammates (or your other machines) to run the same refresh or re-clone.
 - Optionally in each clone: `git config --local core.autocrlf input` so future checkouts don't reintroduce CRLF if `.gitattributes` ever loses a rule.
@@ -248,7 +277,10 @@ fi
 git log -1 --format="%H %s%n%an  %ad" "$SQUASH_HASH"   # verify before reverting
 
 git checkout -b revert/normalize-line-endings
-git revert "$SQUASH_HASH"
+# --no-edit accepts the default revert message (Revert "chore: normalize line
+# endings…") instead of opening an interactive editor mid-block. Amend later if
+# you want to customize it.
+git revert --no-edit "$SQUASH_HASH"
 git push -u origin revert/normalize-line-endings
 gh pr create --base main \
   --title "revert: normalize line endings (rollback)" \
@@ -266,10 +298,22 @@ if [ -z "$REVERT_HASH" ]; then
   exit 1
 fi
 git log -1 --format="%H %s%n%an  %ad" "$REVERT_HASH"   # verify before writing
+
+# main is protected, so this goes through a PR — the same branch + push +
+# gh pr create flow as Step 4. If PR 3 hasn't merged yet, also append
+# "$SQUASH_HASH  # chore: normalize line endings" before committing so both
+# hashes land in this single blame-ignore commit.
+git checkout -b chore/blame-ignore-revert
 echo "$REVERT_HASH  # revert: normalize line endings" >> .git-blame-ignore-revs
+git add .git-blame-ignore-revs
+git commit -m "chore: register normalize-line-endings revert in blame-ignore"
+git push -u origin chore/blame-ignore-revert
+gh pr create --base main \
+  --title "chore: register normalize-line-endings revert in blame-ignore" \
+  --body "Registers the rollback revert commit in .git-blame-ignore-revs. See Rollback section in docs/line-endings-normalization-plan.md."
 ```
 
-If PR 3 hasn't merged yet at the point of rollback, include both hashes (the original renormalize and the revert) in a single blame-ignore commit instead of two separate PRs. If PR 3 has already merged, open a fourth small PR (`chore: register revert hash in blame-ignore`) containing only the revert hash — the same branch + push + `gh pr create` flow as Step 4, since `main` is protected.
+If PR 3 hasn't merged yet at the point of rollback, include both hashes (the original renormalize and the revert) in the single blame-ignore commit above instead of two separate PRs. If PR 3 has already merged, the block above opens a fourth small PR containing only the revert hash, since `main` is protected.
 
 ## Scope guardrails (what this plan does NOT do)
 
