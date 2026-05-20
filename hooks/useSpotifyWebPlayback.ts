@@ -50,6 +50,10 @@ export interface UseSpotifyWebPlaybackReturn {
   currentTrack: SpotifyPlaybackTrack | null;
   isPlaying: boolean;
   togglePlay: () => Promise<void>;
+  /** Skip to the next track in the current context (no-op if no player). */
+  next: () => Promise<void>;
+  /** Skip to the previous track in the current context (no-op if no player). */
+  previous: () => Promise<void>;
 }
 
 /**
@@ -250,6 +254,26 @@ export function useSpotifyWebPlayback(
     }
   }, [currentTrack]);
 
+  const next = useCallback(async () => {
+    const player = playerRef.current;
+    if (!player) return;
+    try {
+      await player.nextTrack();
+    } catch (err) {
+      console.warn('[useSpotifyWebPlayback.next] failed', err);
+    }
+  }, []);
+
+  const previous = useCallback(async () => {
+    const player = playerRef.current;
+    if (!player) return;
+    try {
+      await player.previousTrack();
+    } catch (err) {
+      console.warn('[useSpotifyWebPlayback.previous] failed', err);
+    }
+  }, []);
+
   return {
     deviceId,
     isReady: deviceId !== null,
@@ -257,5 +281,7 @@ export function useSpotifyWebPlayback(
     currentTrack,
     isPlaying,
     togglePlay,
+    next,
+    previous,
   };
 }

@@ -28,6 +28,8 @@ vi.mock('@/hooks/useSpotifyWebPlayback', () => ({
     currentTrack: null,
     isPlaying: false,
     togglePlay: vi.fn(),
+    next: vi.fn(),
+    previous: vi.fn(),
   }),
 }));
 
@@ -69,10 +71,36 @@ vi.mock(
   })
 );
 vi.mock('@/components/widgets/MusicWidget/PersonalSpotifyCompactBar', () => ({
-  PersonalSpotifyCompactBar: () => <div>mock-compact-bar</div>,
+  PersonalSpotifyCompactBar: ({
+    onOpenBrowse,
+  }: {
+    onOpenBrowse?: () => void;
+  }) => (
+    <div>
+      mock-compact-bar
+      {onOpenBrowse && (
+        <button type="button" onClick={onOpenBrowse}>
+          open-browse
+        </button>
+      )}
+    </div>
+  ),
 }));
 vi.mock('@/components/widgets/MusicWidget/PersonalSpotifyMinimalView', () => ({
-  PersonalSpotifyMinimalView: () => <div>mock-minimal-view</div>,
+  PersonalSpotifyMinimalView: ({
+    onOpenBrowse,
+  }: {
+    onOpenBrowse?: () => void;
+  }) => (
+    <div>
+      mock-minimal-view
+      {onOpenBrowse && (
+        <button type="button" onClick={onOpenBrowse}>
+          open-browse
+        </button>
+      )}
+    </div>
+  ),
 }));
 
 const makeWidget = (config: Record<string, unknown>) => ({
@@ -139,5 +167,57 @@ describe('PersonalSpotifyBrowser', () => {
     );
     expect(screen.getByText('mock-minimal-view')).toBeInTheDocument();
     expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
+  });
+
+  it('small layout: tapping the compact bar opens the browse overlay', () => {
+    render(
+      <PersonalSpotifyBrowser
+        widget={makeWidget({ layout: 'small' }) as never}
+      />
+    );
+    // Overlay (and its browse panel) is hidden until the surface is tapped.
+    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('open-browse'));
+    // Browse panel now visible (Library tab mock renders mock-play-track).
+    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
+  });
+
+  it('small layout: the overlay close button dismisses the browse panel', () => {
+    render(
+      <PersonalSpotifyBrowser
+        widget={makeWidget({ layout: 'small' }) as never}
+      />
+    );
+    fireEvent.click(screen.getByText('open-browse'));
+    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /Close browse/i }));
+    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
+  });
+
+  it('small layout: selecting a track in the overlay plays it and closes the overlay', () => {
+    render(
+      <PersonalSpotifyBrowser
+        widget={makeWidget({ layout: 'small' }) as never}
+      />
+    );
+    fireEvent.click(screen.getByText('open-browse'));
+    fireEvent.click(screen.getByText('mock-play-track'));
+    expect(mockUpdateWidget).toHaveBeenCalledWith('w1', {
+      config: { personalSpotifyUrl: 'spotify:track:t1' },
+    });
+    // Overlay closes; the compact bar is shown again (no inline tab switch).
+    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
+    expect(screen.getByText('mock-compact-bar')).toBeInTheDocument();
+  });
+
+  it('minimal layout: tapping the artwork opens the browse overlay', () => {
+    render(
+      <PersonalSpotifyBrowser
+        widget={makeWidget({ layout: 'minimal' }) as never}
+      />
+    );
+    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText('open-browse'));
+    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
   });
 });

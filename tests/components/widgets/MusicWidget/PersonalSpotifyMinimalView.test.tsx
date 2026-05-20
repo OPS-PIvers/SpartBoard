@@ -5,7 +5,7 @@
  * for Premium, or the Spotify embed iframe for Free / SDK-failed.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { PersonalSpotifyMinimalView } from '@/components/widgets/MusicWidget/PersonalSpotifyMinimalView';
 
 const base = {
@@ -20,6 +20,8 @@ const base = {
   },
   isPlaying: false,
   onTogglePlay: vi.fn(),
+  onNext: vi.fn(),
+  onPrevious: vi.fn(),
 };
 
 describe('PersonalSpotifyMinimalView', () => {
@@ -28,6 +30,40 @@ describe('PersonalSpotifyMinimalView', () => {
     expect(screen.getByText('Banana Pancakes')).toBeInTheDocument();
     expect(screen.getByText('Jack Johnson')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Play/i })).toBeInTheDocument();
+  });
+
+  it('renders Previous/Next buttons that forward to their handlers', () => {
+    const onNext = vi.fn();
+    const onPrevious = vi.fn();
+    render(
+      <PersonalSpotifyMinimalView
+        {...base}
+        onNext={onNext}
+        onPrevious={onPrevious}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Previous/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    expect(onPrevious).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('opens browse when the artwork is tapped (not the transport)', () => {
+    const onOpenBrowse = vi.fn();
+    const onTogglePlay = vi.fn();
+    render(
+      <PersonalSpotifyMinimalView
+        {...base}
+        onOpenBrowse={onOpenBrowse}
+        onTogglePlay={onTogglePlay}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Browse music/i }));
+    expect(onOpenBrowse).toHaveBeenCalledOnce();
+    // Transport buttons stopPropagation → tapping Play must not open browse.
+    fireEvent.click(screen.getByRole('button', { name: /Play/i }));
+    expect(onTogglePlay).toHaveBeenCalledOnce();
+    expect(onOpenBrowse).toHaveBeenCalledOnce();
   });
 
   it('renders the Spotify embed iframe for Free accounts', () => {

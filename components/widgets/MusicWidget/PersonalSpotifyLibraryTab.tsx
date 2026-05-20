@@ -19,22 +19,22 @@ const Skeleton: React.FC = () => (
     data-testid="spotify-row-skeleton"
     className="flex items-center animate-pulse"
     style={{
-      gap: 'min(8px, 2cqmin)',
-      padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+      gap: 'min(12px, 3cqmin)',
+      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
     }}
   >
     <div
-      className="rounded-sm bg-slate-700"
-      style={{ width: 'min(28px, 7cqmin)', height: 'min(28px, 7cqmin)' }}
+      className="rounded-md bg-slate-700"
+      style={{ width: 'min(56px, 14cqmin)', height: 'min(56px, 14cqmin)' }}
     />
-    <div className="flex-1 space-y-1">
+    <div className="flex-1 space-y-2">
       <div
         className="bg-slate-700 rounded"
-        style={{ height: 'min(10px, 2.5cqmin)', width: '75%' }}
+        style={{ height: 'min(16px, 4cqmin)', width: '75%' }}
       />
       <div
         className="bg-slate-800 rounded"
-        style={{ height: 'min(7px, 2cqmin)', width: '50%' }}
+        style={{ height: 'min(12px, 3cqmin)', width: '50%' }}
       />
     </div>
   </div>
@@ -44,12 +44,12 @@ const SectionLabel: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => (
   <div
-    className="text-slate-500 uppercase tracking-wider"
+    className="text-slate-500 uppercase tracking-wider font-semibold"
     style={{
-      fontSize: 'min(10px, 3cqmin)',
-      padding: '0 min(8px, 2cqmin)',
-      marginTop: 'min(12px, 3cqmin)',
-      marginBottom: 'min(4px, 1cqmin)',
+      fontSize: 'min(13px, 4cqmin)',
+      padding: '0 min(12px, 3cqmin)',
+      marginTop: 'min(16px, 4cqmin)',
+      marginBottom: 'min(6px, 1.5cqmin)',
     }}
   >
     {children}
@@ -66,10 +66,11 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
   if (error?.kind === 'scope') {
     return (
       <div
-        className="m-3 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-100"
+        className="rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-100"
         style={{
-          padding: 'min(12px, 3cqmin)',
-          fontSize: 'min(12px, 3.5cqmin)',
+          margin: 'min(12px, 3cqmin)',
+          padding: 'min(16px, 4cqmin)',
+          fontSize: 'min(15px, 4.5cqmin)',
         }}
       >
         <div
@@ -89,8 +90,8 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
           onClick={onReconnect}
           className="rounded-md bg-amber-500 text-amber-950 font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-300"
           style={{
-            fontSize: 'min(12px, 3.5cqmin)',
-            padding: 'min(4px, 1cqmin) min(12px, 3cqmin)',
+            fontSize: 'min(15px, 4.5cqmin)',
+            padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
           }}
         >
           Reconnect
@@ -101,7 +102,7 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
 
   if (isLoading && playlists.length === 0 && recents.length === 0) {
     return (
-      <div className="flex flex-col">
+      <div className="flex flex-col h-full overflow-y-auto">
         <SectionLabel>Recently played</SectionLabel>
         <Skeleton />
         <Skeleton />
@@ -116,15 +117,15 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
   if (playlists.length === 0 && recents.length === 0) {
     return (
       <div
-        className="flex flex-col items-center justify-center text-center text-slate-400"
-        style={{ padding: 'min(20px, 5cqmin)', fontSize: 'min(13px, 4cqmin)' }}
+        className="flex flex-col items-center justify-center text-center text-slate-400 h-full"
+        style={{ padding: 'min(24px, 6cqmin)', fontSize: 'min(16px, 5cqmin)' }}
       >
         <div>No playlists in your Spotify account yet.</div>
         <div
           className="text-slate-500"
           style={{
-            marginTop: 'min(4px, 1cqmin)',
-            fontSize: 'min(11px, 3.5cqmin)',
+            marginTop: 'min(6px, 1.5cqmin)',
+            fontSize: 'min(14px, 4cqmin)',
           }}
         >
           Tap the Search tab to find something.
@@ -134,22 +135,25 @@ export const PersonalSpotifyLibraryTab: React.FC<Props> = ({
   }
 
   return (
-    <div className="flex flex-col overflow-y-auto h-full">
+    <div
+      className="flex flex-col overflow-y-auto h-full"
+      style={{ paddingBottom: 'min(12px, 3cqmin)' }}
+    >
       <div
         className="flex justify-end"
-        style={{ padding: 'min(4px, 1cqmin) min(8px, 2cqmin) 0' }}
+        style={{ padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin) 0' }}
       >
         <button
           type="button"
           onClick={refresh}
           aria-label="Refresh library"
           className="text-slate-500 hover:text-slate-300 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 rounded"
-          style={{ padding: 'min(4px, 1cqmin)' }}
+          style={{ padding: 'min(6px, 1.5cqmin)' }}
         >
           <RefreshCw
             style={{
-              width: 'min(14px, 3.5cqmin)',
-              height: 'min(14px, 3.5cqmin)',
+              width: 'min(18px, 4.5cqmin)',
+              height: 'min(18px, 4.5cqmin)',
             }}
           />
         </button>

@@ -19,6 +19,8 @@ const base = {
   },
   isPlaying: false,
   onTogglePlay: vi.fn(),
+  onNext: vi.fn(),
+  onPrevious: vi.fn(),
 };
 
 describe('PersonalSpotifyCompactBar', () => {
@@ -44,6 +46,40 @@ describe('PersonalSpotifyCompactBar', () => {
   it('disables the control until the device is ready', () => {
     render(<PersonalSpotifyCompactBar {...base} isReady={false} />);
     expect(screen.getByRole('button', { name: /Play/i })).toBeDisabled();
+  });
+
+  it('renders Previous/Next buttons that forward to their handlers', () => {
+    const onNext = vi.fn();
+    const onPrevious = vi.fn();
+    render(
+      <PersonalSpotifyCompactBar
+        {...base}
+        onNext={onNext}
+        onPrevious={onPrevious}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Previous/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    expect(onPrevious).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('opens browse when the art/title area is tapped (not the transport)', () => {
+    const onOpenBrowse = vi.fn();
+    const onTogglePlay = vi.fn();
+    render(
+      <PersonalSpotifyCompactBar
+        {...base}
+        onOpenBrowse={onOpenBrowse}
+        onTogglePlay={onTogglePlay}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Browse music/i }));
+    expect(onOpenBrowse).toHaveBeenCalledOnce();
+    // Tapping the transport buttons must NOT bubble up to onOpenBrowse.
+    fireEvent.click(screen.getByRole('button', { name: /Play/i }));
+    expect(onTogglePlay).toHaveBeenCalledOnce();
+    expect(onOpenBrowse).toHaveBeenCalledOnce();
   });
 
   it('renders the Spotify embed iframe for Free accounts', () => {

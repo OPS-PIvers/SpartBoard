@@ -13,12 +13,12 @@
  */
 
 import React from 'react';
-import { Music2, Pause, Play } from 'lucide-react';
+import { Music2, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import { spotifyOpenUrlFromInput } from '@/utils/spotifyAuth';
 import { SpotifyPlaybackTrack } from '@/hooks/useSpotifyWebPlayback';
 import { buildSpotifyEmbedUrl } from './utils';
 
-interface Props {
+export interface PersonalSpotifyNowPlayingProps {
   url: string | null;
   thumbnail?: string;
   label?: string;
@@ -29,10 +29,14 @@ interface Props {
   currentTrack: SpotifyPlaybackTrack | null;
   isPlaying: boolean;
   onTogglePlay: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
   onSwitchToLibrary: () => void;
 }
 
-export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
+export const PersonalSpotifyNowPlayingTab: React.FC<
+  PersonalSpotifyNowPlayingProps
+> = ({
   url,
   thumbnail,
   label,
@@ -42,6 +46,8 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
   currentTrack,
   isPlaying,
   onTogglePlay,
+  onNext,
+  onPrevious,
   onSwitchToLibrary,
 }) => {
   // ── 1. Empty state ──────────────────────────────────────────────────────────
@@ -138,29 +144,63 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
             </p>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onTogglePlay}
-          disabled={!isReady}
-          aria-label={isPlaying ? 'Pause' : 'Play'}
-          className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
-          style={{
-            width: 'min(56px, 20cqmin)',
-            height: 'min(56px, 20cqmin)',
-          }}
-        >
-          {isPlaying ? (
-            <Pause
+        <div className="flex items-center" style={{ gap: 'min(20px, 8cqmin)' }}>
+          <button
+            type="button"
+            onClick={onPrevious}
+            disabled={!isReady}
+            aria-label="Previous"
+            className="rounded-full text-white/90 hover:text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+            style={{
+              width: 'min(36px, 13cqmin)',
+              height: 'min(36px, 13cqmin)',
+            }}
+          >
+            <SkipBack
               className="fill-current"
-              style={{ width: '40%', height: '40%' }}
+              style={{ width: '70%', height: '70%' }}
             />
-          ) : (
-            <Play
+          </button>
+          <button
+            type="button"
+            onClick={onTogglePlay}
+            disabled={!isReady}
+            aria-label={isPlaying ? 'Pause' : 'Play'}
+            className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+            style={{
+              width: 'min(56px, 20cqmin)',
+              height: 'min(56px, 20cqmin)',
+            }}
+          >
+            {isPlaying ? (
+              <Pause
+                className="fill-current"
+                style={{ width: '40%', height: '40%' }}
+              />
+            ) : (
+              <Play
+                className="fill-current"
+                style={{ width: '40%', height: '40%', marginLeft: '8%' }}
+              />
+            )}
+          </button>
+          <button
+            type="button"
+            onClick={onNext}
+            disabled={!isReady}
+            aria-label="Next"
+            className="rounded-full text-white/90 hover:text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+            style={{
+              width: 'min(36px, 13cqmin)',
+              height: 'min(36px, 13cqmin)',
+            }}
+          >
+            <SkipForward
               className="fill-current"
-              style={{ width: '40%', height: '40%', marginLeft: '8%' }}
+              style={{ width: '70%', height: '70%' }}
             />
-          )}
-        </button>
+          </button>
+        </div>
       </div>
     </div>
   );

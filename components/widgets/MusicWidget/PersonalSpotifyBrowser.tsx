@@ -5,13 +5,9 @@ import { useDashboard } from '@/context/useDashboard';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
 import { useSpotifyWebPlayback } from '@/hooks/useSpotifyWebPlayback';
 import { playOnDevice } from '@/utils/spotifyAuth';
-import { PersonalSpotifyTabs, SpotifyBrowserTab } from './PersonalSpotifyTabs';
-import {
-  PersonalSpotifyLibraryTab,
-  SpotifyPlayablePick,
-} from './PersonalSpotifyLibraryTab';
-import { PersonalSpotifySearchTab } from './PersonalSpotifySearchTab';
-import { PersonalSpotifyNowPlayingTab } from './PersonalSpotifyNowPlayingTab';
+import { SpotifyBrowserTab } from './PersonalSpotifyTabs';
+import { SpotifyPlayablePick } from './PersonalSpotifyLibraryTab';
+import { PersonalSpotifyBrowsePanel } from './PersonalSpotifyBrowsePanel';
 import { PersonalSpotifyCompactBar } from './PersonalSpotifyCompactBar';
 import { PersonalSpotifyMinimalView } from './PersonalSpotifyMinimalView';
 
@@ -30,6 +26,9 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   const { isPremium, getAccessToken, disconnect, connect } = useSpotifyAuth();
 
   const [activeTab, setActiveTab] = useState<SpotifyBrowserTab>('library');
+  // Small/minimal layouts have no inline tabs, so tapping the surface opens
+  // the full browse UI as a temporary full-cover overlay.
+  const [browseOpen, setBrowseOpen] = useState(false);
 
   const currentUri = config.personalSpotifyUrl ?? null;
 
@@ -55,8 +54,10 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
       });
       // In the full browse layout, starting a track jumps to the Now Playing
       // surface. The tab strip stays visible, so the user taps Playlists/Search
-      // to come back. Compact/minimal layouts have no tabs, so skip the jump.
+      // to come back. Compact/minimal layouts have no tabs — instead, selecting
+      // a track in their browse overlay closes it (no auto tab switch).
       if (layout === 'default') setActiveTab('now-playing');
+      else setBrowseOpen(false);
       if (!isPremium) return;
       const token = await getAccessToken();
       if (!token || !playback.deviceId) return;
@@ -89,73 +90,78 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
     currentTrack: playback.currentTrack,
     isPlaying: playback.isPlaying,
     onTogglePlay: () => void playback.togglePlay(),
+    onNext: () => void playback.next(),
+    onPrevious: () => void playback.previous(),
   };
 
-  // Small layout → single now-playing strip (no tabs).
+  // The browse panel (tab strip + active-tab body), shared between the inline
+  // default layout and the small/minimal overlay. `onClose` is only passed in
+  // overlay mode (renders the X button).
+  const renderBrowsePanel = (onClose?: () => void) => (
+    <PersonalSpotifyBrowsePanel
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      isAudioActive={isAudioActive}
+      currentUri={currentUri}
+      onPlay={handlePlay}
+      onReconnect={handleReconnect}
+      onSwitchToLibrary={() => setActiveTab('library')}
+      playbackProps={playbackProps}
+      onClose={onClose}
+    />
+  );
+
+  // Small layout → single now-playing strip (no tabs). Tapping the art/title
+  // opens the browse overlay so a new track can be picked.
   if (layout === 'small') {
     return (
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="w-full h-full">
-            <PersonalSpotifyCompactBar {...playbackProps} />
+          <div className="w-full h-full relative">
+            <PersonalSpotifyCompactBar
+              {...playbackProps}
+              onOpenBrowse={() => setBrowseOpen(true)}
+            />
+            {browseOpen && (
+              <div className="absolute inset-0 z-20 bg-slate-900">
+                {renderBrowsePanel(() => setBrowseOpen(false))}
+              </div>
+            )}
           </div>
         }
       />
     );
   }
 
-  // Minimal layout → full-bleed artwork + centered play (no tabs).
+  // Minimal layout → full-bleed artwork + centered play (no tabs). Tapping the
+  // artwork opens the browse overlay.
   if (layout === 'minimal') {
     return (
       <WidgetLayout
         padding="p-0"
         content={
-          <div className="w-full h-full">
-            <PersonalSpotifyMinimalView {...playbackProps} />
+          <div className="w-full h-full relative">
+            <PersonalSpotifyMinimalView
+              {...playbackProps}
+              onOpenBrowse={() => setBrowseOpen(true)}
+            />
+            {browseOpen && (
+              <div className="absolute inset-0 z-20 bg-slate-900">
+                {renderBrowsePanel(() => setBrowseOpen(false))}
+              </div>
+            )}
           </div>
         }
       />
     );
   }
 
-  // Default layout → full 3-tab browse UI.
+  // Default layout → full 3-tab browse UI (panel rendered inline, no overlay).
   return (
     <WidgetLayout
       padding="p-0"
-      content={
-        <div className="flex flex-col h-full w-full bg-slate-900/60 backdrop-blur-sm">
-          <PersonalSpotifyTabs
-            active={activeTab}
-            isAudioActive={isAudioActive}
-            onChange={setActiveTab}
-          />
-          {/* flex-1 + min-h-0 lets the active tab fill the remaining
-              height and scroll internally — without it the content
-              top-clusters and leaves a dead gap on tall widgets. */}
-          <div className="flex-1 min-h-0">
-            {activeTab === 'library' && (
-              <PersonalSpotifyLibraryTab
-                currentUri={currentUri}
-                onPlay={handlePlay}
-                onReconnect={handleReconnect}
-              />
-            )}
-            {activeTab === 'search' && (
-              <PersonalSpotifySearchTab
-                currentUri={currentUri}
-                onPlay={handlePlay}
-              />
-            )}
-            {activeTab === 'now-playing' && (
-              <PersonalSpotifyNowPlayingTab
-                {...playbackProps}
-                onSwitchToLibrary={() => setActiveTab('library')}
-              />
-            )}
-          </div>
-        </div>
-      }
+      content={<div className="w-full h-full">{renderBrowsePanel()}</div>}
     />
   );
 };

@@ -80,16 +80,16 @@ export const PersonalSpotifySearchTab: React.FC<Props> = ({
     <div className="flex flex-col h-full">
       <div
         className="relative"
-        style={{ padding: 'min(8px, 2cqmin) min(8px, 2cqmin) 0' }}
+        style={{ padding: 'min(12px, 3cqmin) min(12px, 3cqmin) 0' }}
       >
         <Search
           className="absolute text-slate-500 pointer-events-none"
           style={{
-            left: 'min(16px, 4cqmin)',
+            left: 'min(24px, 6cqmin)',
             top: '50%',
-            transform: 'translateY(-25%)',
-            width: 'min(14px, 3.5cqmin)',
-            height: 'min(14px, 3.5cqmin)',
+            transform: 'translateY(-10%)',
+            width: 'min(18px, 4.5cqmin)',
+            height: 'min(18px, 4.5cqmin)',
           }}
         />
         <input
@@ -98,27 +98,30 @@ export const PersonalSpotifySearchTab: React.FC<Props> = ({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search Spotify…"
-          className="w-full bg-slate-800 border border-slate-700 rounded-md text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+          className="w-full bg-slate-800 border border-slate-700 rounded-lg text-white placeholder:text-slate-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
           style={{
-            paddingLeft: 'min(28px, 7cqmin)',
-            paddingRight: 'min(8px, 2cqmin)',
-            paddingTop: 'min(6px, 1.5cqmin)',
-            paddingBottom: 'min(6px, 1.5cqmin)',
-            fontSize: 'min(13px, 4cqmin)',
+            paddingLeft: 'min(40px, 10cqmin)',
+            paddingRight: 'min(12px, 3cqmin)',
+            paddingTop: 'min(10px, 2.5cqmin)',
+            paddingBottom: 'min(10px, 2.5cqmin)',
+            fontSize: 'min(16px, 5cqmin)',
           }}
         />
       </div>
 
       <div
         className="flex-1 overflow-y-auto"
-        style={{ marginTop: 'min(8px, 2cqmin)' }}
+        style={{
+          marginTop: 'min(8px, 2cqmin)',
+          paddingBottom: 'min(12px, 3cqmin)',
+        }}
       >
         {searchError && (
           <div
             className="text-red-400"
             style={{
-              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
+              padding: 'min(12px, 3cqmin) min(16px, 4cqmin)',
+              fontSize: 'min(15px, 4.5cqmin)',
             }}
           >
             {searchError}
@@ -129,8 +132,8 @@ export const PersonalSpotifySearchTab: React.FC<Props> = ({
             <div
               className="text-slate-400 text-center"
               style={{
-                padding: 'min(12px, 3cqmin) min(12px, 3cqmin)',
-                fontSize: 'min(12px, 3.5cqmin)',
+                padding: 'min(16px, 4cqmin) min(16px, 4cqmin)',
+                fontSize: 'min(16px, 5cqmin)',
               }}
             >
               Type to search Spotify
@@ -138,12 +141,12 @@ export const PersonalSpotifySearchTab: React.FC<Props> = ({
             {recents.length > 0 && (
               <>
                 <div
-                  className="text-slate-500 uppercase tracking-wider"
+                  className="text-slate-500 uppercase tracking-wider font-semibold"
                   style={{
-                    padding: '0 min(8px, 2cqmin)',
-                    fontSize: 'min(10px, 3cqmin)',
+                    padding: '0 min(12px, 3cqmin)',
+                    fontSize: 'min(13px, 4cqmin)',
                     letterSpacing: '0.05em',
-                    marginBottom: 'min(4px, 1cqmin)',
+                    marginBottom: 'min(6px, 1.5cqmin)',
                   }}
                 >
                   Recently played

@@ -127,6 +127,8 @@ export interface SpotifyPlayer {
   togglePlay: () => Promise<void>;
   pause: () => Promise<void>;
   resume: () => Promise<void>;
+  nextTrack: () => Promise<void>;
+  previousTrack: () => Promise<void>;
   getCurrentState: () => Promise<SpotifyPlayerState | null>;
   addListener: ((
     event: 'ready',

@@ -19,43 +19,47 @@ export const SpotifyResultRow: React.FC<Props> = ({
   <button
     type="button"
     onClick={onClick}
-    className="w-full flex items-center rounded-md hover:bg-white/5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+    className="w-full flex items-center rounded-lg hover:bg-white/5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
     style={{
-      gap: 'min(8px, 2cqmin)',
-      padding: 'min(6px, 1.5cqmin) min(8px, 2cqmin)',
+      gap: 'min(12px, 3cqmin)',
+      padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
     }}
   >
     {imageUrl ? (
       <img
         src={imageUrl}
         alt={name}
-        className="rounded-sm object-cover flex-shrink-0"
-        style={{ width: 'min(28px, 7cqmin)', height: 'min(28px, 7cqmin)' }}
+        className="rounded-md object-cover flex-shrink-0 shadow-sm"
+        style={{ width: 'min(56px, 14cqmin)', height: 'min(56px, 14cqmin)' }}
       />
     ) : (
       <div
-        className="rounded-sm bg-slate-700 flex items-center justify-center flex-shrink-0"
-        style={{ width: 'min(28px, 7cqmin)', height: 'min(28px, 7cqmin)' }}
+        className="rounded-md bg-slate-700 flex items-center justify-center flex-shrink-0"
+        style={{ width: 'min(56px, 14cqmin)', height: 'min(56px, 14cqmin)' }}
       >
         <Music2
+          className="text-slate-400"
           style={{
-            width: 'min(14px, 3.5cqmin)',
-            height: 'min(14px, 3.5cqmin)',
+            width: 'min(28px, 7cqmin)',
+            height: 'min(28px, 7cqmin)',
           }}
         />
       </div>
     )}
     <div className="flex-1 min-w-0">
       <div
-        className="truncate text-white"
-        style={{ fontSize: 'min(13px, 4.5cqmin)' }}
+        className="truncate text-white font-medium"
+        style={{ fontSize: 'min(22px, 6cqmin)', lineHeight: 1.25 }}
       >
         {name}
       </div>
       {subtitle && (
         <div
           className="truncate text-slate-400"
-          style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+          style={{
+            fontSize: 'min(15px, 4.5cqmin)',
+            marginTop: 'min(2px, 0.5cqmin)',
+          }}
         >
           {subtitle}
         </div>
@@ -66,7 +70,7 @@ export const SpotifyResultRow: React.FC<Props> = ({
         aria-label="Currently playing"
         fill="currentColor"
         className="text-green-400 flex-shrink-0"
-        style={{ width: 'min(14px, 3.5cqmin)', height: 'min(14px, 3.5cqmin)' }}
+        style={{ width: 'min(20px, 5cqmin)', height: 'min(20px, 5cqmin)' }}
       />
     )}
   </button>

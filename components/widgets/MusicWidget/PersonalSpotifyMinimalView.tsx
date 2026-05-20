@@ -14,7 +14,7 @@
  */
 
 import React from 'react';
-import { Music2, Pause, Play } from 'lucide-react';
+import { Music2, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import { spotifyOpenUrlFromInput } from '@/utils/spotifyAuth';
 import { SpotifyPlaybackTrack } from '@/hooks/useSpotifyWebPlayback';
 import { buildSpotifyEmbedUrl } from './utils';
@@ -29,6 +29,10 @@ interface Props {
   currentTrack: SpotifyPlaybackTrack | null;
   isPlaying: boolean;
   onTogglePlay: () => void;
+  onNext: () => void;
+  onPrevious: () => void;
+  /** Tapping the artwork (not the transport buttons) opens the browse overlay. */
+  onOpenBrowse?: () => void;
 }
 
 export const PersonalSpotifyMinimalView: React.FC<Props> = ({
@@ -41,6 +45,9 @@ export const PersonalSpotifyMinimalView: React.FC<Props> = ({
   currentTrack,
   isPlaying,
   onTogglePlay,
+  onNext,
+  onPrevious,
+  onOpenBrowse,
 }) => {
   // Free tier / SDK failure → the embed iframe owns playback.
   if (url && (!isPremium || sdkFailed)) {
@@ -92,14 +99,51 @@ export const PersonalSpotifyMinimalView: React.FC<Props> = ({
         }`}
       />
 
-      {/* Centered play/pause button */}
-      <div className="absolute inset-0 flex items-center justify-center">
+      {/* Artwork tap target — opens the browse overlay. Sits below the
+          transport controls; the transport buttons stopPropagation so they
+          don't also trigger this. */}
+      {onOpenBrowse && (
         <button
           type="button"
-          onClick={onTogglePlay}
+          onClick={onOpenBrowse}
+          aria-label="Browse music"
+          className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-400/70"
+        />
+      )}
+
+      {/* Centered transport: prev / play-pause / next */}
+      <div
+        className="absolute inset-0 flex items-center justify-center pointer-events-none"
+        style={{ gap: 'min(16px, 14cqh)' }}
+      >
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrevious();
+          }}
+          disabled={!isReady || !url}
+          aria-label="Previous"
+          className="pointer-events-auto rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+          style={{
+            width: 'min(36px, 26cqh)',
+            height: 'min(36px, 26cqh)',
+          }}
+        >
+          <SkipBack
+            className="fill-current"
+            style={{ width: '50%', height: '50%' }}
+          />
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onTogglePlay();
+          }}
           disabled={!isReady || !url}
           aria-label={isPlaying ? 'Pause' : 'Play'}
-          className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+          className="pointer-events-auto rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
           style={{
             width: 'min(56px, 40cqh)',
             height: 'min(56px, 40cqh)',
@@ -116,6 +160,25 @@ export const PersonalSpotifyMinimalView: React.FC<Props> = ({
               style={{ width: '40%', height: '40%', marginLeft: '8%' }}
             />
           )}
+        </button>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onNext();
+          }}
+          disabled={!isReady || !url}
+          aria-label="Next"
+          className="pointer-events-auto rounded-full bg-black/30 hover:bg-black/50 text-white flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+          style={{
+            width: 'min(36px, 26cqh)',
+            height: 'min(36px, 26cqh)',
+          }}
+        >
+          <SkipForward
+            className="fill-current"
+            style={{ width: '50%', height: '50%' }}
+          />
         </button>
       </div>
 

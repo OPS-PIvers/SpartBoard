@@ -49,6 +49,8 @@ class FakePlayer {
   connect = vi.fn().mockResolvedValue(true);
   disconnect = vi.fn();
   togglePlay = vi.fn().mockResolvedValue(undefined);
+  nextTrack = vi.fn().mockResolvedValue(undefined);
+  previousTrack = vi.fn().mockResolvedValue(undefined);
   addListener = vi.fn((event: string, cb: Listener) => {
     this.listeners.set(event, cb);
   });
@@ -243,6 +245,44 @@ describe('useSpotifyWebPlayback', () => {
     expect(playOnDeviceMock).toHaveBeenCalledWith('tok', 'device-123', {
       contextUri: 'spotify:playlist:p1',
     });
+  });
+
+  it('next() calls the player nextTrack', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    await act(async () => {
+      await result.current.next();
+    });
+    expect(fakePlayer.nextTrack).toHaveBeenCalledTimes(1);
+  });
+
+  it('previous() calls the player previousTrack', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    await act(async () => {
+      await result.current.previous();
+    });
+    expect(fakePlayer.previousTrack).toHaveBeenCalledTimes(1);
+  });
+
+  it('next()/previous() are no-ops when there is no player (disabled)', async () => {
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(false, getToken, null)
+    );
+    // No player ever connected → calling these must not throw.
+    await act(async () => {
+      await result.current.next();
+      await result.current.previous();
+    });
+    expect(result.current.deviceId).toBeNull();
   });
 
   it('does NOT set sdkFailed on playback_error (transient)', async () => {

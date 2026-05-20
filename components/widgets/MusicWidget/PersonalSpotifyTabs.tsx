@@ -25,8 +25,8 @@ export const PersonalSpotifyTabs: React.FC<Props> = ({
     <div
       className="flex"
       style={{
-        gap: 'min(4px, 1cqmin)',
-        padding: '0 min(8px, 2cqmin) min(4px, 1cqmin)',
+        gap: 'min(8px, 2cqmin)',
+        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
       }}
     >
       {TABS.map((key) => {
@@ -44,12 +44,12 @@ export const PersonalSpotifyTabs: React.FC<Props> = ({
             }
             className={`rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 ${
               isOn
-                ? 'bg-green-500 text-slate-950 font-semibold'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                ? 'bg-green-500 text-slate-950 font-semibold shadow-md'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700 hover:text-white'
             }`}
             style={{
-              padding: 'min(4px, 1cqmin) min(10px, 2.5cqmin)',
-              fontSize: 'min(11px, 3.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+              fontSize: 'min(16px, 5cqmin)',
             }}
           >
             <span>{TAB_LABELS[key]}</span>
@@ -59,9 +59,9 @@ export const PersonalSpotifyTabs: React.FC<Props> = ({
                 data-testid="audio-playing-dot"
                 className="inline-block bg-green-400 rounded-full"
                 style={{
-                  width: 'min(5px, 1.2cqmin)',
-                  height: 'min(5px, 1.2cqmin)',
-                  marginLeft: 'min(4px, 1cqmin)',
+                  width: 'min(8px, 2cqmin)',
+                  height: 'min(8px, 2cqmin)',
+                  marginLeft: 'min(6px, 1.5cqmin)',
                   verticalAlign: 'middle',
                   boxShadow: '0 0 4px rgba(74, 222, 128, 0.7)',
                 }}

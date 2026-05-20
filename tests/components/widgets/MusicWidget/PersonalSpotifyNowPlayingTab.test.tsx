@@ -17,6 +17,8 @@ const baseProps = {
   currentTrack: null as SpotifyPlaybackTrack | null,
   isPlaying: false,
   onTogglePlay: vi.fn(),
+  onNext: vi.fn(),
+  onPrevious: vi.fn(),
   onSwitchToLibrary: vi.fn(),
 };
 
@@ -66,6 +68,53 @@ describe('PersonalSpotifyNowPlayingTab', () => {
     // Play state → button labelled "Play"; clicking forwards to onTogglePlay.
     fireEvent.click(screen.getByRole('button', { name: /Play/i }));
     expect(onToggle).toHaveBeenCalledOnce();
+  });
+
+  it('renders Previous/Next buttons that forward to their handlers (SDK branch)', () => {
+    const onNext = vi.fn();
+    const onPrevious = vi.fn();
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium
+        isReady
+        currentTrack={{ name: 'Test Song', artist: 'Test Artist' }}
+        onNext={onNext}
+        onPrevious={onPrevious}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Previous/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Next/i }));
+    expect(onPrevious).toHaveBeenCalledOnce();
+    expect(onNext).toHaveBeenCalledOnce();
+  });
+
+  it('disables Previous/Next until the device is ready', () => {
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium
+        isReady={false}
+        currentTrack={null}
+      />
+    );
+    expect(screen.getByRole('button', { name: /Previous/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Next/i })).toBeDisabled();
+  });
+
+  it('does NOT render Previous/Next on the Free-tier iframe branch', () => {
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium={false}
+        label="Free Preview"
+      />
+    );
+    expect(screen.queryByRole('button', { name: /Previous/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Next/i })).toBeNull();
   });
 
   it('labels the toggle button "Pause" when playing', () => {
