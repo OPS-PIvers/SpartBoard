@@ -3,6 +3,7 @@ import { WidgetData, MusicConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+import { useSpotifyWebPlayback } from '@/hooks/useSpotifyWebPlayback';
 import { playOnDevice } from '@/utils/spotifyAuth';
 import { PersonalSpotifyTabs, SpotifyBrowserTab } from './PersonalSpotifyTabs';
 import {
@@ -10,10 +11,7 @@ import {
   SpotifyPlayablePick,
 } from './PersonalSpotifyLibraryTab';
 import { PersonalSpotifySearchTab } from './PersonalSpotifySearchTab';
-import {
-  PersonalSpotifyNowPlayingTab,
-  SdkState,
-} from './PersonalSpotifyNowPlayingTab';
+import { PersonalSpotifyNowPlayingTab } from './PersonalSpotifyNowPlayingTab';
 
 interface Props {
   widget: WidgetData;
@@ -28,17 +26,17 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   // PersonalSpotifyLibraryTab for clarity.
   const { isPremium, getAccessToken, disconnect, connect } = useSpotifyAuth();
 
-  const [activeTab, setActiveTab] = useState<SpotifyBrowserTab>('library');
-  // sdk state: updated via onSdkState callback from PersonalSpotifyNowPlayingTab.
-  const [sdk, setSdkState] = useState<SdkState>({
-    deviceId: null,
-    isPlaying: false,
-  });
+  // The Web Playback SDK is owned here (above the tabs) so the playback device
+  // survives tab switches — a track tapped in Library plays even before the
+  // Now Playing tab is opened, and leaving Now Playing doesn't stop the music.
+  // Disabled for Free accounts (SDK requires Premium); they get the embed.
+  const playback = useSpotifyWebPlayback(isPremium, getAccessToken);
 
-  const handleSdkState = useCallback((next: SdkState) => setSdkState(next), []);
+  const [activeTab, setActiveTab] = useState<SpotifyBrowserTab>('library');
 
   const currentUri = config.personalSpotifyUrl ?? null;
-  const isAudioActive = sdk.isPlaying || (!isPremium && Boolean(currentUri));
+  const isAudioActive =
+    playback.isPlaying || (!isPremium && Boolean(currentUri));
 
   const handleReconnect = useCallback(async () => {
     await disconnect();
@@ -52,16 +50,16 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
       });
       if (!isPremium) return;
       const token = await getAccessToken();
-      if (!token || !sdk.deviceId) return;
+      if (!token || !playback.deviceId) return;
       const payload =
         pick.type === 'track' ? { uris: [pick.uri] } : { contextUri: pick.uri };
       try {
-        await playOnDevice(token, sdk.deviceId, payload);
+        await playOnDevice(token, playback.deviceId, payload);
       } catch (err) {
         console.warn('[PersonalSpotifyBrowser.handlePlay] play failed', err);
       }
     },
-    [updateWidget, widget.id, isPremium, getAccessToken, sdk.deviceId]
+    [updateWidget, widget.id, isPremium, getAccessToken, playback.deviceId]
   );
 
   return (
@@ -92,8 +90,12 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
               url={currentUri}
               thumbnail={config.personalSpotifyThumbnail}
               label={config.personalSpotifyLabel}
+              isPremium={isPremium}
+              sdkFailed={playback.sdkFailed}
+              currentTrack={playback.currentTrack}
+              isPlaying={playback.isPlaying}
+              onTogglePlay={() => void playback.togglePlay()}
               onSwitchToLibrary={() => setActiveTab('library')}
-              onSdkState={handleSdkState}
             />
           )}
         </div>

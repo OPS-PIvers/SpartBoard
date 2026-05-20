@@ -18,6 +18,16 @@ vi.mock('@/hooks/useSpotifyAuth', () => ({
     connect: vi.fn(),
   }),
 }));
+vi.mock('@/hooks/useSpotifyWebPlayback', () => ({
+  useSpotifyWebPlayback: () => ({
+    deviceId: 'dev1',
+    isReady: true,
+    sdkFailed: false,
+    currentTrack: null,
+    isPlaying: false,
+    togglePlay: vi.fn(),
+  }),
+}));
 
 const playMock = vi.fn();
 vi.mock('@/utils/spotifyAuth', async () => {
