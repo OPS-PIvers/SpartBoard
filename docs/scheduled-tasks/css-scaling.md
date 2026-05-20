@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-19_
+_Last audited: 2026-05-20_
 _Last action: 2026-05-16_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-20: Scanned all Widget.tsx / index.tsx files for anti-patterns. Recent commits since 2026-05-19: fix(deps) lodash-es override (dependency only), docs(changelog) release entry (docs only). Neither introduced new widget front-face changes. Two percentage-based `max-w-[%]` occurrences noted (MusicWidget line 570: `max-w-[85%]`; RecessGear line 341: `max-w-[70%]`) — these are container-relative, not pixel caps, and do not violate the anti-pattern rule. Pre-existing open items remain valid. No new violations detected._
 
 _2026-05-19: Scanned all Widget.tsx / index.tsx files for anti-patterns. New commits since 2026-05-18: Sidebar Cohesion Pass (89b66431 — modal/sidebar UI only, no widget canvas changes), feat(music) 94f21d0f (Spotify Web Playback SDK in MusicWidget). MusicWidget changes: uses cqh-based sizing throughout per the widget's short/wide layout (baseHeight: 80). Pre-existing `size="40%"` and `size="30%"` on `PlayButton` are explicitly documented in the component's interface as valid CSS dimension strings; the primary play-button correctly uses `size="min(56px, 40cqh)"`. DrawingWidget's `size="icon"` on buttons is irrelevant — `skipScaling: false` uses CSS `transform: scale()`, not container queries. ActivityWall `max-h-[75vh]` at 2101/2107/2110 is inside a fullscreen submission-preview overlay outside the widget canvas container query context — confirmed valid per 2026-05-14/16 investigations. No new Widget.tsx front-face scaling violations. All pre-existing open items remain valid._
 
