@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { WidgetData, MusicConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
@@ -13,20 +13,15 @@ import {
 import { PersonalSpotifySearchTab } from './PersonalSpotifySearchTab';
 import { PersonalSpotifyNowPlayingTab } from './PersonalSpotifyNowPlayingTab';
 import { PersonalSpotifyCompactBar } from './PersonalSpotifyCompactBar';
+import { PersonalSpotifyMinimalView } from './PersonalSpotifyMinimalView';
 
 interface Props {
   widget: WidgetData;
 }
 
-// Below either threshold the full 3-tab browse UI (tab strip + scrollable
-// lists) is too cramped to use, so we collapse to the compact now-playing
-// bar. Tuned so a teacher who shrinks the widget out of the way still gets a
-// usable mini player, while any comfortably-sized widget keeps the full UI.
-const COMPACT_MAX_WIDTH = 220;
-const COMPACT_MAX_HEIGHT = 220;
-
 export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   const config = widget.config as MusicConfig;
+  const { layout = 'default' } = config;
   const { updateWidget } = useDashboard();
   // Note: useSpotifyAuth exposes `connect` and `disconnect` but no `reconnect`.
   // handleReconnect below calls disconnect() then connect() to achieve a
@@ -35,25 +30,6 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   const { isPremium, getAccessToken, disconnect, connect } = useSpotifyAuth();
 
   const [activeTab, setActiveTab] = useState<SpotifyBrowserTab>('library');
-
-  // Measure the widget content box so we can collapse to the compact bar when
-  // it's shrunk. ResizeObserver is the right tool — the widget is freely
-  // resizable and there's no viewport breakpoint that maps to its size.
-  const rootRef = useRef<HTMLDivElement>(null);
-  const [isCompact, setIsCompact] = useState(false);
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const box = entries[0]?.contentRect;
-      if (!box) return;
-      setIsCompact(
-        box.width <= COMPACT_MAX_WIDTH || box.height <= COMPACT_MAX_HEIGHT
-      );
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
 
   const currentUri = config.personalSpotifyUrl ?? null;
 
@@ -77,6 +53,10 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
       updateWidget(widget.id, {
         config: { personalSpotifyUrl: pick.uri },
       });
+      // In the full browse layout, starting a track jumps to the Now Playing
+      // surface. The tab strip stays visible, so the user taps Playlists/Search
+      // to come back. Compact/minimal layouts have no tabs, so skip the jump.
+      if (layout === 'default') setActiveTab('now-playing');
       if (!isPremium) return;
       const token = await getAccessToken();
       if (!token || !playback.deviceId) return;
@@ -88,70 +68,92 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
         console.warn('[PersonalSpotifyBrowser.handlePlay] play failed', err);
       }
     },
-    [updateWidget, widget.id, isPremium, getAccessToken, playback.deviceId]
+    [
+      updateWidget,
+      widget.id,
+      layout,
+      isPremium,
+      getAccessToken,
+      playback.deviceId,
+    ]
   );
 
+  // Shared playback props handed to the leaf "now playing" surfaces.
+  const playbackProps = {
+    url: currentUri,
+    thumbnail: config.personalSpotifyThumbnail,
+    label: config.personalSpotifyLabel,
+    isPremium,
+    sdkFailed: playback.sdkFailed,
+    isReady: playback.isReady,
+    currentTrack: playback.currentTrack,
+    isPlaying: playback.isPlaying,
+    onTogglePlay: () => void playback.togglePlay(),
+  };
+
+  // Small layout → single now-playing strip (no tabs).
+  if (layout === 'small') {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <div className="w-full h-full">
+            <PersonalSpotifyCompactBar {...playbackProps} />
+          </div>
+        }
+      />
+    );
+  }
+
+  // Minimal layout → full-bleed artwork + centered play (no tabs).
+  if (layout === 'minimal') {
+    return (
+      <WidgetLayout
+        padding="p-0"
+        content={
+          <div className="w-full h-full">
+            <PersonalSpotifyMinimalView {...playbackProps} />
+          </div>
+        }
+      />
+    );
+  }
+
+  // Default layout → full 3-tab browse UI.
   return (
     <WidgetLayout
       padding="p-0"
       content={
-        <div
-          ref={rootRef}
-          className="flex flex-col h-full bg-slate-900/60 backdrop-blur-sm"
-        >
-          {isCompact ? (
-            <PersonalSpotifyCompactBar
-              url={currentUri}
-              thumbnail={config.personalSpotifyThumbnail}
-              label={config.personalSpotifyLabel}
-              isPremium={isPremium}
-              sdkFailed={playback.sdkFailed}
-              isReady={playback.isReady}
-              currentTrack={playback.currentTrack}
-              isPlaying={playback.isPlaying}
-              onTogglePlay={() => void playback.togglePlay()}
-            />
-          ) : (
-            <>
-              <PersonalSpotifyTabs
-                active={activeTab}
-                isAudioActive={isAudioActive}
-                onChange={setActiveTab}
+        <div className="flex flex-col h-full w-full bg-slate-900/60 backdrop-blur-sm">
+          <PersonalSpotifyTabs
+            active={activeTab}
+            isAudioActive={isAudioActive}
+            onChange={setActiveTab}
+          />
+          {/* flex-1 + min-h-0 lets the active tab fill the remaining
+              height and scroll internally — without it the content
+              top-clusters and leaves a dead gap on tall widgets. */}
+          <div className="flex-1 min-h-0">
+            {activeTab === 'library' && (
+              <PersonalSpotifyLibraryTab
+                currentUri={currentUri}
+                onPlay={handlePlay}
+                onReconnect={handleReconnect}
               />
-              {/* flex-1 + min-h-0 lets the active tab fill the remaining
-                  height and scroll internally — without it the content
-                  top-clusters and leaves a dead gap on tall widgets. */}
-              <div className="flex-1 min-h-0">
-                {activeTab === 'library' && (
-                  <PersonalSpotifyLibraryTab
-                    currentUri={currentUri}
-                    onPlay={handlePlay}
-                    onReconnect={handleReconnect}
-                  />
-                )}
-                {activeTab === 'search' && (
-                  <PersonalSpotifySearchTab
-                    currentUri={currentUri}
-                    onPlay={handlePlay}
-                  />
-                )}
-                {activeTab === 'now-playing' && (
-                  <PersonalSpotifyNowPlayingTab
-                    url={currentUri}
-                    thumbnail={config.personalSpotifyThumbnail}
-                    label={config.personalSpotifyLabel}
-                    isPremium={isPremium}
-                    sdkFailed={playback.sdkFailed}
-                    isReady={playback.isReady}
-                    currentTrack={playback.currentTrack}
-                    isPlaying={playback.isPlaying}
-                    onTogglePlay={() => void playback.togglePlay()}
-                    onSwitchToLibrary={() => setActiveTab('library')}
-                  />
-                )}
-              </div>
-            </>
-          )}
+            )}
+            {activeTab === 'search' && (
+              <PersonalSpotifySearchTab
+                currentUri={currentUri}
+                onPlay={handlePlay}
+              />
+            )}
+            {activeTab === 'now-playing' && (
+              <PersonalSpotifyNowPlayingTab
+                {...playbackProps}
+                onSwitchToLibrary={() => setActiveTab('library')}
+              />
+            )}
+          </div>
         </div>
       }
     />

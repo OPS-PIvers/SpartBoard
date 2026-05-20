@@ -14,7 +14,6 @@
 
 import React from 'react';
 import { Music2, Pause, Play } from 'lucide-react';
-import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { spotifyOpenUrlFromInput } from '@/utils/spotifyAuth';
 import { SpotifyPlaybackTrack } from '@/hooks/useSpotifyWebPlayback';
 import { buildSpotifyEmbedUrl } from './utils';
@@ -85,90 +84,85 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
   const displayArtist = currentTrack?.artist ?? '';
 
   return (
-    <WidgetLayout
-      padding="p-0"
-      content={
-        <div className="w-full h-full rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-800 to-green-950 flex flex-col">
-          <div
-            className="flex-1 flex flex-col items-center justify-center text-center"
+    <div className="w-full h-full rounded-2xl overflow-hidden relative bg-gradient-to-br from-slate-900 via-slate-800 to-green-950 flex flex-col">
+      <div
+        className="flex-1 flex flex-col items-center justify-center text-center"
+        style={{
+          padding: 'min(16px, 5cqmin)',
+          gap: 'min(12px, 4cqmin)',
+        }}
+      >
+        {displayImage ? (
+          <img
+            src={displayImage}
+            alt=""
+            className="rounded-xl object-cover shadow-2xl"
             style={{
-              padding: 'min(16px, 5cqmin)',
-              gap: 'min(12px, 4cqmin)',
+              width: 'min(140px, 50cqmin)',
+              height: 'min(140px, 50cqmin)',
+            }}
+          />
+        ) : (
+          <div
+            className="rounded-xl bg-slate-700 flex items-center justify-center shadow-2xl"
+            style={{
+              width: 'min(140px, 50cqmin)',
+              height: 'min(140px, 50cqmin)',
             }}
           >
-            {displayImage ? (
-              <img
-                src={displayImage}
-                alt=""
-                className="rounded-xl object-cover shadow-2xl"
-                style={{
-                  width: 'min(140px, 50cqmin)',
-                  height: 'min(140px, 50cqmin)',
-                }}
-              />
-            ) : (
-              <div
-                className="rounded-xl bg-slate-700 flex items-center justify-center shadow-2xl"
-                style={{
-                  width: 'min(140px, 50cqmin)',
-                  height: 'min(140px, 50cqmin)',
-                }}
-              >
-                <Music2
-                  className="text-slate-400"
-                  style={{
-                    width: 'min(48px, 20cqmin)',
-                    height: 'min(48px, 20cqmin)',
-                  }}
-                />
-              </div>
-            )}
-            <div className="w-full">
-              <p
-                className="font-black text-white truncate"
-                style={{ fontSize: 'min(16px, 7cqmin)' }}
-              >
-                {displayName}
-              </p>
-              {displayArtist && (
-                <p
-                  className="font-medium text-white/70 truncate"
-                  style={{
-                    fontSize: 'min(12px, 5cqmin)',
-                    marginTop: 'min(2px, 1cqmin)',
-                  }}
-                >
-                  {displayArtist}
-                </p>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onTogglePlay}
-              disabled={!isReady}
-              aria-label={isPlaying ? 'Pause' : 'Play'}
-              className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+            <Music2
+              className="text-slate-400"
               style={{
-                width: 'min(56px, 20cqmin)',
-                height: 'min(56px, 20cqmin)',
+                width: 'min(48px, 20cqmin)',
+                height: 'min(48px, 20cqmin)',
+              }}
+            />
+          </div>
+        )}
+        <div className="w-full">
+          <p
+            className="font-black text-white truncate"
+            style={{ fontSize: 'min(16px, 7cqmin)' }}
+          >
+            {displayName}
+          </p>
+          {displayArtist && (
+            <p
+              className="font-medium text-white/70 truncate"
+              style={{
+                fontSize: 'min(12px, 5cqmin)',
+                marginTop: 'min(2px, 1cqmin)',
               }}
             >
-              {isPlaying ? (
-                <Pause
-                  className="fill-current"
-                  style={{ width: '40%', height: '40%' }}
-                />
-              ) : (
-                <Play
-                  className="fill-current"
-                  style={{ width: '40%', height: '40%', marginLeft: '8%' }}
-                />
-              )}
-            </button>
-          </div>
+              {displayArtist}
+            </p>
+          )}
         </div>
-      }
-    />
+        <button
+          type="button"
+          onClick={onTogglePlay}
+          disabled={!isReady}
+          aria-label={isPlaying ? 'Pause' : 'Play'}
+          className="rounded-full bg-white/90 hover:bg-white text-slate-900 flex items-center justify-center shadow-xl transition disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
+          style={{
+            width: 'min(56px, 20cqmin)',
+            height: 'min(56px, 20cqmin)',
+          }}
+        >
+          {isPlaying ? (
+            <Pause
+              className="fill-current"
+              style={{ width: '40%', height: '40%' }}
+            />
+          ) : (
+            <Play
+              className="fill-current"
+              style={{ width: '40%', height: '40%', marginLeft: '8%' }}
+            />
+          )}
+        </button>
+      </div>
+    </div>
   );
 };
 
@@ -180,19 +174,14 @@ const EmbedFallback: React.FC<{ url: string; title?: string }> = ({
   url,
   title,
 }) => (
-  <WidgetLayout
-    padding="p-0"
-    content={
-      <div className="w-full h-full overflow-hidden rounded-2xl bg-black">
-        <iframe
-          src={url}
-          title={`Spotify: ${title ?? 'preview'}`}
-          width="100%"
-          height="100%"
-          allow="encrypted-media; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
-          className="border-none w-full h-full"
-        />
-      </div>
-    }
-  />
+  <div className="w-full h-full overflow-hidden rounded-2xl bg-black">
+    <iframe
+      src={url}
+      title={`Spotify: ${title ?? 'preview'}`}
+      width="100%"
+      height="100%"
+      allow="encrypted-media; autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+      className="border-none w-full h-full"
+    />
+  </div>
 );

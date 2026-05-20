@@ -68,25 +68,25 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
   return (
     <div
       className="flex items-center h-full w-full bg-slate-900/60 backdrop-blur-sm"
-      style={{ gap: 'min(8px, 4cqmin)', padding: 'min(8px, 4cqmin)' }}
+      style={{ gap: 'min(10px, 7cqh)', padding: 'min(8px, 6cqh)' }}
     >
       {displayImage ? (
         <img
           src={displayImage}
           alt=""
-          className="rounded-md object-cover flex-shrink-0 shadow-lg"
-          style={{ width: 'min(48px, 28cqmin)', height: 'min(48px, 28cqmin)' }}
+          className="rounded-xl object-cover flex-shrink-0 shadow-lg"
+          style={{ width: 'min(64px, 60cqh)', height: 'min(64px, 60cqh)' }}
         />
       ) : (
         <div
-          className="rounded-md bg-slate-700 flex items-center justify-center flex-shrink-0"
-          style={{ width: 'min(48px, 28cqmin)', height: 'min(48px, 28cqmin)' }}
+          className="rounded-xl bg-slate-700 flex items-center justify-center flex-shrink-0"
+          style={{ width: 'min(64px, 60cqh)', height: 'min(64px, 60cqh)' }}
         >
           <Music2
             className="text-slate-400"
             style={{
-              width: 'min(20px, 12cqmin)',
-              height: 'min(20px, 12cqmin)',
+              width: '50%',
+              height: '50%',
             }}
           />
         </div>
@@ -95,14 +95,17 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
       <div className="flex-1 min-w-0">
         <p
           className="font-bold text-white truncate"
-          style={{ fontSize: 'min(14px, 9cqmin)' }}
+          style={{ fontSize: 'min(16px, 16cqh)', lineHeight: 1.2 }}
         >
           {displayName}
         </p>
         {displayArtist && (
           <p
             className="text-slate-400 truncate"
-            style={{ fontSize: 'min(11px, 7cqmin)' }}
+            style={{
+              fontSize: 'min(12px, 12cqh)',
+              marginTop: 'min(2px, 1.5cqh)',
+            }}
           >
             {displayArtist}
           </p>
@@ -115,22 +118,22 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
         disabled={!isReady || !url}
         aria-label={isPlaying ? 'Pause' : 'Play'}
         className="flex-shrink-0 flex items-center justify-center rounded-full bg-white text-slate-900 disabled:opacity-40 disabled:cursor-not-allowed transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
-        style={{ width: 'min(36px, 22cqmin)', height: 'min(36px, 22cqmin)' }}
+        style={{ width: 'min(44px, 44cqh)', height: 'min(44px, 44cqh)' }}
       >
         {isPlaying ? (
           <Pause
             fill="currentColor"
             style={{
-              width: 'min(18px, 11cqmin)',
-              height: 'min(18px, 11cqmin)',
+              width: '45%',
+              height: '45%',
             }}
           />
         ) : (
           <Play
             fill="currentColor"
             style={{
-              width: 'min(18px, 11cqmin)',
-              height: 'min(18px, 11cqmin)',
+              width: '45%',
+              height: '45%',
             }}
           />
         )}
