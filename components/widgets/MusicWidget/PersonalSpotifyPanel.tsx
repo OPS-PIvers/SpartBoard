@@ -3,43 +3,23 @@
  * `config.source === 'personal'`. Encapsulates:
  *   - Connect / Disconnect flow (via `useSpotifyAuth`)
  *   - Premium-required dialog gate (first-time-per-user)
- *   - Spotify URL paste field + live search dropdown
  *   - Account status display (email + Premium badge)
+ *
+ * Track/playlist selection lives on the widget front face (Search tab), which
+ * writes `config.personalSpotifyUrl` directly — this panel is purely config.
  *
  * Kept as its own file because the settings flow is the most complex part of
  * the widget and would otherwise dominate Settings.tsx.
  */
 
-import React, { useCallback, useEffect, useState } from 'react';
-import {
-  CheckCircle2,
-  Crown,
-  Disc3,
-  ListMusic,
-  Loader2,
-  LogOut,
-  Music2,
-  Search,
-} from 'lucide-react';
-import { WidgetData, MusicConfig } from '@/types';
+import React, { useCallback, useState } from 'react';
+import { CheckCircle2, Crown, Loader2, LogOut, Music2 } from 'lucide-react';
+import { WidgetData } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
-import {
-  parseSpotifyResource,
-  searchSpotify,
-  SpotifySearchResult,
-  spotifyOpenUrlFromInput,
-} from '@/utils/spotifyAuth';
 import { SpotifyPremiumDialog } from '@/components/spotify/SpotifyPremiumDialog';
 import { hasDismissedSpotifyPremiumNotice } from '@/utils/spotifyPremiumNotice';
-
-const TYPE_ICONS = {
-  track: Disc3,
-  album: Disc3,
-  playlist: ListMusic,
-  artist: Music2,
-} as const;
 
 interface Props {
   widget: WidgetData;
@@ -48,67 +28,12 @@ interface Props {
 export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
   const { user } = useAuth();
   const { updateWidget } = useDashboard();
-  const config = widget.config as MusicConfig;
-  const { state, isConnected, isPremium, connect, disconnect, getAccessToken } =
-    useSpotifyAuth();
+  const { state, isPremium, connect, disconnect } = useSpotifyAuth();
 
   const [showPremiumDialog, setShowPremiumDialog] = useState(false);
-  const [urlInput, setUrlInput] = useState(config.personalSpotifyUrl ?? '');
-  const [searchResults, setSearchResults] = useState<SpotifySearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
   const [disconnectWarning, setDisconnectWarning] = useState<string | null>(
     null
   );
-
-  // Keep the input in sync if the config changes externally (e.g. via another tab).
-  useEffect(() => {
-    setUrlInput(config.personalSpotifyUrl ?? '');
-  }, [config.personalSpotifyUrl]);
-
-  // Debounced Spotify search whenever the user types something that isn't a URL.
-  // URLs go straight to the save handler — no point burning a search call.
-  useEffect(() => {
-    const trimmed = urlInput.trim();
-    if (!trimmed || !isConnected) {
-      setSearchResults([]);
-      setSearchError(null);
-      return;
-    }
-    if (parseSpotifyResource(trimmed)) {
-      // Pasted a valid URL — no search needed.
-      setSearchResults([]);
-      setSearchError(null);
-      return;
-    }
-
-    const controller = new AbortController();
-    const timer = window.setTimeout(async () => {
-      setIsSearching(true);
-      setSearchError(null);
-      try {
-        const token = await getAccessToken();
-        if (!token) {
-          setSearchError('Spotify session expired — reconnect.');
-          setSearchResults([]);
-          return;
-        }
-        const results = await searchSpotify(token, trimmed, controller.signal);
-        setSearchResults(results);
-      } catch (err) {
-        if ((err as { name?: string })?.name === 'AbortError') return;
-        setSearchError(err instanceof Error ? err.message : 'Search failed.');
-        setSearchResults([]);
-      } finally {
-        setIsSearching(false);
-      }
-    }, 300);
-
-    return () => {
-      window.clearTimeout(timer);
-      controller.abort();
-    };
-  }, [urlInput, isConnected, getAccessToken]);
 
   const triggerConnect = useCallback(async () => {
     // Error prettification + state surfacing live in `useSpotifyAuth` so
@@ -147,53 +72,6 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
     // DashboardContext, so only the changed key is passed.
     updateWidget(widget.id, { config: { source: 'curated' } });
   }, [widget.id, updateWidget]);
-
-  const handleUrlBlur = useCallback(() => {
-    const trimmed = urlInput.trim();
-    // updateWidget merges partial config into existing state in
-    // DashboardContext, so only the changed keys are passed here.
-    if (!trimmed) {
-      updateWidget(widget.id, {
-        config: {
-          personalSpotifyUrl: '',
-          personalSpotifyLabel: '',
-          personalSpotifyThumbnail: '',
-        },
-      });
-      return;
-    }
-    if (!parseSpotifyResource(trimmed)) return;
-    // Clear the cached label + thumbnail unless this input already matches
-    // the saved selection. Without this, pasting a different valid URL
-    // leaves the prior track's label/thumbnail displayed alongside the new
-    // URL until the SDK happens to update it.
-    if (trimmed === config.personalSpotifyUrl) return;
-    updateWidget(widget.id, {
-      config: {
-        personalSpotifyUrl: trimmed,
-        personalSpotifyLabel: '',
-        personalSpotifyThumbnail: '',
-      },
-    });
-  }, [urlInput, config.personalSpotifyUrl, widget.id, updateWidget]);
-
-  const pickResult = useCallback(
-    (result: SpotifySearchResult) => {
-      const openUrl = spotifyOpenUrlFromInput(result.uri) ?? result.uri;
-      // updateWidget merges partial config into existing state in
-      // DashboardContext, so only the changed keys are passed here.
-      updateWidget(widget.id, {
-        config: {
-          personalSpotifyUrl: openUrl,
-          personalSpotifyLabel: `${result.name} — ${result.subtitle}`,
-          personalSpotifyThumbnail: result.imageUrl ?? '',
-        },
-      });
-      setUrlInput(openUrl);
-      setSearchResults([]);
-    },
-    [widget.id, updateWidget]
-  );
 
   return (
     <div className="space-y-4">
@@ -321,78 +199,6 @@ export const PersonalSpotifyPanel: React.FC<Props> = ({ widget }) => {
             <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
               Your Spotify account isn&apos;t Premium. Playback will fall back
               to Spotify&apos;s embed player (30-second previews only).
-            </div>
-          )}
-
-          {/* ── URL / search input ── */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wider">
-              Spotify URL or search
-            </label>
-            <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <input
-                type="text"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                onBlur={handleUrlBlur}
-                placeholder="Paste a Spotify URL or search…"
-                className="w-full pl-9 pr-3 py-2 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-              />
-            </div>
-            {config.personalSpotifyLabel && (
-              <p className="text-xs text-slate-500 truncate">
-                Selected:{' '}
-                <span className="text-slate-700 font-medium">
-                  {config.personalSpotifyLabel}
-                </span>
-              </p>
-            )}
-            {searchError && (
-              <p className="text-xs text-red-600">{searchError}</p>
-            )}
-          </div>
-
-          {/* ── Search results ── */}
-          {(isSearching || searchResults.length > 0) && (
-            <div className="border border-slate-200 rounded-lg overflow-hidden max-h-64 overflow-y-auto">
-              {isSearching && (
-                <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500 bg-slate-50">
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                  Searching Spotify…
-                </div>
-              )}
-              {searchResults.map((r) => {
-                const Icon = TYPE_ICONS[r.type] ?? Music2;
-                return (
-                  <button
-                    key={`${r.type}-${r.id}`}
-                    type="button"
-                    onClick={() => pickResult(r)}
-                    className="w-full flex items-center gap-3 px-3 py-2 hover:bg-slate-50 transition text-left border-b border-slate-100 last:border-b-0"
-                  >
-                    {r.imageUrl ? (
-                      <img
-                        src={r.imageUrl}
-                        alt=""
-                        className="w-10 h-10 rounded object-cover shrink-0"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded bg-slate-100 flex items-center justify-center shrink-0">
-                        <Icon className="w-4 h-4 text-slate-400" />
-                      </div>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-medium text-slate-900 truncate">
-                        {r.name}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {r.subtitle}
-                      </p>
-                    </div>
-                  </button>
-                );
-              })}
             </div>
           )}
         </div>
