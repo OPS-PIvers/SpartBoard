@@ -850,8 +850,35 @@ export async function fetchRecentlyPlayed(
 }
 
 /**
+ * Activate a Web Playback SDK device in Spotify Connect by transferring
+ * playback to it. A freshly-`ready` SDK device is registered locally but is
+ * often not yet a valid REST `play?device_id=` target — `PUT /me/player`
+ * with the device id makes Spotify treat it as the active device. We pass
+ * `play: false` so this only activates without forcing a resume; the caller
+ * issues the real `play` (with the desired context/tracks) right after.
+ */
+async function transferPlaybackToDevice(
+  accessToken: string,
+  deviceId: string
+): Promise<void> {
+  await fetch('https://api.spotify.com/v1/me/player', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ device_ids: [deviceId], play: false }),
+  });
+}
+
+/**
  * Issue `play` on the given device. Pass either a context URI (album/playlist/artist)
  * via `contextUri`, or a list of track URIs via `uris`, but not both.
+ *
+ * Self-heals the common "Device not found" (404) case: when a just-created
+ * SDK device hasn't been activated in Spotify Connect yet, the first
+ * `play?device_id=` returns 404. We then transfer playback to the device to
+ * activate it and retry the play once.
  */
 export async function playOnDevice(
   accessToken: string,
@@ -861,17 +888,30 @@ export async function playOnDevice(
   const body: Record<string, unknown> = {};
   if (payload.contextUri) body.context_uri = payload.contextUri;
   if (payload.uris) body.uris = payload.uris;
-  const res = await fetch(
-    `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    }
-  );
+
+  const sendPlay = () =>
+    fetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+  let res = await sendPlay();
+
+  // 404 = device not (yet) an active Connect target. Activate it via a
+  // transfer, give Spotify a moment to register it, then retry once.
+  if (res.status === 404) {
+    await transferPlaybackToDevice(accessToken, deviceId);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    res = await sendPlay();
+  }
+
   // 204 is success; some non-Premium accounts return 403.
   if (res.status === 403) {
     throw new Error('spotify-premium-required');
