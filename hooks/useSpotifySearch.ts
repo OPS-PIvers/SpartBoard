@@ -1,10 +1,9 @@
 /**
  * useSpotifySearch — debounced, abortable Spotify search.
  *
- * Extracted from PersonalSpotifySearchTab so both the Search tab (small/minimal
- * overlay) and the Default layout's expanding search bar share one source of
- * truth for the debounce/abort/error behavior. An empty query resets to no
- * results (the caller decides what to show instead, e.g. recents).
+ * Owns the debounce/abort/error behavior for the adaptive layout's expanding
+ * search bar (shared across all three layout variants). An empty query resets
+ * to no results (the caller decides what to show instead, e.g. recents).
  */
 
 import { useEffect, useState } from 'react';
