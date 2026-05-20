@@ -1,8 +1,9 @@
 /**
- * Browser owns tab state, isAudioActive derivation, the tap-to-play handler,
- * and the per-layout routing (default tab strip / small compact bar / minimal
- * view). Each tab and layout child is mocked so this test focuses on
- * integration.
+ * Browser owns the SDK hook, the tap-to-play handler, and routes ALL THREE
+ * layouts (default / minimal / small) through the shared adaptive layout. The
+ * adaptive layout is mocked so this test focuses on integration: the right
+ * variant is passed through, isActive is threaded, and a row tap persists the
+ * URI + triggers playback.
  */
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
@@ -52,54 +53,18 @@ vi.mock('@/utils/spotifyAuth', async () => {
   };
 });
 
-vi.mock('@/components/widgets/MusicWidget/PersonalSpotifyLibraryTab', () => ({
-  PersonalSpotifyLibraryTab: ({
-    onPlay,
-  }: {
-    onPlay: (p: { type: 'track' | 'playlist' | 'album'; uri: string }) => void;
-  }) => (
-    <button
-      type="button"
-      onClick={() => onPlay({ type: 'track', uri: 'spotify:track:t1' })}
-    >
-      mock-play-track
-    </button>
-  ),
-}));
-vi.mock('@/components/widgets/MusicWidget/PersonalSpotifySearchTab', () => ({
-  PersonalSpotifySearchTab: () => <div>mock-search</div>,
-}));
+// The shared adaptive layout is mocked: it surfaces the variant + isActive it
+// receives and exposes a button that calls onPlay (so we can assert the
+// Browser's persistence/playback wiring).
 vi.mock(
-  '@/components/widgets/MusicWidget/PersonalSpotifyNowPlayingTab',
+  '@/components/widgets/MusicWidget/PersonalSpotifyAdaptiveLayout',
   () => ({
-    PersonalSpotifyNowPlayingTab: ({ url }: { url: string | null }) => (
-      <div>mock-now-playing url={String(url)}</div>
-    ),
-  })
-);
-vi.mock('@/components/widgets/MusicWidget/PersonalSpotifyCompactBar', () => ({
-  PersonalSpotifyCompactBar: ({
-    onOpenBrowse,
-  }: {
-    onOpenBrowse?: () => void;
-  }) => (
-    <div>
-      mock-compact-bar
-      {onOpenBrowse && (
-        <button type="button" onClick={onOpenBrowse}>
-          open-browse
-        </button>
-      )}
-    </div>
-  ),
-}));
-vi.mock(
-  '@/components/widgets/MusicWidget/PersonalSpotifyDefaultLayout',
-  () => ({
-    PersonalSpotifyDefaultLayout: ({
+    PersonalSpotifyAdaptiveLayout: ({
+      variant,
       isActive,
       onPlay,
     }: {
+      variant: string;
       isActive: boolean;
       onPlay: (p: {
         type: 'track' | 'playlist' | 'album';
@@ -107,7 +72,7 @@ vi.mock(
       }) => void;
     }) => (
       <div>
-        mock-default-layout active={String(isActive)}
+        mock-adaptive-layout variant={variant} active={String(isActive)}
         <button
           type="button"
           onClick={() => onPlay({ type: 'track', uri: 'spotify:track:t1' })}
@@ -118,22 +83,6 @@ vi.mock(
     ),
   })
 );
-vi.mock('@/components/widgets/MusicWidget/PersonalSpotifyMinimalView', () => ({
-  PersonalSpotifyMinimalView: ({
-    onOpenBrowse,
-  }: {
-    onOpenBrowse?: () => void;
-  }) => (
-    <div>
-      mock-minimal-view
-      {onOpenBrowse && (
-        <button type="button" onClick={onOpenBrowse}>
-          open-browse
-        </button>
-      )}
-    </div>
-  ),
-}));
 
 const makeWidget = (config: Record<string, unknown>) => ({
   id: 'w1',
@@ -142,102 +91,50 @@ const makeWidget = (config: Record<string, unknown>) => ({
 });
 
 describe('PersonalSpotifyBrowser', () => {
-  it('default layout renders the DefaultLayout component', () => {
+  it('routes the default layout through the adaptive layout', () => {
     render(
       <PersonalSpotifyBrowser
         widget={makeWidget({ layout: 'default' }) as never}
       />
     );
-    expect(screen.getByText(/mock-default-layout/i)).toBeInTheDocument();
+    expect(screen.getByText(/mock-adaptive-layout/i)).toBeInTheDocument();
+    expect(screen.getByText(/variant=default/i)).toBeInTheDocument();
   });
 
-  it('falls back to the DefaultLayout when no layout is set', () => {
+  it('falls back to the default variant when no layout is set', () => {
     render(<PersonalSpotifyBrowser widget={makeWidget({}) as never} />);
-    expect(screen.getByText(/mock-default-layout/i)).toBeInTheDocument();
+    expect(screen.getByText(/variant=default/i)).toBeInTheDocument();
   });
 
-  it('default layout: tapping a track persists the URI (view state owned by the layout)', () => {
+  it('routes the small layout through the adaptive layout (no overlay)', () => {
+    render(
+      <PersonalSpotifyBrowser
+        widget={makeWidget({ layout: 'small' }) as never}
+      />
+    );
+    expect(screen.getByText(/mock-adaptive-layout/i)).toBeInTheDocument();
+    expect(screen.getByText(/variant=small/i)).toBeInTheDocument();
+  });
+
+  it('routes the minimal layout through the adaptive layout (no overlay)', () => {
+    render(
+      <PersonalSpotifyBrowser
+        widget={makeWidget({ layout: 'minimal' }) as never}
+      />
+    );
+    expect(screen.getByText(/mock-adaptive-layout/i)).toBeInTheDocument();
+    expect(screen.getByText(/variant=minimal/i)).toBeInTheDocument();
+  });
+
+  it('tapping a track persists the URI (view state owned by the layout)', () => {
     render(
       <PersonalSpotifyBrowser
         widget={makeWidget({ layout: 'default' }) as never}
       />
     );
     fireEvent.click(screen.getByText('mock-play-track'));
-
     expect(mockUpdateWidget).toHaveBeenCalledWith('w1', {
       config: { personalSpotifyUrl: 'spotify:track:t1' },
     });
-  });
-
-  it('small layout renders the compact bar (no tab strip)', () => {
-    render(
-      <PersonalSpotifyBrowser
-        widget={makeWidget({ layout: 'small' }) as never}
-      />
-    );
-    expect(screen.getByText('mock-compact-bar')).toBeInTheDocument();
-    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
-  });
-
-  it('minimal layout renders the minimal view (no tab strip)', () => {
-    render(
-      <PersonalSpotifyBrowser
-        widget={makeWidget({ layout: 'minimal' }) as never}
-      />
-    );
-    expect(screen.getByText('mock-minimal-view')).toBeInTheDocument();
-    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
-  });
-
-  it('small layout: tapping the compact bar opens the browse overlay', () => {
-    render(
-      <PersonalSpotifyBrowser
-        widget={makeWidget({ layout: 'small' }) as never}
-      />
-    );
-    // Overlay (and its browse panel) is hidden until the surface is tapped.
-    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('open-browse'));
-    // Browse panel now visible (Library tab mock renders mock-play-track).
-    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
-  });
-
-  it('small layout: the overlay close button dismisses the browse panel', () => {
-    render(
-      <PersonalSpotifyBrowser
-        widget={makeWidget({ layout: 'small' }) as never}
-      />
-    );
-    fireEvent.click(screen.getByText('open-browse'));
-    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /Close browse/i }));
-    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
-  });
-
-  it('small layout: selecting a track in the overlay plays it and closes the overlay', () => {
-    render(
-      <PersonalSpotifyBrowser
-        widget={makeWidget({ layout: 'small' }) as never}
-      />
-    );
-    fireEvent.click(screen.getByText('open-browse'));
-    fireEvent.click(screen.getByText('mock-play-track'));
-    expect(mockUpdateWidget).toHaveBeenCalledWith('w1', {
-      config: { personalSpotifyUrl: 'spotify:track:t1' },
-    });
-    // Overlay closes; the compact bar is shown again (no inline tab switch).
-    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
-    expect(screen.getByText('mock-compact-bar')).toBeInTheDocument();
-  });
-
-  it('minimal layout: tapping the artwork opens the browse overlay', () => {
-    render(
-      <PersonalSpotifyBrowser
-        widget={makeWidget({ layout: 'minimal' }) as never}
-      />
-    );
-    expect(screen.queryByText('mock-play-track')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByText('open-browse'));
-    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
   });
 });

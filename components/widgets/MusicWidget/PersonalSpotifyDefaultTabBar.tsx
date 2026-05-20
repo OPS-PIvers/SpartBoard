@@ -16,8 +16,8 @@
  * accessible in either mode.
  *
  * Presentation/wiring only — view + query state lives in the parent
- * PersonalSpotifyDefaultLayout. The "player" view leaves both nav pills
- * unselected.
+ * PersonalSpotifyAdaptiveLayout (shared by all three layout variants). The
+ * "player" view leaves both nav pills unselected.
  */
 
 import React, { useEffect, useRef, useState } from 'react';

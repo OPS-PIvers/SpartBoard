@@ -64,22 +64,9 @@ describe('PersonalSpotifyCompactBar', () => {
     expect(onNext).toHaveBeenCalledOnce();
   });
 
-  it('opens browse when the art/title area is tapped (not the transport)', () => {
-    const onOpenBrowse = vi.fn();
-    const onTogglePlay = vi.fn();
-    render(
-      <PersonalSpotifyCompactBar
-        {...base}
-        onOpenBrowse={onOpenBrowse}
-        onTogglePlay={onTogglePlay}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /Browse music/i }));
-    expect(onOpenBrowse).toHaveBeenCalledOnce();
-    // Tapping the transport buttons must NOT bubble up to onOpenBrowse.
-    fireEvent.click(screen.getByRole('button', { name: /Play/i }));
-    expect(onTogglePlay).toHaveBeenCalledOnce();
-    expect(onOpenBrowse).toHaveBeenCalledOnce();
+  it('renders no browse affordance — it is a pure player surface', () => {
+    render(<PersonalSpotifyCompactBar {...base} />);
+    expect(screen.queryByRole('button', { name: /Browse music/i })).toBeNull();
   });
 
   it('renders the Spotify embed iframe for Free accounts', () => {

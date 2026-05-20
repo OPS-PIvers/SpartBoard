@@ -31,8 +31,6 @@ interface Props {
   onTogglePlay: () => void;
   onNext: () => void;
   onPrevious: () => void;
-  /** Tapping the artwork (not the transport buttons) opens the browse overlay. */
-  onOpenBrowse?: () => void;
 }
 
 export const PersonalSpotifyMinimalView: React.FC<Props> = ({
@@ -47,7 +45,6 @@ export const PersonalSpotifyMinimalView: React.FC<Props> = ({
   onTogglePlay,
   onNext,
   onPrevious,
-  onOpenBrowse,
 }) => {
   // Free tier / SDK failure → the embed iframe owns playback.
   if (url && (!isPremium || sdkFailed)) {
@@ -98,18 +95,6 @@ export const PersonalSpotifyMinimalView: React.FC<Props> = ({
           isPlaying ? 'opacity-20' : 'opacity-30'
         }`}
       />
-
-      {/* Artwork tap target — opens the browse overlay. Sits below the
-          transport controls; the transport buttons stopPropagation so they
-          don't also trigger this. */}
-      {onOpenBrowse && (
-        <button
-          type="button"
-          onClick={onOpenBrowse}
-          aria-label="Browse music"
-          className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-green-400/70"
-        />
-      )}
 
       {/* Centered transport: prev / play-pause / next */}
       <div

@@ -1,17 +1,32 @@
 /**
- * PersonalSpotifyDefaultLayout — the redesigned Default layout for the
- * personal-Spotify Music widget.
+ * PersonalSpotifyAdaptiveLayout — the shared layout for ALL THREE personal-
+ * Spotify variants (default / minimal / small). Generalizes the old
+ * "tabs-on-active" model so every variant behaves consistently; the ONLY
+ * per-variant difference is the player surface rendered in the player view
+ * (and at rest):
+ *   - default → PersonalSpotifyNowPlayingTab (centered card)
+ *   - minimal → PersonalSpotifyMinimalView   (full-bleed art)
+ *   - small   → PersonalSpotifyCompactBar    (horizontal bar)
  *
- * Model (driven by the widget's selected/active state, NOT a tab strip):
- *  - At rest (isActive false): show ONLY the player surface
- *    (PersonalSpotifyNowPlayingTab). No tabs, no browse controls.
- *  - Active (isActive true): a tab bar appears above the player —
- *    Songs | Playlists | search-icon — with no tab selected by default
- *    (player still shown). Songs → Recently Played, Playlists → user
- *    playlists, search icon → an expanding search input (X to close) with
- *    recents shown when the query is empty.
+ * Model (driven by the widget's selected/active state, NOT a separate tab
+ * strip per variant):
+ *  - At rest (isActive false): show ONLY the player surface. No tabs.
+ *  - Active (isActive true): a tab bar appears — Songs | Playlists | search —
+ *    with no tab selected by default (player still shown). Songs → Recently
+ *    Played, Playlists → user playlists, search icon → an expanding search
+ *    input (X to close) with recents shown when the query is empty.
  *  - Selecting a track plays it and returns to the player view (tabs stay,
  *    since the widget is still selected). Music never stops on navigation.
+ *
+ * Tab-bar placement (matches the two mockups):
+ *  - list/search view active → ALL variants: tab bar as a top strip (shrink-0)
+ *    with the list filling below (flex-1 min-h-0). The player surface is hidden
+ *    while browsing.
+ *  - player view active (no tab selected):
+ *     - default & small → tab bar as a top strip + the player surface below.
+ *     - minimal → the full-bleed art player fills the widget and the tab bar
+ *       OVERLAYS the top (absolutely positioned, with a top scrim for
+ *       legibility), so the pills float over the art.
  *
  * View + search state lives here; resetting to the player view on
  * (de)activation uses the render-time "adjust state on prop change" pattern,
@@ -26,6 +41,8 @@ import {
   PersonalSpotifyNowPlayingTab,
   PersonalSpotifyNowPlayingProps,
 } from './PersonalSpotifyNowPlayingTab';
+import { PersonalSpotifyMinimalView } from './PersonalSpotifyMinimalView';
+import { PersonalSpotifyCompactBar } from './PersonalSpotifyCompactBar';
 import {
   PersonalSpotifyDefaultTabBar,
   DefaultTabView,
@@ -35,19 +52,25 @@ import {
   SpotifyReconnectBanner,
 } from './PersonalSpotifyListState';
 import type { SpotifyPlayablePick } from './PersonalSpotifyLibraryTab';
+import type { MusicLayout } from '@/types';
 
-/** Playback props for the player surface (onSwitchToLibrary supplied here). */
-export type DefaultLayoutPlaybackProps = Omit<
+/**
+ * Playback props for the player surfaces. The Now Playing card adds
+ * onSwitchToLibrary internally; the minimal/compact surfaces ignore the extra
+ * fields they don't render (repeat/shuffle), so a single shared shape works.
+ */
+export type AdaptiveLayoutPlaybackProps = Omit<
   PersonalSpotifyNowPlayingProps,
   'onSwitchToLibrary'
 >;
 
 interface Props {
+  variant: MusicLayout;
   isActive: boolean;
   currentUri: string | null;
   onPlay: (pick: SpotifyPlayablePick) => void;
   onReconnect: () => void;
-  playbackProps: DefaultLayoutPlaybackProps;
+  playbackProps: AdaptiveLayoutPlaybackProps;
 }
 
 const EmptyHint: React.FC<{ children: React.ReactNode }> = ({ children }) => (
@@ -59,7 +82,8 @@ const EmptyHint: React.FC<{ children: React.ReactNode }> = ({ children }) => (
   </div>
 );
 
-export const PersonalSpotifyDefaultLayout: React.FC<Props> = ({
+export const PersonalSpotifyAdaptiveLayout: React.FC<Props> = ({
+  variant,
   isActive,
   currentUri,
   onPlay,
@@ -84,6 +108,8 @@ export const PersonalSpotifyDefaultLayout: React.FC<Props> = ({
     }
   }
 
+  const openSongs = () => setActiveView('songs');
+
   const handleRowPlay = (pick: SpotifyPlayablePick) => {
     onPlay(pick);
     setActiveView('player');
@@ -91,62 +117,101 @@ export const PersonalSpotifyDefaultLayout: React.FC<Props> = ({
     setQuery('');
   };
 
-  // At rest → only the player. The empty-state "Open library" link routes to
-  // Songs even though the tab bar is hidden at rest (it'll be visible once the
-  // widget is selected and the user retries).
-  const openSongs = () => setActiveView('songs');
-  if (!isActive) {
+  // The player surface for this variant — used both at rest and in the player
+  // view. Minimal/compact surfaces no longer take onOpenBrowse (the tab bar now
+  // owns browsing), so they render as pure player surfaces.
+  const renderPlayer = () => {
+    if (variant === 'minimal') {
+      return <PersonalSpotifyMinimalView {...playbackProps} />;
+    }
+    if (variant === 'small') {
+      return <PersonalSpotifyCompactBar {...playbackProps} />;
+    }
     return (
-      <div className="w-full h-full flex flex-col">
-        <PersonalSpotifyNowPlayingTab
-          {...playbackProps}
-          onSwitchToLibrary={openSongs}
+      <PersonalSpotifyNowPlayingTab
+        {...playbackProps}
+        onSwitchToLibrary={openSongs}
+      />
+    );
+  };
+
+  // At rest → only the player surface, no tab bar (all variants).
+  if (!isActive) {
+    return <div className="w-full h-full">{renderPlayer()}</div>;
+  }
+
+  const tabBar = (
+    <PersonalSpotifyDefaultTabBar
+      activeView={activeView}
+      searchOpen={searchOpen}
+      query={query}
+      onSelectView={setActiveView}
+      onToggleSearch={(open) => {
+        setSearchOpen(open);
+        if (!open) setQuery('');
+      }}
+      onQueryChange={setQuery}
+    />
+  );
+
+  const isBrowsing = searchOpen || activeView !== 'player';
+
+  // List/search body. flex-1 + min-h-0 lets it fill the remaining height and
+  // scroll internally rather than top-clustering.
+  const listBody = (
+    <div className="flex-1 min-h-0">
+      {searchOpen ? (
+        <SearchView
+          query={query}
+          currentUri={currentUri}
+          onPlay={handleRowPlay}
         />
+      ) : activeView === 'songs' ? (
+        <SongsView
+          currentUri={currentUri}
+          onPlay={handleRowPlay}
+          onReconnect={onReconnect}
+        />
+      ) : (
+        <PlaylistsView
+          currentUri={currentUri}
+          onPlay={handleRowPlay}
+          onReconnect={onReconnect}
+        />
+      )}
+    </div>
+  );
+
+  // Browsing (a list/search view is open) → top strip + list, for ALL variants.
+  // The player surface is hidden while browsing.
+  if (isBrowsing) {
+    return (
+      <div className="w-full h-full flex flex-col bg-slate-900/60 backdrop-blur-sm">
+        <div className="shrink-0">{tabBar}</div>
+        {listBody}
+      </div>
+    );
+  }
+
+  // Player view (no tab selected). Minimal overlays the pills over the
+  // full-bleed art; default & small put the strip on top of the player.
+  if (variant === 'minimal') {
+    return (
+      <div className="w-full h-full relative">
+        {renderPlayer()}
+        {/* Pills float over the art with a subtle top scrim for legibility. */}
+        <div className="absolute top-0 left-0 right-0 z-10 pointer-events-none">
+          <div className="absolute inset-x-0 top-0 h-full bg-gradient-to-b from-black/50 to-transparent" />
+          <div className="relative pointer-events-auto">{tabBar}</div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="w-full h-full flex flex-col bg-slate-900/60 backdrop-blur-sm">
-      <PersonalSpotifyDefaultTabBar
-        activeView={activeView}
-        searchOpen={searchOpen}
-        query={query}
-        onSelectView={setActiveView}
-        onToggleSearch={(open) => {
-          setSearchOpen(open);
-          if (!open) setQuery('');
-        }}
-        onQueryChange={setQuery}
-      />
-      {/* flex-1 + min-h-0 lets the content fill the remaining height and scroll
-          internally rather than top-clustering. */}
-      <div className="flex-1 min-h-0">
-        {searchOpen ? (
-          <SearchView
-            query={query}
-            currentUri={currentUri}
-            onPlay={handleRowPlay}
-          />
-        ) : activeView === 'songs' ? (
-          <SongsView
-            currentUri={currentUri}
-            onPlay={handleRowPlay}
-            onReconnect={onReconnect}
-          />
-        ) : activeView === 'playlists' ? (
-          <PlaylistsView
-            currentUri={currentUri}
-            onPlay={handleRowPlay}
-            onReconnect={onReconnect}
-          />
-        ) : (
-          <PersonalSpotifyNowPlayingTab
-            {...playbackProps}
-            onSwitchToLibrary={openSongs}
-          />
-        )}
-      </div>
+      <div className="shrink-0">{tabBar}</div>
+      <div className="flex-1 min-h-0">{renderPlayer()}</div>
     </div>
   );
 };

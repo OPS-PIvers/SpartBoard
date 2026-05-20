@@ -31,8 +31,6 @@ interface Props {
   onTogglePlay: () => void;
   onNext: () => void;
   onPrevious: () => void;
-  /** Tapping the art/title area (not the transport buttons) opens the browse overlay. */
-  onOpenBrowse?: () => void;
 }
 
 export const PersonalSpotifyCompactBar: React.FC<Props> = ({
@@ -47,7 +45,6 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
   onTogglePlay,
   onNext,
   onPrevious,
-  onOpenBrowse,
 }) => {
   // Free tier / SDK failure → the embed iframe owns playback. Spotify's embed
   // auto-compacts to its mini player at small heights, so it fills the strip.
@@ -123,24 +120,12 @@ export const PersonalSpotifyCompactBar: React.FC<Props> = ({
       className="flex items-center h-full w-full bg-slate-900/60 backdrop-blur-sm"
       style={{ gap: 'min(10px, 7cqh)', padding: 'min(8px, 6cqh)' }}
     >
-      {onOpenBrowse ? (
-        <button
-          type="button"
-          onClick={onOpenBrowse}
-          aria-label="Browse music"
-          className="flex items-center flex-1 min-w-0 text-left rounded-lg hover:bg-white/5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70"
-          style={{ gap: 'min(10px, 7cqh)' }}
-        >
-          {artAndTitle}
-        </button>
-      ) : (
-        <div
-          className="flex items-center flex-1 min-w-0"
-          style={{ gap: 'min(10px, 7cqh)' }}
-        >
-          {artAndTitle}
-        </div>
-      )}
+      <div
+        className="flex items-center flex-1 min-w-0"
+        style={{ gap: 'min(10px, 7cqh)' }}
+      >
+        {artAndTitle}
+      </div>
 
       <div
         className="flex items-center flex-shrink-0"

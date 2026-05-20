@@ -48,22 +48,9 @@ describe('PersonalSpotifyMinimalView', () => {
     expect(onNext).toHaveBeenCalledOnce();
   });
 
-  it('opens browse when the artwork is tapped (not the transport)', () => {
-    const onOpenBrowse = vi.fn();
-    const onTogglePlay = vi.fn();
-    render(
-      <PersonalSpotifyMinimalView
-        {...base}
-        onOpenBrowse={onOpenBrowse}
-        onTogglePlay={onTogglePlay}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /Browse music/i }));
-    expect(onOpenBrowse).toHaveBeenCalledOnce();
-    // Transport buttons stopPropagation → tapping Play must not open browse.
-    fireEvent.click(screen.getByRole('button', { name: /Play/i }));
-    expect(onTogglePlay).toHaveBeenCalledOnce();
-    expect(onOpenBrowse).toHaveBeenCalledOnce();
+  it('renders no browse affordance — it is a pure player surface', () => {
+    render(<PersonalSpotifyMinimalView {...base} />);
+    expect(screen.queryByRole('button', { name: /Browse music/i })).toBeNull();
   });
 
   it('renders the Spotify embed iframe for Free accounts', () => {
