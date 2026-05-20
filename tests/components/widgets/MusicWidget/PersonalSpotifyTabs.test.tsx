@@ -25,7 +25,10 @@ describe('PersonalSpotifyTabs', () => {
     render(
       <PersonalSpotifyTabs active="library" isAudioActive onChange={vi.fn()} />
     );
-    expect(screen.getByLabelText(/audio playing/i)).toBeInTheDocument();
+    expect(screen.getByTestId('audio-playing-dot')).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /now playing — audio active/i })
+    ).toBeInTheDocument();
   });
 
   it('hides the green dot when no audio', () => {
@@ -36,7 +39,7 @@ describe('PersonalSpotifyTabs', () => {
         onChange={vi.fn()}
       />
     );
-    expect(screen.queryByLabelText(/audio playing/i)).toBeNull();
+    expect(screen.queryByTestId('audio-playing-dot')).toBeNull();
   });
 
   it('calls onChange with the new tab key', () => {

@@ -14,12 +14,13 @@ const TAB_LABELS: Record<SpotifyBrowserTab, string> = {
   'now-playing': 'Now playing',
 };
 
+const TABS: SpotifyBrowserTab[] = ['library', 'search', 'now-playing'];
+
 export const PersonalSpotifyTabs: React.FC<Props> = ({
   active,
   isAudioActive,
   onChange,
 }) => {
-  const tabs: SpotifyBrowserTab[] = ['library', 'search', 'now-playing'];
   return (
     <div
       className="flex"
@@ -28,7 +29,7 @@ export const PersonalSpotifyTabs: React.FC<Props> = ({
         padding: '0 min(8px, 2cqmin) min(4px, 1cqmin)',
       }}
     >
-      {tabs.map((key) => {
+      {TABS.map((key) => {
         const isOn = key === active;
         return (
           <button
@@ -36,6 +37,11 @@ export const PersonalSpotifyTabs: React.FC<Props> = ({
             type="button"
             onClick={() => onChange(key)}
             aria-pressed={isOn}
+            aria-label={
+              key === 'now-playing' && isAudioActive
+                ? 'Now playing — audio active'
+                : undefined
+            }
             className={`rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 ${
               isOn
                 ? 'bg-green-500 text-slate-950 font-semibold'
@@ -49,7 +55,8 @@ export const PersonalSpotifyTabs: React.FC<Props> = ({
             <span>{TAB_LABELS[key]}</span>
             {key === 'now-playing' && isAudioActive && (
               <span
-                aria-label="audio playing"
+                aria-hidden="true"
+                data-testid="audio-playing-dot"
                 className="inline-block bg-green-400 rounded-full"
                 style={{
                   width: 'min(5px, 1.2cqmin)',
