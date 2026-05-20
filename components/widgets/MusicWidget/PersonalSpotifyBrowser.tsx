@@ -10,15 +10,13 @@ import {
   SpotifyPlayablePick,
 } from './PersonalSpotifyLibraryTab';
 import { PersonalSpotifySearchTab } from './PersonalSpotifySearchTab';
-import { PersonalSpotifyNowPlayingTab } from './PersonalSpotifyNowPlayingTab';
+import {
+  PersonalSpotifyNowPlayingTab,
+  SdkState,
+} from './PersonalSpotifyNowPlayingTab';
 
 interface Props {
   widget: WidgetData;
-}
-
-interface SdkState {
-  deviceId: string | null;
-  isPlaying: boolean;
 }
 
 export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
@@ -31,14 +29,13 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   const { isPremium, getAccessToken, disconnect, connect } = useSpotifyAuth();
 
   const [activeTab, setActiveTab] = useState<SpotifyBrowserTab>('library');
-  // sdk state: deviceId and isPlaying wired in Task 11 via onSdkState prop.
+  // sdk state: updated via onSdkState callback from PersonalSpotifyNowPlayingTab.
   const [sdk, setSdkState] = useState<SdkState>({
     deviceId: null,
     isPlaying: false,
   });
-  // Expose setter for Task 11 — kept to avoid removing and re-adding the
-  // useState call when the onSdkState callback is wired.
-  void setSdkState;
+
+  const handleSdkState = useCallback((next: SdkState) => setSdkState(next), []);
 
   const currentUri = config.personalSpotifyUrl ?? null;
   const isAudioActive = sdk.isPlaying || (!isPremium && Boolean(currentUri));
@@ -96,6 +93,7 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
               thumbnail={config.personalSpotifyThumbnail}
               label={config.personalSpotifyLabel}
               onSwitchToLibrary={() => setActiveTab('library')}
+              onSdkState={handleSdkState}
             />
           )}
         </div>

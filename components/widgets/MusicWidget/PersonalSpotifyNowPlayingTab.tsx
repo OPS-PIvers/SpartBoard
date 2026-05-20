@@ -21,7 +21,13 @@
  * strip the duplicate from PersonalSpotifyPlayer and wire the dispatch).
  */
 
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, {
+  useEffect,
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { Loader2, Music2, Pause, Play } from 'lucide-react';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
@@ -37,11 +43,17 @@ import {
 } from '@/utils/spotifyPlaybackSdk';
 import { buildSpotifyEmbedUrl } from './utils';
 
+export interface SdkState {
+  deviceId: string | null;
+  isPlaying: boolean;
+}
+
 interface Props {
   url: string | null;
   thumbnail?: string;
   label?: string;
   onSwitchToLibrary: () => void;
+  onSdkState?: (state: SdkState) => void;
 }
 
 export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
@@ -49,6 +61,7 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
   thumbnail,
   label,
   onSwitchToLibrary,
+  onSdkState,
 }) => {
   const { isPremium, getAccessToken } = useSpotifyAuth();
 
@@ -103,6 +116,7 @@ export const PersonalSpotifyNowPlayingTab: React.FC<Props> = ({
       label={label}
       getAccessToken={getAccessToken}
       embedFallbackUrl={embedUrl}
+      onSdkState={onSdkState}
     />
   );
 };
@@ -143,6 +157,7 @@ interface PremiumProps {
   label?: string;
   embedFallbackUrl: string | null;
   getAccessToken: () => Promise<string | null>;
+  onSdkState?: (state: SdkState) => void;
 }
 
 const PremiumSdkPlayer: React.FC<PremiumProps> = ({
@@ -152,6 +167,7 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
   label,
   embedFallbackUrl,
   getAccessToken,
+  onSdkState,
 }) => {
   // Stable instance ID for the Spotify Player name.
   const instanceId = useId();
@@ -169,10 +185,22 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
   }>({});
   const playerRef = useRef<SpotifyPlayer | null>(null);
   const lastPlayedUriRef = useRef<string | null>(null);
+  // Ref to hold the latest onSdkState callback without re-running the SDK
+  // setup effect on every render. Updated via useLayoutEffect so the closure
+  // inside the SDK effect always reads the current value without causing a
+  // re-init of the SDK player.
+  const onSdkStateRef = useRef(onSdkState);
+  useLayoutEffect(() => {
+    onSdkStateRef.current = onSdkState;
+  });
 
   // Initialize the Web Playback SDK once per component instance.
   useEffect(() => {
     let destroyed = false;
+    // Track local deviceId and isPaused so SDK event handlers can emit a
+    // consistent SdkState without depending on stale React state.
+    let localDeviceId: string | null = null;
+    let localIsPaused = true;
 
     const failSdk = (message: string) => {
       if (destroyed) return;
@@ -195,15 +223,27 @@ const PremiumSdkPlayer: React.FC<PremiumProps> = ({
 
         player.addListener('ready', ({ device_id }) => {
           if (destroyed) return;
+          localDeviceId = device_id;
           setDeviceId(device_id);
+          onSdkStateRef.current?.({
+            deviceId: device_id,
+            isPlaying: !localIsPaused,
+          });
         });
         player.addListener('not_ready', () => {
           if (destroyed) return;
+          localDeviceId = null;
           setDeviceId(null);
+          onSdkStateRef.current?.({ deviceId: null, isPlaying: false });
         });
         player.addListener('player_state_changed', (s: SpotifyPlayerState) => {
           if (destroyed || !s) return;
+          localIsPaused = s.paused;
           setIsPaused(s.paused);
+          onSdkStateRef.current?.({
+            deviceId: localDeviceId,
+            isPlaying: !s.paused,
+          });
           const t = s.track_window?.current_track;
           setCurrentTrack({
             name: t?.name,
