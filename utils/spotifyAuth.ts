@@ -29,6 +29,9 @@ export const SPOTIFY_SCOPES = [
   'user-read-private',
   'user-modify-playback-state',
   'user-read-playback-state',
+  'user-read-recently-played',
+  'playlist-read-private',
+  'playlist-read-collaborative',
 ] as const;
 
 export const SPOTIFY_AUTHORIZE_ENDPOINT =
@@ -529,6 +532,36 @@ export async function fetchSpotifyProfile(
 
 export type SpotifyResourceType = 'track' | 'album' | 'playlist' | 'artist';
 
+/**
+ * Thrown when the server returns 403 specifically because the token lacks a
+ * scope. The browse face catches this distinctly to show a "Reconnect to
+ * unlock playlists and recents" banner instead of a generic error.
+ */
+export class SpotifyScopeError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'SpotifyScopeError';
+    // Restore the prototype chain when targeting older transpile targets.
+    Object.setPrototypeOf(this, SpotifyScopeError.prototype);
+  }
+}
+
+export interface SpotifyPlaylist {
+  id: string;
+  name: string;
+  uri: string;
+  owner: string;
+  imageUrl?: string;
+}
+
+export interface SpotifyTrack {
+  id: string;
+  name: string;
+  uri: string;
+  artist: string;
+  imageUrl?: string;
+}
+
 export interface SpotifySearchResult {
   type: SpotifyResourceType;
   uri: string;
@@ -604,6 +637,10 @@ export function parseSpotifyResource(
   }
 }
 
+// Spotify's search API is known to return literal `null` entries inside
+// `items[]` — most often in `playlists.items` for deleted/private playlists,
+// but it has been observed in tracks/albums too. Type all three as nullable
+// and skip null entries at the call site.
 interface SpotifySearchApiResponse {
   tracks?: {
     items: Array<{
@@ -612,7 +649,7 @@ interface SpotifySearchApiResponse {
       uri: string;
       artists: Array<{ name: string }>;
       album?: { images?: Array<{ url: string }> };
-    }>;
+    } | null>;
   };
   albums?: {
     items: Array<{
@@ -621,7 +658,7 @@ interface SpotifySearchApiResponse {
       uri: string;
       artists: Array<{ name: string }>;
       images?: Array<{ url: string }>;
-    }>;
+    } | null>;
   };
   playlists?: {
     items: Array<{
@@ -630,7 +667,7 @@ interface SpotifySearchApiResponse {
       uri: string;
       owner?: { display_name?: string };
       images?: Array<{ url: string }>;
-    }>;
+    } | null>;
   };
 }
 
@@ -655,6 +692,7 @@ export async function searchSpotify(
   const data = (await res.json()) as SpotifySearchApiResponse;
   const out: SpotifySearchResult[] = [];
   for (const t of data.tracks?.items ?? []) {
+    if (!t) continue;
     out.push({
       type: 'track',
       uri: t.uri,
@@ -665,6 +703,7 @@ export async function searchSpotify(
     });
   }
   for (const a of data.albums?.items ?? []) {
+    if (!a) continue;
     out.push({
       type: 'album',
       uri: a.uri,
@@ -675,6 +714,7 @@ export async function searchSpotify(
     });
   }
   for (const p of data.playlists?.items ?? []) {
+    if (!p) continue;
     out.push({
       type: 'playlist',
       uri: p.uri,
@@ -687,9 +727,158 @@ export async function searchSpotify(
   return out;
 }
 
+interface SpotifyPlaylistsApiResponse {
+  items: Array<{
+    id: string;
+    name: string;
+    uri: string;
+    owner?: { display_name?: string };
+    images?: Array<{ url: string }>;
+  } | null>;
+}
+
+/**
+ * GET /me/playlists for the connected user. Returns up to 50 playlists.
+ * Tolerates Spotify's documented null-item quirk in items[].
+ *
+ * Throws SpotifyScopeError on 403/insufficient_scope so the browse face
+ * can surface the dedicated reconnect banner; throws a generic Error on
+ * any other non-2xx so the surrounding tab can render a retry affordance.
+ */
+export async function fetchUserPlaylists(
+  accessToken: string,
+  signal?: AbortSignal
+): Promise<SpotifyPlaylist[]> {
+  const url = new URL('https://api.spotify.com/v1/me/playlists');
+  url.searchParams.set('limit', '50');
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal,
+  });
+  if (!res.ok) {
+    if (res.status === 403) {
+      let body = '';
+      try {
+        body = (await res.text()).toLowerCase();
+      } catch {
+        // ignore — body read failed, fall through to generic 403
+      }
+      if (body.includes('scope')) {
+        throw new SpotifyScopeError('Spotify playlists: insufficient scope');
+      }
+    }
+    throw new Error(`Spotify playlists returned ${res.status}`);
+  }
+  const data = (await res.json()) as SpotifyPlaylistsApiResponse;
+  const out: SpotifyPlaylist[] = [];
+  for (const p of data.items ?? []) {
+    if (!p) continue;
+    out.push({
+      id: p.id,
+      name: p.name,
+      uri: p.uri,
+      owner: p.owner?.display_name ?? 'Spotify',
+      imageUrl: p.images?.[0]?.url,
+    });
+  }
+  return out;
+}
+
+interface SpotifyRecentlyPlayedApiResponse {
+  items: Array<{
+    track: {
+      id: string;
+      name: string;
+      uri: string;
+      artists: Array<{ name: string }>;
+      album?: { images?: Array<{ url: string }> };
+    } | null;
+  } | null>;
+}
+
+/**
+ * GET /me/player/recently-played for the connected user. Returns up to 20
+ * tracks. Tolerates null `items[]` entries and null `items[].track`
+ * (Spotify omits the track when it has been removed from the catalog).
+ *
+ * Throws SpotifyScopeError on 403/insufficient_scope.
+ */
+export async function fetchRecentlyPlayed(
+  accessToken: string,
+  signal?: AbortSignal
+): Promise<SpotifyTrack[]> {
+  const url = new URL('https://api.spotify.com/v1/me/player/recently-played');
+  url.searchParams.set('limit', '20');
+  const res = await fetch(url.toString(), {
+    headers: { Authorization: `Bearer ${accessToken}` },
+    signal,
+  });
+  if (!res.ok) {
+    if (res.status === 403) {
+      let body = '';
+      try {
+        body = (await res.text()).toLowerCase();
+      } catch {
+        // ignore
+      }
+      if (body.includes('scope')) {
+        throw new SpotifyScopeError(
+          'Spotify recently-played: insufficient scope'
+        );
+      }
+    }
+    throw new Error(`Spotify recently-played returned ${res.status}`);
+  }
+  const data = (await res.json()) as SpotifyRecentlyPlayedApiResponse;
+  const out: SpotifyTrack[] = [];
+  const seen = new Set<string>();
+  for (const item of data.items ?? []) {
+    if (!item) continue;
+    const t = item.track;
+    if (!t) continue;
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
+    out.push({
+      id: t.id,
+      name: t.name,
+      uri: t.uri,
+      artist: t.artists.map((a) => a.name).join(', '),
+      imageUrl: t.album?.images?.[0]?.url,
+    });
+  }
+  return out;
+}
+
+/**
+ * Activate a Web Playback SDK device in Spotify Connect by transferring
+ * playback to it. A freshly-`ready` SDK device is registered locally but is
+ * often not yet a valid REST `play?device_id=` target — `PUT /me/player`
+ * with the device id makes Spotify treat it as the active device. We pass
+ * `play: false` so this only activates without forcing a resume; the caller
+ * issues the real `play` (with the desired context/tracks) right after.
+ */
+async function transferPlaybackToDevice(
+  accessToken: string,
+  deviceId: string
+): Promise<void> {
+  await fetch('https://api.spotify.com/v1/me/player', {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ device_ids: [deviceId], play: false }),
+  });
+}
+
 /**
  * Issue `play` on the given device. Pass either a context URI (album/playlist/artist)
  * via `contextUri`, or a list of track URIs via `uris`, but not both.
+ *
+ * Self-heals the common "Device not found" (404) case: when a just-created
+ * SDK device hasn't been activated in Spotify Connect yet, the first
+ * `play?device_id=` returns 404. We then transfer playback to the device to
+ * activate it and retry the play once.
  */
 export async function playOnDevice(
   accessToken: string,
@@ -699,23 +888,91 @@ export async function playOnDevice(
   const body: Record<string, unknown> = {};
   if (payload.contextUri) body.context_uri = payload.contextUri;
   if (payload.uris) body.uris = payload.uris;
-  const res = await fetch(
-    `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
-    {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    }
-  );
+
+  const sendPlay = () =>
+    fetch(
+      `https://api.spotify.com/v1/me/player/play?device_id=${encodeURIComponent(deviceId)}`,
+      {
+        method: 'PUT',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      }
+    );
+
+  let res = await sendPlay();
+
+  // 404 = device not (yet) an active Connect target. Activate it via a
+  // transfer, give Spotify a moment to register it, then retry once.
+  if (res.status === 404) {
+    await transferPlaybackToDevice(accessToken, deviceId);
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    res = await sendPlay();
+  }
+
   // 204 is success; some non-Premium accounts return 403.
   if (res.status === 403) {
     throw new Error('spotify-premium-required');
   }
   if (!res.ok && res.status !== 204) {
     throw new Error(`Spotify play returned ${res.status}`);
+  }
+}
+
+/**
+ * Set the repeat mode on the given device.
+ *   - 'off'     → no repeat
+ *   - 'track'   → repeat the current track
+ *   - 'context' → repeat the current context (playlist/album)
+ *
+ * Mirrors playOnDevice's fetch/error style: 204 is success, 403 means the
+ * account isn't Premium, any other non-2xx throws. Repeat/shuffle on an
+ * inactive device may 404 — that surfaces here as a thrown error the caller
+ * treats as best-effort (console.warn, no UI break).
+ */
+export async function setRepeatMode(
+  accessToken: string,
+  deviceId: string,
+  state: 'off' | 'track' | 'context'
+): Promise<void> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/player/repeat?state=${state}&device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+  if (res.status === 403) {
+    throw new Error('spotify-premium-required');
+  }
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Spotify repeat returned ${res.status}`);
+  }
+}
+
+/**
+ * Toggle native Spotify shuffle on the given device. Same fetch/error style as
+ * setRepeatMode (204 success, 403 → premium-required, other non-2xx throws).
+ */
+export async function setShuffle(
+  accessToken: string,
+  deviceId: string,
+  on: boolean
+): Promise<void> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/player/shuffle?state=${on ? 'true' : 'false'}&device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+  if (res.status === 403) {
+    throw new Error('spotify-premium-required');
+  }
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Spotify shuffle returned ${res.status}`);
   }
 }
 

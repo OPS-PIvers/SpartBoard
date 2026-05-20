@@ -4,6 +4,27 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-20
+
+- PRs reviewed:
+  - #1675 — test(hooks): add coverage for useActivityWallLibrary (base `dev-paul`, head `scheduled-tasks`, draft)
+  - #1674 — fix(dup,quiz): address PR #1672 review feedback (base `dev-paul`, head `claude/jolly-thompson-pejpC`, draft)
+  - #1672 — Boards Duplicate UX polish, data-safety, and cross-browser focus-loss detection (base `main`, head `dev-paul`)
+  - #1366 — docs: plan for repo-wide line-ending normalization (base `main`, head `docs/line-endings-normalization-plan`)
+- Comments processed: 11 unresolved review threads across the four PRs — 0 fixed (none actionable), 11 already addressed/explained. PR #1672's five threads (Copilot `console.error`→`logError` + ungated poll; Gemini ×2 missing `isDefault: false`; Copilot stale-title) each already carry an author reply, with the three code fixes staged on #1674. PR #1366's six threads are all outdated/resolved across prior sweeps. PR #1674 and #1675 had no inline review comments.
+- Fixes pushed: 0
+  - No new code fixes were needed. The actionable #1672 feedback is already implemented on #1674 (verified the diff: explicit `isDefault: false` after `sanitizeBoardSnapshot`, `logError('DashboardContext.duplicateDashboard', …)`, and the quiz `useFocusLossPoll` gate `tabWarningsEnabled && session.status === 'active' && myResponse?.status !== 'completed'`). The `dev-paul` push permission was therefore not exercised.
+- Reviews posted: 4
+  - PR #1675 useActivityWallLibrary tests: Ready — 13 well-structured tests (listener wiring, snapshot mapping + sparse-doc defaults, empty-`classId` strip rule, signed-out throw paths) following the `usePlcNotes.test.ts` pattern; test-only + scheduled-task doc-log refresh, no production risk.
+  - PR #1674 #1672 fix-up: Ready with minor notes — three correct, minimal fixes mapping 1:1 to the #1672 bot comments. Flagged merge ordering (must land in `dev-paul` with/before #1672) and a small gap (no test asserting the poll disables once `myResponse.status === 'completed'`).
+  - PR #1672 Boards Duplicate + focus-loss: Ready with minor notes — all 14 CI checks green; `useFocusLossPoll` is well-designed and follows the useEffect-escape-hatch rule (latest-callback ref in render body, first-call-only seed surviving snapshot re-renders). Key note: this branch's own diff still carries the pre-fix code, so #1674 + the #1673 changelog must be sequenced into `dev-paul` alongside it.
+  - PR #1366 line-endings plan: Ready — doc-only, all reviewer threads resolved; noted the PR has been open since 2026-04-21 and is itself the kind of open PR its execution preconditions require cleared, so it should be merged (inert until executed) or closed.
+- Notes:
+  - Branch safety: zero pushes to any PR branch this run (no actionable fixes). No push to `main`; `dev-paul` push permission not exercised.
+  - #1672, #1674, and #1673 (changelog) form a merge set against `dev-paul` — sequencing them together is the main reviewer-flagged concern, since #1672 in isolation ships the bot feedback unaddressed.
+
+---
+
 ## 2026-05-19
 
 - PRs reviewed:
