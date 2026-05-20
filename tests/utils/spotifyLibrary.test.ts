@@ -169,6 +169,46 @@ describe('fetchRecentlyPlayed', () => {
     expect(out[0].id).toBe('t1');
   });
 
+  it('de-duplicates tracks played more than once, keeping the most recent', async () => {
+    (fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(
+      respond({
+        items: [
+          {
+            track: {
+              id: 't1',
+              name: 'Song A',
+              uri: 'spotify:track:t1',
+              artists: [{ name: 'X' }],
+              album: { images: [] },
+            },
+          },
+          {
+            track: {
+              id: 't2',
+              name: 'Song B',
+              uri: 'spotify:track:t2',
+              artists: [{ name: 'Y' }],
+              album: { images: [] },
+            },
+          },
+          {
+            track: {
+              id: 't1',
+              name: 'Song A',
+              uri: 'spotify:track:t1',
+              artists: [{ name: 'X' }],
+              album: { images: [] },
+            },
+          },
+        ],
+      })
+    );
+
+    const out = await fetchRecentlyPlayed('tok');
+
+    expect(out.map((t) => t.id)).toEqual(['t1', 't2']);
+  });
+
   it('throws SpotifyScopeError on 403/scope', async () => {
     (fetch as ReturnType<typeof vi.fn>).mockReturnValueOnce(
       respond({ error: { message: 'Insufficient client scope' } }, false, 403)

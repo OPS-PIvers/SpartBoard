@@ -831,10 +831,13 @@ export async function fetchRecentlyPlayed(
   }
   const data = (await res.json()) as SpotifyRecentlyPlayedApiResponse;
   const out: SpotifyTrack[] = [];
+  const seen = new Set<string>();
   for (const item of data.items ?? []) {
     if (!item) continue;
     const t = item.track;
     if (!t) continue;
+    if (seen.has(t.id)) continue;
+    seen.add(t.id);
     out.push({
       id: t.id,
       name: t.name,
