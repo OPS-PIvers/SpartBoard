@@ -15,7 +15,7 @@ vi.mock('@/hooks/useSpotifyAuth', () => ({
     isPremium: true,
     getAccessToken: vi.fn().mockResolvedValue('tok'),
     disconnect: vi.fn(),
-    reconnect: vi.fn(),
+    connect: vi.fn(),
   }),
 }));
 
