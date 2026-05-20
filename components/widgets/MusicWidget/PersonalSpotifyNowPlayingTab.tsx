@@ -13,7 +13,16 @@
  */
 
 import React from 'react';
-import { Music2, Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import {
+  Music2,
+  Pause,
+  Play,
+  Repeat,
+  Repeat1,
+  Shuffle,
+  SkipBack,
+  SkipForward,
+} from 'lucide-react';
 import { spotifyOpenUrlFromInput } from '@/utils/spotifyAuth';
 import { SpotifyPlaybackTrack } from '@/hooks/useSpotifyWebPlayback';
 import { buildSpotifyEmbedUrl } from './utils';
@@ -28,9 +37,15 @@ export interface PersonalSpotifyNowPlayingProps {
   isReady: boolean;
   currentTrack: SpotifyPlaybackTrack | null;
   isPlaying: boolean;
+  /** Current repeat mode: 0 = off, 1 = repeat-context, 2 = repeat-track. */
+  repeatMode: number;
+  /** Native Spotify shuffle on/off. */
+  shuffle: boolean;
   onTogglePlay: () => void;
   onNext: () => void;
   onPrevious: () => void;
+  onCycleRepeat: () => void;
+  onToggleShuffle: () => void;
   onSwitchToLibrary: () => void;
 }
 
@@ -45,9 +60,13 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
   isReady,
   currentTrack,
   isPlaying,
+  repeatMode,
+  shuffle,
   onTogglePlay,
   onNext,
   onPrevious,
+  onCycleRepeat,
+  onToggleShuffle,
   onSwitchToLibrary,
 }) => {
   // ── 1. Empty state ──────────────────────────────────────────────────────────
@@ -144,7 +163,25 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
             </p>
           )}
         </div>
-        <div className="flex items-center" style={{ gap: 'min(20px, 8cqmin)' }}>
+        <div className="flex items-center" style={{ gap: 'min(16px, 6cqmin)' }}>
+          <button
+            type="button"
+            onClick={onToggleShuffle}
+            disabled={!isReady}
+            aria-label="Shuffle"
+            aria-pressed={shuffle}
+            className={`rounded-full flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 ${
+              shuffle
+                ? 'text-green-400 hover:text-green-300'
+                : 'text-slate-400 hover:text-white'
+            }`}
+            style={{
+              width: 'min(30px, 11cqmin)',
+              height: 'min(30px, 11cqmin)',
+            }}
+          >
+            <Shuffle style={{ width: '70%', height: '70%' }} />
+          </button>
           <button
             type="button"
             onClick={onPrevious}
@@ -199,6 +236,28 @@ export const PersonalSpotifyNowPlayingTab: React.FC<
               className="fill-current"
               style={{ width: '70%', height: '70%' }}
             />
+          </button>
+          <button
+            type="button"
+            onClick={onCycleRepeat}
+            disabled={!isReady}
+            aria-label="Repeat"
+            aria-pressed={repeatMode !== 0}
+            className={`rounded-full flex items-center justify-center transition disabled:opacity-40 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70 ${
+              repeatMode !== 0
+                ? 'text-green-400 hover:text-green-300'
+                : 'text-slate-400 hover:text-white'
+            }`}
+            style={{
+              width: 'min(30px, 11cqmin)',
+              height: 'min(30px, 11cqmin)',
+            }}
+          >
+            {repeatMode === 2 ? (
+              <Repeat1 style={{ width: '70%', height: '70%' }} />
+            ) : (
+              <Repeat style={{ width: '70%', height: '70%' }} />
+            )}
           </button>
         </div>
       </div>

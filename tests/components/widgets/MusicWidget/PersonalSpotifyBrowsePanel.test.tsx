@@ -28,9 +28,13 @@ const playbackProps = {
   isReady: true,
   currentTrack: null,
   isPlaying: false,
+  repeatMode: 0,
+  shuffle: false,
   onTogglePlay: vi.fn(),
   onNext: vi.fn(),
   onPrevious: vi.fn(),
+  onCycleRepeat: vi.fn(),
+  onToggleShuffle: vi.fn(),
 };
 
 const baseProps = {

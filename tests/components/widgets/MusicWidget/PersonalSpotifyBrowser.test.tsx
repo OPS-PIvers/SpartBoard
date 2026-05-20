@@ -10,7 +10,10 @@ import { PersonalSpotifyBrowser } from '@/components/widgets/MusicWidget/Persona
 
 const mockUpdateWidget = vi.fn();
 vi.mock('@/context/useDashboard', () => ({
-  useDashboard: () => ({ updateWidget: mockUpdateWidget }),
+  useDashboard: () => ({
+    updateWidget: mockUpdateWidget,
+    selectedWidgetId: null,
+  }),
 }));
 vi.mock('@/hooks/useSpotifyAuth', () => ({
   useSpotifyAuth: () => ({
@@ -27,9 +30,13 @@ vi.mock('@/hooks/useSpotifyWebPlayback', () => ({
     sdkFailed: false,
     currentTrack: null,
     isPlaying: false,
+    repeatMode: 0,
+    shuffle: false,
     togglePlay: vi.fn(),
     next: vi.fn(),
     previous: vi.fn(),
+    cycleRepeat: vi.fn(),
+    toggleShuffle: vi.fn(),
   }),
 }));
 
@@ -86,6 +93,31 @@ vi.mock('@/components/widgets/MusicWidget/PersonalSpotifyCompactBar', () => ({
     </div>
   ),
 }));
+vi.mock(
+  '@/components/widgets/MusicWidget/PersonalSpotifyDefaultLayout',
+  () => ({
+    PersonalSpotifyDefaultLayout: ({
+      isActive,
+      onPlay,
+    }: {
+      isActive: boolean;
+      onPlay: (p: {
+        type: 'track' | 'playlist' | 'album';
+        uri: string;
+      }) => void;
+    }) => (
+      <div>
+        mock-default-layout active={String(isActive)}
+        <button
+          type="button"
+          onClick={() => onPlay({ type: 'track', uri: 'spotify:track:t1' })}
+        >
+          mock-play-track
+        </button>
+      </div>
+    ),
+  })
+);
 vi.mock('@/components/widgets/MusicWidget/PersonalSpotifyMinimalView', () => ({
   PersonalSpotifyMinimalView: ({
     onOpenBrowse,
@@ -110,21 +142,21 @@ const makeWidget = (config: Record<string, unknown>) => ({
 });
 
 describe('PersonalSpotifyBrowser', () => {
-  it('default layout renders the tab strip + Library tab content', () => {
+  it('default layout renders the DefaultLayout component', () => {
     render(
       <PersonalSpotifyBrowser
         widget={makeWidget({ layout: 'default' }) as never}
       />
     );
-    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
+    expect(screen.getByText(/mock-default-layout/i)).toBeInTheDocument();
   });
 
-  it('falls back to the full browse UI when no layout is set', () => {
+  it('falls back to the DefaultLayout when no layout is set', () => {
     render(<PersonalSpotifyBrowser widget={makeWidget({}) as never} />);
-    expect(screen.getByText('mock-play-track')).toBeInTheDocument();
+    expect(screen.getByText(/mock-default-layout/i)).toBeInTheDocument();
   });
 
-  it('tapping a track persists the URI and auto-switches to Now Playing', () => {
+  it('default layout: tapping a track persists the URI (view state owned by the layout)', () => {
     render(
       <PersonalSpotifyBrowser
         widget={makeWidget({ layout: 'default' }) as never}
@@ -135,18 +167,6 @@ describe('PersonalSpotifyBrowser', () => {
     expect(mockUpdateWidget).toHaveBeenCalledWith('w1', {
       config: { personalSpotifyUrl: 'spotify:track:t1' },
     });
-    // Default layout jumps to the Now Playing surface after starting a track.
-    expect(screen.getByText(/mock-now-playing/i)).toBeInTheDocument();
-  });
-
-  it('clicking the Now Playing tab switches the rendered tab', () => {
-    render(
-      <PersonalSpotifyBrowser
-        widget={makeWidget({ layout: 'default' }) as never}
-      />
-    );
-    fireEvent.click(screen.getByRole('button', { name: /Now playing/i }));
-    expect(screen.getByText(/mock-now-playing/i)).toBeInTheDocument();
   });
 
   it('small layout renders the compact bar (no tab strip)', () => {

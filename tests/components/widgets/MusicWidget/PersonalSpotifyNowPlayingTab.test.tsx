@@ -16,9 +16,13 @@ const baseProps = {
   isReady: true,
   currentTrack: null as SpotifyPlaybackTrack | null,
   isPlaying: false,
+  repeatMode: 0,
+  shuffle: false,
   onTogglePlay: vi.fn(),
   onNext: vi.fn(),
   onPrevious: vi.fn(),
+  onCycleRepeat: vi.fn(),
+  onToggleShuffle: vi.fn(),
   onSwitchToLibrary: vi.fn(),
 };
 
@@ -115,6 +119,75 @@ describe('PersonalSpotifyNowPlayingTab', () => {
     );
     expect(screen.queryByRole('button', { name: /Previous/i })).toBeNull();
     expect(screen.queryByRole('button', { name: /Next/i })).toBeNull();
+  });
+
+  it('renders Shuffle/Repeat buttons that forward to their handlers (SDK branch)', () => {
+    const onCycleRepeat = vi.fn();
+    const onToggleShuffle = vi.fn();
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium
+        isReady
+        currentTrack={{ name: 'Test Song', artist: 'Test Artist' }}
+        onCycleRepeat={onCycleRepeat}
+        onToggleShuffle={onToggleShuffle}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Shuffle/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Repeat/i }));
+    expect(onToggleShuffle).toHaveBeenCalledOnce();
+    expect(onCycleRepeat).toHaveBeenCalledOnce();
+  });
+
+  it('reflects active state on Shuffle/Repeat via aria-pressed', () => {
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium
+        isReady
+        shuffle
+        repeatMode={1}
+        currentTrack={{ name: 'Test Song', artist: 'Test Artist' }}
+      />
+    );
+    expect(screen.getByRole('button', { name: /Shuffle/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByRole('button', { name: /Repeat/i })).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+  });
+
+  it('disables Shuffle/Repeat until the device is ready', () => {
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium
+        isReady={false}
+        currentTrack={null}
+      />
+    );
+    expect(screen.getByRole('button', { name: /Shuffle/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Repeat/i })).toBeDisabled();
+  });
+
+  it('does NOT render Shuffle/Repeat on the Free-tier iframe branch', () => {
+    render(
+      <PersonalSpotifyNowPlayingTab
+        {...baseProps}
+        url="spotify:track:t1"
+        isPremium={false}
+        label="Free Preview"
+      />
+    );
+    expect(screen.queryByRole('button', { name: /Shuffle/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Repeat/i })).toBeNull();
   });
 
   it('labels the toggle button "Pause" when playing', () => {

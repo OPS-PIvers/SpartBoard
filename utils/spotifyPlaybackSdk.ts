@@ -111,6 +111,10 @@ export interface SpotifyPlayerInitOptions {
 
 export interface SpotifyPlayerState {
   paused: boolean;
+  /** 0 = off, 1 = repeat-context, 2 = repeat-track. */
+  repeat_mode?: number;
+  /** Native Spotify shuffle on/off. */
+  shuffle?: boolean;
   track_window?: {
     current_track?: {
       name: string;

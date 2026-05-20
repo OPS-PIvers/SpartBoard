@@ -1,8 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
-import { searchSpotify, SpotifySearchResult } from '@/utils/spotifyAuth';
-import { useSpotifyAuth } from '@/hooks/useSpotifyAuth';
+import { SpotifySearchResult } from '@/utils/spotifyAuth';
 import { useSpotifyLibrary } from '@/hooks/useSpotifyLibrary';
+import { useSpotifySearch } from '@/hooks/useSpotifySearch';
 import { SpotifyResultRow } from './SpotifyResultRow';
 import type { SpotifyPlayablePick } from './PersonalSpotifyLibraryTab';
 
@@ -11,64 +11,18 @@ interface Props {
   onPlay: (pick: SpotifyPlayablePick) => void;
 }
 
-const DEBOUNCE_MS = 300;
-
 export const PersonalSpotifySearchTab: React.FC<Props> = ({
   currentUri,
   onPlay,
 }) => {
-  const { getAccessToken } = useSpotifyAuth();
   const { recents } = useSpotifyLibrary();
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<SpotifySearchResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
+  const { results, isSearching, searchError } = useSpotifySearch(query);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
-
-  useEffect(() => {
-    const trimmed = query.trim();
-    if (!trimmed) {
-      setResults([]);
-      setSearchError(null);
-      setIsSearching(false);
-      return;
-    }
-    setIsSearching(true);
-    setSearchError(null);
-    let cancelled = false;
-    const controller = new AbortController();
-    const timer = setTimeout(async () => {
-      try {
-        const token = await getAccessToken();
-        if (cancelled) return;
-        if (!token) {
-          setSearchError('Spotify session expired — reconnect.');
-          setResults([]);
-          return;
-        }
-        const out = await searchSpotify(token, trimmed, controller.signal);
-        if (cancelled) return;
-        setResults(out);
-      } catch (err) {
-        if (cancelled) return;
-        if ((err as { name?: string }).name === 'AbortError') return;
-        setSearchError(err instanceof Error ? err.message : 'Search failed.');
-        setResults([]);
-      } finally {
-        if (!cancelled) setIsSearching(false);
-      }
-    }, DEBOUNCE_MS);
-
-    return () => {
-      cancelled = true;
-      controller.abort();
-      clearTimeout(timer);
-    };
-  }, [query, getAccessToken]);
 
   const handlePlay = (r: SpotifySearchResult) => {
     if (r.type !== 'track' && r.type !== 'album' && r.type !== 'playlist')

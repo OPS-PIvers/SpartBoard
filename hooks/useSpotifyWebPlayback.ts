@@ -34,7 +34,12 @@ import {
   SpotifyPlayer,
   SpotifyPlayerState,
 } from '@/utils/spotifyPlaybackSdk';
-import { parseSpotifyResource, playOnDevice } from '@/utils/spotifyAuth';
+import {
+  parseSpotifyResource,
+  playOnDevice,
+  setRepeatMode,
+  setShuffle,
+} from '@/utils/spotifyAuth';
 
 export interface SpotifyPlaybackTrack {
   name: string;
@@ -49,11 +54,19 @@ export interface UseSpotifyWebPlaybackReturn {
   sdkFailed: boolean;
   currentTrack: SpotifyPlaybackTrack | null;
   isPlaying: boolean;
+  /** Current repeat mode: 0 = off, 1 = repeat-context, 2 = repeat-track. */
+  repeatMode: number;
+  /** Native Spotify shuffle on/off. */
+  shuffle: boolean;
   togglePlay: () => Promise<void>;
   /** Skip to the next track in the current context (no-op if no player). */
   next: () => Promise<void>;
   /** Skip to the previous track in the current context (no-op if no player). */
   previous: () => Promise<void>;
+  /** Cycle repeat: off → track → context → off (best-effort, no-op if no device). */
+  cycleRepeat: () => Promise<void>;
+  /** Toggle native Spotify shuffle (best-effort, no-op if no device). */
+  toggleShuffle: () => Promise<void>;
 }
 
 /**
@@ -77,6 +90,8 @@ export function useSpotifyWebPlayback(
   const instanceId = useId();
   const [deviceId, setDeviceId] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [repeatMode, setRepeatModeState] = useState(0);
+  const [shuffle, setShuffleState] = useState(false);
   const [sdkFailed, setSdkFailed] = useState(false);
   const [currentTrack, setCurrentTrack] = useState<SpotifyPlaybackTrack | null>(
     null
@@ -86,6 +101,10 @@ export function useSpotifyWebPlayback(
   // without depending on deviceId state (which would re-create the callback
   // on every connect/disconnect).
   const deviceIdRef = useRef<string | null>(null);
+  // Mirror repeatMode/shuffle in refs so cycleRepeat/toggleShuffle read the
+  // current value without re-creating their callbacks on every state change.
+  const repeatModeRef = useRef(0);
+  const shuffleRef = useRef(false);
 
   // Hold the latest getAccessToken / targetUri without re-running the SDK setup
   // effect on every render (the caller passes a fresh closure / value each
@@ -144,6 +163,12 @@ export function useSpotifyWebPlayback(
         player.addListener('player_state_changed', (s: SpotifyPlayerState) => {
           if (destroyed || !s) return;
           setIsPlaying(!s.paused);
+          const rm = s.repeat_mode ?? 0;
+          repeatModeRef.current = rm;
+          setRepeatModeState(rm);
+          const sh = s.shuffle ?? false;
+          shuffleRef.current = sh;
+          setShuffleState(sh);
           const t = s.track_window?.current_track;
           setCurrentTrack(
             t
@@ -206,6 +231,10 @@ export function useSpotifyWebPlayback(
       deviceIdRef.current = null;
       setDeviceId(null);
       setIsPlaying(false);
+      repeatModeRef.current = 0;
+      setRepeatModeState(0);
+      shuffleRef.current = false;
+      setShuffleState(false);
     };
   }, [enabled, instanceId]);
 
@@ -274,14 +303,52 @@ export function useSpotifyWebPlayback(
     }
   }, []);
 
+  // Cycle repeat off(0) → track(2) → context(1) → off(0). The Spotify SDK
+  // reports repeat as 0/1/2 but the REST API takes string states, so map the
+  // *next* mode to its string before calling setRepeatMode. Best-effort: a
+  // missing device/token or a REST failure (e.g. 404 on an inactive device)
+  // just warns — the controls are used while playback is active.
+  const cycleRepeat = useCallback(async () => {
+    const device = deviceIdRef.current;
+    if (!device) return;
+    const token = await getAccessTokenRef.current();
+    if (!token) return;
+    // off(0) → track(2) → context(1) → off(0)
+    const nextMode =
+      repeatModeRef.current === 0 ? 2 : repeatModeRef.current === 2 ? 1 : 0;
+    const nextState =
+      nextMode === 2 ? 'track' : nextMode === 1 ? 'context' : 'off';
+    try {
+      await setRepeatMode(token, device, nextState);
+    } catch (err) {
+      console.warn('[useSpotifyWebPlayback.cycleRepeat] failed', err);
+    }
+  }, []);
+
+  const toggleShuffle = useCallback(async () => {
+    const device = deviceIdRef.current;
+    if (!device) return;
+    const token = await getAccessTokenRef.current();
+    if (!token) return;
+    try {
+      await setShuffle(token, device, !shuffleRef.current);
+    } catch (err) {
+      console.warn('[useSpotifyWebPlayback.toggleShuffle] failed', err);
+    }
+  }, []);
+
   return {
     deviceId,
     isReady: deviceId !== null,
     sdkFailed,
     currentTrack,
     isPlaying,
+    repeatMode,
+    shuffle,
     togglePlay,
     next,
     previous,
+    cycleRepeat,
+    toggleShuffle,
   };
 }

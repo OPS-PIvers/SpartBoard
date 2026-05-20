@@ -921,6 +921,61 @@ export async function playOnDevice(
   }
 }
 
+/**
+ * Set the repeat mode on the given device.
+ *   - 'off'     → no repeat
+ *   - 'track'   → repeat the current track
+ *   - 'context' → repeat the current context (playlist/album)
+ *
+ * Mirrors playOnDevice's fetch/error style: 204 is success, 403 means the
+ * account isn't Premium, any other non-2xx throws. Repeat/shuffle on an
+ * inactive device may 404 — that surfaces here as a thrown error the caller
+ * treats as best-effort (console.warn, no UI break).
+ */
+export async function setRepeatMode(
+  accessToken: string,
+  deviceId: string,
+  state: 'off' | 'track' | 'context'
+): Promise<void> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/player/repeat?state=${state}&device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+  if (res.status === 403) {
+    throw new Error('spotify-premium-required');
+  }
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Spotify repeat returned ${res.status}`);
+  }
+}
+
+/**
+ * Toggle native Spotify shuffle on the given device. Same fetch/error style as
+ * setRepeatMode (204 success, 403 → premium-required, other non-2xx throws).
+ */
+export async function setShuffle(
+  accessToken: string,
+  deviceId: string,
+  on: boolean
+): Promise<void> {
+  const res = await fetch(
+    `https://api.spotify.com/v1/me/player/shuffle?state=${on ? 'true' : 'false'}&device_id=${encodeURIComponent(deviceId)}`,
+    {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    }
+  );
+  if (res.status === 403) {
+    throw new Error('spotify-premium-required');
+  }
+  if (!res.ok && res.status !== 204) {
+    throw new Error(`Spotify shuffle returned ${res.status}`);
+  }
+}
+
 /** Build the Spotify resource URI (track/album/playlist) for a given input. */
 export function spotifyUriFromInput(input: string): string | null {
   return parseSpotifyResource(input)?.uri ?? null;

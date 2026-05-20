@@ -30,6 +30,8 @@ vi.mock('@/utils/spotifyPlaybackSdk', async () => {
 // real parseSpotifyResource (so payload selection is exercised) and stub the
 // network call.
 const playOnDeviceMock = vi.fn().mockResolvedValue(undefined);
+const setRepeatModeMock = vi.fn().mockResolvedValue(undefined);
+const setShuffleMock = vi.fn().mockResolvedValue(undefined);
 vi.mock('@/utils/spotifyAuth', async () => {
   const actual = await vi.importActual<typeof import('@/utils/spotifyAuth')>(
     '@/utils/spotifyAuth'
@@ -38,6 +40,10 @@ vi.mock('@/utils/spotifyAuth', async () => {
     ...actual,
     playOnDevice: (...args: unknown[]): Promise<void> =>
       playOnDeviceMock(...args) as Promise<void>,
+    setRepeatMode: (...args: unknown[]): Promise<void> =>
+      setRepeatModeMock(...args) as Promise<void>,
+    setShuffle: (...args: unknown[]): Promise<void> =>
+      setShuffleMock(...args) as Promise<void>,
   };
 });
 
@@ -84,6 +90,8 @@ beforeEach(() => {
   loadSpotifySdkMock.mockReset();
   getToken.mockClear();
   playOnDeviceMock.mockClear();
+  setRepeatModeMock.mockClear();
+  setShuffleMock.mockClear();
 });
 
 afterEach(() => {
@@ -298,6 +306,135 @@ describe('useSpotifyWebPlayback', () => {
     });
     expect(result.current.sdkFailed).toBe(false);
     warn.mockRestore();
+  });
+
+  it('reflects repeat_mode and shuffle from player_state_changed', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    expect(result.current.repeatMode).toBe(0);
+    expect(result.current.shuffle).toBe(false);
+
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 2,
+        shuffle: true,
+        track_window: {
+          current_track: {
+            name: 'S',
+            uri: 'spotify:track:s',
+            artists: [{ name: 'A' }],
+          },
+        },
+      });
+    });
+
+    expect(result.current.repeatMode).toBe(2);
+    expect(result.current.shuffle).toBe(true);
+  });
+
+  it('cycleRepeat cycles off → track → context → off via setRepeatMode', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+    });
+
+    // Starts at off(0) → first cycle should request 'track'.
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    expect(setRepeatModeMock).toHaveBeenLastCalledWith(
+      'tok',
+      'device-123',
+      'track'
+    );
+
+    // SDK reports the new mode (2 = track) → next cycle requests 'context'.
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 2,
+        shuffle: false,
+      });
+    });
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    expect(setRepeatModeMock).toHaveBeenLastCalledWith(
+      'tok',
+      'device-123',
+      'context'
+    );
+
+    // SDK reports context (1) → next cycle requests 'off'.
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 1,
+        shuffle: false,
+      });
+    });
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    expect(setRepeatModeMock).toHaveBeenLastCalledWith(
+      'tok',
+      'device-123',
+      'off'
+    );
+  });
+
+  it('toggleShuffle calls setShuffle with the inverse of the current state', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+    });
+
+    // Default shuffle off → toggle requests true.
+    await act(async () => {
+      await result.current.toggleShuffle();
+    });
+    expect(setShuffleMock).toHaveBeenLastCalledWith('tok', 'device-123', true);
+
+    // SDK reports shuffle on → toggle requests false.
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 0,
+        shuffle: true,
+      });
+    });
+    await act(async () => {
+      await result.current.toggleShuffle();
+    });
+    expect(setShuffleMock).toHaveBeenLastCalledWith('tok', 'device-123', false);
+  });
+
+  it('cycleRepeat/toggleShuffle are no-ops without a device', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+    // No 'ready' event → deviceIdRef stays null.
+    await act(async () => {
+      await result.current.cycleRepeat();
+      await result.current.toggleShuffle();
+    });
+    expect(setRepeatModeMock).not.toHaveBeenCalled();
+    expect(setShuffleMock).not.toHaveBeenCalled();
   });
 
   it('resets sdkFailed when re-enabled after a prior failure', async () => {

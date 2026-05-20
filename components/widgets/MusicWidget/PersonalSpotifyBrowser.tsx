@@ -10,6 +10,7 @@ import { SpotifyPlayablePick } from './PersonalSpotifyLibraryTab';
 import { PersonalSpotifyBrowsePanel } from './PersonalSpotifyBrowsePanel';
 import { PersonalSpotifyCompactBar } from './PersonalSpotifyCompactBar';
 import { PersonalSpotifyMinimalView } from './PersonalSpotifyMinimalView';
+import { PersonalSpotifyDefaultLayout } from './PersonalSpotifyDefaultLayout';
 
 interface Props {
   widget: WidgetData;
@@ -18,7 +19,10 @@ interface Props {
 export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   const config = widget.config as MusicConfig;
   const { layout = 'default' } = config;
-  const { updateWidget } = useDashboard();
+  const { updateWidget, selectedWidgetId } = useDashboard();
+  // The Default layout reveals its tab strip only while the widget is the
+  // selected one — the same flag that drives the widget toolbar's visibility.
+  const isActive = selectedWidgetId === widget.id;
   // Note: useSpotifyAuth exposes `connect` and `disconnect` but no `reconnect`.
   // handleReconnect below calls disconnect() then connect() to achieve a
   // reconnect flow. The `reconnect` name is preserved in the prop passed to
@@ -52,12 +56,11 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
       updateWidget(widget.id, {
         config: { personalSpotifyUrl: pick.uri },
       });
-      // In the full browse layout, starting a track jumps to the Now Playing
-      // surface. The tab strip stays visible, so the user taps Playlists/Search
-      // to come back. Compact/minimal layouts have no tabs — instead, selecting
-      // a track in their browse overlay closes it (no auto tab switch).
-      if (layout === 'default') setActiveTab('now-playing');
-      else setBrowseOpen(false);
+      // The Default layout owns its own view state (PersonalSpotifyDefaultLayout
+      // returns to the player after a row tap), so nothing to do here for it.
+      // Compact/minimal layouts have no tabs — selecting a track in their browse
+      // overlay closes it.
+      if (layout !== 'default') setBrowseOpen(false);
       if (!isPremium) return;
       const token = await getAccessToken();
       if (!token || !playback.deviceId) return;
@@ -89,9 +92,13 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
     isReady: playback.isReady,
     currentTrack: playback.currentTrack,
     isPlaying: playback.isPlaying,
+    repeatMode: playback.repeatMode,
+    shuffle: playback.shuffle,
     onTogglePlay: () => void playback.togglePlay(),
     onNext: () => void playback.next(),
     onPrevious: () => void playback.previous(),
+    onCycleRepeat: () => void playback.cycleRepeat(),
+    onToggleShuffle: () => void playback.toggleShuffle(),
   };
 
   // The browse panel (tab strip + active-tab body), shared between the inline
@@ -157,11 +164,20 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
     );
   }
 
-  // Default layout → full 3-tab browse UI (panel rendered inline, no overlay).
+  // Default layout → player at rest; reveals Songs/Playlists/search tabs only
+  // while the widget is selected. View state is owned by the layout component.
   return (
     <WidgetLayout
       padding="p-0"
-      content={<div className="w-full h-full">{renderBrowsePanel()}</div>}
+      content={
+        <PersonalSpotifyDefaultLayout
+          isActive={isActive}
+          currentUri={currentUri}
+          onPlay={handlePlay}
+          onReconnect={handleReconnect}
+          playbackProps={playbackProps}
+        />
+      }
     />
   );
 };
