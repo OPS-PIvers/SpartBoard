@@ -5,6 +5,8 @@ import {
   ensureObjectIds,
   objectIdForTarget,
   findForeground,
+  findObjectById,
+  exportEditedSvg,
 } from './notebookSvgEdit';
 
 const parseSvg = (markup: string): SVGSVGElement => {
@@ -85,5 +87,35 @@ describe('objectIdForTarget', () => {
     ensureObjectIds(svg);
     const rect = svg.querySelector('rect');
     expect(objectIdForTarget(svg, rect as unknown as Element)).toBeNull();
+  });
+});
+
+describe('exportEditedSvg', () => {
+  it('strips editor bookkeeping, restores size, preserves moves', () => {
+    const svg = parseSvg(prepareEditableSvg(PAGE));
+    const objects = ensureObjectIds(svg);
+    // Simulate a move applied to the first object.
+    const obj = findObjectById(svg, objects[0].id);
+    expect(obj).not.toBeNull();
+    obj?.setAttribute('transform', 'translate(15,25) translate(10,20)');
+    obj?.setAttribute('data-edit-dx', '15');
+    // Simulate the editor's highlight overlay.
+    const overlay = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'rect'
+    );
+    overlay.setAttribute('data-edit-overlay', '1');
+    svg.appendChild(overlay);
+
+    const out = exportEditedSvg(svg);
+
+    expect(out).not.toContain('data-edit-id');
+    expect(out).not.toContain('data-edit-overlay');
+    expect(out).not.toContain('data-edit-dx');
+    // viewBox 0 0 800 600 -> explicit width/height for <img> rendering.
+    expect(out).toContain('width="800"');
+    expect(out).toContain('height="600"');
+    // The move survives.
+    expect(out).toContain('translate(15,25) translate(10,20)');
   });
 });

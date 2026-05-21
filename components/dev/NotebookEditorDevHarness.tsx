@@ -12,6 +12,7 @@ export const NotebookEditorDevHarness: React.FC = () => {
   const [pages, setPages] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
   const [selection, setSelection] = useState<EditableObjectInfo | null>(null);
+  const [editedLen, setEditedLen] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -73,13 +74,26 @@ export const NotebookEditorDevHarness: React.FC = () => {
                 {selection ? `${selection.kind} (${selection.id})` : 'none'}
               </span>
             </span>
+            <span className="text-sm font-semibold text-slate-700">
+              edited:{' '}
+              <span className="font-mono text-green-700">
+                {editedLen !== null ? `${editedLen} chars` : 'no'}
+              </span>
+            </span>
+            <span className="text-xs text-slate-400">
+              click to select · drag to move · Delete to remove
+            </span>
           </>
         )}
       </div>
 
       <div className="flex-1 bg-white rounded-xl shadow-inner border border-slate-300 overflow-hidden">
         {pages[index] ? (
-          <PageEditor svg={pages[index]} onSelectionChange={setSelection} />
+          <PageEditor
+            svg={pages[index]}
+            onSelectionChange={setSelection}
+            onChange={(s) => setEditedLen(s.length)}
+          />
         ) : (
           <div className="h-full flex items-center justify-center text-slate-400 font-semibold">
             Load a notebook to start editing.

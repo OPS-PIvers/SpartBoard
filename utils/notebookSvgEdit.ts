@@ -131,4 +131,43 @@ export const findObjectById = (
     `[${EDIT_ID_ATTR}="${CSS.escape(id)}"]`
   );
 
-export { EDIT_ID_ATTR };
+/** Marks editor-only nodes (e.g. the selection highlight) for stripping. */
+const EDIT_OVERLAY_ATTR = 'data-edit-overlay';
+/** Holds an object's transform as it was before any editor move. */
+const ORIG_TRANSFORM_ATTR = 'data-orig-transform';
+
+/**
+ * Serialize the page back to a clean, persistable SVG: removes the editor's
+ * overlay nodes and edit-only bookkeeping attributes, and restores explicit
+ * width/height from the viewBox so the result renders correctly in an <img>.
+ * Object moves (applied as a leading translate on each object's transform)
+ * are preserved as valid SVG.
+ */
+export const exportEditedSvg = (svg: SVGSVGElement): string => {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.querySelectorAll(`[${EDIT_OVERLAY_ATTR}]`).forEach((el) => el.remove());
+  clone.querySelectorAll(`[${EDIT_ID_ATTR}]`).forEach((el) => {
+    // Strip all editor bookkeeping (data-edit-id / -dx / -dy + orig transform).
+    for (const attr of Array.from(el.attributes)) {
+      if (
+        attr.name.startsWith('data-edit') ||
+        attr.name === ORIG_TRANSFORM_ATTR
+      ) {
+        el.removeAttribute(attr.name);
+      }
+    }
+  });
+  // Restore intrinsic size from the viewBox (we set width/height to 100% to
+  // make the editor responsive; an <img>-rendered SVG needs real dimensions).
+  const viewBox = clone.getAttribute('viewBox');
+  if (viewBox) {
+    const parts = viewBox.split(/[\s,]+/).map(Number);
+    if (parts.length === 4 && parts[2] > 0 && parts[3] > 0) {
+      clone.setAttribute('width', String(parts[2]));
+      clone.setAttribute('height', String(parts[3]));
+    }
+  }
+  return new XMLSerializer().serializeToString(clone);
+};
+
+export { EDIT_ID_ATTR, EDIT_OVERLAY_ATTR, ORIG_TRANSFORM_ATTR };
