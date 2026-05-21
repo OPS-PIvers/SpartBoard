@@ -15,6 +15,7 @@ import { AlertTriangle, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
   QuizAssignmentSettings,
+  QuizBehaviorSettings,
   QuizSessionMode,
   QuizSessionOptions,
   ClassRoster,
@@ -145,11 +146,7 @@ export const QuizAssignmentSettingsModal: React.FC<
     attemptLimit: options.attemptLimit,
   };
 
-  const handleBehaviorChange = (next: {
-    sessionMode: QuizSessionMode;
-    sessionOptions: QuizSessionOptions;
-    attemptLimit: number | null;
-  }) => {
+  const handleBehaviorChange = (next: QuizBehaviorSettings) => {
     setSessionMode(next.sessionMode);
     setOptions((p) => ({
       ...p,

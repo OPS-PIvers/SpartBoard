@@ -4,7 +4,6 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import type { QuizBehaviorSettings } from '@/types';
 import { DEFAULT_QUIZ_BEHAVIOR } from '@/utils/quizBehavior';
 
-// The component file doesn't exist yet — this import will fail until Step 3.
 import { QuizBehaviorSettingsPanel } from '@/components/common/library/QuizBehaviorSettingsPanel';
 
 const defaultValue: QuizBehaviorSettings = {
@@ -41,7 +40,7 @@ describe('QuizBehaviorSettingsPanel', () => {
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
     );
-    fireEvent.click(screen.getByText('Self-paced'));
+    fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
     expect(onChange).toHaveBeenCalledOnce();
     expect(onChange.mock.calls[0][0]).toMatchObject({ sessionMode: 'student' });
   });
@@ -88,9 +87,9 @@ describe('QuizBehaviorSettingsPanel', () => {
         modeLocked
       />
     );
-    const teacherBtn = screen.getByText('Teacher-paced').closest('button');
-    const autoBtn = screen.getByText('Auto-progress').closest('button');
-    const selfBtn = screen.getByText('Self-paced').closest('button');
+    const teacherBtn = screen.getByRole('button', { name: /teacher-paced/i });
+    const autoBtn = screen.getByRole('button', { name: /auto-progress/i });
+    const selfBtn = screen.getByRole('button', { name: /self-paced/i });
     expect(teacherBtn).toBeDisabled();
     expect(autoBtn).toBeDisabled();
     expect(selfBtn).toBeDisabled();
