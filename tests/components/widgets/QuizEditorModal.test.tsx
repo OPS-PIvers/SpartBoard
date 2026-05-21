@@ -109,6 +109,23 @@ const fakeQuiz: QuizData = {
   updatedAt: 2000,
 };
 
+const fakeQuiz2: QuizData = {
+  id: 'quiz-2',
+  title: 'History Review',
+  questions: [
+    {
+      id: 'q2',
+      text: 'When did WWII end?',
+      type: 'MC',
+      correctAnswer: '1945',
+      incorrectAnswers: ['1918', '1939', '1950'],
+      timeLimit: 30,
+    },
+  ],
+  createdAt: 3000,
+  updatedAt: 4000,
+};
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
@@ -266,5 +283,45 @@ describe('QuizEditorModal — Questions/Settings tab', () => {
     fireEvent.click(screen.getByRole('button', { name: /settings/i }));
     fireEvent.click(screen.getByRole('button', { name: /self-paced/i }));
     expect(workspace).toHaveAttribute('data-is-dirty', 'true');
+  });
+
+  it('reusing the modal for a different quiz resets originalBehavior — no false dirty', () => {
+    // Quiz A has a custom behavior (self-paced / student mode).
+    const customBehavior: QuizBehaviorSettings = {
+      ...DEFAULT_QUIZ_BEHAVIOR,
+      sessionMode: 'student',
+    };
+
+    const { rerender } = render(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+        behavior={customBehavior}
+      />
+    );
+
+    // Rerender with quiz B and DEFAULT behavior (no behavior prop = default).
+    rerender(
+      <QuizEditorModal
+        isOpen
+        quiz={fakeQuiz2}
+        onClose={vi.fn()}
+        onSave={vi.fn()}
+      />
+    );
+
+    // After switching to a new quiz, the editor should NOT be dirty:
+    // both behavior and originalBehavior should be DEFAULT_QUIZ_BEHAVIOR.
+    const workspace = screen.getByTestId('editor-workspace');
+    expect(workspace).toHaveAttribute('data-is-dirty', 'false');
+
+    // The Settings panel should reflect DEFAULT behavior (Teacher-paced / teacher mode).
+    fireEvent.click(screen.getByRole('button', { name: /settings/i }));
+    const teacherPacedBtn = screen.getByRole('button', {
+      name: /teacher-paced/i,
+    });
+    expect(teacherPacedBtn).toHaveAttribute('aria-pressed', 'true');
   });
 });
