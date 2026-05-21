@@ -133,6 +133,11 @@ const ConverterPage = lazy(() =>
     default: module.ConverterPage,
   }))
 );
+const NotebookEditorDevHarness = lazy(() =>
+  import('./components/dev/NotebookEditorDevHarness').then((module) => ({
+    default: module.NotebookEditorDevHarness,
+  }))
+);
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -361,6 +366,16 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <ConverterPage />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: SVG page-editor harness for iterating on the SMART Notebook
+  // editor against real pages. Tree-shaken out of production builds.
+  if (import.meta.env.DEV && pathname === '/notebook-editor-dev') {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <NotebookEditorDevHarness />
       </Suspense>
     );
   }
