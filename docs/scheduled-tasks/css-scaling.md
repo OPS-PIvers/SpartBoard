@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-20_
+_Last audited: 2026-05-21_
 _Last action: 2026-05-16_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-21: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits merged: feat(settings) Settings modal refactor (no widget front-face changes), refactor(admin) AdminSettings vertical nav (no widget front-face changes), fix/feat(spotify) 18 commits adding 9 new Spotify sub-components (PersonalSpotifyAdaptiveLayout, PersonalSpotifyCompactBar, PersonalSpotifyDefaultTabBar, PersonalSpotifyLibraryTab, PersonalSpotifyListState, PersonalSpotifyMinimalView, PersonalSpotifyNowPlayingTab, SpotifyResultRow, SpotifyTransportControls) — all use cqmin/cqh/cqw units throughout; no hardcoded Tailwind text-size or pixel-size classes in widget front-face content. MusicWidget continues using cqh-based sizing for its short/wide layout (documented as acceptable in journal guidance). No new violations. All pre-existing open items remain valid._
 
 _2026-05-20: Scanned all Widget.tsx / index.tsx files for anti-patterns. Recent commits since 2026-05-19: fix(deps) lodash-es override (dependency only), docs(changelog) release entry (docs only). Neither introduced new widget front-face changes. Two percentage-based `max-w-[%]` occurrences noted (MusicWidget line 570: `max-w-[85%]`; RecessGear line 341: `max-w-[70%]`) — these are container-relative, not pixel caps, and do not violate the anti-pattern rule. Pre-existing open items remain valid. No new violations detected._
 

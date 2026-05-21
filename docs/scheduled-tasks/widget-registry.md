@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-20_
+_Last audited: 2026-05-21_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-21: Full audit of all 64 WidgetType values. New dev-paul commits merged: feat(settings) consolidate Style/Preferences/Language into Settings modal, refactor(admin) vertical dark rail nav for AdminSettings, fix/feat(spotify) 18 commits refactoring Personal Spotify into PersonalSpotifyAdaptiveLayout + sub-components. None touch WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. types.ts unchanged. DashboardContext change is isDefault:false in duplicateDashboard — no new WidgetType. All 64 WidgetTypes remain correctly registered. Zero new gaps._
 
 _2026-05-20: Full audit of all 64 WidgetType values (corrected count from prior 63 shorthand — `stations` was always present at line 64). Recent commits since 2026-05-19: fix(deps) lodash-es override (dependency only), docs(changelog) release entry (docs only). Neither touched WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 64 WidgetTypes have entries in WIDGET_COMPONENTS (except `sticker`, intentional), widgetDefaults, and tools.ts (with documented exclusions). All sampled lazyNamed() export names verified correct. Zero new gaps. No open items._
 
