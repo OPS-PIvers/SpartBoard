@@ -13,7 +13,7 @@ import React, { useCallback, useState } from 'react';
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
-import type { Plc, QuizData } from '@/types';
+import type { Plc, QuizBehaviorSettings, QuizData } from '@/types';
 import type { AssignmentQuizRef } from '@/hooks/useQuizAssignments';
 import { PlcAssignmentConfigModal } from '../assignments/PlcAssignmentConfigModal';
 
@@ -46,8 +46,8 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
   }));
 
   const handleSave = useCallback(
-    async (quiz: QuizData) => {
-      const metadata = await saveQuiz(quiz);
+    async (quiz: QuizData, behavior: QuizBehaviorSettings) => {
+      const metadata = await saveQuiz(quiz, undefined, behavior);
       const ref: AssignmentQuizRef = {
         id: metadata.id,
         title: metadata.title,

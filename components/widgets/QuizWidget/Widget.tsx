@@ -60,6 +60,7 @@ import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTarget
 import { usePlcs } from '@/hooks/usePlcs';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
+import { getQuizBehavior } from '@/utils/quizBehavior';
 
 /**
  * Session-options shape used when minting a view-only Quiz share. Typed as
@@ -1834,6 +1835,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       <QuizEditorModal
         isOpen={!!editingQuiz}
         quiz={editingQuiz}
+        behavior={editingMeta ? getQuizBehavior(editingMeta) : undefined}
         folders={editingMeta ? quizFolders : undefined}
         folderId={
           editingMeta
@@ -1861,10 +1863,10 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           setEditingQuiz(null);
           setEditingMeta(null);
         }}
-        onSave={async (updated) => {
+        onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
           try {
-            await saveQuiz(updated, editingMeta?.driveFileId);
+            await saveQuiz(updated, editingMeta?.driveFileId, behavior);
           } catch (err) {
             if (err instanceof SyncedQuizVersionConflictError) {
               // A peer published a newer version of this synced quiz
