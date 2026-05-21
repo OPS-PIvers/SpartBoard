@@ -535,6 +535,51 @@ export interface PlcTodo {
   createdAt: number;
 }
 
+// --- PLC shared Google Docs ---
+export interface PlcDoc {
+  id: string;
+  /** Human label for the doc tab/list row. */
+  title: string;
+  /** Raw Google Docs/Drive URL as pasted by a member. Rendered via convertToEmbedUrl(). */
+  url: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+// --- Admin-curated resources pushed to PLCs ---
+export type PlcResourceKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'assignment'
+  | 'doc'
+  | 'board';
+
+export type PlcResourceScope = 'all' | 'selected';
+
+export interface PlcResource {
+  id: string;
+  kind: PlcResourceKind;
+  /** Display title shown in the admin list + the PLC inbox. */
+  title: string;
+  /** Optional admin note describing the resource / how to use it. */
+  description: string;
+  /**
+   * Pointer to the canonical source. For quiz/video-activity/assignment this is
+   * the `/synced_*` group id; for 'doc' this is the Google Docs URL; for 'board'
+   * the `/shared_boards` shareId. Importers resolve per-kind.
+   */
+  refId: string;
+  scope: PlcResourceScope;
+  /** Target PLC ids when scope==='selected'. Empty when scope==='all'. */
+  plcIds: string[];
+  createdByAdminUid: string;
+  createdByAdminEmail: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
 /**
  * Bento-grid layout types for the PLC Overview tab. Per-user layout —
  * persisted at `users/{uid}/plc_layouts/{plcId}` so each member arranges
@@ -3203,6 +3248,8 @@ export interface QuizAssignmentSettings {
    * the live monitor, which deletes the response doc.
    */
   attemptLimit?: number | null;
+  /** Optional due date (ms epoch). Absent / null = no due date. PLC-config + board both honor it. */
+  dueAt?: number | null;
 }
 
 /**
@@ -3621,6 +3668,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   pointPenaltyOnIncorrect?: number;
   /** Controls how much of the result the student sees post-completion. */
   scoreVisibility?: VideoActivityScoreVisibility;
+  /** Optional due date (ms epoch). Absent / null = no due date. */
+  dueAt?: number | null;
 }
 
 export interface GlobalVideoActivity extends VideoActivityMetadata {
