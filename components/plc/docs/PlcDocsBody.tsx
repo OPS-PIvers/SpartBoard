@@ -29,9 +29,22 @@ interface PlcDocsBodyProps {
   plc: Plc;
 }
 
-/** Returns true if the URL is likely a Google Docs/Drive link. */
+/** Returns true if the URL is a Google Docs/Drive link. Parses the hostname
+ * rather than substring-matching, so lookalikes like
+ * `https://docs.google.com.evil.com` or `https://evil.com/?docs.google.com`
+ * don't pass. */
 function isGoogleUrl(url: string): boolean {
-  return url.includes('docs.google.com') || url.includes('drive.google.com');
+  try {
+    const host = new URL(ensureProtocol(url)).hostname.toLowerCase();
+    return (
+      host === 'docs.google.com' ||
+      host === 'drive.google.com' ||
+      host.endsWith('.docs.google.com') ||
+      host.endsWith('.drive.google.com')
+    );
+  } catch {
+    return false;
+  }
 }
 
 export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
