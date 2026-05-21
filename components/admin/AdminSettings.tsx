@@ -12,6 +12,7 @@ import {
   LayoutTemplate,
   Link2,
   GraduationCap,
+  Sparkles,
   X,
 } from 'lucide-react';
 
@@ -25,6 +26,7 @@ import { AnalyticsManager } from './Analytics/AnalyticsManager';
 import { DashboardTemplatesManager } from './DashboardTemplatesManager';
 import { LinkShortenerManager } from './LinkShortenerManager';
 import { PresetSubEmailsManager } from './PresetSubEmailsManager';
+import { PlcResourcesManager } from './PlcResourcesManager/PlcResourcesManager';
 
 interface AdminSettingsProps {
   onClose: () => void;
@@ -109,6 +111,18 @@ const TAB_GROUPS = [
         label: 'Links',
         icon: Link2,
         component: LinkShortenerManager,
+      },
+    ],
+  },
+  {
+    id: 'plc',
+    label: 'PLC',
+    tabs: [
+      {
+        id: 'plc-resources',
+        label: 'PLC Resources',
+        icon: Sparkles,
+        component: PlcResourcesManager,
       },
     ],
   },

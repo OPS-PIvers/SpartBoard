@@ -1335,10 +1335,10 @@ service cloud.firestore {
     }
 
     match /plcs/{plcId} {
-      // Members can read; non-members get nothing — keeps PLC names and
-      // member lists scoped to the actual community.
+      // Members can read; admins can also read so the admin PLC-resource
+      // push UI can enumerate PLCs to target. Non-members get nothing.
       allow read: if request.auth != null
-        && request.auth.uid in resource.data.memberUids;
+        && (request.auth.uid in resource.data.memberUids || isAdmin());
 
       // The creating teacher is the lead and the only initial member.
       allow create: if request.auth != null
@@ -1827,6 +1827,51 @@ service cloud.firestore {
 
         // Any member can delete (matches the "shared notebook" model —
         // notes are PLC-owned, not creator-owned).
+        allow delete: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+      }
+
+      // PLC shared Google Docs. Lightweight pointers — the doc content
+      // lives in Google, not here. Any current member can CRUD.
+      match /docs/{docId} {
+        allow read: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids;
+
+        allow create: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'url',
+               'createdBy', 'createdByName', 'createdAt', 'updatedAt'
+             ])
+          && request.resource.data.id == docId
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.title is string
+          && request.resource.data.url is string
+          && request.resource.data.createdByName is string
+          && request.resource.data.createdAt is int
+          && request.resource.data.updatedAt is int;
+
+        allow update: if request.auth != null
+          && request.auth.uid in get(
+               /databases/$(database)/documents/plcs/$(plcId)
+             ).data.memberUids
+          && request.resource.data.keys().hasOnly([
+               'id', 'title', 'url',
+               'createdBy', 'createdByName', 'createdAt', 'updatedAt'
+             ])
+          && request.resource.data.id == resource.data.id
+          && request.resource.data.createdBy == resource.data.createdBy
+          && request.resource.data.createdAt == resource.data.createdAt
+          && request.resource.data.title is string
+          && request.resource.data.url is string
+          && request.resource.data.updatedAt is int;
+
         allow delete: if request.auth != null
           && request.auth.uid in get(
                /databases/$(database)/documents/plcs/$(plcId)
@@ -2356,6 +2401,39 @@ service cloud.firestore {
     match /dashboard_templates/{templateId} {
       allow read: if request.auth != null;
       allow write: if isAdmin();
+    }
+
+    // Admin-curated resources pushed to PLCs. Any authenticated teacher can
+    // read (matches dashboard_templates / instructional_routines); the PLC
+    // client filters by scope + plcIds. Only admins write. Single shared doc
+    // per resource — no per-PLC fan-out.
+    match /plc_resources/{resourceId} {
+      allow read: if request.auth != null;
+      // Schema is locked with keys().hasOnly([...]) so a malicious/buggy
+      // admin client can't persist arbitrary fields. `request.resource.data`
+      // is the post-write merged doc, so partial updates are validated in
+      // full too. The auth gate is `createdByAdminUid == request.auth.uid`;
+      // `createdByAdminEmail` is a display snapshot validated as a string
+      // (not pinned to token.email, which the client stores from
+      // `user.email` and may differ in case/availability).
+      allow create, update: if isAdmin()
+        && request.resource.data.id == resourceId
+        && request.resource.data.keys().hasOnly([
+             'id', 'kind', 'title', 'description', 'refId', 'scope', 'plcIds',
+             'createdByAdminUid', 'createdByAdminEmail', 'createdAt', 'updatedAt'
+           ])
+        && request.resource.data.kind in
+             ['quiz', 'video-activity', 'assignment', 'doc', 'board']
+        && request.resource.data.scope in ['all', 'selected']
+        && request.resource.data.plcIds is list
+        && request.resource.data.title is string
+        && request.resource.data.description is string
+        && request.resource.data.refId is string
+        && request.resource.data.createdByAdminUid == request.auth.uid
+        && request.resource.data.createdByAdminEmail is string
+        && request.resource.data.createdAt is int
+        && request.resource.data.updatedAt is int;
+      allow delete: if isAdmin();
     }
 
     // Global PDFs - all authenticated users can read, only admins can write

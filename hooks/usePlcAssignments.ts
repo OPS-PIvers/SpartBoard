@@ -14,6 +14,7 @@ import {
   PlcAssignmentTemplate,
   QuizSessionMode,
   QuizSessionOptions,
+  PlcVideoActivityEntry,
 } from '@/types';
 import { logError } from '@/utils/logError';
 import { notifyPlcWriteFailure } from '@/utils/plcWriteNotifications';
@@ -294,6 +295,89 @@ export async function writePlcAssignmentTemplate(
     logError('writePlcAssignmentTemplate.write', err, {
       plcId,
       plcAssignmentId: input.plcAssignmentId,
+    });
+    notifyPlcWriteFailure({ scope: 'assignmentTemplate', plcId });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// B5: VA assignment template writer
+//
+// No VA-template subcollection or Firestore rule exists on this branch.
+// Per the plan constraint, fall back to writing a `PlcVideoActivityEntry`
+// via the existing `plcs/{plcId}/video_activities/{id}` collection and its
+// established rule. This makes VA assignments surface in the Video Activities
+// tab library like regular VA entries, which is the same discovery path until
+// a dedicated VA-template collection + rule is added in a future wave.
+//
+// The caller (PlcAssignmentConfigModal) already calls writePlcVideoActivityEntry
+// directly; this exported function is provided as a named alias so tests and
+// future callers can reference it by intent-describing name and the plan's
+// Wave 3 can swap the implementation without hunting for all call sites.
+// ---------------------------------------------------------------------------
+
+const VA_ACTIVITIES_SUBCOLLECTION = 'video_activities';
+
+export interface WritePlcVideoActivityAssignmentTemplateInput {
+  /** Firestore doc id for the new entry. Caller mints (uuid). */
+  plcVideoActivityId: string;
+  /** Pointer to the canonical `/synced_video_activities/{groupId}` doc. */
+  syncGroupId: string;
+  /** Display title of the video activity. */
+  title: string;
+  /** YouTube URL of the source activity. */
+  youtubeUrl: string;
+  /** Number of questions in the activity at assignment time. */
+  questionCount: number;
+  /** Display name snapshot for attribution. */
+  sharedByName: string;
+  /** Lowercased email snapshot. */
+  sharedByEmail: string;
+}
+
+/**
+ * Write a video activity "assignment template" entry for a PLC. Implemented
+ * as a write to `plcs/{plcId}/video_activities/{id}` (the established VA
+ * collection) because no dedicated VA-template collection/rule exists on this
+ * branch. Noted for Wave 3 to upgrade to a proper template subcollection if
+ * needed (see Stream B task B5 notes).
+ *
+ * Non-fatal — logged + dispatches the plc-write-failed event on error so the
+ * UI can surface a toast, matching the `writePlcAssignmentTemplate` posture.
+ */
+export async function writePlcVideoActivityAssignmentTemplate(
+  plcId: string,
+  uid: string,
+  input: WritePlcVideoActivityAssignmentTemplateInput
+): Promise<void> {
+  try {
+    const now = Date.now();
+    const entry: PlcVideoActivityEntry = {
+      id: input.plcVideoActivityId,
+      title: input.title,
+      youtubeUrl: input.youtubeUrl,
+      questionCount: input.questionCount,
+      syncGroupId: input.syncGroupId,
+      sharedBy: uid,
+      sharedByEmail: input.sharedByEmail,
+      sharedByName: input.sharedByName,
+      sharedAt: now,
+      updatedAt: now,
+    };
+    await setDoc(
+      doc(
+        db,
+        PLCS_COLLECTION,
+        plcId,
+        VA_ACTIVITIES_SUBCOLLECTION,
+        input.plcVideoActivityId
+      ),
+      entry
+    );
+  } catch (err) {
+    logError('writePlcVideoActivityAssignmentTemplate.write', err, {
+      plcId,
+      plcVideoActivityId: input.plcVideoActivityId,
     });
     notifyPlcWriteFailure({ scope: 'assignmentTemplate', plcId });
   }
