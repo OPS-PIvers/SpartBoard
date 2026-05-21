@@ -11,7 +11,7 @@
  */
 
 import React, { useState } from 'react';
-import { AlertTriangle, User, Zap, Clock, Share2 } from 'lucide-react';
+import { AlertTriangle, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
   QuizAssignmentSettings,
@@ -22,10 +22,8 @@ import type {
 import { Toggle } from '@/components/common/Toggle';
 import {
   AssignModal,
-  AssignmentSettingsToggleGroup,
-  CollapsibleSection,
   ToggleRow,
-  type AssignModeOption,
+  QuizBehaviorSettingsPanel,
 } from '@/components/common/library';
 
 interface QuizAssignmentSettingsModalProps {
@@ -94,29 +92,6 @@ function initialOptionsFor(
   };
 }
 
-/* ─── Mode selector options ───────────────────────────────────────────────── */
-
-const MODES_BASE: Omit<AssignModeOption, 'disabled'>[] = [
-  {
-    id: 'teacher',
-    label: 'Teacher-paced',
-    description: 'You control when to move to the next question.',
-    icon: User,
-  },
-  {
-    id: 'auto',
-    label: 'Auto-progress',
-    description: 'Moves automatically once everyone has answered.',
-    icon: Zap,
-  },
-  {
-    id: 'student',
-    label: 'Self-paced',
-    description: 'Students move through questions at their own speed.',
-    icon: Clock,
-  },
-];
-
 export const QuizAssignmentSettingsModal: React.FC<
   QuizAssignmentSettingsModalProps
 > = ({ assignment, rosters, onClose, onSave, defaultTeacherName }) => {
@@ -151,10 +126,58 @@ export const QuizAssignmentSettingsModal: React.FC<
     !!options.plcSheetUrl &&
     !options.plcSheetUrl.startsWith('https://docs.google.com/spreadsheets/');
 
-  const modes: AssignModeOption[] = MODES_BASE.map((m) => ({
-    ...m,
-    disabled: modeLocked,
-  }));
+  // Bridge: derive QuizBehaviorSettings from the modal's flattened state so
+  // QuizBehaviorSettingsPanel can be driven by the structured shape.
+  const behaviorValue = {
+    sessionMode,
+    sessionOptions: {
+      tabWarningsEnabled: options.tabWarningsEnabled,
+      showResultToStudent: options.showResultToStudent,
+      showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
+      showCorrectOnBoard: options.showCorrectOnBoard,
+      speedBonusEnabled: options.speedBonusEnabled,
+      streakBonusEnabled: options.streakBonusEnabled,
+      showPodiumBetweenQuestions: options.showPodiumBetweenQuestions,
+      soundEffectsEnabled: options.soundEffectsEnabled,
+      shuffleQuestions: options.shuffleQuestions,
+      shuffleAnswerOptions: options.shuffleAnswerOptions,
+    } satisfies QuizSessionOptions,
+    attemptLimit: options.attemptLimit,
+  };
+
+  const handleBehaviorChange = (next: {
+    sessionMode: QuizSessionMode;
+    sessionOptions: QuizSessionOptions;
+    attemptLimit: number | null;
+  }) => {
+    setSessionMode(next.sessionMode);
+    setOptions((p) => ({
+      ...p,
+      tabWarningsEnabled:
+        next.sessionOptions.tabWarningsEnabled ?? p.tabWarningsEnabled,
+      showResultToStudent:
+        next.sessionOptions.showResultToStudent ?? p.showResultToStudent,
+      showCorrectAnswerToStudent:
+        next.sessionOptions.showCorrectAnswerToStudent ??
+        p.showCorrectAnswerToStudent,
+      showCorrectOnBoard:
+        next.sessionOptions.showCorrectOnBoard ?? p.showCorrectOnBoard,
+      speedBonusEnabled:
+        next.sessionOptions.speedBonusEnabled ?? p.speedBonusEnabled,
+      streakBonusEnabled:
+        next.sessionOptions.streakBonusEnabled ?? p.streakBonusEnabled,
+      showPodiumBetweenQuestions:
+        next.sessionOptions.showPodiumBetweenQuestions ??
+        p.showPodiumBetweenQuestions,
+      soundEffectsEnabled:
+        next.sessionOptions.soundEffectsEnabled ?? p.soundEffectsEnabled,
+      shuffleQuestions:
+        next.sessionOptions.shuffleQuestions ?? p.shuffleQuestions,
+      shuffleAnswerOptions:
+        next.sessionOptions.shuffleAnswerOptions ?? p.shuffleAnswerOptions,
+      attemptLimit: next.attemptLimit,
+    }));
+  };
 
   const handleAssign = async () => {
     const sessionOptions: QuizSessionOptions = {
@@ -222,12 +245,6 @@ export const QuizAssignmentSettingsModal: React.FC<
       isOpen
       onClose={onClose}
       itemTitle={assignment.quizTitle}
-      modes={modes}
-      selectedMode={sessionMode}
-      onModeChange={(id) => {
-        if (modeLocked) return;
-        setSessionMode(id as QuizSessionMode);
-      }}
       options={options}
       onOptionsChange={setOptions}
       assignmentName={options.className}
@@ -295,74 +312,10 @@ export const QuizAssignmentSettingsModal: React.FC<
             </p>
           </div>
 
-          <AssignmentSettingsToggleGroup
+          <QuizBehaviorSettingsPanel
+            value={behaviorValue}
+            onChange={handleBehaviorChange}
             modeLocked={modeLocked}
-            options={{
-              tabWarningsEnabled: options.tabWarningsEnabled,
-              showResultToStudent: options.showResultToStudent,
-              showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
-              showCorrectOnBoard: options.showCorrectOnBoard,
-              shuffleQuestions: options.shuffleQuestions,
-              shuffleAnswerOptions: options.shuffleAnswerOptions,
-            }}
-            onOptionsChange={(next) =>
-              // The primitive's internal `update` always emits the full options
-              // object with one field changed, so spreading `next` over `p`
-              // correctly merges without dropping other state. Avoids the
-              // `?? p.X` pattern that's easy to misread as a falsy bug.
-              setOptions((p) => ({ ...p, ...next }))
-            }
-            attemptLimit={options.attemptLimit}
-            onAttemptLimitChange={(v) =>
-              setOptions((p) => ({ ...p, attemptLimit: v }))
-            }
-            // Per-student question shuffle only takes effect in self-paced
-            // mode; disable + hint the toggle otherwise so teachers don't
-            // enable a flag that won't fire.
-            shuffleQuestionsAvailable={sessionMode === 'student'}
-            trailingSlot={
-              <CollapsibleSection label="Gamification">
-                <ToggleRow
-                  compact
-                  label="Speed Bonus Points"
-                  checked={options.speedBonusEnabled}
-                  onChange={(v) =>
-                    setOptions((p) => ({ ...p, speedBonusEnabled: v }))
-                  }
-                  hint="Up to 50% bonus for fast answers"
-                />
-                <ToggleRow
-                  compact
-                  label="Streak Bonuses"
-                  checked={options.streakBonusEnabled}
-                  onChange={(v) =>
-                    setOptions((p) => ({ ...p, streakBonusEnabled: v }))
-                  }
-                  hint="Multiplier for consecutive correct answers"
-                />
-                <ToggleRow
-                  compact
-                  label="Podium Between Questions"
-                  checked={options.showPodiumBetweenQuestions}
-                  onChange={(v) =>
-                    setOptions((p) => ({
-                      ...p,
-                      showPodiumBetweenQuestions: v,
-                    }))
-                  }
-                  hint="Show top 3 leaderboard after each question"
-                />
-                <ToggleRow
-                  compact
-                  label="Sound Effects"
-                  checked={options.soundEffectsEnabled}
-                  onChange={(v) =>
-                    setOptions((p) => ({ ...p, soundEffectsEnabled: v }))
-                  }
-                  hint="Chimes, ticks, and fanfares during the quiz"
-                />
-              </CollapsibleSection>
-            }
           />
         </>
       }

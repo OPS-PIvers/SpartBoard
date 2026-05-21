@@ -15,6 +15,8 @@ export { LibraryGridLockContext } from './LibraryGridLockContext';
 export { useLibraryView } from './useLibraryView';
 export { useSortableReorder } from './useSortableReorder';
 export { AssignModal } from './AssignModal';
+export { QuizBehaviorSettingsPanel } from './QuizBehaviorSettingsPanel';
+export type { QuizBehaviorSettingsPanelProps } from './QuizBehaviorSettingsPanel';
 export { ViewOnlyShareModal } from './ViewOnlyShareModal';
 export type { ViewOnlyShareModalProps } from './ViewOnlyShareModal';
 export { CollapsibleSection } from './CollapsibleSection';
