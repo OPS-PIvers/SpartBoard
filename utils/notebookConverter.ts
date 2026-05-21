@@ -134,7 +134,15 @@ export const convertNotebookToBundle = async (
   // Sequential page loop keeps peak memory bounded and progress meaningful.
   for (let index = 0; index < plan.order.length; index++) {
     const entry = zip.file(plan.order[index]);
-    if (!entry) continue;
+    if (!entry) {
+      // plan.order is filtered against the archive's pages, so a miss here
+      // means a genuine archive inconsistency — surface it rather than
+      // silently shrinking the page count.
+      console.warn(
+        `smart→spart: page "${plan.order[index]}" is referenced but missing from the archive; skipping.`
+      );
+      continue;
+    }
     let svgText = await entry.async('string');
 
     // Resolve every distinct image href to an optimized data URI (cached, so

@@ -133,11 +133,15 @@ const ConverterPage = lazy(() =>
     default: module.ConverterPage,
   }))
 );
-const NotebookEditorDevHarness = lazy(() =>
-  import('./components/dev/NotebookEditorDevHarness').then((module) => ({
-    default: module.NotebookEditorDevHarness,
-  }))
-);
+// DEV-only: gate the dynamic import itself (not just the render) so Rollup
+// dead-code-eliminates the harness chunk from production builds.
+const NotebookEditorDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/NotebookEditorDevHarness').then((module) => ({
+        default: module.NotebookEditorDevHarness,
+      }))
+    )
+  : null;
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -371,8 +375,13 @@ const App: React.FC = () => {
   }
 
   // DEV-ONLY: SVG page-editor harness for iterating on the SMART Notebook
-  // editor against real pages. Tree-shaken out of production builds.
-  if (import.meta.env.DEV && pathname === '/notebook-editor-dev') {
+  // editor against real pages. The import + component are gated on
+  // import.meta.env.DEV, so the harness chunk is excluded from prod builds.
+  if (
+    import.meta.env.DEV &&
+    NotebookEditorDevHarness &&
+    pathname === '/notebook-editor-dev'
+  ) {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <NotebookEditorDevHarness />

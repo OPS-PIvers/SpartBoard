@@ -262,7 +262,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const fg = obj?.parentElement;
     if (!obj || !fg) return;
     const clone = obj.cloneNode(true) as SVGGraphicsElement;
-    const newId = `obj-dup-${Date.now()}`;
+    const newId = `obj-dup-${crypto.randomUUID()}`;
     clone.setAttribute('data-edit-id', newId);
     clone.setAttribute(
       ORIG_TRANSFORM_ATTR,

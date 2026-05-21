@@ -102,8 +102,8 @@ def parse_manifest(manifest_xml: bytes, available_pages: list[str]) -> NotebookP
     Build the page order + lesson sections from imsmanifest.xml.
 
     Order of preference:
-      1. The lesson groups in <organization id="pagegroups"> (gives order AND
-         section titles, which is what teachers actually see).
+      1. The lesson groups in the first populated <organization> (gives order
+         AND section titles, which is what teachers actually see).
       2. The flat ordered <resource identifier="pages"> list.
       3. Numeric filename sort (legacy fallback) — handled by the caller when
          this returns nothing usable.

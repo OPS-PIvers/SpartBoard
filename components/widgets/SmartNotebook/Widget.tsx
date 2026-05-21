@@ -29,6 +29,7 @@ import {
   deletePage,
   movePage,
   canMovePage,
+  clampPageIndex,
   blankPageSvg,
   PageListState,
 } from '@/utils/notebookPages';
@@ -124,8 +125,9 @@ export const SmartNotebookWidget: React.FC<{
     }
   } else if (pageCount !== prevPageCount) {
     setPrevPageCount(pageCount);
-    if (currentPage >= pageCount && pageCount > 0) {
-      setCurrentPage(pageCount - 1);
+    const clamped = clampPageIndex(currentPage, pageCount);
+    if (clamped !== currentPage) {
+      setCurrentPage(clamped);
     }
   }
 
@@ -147,6 +149,9 @@ export const SmartNotebookWidget: React.FC<{
     }
 
     setIsImporting(true);
+    // Track uploaded storage paths so we can clean up if a later step (e.g. the
+    // Firestore write) fails, instead of leaking orphaned blobs (quota cost).
+    let uploadedStoragePaths: string[] = [];
     try {
       const { title, pages, assets, sections } = await parseNotebookFile(file);
       const notebookId = crypto.randomUUID();
@@ -180,6 +185,10 @@ export const SmartNotebookWidget: React.FC<{
       const uploadedUrls = uploadedPages.map((p) => p.url);
       const uploadedPaths = uploadedPages.map((p) => p.path);
       const uploadedAssetUrls = uploadedAssets.map((a) => a.url);
+      uploadedStoragePaths = [
+        ...uploadedPaths,
+        ...uploadedAssets.map((a) => a.path),
+      ];
 
       const notebook: NotebookItem = {
         id: notebookId,
@@ -220,6 +229,14 @@ export const SmartNotebookWidget: React.FC<{
           window.open('/convert', '_blank', 'noopener,noreferrer');
         }
       } else {
+        // Clean up any blobs uploaded before the failure (e.g. setDoc threw).
+        if (uploadedStoragePaths.length > 0) {
+          await Promise.all(
+            uploadedStoragePaths.map((p) =>
+              deleteFile(p).catch((e) => console.error(e))
+            )
+          );
+        }
         addToast('Failed to import notebook', 'error');
       }
     } finally {
@@ -287,8 +304,13 @@ export const SmartNotebookWidget: React.FC<{
   // Persist an edited page: re-upload the edited SVG to its Storage path and
   // point the page URL at the new upload. Only the edited page is written.
   const handleSavePageEdit = async (svgString: string) => {
-    if (!user || !activeNotebook || !svgString) {
+    if (!user || !activeNotebook) {
       setEditMode(false);
+      return;
+    }
+    // An empty export means serialization failed — don't close as if saved.
+    if (!svgString) {
+      addToast('Could not save page edits — please try again', 'error');
       return;
     }
     setIsSavingEdit(true);
@@ -341,9 +363,9 @@ export const SmartNotebookWidget: React.FC<{
   const handleAddPage = async () => {
     if (!user || !activeNotebook) return;
     setIsPageOp(true);
+    const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
+    const path = `${notebookPath}/page-blank-${crypto.randomUUID()}.svg`;
     try {
-      const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
-      const path = `${notebookPath}/page-blank-${crypto.randomUUID()}.svg`;
       const file = new File([blankPageSvg()], 'blank.svg', {
         type: 'image/svg+xml',
       });
@@ -355,6 +377,9 @@ export const SmartNotebookWidget: React.FC<{
       addToast('Blank page added', 'success');
     } catch (err) {
       console.error('Failed to add page', err);
+      // The blob may have uploaded before the Firestore write failed — clean it
+      // up so we don't leak storage on a failed add.
+      await deleteFile(path).catch((e) => console.error(e));
       addToast('Failed to add page', 'error');
     } finally {
       setIsPageOp(false);

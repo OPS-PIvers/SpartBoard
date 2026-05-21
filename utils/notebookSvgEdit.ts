@@ -32,6 +32,20 @@ export const sanitizePageSvg = (svgText: string): string =>
   DOMPurify.sanitize(stripXmlProlog(svgText), {
     USE_PROFILES: { svg: true, svgFilters: true },
     ADD_ATTR: ['xml:id'],
+    // Defense-in-depth for shared, user-authored .notebook files: drop the SVG
+    // elements that carry script/navigation/HTML vectors. SMART lesson pages
+    // are static (text/ink/images), so forbidding these is lossless in
+    // practice. DOMPurify already blocks javascript: URIs on the remaining
+    // href-bearing tags (image/use).
+    FORBID_TAGS: [
+      'a',
+      'script',
+      'foreignObject',
+      'animate',
+      'animateTransform',
+      'animateMotion',
+      'set',
+    ],
   });
 
 /**
@@ -158,9 +172,13 @@ export const readTextLines = (obj: Element): string =>
     .join('\n');
 
 /**
- * Write edited text back into a text object, one line per leaf run (preserving
- * each run's position/font). Extra lines fold into the last run; missing lines
- * clear their run.
+ * Write edited text back into a text object, one line per leaf run, preserving
+ * each run's position/font. Content is never lost, but the line *count* is
+ * bounded by the original run count: each SMART run is an absolutely-positioned
+ * tspan, so we can't synthesize new positioned lines. Typing fewer lines clears
+ * the surplus runs; typing MORE lines appends the overflow (space-joined) to
+ * the last run rather than dropping it. Best for in-place edits (fix a word,
+ * change a number) that keep the original line structure.
  */
 export const writeTextLines = (obj: Element, value: string): void => {
   const leaves = getTextLeaves(obj);
@@ -177,21 +195,26 @@ export const writeTextLines = (obj: Element, value: string): void => {
 
 /** Marks editor-only nodes (e.g. the selection highlight) for stripping. */
 const EDIT_OVERLAY_ATTR = 'data-edit-overlay';
-/** Holds an object's transform as it was before any editor move. */
+/**
+ * Snapshots an object's original `transform` before any editor edit, so the
+ * editor's composed `data-edit-matrix` (move + resize) can be prepended to it.
+ */
 const ORIG_TRANSFORM_ATTR = 'data-orig-transform';
 
 /**
  * Serialize the page back to a clean, persistable SVG: removes the editor's
  * overlay nodes and edit-only bookkeeping attributes, and restores explicit
  * width/height from the viewBox so the result renders correctly in an <img>.
- * Object moves (applied as a leading translate on each object's transform)
- * are preserved as valid SVG.
+ * Object edits (move + resize, applied as a leading `matrix(...)` prepended to
+ * each object's original transform) remain as valid SVG — only the bookkeeping
+ * attributes are stripped.
  */
 export const exportEditedSvg = (svg: SVGSVGElement): string => {
   const clone = svg.cloneNode(true) as SVGSVGElement;
   clone.querySelectorAll(`[${EDIT_OVERLAY_ATTR}]`).forEach((el) => el.remove());
   clone.querySelectorAll(`[${EDIT_ID_ATTR}]`).forEach((el) => {
-    // Strip all editor bookkeeping (data-edit-id / -dx / -dy + orig transform).
+    // Strip all editor bookkeeping (every data-edit-* attribute + the saved
+    // original transform).
     for (const attr of Array.from(el.attributes)) {
       if (
         attr.name.startsWith('data-edit') ||

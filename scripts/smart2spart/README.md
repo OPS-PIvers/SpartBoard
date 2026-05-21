@@ -60,6 +60,7 @@ Done.
   Images inlined:  159  (missing: 0)
   Image bytes:     11.43 MB -> 3.17 MB
   Bundle size:     14.38 MB -> 6.26 MB
+  Output:          Copy of Unit 9 - Bailey Busse.spartnb
 ```
 
 ## Bundle format (`.spartnb`)

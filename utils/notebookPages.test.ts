@@ -5,6 +5,7 @@ import {
   canMovePage,
   movePage,
   sectionIndexOfPage,
+  clampPageIndex,
   blankPageSvg,
   PageListState,
 } from './notebookPages';
@@ -54,6 +55,24 @@ describe('insertBlankPage', () => {
     expect(next.pageUrls).toEqual(['a', 'NEW', 'b']);
     expect(next.sections).toBeUndefined();
   });
+
+  it('appending after the very last page grows the last section', () => {
+    const next = insertBlankPage(state(), 4, 'NEW', 'NEWP'); // after last page (end of B)
+    expect(next.pageUrls[5]).toBe('NEW');
+    expect(next.sections).toEqual([
+      { title: 'A', startIndex: 0, pageCount: 3 },
+      { title: 'B', startIndex: 3, pageCount: 3 },
+    ]);
+  });
+
+  it('inserting before the first page shifts the first section', () => {
+    const next = insertBlankPage(state(), -1, 'NEW', 'NEWP'); // insertAt clamps to 0
+    expect(next.pageUrls[0]).toBe('NEW');
+    expect(next.sections).toEqual([
+      { title: 'A', startIndex: 1, pageCount: 3 },
+      { title: 'B', startIndex: 4, pageCount: 2 },
+    ]);
+  });
 });
 
 describe('deletePage', () => {
@@ -65,6 +84,31 @@ describe('deletePage', () => {
       { title: 'A', startIndex: 0, pageCount: 2 },
       { title: 'B', startIndex: 2, pageCount: 2 },
     ]);
+  });
+
+  it('deletes the first page (start of section A)', () => {
+    const { state: next } = deletePage(state(), 0);
+    expect(next.pageUrls).toEqual(['u1', 'u2', 'u3', 'u4']);
+    expect(next.sections).toEqual([
+      { title: 'A', startIndex: 0, pageCount: 2 },
+      { title: 'B', startIndex: 2, pageCount: 2 },
+    ]);
+  });
+
+  it('deletes the first page of a later section (start of B)', () => {
+    const { state: next, removedPath } = deletePage(state(), 3);
+    expect(removedPath).toBe('p3');
+    expect(next.pageUrls).toEqual(['u0', 'u1', 'u2', 'u4']);
+    expect(next.sections).toEqual([
+      { title: 'A', startIndex: 0, pageCount: 3 },
+      { title: 'B', startIndex: 3, pageCount: 1 },
+    ]);
+  });
+
+  it('is a no-op for an out-of-range index', () => {
+    const { state: next, removedPath } = deletePage(state(), 99);
+    expect(removedPath).toBeUndefined();
+    expect(next.pageUrls).toEqual(state().pageUrls);
   });
 
   it('drops a section that becomes empty', () => {
@@ -107,5 +151,14 @@ describe('helpers', () => {
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
     expect(svg).toContain('viewBox="0 0 800 600"');
     expect(svg).toContain('class="foreground"');
+  });
+
+  it('clampPageIndex keeps the index in range', () => {
+    expect(clampPageIndex(2, 5)).toBe(2); // already valid
+    expect(clampPageIndex(7, 5)).toBe(4); // past the end -> last
+    expect(clampPageIndex(0, 0)).toBe(0); // empty notebook
+    expect(clampPageIndex(3, 0)).toBe(0); // empty notebook, stale index
+    expect(clampPageIndex(-1, 5)).toBe(0); // negative -> 0
+    expect(clampPageIndex(4, 5)).toBe(4); // last page (delete-last case)
   });
 });

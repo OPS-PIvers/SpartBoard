@@ -16,6 +16,16 @@ export interface PageListState {
 const cloneSections = (sections?: NotebookSection[]): NotebookSection[] =>
   (sections ?? []).map((s) => ({ ...s }));
 
+/**
+ * Clamp a current page index to a (possibly changed) page count. Guards the
+ * "blank page / out-of-range" class of bugs after a delete or notebook switch.
+ */
+export const clampPageIndex = (current: number, pageCount: number): number => {
+  if (pageCount <= 0) return 0;
+  if (current < 0) return 0;
+  return Math.min(current, pageCount - 1);
+};
+
 /** Index of the section that owns page `i`, or -1. */
 export const sectionIndexOfPage = (
   sections: NotebookSection[] | undefined,
