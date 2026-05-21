@@ -34,7 +34,11 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
 import { logError } from '../utils/logError';
-import type { QuizQuestion, SyncedQuizGroup } from '../types';
+import type {
+  QuizBehaviorSettings,
+  QuizQuestion,
+  SyncedQuizGroup,
+} from '../types';
 
 const SYNCED_QUIZZES_COLLECTION = 'synced_quizzes';
 
@@ -52,6 +56,8 @@ export interface PublishSyncedQuizInput {
   expectedVersion: number;
   /** Auth uid of the publishing teacher. Stamped into `updatedBy`. */
   uid: string;
+  /** Behavior settings to publish alongside content (optional). */
+  behavior?: QuizBehaviorSettings;
 }
 
 export interface PublishSyncedQuizResult {
@@ -185,20 +191,24 @@ export function useSyncedQuizGroupsByIds(
  * returned content into the caller's Drive replica, then bumps the local
  * `lastSyncedVersion`).
  */
-export async function pullSyncedQuizContent(
-  groupId: string
-): Promise<{ title: string; questions: QuizQuestion[]; version: number }> {
+export async function pullSyncedQuizContent(groupId: string): Promise<{
+  title: string;
+  questions: QuizQuestion[];
+  behavior?: QuizBehaviorSettings;
+  version: number;
+}> {
   const snap = await getDoc(doc(db, SYNCED_QUIZZES_COLLECTION, groupId));
   if (!snap.exists()) {
     throw new Error('Synced quiz group not found.');
   }
   const data = snap.data() as Pick<
     SyncedQuizGroup,
-    'title' | 'questions' | 'version'
+    'title' | 'questions' | 'behavior' | 'version'
   >;
   return {
     title: data.title,
     questions: data.questions ?? [],
+    behavior: data.behavior,
     version: data.version ?? 1,
   };
 }
@@ -218,6 +228,7 @@ export async function createSyncedQuizGroup(input: {
   title: string;
   questions: QuizQuestion[];
   plcId?: string;
+  behavior?: QuizBehaviorSettings;
 }): Promise<void> {
   const now = Date.now();
   const payload: SyncedQuizGroup = {
@@ -227,6 +238,7 @@ export async function createSyncedQuizGroup(input: {
     questions: input.questions,
     participants: { [input.uid]: { joinedAt: now } },
     ...(input.plcId ? { plcId: input.plcId } : {}),
+    ...(input.behavior ? { behavior: input.behavior } : {}),
     createdAt: now,
     updatedAt: now,
     updatedBy: input.uid,
@@ -284,6 +296,7 @@ export async function publishSyncedQuiz(
       questions: input.questions,
       updatedAt: now,
       updatedBy: input.uid,
+      ...(input.behavior ? { behavior: input.behavior } : {}),
     });
     return { version: nextVersion };
   });
