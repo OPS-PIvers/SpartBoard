@@ -2409,15 +2409,30 @@ service cloud.firestore {
     // per resource — no per-PLC fan-out.
     match /plc_resources/{resourceId} {
       allow read: if request.auth != null;
+      // Schema is locked with keys().hasOnly([...]) so a malicious/buggy
+      // admin client can't persist arbitrary fields. `request.resource.data`
+      // is the post-write merged doc, so partial updates are validated in
+      // full too. The auth gate is `createdByAdminUid == request.auth.uid`;
+      // `createdByAdminEmail` is a display snapshot validated as a string
+      // (not pinned to token.email, which the client stores from
+      // `user.email` and may differ in case/availability).
       allow create, update: if isAdmin()
         && request.resource.data.id == resourceId
+        && request.resource.data.keys().hasOnly([
+             'id', 'kind', 'title', 'description', 'refId', 'scope', 'plcIds',
+             'createdByAdminUid', 'createdByAdminEmail', 'createdAt', 'updatedAt'
+           ])
         && request.resource.data.kind in
              ['quiz', 'video-activity', 'assignment', 'doc', 'board']
         && request.resource.data.scope in ['all', 'selected']
         && request.resource.data.plcIds is list
         && request.resource.data.title is string
+        && request.resource.data.description is string
         && request.resource.data.refId is string
-        && request.resource.data.createdByAdminUid == request.auth.uid;
+        && request.resource.data.createdByAdminUid == request.auth.uid
+        && request.resource.data.createdByAdminEmail is string
+        && request.resource.data.createdAt is int
+        && request.resource.data.updatedAt is int;
       allow delete: if isAdmin();
     }
 

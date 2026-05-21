@@ -78,11 +78,15 @@ beforeEach(async () => {
 const validResource = (overrides: Record<string, unknown> = {}) => ({
   id: RESOURCE_ID,
   kind: 'quiz',
+  title: 'Shared Quiz Resource',
+  description: 'An optional admin note',
+  refId: 'quiz-ref-abc123',
   scope: 'all',
   plcIds: [],
-  title: 'Shared Quiz Resource',
-  refId: 'quiz-ref-abc123',
   createdByAdminUid: ADMIN_UID,
+  createdByAdminEmail: ADMIN_EMAIL,
+  createdAt: 1000,
+  updatedAt: 1000,
   ...overrides,
 });
 
@@ -166,6 +170,22 @@ describe('plc_resources — create', () => {
         doc(asAdmin(), `plc_resources/${RESOURCE_ID}`),
         validResource({ createdByAdminUid: 'some-other-uid' })
       )
+    );
+  });
+
+  it('admin create with an unknown extra field is rejected', async () => {
+    await assertFails(
+      setDoc(
+        doc(asAdmin(), `plc_resources/${RESOURCE_ID}`),
+        validResource({ maliciousField: 'x' })
+      )
+    );
+  });
+
+  it('admin create missing a required field (description) is rejected', async () => {
+    const { description: _omitted, ...withoutDescription } = validResource();
+    await assertFails(
+      setDoc(doc(asAdmin(), `plc_resources/${RESOURCE_ID}`), withoutDescription)
     );
   });
 
