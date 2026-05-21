@@ -88,16 +88,21 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
   const pillStyle: React.CSSProperties = {
     // Equal-width segments that stretch to fill the row (span the space).
     flex: '1 1 0',
-    minWidth: 0,
-    gap: showLabels ? 'min(8px, 2cqmin)' : 0,
+    // Floor the segment width so the pills never shrink below a tappable
+    // target — in icon-only mode this keeps each grip comfortably clickable.
+    minWidth: showLabels ? 0 : 'clamp(34px, 11cqmin, 44px)',
+    // clamp() (not min()) so font/padding/height keep a usable floor as the
+    // widget shrinks instead of scaling all the way toward zero.
+    minHeight: 'clamp(30px, 9cqmin, 40px)',
+    gap: showLabels ? 'clamp(4px, 2cqmin, 8px)' : 0,
     padding: showLabels
-      ? 'min(8px, 2cqmin) min(12px, 3cqmin)'
-      : 'min(8px, 2cqmin)',
-    fontSize: 'min(16px, 5cqmin)',
+      ? 'clamp(6px, 2cqmin, 8px) clamp(8px, 3cqmin, 12px)'
+      : 'clamp(6px, 2cqmin, 8px)',
+    fontSize: 'clamp(12px, 5cqmin, 16px)',
   };
   const iconStyle: React.CSSProperties = {
-    width: 'min(18px, 5cqmin)',
-    height: 'min(18px, 5cqmin)',
+    width: 'clamp(15px, 5cqmin, 18px)',
+    height: 'clamp(15px, 5cqmin, 18px)',
     flexShrink: 0,
   };
 
