@@ -5,10 +5,11 @@
  * responsive two-column layout. NOT a draggable grid — just cards.
  *
  * Layout:
- *   - lg+: two columns — a wider primary column (Attention + Recent Docs)
- *          and a narrower sidebar column (Quick Create + Members). The two
- *          columns flow independently (no forced row alignment), so there
- *          are no empty grid holes regardless of how tall each card grows.
+ *   - Members live in the page header (cluster of avatars, right-aligned).
+ *   - lg+: two columns filling the full content width — a wider primary
+ *          column (Attention + Recent Docs) and a narrower sidebar column
+ *          (Quick Create). The two columns flow independently (no forced
+ *          row alignment), so there are no empty grid holes.
  *   - sm/md: single column — cards stack in priority order.
  *
  * Design intent: "calm, clean, professional" — glassmorphism card surfaces,
@@ -23,7 +24,7 @@ import type { PlcSectionId } from '../sections';
 import { AttentionCard } from './cards/AttentionCard';
 import { QuickCreateCard } from './cards/QuickCreateCard';
 import { RecentDocsCard } from './cards/RecentDocsCard';
-import { MembersStripCard } from './cards/MembersStripCard';
+import { MembersHeaderCluster } from './cards/MembersHeaderCluster';
 
 interface PlcHomeProps {
   plc: Plc;
@@ -35,31 +36,33 @@ export const PlcHome: React.FC<PlcHomeProps> = ({ plc, onNavigate }) => {
 
   return (
     <div className="flex flex-col h-full overflow-y-auto">
-      {/* Page header */}
-      <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-white/50 backdrop-blur-sm">
-        <h2 className="text-xl font-bold text-slate-900 truncate">
-          {plc.name}
-        </h2>
-        <p className="text-sm text-slate-500 mt-0.5">
-          {t('plcDashboard.home.subtitle', {
-            defaultValue: 'Your collaborative space',
-          })}
-        </p>
+      {/* Page header — title/subtitle left, members cluster right */}
+      <div className="px-6 pt-6 pb-4 border-b border-slate-100 bg-white/50 backdrop-blur-sm flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h2 className="text-xl font-bold text-slate-900 truncate">
+            {plc.name}
+          </h2>
+          <p className="text-sm text-slate-500 mt-0.5">
+            {t('plcDashboard.home.subtitle', {
+              defaultValue: 'Your collaborative space',
+            })}
+          </p>
+        </div>
+        <MembersHeaderCluster plc={plc} onNavigate={onNavigate} />
       </div>
 
-      {/* Two-column dashboard */}
+      {/* Two-column dashboard — fills the full content width */}
       <div className="flex-1 p-6">
-        <div className="mx-auto w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
+        <div className="w-full grid grid-cols-1 lg:grid-cols-3 gap-5 items-start">
           {/* Primary column — what the PLC is working on */}
           <div className="lg:col-span-2 flex flex-col gap-5">
             <AttentionCard plc={plc} onNavigate={onNavigate} />
             <RecentDocsCard plc={plc} onNavigate={onNavigate} />
           </div>
 
-          {/* Sidebar column — actions + people */}
+          {/* Sidebar column — quick actions */}
           <div className="lg:col-span-1 flex flex-col gap-5">
             <QuickCreateCard onNavigate={onNavigate} />
-            <MembersStripCard plc={plc} onNavigate={onNavigate} />
           </div>
         </div>
       </div>
