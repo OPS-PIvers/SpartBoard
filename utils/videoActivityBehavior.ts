@@ -1,3 +1,8 @@
+/**
+ * Default + reader for the behavior settings that travel with a VideoActivity.
+ * Mirrors `utils/quizBehavior.ts` for the VA widget.
+ */
+
 import type {
   VideoActivityBehaviorSettings,
   VideoActivityMetadata,
@@ -12,7 +17,6 @@ export const DEFAULT_VA_BEHAVIOR: VideoActivityBehaviorSettings = {
     showCorrectOnBoard: false,
     shuffleQuestions: false,
     shuffleAnswerOptions: true,
-    attemptLimit: 1,
     rewindOnIncorrectSeconds: 0,
     pointPenaltyOnIncorrect: 0,
     scoreVisibility: 'score-only',

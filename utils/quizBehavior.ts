@@ -1,3 +1,8 @@
+/**
+ * Default + reader for the behavior settings that travel with a quiz.
+ * Mirrors `utils/videoActivityBehavior.ts` for the Quiz widget.
+ */
+
 import type { QuizBehaviorSettings, QuizMetadata } from '@/types';
 
 export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = {

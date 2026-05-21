@@ -21,7 +21,7 @@ describe('getVideoActivityBehavior', () => {
   it('returns the stored behavior when present', () => {
     const behavior = {
       sessionMode: 'student' as const,
-      sessionOptions: { shuffleQuestions: true, attemptLimit: null },
+      sessionOptions: { shuffleQuestions: true },
       attemptLimit: null,
     };
     const meta = {

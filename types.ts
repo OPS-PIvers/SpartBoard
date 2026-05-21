@@ -3564,7 +3564,7 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
 /** VA counterpart of QuizBehaviorSettings. */
 export interface VideoActivityBehaviorSettings {
   sessionMode: QuizSessionMode;
-  sessionOptions: VideoActivitySessionOptions;
+  sessionOptions: Omit<VideoActivitySessionOptions, 'attemptLimit' | 'dueAt'>;
   attemptLimit: number | null;
 }
 
