@@ -1,6 +1,8 @@
 /**
- * MembersStripCard — compact horizontal strip of member avatars (initials)
- * with a "Manage" button that navigates to the Members section.
+ * MembersStripCard — vertical "people" card: a header (icon + count), a
+ * wrapping cluster of member avatars (initials), and a full-width "Manage"
+ * button that navigates to the Members section. Sized to sit in the Home
+ * sidebar column.
  *
  * Data comes directly from the Plc prop (no additional hook needed —
  * memberUids + memberEmails are already present on the Plc document).
@@ -51,16 +53,16 @@ export const MembersStripCard: React.FC<MembersStripCardProps> = ({
   const overflow = members.length - MAX_VISIBLE;
 
   return (
-    <div className="flex items-center gap-4 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm px-5 py-4">
-      {/* Icon + label */}
-      <div className="flex items-center gap-2.5 shrink-0">
-        <div className="w-8 h-8 rounded-xl bg-brand-blue-lighter flex items-center justify-center">
+    <div className="flex flex-col gap-4 bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm px-5 py-4">
+      {/* Header: icon + heading + count */}
+      <div className="flex items-center gap-2.5">
+        <div className="w-8 h-8 rounded-xl bg-brand-blue-lighter flex items-center justify-center shrink-0">
           <Users2
             className="w-4 h-4 text-brand-blue-primary"
             aria-hidden="true"
           />
         </div>
-        <div>
+        <div className="min-w-0">
           <p className="text-xs font-bold uppercase tracking-widest text-slate-500 leading-none mb-0.5">
             {t('plcDashboard.home.members.heading', {
               defaultValue: 'Members',
@@ -77,7 +79,7 @@ export const MembersStripCard: React.FC<MembersStripCardProps> = ({
 
       {/* Avatars */}
       <div
-        className="flex items-center flex-wrap gap-1.5 flex-1 min-w-0"
+        className="flex items-center flex-wrap gap-1.5"
         role="list"
         aria-label={t('plcDashboard.home.members.listAriaLabel', {
           defaultValue: 'PLC members',
@@ -123,11 +125,11 @@ export const MembersStripCard: React.FC<MembersStripCardProps> = ({
         )}
       </div>
 
-      {/* Manage button */}
+      {/* Manage button — full width */}
       <button
         type="button"
         onClick={() => onNavigate('members')}
-        className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
+        className="w-full inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-bold text-slate-600 hover:bg-slate-50 hover:border-slate-300 transition-colors"
         aria-label={t('plcDashboard.home.members.manageAriaLabel', {
           defaultValue: 'Manage members',
         })}

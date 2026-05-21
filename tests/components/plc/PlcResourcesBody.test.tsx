@@ -29,6 +29,47 @@ vi.mock('@/hooks/usePlcResources', () => ({
     mockUsePlcResources(...args),
 }));
 
+vi.mock('@/context/useAuth', () => ({
+  useAuth: () => ({
+    user: {
+      uid: 'u1',
+      displayName: 'Teacher One',
+      email: 'u1@school.edu',
+    },
+  }),
+}));
+
+const mockAddToast = vi.fn();
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: mockAddToast }),
+}));
+
+const mockWritePlcQuizEntry = vi.fn();
+vi.mock('@/hooks/usePlcQuizzes', () => ({
+  writePlcQuizEntry: (...args: unknown[]): unknown =>
+    mockWritePlcQuizEntry(...args),
+}));
+
+const mockWritePlcVideoActivityEntry = vi.fn();
+vi.mock('@/hooks/usePlcVideoActivities', () => ({
+  writePlcVideoActivityEntry: (...args: unknown[]): unknown =>
+    mockWritePlcVideoActivityEntry(...args),
+}));
+
+const mockPullSyncedQuizContent = vi.fn();
+vi.mock('@/hooks/useSyncedQuizGroups', () => ({
+  pullSyncedQuizContent: (...args: unknown[]): unknown =>
+    mockPullSyncedQuizContent(...args),
+}));
+
+const mockPullSyncedVideoActivityContent = vi.fn();
+vi.mock('@/hooks/useSyncedVideoActivityGroups', () => ({
+  pullSyncedVideoActivityContent: (...args: unknown[]): unknown =>
+    mockPullSyncedVideoActivityContent(...args),
+}));
+
+vi.mock('@/utils/logError', () => ({ logError: vi.fn() }));
+
 vi.mock('@/components/common/ScaledEmptyState', () => ({
   ScaledEmptyState: ({
     title,
@@ -73,6 +114,19 @@ const makeResource = (overrides: Partial<PlcResource> = {}): PlcResource => ({
 beforeEach(() => {
   vi.clearAllMocks();
   mockCreateDoc.mockResolvedValue('new-doc-id');
+  mockWritePlcQuizEntry.mockResolvedValue(undefined);
+  mockWritePlcVideoActivityEntry.mockResolvedValue(undefined);
+  mockPullSyncedQuizContent.mockResolvedValue({
+    title: 'Unit Quiz',
+    questions: [{}, {}, {}],
+    version: 1,
+  });
+  mockPullSyncedVideoActivityContent.mockResolvedValue({
+    title: 'Lesson Video',
+    youtubeUrl: 'https://youtu.be/abc',
+    questions: [{}, {}],
+    version: 1,
+  });
 });
 
 describe('PlcResourcesBody', () => {
@@ -162,9 +216,16 @@ describe('PlcResourcesBody', () => {
     });
   });
 
-  it('shows a graceful message (not a crash) for non-doc kinds', async () => {
+  it('one-click imports a quiz into the PLC library (pull canonical → writePlcQuizEntry)', async () => {
     mockUsePlcResources.mockReturnValue({
-      resources: [makeResource({ id: 'q1', kind: 'quiz', title: 'Unit Quiz' })],
+      resources: [
+        makeResource({
+          id: 'q1',
+          kind: 'quiz',
+          title: 'Unit Quiz',
+          refId: 'sync-group-1',
+        }),
+      ],
       loading: false,
       error: null,
     });
@@ -173,13 +234,89 @@ describe('PlcResourcesBody', () => {
     fireEvent.click(screen.getByRole('button', { name: /use unit quiz/i }));
 
     await waitFor(() => {
-      // Should show the "go to the matching section" guidance, not crash
-      expect(
-        screen.getByText(/go to the matching section/i)
-      ).toBeInTheDocument();
+      expect(mockWritePlcQuizEntry).toHaveBeenCalledTimes(1);
     });
-    // createDoc should NOT have been called for a quiz
+    expect(mockPullSyncedQuizContent).toHaveBeenCalledWith('sync-group-1');
+    expect(mockWritePlcQuizEntry).toHaveBeenCalledWith(
+      'plc-test',
+      'u1',
+      expect.objectContaining({
+        syncGroupId: 'sync-group-1',
+        title: 'Unit Quiz',
+        questionCount: 3,
+      })
+    );
     expect(mockCreateDoc).not.toHaveBeenCalled();
+  });
+
+  it('one-click imports a video activity into the PLC library', async () => {
+    mockUsePlcResources.mockReturnValue({
+      resources: [
+        makeResource({
+          id: 'v1',
+          kind: 'video-activity',
+          title: 'Lesson Video',
+          refId: 'va-group-1',
+        }),
+      ],
+      loading: false,
+      error: null,
+    });
+    render(<PlcResourcesBody plc={PLC} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /use lesson video/i }));
+
+    await waitFor(() => {
+      expect(mockWritePlcVideoActivityEntry).toHaveBeenCalledTimes(1);
+    });
+    expect(mockPullSyncedVideoActivityContent).toHaveBeenCalledWith(
+      'va-group-1'
+    );
+    expect(mockWritePlcVideoActivityEntry).toHaveBeenCalledWith(
+      'plc-test',
+      'u1',
+      expect.objectContaining({
+        syncGroupId: 'va-group-1',
+        title: 'Lesson Video',
+        youtubeUrl: 'https://youtu.be/abc',
+        questionCount: 2,
+      })
+    );
+  });
+
+  it('deep-links to the Assignments section for an assignment resource', () => {
+    mockUsePlcResources.mockReturnValue({
+      resources: [
+        makeResource({ id: 'a1', kind: 'assignment', title: 'Unit Test' }),
+      ],
+      loading: false,
+      error: null,
+    });
+    const onNavigate = vi.fn();
+    render(<PlcResourcesBody plc={PLC} onNavigate={onNavigate} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /open unit test/i }));
+
+    expect(onNavigate).toHaveBeenCalledWith('assignments');
+    expect(mockWritePlcQuizEntry).not.toHaveBeenCalled();
+  });
+
+  it('deep-links to the Shared Boards section for a board resource', () => {
+    mockUsePlcResources.mockReturnValue({
+      resources: [
+        makeResource({ id: 'b1', kind: 'board', title: 'Morning Board' }),
+      ],
+      loading: false,
+      error: null,
+    });
+    const onNavigate = vi.fn();
+    render(<PlcResourcesBody plc={PLC} onNavigate={onNavigate} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /open morning board/i })
+    );
+
+    expect(onNavigate).toHaveBeenCalledWith('sharedBoards');
   });
 
   it('calls usePlcResources with the plcId', () => {

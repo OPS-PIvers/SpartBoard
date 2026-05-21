@@ -80,18 +80,15 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
     }
   };
 
+  const handleNavigateSection = (sectionId: PlcSectionId) => {
+    setActiveSection(sectionId);
+    setShowMobileMenu(false);
+  };
+
   const renderSection = (id: PlcSectionId): React.ReactNode => {
     switch (id) {
       case 'home':
-        return (
-          <PlcHome
-            plc={plc}
-            onNavigate={(sectionId) => {
-              setActiveSection(sectionId);
-              setShowMobileMenu(false);
-            }}
-          />
-        );
+        return <PlcHome plc={plc} onNavigate={handleNavigateSection} />;
       case 'quizzes':
         return <PlcQuizLibraryTab plc={plc} />;
       case 'videoActivities':
@@ -109,7 +106,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       case 'members':
         return <MembersBody plc={plc} />;
       case 'resources':
-        return <PlcResourcesBody plc={plc} />;
+        return (
+          <PlcResourcesBody plc={plc} onNavigate={handleNavigateSection} />
+        );
       case 'settings':
         return <PlcSettingsTab plc={plc} />;
     }
