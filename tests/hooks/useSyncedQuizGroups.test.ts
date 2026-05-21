@@ -11,6 +11,11 @@
 
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
 import * as firestore from 'firebase/firestore';
+import {
+  publishSyncedQuiz,
+  pullSyncedQuizContent,
+  createSyncedQuizGroup,
+} from '@/hooks/useSyncedQuizGroups';
 import type { QuizBehaviorSettings } from '@/types';
 
 // ---------------------------------------------------------------------------
@@ -120,8 +125,6 @@ describe('publishSyncedQuiz — behavior field threading', () => {
       async (_db: unknown, fn: (tx: FakeTx) => Promise<unknown>) => fn(tx)
     );
 
-    const { publishSyncedQuiz } = await import('@/hooks/useSyncedQuizGroups');
-
     await publishSyncedQuiz(GROUP_ID, {
       title: 'Updated Title',
       questions: BASE_GROUP_DOC.questions as never,
@@ -171,9 +174,6 @@ describe('pullSyncedQuizContent — behavior field', () => {
       data: () => ({ ...BASE_GROUP_DOC, behavior: BEHAVIOR }),
     });
 
-    const { pullSyncedQuizContent } =
-      await import('@/hooks/useSyncedQuizGroups');
-
     const result = await pullSyncedQuizContent(GROUP_ID);
 
     expect(result.behavior).toEqual(BEHAVIOR);
@@ -187,9 +187,6 @@ describe('pullSyncedQuizContent — behavior field', () => {
       data: () => ({ ...BASE_GROUP_DOC }), // no behavior
     });
 
-    const { pullSyncedQuizContent } =
-      await import('@/hooks/useSyncedQuizGroups');
-
     const result = await pullSyncedQuizContent(GROUP_ID);
 
     expect(result.behavior).toBeUndefined();
@@ -199,9 +196,6 @@ describe('pullSyncedQuizContent — behavior field', () => {
     (firestore.getDoc as unknown as Mock).mockResolvedValueOnce({
       exists: () => false,
     });
-
-    const { pullSyncedQuizContent } =
-      await import('@/hooks/useSyncedQuizGroups');
 
     await expect(pullSyncedQuizContent(GROUP_ID)).rejects.toThrow(
       'Synced quiz group not found.'
@@ -215,9 +209,6 @@ describe('pullSyncedQuizContent — behavior field', () => {
 
 describe('createSyncedQuizGroup — behavior field threading', () => {
   it('includes behavior in setDoc payload when input.behavior is provided', async () => {
-    const { createSyncedQuizGroup } =
-      await import('@/hooks/useSyncedQuizGroups');
-
     await createSyncedQuizGroup({
       groupId: GROUP_ID,
       uid: UID,
@@ -233,9 +224,6 @@ describe('createSyncedQuizGroup — behavior field threading', () => {
   });
 
   it('omits behavior key from setDoc payload when input.behavior is absent', async () => {
-    const { createSyncedQuizGroup } =
-      await import('@/hooks/useSyncedQuizGroups');
-
     await createSyncedQuizGroup({
       groupId: GROUP_ID,
       uid: UID,
