@@ -50,7 +50,6 @@ import {
 import {
   AssignmentMode,
   QuizMetadata,
-  QuizSessionMode,
   QuizConfig,
   ClassRoster,
   QuizAssignment,
@@ -101,7 +100,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
-import { getQuizBehavior } from '@/utils/quizBehavior';
+import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -195,39 +194,6 @@ function buildDefaultAssignOptions(
         ? { rosterIds: rememberedRosters }
         : makeEmptyPickerValue(),
   };
-}
-
-/** Human-readable label for a quiz session mode. */
-function formatSessionMode(mode: QuizSessionMode): string {
-  if (mode === 'teacher') return 'Teacher-paced';
-  if (mode === 'auto') return 'Auto-progress';
-  return 'Self-paced';
-}
-
-/**
- * Build a compact read-only behavior summary string from a quiz's behavior
- * settings. Used in the slimmed assign modal (Task 9).
- *
- * Example: "Teacher-paced · 1 attempt · shuffles answers"
- */
-function formatBehaviorSummary(
-  behavior: import('@/types').QuizBehaviorSettings
-): string {
-  const parts: string[] = [formatSessionMode(behavior.sessionMode)];
-  if (behavior.attemptLimit === null) {
-    parts.push('unlimited attempts');
-  } else if (behavior.attemptLimit === 1) {
-    parts.push('1 attempt');
-  } else {
-    parts.push(`${behavior.attemptLimit} attempts`);
-  }
-  if (behavior.sessionOptions.shuffleAnswerOptions)
-    parts.push('shuffles answers');
-  if (behavior.sessionOptions.shuffleQuestions)
-    parts.push('shuffles questions');
-  if (behavior.sessionOptions.showResultToStudent) parts.push('shows results');
-  if (behavior.sessionOptions.speedBonusEnabled) parts.push('speed bonus');
-  return parts.join(' · ');
 }
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */

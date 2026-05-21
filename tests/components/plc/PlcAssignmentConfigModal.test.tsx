@@ -640,3 +640,116 @@ describe('PlcAssignmentConfigModal — genuine rosterIds forwarding (T6)', () =>
     expect(opts.rosterIds).toEqual(['roster-alpha']);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests — Task 10: slimmed quiz-kind (behavior from quizBehavior prop)
+// ---------------------------------------------------------------------------
+
+const fakeBehavior = {
+  sessionMode: 'auto' as const,
+  sessionOptions: {
+    tabWarningsEnabled: false,
+    showResultToStudent: true,
+    showCorrectAnswerToStudent: false,
+    showCorrectOnBoard: false,
+    speedBonusEnabled: false,
+    streakBonusEnabled: false,
+    showPodiumBetweenQuestions: false,
+    soundEffectsEnabled: false,
+    shuffleQuestions: false,
+    shuffleAnswerOptions: true,
+  },
+  attemptLimit: 3,
+};
+
+describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior prop)', () => {
+  beforeEach(() => {
+    mockCreateQuizAssignment.mockClear();
+    mockCreateVaAssignment.mockClear();
+    mockAddToast.mockClear();
+    mockSetPendingAssignmentEdit.mockClear();
+    mockCreateQuizAssignment.mockResolvedValue({
+      id: 'assign-1',
+      code: '1234',
+    });
+    // Reset useDashboard to the basic stub (no rosters needed here)
+    vi.mocked(useDashboard).mockReturnValue({
+      addToast: mockAddToast,
+      rosters: [] as ClassRoster[],
+      setPendingAssignmentEdit: mockSetPendingAssignmentEdit,
+    } as unknown as ReturnType<typeof useDashboard>);
+  });
+
+  it('does NOT render a mode picker (Teacher-paced / Auto-paced / Self-paced) when quizBehavior is provided', () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="quiz"
+        quizRef={fakeQuizRef}
+        quizBehavior={fakeBehavior}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+    expect(
+      screen.queryByRole('radio', { name: /teacher-paced/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('radio', { name: /auto-paced/i })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('radio', { name: /self-paced/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders the behavior summary when quizBehavior is provided', () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="quiz"
+        quizRef={fakeQuizRef}
+        quizBehavior={fakeBehavior}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+    const summaryEl = screen.getByTestId('plc-config-behavior-summary');
+    expect(summaryEl).toBeInTheDocument();
+    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).toMatch(/3 attempts/i);
+  });
+
+  it('sources sessionMode/sessionOptions/attemptLimit from quizBehavior on submit', async () => {
+    const onClose = vi.fn();
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="quiz"
+        quizRef={fakeQuizRef}
+        quizBehavior={fakeBehavior}
+        isOpen
+        onClose={onClose}
+      />
+    );
+
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockCreateQuizAssignment).toHaveBeenCalledTimes(1);
+    });
+
+    const [, settings] = mockCreateQuizAssignment.mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+    ];
+    expect(settings.sessionMode).toBe('auto');
+    expect(settings.attemptLimit).toBe(3);
+    expect(
+      (settings.sessionOptions as Record<string, unknown>).showResultToStudent
+    ).toBe(true);
+  });
+});
