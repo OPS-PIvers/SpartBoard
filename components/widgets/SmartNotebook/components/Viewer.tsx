@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, FileText, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, FileText, Pencil, X } from 'lucide-react';
 import { NotebookItem } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
@@ -12,6 +12,7 @@ interface ViewerProps {
   currentPage: number;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   handleDragStart: (e: React.DragEvent, url: string) => void;
+  onEditPage?: () => void;
 }
 
 export const Viewer: React.FC<ViewerProps> = ({
@@ -23,6 +24,7 @@ export const Viewer: React.FC<ViewerProps> = ({
   currentPage,
   setCurrentPage,
   handleDragStart,
+  onEditPage,
 }) => {
   // Optional lesson grouping (derived from the notebook's manifest at import,
   // for both raw .notebook and converted .spartnb files). Find which lesson
@@ -94,6 +96,21 @@ export const Viewer: React.FC<ViewerProps> = ({
                   </option>
                 ))}
               </select>
+            )}
+            {onEditPage && (
+              <button
+                onClick={onEditPage}
+                className="rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
+                style={{ padding: 'min(8px, 2cqmin)' }}
+                title="Edit page"
+              >
+                <Pencil
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+              </button>
             )}
             {hasAssets && (
               <button

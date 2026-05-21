@@ -14,6 +14,7 @@ import {
   onSnapshot,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   query,
   orderBy,
@@ -26,6 +27,7 @@ import {
 
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
+import { PageEditorOverlay } from './components/PageEditorOverlay';
 
 export const SmartNotebookWidget: React.FC<{
   widget: WidgetData;
@@ -42,6 +44,8 @@ export const SmartNotebookWidget: React.FC<{
   const [currentPage, setCurrentPage] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [showAssets, setShowAssets] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch notebooks from Firestore.
@@ -271,6 +275,46 @@ export const SmartNotebookWidget: React.FC<{
     updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
   };
 
+  // Persist an edited page: re-upload the edited SVG to its Storage path and
+  // point the page URL at the new upload. Only the edited page is written.
+  const handleSavePageEdit = async (svgString: string) => {
+    if (!user || !activeNotebook || !svgString) {
+      setEditMode(false);
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
+      const path =
+        activeNotebook.pagePaths?.[currentPage] ??
+        `${notebookPath}/page${currentPage}.svg`;
+      const file = new File([svgString], `page${currentPage}.svg`, {
+        type: 'image/svg+xml',
+      });
+      const url = await uploadFile(path, file);
+
+      const newPageUrls = [...activeNotebook.pageUrls];
+      newPageUrls[currentPage] = url;
+      const newPagePaths = [...(activeNotebook.pagePaths ?? [])];
+      newPagePaths[currentPage] = path;
+
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+        {
+          pageUrls: newPageUrls,
+          pagePaths: newPagePaths,
+        }
+      );
+      addToast('Page saved', 'success');
+      setEditMode(false);
+    } catch (err) {
+      console.error('Failed to save edited page', err);
+      addToast('Failed to save page', 'error');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, url: string) => {
     const img = e.currentTarget.querySelector('img');
     const ratio = img ? img.naturalWidth / img.naturalHeight : 1;
@@ -280,6 +324,20 @@ export const SmartNotebookWidget: React.FC<{
     );
     e.dataTransfer.effectAllowed = 'copy';
   };
+
+  // Page editor (full-surface) when editing a page.
+  if (activeNotebook && editMode && activeNotebook.pageUrls[currentPage]) {
+    return (
+      <PageEditorOverlay
+        pageUrl={activeNotebook.pageUrls[currentPage]}
+        pageNumber={currentPage + 1}
+        totalPages={activeNotebook.pageUrls.length}
+        isSaving={isSavingEdit}
+        onSave={handleSavePageEdit}
+        onClose={() => setEditMode(false)}
+      />
+    );
+  }
 
   // Viewer
   if (activeNotebook) {
@@ -296,6 +354,7 @@ export const SmartNotebookWidget: React.FC<{
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         handleDragStart={handleDragStart}
+        onEditPage={() => setEditMode(true)}
       />
     );
   }
