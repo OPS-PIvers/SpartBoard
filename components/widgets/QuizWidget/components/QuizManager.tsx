@@ -27,9 +27,6 @@ import {
   Eye,
   EyeOff,
   Link2,
-  User,
-  Zap,
-  Clock,
   Share2,
   AlertTriangle,
   Monitor,
@@ -59,7 +56,6 @@ import {
   QuizAssignment,
   SyncedQuizGroup,
 } from '@/types';
-import { type QuizSessionOptions } from '@/hooks/useQuizSession';
 import { Toggle } from '@/components/common/Toggle';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
@@ -78,10 +74,8 @@ import {
   LibraryItemCard,
   LibraryPreviewPane,
   AssignModal,
-  AssignmentSettingsToggleGroup,
   ToggleRow,
   ViewOnlyShareModal,
-  CollapsibleSection,
   AssignmentArchiveCard,
   ViewCountBadge,
   FolderSidebar,
@@ -95,7 +89,6 @@ import {
   buildDuplicateAction,
   type LibraryMenuAction,
   type LibrarySortOption,
-  type AssignModeOption,
   type AssignmentStatusBadge,
   type LibraryBadgeTone,
   type LibrarySelectionApi,
@@ -108,6 +101,7 @@ import { useFolders } from '@/hooks/useFolders';
 import { useSessionViewCount } from '@/hooks/useSessionViewCount';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
+import { getQuizBehavior } from '@/utils/quizBehavior';
 
 export interface PlcOptions {
   plcMode: boolean;
@@ -130,19 +124,13 @@ export interface PlcOptions {
 
 /* ─── Assign-modal options shape (internal) ───────────────────────────────── */
 
+/**
+ * Slimmed assign-modal options shape (Task 9).
+ * Behavior settings (mode, toggles, gamification, attemptLimit) are now
+ * on the quiz itself and sourced via `getQuizBehavior(meta)` at confirm time.
+ * This shape only carries the targeting / PLC state that varies per-assign.
+ */
 interface QuizAssignOptions {
-  tabWarningsEnabled: boolean;
-  showResultToStudent: boolean;
-  showCorrectAnswerToStudent: boolean;
-  showCorrectOnBoard: boolean;
-  speedBonusEnabled: boolean;
-  streakBonusEnabled: boolean;
-  showPodiumBetweenQuestions: boolean;
-  soundEffectsEnabled: boolean;
-  shuffleQuestions: boolean;
-  shuffleAnswerOptions: boolean;
-  /** Max completed submissions per student. null = unlimited. Default 1. */
-  attemptLimit: number | null;
   plcMode: boolean;
   teacherName: string;
   plcSheetUrl: string;
@@ -189,23 +177,6 @@ function buildDefaultAssignOptions(
     rememberedRosters = mapLegacyClassIdsToRosterIds(legacyClassIds, rosters);
   }
   return {
-    tabWarningsEnabled: true,
-    showResultToStudent: false,
-    showCorrectAnswerToStudent: false,
-    showCorrectOnBoard: false,
-    speedBonusEnabled: false,
-    streakBonusEnabled: false,
-    showPodiumBetweenQuestions: false,
-    soundEffectsEnabled: false,
-    shuffleQuestions: false,
-    // Default ON: matches the legacy always-on answer shuffle that
-    // pre-dated this toggle, and mirrors the edit modal's `?? true`
-    // fallback so a new assignment behaves identically to one created
-    // before the toggle was exposed.
-    shuffleAnswerOptions: true,
-    // Default: one attempt per student. Teachers can switch to 2/3/Unlimited
-    // in the assign modal or later in the assignment settings.
-    attemptLimit: 1,
     plcMode: config.plcMode ?? false,
     // Auto-fill from the signed-in teacher's display name when neither the
     // widget config nor a prior assignment carried a saved name. Falls back
@@ -226,26 +197,38 @@ function buildDefaultAssignOptions(
   };
 }
 
-const ASSIGN_MODES: AssignModeOption[] = [
-  {
-    id: 'teacher',
-    label: 'Teacher-paced',
-    description: 'You control when to move to the next question.',
-    icon: User,
-  },
-  {
-    id: 'auto',
-    label: 'Auto-progress',
-    description: 'Moves automatically once everyone has answered.',
-    icon: Zap,
-  },
-  {
-    id: 'student',
-    label: 'Self-paced',
-    description: 'Students move through questions at their own speed.',
-    icon: Clock,
-  },
-];
+/** Human-readable label for a quiz session mode. */
+function formatSessionMode(mode: QuizSessionMode): string {
+  if (mode === 'teacher') return 'Teacher-paced';
+  if (mode === 'auto') return 'Auto-progress';
+  return 'Self-paced';
+}
+
+/**
+ * Build a compact read-only behavior summary string from a quiz's behavior
+ * settings. Used in the slimmed assign modal (Task 9).
+ *
+ * Example: "Teacher-paced · 1 attempt · shuffles answers"
+ */
+function formatBehaviorSummary(
+  behavior: import('@/types').QuizBehaviorSettings
+): string {
+  const parts: string[] = [formatSessionMode(behavior.sessionMode)];
+  if (behavior.attemptLimit === null) {
+    parts.push('unlimited attempts');
+  } else if (behavior.attemptLimit === 1) {
+    parts.push('1 attempt');
+  } else {
+    parts.push(`${behavior.attemptLimit} attempts`);
+  }
+  if (behavior.sessionOptions.shuffleAnswerOptions)
+    parts.push('shuffles answers');
+  if (behavior.sessionOptions.shuffleQuestions)
+    parts.push('shuffles questions');
+  if (behavior.sessionOptions.showResultToStudent) parts.push('shows results');
+  if (behavior.sessionOptions.speedBonusEnabled) parts.push('speed bonus');
+  return parts.join(' · ');
+}
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -259,15 +242,21 @@ interface QuizManagerProps {
   onImport: () => void;
   onEdit: (quiz: QuizMetadata) => void;
   onPreview: (quiz: QuizMetadata) => void;
+  /**
+   * Slimmed assign callback (Task 9). Behavior settings (mode, toggles,
+   * gamification, attemptLimit) are now sourced from `getQuizBehavior(quiz)`
+   * inside the Widget handler — they are NOT passed here any more.
+   *
+   * Args: quiz meta, PLC options, selected roster IDs, optional due-date
+   * (epoch ms) or null.
+   */
   onAssign: (
     quiz: QuizMetadata,
-    mode: QuizSessionMode,
     plcOptions: PlcOptions,
-    sessionOptions: QuizSessionOptions,
     /** Selected roster IDs (unified picker output). */
     rosterIds: string[],
-    /** Max completed submissions per student; null = unlimited. */
-    attemptLimit: number | null
+    /** Optional due date (epoch ms). null = no due date. */
+    dueAt: number | null
   ) => void;
   /**
    * View-only Share callback — invoked when the org-wide assignment mode
@@ -616,12 +605,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
     setViewOnlyShareLink(null);
     setViewOnlyShareError(null);
   }, []);
-  const [selectedMode, setSelectedMode] = useState<QuizSessionMode | null>(
-    null
-  );
   const [assignOptions, setAssignOptions] = useState<QuizAssignOptions>(() =>
     buildDefaultAssignOptions(config, undefined, rosters, defaultTeacherName)
   );
+  // Due date for the current assign modal (epoch ms or null = no due date).
+  const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
 
   // Subscribed at the parent so both AssignPlcSlot (UI) and
   // handleAssignConfirm (effective-id resolution) read the same source.
@@ -634,7 +622,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
   if (assignTarget !== prevAssignTarget) {
     setPrevAssignTarget(assignTarget);
     if (assignTarget) {
-      setSelectedMode(null);
+      setAssignDueAt(null);
       setAssignOptions(
         buildDefaultAssignOptions(
           config,
@@ -1239,7 +1227,7 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
 
   // ─── Assign confirm handler ───────────────────────────────────────────────
   const handleAssignConfirm = (): void => {
-    if (!assignTarget || !selectedMode) return;
+    if (!assignTarget) return;
     // Guard against stale rosterIds — rosters can be deleted or fail to load
     // (`loadError`) between the teacher's last assignment and the current one.
     // A roster without students can't produce a joinable session, so treat
@@ -1271,28 +1259,11 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
       plcSheetUrl: assignOptions.plcSheetUrl || undefined,
       plcId: effectivePlcId || undefined,
     };
-    const sessionOptions: QuizSessionOptions = {
-      tabWarningsEnabled: assignOptions.tabWarningsEnabled,
-      showResultToStudent: assignOptions.showResultToStudent,
-      showCorrectAnswerToStudent: assignOptions.showCorrectAnswerToStudent,
-      showCorrectOnBoard: assignOptions.showCorrectOnBoard,
-      speedBonusEnabled: assignOptions.speedBonusEnabled,
-      streakBonusEnabled: assignOptions.streakBonusEnabled,
-      showPodiumBetweenQuestions: assignOptions.showPodiumBetweenQuestions,
-      soundEffectsEnabled: assignOptions.soundEffectsEnabled,
-      shuffleQuestions: assignOptions.shuffleQuestions,
-      shuffleAnswerOptions: assignOptions.shuffleAnswerOptions,
-    };
-    onAssign(
-      assignTarget,
-      selectedMode,
-      plcOptions,
-      sessionOptions,
-      validRosterIds,
-      assignOptions.attemptLimit
-    );
+    // Behavior (sessionMode, sessionOptions, attemptLimit) is now sourced
+    // from the quiz itself in the Widget handler via getQuizBehavior(meta).
+    onAssign(assignTarget, plcOptions, validRosterIds, assignDueAt);
     setAssignTarget(null);
-    setSelectedMode(null);
+    setAssignDueAt(null);
   };
 
   // ─── Drop-to-folder handler ───────────────────────────────────────────────
@@ -1632,20 +1603,28 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           isOpen={!!assignTarget}
           onClose={() => {
             setAssignTarget(null);
-            setSelectedMode(null);
+            setAssignDueAt(null);
           }}
           itemTitle={assignTarget.title}
-          modes={ASSIGN_MODES}
-          selectedMode={selectedMode ?? undefined}
-          onModeChange={(id) => setSelectedMode(id as QuizSessionMode)}
           options={assignOptions}
           onOptionsChange={setAssignOptions}
           extraSlot={
-            <AssignExtraSlot
+            <AssignBehaviorSummary
+              meta={assignTarget}
+              dueAt={assignDueAt}
+              onDueAtChange={setAssignDueAt}
+              rosters={rosters}
               options={assignOptions}
               onChange={setAssignOptions}
-              rosters={rosters}
-              selectedMode={selectedMode}
+              onEditInQuiz={() => {
+                // Close the assign modal and open the editor.
+                // The editor defaults to the Questions tab; the teacher
+                // can switch to Settings from there. (Task 9 — initialTab
+                // 'settings' wiring is a follow-up for Task 12.)
+                setAssignTarget(null);
+                setAssignDueAt(null);
+                onEdit(assignTarget);
+              }}
             />
           }
           plcSlot={
@@ -1662,8 +1641,6 @@ export const QuizManager: React.FC<QuizManagerProps> = ({
           }
           onAssign={() => handleAssignConfirm()}
           confirmLabel="Assign"
-          confirmDisabled={!selectedMode}
-          confirmDisabledReason="Choose a session mode first."
         />
       )}
 
@@ -2182,92 +2159,98 @@ const QuizArchiveRow: React.FC<QuizArchiveRowProps> = ({
 
 /* ─── Assign modal slot components ───────────────────────────────────────── */
 
-// IMPORTANT — drift watch:
-//   `components/plc/PlcNewQuizAssignmentModal.tsx` inlines an equivalent of
-//   `AssignExtraSlot` (gamification CollapsibleSection + AssignmentSettingsToggleGroup
-//   wiring) and `components/plc/PlcNewVideoActivityAssignmentModal.tsx` inlines
-//   an equivalent of `VideoActivityScoringBlock`. When you add / remove /
-//   rename a toggle here (or in `VideoActivityScoringBlock`), edit those
-//   wizards too so the in-tab "+ Assign Quiz / + Assign Video" flow stays in
-//   lockstep with the widget-kebab flow. Promoting these slots to shared
-//   modules (`components/widgets/QuizWidget/components/QuizAssignExtraSlot.tsx`,
-//   etc.) is the proper fix and tracked as a follow-up; until then, manual
-//   parity is the contract.
-const AssignExtraSlot: React.FC<{
+/**
+ * AssignBehaviorSummary — slimmed extraSlot for the standalone Quiz assign
+ * modal (Task 9).
+ *
+ * Renders:
+ *   1. The class/period picker (AssignClassPicker).
+ *   2. A due-date date input.
+ *   3. A read-only behavior summary derived from `getQuizBehavior(meta)`,
+ *      plus an "Edit in quiz" button. The button calls `onEditInQuiz` so
+ *      the parent can open the editor on its Settings tab.
+ */
+const AssignBehaviorSummary: React.FC<{
+  meta: QuizMetadata;
+  dueAt: number | null;
+  onDueAtChange: (dueAt: number | null) => void;
+  rosters: ClassRoster[];
   options: QuizAssignOptions;
   onChange: (next: QuizAssignOptions) => void;
-  rosters: ClassRoster[];
-  selectedMode: QuizSessionMode | null;
-}> = ({ options, onChange, rosters, selectedMode }) => {
-  const update = <K extends keyof QuizAssignOptions>(
-    key: K,
-    value: QuizAssignOptions[K]
-  ) => onChange({ ...options, [key]: value });
+  onEditInQuiz?: () => void;
+}> = ({
+  meta,
+  dueAt,
+  onDueAtChange,
+  rosters,
+  options,
+  onChange,
+  onEditInQuiz,
+}) => {
+  const behavior = getQuizBehavior(meta);
+  const summary = formatBehaviorSummary(behavior);
+
+  // Convert epoch ms → 'YYYY-MM-DD' for the date input, and back.
+  const dateInputValue = dueAt
+    ? new Date(dueAt).toISOString().slice(0, 10)
+    : '';
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) {
+      onDueAtChange(null);
+    } else {
+      onDueAtChange(new Date(val).getTime());
+    }
+  };
 
   return (
     <>
       <AssignClassPicker
         rosters={rosters}
         value={options.picker}
-        onChange={(picker) => update('picker', picker)}
+        onChange={(picker) => onChange({ ...options, picker })}
       />
 
-      <AssignmentSettingsToggleGroup
-        options={{
-          tabWarningsEnabled: options.tabWarningsEnabled,
-          showResultToStudent: options.showResultToStudent,
-          showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
-          showCorrectOnBoard: options.showCorrectOnBoard,
-          shuffleQuestions: options.shuffleQuestions,
-          shuffleAnswerOptions: options.shuffleAnswerOptions,
-        }}
-        onOptionsChange={(next) =>
-          // The primitive's `update` always emits the full options object
-          // with one field changed, so spreading `next` over `options`
-          // correctly merges without dropping other state.
-          onChange({ ...options, ...next })
-        }
-        attemptLimit={options.attemptLimit}
-        onAttemptLimitChange={(v) => update('attemptLimit', v)}
-        // Per-student question shuffle only takes effect in self-paced mode
-        // (teacher/auto-paced sessions broadcast a single shared question
-        // sequence). Disable the toggle in non-self-paced modes so teachers
-        // don't enable a flag that won't fire — the primitive renders a hint
-        // explaining the gating.
-        shuffleQuestionsAvailable={selectedMode === 'student'}
-        trailingSlot={
-          <CollapsibleSection label="Gamification">
-            <ToggleRow
-              compact
-              label="Speed Bonus Points"
-              checked={options.speedBonusEnabled}
-              onChange={(v) => update('speedBonusEnabled', v)}
-              hint="Up to 50% bonus for fast answers"
-            />
-            <ToggleRow
-              compact
-              label="Streak Bonuses"
-              checked={options.streakBonusEnabled}
-              onChange={(v) => update('streakBonusEnabled', v)}
-              hint="Multiplier for consecutive correct answers"
-            />
-            <ToggleRow
-              compact
-              label="Podium Between Questions"
-              checked={options.showPodiumBetweenQuestions}
-              onChange={(v) => update('showPodiumBetweenQuestions', v)}
-              hint="Show top 3 leaderboard after each question"
-            />
-            <ToggleRow
-              compact
-              label="Sound Effects"
-              checked={options.soundEffectsEnabled}
-              onChange={(v) => update('soundEffectsEnabled', v)}
-              hint="Chimes, ticks, and fanfares during the quiz"
-            />
-          </CollapsibleSection>
-        }
-      />
+      {/* Due date */}
+      <div>
+        <label
+          htmlFor="assign-due-date-input"
+          className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
+        >
+          Due Date <span className="font-normal">(optional)</span>
+        </label>
+        <input
+          id="assign-due-date-input"
+          type="date"
+          data-testid="assign-due-date"
+          value={dateInputValue}
+          onChange={handleDateChange}
+          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+        />
+      </div>
+
+      {/* Read-only behavior summary */}
+      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+            Behavior
+          </p>
+          <button
+            type="button"
+            onClick={onEditInQuiz}
+            className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
+          >
+            Edit in quiz
+          </button>
+        </div>
+        <p
+          data-testid="quiz-behavior-summary"
+          className="text-sm text-slate-600 leading-snug"
+        >
+          {summary}
+        </p>
+      </div>
     </>
   );
 };

@@ -1057,14 +1057,19 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         config={config}
         onAssign={async (
           meta,
-          mode,
           plcOptions: PlcOptions,
-          sessionOptions: QuizSessionOptions,
           rosterIds: string[],
-          attemptLimit: number | null
+          dueAt: number | null
         ) => {
           const data = await loadQuiz(meta);
           if (!data) return;
+          // Source behavior (sessionMode, sessionOptions, attemptLimit) from
+          // the quiz itself now that it lives on the quiz (Task 9).
+          const {
+            sessionMode: mode,
+            sessionOptions,
+            attemptLimit,
+          } = getQuizBehavior(meta);
           // Derive session targets from selected rosters — `classIds` feeds
           // the student SSO gate via Firestore rules; `rosterIds` is mirrored
           // onto both assignment and session for reverse lookup.
@@ -1248,6 +1253,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 sessionMode: mode,
                 sessionOptions,
                 attemptLimit,
+                dueAt: dueAt ?? undefined,
                 teacherName: plcOptions.teacherName,
                 periodName:
                   plcOptions.periodNames?.[0] ?? plcOptions.periodName,
