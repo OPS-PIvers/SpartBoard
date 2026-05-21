@@ -236,6 +236,43 @@ describe('PlcDocsBody', () => {
     expect(deleteDocMock).toHaveBeenCalledWith(fakeDoc.id);
   });
 
+  // --- Rename doc -----------------------------------------------------------
+
+  it('calls updateDoc({ title }) when a rename is confirmed', () => {
+    setDefaultMocks([fakeDoc]);
+    render(<PlcDocsBody plc={fakePlc} />);
+
+    // Open the rename editor for the doc.
+    fireEvent.click(screen.getByRole('button', { name: /rename doc/i }));
+    const renameInput = screen.getByDisplayValue('Math Standards Notes');
+    fireEvent.change(renameInput, { target: { value: 'Renamed Doc' } });
+    fireEvent.click(screen.getByRole('button', { name: /confirm rename/i }));
+
+    expect(updateDocMock).toHaveBeenCalledWith(fakeDoc.id, {
+      title: 'Renamed Doc',
+    });
+  });
+
+  it('toasts an error and keeps the row editable when a rename fails (no silent failure)', async () => {
+    updateDocMock.mockRejectedValueOnce(new Error('Firestore rename failed'));
+    setDefaultMocks([fakeDoc]);
+    render(<PlcDocsBody plc={fakePlc} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /rename doc/i }));
+    const renameInput = screen.getByDisplayValue('Math Standards Notes');
+    fireEvent.change(renameInput, { target: { value: 'Renamed Doc' } });
+    fireEvent.click(screen.getByRole('button', { name: /confirm rename/i }));
+
+    await vi.waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledTimes(1);
+    });
+    expect(mockAddToast.mock.calls[0][1]).toBe('error');
+
+    // The row stays in edit mode (the rename input is still rendered) so the
+    // user can retry — the rejected promise must NOT silently close the editor.
+    expect(screen.getByDisplayValue('Renamed Doc')).toBeInTheDocument();
+  });
+
   // --- Loading state --------------------------------------------------------
 
   it('shows a loading indicator when loading is true', () => {
@@ -250,6 +287,43 @@ describe('PlcDocsBody', () => {
     render(<PlcDocsBody plc={fakePlc} />);
     // Should not crash; no iframe visible
     expect(document.querySelector('iframe')).toBeNull();
+  });
+
+  // --- Error state ----------------------------------------------------------
+
+  it('does NOT show the "Add a Google Doc" CTA on load error (no masked error)', () => {
+    vi.mocked(usePlcDocs).mockReturnValue({
+      docs: [],
+      loading: false,
+      error: new Error('Permission denied'),
+      createDoc: createDocMock,
+      updateDoc: updateDocMock,
+      deleteDoc: deleteDocMock,
+    });
+    render(<PlcDocsBody plc={fakePlc} />);
+
+    // The right-pane add CTA must be gated on !error — an empty docs array on
+    // error doesn't mean there are no docs.
+    expect(
+      screen.queryByRole('button', { name: /add a google doc/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('renders a right-pane error panel on load error', () => {
+    vi.mocked(usePlcDocs).mockReturnValue({
+      docs: [],
+      loading: false,
+      error: new Error('Permission denied'),
+      createDoc: createDocMock,
+      updateDoc: updateDocMock,
+      deleteDoc: deleteDocMock,
+    });
+    render(<PlcDocsBody plc={fakePlc} />);
+
+    // The error copy appears in BOTH the narrow left rail and the right pane.
+    expect(
+      screen.getAllByText(/couldn't load docs|failed to load docs/i).length
+    ).toBeGreaterThan(0);
   });
 
   // --- Switching doc selection ----------------------------------------------

@@ -37,6 +37,7 @@ import { PlcAssignmentConfigModal } from '@/components/plc/assignments/PlcAssign
 import type { Plc, ClassRoster } from '@/types';
 import type { AssignmentQuizRef } from '@/hooks/useQuizAssignments';
 import type { AssignmentActivityRef } from '@/hooks/useVideoActivityAssignments';
+import { useDashboard } from '@/context/useDashboard';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -51,6 +52,10 @@ vi.mock('react-i18next', () => ({
 const mockCreateQuizAssignment = vi.fn();
 const mockCreateVaAssignment = vi.fn();
 const mockAddToast = vi.fn();
+// Spy on the legacy board hand-off seam. The in-PLC flow must NEVER touch it
+// (Stream B contract: assignment creation happens in-PLC, no board open). See
+// PlcAssignmentsLibrarySubTab for the OLD flow that DID call this.
+const mockSetPendingAssignmentEdit = vi.fn();
 
 vi.mock('@/hooks/useQuizAssignments', () => ({
   useQuizAssignments: vi.fn(() => ({
@@ -80,6 +85,7 @@ vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(() => ({
     addToast: mockAddToast,
     rosters: [] as ClassRoster[],
+    setPendingAssignmentEdit: mockSetPendingAssignmentEdit,
   })),
 }));
 
@@ -103,6 +109,8 @@ vi.mock('@/utils/quizDriveService', () => ({
     createPlcSheetAndShare: vi.fn().mockResolvedValue({ url: '' }),
   })),
 }));
+
+import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 
 vi.mock('@/utils/resolveAssignmentTargets', () => ({
   deriveSessionTargetsFromRosters: vi.fn().mockReturnValue({
@@ -159,6 +167,7 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
     mockCreateQuizAssignment.mockClear();
     mockCreateVaAssignment.mockClear();
     mockAddToast.mockClear();
+    mockSetPendingAssignmentEdit.mockClear();
     mockCreateQuizAssignment.mockResolvedValue({
       id: 'assign-1',
       code: '1234',
@@ -320,6 +329,41 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
     });
   });
 
+  it('shows an error toast and does NOT close when createAssignment rejects', async () => {
+    const onClose = vi.fn();
+    mockCreateQuizAssignment.mockRejectedValueOnce(
+      new Error('Firestore assignment write failed')
+    );
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="quiz"
+        quizRef={fakeQuizRef}
+        isOpen
+        onClose={onClose}
+      />
+    );
+
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockCreateQuizAssignment).toHaveBeenCalledTimes(1);
+    });
+
+    // The teacher must get an error toast...
+    await waitFor(() => {
+      const errorToast = mockAddToast.mock.calls.find((c) => c[1] === 'error');
+      expect(errorToast).toBeDefined();
+    });
+
+    // ...and the modal must stay open so they can retry.
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
   it('does not call video createAssignment for quiz kind', async () => {
     render(
       <PlcAssignmentConfigModal
@@ -343,6 +387,34 @@ describe('PlcAssignmentConfigModal (quiz kind)', () => {
 
     expect(mockCreateVaAssignment).not.toHaveBeenCalled();
   });
+
+  it('NEVER hands off to the board via setPendingAssignmentEdit (Stream B contract)', async () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="quiz"
+        quizRef={fakeQuizRef}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockCreateQuizAssignment).toHaveBeenCalledTimes(1);
+    });
+
+    // The in-PLC flow creates the assignment directly (createAssignment) and
+    // must NOT trip the legacy board-open hand-off seam. The OLD board flow
+    // (PlcAssignmentsLibrarySubTab "Edit all settings…") called this; the
+    // in-PLC config modal must not.
+    expect(mockSetPendingAssignmentEdit).not.toHaveBeenCalled();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -354,6 +426,7 @@ describe('PlcAssignmentConfigModal (video-activity kind)', () => {
     mockCreateQuizAssignment.mockClear();
     mockCreateVaAssignment.mockClear();
     mockAddToast.mockClear();
+    mockSetPendingAssignmentEdit.mockClear();
     mockWritePlcVaTemplate.mockClear();
     mockCreateVaAssignment.mockResolvedValue({ id: 'va-assign-1' });
   });
@@ -473,5 +546,97 @@ describe('PlcAssignmentConfigModal (video-activity kind)', () => {
       />
     );
     expect(container.firstChild).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Tests — genuine rosterIds forwarding (T6)
+//
+// The other tests mock deriveSessionTargetsFromRosters to return empty
+// rosterIds, so rosterIds forwarding is never actually proven. Here we drive
+// the REAL derivation: real rosters are supplied via useDashboard, the resolver
+// mock delegates to the real implementation, and we select rosters through the
+// real AssignClassPicker. We then assert createAssignment receives the actual
+// selected rosterIds — pinning the picker → derive → createAssignment seam.
+// ---------------------------------------------------------------------------
+
+const rosterAlpha: ClassRoster = {
+  id: 'roster-alpha',
+  name: 'Period 1 Alpha',
+  driveFileId: null,
+  studentCount: 0,
+  students: [],
+  createdAt: 1000,
+};
+
+const rosterBeta: ClassRoster = {
+  id: 'roster-beta',
+  name: 'Period 2 Beta',
+  driveFileId: null,
+  studentCount: 0,
+  students: [],
+  createdAt: 1001,
+};
+
+describe('PlcAssignmentConfigModal — genuine rosterIds forwarding (T6)', () => {
+  beforeEach(() => {
+    mockCreateQuizAssignment.mockClear();
+    mockAddToast.mockClear();
+    mockSetPendingAssignmentEdit.mockClear();
+    mockCreateQuizAssignment.mockResolvedValue({
+      id: 'assign-1',
+      code: '1234',
+    });
+
+    // Supply REAL rosters to the modal.
+    vi.mocked(useDashboard).mockReturnValue({
+      addToast: mockAddToast,
+      rosters: [rosterAlpha, rosterBeta],
+      setPendingAssignmentEdit: mockSetPendingAssignmentEdit,
+    } as unknown as ReturnType<typeof useDashboard>);
+
+    // Delegate the resolver mock to the REAL derivation so rosterIds are
+    // actually computed from the selected rosters (not stubbed to empty).
+    vi.mocked(deriveSessionTargetsFromRosters).mockImplementation(
+      (rosters) => ({
+        rosterIds: rosters.map((r) => r.id),
+        classIds: [],
+        periodNames: rosters.map((r) => r.name),
+        classPeriodByClassId: {},
+        students: [],
+      })
+    );
+  });
+
+  it('forwards the actually-selected rosterIds to createAssignment', async () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="quiz"
+        quizRef={fakeQuizRef}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+
+    // Select a real roster through the real AssignClassPicker.
+    fireEvent.click(screen.getByText('Period 1 Alpha'));
+
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockCreateQuizAssignment).toHaveBeenCalledTimes(1);
+    });
+
+    // The 3rd arg to createQuizAssignment is the create-options object that
+    // carries rosterIds derived from the picker selection.
+    const opts = mockCreateQuizAssignment.mock.calls[0][2] as {
+      rosterIds: string[];
+    };
+    expect(opts.rosterIds).toEqual(['roster-alpha']);
   });
 });

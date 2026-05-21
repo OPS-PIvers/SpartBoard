@@ -103,6 +103,17 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
     );
   };
 
+  const handleUpdateError = (err: unknown): void => {
+    addToast(
+      err instanceof Error
+        ? err.message
+        : t('plcDashboard.docs.renameFailed', {
+            defaultValue: "Couldn't rename that doc. Please try again.",
+          }),
+      'error'
+    );
+  };
+
   // Build the embed URL for the selected doc.
   const embedUrl = selectedDoc
     ? convertToEmbedUrl(ensureProtocol(selectedDoc.url))
@@ -144,13 +155,35 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
             onUpdateDoc={updateDoc}
             onDeleteDoc={handleDeleteDoc}
             onAddError={handleAddError}
+            onUpdateError={handleUpdateError}
           />
         )}
       </div>
 
-      {/* ── Right pane: iframe or empty state ─────────────────────── */}
+      {/* ── Right pane: iframe, error, or empty state ─────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden bg-white relative">
-        {selectedDoc === null && !loading ? (
+        {error ? (
+          /* Load error — don't show the "Add a Google Doc" CTA, which would
+             mask a read failure as an empty list. */
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-red-50 flex items-center justify-center">
+              <AlertCircle className="w-7 h-7 text-red-400" />
+            </div>
+            <div>
+              <p className="font-semibold text-slate-700 text-base mb-1">
+                {t('plcDashboard.docs.errorTitle', {
+                  defaultValue: "Couldn't load docs",
+                })}
+              </p>
+              <p className="text-sm text-slate-500 max-w-xs">
+                {t('plcDashboard.docs.errorSubtitle', {
+                  defaultValue:
+                    'Check your connection and try again in a moment.',
+                })}
+              </p>
+            </div>
+          </div>
+        ) : selectedDoc === null && !loading ? (
           /* Empty state */
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-8 text-center">
             <div className="w-14 h-14 rounded-2xl bg-brand-blue-primary/10 flex items-center justify-center">

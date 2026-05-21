@@ -23,6 +23,12 @@ const INVITATIONS_COLLECTION = 'plc_invitations';
 interface UsePlcsResult {
   plcs: Plc[];
   loading: boolean;
+  /**
+   * Last snapshot error, or null. Surfaced so consumers (e.g. the admin
+   * PLC-target picker) can render a load-failure message instead of a
+   * misleading empty list. Reset to null on each successful snapshot.
+   */
+  error: Error | null;
   /** Create a new PLC with the current user as lead + sole member. Returns the new doc id. */
   createPlc: (name: string) => Promise<string>;
   /** Lead-only: rename the PLC. */
@@ -179,6 +185,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const { user } = useAuth();
   const [plcs, setPlcs] = useState<Plc[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     if (!enabled || !user || isAuthBypass) {
@@ -187,6 +194,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       const timer = setTimeout(() => {
         setPlcs([]);
         setLoading(false);
+        setError(null);
       }, 0);
       return () => clearTimeout(timer);
     }
@@ -210,10 +218,13 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
         list.sort((a, b) => a.name.localeCompare(b.name));
         setPlcs(list);
         setLoading(false);
+        // Clear any prior error on a recovered snapshot.
+        setError(null);
       },
       (err) => {
         console.error('PLC snapshot error:', err);
         setLoading(false);
+        setError(err instanceof Error ? err : new Error(String(err)));
       }
     );
     return () => unsubscribe();
@@ -454,6 +465,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     () => ({
       plcs,
       loading,
+      error,
       createPlc,
       renamePlc,
       removeMember,
@@ -467,6 +479,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
     [
       plcs,
       loading,
+      error,
       createPlc,
       renamePlc,
       removeMember,

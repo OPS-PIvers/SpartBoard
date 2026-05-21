@@ -217,6 +217,53 @@ describe('usePlcResources({ asAdmin: true })', () => {
     });
     expect(result.current.resources).toHaveLength(0);
   });
+
+  it('sets error when the admin-mode snapshot fails', async () => {
+    let errCb: (err: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_q, _onNext, onError) => {
+      errCb = onError as (err: unknown) => void;
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcResources({ asAdmin: true }));
+
+    act(() => {
+      errCb(new Error('admin-permission-denied'));
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+    expect(result.current.error?.message).toBe('admin-permission-denied');
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('sorts the admin resources by createdAt descending', () => {
+    let cb: (snap: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcResources({ asAdmin: true }));
+
+    // Provide docs out of chronological order — the hook must sort newest-first.
+    act(() => {
+      cb(
+        makeFakeSnap([
+          { id: 'old', data: makeResource('old', { createdAt: 1000 }) },
+          { id: 'new', data: makeResource('new', { createdAt: 3000 }) },
+          { id: 'mid', data: makeResource('mid', { createdAt: 2000 }) },
+        ])
+      );
+    });
+
+    expect(result.current.resources.map((r) => r.id)).toEqual([
+      'new',
+      'mid',
+      'old',
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -291,5 +338,58 @@ describe('usePlcResources({ plcId })', () => {
   it('does not expose mutator functions in PLC mode', () => {
     const { result } = renderHook(() => usePlcResources({ plcId: PLC_ID }));
     expect('createResource' in result.current).toBe(false);
+  });
+
+  it('sets error when a PLC-mode snapshot fails', async () => {
+    const errCallbacks: Array<(err: unknown) => void> = [];
+    mockOnSnapshot.mockImplementation((_q, _onNext, onError) => {
+      errCallbacks.push(onError as (err: unknown) => void);
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcResources({ plcId: PLC_ID }));
+
+    act(() => {
+      errCallbacks[0]?.(new Error('permission-denied'));
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+    expect(result.current.error?.message).toBe('permission-denied');
+  });
+
+  it('clears a prior error when a PLC-mode snapshot recovers', async () => {
+    const nextCallbacks: Array<(snap: unknown) => void> = [];
+    const errCallbacks: Array<(err: unknown) => void> = [];
+    mockOnSnapshot.mockImplementation((_q, onNext, onError) => {
+      nextCallbacks.push(onNext as (snap: unknown) => void);
+      errCallbacks.push(onError as (err: unknown) => void);
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcResources({ plcId: PLC_ID }));
+
+    // First, the all-scope query fails.
+    act(() => {
+      errCallbacks[0]?.(new Error('transient'));
+    });
+    await waitFor(() => {
+      expect(result.current.error).toBeInstanceOf(Error);
+    });
+
+    // Then a successful snapshot arrives on the same query — error must clear.
+    act(() => {
+      nextCallbacks[0]?.(
+        makeFakeSnap([
+          { id: 'r1', data: makeResource('r1', { scope: 'all', plcIds: [] }) },
+        ])
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.error).toBeNull();
+    });
+    expect(result.current.resources).toHaveLength(1);
   });
 });

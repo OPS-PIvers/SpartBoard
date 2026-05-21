@@ -399,4 +399,86 @@ describe('PlcSharedDataBody', () => {
       false
     );
   });
+
+  // -------------------------------------------------------------------------
+  // Cross-teacher synced group (T5)
+  // -------------------------------------------------------------------------
+
+  it('renders ONE card crediting BOTH teachers for a quiz synced across teachers', () => {
+    // Two teachers ran the SAME synced quiz (same syncGroupId). The view must
+    // collapse them into exactly ONE result card attributed to both teachers,
+    // never two cards and never a double-counted single teacher.
+    const aliceSynced: PlcContribution = {
+      ...aliceContrib,
+      id: 'c-alice-synced',
+      quizId: 'quiz-alice-copy',
+      syncGroupId: 'sync-shared',
+      teacherUid: 'uid-alice',
+      teacherName: 'Alice',
+      questionsSnapshot: [{ id: 'q1', text: 'Shared Synced Quiz', points: 10 }],
+      responses: [
+        {
+          studentDisplayName: 'Alice Student',
+          pin: null,
+          classPeriod: '1',
+          status: 'completed',
+          scorePercent: 80,
+          pointsEarned: 8,
+          maxPoints: 10,
+          tabSwitchWarnings: 0,
+          submittedAt: 2_000_000,
+          pointsByQuestionId: { q1: 8 },
+        },
+      ],
+      updatedAt: 2_000_000,
+    };
+    const bobSynced: PlcContribution = {
+      ...bobContrib,
+      id: 'c-bob-synced',
+      quizId: 'quiz-bob-copy',
+      syncGroupId: 'sync-shared',
+      teacherUid: 'uid-bob',
+      teacherName: 'Bob',
+      questionsSnapshot: [{ id: 'q1', text: 'Shared Synced Quiz', points: 10 }],
+      responses: [
+        {
+          studentDisplayName: 'Bob Student',
+          pin: null,
+          classPeriod: '1',
+          status: 'completed',
+          scorePercent: 60,
+          pointsEarned: 6,
+          maxPoints: 10,
+          tabSwitchWarnings: 0,
+          submittedAt: 2_000_001,
+          pointsByQuestionId: { q1: 6 },
+        },
+      ],
+      updatedAt: 2_000_001,
+    };
+
+    vi.mocked(usePlcAssignmentIndex).mockReturnValue({
+      entries: [],
+      loading: false,
+      error: null,
+    });
+    vi.mocked(usePlcContributions).mockReturnValue({
+      contributions: [aliceSynced, bobSynced],
+      loading: false,
+      error: null,
+    });
+
+    render(<PlcSharedDataBody plc={fakePlc} />);
+
+    const cards = screen.getAllByTestId('shared-data-card');
+    // Same syncGroupId → exactly ONE card.
+    expect(cards).toHaveLength(1);
+
+    // The card credits BOTH teachers (distinct teacherUids = 2).
+    expect(within(cards[0]).getByText(/^2 teachers$/)).toBeInTheDocument();
+
+    // Combined student count is 2 (one per teacher) — not double-counted, not
+    // shown as two separate cards.
+    expect(within(cards[0]).getByText(/^2 students$/)).toBeInTheDocument();
+  });
 });

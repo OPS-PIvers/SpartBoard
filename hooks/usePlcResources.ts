@@ -163,6 +163,9 @@ export function usePlcResources(
         });
         setAllScopeResources(list);
         setAllScopeLoading(false);
+        // Clear any prior error on a recovered snapshot (mirrors the admin
+        // path) so a transient failure doesn't stick after recovery.
+        setPlcError(null);
       },
       (err) => {
         logError('usePlcResources.plcMode.allScope', err, { plcId });
@@ -200,6 +203,9 @@ export function usePlcResources(
         });
         setSelectedScopeResources(list);
         setSelectedScopeLoading(false);
+        // Clear any prior error on a recovered snapshot (mirrors the admin
+        // path) so a transient failure doesn't stick after recovery.
+        setPlcError(null);
       },
       (err) => {
         logError('usePlcResources.plcMode.selectedScope', err, { plcId });

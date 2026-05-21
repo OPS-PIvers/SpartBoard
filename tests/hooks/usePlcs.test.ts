@@ -150,4 +150,51 @@ describe('usePlcs - subscription wiring', () => {
     expect(result.current.plcs.map((p) => p.id)).toEqual(['plc-a', 'plc-z']);
     expect(result.current.loading).toBe(false);
   });
+
+  it('sets error when the snapshot fails (no silent empty list)', () => {
+    let errCb: (err: unknown) => void = () => {
+      throw new Error('error callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, _onNext, onError) => {
+      errCb = onError as (err: unknown) => void;
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcs({ asAdmin: true }));
+
+    act(() => {
+      errCb(new Error('permission-denied'));
+    });
+
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.error?.message).toBe('permission-denied');
+    expect(result.current.loading).toBe(false);
+  });
+
+  it('clears a prior error when a later snapshot recovers', () => {
+    let nextCb: (snap: unknown) => void = () => undefined;
+    let errCb: (err: unknown) => void = () => undefined;
+    mockOnSnapshot.mockImplementation((_q, onNext, onError) => {
+      nextCb = onNext as (snap: unknown) => void;
+      errCb = onError as (err: unknown) => void;
+      return () => undefined;
+    });
+
+    const { result } = renderHook(() => usePlcs({ asAdmin: true }));
+
+    act(() => {
+      errCb(new Error('transient'));
+    });
+    expect(result.current.error).toBeInstanceOf(Error);
+
+    act(() => {
+      nextCb({ forEach: () => undefined });
+    });
+    expect(result.current.error).toBeNull();
+  });
+
+  it('defaults error to null before any snapshot resolves', () => {
+    const { result } = renderHook(() => usePlcs({ asAdmin: true }));
+    expect(result.current.error).toBeNull();
+  });
 });

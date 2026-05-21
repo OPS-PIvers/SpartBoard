@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlcTargetPicker } from '@/components/admin/PlcResourcesManager/PlcTargetPicker';
 import { usePlcs } from '@/hooks/usePlcs';
+import type { Mock } from 'vitest';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -18,6 +19,7 @@ vi.mock('@/hooks/usePlcs', () => ({
       { id: 'plc-3', name: 'Science Team' },
     ],
     loading: false,
+    error: null,
   })),
 }));
 
@@ -151,5 +153,22 @@ describe('PlcTargetPicker', () => {
     expect(
       screen.getByRole('checkbox', { name: /ela team/i })
     ).not.toBeChecked();
+  });
+
+  it('renders a load-failure message (not an empty list) when usePlcs errors', () => {
+    (usePlcs as unknown as Mock).mockReturnValueOnce({
+      plcs: [],
+      loading: false,
+      error: new Error('permission-denied'),
+    });
+    render(
+      <PlcTargetPicker
+        value={{ scope: 'selected', plcIds: [] }}
+        onChange={onChange}
+      />
+    );
+    // The misleading "No PLCs available" empty state must NOT show on error.
+    expect(screen.queryByText(/no plcs available/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/couldn't load plcs/i)).toBeInTheDocument();
   });
 });

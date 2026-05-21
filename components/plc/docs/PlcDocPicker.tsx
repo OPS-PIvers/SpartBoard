@@ -38,6 +38,8 @@ interface PlcDocPickerProps {
   onDeleteDoc: (id: string) => Promise<void>;
   /** Surface add-form failures to the parent (e.g. for a toast). */
   onAddError?: (err: unknown) => void;
+  /** Surface rename failures to the parent (e.g. for a toast). */
+  onUpdateError?: (err: unknown) => void;
 }
 
 export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
@@ -50,6 +52,7 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
       onUpdateDoc,
       onDeleteDoc,
       onAddError,
+      onUpdateError,
     },
     ref
   ) {
@@ -99,10 +102,20 @@ export const PlcDocPicker = forwardRef<PlcDocPickerHandle, PlcDocPickerProps>(
 
     const handleConfirmRename = async (id: string) => {
       const title = renameValue.trim();
-      if (title) {
-        await onUpdateDoc(id, { title });
+      if (!title) {
+        // Empty rename is a no-op confirm — just close the editor.
+        setRenamingId(null);
+        return;
       }
-      setRenamingId(null);
+      try {
+        await onUpdateDoc(id, { title });
+        setRenamingId(null);
+      } catch (err) {
+        // Surface the failure to the parent so it can toast, and leave the row
+        // open in edit mode so the user can retry — previously the rejected
+        // promise was discarded (void at the call sites) with no feedback.
+        onUpdateError?.(err);
+      }
     };
 
     const handleCancelRename = () => {

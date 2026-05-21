@@ -9,6 +9,7 @@ import {
   filterEntries,
   filterContributionResponses,
   summarize,
+  groupContributionsByQuizIdentity,
 } from '@/components/plc/sharedData/sharedDataSelectors';
 import type { PlcAssignmentIndexEntry, PlcContribution } from '@/types';
 
@@ -435,5 +436,193 @@ describe('summarize', () => {
     const result = summarize([contrib]);
     expect(result.avgScore).toBeNull();
     expect(result.studentCount).toBe(1);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// groupContributionsByQuizIdentity (T3)
+// ---------------------------------------------------------------------------
+
+describe('groupContributionsByQuizIdentity', () => {
+  it('collapses two contributions sharing a syncGroupId into ONE group', () => {
+    const c1 = makeContribution({
+      id: 'c1',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-1',
+      teacherUid: 'uid-alice',
+      teacherName: 'Alice',
+      updatedAt: 1_000,
+    });
+    const c2 = makeContribution({
+      id: 'c2',
+      // Different quizId, but SAME syncGroupId — identity is the syncGroupId.
+      quizId: 'quiz-b',
+      syncGroupId: 'sync-1',
+      teacherUid: 'uid-alice',
+      teacherName: 'Alice',
+      updatedAt: 2_000,
+    });
+
+    const groups = groupContributionsByQuizIdentity([c1, c2]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].identity).toBe('sync-1');
+    expect(groups[0].contributions).toHaveLength(2);
+  });
+
+  it('falls back to quizId as the identity when syncGroupId is null', () => {
+    const c1 = makeContribution({
+      id: 'c1',
+      quizId: 'quiz-only',
+      syncGroupId: null,
+    });
+
+    const groups = groupContributionsByQuizIdentity([c1]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].identity).toBe('quiz-only');
+  });
+
+  it('keeps distinct quizIds (null syncGroupId) in separate groups', () => {
+    const c1 = makeContribution({ id: 'c1', quizId: 'q1', syncGroupId: null });
+    const c2 = makeContribution({ id: 'c2', quizId: 'q2', syncGroupId: null });
+
+    const groups = groupContributionsByQuizIdentity([c1, c2]);
+    expect(groups).toHaveLength(2);
+    expect(groups.map((g) => g.identity).sort()).toEqual(['q1', 'q2']);
+  });
+
+  it('exposes the latest updatedAt across a group', () => {
+    const c1 = makeContribution({
+      id: 'c1',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-x',
+      updatedAt: 5_000,
+    });
+    const c2 = makeContribution({
+      id: 'c2',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-x',
+      updatedAt: 9_000,
+    });
+    const c3 = makeContribution({
+      id: 'c3',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-x',
+      updatedAt: 7_000,
+    });
+
+    const groups = groupContributionsByQuizIdentity([c1, c2, c3]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].latestUpdatedAt).toBe(9_000);
+  });
+
+  it('uses the single-owner index-entry title when available', () => {
+    const c1 = makeContribution({
+      id: 'c1',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-t',
+      teacherUid: 'uid-alice',
+    });
+    const titleByOwnerUid = new Map([
+      ['uid-alice', 'Unit 3 Quiz (from entry)'],
+    ]);
+
+    const groups = groupContributionsByQuizIdentity([c1], titleByOwnerUid);
+    expect(groups[0].title).toBe('Unit 3 Quiz (from entry)');
+  });
+
+  it('falls back to the first question text when no entry title is available', () => {
+    const c1 = makeContribution({
+      id: 'c1',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-t',
+      questionsSnapshot: [
+        { id: 'q1', text: 'What is photosynthesis?', points: 10 },
+      ],
+    });
+
+    // No titleByOwnerUid map → fall back to first question text.
+    const groups = groupContributionsByQuizIdentity([c1]);
+    expect(groups[0].title).toBe('What is photosynthesis?');
+  });
+
+  it('does NOT use the entry title when a group has multiple teachers', () => {
+    // Two teachers, same syncGroupId — teacherUids.size > 1 so the single-owner
+    // title hint must NOT apply (it would mis-attribute the title).
+    const alice = makeContribution({
+      id: 'c1',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-multi',
+      teacherUid: 'uid-alice',
+      questionsSnapshot: [{ id: 'q1', text: 'Shared question', points: 10 }],
+    });
+    const bob = makeContribution({
+      id: 'c2',
+      quizId: 'quiz-a',
+      syncGroupId: 'sync-multi',
+      teacherUid: 'uid-bob',
+    });
+    const titleByOwnerUid = new Map([['uid-alice', 'Alice Entry Title']]);
+
+    const groups = groupContributionsByQuizIdentity(
+      [alice, bob],
+      titleByOwnerUid
+    );
+    expect(groups).toHaveLength(1);
+    // Falls back to first question text, not the single-owner entry title.
+    expect(groups[0].title).toBe('Shared question');
+  });
+
+  it('cross-teacher: same syncGroupId → ONE group attributed to BOTH teachers (no double-count)', () => {
+    // The bug this function fixed: a quiz synced across two teachers must
+    // produce a SINGLE results group crediting both teachers, not two groups
+    // and not a double-counted single teacher.
+    const alice = makeContribution({
+      id: 'c-alice',
+      quizId: 'quiz-alice-copy',
+      syncGroupId: 'sync-shared',
+      teacherUid: 'uid-alice',
+      teacherName: 'Alice',
+      updatedAt: 3_000,
+    });
+    const bob = makeContribution({
+      id: 'c-bob',
+      quizId: 'quiz-bob-copy',
+      syncGroupId: 'sync-shared',
+      teacherUid: 'uid-bob',
+      teacherName: 'Bob',
+      updatedAt: 4_000,
+    });
+
+    const groups = groupContributionsByQuizIdentity([alice, bob]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0].identity).toBe('sync-shared');
+    // Both teachers attributed to the single group.
+    expect(groups[0].teacherUids.size).toBe(2);
+    expect(groups[0].teacherUids.has('uid-alice')).toBe(true);
+    expect(groups[0].teacherUids.has('uid-bob')).toBe(true);
+    // Both contributions belong to the one group (each counted exactly once).
+    expect(groups[0].contributions).toHaveLength(2);
+  });
+
+  it('sorts groups most-recent first by latestUpdatedAt', () => {
+    const older = makeContribution({
+      id: 'c-old',
+      quizId: 'q-old',
+      syncGroupId: null,
+      updatedAt: 1_000,
+    });
+    const newer = makeContribution({
+      id: 'c-new',
+      quizId: 'q-new',
+      syncGroupId: null,
+      updatedAt: 9_000,
+    });
+
+    const groups = groupContributionsByQuizIdentity([older, newer]);
+    expect(groups.map((g) => g.identity)).toEqual(['q-new', 'q-old']);
+  });
+
+  it('returns an empty array for no contributions', () => {
+    expect(groupContributionsByQuizIdentity([])).toHaveLength(0);
   });
 });

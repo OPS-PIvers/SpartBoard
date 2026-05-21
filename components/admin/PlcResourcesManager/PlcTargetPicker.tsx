@@ -27,7 +27,7 @@ export const PlcTargetPicker: React.FC<PlcTargetPickerProps> = ({
   // Admin read mode: subscribe to the whole /plcs collection so an admin who
   // isn't a member of every PLC still sees them all in the picker. The
   // membership-scoped default would silently return an empty list here.
-  const { plcs, loading } = usePlcs({ asAdmin: true });
+  const { plcs, loading, error } = usePlcs({ asAdmin: true });
 
   const handleScopeChange = (scope: PlcResourceScope) => {
     onChange({
@@ -96,6 +96,16 @@ export const PlcTargetPicker: React.FC<PlcTargetPickerProps> = ({
             <p className="text-xs text-slate-400 italic">
               {t('plcDashboard.resources.loadingPlcs', {
                 defaultValue: 'Loading PLCs…',
+              })}
+            </p>
+          ) : error ? (
+            /* Render a load-failure message instead of the misleading
+               "No PLCs available" empty state — an empty list on error
+               doesn't mean there are no PLCs, just that we couldn't read
+               them. */
+            <p className="text-xs text-brand-red-primary" role="alert">
+              {t('plcDashboard.resources.loadPlcsError', {
+                defaultValue: "Couldn't load PLCs. Please try again.",
               })}
             </p>
           ) : plcs.length === 0 ? (

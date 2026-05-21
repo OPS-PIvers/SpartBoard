@@ -8,7 +8,13 @@
 
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { FileText, ChevronRight, ExternalLink, Loader2 } from 'lucide-react';
+import {
+  FileText,
+  ChevronRight,
+  ExternalLink,
+  Loader2,
+  AlertCircle,
+} from 'lucide-react';
 import type { Plc, PlcDoc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 import type { PlcSectionId } from '../../sections';
@@ -34,7 +40,7 @@ export const RecentDocsCard: React.FC<RecentDocsCardProps> = ({
   onNavigate,
 }) => {
   const { t } = useTranslation();
-  const { docs, loading } = usePlcDocs(plc.id);
+  const { docs, loading, error } = usePlcDocs(plc.id);
 
   const recent = docs.slice(0, MAX_RECENT);
 
@@ -60,6 +66,29 @@ export const RecentDocsCard: React.FC<RecentDocsCardProps> = ({
         {loading ? (
           <div className="flex items-center justify-center py-6 text-slate-400">
             <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+          </div>
+        ) : error ? (
+          /* Surface load failures instead of the misleading "No shared docs"
+             empty state — an empty `docs` array on error doesn't mean there
+             are no docs, just that we couldn't read them. */
+          <div
+            className="flex flex-col items-center justify-center py-6 text-center"
+            role="alert"
+          >
+            <AlertCircle
+              className="w-8 h-8 text-brand-red-primary/70 mb-2"
+              aria-hidden="true"
+            />
+            <p className="text-sm font-semibold text-slate-600">
+              {t('plcDashboard.home.recentDocs.loadError', {
+                defaultValue: "Couldn't load docs",
+              })}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {t('plcDashboard.home.recentDocs.loadErrorSubtitle', {
+                defaultValue: 'Check your connection and try again.',
+              })}
+            </p>
           </div>
         ) : recent.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-6 text-center">
