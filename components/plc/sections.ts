@@ -7,6 +7,7 @@ import {
   BarChart3,
   FileText,
   ListChecks,
+  SquareSquare,
   Users2,
   Sparkles,
   Settings as SettingsIcon,
@@ -22,6 +23,7 @@ export type PlcSectionId =
   | 'sharedData'
   | 'docs'
   | 'todos'
+  | 'sharedBoards'
   | 'members'
   | 'resources'
   | 'settings';
@@ -82,6 +84,13 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     labelKey: 'plcDashboard.tabs.todos',
     labelDefault: 'To-Dos',
     feature: 'todos',
+  },
+  {
+    id: 'sharedBoards',
+    icon: SquareSquare,
+    labelKey: 'plcDashboard.tabs.sharedBoards',
+    labelDefault: 'Shared Boards',
+    feature: 'sharedBoards',
   },
   {
     id: 'members',
