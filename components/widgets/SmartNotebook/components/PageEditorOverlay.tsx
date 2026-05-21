@@ -170,8 +170,8 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             className="text-slate-400 font-semibold uppercase tracking-tight text-center"
             style={{ fontSize: 'min(10px, 2.5cqmin)' }}
           >
-            Click to select · drag to move · double-click text to edit · Delete
-            to remove
+            Click to select · drag to move · drag corners to resize ·
+            double-click text to edit · Ctrl/⌘+D to duplicate · Delete to remove
           </span>
         </div>
       }

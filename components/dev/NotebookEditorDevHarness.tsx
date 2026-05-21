@@ -81,7 +81,8 @@ export const NotebookEditorDevHarness: React.FC = () => {
               </span>
             </span>
             <span className="text-xs text-slate-400">
-              click to select · drag to move · Delete to remove
+              click to select · drag to move · drag corners to resize ·
+              dbl-click text · Ctrl/⌘+D duplicate · Delete to remove
             </span>
           </>
         )}
