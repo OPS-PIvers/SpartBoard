@@ -131,6 +131,50 @@ export const findObjectById = (
     `[${EDIT_ID_ATTR}="${CSS.escape(id)}"]`
   );
 
+/**
+ * The leaf text runs of a text object — the innermost tspans that directly
+ * hold characters (SMART nests tspans for justification/positioning). Editing
+ * these in place preserves each run's position and font. Falls back to the
+ * element itself when there are no tspans.
+ */
+export const getTextLeaves = (obj: Element): Element[] => {
+  const leaves: Element[] = [];
+  obj.querySelectorAll('tspan').forEach((t) => {
+    const hasElementChild = Array.from(t.childNodes).some(
+      (n) => n.nodeType === Node.ELEMENT_NODE
+    );
+    if (!hasElementChild && (t.textContent ?? '').length > 0) leaves.push(t);
+  });
+  if (leaves.length === 0 && (obj.textContent ?? '').trim().length > 0) {
+    leaves.push(obj);
+  }
+  return leaves;
+};
+
+/** Current text of an object, one line per leaf run. */
+export const readTextLines = (obj: Element): string =>
+  getTextLeaves(obj)
+    .map((l) => l.textContent ?? '')
+    .join('\n');
+
+/**
+ * Write edited text back into a text object, one line per leaf run (preserving
+ * each run's position/font). Extra lines fold into the last run; missing lines
+ * clear their run.
+ */
+export const writeTextLines = (obj: Element, value: string): void => {
+  const leaves = getTextLeaves(obj);
+  const lines = value.split('\n');
+  if (leaves.length === 0) {
+    obj.textContent = value;
+    return;
+  }
+  leaves.forEach((leaf, i) => {
+    leaf.textContent =
+      i < leaves.length - 1 ? (lines[i] ?? '') : lines.slice(i).join(' ');
+  });
+};
+
 /** Marks editor-only nodes (e.g. the selection highlight) for stripping. */
 const EDIT_OVERLAY_ATTR = 'data-edit-overlay';
 /** Holds an object's transform as it was before any editor move. */

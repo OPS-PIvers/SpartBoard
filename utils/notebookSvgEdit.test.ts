@@ -7,6 +7,8 @@ import {
   findForeground,
   findObjectById,
   exportEditedSvg,
+  readTextLines,
+  writeTextLines,
 } from './notebookSvgEdit';
 
 const parseSvg = (markup: string): SVGSVGElement => {
@@ -87,6 +89,44 @@ describe('objectIdForTarget', () => {
     ensureObjectIds(svg);
     const rect = svg.querySelector('rect');
     expect(objectIdForTarget(svg, rect as unknown as Element)).toBeNull();
+  });
+});
+
+describe('text editing', () => {
+  const MULTILINE = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+    <g class="foreground">
+      <text transform="translate(10,20)">
+        <tspan><tspan x="0" y="10">first</tspan></tspan>
+        <tspan><tspan x="0" y="30">second</tspan></tspan>
+      </text>
+    </g>
+  </svg>`;
+
+  it('reads each leaf run as a line', () => {
+    const svg = parseSvg(MULTILINE);
+    const text = svg.querySelector('text') as unknown as Element;
+    expect(readTextLines(text)).toBe('first\nsecond');
+  });
+
+  it('writes lines back into the leaf runs, preserving structure', () => {
+    const svg = parseSvg(MULTILINE);
+    const text = svg.querySelector('text') as unknown as Element;
+    writeTextLines(text, 'ONE\nTWO');
+    const leaves = text.querySelectorAll('tspan[x]');
+    expect(leaves[0].textContent).toBe('ONE');
+    expect(leaves[1].textContent).toBe('TWO');
+    // The positioned tspans (x/y) are retained.
+    expect(leaves[0].getAttribute('y')).toBe('10');
+    expect(leaves[1].getAttribute('y')).toBe('30');
+  });
+
+  it('folds extra lines into the last run and clears missing ones', () => {
+    const svg = parseSvg(MULTILINE);
+    const text = svg.querySelector('text') as unknown as Element;
+    writeTextLines(text, 'only');
+    const leaves = text.querySelectorAll('tspan[x]');
+    expect(leaves[0].textContent).toBe('only');
+    expect(leaves[1].textContent).toBe('');
   });
 });
 

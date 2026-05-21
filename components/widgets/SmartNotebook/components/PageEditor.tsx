@@ -11,6 +11,8 @@ import {
   objectIdForTarget,
   findObjectById,
   exportEditedSvg,
+  readTextLines,
+  writeTextLines,
   EDIT_OVERLAY_ATTR,
   ORIG_TRANSFORM_ATTR,
   EditableObjectInfo,
@@ -64,6 +66,15 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Text-edit overlay: which object is being edited, where, and its value.
+  const [editing, setEditing] = useState<{
+    id: string;
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    value: string;
+  } | null>(null);
 
   const prepared = useMemo(() => prepareEditableSvg(svg), [svg]);
 
@@ -72,6 +83,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   if (prepared !== prevPrepared) {
     setPrevPrepared(prepared);
     setSelectedId(null);
+    setEditing(null);
   }
 
   const positionHighlight = useCallback((id: string | null) => {
@@ -148,9 +160,11 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     onSelRef.current?.(info);
   }, [selectedId, positionHighlight, prepared]);
 
-  // Delete / Escape on the selected object.
+  // Delete / Escape on the selected object. Suppressed while editing text (the
+  // textarea owns the keyboard then).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (editing) return;
       if (e.key === 'Escape') {
         setSelectedId(null);
         return;
@@ -167,7 +181,43 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, emitChange]);
+  }, [selectedId, emitChange, editing]);
+
+  // Double-click a text object to edit its words in an overlay textarea.
+  const handleDoubleClick = (e: React.MouseEvent) => {
+    const svgEl = svgRef.current;
+    const container = containerRef.current;
+    if (!svgEl || !container) return;
+    const id = objectIdForTarget(svgEl, e.target as Element);
+    if (!id) return;
+    const info = objectsRef.current.find((o) => o.id === id);
+    if (info?.kind !== 'text') return;
+    const obj = findObjectById(svgEl, id);
+    if (!obj) return;
+    const c = container.getBoundingClientRect();
+    const r = obj.getBoundingClientRect();
+    setSelectedId(id);
+    setEditing({
+      id,
+      left: r.left - c.left,
+      top: r.top - c.top,
+      width: Math.max(r.width, 60),
+      height: Math.max(r.height, 28),
+      value: readTextLines(obj),
+    });
+  };
+
+  const applyTextEdit = () => {
+    const svgEl = svgRef.current;
+    if (!svgEl || !editing) return;
+    const obj = findObjectById(svgEl, editing.id);
+    if (obj) {
+      writeTextLines(obj, editing.value);
+      positionHighlight(editing.id);
+      emitChange();
+    }
+    setEditing(null);
+  };
 
   // Convert a client-space delta to the SVG's user-space delta.
   const toUserDelta = (
@@ -183,7 +233,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
   const handlePointerDown = (e: React.PointerEvent) => {
     const svgEl = svgRef.current;
-    if (!svgEl) return;
+    if (!svgEl || editing) return;
     const id = objectIdForTarget(svgEl, e.target as Element);
     setSelectedId(id);
     if (!id) return;
@@ -244,8 +294,37 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
         role="presentation"
       />
+      {editing && (
+        <textarea
+          autoFocus
+          value={editing.value}
+          onChange={(e) =>
+            setEditing((prev) =>
+              prev ? { ...prev, value: e.target.value } : prev
+            )
+          }
+          onBlur={applyTextEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Escape') {
+              e.preventDefault();
+              setEditing(null);
+            } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+              e.preventDefault();
+              applyTextEdit();
+            }
+          }}
+          className="absolute z-10 resize-none rounded border-2 border-indigo-500 bg-white/95 px-1 py-0.5 leading-tight text-slate-900 shadow-lg outline-none"
+          style={{
+            left: editing.left,
+            top: editing.top,
+            width: editing.width,
+            minHeight: editing.height,
+          }}
+        />
+      )}
     </div>
   );
 };
