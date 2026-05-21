@@ -48,13 +48,10 @@ import { ClassesConfigurationPanel } from './ClassesConfigurationPanel';
 import { HotspotImageConfigurationPanel } from './HotspotImageConfigurationPanel';
 import { ConceptWebConfigurationPanel } from './ConceptWebConfigurationPanel';
 import { SyntaxFramerConfigurationPanel } from './SyntaxFramerConfigurationPanel';
-import { MagicConfigurationPanel } from './MagicConfigurationPanel';
-import { RecordConfigurationPanel } from './RecordConfigurationPanel';
 import { SeatingChartConfigurationPanel } from './SeatingChartConfigurationPanel';
 import { RevealGridConfigurationPanel } from './RevealGridConfigurationPanel';
 import { RecessGearConfigurationPanel } from './RecessGearConfigurationPanel';
 import { SmartNotebookConfigurationPanel } from './SmartNotebookConfigurationPanel';
-import { RemoteConfigurationPanel } from './RemoteConfigurationPanel';
 import { UrlConfigurationPanel } from './UrlConfigurationPanel';
 import { CountdownConfigurationPanel } from './CountdownConfigurationPanel';
 import { First5ConfigurationPanel } from './First5ConfigurationPanel';
@@ -131,11 +128,8 @@ const BUILDING_CONFIG_PANELS: Partial<Record<string, BuildingConfigPanel>> = {
   classes: ClassesConfigurationPanel as unknown as BuildingConfigPanel,
   smartNotebook:
     SmartNotebookConfigurationPanel as unknown as BuildingConfigPanel,
-  magic: MagicConfigurationPanel as unknown as BuildingConfigPanel,
-  record: RecordConfigurationPanel as unknown as BuildingConfigPanel,
   'guided-learning':
     GuidedLearningConfigurationPanel as unknown as BuildingConfigPanel,
-  remote: RemoteConfigurationPanel as unknown as BuildingConfigPanel,
   countdown: CountdownConfigurationPanel as unknown as BuildingConfigPanel,
   'first-5': First5ConfigurationPanel as unknown as BuildingConfigPanel,
   'need-do-put-then':
