@@ -14,7 +14,11 @@ import React, { useCallback, useState } from 'react';
 import { VideoActivityEditorModal } from '@/components/widgets/VideoActivityWidget/components/VideoActivityEditorModal';
 import { useAuth } from '@/context/useAuth';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
-import type { Plc, VideoActivityData } from '@/types';
+import type {
+  Plc,
+  VideoActivityBehaviorSettings,
+  VideoActivityData,
+} from '@/types';
 import type { AssignmentActivityRef } from '@/hooks/useVideoActivityAssignments';
 import { PlcAssignmentConfigModal } from '../assignments/PlcAssignmentConfigModal';
 
@@ -47,8 +51,11 @@ export const PlcAuthorVideoActivityModal: React.FC<
   }));
 
   const handleSave = useCallback(
-    async (activity: VideoActivityData) => {
-      const metadata = await saveActivity(activity);
+    async (
+      activity: VideoActivityData,
+      behavior: VideoActivityBehaviorSettings
+    ) => {
+      const metadata = await saveActivity(activity, undefined, behavior);
       const ref: AssignmentActivityRef = {
         id: metadata.id,
         title: metadata.title,

@@ -30,7 +30,13 @@ import {
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 import { PlcAuthorVideoActivityModal } from '@/components/plc/authoring/PlcAuthorVideoActivityModal';
-import type { Plc, VideoActivityData, VideoActivityMetadata } from '@/types';
+import type {
+  Plc,
+  VideoActivityBehaviorSettings,
+  VideoActivityData,
+  VideoActivityMetadata,
+} from '@/types';
+import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 
 // ---------------------------------------------------------------------------
 // Mocks
@@ -73,7 +79,10 @@ vi.mock(
         onClose,
       }: {
         isOpen: boolean;
-        onSave: (a: VideoActivityData) => Promise<void>;
+        onSave: (
+          a: VideoActivityData,
+          b: VideoActivityBehaviorSettings
+        ) => Promise<void>;
         onClose: () => void;
       }) => {
         if (!isOpen) return null;
@@ -87,7 +96,9 @@ vi.mock(
         };
         return (
           <div data-testid="va-editor-modal">
-            <button onClick={() => onSave(fakeActivity)}>Save Activity</button>
+            <button onClick={() => onSave(fakeActivity, DEFAULT_VA_BEHAVIOR)}>
+              Save Activity
+            </button>
             <button onClick={onClose}>Cancel</button>
           </div>
         );
@@ -192,7 +203,9 @@ describe('PlcAuthorVideoActivityModal', () => {
 
     expect(mockSaveActivity).toHaveBeenCalledTimes(1);
     expect(mockSaveActivity).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Cell Division Video' })
+      expect.objectContaining({ title: 'Cell Division Video' }),
+      undefined,
+      expect.objectContaining({ sessionMode: DEFAULT_VA_BEHAVIOR.sessionMode })
     );
   });
 

@@ -40,6 +40,7 @@ import { Creator } from './components/Creator';
 import { Results } from './components/Results';
 import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
+import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 
@@ -921,6 +922,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         isAdmin={isAdmin === true}
         folders={editingMeta ? videoActivityFolders : undefined}
         folderId={editingMeta?.folderId ?? null}
+        behavior={
+          editingMeta ? getVideoActivityBehavior(editingMeta) : undefined
+        }
         onFolderChange={
           editingMeta
             ? async (folderId) => {
@@ -942,9 +946,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           setEditingActivity(null);
           setEditingMeta(null);
         }}
-        onSave={async (updated) => {
+        onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
-          await saveActivity(updated, editingMeta?.driveFileId);
+          await saveActivity(updated, editingMeta?.driveFileId, behavior);
           addToast(
             isNew ? 'Activity created!' : 'Activity updated!',
             'success'

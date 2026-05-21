@@ -17,6 +17,8 @@ export { useSortableReorder } from './useSortableReorder';
 export { AssignModal } from './AssignModal';
 export { QuizBehaviorSettingsPanel } from './QuizBehaviorSettingsPanel';
 export type { QuizBehaviorSettingsPanelProps } from './QuizBehaviorSettingsPanel';
+export { VideoActivityBehaviorSettingsPanel } from './VideoActivityBehaviorSettingsPanel';
+export type { VideoActivityBehaviorSettingsPanelProps } from './VideoActivityBehaviorSettingsPanel';
 export { ViewOnlyShareModal } from './ViewOnlyShareModal';
 export type { ViewOnlyShareModalProps } from './ViewOnlyShareModal';
 export { CollapsibleSection } from './CollapsibleSection';
