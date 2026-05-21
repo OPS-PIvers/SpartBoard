@@ -24,6 +24,14 @@ import {
   parseNotebookFile,
   NotebookTooLargeError,
 } from '@/utils/notebookParser';
+import {
+  insertBlankPage,
+  deletePage,
+  movePage,
+  canMovePage,
+  blankPageSvg,
+  PageListState,
+} from '@/utils/notebookPages';
 
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
@@ -46,6 +54,7 @@ export const SmartNotebookWidget: React.FC<{
   const [showAssets, setShowAssets] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isPageOp, setIsPageOp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch notebooks from Firestore.
@@ -315,6 +324,96 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Persist a new page list (urls/paths/sections) to Firestore.
+  const persistPageList = async (next: PageListState) => {
+    if (!user || !activeNotebook) return;
+    await updateDoc(
+      doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+      {
+        pageUrls: next.pageUrls,
+        pagePaths: next.pagePaths,
+        ...(next.sections ? { sections: next.sections } : {}),
+      }
+    );
+  };
+
+  // Insert a blank page after the current one and navigate to it.
+  const handleAddPage = async () => {
+    if (!user || !activeNotebook) return;
+    setIsPageOp(true);
+    try {
+      const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
+      const path = `${notebookPath}/page-blank-${crypto.randomUUID()}.svg`;
+      const file = new File([blankPageSvg()], 'blank.svg', {
+        type: 'image/svg+xml',
+      });
+      const url = await uploadFile(path, file);
+      await persistPageList(
+        insertBlankPage(activeNotebook, currentPage, url, path)
+      );
+      setCurrentPage(currentPage + 1);
+      addToast('Blank page added', 'success');
+    } catch (err) {
+      console.error('Failed to add page', err);
+      addToast('Failed to add page', 'error');
+    } finally {
+      setIsPageOp(false);
+    }
+  };
+
+  // Delete the current page (with confirmation) and clean up its storage file.
+  const handleDeletePage = async () => {
+    if (!user || !activeNotebook) return;
+    if (activeNotebook.pageUrls.length <= 1) {
+      addToast('A notebook needs at least one page', 'error');
+      return;
+    }
+    const confirmed = await showConfirm('Delete this page?', {
+      title: 'Delete Page',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (!confirmed) return;
+    setIsPageOp(true);
+    try {
+      const { state: next, removedPath } = deletePage(
+        activeNotebook,
+        currentPage
+      );
+      await persistPageList(next);
+      if (removedPath) {
+        await deleteFile(removedPath).catch((e) => console.error(e));
+      }
+      setCurrentPage((p) => Math.min(p, next.pageUrls.length - 1));
+      addToast('Page deleted', 'success');
+    } catch (err) {
+      console.error('Failed to delete page', err);
+      addToast('Failed to delete page', 'error');
+    } finally {
+      setIsPageOp(false);
+    }
+  };
+
+  // Reorder the current page within its lesson, following it to the new spot.
+  const handleMovePage = async (dir: -1 | 1) => {
+    if (
+      !user ||
+      !activeNotebook ||
+      !canMovePage(activeNotebook, currentPage, dir)
+    )
+      return;
+    setIsPageOp(true);
+    try {
+      await persistPageList(movePage(activeNotebook, currentPage, dir));
+      setCurrentPage(currentPage + dir);
+    } catch (err) {
+      console.error('Failed to move page', err);
+      addToast('Failed to move page', 'error');
+    } finally {
+      setIsPageOp(false);
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, url: string) => {
     const img = e.currentTarget.querySelector('img');
     const ratio = img ? img.naturalWidth / img.naturalHeight : 1;
@@ -355,6 +454,12 @@ export const SmartNotebookWidget: React.FC<{
         setCurrentPage={setCurrentPage}
         handleDragStart={handleDragStart}
         onEditPage={() => setEditMode(true)}
+        onAddPage={() => void handleAddPage()}
+        onDeletePage={() => void handleDeletePage()}
+        onMovePage={(dir) => void handleMovePage(dir)}
+        canMoveEarlier={canMovePage(activeNotebook, currentPage, -1)}
+        canMoveLater={canMovePage(activeNotebook, currentPage, 1)}
+        pageOpBusy={isPageOp}
       />
     );
   }

@@ -1,5 +1,15 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, FileText, Pencil, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Pencil,
+  Plus,
+  Trash2,
+  ArrowLeft,
+  ArrowRight,
+  X,
+} from 'lucide-react';
 import { NotebookItem } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
@@ -13,6 +23,12 @@ interface ViewerProps {
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   handleDragStart: (e: React.DragEvent, url: string) => void;
   onEditPage?: () => void;
+  onAddPage?: () => void;
+  onDeletePage?: () => void;
+  onMovePage?: (dir: -1 | 1) => void;
+  canMoveEarlier?: boolean;
+  canMoveLater?: boolean;
+  pageOpBusy?: boolean;
 }
 
 export const Viewer: React.FC<ViewerProps> = ({
@@ -25,7 +41,20 @@ export const Viewer: React.FC<ViewerProps> = ({
   setCurrentPage,
   handleDragStart,
   onEditPage,
+  onAddPage,
+  onDeletePage,
+  onMovePage,
+  canMoveEarlier = false,
+  canMoveLater = false,
+  pageOpBusy = false,
 }) => {
+  const iconStyle = {
+    width: 'min(16px, 4cqmin)',
+    height: 'min(16px, 4cqmin)',
+  };
+  const toolBtnClass =
+    'rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-40';
+  const toolBtnStyle = { padding: 'min(8px, 2cqmin)' };
   // Optional lesson grouping (derived from the notebook's manifest at import,
   // for both raw .notebook and converted .spartnb files). Find which lesson
   // the current page falls in.
@@ -97,19 +126,58 @@ export const Viewer: React.FC<ViewerProps> = ({
                 ))}
               </select>
             )}
+            {onMovePage && (
+              <>
+                <button
+                  onClick={() => onMovePage(-1)}
+                  disabled={pageOpBusy || !canMoveEarlier}
+                  className={toolBtnClass}
+                  style={toolBtnStyle}
+                  title="Move page earlier"
+                >
+                  <ArrowLeft style={iconStyle} />
+                </button>
+                <button
+                  onClick={() => onMovePage(1)}
+                  disabled={pageOpBusy || !canMoveLater}
+                  className={toolBtnClass}
+                  style={toolBtnStyle}
+                  title="Move page later"
+                >
+                  <ArrowRight style={iconStyle} />
+                </button>
+              </>
+            )}
+            {onAddPage && (
+              <button
+                onClick={onAddPage}
+                disabled={pageOpBusy}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title="Add blank page"
+              >
+                <Plus style={iconStyle} />
+              </button>
+            )}
+            {onDeletePage && (
+              <button
+                onClick={onDeletePage}
+                disabled={pageOpBusy}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title="Delete page"
+              >
+                <Trash2 style={iconStyle} />
+              </button>
+            )}
             {onEditPage && (
               <button
                 onClick={onEditPage}
-                className="rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm"
-                style={{ padding: 'min(8px, 2cqmin)' }}
+                className={toolBtnClass}
+                style={toolBtnStyle}
                 title="Edit page"
               >
-                <Pencil
-                  style={{
-                    width: 'min(16px, 4cqmin)',
-                    height: 'min(16px, 4cqmin)',
-                  }}
-                />
+                <Pencil style={iconStyle} />
               </button>
             )}
             {hasAssets && (
