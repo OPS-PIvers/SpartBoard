@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, SmartNotebookConfig, NotebookItem } from '@/types';
+import {
+  WidgetData,
+  SmartNotebookConfig,
+  NotebookItem,
+  NotebookSection,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
@@ -14,7 +19,10 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { parseNotebookFile } from '@/utils/notebookParser';
+import {
+  parseNotebookFile,
+  NotebookTooLargeError,
+} from '@/utils/notebookParser';
 
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
@@ -58,6 +66,7 @@ export const SmartNotebookWidget: React.FC<{
           pagePaths: (data.pagePaths as string[]) ?? [],
           assetUrls: (data.assetUrls as string[]) ?? [],
           createdAt: (data.createdAt as number) ?? 0,
+          sections: data.sections as NotebookSection[] | undefined,
         } as NotebookItem;
       });
       setNotebooks(items);
@@ -126,7 +135,7 @@ export const SmartNotebookWidget: React.FC<{
 
     setIsImporting(true);
     try {
-      const { title, pages, assets } = await parseNotebookFile(file);
+      const { title, pages, assets, sections } = await parseNotebookFile(file);
       const notebookId = crypto.randomUUID();
 
       // Helper to upload a set of blobs to a specific path structure
@@ -166,6 +175,8 @@ export const SmartNotebookWidget: React.FC<{
         pagePaths: uploadedPaths,
         assetUrls: uploadedAssetUrls,
         createdAt: Date.now(),
+        // Only include `sections` when present — Firestore rejects `undefined`.
+        ...(sections && sections.length > 0 ? { sections } : {}),
       };
 
       await setDoc(
@@ -180,7 +191,11 @@ export const SmartNotebookWidget: React.FC<{
       });
     } catch (err) {
       console.error(err);
-      addToast('Failed to import notebook', 'error');
+      if (err instanceof NotebookTooLargeError) {
+        addToast(err.message, 'error');
+      } else {
+        addToast('Failed to import notebook', 'error');
+      }
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';

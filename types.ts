@@ -2191,6 +2191,23 @@ export interface SeatingChartConfig {
   templateColumns?: number; // Number of columns for 'rows' template
 }
 
+/**
+ * A lesson/section within an imported notebook. SMART Notebook files group
+ * their pages into lessons (e.g. "9.1", "Review") in their imsmanifest.xml;
+ * the importer preserves that grouping (from the raw manifest, or from a
+ * converted .spartnb bundle's manifest.json) so the Viewer can offer lesson
+ * navigation. Optional — notebooks imported without section metadata simply
+ * have no sections.
+ */
+export interface NotebookSection {
+  /** Lesson/section title from the source notebook. */
+  title: string;
+  /** 0-based index of this section's first page within pageUrls. */
+  startIndex: number;
+  /** Number of pages in this section. */
+  pageCount: number;
+}
+
 export interface NotebookItem {
   id: string;
   title: string;
@@ -2198,6 +2215,8 @@ export interface NotebookItem {
   pagePaths: string[];
   assetUrls?: string[];
   createdAt: number;
+  /** Optional lesson grouping; present when the imported file carried it. */
+  sections?: NotebookSection[];
 }
 
 export interface SmartNotebookConfig {
