@@ -6,7 +6,8 @@
 //   - author-only writes
 //   - schema lock-down (`keys().hasOnly([...])`) so future readers don't
 //     have to defensively parse unexpected payloads
-//   - `sheetUrl` pinned to the parent PLC's `sharedSheetUrl` (anti-phish)
+//   - `sheetUrl` pinned to the trusted Google Sheets domain (anti-phish);
+//     per-assignment sheets mean we can't pin to one canonical PLC URL
 //   - update rule blocks owner takeover by a different PLC member
 //   - immutability of `id`, `ownerUid`, `createdAt` on update
 //
@@ -206,15 +207,59 @@ describe('plcs/{plcId}/assignment_index — create', () => {
     );
   });
 
-  it('rejects when sheetUrl != parent PLC sharedSheetUrl (anti-phish pin)', async () => {
+  it('rejects a non-Google sheetUrl (anti-phish domain pin)', async () => {
     // The dashboard renders `sheetUrl` as a clickable `<a href>`. If the
     // rule allowed an arbitrary string here, any member could turn the
     // PLC dashboard into a phishing redirect for every teammate. The
-    // rule pins it to the PLC's canonical `sharedSheetUrl`.
+    // rule pins it to the trusted Google Sheets host/path prefix.
     await assertFails(
       setDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
         validEntry({ sheetUrl: PHISH_URL })
+      )
+    );
+  });
+
+  it('rejects a docs.google.com URL outside /spreadsheets/ (e.g. /document/)', async () => {
+    // A Google Docs (not Sheets) URL is still a Google host, but the
+    // index only ever links per-assignment *sheets*. Pinning the
+    // /spreadsheets/ path keeps the surface tight.
+    await assertFails(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
+        validEntry({
+          sheetUrl: 'https://docs.google.com/document/d/some-doc-id',
+        })
+      )
+    );
+  });
+
+  it('rejects a non-Google host that embeds the trusted prefix (anchor bypass)', async () => {
+    // The domain pin is anchored (`^...$`) so an attacker can't smuggle a
+    // hostile host by appending the trusted prefix as a fragment/query.
+    await assertFails(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
+        validEntry({
+          sheetUrl:
+            'https://evil.example.com/#https://docs.google.com/spreadsheets/d/x',
+        })
+      )
+    );
+  });
+
+  it('accepts a per-assignment sheet URL that differs from the PLC sharedSheetUrl', async () => {
+    // Regression: each assignment now gets its own unique sheet (#1448),
+    // so the entry's `sheetUrl` will NOT equal the PLC's `sharedSheetUrl`.
+    // The old exact-match pin rejected every per-assignment PLC create;
+    // the domain-prefix rule must accept any valid Google Sheets URL.
+    await assertSucceeds(
+      setDoc(
+        doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
+        validEntry({
+          sheetUrl:
+            'https://docs.google.com/spreadsheets/d/per-assignment-unique-id/edit',
+        })
       )
     );
   });
@@ -256,21 +301,17 @@ describe('plcs/{plcId}/assignment_index — create', () => {
     );
   });
 
-  it('rejects when the parent PLC has no sharedSheetUrl', async () => {
-    // Race: a PLC whose first assignment hasn't created the shared sheet
-    // yet has `sharedSheetUrl == null`. The rule's `get('sharedSheetUrl',
-    // '')` defaults to `''`, so an entry with sheetUrl `''` would
-    // technically match — but the production code never writes an
-    // empty sheetUrl (the assignment-create flow requires the sheet to
-    // exist first). Pin this so a future regression that wrote `sheetUrl
-    // = ''` for a sheet-less PLC would still match against `''` — i.e.
-    // verify that a NON-empty mismatched URL is still rejected.
+  it('accepts a valid sheetUrl regardless of the parent PLC sharedSheetUrl', async () => {
+    // The rule no longer cross-references the PLC's `sharedSheetUrl` — a
+    // PLC whose `sharedSheetUrl` is null (first assignment hasn't run the
+    // QuizResults export flow yet) must still accept a per-assignment
+    // sheet create. This is the exact state most PLC quiz creates are in.
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await updateDoc(doc(ctx.firestore(), `plcs/${PLC_ID}`), {
         sharedSheetUrl: null,
       });
     });
-    await assertFails(
+    await assertSucceeds(
       setDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
         validEntry({ sheetUrl: SHEET_URL })
@@ -368,8 +409,9 @@ describe('plcs/{plcId}/assignment_index — update', () => {
   });
 
   it('rejects sheetUrl drift to an arbitrary URL on update', async () => {
-    // Same anti-phish guard as create — once an entry is in place, the
-    // owner can't later swap the link to point at a different sheet.
+    // Same anti-phish guard as create — the owner can't later swap the
+    // link to a non-Google host (they may still point it at a different
+    // Google Sheets URL, which the domain-prefix rule permits).
     await assertFails(
       updateDoc(
         doc(asMemberA(), `plcs/${PLC_ID}/assignment_index/${ASSIGNMENT_ID}`),
