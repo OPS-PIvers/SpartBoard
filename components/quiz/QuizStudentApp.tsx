@@ -919,8 +919,17 @@ const ActiveQuiz: React.FC<{
   // full response logic in one place (guard checks, debounce, increment,
   // modal). See `hooks/useFocusLossPoll.ts` for the snapshot-race the
   // first-mount-only seed protects against.
+  // Gate the poll with the same stable conditions `handleVisibilityChange`
+  // guards on (active session + not-yet-completed), mirroring
+  // VideoActivityStudentApp's focusPollEnabled. Outside an active attempt the
+  // poll shouldn't run a 250ms timer or dispatch synthetic blur events. The
+  // `isWarningShowingRef` guard stays inside the handler (it's a ref).
+  const focusPollEnabled =
+    tabWarningsEnabled &&
+    session.status === 'active' &&
+    myResponse?.status !== 'completed';
   useFocusLossPoll({
-    enabled: tabWarningsEnabled,
+    enabled: focusPollEnabled,
     onFocusLoss: () => window.dispatchEvent(new Event('blur')),
   });
 

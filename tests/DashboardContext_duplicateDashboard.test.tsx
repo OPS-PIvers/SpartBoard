@@ -284,7 +284,11 @@ describe('DashboardContext.duplicateDashboard', () => {
     expect(saved.thumbnailUrl).toBeUndefined();
     expect(saved.sharedGroups).toBeUndefined();
     expect(saved.isPinned).toBeUndefined();
-    expect(saved.isDefault).toBeUndefined();
+
+    // isDefault is stripped by sanitizeBoardSnapshot then explicitly
+    // re-initialized to false — a duplicate must never inherit default
+    // status, and an explicit boolean keeps Firestore data consistent.
+    expect(saved.isDefault).toBe(false);
 
     // Collection membership is preserved (typical user expectation for
     // single-board duplicate — the copy stays next to the source).

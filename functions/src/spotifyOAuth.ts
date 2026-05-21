@@ -40,6 +40,9 @@ const REQUIRED_SPOTIFY_SCOPES = [
   'user-read-private',
   'user-modify-playback-state',
   'user-read-playback-state',
+  'user-read-recently-played',
+  'playlist-read-private',
+  'playlist-read-collaborative',
 ];
 
 const PRIVATE_DOC_PATH = (uid: string) =>

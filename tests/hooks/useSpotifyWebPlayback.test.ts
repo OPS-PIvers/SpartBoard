@@ -1,0 +1,460 @@
+/**
+ * useSpotifyWebPlayback — owns the Web Playback SDK connection.
+ *
+ * loadSpotifySdk is mocked: instead of injecting the real CDN script it
+ * invokes the onReady callback synchronously with a fake window.Spotify.Player
+ * we control, so we can assert event-handler wiring (ready → deviceId,
+ * player_state_changed → currentTrack/isPlaying, account_error → sdkFailed)
+ * without a browser.
+ */
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, act, waitFor } from '@testing-library/react';
+import { useSpotifyWebPlayback } from '@/hooks/useSpotifyWebPlayback';
+import type { SpotifyPlayerState } from '@/utils/spotifyPlaybackSdk';
+
+// ── loadSpotifySdk mock ───────────────────────────────────────────────────────
+const loadSpotifySdkMock = vi.fn();
+vi.mock('@/utils/spotifyPlaybackSdk', async () => {
+  const actual = await vi.importActual<
+    typeof import('@/utils/spotifyPlaybackSdk')
+  >('@/utils/spotifyPlaybackSdk');
+  return {
+    ...actual,
+    loadSpotifySdk: (onReady: () => void, onError?: (e: Error) => void) =>
+      loadSpotifySdkMock(onReady, onError) as void,
+  };
+});
+
+// ── spotifyAuth mock ──────────────────────────────────────────────────────────
+// The hook now starts the saved URI on first play via playOnDevice; keep the
+// real parseSpotifyResource (so payload selection is exercised) and stub the
+// network call.
+const playOnDeviceMock = vi.fn().mockResolvedValue(undefined);
+const setRepeatModeMock = vi.fn().mockResolvedValue(undefined);
+const setShuffleMock = vi.fn().mockResolvedValue(undefined);
+vi.mock('@/utils/spotifyAuth', async () => {
+  const actual = await vi.importActual<typeof import('@/utils/spotifyAuth')>(
+    '@/utils/spotifyAuth'
+  );
+  return {
+    ...actual,
+    playOnDevice: (...args: unknown[]): Promise<void> =>
+      playOnDeviceMock(...args) as Promise<void>,
+    setRepeatMode: (...args: unknown[]): Promise<void> =>
+      setRepeatModeMock(...args) as Promise<void>,
+    setShuffle: (...args: unknown[]): Promise<void> =>
+      setShuffleMock(...args) as Promise<void>,
+  };
+});
+
+// ── Fake Spotify.Player ───────────────────────────────────────────────────────
+type Listener = (payload: unknown) => void;
+
+class FakePlayer {
+  listeners = new Map<string, Listener>();
+  connect = vi.fn().mockResolvedValue(true);
+  disconnect = vi.fn();
+  togglePlay = vi.fn().mockResolvedValue(undefined);
+  nextTrack = vi.fn().mockResolvedValue(undefined);
+  previousTrack = vi.fn().mockResolvedValue(undefined);
+  addListener = vi.fn((event: string, cb: Listener) => {
+    this.listeners.set(event, cb);
+  });
+  emit(event: string, payload?: unknown) {
+    this.listeners.get(event)?.(payload);
+  }
+}
+
+let fakePlayer: FakePlayer;
+
+function installFakeSdk() {
+  fakePlayer = new FakePlayer();
+  // The hook does `new window.Spotify.Player(...)`, so Player must be a real
+  // constructor. Return the shared fakePlayer instance from the constructor
+  // so the test can drive its listeners.
+  function PlayerCtor(this: unknown) {
+    return fakePlayer as unknown as object;
+  }
+  (window as unknown as { Spotify: unknown }).Spotify = {
+    Player: PlayerCtor as unknown,
+  };
+  // loadSpotifySdk invokes onReady immediately with the fake SDK present.
+  loadSpotifySdkMock.mockImplementation((onReady: () => void) => {
+    void onReady();
+  });
+}
+
+const getToken = vi.fn().mockResolvedValue('tok');
+
+beforeEach(() => {
+  loadSpotifySdkMock.mockReset();
+  getToken.mockClear();
+  playOnDeviceMock.mockClear();
+  setRepeatModeMock.mockClear();
+  setShuffleMock.mockClear();
+});
+
+afterEach(() => {
+  delete (window as unknown as { Spotify?: unknown }).Spotify;
+});
+
+describe('useSpotifyWebPlayback', () => {
+  it('is inert when enabled=false (no SDK load, deviceId null, sdkFailed false)', () => {
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(false, getToken, null)
+    );
+    expect(loadSpotifySdkMock).not.toHaveBeenCalled();
+    expect(result.current.deviceId).toBeNull();
+    expect(result.current.isReady).toBe(false);
+    expect(result.current.sdkFailed).toBe(false);
+    expect(result.current.currentTrack).toBeNull();
+    expect(result.current.isPlaying).toBe(false);
+  });
+
+  it('loads the SDK and sets deviceId when the ready event fires', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+
+    expect(loadSpotifySdkMock).toHaveBeenCalled();
+    // connect() resolves async; wait for the player to be wired up.
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+    });
+    expect(result.current.deviceId).toBe('device-123');
+    expect(result.current.isReady).toBe(true);
+  });
+
+  it('updates currentTrack and isPlaying on player_state_changed', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    const state: SpotifyPlayerState = {
+      paused: false,
+      track_window: {
+        current_track: {
+          name: 'Song A',
+          uri: 'spotify:track:a',
+          artists: [{ name: 'Artist A' }, { name: 'Artist B' }],
+          album: { images: [{ url: 'http://img/a.png' }] },
+        },
+      },
+    };
+    act(() => {
+      fakePlayer.emit('player_state_changed', state);
+    });
+
+    expect(result.current.isPlaying).toBe(true);
+    expect(result.current.currentTrack).toEqual({
+      name: 'Song A',
+      artist: 'Artist A, Artist B',
+      image: 'http://img/a.png',
+    });
+  });
+
+  it('sets sdkFailed on account_error', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    act(() => {
+      fakePlayer.emit('account_error', { message: 'Premium required' });
+    });
+    expect(result.current.sdkFailed).toBe(true);
+  });
+
+  it('disconnects the player on unmount', async () => {
+    installFakeSdk();
+    const { unmount } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    unmount();
+    expect(fakePlayer.disconnect).toHaveBeenCalled();
+  });
+
+  it('forwards togglePlay to the player when content is already loaded', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, 'spotify:track:loaded')
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    // Device ready AND a track is loaded → togglePlay() should pause/resume,
+    // not re-start the saved URI.
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        track_window: {
+          current_track: {
+            name: 'Loaded',
+            uri: 'spotify:track:loaded',
+            artists: [{ name: 'A' }],
+          },
+        },
+      });
+    });
+
+    await act(async () => {
+      await result.current.togglePlay();
+    });
+    expect(fakePlayer.togglePlay).toHaveBeenCalled();
+    expect(playOnDeviceMock).not.toHaveBeenCalled();
+  });
+
+  it('starts the saved URI on first play when nothing is loaded', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, 'spotify:track:t1')
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    // Device connected, but no player_state_changed yet → currentTrack stays
+    // null. First togglePlay() must start the target URI on the device.
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+    });
+    expect(result.current.currentTrack).toBeNull();
+
+    await act(async () => {
+      await result.current.togglePlay();
+    });
+
+    expect(playOnDeviceMock).toHaveBeenCalledWith('tok', 'device-123', {
+      uris: ['spotify:track:t1'],
+    });
+    expect(fakePlayer.togglePlay).not.toHaveBeenCalled();
+  });
+
+  it('uses contextUri for a playlist target on first play', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, 'spotify:playlist:p1')
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+    });
+
+    await act(async () => {
+      await result.current.togglePlay();
+    });
+
+    expect(playOnDeviceMock).toHaveBeenCalledWith('tok', 'device-123', {
+      contextUri: 'spotify:playlist:p1',
+    });
+  });
+
+  it('next() calls the player nextTrack', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    await act(async () => {
+      await result.current.next();
+    });
+    expect(fakePlayer.nextTrack).toHaveBeenCalledTimes(1);
+  });
+
+  it('previous() calls the player previousTrack', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    await act(async () => {
+      await result.current.previous();
+    });
+    expect(fakePlayer.previousTrack).toHaveBeenCalledTimes(1);
+  });
+
+  it('next()/previous() are no-ops when there is no player (disabled)', async () => {
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(false, getToken, null)
+    );
+    // No player ever connected → calling these must not throw.
+    await act(async () => {
+      await result.current.next();
+      await result.current.previous();
+    });
+    expect(result.current.deviceId).toBeNull();
+  });
+
+  it('does NOT set sdkFailed on playback_error (transient)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    act(() => {
+      fakePlayer.emit('playback_error', { message: 'blip' });
+    });
+    expect(result.current.sdkFailed).toBe(false);
+    warn.mockRestore();
+  });
+
+  it('reflects repeat_mode and shuffle from player_state_changed', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    expect(result.current.repeatMode).toBe(0);
+    expect(result.current.shuffle).toBe(false);
+
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 2,
+        shuffle: true,
+        track_window: {
+          current_track: {
+            name: 'S',
+            uri: 'spotify:track:s',
+            artists: [{ name: 'A' }],
+          },
+        },
+      });
+    });
+
+    expect(result.current.repeatMode).toBe(2);
+    expect(result.current.shuffle).toBe(true);
+  });
+
+  it('cycleRepeat cycles off → track → context → off via setRepeatMode', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+    });
+
+    // Starts at off(0) → first cycle should request 'track'.
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    expect(setRepeatModeMock).toHaveBeenLastCalledWith(
+      'tok',
+      'device-123',
+      'track'
+    );
+
+    // SDK reports the new mode (2 = track) → next cycle requests 'context'.
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 2,
+        shuffle: false,
+      });
+    });
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    expect(setRepeatModeMock).toHaveBeenLastCalledWith(
+      'tok',
+      'device-123',
+      'context'
+    );
+
+    // SDK reports context (1) → next cycle requests 'off'.
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 1,
+        shuffle: false,
+      });
+    });
+    await act(async () => {
+      await result.current.cycleRepeat();
+    });
+    expect(setRepeatModeMock).toHaveBeenLastCalledWith(
+      'tok',
+      'device-123',
+      'off'
+    );
+  });
+
+  it('toggleShuffle calls setShuffle with the inverse of the current state', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-123' });
+    });
+
+    // Default shuffle off → toggle requests true.
+    await act(async () => {
+      await result.current.toggleShuffle();
+    });
+    expect(setShuffleMock).toHaveBeenLastCalledWith('tok', 'device-123', true);
+
+    // SDK reports shuffle on → toggle requests false.
+    act(() => {
+      fakePlayer.emit('player_state_changed', {
+        paused: false,
+        repeat_mode: 0,
+        shuffle: true,
+      });
+    });
+    await act(async () => {
+      await result.current.toggleShuffle();
+    });
+    expect(setShuffleMock).toHaveBeenLastCalledWith('tok', 'device-123', false);
+  });
+
+  it('cycleRepeat/toggleShuffle are no-ops without a device', async () => {
+    installFakeSdk();
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+    // No 'ready' event → deviceIdRef stays null.
+    await act(async () => {
+      await result.current.cycleRepeat();
+      await result.current.toggleShuffle();
+    });
+    expect(setRepeatModeMock).not.toHaveBeenCalled();
+    expect(setShuffleMock).not.toHaveBeenCalled();
+  });
+
+  it('resets sdkFailed when re-enabled after a prior failure', async () => {
+    installFakeSdk();
+    const { result, rerender } = renderHook(
+      ({ enabled }) => useSpotifyWebPlayback(enabled, getToken, null),
+      { initialProps: { enabled: true } }
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    // Fatal error → sdkFailed flips true.
+    act(() => {
+      fakePlayer.emit('account_error', { message: 'Premium required' });
+    });
+    expect(result.current.sdkFailed).toBe(true);
+
+    // Disable, then re-enable → init effect must clear the stale failure.
+    rerender({ enabled: false });
+    expect(result.current.sdkFailed).toBe(true);
+    rerender({ enabled: true });
+    expect(result.current.sdkFailed).toBe(false);
+  });
+});

@@ -3518,6 +3518,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         id: crypto.randomUUID(),
         name: `${dashboard.name} (Copy)`,
         collectionId: dashboard.collectionId,
+        // sanitizeBoardSnapshot strips isDefault; restore it explicitly to
+        // false so the copy is never persisted as the default board (an
+        // absent field would also read falsy, but an explicit boolean keeps
+        // Firestore data consistent for any sort/query logic).
+        isDefault: false,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         order: maxOrder + 1,
@@ -3533,7 +3538,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         await saveDashboard(duplicated);
         addToast(`Board "${dashboard.name}" duplicated`);
       } catch (err) {
-        console.error('Duplicate failed:', err);
+        logError('DashboardContext.duplicateDashboard', err, { id });
         // Revert the optimistic insert so the user doesn't see a ghost row.
         setDashboards((prev) => prev.filter((d) => d.id !== duplicated.id));
         addToast('Duplicate failed', 'error');
@@ -3591,6 +3596,9 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const clones: Dashboard[] = children.map((dash, i) => ({
         ...sanitizeBoardSnapshot(structuredClone(dash)),
         id: crypto.randomUUID(),
+        // Explicit false (sanitizeBoardSnapshot strips isDefault) so no cloned
+        // child is persisted as a default board — keeps Firestore consistent.
+        isDefault: false,
         createdAt: Date.now(),
         updatedAt: Date.now(),
         order: maxOrder + 1 + i,

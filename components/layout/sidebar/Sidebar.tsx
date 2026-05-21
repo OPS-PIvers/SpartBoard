@@ -13,14 +13,12 @@ import {
   Maximize,
   Minimize,
   ArrowLeft,
-  Palette,
   Pencil,
   Trash2,
   Cloud,
   CloudCheck,
   AlertCircle,
   Zap,
-  Globe,
   Building2,
   SlidersHorizontal,
   Users,
@@ -45,13 +43,11 @@ import { useAppVersion } from '@/hooks/useAppVersion';
 import { GlassCard } from '@/components/common/GlassCard';
 import { IconButton } from '@/components/common/IconButton';
 import { Z_INDEX } from '@/config/zIndex';
-import { StylePanel } from './StylePanel';
+import { SettingsModal } from '@/components/settingsModal/SettingsModal';
 import { BackgroundsModal } from '@/components/backgroundsModal/BackgroundsModal';
 import { QuickAccessModal } from '@/components/quickAccessModal/QuickAccessModal';
 import { SidebarGoogleDrive } from './SidebarGoogleDrive';
-import { SidebarLanguageRegion } from './SidebarLanguageRegion';
 import { SidebarBuildings } from './SidebarBuildings';
-import { SidebarPreferences } from './SidebarPreferences';
 import { SidebarClasses } from './SidebarClasses';
 import { SidebarPlcs } from './SidebarPlcs';
 import { usePlcs } from '@/hooks/usePlcs';
@@ -61,15 +57,7 @@ import { BoardsModal } from '@/components/boardsModal/BoardsModal';
 
 declare const __APP_VERSION__: string;
 
-type MenuSection =
-  | 'main'
-  | 'classes'
-  | 'plcs'
-  | 'style'
-  | 'google-drive'
-  | 'language'
-  | 'buildings'
-  | 'preferences';
+type MenuSection = 'main' | 'classes' | 'plcs' | 'google-drive' | 'buildings';
 
 interface PlcsMenuButtonProps {
   onClick: () => void;
@@ -118,7 +106,6 @@ export const Sidebar: React.FC = () => {
     activeDashboard,
     isSaving,
     clearAllWidgets,
-    setGlobalStyle,
     rosters,
     annotationActive,
     openAnnotation,
@@ -191,6 +178,7 @@ export const Sidebar: React.FC = () => {
   }, []);
 
   const [showAdminSettings, setShowAdminSettings] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showShortLinkQuickCreate, setShowShortLinkQuickCreate] =
     useState(false);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
@@ -358,6 +346,10 @@ export const Sidebar: React.FC = () => {
 
       {showAdminSettings && (
         <AdminSettings onClose={() => setShowAdminSettings(false)} />
+      )}
+
+      {showSettingsModal && (
+        <SettingsModal onClose={() => setShowSettingsModal(false)} />
       )}
 
       {showShortLinkQuickCreate && (
@@ -561,14 +553,20 @@ export const Sidebar: React.FC = () => {
                 </div>
                 <div className="flex flex-col px-2.5 mb-1">
                   <button
-                    onClick={() => setActiveSection('style')}
+                    onClick={() => {
+                      // Settings is a focused modal with its own rail; close
+                      // the drawer so we don't stack modal-over-drawer.
+                      setShowSettingsModal(true);
+                      setIsOpen(false);
+                      setActiveSection('main');
+                    }}
                     className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
                   >
                     <div className="w-8 h-8 rounded-lg bg-brand-blue-lighter group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <Palette className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
+                      <SlidersHorizontal className="w-4 h-4 text-brand-blue-light group-hover:text-brand-blue-primary transition-colors" />
                     </div>
                     <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.globalStyle')}
+                      {t('settings.title', { defaultValue: 'Settings' })}
                     </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
@@ -617,34 +615,6 @@ export const Sidebar: React.FC = () => {
                     <div
                       className={`w-2 h-2 rounded-full flex-shrink-0 ${isDriveConnected ? 'bg-emerald-500' : 'bg-amber-400'}`}
                     />
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                  </button>
-                  <button
-                    onClick={() => setActiveSection('language')}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-violet-50 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <Globe className="w-4 h-4 text-violet-400 group-hover:text-brand-blue-primary transition-colors" />
-                    </div>
-                    <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.languageRegion', {
-                        defaultValue: 'Language & Region',
-                      })}
-                    </span>
-                    <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
-                  </button>
-                  <button
-                    onClick={() => setActiveSection('preferences')}
-                    className="group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-slate-700 hover:bg-brand-blue-lighter/40 transition-colors text-left"
-                  >
-                    <div className="w-8 h-8 rounded-lg bg-slate-100 group-hover:bg-brand-blue-lighter flex items-center justify-center transition-colors flex-shrink-0">
-                      <SlidersHorizontal className="w-4 h-4 text-slate-400 group-hover:text-brand-blue-primary transition-colors" />
-                    </div>
-                    <span className="flex-grow text-[13px]">
-                      {t('sidebar.nav.preferences', {
-                        defaultValue: 'Preferences',
-                      })}
-                    </span>
                     <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-blue-primary transition-colors" />
                   </button>
                   <button
@@ -706,28 +676,16 @@ export const Sidebar: React.FC = () => {
                 }}
               />
 
-              {/* STYLE SECTION */}
-              <StylePanel
-                isVisible={activeSection === 'style'}
-                activeDashboard={activeDashboard}
-                setGlobalStyle={setGlobalStyle}
-              />
-
-              {/* QUICK ACCESS — now handled by QuickAccessModal */}
+              {/* STYLE / LANGUAGE / PREFERENCES — now consolidated into the
+                  SettingsModal (opened from the "Settings" entry above). */}
 
               {/* GOOGLE DRIVE SECTION */}
               <SidebarGoogleDrive
                 isVisible={activeSection === 'google-drive'}
               />
 
-              {/* LANGUAGE & REGION SECTION */}
-              <SidebarLanguageRegion isVisible={activeSection === 'language'} />
-
               {/* MY BUILDING(S) SECTION */}
               <SidebarBuildings isVisible={activeSection === 'buildings'} />
-
-              {/* PREFERENCES SECTION */}
-              <SidebarPreferences isVisible={activeSection === 'preferences'} />
             </div>
 
             {/* Footer */}
