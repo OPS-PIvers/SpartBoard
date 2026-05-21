@@ -24,22 +24,6 @@ interface PlcDashboardProps {
 }
 
 /**
- * Legacy tab-ID union kept for backward compatibility with overview tiles and
- * grid components that still import this type. The new navigation uses
- * `PlcSectionId` from `./sections`, but any old ID passed via `onNavigateTab`
- * is normalised to a `PlcSectionId` before updating state.
- */
-export type PlcDashboardTabId =
-  | 'overview'
-  | 'quizzes'
-  | 'assignments'
-  | 'videoActivities'
-  | 'notes'
-  | 'todos'
-  | 'sharedBoards'
-  | 'settings';
-
-/**
  * Full-screen PLC Dashboard view. Opens when a member clicks a PLC in the
  * sidebar list. Navigates via a left-side rail (desktop) and a mobile
  * drill-in menu, mirroring the SettingsModal pattern.
