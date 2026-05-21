@@ -5,11 +5,13 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { MousePointer2, Pen, Highlighter, Eraser } from 'lucide-react';
 import {
   prepareEditableSvg,
   ensureObjectIds,
   objectIdForTarget,
   findObjectById,
+  findForeground,
   exportEditedSvg,
   readTextLines,
   writeTextLines,
@@ -28,17 +30,18 @@ interface PageEditorProps {
   onChange?: (svg: string) => void;
 }
 
+type Tool = 'select' | 'pen' | 'highlighter' | 'eraser';
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
 
 interface DragState {
   id: string;
   mode: 'move' | 'resize';
-  startX: number; // client px
+  startX: number;
   startY: number;
-  m0: DOMMatrix; // object's edit matrix at gesture start
+  m0: DOMMatrix;
   moved: boolean;
-  anchor?: { x: number; y: number }; // resize: fixed corner (user space)
-  startCorner?: { x: number; y: number }; // resize: dragged corner (user space)
+  anchor?: { x: number; y: number };
+  startCorner?: { x: number; y: number };
 }
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
@@ -49,10 +52,12 @@ const EDIT_MATRIX_ATTR = 'data-edit-matrix';
 const HANDLE_ATTR = 'data-edit-handle';
 const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
 
+const PEN_COLORS = ['#e11d48', '#2563eb', '#16a34a', '#111827', '#f59e0b'];
+const PEN_WIDTHS = [2, 5, 10];
+
 const matrixString = (m: DOMMatrix): string =>
   `${m.a},${m.b},${m.c},${m.d},${m.e},${m.f}`;
 
-/** Read an object's editor matrix (identity if none yet). */
 const readEditMatrix = (obj: Element): DOMMatrix => {
   const raw = obj.getAttribute(EDIT_MATRIX_ATTR);
   if (!raw) return new DOMMatrix();
@@ -62,7 +67,6 @@ const readEditMatrix = (obj: Element): DOMMatrix => {
     : new DOMMatrix();
 };
 
-/** Apply an editor matrix as a leading transform, preserving the original. */
 const applyEditMatrix = (obj: Element, m: DOMMatrix): void => {
   if (obj.getAttribute(ORIG_TRANSFORM_ATTR) === null) {
     obj.setAttribute(ORIG_TRANSFORM_ATTR, obj.getAttribute('transform') ?? '');
@@ -72,7 +76,6 @@ const applyEditMatrix = (obj: Element, m: DOMMatrix): void => {
   obj.setAttribute('transform', `matrix(${matrixString(m)}) ${orig}`.trim());
 };
 
-/** Axis-aligned bounding box of an object in the SVG root's user space. */
 const transformedBox = (
   obj: SVGGraphicsElement
 ): { minX: number; minY: number; maxX: number; maxY: number } => {
@@ -100,10 +103,9 @@ const transformedBox = (
 };
 
 /**
- * SVG-native page editor (Tier 2). Inlines a sanitized page SVG and lets the
- * teacher select a top-level object (text / image / ink) and move, resize,
- * delete, duplicate, or (for text) re-type it — all by editing the live SVG
- * tree, preserving import fidelity. Edits compose as a per-object matrix.
+ * SVG-native page editor (Tier 2). Select / move / resize / delete / duplicate
+ * / re-type existing objects, AND draw new ink (pen, highlighter) or erase it —
+ * all by editing the live SVG tree, preserving import fidelity.
  */
 export const PageEditor: React.FC<PageEditorProps> = ({
   svg,
@@ -117,12 +119,27 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const handlesRef = useRef<Map<Corner, SVGRectElement>>(new Map());
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
+  // Active freehand stroke (pen/highlighter) and eraser session.
+  const strokeRef = useRef<{ path: SVGPathElement; d: string } | null>(null);
+  const erasedRef = useRef(false);
 
   const onSelRef = useRef(onSelectionChange);
   const onChangeRef = useRef(onChange);
   useEffect(() => {
     onSelRef.current = onSelectionChange;
     onChangeRef.current = onChange;
+  });
+
+  const [tool, setTool] = useState<Tool>('select');
+  const [penColor, setPenColor] = useState(PEN_COLORS[0]);
+  const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1]);
+  const toolRef = useRef(tool);
+  const penColorRef = useRef(penColor);
+  const penWidthRef = useRef(penWidth);
+  useEffect(() => {
+    toolRef.current = tool;
+    penColorRef.current = penColor;
+    penWidthRef.current = penWidth;
   });
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -144,7 +161,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     setEditing(null);
   }
 
-  // Position the selection highlight + resize handles (or hide them). Pure DOM.
   const positionHighlight = useCallback((id: string | null) => {
     const svgEl = svgRef.current;
     const rect = highlightRef.current;
@@ -162,7 +178,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     rect.setAttribute('height', String(box.maxY - box.minY));
     rect.style.display = '';
 
-    // Keep handles a roughly constant screen size.
     const inv = svgEl.getScreenCTM()?.inverse();
     const hs = HANDLE_PX * (inv ? Math.abs(inv.a) : 1);
     const at: Record<Corner, [number, number]> = {
@@ -185,7 +200,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (svgRef.current) onChangeRef.current?.(exportEditedSvg(svgRef.current));
   }, []);
 
-  // Inline the SVG, tag objects, and build the selection overlay (rect + handles).
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -250,7 +264,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const clone = obj.cloneNode(true) as SVGGraphicsElement;
     const newId = `obj-dup-${Date.now()}`;
     clone.setAttribute('data-edit-id', newId);
-    // Re-base the clone's edit bookkeeping on its current transform, then nudge.
     clone.setAttribute(
       ORIG_TRANSFORM_ATTR,
       clone.getAttribute('transform') ?? ''
@@ -263,7 +276,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     emitChange();
   }, [selectedId, emitChange]);
 
-  // Keyboard: Escape deselect, Delete remove, Cmd/Ctrl+D duplicate.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing) return;
@@ -290,8 +302,30 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedId, emitChange, editing, duplicateSelected]);
 
+  // ---- coordinate helpers -------------------------------------------------
+  const toUserDelta = (cdx: number, cdy: number) => {
+    const ctm = svgRef.current?.getScreenCTM();
+    if (!ctm) return { ux: cdx, uy: cdy };
+    const inv = ctm.inverse();
+    return { ux: inv.a * cdx + inv.c * cdy, uy: inv.b * cdx + inv.d * cdy };
+  };
+
+  // Client point -> foreground-local coordinates (where new ink is appended).
+  const toForegroundPoint = (cx: number, cy: number) => {
+    const svgEl = svgRef.current;
+    const base = svgEl ? (findForeground(svgEl) ?? svgEl) : null;
+    const ctm = base?.getScreenCTM();
+    if (!ctm) return { x: cx, y: cy };
+    const inv = ctm.inverse();
+    return {
+      x: inv.a * cx + inv.c * cy + inv.e,
+      y: inv.b * cx + inv.d * cy + inv.f,
+    };
+  };
+
   // ---- text editing -------------------------------------------------------
   const handleDoubleClick = (e: React.MouseEvent) => {
+    if (tool !== 'select') return;
     const svgEl = svgRef.current;
     const container = containerRef.current;
     if (!svgEl || !container) return;
@@ -326,23 +360,61 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     setEditing(null);
   };
 
-  // ---- pointer move / resize ---------------------------------------------
-  const toUserDelta = (
-    cdx: number,
-    cdy: number
-  ): { ux: number; uy: number } => {
-    const ctm = svgRef.current?.getScreenCTM();
-    if (!ctm) return { ux: cdx, uy: cdy };
-    const inv = ctm.inverse();
-    return { ux: inv.a * cdx + inv.c * cdy, uy: inv.b * cdx + inv.d * cdy };
+  // ---- ink helpers --------------------------------------------------------
+  const eraseAt = (cx: number, cy: number) => {
+    const svgEl = svgRef.current;
+    if (!svgEl) return;
+    const target = document.elementFromPoint(cx, cy);
+    if (!target) return;
+    const id = objectIdForTarget(svgEl, target);
+    if (!id) return;
+    const info = objectsRef.current.find((o) => o.id === id);
+    if (info?.kind !== 'ink') return; // eraser only removes ink
+    findObjectById(svgEl, id)?.remove();
+    objectsRef.current = ensureObjectIds(svgEl);
+    erasedRef.current = true;
   };
 
+  // ---- pointer handlers ---------------------------------------------------
   const handlePointerDown = (e: React.PointerEvent) => {
     const svgEl = svgRef.current;
     if (!svgEl || editing) return;
+    const t = toolRef.current;
+
+    if (t === 'eraser') {
+      erasedRef.current = false;
+      eraseAt(e.clientX, e.clientY);
+      containerRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (t === 'pen' || t === 'highlighter') {
+      const fg = findForeground(svgEl);
+      if (!fg) return;
+      const p = toForegroundPoint(e.clientX, e.clientY);
+      const path = document.createElementNS(SVG_NS, 'path');
+      path.setAttribute('fill', 'none');
+      path.setAttribute('stroke', penColorRef.current);
+      path.setAttribute(
+        'stroke-width',
+        String(
+          t === 'highlighter' ? penWidthRef.current * 3 : penWidthRef.current
+        )
+      );
+      path.setAttribute('stroke-linecap', 'round');
+      path.setAttribute('stroke-linejoin', 'round');
+      if (t === 'highlighter') path.setAttribute('stroke-opacity', '0.4');
+      const d = `M ${p.x} ${p.y}`;
+      path.setAttribute('d', d);
+      fg.appendChild(path);
+      strokeRef.current = { path, d };
+      containerRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    // select / move / resize
     const target = e.target as Element;
     const handle = target.getAttribute(HANDLE_ATTR) as Corner | null;
-
     if (handle && selectedId) {
       const obj = findObjectById(svgEl, selectedId);
       if (!obj) return;
@@ -390,6 +462,19 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   };
 
   const handlePointerMove = (e: React.PointerEvent) => {
+    // Freehand drawing.
+    const stroke = strokeRef.current;
+    if (stroke) {
+      const p = toForegroundPoint(e.clientX, e.clientY);
+      stroke.d += ` L ${p.x} ${p.y}`;
+      stroke.path.setAttribute('d', stroke.d);
+      return;
+    }
+    if (toolRef.current === 'eraser') {
+      if (e.buttons === 1) eraseAt(e.clientX, e.clientY);
+      return;
+    }
+
     const drag = dragRef.current;
     const svgEl = svgRef.current;
     if (!drag || !svgEl) return;
@@ -402,22 +487,22 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const { ux, uy } = toUserDelta(cdx, cdy);
 
     if (drag.mode === 'move') {
-      const m = new DOMMatrix().translateSelf(ux, uy).multiply(drag.m0);
-      applyEditMatrix(obj, m);
+      applyEditMatrix(
+        obj,
+        new DOMMatrix().translateSelf(ux, uy).multiply(drag.m0)
+      );
     } else if (drag.anchor && drag.startCorner) {
       const { anchor, startCorner } = drag;
-      const px = startCorner.x + ux;
-      const py = startCorner.y + uy;
       const denomX = startCorner.x - anchor.x;
       const denomY = startCorner.y - anchor.y;
       const sx =
         Math.abs(denomX) < 0.001
           ? 1
-          : Math.max(MIN_SCALE, (px - anchor.x) / denomX);
+          : Math.max(MIN_SCALE, (startCorner.x + ux - anchor.x) / denomX);
       const sy =
         Math.abs(denomY) < 0.001
           ? 1
-          : Math.max(MIN_SCALE, (py - anchor.y) / denomY);
+          : Math.max(MIN_SCALE, (startCorner.y + uy - anchor.y) / denomY);
       const a = new DOMMatrix()
         .translateSelf(anchor.x, anchor.y)
         .scaleSelf(sx, sy)
@@ -428,23 +513,113 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
+    containerRef.current?.releasePointerCapture?.(e.pointerId);
+
+    if (strokeRef.current) {
+      const svgEl = svgRef.current;
+      strokeRef.current = null;
+      if (svgEl) objectsRef.current = ensureObjectIds(svgEl);
+      emitChange();
+      return;
+    }
+    if (toolRef.current === 'eraser') {
+      if (erasedRef.current) emitChange();
+      erasedRef.current = false;
+      return;
+    }
     const drag = dragRef.current;
     dragRef.current = null;
-    containerRef.current?.releasePointerCapture?.(e.pointerId);
     if (drag?.moved) emitChange();
   };
+
+  const selectTool = (next: Tool) => {
+    setTool(next);
+    if (next !== 'select') setSelectedId(null);
+  };
+
+  const cursor =
+    tool === 'pen' || tool === 'highlighter'
+      ? 'crosshair'
+      : tool === 'eraser'
+        ? 'cell'
+        : 'default';
+
+  const toolBtn = (
+    value: Tool,
+    Icon: React.ComponentType<{ className?: string }>,
+    label: string
+  ) => (
+    <button
+      type="button"
+      onClick={() => selectTool(value)}
+      title={label}
+      aria-label={label}
+      aria-pressed={tool === value}
+      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
+        tool === value
+          ? 'bg-indigo-600 text-white'
+          : 'text-slate-600 hover:bg-slate-100'
+      }`}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
 
   return (
     <div className={`relative h-full w-full ${className ?? ''}`}>
       <div
         ref={containerRef}
         className="h-full w-full touch-none"
+        style={{ cursor }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onDoubleClick={handleDoubleClick}
         role="presentation"
       />
+
+      {/* Floating tool palette */}
+      <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 px-1.5 py-1 shadow-lg backdrop-blur">
+        {toolBtn('select', MousePointer2, 'Select')}
+        {toolBtn('pen', Pen, 'Pen')}
+        {toolBtn('highlighter', Highlighter, 'Highlighter')}
+        {toolBtn('eraser', Eraser, 'Eraser')}
+        <div className="mx-1 h-6 w-px bg-slate-200" />
+        {PEN_COLORS.map((c) => (
+          <button
+            key={c}
+            type="button"
+            onClick={() => setPenColor(c)}
+            title={`Color ${c}`}
+            aria-label={`Color ${c}`}
+            className={`h-5 w-5 rounded-full border-2 transition-transform ${
+              penColor === c
+                ? 'scale-110 border-slate-800'
+                : 'border-white hover:scale-105'
+            }`}
+            style={{ backgroundColor: c }}
+          />
+        ))}
+        <div className="mx-1 h-6 w-px bg-slate-200" />
+        {PEN_WIDTHS.map((w, i) => (
+          <button
+            key={w}
+            type="button"
+            onClick={() => setPenWidth(w)}
+            title={`Width ${['thin', 'medium', 'thick'][i]}`}
+            aria-label={`Width ${['thin', 'medium', 'thick'][i]}`}
+            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
+              penWidth === w ? 'bg-slate-200' : 'hover:bg-slate-100'
+            }`}
+          >
+            <span
+              className="rounded-full bg-slate-700"
+              style={{ width: w + 2, height: w + 2 }}
+            />
+          </button>
+        ))}
+      </div>
+
       {editing && (
         <textarea
           autoFocus
