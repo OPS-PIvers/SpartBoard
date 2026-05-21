@@ -192,7 +192,20 @@ export const SmartNotebookWidget: React.FC<{
     } catch (err) {
       console.error(err);
       if (err instanceof NotebookTooLargeError) {
-        addToast(err.message, 'error');
+        const openConverter = await showConfirm(
+          `This notebook is ${err.sizeMb}MB — too large to import directly. ` +
+            `Open the SpartBoard Converter to shrink it (it runs right in your ` +
+            `browser, nothing is uploaded), then import the smaller .spartnb file.`,
+          {
+            title: 'This file is too large',
+            variant: 'warning',
+            confirmLabel: 'Open Converter',
+            cancelLabel: 'Cancel',
+          }
+        );
+        if (openConverter) {
+          window.open('/convert', '_blank', 'noopener,noreferrer');
+        }
       } else {
         addToast('Failed to import notebook', 'error');
       }

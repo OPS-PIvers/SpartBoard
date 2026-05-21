@@ -128,6 +128,11 @@ const SpotifyCallback = lazy(() =>
     default: module.SpotifyCallback,
   }))
 );
+const ConverterPage = lazy(() =>
+  import('./components/converter/ConverterPage').then((module) => ({
+    default: module.ConverterPage,
+  }))
+);
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -345,6 +350,17 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SpotifyCallback />
+      </Suspense>
+    );
+  }
+
+  // SMART Notebook -> .spartnb converter. Pure client-side tool; no auth, no
+  // Firestore, no providers. Teachers land here from the "file too large"
+  // prompt (or directly) to shrink big notebooks before importing.
+  if (pathname === '/convert' || pathname.startsWith('/convert/')) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ConverterPage />
       </Suspense>
     );
   }
