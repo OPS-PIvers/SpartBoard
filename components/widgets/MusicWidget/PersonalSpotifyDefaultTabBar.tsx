@@ -44,15 +44,11 @@ const NAV_PILLS: {
 ];
 
 // Below this *inner* bar width the three full-width pills can't fit their text
-// labels, so we drop to icon-only. Kept low so labels persist while there's
-// room — the pills stretch to fill the width (flex-1), so they always span the
-// available space rather than collapsing early with empty space beside them.
-const LABEL_COLLAPSE_WIDTH = 200;
-
-// Corner resize handles (DraggableWindow) are 36px boxes offset -12px, so each
-// reaches ~24px into the content at the top corners. Inset the bar past that so
-// the leftmost (Songs) and rightmost (Search) pills aren't covered by a grip.
-const RESIZE_HANDLE_CLEARANCE_PX = 26;
+// labels without truncating ("Playlists" ~110px/pill × 3 + gaps ≈ 340px), so we
+// drop to icon-only BEFORE the text clips. Set to the measured fit threshold so
+// narrow widgets show three clean icon circles rather than "So… / Pl… / Se…",
+// and labels return only when there's genuine room.
+const LABEL_COLLAPSE_WIDTH = 340;
 
 const PILL_BASE =
   'rounded-full transition-colors whitespace-nowrap flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70';
@@ -111,9 +107,12 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
       className="flex items-center"
       style={{
         gap: 'min(8px, 2cqmin)',
-        // Fixed horizontal inset clears the 24px corner resize handles
-        // regardless of widget size; vertical stays cq-scaled.
-        padding: `min(8px, 2cqmin) ${RESIZE_HANDLE_CLEARANCE_PX}px`,
+        // Full-bleed: the pills span the bar with only small breathing-room
+        // padding (no dead corner inset). DraggableWindow resize is
+        // corners-only and its resize-passthrough lets these button/role=tab
+        // pills win taps except inside the ~16px corner priority zones — so
+        // only the extreme outer corners of the end pills act as resize grips.
+        padding: 'min(8px, 2cqmin)',
       }}
     >
       {/* Pills — collapse (width/opacity → 0) when the search bar expands. */}
