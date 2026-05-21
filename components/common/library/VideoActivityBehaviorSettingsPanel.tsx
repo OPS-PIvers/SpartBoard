@@ -24,7 +24,6 @@ import type {
 } from '@/types';
 import { AssignmentSettingsToggleGroup } from './AssignmentSettingsToggleGroup';
 import { CollapsibleSection } from './CollapsibleSection';
-import { ToggleRow } from './AssignmentSettingsToggleGroup';
 import type { AssignModeOption } from './types';
 
 export interface VideoActivityBehaviorSettingsPanelProps {
@@ -212,23 +211,6 @@ export const VideoActivityBehaviorSettingsPanel: React.FC<
                   })}
                 </div>
               </div>
-              <ToggleRow
-                compact
-                label="Show Correct Answer After Submission"
-                checked={
-                  value.sessionOptions.showCorrectAnswerToStudent ?? false
-                }
-                onChange={(v) =>
-                  onChange({
-                    ...value,
-                    sessionOptions: {
-                      ...value.sessionOptions,
-                      showCorrectAnswerToStudent: v,
-                    },
-                  })
-                }
-                hint="Reveals the correct answer immediately after each question"
-              />
             </div>
           </CollapsibleSection>
         }
