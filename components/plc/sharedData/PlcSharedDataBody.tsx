@@ -2,14 +2,30 @@
  * PlcSharedDataBody — filterable results view for the PLC Shared Data section.
  *
  * Data flow:
- *   usePlcAssignmentIndex  →  index entries (type/teacher/assignment/date filter)
- *   usePlcContributions    →  contribution docs (class-period filter + summarize)
+ *   usePlcAssignmentIndex  →  index entries (drive the FILTER dropdown options:
+ *                             type / teacher / specific-assignment / date)
+ *   usePlcContributions    →  contribution docs (drive the RESULTS cards)
  *
- * For each filtered entry, we find the matching contributions (by ownerUid +
- * quizId/syncGroupId) and render a summary card.  For quiz entries, if we
- * have a matching contribution we delegate the drilldown to the existing
- * PlcAggregateSection / PlcAnalyticsBody patterns so we don't re-invent the
- * per-question aggregation UI.
+ * Results cards are grouped by the contribution's OWN quiz identity
+ * (`syncGroupId ?? quizId`) — the same grouping `PlcAnalyticsBody` /
+ * `plcAnalyticsAggregate.groupBySchema` use. This is deliberate: the
+ * assignment-index entry schema is locked and carries NO quizId/syncGroupId,
+ * so there's no shared key to map a specific assignment to its contributions.
+ * The old code linked them by `teacherUid === ownerUid` only, which
+ * double-counted every contribution of a teacher who had 2+ assignments onto
+ * EACH of their cards. Grouping by quiz identity counts each contribution
+ * exactly once.
+ *
+ * Filters are still derived from the index entries (so the dropdowns list
+ * every assignment/teacher/type) and applied at the correct granularity:
+ *   - type: only 'quiz'/'all' surface results (contributions are quiz data;
+ *     video activities don't write to the contributions collection)
+ *   - teacher: keep quiz groups that include a contribution from that teacher
+ *   - assignment: resolve the selected entry → its owner, keep quiz groups
+ *     that include that owner (teacher granularity — the honest best-effort
+ *     without a shared assignment↔contribution key)
+ *   - date: keep quiz groups whose latest contribution falls in range
+ *   - class period: filter the responses within each contribution
  */
 
 import React, { useMemo, useState } from 'react';
@@ -20,22 +36,22 @@ import {
   BookOpen,
   ChevronDown,
   ChevronRight,
-  Film,
   Loader2,
   Trophy,
   Users,
 } from 'lucide-react';
-import type { Plc, PlcAssignmentIndexEntry, PlcContribution } from '@/types';
+import type { Plc, PlcContribution } from '@/types';
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
 import { usePlcContributions } from '@/hooks/usePlcContributions';
 import { PlcAggregateSection } from '@/components/common/library/PlcTab';
 import { groupBySchema } from '@/components/common/library/plcAnalyticsAggregate';
 import { PlcSharedDataFilters } from './PlcSharedDataFilters';
 import {
-  filterEntries,
   filterContributionResponses,
   summarize,
+  groupContributionsByQuizIdentity,
   type SharedDataFilters,
+  type ContributionQuizGroup,
 } from './sharedDataSelectors';
 
 // ---------------------------------------------------------------------------
@@ -57,20 +73,6 @@ const DEFAULT_FILTERS: CombinedFilters = {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-/**
- * Match contributions to an assignment index entry.
- * An entry matches if the contribution's teacherUid equals the entry's ownerUid
- * (quizzes: we also try to match via quizId / syncGroupId when available).
- */
-function matchContributions(
-  entry: PlcAssignmentIndexEntry,
-  contributions: PlcContribution[]
-): PlcContribution[] {
-  // For quiz entries, match by ownerUid (teacher). Contributions don't carry
-  // the assignment id, only the quizId — we link them via teacher + quiz.
-  return contributions.filter((c) => c.teacherUid === entry.ownerUid);
-}
 
 /** Collect unique class periods across all contribution responses. */
 function collectClassPeriods(contributions: PlcContribution[]): string[] {
@@ -97,34 +99,32 @@ function collectTeachers(
 }
 
 // ---------------------------------------------------------------------------
-// ResultCard — one entry's summary card
+// ResultCard — one quiz-identity group's summary card
 // ---------------------------------------------------------------------------
 
 interface ResultCardProps {
-  entry: PlcAssignmentIndexEntry;
-  contributions: PlcContribution[];
+  group: ContributionQuizGroup;
 }
 
-const ResultCard: React.FC<ResultCardProps> = ({ entry, contributions }) => {
+const ResultCard: React.FC<ResultCardProps> = ({ group }) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
 
+  const contributions = group.contributions;
   const summary = useMemo(() => summarize(contributions), [contributions]);
 
   const schemaGroups = useMemo(
-    () => (entry.kind === 'quiz' ? groupBySchema(contributions) : []),
-    [entry.kind, contributions]
+    () => groupBySchema(contributions),
+    [contributions]
   );
 
   const hasDrift = schemaGroups.length > 1;
 
-  const KindIcon = entry.kind === 'quiz' ? BookOpen : Film;
-  const kindLabel =
-    entry.kind === 'quiz'
-      ? t('plcDashboard.sharedData.kindQuiz', { defaultValue: 'Quiz' })
-      : t('plcDashboard.sharedData.kindVA', {
-          defaultValue: 'Video Activity',
-        });
+  const title =
+    group.title ||
+    t('plcDashboard.sharedData.untitledQuiz', {
+      defaultValue: 'Untitled quiz',
+    });
 
   return (
     <div
@@ -137,18 +137,18 @@ const ResultCard: React.FC<ResultCardProps> = ({ entry, contributions }) => {
         aria-expanded={expanded}
         className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center gap-3"
       >
-        {/* Kind badge */}
+        {/* Kind badge — contributions are quiz results */}
         <span className="flex items-center justify-center w-8 h-8 rounded-xl bg-brand-blue-primary/10 shrink-0">
-          <KindIcon className="w-4 h-4 text-brand-blue-primary" />
+          <BookOpen className="w-4 h-4 text-brand-blue-primary" />
         </span>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-xs font-bold text-slate-800 truncate">
-              {entry.title}
+              {title}
             </span>
             <span className="text-xxs font-semibold uppercase tracking-wider text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded">
-              {kindLabel}
+              {t('plcDashboard.sharedData.kindQuiz', { defaultValue: 'Quiz' })}
             </span>
             {hasDrift && (
               <span
@@ -160,7 +160,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ entry, contributions }) => {
             )}
           </div>
           <div className="flex items-center gap-3 text-xxs text-slate-500 mt-1 flex-wrap">
-            <span className="text-slate-400">{entry.ownerName}</span>
             {summary.avgScore !== null && (
               <span className="inline-flex items-center gap-1">
                 <Trophy className="w-3 h-3 text-amber-500" />
@@ -196,8 +195,8 @@ const ResultCard: React.FC<ResultCardProps> = ({ entry, contributions }) => {
           ))}
       </button>
 
-      {/* Drilldown — quiz only (uses existing PlcAggregateSection) */}
-      {expanded && entry.kind === 'quiz' && schemaGroups.length > 0 && (
+      {/* Drilldown — per-quiz schema-drift breakdown (existing PlcAggregateSection) */}
+      {expanded && schemaGroups.length > 0 && (
         <div className="border-t border-slate-100 bg-slate-50 p-4 space-y-4">
           {schemaGroups.map((schemaGroup, idx) => (
             <PlcAggregateSection
@@ -209,43 +208,6 @@ const ResultCard: React.FC<ResultCardProps> = ({ entry, contributions }) => {
           ))}
         </div>
       )}
-
-      {/* Drilldown — VA (no per-question breakdown available, show response list) */}
-      {expanded &&
-        entry.kind === 'video-activity' &&
-        contributions.length > 0 && (
-          <div className="border-t border-slate-100 bg-slate-50 p-4">
-            <p className="text-xs text-slate-500 font-semibold mb-2">
-              {t('plcDashboard.sharedData.responses', {
-                defaultValue: 'Responses',
-              })}
-            </p>
-            <ul className="space-y-1">
-              {contributions.flatMap((c) =>
-                c.responses.map((r, i) => (
-                  <li
-                    key={`${c.id}-${i}`}
-                    className="flex items-center gap-2 text-xxs text-slate-600"
-                  >
-                    <span className="font-medium">{r.studentDisplayName}</span>
-                    {r.classPeriod && (
-                      <span className="text-slate-400">· P{r.classPeriod}</span>
-                    )}
-                    <span
-                      className={
-                        r.status === 'completed'
-                          ? 'text-emerald-600'
-                          : 'text-amber-600'
-                      }
-                    >
-                      {r.status}
-                    </span>
-                  </li>
-                ))
-              )}
-            </ul>
-          </div>
-        )}
     </div>
   );
 };
@@ -275,7 +237,8 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
 
   const [filters, setFilters] = useState<CombinedFilters>(DEFAULT_FILTERS);
 
-  // Derived data for filter dropdowns
+  // Derived data for filter dropdowns. Teachers come from contributions
+  // (only teachers with results matter for narrowing the result cards).
   const teachers = useMemo(
     () => collectTeachers(contributions),
     [contributions]
@@ -285,18 +248,79 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
     [contributions]
   );
 
-  // Apply filters
-  const filteredEntries = useMemo(
-    () => filterEntries(entries, filters),
-    [entries, filters]
-  );
+  // Best-effort title source: index entries owned by a single teacher. Used
+  // only as a label hint when a quiz group has exactly one contributing
+  // teacher (no quizId/syncGroupId on entries means we can't key on identity).
+  const titleByOwnerUid = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const e of entries) {
+      if (e.kind === 'quiz' && !map.has(e.ownerUid)) {
+        map.set(e.ownerUid, e.title);
+      }
+    }
+    return map;
+  }, [entries]);
 
+  // Resolve the selected assignment-index entry (for the assignment filter)
+  // to its owner — the finest granularity we can apply to contributions,
+  // which carry no assignment id.
+  const selectedAssignmentOwnerUid = useMemo(() => {
+    if (filters.assignmentId === 'all') return null;
+    return entries.find((e) => e.id === filters.assignmentId)?.ownerUid ?? null;
+  }, [entries, filters.assignmentId]);
+
+  // Apply the class-period filter to responses first, then group the
+  // contributions by quiz identity so each contribution is counted exactly
+  // once on exactly one card.
   const filteredContributions = useMemo(
     () =>
       filterContributionResponses(contributions, {
         classPeriod: filters.classPeriod,
       }),
     [contributions, filters.classPeriod]
+  );
+
+  const quizGroups = useMemo(
+    () =>
+      groupContributionsByQuizIdentity(filteredContributions, titleByOwnerUid),
+    [filteredContributions, titleByOwnerUid]
+  );
+
+  // Apply the entry-derived filters (type / teacher / assignment / date) to
+  // the quiz groups at the correct granularity (see file header).
+  const filteredGroups = useMemo(
+    () =>
+      quizGroups.filter((group) => {
+        // Contributions are quiz data only — a video-activity type filter
+        // matches no results here.
+        if (filters.type === 'video-activity') return false;
+        if (
+          filters.teacherUid !== 'all' &&
+          !group.teacherUids.has(filters.teacherUid)
+        ) {
+          return false;
+        }
+        if (
+          selectedAssignmentOwnerUid !== null &&
+          !group.teacherUids.has(selectedAssignmentOwnerUid)
+        ) {
+          return false;
+        }
+        if (filters.dateRange !== null) {
+          const { from, to } = filters.dateRange;
+          if (group.latestUpdatedAt < from || group.latestUpdatedAt > to) {
+            return false;
+          }
+        }
+        return true;
+      }),
+    [
+      quizGroups,
+      filters.type,
+      filters.teacherUid,
+      selectedAssignmentOwnerUid,
+      filters.dateRange,
+    ]
   );
 
   // Loading state
@@ -333,8 +357,9 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
     );
   }
 
-  // Empty state (no entries at all, before filter)
-  if (entries.length === 0) {
+  // Empty state — nothing shared at all (no assignment-index entries to
+  // populate filters AND no contributions to aggregate into results).
+  if (entries.length === 0 && contributions.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center h-full text-center text-xs text-slate-500 py-12 px-4">
         <BarChart3 className="w-8 h-8 text-slate-300 mb-3" />
@@ -364,8 +389,8 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
         classPeriods={classPeriods}
       />
 
-      {/* Results */}
-      {filteredEntries.length === 0 ? (
+      {/* Results — one card per distinct quiz identity (no double-count) */}
+      {filteredGroups.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center text-xs text-slate-500 py-10 px-4">
           <BarChart3 className="w-6 h-6 text-slate-300 mb-2" />
           <p className="font-semibold text-slate-600">
@@ -376,16 +401,9 @@ export const PlcSharedDataBody: React.FC<PlcSharedDataBodyProps> = ({
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredEntries.map((entry) => {
-            const matched = matchContributions(entry, filteredContributions);
-            return (
-              <ResultCard
-                key={entry.id}
-                entry={entry}
-                contributions={matched}
-              />
-            );
-          })}
+          {filteredGroups.map((group) => (
+            <ResultCard key={group.identity} group={group} />
+          ))}
         </div>
       )}
     </div>

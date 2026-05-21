@@ -37,6 +37,11 @@ vi.mock('@/hooks/usePlcDocs', () => ({
   usePlcDocs: vi.fn(),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: mockAddToast }),
+}));
+
 import { usePlcDocs } from '@/hooks/usePlcDocs';
 
 // ---------------------------------------------------------------------------
@@ -85,8 +90,11 @@ function setDefaultMocks(docs: PlcDoc[] = []) {
 describe('PlcDocsBody', () => {
   beforeEach(() => {
     createDocMock.mockClear();
+    createDocMock.mockResolvedValue('new-doc-id');
     updateDocMock.mockClear();
     deleteDocMock.mockClear();
+    deleteDocMock.mockResolvedValue(undefined);
+    mockAddToast.mockClear();
     setDefaultMocks();
   });
 
@@ -170,6 +178,34 @@ describe('PlcDocsBody', () => {
     fireEvent.click(addButton);
 
     expect(createDocMock).not.toHaveBeenCalled();
+  });
+
+  it('toasts an error when adding a doc fails (no silent failure)', async () => {
+    createDocMock.mockRejectedValueOnce(new Error('Firestore write failed'));
+    render(<PlcDocsBody plc={fakePlc} />);
+
+    fireEvent.change(screen.getByPlaceholderText(/doc title|title/i), {
+      target: { value: 'New Doc' },
+    });
+    fireEvent.change(screen.getByPlaceholderText(/url|paste/i), {
+      target: { value: 'https://docs.google.com/document/d/xyz/edit' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /^add$/i }));
+
+    await vi.waitFor(() => {
+      expect(mockAddToast).toHaveBeenCalledTimes(1);
+    });
+    expect(mockAddToast.mock.calls[0][1]).toBe('error');
+  });
+
+  it('focuses the picker add-title input from the empty-state CTA', () => {
+    render(<PlcDocsBody plc={fakePlc} />);
+    const titleInput = screen.getByPlaceholderText(/doc title|title/i);
+
+    fireEvent.click(screen.getByRole('button', { name: /add a google doc/i }));
+
+    // The CTA must focus the picker's add-title input via the ref handle.
+    expect(titleInput).toHaveFocus();
   });
 
   // --- Non-Google URL: no crash, gentle hint --------------------------------

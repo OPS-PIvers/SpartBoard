@@ -15,6 +15,7 @@ import {
   ExternalLink,
   Loader2,
   BarChart3,
+  AlertCircle,
 } from 'lucide-react';
 
 import type { Plc, PlcAssignmentIndexEntry } from '@/types';
@@ -43,8 +44,12 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
   onNavigate,
 }) => {
   const { t } = useTranslation();
-  const { entries, loading } = usePlcAssignmentIndex(plc.id);
-  const { contributions } = usePlcContributions(plc.id);
+  const {
+    entries,
+    loading,
+    error: entriesError,
+  } = usePlcAssignmentIndex(plc.id);
+  const { contributions, error: contribsError } = usePlcContributions(plc.id);
 
   const active = useMemo(
     () => entries.filter((e) => e.status === 'active' || e.status === 'paused'),
@@ -52,6 +57,10 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
   );
   const preview = active.slice(0, PREVIEW_LIMIT);
   const recentResultsCount = contributions.length;
+  // Surface load failures instead of the misleading "No active assignments"
+  // empty state — an empty `entries` array on error doesn't mean there are no
+  // assignments, just that we couldn't read them.
+  const hasError = entriesError !== null || contribsError !== null;
 
   return (
     <div className="flex flex-col bg-white/70 backdrop-blur-sm border border-slate-200/80 rounded-2xl shadow-sm overflow-hidden">
@@ -103,6 +112,26 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
         {loading ? (
           <div className="flex items-center justify-center py-8 text-slate-400">
             <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+          </div>
+        ) : hasError ? (
+          <div
+            className="flex flex-col items-center justify-center py-8 text-center"
+            role="alert"
+          >
+            <AlertCircle
+              className="w-8 h-8 text-brand-red-primary/70 mb-2"
+              aria-hidden="true"
+            />
+            <p className="text-sm font-semibold text-slate-600">
+              {t('plcDashboard.home.attention.loadError', {
+                defaultValue: "Couldn't load assignments",
+              })}
+            </p>
+            <p className="text-xs text-slate-400 mt-1">
+              {t('plcDashboard.home.attention.loadErrorSubtitle', {
+                defaultValue: 'Check your connection and try again.',
+              })}
+            </p>
           </div>
         ) : preview.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">

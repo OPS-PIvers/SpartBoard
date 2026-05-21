@@ -6,10 +6,12 @@
  * react-i18next is mocked so t(key, { defaultValue }) returns the English
  * defaultValue.
  *
- * Key assertions (per spec §C4):
- *   1. With two entries (1 quiz, 1 VA) and type='quiz', only the quiz card shows.
- *   2. Teacher filter narrows the visible cards.
- *   3. Class-period filter narrows the response counts shown.
+ * Card model (post-fix): RESULTS cards are driven by CONTRIBUTION groups,
+ * one per distinct quiz identity (`syncGroupId ?? quizId`) — NOT by
+ * assignment-index entries. Index entries only populate the filter
+ * dropdowns. This avoids the double-count bug where a teacher with 2+
+ * assignments had ALL their contributions counted onto EVERY one of their
+ * (entry-derived) cards.
  */
 
 import React from 'react';
@@ -88,7 +90,7 @@ const aliceContrib: PlcContribution = {
   syncGroupId: null,
   teacherUid: 'uid-alice',
   teacherName: 'Alice',
-  questionsSnapshot: [{ id: 'q1', text: 'Q1', points: 10 }],
+  questionsSnapshot: [{ id: 'q1', text: 'Unit 3 Quiz', points: 10 }],
   responses: [
     {
       studentDisplayName: 'Student P1',
@@ -125,7 +127,7 @@ const bobContrib: PlcContribution = {
   syncGroupId: null,
   teacherUid: 'uid-bob',
   teacherName: 'Bob',
-  questionsSnapshot: [{ id: 'q1', text: 'Q1', points: 10 }],
+  questionsSnapshot: [{ id: 'q1', text: 'Bob Quiz', points: 10 }],
   responses: [
     {
       studentDisplayName: 'Student P3',
@@ -198,7 +200,7 @@ describe('PlcSharedDataBody', () => {
     ).toBeGreaterThan(0);
   });
 
-  it('shows an empty state when there are no entries', () => {
+  it('shows an empty state when there are no entries and no contributions', () => {
     vi.mocked(usePlcAssignmentIndex).mockReturnValue({
       entries: [],
       loading: false,
@@ -215,59 +217,49 @@ describe('PlcSharedDataBody', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders both quiz and VA cards when type filter is "all"', () => {
+  it('renders one card per distinct quiz identity (contribution-driven)', () => {
     render(<PlcSharedDataBody plc={fakePlc} />);
-    // At least 1 element with each title (may appear in card + dropdown)
-    expect(screen.getAllByText('Unit 3 Quiz').length).toBeGreaterThan(0);
-    expect(screen.getAllByText('Fractions Video').length).toBeGreaterThan(0);
-    // Two cards
+    // Two contributions with distinct quizIds → two cards.
     expect(screen.getAllByTestId('shared-data-card')).toHaveLength(2);
   });
 
-  it('type=quiz filter hides the VA card', () => {
+  it('uses the assignment-index title for a single-owner quiz group', () => {
     render(<PlcSharedDataBody plc={fakePlc} />);
-
-    // Find the type filter select and change it to 'quiz'
-    const typeSelect = screen.getByRole('combobox', { name: /type/i });
-    fireEvent.change(typeSelect, { target: { value: 'quiz' } });
-
-    // Only one card should remain
-    expect(screen.getAllByTestId('shared-data-card')).toHaveLength(1);
-    // That card is for the quiz entry
-    expect(
-      within(screen.getAllByTestId('shared-data-card')[0]).getByText(
-        'Unit 3 Quiz'
-      )
-    ).toBeInTheDocument();
-    // VA card is gone
-    expect(
-      screen.queryByText('Fractions Video', {
-        selector: '[data-testid="shared-data-card"] *',
-      })
-    ).not.toBeInTheDocument();
+    // Alice's quiz group is single-owner and she has a quiz index entry, so
+    // the card adopts that entry's title.
+    const cards = screen.getAllByTestId('shared-data-card');
+    expect(cards.some((c) => within(c).queryByText('Unit 3 Quiz'))).toBe(true);
   });
 
-  it('type=video-activity filter hides the quiz card', () => {
+  it('type=video-activity shows no results (contributions are quiz data)', () => {
     render(<PlcSharedDataBody plc={fakePlc} />);
 
     const typeSelect = screen.getByRole('combobox', { name: /type/i });
     fireEvent.change(typeSelect, { target: { value: 'video-activity' } });
 
-    expect(screen.getAllByTestId('shared-data-card')).toHaveLength(1);
+    // No video-activity contributions exist, so no result cards.
+    expect(screen.queryAllByTestId('shared-data-card')).toHaveLength(0);
     expect(
-      within(screen.getAllByTestId('shared-data-card')[0]).getByText(
-        'Fractions Video'
-      )
+      screen.getByText(/no results match your filters/i)
     ).toBeInTheDocument();
   });
 
-  it('teacher filter narrows to matching entries', () => {
+  it('type=quiz keeps the quiz result cards', () => {
+    render(<PlcSharedDataBody plc={fakePlc} />);
+
+    const typeSelect = screen.getByRole('combobox', { name: /type/i });
+    fireEvent.change(typeSelect, { target: { value: 'quiz' } });
+
+    expect(screen.getAllByTestId('shared-data-card')).toHaveLength(2);
+  });
+
+  it('teacher filter narrows to that teacher’s quiz groups', () => {
     render(<PlcSharedDataBody plc={fakePlc} />);
 
     const teacherSelect = screen.getByRole('combobox', { name: /teacher/i });
     fireEvent.change(teacherSelect, { target: { value: 'uid-alice' } });
 
-    // Alice owns only the quiz entry — so 1 card
+    // Only Alice's contribution group remains.
     expect(screen.getAllByTestId('shared-data-card')).toHaveLength(1);
     expect(
       within(screen.getAllByTestId('shared-data-card')[0]).getByText(
@@ -279,22 +271,13 @@ describe('PlcSharedDataBody', () => {
   it('class-period filter narrows visible response counts', () => {
     render(<PlcSharedDataBody plc={fakePlc} />);
 
-    // Alice has 2 responses: classPeriod '1' and '2'.
-    // Bob has 1 response: classPeriod '1'.
-    // With filter=period 2, Alice's card shows only 1 student.
     const periodSelect = screen.getByRole('combobox', {
       name: /class|period/i,
     });
     fireEvent.change(periodSelect, { target: { value: '2' } });
 
-    // The student count for Alice's contribution should drop to 1
-    // We look for a numeric student indicator showing "1" rather than "3"
-    // The exact text depends on our card rendering.
-    // At minimum, "Student P2" could be visible but not "Student P1" or "Student P3"
-    // We assert the period-2-only student appears (via summary stat)
-    // and that the overall count dropped.
     const cards = screen.getAllByTestId('shared-data-card');
-    // With period filter active, verify the component re-renders without crash
+    // With period filter active, verify the component re-renders without crash.
     expect(cards.length).toBeGreaterThan(0);
   });
 
@@ -307,5 +290,113 @@ describe('PlcSharedDataBody', () => {
     expect(
       screen.getByRole('combobox', { name: /class|period/i })
     ).toBeInTheDocument();
+  });
+
+  // -------------------------------------------------------------------------
+  // Regression — the double-count bug (review MUST-FIX #2)
+  // -------------------------------------------------------------------------
+
+  it('does NOT double-count a single teacher who owns TWO different quizzes', () => {
+    // Alice owns two distinct assignments / quizzes. Under the OLD model,
+    // contributions were matched to an index entry by teacherUid===ownerUid
+    // only, so BOTH of Alice's contributions were counted on BOTH of her
+    // cards (4 students total shown across 2 cards instead of 2). The fix
+    // groups by quiz identity so each contribution lands on exactly one card.
+    const aliceEntry1: PlcAssignmentIndexEntry = {
+      ...quizEntry,
+      id: 'entry-1',
+      title: 'Quiz One',
+    };
+    const aliceEntry2: PlcAssignmentIndexEntry = {
+      ...quizEntry,
+      id: 'entry-2',
+      title: 'Quiz Two',
+    };
+    const aliceQuiz1: PlcContribution = {
+      ...aliceContrib,
+      id: 'c-quiz-1',
+      quizId: 'quiz-one',
+      questionsSnapshot: [{ id: 'q1', text: 'Quiz One', points: 10 }],
+      responses: [
+        {
+          studentDisplayName: 'Q1 Student A',
+          pin: null,
+          classPeriod: '1',
+          status: 'completed',
+          scorePercent: 100,
+          pointsEarned: 10,
+          maxPoints: 10,
+          tabSwitchWarnings: 0,
+          submittedAt: 2_000_000,
+          pointsByQuestionId: { q1: 10 },
+        },
+      ],
+    };
+    const aliceQuiz2: PlcContribution = {
+      ...aliceContrib,
+      id: 'c-quiz-2',
+      quizId: 'quiz-two',
+      questionsSnapshot: [{ id: 'q1', text: 'Quiz Two', points: 10 }],
+      responses: [
+        {
+          studentDisplayName: 'Q2 Student A',
+          pin: null,
+          classPeriod: '1',
+          status: 'completed',
+          scorePercent: 50,
+          pointsEarned: 5,
+          maxPoints: 10,
+          tabSwitchWarnings: 0,
+          submittedAt: 2_000_010,
+          pointsByQuestionId: { q1: 5 },
+        },
+        {
+          studentDisplayName: 'Q2 Student B',
+          pin: null,
+          classPeriod: '1',
+          status: 'completed',
+          scorePercent: 70,
+          pointsEarned: 7,
+          maxPoints: 10,
+          tabSwitchWarnings: 0,
+          submittedAt: 2_000_011,
+          pointsByQuestionId: { q1: 7 },
+        },
+      ],
+    };
+
+    vi.mocked(usePlcAssignmentIndex).mockReturnValue({
+      entries: [aliceEntry1, aliceEntry2],
+      loading: false,
+      error: null,
+    });
+    vi.mocked(usePlcContributions).mockReturnValue({
+      contributions: [aliceQuiz1, aliceQuiz2],
+      loading: false,
+      error: null,
+    });
+
+    render(<PlcSharedDataBody plc={fakePlc} />);
+
+    const cards = screen.getAllByTestId('shared-data-card');
+    // Two distinct quiz identities → exactly two cards.
+    expect(cards).toHaveLength(2);
+
+    // Each card reports its OWN student count only — never the sum.
+    // Quiz One has 1 student; Quiz Two has 2 students. The OLD bug would have
+    // shown 3 students (1+2) on BOTH cards.
+    const oneStudentCards = cards.filter((c) =>
+      within(c).queryByText(/^1 students$/)
+    );
+    const twoStudentCards = cards.filter((c) =>
+      within(c).queryByText(/^2 students$/)
+    );
+    expect(oneStudentCards).toHaveLength(1);
+    expect(twoStudentCards).toHaveLength(1);
+
+    // The double-count signature (3 students on any card) must NOT appear.
+    expect(cards.some((c) => within(c).queryByText(/^3 students$/))).toBe(
+      false
+    );
   });
 });

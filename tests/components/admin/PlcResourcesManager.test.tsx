@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { PlcResourcesManager } from '@/components/admin/PlcResourcesManager/PlcResourcesManager';
+import { usePlcResources } from '@/hooks/usePlcResources';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -34,12 +35,26 @@ vi.mock('@/hooks/usePlcs', () => ({
   })),
 }));
 
+const mockAddToast = vi.fn();
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({ addToast: mockAddToast }),
+}));
+
 describe('PlcResourcesManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockCreateResource.mockResolvedValue('new-res-id');
     mockUpdateResource.mockResolvedValue(undefined);
     mockDeleteResource.mockResolvedValue(undefined);
+    // Reset to the default empty-resource list each test (overridden where needed).
+    vi.mocked(usePlcResources).mockReturnValue({
+      resources: [],
+      loading: false,
+      error: null,
+      createResource: mockCreateResource,
+      updateResource: mockUpdateResource,
+      deleteResource: mockDeleteResource,
+    });
   });
 
   it('renders the manager title and Add Resource button', () => {
@@ -187,5 +202,46 @@ describe('PlcResourcesManager', () => {
         screen.queryByRole('form', { name: /create resource/i })
       ).not.toBeInTheDocument();
     });
+  });
+
+  it('toasts an error when deleting a resource fails (no silent failure)', async () => {
+    vi.mocked(usePlcResources).mockReturnValue({
+      resources: [
+        {
+          id: 'res-1',
+          kind: 'doc',
+          title: 'Planning Doc',
+          description: '',
+          refId: 'https://docs.google.com/d/x',
+          scope: 'all',
+          plcIds: [],
+          createdByAdminUid: 'admin-1',
+          createdByAdminEmail: 'admin@school.edu',
+          createdAt: 1,
+          updatedAt: 2,
+        },
+      ],
+      loading: false,
+      error: null,
+      createResource: mockCreateResource,
+      updateResource: mockUpdateResource,
+      deleteResource: mockDeleteResource,
+    });
+    mockDeleteResource.mockRejectedValueOnce(new Error('Permission denied'));
+    const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+
+    try {
+      render(<PlcResourcesManager />);
+      fireEvent.click(
+        screen.getByRole('button', { name: /delete planning doc/i })
+      );
+
+      await waitFor(() => {
+        expect(mockAddToast).toHaveBeenCalledTimes(1);
+      });
+      expect(mockAddToast.mock.calls[0][1]).toBe('error');
+    } finally {
+      confirmSpy.mockRestore();
+    }
   });
 });

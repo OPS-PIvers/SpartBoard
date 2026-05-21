@@ -148,16 +148,34 @@ interface UsePlcsOptions {
    * closed. Defaults to true.
    */
   enabled?: boolean;
+  /**
+   * Admin read mode. When true, subscribe to the WHOLE `/plcs` collection
+   * (unfiltered) instead of the membership `array-contains` query, so an
+   * admin who isn't a member of every PLC can still enumerate them (e.g. the
+   * admin "push resource to specific PLCs" picker). Firestore rules already
+   * permit admins to read `/plcs` (firestore.rules `... || isAdmin()`), so
+   * the unfiltered listen is authorized.
+   *
+   * In this mode the mutation methods are no-ops — the picker only needs the
+   * list, and admins manage PLC membership through other surfaces. Defaults
+   * to false (membership-scoped list, all current callers unchanged).
+   */
+  asAdmin?: boolean;
 }
 
 /**
- * Live subscription to all PLCs the current user belongs to. Backed by an
- * `array-contains` query on `memberUids` so members and the lead see the same
- * list. Mutations enforce role checks at the rules layer; the hook surfaces
- * thrown errors so callers can toast them.
+ * Live subscription to PLCs. By default this is backed by an `array-contains`
+ * query on `memberUids`, so members and the lead see the same list of PLCs
+ * they belong to. Mutations enforce role checks at the rules layer; the hook
+ * surfaces thrown errors so callers can toast them.
+ *
+ * Pass `{ asAdmin: true }` to instead subscribe to the entire `/plcs`
+ * collection — used by admin surfaces that must enumerate every PLC
+ * regardless of membership. The mutation methods become no-ops in that mode.
  */
 export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
   const enabled = options?.enabled ?? true;
+  const asAdmin = options?.asAdmin ?? false;
   const { user } = useAuth();
   const [plcs, setPlcs] = useState<Plc[]>([]);
   const [loading, setLoading] = useState(true);
@@ -173,10 +191,14 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       return () => clearTimeout(timer);
     }
 
-    const q = query(
-      collection(db, PLCS_COLLECTION),
-      where('memberUids', 'array-contains', user.uid)
-    );
+    // Admin mode reads the whole collection (unfiltered); member mode scopes
+    // to PLCs the current user belongs to.
+    const q = asAdmin
+      ? query(collection(db, PLCS_COLLECTION))
+      : query(
+          collection(db, PLCS_COLLECTION),
+          where('memberUids', 'array-contains', user.uid)
+        );
     const unsubscribe = onSnapshot(
       q,
       (snap) => {
@@ -195,7 +217,7 @@ export const usePlcs = (options?: UsePlcsOptions): UsePlcsResult => {
       }
     );
     return () => unsubscribe();
-  }, [user, enabled]);
+  }, [user, enabled, asAdmin]);
 
   const createPlc = useCallback(
     async (name: string): Promise<string> => {

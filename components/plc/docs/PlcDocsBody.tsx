@@ -16,13 +16,14 @@
  * This is modal chrome, so normal Tailwind sizing is used (no cqmin).
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FileText, ExternalLink, AlertCircle } from 'lucide-react';
 import type { Plc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
+import { useDashboard } from '@/context/useDashboard';
 import { convertToEmbedUrl, ensureProtocol } from '@/utils/urlHelpers';
-import { PlcDocPicker } from './PlcDocPicker';
+import { PlcDocPicker, type PlcDocPickerHandle } from './PlcDocPicker';
 
 interface PlcDocsBodyProps {
   plc: Plc;
@@ -35,9 +36,14 @@ function isGoogleUrl(url: string): boolean {
 
 export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
   const { t } = useTranslation();
+  const { addToast } = useDashboard();
   const { docs, loading, error, createDoc, updateDoc, deleteDoc } = usePlcDocs(
     plc.id
   );
+
+  // Imperative handle into the picker so the empty-state CTA can focus its
+  // add-title input directly (no document-wide querySelector).
+  const pickerRef = useRef<PlcDocPickerHandle>(null);
 
   // Track which doc is selected; auto-select the first when the list loads.
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -66,12 +72,35 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
   };
 
   const handleDeleteDoc = async (id: string): Promise<void> => {
-    await deleteDoc(id);
+    try {
+      await deleteDoc(id);
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.docs.deleteFailed', {
+              defaultValue: "Couldn't remove that doc. Please try again.",
+            }),
+        'error'
+      );
+      return;
+    }
     // If we deleted the selected doc, fall back to the first remaining one.
     if (id === selectedId) {
       const remaining = docs.filter((d) => d.id !== id);
       setSelectedId(remaining.length > 0 ? remaining[0].id : null);
     }
+  };
+
+  const handleAddError = (err: unknown): void => {
+    addToast(
+      err instanceof Error
+        ? err.message
+        : t('plcDashboard.docs.addFailed', {
+            defaultValue: "Couldn't add that doc. Please try again.",
+          }),
+      'error'
+    );
   };
 
   // Build the embed URL for the selected doc.
@@ -107,12 +136,14 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
           </div>
         ) : (
           <PlcDocPicker
+            ref={pickerRef}
             docs={docs}
             selectedId={selectedId}
             onSelect={setSelectedId}
             onCreateDoc={handleCreateDoc}
             onUpdateDoc={updateDoc}
             onDeleteDoc={handleDeleteDoc}
+            onAddError={handleAddError}
           />
         )}
       </div>
@@ -138,19 +169,13 @@ export const PlcDocsBody: React.FC<PlcDocsBodyProps> = ({ plc }) => {
                 })}
               </p>
             </div>
-            {/* Inline CTA that triggers focus to the add form. Because
-                PlcDocPicker is rendered in the left rail, we use a simple
-                button that scrolls/focuses the title input via a ref.
-                For now we delegate to the picker by showing a clear CTA. */}
+            {/* Inline CTA that focuses the add-title input in the left-rail
+                picker via its imperative ref handle (scoped to this picker,
+                not a document-wide querySelector). */}
             <button
               className="flex items-center gap-2 bg-brand-blue-primary text-white rounded-xl px-5 py-2.5 text-sm font-semibold hover:bg-brand-blue-dark transition-colors shadow-sm"
               onClick={() => {
-                // Focus the title input in the left rail's add form.
-                const input =
-                  document.querySelector<HTMLInputElement>(
-                    'input[placeholder]'
-                  );
-                input?.focus();
+                pickerRef.current?.focusAddInput();
               }}
               aria-label={t('plcDashboard.docs.addCta', {
                 defaultValue: 'Add a Google Doc',

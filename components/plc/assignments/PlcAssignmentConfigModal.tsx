@@ -35,7 +35,7 @@ import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { AssignmentQuizRef } from '@/hooks/useQuizAssignments';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
 import type { AssignmentActivityRef } from '@/hooks/useVideoActivityAssignments';
-import { writePlcVideoActivityEntry } from '@/hooks/usePlcVideoActivities';
+import { writePlcVideoActivityAssignmentTemplate } from '@/hooks/usePlcAssignments';
 import { createSyncedQuizGroup } from '@/hooks/useSyncedQuizGroups';
 import { createSyncedVideoActivityGroup } from '@/hooks/useSyncedVideoActivityGroups';
 import { QuizDriveService } from '@/utils/quizDriveService';
@@ -288,25 +288,22 @@ export const PlcAssignmentConfigModal: React.FC<
           assignmentMode
         );
 
-        // B5: VA template write via existing writePlcVideoActivityEntry
-        // (no VA-template subcollection/rule exists on this branch — fall
-        // back per plan constraint)
-        try {
-          await writePlcVideoActivityEntry(plc.id, user.uid, {
-            plcVideoActivityId: crypto.randomUUID(),
-            title: activityRef.title,
-            youtubeUrl: activityRef.youtubeUrl,
-            questionCount: activityRef.questions.length,
-            syncGroupId,
-            sharedByEmail: user.email ?? '',
-            sharedByName: user.displayName ?? '',
-          });
-        } catch (err) {
-          logError('PlcAssignmentConfigModal.writePlcVideoActivityEntry', err, {
-            plcId: plc.id,
-          });
-          // Non-fatal
-        }
+        // B5: VA template write via the tested
+        // writePlcVideoActivityAssignmentTemplate helper. It writes to the
+        // existing video_activities subcollection (no dedicated VA-template
+        // collection/rule on this branch) and is non-fatal — it logs +
+        // dispatches notifyPlcWriteFailure internally so the UI can toast,
+        // matching the quiz path's failure posture. No surrounding try/catch
+        // needed because it never rejects.
+        await writePlcVideoActivityAssignmentTemplate(plc.id, user.uid, {
+          plcVideoActivityId: crypto.randomUUID(),
+          title: activityRef.title,
+          youtubeUrl: activityRef.youtubeUrl,
+          questionCount: activityRef.questions.length,
+          syncGroupId,
+          sharedByEmail: user.email ?? '',
+          sharedByName: user.displayName ?? '',
+        });
 
         addToast(
           t('plcDashboard.assignmentConfig.videoCreated', {

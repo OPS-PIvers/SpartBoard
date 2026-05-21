@@ -2,6 +2,7 @@ import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import { PlcTargetPicker } from '@/components/admin/PlcResourcesManager/PlcTargetPicker';
+import { usePlcs } from '@/hooks/usePlcs';
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -63,6 +64,18 @@ describe('PlcTargetPicker', () => {
       />
     );
     expect(screen.queryByText('ELA Team')).not.toBeInTheDocument();
+  });
+
+  it('reads PLCs via the admin path so non-member admins see every PLC', () => {
+    render(
+      <PlcTargetPicker
+        value={{ scope: 'all', plcIds: [] }}
+        onChange={onChange}
+      />
+    );
+    // The membership-scoped default would return an empty list for an admin
+    // who isn't a member — the picker must opt into admin mode.
+    expect(usePlcs).toHaveBeenCalledWith({ asAdmin: true });
   });
 
   it('shows the PLC list when scope is "selected"', () => {

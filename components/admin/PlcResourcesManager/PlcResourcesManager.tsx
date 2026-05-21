@@ -5,6 +5,7 @@ import {
   usePlcResources,
   CreatePlcResourceInput,
 } from '@/hooks/usePlcResources';
+import { useDashboard } from '@/context/useDashboard';
 import { PlcTargetPicker, PlcTargetPickerValue } from './PlcTargetPicker';
 import { PlcResourceKind } from '@/types';
 
@@ -32,6 +33,7 @@ type FormState = CreatePlcResourceInput & { editingId?: string };
  */
 export const PlcResourcesManager: React.FC = () => {
   const { t } = useTranslation();
+  const { addToast } = useDashboard();
   const {
     resources,
     loading,
@@ -130,8 +132,15 @@ export const PlcResourcesManager: React.FC = () => {
     }
     try {
       await deleteResource(id);
-    } catch {
-      // surface inline in a future iteration; non-critical for v1
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.resources.deleteFailed', {
+              defaultValue: "Couldn't delete that resource. Please try again.",
+            }),
+        'error'
+      );
     }
   };
 

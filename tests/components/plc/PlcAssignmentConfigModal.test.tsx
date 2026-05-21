@@ -18,8 +18,9 @@
  *   - Heavy sub-components (AssignmentSettingsToggleGroup, AssignClassPicker)
  *     are rendered real (they are pure React, no Firebase) but their interaction
  *     is minimal — we just assert the overall callback wiring.
- *   - createSyncedQuizGroup, createSyncedVideoActivityGroup, writePlcVideoActivityEntry,
- *     QuizDriveService, deriveSessionTargetsFromRosters are mocked.
+ *   - createSyncedQuizGroup, createSyncedVideoActivityGroup,
+ *     writePlcVideoActivityAssignmentTemplate, QuizDriveService,
+ *     deriveSessionTargetsFromRosters are mocked.
  */
 
 import React from 'react';
@@ -82,8 +83,11 @@ vi.mock('@/context/useDashboard', () => ({
   })),
 }));
 
-vi.mock('@/hooks/usePlcVideoActivities', () => ({
-  writePlcVideoActivityEntry: vi.fn().mockResolvedValue(undefined),
+const { mockWritePlcVaTemplate } = vi.hoisted(() => ({
+  mockWritePlcVaTemplate: vi.fn().mockResolvedValue(undefined),
+}));
+vi.mock('@/hooks/usePlcAssignments', () => ({
+  writePlcVideoActivityAssignmentTemplate: mockWritePlcVaTemplate,
 }));
 
 vi.mock('@/hooks/useSyncedQuizGroups', () => ({
@@ -350,6 +354,7 @@ describe('PlcAssignmentConfigModal (video-activity kind)', () => {
     mockCreateQuizAssignment.mockClear();
     mockCreateVaAssignment.mockClear();
     mockAddToast.mockClear();
+    mockWritePlcVaTemplate.mockClear();
     mockCreateVaAssignment.mockResolvedValue({ id: 'va-assign-1' });
   });
 
@@ -398,6 +403,39 @@ describe('PlcAssignmentConfigModal (video-activity kind)', () => {
     ];
     expect(settings.plc).toBeDefined();
     expect((settings.plc as Record<string, unknown>).id).toBe(fakePlc.id);
+  });
+
+  it('routes the VA template write through writePlcVideoActivityAssignmentTemplate', async () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="video-activity"
+        activityRef={fakeActivityRef}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockWritePlcVaTemplate).toHaveBeenCalledTimes(1);
+    });
+
+    // Signature: (plcId, uid, input)
+    const [plcId, uid, input] = mockWritePlcVaTemplate.mock.calls[0] as [
+      string,
+      string,
+      Record<string, unknown>,
+    ];
+    expect(plcId).toBe(fakePlc.id);
+    expect(uid).toBe('uid-test');
+    expect(input.title).toBe(fakeActivityRef.title);
+    expect(input.youtubeUrl).toBe(fakeActivityRef.youtubeUrl);
   });
 
   it('does not call quiz createAssignment for video-activity kind', async () => {

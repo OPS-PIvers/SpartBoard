@@ -123,3 +123,82 @@ export function summarize(contributions: PlcContribution[]): SharedDataSummary {
     studentCount,
   };
 }
+
+// ---------------------------------------------------------------------------
+// groupContributionsByQuizIdentity
+// ---------------------------------------------------------------------------
+
+/** One results card's worth of contributions: every member's run of the
+ *  SAME logical quiz, grouped by cross-teacher quiz identity. */
+export interface ContributionQuizGroup {
+  /** `syncGroupId` when set, else `quizId` — the cross-teacher quiz identity. */
+  identity: string;
+  /** Best-effort display title (no template lookup is available here). */
+  title: string;
+  /** Every contribution that shares this quiz identity. */
+  contributions: PlcContribution[];
+  /** Distinct teacher UIDs that contributed to this quiz. */
+  teacherUids: Set<string>;
+  /** Most-recent contribution `updatedAt` — drives sort + date filtering. */
+  latestUpdatedAt: number;
+}
+
+/**
+ * Group contributions into one bucket per distinct quiz identity
+ * (`syncGroupId ?? quizId`) — the SAME grouping `PlcAnalyticsBody` /
+ * `plcAnalyticsAggregate.groupBySchema` use to identify "the same logical
+ * quiz" across teachers.
+ *
+ * This is the fix for the double-count bug: the old code matched
+ * contributions to an assignment-index entry by `teacherUid === ownerUid`
+ * only, so a teacher with two assignments had ALL their contributions
+ * counted on BOTH cards. Grouping by the contribution's OWN quiz identity
+ * counts each contribution exactly once, on exactly one card.
+ *
+ * `titleByOwnerUid` is an optional best-effort label source: when every
+ * contribution in a group shares a single owner that has an index-entry
+ * title, we use it. Otherwise we fall back to the first question text (the
+ * same fallback `PlcAnalyticsBody` uses when no template title is found).
+ */
+export function groupContributionsByQuizIdentity(
+  contributions: PlcContribution[],
+  titleByOwnerUid?: Map<string, string>
+): ContributionQuizGroup[] {
+  const buckets = new Map<string, PlcContribution[]>();
+  for (const c of contributions) {
+    const identity = c.syncGroupId ?? c.quizId;
+    const existing = buckets.get(identity);
+    if (existing) existing.push(c);
+    else buckets.set(identity, [c]);
+  }
+
+  const groups: ContributionQuizGroup[] = [];
+  for (const [identity, members] of buckets.entries()) {
+    const teacherUids = new Set(members.map((m) => m.teacherUid));
+    const latestUpdatedAt = members.reduce(
+      (max, c) => (c.updatedAt > max ? c.updatedAt : max),
+      0
+    );
+    // Title: prefer a single-owner index-entry title, else first question
+    // text, else a generic label.
+    let title = '';
+    if (titleByOwnerUid && teacherUids.size === 1) {
+      const onlyUid = members[0]?.teacherUid;
+      title = (onlyUid ? titleByOwnerUid.get(onlyUid) : undefined) ?? '';
+    }
+    if (!title) {
+      title = members[0]?.questionsSnapshot[0]?.text?.slice(0, 60) ?? '';
+    }
+    groups.push({
+      identity,
+      title,
+      contributions: members,
+      teacherUids,
+      latestUpdatedAt,
+    });
+  }
+
+  // Most-recent first — the freshest results read at the top.
+  groups.sort((a, b) => b.latestUpdatedAt - a.latestUpdatedAt);
+  return groups;
+}
