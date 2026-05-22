@@ -359,6 +359,20 @@ const mockDashboard: DashboardContextValue = {
   clearPendingAssignmentEdit: () => {
     // No-op
   },
+  pendingAssignmentMonitorId: null,
+  setPendingAssignmentMonitor: () => {
+    // No-op — student view never opens monitor.
+  },
+  clearPendingAssignmentMonitor: () => {
+    // No-op
+  },
+  pendingAssignmentResultsId: null,
+  setPendingAssignmentResults: () => {
+    // No-op — student view never opens results.
+  },
+  clearPendingAssignmentResults: () => {
+    // No-op
+  },
   // Roster mocks
   rosters: [],
   activeRosterId: null,

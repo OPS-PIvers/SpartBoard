@@ -1,12 +1,52 @@
-import React, { useMemo } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ClipboardList, Loader2 } from 'lucide-react';
+import type {
+  Plc,
+  PlcAssignmentTemplate,
+  QuizData,
+  QuizSessionMode,
+  QuizSessionOptions,
+} from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { useDashboard } from '@/context/useDashboard';
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
-import { Plc } from '@/types';
+import { usePlcAssignments } from '@/hooks/usePlcAssignments';
+import { useQuiz } from '@/hooks/useQuiz';
+import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import {
+  callJoinPlcAssignmentSyncGroup,
+  callLeaveSyncedQuizGroup,
+  pullSyncedQuizContent,
+} from '@/hooks/useSyncedQuizGroups';
+import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
+import { logError } from '@/utils/logError';
+import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
+import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 
 interface PlcAssignmentsInProgressSubTabProps {
   plc: Plc;
+  /**
+   * Closes the PLC dashboard overlay. Forwarded to owner-row actions so
+   * Monitor/Results can hand off to the QuizWidget after dismissing the
+   * dashboard.
+   */
+  onCloseDashboard: () => void;
+}
+
+/**
+ * Pending import target for the "Assign to my classes" flow on non-owner
+ * rows — mirrors the equivalent state in PlcAssignmentsLibrarySubTab.
+ */
+interface InProgressImportTarget {
+  plcAssignmentId: string;
+  syncGroupId: string;
+  quizTitle: string;
+  sharedByName: string;
+  sessionMode: QuizSessionMode;
+  sessionOptions: QuizSessionOptions;
+  attemptLimit: number | null;
 }
 
 /**
@@ -15,19 +55,228 @@ interface PlcAssignmentsInProgressSubTabProps {
  * fire-and-forget by the source assignment's owner; entries pre-Phase-3
  * lack the field and default to `'active'`, so they surface here until
  * their owner deactivates them.
+ *
+ * Per-row actions:
+ *   - Owner row: Monitor + Results buttons (→ hand off to QuizWidget via
+ *     `setPendingAssignmentMonitor` / `setPendingAssignmentResults`)
+ *   - Non-owner row: "Assign to my classes" button (→ import the PLC
+ *     assignment template onto the viewer's own board)
  */
 export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
-> = ({ plc }) => {
+> = ({ plc, onCloseDashboard }) => {
   const { t } = useTranslation();
+  const { user } = useAuth();
+  const {
+    addToast,
+    rosters,
+    setPendingAssignmentMonitor,
+    setPendingAssignmentResults,
+  } = useDashboard();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
+  // Subscribe to the PLC assignment templates so non-owner rows can match
+  // to the template needed for the "Assign to my classes" import flow.
+  const { templates, loading: templatesLoading } = usePlcAssignments(plc.id);
+  const { saveQuiz, deleteQuiz, attachSyncLinkage, isDriveConnected } = useQuiz(
+    user?.uid
+  );
+  const { assignments, createAssignment, setAssignmentRosters } =
+    useQuizAssignments(user?.uid);
+
+  // Import flow state (mirrors PlcAssignmentsLibrarySubTab).
+  const [importTarget, setImportTarget] =
+    useState<InProgressImportTarget | null>(null);
+  const [busyRowId, setBusyRowId] = useState<string | null>(null);
+  const [pendingSetup, setPendingSetup] = useState<{
+    id: string;
+    quizTitle: string;
+  } | null>(null);
 
   const visible = useMemo(
     () => entries.filter((e) => e.status === 'active' || e.status === 'paused'),
     [entries]
   );
 
-  if (loading) {
+  /**
+   * For each in-progress entry, find the matching PLC assignment template
+   * by matching ownerUid + title. This is the best available correlation
+   * since `PlcAssignmentIndexEntry` doesn't carry a back-reference to the
+   * template id (the template id is a separate UUID). If no template is
+   * found the "Assign to my classes" button is hidden.
+   */
+  const templateByEntryId = useMemo(() => {
+    const map = new Map<string, PlcAssignmentTemplate>();
+    for (const entry of visible) {
+      const match = templates.find(
+        (tpl) =>
+          tpl.sharedBy === entry.ownerUid && tpl.quizTitle === entry.title
+      );
+      if (match) map.set(entry.id, match);
+    }
+    return map;
+  }, [visible, templates]);
+
+  const handleMonitor = useCallback(
+    (assignmentId: string) => {
+      setPendingAssignmentMonitor(assignmentId);
+      onCloseDashboard();
+    },
+    [onCloseDashboard, setPendingAssignmentMonitor]
+  );
+
+  const handleResults = useCallback(
+    (assignmentId: string) => {
+      setPendingAssignmentResults(assignmentId);
+      onCloseDashboard();
+    },
+    [onCloseDashboard, setPendingAssignmentResults]
+  );
+
+  const handleImport = useCallback(
+    async (
+      target: InProgressImportTarget,
+      mode: SharedAssignmentImportMode
+    ) => {
+      if (!user) return;
+      if (busyRowId) return;
+      if (!isDriveConnected) {
+        addToast(
+          t('plcDashboard.assignmentsLibrary.driveRequired', {
+            defaultValue:
+              'Connect Google Drive in your account to pick up PLC assignments.',
+          }),
+          'error'
+        );
+        return;
+      }
+
+      setImportTarget(null);
+      setBusyRowId(target.plcAssignmentId);
+      let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
+      let joinedGroupId: string | null = null;
+      let liveVersion: number | undefined;
+
+      try {
+        const canonical = await pullSyncedQuizContent(target.syncGroupId);
+        const now = Date.now();
+        const fresh: QuizData = {
+          id: crypto.randomUUID(),
+          title: canonical.title,
+          questions: canonical.questions,
+          createdAt: now,
+          updatedAt: now,
+        };
+        savedMeta = await saveQuiz(fresh);
+
+        if (mode === 'sync') {
+          const joinResult = await callJoinPlcAssignmentSyncGroup(
+            plc.id,
+            target.plcAssignmentId
+          );
+          joinedGroupId = joinResult.groupId;
+          liveVersion = Math.max(canonical.version, joinResult.version);
+          await attachSyncLinkage(savedMeta.id, {
+            groupId: target.syncGroupId,
+            lastSyncedVersion: liveVersion,
+          });
+        }
+
+        const created = await createAssignment(
+          {
+            id: savedMeta.id,
+            title: savedMeta.title,
+            driveFileId: savedMeta.driveFileId,
+            questions: canonical.questions,
+          },
+          {
+            sessionMode: target.sessionMode,
+            sessionOptions: target.sessionOptions,
+            attemptLimit: target.attemptLimit,
+          },
+          {
+            initialStatus: 'paused',
+            skipPlcTemplateWrite: true,
+            ...(mode === 'sync' && liveVersion !== undefined
+              ? {
+                  syncedFrom: {
+                    groupId: target.syncGroupId,
+                    syncedVersion: liveVersion,
+                  },
+                }
+              : {}),
+          }
+        );
+
+        addToast(
+          mode === 'sync'
+            ? t('plcDashboard.assignmentsLibrary.importedSync', {
+                title: target.quizTitle,
+                defaultValue:
+                  '"{{title}}" added to your board (paused, synced).',
+              })
+            : t('plcDashboard.assignmentsLibrary.importedCopy', {
+                title: target.quizTitle,
+                defaultValue: '"{{title}}" copied to your board (paused).',
+              }),
+          'success'
+        );
+
+        setPendingSetup({ id: created.id, quizTitle: target.quizTitle });
+      } catch (err) {
+        logError('PlcAssignmentsInProgressSubTab.import', err, {
+          plcId: plc.id,
+          plcAssignmentId: target.plcAssignmentId,
+          mode,
+        });
+        if (joinedGroupId) {
+          try {
+            await callLeaveSyncedQuizGroup(joinedGroupId);
+          } catch (leaveErr) {
+            logError(
+              'PlcAssignmentsInProgressSubTab.import.rollbackLeave',
+              leaveErr,
+              { plcId: plc.id, groupId: joinedGroupId }
+            );
+          }
+        }
+        if (savedMeta) {
+          try {
+            await deleteQuiz(savedMeta.id, savedMeta.driveFileId);
+          } catch (rollbackErr) {
+            logError(
+              'PlcAssignmentsInProgressSubTab.import.rollbackQuiz',
+              rollbackErr,
+              { plcId: plc.id, quizId: savedMeta.id }
+            );
+          }
+        }
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.assignmentsLibrary.importFailed', {
+                defaultValue: 'Failed to add assignment to your board.',
+              }),
+          'error'
+        );
+      } finally {
+        setBusyRowId(null);
+      }
+    },
+    [
+      addToast,
+      attachSyncLinkage,
+      busyRowId,
+      createAssignment,
+      deleteQuiz,
+      isDriveConnected,
+      plc.id,
+      saveQuiz,
+      t,
+      user,
+    ]
+  );
+
+  if (loading || templatesLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[200px] text-slate-400">
         <Loader2 className="w-5 h-5 animate-spin" />
@@ -56,6 +305,16 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     );
   }
 
+  const currentUid = user?.uid;
+
+  // The assignment for the post-import class-period picker. Try the live
+  // snapshot first; fall back to the cached title (same pattern as
+  // PlcAssignmentsLibrarySubTab) so the modal renders before the listener
+  // surfaces the new doc.
+  const pendingSetupAssignment = pendingSetup
+    ? (assignments.find((a) => a.id === pendingSetup.id) ?? null)
+    : null;
+
   return (
     <div className="flex flex-col gap-3 px-1">
       <div className="flex items-baseline justify-between mb-1">
@@ -73,10 +332,69 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
         </span>
       </div>
       <div className="flex flex-col gap-2">
-        {visible.map((entry) => (
-          <PlcAssignmentIndexRow key={entry.id} entry={entry} showStatusPill />
-        ))}
+        {visible.map((entry) => {
+          const isOwner = entry.ownerUid === currentUid;
+          const template = isOwner
+            ? undefined
+            : templateByEntryId.get(entry.id);
+          return (
+            <PlcAssignmentIndexRow
+              key={entry.id}
+              entry={entry}
+              showStatusPill
+              isOwner={isOwner}
+              onMonitor={
+                isOwner && entry.kind === 'quiz'
+                  ? () => handleMonitor(entry.id)
+                  : undefined
+              }
+              onResults={
+                isOwner && entry.kind === 'quiz'
+                  ? () => handleResults(entry.id)
+                  : undefined
+              }
+              onAssignToMyClasses={
+                !isOwner && template
+                  ? () =>
+                      setImportTarget({
+                        plcAssignmentId: template.id,
+                        syncGroupId: template.syncGroupId,
+                        quizTitle: template.quizTitle,
+                        sharedByName: template.sharedByName,
+                        sessionMode: template.sessionMode,
+                        sessionOptions: template.sessionOptions,
+                        attemptLimit: template.attemptLimit,
+                      })
+                  : undefined
+              }
+              isBusy={!!busyRowId && template?.id === busyRowId}
+            />
+          );
+        })}
       </div>
+
+      {/* Sync/copy mode picker for "Assign to my classes" */}
+      {importTarget && (
+        <PlcAssignmentImportModal
+          quizTitle={importTarget.quizTitle}
+          sharedByName={importTarget.sharedByName}
+          onPick={(mode) => void handleImport(importTarget, mode)}
+          onClose={() => setImportTarget(null)}
+        />
+      )}
+
+      {/* Post-import class-period picker */}
+      {pendingSetup && pendingSetupAssignment && (
+        <QuizAssignmentImportSetupModal
+          assignment={pendingSetupAssignment}
+          rosters={rosters}
+          onSave={async (targets) => {
+            await setAssignmentRosters(pendingSetup.id, targets);
+            setPendingSetup(null);
+          }}
+          onClose={() => setPendingSetup(null)}
+        />
+      )}
     </div>
   );
 };
