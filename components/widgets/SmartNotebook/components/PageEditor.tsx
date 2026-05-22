@@ -94,6 +94,51 @@ const applyEditMatrix = (obj: Element, m: DOMMatrix): void => {
   obj.setAttribute('transform', `matrix(${matrixString(m)}) ${orig}`.trim());
 };
 
+// How far (screen px) to search around a click for a hard-to-hit object.
+const HIT_TOLERANCE_PX = 8;
+
+/**
+ * Resolve the foreground object nearest a client point, within a small
+ * tolerance. Used as a fallback when an exact click misses the painted
+ * geometry — e.g. a thin line whose stroke is only a couple of pixels wide, or
+ * the whitespace inside a text block's box. Each object's screen-space bounding
+ * box is expanded by the tolerance; among those containing the point, the
+ * closest (topmost on ties) wins. Returns null when the point is in open canvas
+ * so a marquee can still start there.
+ */
+const objectNearClient = (
+  svgEl: SVGSVGElement,
+  cx: number,
+  cy: number
+): string | null => {
+  const fg = findForeground(svgEl);
+  if (!fg) return null;
+  const t = HIT_TOLERANCE_PX;
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const child of Array.from(fg.children)) {
+    const id = child.getAttribute('data-edit-id');
+    if (!id) continue;
+    const r = child.getBoundingClientRect();
+    if (
+      cx < r.left - t ||
+      cx > r.right + t ||
+      cy < r.top - t ||
+      cy > r.bottom + t
+    )
+      continue;
+    const dx = Math.max(r.left - cx, 0, cx - r.right);
+    const dy = Math.max(r.top - cy, 0, cy - r.bottom);
+    const dist = Math.hypot(dx, dy);
+    // <= lets a later (higher z-order) object win ties, matching paint order.
+    if (dist <= bestDist) {
+      bestDist = dist;
+      best = id;
+    }
+  }
+  return best;
+};
+
 const makeSelectionRect = (): SVGRectElement => {
   const r = document.createElementNS(SVG_NS, 'rect');
   r.setAttribute('fill', 'rgba(99,102,241,0.12)');
@@ -535,7 +580,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       return;
     }
 
-    const id = objectIdForTarget(svgEl, target);
+    const id =
+      objectIdForTarget(svgEl, target) ??
+      objectNearClient(svgEl, e.clientX, e.clientY);
 
     // Empty canvas: begin a marquee (rubber-band) selection. Shift unions onto
     // the current selection; otherwise the selection clears as the drag starts.
