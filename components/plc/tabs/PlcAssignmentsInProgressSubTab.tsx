@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import type {
   Plc,
+  PlcAssignmentIndexEntry,
   PlcAssignmentTemplate,
   QuizData,
   QuizSessionMode,
@@ -81,9 +82,11 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     useQuizAssignments(user?.uid);
 
   // Monitor/Results modal target — opens PlcAssignmentSessionModal on top of
-  // the PLC dashboard for the owner's own quiz assignment.
+  // the PLC dashboard for the owner's own assignment. `kind` selects the
+  // quiz vs. video-activity content inside the shared modal shell.
   const [sessionModal, setSessionModal] = useState<{
     assignmentId: string;
+    kind: PlcAssignmentIndexEntry['kind'];
     view: 'monitor' | 'results';
   } | null>(null);
 
@@ -129,13 +132,19 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     return map;
   }, [visible, templates]);
 
-  const handleMonitor = useCallback((assignmentId: string) => {
-    setSessionModal({ assignmentId, view: 'monitor' });
-  }, []);
+  const handleMonitor = useCallback(
+    (assignmentId: string, kind: PlcAssignmentIndexEntry['kind']) => {
+      setSessionModal({ assignmentId, kind, view: 'monitor' });
+    },
+    []
+  );
 
-  const handleResults = useCallback((assignmentId: string) => {
-    setSessionModal({ assignmentId, view: 'results' });
-  }, []);
+  const handleResults = useCallback(
+    (assignmentId: string, kind: PlcAssignmentIndexEntry['kind']) => {
+      setSessionModal({ assignmentId, kind, view: 'results' });
+    },
+    []
+  );
 
   const handleImport = useCallback(
     async (
@@ -350,14 +359,10 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
               entry={entry}
               showStatusPill
               onMonitor={
-                isOwner && entry.kind === 'quiz'
-                  ? () => handleMonitor(entry.id)
-                  : undefined
+                isOwner ? () => handleMonitor(entry.id, entry.kind) : undefined
               }
               onResults={
-                isOwner && entry.kind === 'quiz'
-                  ? () => handleResults(entry.id)
-                  : undefined
+                isOwner ? () => handleResults(entry.id, entry.kind) : undefined
               }
               onAssignToMyClasses={
                 !isOwner && template
@@ -383,6 +388,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
       {sessionModal && (
         <PlcAssignmentSessionModal
           assignmentId={sessionModal.assignmentId}
+          kind={sessionModal.kind}
           view={sessionModal.view}
           onClose={() => setSessionModal(null)}
         />

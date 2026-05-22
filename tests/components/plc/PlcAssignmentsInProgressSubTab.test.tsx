@@ -10,7 +10,8 @@
  *   5. Clicking "Assign to my classes" opens the PlcAssignmentImportModal.
  *   6. Picking "sync" in the modal calls callJoinPlcAssignmentSyncGroup and
  *      createAssignment, then shows the class-period picker.
- *   7. Rows whose kind is 'video-activity' omit Monitor/Results (quiz-only).
+ *   7. Owner video-activity rows ALSO show Monitor/Results, and opening one
+ *      threads kind='video-activity' into the session modal.
  *   8. Non-owner rows with no matching template hide "Assign to my classes".
  */
 
@@ -67,15 +68,18 @@ vi.mock('@/context/useDashboard', () => ({
 vi.mock('@/components/plc/assignments/PlcAssignmentSessionModal', () => ({
   PlcAssignmentSessionModal: ({
     assignmentId,
+    kind,
     view,
   }: {
     assignmentId: string;
+    kind: 'quiz' | 'video-activity';
     view: 'monitor' | 'results';
     onClose: () => void;
   }) => (
     <div
       data-testid="session-modal"
       data-assignment-id={assignmentId}
+      data-kind={kind}
       data-view={view}
     />
   ),
@@ -263,21 +267,22 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     createAssignmentResolver = null;
   });
 
-  it('renders Monitor and Results buttons for owner quiz rows', () => {
+  it('renders Monitor and Results buttons for owner rows (quiz + video)', () => {
     renderSubject();
     const monitorBtns = screen.getAllByTestId('row-action-monitor');
     const resultsBtns = screen.getAllByTestId('row-action-results');
-    // Only the owner's quiz entry (entry-1) should have Monitor/Results.
-    // The video-activity entry (entry-3) is also owned but kind !== 'quiz'.
-    expect(monitorBtns).toHaveLength(1);
-    expect(resultsBtns).toHaveLength(1);
+    // Both owned entries get Monitor/Results: entry-1 (quiz) and entry-3
+    // (video-activity). The peer-owned entry-2 does not.
+    expect(monitorBtns).toHaveLength(2);
+    expect(resultsBtns).toHaveLength(2);
   });
 
-  it('does NOT render Monitor/Results on video-activity owner rows', () => {
+  it('renders Monitor/Results on video-activity owner rows', () => {
     renderSubject();
-    // entry-3 is video-activity; only entry-1 (quiz) should have buttons.
+    // entry-3 is an owned video-activity — Monitor/Results now work for it
+    // too (both owned rows surface the buttons).
     const monitorBtns = screen.getAllByTestId('row-action-monitor');
-    expect(monitorBtns).toHaveLength(1);
+    expect(monitorBtns).toHaveLength(2);
   });
 
   it('does NOT render "Assign to my classes" on owner rows', () => {
@@ -294,24 +299,39 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     ).toBeInTheDocument();
   });
 
-  it('clicking Monitor opens the session modal with view=monitor', () => {
+  it('clicking Monitor opens the session modal with view=monitor (quiz)', () => {
     renderSubject();
 
-    fireEvent.click(screen.getByTestId('row-action-monitor'));
+    // First Monitor button is the quiz entry (entry-1), in entries order.
+    fireEvent.click(screen.getAllByTestId('row-action-monitor')[0]);
 
     const modal = screen.getByTestId('session-modal');
     expect(modal).toHaveAttribute('data-assignment-id', 'entry-1');
+    expect(modal).toHaveAttribute('data-kind', 'quiz');
     expect(modal).toHaveAttribute('data-view', 'monitor');
   });
 
-  it('clicking Results opens the session modal with view=results', () => {
+  it('clicking Results opens the session modal with view=results (quiz)', () => {
     renderSubject();
 
-    fireEvent.click(screen.getByTestId('row-action-results'));
+    fireEvent.click(screen.getAllByTestId('row-action-results')[0]);
 
     const modal = screen.getByTestId('session-modal');
     expect(modal).toHaveAttribute('data-assignment-id', 'entry-1');
+    expect(modal).toHaveAttribute('data-kind', 'quiz');
     expect(modal).toHaveAttribute('data-view', 'results');
+  });
+
+  it('clicking Monitor on a video-activity row threads kind=video-activity', () => {
+    renderSubject();
+
+    // Second Monitor button is the video-activity entry (entry-3).
+    fireEvent.click(screen.getAllByTestId('row-action-monitor')[1]);
+
+    const modal = screen.getByTestId('session-modal');
+    expect(modal).toHaveAttribute('data-assignment-id', 'entry-3');
+    expect(modal).toHaveAttribute('data-kind', 'video-activity');
+    expect(modal).toHaveAttribute('data-view', 'monitor');
   });
 
   it('clicking "Assign to my classes" opens the import modal', () => {

@@ -18,13 +18,16 @@
  *                   `kind === 'quiz'`. Read-only history.
  */
 
-import React, { useState } from 'react';
+import React, { useCallback, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { BookOpen, History, Play, type LucideIcon } from 'lucide-react';
+import { BookOpen, History, Play, Plus, type LucideIcon } from 'lucide-react';
 import { Plc } from '@/types';
+import { useAuth } from '@/context/useAuth';
+import { useQuiz } from '@/hooks/useQuiz';
 import { PlcQuizLibraryBody } from './PlcQuizLibraryBody';
 import { PlcAssignmentsInProgressSubTab } from '../tabs/PlcAssignmentsInProgressSubTab';
 import { PlcAssignmentsCompletedSubTab } from '../tabs/PlcAssignmentsCompletedSubTab';
+import { PlcNewQuizAssignmentModal } from '../PlcNewQuizAssignmentModal';
 
 type SubTabId = 'library' | 'inProgress' | 'completed';
 
@@ -72,7 +75,49 @@ export const PlcQuizzesBody: React.FC<PlcQuizzesBodyProps> = ({
   onCloseDashboard,
 }) => {
   const { t } = useTranslation();
+  const { user, getAssignmentMode } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('library');
+  // Wizard modal state for the top-level "+ Assign Quiz" CTA. Ported from
+  // `PlcAssignmentsBody` as the standalone Assignments page is collapsed
+  // into this section.
+  const [newQuizOpen, setNewQuizOpen] = useState(false);
+  // Stable id so the screen-reader-only disabled-reason text can be
+  // associated with the CTA via `aria-describedby`. Native `disabled`
+  // strips a button from the tab order, so we use `aria-disabled` + a
+  // click guard instead so the control stays focusable and announces why.
+  const quizCtaReasonId = useId();
+
+  // Library counts + Drive-connect status feed the CTA disabled state.
+  // Gated on `activeSubTab === 'library'` so the personal-library Firestore
+  // listener (and Drive-token snapshot) only mounts when the CTA is
+  // actually visible — In-progress / Completed don't render the CTA, so
+  // paying for the listener there is wasted reads. `useQuiz` early-returns
+  // when `userId` is undefined, so passing `undefined` is the "off" switch.
+  const ctaActive = activeSubTab === 'library';
+  const { quizzes, isDriveConnected: quizDriveConnected } = useQuiz(
+    ctaActive ? user?.uid : undefined
+  );
+
+  const openQuizWizard = useCallback(() => {
+    setNewQuizOpen(true);
+  }, []);
+
+  // Snapshot the quiz widget's org-wide assignment mode for the wizard.
+  const quizAssignmentMode = getAssignmentMode('quiz');
+
+  // CTA disabled-reason resolution. Drive-disconnect outranks empty library
+  // because reconnecting Drive is a single immediate action; the empty
+  // library requires authoring content first.
+  const quizCtaDisabledReason: string | undefined = !quizDriveConnected
+    ? t('plcDashboard.newAssignment.quiz.ctaDisabledDrive', {
+        defaultValue: 'Connect Google Drive to assign a quiz.',
+      })
+    : quizzes.length === 0
+      ? t('plcDashboard.newAssignment.quiz.ctaDisabledEmpty', {
+          defaultValue:
+            'You have no quizzes in your personal library yet. Create one in the Quiz widget first.',
+        })
+      : undefined;
 
   return (
     <div className="flex flex-col gap-4 h-full">
@@ -105,6 +150,40 @@ export const PlcQuizzesBody: React.FC<PlcQuizzesBodyProps> = ({
             );
           })}
         </div>
+        {activeSubTab === 'library' && (
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={
+                quizCtaDisabledReason !== undefined ? undefined : openQuizWizard
+              }
+              aria-disabled={quizCtaDisabledReason !== undefined}
+              aria-describedby={
+                quizCtaDisabledReason !== undefined
+                  ? quizCtaReasonId
+                  : undefined
+              }
+              title={
+                quizCtaDisabledReason ??
+                t('plcDashboard.newAssignment.quiz.ctaTooltip', {
+                  defaultValue:
+                    'Create a PLC quiz assignment from your personal library.',
+                })
+              }
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-brand-blue-primary text-white text-xs font-bold hover:bg-brand-blue-dark transition-colors aria-disabled:opacity-40 aria-disabled:cursor-not-allowed aria-disabled:hover:bg-brand-blue-primary"
+            >
+              <Plus className="w-3.5 h-3.5" aria-hidden="true" />
+              {t('plcDashboard.newAssignment.quiz.ctaLabel', {
+                defaultValue: 'Assign Quiz',
+              })}
+            </button>
+            {quizCtaDisabledReason !== undefined && (
+              <span id={quizCtaReasonId} className="sr-only">
+                {quizCtaDisabledReason}
+              </span>
+            )}
+          </div>
+        )}
       </div>
       <div className="flex-1 min-h-0">
         {activeSubTab === 'library' && (
@@ -117,6 +196,13 @@ export const PlcQuizzesBody: React.FC<PlcQuizzesBodyProps> = ({
           <PlcAssignmentsCompletedSubTab plc={plc} kindFilter="quiz" />
         )}
       </div>
+      {newQuizOpen && (
+        <PlcNewQuizAssignmentModal
+          plc={plc}
+          assignmentMode={quizAssignmentMode}
+          onClose={() => setNewQuizOpen(false)}
+        />
+      )}
     </div>
   );
 };
