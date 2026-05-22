@@ -1,19 +1,19 @@
 import React from 'react';
 import { Plc } from '@/types';
-import { PlcVideoActivitiesBody } from '../bodies/PlcVideoActivitiesBody';
+import { PlcVideoActivitiesTabsBody } from '../bodies/PlcVideoActivitiesTabsBody';
 
 interface PlcVideoActivitiesTabProps {
   plc: Plc;
 }
 
 /**
- * Tab-mode wrapper around the shared `PlcVideoActivitiesBody`. Mirrors
- * the `PlcQuizLibraryTab` shape — placement-only shim used by the legacy
- * v1 dashboard tab routing. The v2 grid renders the body directly inside
- * a tile (or its fullscreen expansion).
+ * Tab-mode wrapper around the shared `PlcVideoActivitiesTabsBody`. Mirrors
+ * the `PlcQuizLibraryTab` shape — the body owns the Library / In-progress /
+ * Completed sub-tab shell, and this tab is a placement-only shim used by the
+ * legacy v1 dashboard section routing.
  */
 export const PlcVideoActivitiesTab: React.FC<PlcVideoActivitiesTabProps> = ({
   plc,
 }) => {
-  return <PlcVideoActivitiesBody plc={plc} />;
+  return <PlcVideoActivitiesTabsBody plc={plc} />;
 };
