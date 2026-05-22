@@ -11,8 +11,9 @@ import {
   Share2,
   X,
 } from 'lucide-react';
-import { NotebookItem } from '@/types';
+import { NotebookItem, PlacedNotebookAsset } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
+import { PageCanvas } from './PageCanvas';
 
 interface ViewerProps {
   activeNotebook: NotebookItem;
@@ -24,6 +25,13 @@ interface ViewerProps {
   currentPage: number;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   handleDragStart: (e: React.DragEvent, url: string) => void;
+  placedAssets: PlacedNotebookAsset[];
+  onPlaceAsset: (url: string, xFrac: number, yFrac: number) => void;
+  onUpdatePlacedAsset: (
+    id: string,
+    patch: Partial<Pick<PlacedNotebookAsset, 'xFrac' | 'yFrac' | 'wFrac'>>
+  ) => void;
+  onRemovePlacedAsset: (id: string) => void;
   onEditPage?: () => void;
   onAddPage?: () => void;
   onDeletePage?: () => void;
@@ -43,6 +51,10 @@ export const Viewer: React.FC<ViewerProps> = ({
   currentPage,
   setCurrentPage,
   handleDragStart,
+  placedAssets,
+  onPlaceAsset,
+  onUpdatePlacedAsset,
+  onRemovePlacedAsset,
   onEditPage,
   onAddPage,
   onDeletePage,
@@ -230,17 +242,15 @@ export const Viewer: React.FC<ViewerProps> = ({
       }
       content={
         <div className="flex-1 w-full h-full flex overflow-hidden bg-slate-100">
-          {/* Slide */}
-          <div
-            className="flex-1 flex items-center justify-center"
-            style={{ padding: 'min(16px, 3.5cqmin)' }}
-          >
-            <img
-              src={activeNotebook.pageUrls[currentPage]}
-              alt={`Page ${currentPage + 1}`}
-              className="max-w-full max-h-full object-contain shadow-2xl bg-white rounded-sm"
-            />
-          </div>
+          {/* Slide + placed-asset overlay */}
+          <PageCanvas
+            pageUrl={activeNotebook.pageUrls[currentPage]}
+            pageNumber={currentPage + 1}
+            placedAssets={placedAssets}
+            onPlaceAsset={onPlaceAsset}
+            onUpdatePlacedAsset={onUpdatePlacedAsset}
+            onRemovePlacedAsset={onRemovePlacedAsset}
+          />
 
           {/* Assets Panel */}
           {showAssets && hasAssets && (
@@ -265,7 +275,7 @@ export const Viewer: React.FC<ViewerProps> = ({
                   className="font-bold text-indigo-500 uppercase tracking-tighter animate-pulse"
                   style={{ fontSize: 'min(9px, 2.2cqmin)' }}
                 >
-                  Drag to board
+                  Drag onto the page
                 </p>
               </div>
               <div

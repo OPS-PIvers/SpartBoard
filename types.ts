@@ -2219,6 +2219,25 @@ export interface NotebookItem {
   sections?: NotebookSection[];
 }
 
+/**
+ * An asset image placed on a notebook page (from the Assets panel). Position
+ * and size are stored as fractions of the rendered page rectangle so they track
+ * the page across widget resizes and maximize. Scoped to a specific notebook +
+ * page, persisted per widget instance in SmartNotebookConfig.placedAssets.
+ */
+export interface PlacedNotebookAsset {
+  id: string;
+  notebookId: string;
+  /** 0-based page index the asset is placed on. */
+  page: number;
+  url: string;
+  /** Top-left position as a fraction of page width/height [0..1]. */
+  xFrac: number;
+  yFrac: number;
+  /** Width as a fraction of page width (0..1]; height follows the image ratio. */
+  wFrac: number;
+}
+
 export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
@@ -2228,6 +2247,8 @@ export interface SmartNotebookConfig {
   fontColor?: string;
   /** Library layout preference; persists per widget instance. Defaults to cards. */
   libraryDisplayMode?: 'cards' | 'list';
+  /** Assets placed on pages (Assets panel → page overlay), per widget instance. */
+  placedAssets?: PlacedNotebookAsset[];
 }
 
 /**

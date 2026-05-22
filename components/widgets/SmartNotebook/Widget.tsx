@@ -5,7 +5,13 @@ import {
   SmartNotebookConfig,
   NotebookItem,
   NotebookSection,
+  PlacedNotebookAsset,
 } from '@/types';
+import {
+  createPlacedAsset,
+  updatePlacedAsset as updatePlacedAssetIn,
+  removePlacedAsset as removePlacedAssetIn,
+} from '@/utils/notebookPlacedAssets';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
@@ -38,6 +44,7 @@ import {
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
 import { PageEditorOverlay } from './components/PageEditorOverlay';
+import { NOTEBOOK_ASSET_MIME } from './components/PageCanvas';
 
 export const SmartNotebookWidget: React.FC<{
   widget: WidgetData;
@@ -461,14 +468,44 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Assets drag onto the notebook PAGE (not the board), so they stay contained
+  // in the widget and remain visible when maximized. A notebook-specific
+  // dataTransfer type means the board's sticker-drop handler ignores it.
   const handleDragStart = (e: React.DragEvent, url: string) => {
-    const img = e.currentTarget.querySelector('img');
-    const ratio = img ? img.naturalWidth / img.naturalHeight : 1;
-    e.dataTransfer.setData(
-      'application/sticker',
-      JSON.stringify({ url, ratio })
-    );
+    e.dataTransfer.setData(NOTEBOOK_ASSET_MIME, JSON.stringify({ url }));
     e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const placedAssets = config.placedAssets ?? [];
+
+  const persistPlacedAssets = (next: PlacedNotebookAsset[]) => {
+    updateWidget(widget.id, { config: { ...config, placedAssets: next } });
+  };
+
+  // Drop an asset onto the current page at a page-relative fraction point.
+  const handlePlaceAsset = (url: string, xFrac: number, yFrac: number) => {
+    if (!activeNotebook) return;
+    persistPlacedAssets([
+      ...placedAssets,
+      createPlacedAsset({
+        notebookId: activeNotebook.id,
+        page: currentPage,
+        url,
+        xFrac,
+        yFrac,
+      }),
+    ]);
+  };
+
+  const handleUpdatePlacedAsset = (
+    id: string,
+    patch: Partial<Pick<PlacedNotebookAsset, 'xFrac' | 'yFrac' | 'wFrac'>>
+  ) => {
+    persistPlacedAssets(updatePlacedAssetIn(placedAssets, id, patch));
+  };
+
+  const handleRemovePlacedAsset = (id: string) => {
+    persistPlacedAssets(removePlacedAssetIn(placedAssets, id));
   };
 
   // Page editor (full-surface) when editing a page.
@@ -501,6 +538,12 @@ export const SmartNotebookWidget: React.FC<{
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         handleDragStart={handleDragStart}
+        placedAssets={placedAssets.filter(
+          (a) => a.notebookId === activeNotebook.id && a.page === currentPage
+        )}
+        onPlaceAsset={handlePlaceAsset}
+        onUpdatePlacedAsset={handleUpdatePlacedAsset}
+        onRemovePlacedAsset={handleRemovePlacedAsset}
         onEditPage={() => setEditMode(true)}
         onAddPage={() => void handleAddPage()}
         onDeletePage={() => void handleDeletePage()}
