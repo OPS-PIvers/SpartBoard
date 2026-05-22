@@ -185,9 +185,7 @@ export const PlcAssignmentsSection: React.FC<PlcAssignmentsSectionProps> = ({
           />
         )}
         {activeSubTab === 'inProgress' && (
-          // No board hand-off in the in-PLC context; noop keeps the prop
-          // contract satisfied without triggering a full dashboard close.
-          <PlcAssignmentsInProgressSubTab plc={plc} onCloseDashboard={noop} />
+          <PlcAssignmentsInProgressSubTab plc={plc} />
         )}
         {activeSubTab === 'completed' && (
           <PlcAssignmentsCompletedSubTab plc={plc} />

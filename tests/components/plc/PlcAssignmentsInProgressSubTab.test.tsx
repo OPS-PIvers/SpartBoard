@@ -5,8 +5,8 @@
  *   1. Owner rows show Monitor + Results buttons; no "Assign to my classes".
  *   2. Non-owner rows with a matching template show "Assign to my classes";
  *      no Monitor/Results.
- *   3. Clicking Monitor sets pendingAssignmentMonitorId and calls onCloseDashboard.
- *   4. Clicking Results sets pendingAssignmentResultsId and calls onCloseDashboard.
+ *   3. Clicking Monitor opens PlcAssignmentSessionModal with view=monitor.
+ *   4. Clicking Results opens PlcAssignmentSessionModal with view=results.
  *   5. Clicking "Assign to my classes" opens the PlcAssignmentImportModal.
  *   6. Picking "sync" in the modal calls callJoinPlcAssignmentSyncGroup and
  *      createAssignment, then shows the class-period picker.
@@ -50,8 +50,6 @@ vi.mock('@/context/useAuth', () => ({
   useAuth: () => ({ user: { uid: 'owner-1', displayName: 'Teacher One' } }),
 }));
 
-const setPendingAssignmentMonitor = vi.fn();
-const setPendingAssignmentResults = vi.fn();
 const addToast = vi.fn();
 
 vi.mock('@/context/useDashboard', () => ({
@@ -60,9 +58,27 @@ vi.mock('@/context/useDashboard', () => ({
     rosters: [
       { id: 'r1', name: 'Math 1', students: [] } as unknown as ClassRoster,
     ],
-    setPendingAssignmentMonitor,
-    setPendingAssignmentResults,
   }),
+}));
+
+// Stub the session modal — the subtab test only verifies that the right
+// view + assignmentId are handed to it. Its own data/rendering is covered
+// by the QuizWidget monitor/results suites.
+vi.mock('@/components/plc/assignments/PlcAssignmentSessionModal', () => ({
+  PlcAssignmentSessionModal: ({
+    assignmentId,
+    view,
+  }: {
+    assignmentId: string;
+    view: 'monitor' | 'results';
+    onClose: () => void;
+  }) => (
+    <div
+      data-testid="session-modal"
+      data-assignment-id={assignmentId}
+      data-view={view}
+    />
+  ),
 }));
 
 // Two entries: owner-1 owns entry-1, peer-2 owns entry-2.
@@ -230,13 +246,10 @@ const plc = {
 // Render helper
 // ---------------------------------------------------------------------------
 
-const renderSubject = (onCloseDashboard = vi.fn()) =>
+const renderSubject = () =>
   render(
     <I18nextProvider i18n={i18n}>
-      <PlcAssignmentsInProgressSubTab
-        plc={plc}
-        onCloseDashboard={onCloseDashboard}
-      />
+      <PlcAssignmentsInProgressSubTab plc={plc} />
     </I18nextProvider>
   );
 
@@ -281,24 +294,24 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     ).toBeInTheDocument();
   });
 
-  it('clicking Monitor calls setPendingAssignmentMonitor and onCloseDashboard', () => {
-    const onClose = vi.fn();
-    renderSubject(onClose);
+  it('clicking Monitor opens the session modal with view=monitor', () => {
+    renderSubject();
 
     fireEvent.click(screen.getByTestId('row-action-monitor'));
 
-    expect(setPendingAssignmentMonitor).toHaveBeenCalledWith('entry-1');
-    expect(onClose).toHaveBeenCalledTimes(1);
+    const modal = screen.getByTestId('session-modal');
+    expect(modal).toHaveAttribute('data-assignment-id', 'entry-1');
+    expect(modal).toHaveAttribute('data-view', 'monitor');
   });
 
-  it('clicking Results calls setPendingAssignmentResults and onCloseDashboard', () => {
-    const onClose = vi.fn();
-    renderSubject(onClose);
+  it('clicking Results opens the session modal with view=results', () => {
+    renderSubject();
 
     fireEvent.click(screen.getByTestId('row-action-results'));
 
-    expect(setPendingAssignmentResults).toHaveBeenCalledWith('entry-1');
-    expect(onClose).toHaveBeenCalledTimes(1);
+    const modal = screen.getByTestId('session-modal');
+    expect(modal).toHaveAttribute('data-assignment-id', 'entry-1');
+    expect(modal).toHaveAttribute('data-view', 'results');
   });
 
   it('clicking "Assign to my classes" opens the import modal', () => {

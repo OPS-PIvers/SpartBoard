@@ -22,17 +22,12 @@ import {
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
+import { PlcAssignmentSessionModal } from '../assignments/PlcAssignmentSessionModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 
 interface PlcAssignmentsInProgressSubTabProps {
   plc: Plc;
-  /**
-   * Closes the PLC dashboard overlay. Forwarded to owner-row actions so
-   * Monitor/Results can hand off to the QuizWidget after dismissing the
-   * dashboard.
-   */
-  onCloseDashboard: () => void;
 }
 
 /**
@@ -57,22 +52,17 @@ interface InProgressImportTarget {
  * their owner deactivates them.
  *
  * Per-row actions:
- *   - Owner row: Monitor + Results buttons (→ hand off to QuizWidget via
- *     `setPendingAssignmentMonitor` / `setPendingAssignmentResults`)
+ *   - Owner row: Monitor + Results buttons (→ open PlcAssignmentSessionModal
+ *     stacked on top of the PLC dashboard)
  *   - Non-owner row: "Assign to my classes" button (→ import the PLC
  *     assignment template onto the viewer's own board)
  */
 export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
-> = ({ plc, onCloseDashboard }) => {
+> = ({ plc }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const {
-    addToast,
-    rosters,
-    setPendingAssignmentMonitor,
-    setPendingAssignmentResults,
-  } = useDashboard();
+  const { addToast, rosters } = useDashboard();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
   // Subscribe to the PLC assignment templates so non-owner rows can match
   // to the template needed for the "Assign to my classes" import flow.
@@ -82,6 +72,13 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   );
   const { assignments, createAssignment, setAssignmentRosters } =
     useQuizAssignments(user?.uid);
+
+  // Monitor/Results modal target — opens PlcAssignmentSessionModal on top of
+  // the PLC dashboard for the owner's own quiz assignment.
+  const [sessionModal, setSessionModal] = useState<{
+    assignmentId: string;
+    view: 'monitor' | 'results';
+  } | null>(null);
 
   // Import flow state (mirrors PlcAssignmentsLibrarySubTab).
   const [importTarget, setImportTarget] =
@@ -120,21 +117,13 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     return map;
   }, [visible, templates]);
 
-  const handleMonitor = useCallback(
-    (assignmentId: string) => {
-      setPendingAssignmentMonitor(assignmentId);
-      onCloseDashboard();
-    },
-    [onCloseDashboard, setPendingAssignmentMonitor]
-  );
+  const handleMonitor = useCallback((assignmentId: string) => {
+    setSessionModal({ assignmentId, view: 'monitor' });
+  }, []);
 
-  const handleResults = useCallback(
-    (assignmentId: string) => {
-      setPendingAssignmentResults(assignmentId);
-      onCloseDashboard();
-    },
-    [onCloseDashboard, setPendingAssignmentResults]
-  );
+  const handleResults = useCallback((assignmentId: string) => {
+    setSessionModal({ assignmentId, view: 'results' });
+  }, []);
 
   const handleImport = useCallback(
     async (
@@ -375,6 +364,15 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           );
         })}
       </div>
+
+      {/* Monitor/Results — stacked on top of the PLC dashboard */}
+      {sessionModal && (
+        <PlcAssignmentSessionModal
+          assignmentId={sessionModal.assignmentId}
+          view={sessionModal.view}
+          onClose={() => setSessionModal(null)}
+        />
+      )}
 
       {/* Sync/copy mode picker for "Assign to my classes" */}
       {importTarget && (
