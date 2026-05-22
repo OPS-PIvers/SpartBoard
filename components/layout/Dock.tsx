@@ -282,6 +282,36 @@ export const Dock: React.FC = () => {
       },
     });
 
+  // Remote control of the one screen recorder (and its Drive-upload pipeline)
+  // for callers outside the Dock — e.g. a maximized widget's FAB menu, where
+  // the Dock is off-screen. Toggling reuses this recorder so there's never a
+  // second, competing capture; state is broadcast so remote triggers can
+  // reflect the live recording status.
+  useEffect(() => {
+    const onToggle = () => {
+      if (isRecording) stopRecording();
+      else void startRecording();
+    };
+    const onQuery = () =>
+      window.dispatchEvent(
+        new CustomEvent('spart-screen-record-state', {
+          detail: { isRecording },
+        })
+      );
+    window.addEventListener('spart-screen-record-toggle', onToggle);
+    window.addEventListener('spart-screen-record-query', onQuery);
+    return () => {
+      window.removeEventListener('spart-screen-record-toggle', onToggle);
+      window.removeEventListener('spart-screen-record-query', onQuery);
+    };
+  }, [isRecording, startRecording, stopRecording]);
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent('spart-screen-record-state', { detail: { isRecording } })
+    );
+  }, [isRecording]);
+
   const { session } = useLiveSession(user?.uid, 'teacher');
   const [isExpanded, setIsExpanded] = useState(false);
   const [showRosterMenu, setShowRosterMenu] = useState(false);
