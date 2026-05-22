@@ -2370,6 +2370,8 @@ export interface QuizMetadata {
   folderId?: string | null;
   /** Synchronized-quiz linkage; see `QuizMetadataSyncLinkage`. */
   sync?: QuizMetadataSyncLinkage;
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: QuizBehaviorSettings;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -2412,6 +2414,20 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
   soundEffectsEnabled?: boolean;
+}
+
+/**
+ * Behavior settings that travel WITH a quiz (authored in the editor, synced
+ * to PLC members). Distinct from per-assignment targeting (class periods,
+ * dueAt) which is chosen at Assign time. Snapshotted onto the assignment/
+ * session docs at create time, so editing these later only affects FUTURE
+ * assigns (freeze-live).
+ */
+export interface QuizBehaviorSettings {
+  sessionMode: QuizSessionMode;
+  sessionOptions: QuizSessionOptions;
+  /** null = unlimited; positive int = hard cap. */
+  attemptLimit: number | null;
 }
 
 /**
@@ -3240,6 +3256,8 @@ export interface SyncedQuizGroup {
   version: number;
   title: string;
   questions: QuizQuestion[];
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: QuizBehaviorSettings;
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -3317,6 +3335,8 @@ export interface SyncedVideoActivityGroup {
   title: string;
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: VideoActivityBehaviorSettings;
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -3452,6 +3472,8 @@ export interface VideoActivityMetadata {
    * activity participates in a synced group. Mirrors `QuizMetadata.sync`.
    */
   sync?: VideoActivityMetadataSyncLinkage;
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: VideoActivityBehaviorSettings;
 }
 
 export type VideoActivityView = 'manager' | 'create' | 'results' | 'monitor';
@@ -3537,6 +3559,13 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   scoreVisibility?: VideoActivityScoreVisibility;
   /** Optional due date (ms epoch). Absent / null = no due date. */
   dueAt?: number | null;
+}
+
+/** VA counterpart of QuizBehaviorSettings. */
+export interface VideoActivityBehaviorSettings {
+  sessionMode: QuizSessionMode;
+  sessionOptions: Omit<VideoActivitySessionOptions, 'attemptLimit' | 'dueAt'>;
+  attemptLimit: number | null;
 }
 
 export interface GlobalVideoActivity extends VideoActivityMetadata {

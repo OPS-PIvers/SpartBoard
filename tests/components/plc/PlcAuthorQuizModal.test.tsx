@@ -68,7 +68,7 @@ vi.mock('@/components/widgets/QuizWidget/components/QuizEditorModal', () => ({
       onClose,
     }: {
       isOpen: boolean;
-      onSave: (q: QuizData) => Promise<void>;
+      onSave: (q: QuizData, behavior: unknown) => Promise<void>;
       onClose: () => void;
     }) => {
       if (!isOpen) return null;
@@ -88,9 +88,17 @@ vi.mock('@/components/widgets/QuizWidget/components/QuizEditorModal', () => ({
         createdAt: 1000,
         updatedAt: 2000,
       };
+      // Pass a minimal behavior stub as the 2nd arg to match the new signature.
+      const fakeBehavior = {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+        attemptLimit: null,
+      };
       return (
         <div data-testid="quiz-editor-modal">
-          <button onClick={() => onSave(fakeQuiz)}>Save Quiz</button>
+          <button onClick={() => onSave(fakeQuiz, fakeBehavior)}>
+            Save Quiz
+          </button>
           <button onClick={onClose}>Cancel</button>
         </div>
       );
@@ -186,9 +194,13 @@ describe('PlcAuthorQuizModal', () => {
     });
 
     expect(mockSaveQuiz).toHaveBeenCalledTimes(1);
-    // The first arg to saveQuiz is the QuizData with title 'Unit 3 Quiz'
+    // The first arg to saveQuiz is the QuizData with title 'Unit 3 Quiz';
+    // second arg is undefined (no existingDriveFileId for new quizzes);
+    // third arg is the behavior passed from the editor.
     expect(mockSaveQuiz).toHaveBeenCalledWith(
-      expect.objectContaining({ title: 'Unit 3 Quiz' })
+      expect.objectContaining({ title: 'Unit 3 Quiz' }),
+      undefined,
+      expect.objectContaining({ sessionMode: 'teacher' })
     );
   });
 

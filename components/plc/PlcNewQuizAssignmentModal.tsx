@@ -6,12 +6,11 @@
  *
  *   1. Pick a quiz from the teacher's personal library
  *      (reuses `PlcSharePickerModal`).
- *   2. Configure the full assignment in `AssignModal` chrome with the
- *      same extras the QuizWidget's kebab-driven assign flow uses
- *      (mode picker, integrity / randomization / feedback toggles, attempt
- *      limit, gamification). The PLC slot is replaced with a simplified
- *      "Sharing with **this PLC**" block — no PLC picker because the
- *      target PLC is fixed.
+ *   2. Slimmed configure step (Task 10): class/period picker + due-date +
+ *      read-only behavior summary sourced from `getQuizBehavior(pickedQuiz)`.
+ *      Mode picker, toggles, gamification, and attempt-limit controls have
+ *      been removed — behavior lives on the quiz and is edited there.
+ *      The PLC sharing slot (auto-sheet + teacher name) is retained.
  *
  * On submit, mirrors `QuizWidget.handleAssignConfirm` (the kebab path):
  *
@@ -24,7 +23,8 @@
  *      linkage to the local quiz, and pass the new id through as
  *      `plcTemplateSyncGroupId`. This is what lets teammates who later
  *      "Add to my board" land on the same canonical content.
- *   d. `createAssignment` with `settings.plc` set — the hook handles the
+ *   d. `createAssignment` with `settings.plc` set and behavior sourced
+ *      from `getQuizBehavior(pickedQuiz)` — the hook handles the
  *      `assignment_index` entry (`kind: 'quiz'`) AND the
  *      `assignments` template write, so the In-progress sub-tab picks
  *      up the new row via its live snapshot.
@@ -39,14 +39,13 @@
 
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Clock, User, Zap } from 'lucide-react';
+import { Calendar, X } from 'lucide-react';
 import type {
   AssignmentMode,
   ClassRoster,
   Plc,
   PlcLinkage,
   QuizMetadata,
-  QuizSessionMode,
   QuizSessionOptions,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -61,18 +60,12 @@ import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { logError } from '@/utils/logError';
-import { AssignModal } from '@/components/common/library/AssignModal';
+import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
 import {
   makeEmptyPickerValue,
   type AssignClassPickerValue,
 } from '@/components/common/AssignClassPicker.helpers';
-import {
-  AssignmentSettingsToggleGroup,
-  ToggleRow,
-} from '@/components/common/library/AssignmentSettingsToggleGroup';
-import { CollapsibleSection } from '@/components/common/library/CollapsibleSection';
-import type { AssignModeOption } from '@/components/common/library/types';
 import {
   PlcSharePickerModal,
   type PlcSharePickerItem,
@@ -98,22 +91,8 @@ interface PlcNewQuizAssignmentModalProps {
   onCreated?: (info: { assignmentId: string; quizTitle: string }) => void;
 }
 
-// `QUIZ_MODES` is built inside the component via `useMemo` so the labels
-// + descriptions can route through `t()`. A module-scope literal would
-// freeze the English strings at import time.
-
+/** Slimmed configure-step options (Task 10). Behavior is on the quiz. */
 interface QuizAssignOptions {
-  tabWarningsEnabled: boolean;
-  showResultToStudent: boolean;
-  showCorrectAnswerToStudent: boolean;
-  showCorrectOnBoard: boolean;
-  speedBonusEnabled: boolean;
-  streakBonusEnabled: boolean;
-  showPodiumBetweenQuestions: boolean;
-  soundEffectsEnabled: boolean;
-  shuffleQuestions: boolean;
-  shuffleAnswerOptions: boolean;
-  attemptLimit: number | null;
   teacherName: string;
   plcSheetUrl: string;
   picker: AssignClassPickerValue;
@@ -121,17 +100,6 @@ interface QuizAssignOptions {
 
 function buildDefaultOptions(defaultTeacherName?: string): QuizAssignOptions {
   return {
-    tabWarningsEnabled: true,
-    showResultToStudent: false,
-    showCorrectAnswerToStudent: false,
-    showCorrectOnBoard: false,
-    speedBonusEnabled: false,
-    streakBonusEnabled: false,
-    showPodiumBetweenQuestions: false,
-    soundEffectsEnabled: false,
-    shuffleQuestions: false,
-    shuffleAnswerOptions: true,
-    attemptLimit: 1,
     teacherName: defaultTeacherName ?? '',
     plcSheetUrl: '',
     picker: makeEmptyPickerValue(),
@@ -150,12 +118,11 @@ export const PlcNewQuizAssignmentModal: React.FC<
 
   const [step, setStep] = useState<'pick' | 'configure'>('pick');
   const [pickedQuiz, setPickedQuiz] = useState<QuizMetadata | null>(null);
-  const [selectedMode, setSelectedMode] = useState<QuizSessionMode | null>(
-    null
-  );
   const [options, setOptions] = useState<QuizAssignOptions>(() =>
     buildDefaultOptions(user?.displayName ?? undefined)
   );
+  // Due date state (epoch ms or null)
+  const [dueAt, setDueAt] = useState<number | null>(null);
   // Auto-Generated PLC Sheet toggle: ON by default; flipping OFF reveals
   // the manual-URL field. Mirrors the QuizWidget AssignPlcSlot behavior.
   const [useAutoGenerated, setUseAutoGenerated] = useState(true);
@@ -163,48 +130,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
   // can fire two submit handlers before React commits the first
   // setState. See `PlcSharePickerModal.handlePick` for the same pattern.
   const submittingRef = useRef(false);
-
-  const quizModes = useMemo<AssignModeOption[]>(
-    () => [
-      {
-        id: 'teacher',
-        label: t('plcDashboard.newAssignment.quiz.modeTeacherLabel', {
-          defaultValue: 'Teacher-paced',
-        }),
-        description: t(
-          'plcDashboard.newAssignment.quiz.modeTeacherDescription',
-          {
-            defaultValue: 'You control when to move to the next question.',
-          }
-        ),
-        icon: User,
-      },
-      {
-        id: 'auto',
-        label: t('plcDashboard.newAssignment.quiz.modeAutoLabel', {
-          defaultValue: 'Auto-progress',
-        }),
-        description: t('plcDashboard.newAssignment.quiz.modeAutoDescription', {
-          defaultValue: 'Moves automatically once everyone has answered.',
-        }),
-        icon: Zap,
-      },
-      {
-        id: 'student',
-        label: t('plcDashboard.newAssignment.quiz.modeStudentLabel', {
-          defaultValue: 'Self-paced',
-        }),
-        description: t(
-          'plcDashboard.newAssignment.quiz.modeStudentDescription',
-          {
-            defaultValue: 'Students move through questions at their own speed.',
-          }
-        ),
-        icon: Clock,
-      },
-    ],
-    [t]
-  );
+  const [submitting, setSubmitting] = useState(false);
 
   const pickerItems: PlcSharePickerItem[] = useMemo(
     () =>
@@ -246,8 +172,9 @@ export const PlcNewQuizAssignmentModal: React.FC<
 
   const handleSubmit = useCallback(async () => {
     if (submittingRef.current) return;
-    if (!pickedQuiz || !selectedMode || !user) return;
+    if (!pickedQuiz || !user) return;
     submittingRef.current = true;
+    setSubmitting(true);
 
     let createdSyncGroupId: string | null = null;
     let linkageAttached = false;
@@ -367,18 +294,11 @@ export const PlcNewQuizAssignmentModal: React.FC<
         }
       }
 
-      const sessionOptions: QuizSessionOptions = {
-        tabWarningsEnabled: options.tabWarningsEnabled,
-        showResultToStudent: options.showResultToStudent,
-        showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
-        showCorrectOnBoard: options.showCorrectOnBoard,
-        speedBonusEnabled: options.speedBonusEnabled,
-        streakBonusEnabled: options.streakBonusEnabled,
-        showPodiumBetweenQuestions: options.showPodiumBetweenQuestions,
-        soundEffectsEnabled: options.soundEffectsEnabled,
-        shuffleQuestions: options.shuffleQuestions,
-        shuffleAnswerOptions: options.shuffleAnswerOptions,
-      };
+      // Task 10: source sessionMode/sessionOptions/attemptLimit from the
+      // quiz's behavior settings (getQuizBehavior). No longer driven by
+      // removed form controls.
+      const behavior = getQuizBehavior(pickedQuiz);
+      const sessionOptions: QuizSessionOptions = behavior.sessionOptions;
 
       const { id: assignmentId } = await createAssignment(
         {
@@ -388,13 +308,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
           questions: data.questions,
         },
         {
-          sessionMode: selectedMode,
+          sessionMode: behavior.sessionMode,
           sessionOptions,
-          attemptLimit: options.attemptLimit,
+          attemptLimit: behavior.attemptLimit,
           teacherName: options.teacherName.trim() || undefined,
           periodName: derived.periodNames[0],
           periodNames: derived.periodNames,
           plc: plcLinkage,
+          ...(dueAt != null ? { dueAt } : {}),
         },
         {
           initialStatus: 'paused',
@@ -449,12 +370,14 @@ export const PlcNewQuizAssignmentModal: React.FC<
       );
     } finally {
       submittingRef.current = false;
+      setSubmitting(false);
     }
   }, [
     addToast,
     assignmentMode,
     attachSyncLinkage,
     createAssignment,
+    dueAt,
     googleAccessToken,
     loadQuizData,
     onClose,
@@ -463,7 +386,6 @@ export const PlcNewQuizAssignmentModal: React.FC<
     pickedQuiz,
     plc,
     rosters,
-    selectedMode,
     t,
     useAutoGenerated,
     user,
@@ -502,13 +424,16 @@ export const PlcNewQuizAssignmentModal: React.FC<
     );
   }
 
-  // ─── Step 2: full settings via AssignModal chrome ────────────────────────
+  // ─── Step 2: slimmed configure — class picker + due-date + behavior summary
   if (!pickedQuiz) {
     // Defensive: callers transition `step` only after `pickedQuiz` is set,
     // so this branch is unreachable in practice. Bail rather than render
-    // an empty AssignModal if state ever desynchronizes.
+    // a broken modal if state ever desynchronizes.
     return null;
   }
+
+  const behavior = getQuizBehavior(pickedQuiz);
+  const behaviorSummary = formatBehaviorSummary(behavior);
 
   const visibleRosterIds = new Set(
     rosters.filter((r) => !r.loadError).map((r) => r.id)
@@ -517,164 +442,164 @@ export const PlcNewQuizAssignmentModal: React.FC<
     visibleRosterIds.has(id)
   ).length;
 
+  const dateInputValue = dueAt
+    ? new Date(dueAt).toISOString().slice(0, 10)
+    : '';
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setDueAt(val ? new Date(val).getTime() : null);
+  };
+
+  const modalTitle = t('plcDashboard.newAssignment.quiz.configureTitle', {
+    title: pickedQuiz.title,
+    defaultValue: 'Assign "{{title}}"',
+  });
+
   return (
-    <AssignModal<QuizAssignOptions>
-      isOpen
-      onClose={onClose}
-      itemTitle={pickedQuiz.title}
-      modes={quizModes}
-      selectedMode={selectedMode ?? undefined}
-      onModeChange={(id) => setSelectedMode(id as QuizSessionMode)}
-      options={options}
-      onOptionsChange={setOptions}
-      extraSlot={
-        <>
-          <AssignClassPicker
-            rosters={rosters}
-            value={options.picker}
-            onChange={(picker) => setOptions((p) => ({ ...p, picker }))}
-          />
-          <AssignmentSettingsToggleGroup
-            options={{
-              tabWarningsEnabled: options.tabWarningsEnabled,
-              showResultToStudent: options.showResultToStudent,
-              showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
-              showCorrectOnBoard: options.showCorrectOnBoard,
-              shuffleQuestions: options.shuffleQuestions,
-              shuffleAnswerOptions: options.shuffleAnswerOptions,
-            }}
-            onOptionsChange={(next) => setOptions((p) => ({ ...p, ...next }))}
-            attemptLimit={options.attemptLimit}
-            onAttemptLimitChange={(v) =>
-              setOptions((p) => ({ ...p, attemptLimit: v }))
-            }
-            // Shuffle Questions only fires in self-paced mode (the only
-            // mode that broadcasts per-student question sequences). The
-            // primitive renders a "self-paced only" hint when disabled.
-            shuffleQuestionsAvailable={selectedMode === 'student'}
-            trailingSlot={
-              <CollapsibleSection
-                label={t('plcDashboard.newAssignment.quiz.gamification.title', {
-                  defaultValue: 'Gamification',
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label={modalTitle}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+          <div>
+            <h2 className="text-base font-semibold text-slate-900">
+              {modalTitle}
+            </h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {t('plcDashboard.newAssignment.quiz.configureSubtitle', {
+                name: plc.name,
+                defaultValue: 'Shared with {{name}}',
+              })}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+            aria-label={t('common.close', { defaultValue: 'Close' })}
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
+          {/* Class / period picker */}
+          <div>
+            <p className="text-sm font-medium text-slate-700 mb-2">
+              {t('plcDashboard.newAssignment.quiz.classPickerLabel', {
+                defaultValue: 'Target class periods (optional)',
+              })}
+            </p>
+            <AssignClassPicker
+              rosters={rosters}
+              value={options.picker}
+              onChange={(picker) => setOptions((p) => ({ ...p, picker }))}
+            />
+          </div>
+
+          {/* Due date */}
+          <div>
+            <label
+              htmlFor="plc-assign-due-date-input"
+              className="block text-sm font-medium text-slate-700 mb-1 flex items-center gap-1.5"
+            >
+              <Calendar className="w-4 h-4" aria-hidden="true" />
+              {t('plcDashboard.newAssignment.quiz.dueDateLabel', {
+                defaultValue: 'Due date (optional)',
+              })}
+            </label>
+            <input
+              id="plc-assign-due-date-input"
+              type="date"
+              data-testid="plc-assign-due-date"
+              value={dateInputValue}
+              onChange={handleDateChange}
+              className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-brand-blue-primary/30"
+            />
+          </div>
+
+          {/* Read-only behavior summary */}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                {t('plcDashboard.newAssignment.quiz.behaviorLabel', {
+                  defaultValue: 'Behavior',
                 })}
-              >
-                <ToggleRow
-                  compact
-                  label={t(
-                    'plcDashboard.newAssignment.quiz.gamification.speedBonusLabel',
-                    { defaultValue: 'Speed Bonus Points' }
-                  )}
-                  checked={options.speedBonusEnabled}
-                  onChange={(v) =>
-                    setOptions((p) => ({ ...p, speedBonusEnabled: v }))
-                  }
-                  hint={t(
-                    'plcDashboard.newAssignment.quiz.gamification.speedBonusHint',
-                    { defaultValue: 'Up to 50% bonus for fast answers' }
-                  )}
-                />
-                <ToggleRow
-                  compact
-                  label={t(
-                    'plcDashboard.newAssignment.quiz.gamification.streakLabel',
-                    { defaultValue: 'Streak Bonuses' }
-                  )}
-                  checked={options.streakBonusEnabled}
-                  onChange={(v) =>
-                    setOptions((p) => ({ ...p, streakBonusEnabled: v }))
-                  }
-                  hint={t(
-                    'plcDashboard.newAssignment.quiz.gamification.streakHint',
-                    {
-                      defaultValue:
-                        'Multiplier for consecutive correct answers',
-                    }
-                  )}
-                />
-                <ToggleRow
-                  compact
-                  label={t(
-                    'plcDashboard.newAssignment.quiz.gamification.podiumLabel',
-                    { defaultValue: 'Podium Between Questions' }
-                  )}
-                  checked={options.showPodiumBetweenQuestions}
-                  onChange={(v) =>
-                    setOptions((p) => ({
-                      ...p,
-                      showPodiumBetweenQuestions: v,
-                    }))
-                  }
-                  hint={t(
-                    'plcDashboard.newAssignment.quiz.gamification.podiumHint',
-                    {
-                      defaultValue:
-                        'Show top 3 leaderboard after each question',
-                    }
-                  )}
-                />
-                <ToggleRow
-                  compact
-                  label={t(
-                    'plcDashboard.newAssignment.quiz.gamification.soundLabel',
-                    { defaultValue: 'Sound Effects' }
-                  )}
-                  checked={options.soundEffectsEnabled}
-                  onChange={(v) =>
-                    setOptions((p) => ({ ...p, soundEffectsEnabled: v }))
-                  }
-                  hint={t(
-                    'plcDashboard.newAssignment.quiz.gamification.soundHint',
-                    {
-                      defaultValue:
-                        'Chimes, ticks, and fanfares during the quiz',
-                    }
-                  )}
-                />
-              </CollapsibleSection>
+              </p>
+              <span className="text-xxs text-slate-400">
+                {t('plcDashboard.newAssignment.quiz.behaviorEditHint', {
+                  defaultValue: 'Edit in the quiz editor',
+                })}
+              </span>
+            </div>
+            <p
+              data-testid="plc-quiz-behavior-summary"
+              className="text-sm text-slate-600 leading-snug"
+            >
+              {behaviorSummary}
+            </p>
+          </div>
+
+          {/* PLC sharing slot (teacher name + auto-sheet toggle) */}
+          <PlcNewAssignmentSharingSlot
+            plcName={plc.name}
+            effectivePeriodCount={effectivePeriodCount}
+            teacherName={options.teacherName}
+            onTeacherNameChange={(v) =>
+              setOptions((p) => ({ ...p, teacherName: v }))
             }
+            useAutoGenerated={useAutoGenerated}
+            onUseAutoGeneratedChange={(v) => {
+              setUseAutoGenerated(v);
+              if (v) setOptions((p) => ({ ...p, plcSheetUrl: '' }));
+            }}
+            plcSheetUrl={options.plcSheetUrl}
+            onPlcSheetUrlChange={(v) =>
+              setOptions((p) => ({ ...p, plcSheetUrl: v }))
+            }
+            plcSheetUrlInvalid={plcSheetUrlInvalid}
+            googleAccessToken={googleAccessToken}
           />
-        </>
-      }
-      plcSlot={
-        <PlcNewAssignmentSharingSlot
-          plcName={plc.name}
-          effectivePeriodCount={effectivePeriodCount}
-          teacherName={options.teacherName}
-          onTeacherNameChange={(v) =>
-            setOptions((p) => ({ ...p, teacherName: v }))
-          }
-          useAutoGenerated={useAutoGenerated}
-          onUseAutoGeneratedChange={(v) => {
-            setUseAutoGenerated(v);
-            // Flipping to auto clears any stale manual URL so the
-            // submit branch reliably falls into the auto-create path;
-            // flipping off preserves the URL the user typed last.
-            if (v) setOptions((p) => ({ ...p, plcSheetUrl: '' }));
-          }}
-          plcSheetUrl={options.plcSheetUrl}
-          onPlcSheetUrlChange={(v) =>
-            setOptions((p) => ({ ...p, plcSheetUrl: v }))
-          }
-          plcSheetUrlInvalid={plcSheetUrlInvalid}
-          googleAccessToken={googleAccessToken}
-        />
-      }
-      onAssign={async () => {
-        await handleSubmit();
-      }}
-      confirmLabel={t('plcDashboard.newAssignment.confirm', {
-        defaultValue: 'Create assignment',
-      })}
-      confirmDisabled={!selectedMode || plcSheetUrlInvalid}
-      confirmDisabledReason={
-        !selectedMode
-          ? t('plcDashboard.newAssignment.quiz.modeRequired', {
-              defaultValue: 'Choose a session mode first.',
-            })
-          : t('plcDashboard.newAssignment.sharing.sheetUrlInvalid', {
-              defaultValue: "This doesn't look like a Google Sheets URL.",
-            })
-      }
-    />
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100">
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+          >
+            {t('common.cancel', { defaultValue: 'Cancel' })}
+          </button>
+          <button
+            type="button"
+            onClick={() => void handleSubmit()}
+            disabled={submitting || plcSheetUrlInvalid}
+            title={
+              plcSheetUrlInvalid
+                ? t('plcDashboard.newAssignment.sharing.sheetUrlInvalid', {
+                    defaultValue: "This doesn't look like a Google Sheets URL.",
+                  })
+                : undefined
+            }
+            className="px-4 py-2 rounded-lg bg-brand-blue-primary text-white text-sm font-semibold hover:bg-brand-blue-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {submitting
+              ? t('plcDashboard.assignmentConfig.creating', {
+                  defaultValue: 'Creating…',
+                })
+              : t('plcDashboard.newAssignment.confirm', {
+                  defaultValue: 'Create assignment',
+                })}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };

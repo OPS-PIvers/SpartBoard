@@ -47,7 +47,12 @@ import {
   Trash2,
   Users2,
 } from 'lucide-react';
-import type { Plc, VideoActivityData, VideoActivityMetadata } from '@/types';
+import type {
+  Plc,
+  VideoActivityBehaviorSettings,
+  VideoActivityData,
+  VideoActivityMetadata,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -67,6 +72,7 @@ import {
   pullSyncedVideoActivityContent,
 } from '@/hooks/useSyncedVideoActivityGroups';
 import { logError } from '@/utils/logError';
+import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { PlcVideoActivityImportModal } from '../PlcVideoActivityImportModal';
 import {
   PlcSharePickerModal,
@@ -423,10 +429,13 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
   );
 
   const handleSaveEdit = useCallback(
-    async (updated: VideoActivityData) => {
+    async (
+      updated: VideoActivityData,
+      behavior: VideoActivityBehaviorSettings
+    ) => {
       if (!editing) return;
       try {
-        await saveActivity(updated, editing.meta.driveFileId);
+        await saveActivity(updated, editing.meta.driveFileId, behavior);
         addToast(
           t('plcDashboard.videoActivities.editSaved', {
             defaultValue:
@@ -932,6 +941,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
       <VideoActivityEditorModal
         isOpen={editing !== null}
         activity={editing?.activity ?? null}
+        behavior={editing ? getVideoActivityBehavior(editing.meta) : undefined}
         onClose={() => setEditing(null)}
         onSave={handleSaveEdit}
       />

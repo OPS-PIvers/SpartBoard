@@ -306,6 +306,22 @@ export interface DashboardContextValue {
   pendingAssignmentEditId: string | null;
   setPendingAssignmentEdit: (assignmentId: string | null) => void;
   clearPendingAssignmentEdit: () => void;
+  /**
+   * Set by the PLC In-progress sub-tab (owner row) so the QuizWidget opens
+   * the live monitor for that assignment. Mirrors the `pendingAssignmentEditId`
+   * hand-off: close the PLC dashboard, set this id, QuizWidget effect picks
+   * it up and calls `updateWidget` to switch to `view: 'monitor'`.
+   */
+  pendingAssignmentMonitorId: string | null;
+  setPendingAssignmentMonitor: (assignmentId: string | null) => void;
+  clearPendingAssignmentMonitor: () => void;
+  /**
+   * Same as `pendingAssignmentMonitorId` but navigates to `view: 'results'`
+   * instead of the live monitor.
+   */
+  pendingAssignmentResultsId: string | null;
+  setPendingAssignmentResults: (assignmentId: string | null) => void;
+  clearPendingAssignmentResults: () => void;
 
   // Collection sharing system
   shareCollection: (input: {

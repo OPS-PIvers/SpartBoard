@@ -23,6 +23,7 @@ import { useGoogleDrive } from './useGoogleDrive';
 import { normalizeVideoActivityQuestions } from '@/utils/videoActivityNormalize';
 import {
   VideoActivityData,
+  VideoActivityBehaviorSettings,
   VideoActivityMetadata,
   VideoActivityMetadataSyncLinkage,
 } from '@/types';
@@ -54,7 +55,8 @@ export interface UseVideoActivityResult {
   /** Save or update an activity (saves JSON to Drive + upserts Firestore metadata). */
   saveActivity: (
     activity: VideoActivityData,
-    existingDriveFileId?: string
+    existingDriveFileId?: string,
+    behavior?: VideoActivityBehaviorSettings
   ) => Promise<VideoActivityMetadata>;
   /** Load full activity data from Drive by driveFileId. */
   loadActivityData: (driveFileId: string) => Promise<VideoActivityData>;
@@ -159,7 +161,8 @@ export const useVideoActivity = (
   const saveActivity = useCallback(
     async (
       activity: VideoActivityData,
-      existingDriveFileId?: string
+      existingDriveFileId?: string,
+      behavior?: VideoActivityBehaviorSettings
     ): Promise<VideoActivityMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
@@ -185,6 +188,12 @@ export const useVideoActivity = (
         : null;
       const existingSync = existingMeta?.sync;
 
+      // Preserve-on-omit: when the caller doesn't pass `behavior`, fall back
+      // to whatever is already on the metadata doc so we never silently drop
+      // a value that was set by a previous save (or pulled from a sync peer).
+      const effectiveBehavior: VideoActivityBehaviorSettings | undefined =
+        behavior ?? existingMeta?.behavior;
+
       // Publish to canonical BEFORE writing the Drive replica. If publish
       // throws (peer beat us → SyncedVideoActivityVersionConflictError,
       // network blip), the Drive replica is unchanged and the editor can
@@ -198,6 +207,9 @@ export const useVideoActivity = (
           questions: updated.questions,
           expectedVersion: existingSync.lastSyncedVersion,
           uid: userId,
+          ...(effectiveBehavior !== undefined
+            ? { behavior: effectiveBehavior }
+            : {}),
         });
         nextSyncedVersion = result.version;
       }
@@ -218,9 +230,9 @@ export const useVideoActivity = (
         questionCount: activity.questions.length,
         createdAt: activity.createdAt,
         updatedAt: updated.updatedAt,
-        // Preserve folder assignment + synced linkage across saves so
-        // the editor can't accidentally drop them by re-writing the
-        // metadata. Mirrors `useQuiz.saveQuiz`.
+        // Preserve folder assignment + synced linkage + behavior settings
+        // across saves so the editor can't accidentally drop them by
+        // re-writing the metadata. Mirrors `useQuiz.saveQuiz`.
         ...(existingMeta?.folderId !== undefined
           ? { folderId: existingMeta.folderId }
           : {}),
@@ -232,6 +244,9 @@ export const useVideoActivity = (
                   nextSyncedVersion ?? existingSync.lastSyncedVersion,
               },
             }
+          : {}),
+        ...(effectiveBehavior !== undefined
+          ? { behavior: effectiveBehavior }
           : {}),
       };
 
@@ -289,6 +304,12 @@ export const useVideoActivity = (
           groupId: activityMeta.sync.groupId,
           lastSyncedVersion: canonical.version,
         },
+        // Apply the behavior published by the peer — members who pull a
+        // peer's edit also get their behavior settings so every participant
+        // stays in sync on both content and configuration.
+        ...(canonical.behavior !== undefined
+          ? { behavior: canonical.behavior }
+          : {}),
       };
       await setDoc(
         doc(db, 'users', userId, VIDEO_ACTIVITIES_COLLECTION, activityMeta.id),

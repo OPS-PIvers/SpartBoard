@@ -24,7 +24,11 @@ import {
 import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '../config/firebase';
 import { logError } from '../utils/logError';
-import type { SyncedVideoActivityGroup, VideoActivityQuestion } from '../types';
+import type {
+  SyncedVideoActivityGroup,
+  VideoActivityBehaviorSettings,
+  VideoActivityQuestion,
+} from '../types';
 
 const SYNCED_COLLECTION = 'synced_video_activities';
 
@@ -34,6 +38,8 @@ export interface PublishSyncedVideoActivityInput {
   questions: VideoActivityQuestion[];
   expectedVersion: number;
   uid: string;
+  /** Behavior settings to publish alongside content (optional). */
+  behavior?: VideoActivityBehaviorSettings;
 }
 
 export interface PublishSyncedVideoActivityResult {
@@ -149,6 +155,7 @@ export async function pullSyncedVideoActivityContent(groupId: string): Promise<{
   title: string;
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
+  behavior?: VideoActivityBehaviorSettings;
   version: number;
 }> {
   const snap = await getDoc(doc(db, SYNCED_COLLECTION, groupId));
@@ -157,12 +164,13 @@ export async function pullSyncedVideoActivityContent(groupId: string): Promise<{
   }
   const data = snap.data() as Pick<
     SyncedVideoActivityGroup,
-    'title' | 'youtubeUrl' | 'questions' | 'version'
+    'title' | 'youtubeUrl' | 'questions' | 'behavior' | 'version'
   >;
   return {
     title: data.title,
     youtubeUrl: data.youtubeUrl ?? '',
     questions: data.questions ?? [],
+    behavior: data.behavior,
     version: data.version ?? 1,
   };
 }
@@ -179,6 +187,7 @@ export async function createSyncedVideoActivityGroup(input: {
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
   plcId?: string;
+  behavior?: VideoActivityBehaviorSettings;
 }): Promise<void> {
   const now = Date.now();
   const payload: SyncedVideoActivityGroup = {
@@ -189,6 +198,7 @@ export async function createSyncedVideoActivityGroup(input: {
     questions: input.questions,
     participants: { [input.uid]: { joinedAt: now } },
     ...(input.plcId ? { plcId: input.plcId } : {}),
+    ...(input.behavior ? { behavior: input.behavior } : {}),
     createdAt: now,
     updatedAt: now,
     updatedBy: input.uid,
@@ -235,6 +245,7 @@ export async function publishSyncedVideoActivity(
       questions: input.questions,
       updatedAt: now,
       updatedBy: input.uid,
+      ...(input.behavior ? { behavior: input.behavior } : {}),
     });
     return { version: nextVersion };
   });

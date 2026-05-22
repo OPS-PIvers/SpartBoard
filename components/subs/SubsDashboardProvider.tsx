@@ -242,6 +242,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       pendingVideoActivityShareId: null,
       pendingAssignmentSetupId: null,
       pendingAssignmentEditId: null,
+      pendingAssignmentMonitorId: null,
+      pendingAssignmentResultsId: null,
       rosters: EMPTY_ARRAY as ClassRoster[],
       activeRosterId: null,
 
@@ -375,6 +377,10 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       setPendingAssignmentSetup: NOOP,
       clearPendingAssignmentEdit: NOOP,
       setPendingAssignmentEdit: NOOP,
+      clearPendingAssignmentMonitor: NOOP,
+      setPendingAssignmentMonitor: NOOP,
+      clearPendingAssignmentResults: NOOP,
+      setPendingAssignmentResults: NOOP,
 
       // Roster CRUD — subs read rosters via /subs UI separately, not
       // through this context.

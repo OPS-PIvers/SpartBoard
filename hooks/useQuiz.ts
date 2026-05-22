@@ -20,7 +20,12 @@ import {
 import { db, isAuthBypass } from '../config/firebase';
 import { useAuth } from '../context/useAuth';
 import { useGoogleDrive } from './useGoogleDrive';
-import { QuizData, QuizMetadata, type QuizMetadataSyncLinkage } from '../types';
+import {
+  QuizData,
+  QuizMetadata,
+  type QuizMetadataSyncLinkage,
+  type QuizBehaviorSettings,
+} from '../types';
 import { QuizDriveService } from '../utils/quizDriveService';
 import {
   MockQuizDriveService,
@@ -58,7 +63,8 @@ export interface UseQuizResult {
    */
   saveQuiz: (
     quiz: QuizData,
-    existingDriveFileId?: string
+    existingDriveFileId?: string,
+    behavior?: QuizBehaviorSettings
   ) => Promise<QuizMetadata>;
   /** Load full quiz data from Drive by its driveFileId */
   loadQuizData: (driveFileId: string) => Promise<QuizData>;
@@ -189,7 +195,8 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
   const saveQuiz = useCallback(
     async (
       quiz: QuizData,
-      existingDriveFileId?: string
+      existingDriveFileId?: string,
+      behavior?: QuizBehaviorSettings
     ): Promise<QuizMetadata> => {
       if (!userId) throw new Error('Not authenticated');
       const drive = getDriveService();
@@ -208,6 +215,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         : null;
       const existingSync = existingMeta?.sync;
 
+      // Preserve-on-omit: when the caller doesn't pass `behavior`, fall back
+      // to whatever is already on the metadata doc so we never silently drop
+      // a value that was set by a previous save (or pulled from a sync peer).
+      const effectiveBehavior: QuizBehaviorSettings | undefined =
+        behavior ?? existingMeta?.behavior;
+
       // Order matters: publish to the canonical synced doc BEFORE writing
       // the Drive replica. If publish throws (peer beat us, network blip),
       // we want the local Drive file unchanged so the editor stays
@@ -223,6 +236,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           questions: updatedQuiz.questions,
           expectedVersion: existingSync.lastSyncedVersion,
           uid: userId,
+          ...(effectiveBehavior !== undefined
+            ? { behavior: effectiveBehavior }
+            : {}),
         });
         nextSyncedVersion = result.version;
       }
@@ -239,8 +255,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
         questionCount: quiz.questions.length,
         createdAt: quiz.createdAt,
         updatedAt: updatedQuiz.updatedAt,
-        // Preserve folder assignment + synced linkage across saves so the
-        // editor can't accidentally drop them by re-writing the metadata.
+        // Preserve folder assignment + synced linkage + behavior settings
+        // across saves so the editor can't accidentally drop them by
+        // re-writing the metadata.
         ...(existingMeta?.folderId !== undefined
           ? { folderId: existingMeta.folderId }
           : {}),
@@ -252,6 +269,9 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
                   nextSyncedVersion ?? existingSync.lastSyncedVersion,
               },
             }
+          : {}),
+        ...(effectiveBehavior !== undefined
+          ? { behavior: effectiveBehavior }
           : {}),
       };
 
@@ -300,6 +320,12 @@ export const useQuiz = (userId: string | undefined): UseQuizResult => {
           groupId: quizMeta.sync.groupId,
           lastSyncedVersion: canonical.version,
         },
+        // Apply the behavior published by the peer — members who pull a
+        // peer's edit also get their behavior settings so every participant
+        // stays in sync on both content and configuration.
+        ...(canonical.behavior !== undefined
+          ? { behavior: canonical.behavior }
+          : {}),
       };
       await setDoc(
         doc(db, 'users', userId, QUIZZES_COLLECTION, quizMeta.id),
