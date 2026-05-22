@@ -207,7 +207,9 @@ async function renderAndPickQuiz(props?: {
   fireEvent.click(screen.getByTestId('pick-quiz-btn'));
 
   // Give React a tick to update state.
-  await act(async () => {});
+  await act(async () => {
+    await Promise.resolve();
+  });
 
   return { onClose };
 }
