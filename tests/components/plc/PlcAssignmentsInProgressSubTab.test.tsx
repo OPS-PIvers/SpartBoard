@@ -22,6 +22,7 @@ import {
   fireEvent,
   waitFor,
   act,
+  within,
 } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, beforeAll } from 'vitest';
 import { I18nextProvider } from 'react-i18next';
@@ -122,9 +123,18 @@ const videoEntry: PlcAssignmentIndexEntry = {
   createdAt: 3_000_000,
 };
 
+// Mutable so individual tests (e.g. the kindFilter cases) can swap the
+// dataset the hook returns. Reset to the default mixed set in beforeEach.
+const DEFAULT_INDEX_ENTRIES: PlcAssignmentIndexEntry[] = [
+  ownerEntry,
+  peerEntry,
+  videoEntry,
+];
+let indexEntries: PlcAssignmentIndexEntry[] = DEFAULT_INDEX_ENTRIES;
+
 vi.mock('@/hooks/usePlcAssignmentIndex', () => ({
   usePlcAssignmentIndex: () => ({
-    entries: [ownerEntry, peerEntry, videoEntry],
+    entries: indexEntries,
     loading: false,
     error: null,
   }),
@@ -250,12 +260,30 @@ const plc = {
 // Render helper
 // ---------------------------------------------------------------------------
 
-const renderSubject = () =>
+const renderSubject = (
+  props: Partial<
+    React.ComponentProps<typeof PlcAssignmentsInProgressSubTab>
+  > = {}
+) =>
   render(
     <I18nextProvider i18n={i18n}>
-      <PlcAssignmentsInProgressSubTab plc={plc} />
+      <PlcAssignmentsInProgressSubTab plc={plc} {...props} />
     </I18nextProvider>
   );
+
+/**
+ * Identity-based row lookup: find the row container by its (unique) title
+ * text rather than relying on render order. Returns a scope you can run
+ * `within(...)` queries against — robust to entry reordering.
+ */
+const rowForTitle = (title: string): HTMLElement => {
+  const titleEl = screen.getByText(title);
+  const row = titleEl.closest<HTMLElement>('div.flex.items-center.gap-3');
+  if (!row) {
+    throw new Error(`Could not find row container for title: ${title}`);
+  }
+  return row;
+};
 
 // ---------------------------------------------------------------------------
 // Tests
@@ -265,6 +293,7 @@ describe('PlcAssignmentsInProgressSubTab', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     createAssignmentResolver = null;
+    indexEntries = DEFAULT_INDEX_ENTRIES;
   });
 
   it('renders Monitor and Results buttons for owner rows (quiz + video)', () => {
@@ -302,8 +331,10 @@ describe('PlcAssignmentsInProgressSubTab', () => {
   it('clicking Monitor opens the session modal with view=monitor (quiz)', () => {
     renderSubject();
 
-    // First Monitor button is the quiz entry (entry-1), in entries order.
-    fireEvent.click(screen.getAllByTestId('row-action-monitor')[0]);
+    // Select the Monitor button within the quiz row (entry-1) by its title,
+    // so this stays correct regardless of entry render order.
+    const quizRow = rowForTitle(ownerEntry.title);
+    fireEvent.click(within(quizRow).getByTestId('row-action-monitor'));
 
     const modal = screen.getByTestId('session-modal');
     expect(modal).toHaveAttribute('data-assignment-id', 'entry-1');
@@ -314,7 +345,8 @@ describe('PlcAssignmentsInProgressSubTab', () => {
   it('clicking Results opens the session modal with view=results (quiz)', () => {
     renderSubject();
 
-    fireEvent.click(screen.getAllByTestId('row-action-results')[0]);
+    const quizRow = rowForTitle(ownerEntry.title);
+    fireEvent.click(within(quizRow).getByTestId('row-action-results'));
 
     const modal = screen.getByTestId('session-modal');
     expect(modal).toHaveAttribute('data-assignment-id', 'entry-1');
@@ -325,8 +357,9 @@ describe('PlcAssignmentsInProgressSubTab', () => {
   it('clicking Monitor on a video-activity row threads kind=video-activity', () => {
     renderSubject();
 
-    // Second Monitor button is the video-activity entry (entry-3).
-    fireEvent.click(screen.getAllByTestId('row-action-monitor')[1]);
+    // Select within the video-activity row (entry-3) by its title.
+    const videoRow = rowForTitle(videoEntry.title);
+    fireEvent.click(within(videoRow).getByTestId('row-action-monitor'));
 
     const modal = screen.getByTestId('session-modal');
     expect(modal).toHaveAttribute('data-assignment-id', 'entry-3');
@@ -388,6 +421,73 @@ describe('PlcAssignmentsInProgressSubTab', () => {
     // resolves and pendingSetup is set.
     await waitFor(() => {
       expect(screen.queryByText(/Make a copy/i)).not.toBeInTheDocument();
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // kindFilter prop (C3)
+  // -------------------------------------------------------------------------
+  describe('kindFilter', () => {
+    // A mixed set with both quiz and video-activity rows, all in progress
+    // (active/paused), so the only thing that scopes them is the kindFilter.
+    const quizActive: PlcAssignmentIndexEntry = {
+      ...ownerEntry,
+      id: 'k-quiz-1',
+      title: 'Filter Quiz Active',
+      kind: 'quiz',
+      status: 'active',
+    };
+    const quizPaused: PlcAssignmentIndexEntry = {
+      ...ownerEntry,
+      id: 'k-quiz-2',
+      title: 'Filter Quiz Paused',
+      kind: 'quiz',
+      status: 'paused',
+    };
+    const videoActive: PlcAssignmentIndexEntry = {
+      ...videoEntry,
+      id: 'k-video-1',
+      title: 'Filter Video Active',
+      kind: 'video-activity',
+      status: 'active',
+    };
+    const videoPaused: PlcAssignmentIndexEntry = {
+      ...videoEntry,
+      id: 'k-video-2',
+      title: 'Filter Video Paused',
+      kind: 'video-activity',
+      status: 'paused',
+    };
+
+    beforeEach(() => {
+      indexEntries = [quizActive, videoActive, quizPaused, videoPaused];
+    });
+
+    it('renders only quiz rows when kindFilter="quiz"', () => {
+      renderSubject({ kindFilter: 'quiz' });
+
+      expect(screen.getByText(quizActive.title)).toBeInTheDocument();
+      expect(screen.getByText(quizPaused.title)).toBeInTheDocument();
+      expect(screen.queryByText(videoActive.title)).not.toBeInTheDocument();
+      expect(screen.queryByText(videoPaused.title)).not.toBeInTheDocument();
+    });
+
+    it('renders only video-activity rows when kindFilter="video-activity"', () => {
+      renderSubject({ kindFilter: 'video-activity' });
+
+      expect(screen.getByText(videoActive.title)).toBeInTheDocument();
+      expect(screen.getByText(videoPaused.title)).toBeInTheDocument();
+      expect(screen.queryByText(quizActive.title)).not.toBeInTheDocument();
+      expect(screen.queryByText(quizPaused.title)).not.toBeInTheDocument();
+    });
+
+    it('renders all kinds when kindFilter is undefined', () => {
+      renderSubject();
+
+      expect(screen.getByText(quizActive.title)).toBeInTheDocument();
+      expect(screen.getByText(quizPaused.title)).toBeInTheDocument();
+      expect(screen.getByText(videoActive.title)).toBeInTheDocument();
+      expect(screen.getByText(videoPaused.title)).toBeInTheDocument();
     });
   });
 });

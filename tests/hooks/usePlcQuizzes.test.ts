@@ -247,6 +247,220 @@ describe('usePlcQuizzes - parseEntry (via snapshot)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// usePlcQuizzes - run-settings write path (runSettingsFields)
+// ---------------------------------------------------------------------------
+// Writing `undefined` to Firestore throws, so the optional run-settings fields
+// must be OMITTED when absent. `attemptLimit: null` (= unlimited) is meaningful
+// and must survive. Exercised through shareQuizWithPlc / writePlcQuizEntry,
+// which both spread runSettingsFields() into the doc.
+
+describe('usePlcQuizzes - run-settings write path', () => {
+  it('omits undefined run-settings fields from the shared Firestore doc', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcQuizzes(PLC_ID));
+
+    // No sessionMode/sessionOptions/attemptLimit/quizId supplied — all undefined.
+    await result.current.shareQuizWithPlc({
+      plcQuizId: 'pq-1',
+      syncGroupId: 'group-1',
+      title: 'My Quiz',
+      questionCount: 7,
+      sharedByName: 'Alice',
+      sharedByEmail: 'alice@example.com',
+    });
+
+    const [, payload] = mockSetDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    // The doc must carry no run-settings keys at all (not even as `undefined`).
+    expect(payload).not.toHaveProperty('sessionMode');
+    expect(payload).not.toHaveProperty('sessionOptions');
+    expect(payload).not.toHaveProperty('attemptLimit');
+    expect(payload).not.toHaveProperty('quizId');
+    // Belt-and-suspenders: no key anywhere holds `undefined`.
+    expect(Object.values(payload)).not.toContain(undefined);
+  });
+
+  it('writes attemptLimit:null (unlimited) but omits the other undefined fields', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcQuizzes(PLC_ID));
+
+    await result.current.shareQuizWithPlc({
+      plcQuizId: 'pq-1',
+      syncGroupId: 'group-1',
+      title: 'My Quiz',
+      questionCount: 7,
+      sharedByName: 'Alice',
+      sharedByEmail: 'alice@example.com',
+      attemptLimit: null,
+    });
+
+    const [, payload] = mockSetDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    // null is a real value (unlimited) — must be present and preserved as null.
+    expect(payload).toHaveProperty('attemptLimit', null);
+    expect(payload).not.toHaveProperty('sessionMode');
+    expect(payload).not.toHaveProperty('sessionOptions');
+    expect(payload).not.toHaveProperty('quizId');
+    expect(Object.values(payload)).not.toContain(undefined);
+  });
+
+  it('writes the supplied run-settings fields verbatim when all are present', async () => {
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    const { result } = renderHook(() => usePlcQuizzes(PLC_ID));
+
+    const sessionOptions = { showResultToStudent: true };
+    await result.current.shareQuizWithPlc({
+      plcQuizId: 'pq-1',
+      syncGroupId: 'group-1',
+      title: 'My Quiz',
+      questionCount: 7,
+      sharedByName: 'Alice',
+      sharedByEmail: 'alice@example.com',
+      sessionMode: 'auto',
+      sessionOptions,
+      attemptLimit: 3,
+      quizId: 'src-quiz-1',
+    });
+
+    const [, payload] = mockSetDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(payload).toMatchObject({
+      sessionMode: 'auto',
+      sessionOptions,
+      attemptLimit: 3,
+      quizId: 'src-quiz-1',
+    });
+  });
+
+  it('writePlcQuizEntry applies the same omit-undefined / keep-null rule', async () => {
+    await writePlcQuizEntry(PLC_ID, TEACHER_UID, {
+      plcQuizId: 'pq-1',
+      syncGroupId: 'group-1',
+      title: 'My Quiz',
+      questionCount: 7,
+      sharedByName: 'Alice',
+      sharedByEmail: 'alice@example.com',
+      attemptLimit: null,
+      // sessionMode/sessionOptions/quizId omitted (undefined)
+    });
+
+    const [, payload] = mockSetDoc.mock.calls[0] as [
+      string,
+      Record<string, unknown>,
+    ];
+    expect(payload).toHaveProperty('attemptLimit', null);
+    expect(payload).not.toHaveProperty('sessionMode');
+    expect(payload).not.toHaveProperty('sessionOptions');
+    expect(payload).not.toHaveProperty('quizId');
+    expect(Object.values(payload)).not.toContain(undefined);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// usePlcQuizzes - parseEntry run-settings (via snapshot)
+// ---------------------------------------------------------------------------
+
+describe('usePlcQuizzes - parseEntry run-settings (via snapshot)', () => {
+  function renderWithSnapshot(
+    docs: Array<{ id: string; data: Record<string, unknown> }>
+  ) {
+    let cb: (snap: unknown) => void = () => {
+      throw new Error('snapshot callback not captured');
+    };
+    mockOnSnapshot.mockImplementation((_q, onNext) => {
+      cb = onNext;
+      return () => undefined;
+    });
+    const { result } = renderHook(() => usePlcQuizzes(PLC_ID));
+    act(() => {
+      cb(fakeSnap(docs));
+    });
+    return result;
+  }
+
+  const baseEntry = {
+    title: 'A Quiz',
+    questionCount: 5,
+    syncGroupId: 'group-A',
+    sharedBy: 'u1',
+    sharedAt: 1000,
+    updatedAt: 1500,
+  };
+
+  it('parses a legacy doc (no run-settings) without attaching the optional fields', () => {
+    const result = renderWithSnapshot([{ id: 'a', data: { ...baseEntry } }]);
+
+    expect(result.current.quizzes).toHaveLength(1);
+    const entry = result.current.quizzes[0];
+    expect(entry).not.toHaveProperty('sessionMode');
+    expect(entry).not.toHaveProperty('sessionOptions');
+    expect(entry).not.toHaveProperty('attemptLimit');
+    expect(entry).not.toHaveProperty('quizId');
+  });
+
+  it('attaches valid run-settings fields when present', () => {
+    const result = renderWithSnapshot([
+      {
+        id: 'a',
+        data: {
+          ...baseEntry,
+          sessionMode: 'student',
+          sessionOptions: { showCorrectOnBoard: true },
+          attemptLimit: 2,
+          quizId: 'src-quiz-1',
+        },
+      },
+    ]);
+
+    const entry = result.current.quizzes[0];
+    expect(entry.sessionMode).toBe('student');
+    expect(entry.sessionOptions).toEqual({ showCorrectOnBoard: true });
+    expect(entry.attemptLimit).toBe(2);
+    expect(entry.quizId).toBe('src-quiz-1');
+  });
+
+  it('drops an unrecognized sessionMode while keeping the rest of the entry', () => {
+    const result = renderWithSnapshot([
+      { id: 'a', data: { ...baseEntry, sessionMode: 'bogus-mode' } },
+    ]);
+
+    expect(result.current.quizzes).toHaveLength(1);
+    expect(result.current.quizzes[0]).not.toHaveProperty('sessionMode');
+  });
+
+  it('does NOT attach sessionOptions with no recognized boolean key (garbage object)', () => {
+    const result = renderWithSnapshot([
+      // Empty object — carries no real run-setting.
+      { id: 'a', data: { ...baseEntry, sessionOptions: {} } },
+      // Non-object garbage.
+      { id: 'b', data: { ...baseEntry, sessionOptions: 'nope' } },
+      // Object with only unknown keys.
+      { id: 'c', data: { ...baseEntry, sessionOptions: { foo: true } } },
+    ]);
+
+    expect(result.current.quizzes).toHaveLength(3);
+    for (const entry of result.current.quizzes) {
+      expect(entry).not.toHaveProperty('sessionOptions');
+    }
+  });
+
+  it('preserves attemptLimit:null (unlimited) from the snapshot', () => {
+    const result = renderWithSnapshot([
+      { id: 'a', data: { ...baseEntry, attemptLimit: null } },
+    ]);
+
+    const entry = result.current.quizzes[0];
+    expect(entry).toHaveProperty('attemptLimit', null);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // usePlcQuizzes - state reset on plcId change
 // ---------------------------------------------------------------------------
 
