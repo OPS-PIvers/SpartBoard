@@ -117,6 +117,12 @@ interface QuizLiveMonitorProps {
   onHideAnswer?: (questionId: string) => Promise<void>;
   /** Navigate back to the manager view without ending the quiz. */
   onBack?: () => void;
+  /**
+   * Hide the live-scoreboard toggle. The scoreboard publishes to a separate
+   * board scoreboard widget, so it's meaningless in contexts with no board
+   * behind the monitor (e.g. the PLC session modal). Defaults to false.
+   */
+  hideLiveScoreboard?: boolean;
 }
 
 interface LiveScoreboardSetupPopupProps {
@@ -290,6 +296,7 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
   onRevealAnswer,
   onHideAnswer,
   onBack,
+  hideLiveScoreboard = false,
 }) => {
   const { showConfirm } = useDialog();
   const {
@@ -357,7 +364,8 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     Boolean(session.speedBonusEnabled) ||
     Boolean(session.streakBonusEnabled) ||
     Boolean(session.showPodiumBetweenQuestions);
-  const showScoreboardControl = isGamifiedSession || isLiveScoreboardActive;
+  const showScoreboardControl =
+    !hideLiveScoreboard && (isGamifiedSession || isLiveScoreboardActive);
 
   // Tab-switch warnings are hidden by default — they're noise during
   // normal monitoring and only meaningful for assessments. Teachers can

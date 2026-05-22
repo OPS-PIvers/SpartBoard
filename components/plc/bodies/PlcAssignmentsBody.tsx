@@ -280,10 +280,7 @@ export const PlcAssignmentsBody: React.FC<PlcAssignmentsBodyProps> = ({
           />
         )}
         {activeSubTab === 'inProgress' && (
-          <PlcAssignmentsInProgressSubTab
-            plc={plc}
-            onCloseDashboard={onCloseDashboard}
-          />
+          <PlcAssignmentsInProgressSubTab plc={plc} />
         )}
         {activeSubTab === 'completed' && (
           <PlcAssignmentsCompletedSubTab plc={plc} />

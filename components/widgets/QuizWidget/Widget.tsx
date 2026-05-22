@@ -98,10 +98,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     clearPendingAssignmentSetup,
     pendingAssignmentEditId,
     clearPendingAssignmentEdit,
-    pendingAssignmentMonitorId,
-    clearPendingAssignmentMonitor,
-    pendingAssignmentResultsId,
-    clearPendingAssignmentResults,
   } = useDashboard();
   const {
     user,
@@ -381,94 +377,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     setEditingAssignment(target);
     clearPendingAssignmentEdit();
   }, [pendingAssignmentEditId, assignments, clearPendingAssignmentEdit]);
-
-  // PLC in-progress "Monitor" hand-off. Set by the PLC dashboard (owner
-  // row) after closing the overlay. The effect finds the matching
-  // assignment, loads its quiz from Drive, then switches the widget to the
-  // live monitor view — same logic as the inline `onArchiveMonitor` handler
-  // but driven by context state so it survives the dashboard-close render.
-  React.useEffect(() => {
-    if (!pendingAssignmentMonitorId) return;
-    const target = assignments.find((a) => a.id === pendingAssignmentMonitorId);
-    if (!target) return;
-    clearPendingAssignmentMonitor();
-    const meta = quizzes.find((q) => q.id === target.quizId);
-    if (!meta) {
-      addToast(
-        'Quiz is no longer in your library — cannot open monitor.',
-        'error'
-      );
-      return;
-    }
-    void loadQuiz(meta).then((data) => {
-      if (!data) return;
-      updateWidget(widget.id, {
-        config: {
-          ...configRef.current,
-          view: 'monitor',
-          selectedQuizId: target.quizId,
-          selectedQuizTitle: target.quizTitle,
-          activeAssignmentId: target.id,
-          activeLiveSessionCode: target.code,
-          periodName: target.periodName ?? '',
-          periodNames: target.periodNames ?? [],
-          teacherName: target.teacherName ?? '',
-          plcMode: !!target.plc,
-          plcSheetUrl: target.plc?.sheetUrl ?? '',
-        } as QuizConfig,
-      });
-    });
-  }, [
-    pendingAssignmentMonitorId,
-    assignments,
-    quizzes,
-    clearPendingAssignmentMonitor,
-    loadQuiz,
-    addToast,
-    updateWidget,
-    widget.id,
-  ]);
-
-  // PLC in-progress "Results" hand-off — mirrors the Monitor hand-off but
-  // switches to `view: 'results'` instead.
-  React.useEffect(() => {
-    if (!pendingAssignmentResultsId) return;
-    const target = assignments.find((a) => a.id === pendingAssignmentResultsId);
-    if (!target) return;
-    clearPendingAssignmentResults();
-    const meta = quizzes.find((q) => q.id === target.quizId);
-    if (!meta) {
-      addToast(
-        'Quiz is no longer in your library — cannot open results.',
-        'error'
-      );
-      return;
-    }
-    void loadQuiz(meta).then((data) => {
-      if (!data) return;
-      updateWidget(widget.id, {
-        config: {
-          ...configRef.current,
-          view: 'results',
-          selectedQuizId: target.quizId,
-          selectedQuizTitle: target.quizTitle,
-          activeAssignmentId: target.id,
-          periodName: target.periodName ?? '',
-          periodNames: target.periodNames ?? [],
-          teacherName: target.teacherName ?? '',
-        } as QuizConfig,
-      });
-    });
-  }, [
-    pendingAssignmentResultsId,
-    assignments,
-    quizzes,
-    clearPendingAssignmentResults,
-    loadQuiz,
-    addToast,
-    updateWidget,
-    widget.id,
-  ]);
 
   // Auto-load quiz data if we are in monitor view or have an active session, but data is missing
   // This allows for seamless resumption after page reload.
