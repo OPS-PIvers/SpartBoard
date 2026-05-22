@@ -8,6 +8,7 @@ import {
   Trash2,
   ArrowLeft,
   ArrowRight,
+  Share2,
   X,
 } from 'lucide-react';
 import { NotebookItem } from '@/types';
@@ -19,6 +20,7 @@ interface ViewerProps {
   showAssets: boolean;
   setShowAssets: (show: boolean) => void;
   handleClose: () => void;
+  onShare?: (e: React.MouseEvent) => void;
   currentPage: number;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   handleDragStart: (e: React.DragEvent, url: string) => void;
@@ -37,6 +39,7 @@ export const Viewer: React.FC<ViewerProps> = ({
   showAssets,
   setShowAssets,
   handleClose,
+  onShare,
   currentPage,
   setCurrentPage,
   handleDragStart,
@@ -197,6 +200,17 @@ export const Viewer: React.FC<ViewerProps> = ({
                     height: 'min(16px, 4cqmin)',
                   }}
                 />
+              </button>
+            )}
+            {onShare && (
+              <button
+                onClick={onShare}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title="Share notebook (copies a paste-able link)"
+                aria-label="Share notebook"
+              >
+                <Share2 style={iconStyle} />
               </button>
             )}
             <button

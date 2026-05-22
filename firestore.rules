@@ -964,6 +964,18 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Shared notebooks - a SMART Notebook published for staff sharing. Carries
+    // the author's page/asset download URLs (token-bearing, so cross-user
+    // readable) plus title/sections; a recipient pastes the link to import a
+    // copy. Same owner-write / authenticated-read pattern as shared_quizzes.
+    match /shared_notebooks/{shareId} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null &&
+        request.resource.data.originalAuthor == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+    }
+
     // Shared Activity Wall galleries — view-only published copy of an
     // Activity Wall session's submissions. The teacher creates the share
     // doc; viewers land at /activity-wall/gallery/{shareId} and read the

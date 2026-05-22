@@ -76,6 +76,7 @@ import { FolderItem } from './dock/FolderItem';
 import { QuickAccessButton } from './dock/QuickAccessButton';
 import { SavedWidgetDockItem } from './dock/SavedWidgetDockItem';
 import { useScreenRecord } from '@/hooks/useScreenRecord';
+import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useCatalystSets } from '@/hooks/useCatalystSets';
 import { beginWidgetDrag, endWidgetDrag } from '@/utils/widgetDragFlag';
@@ -115,6 +116,7 @@ export const Dock: React.FC = () => {
   } = useAuth();
   const isVerticalDock = dockPosition === 'left' || dockPosition === 'right';
   const { driveService } = useGoogleDrive();
+  const { importSharedNotebookCopy } = useNotebookSharing();
   const { sets: catalystSets, executeRoutine } = useCatalystSets();
   const { customWidgets } = useCustomWidgets();
   const { savedWidgets, setPinnedToDock, deleteSavedWidget } =
@@ -484,6 +486,24 @@ export const Dock: React.FC = () => {
             // assignment (paused) and open the Quiz widget to the Archive tab.
             setPendingAssignmentShareId(result.shareId);
             addToast('Importing shared assignment…', 'info');
+          } else if (result.action === 'import-notebook') {
+            // Copy the shared notebook into the user's library, then drop a
+            // SmartNotebook widget on the board opened to it. Async (downloads
+            // + re-uploads pages), so we toast progress and await off the event.
+            const shareId = result.shareId;
+            addToast('Importing shared notebook…', 'info');
+            void (async () => {
+              try {
+                const newId = await importSharedNotebookCopy(shareId);
+                addWidget('smartNotebook', {
+                  config: { activeNotebookId: newId },
+                });
+                addToast('Notebook imported', 'success');
+              } catch (err) {
+                console.error('Failed to import shared notebook', err);
+                addToast('Failed to import shared notebook', 'error');
+              }
+            })();
           } else if (result.action === 'prompt-text-or-checklist') {
             // Ambiguous: show a picker modal for the user to decide
             setSmartPastePending(result.text);
@@ -507,6 +527,7 @@ export const Dock: React.FC = () => {
     urlPastePending,
     setPendingQuizShareId,
     setPendingAssignmentShareId,
+    importSharedNotebookCopy,
   ]);
 
   const classesButtonRef = useRef<HTMLButtonElement>(null);

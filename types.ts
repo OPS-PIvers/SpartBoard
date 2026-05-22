@@ -2226,6 +2226,24 @@ export interface SmartNotebookConfig {
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
   fontColor?: string;
+  /** Library layout preference; persists per widget instance. Defaults to cards. */
+  libraryDisplayMode?: 'cards' | 'list';
+}
+
+/**
+ * A notebook published for staff sharing, stored at `/shared_notebooks/{shareId}`.
+ * Pages/assets reference the original author's Storage download URLs (the
+ * token in each URL grants cross-user read), so no files are duplicated to
+ * create the share. A recipient pastes `${origin}/share/notebook/{shareId}` to
+ * import a copy. Mirrors the shared_quizzes / shared_assignments shape.
+ */
+export interface SharedNotebook {
+  title: string;
+  pageUrls: string[];
+  assetUrls?: string[];
+  sections?: NotebookSection[];
+  originalAuthor: string;
+  sharedAt: number;
 }
 
 export interface BuildingSmartNotebookDefaults {

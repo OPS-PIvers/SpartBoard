@@ -1,5 +1,14 @@
 import React, { RefObject } from 'react';
-import { Upload, Book, Trash2, FileText, Loader2 } from 'lucide-react';
+import {
+  Upload,
+  Book,
+  Trash2,
+  FileText,
+  Loader2,
+  Share2,
+  LayoutGrid,
+  List,
+} from 'lucide-react';
 import { NotebookItem } from '@/types';
 import { getButtonAccessibilityProps } from '@/utils/accessibility';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
@@ -10,6 +19,9 @@ interface LibraryProps {
   handleImport: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleSelect: (id: string) => void;
   handleDelete: (e: React.MouseEvent, id: string) => Promise<void>;
+  handleShare: (e: React.MouseEvent, id: string) => void;
+  displayMode: 'cards' | 'list';
+  onChangeDisplayMode: (mode: 'cards' | 'list') => void;
   fileInputRef: RefObject<HTMLInputElement | null>;
 }
 
@@ -19,6 +31,9 @@ export const Library: React.FC<LibraryProps> = ({
   handleImport,
   handleSelect,
   handleDelete,
+  handleShare,
+  displayMode,
+  onChangeDisplayMode,
   fileInputRef,
 }) => {
   return (
@@ -45,41 +60,96 @@ export const Library: React.FC<LibraryProps> = ({
             />{' '}
             Notebooks
           </h2>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={isImporting}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest flex items-center shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 active:scale-95"
-            style={{
-              padding: 'min(8px, 2cqmin) min(16px, 3.5cqmin)',
-              fontSize: 'min(12px, 3cqmin)',
-              gap: 'min(8px, 2cqmin)',
-            }}
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
           >
-            {isImporting ? (
-              <Loader2
-                className="animate-spin"
+            {notebooks.length > 0 && (
+              <div
+                className="flex items-center bg-slate-100 rounded-xl"
                 style={{
-                  width: 'min(16px, 4cqmin)',
-                  height: 'min(16px, 4cqmin)',
+                  padding: 'min(2px, 0.5cqmin)',
+                  gap: 'min(2px, 0.5cqmin)',
                 }}
-              />
-            ) : (
-              <Upload
-                style={{
-                  width: 'min(16px, 4cqmin)',
-                  height: 'min(16px, 4cqmin)',
-                }}
-              />
+                role="group"
+                aria-label="Library view"
+              >
+                <button
+                  onClick={() => onChangeDisplayMode('cards')}
+                  aria-pressed={displayMode === 'cards'}
+                  aria-label="Card view"
+                  title="Card view"
+                  className={`rounded-lg transition-all ${
+                    displayMode === 'cards'
+                      ? 'bg-white text-indigo-600 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                  style={{ padding: 'min(6px, 1.5cqmin)' }}
+                >
+                  <LayoutGrid
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
+                  />
+                </button>
+                <button
+                  onClick={() => onChangeDisplayMode('list')}
+                  aria-pressed={displayMode === 'list'}
+                  aria-label="List view"
+                  title="List view"
+                  className={`rounded-lg transition-all ${
+                    displayMode === 'list'
+                      ? 'bg-white text-indigo-600 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                  style={{ padding: 'min(6px, 1.5cqmin)' }}
+                >
+                  <List
+                    style={{
+                      width: 'min(16px, 4cqmin)',
+                      height: 'min(16px, 4cqmin)',
+                    }}
+                  />
+                </button>
+              </div>
             )}
-            Import
-          </button>
-          <input
-            type="file"
-            ref={fileInputRef}
-            onChange={handleImport}
-            accept=".notebook,.spartnb"
-            className="hidden"
-          />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isImporting}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-black uppercase tracking-widest flex items-center shadow-lg shadow-indigo-500/20 transition-all disabled:opacity-50 active:scale-95"
+              style={{
+                padding: 'min(8px, 2cqmin) min(16px, 3.5cqmin)',
+                fontSize: 'min(12px, 3cqmin)',
+                gap: 'min(8px, 2cqmin)',
+              }}
+            >
+              {isImporting ? (
+                <Loader2
+                  className="animate-spin"
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+              ) : (
+                <Upload
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+              )}
+              Import
+            </button>
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleImport}
+              accept=".notebook,.spartnb"
+              className="hidden"
+            />
+          </div>
         </div>
       }
       content={
@@ -125,6 +195,98 @@ export const Library: React.FC<LibraryProps> = ({
                   Import a .notebook or .spartnb file to begin.
                 </p>
               </div>
+            </div>
+          ) : displayMode === 'list' ? (
+            <div className="flex flex-col" style={{ gap: 'min(8px, 2cqmin)' }}>
+              {notebooks.map((notebook) => {
+                const firstPageUrl = notebook.pageUrls?.[0];
+
+                return (
+                  <div
+                    key={notebook.id}
+                    {...getButtonAccessibilityProps(() =>
+                      handleSelect(notebook.id)
+                    )}
+                    className="group flex items-center bg-white rounded-xl overflow-hidden cursor-pointer hover:ring-2 hover:ring-indigo-500 transition-all border border-slate-200 shadow-sm"
+                    style={{
+                      gap: 'min(12px, 3cqmin)',
+                      padding: 'min(8px, 2cqmin)',
+                    }}
+                  >
+                    <div
+                      className="shrink-0 rounded-lg overflow-hidden bg-slate-50"
+                      style={{
+                        width: 'min(56px, 14cqmin)',
+                        height: 'min(42px, 10.5cqmin)',
+                      }}
+                    >
+                      {firstPageUrl ? (
+                        <img
+                          src={firstPageUrl}
+                          className="w-full h-full object-cover"
+                          alt={notebook.title}
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-slate-300">
+                          <FileText
+                            style={{
+                              width: 'min(20px, 5cqmin)',
+                              height: 'min(20px, 5cqmin)',
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p
+                        className="font-black text-slate-700 uppercase tracking-tight truncate"
+                        style={{ fontSize: 'min(13px, 3.2cqmin)' }}
+                      >
+                        {notebook.title}
+                      </p>
+                      <p
+                        className="font-bold text-slate-400 uppercase tracking-widest"
+                        style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                      >
+                        {notebook.pageUrls.length} pages
+                      </p>
+                    </div>
+                    <div
+                      className="flex items-center shrink-0"
+                      style={{ gap: 'min(4px, 1cqmin)' }}
+                    >
+                      <button
+                        onClick={(e) => handleShare(e, notebook.id)}
+                        aria-label="Share notebook"
+                        title="Share notebook"
+                        className="text-slate-400 rounded-lg hover:bg-indigo-50 hover:text-indigo-600 transition-all"
+                        style={{ padding: 'min(8px, 2cqmin)' }}
+                      >
+                        <Share2
+                          style={{
+                            width: 'min(16px, 4cqmin)',
+                            height: 'min(16px, 4cqmin)',
+                          }}
+                        />
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, notebook.id)}
+                        aria-label="Delete notebook"
+                        title="Delete notebook"
+                        className="text-slate-400 rounded-lg hover:bg-red-50 hover:text-red-500 transition-all"
+                        style={{ padding: 'min(8px, 2cqmin)' }}
+                      >
+                        <Trash2
+                          style={{
+                            width: 'min(16px, 4cqmin)',
+                            height: 'min(16px, 4cqmin)',
+                          }}
+                        />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div
@@ -179,22 +341,43 @@ export const Library: React.FC<LibraryProps> = ({
                         {notebook.pageUrls.length} pages
                       </p>
                     </div>
-                    <button
-                      onClick={(e) => handleDelete(e, notebook.id)}
-                      className="absolute bg-white/90 text-red-500 rounded-xl opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500 hover:text-white shadow-xl scale-75 group-hover:scale-100"
+                    <div
+                      className="absolute flex items-center opacity-0 group-hover:opacity-100 transition-all scale-75 group-hover:scale-100"
                       style={{
                         top: 'min(8px, 2cqmin)',
                         right: 'min(8px, 2cqmin)',
-                        padding: 'min(8px, 2cqmin)',
+                        gap: 'min(6px, 1.5cqmin)',
                       }}
                     >
-                      <Trash2
-                        style={{
-                          width: 'min(16px, 4cqmin)',
-                          height: 'min(16px, 4cqmin)',
-                        }}
-                      />
-                    </button>
+                      <button
+                        onClick={(e) => handleShare(e, notebook.id)}
+                        aria-label="Share notebook"
+                        title="Share notebook"
+                        className="bg-white/90 text-indigo-600 rounded-xl hover:bg-indigo-600 hover:text-white shadow-xl transition-all"
+                        style={{ padding: 'min(8px, 2cqmin)' }}
+                      >
+                        <Share2
+                          style={{
+                            width: 'min(16px, 4cqmin)',
+                            height: 'min(16px, 4cqmin)',
+                          }}
+                        />
+                      </button>
+                      <button
+                        onClick={(e) => handleDelete(e, notebook.id)}
+                        aria-label="Delete notebook"
+                        title="Delete notebook"
+                        className="bg-white/90 text-red-500 rounded-xl hover:bg-red-500 hover:text-white shadow-xl transition-all"
+                        style={{ padding: 'min(8px, 2cqmin)' }}
+                      >
+                        <Trash2
+                          style={{
+                            width: 'min(16px, 4cqmin)',
+                            height: 'min(16px, 4cqmin)',
+                          }}
+                        />
+                      </button>
+                    </div>
                   </div>
                 );
               })}

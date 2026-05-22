@@ -276,6 +276,38 @@ describe('detectWidgetType (Smart Paste)', () => {
     expect(result?.action).not.toBe('import-board');
   });
 
+  it('detects notebook share URLs', () => {
+    const input = 'https://spartboard.web.app/share/notebook/nb_123';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-notebook') {
+      expect(result.shareId).toBe('nb_123');
+    } else {
+      throw new Error('Expected import-notebook action');
+    }
+  });
+
+  it('detects notebook share URLs with bare domain', () => {
+    const input = 'spartboard.web.app/share/notebook/xyz789';
+    const result = detectWidgetType(input);
+
+    expect(result).not.toBeNull();
+    if (result?.action === 'import-notebook') {
+      expect(result.shareId).toBe('xyz789');
+    } else {
+      throw new Error('Expected import-notebook action');
+    }
+  });
+
+  it('does not treat notebook share URLs as board imports', () => {
+    const input = 'https://spartboard.web.app/share/notebook/abc123';
+    const result = detectWidgetType(input);
+
+    expect(result?.action).toBe('import-notebook');
+    expect(result?.action).not.toBe('import-board');
+  });
+
   it('still detects board share URLs correctly', () => {
     const input = 'https://myapp.com/share/boardId123';
     const result = detectWidgetType(input);

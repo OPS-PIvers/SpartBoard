@@ -9,6 +9,7 @@ import {
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
+import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import {
   collection,
   onSnapshot,
@@ -46,8 +47,10 @@ export const SmartNotebookWidget: React.FC<{
   const { user } = useAuth();
   const { showConfirm } = useDialog();
   const { uploadFile, deleteFile } = useStorage();
+  const { shareNotebook } = useNotebookSharing();
   const config = widget.config as SmartNotebookConfig;
   const { activeNotebookId } = config;
+  const displayMode = config.libraryDisplayMode ?? 'cards';
 
   const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -297,6 +300,25 @@ export const SmartNotebookWidget: React.FC<{
     setCurrentPage(0);
   };
 
+  const setDisplayMode = (mode: 'cards' | 'list') => {
+    updateWidget(widget.id, {
+      config: { ...config, libraryDisplayMode: mode },
+    });
+  };
+
+  // Publish a notebook for staff sharing and copy the link to the clipboard.
+  const handleShare = async (e: React.MouseEvent, notebook: NotebookItem) => {
+    e.stopPropagation();
+    try {
+      const url = await shareNotebook(notebook);
+      await navigator.clipboard.writeText(url);
+      addToast('Share link copied — paste it onto another board', 'success');
+    } catch (err) {
+      console.error('Failed to share notebook', err);
+      addToast('Failed to create share link', 'error');
+    }
+  };
+
   const handleClose = () => {
     updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
   };
@@ -475,6 +497,7 @@ export const SmartNotebookWidget: React.FC<{
         showAssets={showAssets}
         setShowAssets={setShowAssets}
         handleClose={handleClose}
+        onShare={(e) => void handleShare(e, activeNotebook)}
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         handleDragStart={handleDragStart}
@@ -497,6 +520,12 @@ export const SmartNotebookWidget: React.FC<{
       handleImport={handleImport}
       handleSelect={handleSelect}
       handleDelete={handleDelete}
+      handleShare={(e, id) => {
+        const nb = notebooks.find((n) => n.id === id);
+        if (nb) void handleShare(e, nb);
+      }}
+      displayMode={displayMode}
+      onChangeDisplayMode={setDisplayMode}
       fileInputRef={fileInputRef}
     />
   );
