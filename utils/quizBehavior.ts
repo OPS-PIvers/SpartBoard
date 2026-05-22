@@ -14,7 +14,18 @@ import type {
   QuizSessionMode,
 } from '@/types';
 
-export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = {
+/** Recursively freeze so the shared default can't be mutated in place. */
+const deepFreeze = <T>(o: T): T => {
+  for (const v of Object.values(o as Record<string, unknown>)) {
+    if (v && typeof v === 'object') deepFreeze(v);
+  }
+  return Object.freeze(o);
+};
+
+// Frozen because `getQuizBehavior` hands this same reference back when a quiz
+// has no behavior; freezing turns any accidental in-place mutation into a
+// loud error instead of silently corrupting every other quiz's default.
+export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = deepFreeze({
   sessionMode: 'teacher',
   sessionOptions: {
     tabWarningsEnabled: true,
@@ -29,7 +40,7 @@ export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = {
     soundEffectsEnabled: false,
   },
   attemptLimit: 1,
-};
+});
 
 export function getQuizBehavior(
   meta: Pick<QuizMetadata, 'behavior'>

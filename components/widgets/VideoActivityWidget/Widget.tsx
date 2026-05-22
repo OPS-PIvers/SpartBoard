@@ -281,6 +281,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           youtubeUrl: data.youtubeUrl,
           questions: data.questions,
           plcId,
+          behavior: activityMeta.behavior,
         });
         try {
           await attachSyncLinkage(activityMeta.id, {

@@ -251,6 +251,7 @@ export const PlcNewQuizAssignmentModal: React.FC<
             title: data.title,
             questions: data.questions,
             plcId: plc.id,
+            behavior: pickedQuiz.behavior,
           });
           createdSyncGroupId = newSyncGroupId;
           try {

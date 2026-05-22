@@ -534,6 +534,7 @@ export const PlcVideoActivitiesBody: React.FC<PlcVideoActivitiesBodyProps> = ({
             youtubeUrl: data.youtubeUrl,
             questions: data.questions,
             plcId: plc.id,
+            behavior: meta.behavior,
           });
           try {
             await attachSyncLinkage(meta.id, {

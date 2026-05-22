@@ -247,6 +247,7 @@ export const PlcAssignmentConfigModal: React.FC<
             title: quizRef.title,
             questions: quizRef.questions,
             plcId: plc.id,
+            behavior: quizBehavior,
           });
         } catch (err) {
           logError('PlcAssignmentConfigModal.createSyncedQuizGroup', err, {
@@ -314,6 +315,7 @@ export const PlcAssignmentConfigModal: React.FC<
             youtubeUrl: activityRef.youtubeUrl,
             questions: activityRef.questions,
             plcId: plc.id,
+            behavior: vaBehavior,
           });
         } catch (err) {
           logError(

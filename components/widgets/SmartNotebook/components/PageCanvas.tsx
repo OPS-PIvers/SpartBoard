@@ -257,8 +257,6 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
                     cursor: 'nwse-resize',
                   }}
                   aria-label="Resize asset"
-                  role="slider"
-                  tabIndex={-1}
                 />
               </div>
             );

@@ -336,4 +336,29 @@ describe('pullSyncedQuiz — applies pulled behavior to metadata', () => {
     expect(payloads).toHaveLength(1);
     expect(payloads[0]).not.toHaveProperty('behavior');
   });
+
+  it('falls back to the local behavior when the canonical doc has none', async () => {
+    // Canonical carries no behavior (e.g. a group minted before behavior was
+    // synced). Pulling content must NOT wipe the member's own behavior.
+    (pullSyncedQuizContent as unknown as Mock).mockResolvedValue({
+      title: 'Canonical Title',
+      questions: QUIZ_DATA.questions,
+      version: 5,
+    });
+
+    const localWithBehavior: QuizMetadata = {
+      ...SYNCED_QUIZ_META,
+      behavior: OTHER_BEHAVIOR,
+    };
+
+    const payloads = captureSetDocPayloads();
+
+    const { result } = renderHook(() => useQuiz(UID));
+    await act(async () => {
+      await result.current.pullSyncedQuiz(localWithBehavior);
+    });
+
+    expect(payloads).toHaveLength(1);
+    expect(payloads[0]).toMatchObject({ behavior: OTHER_BEHAVIOR });
+  });
 });

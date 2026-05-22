@@ -317,6 +317,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           title: data.title,
           questions: data.questions,
           plcId,
+          behavior: quizMeta.behavior,
         });
         try {
           await attachSyncLinkage(quizMeta.id, {
@@ -1294,6 +1295,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 title: data.title,
                 questions: data.questions,
                 plcId: plcLinkage.id,
+                behavior: meta.behavior,
               });
               try {
                 await attachSyncLinkage(meta.id, {

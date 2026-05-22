@@ -516,6 +516,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
             title: data.title,
             questions: data.questions,
             plcId: plc.id,
+            behavior: meta.behavior,
           });
           try {
             await attachSyncLinkage(meta.id, {

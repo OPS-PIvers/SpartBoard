@@ -250,6 +250,7 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
             youtubeUrl: data.youtubeUrl,
             questions: data.questions,
             plcId: plc.id,
+            behavior: pickedActivity.behavior,
           });
           createdSyncGroupId = newSyncGroupId;
           try {

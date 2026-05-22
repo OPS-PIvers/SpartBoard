@@ -371,6 +371,30 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   // a mirror of the Dock's screen-recording status, kept in sync via window
   // events so the kebab's record button reflects the one shared recorder.
   const [showMaxMenu, setShowMaxMenu] = useState(false);
+  const maxMenuRef = useRef<HTMLDivElement>(null);
+  // Dismiss the maximized FAB menu on Escape or an outside click, mirroring the
+  // tool menu's behavior. The keydown listener is capture-phase so Escape
+  // closes the menu before the widget-level handler can minimize the widget.
+  useEffect(() => {
+    if (!showMaxMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!maxMenuRef.current?.contains(e.target as Node)) {
+        setShowMaxMenu(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setShowMaxMenu(false);
+      }
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [showMaxMenu]);
   const [isScreenRecording, setIsScreenRecording] = useState(false);
   useEffect(() => {
     const onState = (e: Event) => {
@@ -2619,7 +2643,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           actions still useful full-screen (settings, screenshot, annotate,
           screen record). Replaces the suppressed pill toolbar. */}
       {isMaximized && (
-        <div className="absolute bottom-6 right-6 z-widget-control pointer-events-auto flex flex-col items-end gap-3">
+        <div
+          ref={maxMenuRef}
+          className="absolute bottom-6 right-6 z-widget-control pointer-events-auto flex flex-col items-end gap-3"
+        >
           {showMaxMenu && (
             <div
               data-settings-exclude

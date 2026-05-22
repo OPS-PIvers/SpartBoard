@@ -25,7 +25,7 @@ const extForBlob = (blob: Blob, fallback: string): string => {
  */
 export const useNotebookSharing = () => {
   const { user } = useAuth();
-  const { uploadFile } = useStorage();
+  const { uploadFile, deleteFile } = useStorage();
 
   const shareNotebook = useCallback(
     async (notebook: NotebookItem): Promise<string> => {
@@ -57,49 +57,66 @@ export const useNotebookSharing = () => {
       const newId = crypto.randomUUID();
       const basePath = `users/${user.uid}/notebooks/${newId}`;
 
-      // Download each shared blob and re-upload it under the importer's path so
-      // the copy is self-contained (independent of the original author).
-      const copyBlobs = async (
-        urls: string[],
-        prefix: string,
-        sub: string,
-        fallbackExt: string
-      ) =>
-        Promise.all(
-          urls.map(async (url, i) => {
-            const res = await fetch(url);
-            if (!res.ok) throw new Error(`Failed to fetch ${prefix}${i}`);
-            const blob = await res.blob();
-            const ext = extForBlob(blob, fallbackExt);
-            const fileName = `${prefix}${i}.${ext}`;
-            const path = `${basePath}${sub}/${fileName}`;
-            const file = new File([blob], fileName, { type: blob.type });
-            const newUrl = await uploadFile(path, file);
-            return { url: newUrl, path };
-          })
-        );
+      // Track every blob we upload so we can delete them if a later step (a
+      // failed upload, or the Firestore write) throws — otherwise a partial
+      // import leaks orphaned Storage objects (quota cost).
+      const uploadedStoragePaths: string[] = [];
 
-      const [pages, assets] = await Promise.all([
-        copyBlobs(shared.pageUrls ?? [], 'page', '', 'svg'),
-        copyBlobs(shared.assetUrls ?? [], 'asset', '/assets', 'webp'),
-      ]);
+      try {
+        // Download each shared blob and re-upload it under the importer's path
+        // so the copy is self-contained (independent of the original author).
+        const copyBlobs = async (
+          urls: string[],
+          prefix: string,
+          sub: string,
+          fallbackExt: string
+        ) =>
+          Promise.all(
+            urls.map(async (url, i) => {
+              const res = await fetch(url);
+              if (!res.ok) throw new Error(`Failed to fetch ${prefix}${i}`);
+              const blob = await res.blob();
+              const ext = extForBlob(blob, fallbackExt);
+              const fileName = `${prefix}${i}.${ext}`;
+              const path = `${basePath}${sub}/${fileName}`;
+              const file = new File([blob], fileName, { type: blob.type });
+              const newUrl = await uploadFile(path, file);
+              uploadedStoragePaths.push(path);
+              return { url: newUrl, path };
+            })
+          );
 
-      const notebook: NotebookItem = {
-        id: newId,
-        title: shared.title ?? 'Shared Notebook',
-        pageUrls: pages.map((p) => p.url),
-        pagePaths: pages.map((p) => p.path),
-        assetUrls: assets.map((a) => a.url),
-        createdAt: Date.now(),
-        ...(shared.sections && shared.sections.length > 0
-          ? { sections: shared.sections }
-          : {}),
-      };
+        const [pages, assets] = await Promise.all([
+          copyBlobs(shared.pageUrls ?? [], 'page', '', 'svg'),
+          copyBlobs(shared.assetUrls ?? [], 'asset', '/assets', 'webp'),
+        ]);
 
-      await setDoc(doc(db, 'users', user.uid, 'notebooks', newId), notebook);
-      return newId;
+        const notebook: NotebookItem = {
+          id: newId,
+          title: shared.title ?? 'Shared Notebook',
+          pageUrls: pages.map((p) => p.url),
+          pagePaths: pages.map((p) => p.path),
+          assetUrls: assets.map((a) => a.url),
+          createdAt: Date.now(),
+          ...(shared.sections && shared.sections.length > 0
+            ? { sections: shared.sections }
+            : {}),
+        };
+
+        await setDoc(doc(db, 'users', user.uid, 'notebooks', newId), notebook);
+        return newId;
+      } catch (err) {
+        if (uploadedStoragePaths.length > 0) {
+          await Promise.all(
+            uploadedStoragePaths.map((p) =>
+              deleteFile(p).catch((e) => console.error(e))
+            )
+          );
+        }
+        throw err;
+      }
     },
-    [user, uploadFile]
+    [user, uploadFile, deleteFile]
   );
 
   return { shareNotebook, importSharedNotebookCopy };

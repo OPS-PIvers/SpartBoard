@@ -751,6 +751,14 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
     expect(
       (settings.sessionOptions as Record<string, unknown>).showResultToStudent
     ).toBe(true);
+
+    // The synced group minted for peers must carry the same behavior, or
+    // teammates who pull before the first edit get DEFAULT behavior.
+    const { createSyncedQuizGroup } =
+      await import('@/hooks/useSyncedQuizGroups');
+    expect(createSyncedQuizGroup).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: fakeBehavior })
+    );
   });
 });
 
@@ -874,6 +882,13 @@ describe('PlcAssignmentConfigModal (video-activity kind — Task 10 VA parity, v
     expect(sessionOptions.showResultToStudent).toBe(true);
     expect(sessionOptions.rewindOnIncorrectSeconds).toBe(15);
     expect(sessionOptions.pointPenaltyOnIncorrect).toBe(5);
+
+    // The synced group minted for peers must carry the same behavior.
+    const { createSyncedVideoActivityGroup } =
+      await import('@/hooks/useSyncedVideoActivityGroups');
+    expect(createSyncedVideoActivityGroup).toHaveBeenCalledWith(
+      expect.objectContaining({ behavior: fakeVaBehavior })
+    );
   });
 
   it('does NOT render mode picker or the VA behavior summary on the legacy VA path (no vaBehavior)', () => {

@@ -14,7 +14,18 @@ import type {
   QuizSessionMode,
 } from '@/types';
 
-export const DEFAULT_VA_BEHAVIOR: VideoActivityBehaviorSettings = {
+/** Recursively freeze so the shared default can't be mutated in place. */
+const deepFreeze = <T>(o: T): T => {
+  for (const v of Object.values(o as Record<string, unknown>)) {
+    if (v && typeof v === 'object') deepFreeze(v);
+  }
+  return Object.freeze(o);
+};
+
+// Frozen because `getVideoActivityBehavior` hands this same reference back when
+// an activity has no behavior; freezing turns any accidental in-place mutation
+// into a loud error instead of silently corrupting the shared default.
+export const DEFAULT_VA_BEHAVIOR: VideoActivityBehaviorSettings = deepFreeze({
   sessionMode: 'teacher',
   sessionOptions: {
     tabWarningsEnabled: true,
@@ -28,7 +39,7 @@ export const DEFAULT_VA_BEHAVIOR: VideoActivityBehaviorSettings = {
     scoreVisibility: 'score-only',
   },
   attemptLimit: 1,
-};
+});
 
 export function getVideoActivityBehavior(
   meta: Pick<VideoActivityMetadata, 'behavior'>

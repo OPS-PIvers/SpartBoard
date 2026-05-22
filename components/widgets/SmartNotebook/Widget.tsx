@@ -289,9 +289,25 @@ export const SmartNotebookWidget: React.FC<{
         }
 
         await deleteDoc(doc(db, 'users', user.uid, 'notebooks', id));
-        if (activeNotebookId === id) {
+        // Strip the deleted notebook's placed assets so they don't linger in
+        // the dashboard config forever (they're keyed by notebookId and would
+        // otherwise accumulate as dead entries).
+        const hadPlacedAssets = (config.placedAssets ?? []).some(
+          (a) => a.notebookId === id
+        );
+        if (activeNotebookId === id || hadPlacedAssets) {
           updateWidget(widget.id, {
-            config: { ...config, activeNotebookId: null },
+            config: {
+              ...config,
+              ...(hadPlacedAssets
+                ? {
+                    placedAssets: (config.placedAssets ?? []).filter(
+                      (a) => a.notebookId !== id
+                    ),
+                  }
+                : {}),
+              ...(activeNotebookId === id ? { activeNotebookId: null } : {}),
+            },
           });
         }
         addToast('Notebook deleted', 'success');

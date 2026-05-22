@@ -306,9 +306,12 @@ export const useVideoActivity = (
         },
         // Apply the behavior published by the peer — members who pull a
         // peer's edit also get their behavior settings so every participant
-        // stays in sync on both content and configuration.
-        ...(canonical.behavior !== undefined
-          ? { behavior: canonical.behavior }
+        // stays in sync on both content and configuration. Fall back to the
+        // local behavior when the canonical doc carries none (e.g. a group
+        // minted before behavior was synced) so pulling content never
+        // silently wipes a member's own settings.
+        ...((canonical.behavior ?? activityMeta.behavior) !== undefined
+          ? { behavior: canonical.behavior ?? activityMeta.behavior }
           : {}),
       };
       await setDoc(

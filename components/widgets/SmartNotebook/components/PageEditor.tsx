@@ -397,6 +397,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       }
       if (selectedIds.length === 0) return;
       if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Consume the event before it reaches the widget root — DraggableWindow
+        // also treats Delete as "remove this widget". This listener is in the
+        // capture phase (see below) so stopPropagation here actually beats
+        // React's root onKeyDown, which a window *bubble* listener cannot.
+        e.preventDefault();
+        e.stopPropagation();
         const svgEl = svgRef.current;
         if (!svgEl) return;
         let removed = false;
@@ -414,11 +420,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         }
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'd' || e.key === 'D')) {
         e.preventDefault();
+        e.stopPropagation();
         duplicateSelected();
       }
     };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
+    // Capture phase: the window listener fires before React's root onKeyDown,
+    // so we can stop a selection-delete from also deleting the host widget.
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [selectedIds, emitChange, editing, duplicateSelected]);
 
   // When a text edit opens, focus the field and put the caret at the end —
