@@ -37,6 +37,8 @@ export const PlcAuthorVideoActivityModal: React.FC<
   const [activityRef, setActivityRef] = useState<AssignmentActivityRef | null>(
     null
   );
+  const [savedBehavior, setSavedBehavior] =
+    useState<VideoActivityBehaviorSettings | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
 
   // Seed the new activity once on mount via lazy initializer so Date.now() and
@@ -64,6 +66,9 @@ export const PlcAuthorVideoActivityModal: React.FC<
         questions: activity.questions,
       };
       setActivityRef(ref);
+      // Thread behavior down to the config modal so it can show the read-only
+      // summary (VA Task 10 parity with PlcAuthorQuizModal's quizBehavior).
+      setSavedBehavior(behavior);
       setConfigOpen(true);
     },
     [saveActivity]
@@ -72,6 +77,7 @@ export const PlcAuthorVideoActivityModal: React.FC<
   const handleConfigClose = useCallback(() => {
     setConfigOpen(false);
     setActivityRef(null);
+    setSavedBehavior(null);
     onClose();
   }, [onClose]);
 
@@ -81,6 +87,7 @@ export const PlcAuthorVideoActivityModal: React.FC<
         plc={plc}
         kind="video-activity"
         activityRef={activityRef}
+        vaBehavior={savedBehavior ?? undefined}
         isOpen
         onClose={handleConfigClose}
       />

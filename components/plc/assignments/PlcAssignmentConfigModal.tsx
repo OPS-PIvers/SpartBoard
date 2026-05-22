@@ -49,6 +49,7 @@ import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTarget
 import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
 import { formatBehaviorSummary } from '@/utils/quizBehavior';
+import { formatVideoActivityBehaviorSummary } from '@/utils/videoActivityBehavior';
 import type {
   Plc,
   PlcLinkage,
@@ -57,6 +58,7 @@ import type {
   QuizSessionMode,
   QuizSessionOptions,
   VideoActivityAssignmentSettings,
+  VideoActivityBehaviorSettings,
   VideoActivitySessionSettings,
   VideoActivitySessionOptions,
   BaseSessionOptions,
@@ -83,12 +85,20 @@ type PlcAssignmentConfigModalProps = {
        * When omitted, the legacy mode picker + toggles render as before.
        */
       quizBehavior?: QuizBehaviorSettings;
+      vaBehavior?: never;
     }
   | {
       kind: 'video-activity';
       activityRef: AssignmentActivityRef;
       quizRef?: never;
       quizBehavior?: never;
+      /**
+       * Task 10 (VA parity): when provided, the settings toggles are replaced
+       * with a read-only behavior summary. Source from
+       * `getVideoActivityBehavior(savedMeta)` in the caller
+       * (PlcAuthorVideoActivityModal). When omitted, legacy form controls render.
+       */
+      vaBehavior?: VideoActivityBehaviorSettings;
     }
 );
 
@@ -134,7 +144,16 @@ const DEFAULT_QUIZ_MODES: { id: QuizSessionMode; label: string }[] = [
 
 export const PlcAssignmentConfigModal: React.FC<
   PlcAssignmentConfigModalProps
-> = ({ plc, kind, quizRef, activityRef, quizBehavior, isOpen, onClose }) => {
+> = ({
+  plc,
+  kind,
+  quizRef,
+  activityRef,
+  quizBehavior,
+  vaBehavior,
+  isOpen,
+  onClose,
+}) => {
   const { t } = useTranslation();
   const { user, googleAccessToken, getAssignmentMode } = useAuth();
   const { addToast, rosters } = useDashboard();
@@ -304,12 +323,28 @@ export const PlcAssignmentConfigModal: React.FC<
           );
         }
 
-        const vaSettings: VideoActivityAssignmentSettings = {
-          sessionSettings: DEFAULT_VA_SESSION_SETTINGS,
-          sessionOptions: {
+        // Task 10 (VA parity): when vaBehavior is provided, source settings
+        // from it (behavior lives on the activity). Otherwise fall back to the
+        // legacy form-driven controls (vaOptions) for backward compatibility.
+        let effectiveVaSessionOptions: VideoActivitySessionOptions;
+        if (vaBehavior) {
+          effectiveVaSessionOptions = {
+            ...vaBehavior.sessionOptions,
+            attemptLimit: vaBehavior.attemptLimit,
+            ...(parsedDueAt != null ? { dueAt: parsedDueAt } : {}),
+          };
+        } else {
+          // Backward-compat guard: preserve legacy form controls for any
+          // caller that opens this modal without providing vaBehavior.
+          effectiveVaSessionOptions = {
             ...vaOptions,
             ...(parsedDueAt != null ? { dueAt: parsedDueAt } : {}),
-          } as VideoActivitySessionOptions,
+          } as VideoActivitySessionOptions;
+        }
+
+        const vaSettings: VideoActivityAssignmentSettings = {
+          sessionSettings: DEFAULT_VA_SESSION_SETTINGS,
+          sessionOptions: effectiveVaSessionOptions,
           teacherName: teacherName.trim() || undefined,
           periodNames: derived.periodNames,
           periodName: derived.periodNames[0],
@@ -537,8 +572,30 @@ export const PlcAssignmentConfigModal: React.FC<
                 shuffleQuestionsAvailable={false}
               />
             </>
+          ) : vaBehavior ? (
+            /* VA slimmed path (Task 10 parity): read-only behavior summary */
+            <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                  {t('plcDashboard.assignmentConfig.behaviorLabel', {
+                    defaultValue: 'Behavior',
+                  })}
+                </p>
+                <span className="text-xxs text-slate-400">
+                  {t('plcDashboard.assignmentConfig.vaBehaviorEditHint', {
+                    defaultValue: 'Edit in the activity editor',
+                  })}
+                </span>
+              </div>
+              <p
+                data-testid="plc-config-va-behavior-summary"
+                className="text-sm text-slate-600 leading-snug"
+              >
+                {formatVideoActivityBehaviorSummary(vaBehavior)}
+              </p>
+            </div>
           ) : (
-            /* Video-activity: settings toggles (unchanged) */
+            /* Video-activity legacy path: settings toggles */
             <AssignmentSettingsToggleGroup
               options={vaOptions}
               onOptionsChange={setVaOptions}

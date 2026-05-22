@@ -16,6 +16,7 @@ import {
   VideoActivityMetadata,
   VideoActivityData,
   VideoActivitySessionSettings,
+  VideoActivitySessionOptions,
   VideoActivityGlobalConfig,
   VideoActivitySession,
 } from '@/types';
@@ -556,17 +557,29 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
-        onAssign={async (
-          meta,
-          sessionSettings,
-          assignmentName,
-          rosterIds,
-          sessionOptions
-        ) => {
+        onAssign={async (meta, rosterIds, dueAt) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
           if (!data) throw new Error('Failed to load activity data');
+          // Source behavior (sessionOptions, attemptLimit) from the activity
+          // itself now that it lives on the activity (VA Task 9 parity).
+          const behavior = getVideoActivityBehavior(meta);
+          const sessionOptions: VideoActivitySessionOptions = {
+            ...behavior.sessionOptions,
+            attemptLimit: behavior.attemptLimit,
+            ...(dueAt != null ? { dueAt } : {}),
+          };
+          // Auto-generate the assignment name from the activity title.
+          const assignmentName = `${meta.title} - ${new Date().toLocaleString(
+            [],
+            {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            }
+          )}`;
           // Resolve rosterIds against the current rosters and derive
           // ClassLink sourcedIds / period names / students in one shot.
           const selectedRosters = rosters.filter((r) =>
@@ -577,7 +590,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             data,
             user.uid,
             [],
-            sessionSettings,
+            defaultSessionSettings,
             assignmentName,
             derived.classIds,
             derived.periodNames,
