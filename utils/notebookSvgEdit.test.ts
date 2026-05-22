@@ -128,6 +128,26 @@ describe('text editing', () => {
     expect(leaves[0].textContent).toBe('only');
     expect(leaves[1].textContent).toBe('');
   });
+
+  it('drops fixed-width hints on edited runs but keeps them on unchanged ones', () => {
+    const FIXED_WIDTH = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+      <g class="foreground">
+        <text transform="translate(10,20)">
+          <tspan><tspan x="0" y="10" textLength="50" lengthAdjust="spacingAndGlyphs">first</tspan></tspan>
+          <tspan><tspan x="0" y="30" textLength="60">second</tspan></tspan>
+        </text>
+      </g>
+    </svg>`;
+    const svg = parseSvg(FIXED_WIDTH);
+    const text = svg.querySelector('text') as unknown as Element;
+    // Change only the first run; leave the second identical.
+    writeTextLines(text, 'a much longer first line\nsecond');
+    const leaves = text.querySelectorAll('tspan[x]');
+    expect(leaves[0].getAttribute('textLength')).toBeNull();
+    expect(leaves[0].getAttribute('lengthAdjust')).toBeNull();
+    // Untouched run keeps its original width hint.
+    expect(leaves[1].getAttribute('textLength')).toBe('60');
+  });
 });
 
 describe('exportEditedSvg', () => {

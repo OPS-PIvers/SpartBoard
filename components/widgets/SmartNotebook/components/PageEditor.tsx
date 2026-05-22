@@ -194,6 +194,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   onChange,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   // Group holding one highlight rect per selected object.
   const selGroupRef = useRef<SVGGElement | null>(null);
@@ -419,6 +420,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [selectedIds, emitChange, editing, duplicateSelected]);
+
+  // When a text edit opens, focus the field and put the caret at the end —
+  // editing usually means appending, so starting at the far left is annoying.
+  // Keyed on the edited id so re-clicking mid-text within a session isn't reset.
+  useEffect(() => {
+    const ta = textareaRef.current;
+    if (!editing || !ta) return;
+    ta.focus();
+    const end = ta.value.length;
+    ta.setSelectionRange(end, end);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editing?.id]);
 
   // ---- coordinate helpers -------------------------------------------------
   const toUserDelta = (cdx: number, cdy: number) => {
@@ -851,7 +864,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
       {editing && (
         <textarea
-          autoFocus
+          ref={textareaRef}
           value={editing.value}
           onChange={(e) =>
             setEditing((prev) =>

@@ -172,13 +172,32 @@ export const readTextLines = (obj: Element): string =>
     .join('\n');
 
 /**
+ * Drop the `textLength`/`lengthAdjust` hints on a run (and its ancestor tspans
+ * up to the text root). SMART pins each run to its original measured width with
+ * these; once the text changes, that width no longer fits, so the browser
+ * crams the new glyphs into the old width and they overlap. Removing the hints
+ * lets the edited run render at its natural width.
+ */
+const stripLengthHints = (leaf: Element, root: Element): void => {
+  let node: Element | null = leaf;
+  while (node) {
+    node.removeAttribute('textLength');
+    node.removeAttribute('lengthAdjust');
+    if (node === root) break;
+    node = node.parentElement;
+  }
+};
+
+/**
  * Write edited text back into a text object, one line per leaf run, preserving
  * each run's position/font. Content is never lost, but the line *count* is
  * bounded by the original run count: each SMART run is an absolutely-positioned
  * tspan, so we can't synthesize new positioned lines. Typing fewer lines clears
  * the surplus runs; typing MORE lines appends the overflow (space-joined) to
  * the last run rather than dropping it. Best for in-place edits (fix a word,
- * change a number) that keep the original line structure.
+ * change a number) that keep the original line structure. Edited runs shed
+ * their fixed-width hints so longer text extends naturally instead of
+ * overlapping (SVG `<text>` has no automatic line wrapping).
  */
 export const writeTextLines = (obj: Element, value: string): void => {
   const leaves = getTextLeaves(obj);
@@ -188,8 +207,12 @@ export const writeTextLines = (obj: Element, value: string): void => {
     return;
   }
   leaves.forEach((leaf, i) => {
-    leaf.textContent =
+    const next =
       i < leaves.length - 1 ? (lines[i] ?? '') : lines.slice(i).join(' ');
+    if (next !== leaf.textContent) {
+      leaf.textContent = next;
+      stripLengthHints(leaf, obj);
+    }
   });
 };
 
