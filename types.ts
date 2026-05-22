@@ -2219,6 +2219,25 @@ export interface NotebookItem {
   sections?: NotebookSection[];
 }
 
+/**
+ * An asset image placed on a notebook page (from the Assets panel). Position
+ * and size are stored as fractions of the rendered page rectangle so they track
+ * the page across widget resizes and maximize. Scoped to a specific notebook +
+ * page, persisted per widget instance in SmartNotebookConfig.placedAssets.
+ */
+export interface PlacedNotebookAsset {
+  id: string;
+  notebookId: string;
+  /** 0-based page index the asset is placed on. */
+  page: number;
+  url: string;
+  /** Top-left position as a fraction of page width/height [0..1]. */
+  xFrac: number;
+  yFrac: number;
+  /** Width as a fraction of page width (0..1]; height follows the image ratio. */
+  wFrac: number;
+}
+
 export interface SmartNotebookConfig {
   activeNotebookId: string | null;
   storageLimitMb?: number;
@@ -2226,6 +2245,26 @@ export interface SmartNotebookConfig {
   cardOpacity?: number;
   fontFamily?: GlobalFontFamily;
   fontColor?: string;
+  /** Library layout preference; persists per widget instance. Defaults to cards. */
+  libraryDisplayMode?: 'cards' | 'list';
+  /** Assets placed on pages (Assets panel → page overlay), per widget instance. */
+  placedAssets?: PlacedNotebookAsset[];
+}
+
+/**
+ * A notebook published for staff sharing, stored at `/shared_notebooks/{shareId}`.
+ * Pages/assets reference the original author's Storage download URLs (the
+ * token in each URL grants cross-user read), so no files are duplicated to
+ * create the share. A recipient pastes `${origin}/share/notebook/{shareId}` to
+ * import a copy. Mirrors the shared_quizzes / shared_assignments shape.
+ */
+export interface SharedNotebook {
+  title: string;
+  pageUrls: string[];
+  assetUrls?: string[];
+  sections?: NotebookSection[];
+  originalAuthor: string;
+  sharedAt: number;
 }
 
 export interface BuildingSmartNotebookDefaults {
@@ -2370,6 +2409,8 @@ export interface QuizMetadata {
   folderId?: string | null;
   /** Synchronized-quiz linkage; see `QuizMetadataSyncLinkage`. */
   sync?: QuizMetadataSyncLinkage;
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: QuizBehaviorSettings;
 }
 
 export type QuizSessionStatus = 'waiting' | 'active' | 'paused' | 'ended';
@@ -2412,6 +2453,20 @@ export interface QuizSessionOptions extends BaseSessionOptions {
   streakBonusEnabled?: boolean;
   showPodiumBetweenQuestions?: boolean;
   soundEffectsEnabled?: boolean;
+}
+
+/**
+ * Behavior settings that travel WITH a quiz (authored in the editor, synced
+ * to PLC members). Distinct from per-assignment targeting (class periods,
+ * dueAt) which is chosen at Assign time. Snapshotted onto the assignment/
+ * session docs at create time, so editing these later only affects FUTURE
+ * assigns (freeze-live).
+ */
+export interface QuizBehaviorSettings {
+  sessionMode: QuizSessionMode;
+  sessionOptions: QuizSessionOptions;
+  /** null = unlimited; positive int = hard cap. */
+  attemptLimit: number | null;
 }
 
 /**
@@ -3240,6 +3295,8 @@ export interface SyncedQuizGroup {
   version: number;
   title: string;
   questions: QuizQuestion[];
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: QuizBehaviorSettings;
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -3317,6 +3374,8 @@ export interface SyncedVideoActivityGroup {
   title: string;
   youtubeUrl: string;
   questions: VideoActivityQuestion[];
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: VideoActivityBehaviorSettings;
   /**
    * Roster of participating teachers. Keyed by Firebase Auth uid → metadata.
    * Modified only by the Cloud Function paths so the rules-side write check
@@ -3452,6 +3511,8 @@ export interface VideoActivityMetadata {
    * activity participates in a synced group. Mirrors `QuizMetadata.sync`.
    */
   sync?: VideoActivityMetadataSyncLinkage;
+  /** Behavior settings authored in the editor; synced to PLC members. */
+  behavior?: VideoActivityBehaviorSettings;
 }
 
 export type VideoActivityView = 'manager' | 'create' | 'results' | 'monitor';
@@ -3537,6 +3598,13 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   scoreVisibility?: VideoActivityScoreVisibility;
   /** Optional due date (ms epoch). Absent / null = no due date. */
   dueAt?: number | null;
+}
+
+/** VA counterpart of QuizBehaviorSettings. */
+export interface VideoActivityBehaviorSettings {
+  sessionMode: QuizSessionMode;
+  sessionOptions: Omit<VideoActivitySessionOptions, 'attemptLimit' | 'dueAt'>;
+  attemptLimit: number | null;
 }
 
 export interface GlobalVideoActivity extends VideoActivityMetadata {

@@ -16,6 +16,7 @@ import {
   VideoActivityMetadata,
   VideoActivityData,
   VideoActivitySessionSettings,
+  VideoActivitySessionOptions,
   VideoActivityGlobalConfig,
   VideoActivitySession,
 } from '@/types';
@@ -40,6 +41,7 @@ import { Creator } from './components/Creator';
 import { Results } from './components/Results';
 import { VideoActivityLiveMonitor } from './components/VideoActivityLiveMonitor';
 import { VideoActivityEditorModal } from './components/VideoActivityEditorModal';
+import { getVideoActivityBehavior } from '@/utils/videoActivityBehavior';
 import { Loader2, AlertTriangle, LogIn } from 'lucide-react';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 
@@ -279,6 +281,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           youtubeUrl: data.youtubeUrl,
           questions: data.questions,
           plcId,
+          behavior: activityMeta.behavior,
         });
         try {
           await attachSyncLinkage(activityMeta.id, {
@@ -555,17 +558,29 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         }}
         defaultSessionSettings={defaultSessionSettings}
         rosters={rosters}
-        onAssign={async (
-          meta,
-          sessionSettings,
-          assignmentName,
-          rosterIds,
-          sessionOptions
-        ) => {
+        onAssign={async (meta, rosterIds, dueAt) => {
           // Use loadActivityData directly to avoid setting loadingActivity
           // which would cause the Manager component to unmount and destroy the modal
           const data = await loadActivityData(meta.driveFileId);
           if (!data) throw new Error('Failed to load activity data');
+          // Source behavior (sessionOptions, attemptLimit) from the activity
+          // itself now that it lives on the activity (VA Task 9 parity).
+          const behavior = getVideoActivityBehavior(meta);
+          const sessionOptions: VideoActivitySessionOptions = {
+            ...behavior.sessionOptions,
+            attemptLimit: behavior.attemptLimit,
+            ...(dueAt != null ? { dueAt } : {}),
+          };
+          // Auto-generate the assignment name from the activity title.
+          const assignmentName = `${meta.title} - ${new Date().toLocaleString(
+            [],
+            {
+              month: 'short',
+              day: 'numeric',
+              hour: 'numeric',
+              minute: '2-digit',
+            }
+          )}`;
           // Resolve rosterIds against the current rosters and derive
           // ClassLink sourcedIds / period names / students in one shot.
           const selectedRosters = rosters.filter((r) =>
@@ -576,7 +591,7 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
             data,
             user.uid,
             [],
-            sessionSettings,
+            defaultSessionSettings,
             assignmentName,
             derived.classIds,
             derived.periodNames,
@@ -921,6 +936,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
         isAdmin={isAdmin === true}
         folders={editingMeta ? videoActivityFolders : undefined}
         folderId={editingMeta?.folderId ?? null}
+        behavior={
+          editingMeta ? getVideoActivityBehavior(editingMeta) : undefined
+        }
         onFolderChange={
           editingMeta
             ? async (folderId) => {
@@ -942,9 +960,9 @@ export const VideoActivityWidget: React.FC<{ widget: WidgetData }> = ({
           setEditingActivity(null);
           setEditingMeta(null);
         }}
-        onSave={async (updated) => {
+        onSave={async (updated, behavior) => {
           const isNew = !editingMeta;
-          await saveActivity(updated, editingMeta?.driveFileId);
+          await saveActivity(updated, editingMeta?.driveFileId, behavior);
           addToast(
             isNew ? 'Activity created!' : 'Activity updated!',
             'success'

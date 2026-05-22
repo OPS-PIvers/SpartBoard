@@ -964,6 +964,18 @@ service cloud.firestore {
         (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
     }
 
+    // Shared notebooks - a SMART Notebook published for staff sharing. Carries
+    // the author's page/asset download URLs (token-bearing, so cross-user
+    // readable) plus title/sections; a recipient pastes the link to import a
+    // copy. Same owner-write / authenticated-read pattern as shared_quizzes.
+    match /shared_notebooks/{shareId} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null &&
+        request.resource.data.originalAuthor == request.auth.uid;
+      allow update, delete: if request.auth != null &&
+        (resource.data.get('originalAuthor', null) == request.auth.uid || isAdmin());
+    }
+
     // Shared Activity Wall galleries — view-only published copy of an
     // Activity Wall session's submissions. The teacher creates the share
     // doc; viewers land at /activity-wall/gallery/{shareId} and read the
@@ -1123,7 +1135,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy'
+             'updatedAt', 'updatedBy', 'behavior'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1134,7 +1146,8 @@ service cloud.firestore {
         && request.resource.data.participants[request.auth.uid].joinedAt >= 0
         // Validate plcId type when present so a malformed link/cast can't write
         // a non-string value that downstream PLC reads would mishandle.
-        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string);
+        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
 
       // Content updates: caller must be a participant; participants map and
       // doc id are immutable from the client; version must strictly
@@ -1146,7 +1159,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy'
+             'updatedAt', 'updatedBy', 'behavior'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
@@ -1154,7 +1167,8 @@ service cloud.firestore {
         && request.resource.data.updatedBy == request.auth.uid
         // plcId is the link to the owning PLC and must stay immutable post-create
         // — handle the case where either side is missing the field with a default.
-        && request.resource.data.get('plcId', null) == resource.data.get('plcId', null);
+        && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
 
       // No client-side delete. If a group becomes orphaned (empty
       // participants), it stays — pasting an old share URL should still
@@ -1192,7 +1206,7 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'youtubeUrl', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy'
+             'updatedAt', 'updatedBy', 'behavior'
            ])
         && request.resource.data.id == groupId
         && request.resource.data.version is int
@@ -1201,7 +1215,8 @@ service cloud.firestore {
         && request.resource.data.participants.keys().hasOnly([request.auth.uid])
         && request.resource.data.participants[request.auth.uid].joinedAt is int
         && request.resource.data.participants[request.auth.uid].joinedAt >= 0
-        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string);
+        && (!('plcId' in request.resource.data) || request.resource.data.plcId is string)
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
 
       // Content updates: caller must be a participant; participants map and
       // doc id are immutable from the client; version must strictly increase
@@ -1212,13 +1227,14 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly([
              'id', 'version', 'title', 'youtubeUrl', 'questions',
              'participants', 'plcId', 'createdAt',
-             'updatedAt', 'updatedBy'
+             'updatedAt', 'updatedBy', 'behavior'
            ])
         && request.resource.data.id == resource.data.id
         && request.resource.data.participants == resource.data.participants
         && request.resource.data.version == resource.data.version + 1
         && request.resource.data.updatedBy == request.auth.uid
-        && request.resource.data.get('plcId', null) == resource.data.get('plcId', null);
+        && request.resource.data.get('plcId', null) == resource.data.get('plcId', null)
+        && (!('behavior' in request.resource.data) || request.resource.data.behavior is map);
 
       allow delete: if false;
     }

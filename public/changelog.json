@@ -1,6 +1,117 @@
 {
   "entries": [
     {
+      "version": "2026.05.22",
+      "date": "2026-05-22",
+      "title": "Built-in quiz settings and notebook editing upgrades",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Quiz & Video Activity settings",
+          "items": [
+            {
+              "text": "Set how a quiz or video activity behaves — pacing, integrity and feedback options, attempt limits, and gamification — right in the editor, saved with the quiz so you set it up once."
+            },
+            {
+              "text": "Share a quiz with your PLC and your settings travel with it — members get your questions and your settings, with nothing to re-configure."
+            },
+            {
+              "text": "In-progress assignments now have Monitor and Results on hand, and teammates can run a colleague's live assignment in their own classes in one step."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Quiz & Video Activity settings",
+          "items": [
+            {
+              "text": "Assigning is now just picking your classes and a due date — everything else comes from the quiz, and assignments already running keep the settings they launched with."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "SMART Notebook",
+          "items": [
+            {
+              "text": "Share a notebook with a paste-able link — anyone you send it to gets their own copy of the pages and assets to use and edit."
+            },
+            {
+              "text": "Drag assets straight onto the page as movable, resizable objects that stay put through resizing, full-screen, and reopening."
+            },
+            {
+              "text": "Select several objects at once by dragging a box around them, then move, delete, or duplicate them together."
+            },
+            {
+              "text": "Rename notebooks from the library and switch between card and list views."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "Maximized widgets get a cleaner corner toolbar — settings, screenshot, annotate, and record — instead of a bar that popped up on every tap."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Notebook page editing is smoother: thin lines and text boxes are easier to select, edited text no longer overlaps, and the cursor starts at the end of the text."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Quiz and Video Activity settings now live with the content itself. Open the editor and use the new Settings tab to choose how an assignment behaves — paced mode, the integrity, feedback, and shuffle options, attempt limits, and gamification or scoring — right alongside your questions. The settings save with the quiz, so you set them once instead of re-entering them every time you assign."
+        },
+        {
+          "type": "feature",
+          "text": "When you share a quiz or video activity with your PLC, your behavior settings now travel with it. Members receive your questions and your settings together, so no one has to re-configure how the assignment runs, and editing the shared quiz updates everyone's copy."
+        },
+        {
+          "type": "feature",
+          "text": "In-progress assignments give you more to work with: Monitor and Results are available right where you manage assignments, and a teammate can take a colleague's live assignment to their own classes in one step — since the questions and settings are already shared, there's nothing to re-enter."
+        },
+        {
+          "type": "improvement",
+          "text": "Assigning a quiz or video activity is now a quick two-step: pick the class period(s) and set a due date. How the assignment behaves comes from the quiz's own settings, shown as a summary with an \"Edit in quiz\" link if you want to change it. Assignments that have already launched keep the settings they started with, so editing a quiz only affects future assignments."
+        },
+        {
+          "type": "feature",
+          "text": "Share a SMART Notebook with a paste-able link. A Share button on each notebook — in the library and in the open notebook — copies a link, and anyone you send it to can paste it to get their own copy of the pages and assets to use and edit."
+        },
+        {
+          "type": "feature",
+          "text": "Drag assets straight onto the notebook page. Assets from the panel now drop onto the page as movable, resizable objects that stay with the page, instead of landing as a separate sticker that could hide behind the notebook when full-screen. Their positions hold through resizing, maximizing, and closing and reopening the notebook."
+        },
+        {
+          "type": "feature",
+          "text": "Select several objects on a notebook page at once by dragging a box around them, then move, delete, or duplicate the whole group together. Shift-click adds or removes individual objects from the selection."
+        },
+        {
+          "type": "improvement",
+          "text": "Rename imported notebooks from the library — a new edit action on each notebook card lets you give it a clearer title — and switch the library between card and list views, with your choice remembered per notebook."
+        },
+        {
+          "type": "improvement",
+          "text": "A cleaner full-screen toolbar. When you maximize a widget, the floating toolbar that used to pop up on every interaction is gone, replaced by a tidy button in the corner that expands to the actions that still matter full-screen: settings, screenshot, annotate, and screen record."
+        },
+        {
+          "type": "fix",
+          "text": "Thin lines and text boxes are now easier to select on a notebook page — a near-miss click snaps to the closest object instead of starting a selection box."
+        },
+        {
+          "type": "fix",
+          "text": "Editing text on a notebook page no longer crams or overlaps longer text, the cursor now starts at the end of the text when you open it for editing, and the selection highlight lines up correctly with the object you picked."
+        }
+      ]
+    },
+    {
       "version": "2026.05.21",
       "date": "2026-05-21",
       "title": "SMART Notebook lessons and a PLC redesign",

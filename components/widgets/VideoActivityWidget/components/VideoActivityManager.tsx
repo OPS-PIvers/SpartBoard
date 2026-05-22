@@ -44,11 +44,6 @@ import { LibraryToolbar } from '@/components/common/library/LibraryToolbar';
 import { LibraryGrid } from '@/components/common/library/LibraryGrid';
 import { LibraryItemCard } from '@/components/common/library/LibraryItemCard';
 import { AssignModal } from '@/components/common/library/AssignModal';
-import {
-  AssignmentSettingsToggleGroup,
-  SectionHeader,
-  ToggleRow,
-} from '@/components/common/library/AssignmentSettingsToggleGroup';
 import { ViewOnlyShareModal } from '@/components/common/library/ViewOnlyShareModal';
 import { AssignmentArchiveCard } from '@/components/common/library/AssignmentArchiveCard';
 import { ViewCountBadge } from '@/components/common/library/ViewCountBadge';
@@ -84,9 +79,7 @@ import type {
   VideoActivityAssignment,
   VideoActivityAssignmentStatus,
   VideoActivityMetadata,
-  VideoActivityScoreVisibility,
   VideoActivitySession,
-  VideoActivitySessionOptions,
   VideoActivitySessionSettings,
 } from '@/types';
 import { AssignClassPicker } from '@/components/common/AssignClassPicker';
@@ -96,6 +89,10 @@ import {
 } from '@/components/common/AssignClassPicker.helpers';
 import { mapLegacyClassIdsToRosterIds } from '@/utils/resolveAssignmentTargets';
 import { extractYouTubeId } from '@/utils/youtube';
+import {
+  getVideoActivityBehavior,
+  formatVideoActivityBehaviorSummary,
+} from '@/utils/videoActivityBehavior';
 
 /* ─── Props ───────────────────────────────────────────────────────────────── */
 
@@ -136,19 +133,20 @@ export interface VideoActivityManagerProps {
    * still wires a per-activity session history modal.
    */
   onResults?: (activity: VideoActivityMetadata) => void;
+  /**
+   * Slimmed assign callback (VA Task 9 parity with Quiz Task 9).
+   * Behavior settings (sessionOptions, attemptLimit) are now on the activity
+   * itself and sourced via `getVideoActivityBehavior(meta)` in Widget.tsx at
+   * confirm time. This shape only carries targeting + due-date.
+   *
+   * Args: activity meta, selected roster IDs, optional due-date (epoch ms) or null.
+   */
   onAssign: (
     activity: VideoActivityMetadata,
-    settings: VideoActivitySessionSettings,
-    assignmentName: string,
     /** Selected roster IDs (unified picker output). */
     rosterIds: string[],
-    /**
-     * Assignment-policy options (security, feedback, attempt limits, scoring).
-     * Mirrors `QuizAssignmentSettings.sessionOptions`. Optional — callers that
-     * don't yet wire it through can pass undefined and the session doc will
-     * persist legacy player-behavior settings only.
-     */
-    sessionOptions?: VideoActivitySessionOptions
+    /** Optional due date (epoch ms). null = no due date. */
+    dueAt: number | null
   ) => Promise<string>;
   /** Rosters to populate the picker. */
   rosters: ClassRoster[];
@@ -475,13 +473,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   const [isCreatingViewOnlyShare, setIsCreatingViewOnlyShare] = useState(false);
   const [assignOptions, setAssignOptions] =
     useState<VideoActivitySessionSettings>(defaultSessionSettings);
-  // Assignment-policy options (security, feedback, attempt limits, scoring).
-  // Sibling to `assignOptions` (player behavior) — the two persist to
-  // `session.settings` and `session.sessionOptions` respectively.
-  const [assignPolicyOptions, setAssignPolicyOptions] =
-    useState<VideoActivitySessionOptions>(buildDefaultPolicyOptions);
   const [assignmentName, setAssignmentName] = useState<string>('');
   const [assignError, setAssignError] = useState<string | null>(null);
+  // Due date for the current assign modal (epoch ms or null = no due date).
+  const [assignDueAt, setAssignDueAt] = useState<number | null>(null);
   // Unified roster picker state. Seeded from the per-activity roster memory
   // on open so repeated assignments don't require re-picking.
   const [pickerValue, setPickerValue] = useState<AssignClassPickerValue>(() =>
@@ -496,8 +491,8 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
   if (assignTarget && assignTarget.id !== prevAssignTargetId) {
     setPrevAssignTargetId(assignTarget.id);
     setAssignOptions(defaultSessionSettings);
-    setAssignPolicyOptions(buildDefaultPolicyOptions());
     setAssignmentName(buildDefaultAssignmentName(assignTarget.title));
+    setAssignDueAt(null);
     setAssignError(null);
     // Prefer unified roster memory; fall back to legacy ClassLink-sourcedId
     // maps so teachers upgrading from pre-unification configs don't lose
@@ -712,10 +707,6 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
 
   const handleAssignConfirm = async (): Promise<void> => {
     if (!assignTarget) return;
-    if (assignmentName.trim().length === 0) {
-      setAssignError('Assignment name is required.');
-      return;
-    }
     setAssignError(null);
     // Guard against stale rosterIds — rosters can be deleted or fail to
     // load (`loadError`) after the teacher's last assignment.
@@ -726,14 +717,11 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       visibleRosterIds.has(id)
     );
     try {
-      await onAssign(
-        assignTarget,
-        assignOptions,
-        assignmentName.trim(),
-        validRosterIds,
-        assignPolicyOptions
-      );
+      // Behavior (sessionOptions, attemptLimit) is now sourced from the
+      // activity itself in the Widget handler via getVideoActivityBehavior(meta).
+      await onAssign(assignTarget, validRosterIds, assignDueAt);
       setAssignTarget(null);
+      setAssignDueAt(null);
     } catch (err) {
       setAssignError(
         err instanceof Error ? err.message : 'Failed to create assignment'
@@ -753,12 +741,10 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
     setIsCreatingViewOnlyShare(true);
     setViewOnlyShareError(null);
     try {
-      const sessionId = await onAssign(
-        viewOnlyShareTarget,
-        defaultSessionSettings,
-        buildDefaultAssignmentName(viewOnlyShareTarget.title),
-        []
-      );
+      // View-only shares: no class targeting (rosterIds=[]) and no due date.
+      // The session/assignment carry the org-wide view-only mode so rules
+      // block submissions; class targeting has no functional effect here.
+      const sessionId = await onAssign(viewOnlyShareTarget, [], null);
       setViewOnlyShareLink(
         `${window.location.origin}/activity/${encodeURIComponent(sessionId)}`
       );
@@ -1351,87 +1337,32 @@ export const VideoActivityManager: React.FC<VideoActivityManagerProps> = ({
       {assignTarget && !isViewOnly && (
         <AssignModal<VideoActivitySessionSettings>
           isOpen={true}
-          onClose={() => setAssignTarget(null)}
+          onClose={() => {
+            setAssignTarget(null);
+            setAssignDueAt(null);
+          }}
           itemTitle={assignTarget.title}
           options={assignOptions}
           onOptionsChange={setAssignOptions}
           assignmentName={assignmentName}
           onAssignmentNameChange={setAssignmentName}
-          confirmLabel="Create Session Link"
-          confirmDisabled={assignmentName.trim().length === 0}
-          confirmDisabledReason="Enter an assignment name."
+          confirmLabel="Assign"
           onAssign={handleAssignConfirm}
           extraSlot={
-            <div className="space-y-3">
-              <AssignClassPicker
-                rosters={rosters}
-                value={pickerValue}
-                onChange={setPickerValue}
-              />
-
-              {assignError && (
-                <div className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
-                  <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>{assignError}</span>
-                </div>
-              )}
-
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-3 space-y-3">
-                <SectionHeader label="Player Behavior" />
-                <ToggleRow
-                  label="Auto-Play"
-                  hint="Start video automatically after join"
-                  checked={assignOptions.autoPlay}
-                  onChange={(next) =>
-                    setAssignOptions((prev) => ({ ...prev, autoPlay: next }))
-                  }
-                />
-                <ToggleRow
-                  label="Require Correct Answers"
-                  hint="Incorrect answers rewind to section start"
-                  checked={assignOptions.requireCorrectAnswer}
-                  onChange={(next) =>
-                    setAssignOptions((prev) => ({
-                      ...prev,
-                      requireCorrectAnswer: next,
-                    }))
-                  }
-                />
-                <ToggleRow
-                  label="Allow Skipping"
-                  hint="Let students scrub ahead"
-                  checked={assignOptions.allowSkipping}
-                  onChange={(next) =>
-                    setAssignOptions((prev) => ({
-                      ...prev,
-                      allowSkipping: next,
-                    }))
-                  }
-                />
-              </div>
-
-              <AssignmentSettingsToggleGroup
-                options={assignPolicyOptions}
-                onOptionsChange={(next) =>
-                  setAssignPolicyOptions((prev) => ({ ...prev, ...next }))
-                }
-                attemptLimit={assignPolicyOptions.attemptLimit ?? null}
-                onAttemptLimitChange={(v) =>
-                  setAssignPolicyOptions((prev) => ({
-                    ...prev,
-                    attemptLimit: v,
-                  }))
-                }
-                attemptLimitHint="Limit how many times each student can complete the activity. Reset by removing them from the live monitor."
-                integritySectionLabel="Activity Integrity"
-                trailingSlot={
-                  <VideoActivityScoringBlock
-                    options={assignPolicyOptions}
-                    onChange={setAssignPolicyOptions}
-                  />
-                }
-              />
-            </div>
+            <AssignBehaviorSummaryVA
+              meta={assignTarget}
+              dueAt={assignDueAt}
+              onDueAtChange={setAssignDueAt}
+              rosters={rosters}
+              pickerValue={pickerValue}
+              onPickerChange={setPickerValue}
+              assignError={assignError}
+              onEditInActivity={() => {
+                setAssignTarget(null);
+                setAssignDueAt(null);
+                onEdit(assignTarget);
+              }}
+            />
           }
         />
       )}
@@ -1463,190 +1394,108 @@ function buildDefaultAssignmentName(title: string): string {
 }
 
 /**
- * Initial policy-options state used when the assign modal opens. Mirrors the
- * Quiz default toggle states so a teacher coming from Quiz finds parity:
- * tab warnings on, feedback off, no shuffle, single attempt, no rewind/penalty,
- * "score only" visibility.
+ * AssignBehaviorSummaryVA — slimmed extraSlot for the standalone VA assign
+ * modal (VA Task 9 parity with Quiz Task 9).
+ *
+ * Renders:
+ *   1. The class/period picker (AssignClassPicker).
+ *   2. A due-date date input.
+ *   3. A read-only behavior summary derived from `getVideoActivityBehavior(meta)`,
+ *      plus an "Edit in activity" button. The button calls `onEditInActivity`
+ *      so the parent can open the editor's Settings tab.
+ *   4. An inline error message if `assignError` is set.
  */
-function buildDefaultPolicyOptions(): VideoActivitySessionOptions {
-  return {
-    tabWarningsEnabled: true,
-    showResultToStudent: false,
-    showCorrectAnswerToStudent: false,
-    showCorrectOnBoard: false,
-    shuffleQuestions: false,
-    shuffleAnswerOptions: true,
-    attemptLimit: 1,
-    rewindOnIncorrectSeconds: 0,
-    pointPenaltyOnIncorrect: 0,
-    scoreVisibility: 'score-only',
-  };
-}
-
-/* ─── Video-Activity scoring/penalty block ────────────────────────────────── */
-
-const REWIND_OPTIONS: { label: string; value: number }[] = [
-  { label: 'Off', value: 0 },
-  { label: '15s', value: 15 },
-  { label: '30s', value: 30 },
-  { label: '60s', value: 60 },
-];
-
-const SCORE_VISIBILITY_OPTIONS: {
-  value: VideoActivityScoreVisibility;
-  label: string;
-  hint: string;
-}[] = [
-  {
-    value: 'none',
-    label: 'Hidden',
-    hint: "Students see 'Submitted' only — no score.",
-  },
-  {
-    value: 'score-only',
-    label: 'Score',
-    hint: 'Students see their final score, no per-question detail.',
-  },
-  {
-    value: 'score-and-responses',
-    label: 'Score + responses',
-    hint: 'Students see their score and which questions they got right/wrong.',
-  },
-  {
-    value: 'score-responses-and-answers',
-    label: 'Full review',
-    hint: 'Students see their score, right/wrong, and the correct answers.',
-  },
-];
-
-interface VideoActivityScoringBlockProps {
-  options: VideoActivitySessionOptions;
-  onChange: React.Dispatch<React.SetStateAction<VideoActivitySessionOptions>>;
-}
-
-/**
- * VA-specific knobs that don't fit the shared toggle group: rewind seconds,
- * point penalty per incorrect submission, and the score-visibility selector.
- * Renders inside `AssignmentSettingsToggleGroup`'s `trailingSlot`.
- */
-const VideoActivityScoringBlock: React.FC<VideoActivityScoringBlockProps> = ({
-  options,
-  onChange,
+const AssignBehaviorSummaryVA: React.FC<{
+  meta: VideoActivityMetadata;
+  dueAt: number | null;
+  onDueAtChange: (dueAt: number | null) => void;
+  rosters: ClassRoster[];
+  pickerValue: AssignClassPickerValue;
+  onPickerChange: (next: AssignClassPickerValue) => void;
+  assignError: string | null;
+  onEditInActivity?: () => void;
+}> = ({
+  meta,
+  dueAt,
+  onDueAtChange,
+  rosters,
+  pickerValue,
+  onPickerChange,
+  assignError,
+  onEditInActivity,
 }) => {
-  const rewind = options.rewindOnIncorrectSeconds ?? 0;
-  const penalty = options.pointPenaltyOnIncorrect ?? 0;
-  // Backward compat for pre-PR3a snake_case scoreVisibility values that
-  // may already be persisted in Firestore. Without the normalize step the
-  // <select> falls through to the default 'score-only' silently, hiding
-  // the teacher's actual choice.
-  const rawVisibility = options.scoreVisibility;
-  const visibility: VideoActivityScoreVisibility =
-    rawVisibility === undefined
-      ? 'score-only'
-      : (rawVisibility.replace(/_/g, '-') as VideoActivityScoreVisibility);
+  const behavior = getVideoActivityBehavior(meta);
+  const summary = formatVideoActivityBehaviorSummary(behavior);
+
+  // Convert epoch ms → 'YYYY-MM-DD' for the date input, and back.
+  const dateInputValue = dueAt
+    ? new Date(dueAt).toISOString().slice(0, 10)
+    : '';
+
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (!val) {
+      onDueAtChange(null);
+    } else {
+      onDueAtChange(new Date(val).getTime());
+    }
+  };
 
   return (
-    <div className="space-y-3 pt-1">
-      <SectionHeader label="Scoring & Penalties" />
+    <>
+      <AssignClassPicker
+        rosters={rosters}
+        value={pickerValue}
+        onChange={onPickerChange}
+      />
 
+      {assignError && (
+        <div className="flex items-start gap-2 rounded-xl border border-brand-red-primary/30 bg-brand-red-lighter/40 px-3 py-2 text-sm font-medium text-brand-red-dark">
+          <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+          <span>{assignError}</span>
+        </div>
+      )}
+
+      {/* Due date */}
       <div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-brand-blue-dark">
-            Rewind on Incorrect
-          </span>
-          <div
-            role="group"
-            aria-label="Rewind seconds on incorrect answer"
-            className="inline-flex rounded-lg border border-slate-200 bg-white overflow-hidden"
+        <label
+          htmlFor="va-assign-due-date-input"
+          className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
+        >
+          Due Date <span className="font-normal">(optional)</span>
+        </label>
+        <input
+          id="va-assign-due-date-input"
+          type="date"
+          data-testid="va-assign-due-date"
+          value={dateInputValue}
+          onChange={handleDateChange}
+          className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-brand-blue-primary"
+        />
+      </div>
+
+      {/* Read-only behavior summary */}
+      <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+            Behavior
+          </p>
+          <button
+            type="button"
+            onClick={onEditInActivity}
+            className="text-xxs font-bold text-brand-blue-primary hover:text-brand-blue-dark transition-colors"
           >
-            {REWIND_OPTIONS.map((opt) => {
-              const active = rewind === opt.value;
-              return (
-                <button
-                  key={opt.label}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() =>
-                    onChange((prev) => ({
-                      ...prev,
-                      rewindOnIncorrectSeconds: opt.value,
-                    }))
-                  }
-                  className={
-                    'px-3 py-1.5 text-xs font-bold transition ' +
-                    (active
-                      ? 'bg-brand-blue-primary text-white'
-                      : 'text-slate-600 hover:bg-slate-50')
-                  }
-                >
-                  {opt.label}
-                </button>
-              );
-            })}
-          </div>
+            Edit in activity
+          </button>
         </div>
-        <p className="text-xxs text-slate-500 mt-0.5">
-          Send the video back this many seconds when a student answers wrong.
+        <p
+          data-testid="va-behavior-summary"
+          className="text-sm text-slate-600 leading-snug"
+        >
+          {summary}
         </p>
       </div>
-
-      <div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-brand-blue-dark">
-            Point Penalty per Incorrect
-          </span>
-          <input
-            type="number"
-            min={0}
-            step={1}
-            value={penalty}
-            onChange={(e) => {
-              // Integer-only: a fractional penalty mid-quiz produces a
-              // confusing "you lost 0.5 points" message. Floor any decimal
-              // the browser accepts (some mobile keyboards still allow .).
-              const next = Math.floor(Number(e.target.value));
-              const safe = Number.isFinite(next) && next >= 0 ? next : 0;
-              onChange((prev) => ({
-                ...prev,
-                pointPenaltyOnIncorrect: safe,
-              }));
-            }}
-            className="w-20 px-3 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm text-right focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          />
-        </div>
-        <p className="text-xxs text-slate-500 mt-0.5">
-          Subtract this many points each time a student answers wrong. 0 = off.
-        </p>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-bold text-brand-blue-dark">
-            Score Visibility
-          </span>
-          <select
-            value={visibility}
-            onChange={(e) =>
-              onChange((prev) => ({
-                ...prev,
-                scoreVisibility: e.target.value as VideoActivityScoreVisibility,
-              }))
-            }
-            className="px-2 py-1.5 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-          >
-            {SCORE_VISIBILITY_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <p className="text-xxs text-slate-500 mt-0.5">
-          {SCORE_VISIBILITY_OPTIONS.find((o) => o.value === visibility)?.hint ??
-            ''}
-        </p>
-      </div>
-    </div>
+    </>
   );
 };
 

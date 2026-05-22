@@ -5,10 +5,17 @@ import {
   SmartNotebookConfig,
   NotebookItem,
   NotebookSection,
+  PlacedNotebookAsset,
 } from '@/types';
+import {
+  createPlacedAsset,
+  updatePlacedAsset as updatePlacedAssetIn,
+  removePlacedAsset as removePlacedAssetIn,
+} from '@/utils/notebookPlacedAssets';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
+import { useNotebookSharing } from '@/hooks/useNotebookSharing';
 import {
   collection,
   onSnapshot,
@@ -37,6 +44,7 @@ import {
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
 import { PageEditorOverlay } from './components/PageEditorOverlay';
+import { NOTEBOOK_ASSET_MIME } from './components/PageCanvas';
 
 export const SmartNotebookWidget: React.FC<{
   widget: WidgetData;
@@ -44,10 +52,12 @@ export const SmartNotebookWidget: React.FC<{
 }> = ({ widget, isActive = true }) => {
   const { updateWidget, addToast } = useDashboard();
   const { user } = useAuth();
-  const { showConfirm } = useDialog();
+  const { showConfirm, showPrompt } = useDialog();
   const { uploadFile, deleteFile } = useStorage();
+  const { shareNotebook } = useNotebookSharing();
   const config = widget.config as SmartNotebookConfig;
   const { activeNotebookId } = config;
+  const displayMode = config.libraryDisplayMode ?? 'cards';
 
   const [notebooks, setNotebooks] = useState<NotebookItem[]>([]);
   const [currentPage, setCurrentPage] = useState(0);
@@ -279,9 +289,25 @@ export const SmartNotebookWidget: React.FC<{
         }
 
         await deleteDoc(doc(db, 'users', user.uid, 'notebooks', id));
-        if (activeNotebookId === id) {
+        // Strip the deleted notebook's placed assets so they don't linger in
+        // the dashboard config forever (they're keyed by notebookId and would
+        // otherwise accumulate as dead entries).
+        const hadPlacedAssets = (config.placedAssets ?? []).some(
+          (a) => a.notebookId === id
+        );
+        if (activeNotebookId === id || hadPlacedAssets) {
           updateWidget(widget.id, {
-            config: { ...config, activeNotebookId: null },
+            config: {
+              ...config,
+              ...(hadPlacedAssets
+                ? {
+                    placedAssets: (config.placedAssets ?? []).filter(
+                      (a) => a.notebookId !== id
+                    ),
+                  }
+                : {}),
+              ...(activeNotebookId === id ? { activeNotebookId: null } : {}),
+            },
           });
         }
         addToast('Notebook deleted', 'success');
@@ -295,6 +321,48 @@ export const SmartNotebookWidget: React.FC<{
   const handleSelect = (id: string) => {
     updateWidget(widget.id, { config: { ...config, activeNotebookId: id } });
     setCurrentPage(0);
+  };
+
+  const setDisplayMode = (mode: 'cards' | 'list') => {
+    updateWidget(widget.id, {
+      config: { ...config, libraryDisplayMode: mode },
+    });
+  };
+
+  const handleRename = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!user) return;
+    const notebook = notebooks.find((n) => n.id === id);
+    if (!notebook) return;
+    const next = await showPrompt('Enter a new name for this notebook', {
+      title: 'Rename Notebook',
+      defaultValue: notebook.title,
+      confirmLabel: 'Save',
+    });
+    const trimmed = next?.trim();
+    if (!trimmed || trimmed === notebook.title) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'notebooks', id), {
+        title: trimmed,
+      });
+      addToast('Notebook renamed', 'success');
+    } catch (err) {
+      console.error('Failed to rename notebook', err);
+      addToast('Failed to rename notebook', 'error');
+    }
+  };
+
+  // Publish a notebook for staff sharing and copy the link to the clipboard.
+  const handleShare = async (e: React.MouseEvent, notebook: NotebookItem) => {
+    e.stopPropagation();
+    try {
+      const url = await shareNotebook(notebook);
+      await navigator.clipboard.writeText(url);
+      addToast('Share link copied — paste it onto another board', 'success');
+    } catch (err) {
+      console.error('Failed to share notebook', err);
+      addToast('Failed to create share link', 'error');
+    }
   };
 
   const handleClose = () => {
@@ -439,14 +507,44 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Assets drag onto the notebook PAGE (not the board), so they stay contained
+  // in the widget and remain visible when maximized. A notebook-specific
+  // dataTransfer type means the board's sticker-drop handler ignores it.
   const handleDragStart = (e: React.DragEvent, url: string) => {
-    const img = e.currentTarget.querySelector('img');
-    const ratio = img ? img.naturalWidth / img.naturalHeight : 1;
-    e.dataTransfer.setData(
-      'application/sticker',
-      JSON.stringify({ url, ratio })
-    );
+    e.dataTransfer.setData(NOTEBOOK_ASSET_MIME, JSON.stringify({ url }));
     e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const placedAssets = config.placedAssets ?? [];
+
+  const persistPlacedAssets = (next: PlacedNotebookAsset[]) => {
+    updateWidget(widget.id, { config: { ...config, placedAssets: next } });
+  };
+
+  // Drop an asset onto the current page at a page-relative fraction point.
+  const handlePlaceAsset = (url: string, xFrac: number, yFrac: number) => {
+    if (!activeNotebook) return;
+    persistPlacedAssets([
+      ...placedAssets,
+      createPlacedAsset({
+        notebookId: activeNotebook.id,
+        page: currentPage,
+        url,
+        xFrac,
+        yFrac,
+      }),
+    ]);
+  };
+
+  const handleUpdatePlacedAsset = (
+    id: string,
+    patch: Partial<Pick<PlacedNotebookAsset, 'xFrac' | 'yFrac' | 'wFrac'>>
+  ) => {
+    persistPlacedAssets(updatePlacedAssetIn(placedAssets, id, patch));
+  };
+
+  const handleRemovePlacedAsset = (id: string) => {
+    persistPlacedAssets(removePlacedAssetIn(placedAssets, id));
   };
 
   // Page editor (full-surface) when editing a page.
@@ -475,9 +573,16 @@ export const SmartNotebookWidget: React.FC<{
         showAssets={showAssets}
         setShowAssets={setShowAssets}
         handleClose={handleClose}
+        onShare={(e) => void handleShare(e, activeNotebook)}
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         handleDragStart={handleDragStart}
+        placedAssets={placedAssets.filter(
+          (a) => a.notebookId === activeNotebook.id && a.page === currentPage
+        )}
+        onPlaceAsset={handlePlaceAsset}
+        onUpdatePlacedAsset={handleUpdatePlacedAsset}
+        onRemovePlacedAsset={handleRemovePlacedAsset}
         onEditPage={() => setEditMode(true)}
         onAddPage={() => void handleAddPage()}
         onDeletePage={() => void handleDeletePage()}
@@ -497,6 +602,13 @@ export const SmartNotebookWidget: React.FC<{
       handleImport={handleImport}
       handleSelect={handleSelect}
       handleDelete={handleDelete}
+      handleRename={(e, id) => void handleRename(e, id)}
+      handleShare={(e, id) => {
+        const nb = notebooks.find((n) => n.id === id);
+        if (nb) void handleShare(e, nb);
+      }}
+      displayMode={displayMode}
+      onChangeDisplayMode={setDisplayMode}
       fileInputRef={fileInputRef}
     />
   );

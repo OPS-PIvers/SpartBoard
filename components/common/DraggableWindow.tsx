@@ -28,6 +28,8 @@ import {
   Pin,
   Link,
   Unlink,
+  MoreVertical,
+  Video,
 } from 'lucide-react';
 
 import {
@@ -365,6 +367,45 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widget.flipped]);
 
+  // Maximized-state FAB kebab (replaces the pill toolbar while full-screen) and
+  // a mirror of the Dock's screen-recording status, kept in sync via window
+  // events so the kebab's record button reflects the one shared recorder.
+  const [showMaxMenu, setShowMaxMenu] = useState(false);
+  const maxMenuRef = useRef<HTMLDivElement>(null);
+  // Dismiss the maximized FAB menu on Escape or an outside click, mirroring the
+  // tool menu's behavior. The keydown listener is capture-phase so Escape
+  // closes the menu before the widget-level handler can minimize the widget.
+  useEffect(() => {
+    if (!showMaxMenu) return;
+    const onPointerDown = (e: PointerEvent) => {
+      if (!maxMenuRef.current?.contains(e.target as Node)) {
+        setShowMaxMenu(false);
+      }
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setShowMaxMenu(false);
+      }
+    };
+    window.addEventListener('pointerdown', onPointerDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [showMaxMenu]);
+  const [isScreenRecording, setIsScreenRecording] = useState(false);
+  useEffect(() => {
+    const onState = (e: Event) => {
+      const detail = (e as CustomEvent<{ isRecording?: boolean }>).detail;
+      setIsScreenRecording(Boolean(detail?.isRecording));
+    };
+    window.addEventListener('spart-screen-record-state', onState);
+    return () =>
+      window.removeEventListener('spart-screen-record-state', onState);
+  }, []);
+
   // Annotation state
   const [isAnnotating, setIsAnnotating] = useState(false);
   const [annotationColor, setAnnotationColor] = useState(
@@ -508,6 +549,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   );
 
   const isMaximized = widget.maximized ?? false;
+  // Close the maximized FAB menu when the widget leaves the maximized state.
+  // Adjust state while rendering (see CLAUDE.md) rather than via an effect.
+  const [prevIsMaximized, setPrevIsMaximized] = useState(isMaximized);
+  if (isMaximized !== prevIsMaximized) {
+    setPrevIsMaximized(isMaximized);
+    if (!isMaximized) setShowMaxMenu(false);
+  }
   // View-only guests treat every widget as locked. The DashboardContext
   // mutation guards already block writes — this just surfaces the locked
   // state to all the existing UI affordances (drag, resize, gear, close).
@@ -2591,20 +2639,115 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           document.body
         )}
 
-      {/* Persistent Restore FAB for Maximized State */}
+      {/* Maximized FAB cluster: restore (primary) + a kebab exposing the
+          actions still useful full-screen (settings, screenshot, annotate,
+          screen record). Replaces the suppressed pill toolbar. */}
       {isMaximized && (
-        <div className="absolute bottom-6 right-6 z-widget-control pointer-events-auto flex items-center justify-center">
-          <IconButton
-            icon={<Minimize2 className="w-6 h-6" />}
-            label={t('widgetWindow.restore')}
-            onClick={(e) => {
-              e.stopPropagation();
-              handleMaximizeToggle();
-            }}
-            size="xl"
-            variant="brand-ghost"
-            className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200 animate-in zoom-in-50 duration-300"
-          />
+        <div
+          ref={maxMenuRef}
+          className="absolute bottom-6 right-6 z-widget-control pointer-events-auto flex flex-col items-end gap-3"
+        >
+          {showMaxMenu && (
+            <div
+              data-settings-exclude
+              className="flex flex-col gap-1.5 p-1.5 bg-white/90 backdrop-blur-xl rounded-2xl border border-slate-200 shadow-2xl animate-in fade-in slide-in-from-bottom-2 duration-200"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <IconButton
+                icon={<Settings className="w-4 h-4" />}
+                label={
+                  widget.flipped
+                    ? t('widgetWindow.closeSettings')
+                    : t('widgetWindow.settings')
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  updateWidget(widget.id, { flipped: !widget.flipped });
+                  setShowMaxMenu(false);
+                }}
+                size="lg"
+                variant="glass"
+                active={widget.flipped}
+              />
+              {canScreenshot && (
+                <IconButton
+                  icon={<Camera className="w-4 h-4" />}
+                  label={t('widgetWindow.takeScreenshotLongPress')}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void takeScreenshot();
+                    setShowMaxMenu(false);
+                  }}
+                  disabled={isCapturing}
+                  size="lg"
+                  variant="glass"
+                />
+              )}
+              <IconButton
+                icon={<Highlighter className="w-4 h-4" />}
+                label={t('widgetWindow.annotate')}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsAnnotating(!isAnnotating);
+                  setShowMaxMenu(false);
+                }}
+                size="lg"
+                variant="glass"
+                active={isAnnotating}
+              />
+              <IconButton
+                icon={<Video className="w-4 h-4" />}
+                label={
+                  isScreenRecording
+                    ? t('widgetWindow.stopRecording')
+                    : t('widgetWindow.recordScreen')
+                }
+                onClick={(e) => {
+                  e.stopPropagation();
+                  window.dispatchEvent(
+                    new CustomEvent('spart-screen-record-toggle')
+                  );
+                  setShowMaxMenu(false);
+                }}
+                size="lg"
+                variant="glass"
+                active={isScreenRecording}
+                className={
+                  isScreenRecording ? '!bg-red-500/20 !text-red-600' : ''
+                }
+              />
+            </div>
+          )}
+          <div className="flex items-center gap-3">
+            <IconButton
+              icon={<MoreVertical className="w-6 h-6" />}
+              label={t('widgetWindow.moreActions')}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (!showMaxMenu)
+                  window.dispatchEvent(
+                    new CustomEvent('spart-screen-record-query')
+                  );
+                setShowMaxMenu((v) => !v);
+              }}
+              size="xl"
+              variant="brand-ghost"
+              active={showMaxMenu}
+              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200 animate-in zoom-in-50 duration-300"
+            />
+            <IconButton
+              icon={<Minimize2 className="w-6 h-6" />}
+              label={t('widgetWindow.restore')}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleMaximizeToggle();
+              }}
+              size="xl"
+              variant="brand-ghost"
+              className="shadow-2xl !bg-white/90 hover:!bg-white backdrop-blur-md border border-slate-200 animate-in zoom-in-50 duration-300"
+            />
+          </div>
         </div>
       )}
 
@@ -2640,8 +2783,10 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
         ? createPortal(content, document.body)
         : content}
 
-      {/* TOOL MENU PORTAL */}
+      {/* TOOL MENU PORTAL — suppressed while maximized; the bottom-right FAB
+          cluster provides the relevant actions full-screen instead. */}
       {showTools &&
+        !isMaximized &&
         typeof document !== 'undefined' &&
         createPortal(
           <div

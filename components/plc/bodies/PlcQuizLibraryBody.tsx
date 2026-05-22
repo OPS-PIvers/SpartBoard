@@ -52,7 +52,12 @@ import {
   Trash2,
   Users2,
 } from 'lucide-react';
-import type { Plc, QuizData, QuizMetadata } from '@/types';
+import type {
+  Plc,
+  QuizBehaviorSettings,
+  QuizData,
+  QuizMetadata,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -66,6 +71,7 @@ import {
 } from '@/hooks/useSyncedQuizGroups';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
+import { getQuizBehavior } from '@/utils/quizBehavior';
 import { PlcQuizImportModal } from '../PlcQuizImportModal';
 import {
   PlcSharePickerModal,
@@ -404,10 +410,10 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   );
 
   const handleSaveEdit = useCallback(
-    async (updated: QuizData) => {
+    async (updated: QuizData, behavior: QuizBehaviorSettings) => {
       if (!editing) return;
       try {
-        await saveQuiz(updated, editing.meta.driveFileId);
+        await saveQuiz(updated, editing.meta.driveFileId, behavior);
         addToast(
           t('plcDashboard.quizLibrary.editSaved', {
             defaultValue: 'Quiz saved — teammates will sync on next refresh.',
@@ -510,6 +516,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
             title: data.title,
             questions: data.questions,
             plcId: plc.id,
+            behavior: meta.behavior,
           });
           try {
             await attachSyncLinkage(meta.id, {
@@ -912,6 +919,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       <QuizEditorModal
         isOpen={editing !== null}
         quiz={editing?.quiz ?? null}
+        behavior={editing ? getQuizBehavior(editing.meta) : undefined}
         onClose={() => setEditing(null)}
         onSave={handleSaveEdit}
       />

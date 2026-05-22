@@ -7,27 +7,33 @@
  * prompt / answers).
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
   LibraryFolder,
+  VideoActivityBehaviorSettings,
   VideoActivityData,
   VideoActivityQuestion,
 } from '@/types';
 import { EditorWorkspace } from '@/components/common/EditorWorkspace';
 import { useAuth } from '@/context/useAuth';
+import { VideoActivityBehaviorSettingsPanel } from '@/components/common/library/VideoActivityBehaviorSettingsPanel';
 import {
   VideoActivityAiOverlay,
   VideoActivityEditorContextPane,
   VideoActivityEditorDetailPane,
 } from './VideoActivityEditor';
 import { useVideoActivityEditorState } from './useVideoActivityEditorState';
+import { DEFAULT_VA_BEHAVIOR } from '@/utils/videoActivityBehavior';
 
 interface VideoActivityEditorModalProps {
   isOpen: boolean;
   activity: VideoActivityData | null;
   onClose: () => void;
-  onSave: (updated: VideoActivityData) => Promise<void>;
+  onSave: (
+    updated: VideoActivityData,
+    behavior: VideoActivityBehaviorSettings
+  ) => Promise<void>;
   /** Video Activity widget-level AI toggle (from VideoActivityGlobalConfig.aiEnabled). */
   aiEnabled?: boolean;
   /** Admin override — admins can use AI even when the widget-level toggle is off. */
@@ -36,6 +42,12 @@ interface VideoActivityEditorModalProps {
   folders?: LibraryFolder[];
   folderId?: string | null;
   onFolderChange?: (folderId: string | null) => void;
+  /**
+   * Seed behavior for the Settings tab. For an existing activity, pass
+   * `getVideoActivityBehavior(meta)`; for a new activity, omit (defaults to
+   * `DEFAULT_VA_BEHAVIOR`).
+   */
+  behavior?: VideoActivityBehaviorSettings;
 }
 
 const arrEq = (a?: string[], b?: string[]): boolean => {
@@ -86,6 +98,7 @@ export const VideoActivityEditorModal: React.FC<
   folders,
   folderId,
   onFolderChange,
+  behavior: behaviorSeed,
 }) => {
   const { canAccessFeature } = useAuth();
   const canUseAi =
@@ -106,11 +119,37 @@ export const VideoActivityEditorModal: React.FC<
     originalQuestions,
   } = editorState;
 
+  // ─── Behavior settings state ─────────────────────────────────────────────
+  const [editorTab, setEditorTab] = useState<'questions' | 'settings'>(
+    'questions'
+  );
+  const [behavior, setBehavior] = useState<VideoActivityBehaviorSettings>(
+    () => behaviorSeed ?? DEFAULT_VA_BEHAVIOR
+  );
+  const [originalBehavior, setOriginalBehavior] =
+    useState<VideoActivityBehaviorSettings>(
+      () => behaviorSeed ?? DEFAULT_VA_BEHAVIOR
+    );
+
+  // Re-seed behavior when the activity being edited changes (e.g. user closes
+  // editor and opens a different activity without unmounting the modal). Adjust
+  // state while rendering (see CLAUDE.md), keyed on activity?.id only so a fresh
+  // behaviorSeed object from a parent re-render doesn't clobber in-progress
+  // edits.
+  const [seededActivityId, setSeededActivityId] = useState(activity?.id);
+  if (seededActivityId !== activity?.id) {
+    setSeededActivityId(activity?.id);
+    const seed = behaviorSeed ?? DEFAULT_VA_BEHAVIOR;
+    setBehavior(seed);
+    setOriginalBehavior(seed);
+  }
+
   const isDirty = useMemo(
     () =>
       title !== originalTitle ||
       youtubeUrl !== originalYoutubeUrl ||
-      !questionsEqual(questions, originalQuestions),
+      !questionsEqual(questions, originalQuestions) ||
+      JSON.stringify(behavior) !== JSON.stringify(originalBehavior),
     [
       title,
       originalTitle,
@@ -118,6 +157,8 @@ export const VideoActivityEditorModal: React.FC<
       originalYoutubeUrl,
       questions,
       originalQuestions,
+      behavior,
+      originalBehavior,
     ]
   );
 
@@ -175,13 +216,16 @@ export const VideoActivityEditorModal: React.FC<
     setSaving(true);
     setError(null);
     try {
-      await onSave({
-        ...activity,
-        title: title.trim(),
-        youtubeUrl: youtubeUrl.trim(),
-        questions: finalQuestions,
-        updatedAt: Date.now(),
-      });
+      await onSave(
+        {
+          ...activity,
+          title: title.trim(),
+          youtubeUrl: youtubeUrl.trim(),
+          questions: finalQuestions,
+          updatedAt: Date.now(),
+        },
+        behavior
+      );
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Save failed');
@@ -228,14 +272,54 @@ export const VideoActivityEditorModal: React.FC<
       contextRatio={56}
       contextPaneClassName="bg-slate-50 border-r border-slate-200 !overflow-hidden"
       contextPane={
-        <VideoActivityEditorContextPane
-          state={editorState}
-          folders={folders}
-          folderId={folderId}
-          onFolderChange={onFolderChange}
-        />
+        <div className="flex flex-col h-full">
+          {/* Questions / Settings segmented tab toggle */}
+          <div className="px-4 pt-3 pb-0 border-b border-slate-200 bg-white shrink-0 flex gap-1">
+            {(['questions', 'settings'] as const).map((tab) => (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setEditorTab(tab)}
+                className={`px-3 py-2 rounded-t-lg text-xs font-black uppercase tracking-wider transition-colors ${
+                  editorTab === tab
+                    ? 'bg-brand-blue-primary text-white'
+                    : 'text-slate-500 hover:text-brand-blue-primary hover:bg-brand-blue-lighter/30'
+                }`}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
+          </div>
+
+          {editorTab === 'questions' ? (
+            <VideoActivityEditorContextPane
+              state={editorState}
+              folders={folders}
+              folderId={folderId}
+              onFolderChange={onFolderChange}
+            />
+          ) : (
+            <div className="flex-1 overflow-y-auto custom-scrollbar bg-slate-50 px-5 py-5 space-y-5">
+              <VideoActivityBehaviorSettingsPanel
+                value={behavior}
+                onChange={setBehavior}
+              />
+            </div>
+          )}
+        </div>
       }
-      detailPane={<VideoActivityEditorDetailPane state={editorState} />}
+      detailPane={
+        editorTab === 'questions' ? (
+          <VideoActivityEditorDetailPane state={editorState} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-400 text-sm px-8 text-center">
+            <p>
+              Settings saved with the activity. They become the default when you
+              assign it.
+            </p>
+          </div>
+        )
+      }
       overlay={<VideoActivityAiOverlay state={editorState} />}
     />
   );

@@ -54,6 +54,7 @@ const TRANSIENT_CONFIG_KEYS = new Set<string>([
   'activeApp',
   'activeAppUnsaved',
   'activeNotebookId',
+  'placedAssets',
   'lastResult',
 
   // Randomizer Jigsaw mode: per-pick group state (jigsaw*Groups also contain

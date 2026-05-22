@@ -13,7 +13,7 @@ import React, { useCallback, useState } from 'react';
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
-import type { Plc, QuizData } from '@/types';
+import type { Plc, QuizBehaviorSettings, QuizData } from '@/types';
 import type { AssignmentQuizRef } from '@/hooks/useQuizAssignments';
 import { PlcAssignmentConfigModal } from '../assignments/PlcAssignmentConfigModal';
 
@@ -31,8 +31,10 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
   const { user } = useAuth();
   const { saveQuiz } = useQuiz(user?.uid);
 
-  // After authoring, hold the AssignmentQuizRef to pass to the config modal.
+  // After authoring, hold the AssignmentQuizRef + behavior to pass to the config modal.
   const [quizRef, setQuizRef] = useState<AssignmentQuizRef | null>(null);
+  const [savedBehavior, setSavedBehavior] =
+    useState<QuizBehaviorSettings | null>(null);
   const [configOpen, setConfigOpen] = useState(false);
 
   // Seed the new quiz once on mount via lazy initializer so Date.now() and
@@ -46,8 +48,8 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
   }));
 
   const handleSave = useCallback(
-    async (quiz: QuizData) => {
-      const metadata = await saveQuiz(quiz);
+    async (quiz: QuizData, behavior: QuizBehaviorSettings) => {
+      const metadata = await saveQuiz(quiz, undefined, behavior);
       const ref: AssignmentQuizRef = {
         id: metadata.id,
         title: metadata.title,
@@ -55,6 +57,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
         questions: quiz.questions,
       };
       setQuizRef(ref);
+      setSavedBehavior(behavior);
       setConfigOpen(true);
     },
     [saveQuiz]
@@ -63,6 +66,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
   const handleConfigClose = useCallback(() => {
     setConfigOpen(false);
     setQuizRef(null);
+    setSavedBehavior(null);
     onClose();
   }, [onClose]);
 
@@ -72,6 +76,7 @@ export const PlcAuthorQuizModal: React.FC<PlcAuthorQuizModalProps> = ({
         plc={plc}
         kind="quiz"
         quizRef={quizRef}
+        quizBehavior={savedBehavior ?? undefined}
         isOpen
         onClose={handleConfigClose}
       />

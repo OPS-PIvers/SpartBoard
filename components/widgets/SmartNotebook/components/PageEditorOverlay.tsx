@@ -148,13 +148,33 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
       content={
         <div className="flex-1 h-full w-full bg-slate-100">
           {error ? (
-            <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 p-6">
-              <AlertTriangle className="w-8 h-8 text-red-500" />
-              <p className="text-slate-600 font-semibold max-w-xs">{error}</p>
+            <div
+              className="h-full w-full flex flex-col items-center justify-center text-center text-slate-600"
+              style={{ gap: 'min(12px, 3cqmin)', padding: 'min(24px, 5cqmin)' }}
+            >
+              <AlertTriangle
+                className="text-red-500"
+                style={{
+                  width: 'min(32px, 9cqmin)',
+                  height: 'min(32px, 9cqmin)',
+                }}
+              />
+              <p
+                className="font-semibold max-w-xs"
+                style={{ fontSize: 'min(14px, 5.5cqmin)' }}
+              >
+                {error}
+              </p>
             </div>
           ) : !svg ? (
             <div className="h-full w-full flex items-center justify-center">
-              <Loader2 className="w-8 h-8 text-indigo-500 animate-spin" />
+              <Loader2
+                className="text-indigo-500 animate-spin"
+                style={{
+                  width: 'min(32px, 9cqmin)',
+                  height: 'min(32px, 9cqmin)',
+                }}
+              />
             </div>
           ) : (
             <PageEditor svg={svg} onChange={setEditedSvg} />
@@ -170,8 +190,9 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             className="text-slate-400 font-semibold uppercase tracking-tight text-center"
             style={{ fontSize: 'min(10px, 2.5cqmin)' }}
           >
-            Click to select · drag to move · drag corners to resize ·
-            double-click text to edit · Ctrl/⌘+D to duplicate · Delete to remove
+            Click to select · drag empty space or Shift-click to multi-select ·
+            drag to move · drag corners to resize · double-click text to edit ·
+            Ctrl/⌘+D to duplicate · Delete to remove
           </span>
         </div>
       }

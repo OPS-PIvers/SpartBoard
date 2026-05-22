@@ -366,6 +366,22 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setPendingAssignmentEdit(null);
   }, []);
 
+  const [pendingAssignmentMonitorId, setPendingAssignmentMonitor] = useState<
+    string | null
+  >(null);
+
+  const clearPendingAssignmentMonitor = useCallback(() => {
+    setPendingAssignmentMonitor(null);
+  }, []);
+
+  const [pendingAssignmentResultsId, setPendingAssignmentResults] = useState<
+    string | null
+  >(null);
+
+  const clearPendingAssignmentResults = useCallback(() => {
+    setPendingAssignmentResults(null);
+  }, []);
+
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
   // Keep a ref to account-level remote control so the Firestore snapshot
@@ -5125,6 +5141,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      pendingAssignmentMonitorId,
+      setPendingAssignmentMonitor,
+      clearPendingAssignmentMonitor,
+      pendingAssignmentResultsId,
+      setPendingAssignmentResults,
+      clearPendingAssignmentResults,
       shareCollection,
       shareSubstituteCollection,
       loadSharedCollection: sharedCollectionApi.loadSharedCollection,
@@ -5246,6 +5268,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       pendingAssignmentEditId,
       setPendingAssignmentEdit,
       clearPendingAssignmentEdit,
+      pendingAssignmentMonitorId,
+      setPendingAssignmentMonitor,
+      clearPendingAssignmentMonitor,
+      pendingAssignmentResultsId,
+      setPendingAssignmentResults,
+      clearPendingAssignmentResults,
       shareCollection,
       shareSubstituteCollection,
       sharedCollectionApi.loadSharedCollection,

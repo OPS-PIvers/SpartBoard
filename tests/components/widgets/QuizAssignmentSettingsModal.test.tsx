@@ -33,6 +33,148 @@ function makePlcAssignment(
   } as unknown as QuizAssignment;
 }
 
+describe('QuizAssignmentSettingsModal — behavior is read-only (freeze-live)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders a read-only behavior summary instead of editable behavior controls', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          sessionMode: 'teacher',
+          sessionOptions: { shuffleAnswerOptions: true },
+          attemptLimit: 1,
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    // Should show the behavior summary text (from formatBehaviorSummary)
+    const summary = screen.getByTestId('assignment-behavior-summary');
+    expect(summary).toBeInTheDocument();
+    expect(summary.textContent).toContain('Teacher-paced');
+    expect(summary.textContent).toContain('1 attempt');
+  });
+
+  it('shows an "Edit in quiz" hint (not an active nav button)', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment()}
+        rosters={[] as ClassRoster[]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    expect(screen.getByText(/edit in (the )?quiz/i)).toBeInTheDocument();
+  });
+
+  it('does NOT render mode radio buttons or behavior toggle inputs', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({ status: 'inactive' })}
+        rosters={[] as ClassRoster[]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    // No radiogroup for session mode
+    expect(screen.queryByRole('radiogroup')).not.toBeInTheDocument();
+    // No attempt-limit number input
+    expect(
+      screen.queryByRole('spinbutton', { name: /attempt/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('save patch includes targeting fields but NOT behavior fields', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          className: 'Period 1',
+          sessionMode: 'student',
+          sessionOptions: { speedBonusEnabled: true },
+          attemptLimit: 3,
+          periodNames: ['P1'],
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    // Targeting fields SHOULD be present
+    expect(patch).toHaveProperty('className');
+    expect(patch).toHaveProperty('periodName');
+    expect(patch).toHaveProperty('periodNames');
+    // Behavior fields MUST NOT be present
+    expect(patch).not.toHaveProperty('sessionMode');
+    expect(patch).not.toHaveProperty('sessionOptions');
+    expect(patch).not.toHaveProperty('attemptLimit');
+  });
+
+  it('save patch includes dueAt when a due date is entered', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({ dueAt: null })}
+        rosters={[] as ClassRoster[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    const dateInput = screen.getByTestId('assignment-due-date');
+    fireEvent.change(dateInput, { target: { value: '2026-06-01' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch).toHaveProperty('dueAt');
+    expect(typeof patch.dueAt).toBe('number');
+  });
+
+  it('save patch includes dueAt: null when the date input is cleared', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    // Assignment starts with a due date set
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          dueAt: new Date('2026-05-01').getTime(),
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={onSave}
+        onClose={vi.fn()}
+      />
+    );
+    const dateInput = screen.getByTestId('assignment-due-date');
+    // Clear the date
+    fireEvent.change(dateInput, { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Save$/ }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const patch = onSave.mock.calls[0][0] as Record<string, unknown>;
+    expect(patch.dueAt).toBeNull();
+  });
+
+  it('behavior summary reflects the assignment sessionMode at render time', () => {
+    render(
+      <QuizAssignmentSettingsModal
+        assignment={makePlcAssignment({
+          sessionMode: 'auto',
+          attemptLimit: null,
+        })}
+        rosters={[] as ClassRoster[]}
+        onSave={vi.fn()}
+        onClose={vi.fn()}
+      />
+    );
+    const summary = screen.getByTestId('assignment-behavior-summary');
+    expect(summary.textContent).toContain('Auto-progress');
+    expect(summary.textContent).toContain('unlimited attempts');
+  });
+});
+
 describe('QuizAssignmentSettingsModal — Auto-Generated PLC Sheet toggle', () => {
   beforeEach(() => {
     vi.clearAllMocks();
