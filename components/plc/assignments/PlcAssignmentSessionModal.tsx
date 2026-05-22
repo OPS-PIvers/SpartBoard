@@ -196,19 +196,19 @@ export const PlcAssignmentSessionModal: React.FC<
             })
       }
     >
-      <div className="w-full h-[88vh] bg-slate-900 rounded-2xl shadow-2xl overflow-hidden flex flex-col">
+      <div className="w-full h-[88vh] bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col">
         {/* The monitor/results scale with container-query units, so the body
             must establish a `size` container the way DraggableWindow does. */}
         <div className="flex-1 min-h-0" style={{ containerType: 'size' }}>
           {notFound && (
-            <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 px-6 text-slate-300">
-              <AlertTriangle className="w-8 h-8 text-amber-400" />
-              <p className="font-bold text-white">
+            <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 px-6 text-slate-600">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+              <p className="font-bold text-brand-blue-dark">
                 {t('plcDashboard.assignmentSession.notFoundTitle', {
                   defaultValue: 'Assignment unavailable',
                 })}
               </p>
-              <p className="text-sm text-slate-400 max-w-md">
+              <p className="text-sm text-slate-500 max-w-md">
                 {t('plcDashboard.assignmentSession.notFoundBody', {
                   defaultValue:
                     'This assignment is no longer in your archive — it may have been deleted.',
@@ -218,14 +218,14 @@ export const PlcAssignmentSessionModal: React.FC<
           )}
 
           {loadError && !notFound && (
-            <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 px-6 text-slate-300">
-              <AlertTriangle className="w-8 h-8 text-amber-400" />
-              <p className="font-bold text-white">{loadError}</p>
+            <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 px-6 text-slate-600">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+              <p className="font-bold text-brand-blue-dark">{loadError}</p>
             </div>
           )}
 
           {!notFound && !loadError && isLoading && (
-            <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-400">
+            <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-500">
               <Loader2 className="w-8 h-8 animate-spin" />
               <span className="text-sm">
                 {t('plcDashboard.assignmentSession.loading', {
@@ -265,7 +265,7 @@ export const PlcAssignmentSessionModal: React.FC<
                   onBack={onClose}
                 />
               ) : (
-                <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-400">
+                <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-500">
                   <Loader2 className="w-8 h-8 animate-spin" />
                   <span className="text-sm">
                     {t('plcDashboard.assignmentSession.resuming', {
