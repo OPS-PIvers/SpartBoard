@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
-import { PlcQuizEntry } from '@/types';
+import { PlcQuizEntry, QuizSessionMode, QuizSessionOptions } from '@/types';
 import { logError } from '@/utils/logError';
 
 const PLCS_COLLECTION = 'plcs';
@@ -30,6 +30,42 @@ interface ShareQuizWithPlcInput {
   sharedByName: string;
   /** Lowercased email snapshot for display. */
   sharedByEmail: string;
+  /**
+   * Optional default session mode a teacher can pick up when assigning the
+   * shared quiz. Omitted from the Firestore doc when absent.
+   */
+  sessionMode?: QuizSessionMode;
+  /**
+   * Optional default session options. Omitted from the Firestore doc when
+   * absent.
+   */
+  sessionOptions?: QuizSessionOptions;
+  /**
+   * Optional default attempt limit (`null` = unlimited). Omitted from the
+   * Firestore doc when absent.
+   */
+  attemptLimit?: number | null;
+  /** Optional source quiz id — informational only. Omitted when absent. */
+  quizId?: string;
+}
+
+/**
+ * Build the optional run-settings fields, omitting any that are `undefined`
+ * so we never write `undefined` to Firestore. `attemptLimit: null` is a
+ * meaningful value (unlimited) and is preserved.
+ */
+function runSettingsFields(
+  input: ShareQuizWithPlcInput
+): Partial<PlcQuizEntry> {
+  const fields: Partial<PlcQuizEntry> = {};
+  if (input.sessionMode !== undefined) fields.sessionMode = input.sessionMode;
+  if (input.sessionOptions !== undefined) {
+    fields.sessionOptions = input.sessionOptions;
+  }
+  if (input.attemptLimit !== undefined)
+    fields.attemptLimit = input.attemptLimit;
+  if (input.quizId !== undefined) fields.quizId = input.quizId;
+  return fields;
 }
 
 interface UsePlcQuizzesResult {
@@ -75,7 +111,7 @@ function parseEntry(
   ) {
     return null;
   }
-  return {
+  const entry: PlcQuizEntry = {
     id,
     title: data.title,
     questionCount: data.questionCount,
@@ -88,6 +124,23 @@ function parseEntry(
     sharedAt: data.sharedAt,
     updatedAt: data.updatedAt,
   };
+  // Optional run-settings — present only on entries shared after run-settings
+  // moved onto the quiz library. Absent on legacy entries.
+  if (
+    data.sessionMode === 'teacher' ||
+    data.sessionMode === 'auto' ||
+    data.sessionMode === 'student'
+  ) {
+    entry.sessionMode = data.sessionMode;
+  }
+  if (data.sessionOptions !== null && typeof data.sessionOptions === 'object') {
+    entry.sessionOptions = data.sessionOptions as QuizSessionOptions;
+  }
+  if (data.attemptLimit === null || typeof data.attemptLimit === 'number') {
+    entry.attemptLimit = data.attemptLimit;
+  }
+  if (typeof data.quizId === 'string') entry.quizId = data.quizId;
+  return entry;
 }
 
 /**
@@ -157,6 +210,7 @@ export const usePlcQuizzes = (plcId: string | null): UsePlcQuizzesResult => {
         sharedByName: input.sharedByName,
         sharedAt: now,
         updatedAt: now,
+        ...runSettingsFields(input),
       };
       await setDoc(
         doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, input.plcQuizId),
@@ -250,6 +304,7 @@ export async function writePlcQuizEntry(
     sharedByName: input.sharedByName,
     sharedAt: now,
     updatedAt: now,
+    ...runSettingsFields(input),
   };
   await setDoc(
     doc(db, PLCS_COLLECTION, plcId, QUIZZES_SUBCOLLECTION, input.plcQuizId),

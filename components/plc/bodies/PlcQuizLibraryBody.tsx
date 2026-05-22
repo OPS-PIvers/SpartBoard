@@ -54,6 +54,7 @@ import {
 } from 'lucide-react';
 import type {
   Plc,
+  QuizAssignment,
   QuizBehaviorSettings,
   QuizData,
   QuizMetadata,
@@ -61,26 +62,42 @@ import type {
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
+import { usePlcAssignments } from '@/hooks/usePlcAssignments';
 import { usePlcQuizzes, writePlcQuizEntry } from '@/hooks/usePlcQuizzes';
 import { SyncedQuizVersionConflictError, useQuiz } from '@/hooks/useQuiz';
 import {
+  callJoinPlcAssignmentSyncGroup,
   callJoinPlcQuizSyncGroup,
   callLeaveSyncedQuizGroup,
   createSyncedQuizGroup,
   pullSyncedQuizContent,
 } from '@/hooks/useSyncedQuizGroups';
+import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { getQuizBehavior } from '@/utils/quizBehavior';
+import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
 import { PlcQuizImportModal } from '../PlcQuizImportModal';
 import {
   PlcSharePickerModal,
   type PlcSharePickerItem,
 } from '../PlcSharePickerModal';
 import { QuizEditorModal } from '@/components/widgets/QuizWidget/components/QuizEditorModal';
+import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
+import {
+  unifyAssignableQuizzes,
+  type AssignableQuizRow,
+} from './unifyAssignableQuizzes';
 
 interface PlcQuizLibraryBodyProps {
   plc: Plc;
+  /**
+   * Closes the PLC dashboard overlay. Invoked when the post-assign
+   * "Edit all settings…" link is clicked so the teacher can be handed
+   * off to the QuizWidget's full assignment editor without the PLC
+   * dashboard staying open behind it. Mirrors `PlcAssignmentsBody`.
+   */
+  onCloseDashboard: () => void;
 }
 
 interface ImportTarget {
@@ -89,6 +106,18 @@ interface ImportTarget {
   title: string;
   sharedByName: string;
 }
+
+/**
+ * Target for the "Assign to my classes" flow. Carries the resolved
+ * run-settings (from the unified row) plus the routing info needed to
+ * pick the right sync-join Cloud Function: a `'quiz'`-source row joins via
+ * `callJoinPlcQuizSyncGroup(plcId, plcQuizId)`, a `'template'`-source row
+ * via `callJoinPlcAssignmentSyncGroup(plcId, plcAssignmentId)`.
+ */
+type AssignTarget = AssignableQuizRow & {
+  /** Doc id of the source row, used to route the sync-join Cloud Function. */
+  sourceId: string;
+};
 
 function formatDate(ms: number): string {
   try {
@@ -104,16 +133,21 @@ function formatDate(ms: number): string {
 
 export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   plc,
+  onCloseDashboard,
 }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const { addToast } = useDashboard();
+  const { addToast, rosters, setPendingAssignmentEdit } = useDashboard();
   const { showConfirm } = useDialog();
   const {
     quizzes: plcQuizzes,
     loading,
     unshareQuizFromPlc,
   } = usePlcQuizzes(plc.id);
+  // Read-time union with legacy assignment templates so template-only rows
+  // (authored before the libraries collapsed) stay visible and assignable
+  // during the transition. Deduped by syncGroupId — a PlcQuizEntry wins.
+  const { templates, deleteAssignmentTemplate } = usePlcAssignments(plc.id);
   const {
     quizzes: personalQuizzes,
     saveQuiz,
@@ -123,14 +157,31 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     pullSyncedQuiz,
     isDriveConnected,
   } = useQuiz(user?.uid);
+  const { assignments, createAssignment, setAssignmentRosters } =
+    useQuizAssignments(user?.uid);
 
   const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
+  const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
   const [editing, setEditing] = useState<{
     quiz: QuizData;
     meta: QuizMetadata;
   } | null>(null);
   const [sharePickerOpen, setSharePickerOpen] = useState(false);
+  // Tracks the freshly-assigned assignment that still needs class-period
+  // targeting. Holds enough data to render the picker before the
+  // assignments snapshot surfaces the new doc (snapshot lag would
+  // otherwise drop the prompt silently). Mirrors `PlcAssignmentsLibrarySubTab`.
+  const [pendingSetup, setPendingSetup] = useState<{
+    id: string;
+    quizTitle: string;
+  } | null>(null);
+
+  // The unified, deduped, assignable row list.
+  const assignableRows = useMemo(
+    () => unifyAssignableQuizzes(plcQuizzes, templates),
+    [plcQuizzes, templates]
+  );
 
   const personalBySyncGroup = useMemo(() => {
     const map = new Map<string, QuizMetadata>();
@@ -282,6 +333,173 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
       deleteQuiz,
       isDriveConnected,
       personalBySyncGroup,
+      plc.id,
+      saveQuiz,
+      t,
+      user,
+    ]
+  );
+
+  /**
+   * "Assign to my classes" — ports the proven assign-pickup flow from
+   * `PlcAssignmentsLibrarySubTab.handleImport`. Pulls the canonical
+   * content, saves a fresh personal quiz copy, on Sync joins the canonical
+   * group + attaches linkage, then creates a paused personal assignment
+   * using the row's resolved run-settings and chains into the class-period
+   * picker.
+   *
+   * Sync-join routing differs by source: a `'quiz'` row joins via
+   * `callJoinPlcQuizSyncGroup`, a `'template'` row via
+   * `callJoinPlcAssignmentSyncGroup`. Same rollback-on-failure semantics
+   * and busy-guard against parallel imports as the original.
+   */
+  const handleAssign = useCallback(
+    async (target: AssignTarget, mode: SharedAssignmentImportMode) => {
+      if (!user) return;
+      // Block parallel imports across rows — a second resolving
+      // createAssignment would clobber setPendingSetup and silently drop
+      // the first import's class-period picker.
+      if (busyRowId) return;
+      if (!isDriveConnected) {
+        addToast(
+          t('plcDashboard.assignmentsLibrary.driveRequired', {
+            defaultValue:
+              'Connect Google Drive in your account to pick up PLC assignments.',
+          }),
+          'error'
+        );
+        return;
+      }
+
+      setAssignTarget(null);
+      setBusyRowId(target.sourceId);
+      let savedMeta: Awaited<ReturnType<typeof saveQuiz>> | null = null;
+      let joinedGroupId: string | null = null;
+      // Hoisted so the `syncedFrom` block can tag the new assignment with
+      // the same version `attachSyncLinkage` saw. `Math.max` guards against
+      // a peer publish landing between the canonical pull and the join.
+      let liveVersion: number | undefined;
+      try {
+        const canonical = await pullSyncedQuizContent(target.syncGroupId);
+        const now = Date.now();
+        const fresh: QuizData = {
+          id: crypto.randomUUID(),
+          title: canonical.title,
+          questions: canonical.questions,
+          createdAt: now,
+          updatedAt: now,
+        };
+        savedMeta = await saveQuiz(fresh);
+        if (mode === 'sync') {
+          // Server-side participant write must precede the client-side
+          // attachSyncLinkage so a later editor save doesn't publish from a
+          // non-participant context. Route the join by row source.
+          const joinResult =
+            target.source === 'quiz'
+              ? await callJoinPlcQuizSyncGroup(plc.id, target.sourceId)
+              : await callJoinPlcAssignmentSyncGroup(plc.id, target.sourceId);
+          joinedGroupId = joinResult.groupId;
+          liveVersion = Math.max(canonical.version, joinResult.version);
+          await attachSyncLinkage(savedMeta.id, {
+            groupId: target.syncGroupId,
+            lastSyncedVersion: liveVersion,
+          });
+        }
+
+        // Create the paused personal assignment with the row's session
+        // settings. `skipPlcTemplateWrite: true` so assigning an existing
+        // shared quiz doesn't recursively author a new template.
+        const created = await createAssignment(
+          {
+            id: savedMeta.id,
+            title: savedMeta.title,
+            driveFileId: savedMeta.driveFileId,
+            questions: canonical.questions,
+          },
+          {
+            sessionMode: target.sessionMode,
+            sessionOptions: target.sessionOptions,
+            attemptLimit: target.attemptLimit,
+          },
+          {
+            initialStatus: 'paused',
+            skipPlcTemplateWrite: true,
+            ...(mode === 'sync' && liveVersion !== undefined
+              ? {
+                  syncedFrom: {
+                    groupId: target.syncGroupId,
+                    syncedVersion: liveVersion,
+                  },
+                }
+              : {}),
+          }
+        );
+
+        addToast(
+          mode === 'sync'
+            ? t('plcDashboard.assignmentsLibrary.importedSync', {
+                title: target.title,
+                defaultValue:
+                  '"{{title}}" added to your board (paused, synced).',
+              })
+            : t('plcDashboard.assignmentsLibrary.importedCopy', {
+                title: target.title,
+                defaultValue: '"{{title}}" copied to your board (paused).',
+              }),
+          'success'
+        );
+
+        // Chain into the class-period picker so teachers don't forget to
+        // target the quiz. Cache the title so the modal renders before the
+        // assignments snapshot surfaces the new doc.
+        setPendingSetup({ id: created.id, quizTitle: target.title });
+      } catch (err) {
+        logError('PlcQuizLibraryBody.assign', err, {
+          plcId: plc.id,
+          source: target.source,
+          sourceId: target.sourceId,
+          mode,
+        });
+        if (joinedGroupId) {
+          try {
+            await callLeaveSyncedQuizGroup(joinedGroupId);
+          } catch (leaveErr) {
+            logError('PlcQuizLibraryBody.assign.rollbackLeave', leaveErr, {
+              plcId: plc.id,
+              groupId: joinedGroupId,
+            });
+          }
+        }
+        if (savedMeta) {
+          try {
+            await deleteQuiz(savedMeta.id, savedMeta.driveFileId);
+          } catch (rollbackErr) {
+            logError('PlcQuizLibraryBody.assign.rollbackQuiz', rollbackErr, {
+              plcId: plc.id,
+              quizId: savedMeta.id,
+              driveFileId: savedMeta.driveFileId,
+            });
+          }
+        }
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.assignmentsLibrary.importFailed', {
+                defaultValue: 'Failed to add assignment to your board.',
+              }),
+          'error'
+        );
+      } finally {
+        setBusyRowId(null);
+      }
+    },
+    [
+      addToast,
+      attachSyncLinkage,
+      busyRowId,
+      createAssignment,
+      deleteQuiz,
+      isDriveConnected,
       plc.id,
       saveQuiz,
       t,
@@ -541,6 +759,10 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         const ownerEmailLower =
           plc.memberEmails?.[user.uid] ??
           (user.email ? user.email.toLowerCase() : '');
+        // Capture the quiz's behavior at share time so the shared quiz carries
+        // default run-settings a teammate can pick up when assigning.
+        const { sessionMode, sessionOptions, attemptLimit } =
+          getQuizBehavior(meta);
         await writePlcQuizEntry(plc.id, user.uid, {
           plcQuizId: crypto.randomUUID(),
           syncGroupId,
@@ -548,6 +770,10 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           questionCount: data.questions.length,
           sharedByName: user.displayName ?? '',
           sharedByEmail: ownerEmailLower,
+          sessionMode,
+          sessionOptions,
+          attemptLimit,
+          quizId: meta.id,
         });
 
         addToast(
@@ -645,6 +871,61 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     [addToast, plc.id, showConfirm, t, unshareQuizFromPlc]
   );
 
+  /**
+   * Unshare a template-only row. Backed by `plcs/{plcId}/assignments/`
+   * rather than `plcs/{plcId}/quizzes/`, so it deletes the assignment
+   * template doc. Any current member can unshare (PLC-owned model);
+   * teammates' already-imported personal assignments keep running.
+   */
+  const handleUnshareTemplate = useCallback(
+    async (plcAssignmentId: string, title: string) => {
+      const confirmed = await showConfirm(
+        t('plcDashboard.assignmentsLibrary.unshareConfirm', {
+          title,
+          defaultValue:
+            'Remove "{{title}}" from this PLC? Teammates who have already added it to their board keep their copy.',
+        }),
+        {
+          title: t('plcDashboard.assignmentsLibrary.unshareTitle', {
+            defaultValue: 'Unshare assignment template',
+          }),
+          variant: 'warning',
+          confirmLabel: t('plcDashboard.assignmentsLibrary.unshareAction', {
+            defaultValue: 'Unshare',
+          }),
+        }
+      );
+      if (!confirmed) return;
+      setBusyRowId(plcAssignmentId);
+      try {
+        await deleteAssignmentTemplate(plcAssignmentId);
+        addToast(
+          t('plcDashboard.assignmentsLibrary.unshared', {
+            title,
+            defaultValue: '"{{title}}" removed from this PLC.',
+          }),
+          'success'
+        );
+      } catch (err) {
+        logError('PlcQuizLibraryBody.unshareTemplate', err, {
+          plcId: plc.id,
+          plcAssignmentId,
+        });
+        addToast(
+          err instanceof Error
+            ? err.message
+            : t('plcDashboard.assignmentsLibrary.unshareFailed', {
+                defaultValue: 'Failed to unshare assignment template.',
+              }),
+          'error'
+        );
+      } finally {
+        setBusyRowId(null);
+      }
+    },
+    [addToast, deleteAssignmentTemplate, plc.id, showConfirm, t]
+  );
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[200px] text-slate-400">
@@ -681,7 +962,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     </button>
   );
 
-  if (plcQuizzes.length === 0) {
+  if (assignableRows.length === 0) {
     return (
       <>
         <div className="flex flex-col items-center justify-center h-full min-h-[300px] px-6 text-center">
@@ -734,7 +1015,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         <div className="flex items-center gap-3">
           <span className="text-xxs text-slate-400">
             {t('plcDashboard.quizLibrary.count', {
-              count: plcQuizzes.length,
+              count: assignableRows.length,
               defaultValue: '{{count}} quiz',
               defaultValue_other: '{{count}} quizzes',
             })}
@@ -743,19 +1024,25 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
         </div>
       </div>
       <div className="flex flex-col gap-2">
-        {plcQuizzes.map((quiz) => {
-          const isMine = quiz.sharedBy === user?.uid;
+        {assignableRows.map((row) => {
+          const sourceId =
+            row.source === 'quiz' ? row.quiz.id : row.template.id;
+          const isMine = row.sharedBy === user?.uid;
           const ownerLabel =
-            quiz.sharedByName?.trim() ||
-            quiz.sharedByEmail ||
+            row.sharedByName?.trim() ||
+            row.sharedByEmail ||
             t('plcDashboard.quizLibrary.unknownSharer', {
               defaultValue: 'a teammate',
             });
-          const inLibrary = personalBySyncGroup.has(quiz.syncGroupId);
-          const isBusy = busyRowId === quiz.id;
+          const inLibrary = personalBySyncGroup.has(row.syncGroupId);
+          const isBusy = busyRowId === sourceId;
+          // Disable assign/unshare across all rows while any import is in
+          // flight OR the post-assign class-period picker is open — a second
+          // assign would clobber `pendingSetup` and drop the first picker.
+          const anyImportBusy = busyRowId !== null || pendingSetup !== null;
           return (
             <div
-              key={quiz.id}
+              key={sourceId}
               className="flex items-center gap-3 p-3 bg-white border border-slate-200 hover:border-brand-blue-light rounded-xl transition-colors"
             >
               <div className="shrink-0 w-10 h-10 rounded-lg bg-brand-blue-lighter flex items-center justify-center">
@@ -767,7 +1054,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="text-sm font-bold text-slate-800 truncate">
-                    {quiz.title}
+                    {row.title}
                   </div>
                   {inLibrary && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
@@ -786,40 +1073,31 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
                       defaultValue: 'shared by {{name}}',
                     })}
                   </span>
+                  {row.source === 'quiz' && (
+                    <>
+                      <span className="text-slate-300">•</span>
+                      <span>
+                        {t('plcDashboard.quizLibrary.questionCount', {
+                          count: row.quiz.questionCount,
+                          defaultValue: '{{count}} question',
+                          defaultValue_other: '{{count}} questions',
+                        })}
+                      </span>
+                    </>
+                  )}
                   <span className="text-slate-300">•</span>
-                  <span>
-                    {t('plcDashboard.quizLibrary.questionCount', {
-                      count: quiz.questionCount,
-                      defaultValue: '{{count}} question',
-                      defaultValue_other: '{{count}} questions',
-                    })}
-                  </span>
-                  <span className="text-slate-300">•</span>
-                  <span>{formatDate(quiz.updatedAt)}</span>
+                  <span>{formatDate(row.updatedAt)}</span>
                 </div>
               </div>
               <div className="shrink-0 flex items-center gap-1.5">
                 <button
                   type="button"
-                  onClick={() =>
-                    setImportTarget({
-                      plcQuizId: quiz.id,
-                      syncGroupId: quiz.syncGroupId,
-                      title: quiz.title,
-                      sharedByName: quiz.sharedByName,
-                    })
-                  }
-                  disabled={isBusy}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40"
-                  title={
-                    inLibrary
-                      ? t('plcDashboard.quizLibrary.reimport', {
-                          defaultValue: 'Re-import',
-                        })
-                      : t('plcDashboard.quizLibrary.addToMyLibrary', {
-                          defaultValue: 'Add to my library',
-                        })
-                  }
+                  onClick={() => setAssignTarget({ ...row, sourceId })}
+                  disabled={anyImportBusy || !isDriveConnected}
+                  className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40"
+                  title={t('plcDashboard.quizLibrary.assignToClasses', {
+                    defaultValue: 'Assign to my classes',
+                  })}
                 >
                   {isBusy ? (
                     <Loader2
@@ -827,51 +1105,91 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
                       aria-hidden="true"
                     />
                   ) : (
-                    <Download className="w-3 h-3" aria-hidden="true" />
+                    <Plus className="w-3 h-3" aria-hidden="true" />
                   )}
                   <span className="hidden sm:inline">
-                    {inLibrary
-                      ? t('plcDashboard.quizLibrary.reimport', {
-                          defaultValue: 'Re-import',
-                        })
-                      : t('plcDashboard.quizLibrary.addToMyLibrary', {
-                          defaultValue: 'Add to my library',
-                        })}
+                    {t('plcDashboard.quizLibrary.assignToClasses', {
+                      defaultValue: 'Assign to my classes',
+                    })}
                   </span>
                 </button>
+                {row.source === 'quiz' && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setImportTarget({
+                          plcQuizId: row.quiz.id,
+                          syncGroupId: row.syncGroupId,
+                          title: row.title,
+                          sharedByName: row.sharedByName,
+                        })
+                      }
+                      disabled={isBusy}
+                      className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40"
+                      title={
+                        inLibrary
+                          ? t('plcDashboard.quizLibrary.reimport', {
+                              defaultValue: 'Re-import',
+                            })
+                          : t('plcDashboard.quizLibrary.addToMyLibrary', {
+                              defaultValue: 'Add to my library',
+                            })
+                      }
+                    >
+                      <Download className="w-3 h-3" aria-hidden="true" />
+                      <span className="hidden sm:inline">
+                        {inLibrary
+                          ? t('plcDashboard.quizLibrary.reimport', {
+                              defaultValue: 'Re-import',
+                            })
+                          : t('plcDashboard.quizLibrary.addToMyLibrary', {
+                              defaultValue: 'Add to my library',
+                            })}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleEdit({
+                          plcQuizId: row.quiz.id,
+                          syncGroupId: row.syncGroupId,
+                          title: row.title,
+                          sharedByName: row.sharedByName,
+                        })
+                      }
+                      disabled={isBusy || !isDriveConnected}
+                      aria-label={t('plcDashboard.quizLibrary.editAction', {
+                        defaultValue: 'Edit',
+                      })}
+                      title={
+                        inLibrary
+                          ? t('plcDashboard.quizLibrary.editTooltip', {
+                              defaultValue:
+                                'Edit collaboratively (changes sync to teammates)',
+                            })
+                          : t(
+                              'plcDashboard.quizLibrary.editTooltipAutoImport',
+                              {
+                                defaultValue:
+                                  'Edit collaboratively — adds to your library on first edit',
+                              }
+                            )
+                      }
+                      className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40"
+                    >
+                      <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
+                    </button>
+                  </>
+                )}
                 <button
                   type="button"
                   onClick={() =>
-                    void handleEdit({
-                      plcQuizId: quiz.id,
-                      syncGroupId: quiz.syncGroupId,
-                      title: quiz.title,
-                      sharedByName: quiz.sharedByName,
-                    })
+                    row.source === 'quiz'
+                      ? void handleUnshare(row.quiz.id, row.title)
+                      : void handleUnshareTemplate(row.template.id, row.title)
                   }
-                  disabled={isBusy || !isDriveConnected}
-                  aria-label={t('plcDashboard.quizLibrary.editAction', {
-                    defaultValue: 'Edit',
-                  })}
-                  title={
-                    inLibrary
-                      ? t('plcDashboard.quizLibrary.editTooltip', {
-                          defaultValue:
-                            'Edit collaboratively (changes sync to teammates)',
-                        })
-                      : t('plcDashboard.quizLibrary.editTooltipAutoImport', {
-                          defaultValue:
-                            'Edit collaboratively — adds to your library on first edit',
-                        })
-                  }
-                  className="p-1.5 rounded-lg text-slate-400 hover:bg-brand-blue-lighter hover:text-brand-blue-primary transition-colors disabled:opacity-40"
-                >
-                  <Pencil className="w-3.5 h-3.5" aria-hidden="true" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleUnshare(quiz.id, quiz.title)}
-                  disabled={isBusy}
+                  disabled={anyImportBusy}
                   aria-label={t('plcDashboard.quizLibrary.unshareAction', {
                     defaultValue: 'Unshare',
                   })}
@@ -916,6 +1234,64 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           onClose={() => setImportTarget(null)}
         />
       )}
+      {assignTarget && (
+        <PlcAssignmentImportModal
+          quizTitle={assignTarget.title}
+          sharedByName={assignTarget.sharedByName}
+          onPick={(mode) => void handleAssign(assignTarget, mode)}
+          onClose={() => setAssignTarget(null)}
+        />
+      )}
+      {pendingSetup &&
+        (() => {
+          // Prefer the live snapshot's record once available, but fall
+          // back to the import-time stub so a slow Firestore snapshot
+          // doesn't drop the prompt. The id is authoritative either way;
+          // `setAssignmentRosters` writes against it directly. Mirrors
+          // `PlcAssignmentsLibrarySubTab`.
+          const live = assignments.find((a) => a.id === pendingSetup.id);
+          const stub = {
+            id: pendingSetup.id,
+            quizTitle: pendingSetup.quizTitle,
+          } as unknown as QuizAssignment;
+          return (
+            <QuizAssignmentImportSetupModal
+              assignment={live ?? stub}
+              rosters={rosters}
+              onSave={async (targets) => {
+                try {
+                  await setAssignmentRosters(pendingSetup.id, targets);
+                  addToast(
+                    t('plcDashboard.assignmentsLibrary.assignedToClasses', {
+                      count: targets.rosterIds.length,
+                      defaultValue: 'Assigned to {{count}} class.',
+                      defaultValue_other: 'Assigned to {{count}} classes.',
+                    }),
+                    'success'
+                  );
+                } catch (err) {
+                  addToast(
+                    err instanceof Error
+                      ? err.message
+                      : t('plcDashboard.assignmentsLibrary.assignFailed', {
+                          defaultValue: 'Failed to save class selection.',
+                        }),
+                    'error'
+                  );
+                  throw err;
+                }
+              }}
+              onEditAllSettings={() => {
+                // Hand off to the QuizWidget's full settings editor; close
+                // the PLC dashboard first so the editor isn't buried.
+                setPendingAssignmentEdit(pendingSetup.id);
+                setPendingSetup(null);
+                onCloseDashboard();
+              }}
+              onClose={() => setPendingSetup(null)}
+            />
+          );
+        })()}
       <QuizEditorModal
         isOpen={editing !== null}
         quiz={editing?.quiz ?? null}

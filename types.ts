@@ -466,6 +466,27 @@ export interface PlcQuizEntry {
   sharedAt: number;
   /** ms timestamp; bumped on title/questionCount mirror updates. */
   updatedAt: number;
+  /**
+   * Optional default session mode a teacher can pick up when assigning this
+   * shared quiz. Absent on legacy entries shared before run-settings moved
+   * onto the quiz library.
+   */
+  sessionMode?: QuizSessionMode;
+  /**
+   * Optional default session options a teacher can pick up when assigning
+   * this shared quiz. Absent on legacy entries.
+   */
+  sessionOptions?: QuizSessionOptions;
+  /**
+   * Optional default attempt limit (`null` = unlimited). Absent on legacy
+   * entries; a teacher can pick this up when assigning.
+   */
+  attemptLimit?: number | null;
+  /**
+   * Optional source quiz id — informational only, the personal quiz this was
+   * shared from. Absent on legacy entries.
+   */
+  quizId?: string;
 }
 
 /**

@@ -90,7 +90,7 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       case 'home':
         return <PlcHome plc={plc} onNavigate={handleNavigateSection} />;
       case 'quizzes':
-        return <PlcQuizLibraryTab plc={plc} />;
+        return <PlcQuizLibraryTab plc={plc} onCloseDashboard={onClose} />;
       case 'videoActivities':
         return <PlcVideoActivitiesTab plc={plc} />;
       case 'assignments':

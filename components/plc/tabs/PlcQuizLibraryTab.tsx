@@ -4,6 +4,13 @@ import { PlcQuizLibraryBody } from '../bodies/PlcQuizLibraryBody';
 
 interface PlcQuizLibraryTabProps {
   plc: Plc;
+  /**
+   * Closes the entire PLC dashboard. Forwarded to the body so its post-
+   * assign "Edit all settings…" hand-off from the class-period picker can
+   * dismiss the dashboard before the QuizWidget opens the full assignment
+   * editor. Mirrors `PlcAssignmentsTab`.
+   */
+  onCloseDashboard: () => void;
 }
 
 /**
@@ -16,6 +23,7 @@ interface PlcQuizLibraryTabProps {
  */
 export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
   plc,
+  onCloseDashboard,
 }) => {
-  return <PlcQuizLibraryBody plc={plc} />;
+  return <PlcQuizLibraryBody plc={plc} onCloseDashboard={onCloseDashboard} />;
 };
