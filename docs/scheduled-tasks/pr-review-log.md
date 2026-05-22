@@ -634,3 +634,16 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: #1676 head `dev-paul-plc-redesign` matches `dev-*` → treated read-only (review comment only, no push). #1677 head `scheduled-tasks` and #1366 head `docs/*` are pushable, but Phase 1 produced no fixes, so no pushes to any PR branch this run.
   - This run's log + summary committed on branch `claude/clever-johnson-GghmZ` (the harness-designated development branch) rather than pushed directly to `scheduled-tasks`, since `scheduled-tasks` is the head of open PR #1677 and pushing to it would alter that PR without authorization.
+
+## 2026-05-22
+
+- PRs reviewed: 1
+  - #1366 — docs: line-endings normalization plan (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 0 actionable
+  - #1366: 6 inline review threads `is_resolved:false` but 5 `is_outdated:true` (1 not outdated); every thread already carries an author "Addressed/Fixed in [commit]" reply from prior cycles. 26 PR-level review comments, all from prior automated sweeps and all already addressed — most recent sweep `17dfae3` (2026-05-20) covered the latest 5 comments; nothing posted since. No new fix or reply needed (re-replying would be noise).
+- Fixes pushed: 0
+- Reviews posted: 1
+  - PR #1366: Ready — doc-only; read the full 336-line doc and verified all prior reviewer feedback is now reflected at HEAD: step references consistent (Step 1→"step 4 adds the hash"), logical step order (config→renormalize→verify→register→cleanup), `--ignore-cr-at-eol` (not over-broad `--ignore-all-space`), subject-grep+`grep -i`+hard-fail hash lookup, rebase remediation with `git add`/`--continue`/unconditional working-tree refresh/`--force-with-lease`, `--ours`/`--theirs` rebase-vs-merge note, rollback via PR with `--no-edit` (main protected), and `blame.ignoreRevsFile` local config. Execution must wait for a no-open-PR window.
+- Notes:
+  - Branch-safety: only #1366 is open this run (PR #1677 from the 2026-05-21 entry is no longer open, so `scheduled-tasks` is no longer a PR head). #1366 head `docs/*` is pushable but Phase 1 produced no fixes — no pushes to any PR branch.
+  - Log committed and pushed to `scheduled-tasks` directly this run, since it is no longer the head of any open PR.
