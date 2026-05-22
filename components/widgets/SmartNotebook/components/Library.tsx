@@ -6,6 +6,7 @@ import {
   FileText,
   Loader2,
   Share2,
+  Pencil,
   LayoutGrid,
   List,
 } from 'lucide-react';
@@ -19,6 +20,7 @@ interface LibraryProps {
   handleImport: (e: React.ChangeEvent<HTMLInputElement>) => Promise<void>;
   handleSelect: (id: string) => void;
   handleDelete: (e: React.MouseEvent, id: string) => Promise<void>;
+  handleRename: (e: React.MouseEvent, id: string) => void;
   handleShare: (e: React.MouseEvent, id: string) => void;
   displayMode: 'cards' | 'list';
   onChangeDisplayMode: (mode: 'cards' | 'list') => void;
@@ -31,6 +33,7 @@ export const Library: React.FC<LibraryProps> = ({
   handleImport,
   handleSelect,
   handleDelete,
+  handleRename,
   handleShare,
   displayMode,
   onChangeDisplayMode,
@@ -256,6 +259,20 @@ export const Library: React.FC<LibraryProps> = ({
                       style={{ gap: 'min(4px, 1cqmin)' }}
                     >
                       <button
+                        onClick={(e) => handleRename(e, notebook.id)}
+                        aria-label="Rename notebook"
+                        title="Rename notebook"
+                        className="text-slate-400 rounded-lg hover:bg-slate-100 hover:text-slate-700 transition-all"
+                        style={{ padding: 'min(8px, 2cqmin)' }}
+                      >
+                        <Pencil
+                          style={{
+                            width: 'min(16px, 4cqmin)',
+                            height: 'min(16px, 4cqmin)',
+                          }}
+                        />
+                      </button>
+                      <button
                         onClick={(e) => handleShare(e, notebook.id)}
                         aria-label="Share notebook"
                         title="Share notebook"
@@ -349,6 +366,20 @@ export const Library: React.FC<LibraryProps> = ({
                         gap: 'min(6px, 1.5cqmin)',
                       }}
                     >
+                      <button
+                        onClick={(e) => handleRename(e, notebook.id)}
+                        aria-label="Rename notebook"
+                        title="Rename notebook"
+                        className="bg-white/90 text-slate-600 rounded-xl hover:bg-slate-700 hover:text-white shadow-xl transition-all"
+                        style={{ padding: 'min(8px, 2cqmin)' }}
+                      >
+                        <Pencil
+                          style={{
+                            width: 'min(16px, 4cqmin)',
+                            height: 'min(16px, 4cqmin)',
+                          }}
+                        />
+                      </button>
                       <button
                         onClick={(e) => handleShare(e, notebook.id)}
                         aria-label="Share notebook"

@@ -52,7 +52,7 @@ export const SmartNotebookWidget: React.FC<{
 }> = ({ widget, isActive = true }) => {
   const { updateWidget, addToast } = useDashboard();
   const { user } = useAuth();
-  const { showConfirm } = useDialog();
+  const { showConfirm, showPrompt } = useDialog();
   const { uploadFile, deleteFile } = useStorage();
   const { shareNotebook } = useNotebookSharing();
   const config = widget.config as SmartNotebookConfig;
@@ -313,6 +313,29 @@ export const SmartNotebookWidget: React.FC<{
     });
   };
 
+  const handleRename = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!user) return;
+    const notebook = notebooks.find((n) => n.id === id);
+    if (!notebook) return;
+    const next = await showPrompt('Enter a new name for this notebook', {
+      title: 'Rename Notebook',
+      defaultValue: notebook.title,
+      confirmLabel: 'Save',
+    });
+    const trimmed = next?.trim();
+    if (!trimmed || trimmed === notebook.title) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid, 'notebooks', id), {
+        title: trimmed,
+      });
+      addToast('Notebook renamed', 'success');
+    } catch (err) {
+      console.error('Failed to rename notebook', err);
+      addToast('Failed to rename notebook', 'error');
+    }
+  };
+
   // Publish a notebook for staff sharing and copy the link to the clipboard.
   const handleShare = async (e: React.MouseEvent, notebook: NotebookItem) => {
     e.stopPropagation();
@@ -563,6 +586,7 @@ export const SmartNotebookWidget: React.FC<{
       handleImport={handleImport}
       handleSelect={handleSelect}
       handleDelete={handleDelete}
+      handleRename={(e, id) => void handleRename(e, id)}
       handleShare={(e, id) => {
         const nb = notebooks.find((n) => n.id === id);
         if (nb) void handleShare(e, nb);
