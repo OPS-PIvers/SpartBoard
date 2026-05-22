@@ -417,6 +417,7 @@ export const PlcAssignmentConfigModal: React.FC<
     quizRef,
     activityRef,
     quizBehavior,
+    vaBehavior,
     quizMode,
     quizOptions,
     vaOptions,
