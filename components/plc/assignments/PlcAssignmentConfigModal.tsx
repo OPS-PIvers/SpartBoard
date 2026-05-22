@@ -48,10 +48,7 @@ import { QuizDriveService } from '@/utils/quizDriveService';
 import { deriveSessionTargetsFromRosters } from '@/utils/resolveAssignmentTargets';
 import { getPlcMemberEmails, getPlcTeammateEmails } from '@/utils/plc';
 import { logError } from '@/utils/logError';
-import {
-  DEFAULT_QUIZ_BEHAVIOR,
-  formatBehaviorSummary,
-} from '@/utils/quizBehavior';
+import { formatBehaviorSummary } from '@/utils/quizBehavior';
 import type {
   Plc,
   PlcLinkage,
@@ -242,17 +239,22 @@ export const PlcAssignmentConfigModal: React.FC<
         // Task 10: when quizBehavior is provided, source settings from it
         // (behavior lives on the quiz). Otherwise fall back to the legacy
         // form-driven controls (quizMode / quizOptions / attemptLimit).
-        const resolvedBehavior: QuizBehaviorSettings =
-          quizBehavior ?? DEFAULT_QUIZ_BEHAVIOR;
-        const effectiveSessionMode: QuizSessionMode = quizBehavior
-          ? resolvedBehavior.sessionMode
-          : quizMode;
-        const effectiveSessionOptions: QuizSessionOptions = quizBehavior
-          ? resolvedBehavior.sessionOptions
-          : ({ ...quizOptions } as QuizSessionOptions);
-        const effectiveAttemptLimit: number | null = quizBehavior
-          ? resolvedBehavior.attemptLimit
-          : attemptLimit;
+        let effectiveSessionMode: QuizSessionMode;
+        let effectiveSessionOptions: QuizSessionOptions;
+        let effectiveAttemptLimit: number | null;
+        if (quizBehavior) {
+          effectiveSessionMode = quizBehavior.sessionMode;
+          effectiveSessionOptions = quizBehavior.sessionOptions;
+          effectiveAttemptLimit = quizBehavior.attemptLimit;
+        } else {
+          // Backward-compat guard: today the only live quiz caller
+          // (PlcAuthorQuizModal) always supplies quizBehavior, but this
+          // branch preserves correct behavior for any future caller that
+          // opens this modal for a quiz without providing quizBehavior.
+          effectiveSessionMode = quizMode;
+          effectiveSessionOptions = { ...quizOptions } as QuizSessionOptions;
+          effectiveAttemptLimit = attemptLimit;
+        }
 
         const settings: QuizAssignmentSettings = {
           sessionMode: effectiveSessionMode,
