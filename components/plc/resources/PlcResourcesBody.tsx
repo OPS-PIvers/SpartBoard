@@ -67,7 +67,12 @@ const ONE_CLICK_KINDS: ReadonlySet<PlcResourceKind> = new Set([
  * section, where the existing per-row import UI handles the import.
  */
 const DEEP_LINK_TARGET: Partial<Record<PlcResourceKind, PlcSectionId>> = {
-  assignment: 'assignments',
+  // The standalone Assignments section was collapsed into Quizzes /
+  // Video Activities. A pushed `assignment` resource is a generic
+  // hand-typed id with no quiz/video discriminator, so route it to the
+  // Quizzes section — its In-progress / Completed sub-tabs surface the
+  // full assignment index and per-row import UI.
+  assignment: 'quizzes',
   board: 'sharedBoards',
 };
 
@@ -80,7 +85,7 @@ const DEEP_LINK_TARGET: Partial<Record<PlcResourceKind, PlcSectionId>> = {
  *   - doc            → usePlcDocs().createDoc({ title, url: refId }) — one-click
  *   - quiz           → pull canonical synced group → writePlcQuizEntry — one-click
  *   - video-activity → pull canonical synced group → writePlcVideoActivityEntry — one-click
- *   - assignment     → deep-link to the Assignments section
+ *   - assignment     → deep-link to the Quizzes section
  *   - board          → deep-link to the Shared Boards section
  *
  * One-click imports write a single PLC-library entry (all members benefit);

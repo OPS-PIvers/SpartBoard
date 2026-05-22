@@ -232,8 +232,6 @@ export interface PlcFeatureSettings {
   quizzes: boolean;
   /** PLC Video Activities tab (Phase 4). */
   videoActivities: boolean;
-  /** PLC-authored Assignments tab (Phase 3). */
-  assignments: boolean;
   /** PLC Notes tab (Phase 5). */
   notes: boolean;
   /** PLC To-Do list tab (Phase 5). */
@@ -245,7 +243,6 @@ export interface PlcFeatureSettings {
 export const DEFAULT_PLC_FEATURE_SETTINGS: PlcFeatureSettings = {
   quizzes: true,
   videoActivities: true,
-  assignments: true,
   notes: true,
   todos: true,
   sharedBoards: true,

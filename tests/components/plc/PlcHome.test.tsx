@@ -7,7 +7,7 @@
  *
  * Key assertions:
  *   - An active assignment title renders in the attention region.
- *   - Clicking "Create quiz" calls onNavigate('assignments').
+ *   - Clicking "Create quiz" calls onNavigate('quizzes').
  *   - Recent doc titles render in the docs card.
  *   - Member initials/avatars render.
  */
@@ -163,20 +163,20 @@ describe('PlcHome', () => {
     expect(screen.queryByText('Old Quiz')).not.toBeInTheDocument();
   });
 
-  it('clicking "Create quiz" calls onNavigate("assignments")', () => {
+  it('clicking "Create quiz" calls onNavigate("quizzes")', () => {
     const onNavigate = vi.fn();
     render(<PlcHome plc={fakePlc} onNavigate={onNavigate} />);
     fireEvent.click(screen.getByRole('button', { name: /create quiz/i }));
-    expect(onNavigate).toHaveBeenCalledWith('assignments');
+    expect(onNavigate).toHaveBeenCalledWith('quizzes');
   });
 
-  it('clicking "Create video activity" calls onNavigate("assignments")', () => {
+  it('clicking "Create video activity" calls onNavigate("videoActivities")', () => {
     const onNavigate = vi.fn();
     render(<PlcHome plc={fakePlc} onNavigate={onNavigate} />);
     fireEvent.click(
       screen.getByRole('button', { name: /create video activity/i })
     );
-    expect(onNavigate).toHaveBeenCalledWith('assignments');
+    expect(onNavigate).toHaveBeenCalledWith('videoActivities');
   });
 
   it('clicking "Add a doc" calls onNavigate("docs")', () => {

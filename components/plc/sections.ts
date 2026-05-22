@@ -2,7 +2,6 @@
 import {
   LayoutDashboard,
   BookOpen,
-  ClipboardList,
   Film,
   BarChart3,
   FileText,
@@ -19,7 +18,6 @@ export type PlcSectionId =
   | 'home'
   | 'quizzes'
   | 'videoActivities'
-  | 'assignments'
   | 'sharedData'
   | 'docs'
   | 'todos'
@@ -57,13 +55,6 @@ export const PLC_SECTIONS: readonly PlcSectionDef[] = [
     labelKey: 'plcDashboard.tabs.videoActivities',
     labelDefault: 'Video Activities',
     feature: 'videoActivities',
-  },
-  {
-    id: 'assignments',
-    icon: ClipboardList,
-    labelKey: 'plcDashboard.tabs.assignments',
-    labelDefault: 'Assignments',
-    feature: 'assignments',
   },
   {
     id: 'sharedData',

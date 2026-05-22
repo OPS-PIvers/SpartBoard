@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   BookOpen,
-  ClipboardList,
   Film,
   ListChecks,
   StickyNote,
@@ -39,15 +38,6 @@ const FEATURE_ROWS: readonly FeatureRow[] = [
     descriptionKey: 'plcDashboard.settings.quizzes.description',
     descriptionDefault:
       'Share quizzes with the PLC. Members can sync edits or copy a quiz into their own library.',
-  },
-  {
-    key: 'assignments',
-    icon: ClipboardList,
-    titleKey: 'plcDashboard.settings.assignments.title',
-    titleDefault: 'PLC Assignments',
-    descriptionKey: 'plcDashboard.settings.assignments.description',
-    descriptionDefault:
-      'Author PLC-level assignments that members can pick up on their own boards.',
   },
   {
     key: 'videoActivities',
