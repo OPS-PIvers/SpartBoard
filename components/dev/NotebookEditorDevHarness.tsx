@@ -11,14 +11,14 @@ import { PageEditor } from '@/components/widgets/SmartNotebook/components/PageEd
 export const NotebookEditorDevHarness: React.FC = () => {
   const [pages, setPages] = useState<string[]>([]);
   const [index, setIndex] = useState(0);
-  const [selection, setSelection] = useState<EditableObjectInfo | null>(null);
+  const [selection, setSelection] = useState<EditableObjectInfo[]>([]);
   const [editedLen, setEditedLen] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const onFile = async (file: File) => {
     setLoading(true);
-    setSelection(null);
+    setSelection([]);
     try {
       const parsed = await parseNotebookFile(file);
       const texts = await Promise.all(parsed.pages.map((p) => p.blob.text()));
@@ -71,7 +71,9 @@ export const NotebookEditorDevHarness: React.FC = () => {
             <span className="ml-4 text-sm font-semibold text-slate-700">
               selected:{' '}
               <span className="font-mono text-indigo-700">
-                {selection ? `${selection.kind} (${selection.id})` : 'none'}
+                {selection.length
+                  ? `${selection.length} · ${selection.map((s) => s.kind).join(', ')}`
+                  : 'none'}
               </span>
             </span>
             <span className="text-sm font-semibold text-slate-700">

@@ -13,6 +13,7 @@ import {
   findObjectById,
   findForeground,
   exportEditedSvg,
+  getTextLeaves,
   readTextLines,
   writeTextLines,
   EDIT_OVERLAY_ATTR,
@@ -24,8 +25,8 @@ interface PageEditorProps {
   /** Raw page SVG text (from a parsed notebook page). */
   svg: string;
   className?: string;
-  /** Notifies the host which object is selected (id + kind), or null. */
-  onSelectionChange?: (selection: EditableObjectInfo | null) => void;
+  /** Notifies the host which objects are selected (id + kind); empty when none. */
+  onSelectionChange?: (selection: EditableObjectInfo[]) => void;
   /** Fires (with the cleaned, persistable SVG) after any edit. */
   onChange?: (svg: string) => void;
 }
@@ -34,15 +35,32 @@ type Tool = 'select' | 'pen' | 'highlighter' | 'eraser';
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
 
 interface DragState {
-  id: string;
-  mode: 'move' | 'resize';
+  mode: 'move' | 'resize' | 'marquee';
   startX: number;
   startY: number;
-  m0: DOMMatrix;
   moved: boolean;
+  // group move: each selected object's matrix captured at drag start
+  items?: { id: string; m0: DOMMatrix }[];
+  // single-object resize
+  id?: string;
+  m0?: DOMMatrix;
   anchor?: { x: number; y: number };
   startCorner?: { x: number; y: number };
+  // marquee: start corner in root-svg user space + the selection to union onto
+  startUser?: { x: number; y: number };
+  baseSelection?: string[];
 }
+
+interface Box {
+  minX: number;
+  minY: number;
+  maxX: number;
+  maxY: number;
+}
+
+/** AABB overlap test (touch/intersect semantics) in a shared coordinate space. */
+const boxesIntersect = (a: Box, b: Box): boolean =>
+  a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const DRAG_THRESHOLD_PX = 3;
@@ -76,11 +94,28 @@ const applyEditMatrix = (obj: Element, m: DOMMatrix): void => {
   obj.setAttribute('transform', `matrix(${matrixString(m)}) ${orig}`.trim());
 };
 
-const transformedBox = (
-  obj: SVGGraphicsElement
-): { minX: number; minY: number; maxX: number; maxY: number } => {
+const makeSelectionRect = (): SVGRectElement => {
+  const r = document.createElementNS(SVG_NS, 'rect');
+  r.setAttribute('fill', 'rgba(99,102,241,0.12)');
+  r.setAttribute('stroke', '#6366f1');
+  r.setAttribute('stroke-width', '2');
+  r.setAttribute('vector-effect', 'non-scaling-stroke');
+  r.setAttribute('pointer-events', 'none');
+  r.setAttribute(EDIT_OVERLAY_ATTR, '1');
+  return r;
+};
+
+const transformedBox = (svgEl: SVGSVGElement, obj: SVGGraphicsElement): Box => {
   const b = obj.getBBox();
-  const ctm = obj.getCTM();
+  // Map the object's local geometry into the ROOT svg's user space — the space
+  // the overlay highlight rect lives in. Going through screen space (root⁻¹ ·
+  // obj) is correct regardless of any intermediate viewport, viewBox, or
+  // preserveAspectRatio between the object and the root. (obj.getCTM() targets
+  // the *nearest* viewport, which drifts off-center when SMART nests content.)
+  const rootCtm = svgEl.getScreenCTM();
+  const objCtm = obj.getScreenCTM();
+  const ctm =
+    rootCtm && objCtm ? rootCtm.inverse().multiply(objCtm) : obj.getCTM();
   const pts = [
     [b.x, b.y],
     [b.x + b.width, b.y],
@@ -115,7 +150,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const highlightRef = useRef<SVGRectElement | null>(null);
+  // Group holding one highlight rect per selected object.
+  const selGroupRef = useRef<SVGGElement | null>(null);
+  // Rubber-band rect drawn while marquee-selecting.
+  const marqueeRef = useRef<SVGRectElement | null>(null);
   const handlesRef = useRef<Map<Corner, SVGRectElement>>(new Map());
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
@@ -142,7 +180,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     penWidthRef.current = penWidth;
   });
 
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState<{
     id: string;
     left: number;
@@ -157,27 +195,43 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const [prevPrepared, setPrevPrepared] = useState(prepared);
   if (prepared !== prevPrepared) {
     setPrevPrepared(prepared);
-    setSelectedId(null);
+    setSelectedIds([]);
     setEditing(null);
   }
 
-  const positionHighlight = useCallback((id: string | null) => {
+  // Draw one highlight rect per selected object (reusing rect nodes to avoid
+  // DOM churn during drags). Resize handles appear only for a single selection.
+  const renderSelection = useCallback((ids: string[]) => {
     const svgEl = svgRef.current;
-    const rect = highlightRef.current;
-    if (!svgEl || !rect) return;
-    const obj = id ? findObjectById(svgEl, id) : null;
-    if (!obj) {
-      rect.style.display = 'none';
+    const group = selGroupRef.current;
+    if (!svgEl || !group) return;
+
+    while (group.childElementCount > ids.length)
+      group.lastElementChild?.remove();
+    while (group.childElementCount < ids.length)
+      group.appendChild(makeSelectionRect());
+
+    ids.forEach((id, i) => {
+      const rect = group.children[i] as SVGRectElement;
+      const obj = findObjectById(svgEl, id);
+      if (!obj) {
+        rect.style.display = 'none';
+        return;
+      }
+      const box = transformedBox(svgEl, obj);
+      rect.setAttribute('x', String(box.minX));
+      rect.setAttribute('y', String(box.minY));
+      rect.setAttribute('width', String(box.maxX - box.minX));
+      rect.setAttribute('height', String(box.maxY - box.minY));
+      rect.style.display = '';
+    });
+
+    const only = ids.length === 1 ? findObjectById(svgEl, ids[0]) : null;
+    if (!only) {
       handlesRef.current.forEach((h) => (h.style.display = 'none'));
       return;
     }
-    const box = transformedBox(obj);
-    rect.setAttribute('x', String(box.minX));
-    rect.setAttribute('y', String(box.minY));
-    rect.setAttribute('width', String(box.maxX - box.minX));
-    rect.setAttribute('height', String(box.maxY - box.minY));
-    rect.style.display = '';
-
+    const box = transformedBox(svgEl, only);
     const inv = svgEl.getScreenCTM()?.inverse();
     const hs = HANDLE_PX * (inv ? Math.abs(inv.a) : 1);
     const at: Record<Corner, [number, number]> = {
@@ -208,22 +262,17 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     svgRef.current = el;
     handlesRef.current = new Map();
     if (!el) {
-      highlightRef.current = null;
+      selGroupRef.current = null;
+      marqueeRef.current = null;
       objectsRef.current = [];
       return;
     }
     objectsRef.current = ensureObjectIds(el);
 
-    const rect = document.createElementNS(SVG_NS, 'rect');
-    rect.setAttribute('fill', 'rgba(99,102,241,0.12)');
-    rect.setAttribute('stroke', '#6366f1');
-    rect.setAttribute('stroke-width', '2');
-    rect.setAttribute('vector-effect', 'non-scaling-stroke');
-    rect.setAttribute('pointer-events', 'none');
-    rect.setAttribute(EDIT_OVERLAY_ATTR, '1');
-    rect.style.display = 'none';
-    el.appendChild(rect);
-    highlightRef.current = rect;
+    const group = document.createElementNS(SVG_NS, 'g');
+    group.setAttribute(EDIT_OVERLAY_ATTR, '1');
+    el.appendChild(group);
+    selGroupRef.current = group;
 
     const cursorFor: Record<Corner, string> = {
       nw: 'nwse-resize',
@@ -245,52 +294,76 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       el.appendChild(h);
       handlesRef.current.set(corner, h);
     }
+
+    const marquee = document.createElementNS(SVG_NS, 'rect');
+    marquee.setAttribute('fill', 'rgba(99,102,241,0.10)');
+    marquee.setAttribute('stroke', '#6366f1');
+    marquee.setAttribute('stroke-width', '1');
+    marquee.setAttribute('stroke-dasharray', '4 3');
+    marquee.setAttribute('vector-effect', 'non-scaling-stroke');
+    marquee.setAttribute('pointer-events', 'none');
+    marquee.setAttribute(EDIT_OVERLAY_ATTR, '1');
+    marquee.style.display = 'none';
+    el.appendChild(marquee);
+    marqueeRef.current = marquee;
   }, [prepared]);
 
   useEffect(() => {
-    positionHighlight(selectedId);
-    const info = selectedId
-      ? (objectsRef.current.find((o) => o.id === selectedId) ?? null)
-      : null;
-    onSelRef.current?.(info);
-  }, [selectedId, positionHighlight, prepared]);
+    renderSelection(selectedIds);
+    const infos = selectedIds
+      .map((id) => objectsRef.current.find((o) => o.id === id))
+      .filter((o): o is EditableObjectInfo => Boolean(o));
+    onSelRef.current?.(infos);
+  }, [selectedIds, renderSelection, prepared]);
 
   const duplicateSelected = useCallback(() => {
     const svgEl = svgRef.current;
-    if (!svgEl || !selectedId) return;
-    const obj = findObjectById(svgEl, selectedId);
-    const fg = obj?.parentElement;
-    if (!obj || !fg) return;
-    const clone = obj.cloneNode(true) as SVGGraphicsElement;
-    const newId = `obj-dup-${crypto.randomUUID()}`;
-    clone.setAttribute('data-edit-id', newId);
-    clone.setAttribute(
-      ORIG_TRANSFORM_ATTR,
-      clone.getAttribute('transform') ?? ''
-    );
-    clone.removeAttribute(EDIT_MATRIX_ATTR);
-    fg.appendChild(clone);
-    applyEditMatrix(clone, new DOMMatrix().translateSelf(20, 20));
+    if (!svgEl || selectedIds.length === 0) return;
+    const newIds: string[] = [];
+    for (const id of selectedIds) {
+      const obj = findObjectById(svgEl, id);
+      const fg = obj?.parentElement;
+      if (!obj || !fg) continue;
+      const clone = obj.cloneNode(true) as SVGGraphicsElement;
+      const newId = `obj-dup-${crypto.randomUUID()}`;
+      clone.setAttribute('data-edit-id', newId);
+      clone.setAttribute(
+        ORIG_TRANSFORM_ATTR,
+        clone.getAttribute('transform') ?? ''
+      );
+      clone.removeAttribute(EDIT_MATRIX_ATTR);
+      fg.appendChild(clone);
+      applyEditMatrix(clone, new DOMMatrix().translateSelf(20, 20));
+      newIds.push(newId);
+    }
+    if (newIds.length === 0) return;
     objectsRef.current = ensureObjectIds(svgEl);
-    setSelectedId(newId);
+    setSelectedIds(newIds);
     emitChange();
-  }, [selectedId, emitChange]);
+  }, [selectedIds, emitChange]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing) return;
       if (e.key === 'Escape') {
-        setSelectedId(null);
+        setSelectedIds([]);
         return;
       }
-      if (!selectedId) return;
+      if (selectedIds.length === 0) return;
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        const obj = svgRef.current
-          ? findObjectById(svgRef.current, selectedId)
-          : null;
-        if (obj) {
-          obj.remove();
-          setSelectedId(null);
+        const svgEl = svgRef.current;
+        if (!svgEl) return;
+        let removed = false;
+        for (const id of selectedIds) {
+          const obj = findObjectById(svgEl, id);
+          if (obj) {
+            obj.remove();
+            removed = true;
+          }
+        }
+        if (removed) {
+          objectsRef.current = ensureObjectIds(svgEl);
+          setSelectedIds([]);
           emitChange();
         }
       } else if ((e.metaKey || e.ctrlKey) && (e.key === 'd' || e.key === 'D')) {
@@ -300,7 +373,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [selectedId, emitChange, editing, duplicateSelected]);
+  }, [selectedIds, emitChange, editing, duplicateSelected]);
 
   // ---- coordinate helpers -------------------------------------------------
   const toUserDelta = (cdx: number, cdy: number) => {
@@ -308,6 +381,17 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (!ctm) return { ux: cdx, uy: cdy };
     const inv = ctm.inverse();
     return { ux: inv.a * cdx + inv.c * cdy, uy: inv.b * cdx + inv.d * cdy };
+  };
+
+  // Client point -> root-svg user space (where selection overlays live).
+  const toRootUser = (cx: number, cy: number): { x: number; y: number } => {
+    const ctm = svgRef.current?.getScreenCTM();
+    if (!ctm) return { x: cx, y: cy };
+    const inv = ctm.inverse();
+    return {
+      x: inv.a * cx + inv.c * cy + inv.e,
+      y: inv.b * cx + inv.d * cy + inv.f,
+    };
   };
 
   // Client point -> foreground-local coordinates (where new ink is appended).
@@ -329,15 +413,21 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const svgEl = svgRef.current;
     const container = containerRef.current;
     if (!svgEl || !container) return;
-    const id = objectIdForTarget(svgEl, e.target as Element);
+    // Pointer capture (set on pointer-down to enable dragging) retargets this
+    // dblclick to the container, so e.target points outside the SVG. Hit-test
+    // by coordinates instead to find the object actually under the cursor.
+    const hit = document.elementFromPoint(e.clientX, e.clientY);
+    const id = hit ? objectIdForTarget(svgEl, hit) : null;
     if (!id) return;
-    const info = objectsRef.current.find((o) => o.id === id);
-    if (info?.kind !== 'text') return;
+    // Open the text editor for any object that carries editable text runs —
+    // SMART often wraps a text block in a <g>, which classifies as a group, so
+    // gating on kind === 'text' would miss it. getTextLeaves finds the runs
+    // wherever they live, matching what read/writeTextLines operate on.
     const obj = findObjectById(svgEl, id);
-    if (!obj) return;
+    if (!obj || getTextLeaves(obj).length === 0) return;
     const c = container.getBoundingClientRect();
     const r = obj.getBoundingClientRect();
-    setSelectedId(id);
+    setSelectedIds([id]);
     setEditing({
       id,
       left: r.left - c.left,
@@ -354,7 +444,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const obj = findObjectById(svgEl, editing.id);
     if (obj) {
       writeTextLines(obj, editing.value);
-      positionHighlight(editing.id);
+      renderSelection(selectedIds);
       emitChange();
     }
     setEditing(null);
@@ -415,10 +505,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     // select / move / resize
     const target = e.target as Element;
     const handle = target.getAttribute(HANDLE_ATTR) as Corner | null;
-    if (handle && selectedId) {
-      const obj = findObjectById(svgEl, selectedId);
+    if (handle && selectedIds.length === 1) {
+      const obj = findObjectById(svgEl, selectedIds[0]);
       if (!obj) return;
-      const box = transformedBox(obj);
+      const box = transformedBox(svgEl, obj);
       const cornerPt: Record<Corner, { x: number; y: number }> = {
         nw: { x: box.minX, y: box.minY },
         ne: { x: box.maxX, y: box.minY },
@@ -432,7 +522,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         se: 'nw',
       };
       dragRef.current = {
-        id: selectedId,
+        id: selectedIds[0],
         mode: 'resize',
         startX: e.clientX,
         startY: e.clientY,
@@ -446,17 +536,48 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     }
 
     const id = objectIdForTarget(svgEl, target);
-    setSelectedId(id);
-    if (!id) return;
-    const obj = findObjectById(svgEl, id);
-    if (!obj) return;
+
+    // Empty canvas: begin a marquee (rubber-band) selection. Shift unions onto
+    // the current selection; otherwise the selection clears as the drag starts.
+    if (!id) {
+      dragRef.current = {
+        mode: 'marquee',
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        startUser: toRootUser(e.clientX, e.clientY),
+        baseSelection: e.shiftKey ? [...selectedIds] : [],
+      };
+      if (!e.shiftKey) setSelectedIds([]);
+      containerRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    // Clicked an object. Shift toggles it in/out of the selection; a plain click
+    // on an unselected object replaces the selection.
+    const nextSelection = e.shiftKey
+      ? selectedIds.includes(id)
+        ? selectedIds.filter((s) => s !== id)
+        : [...selectedIds, id]
+      : selectedIds.includes(id)
+        ? selectedIds
+        : [id];
+    setSelectedIds(nextSelection);
+
+    // Don't start a move when a shift-click just deselected the pressed object.
+    if (!nextSelection.includes(id)) return;
+    const items = nextSelection
+      .map((sid) => {
+        const o = findObjectById(svgEl, sid);
+        return o ? { id: sid, m0: readEditMatrix(o) } : null;
+      })
+      .filter((it): it is { id: string; m0: DOMMatrix } => it !== null);
     dragRef.current = {
-      id,
       mode: 'move',
       startX: e.clientX,
       startY: e.clientY,
-      m0: readEditMatrix(obj),
       moved: false,
+      items,
     };
     containerRef.current?.setPointerCapture(e.pointerId);
   };
@@ -482,16 +603,45 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const cdy = e.clientY - drag.startY;
     if (!drag.moved && Math.hypot(cdx, cdy) < DRAG_THRESHOLD_PX) return;
     drag.moved = true;
-    const obj = findObjectById(svgEl, drag.id);
-    if (!obj) return;
+
+    // Marquee: just size the rubber-band rect; hits are resolved on pointer-up.
+    if (drag.mode === 'marquee') {
+      const marquee = marqueeRef.current;
+      const start = drag.startUser;
+      if (!marquee || !start) return;
+      const cur = toRootUser(e.clientX, e.clientY);
+      marquee.setAttribute('x', String(Math.min(start.x, cur.x)));
+      marquee.setAttribute('y', String(Math.min(start.y, cur.y)));
+      marquee.setAttribute('width', String(Math.abs(cur.x - start.x)));
+      marquee.setAttribute('height', String(Math.abs(cur.y - start.y)));
+      marquee.style.display = '';
+      return;
+    }
+
     const { ux, uy } = toUserDelta(cdx, cdy);
 
-    if (drag.mode === 'move') {
-      applyEditMatrix(
-        obj,
-        new DOMMatrix().translateSelf(ux, uy).multiply(drag.m0)
-      );
-    } else if (drag.anchor && drag.startCorner) {
+    if (drag.mode === 'move' && drag.items) {
+      for (const item of drag.items) {
+        const obj = findObjectById(svgEl, item.id);
+        if (obj)
+          applyEditMatrix(
+            obj,
+            new DOMMatrix().translateSelf(ux, uy).multiply(item.m0)
+          );
+      }
+      renderSelection(drag.items.map((it) => it.id));
+      return;
+    }
+
+    if (
+      drag.mode === 'resize' &&
+      drag.id &&
+      drag.m0 &&
+      drag.anchor &&
+      drag.startCorner
+    ) {
+      const obj = findObjectById(svgEl, drag.id);
+      if (!obj) return;
       const { anchor, startCorner } = drag;
       const denomX = startCorner.x - anchor.x;
       const denomY = startCorner.y - anchor.y;
@@ -508,8 +658,8 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         .scaleSelf(sx, sy)
         .translateSelf(-anchor.x, -anchor.y);
       applyEditMatrix(obj, a.multiply(drag.m0));
+      renderSelection([drag.id]);
     }
-    positionHighlight(drag.id);
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
@@ -529,12 +679,44 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     }
     const drag = dragRef.current;
     dragRef.current = null;
-    if (drag?.moved) emitChange();
+    if (!drag) return;
+
+    if (drag.mode === 'marquee') {
+      if (marqueeRef.current) marqueeRef.current.style.display = 'none';
+      const svgEl = svgRef.current;
+      const base = drag.baseSelection ?? [];
+      if (!drag.moved || !svgEl || !drag.startUser) {
+        setSelectedIds(base);
+        return;
+      }
+      const cur = toRootUser(e.clientX, e.clientY);
+      const box: Box = {
+        minX: Math.min(drag.startUser.x, cur.x),
+        minY: Math.min(drag.startUser.y, cur.y),
+        maxX: Math.max(drag.startUser.x, cur.x),
+        maxY: Math.max(drag.startUser.y, cur.y),
+      };
+      const merged = [...base];
+      for (const info of objectsRef.current) {
+        const obj = findObjectById(svgEl, info.id);
+        if (
+          obj &&
+          boxesIntersect(box, transformedBox(svgEl, obj)) &&
+          !merged.includes(info.id)
+        ) {
+          merged.push(info.id);
+        }
+      }
+      setSelectedIds(merged);
+      return;
+    }
+
+    if (drag.moved) emitChange();
   };
 
   const selectTool = (next: Tool) => {
     setTool(next);
-    if (next !== 'select') setSelectedId(null);
+    if (next !== 'select') setSelectedIds([]);
   };
 
   const cursor =
@@ -569,7 +751,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     <div className={`relative h-full w-full ${className ?? ''}`}>
       <div
         ref={containerRef}
-        className="h-full w-full touch-none"
+        className="h-full w-full touch-none select-none"
         style={{ cursor }}
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
