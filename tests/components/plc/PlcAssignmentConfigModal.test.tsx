@@ -753,3 +753,147 @@ describe('PlcAssignmentConfigModal (quiz kind — Task 10 slimmed, quizBehavior 
     ).toBe(true);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Tests — Task 10 (VA parity): slimmed video-activity kind (behavior from
+// vaBehavior prop)
+// ---------------------------------------------------------------------------
+
+const fakeVaBehavior = {
+  sessionMode: 'auto' as const,
+  sessionOptions: {
+    tabWarningsEnabled: false,
+    showResultToStudent: true,
+    showCorrectAnswerToStudent: false,
+    showCorrectOnBoard: false,
+    shuffleQuestions: false,
+    shuffleAnswerOptions: true,
+    rewindOnIncorrectSeconds: 15,
+    pointPenaltyOnIncorrect: 5,
+    scoreVisibility: 'score-only' as const,
+  },
+  attemptLimit: 2,
+};
+
+describe('PlcAssignmentConfigModal (video-activity kind — Task 10 VA parity, vaBehavior prop)', () => {
+  beforeEach(() => {
+    mockCreateQuizAssignment.mockClear();
+    mockCreateVaAssignment.mockClear();
+    mockAddToast.mockClear();
+    mockSetPendingAssignmentEdit.mockClear();
+    mockWritePlcVaTemplate.mockClear();
+    mockCreateVaAssignment.mockResolvedValue({ id: 'va-assign-1' });
+    // Reset useDashboard to the basic stub
+    vi.mocked(useDashboard).mockReturnValue({
+      addToast: mockAddToast,
+      rosters: [] as ClassRoster[],
+      setPendingAssignmentEdit: mockSetPendingAssignmentEdit,
+    } as unknown as ReturnType<typeof useDashboard>);
+  });
+
+  it('does NOT render editable toggle controls when vaBehavior is provided', () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="video-activity"
+        activityRef={fakeActivityRef}
+        vaBehavior={fakeVaBehavior}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+    // AssignmentSettingsToggleGroup is hidden when vaBehavior is provided
+    expect(screen.queryByLabelText(/shuffle/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/tab warnings/i)).not.toBeInTheDocument();
+  });
+
+  it('renders the VA behavior summary when vaBehavior is provided', () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="video-activity"
+        activityRef={fakeActivityRef}
+        vaBehavior={fakeVaBehavior}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+    const summaryEl = screen.getByTestId('plc-config-va-behavior-summary');
+    expect(summaryEl).toBeInTheDocument();
+    // fakeVaBehavior: auto mode, 2 attempts, rewind 15s, −5 pts penalty, score only
+    expect(summaryEl.textContent).toMatch(/auto-progress/i);
+    expect(summaryEl.textContent).toMatch(/2 attempts/i);
+    expect(summaryEl.textContent).toMatch(/rewind 15s/i);
+  });
+
+  it('renders the "Edit in the activity editor" hint when vaBehavior is provided', () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="video-activity"
+        activityRef={fakeActivityRef}
+        vaBehavior={fakeVaBehavior}
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+    expect(
+      screen.getByText(/edit in the activity editor/i)
+    ).toBeInTheDocument();
+  });
+
+  it('sources sessionOptions/attemptLimit from vaBehavior on submit', async () => {
+    const onClose = vi.fn();
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="video-activity"
+        activityRef={fakeActivityRef}
+        vaBehavior={fakeVaBehavior}
+        isOpen
+        onClose={onClose}
+      />
+    );
+
+    act(() => {
+      fireEvent.click(
+        screen.getByRole('button', { name: /create assignment/i })
+      );
+    });
+
+    await waitFor(() => {
+      expect(mockCreateVaAssignment).toHaveBeenCalledTimes(1);
+    });
+
+    const [, settings] = mockCreateVaAssignment.mock.calls[0] as [
+      unknown,
+      Record<string, unknown>,
+    ];
+    const sessionOptions = settings.sessionOptions as Record<string, unknown>;
+    expect(sessionOptions.attemptLimit).toBe(2);
+    expect(sessionOptions.showResultToStudent).toBe(true);
+    expect(sessionOptions.rewindOnIncorrectSeconds).toBe(15);
+    expect(sessionOptions.pointPenaltyOnIncorrect).toBe(5);
+  });
+
+  it('does NOT render mode picker or the VA behavior summary on the legacy VA path (no vaBehavior)', () => {
+    render(
+      <PlcAssignmentConfigModal
+        plc={fakePlc}
+        kind="video-activity"
+        activityRef={fakeActivityRef}
+        // No vaBehavior — legacy path
+        isOpen
+        onClose={vi.fn()}
+      />
+    );
+    // No mode picker on VA (quiz-only)
+    expect(
+      screen.queryByRole('radio', { name: /teacher-paced/i })
+    ).not.toBeInTheDocument();
+    // The slimmed summary testid should NOT appear on the legacy path
+    expect(
+      screen.queryByTestId('plc-config-va-behavior-summary')
+    ).not.toBeInTheDocument();
+  });
+});
