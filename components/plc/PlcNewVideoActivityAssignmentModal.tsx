@@ -299,8 +299,8 @@ export const PlcNewVideoActivityAssignmentModal: React.FC<
       // this path (VA sessionSettings live separately from behavior).
       const defaultPlayerSettings: VideoActivitySessionSettings = {
         autoPlay: false,
-        requireCorrectAnswer: false,
-        allowSkipping: true,
+        requireCorrectAnswer: true,
+        allowSkipping: false,
       };
 
       const { id: assignmentId } = await createAssignment(

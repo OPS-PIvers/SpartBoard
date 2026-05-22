@@ -120,14 +120,17 @@ export const QuizEditorModal: React.FC<QuizEditorModalProps> = ({
     useState<QuizBehaviorSettings>(() => behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR);
 
   // Re-seed behavior when the quiz being edited changes (e.g. user closes
-  // editor and opens a different quiz without unmounting the modal).
-  useEffect(() => {
+  // editor and opens a different quiz without unmounting the modal). Adjust
+  // state while rendering (see CLAUDE.md), keyed on quiz?.id only so a fresh
+  // behaviorSeed object from a parent re-render doesn't clobber in-progress
+  // edits.
+  const [seededQuizId, setSeededQuizId] = useState(quiz?.id);
+  if (seededQuizId !== quiz?.id) {
+    setSeededQuizId(quiz?.id);
     const seed = behaviorSeed ?? DEFAULT_QUIZ_BEHAVIOR;
     setBehavior(seed);
     setOriginalBehavior(seed);
-    // Intentionally keyed on quiz?.id only: we want to reset on quiz change,
-    // not on every parent re-render that hands back a new behaviorSeed object.
-  }, [quiz?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const isDirty = useMemo(
     () =>

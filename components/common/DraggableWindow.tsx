@@ -525,9 +525,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   );
 
   const isMaximized = widget.maximized ?? false;
-  useEffect(() => {
+  // Close the maximized FAB menu when the widget leaves the maximized state.
+  // Adjust state while rendering (see CLAUDE.md) rather than via an effect.
+  const [prevIsMaximized, setPrevIsMaximized] = useState(isMaximized);
+  if (isMaximized !== prevIsMaximized) {
+    setPrevIsMaximized(isMaximized);
     if (!isMaximized) setShowMaxMenu(false);
-  }, [isMaximized]);
+  }
   // View-only guests treat every widget as locked. The DashboardContext
   // mutation guards already block writes — this just surfaces the locked
   // state to all the existing UI affordances (drag, resize, gear, close).

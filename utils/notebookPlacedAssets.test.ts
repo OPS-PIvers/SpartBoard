@@ -76,13 +76,24 @@ describe('createPlacedAsset', () => {
 });
 
 describe('updatePlacedAsset / removePlacedAsset', () => {
-  it('patches only the target and clamps values', () => {
+  it('patches only the target and clamps position against width to stay on-page', () => {
     const all = [make({ id: 'a' }), make({ id: 'b' })];
     const next = updatePlacedAsset(all, 'a', { xFrac: 2, wFrac: 0 });
     const a = next.find((x) => x.id === 'a');
-    expect(a?.xFrac).toBe(1);
+    // wFrac floors at the minimum; xFrac is bounded to 1 - wFrac, not 1, so
+    // the whole asset stays on the page.
     expect(a?.wFrac).toBe(MIN_PLACED_ASSET_WIDTH_FRAC);
+    expect(a?.xFrac).toBeCloseTo(1 - MIN_PLACED_ASSET_WIDTH_FRAC);
     expect(next.find((x) => x.id === 'b')?.xFrac).toBe(0.5);
+  });
+
+  it('re-clamps position when a resize would push the asset off-page', () => {
+    const all = [make({ id: 'a', xFrac: 0.9, yFrac: 0.9, wFrac: 0.05 })];
+    const next = updatePlacedAsset(all, 'a', { wFrac: 0.4 });
+    const a = next.find((x) => x.id === 'a');
+    expect(a?.wFrac).toBe(0.4);
+    expect(a?.xFrac).toBeCloseTo(0.6);
+    expect(a?.yFrac).toBeCloseTo(0.6);
   });
 
   it('removes by id', () => {

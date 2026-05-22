@@ -14,6 +14,15 @@ export const clampWidthFrac = (n: number): number =>
     Math.max(MIN_PLACED_ASSET_WIDTH_FRAC, n)
   );
 
+/**
+ * Clamp a top-left position fraction so a `sizeFrac`-wide/tall asset stays
+ * fully on the page (not just its origin corner). Width is used as the height
+ * proxy too: only `wFrac` is stored, so we keep roughly-square assets bounded
+ * on both axes rather than letting the right/bottom edge overflow.
+ */
+export const clampPosFrac = (n: number, sizeFrac: number): number =>
+  Math.min(Math.max(0, 1 - sizeFrac), Math.max(0, n));
+
 /** Placed assets belonging to a given notebook + page, in insertion order. */
 export const assetsForPage = (
   all: PlacedNotebookAsset[],
@@ -41,8 +50,8 @@ export const createPlacedAsset = (params: {
     notebookId: params.notebookId,
     page: params.page,
     url: params.url,
-    xFrac: clamp01(params.xFrac - wFrac / 2),
-    yFrac: clamp01(params.yFrac - wFrac / 2),
+    xFrac: clampPosFrac(params.xFrac - wFrac / 2, wFrac),
+    yFrac: clampPosFrac(params.yFrac - wFrac / 2, wFrac),
     wFrac,
   };
 };
@@ -52,18 +61,21 @@ export const updatePlacedAsset = (
   id: string,
   patch: Partial<Pick<PlacedNotebookAsset, 'xFrac' | 'yFrac' | 'wFrac'>>
 ): PlacedNotebookAsset[] =>
-  all.map((a) =>
-    a.id === id
-      ? {
-          ...a,
-          ...(patch.xFrac !== undefined ? { xFrac: clamp01(patch.xFrac) } : {}),
-          ...(patch.yFrac !== undefined ? { yFrac: clamp01(patch.yFrac) } : {}),
-          ...(patch.wFrac !== undefined
-            ? { wFrac: clampWidthFrac(patch.wFrac) }
-            : {}),
-        }
-      : a
-  );
+  all.map((a) => {
+    if (a.id !== id) return a;
+    // Re-clamp position against the (possibly new) width so a move *or* a
+    // resize near the edge can't push the asset off-page.
+    const wFrac =
+      patch.wFrac !== undefined ? clampWidthFrac(patch.wFrac) : a.wFrac;
+    const xFrac = patch.xFrac ?? a.xFrac;
+    const yFrac = patch.yFrac ?? a.yFrac;
+    return {
+      ...a,
+      xFrac: clampPosFrac(xFrac, wFrac),
+      yFrac: clampPosFrac(yFrac, wFrac),
+      wFrac,
+    };
+  });
 
 export const removePlacedAsset = (
   all: PlacedNotebookAsset[],

@@ -166,7 +166,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
         const fresh: QuizData = {
           id: crypto.randomUUID(),
           title: canonical.title,
-          questions: canonical.questions,
+          // Deep-clone so the saved copy doesn't share question objects with
+          // the canonical doc (or the assignment payload built below).
+          questions: structuredClone(canonical.questions),
           createdAt: now,
           updatedAt: now,
         };

@@ -7,7 +7,7 @@
  * prompt / answers).
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Sparkles } from 'lucide-react';
 import {
   LibraryFolder,
@@ -132,15 +132,17 @@ export const VideoActivityEditorModal: React.FC<
     );
 
   // Re-seed behavior when the activity being edited changes (e.g. user closes
-  // editor and opens a different activity without unmounting the modal).
-  useEffect(() => {
+  // editor and opens a different activity without unmounting the modal). Adjust
+  // state while rendering (see CLAUDE.md), keyed on activity?.id only so a fresh
+  // behaviorSeed object from a parent re-render doesn't clobber in-progress
+  // edits.
+  const [seededActivityId, setSeededActivityId] = useState(activity?.id);
+  if (seededActivityId !== activity?.id) {
+    setSeededActivityId(activity?.id);
     const seed = behaviorSeed ?? DEFAULT_VA_BEHAVIOR;
     setBehavior(seed);
     setOriginalBehavior(seed);
-    // Intentionally keyed on activity?.id only: we want to reset on activity
-    // change, not on every parent re-render that hands back a new behaviorSeed
-    // object.
-  }, [activity?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }
 
   const isDirty = useMemo(
     () =>

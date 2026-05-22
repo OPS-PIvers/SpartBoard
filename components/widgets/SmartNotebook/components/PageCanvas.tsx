@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { PlacedNotebookAsset } from '@/types';
-import { clamp01, clampWidthFrac } from '@/utils/notebookPlacedAssets';
+import { clampPosFrac, clampWidthFrac } from '@/utils/notebookPlacedAssets';
 
 /** dataTransfer type for an asset dragged from the Assets panel onto a page. */
 export const NOTEBOOK_ASSET_MIME = 'application/notebook-asset';
@@ -163,8 +163,8 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
     if (d.mode === 'move') {
       setDraft({
         id: d.id,
-        xFrac: clamp01(d.x0 + dxFrac),
-        yFrac: clamp01(d.y0 + dyFrac),
+        xFrac: clampPosFrac(d.x0 + dxFrac, d.w0),
+        yFrac: clampPosFrac(d.y0 + dyFrac, d.w0),
         wFrac: d.w0,
       });
     } else {
@@ -172,7 +172,8 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
         id: d.id,
         xFrac: d.x0,
         yFrac: d.y0,
-        wFrac: clampWidthFrac(d.w0 + dxFrac),
+        // Cap growth at the page's right edge so resizing can't overflow.
+        wFrac: clampWidthFrac(Math.min(d.w0 + dxFrac, 1 - d.x0)),
       });
     }
   };
@@ -238,14 +239,23 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
                   className="absolute -top-2 -right-2 bg-white text-red-500 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-red-500 hover:text-white"
                   aria-label="Remove asset"
                 >
-                  <X style={{ width: 14, height: 14 }} />
+                  <X
+                    style={{
+                      width: 'min(14px, 4cqmin)',
+                      height: 'min(14px, 4cqmin)',
+                    }}
+                  />
                 </button>
                 <div
                   onPointerDown={(e) => beginDrag(e, a, 'resize')}
                   onPointerMove={onPointerMove}
                   onPointerUp={onPointerUp}
                   className="absolute -bottom-1 -right-1 bg-white border-2 border-indigo-500 rounded-sm opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ width: 14, height: 14, cursor: 'nwse-resize' }}
+                  style={{
+                    width: 'min(14px, 4cqmin)',
+                    height: 'min(14px, 4cqmin)',
+                    cursor: 'nwse-resize',
+                  }}
                   aria-label="Resize asset"
                   role="slider"
                   tabIndex={-1}
