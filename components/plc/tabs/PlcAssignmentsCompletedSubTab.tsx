@@ -7,6 +7,13 @@ import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 
 interface PlcAssignmentsCompletedSubTabProps {
   plc: Plc;
+  /**
+   * Optional kind filter. When provided, only index entries whose `kind`
+   * matches are shown — used by the Quizzes section's Completed sub-tab to
+   * scope the shared assignment index to quiz rows. Omitted on the
+   * standalone Assignments page, where all kinds are shown.
+   */
+  kindFilter?: 'quiz' | 'video-activity';
 }
 
 /**
@@ -18,13 +25,18 @@ interface PlcAssignmentsCompletedSubTabProps {
  */
 export const PlcAssignmentsCompletedSubTab: React.FC<
   PlcAssignmentsCompletedSubTabProps
-> = ({ plc }) => {
+> = ({ plc, kindFilter }) => {
   const { t } = useTranslation();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
 
   const visible = useMemo(
-    () => entries.filter((e) => e.status === 'inactive'),
-    [entries]
+    () =>
+      entries.filter(
+        (e) =>
+          e.status === 'inactive' &&
+          (kindFilter === undefined || e.kind === kindFilter)
+      ),
+    [entries, kindFilter]
   );
 
   if (loading) {

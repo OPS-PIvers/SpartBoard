@@ -28,6 +28,13 @@ import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 
 interface PlcAssignmentsInProgressSubTabProps {
   plc: Plc;
+  /**
+   * Optional kind filter. When provided, only index entries whose `kind`
+   * matches are shown — used by the Quizzes section's In-progress sub-tab
+   * to scope the shared assignment index to quiz rows. Omitted on the
+   * standalone Assignments page, where all kinds are shown.
+   */
+  kindFilter?: 'quiz' | 'video-activity';
 }
 
 /**
@@ -59,7 +66,7 @@ interface InProgressImportTarget {
  */
 export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
-> = ({ plc }) => {
+> = ({ plc, kindFilter }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
   const { addToast, rosters } = useDashboard();
@@ -90,8 +97,13 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   } | null>(null);
 
   const visible = useMemo(
-    () => entries.filter((e) => e.status === 'active' || e.status === 'paused'),
-    [entries]
+    () =>
+      entries.filter(
+        (e) =>
+          (e.status === 'active' || e.status === 'paused') &&
+          (kindFilter === undefined || e.kind === kindFilter)
+      ),
+    [entries, kindFilter]
   );
 
   /**

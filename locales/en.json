@@ -263,7 +263,7 @@
     "close": "Close",
     "tabs": {
       "overview": "Overview",
-      "quizzes": "Quiz Library",
+      "quizzes": "Quizzes",
       "assignments": "PLC Assignments",
       "videoActivities": "Video Activities",
       "notes": "Notes",
@@ -278,6 +278,12 @@
     },
     "assignmentsSubTabs": {
       "label": "Assignment views",
+      "library": "Library",
+      "inProgress": "In-progress",
+      "completed": "Completed"
+    },
+    "quizzesSubTabs": {
+      "label": "Quiz views",
       "library": "Library",
       "inProgress": "In-progress",
       "completed": "Completed"

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Plc } from '@/types';
-import { PlcQuizLibraryBody } from '../bodies/PlcQuizLibraryBody';
+import { PlcQuizzesBody } from '../bodies/PlcQuizzesBody';
 
 interface PlcQuizLibraryTabProps {
   plc: Plc;
@@ -14,16 +14,14 @@ interface PlcQuizLibraryTabProps {
 }
 
 /**
- * Tab-mode wrapper around the shared `PlcQuizLibraryBody`. Mirrors the
- * `PlcNotesTab` shape from Phase 2 — the body owns all editor state,
- * hooks, and chrome, and this tab is now a placement-only shim used by
- * the legacy v1 dashboard tab routing. The v2 grid renders
- * `PlcQuizLibraryBody` directly inside a tile (or its fullscreen
- * expansion).
+ * Tab-mode wrapper around the shared `PlcQuizzesBody`. Mirrors the
+ * `PlcAssignmentsTab` shape — the body owns the Library / In-progress /
+ * Completed sub-tab shell and all editor state, and this tab is a
+ * placement-only shim used by the legacy v1 dashboard section routing.
  */
 export const PlcQuizLibraryTab: React.FC<PlcQuizLibraryTabProps> = ({
   plc,
   onCloseDashboard,
 }) => {
-  return <PlcQuizLibraryBody plc={plc} onCloseDashboard={onCloseDashboard} />;
+  return <PlcQuizzesBody plc={plc} onCloseDashboard={onCloseDashboard} />;
 };
