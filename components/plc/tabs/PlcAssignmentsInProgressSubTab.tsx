@@ -107,6 +107,10 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   const templateByEntryId = useMemo(() => {
     const map = new Map<string, PlcAssignmentTemplate>();
     for (const entry of visible) {
+      // Heuristic: match by ownerUid + quizTitle (best available correlation).
+      // Known limitation: if an owner has two active assignments with the same
+      // quiz title, both entries match the first template — ambiguous. A future
+      // fix is to store a direct template-id back-reference on PlcAssignmentIndexEntry.
       const match = templates.find(
         (tpl) =>
           tpl.sharedBy === entry.ownerUid && tpl.quizTitle === entry.title
@@ -342,7 +346,6 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
               key={entry.id}
               entry={entry}
               showStatusPill
-              isOwner={isOwner}
               onMonitor={
                 isOwner && entry.kind === 'quiz'
                   ? () => handleMonitor(entry.id)

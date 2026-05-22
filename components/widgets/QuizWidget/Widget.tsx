@@ -403,7 +403,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       if (!data) return;
       updateWidget(widget.id, {
         config: {
-          ...config,
+          ...configRef.current,
           view: 'monitor',
           selectedQuizId: target.quizId,
           selectedQuizTitle: target.quizTitle,
@@ -426,7 +426,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     addToast,
     updateWidget,
     widget.id,
-    config,
   ]);
 
   // PLC in-progress "Results" hand-off — mirrors the Monitor hand-off but
@@ -448,7 +447,7 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       if (!data) return;
       updateWidget(widget.id, {
         config: {
-          ...config,
+          ...configRef.current,
           view: 'results',
           selectedQuizId: target.quizId,
           selectedQuizTitle: target.quizTitle,
@@ -468,7 +467,6 @@ export const QuizWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     addToast,
     updateWidget,
     widget.id,
-    config,
   ]);
 
   // Auto-load quiz data if we are in monitor view or have an active session, but data is missing

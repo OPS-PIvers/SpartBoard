@@ -19,12 +19,6 @@ interface PlcAssignmentIndexRowProps {
    */
   showStatusPill?: boolean;
   /**
-   * True when the current user owns this assignment. Drives which action
-   * buttons are shown. Omit (undefined) when ownership context is not
-   * available — all action buttons are hidden.
-   */
-  isOwner?: boolean;
-  /**
    * Open the live monitor for this assignment (owner only, quiz only).
    * When undefined the Monitor button is not rendered.
    */
