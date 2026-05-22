@@ -1,13 +1,15 @@
 /**
  * QuizAssignmentSettingsModal — edit the settings for a single assignment.
  *
- * Wave 2-QZ: this component now composes the shared `AssignModal` primitive
- * with the PLC selector rendered into `plcSlot` and the quiz-specific toggles
- * (Quiz Integrity / Answer Feedback / Gamification) rendered into
- * `extraSlot`. The behavior is preserved 1:1 from the previous implementation
- * — mode is editable only when the assignment is inactive, all PLC fields
- * are persisted verbatim (including empty strings so clearing a field
- * actually writes ''), and the save patch shape is unchanged.
+ * Wave 2-QZ / Task 12 (freeze-live): behavior settings are now READ-ONLY on
+ * a launched assignment — they were snapshotted at create time from the quiz.
+ * To change behavior, edit the quiz (Settings tab); it affects future
+ * assignments only. This modal now shows:
+ *   • A read-only behavior summary (formatBehaviorSummary) with an
+ *     "Edit in quiz" hint.
+ *   • An editable due-date input.
+ *   • Editable targeting/sharing fields: class name, periods, PLC, teacher name.
+ * The save patch no longer includes sessionMode / sessionOptions / attemptLimit.
  */
 
 import React, { useState } from 'react';
@@ -15,17 +17,11 @@ import { AlertTriangle, Share2 } from 'lucide-react';
 import type {
   QuizAssignment,
   QuizAssignmentSettings,
-  QuizBehaviorSettings,
-  QuizSessionMode,
-  QuizSessionOptions,
   ClassRoster,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
-import {
-  AssignModal,
-  ToggleRow,
-  QuizBehaviorSettingsPanel,
-} from '@/components/common/library';
+import { AssignModal, ToggleRow } from '@/components/common/library';
+import { formatBehaviorSummary } from '@/utils/quizBehavior';
 
 interface QuizAssignmentSettingsModalProps {
   assignment: QuizAssignment;
@@ -45,66 +41,39 @@ interface QuizAssignmentSettingsModalProps {
 /** Options object driven through AssignModal's `options` generic. */
 interface SettingsOptions {
   className: string;
-  tabWarningsEnabled: boolean;
-  showResultToStudent: boolean;
-  showCorrectAnswerToStudent: boolean;
-  showCorrectOnBoard: boolean;
-  speedBonusEnabled: boolean;
-  streakBonusEnabled: boolean;
-  showPodiumBetweenQuestions: boolean;
-  soundEffectsEnabled: boolean;
-  shuffleQuestions: boolean;
-  shuffleAnswerOptions: boolean;
-  /** null = unlimited; any positive int = hard cap. */
-  attemptLimit: number | null;
   plcMode: boolean;
   teacherName: string;
   selectedPeriodNames: string[];
   plcSheetUrl: string;
+  /** epoch ms, or null for no due date */
+  dueAt: number | null;
 }
 
 function initialOptionsFor(
   a: QuizAssignment,
   defaultTeacherName?: string
 ): SettingsOptions {
-  const opts = a.sessionOptions ?? {};
   return {
     className: a.className ?? '',
-    tabWarningsEnabled: opts.tabWarningsEnabled ?? true,
-    showResultToStudent: opts.showResultToStudent ?? false,
-    showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
-    showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
-    speedBonusEnabled: opts.speedBonusEnabled ?? false,
-    streakBonusEnabled: opts.streakBonusEnabled ?? false,
-    showPodiumBetweenQuestions: opts.showPodiumBetweenQuestions ?? false,
-    soundEffectsEnabled: opts.soundEffectsEnabled ?? false,
-    shuffleQuestions: opts.shuffleQuestions ?? false,
-    // Pre-toggle sessions had the second client-side shuffle always on, so
-    // legacy/absent reads as `true` to keep current assignments behaving
-    // identically after the upgrade.
-    shuffleAnswerOptions: opts.shuffleAnswerOptions ?? true,
-    // Legacy assignments have no attemptLimit — preserve "unlimited" for
-    // those rather than retroactively capping ongoing sessions.
-    attemptLimit: a.attemptLimit ?? null,
     plcMode: !!a.plc,
     teacherName: a.teacherName ?? defaultTeacherName ?? '',
     selectedPeriodNames: a.periodNames ?? (a.periodName ? [a.periodName] : []),
     plcSheetUrl: a.plc?.sheetUrl ?? '',
+    dueAt: a.dueAt ?? null,
   };
+}
+
+/** Convert epoch ms → 'YYYY-MM-DD' for a date input value. */
+function epochToDateInputValue(epoch: number | null): string {
+  if (!epoch) return '';
+  return new Date(epoch).toISOString().slice(0, 10);
 }
 
 export const QuizAssignmentSettingsModal: React.FC<
   QuizAssignmentSettingsModalProps
 > = ({ assignment, rosters, onClose, onSave, defaultTeacherName }) => {
-  // Mode is only editable when the assignment is inactive — changing it
-  // mid-session would leave the live session in an incoherent state.
-  const modeLocked = assignment.status !== 'inactive';
-
   const [options, setOptions] = useState<SettingsOptions>(() =>
     initialOptionsFor(assignment, defaultTeacherName)
-  );
-  const [sessionMode, setSessionMode] = useState<QuizSessionMode>(
-    assignment.sessionMode
   );
 
   // "Auto-Generated PLC Sheet" toggle — defaults ON when:
@@ -127,68 +96,14 @@ export const QuizAssignmentSettingsModal: React.FC<
     !!options.plcSheetUrl &&
     !options.plcSheetUrl.startsWith('https://docs.google.com/spreadsheets/');
 
-  // Bridge: derive QuizBehaviorSettings from the modal's flattened state so
-  // QuizBehaviorSettingsPanel can be driven by the structured shape.
-  const behaviorValue = {
-    sessionMode,
-    sessionOptions: {
-      tabWarningsEnabled: options.tabWarningsEnabled,
-      showResultToStudent: options.showResultToStudent,
-      showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
-      showCorrectOnBoard: options.showCorrectOnBoard,
-      speedBonusEnabled: options.speedBonusEnabled,
-      streakBonusEnabled: options.streakBonusEnabled,
-      showPodiumBetweenQuestions: options.showPodiumBetweenQuestions,
-      soundEffectsEnabled: options.soundEffectsEnabled,
-      shuffleQuestions: options.shuffleQuestions,
-      shuffleAnswerOptions: options.shuffleAnswerOptions,
-    } satisfies QuizSessionOptions,
-    attemptLimit: options.attemptLimit,
-  };
-
-  const handleBehaviorChange = (next: QuizBehaviorSettings) => {
-    setSessionMode(next.sessionMode);
-    setOptions((p) => ({
-      ...p,
-      tabWarningsEnabled:
-        next.sessionOptions.tabWarningsEnabled ?? p.tabWarningsEnabled,
-      showResultToStudent:
-        next.sessionOptions.showResultToStudent ?? p.showResultToStudent,
-      showCorrectAnswerToStudent:
-        next.sessionOptions.showCorrectAnswerToStudent ??
-        p.showCorrectAnswerToStudent,
-      showCorrectOnBoard:
-        next.sessionOptions.showCorrectOnBoard ?? p.showCorrectOnBoard,
-      speedBonusEnabled:
-        next.sessionOptions.speedBonusEnabled ?? p.speedBonusEnabled,
-      streakBonusEnabled:
-        next.sessionOptions.streakBonusEnabled ?? p.streakBonusEnabled,
-      showPodiumBetweenQuestions:
-        next.sessionOptions.showPodiumBetweenQuestions ??
-        p.showPodiumBetweenQuestions,
-      soundEffectsEnabled:
-        next.sessionOptions.soundEffectsEnabled ?? p.soundEffectsEnabled,
-      shuffleQuestions:
-        next.sessionOptions.shuffleQuestions ?? p.shuffleQuestions,
-      shuffleAnswerOptions:
-        next.sessionOptions.shuffleAnswerOptions ?? p.shuffleAnswerOptions,
-      attemptLimit: next.attemptLimit,
-    }));
-  };
+  // Build read-only behavior summary from the assignment's frozen behavior.
+  const behaviorSummary = formatBehaviorSummary({
+    sessionMode: assignment.sessionMode,
+    sessionOptions: assignment.sessionOptions ?? {},
+    attemptLimit: assignment.attemptLimit ?? null,
+  });
 
   const handleAssign = async () => {
-    const sessionOptions: QuizSessionOptions = {
-      tabWarningsEnabled: options.tabWarningsEnabled,
-      showResultToStudent: options.showResultToStudent,
-      showCorrectAnswerToStudent: options.showCorrectAnswerToStudent,
-      showCorrectOnBoard: options.showCorrectOnBoard,
-      speedBonusEnabled: options.speedBonusEnabled,
-      streakBonusEnabled: options.streakBonusEnabled,
-      showPodiumBetweenQuestions: options.showPodiumBetweenQuestions,
-      soundEffectsEnabled: options.soundEffectsEnabled,
-      shuffleQuestions: options.shuffleQuestions,
-      shuffleAnswerOptions: options.shuffleAnswerOptions,
-    };
     // Intentionally pass empty strings (not undefined) so that clearing a
     // field actually writes '' to Firestore. Using `|| undefined` would cause
     // updateDoc to skip the field and leave the previous value in place.
@@ -218,15 +133,18 @@ export const QuizAssignmentSettingsModal: React.FC<
           ? assignment.plc
           : { ...assignment.plc, sheetUrl: trimmedSheetUrl }
         : undefined;
+
+    // Freeze-live: behavior fields (sessionMode, sessionOptions, attemptLimit)
+    // are intentionally OMITTED from the patch. They were frozen at create
+    // time and must only change by editing the source quiz (affects future
+    // assignments). Omitting them means Firestore leaves those fields untouched.
     const patch: Partial<QuizAssignmentSettings> = {
       className: options.className.trim(),
-      sessionMode: modeLocked ? assignment.sessionMode : sessionMode,
-      sessionOptions,
-      attemptLimit: options.attemptLimit,
       plc: plcPatch,
       teacherName: options.teacherName.trim(),
       periodName: options.selectedPeriodNames[0] ?? '',
       periodNames: options.selectedPeriodNames,
+      dueAt: options.dueAt,
     };
     try {
       await onSave(patch);
@@ -309,11 +227,49 @@ export const QuizAssignmentSettingsModal: React.FC<
             </p>
           </div>
 
-          <QuizBehaviorSettingsPanel
-            value={behaviorValue}
-            onChange={handleBehaviorChange}
-            modeLocked={modeLocked}
-          />
+          {/* Due date */}
+          <div>
+            <label
+              htmlFor="assignment-settings-due-date"
+              className="block text-xxs font-bold text-slate-400 uppercase tracking-widest mb-1"
+            >
+              Due Date <span className="font-normal">(optional)</span>
+            </label>
+            <input
+              id="assignment-settings-due-date"
+              type="date"
+              data-testid="assignment-due-date"
+              value={epochToDateInputValue(options.dueAt)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setOptions((p) => ({
+                  ...p,
+                  dueAt: val ? new Date(val).getTime() : null,
+                }));
+              }}
+              className="w-full px-3 py-2 bg-white border border-slate-200 rounded-lg text-slate-800 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* Read-only behavior summary — freeze-live: behavior is frozen at
+              create time. To change it, edit the quiz settings (affects future
+              assignments). */}
+          <div className="bg-slate-50 rounded-xl p-3 border border-slate-100 space-y-1.5">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xxs font-bold text-slate-400 uppercase tracking-widest">
+                Behavior
+              </p>
+              <span className="text-xxs text-slate-400">
+                Edit in the quiz editor
+              </span>
+            </div>
+            <p
+              data-testid="assignment-behavior-summary"
+              className="text-sm text-slate-600 leading-snug"
+            >
+              {behaviorSummary}
+            </p>
+          </div>
         </>
       }
       plcSlot={
