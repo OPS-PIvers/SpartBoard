@@ -35,12 +35,12 @@ interface PlcAssignmentsInProgressSubTabProps {
    * to scope the shared assignment index to quiz rows. Omitted on the
    * standalone Assignments page, where all kinds are shown.
    */
-  kindFilter?: 'quiz' | 'video-activity';
+  kindFilter?: PlcAssignmentIndexEntry['kind'];
 }
 
 /**
  * Pending import target for the "Assign to my classes" flow on non-owner
- * rows — mirrors the equivalent state in PlcAssignmentsLibrarySubTab.
+ * rows — ported from the former PlcAssignmentsLibrarySubTab.
  */
 interface InProgressImportTarget {
   plcAssignmentId: string;
@@ -75,11 +75,6 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   // Subscribe to the PLC assignment templates so non-owner rows can match
   // to the template needed for the "Assign to my classes" import flow.
   const { templates, loading: templatesLoading } = usePlcAssignments(plc.id);
-  const { saveQuiz, deleteQuiz, attachSyncLinkage, isDriveConnected } = useQuiz(
-    user?.uid
-  );
-  const { assignments, createAssignment, setAssignmentRosters } =
-    useQuizAssignments(user?.uid);
 
   // Monitor/Results modal target — opens PlcAssignmentSessionModal on top of
   // the PLC dashboard for the owner's own assignment. `kind` selects the
@@ -90,7 +85,7 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     view: 'monitor' | 'results';
   } | null>(null);
 
-  // Import flow state (mirrors PlcAssignmentsLibrarySubTab).
+  // Import flow state (ported from the former PlcAssignmentsLibrarySubTab).
   const [importTarget, setImportTarget] =
     useState<InProgressImportTarget | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
@@ -98,6 +93,21 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     id: string;
     quizTitle: string;
   } | null>(null);
+
+  // The personal-library + assignment-archive listeners are only needed for
+  // the non-owner "Assign to my classes" import flow. Pass `undefined` uid
+  // until that flow is active so we don't pay for the Firestore listeners on
+  // every render. Both hooks early-return when uid is undefined, so passing
+  // `undefined` is the "off" switch. Stay mounted across the whole flow
+  // (target picked → import running → class-period picker open) because the
+  // post-import setup modal reads `assignments` and calls `setAssignmentRosters`.
+  const importActive =
+    importTarget !== null || busyRowId !== null || pendingSetup !== null;
+  const { saveQuiz, deleteQuiz, attachSyncLinkage, isDriveConnected } = useQuiz(
+    importActive ? user?.uid : undefined
+  );
+  const { assignments, createAssignment, setAssignmentRosters } =
+    useQuizAssignments(importActive ? user?.uid : undefined);
 
   const visible = useMemo(
     () =>
@@ -324,9 +334,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   const currentUid = user?.uid;
 
   // The assignment for the post-import class-period picker. Try the live
-  // snapshot first; fall back to the cached title (same pattern as
-  // PlcAssignmentsLibrarySubTab) so the modal renders before the listener
-  // surfaces the new doc.
+  // snapshot first; fall back to the cached title (the pattern ported from
+  // the former PlcAssignmentsLibrarySubTab) so the modal renders before the
+  // listener surfaces the new doc.
   const pendingSetupAssignment = pendingSetup
     ? (assignments.find((a) => a.id === pendingSetup.id) ?? null)
     : null;

@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
-import { Plc } from '@/types';
+import { Plc, PlcAssignmentIndexEntry } from '@/types';
 import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 
 interface PlcAssignmentsCompletedSubTabProps {
@@ -13,7 +13,7 @@ interface PlcAssignmentsCompletedSubTabProps {
    * scope the shared assignment index to quiz rows. Omitted on the
    * standalone Assignments page, where all kinds are shown.
    */
-  kindFilter?: 'quiz' | 'video-activity';
+  kindFilter?: PlcAssignmentIndexEntry['kind'];
 }
 
 /**

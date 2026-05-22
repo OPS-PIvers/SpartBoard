@@ -86,6 +86,7 @@ export function unifyAssignableQuizzes(
     title: quiz.title,
     sessionMode: quiz.sessionMode ?? DEFAULT_QUIZ_BEHAVIOR.sessionMode,
     sessionOptions: quiz.sessionOptions ?? DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
+    // null = unlimited (explicit); only undefined (legacy/absent) falls back to the default — do NOT use ??
     attemptLimit:
       quiz.attemptLimit === undefined
         ? DEFAULT_QUIZ_BEHAVIOR.attemptLimit

@@ -2,12 +2,10 @@
  * PlcQuizLibraryBody — Phase 2B body extraction.
  *
  * Owns the entire shared-quiz-library editor (rows, import modal,
- * collaborative editor). Mirrors the `NotesBody` / `TodosBody` /
- * `MembersBody` pattern from Phase 2 so the v2 grid renderer (and the
- * fullscreen expansion path in `PlcDashboard.renderExpandedBody`) can
- * mount the editor directly without going through tab chrome.
+ * collaborative editor). Mounted as the "Library" sub-tab of
+ * `PlcQuizzesBody`, which supplies the surrounding tab chrome.
  *
- * Behavior — unchanged from the previous `PlcQuizLibraryTab`:
+ * Behavior:
  *
  *   - "Add to my library" — opens `PlcQuizImportModal` (sync-or-copy
  *     picker). On Sync we pull the canonical content, save a fresh
@@ -95,7 +93,7 @@ interface PlcQuizLibraryBodyProps {
    * Closes the PLC dashboard overlay. Invoked when the post-assign
    * "Edit all settings…" link is clicked so the teacher can be handed
    * off to the QuizWidget's full assignment editor without the PLC
-   * dashboard staying open behind it. Mirrors `PlcAssignmentsBody`.
+   * dashboard staying open behind it.
    */
   onCloseDashboard: () => void;
 }
@@ -147,6 +145,14 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   // Read-time union with legacy assignment templates so template-only rows
   // (authored before the libraries collapsed) stay visible and assignable
   // during the transition. Deduped by syncGroupId — a PlcQuizEntry wins.
+  //
+  // Kept as a live `onSnapshot` listener (B2 reviewed, intentionally not
+  // converted to a one-shot read): `deleteAssignmentTemplate` removes a doc
+  // from this same collection in `handleUnshareTemplate`, and the row list
+  // must drop the unshared template immediately afterward. A one-shot read
+  // would leave the deleted row on screen until a manual refetch, so the
+  // marginal saving on this usually-tiny legacy collection isn't worth the
+  // post-unshare refresh regression.
   const { templates, deleteAssignmentTemplate } = usePlcAssignments(plc.id);
   const {
     quizzes: personalQuizzes,
@@ -157,8 +163,6 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     pullSyncedQuiz,
     isDriveConnected,
   } = useQuiz(user?.uid);
-  const { assignments, createAssignment, setAssignmentRosters } =
-    useQuizAssignments(user?.uid);
 
   const [importTarget, setImportTarget] = useState<ImportTarget | null>(null);
   const [assignTarget, setAssignTarget] = useState<AssignTarget | null>(null);
@@ -171,11 +175,23 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   // Tracks the freshly-assigned assignment that still needs class-period
   // targeting. Holds enough data to render the picker before the
   // assignments snapshot surfaces the new doc (snapshot lag would
-  // otherwise drop the prompt silently). Mirrors `PlcAssignmentsLibrarySubTab`.
+  // otherwise drop the prompt silently).
   const [pendingSetup, setPendingSetup] = useState<{
     id: string;
     quizTitle: string;
   } | null>(null);
+
+  // Cost guard: this hook subscribes to the whole
+  // `users/{uid}/quiz_assignments` collection, but its outputs (`assignments`,
+  // `createAssignment`, `setAssignmentRosters`) are only needed while an
+  // assign is in flight — the import modal (`assignTarget`) or the class-period
+  // picker (`pendingSetup`). Pass `undefined` as the uid otherwise so the
+  // listener never mounts on a plain Library-tab view. `assignTarget` is set
+  // (opening the import modal) before `handleAssign` fires, so by the time
+  // `createAssignment` runs the hook has already re-subscribed with the real
+  // uid; same for `pendingSetup` gating `setAssignmentRosters`.
+  const { assignments, createAssignment, setAssignmentRosters } =
+    useQuizAssignments(assignTarget || pendingSetup ? user?.uid : undefined);
 
   // The unified, deduped, assignable row list.
   const assignableRows = useMemo(
@@ -223,6 +239,10 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
   const handleImport = useCallback(
     async (target: ImportTarget, mode: SharedAssignmentImportMode) => {
       if (!user) return;
+      // Block parallel imports across rows — parity with `handleAssign`. A
+      // second concurrent import would let the first `finally` re-enable the
+      // buttons mid-flight while the other is still running.
+      if (busyRowId) return;
       if (!isDriveConnected) {
         addToast(
           t('plcDashboard.quizLibrary.driveRequired', {
@@ -330,6 +350,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
     [
       addToast,
       attachSyncLinkage,
+      busyRowId,
       deleteQuiz,
       isDriveConnected,
       personalBySyncGroup,
@@ -342,7 +363,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
 
   /**
    * "Assign to my classes" — ports the proven assign-pickup flow from
-   * `PlcAssignmentsLibrarySubTab.handleImport`. Pulls the canonical
+   * the former `PlcAssignmentsLibrarySubTab.handleImport`. Pulls the canonical
    * content, saves a fresh personal quiz copy, on Sync joins the canonical
    * group + attaches linkage, then creates a paused personal assignment
    * using the row's resolved run-settings and chains into the class-period
@@ -1247,8 +1268,7 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
           // Prefer the live snapshot's record once available, but fall
           // back to the import-time stub so a slow Firestore snapshot
           // doesn't drop the prompt. The id is authoritative either way;
-          // `setAssignmentRosters` writes against it directly. Mirrors
-          // `PlcAssignmentsLibrarySubTab`.
+          // `setAssignmentRosters` writes against it directly.
           const live = assignments.find((a) => a.id === pendingSetup.id);
           const stub = {
             id: pendingSetup.id,

@@ -185,6 +185,13 @@ export interface UseVideoActivitySessionTeacherResult {
     responseKey: string
   ) => Promise<void>;
   loading: boolean;
+  /**
+   * Set when either the responses or session-doc `onSnapshot` listener armed
+   * by `subscribeToSession` fires its error callback (permission/network
+   * failure). Cleared on a successful (re)subscribe. Lets consumers surface a
+   * terminal error state instead of spinning on "Loading…" forever.
+   */
+  error: string | null;
 }
 
 export const useVideoActivitySessionTeacher =
@@ -196,6 +203,7 @@ export const useVideoActivitySessionTeacher =
       null
     );
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
     const unsubRef = useRef<Unsubscribe | null>(null);
     const sessionDocUnsubRef = useRef<Unsubscribe | null>(null);
     const sessionsUnsubRef = useRef<Unsubscribe | null>(null);
@@ -340,6 +348,9 @@ export const useVideoActivitySessionTeacher =
       setResponses([]);
       setLiveSession(null);
       setLoading(true);
+      // Clear any error from a prior subscription — we're (re)arming the
+      // listeners and shouldn't carry a stale failure into the new session.
+      setError(null);
       unsubRef.current = onSnapshot(
         collection(db, SESSIONS_COLLECTION, sessionId, RESPONSES_SUBCOLLECTION),
         (snap) => {
@@ -362,6 +373,11 @@ export const useVideoActivitySessionTeacher =
             sessionId,
           });
           setLoading(false);
+          setError(
+            err instanceof Error
+              ? err.message
+              : 'Failed to load session responses.'
+          );
         }
       );
 
@@ -385,6 +401,9 @@ export const useVideoActivitySessionTeacher =
           logError('useVideoActivitySessionTeacher.sessionDocListener', err, {
             sessionId,
           });
+          setError(
+            err instanceof Error ? err.message : 'Failed to load session.'
+          );
         }
       );
     }, []);
@@ -470,6 +489,7 @@ export const useVideoActivitySessionTeacher =
       }
       setResponses([]);
       setLiveSession(null);
+      setError(null);
     }, []);
 
     // Clean up on unmount
@@ -504,6 +524,7 @@ export const useVideoActivitySessionTeacher =
       unsubscribeFromSession,
       unlockStudentAttempt,
       loading,
+      error,
     };
   };
 

@@ -1,8 +1,8 @@
 /**
  * PlcQuizzesBody — Phase 2 quiz-section tab shell.
  *
- * Wraps the quiz library surface in a three-sub-tab pill bar that mirrors
- * `PlcAssignmentsBody` (Library / In-progress / Completed). The
+ * Wraps the quiz library surface in a three-sub-tab pill bar
+ * (Library / In-progress / Completed). The
  * In-progress and Completed sub-tabs reuse the shared
  * `PlcAssignmentsInProgress/CompletedSubTab` components, scoped to
  * `kind === 'quiz'` so video-activity rows never leak into the Quizzes
@@ -65,7 +65,7 @@ interface PlcQuizzesBodyProps {
    * Closes the entire PLC dashboard. Forwarded to the Library sub-tab so
    * its "Edit all settings…" hand-off from the post-assign class-period
    * picker can dismiss the dashboard before the QuizWidget opens the full
-   * assignment editor. Mirrors `PlcAssignmentsBody`.
+   * assignment editor.
    */
   onCloseDashboard: () => void;
 }
@@ -78,8 +78,8 @@ export const PlcQuizzesBody: React.FC<PlcQuizzesBodyProps> = ({
   const { user, getAssignmentMode } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('library');
   // Wizard modal state for the top-level "+ Assign Quiz" CTA. Ported from
-  // `PlcAssignmentsBody` as the standalone Assignments page is collapsed
-  // into this section.
+  // the former standalone Assignments page, which was collapsed into this
+  // section.
   const [newQuizOpen, setNewQuizOpen] = useState(false);
   // Stable id so the screen-reader-only disabled-reason text can be
   // associated with the CTA via `aria-describedby`. Native `disabled`

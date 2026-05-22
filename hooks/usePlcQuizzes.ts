@@ -17,6 +17,25 @@ import { logError } from '@/utils/logError';
 const PLCS_COLLECTION = 'plcs';
 const QUIZZES_SUBCOLLECTION = 'quizzes';
 
+/**
+ * Recognized boolean toggle keys on `QuizSessionOptions` (plus the inherited
+ * `BaseSessionOptions` fields). Used by `parseEntry` to validate that a stored
+ * `sessionOptions` object carries at least one real run-setting before we cast
+ * it — guards against `{}` / malformed objects being treated as valid.
+ */
+const SESSION_OPTION_KEYS: readonly (keyof QuizSessionOptions)[] = [
+  'tabWarningsEnabled',
+  'showResultToStudent',
+  'showCorrectAnswerToStudent',
+  'showCorrectOnBoard',
+  'shuffleQuestions',
+  'shuffleAnswerOptions',
+  'speedBonusEnabled',
+  'streakBonusEnabled',
+  'showPodiumBetweenQuestions',
+  'soundEffectsEnabled',
+];
+
 interface ShareQuizWithPlcInput {
   /** Firestore doc id for the new PLC quiz entry. Caller mints (uuid). */
   plcQuizId: string;
@@ -133,7 +152,20 @@ function parseEntry(
   ) {
     entry.sessionMode = data.sessionMode;
   }
-  if (data.sessionOptions !== null && typeof data.sessionOptions === 'object') {
+  // Only attach `sessionOptions` if it's a non-null object that carries at
+  // least one recognized boolean toggle. This rejects obvious garbage (`{}`,
+  // arrays, malformed shapes) without being so strict it drops valid data —
+  // any single known key is enough to treat the object as real run-settings.
+  if (
+    typeof data.sessionOptions === 'object' &&
+    data.sessionOptions !== null &&
+    !Array.isArray(data.sessionOptions) &&
+    SESSION_OPTION_KEYS.some(
+      (key) =>
+        typeof (data.sessionOptions as Record<string, unknown>)[key] ===
+        'boolean'
+    )
+  ) {
     entry.sessionOptions = data.sessionOptions as QuizSessionOptions;
   }
   if (data.attemptLimit === null || typeof data.attemptLimit === 'number') {

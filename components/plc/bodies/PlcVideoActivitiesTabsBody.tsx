@@ -78,8 +78,8 @@ export const PlcVideoActivitiesTabsBody: React.FC<
   const { user, getAssignmentMode } = useAuth();
   const [activeSubTab, setActiveSubTab] = useState<SubTabId>('library');
   // Wizard modal state for the top-level "+ Assign Video" CTA. Ported from
-  // `PlcAssignmentsBody` as the standalone Assignments page is collapsed
-  // into this section.
+  // the former standalone Assignments page, which was collapsed into this
+  // section.
   const [newVideoOpen, setNewVideoOpen] = useState(false);
   // Stable id so the screen-reader-only disabled-reason text can be
   // associated with the CTA via `aria-describedby`. Native `disabled`

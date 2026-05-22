@@ -75,6 +75,7 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
     subscribeToSession,
     unsubscribeFromSession,
     unlockStudentAttempt,
+    error: listenerError,
   } = useVideoActivitySessionTeacher();
 
   const assignment = useMemo(
@@ -205,6 +206,24 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
 
   const notFound = !assignmentsLoading && !assignment && sessionMissing;
 
+  // Surface a listener failure (permission/network) the same way as a failed
+  // initial fetch — either is a terminal error, not a transient loading state.
+  const errorMessage =
+    loadError ??
+    (listenerError
+      ? t('plcDashboard.assignmentSession.videoLoadFailed', {
+          defaultValue: 'Could not load this video activity session.',
+        })
+      : null);
+
+  // The assignment exists but its live session doc is confirmed missing (the
+  // `getDoc` resolved non-existent and there was no load error). Without this
+  // the component would fall through to a permanent spinner. The
+  // `fetchAttemptRef` stale-guard ensures `sessionMissing` only flips true
+  // after the fetch for the current row resolves.
+  const sessionUnavailable =
+    sessionMissing && !errorMessage && !notFound && !!assignment;
+
   if (notFound) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 px-6 text-slate-600">
@@ -224,11 +243,30 @@ export const PlcVideoSessionContent: React.FC<PlcVideoSessionContentProps> = ({
     );
   }
 
-  if (loadError) {
+  if (errorMessage) {
     return (
       <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 px-6 text-slate-600">
         <AlertTriangle className="w-8 h-8 text-amber-500" />
-        <p className="font-bold text-brand-blue-dark">{loadError}</p>
+        <p className="font-bold text-brand-blue-dark">{errorMessage}</p>
+      </div>
+    );
+  }
+
+  if (sessionUnavailable) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center text-center gap-3 px-6 text-slate-600">
+        <AlertTriangle className="w-8 h-8 text-amber-500" />
+        <p className="font-bold text-brand-blue-dark">
+          {t('plcDashboard.assignmentSession.videoSessionUnavailableTitle', {
+            defaultValue: 'Session not available',
+          })}
+        </p>
+        <p className="text-sm text-slate-500 max-w-md">
+          {t('plcDashboard.assignmentSession.videoSessionUnavailableBody', {
+            defaultValue:
+              'This assignment has no live session — it may not have been started yet.',
+          })}
+        </p>
       </div>
     );
   }

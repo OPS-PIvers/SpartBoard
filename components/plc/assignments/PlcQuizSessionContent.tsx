@@ -141,35 +141,71 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
 
   const handleEnd = useCallback(async () => {
     // "End" = make inactive (kills the student URL, preserves responses).
-    // Confirmation happens inside QuizLiveMonitor.
-    if (assignment) {
-      await deactivateAssignment(assignment.id);
-    } else {
-      await endQuizSession();
+    // Confirmation happens inside QuizLiveMonitor. QuizLiveMonitor only
+    // resets its busy flag (try/finally) and doesn't surface rejections, so
+    // catch here and keep the modal open if deactivation failed.
+    try {
+      if (assignment) {
+        await deactivateAssignment(assignment.id);
+      } else {
+        await endQuizSession();
+      }
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.assignmentSession.endFailed', {
+              defaultValue: 'Failed to end assignment.',
+            }),
+        'error'
+      );
+      return;
     }
     onClose();
-  }, [assignment, deactivateAssignment, endQuizSession, onClose]);
+  }, [assignment, deactivateAssignment, endQuizSession, addToast, t, onClose]);
 
   const handlePause = useCallback(async () => {
     if (!assignment) return;
-    await pauseAssignment(assignment.id);
-    addToast(
-      t('plcDashboard.assignmentSession.paused', {
-        defaultValue: 'Assignment paused.',
-      }),
-      'success'
-    );
+    try {
+      await pauseAssignment(assignment.id);
+      addToast(
+        t('plcDashboard.assignmentSession.paused', {
+          defaultValue: 'Assignment paused.',
+        }),
+        'success'
+      );
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.assignmentSession.pauseFailed', {
+              defaultValue: 'Failed to pause assignment.',
+            }),
+        'error'
+      );
+    }
   }, [assignment, pauseAssignment, addToast, t]);
 
   const handleResume = useCallback(async () => {
     if (!assignment) return;
-    await resumeAssignment(assignment.id);
-    addToast(
-      t('plcDashboard.assignmentSession.resumed', {
-        defaultValue: 'Assignment resumed.',
-      }),
-      'success'
-    );
+    try {
+      await resumeAssignment(assignment.id);
+      addToast(
+        t('plcDashboard.assignmentSession.resumed', {
+          defaultValue: 'Assignment resumed.',
+        }),
+        'success'
+      );
+    } catch (err) {
+      addToast(
+        err instanceof Error
+          ? err.message
+          : t('plcDashboard.assignmentSession.resumeFailed', {
+              defaultValue: 'Failed to resume assignment.',
+            }),
+        'error'
+      );
+    }
   }, [assignment, resumeAssignment, addToast, t]);
 
   const notFound = !assignmentsLoading && !assignment;
