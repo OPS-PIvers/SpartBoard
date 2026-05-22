@@ -535,157 +535,50 @@ export interface PlcTodo {
   createdAt: number;
 }
 
-/**
- * Bento-grid layout types for the PLC Overview tab. Per-user layout —
- * persisted at `users/{uid}/plc_layouts/{plcId}` so each member arranges
- * their own dashboard without affecting teammates.
- */
-export type PlcBentoTileSize = 'sm' | 'md-wide' | 'md-tall' | 'lg';
-
-/**
- * Stable identifier for each tile renderer. Doubles as the doc-key in the
- * persisted layout (one tile per kind). Adding a new tile = appending the
- * kind here + extending the rules' `kind in […]` allow-list.
- */
-export type PlcBentoTileKind =
-  | 'plcInfo'
-  | 'members'
-  | 'completedAssignments'
-  | 'notes'
-  | 'todos'
-  | 'sharedSheet'
-  | 'quickActions'
-  | 'quizLibrary'
-  | 'activeAssignments'
-  | 'videoActivities'
-  | 'sharedBoards';
-
-/**
- * Free-form grid coordinates for the v2 PLC overview grid (Phase 1 of the
- * dashboard overhaul). Columns are zero-based; widths/heights are spans in
- * cells. The grid is 12 columns wide on desktop and collapses to 1 column
- * on mobile (`< 768px`) where coords are ignored in favor of array order.
- *
- * Bounds enforced both client-side (`tileGridMath.clampCoords`) and in
- * Firestore rules: `x` in [0, GRID_COLS-1], `w` in [1, GRID_COLS-x],
- * `y` in [0, GRID_MAX_Y], `h` in [1, GRID_MAX_H].
- */
-export interface PlcGridCoords {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export interface PlcBentoTile {
-  kind: PlcBentoTileKind;
-  /**
-   * Legacy preset size (v1 grid). Kept for backward compatibility — old
-   * persisted layouts won't have `coords`, so the loader derives one from
-   * `size` on read. New writes always include `coords`.
-   */
-  size?: PlcBentoTileSize;
-  /**
-   * v2 grid coordinates (12-column free-form grid). Optional during
-   * migration; populated by `usePlcOverviewLayout`'s loader for legacy
-   * docs and stamped on every write going forward.
-   */
-  coords?: PlcGridCoords;
-  /** When true the tile sits in the "Hidden tiles" tray instead of the grid. */
-  hidden?: boolean;
-}
-
-export interface PlcOverviewLayout {
-  tiles: PlcBentoTile[];
+// --- PLC shared Google Docs ---
+export interface PlcDoc {
+  id: string;
+  /** Human label for the doc tab/list row. */
+  title: string;
+  /** Raw Google Docs/Drive URL as pasted by a member. Rendered via convertToEmbedUrl(). */
+  url: string;
+  createdBy: string;
+  createdByName: string;
+  createdAt: number;
   updatedAt: number;
 }
 
-export const PLC_BENTO_TILE_SIZES: readonly PlcBentoTileSize[] = [
-  'sm',
-  'md-wide',
-  'md-tall',
-  'lg',
-] as const;
+// --- Admin-curated resources pushed to PLCs ---
+export type PlcResourceKind =
+  | 'quiz'
+  | 'video-activity'
+  | 'assignment'
+  | 'doc'
+  | 'board';
 
-export const PLC_BENTO_TILE_KINDS: readonly PlcBentoTileKind[] = [
-  'plcInfo',
-  'members',
-  'completedAssignments',
-  'notes',
-  'todos',
-  'sharedSheet',
-  'quickActions',
-  'quizLibrary',
-  'activeAssignments',
-  'videoActivities',
-  'sharedBoards',
-] as const;
+export type PlcResourceScope = 'all' | 'selected';
 
-/**
- * Default tile order + layout for a brand-new PLC overview. Used when a
- * member opens the dashboard for the first time and no `plc_layouts` doc
- * exists yet.
- *
- * v2 grid (12-col) coordinates are the canonical layout; legacy v1 `size`
- * values are kept alongside so the v1 bento grid (still rendered when the
- * `gridV2` flag is off) can place tiles correctly without a migrator
- * round-trip on first paint.
- *
- * Layout intent (v2 grid, 12 columns wide):
- *   Row 0:  [plcInfo 6×2 ]            [quickActions 6×2 ]
- *   Row 2:  [members 3×2] [todos 3×4][notes 6×2 ]
- *   Row 4:  [members…  ] [todos…  ][completedAnalytics 6×4 ]
- *   Row 6:  [sharedSheet 3×2][quizLibrary 3×2][completedAnalytics… ]
- *   Row 8:  [activeAssignments 3×2][videoActivities 3×2][sharedBoards 6×2]
- */
-export const DEFAULT_PLC_OVERVIEW_LAYOUT: PlcOverviewLayout = {
-  tiles: [
-    {
-      kind: 'plcInfo',
-      size: 'md-wide',
-      coords: { x: 0, y: 0, w: 6, h: 2 },
-    },
-    {
-      kind: 'quickActions',
-      size: 'md-wide',
-      coords: { x: 6, y: 0, w: 6, h: 2 },
-    },
-    { kind: 'members', size: 'sm', coords: { x: 0, y: 2, w: 3, h: 4 } },
-    { kind: 'todos', size: 'md-tall', coords: { x: 3, y: 2, w: 3, h: 4 } },
-    { kind: 'notes', size: 'md-wide', coords: { x: 6, y: 2, w: 6, h: 2 } },
-    {
-      kind: 'completedAssignments',
-      size: 'lg',
-      coords: { x: 6, y: 4, w: 6, h: 4 },
-    },
-    {
-      kind: 'sharedSheet',
-      size: 'sm',
-      coords: { x: 0, y: 6, w: 3, h: 2 },
-    },
-    {
-      kind: 'quizLibrary',
-      size: 'sm',
-      coords: { x: 3, y: 6, w: 3, h: 2 },
-    },
-    {
-      kind: 'activeAssignments',
-      size: 'sm',
-      coords: { x: 0, y: 8, w: 3, h: 2 },
-    },
-    {
-      kind: 'videoActivities',
-      size: 'sm',
-      coords: { x: 3, y: 8, w: 3, h: 2 },
-    },
-    {
-      kind: 'sharedBoards',
-      size: 'sm',
-      coords: { x: 6, y: 8, w: 6, h: 2 },
-    },
-  ],
-  updatedAt: 0,
-};
+export interface PlcResource {
+  id: string;
+  kind: PlcResourceKind;
+  /** Display title shown in the admin list + the PLC inbox. */
+  title: string;
+  /** Optional admin note describing the resource / how to use it. */
+  description: string;
+  /**
+   * Pointer to the canonical source. For quiz/video-activity/assignment this is
+   * the `/synced_*` group id; for 'doc' this is the Google Docs URL; for 'board'
+   * the `/shared_boards` shareId. Importers resolve per-kind.
+   */
+  refId: string;
+  scope: PlcResourceScope;
+  /** Target PLC ids when scope==='selected'. Empty when scope==='all'. */
+  plcIds: string[];
+  createdByAdminUid: string;
+  createdByAdminEmail: string;
+  createdAt: number;
+  updatedAt: number;
+}
 
 /**
  * An outstanding invitation for a teacher to join a PLC. Top-level so the
@@ -2298,6 +2191,23 @@ export interface SeatingChartConfig {
   templateColumns?: number; // Number of columns for 'rows' template
 }
 
+/**
+ * A lesson/section within an imported notebook. SMART Notebook files group
+ * their pages into lessons (e.g. "9.1", "Review") in their imsmanifest.xml;
+ * the importer preserves that grouping (from the raw manifest, or from a
+ * converted .spartnb bundle's manifest.json) so the Viewer can offer lesson
+ * navigation. Optional — notebooks imported without section metadata simply
+ * have no sections.
+ */
+export interface NotebookSection {
+  /** Lesson/section title from the source notebook. */
+  title: string;
+  /** 0-based index of this section's first page within pageUrls. */
+  startIndex: number;
+  /** Number of pages in this section. */
+  pageCount: number;
+}
+
 export interface NotebookItem {
   id: string;
   title: string;
@@ -2305,6 +2215,8 @@ export interface NotebookItem {
   pagePaths: string[];
   assetUrls?: string[];
   createdAt: number;
+  /** Optional lesson grouping; present when the imported file carried it. */
+  sections?: NotebookSection[];
 }
 
 export interface SmartNotebookConfig {
@@ -3203,6 +3115,8 @@ export interface QuizAssignmentSettings {
    * the live monitor, which deletes the response doc.
    */
   attemptLimit?: number | null;
+  /** Optional due date (ms epoch). Absent / null = no due date. PLC-config + board both honor it. */
+  dueAt?: number | null;
 }
 
 /**
@@ -3621,6 +3535,8 @@ export interface VideoActivitySessionOptions extends BaseSessionOptions {
   pointPenaltyOnIncorrect?: number;
   /** Controls how much of the result the student sees post-completion. */
   scoreVisibility?: VideoActivityScoreVisibility;
+  /** Optional due date (ms epoch). Absent / null = no due date. */
+  dueAt?: number | null;
 }
 
 export interface GlobalVideoActivity extends VideoActivityMetadata {

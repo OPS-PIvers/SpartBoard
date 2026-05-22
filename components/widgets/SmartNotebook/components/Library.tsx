@@ -77,7 +77,7 @@ export const Library: React.FC<LibraryProps> = ({
             type="file"
             ref={fileInputRef}
             onChange={handleImport}
-            accept=".notebook"
+            accept=".notebook,.spartnb"
             className="hidden"
           />
         </div>
@@ -122,7 +122,7 @@ export const Library: React.FC<LibraryProps> = ({
                   className="font-bold uppercase tracking-tighter opacity-60"
                   style={{ fontSize: 'min(12px, 3cqmin)' }}
                 >
-                  Import a .notebook file to begin.
+                  Import a .notebook or .spartnb file to begin.
                 </p>
               </div>
             </div>

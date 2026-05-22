@@ -43,9 +43,12 @@ const NAV_PILLS: {
   { view: 'playlists', label: 'Playlists', Icon: ListMusic },
 ];
 
-// Below this bar width the three icon+text pills no longer fit comfortably, so
-// we drop the text labels and show icon-only pills.
-const LABEL_COLLAPSE_WIDTH = 260;
+// Below this *inner* bar width the three full-width pills can't fit their text
+// labels without truncating ("Playlists" ~110px/pill × 3 + gaps ≈ 340px), so we
+// drop to icon-only BEFORE the text clips. Set to the measured fit threshold so
+// narrow widgets show three clean icon circles rather than "So… / Pl… / Se…",
+// and labels return only when there's genuine room.
+const LABEL_COLLAPSE_WIDTH = 340;
 
 const PILL_BASE =
   'rounded-full transition-colors whitespace-nowrap flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-400/70';
@@ -83,15 +86,23 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
   }, []);
 
   const pillStyle: React.CSSProperties = {
-    gap: showLabels ? 'min(8px, 2cqmin)' : 0,
+    // Equal-width segments that stretch to fill the row (span the space).
+    flex: '1 1 0',
+    // Floor the segment width so the pills never shrink below a tappable
+    // target — in icon-only mode this keeps each grip comfortably clickable.
+    minWidth: showLabels ? 0 : 'clamp(34px, 11cqmin, 44px)',
+    // clamp() (not min()) so font/padding/height keep a usable floor as the
+    // widget shrinks instead of scaling all the way toward zero.
+    minHeight: 'clamp(30px, 9cqmin, 40px)',
+    gap: showLabels ? 'clamp(4px, 2cqmin, 8px)' : 0,
     padding: showLabels
-      ? 'min(8px, 2cqmin) min(16px, 4cqmin)'
-      : 'min(8px, 2cqmin)',
-    fontSize: 'min(16px, 5cqmin)',
+      ? 'clamp(6px, 2cqmin, 8px) clamp(8px, 3cqmin, 12px)'
+      : 'clamp(6px, 2cqmin, 8px)',
+    fontSize: 'clamp(12px, 5cqmin, 16px)',
   };
   const iconStyle: React.CSSProperties = {
-    width: 'min(18px, 5cqmin)',
-    height: 'min(18px, 5cqmin)',
+    width: 'clamp(15px, 5cqmin, 18px)',
+    height: 'clamp(15px, 5cqmin, 18px)',
     flexShrink: 0,
   };
 
@@ -101,7 +112,12 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
       className="flex items-center"
       style={{
         gap: 'min(8px, 2cqmin)',
-        padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+        // Full-bleed: the pills span the bar with only small breathing-room
+        // padding (no dead corner inset). DraggableWindow resize is
+        // corners-only and its resize-passthrough lets these button/role=tab
+        // pills win taps except inside the ~16px corner priority zones — so
+        // only the extreme outer corners of the end pills act as resize grips.
+        padding: 'min(8px, 2cqmin)',
       }}
     >
       {/* Pills — collapse (width/opacity → 0) when the search bar expands. */}
@@ -133,7 +149,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
               style={pillStyle}
             >
               <Icon style={iconStyle} aria-hidden="true" />
-              {showLabels && <span>{label}</span>}
+              {showLabels && <span className="truncate">{label}</span>}
             </button>
           );
         })}
@@ -149,7 +165,7 @@ export const PersonalSpotifyDefaultTabBar: React.FC<Props> = ({
           style={pillStyle}
         >
           <Search style={iconStyle} aria-hidden="true" />
-          {showLabels && <span>Search</span>}
+          {showLabels && <span className="truncate">Search</span>}
         </button>
       </div>
 

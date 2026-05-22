@@ -128,6 +128,20 @@ const SpotifyCallback = lazy(() =>
     default: module.SpotifyCallback,
   }))
 );
+const ConverterPage = lazy(() =>
+  import('./components/converter/ConverterPage').then((module) => ({
+    default: module.ConverterPage,
+  }))
+);
+// DEV-only: gate the dynamic import itself (not just the render) so Rollup
+// dead-code-eliminates the harness chunk from production builds.
+const NotebookEditorDevHarness = import.meta.env.DEV
+  ? lazy(() =>
+      import('./components/dev/NotebookEditorDevHarness').then((module) => ({
+        default: module.NotebookEditorDevHarness,
+      }))
+    )
+  : null;
 
 const FullPageLoader = () => (
   <div className="h-screen w-screen flex items-center justify-center bg-slate-50">
@@ -345,6 +359,32 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<FullPageLoader />}>
         <SpotifyCallback />
+      </Suspense>
+    );
+  }
+
+  // SMART Notebook -> .spartnb converter. Pure client-side tool; no auth, no
+  // Firestore, no providers. Teachers land here from the "file too large"
+  // prompt (or directly) to shrink big notebooks before importing.
+  if (pathname === '/convert' || pathname.startsWith('/convert/')) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ConverterPage />
+      </Suspense>
+    );
+  }
+
+  // DEV-ONLY: SVG page-editor harness for iterating on the SMART Notebook
+  // editor against real pages. The import + component are gated on
+  // import.meta.env.DEV, so the harness chunk is excluded from prod builds.
+  if (
+    import.meta.env.DEV &&
+    NotebookEditorDevHarness &&
+    pathname === '/notebook-editor-dev'
+  ) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <NotebookEditorDevHarness />
       </Suspense>
     );
   }

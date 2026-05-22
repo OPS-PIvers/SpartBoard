@@ -1,6 +1,122 @@
 {
   "entries": [
     {
+      "version": "2026.05.21",
+      "date": "2026-05-21",
+      "title": "SMART Notebook lessons and a PLC redesign",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "SMART Notebook lessons",
+          "items": [
+            {
+              "text": "Import your existing SMART Notebook lessons — pages keep their original order and embedded images render correctly."
+            },
+            {
+              "text": "Open any page to edit it: move, resize, duplicate, or retype objects, and add, delete, or reorder pages."
+            },
+            {
+              "text": "Write on slides live with pen, highlighter, and eraser tools."
+            },
+            {
+              "text": "Too big to import? A built-in converter shrinks large lessons right in your browser — no install needed."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "PLC collaborative space",
+          "items": [
+            {
+              "text": "A redesigned PLC space with side navigation and a clean Home dashboard."
+            },
+            {
+              "text": "Author quizzes and video activities and set up assignments without ever leaving the PLC."
+            },
+            {
+              "text": "A filterable view of shared student results, embedded Google Docs for shared notes, and one-click resource import into your PLC library."
+            },
+            {
+              "text": "Admins can push curated resources and assignments to specific PLCs or to all of them at once."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "Your Style, Preferences, and Language options are now grouped into a single Settings modal instead of separate sidebar panels."
+            },
+            {
+              "text": "Music widget playback controls — play, skip, repeat, and shuffle — now look and work the same across every view, and the tab pills fill the bar and shrink to icons on narrow widgets."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "PLC quiz and video-activity assignments sync reliably again after silently failing for some teachers."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "SMART Notebook import — bring your existing SMART Notebook lessons into SpartBoard. Pages now arrive in their true display order (instead of being scrambled), and embedded images that previously showed up blank render faithfully."
+        },
+        {
+          "type": "feature",
+          "text": "Edit imported pages — open any page in the editor to select an object and move it, resize it from the corners, duplicate it, or double-click to retype its text. You can also add a blank page, delete a page, or reorder pages within a lesson, and every change is saved to the cloud."
+        },
+        {
+          "type": "feature",
+          "text": "Write on slides — a floating pen, highlighter, and eraser palette lets you annotate any imported page live, the way you would on a SMART board. Your ink becomes a normal object you can move, resize, or delete, and it sticks around when you save."
+        },
+        {
+          "type": "feature",
+          "text": "Built-in lesson converter — if a SMART Notebook file is too large to import directly, a styled prompt now opens a converter that shrinks it entirely in your browser (no download or install required) and hands back an optimized file ready to import. A real 14 MB, 230-page deck compresses to about 6 MB with no visible quality loss."
+        },
+        {
+          "type": "feature",
+          "text": "PLC collaborative space redesign — the PLC dashboard moves from a row of tabs to a clear side-rail navigation with a redesigned Home page. Members and quick-create actions now live in the page header, and the dashboard fills the full width of the screen."
+        },
+        {
+          "type": "feature",
+          "text": "Author and assign inside the PLC — create quizzes and video activities and fully configure their assignments right within the PLC, without first building them on a board."
+        },
+        {
+          "type": "feature",
+          "text": "Shared data, notes, and resources — browse shared student results in a filterable view (by type, assignment, teacher, class, or date), keep shared notes in an embedded Google Doc, and pull a resource into your PLC library or jump to its assignment with a single click."
+        },
+        {
+          "type": "feature",
+          "text": "Admin-curated PLC resources — admins can push selected resources and assignments to specific PLCs or to every PLC at once, making it easy to roll shared materials out across teams."
+        },
+        {
+          "type": "improvement",
+          "text": "Unified Settings modal — your Style, Preferences, and Language & Region options now live together in one focused Settings modal with its own Appearance, Dock, Behavior, and Language sections, instead of being split across separate sidebar panels. Dock position and dock styling sit side by side, and clear \"This board\" / \"All boards\" labels show whether a setting applies everywhere or just to the current board."
+        },
+        {
+          "type": "improvement",
+          "text": "Music widget controls — play, pause, skip, repeat, and shuffle now behave consistently across the compact bar, minimal view, and full player. The tab pills span the full width of the bar and collapse to clean icons on narrow widgets instead of truncating their labels."
+        },
+        {
+          "type": "improvement",
+          "text": "Admin Settings now uses the same side-rail navigation for moving between sections."
+        },
+        {
+          "type": "fix",
+          "text": "PLC assignment sync — quizzes and video activities created with PLC sync turned on now record correctly again. A recent change to how those assignments are stored had been silently blocking the sync for affected teachers."
+        },
+        {
+          "type": "fix",
+          "text": "Music widget repeat and shuffle now recover on their own if Spotify briefly loses track of the active device, instead of appearing stuck in the wrong state."
+        }
+      ]
+    },
+    {
       "version": "2026.05.19.3",
       "date": "2026-05-19",
       "title": "Boards card actions and follow-up fixes",

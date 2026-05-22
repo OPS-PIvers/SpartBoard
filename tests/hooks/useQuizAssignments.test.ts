@@ -1360,9 +1360,9 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
 //   - The write fires only when `settings.plc` is set (no PLC linkage =
 //     no index churn for solo assignments).
 //   - The payload carries the assignment id (matches the source doc),
-//     the canonical PLC sheet URL (so security rules match against the
-//     parent PLC's sharedSheetUrl), and a snapshot of the owner's
-//     identity from `auth.currentUser`.
+//     the per-assignment Google Sheets URL (which the security rule
+//     validates against the trusted docs.google.com/spreadsheets prefix),
+//     and a snapshot of the owner's identity from `auth.currentUser`.
 //
 // We mock `writePlcAssignmentIndexEntry` rather than hitting Firestore
 // so the assertions describe the integration boundary, not the helper's
@@ -1443,7 +1443,7 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
     //   - `ownerUid` matches the teacher running the assignment.
     //   - `ownerEmail` is lowercased so it matches across surfaces.
     //   - `sheetUrl` mirrors `settings.plc.sheetUrl` so the firestore
-    //     rule's `sheetUrl == parentPlc.sharedSheetUrl` check holds.
+    //     rule's docs.google.com/spreadsheets domain check holds.
     //   - `createdAt` is a number (the same `now` the assignment doc
     //     uses).
     expect(entry).toMatchObject({

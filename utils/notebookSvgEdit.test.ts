@@ -1,0 +1,161 @@
+import { describe, it, expect } from 'vitest';
+import {
+  sanitizePageSvg,
+  prepareEditableSvg,
+  ensureObjectIds,
+  objectIdForTarget,
+  findForeground,
+  findObjectById,
+  exportEditedSvg,
+  readTextLines,
+  writeTextLines,
+} from './notebookSvgEdit';
+
+const parseSvg = (markup: string): SVGSVGElement => {
+  const doc = new DOMParser().parseFromString(markup, 'image/svg+xml');
+  const svg = doc.querySelector('svg');
+  if (!svg) throw new Error('no svg');
+  return svg as unknown as SVGSVGElement;
+};
+
+const PAGE = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+  <rect x="0" y="0" width="100%" height="100%" style="fill:#fff"/>
+  <g class="foreground">
+    <text transform="translate(10,20)"><tspan>Hello</tspan></text>
+    <image href="data:image/webp;base64,ZHVtbXk=" x="0" y="0" width="50" height="50"/>
+    <path d="M0 0 L10 10"/>
+  </g>
+</svg>`;
+
+describe('sanitizePageSvg', () => {
+  it('strips scripts and event handlers', () => {
+    const dirty = `<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">
+      <script>alert(2)</script>
+      <rect width="10" height="10" onclick="evil()"/>
+    </svg>`;
+    const clean = sanitizePageSvg(dirty);
+    expect(clean).not.toContain('<script');
+    expect(clean).not.toContain('onload');
+    expect(clean).not.toContain('onclick');
+  });
+
+  it('preserves inlined data: image URIs', () => {
+    const clean = sanitizePageSvg(PAGE);
+    expect(clean).toContain('data:image/webp;base64,ZHVtbXk=');
+  });
+});
+
+describe('prepareEditableSvg', () => {
+  it('adds a viewBox from width/height and makes it responsive', () => {
+    const out = prepareEditableSvg(PAGE);
+    expect(out).toContain('viewBox="0 0 800 600"');
+    expect(out).toContain('width="100%"');
+    expect(out).toContain('preserveAspectRatio');
+  });
+});
+
+describe('ensureObjectIds', () => {
+  it('tags each foreground object with a stable id and classifies it', () => {
+    const svg = parseSvg(prepareEditableSvg(PAGE));
+    const objects = ensureObjectIds(svg);
+    expect(objects.map((o) => o.kind)).toEqual(['text', 'image', 'ink']);
+    // Idempotent: second call yields the same ids.
+    const again = ensureObjectIds(svg);
+    expect(again.map((o) => o.id)).toEqual(objects.map((o) => o.id));
+  });
+
+  it('returns empty when there is no foreground group', () => {
+    const svg = parseSvg(
+      '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>'
+    );
+    expect(ensureObjectIds(svg)).toEqual([]);
+    expect(findForeground(svg)).toBeNull();
+  });
+});
+
+describe('objectIdForTarget', () => {
+  it('maps a nested click target up to its foreground object', () => {
+    const svg = parseSvg(prepareEditableSvg(PAGE));
+    ensureObjectIds(svg);
+    const tspan = svg.querySelector('tspan');
+    expect(tspan).not.toBeNull();
+    const id = objectIdForTarget(svg, tspan as unknown as Element);
+    expect(id).toBe('obj-0'); // the <text> object
+  });
+
+  it('returns null for a click on the background rect', () => {
+    const svg = parseSvg(prepareEditableSvg(PAGE));
+    ensureObjectIds(svg);
+    const rect = svg.querySelector('rect');
+    expect(objectIdForTarget(svg, rect as unknown as Element)).toBeNull();
+  });
+});
+
+describe('text editing', () => {
+  const MULTILINE = `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600">
+    <g class="foreground">
+      <text transform="translate(10,20)">
+        <tspan><tspan x="0" y="10">first</tspan></tspan>
+        <tspan><tspan x="0" y="30">second</tspan></tspan>
+      </text>
+    </g>
+  </svg>`;
+
+  it('reads each leaf run as a line', () => {
+    const svg = parseSvg(MULTILINE);
+    const text = svg.querySelector('text') as unknown as Element;
+    expect(readTextLines(text)).toBe('first\nsecond');
+  });
+
+  it('writes lines back into the leaf runs, preserving structure', () => {
+    const svg = parseSvg(MULTILINE);
+    const text = svg.querySelector('text') as unknown as Element;
+    writeTextLines(text, 'ONE\nTWO');
+    const leaves = text.querySelectorAll('tspan[x]');
+    expect(leaves[0].textContent).toBe('ONE');
+    expect(leaves[1].textContent).toBe('TWO');
+    // The positioned tspans (x/y) are retained.
+    expect(leaves[0].getAttribute('y')).toBe('10');
+    expect(leaves[1].getAttribute('y')).toBe('30');
+  });
+
+  it('folds extra lines into the last run and clears missing ones', () => {
+    const svg = parseSvg(MULTILINE);
+    const text = svg.querySelector('text') as unknown as Element;
+    writeTextLines(text, 'only');
+    const leaves = text.querySelectorAll('tspan[x]');
+    expect(leaves[0].textContent).toBe('only');
+    expect(leaves[1].textContent).toBe('');
+  });
+});
+
+describe('exportEditedSvg', () => {
+  it('strips editor bookkeeping, restores size, preserves moves', () => {
+    const svg = parseSvg(prepareEditableSvg(PAGE));
+    const objects = ensureObjectIds(svg);
+    // Simulate a move applied to the first object.
+    const obj = findObjectById(svg, objects[0].id);
+    expect(obj).not.toBeNull();
+    obj?.setAttribute('transform', 'translate(15,25) translate(10,20)');
+    obj?.setAttribute('data-edit-dx', '15');
+    // Simulate the editor's highlight overlay.
+    const overlay = document.createElementNS(
+      'http://www.w3.org/2000/svg',
+      'rect'
+    );
+    overlay.setAttribute('data-edit-overlay', '1');
+    svg.appendChild(overlay);
+
+    const out = exportEditedSvg(svg);
+
+    expect(out).not.toContain('data-edit-id');
+    expect(out).not.toContain('data-edit-overlay');
+    expect(out).not.toContain('data-edit-dx');
+    // viewBox 0 0 800 600 -> explicit width/height for <img> rendering.
+    expect(out).toContain('width="800"');
+    expect(out).toContain('height="600"');
+    // The move survives.
+    expect(out).toContain('translate(15,25) translate(10,20)');
+  });
+});

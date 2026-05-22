@@ -204,14 +204,14 @@
       "invites": "Invites",
       "invitesTitle": "Pending PLC Invitations",
       "noInvitesTitle": "No pending invitations",
-      "noInvitesSubtitle": "You\u2019ll see invitations here when a colleague invites you to their PLC.",
+      "noInvitesSubtitle": "You’ll see invitations here when a colleague invites you to their PLC.",
       "inviteFrom": "Invited by {{name}}",
       "accept": "Accept",
       "decline": "Decline",
       "emptyTitle": "No PLCs yet",
       "emptySubtitle": "Create a PLC and invite your colleagues by email.",
-      "emptyHasInvites": "You have pending invitations \u2014 accept one to get started.",
-      "confirmLeave": "Leave \"{{name}}\"? You\u2019ll lose access to shared assignment results.",
+      "emptyHasInvites": "You have pending invitations — accept one to get started.",
+      "confirmLeave": "Leave \"{{name}}\"? You’ll lose access to shared assignment results.",
       "confirmLeaveTitle": "Leave PLC",
       "confirmDelete": "Delete \"{{name}}\"? This will remove the PLC for everyone.",
       "confirmDeleteTitle": "Delete PLC",
@@ -222,8 +222,7 @@
       "removeFailed": "Failed to remove member",
       "revokeFailed": "Failed to revoke invitation",
       "acceptFailed": "Failed to accept invitation",
-      "declineFailed": "Failed to decline invitation",
-      "openDashboard": "Open {{name}} dashboard"
+      "declineFailed": "Failed to decline invitation"
     },
     "widgets": {
       "gradeFilter": "Grade Filter",
@@ -270,7 +269,12 @@
       "notes": "Notes",
       "todos": "To-Do List",
       "sharedBoards": "Shared Boards",
-      "settings": "Settings"
+      "settings": "Settings",
+      "home": "Home",
+      "members": "Members",
+      "sharedData": "Shared Data",
+      "docs": "Docs",
+      "resources": "Resources"
     },
     "assignmentsSubTabs": {
       "label": "Assignment views",
@@ -863,13 +867,13 @@
         "oneFingerLongPress": "1-finger long press",
         "oneFingerDrag": "1-finger drag on background",
         "oneFingerSwipeEdge": "1-finger swipe from left edge",
-        "twoFingerSwipeLR": "2-finger swipe \u2190/\u2192",
-        "twoFingerSwipeDown": "2-finger swipe \u2193",
-        "twoFingerSwipeUp": "2-finger swipe \u2191",
+        "twoFingerSwipeLR": "2-finger swipe ←/→",
+        "twoFingerSwipeDown": "2-finger swipe ↓",
+        "twoFingerSwipeUp": "2-finger swipe ↑",
         "twoFingerLongPress": "2-finger long press",
-        "dragDownToDock": "Drag down to dock \u2193",
-        "widgetTwoFingerSwipeDown": "2-finger swipe \u2193",
-        "widgetTwoFingerSwipeUp": "2-finger swipe \u2191"
+        "dragDownToDock": "Drag down to dock ↓",
+        "widgetTwoFingerSwipeDown": "2-finger swipe ↓",
+        "widgetTwoFingerSwipeUp": "2-finger swipe ↑"
       }
     },
     "dashboard": {

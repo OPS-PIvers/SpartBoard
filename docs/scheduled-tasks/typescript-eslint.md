@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-20_
+_Last audited: 2026-05-21_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-05-21. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: feat(settings) Settings modal consolidation (new components/settingsModal/ directory with SettingsModal.tsx + 4 section components), refactor(admin) vertical dark rail nav for AdminSettings, fix/feat(spotify) 18 commits adding 9 PersonalSpotify sub-components + 3 hooks (useSpotifyWebPlayback, useSpotifyLibrary, useSpotifySearch) + expanded utils/spotifyAuth.ts. All new code type-safe and lint-clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-05-20. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after: fix(deps) lodash-es override (16d40899), docs(changelog) 2026-05-19 release, plus upstream dev-paul Spotify/boards fixes (fix(quiz,va) tab-switch detection, fix(boards-modal) duplicate prevention, fix(spotify) multiple fixes, fix(text-widget) block normalization). All new code type-safe and lint-clean._
 

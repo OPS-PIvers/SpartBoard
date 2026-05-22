@@ -17,7 +17,7 @@ interface PlcAssignmentIndexRowProps {
 /**
  * Defense-in-depth: only render the entry's `sheetUrl` as a link if it
  * parses as an `http:` or `https:` URL. The Firestore rule already pins
- * `sheetUrl` to the PLC's canonical `sharedSheetUrl`, but a stale entry
+ * `sheetUrl` to the trusted Google Sheets domain, but a stale entry
  * (or future schema change) shouldn't be able to smuggle a `javascript:`
  * URL through the dashboard.
  */

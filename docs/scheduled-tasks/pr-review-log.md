@@ -615,3 +615,22 @@ _Automated nightly review by claude-opus-4-6_
     - #1513 / #1517 — overlapping PLC tests; recommend #1513
     - #1504 / #1516 — overlapping `isCustomBackground` test additions on `dev-paul`; coordinate to avoid test-file conflicts
   - Branch-safety: PR #1507 head `scheduled-tasks` is the current branch (review-only). All other open PRs have non-`main` / non-`dev-*` head branches; no pushes were required this run.
+
+## 2026-05-21
+
+- PRs reviewed: 3
+  - #1677 — refactor(admin): remove dead magic/record/remote config panels (head `scheduled-tasks`, base `dev-paul`)
+  - #1676 — PLC collaborative space redesign (head `dev-paul-plc-redesign`, base `dev-paul`)
+  - #1366 — docs: line-endings normalization plan (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 0 actionable
+  - #1677: no review comments.
+  - #1676: all 4 inline review threads already `is_resolved:true` (gemini security comment on `plc_resources` rules + 3 obsolete normalization suggestions, all addressed at HEAD).
+  - #1366: 6 threads `is_resolved:false` but `is_outdated:true`, each already carrying an author "Addressed" reply from a prior cycle. No new fix or reply needed (re-replying would be noise).
+- Fixes pushed: 0
+- Reviews posted: 3
+  - PR #1677: Ready — clean dead-code removal; reasoning sound (mathTools/recessGear correctly left as global-config pattern, magic/record/remote keys confirmed unreferenced). Flagged one manual check: verify nothing else imports the deleted `SchemaDrivenConfigurationPanel`; `RemoteGlobalConfig` left as documented unused export.
+  - PR #1676: Ready with minor notes — large (~73 files) but coherent old-bento→rail-nav swap with excellent test coverage incl. firestore rules tests. Firestore rules (`plcs/docs`, `plc_resources`) are schema-locked with `keys().hasOnly`, enum + type validation, and admin/member auth gates; prior security comment resolved. Notes: confirm rules tests run green in CI (need Java 21, not run locally), and this is Wave 1 of a multi-wave plan.
+  - PR #1366: Ready — doc-only; all prior reviewer feedback addressed, open threads outdated. Execution must wait for a no-open-PR window.
+- Notes:
+  - Branch-safety: #1676 head `dev-paul-plc-redesign` matches `dev-*` → treated read-only (review comment only, no push). #1677 head `scheduled-tasks` and #1366 head `docs/*` are pushable, but Phase 1 produced no fixes, so no pushes to any PR branch this run.
+  - This run's log + summary committed on branch `claude/clever-johnson-GghmZ` (the harness-designated development branch) rather than pushed directly to `scheduled-tasks`, since `scheduled-tasks` is the head of open PR #1677 and pushing to it would alter that PR without authorization.

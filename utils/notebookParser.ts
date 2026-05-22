@@ -1,10 +1,214 @@
 import JSZip from 'jszip';
+import { NotebookSection } from '@/types';
+import {
+  PAGE_SVG_RE,
+  extensionOf,
+  imageSubtype,
+  imageHrefRegex,
+  ensureSvgNamespaces,
+  buildImageLookup,
+  resolveImageKey,
+  resolvePageOrder,
+} from './smartNotebook';
 
 export interface ParsedNotebook {
   title: string;
   pages: { blob: Blob; extension: string }[];
   assets: { blob: Blob; extension: string }[];
+  sections?: NotebookSection[];
 }
+
+/**
+ * Raw `.notebook` files above this size are not inlined in the browser — the
+ * memory cost of base64-inlining their (un-optimized) images is too high.
+ * Instead the user is routed to the in-app converter (/convert), which
+ * downscales images and produces a small, pre-optimized `.spartnb` bundle.
+ * Already-converted bundles bypass this cap.
+ */
+const RAW_NOTEBOOK_INLINE_CAP_BYTES = 20 * 1024 * 1024;
+
+/** Thrown when a raw `.notebook` is too large to process in the browser. */
+export class NotebookTooLargeError extends Error {
+  constructor(public readonly sizeMb: number) {
+    super(
+      `This SMART Notebook is ${sizeMb}MB — too large to import directly. ` +
+        `Use the SpartBoard converter to shrink it, then import the .spartnb file.`
+    );
+    this.name = 'NotebookTooLargeError';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// SpartBoard bundle (.spartnb) — produced by the converter (in-app or CLI).
+// Pages are already self-contained, optimized SVGs; order + sections come from
+// manifest.json. This path is cheap: just unpack in order.
+// ---------------------------------------------------------------------------
+
+interface BundleManifest {
+  version?: number;
+  title?: string;
+  pages?: { file: string; width?: number; height?: number }[];
+  sections?: NotebookSection[];
+}
+
+const parseBundle = async (
+  zip: JSZip,
+  manifestEntry: JSZip.JSZipObject,
+  fallbackTitle: string
+): Promise<ParsedNotebook> => {
+  const manifest = JSON.parse(
+    await manifestEntry.async('string')
+  ) as BundleManifest;
+
+  const pageList = Array.isArray(manifest.pages) ? manifest.pages : [];
+  const pages = await Promise.all(
+    pageList.map(async (p) => {
+      const entry = zip.file(p.file);
+      if (!entry) throw new Error(`Bundle missing page file: ${p.file}`);
+      const blob = await entry.async('blob');
+      return { blob, extension: extensionOf(p.file) };
+    })
+  );
+
+  if (pages.length === 0) {
+    throw new Error('Bundle contains no pages.');
+  }
+
+  const sections =
+    Array.isArray(manifest.sections) && manifest.sections.length > 0
+      ? manifest.sections
+      : undefined;
+
+  return {
+    title: manifest.title?.trim() ? manifest.title : fallbackTitle,
+    pages,
+    assets: [], // images are inlined into the page SVGs
+    sections,
+  };
+};
+
+// ---------------------------------------------------------------------------
+// Raw .notebook import: inline relative images/* as data URIs (no downscaling;
+// guarded by the size cap above). Bigger files go through the converter.
+// ---------------------------------------------------------------------------
+
+/** Replace every relative images/* href in one page SVG with a data URI. */
+const inlinePageImages = async (
+  svgText: string,
+  zip: JSZip,
+  lookup: Map<string, string>,
+  cache: Map<string, string>
+): Promise<string> => {
+  // Collect distinct hrefs first, resolve to data URIs, then sync-replace.
+  const hrefs = new Set<string>();
+  for (const match of svgText.matchAll(imageHrefRegex())) {
+    hrefs.add(match[2]);
+  }
+
+  const uriByHref = new Map<string, string>();
+  await Promise.all(
+    Array.from(hrefs).map(async (href) => {
+      const key = resolveImageKey(href, lookup);
+      if (!key) return; // unresolvable; leave the original href in place
+      let uri = cache.get(key);
+      if (!uri) {
+        const entryName = lookup.get(key);
+        const entry = entryName ? zip.file(entryName) : null;
+        if (!entry) return;
+        const b64 = await entry.async('base64');
+        uri = `data:image/${imageSubtype(key)};base64,${b64}`;
+        cache.set(key, uri);
+      }
+      uriByHref.set(href, uri);
+    })
+  );
+
+  return svgText.replace(
+    imageHrefRegex(),
+    (full, attr: string, href: string) => {
+      const uri = uriByHref.get(href);
+      return uri ? `${attr}="${uri}"` : full;
+    }
+  );
+};
+
+const parseRawNotebook = async (
+  zip: JSZip,
+  fileName: string
+): Promise<ParsedNotebook> => {
+  // Collect page SVGs and non-page image assets.
+  const pageEntries: { name: string; obj: JSZip.JSZipObject }[] = [];
+  const assetEntries: { name: string; obj: JSZip.JSZipObject }[] = [];
+
+  zip.forEach((relativePath, entry) => {
+    if (entry.dir) return;
+    if (PAGE_SVG_RE.test(relativePath)) {
+      pageEntries.push({ name: relativePath, obj: entry });
+    } else if (
+      !relativePath.endsWith('.xml') &&
+      !/thumbnail/i.test(relativePath) &&
+      /\.(png|jpg|jpeg|svg)$/i.test(relativePath)
+    ) {
+      assetEntries.push({ name: relativePath, obj: entry });
+    }
+  });
+
+  // Fallback for notebooks that store rendered page rasters instead of SVGs.
+  if (pageEntries.length === 0) {
+    const preview = zip.file('preview.png') ?? zip.file('thumbnail.png');
+    if (preview) {
+      return {
+        title: fileName,
+        pages: [{ blob: await preview.async('blob'), extension: 'png' }],
+        assets: [],
+      };
+    }
+    throw new Error('No valid pages found in Notebook file.');
+  }
+
+  const availablePages = pageEntries.map((p) => p.name);
+  const plan = await resolvePageOrder(zip, availablePages);
+  const entryByName = new Map(pageEntries.map((p) => [p.name, p.obj]));
+
+  // Inline images into each page (shared cache dedupes repeated images).
+  const imageLookup = buildImageLookup(zip);
+  const imageCache = new Map<string, string>();
+  const pages = await Promise.all(
+    plan.order.map(async (name) => {
+      const obj = entryByName.get(name);
+      if (!obj) throw new Error(`Missing page entry: ${name}`);
+      const svgText = await obj.async('string');
+      const inlined = await inlinePageImages(
+        svgText,
+        zip,
+        imageLookup,
+        imageCache
+      );
+      return {
+        blob: new Blob([ensureSvgNamespaces(inlined)], {
+          type: 'image/svg+xml',
+        }),
+        extension: 'svg',
+      };
+    })
+  );
+
+  // Surface the raw images as draggable assets (the Viewer "drag to board"
+  // feature). Pages already render fully via inlined data URIs.
+  const assets = await Promise.all(
+    assetEntries.map(async (entry) => ({
+      blob: await entry.obj.async('blob'),
+      extension: extensionOf(entry.name),
+    }))
+  );
+
+  return {
+    title: fileName,
+    pages,
+    assets,
+    sections: plan.sections.length > 0 ? plan.sections : undefined,
+  };
+};
 
 export const parseNotebookFile = async (
   file: File
@@ -12,89 +216,15 @@ export const parseNotebookFile = async (
   const zip = new JSZip();
   await zip.loadAsync(file);
 
-  // Collect potential page files
-  const pageFiles: { name: string; obj: JSZip.JSZipObject }[] = [];
-  const assetFiles: { name: string; obj: JSZip.JSZipObject }[] = [];
-
-  zip.forEach((relativePath: string, zipEntry: JSZip.JSZipObject) => {
-    if (!zipEntry.dir) {
-      // Look for files like 'page0.png', 'images/page001.png', 'page0.svg'
-      if (
-        relativePath.match(/page\d+\.(png|svg)$/i) ||
-        relativePath.match(/preview\d*\.(png)$/i)
-      ) {
-        pageFiles.push({ name: relativePath, obj: zipEntry });
-      } else if (
-        !relativePath.endsWith('.xml') &&
-        !relativePath.match(/thumbnail/i) &&
-        relativePath.match(/\.(png|jpg|jpeg|svg)$/i)
-      ) {
-        assetFiles.push({ name: relativePath, obj: zipEntry });
-      }
-    }
-  });
-
-  // Filter and prioritize
-  const pngs = pageFiles.filter((f) => f.name.toLowerCase().endsWith('.png'));
-  const svgs = pageFiles.filter((f) => f.name.toLowerCase().endsWith('.svg'));
-
-  // Prefer PNGs if available as they are pre-rendered
-  // If PNGs are found, filter out thumbnails (often named differently or small)
-  // But generally 'page*.png' is good.
-  const targetFiles = pngs.length > 0 ? pngs : svgs;
-
-  // Filter out likely thumbnails if we have many files (e.g. thumb_page1.png vs page1.png)
-  // For now, simple sort.
-
-  // Sort numerically based on the number in the filename
-  targetFiles.sort((a, b) => {
-    const numA = parseInt(a.name.match(/(\d+)/)?.[0] ?? '0');
-    const numB = parseInt(b.name.match(/(\d+)/)?.[0] ?? '0');
-    return numA - numB;
-  });
-
-  // Deduplicate: if multiple files map to same page number (unlikely with this logic unless folder structure duplicates), keep one.
-  // Actually, usually it's just one set.
-
-  const assetData = await Promise.all(
-    assetFiles.map(async (entry) => {
-      const blob = await entry.obj.async('blob');
-      const lower = entry.name.toLowerCase();
-      let extension = 'png';
-      if (lower.endsWith('.svg')) extension = 'svg';
-      else if (lower.endsWith('.jpg') || lower.endsWith('.jpeg'))
-        extension = 'jpg';
-      return { blob, extension };
-    })
-  );
-
-  if (targetFiles.length === 0) {
-    // Fallback: Check for generic 'preview.png'
-    const preview = zip.file('preview.png') ?? zip.file('thumbnail.png');
-    if (preview) {
-      const blob = await preview.async('blob');
-      return {
-        title: file.name,
-        pages: [{ blob, extension: 'png' }],
-        assets: assetData,
-      };
-    }
-    throw new Error('No valid pages found in Notebook file.');
+  // 1. Pre-converted SpartBoard bundle (.spartnb): cheap, optimized fast-path.
+  const manifestEntry = zip.file('manifest.json');
+  if (manifestEntry) {
+    return parseBundle(zip, manifestEntry, file.name);
   }
 
-  const pageData = await Promise.all(
-    targetFiles.map(async (entry) => {
-      const blob = await entry.obj.async('blob');
-      const extension = entry.name.toLowerCase().endsWith('.svg')
-        ? 'svg'
-        : 'png';
-      return { blob, extension };
-    })
-  );
-
-  return {
-    title: file.name,
-    pages: pageData,
-    assets: assetData,
-  };
+  // 2. Raw SMART .notebook. Guard against inlining huge files in the browser.
+  if (file.size > RAW_NOTEBOOK_INLINE_CAP_BYTES) {
+    throw new NotebookTooLargeError(Math.round(file.size / (1024 * 1024)));
+  }
+  return parseRawNotebook(zip, file.name);
 };

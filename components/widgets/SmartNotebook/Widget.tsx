@@ -1,6 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, SmartNotebookConfig, NotebookItem } from '@/types';
+import {
+  WidgetData,
+  SmartNotebookConfig,
+  NotebookItem,
+  NotebookSection,
+} from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useStorage } from '@/hooks/useStorage';
@@ -9,15 +14,29 @@ import {
   onSnapshot,
   doc,
   setDoc,
+  updateDoc,
   deleteDoc,
   query,
   orderBy,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
-import { parseNotebookFile } from '@/utils/notebookParser';
+import {
+  parseNotebookFile,
+  NotebookTooLargeError,
+} from '@/utils/notebookParser';
+import {
+  insertBlankPage,
+  deletePage,
+  movePage,
+  canMovePage,
+  clampPageIndex,
+  blankPageSvg,
+  PageListState,
+} from '@/utils/notebookPages';
 
 import { Library } from './components/Library';
 import { Viewer } from './components/Viewer';
+import { PageEditorOverlay } from './components/PageEditorOverlay';
 
 export const SmartNotebookWidget: React.FC<{
   widget: WidgetData;
@@ -34,6 +53,9 @@ export const SmartNotebookWidget: React.FC<{
   const [currentPage, setCurrentPage] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [showAssets, setShowAssets] = useState(false);
+  const [editMode, setEditMode] = useState(false);
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [isPageOp, setIsPageOp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch notebooks from Firestore.
@@ -58,6 +80,7 @@ export const SmartNotebookWidget: React.FC<{
           pagePaths: (data.pagePaths as string[]) ?? [],
           assetUrls: (data.assetUrls as string[]) ?? [],
           createdAt: (data.createdAt as number) ?? 0,
+          sections: data.sections as NotebookSection[] | undefined,
         } as NotebookItem;
       });
       setNotebooks(items);
@@ -102,8 +125,9 @@ export const SmartNotebookWidget: React.FC<{
     }
   } else if (pageCount !== prevPageCount) {
     setPrevPageCount(pageCount);
-    if (currentPage >= pageCount && pageCount > 0) {
-      setCurrentPage(pageCount - 1);
+    const clamped = clampPageIndex(currentPage, pageCount);
+    if (clamped !== currentPage) {
+      setCurrentPage(clamped);
     }
   }
 
@@ -125,8 +149,11 @@ export const SmartNotebookWidget: React.FC<{
     }
 
     setIsImporting(true);
+    // Track uploaded storage paths so we can clean up if a later step (e.g. the
+    // Firestore write) fails, instead of leaking orphaned blobs (quota cost).
+    let uploadedStoragePaths: string[] = [];
     try {
-      const { title, pages, assets } = await parseNotebookFile(file);
+      const { title, pages, assets, sections } = await parseNotebookFile(file);
       const notebookId = crypto.randomUUID();
 
       // Helper to upload a set of blobs to a specific path structure
@@ -158,6 +185,10 @@ export const SmartNotebookWidget: React.FC<{
       const uploadedUrls = uploadedPages.map((p) => p.url);
       const uploadedPaths = uploadedPages.map((p) => p.path);
       const uploadedAssetUrls = uploadedAssets.map((a) => a.url);
+      uploadedStoragePaths = [
+        ...uploadedPaths,
+        ...uploadedAssets.map((a) => a.path),
+      ];
 
       const notebook: NotebookItem = {
         id: notebookId,
@@ -166,6 +197,8 @@ export const SmartNotebookWidget: React.FC<{
         pagePaths: uploadedPaths,
         assetUrls: uploadedAssetUrls,
         createdAt: Date.now(),
+        // Only include `sections` when present — Firestore rejects `undefined`.
+        ...(sections && sections.length > 0 ? { sections } : {}),
       };
 
       await setDoc(
@@ -180,7 +213,32 @@ export const SmartNotebookWidget: React.FC<{
       });
     } catch (err) {
       console.error(err);
-      addToast('Failed to import notebook', 'error');
+      if (err instanceof NotebookTooLargeError) {
+        const openConverter = await showConfirm(
+          `This notebook is ${err.sizeMb}MB — too large to import directly. ` +
+            `Open the SpartBoard Converter to shrink it (it runs right in your ` +
+            `browser, nothing is uploaded), then import the smaller .spartnb file.`,
+          {
+            title: 'This file is too large',
+            variant: 'warning',
+            confirmLabel: 'Open Converter',
+            cancelLabel: 'Cancel',
+          }
+        );
+        if (openConverter) {
+          window.open('/convert', '_blank', 'noopener,noreferrer');
+        }
+      } else {
+        // Clean up any blobs uploaded before the failure (e.g. setDoc threw).
+        if (uploadedStoragePaths.length > 0) {
+          await Promise.all(
+            uploadedStoragePaths.map((p) =>
+              deleteFile(p).catch((e) => console.error(e))
+            )
+          );
+        }
+        addToast('Failed to import notebook', 'error');
+      }
     } finally {
       setIsImporting(false);
       if (fileInputRef.current) fileInputRef.current.value = '';
@@ -243,6 +301,144 @@ export const SmartNotebookWidget: React.FC<{
     updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
   };
 
+  // Persist an edited page: re-upload the edited SVG to its Storage path and
+  // point the page URL at the new upload. Only the edited page is written.
+  const handleSavePageEdit = async (svgString: string) => {
+    if (!user || !activeNotebook) {
+      setEditMode(false);
+      return;
+    }
+    // An empty export means serialization failed — don't close as if saved.
+    if (!svgString) {
+      addToast('Could not save page edits — please try again', 'error');
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
+      const path =
+        activeNotebook.pagePaths?.[currentPage] ??
+        `${notebookPath}/page${currentPage}.svg`;
+      const file = new File([svgString], `page${currentPage}.svg`, {
+        type: 'image/svg+xml',
+      });
+      const url = await uploadFile(path, file);
+
+      const newPageUrls = [...activeNotebook.pageUrls];
+      newPageUrls[currentPage] = url;
+      const newPagePaths = [...(activeNotebook.pagePaths ?? [])];
+      newPagePaths[currentPage] = path;
+
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+        {
+          pageUrls: newPageUrls,
+          pagePaths: newPagePaths,
+        }
+      );
+      addToast('Page saved', 'success');
+      setEditMode(false);
+    } catch (err) {
+      console.error('Failed to save edited page', err);
+      addToast('Failed to save page', 'error');
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  // Persist a new page list (urls/paths/sections) to Firestore.
+  const persistPageList = async (next: PageListState) => {
+    if (!user || !activeNotebook) return;
+    await updateDoc(
+      doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+      {
+        pageUrls: next.pageUrls,
+        pagePaths: next.pagePaths,
+        ...(next.sections ? { sections: next.sections } : {}),
+      }
+    );
+  };
+
+  // Insert a blank page after the current one and navigate to it.
+  const handleAddPage = async () => {
+    if (!user || !activeNotebook) return;
+    setIsPageOp(true);
+    const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
+    const path = `${notebookPath}/page-blank-${crypto.randomUUID()}.svg`;
+    try {
+      const file = new File([blankPageSvg()], 'blank.svg', {
+        type: 'image/svg+xml',
+      });
+      const url = await uploadFile(path, file);
+      await persistPageList(
+        insertBlankPage(activeNotebook, currentPage, url, path)
+      );
+      setCurrentPage(currentPage + 1);
+      addToast('Blank page added', 'success');
+    } catch (err) {
+      console.error('Failed to add page', err);
+      // The blob may have uploaded before the Firestore write failed — clean it
+      // up so we don't leak storage on a failed add.
+      await deleteFile(path).catch((e) => console.error(e));
+      addToast('Failed to add page', 'error');
+    } finally {
+      setIsPageOp(false);
+    }
+  };
+
+  // Delete the current page (with confirmation) and clean up its storage file.
+  const handleDeletePage = async () => {
+    if (!user || !activeNotebook) return;
+    if (activeNotebook.pageUrls.length <= 1) {
+      addToast('A notebook needs at least one page', 'error');
+      return;
+    }
+    const confirmed = await showConfirm('Delete this page?', {
+      title: 'Delete Page',
+      variant: 'danger',
+      confirmLabel: 'Delete',
+    });
+    if (!confirmed) return;
+    setIsPageOp(true);
+    try {
+      const { state: next, removedPath } = deletePage(
+        activeNotebook,
+        currentPage
+      );
+      await persistPageList(next);
+      if (removedPath) {
+        await deleteFile(removedPath).catch((e) => console.error(e));
+      }
+      setCurrentPage((p) => Math.min(p, next.pageUrls.length - 1));
+      addToast('Page deleted', 'success');
+    } catch (err) {
+      console.error('Failed to delete page', err);
+      addToast('Failed to delete page', 'error');
+    } finally {
+      setIsPageOp(false);
+    }
+  };
+
+  // Reorder the current page within its lesson, following it to the new spot.
+  const handleMovePage = async (dir: -1 | 1) => {
+    if (
+      !user ||
+      !activeNotebook ||
+      !canMovePage(activeNotebook, currentPage, dir)
+    )
+      return;
+    setIsPageOp(true);
+    try {
+      await persistPageList(movePage(activeNotebook, currentPage, dir));
+      setCurrentPage(currentPage + dir);
+    } catch (err) {
+      console.error('Failed to move page', err);
+      addToast('Failed to move page', 'error');
+    } finally {
+      setIsPageOp(false);
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, url: string) => {
     const img = e.currentTarget.querySelector('img');
     const ratio = img ? img.naturalWidth / img.naturalHeight : 1;
@@ -252,6 +448,20 @@ export const SmartNotebookWidget: React.FC<{
     );
     e.dataTransfer.effectAllowed = 'copy';
   };
+
+  // Page editor (full-surface) when editing a page.
+  if (activeNotebook && editMode && activeNotebook.pageUrls[currentPage]) {
+    return (
+      <PageEditorOverlay
+        pageUrl={activeNotebook.pageUrls[currentPage]}
+        pageNumber={currentPage + 1}
+        totalPages={activeNotebook.pageUrls.length}
+        isSaving={isSavingEdit}
+        onSave={handleSavePageEdit}
+        onClose={() => setEditMode(false)}
+      />
+    );
+  }
 
   // Viewer
   if (activeNotebook) {
@@ -268,6 +478,13 @@ export const SmartNotebookWidget: React.FC<{
         currentPage={currentPage}
         setCurrentPage={setCurrentPage}
         handleDragStart={handleDragStart}
+        onEditPage={() => setEditMode(true)}
+        onAddPage={() => void handleAddPage()}
+        onDeletePage={() => void handleDeletePage()}
+        onMovePage={(dir) => void handleMovePage(dir)}
+        canMoveEarlier={canMovePage(activeNotebook, currentPage, -1)}
+        canMoveLater={canMovePage(activeNotebook, currentPage, 1)}
+        pageOpBusy={isPageOp}
       />
     );
   }

@@ -1,5 +1,15 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, FileText, X } from 'lucide-react';
+import {
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Pencil,
+  Plus,
+  Trash2,
+  ArrowLeft,
+  ArrowRight,
+  X,
+} from 'lucide-react';
 import { NotebookItem } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 
@@ -12,6 +22,13 @@ interface ViewerProps {
   currentPage: number;
   setCurrentPage: React.Dispatch<React.SetStateAction<number>>;
   handleDragStart: (e: React.DragEvent, url: string) => void;
+  onEditPage?: () => void;
+  onAddPage?: () => void;
+  onDeletePage?: () => void;
+  onMovePage?: (dir: -1 | 1) => void;
+  canMoveEarlier?: boolean;
+  canMoveLater?: boolean;
+  pageOpBusy?: boolean;
 }
 
 export const Viewer: React.FC<ViewerProps> = ({
@@ -23,7 +40,33 @@ export const Viewer: React.FC<ViewerProps> = ({
   currentPage,
   setCurrentPage,
   handleDragStart,
+  onEditPage,
+  onAddPage,
+  onDeletePage,
+  onMovePage,
+  canMoveEarlier = false,
+  canMoveLater = false,
+  pageOpBusy = false,
 }) => {
+  const iconStyle = {
+    width: 'min(16px, 4cqmin)',
+    height: 'min(16px, 4cqmin)',
+  };
+  const toolBtnClass =
+    'rounded-xl bg-white text-slate-700 border border-slate-200 hover:bg-slate-50 transition-all shadow-sm disabled:opacity-40';
+  const toolBtnStyle = { padding: 'min(8px, 2cqmin)' };
+  // Optional lesson grouping (derived from the notebook's manifest at import,
+  // for both raw .notebook and converted .spartnb files). Find which lesson
+  // the current page falls in.
+  const sections = activeNotebook.sections;
+  const currentSectionIndex =
+    sections?.findIndex(
+      (s) =>
+        currentPage >= s.startIndex && currentPage < s.startIndex + s.pageCount
+    ) ?? -1;
+  const currentSection =
+    sections && currentSectionIndex >= 0 ? sections[currentSectionIndex] : null;
+
   return (
     <WidgetLayout
       padding="p-0"
@@ -47,10 +90,96 @@ export const Viewer: React.FC<ViewerProps> = ({
               }}
             >
               Page {currentPage + 1} of {activeNotebook.pageUrls.length}
+              {currentSection && (
+                <>
+                  {'  ·  '}
+                  <span className="text-indigo-500">
+                    {currentSection.title}
+                  </span>
+                </>
+              )}
             </p>
           </div>
 
-          <div className="flex" style={{ gap: 'min(8px, 2cqmin)' }}>
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
+            {sections && sections.length > 1 && (
+              <select
+                aria-label="Jump to lesson"
+                value={currentSectionIndex >= 0 ? currentSectionIndex : 0}
+                onChange={(e) =>
+                  setCurrentPage(sections[Number(e.target.value)].startIndex)
+                }
+                className="rounded-xl bg-white text-slate-700 font-bold uppercase tracking-tight border border-slate-200 shadow-sm cursor-pointer hover:bg-slate-50 transition-all"
+                style={{
+                  fontSize: 'min(11px, 2.8cqmin)',
+                  padding: 'min(8px, 2cqmin) min(10px, 2.5cqmin)',
+                  maxWidth: '44cqmin',
+                }}
+              >
+                {sections.map((s, i) => (
+                  <option key={`${s.title}-${s.startIndex}`} value={i}>
+                    {s.title}
+                  </option>
+                ))}
+              </select>
+            )}
+            {onMovePage && (
+              <>
+                <button
+                  onClick={() => onMovePage(-1)}
+                  disabled={pageOpBusy || !canMoveEarlier}
+                  className={toolBtnClass}
+                  style={toolBtnStyle}
+                  title="Move page earlier"
+                >
+                  <ArrowLeft style={iconStyle} />
+                </button>
+                <button
+                  onClick={() => onMovePage(1)}
+                  disabled={pageOpBusy || !canMoveLater}
+                  className={toolBtnClass}
+                  style={toolBtnStyle}
+                  title="Move page later"
+                >
+                  <ArrowRight style={iconStyle} />
+                </button>
+              </>
+            )}
+            {onAddPage && (
+              <button
+                onClick={onAddPage}
+                disabled={pageOpBusy}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title="Add blank page"
+              >
+                <Plus style={iconStyle} />
+              </button>
+            )}
+            {onDeletePage && (
+              <button
+                onClick={onDeletePage}
+                disabled={pageOpBusy}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title="Delete page"
+              >
+                <Trash2 style={iconStyle} />
+              </button>
+            )}
+            {onEditPage && (
+              <button
+                onClick={onEditPage}
+                className={toolBtnClass}
+                style={toolBtnStyle}
+                title="Edit page"
+              >
+                <Pencil style={iconStyle} />
+              </button>
+            )}
             {hasAssets && (
               <button
                 onClick={() => setShowAssets(!showAssets)}
