@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-21_
+_Last audited: 2026-05-22_
 _Last action: 2026-05-16_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-22: Scanned all Widget.tsx / index.tsx files and new sub-components for anti-patterns. New dev-paul commits merged: feat(smart-notebook) high-fidelity SMART Notebook import — SmartNotebook/components/Library.tsx and Viewer.tsx both use cqmin units throughout (all headers, buttons, icons, text, spacing); no hardcoded Tailwind text-size or pixel-size classes in front-face content. Viewer.tsx uses `max-w-full max-h-full object-contain` on the notebook image (correct image-fill pattern per audit guidance) and `w-1/3 max-w-[240px] min-w-[160px]` on the assets side-panel (structural layout constraint on a supplementary drawer, not the main content area — acceptable). QuizBehaviorSettingsPanel and VideoActivityBehaviorSettingsPanel added to components/common/library/ — use text-sm/text-xs throughout but are settings/editor-context components rendered inside modals, not inside widget canvas container-query contexts — no violation. No new front-face scaling violations detected. All pre-existing open items remain valid._
 
 _2026-05-21: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits merged: feat(settings) Settings modal refactor (no widget front-face changes), refactor(admin) AdminSettings vertical nav (no widget front-face changes), fix/feat(spotify) 18 commits adding 9 new Spotify sub-components (PersonalSpotifyAdaptiveLayout, PersonalSpotifyCompactBar, PersonalSpotifyDefaultTabBar, PersonalSpotifyLibraryTab, PersonalSpotifyListState, PersonalSpotifyMinimalView, PersonalSpotifyNowPlayingTab, SpotifyResultRow, SpotifyTransportControls) — all use cqmin/cqh/cqw units throughout; no hardcoded Tailwind text-size or pixel-size classes in widget front-face content. MusicWidget continues using cqh-based sizing for its short/wide layout (documented as acceptable in journal guidance). No new violations. All pre-existing open items remain valid._
 

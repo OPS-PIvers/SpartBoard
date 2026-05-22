@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-05-13_
+_Last audited: 2026-05-22_
 _Last action: never_
 
 ---
@@ -19,6 +19,7 @@ _Nothing currently in progress._
 ### MEDIUM `DashboardContext.tsx` is 3481 lines and growing — at least three extractable responsibilities
 
 - **Detected:** 2026-04-15
+- **Updated:** 2026-05-22 — file is now **5303 lines** (+1262 from 4041 post-extraction on 2026-05-13, +31% in 9 days). Primary drivers: PLC collaborative space redesign (`55b03269` Merge feat/quiz-settings-on-content) added extensive collection management logic (191 lines of collection/lastBoardId references), boards-modal inline Share+Duplicate icons (`9faae3c3`), admin personal-spotify global feature gate with building scoping (`3b885467`), and PLC in-progress assignments Monitor/Results/member copy (`82da7cb9`). The `getAdminBuildingConfig` extraction reduced the file by ~400 lines (May 13) but 1262 new lines have since been added. Drive-sync extraction remains unaddressed.
 - **Updated:** 2026-05-13 — file is now 4441 lines (+937 from 2026-05-06). Significant growth; 15 exported Cloud Functions now visible: `getClassLinkRosterV1`, `generateWithAI`, `fetchExternalProxy`, `archiveActivityWallPhoto`, `checkUrlCompatibility`, `generateVideoActivity`, `transcribeVideoWithGemini`, `generateGuidedLearning`, `adminAnalytics`, `studentLoginV1`, `getAssignmentPseudonymV1`, `getStudentClassDirectoryV1`, `getPseudonymsForAssignmentV1`, `commitRosterPinIndexV1`, `pinLoginV1`. One inline model string at line 1980 (`'gemini-3.1-flash-lite-preview'`) instead of `DEFAULT_STANDARD_MODEL` constant — minor consistency gap (see ai-integration.md). No v1 imports detected; all functions use v2. `minInstances` set on `getPseudonymsForAssignmentV1` (intentional for latency). `extractDataForContext` in split files (`adminAnalyticsCompute.ts`, `adminAnalyticsSnapshot.ts`, `organizationBuildingCounters.ts`, etc.) suggests split has begun for some modules.
 - **Updated:** 2026-05-06 — file grew from 3481 to 3504 lines (+23) since 2026-04-29 audit. Growth rate remains slow but file continues to increase.
 - **File:** context/DashboardContext.tsx
@@ -28,19 +29,20 @@ _Nothing currently in progress._
 ### MEDIUM `functions/src/index.ts` is 3525 lines — single file for all Cloud Functions (growth stalled)
 
 - **Detected:** 2026-04-15
+- **Updated:** 2026-05-22 — file is now **4300 lines** (+775 from 3525 on 2026-05-13). 15 exported Cloud Functions (count unchanged). Growth is from expansion of existing functions (not new ones). New large hooks added since last audit: `hooks/useVideoActivityAssignments.ts` (1100 lines), `hooks/useStudentAssignments.ts` (619 lines), `hooks/useCollections.ts` (604 lines), `hooks/useFolders.ts` (531 lines) — all exceeding 500 lines. No 3+ level relative import depth issues found in new PLC components.
 - **Updated:** 2026-05-13 — `DashboardContext.tsx` is now 4441 lines (+937 from 3504 on 2026-05-06). Major growth. `getAdminBuildingConfig` switch is now 18 cases (was 30+ noted earlier; count stabilized). Single-consumer utils list updated: now also includes `lastActiveThrottle.ts`, `migrateProportionalLayout.ts`, `proportionalLayout.ts`, `mockGuidedLearningDriveService.ts`, `periodCompat.ts`, `quizShuffle.ts`, `rosterRestrictions.ts`, `smartPaste.ts`, `testClassAccess.ts`, `youtubeSearch.ts`.
 - **Updated:** 2026-05-06 — file stable at 3525 lines (from 3524, +1) since 2026-04-29 audit. Growth has stalled.
 - **Updated:** 2026-04-29 — file grew from 2488 to 3524 lines (+1036) since 2026-04-22 audit. Four new Cloud Functions were added: `studentLoginV1` (256MiB, public invoker, handles Google + ClassLink SSO for students), `getAssignmentPseudonymV1` (128MiB, student-role only), `getStudentClassDirectoryV1` (256MiB, public invoker), and `getPseudonymsForAssignmentV1` (256MiB, minInstances:1, public invoker). These are all student SSO / pseudonym functions.
 - **File:** functions/src/index.ts
-- **Detail:** 13 Cloud Functions now live in one file. Logical groupings: ClassLink roster integration (getClassLinkRosterV1), AI generation (generateWithAI, generateVideoActivity, transcribeVideoWithGemini, generateGuidedLearning), utility (fetchExternalProxy, archiveActivityWallPhoto, checkUrlCompatibility), admin (adminAnalytics), student SSO/pseudonym (studentLoginV1, getAssignmentPseudonymV1, getStudentClassDirectoryV1, getPseudonymsForAssignmentV1). The file is increasingly difficult to navigate. The `getPseudonymsForAssignmentV1` has `minInstances: 1` — verify this is intentional (cold start cost vs. latency tradeoff).
+- **Detail:** 15 Cloud Functions now live in one file. Logical groupings: ClassLink roster integration (getClassLinkRosterV1), AI generation (generateWithAI, generateVideoActivity, transcribeVideoWithGemini, generateGuidedLearning), utility (fetchExternalProxy, archiveActivityWallPhoto, checkUrlCompatibility), admin (adminAnalytics), student SSO/pseudonym (studentLoginV1, getAssignmentPseudonymV1, getStudentClassDirectoryV1, getPseudonymsForAssignmentV1, commitRosterPinIndexV1, pinLoginV1). The file is increasingly difficult to navigate. The `getPseudonymsForAssignmentV1` has `minInstances: 1` — verify this is intentional (cold start cost vs. latency tradeoff).
 - **Fix:** Split into domain files: `functions/src/classlink.ts`, `functions/src/ai.ts`, `functions/src/utils.ts`, `functions/src/admin.ts`, `functions/src/studentSso.ts`. Re-export all functions from `functions/src/index.ts` to preserve deployed names. This is a refactor with no behavior change but significantly improves reviewability. **Priority has increased** given the 42% growth in 7 days.
 
-### HIGH `DashboardContext.tsx` grew 937 lines since last week — now 4441 lines
+### HIGH `DashboardContext.tsx` grew 1262 lines since May 13 extraction — now 5303 lines
 
-- **Detected:** 2026-05-13
+- **Detected:** 2026-05-22
 - **File:** context/DashboardContext.tsx
-- **Detail:** `DashboardContext.tsx` jumped from 3504 to 4441 lines (+27%) in one week. At this rate it will exceed 5000 lines within a month. The file was already the largest non-test source file and has clear extractable seams. `getAdminBuildingConfig` (18 switch cases, ~400 lines) remains an obvious extraction candidate. The `applyDashboardTemplate`, `loadStarterPack`, and Google Drive sync logic are also self-contained enough to extract.
-- **Fix:** Extract `getAdminBuildingConfig` to `utils/adminBuildingConfig.ts` (pure function, independently testable). Extract Drive sync hooks to `hooks/useDashboardDriveSync.ts`. Track against the existing MEDIUM item below.
+- **Detail:** After the May 13 extraction of `getAdminBuildingConfig` reduced the file from 4441 to 4041 lines, nine days of new features grew it back to 5303 (+1262, +31%). The file now exceeds 5000 lines. Primary drivers: (1) PLC collaborative space redesign added collection navigation state, `lastBoardIdByCollection` tracking, `setActiveCollectionId`, and related callbacks (~400 lines); (2) boards-modal inline share/duplicate actions; (3) admin personal-spotify building scoping; (4) PLC in-progress assignment monitor/results. Collections management in particular introduces a new distinct responsibility (board/collection relationship state) that belongs in a dedicated hook or context. The `useGoogleDrive` orchestration and Drive reconnect error handling are also clearly separable.
+- **Fix:** Extract collections + board navigation state into `hooks/useCollectionNavigation.ts` (manages `activeCollectionId`, `lastBoardIdByCollection`, `setActiveCollectionId`, `boards-only` filtering). Extract Google Drive sync orchestration into `hooks/useDashboardDriveSync.ts` (wraps `useGoogleDrive`, `useDriveReconnected`, Drive reconnect error handler). These two extractions would remove ~600–800 lines and reduce DashboardContext back below 4500 lines.
 
 ### LOW `getAdminBuildingConfig` has 10+ near-identical single-field switch cases
 
@@ -82,7 +84,7 @@ _Nothing currently in progress._
 
 ## Completed
 
-### HIGH `DashboardContext.tsx` grew 937 lines since last week — now 4441 lines
+### HIGH `DashboardContext.tsx` grew 937 lines in one week — now 4441 lines
 
 - **Detected:** 2026-05-13
 - **Completed:** 2026-05-13
