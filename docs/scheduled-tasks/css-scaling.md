@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-22_
+_Last audited: 2026-05-23_
 _Last action: 2026-05-16_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-23: Scanned all Widget.tsx / index.tsx files and new sub-components for anti-patterns. New dev-paul commits since 2026-05-22: feat(notebook)×4 + fix(notebook)×2 adding new SmartNotebook sub-components (PageCanvas.tsx, PageEditor.tsx, PageEditorOverlay.tsx). All three new sub-components: zero hardcoded Tailwind text-size classes, fixed icon sizes, or pixel-capped max-h/max-w constraints. PageCanvas and PageEditor are canvas-manipulation surfaces; PageEditorOverlay is a transparent interaction layer — none render front-face text in container-query context. Viewer.tsx existing `max-w-[240px] min-w-[160px]` on assets side-panel remains documented as acceptable structural constraint (per 2026-05-22 note). feat(widget) FAB kebab commit changes only DraggableWindow.tsx and Dock.tsx — not widget front-face content. QuizWidget/Widget.tsx and VideoActivityWidget/Widget.tsx changes are in skipScaling:false widgets (CSS transform scaling), so hardcoded Tailwind text sizes there are not CQ violations. No new anti-patterns detected. All pre-existing open items remain valid._
 
 _2026-05-22: Scanned all Widget.tsx / index.tsx files and new sub-components for anti-patterns. New dev-paul commits merged: feat(smart-notebook) high-fidelity SMART Notebook import — SmartNotebook/components/Library.tsx and Viewer.tsx both use cqmin units throughout (all headers, buttons, icons, text, spacing); no hardcoded Tailwind text-size or pixel-size classes in front-face content. Viewer.tsx uses `max-w-full max-h-full object-contain` on the notebook image (correct image-fill pattern per audit guidance) and `w-1/3 max-w-[240px] min-w-[160px]` on the assets side-panel (structural layout constraint on a supplementary drawer, not the main content area — acceptable). QuizBehaviorSettingsPanel and VideoActivityBehaviorSettingsPanel added to components/common/library/ — use text-sm/text-xs throughout but are settings/editor-context components rendered inside modals, not inside widget canvas container-query contexts — no violation. No new front-face scaling violations detected. All pre-existing open items remain valid._
 
