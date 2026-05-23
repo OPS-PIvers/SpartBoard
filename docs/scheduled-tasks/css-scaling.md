@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-05-23_
-_Last action: 2026-05-16_
+_Last action: 2026-05-23_
 
 ---
 
@@ -47,13 +47,6 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
-
-### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
-
-- **Detected:** 2026-05-15
-- **File:** components/widgets/MiniApp/Widget.tsx:1054–1191 (createPortal block)
-- **Detail:** The "active app overlay toolbar" — shown when a mini-app is running — is rendered via `createPortal` to `document.body` with `position: fixed`. It contains: `text-xs` on all button labels, `h-8` on all buttons, `w-3.5 h-3.5` on all icons, `gap-1.5` and `px-3` on buttons. Widget has `skipScaling: true`. Since the toolbar is portaled outside the widget's CSS container, `cqmin` units will not resolve against the widget's size — the same constraint as the EmbedWidget portaled zoom toolbar. The toolbar was added in commit `f043df3e` (2026-05-12). Distinct from the existing open item "MiniApp internal dialog overlays" which covers non-portaled modal overlays inside the container query context.
-- **Fix:** Two options: (a) Remove the portal — if the toolbar doesn't need to escape the DraggableWindow stacking context, render it inside the widget frame and convert all sizes to `cqmin`; (b) Keep the portal — derive a `cqmin`-equivalent pixel scale factor from `widgetRect.width / 300` (base widget width) and use computed pixel values in the portaled toolbar styles. The toolbar already reads `widgetRect` for positioning, so the scale factor is available with no additional prop-drilling. Example for `text-xs` (12px base): `fontSize: Math.round(widgetRect.width * 0.04)` (4% of width = cqw-equivalent at default sizes).
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
@@ -103,6 +96,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
+
+- **Detected:** 2026-05-15
+- **Completed:** 2026-05-23
+- **File:** components/widgets/MiniApp/Widget.tsx (createPortal block around lines 1060–1235)
+- **Detail:** The "active app overlay toolbar" — shown when a mini-app is running — is rendered via `createPortal` to `document.body` with `position: fixed` and `top` anchored to `widgetRect.bottom`. The toolbar lives outside the widget's CSS container, so `cqmin` units cannot resolve against the widget's size. The toolbar previously used hardcoded Tailwind sizing classes: `text-xs`, `text-[10px]` (Unsaved badge), `h-8`, `w-3.5 h-3.5` (icons), `gap-1.5`, `px-2`, `py-1.5`, `px-3`, `w-px h-5 mx-0.5` (divider).
+- **Resolution:** Chose option (b) — kept the portal (required because the toolbar is positioned below/above the widget, outside its bounds, and needs `Z_INDEX.popover` to clear `DraggableWindow`'s stacking context). Inside the IIFE, computed a JS-side `cqmin` unit from `widgetRect` (`Math.min(width, height) / 100`) and a `px(cap, factor)` helper that mirrors the CSS `min(Xpx, Ycqmin)` cap pattern used elsewhere in the codebase. Built a `sz` object with values matching every original Tailwind utility at the default 500×600 widget size — `text-xs` → `px(12, 4.5)`, `text-[10px]` → `px(10, 3.5)`, icons (14px) → `px(14, 4)`, `h-8` → `px(32, 8)`, `px-3` → `px(12, 3)`, `px-2` → `px(8, 2)`, `gap-1.5` → `px(6, 1.5)`, `py-1.5` → `px(6, 1.5)`, `h-5` → `px(20, 5)`, `mx-0.5` → `px(2, 0.5)`. Replaced all hardcoded sizing classes with inline styles via two reusable objects (`buttonBaseStyle`, `iconStyle`) plus per-element styles for the toolbar shell, the Unsaved badge, and the divider. Replaced the `inline`/`hidden` Tailwind label class with `labelStyle = { display: showLabels ? 'inline' : 'none' }` for consistency. Non-sizing classes (`bg-*`, `hover:*`, `border-*`, `rounded-*`, `font-*`, `tracking-*`, `transition-colors`, `shadow-*`, `animate-pulse`, `disabled:*`) were preserved on `className`. `widgetRect` is already kept current via the existing `ResizeObserver` + `MutationObserver` + scroll/resize listeners (lines 603–614), so sizes update live as the widget is resized. `pnpm exec tsc --noEmit`, `pnpm exec eslint components/widgets/MiniApp/Widget.tsx --max-warnings 0`, `pnpm exec prettier --check`, and `pnpm lint` all clean.
 
 ### LOW NumberLineWidget hover hint `text-xs` still present — prior completion was inaccurate
 

@@ -1074,10 +1074,49 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   // `sm:` would let labels render-then-overflow on a narrow
                   // widget on a wide screen. 480px clears all five labeled
                   // buttons (Assign / Assignments / QR Share / Save as Widget
-                  // / Library) at h-8 text-xs without horizontal clipping;
+                  // / Library) at default sizing without horizontal clipping;
                   // narrower widgets fall back to icons-only.
                   const showLabels = widgetRect.width >= 480;
-                  const labelClass = showLabels ? 'inline' : 'hidden';
+                  const labelStyle: React.CSSProperties = {
+                    display: showLabels ? 'inline' : 'none',
+                  };
+                  // The toolbar is portaled to document.body, so it lives
+                  // outside the widget's container query context. Mirror the
+                  // `min(Xpx, Ycqmin)` cqmin-cap pattern used inside the
+                  // widget by computing a `cqmin` unit in JS from widgetRect
+                  // and applying caps at the same px values as the original
+                  // Tailwind utilities. At the default 500×600 widget size
+                  // every value matches its Tailwind original; small widgets
+                  // scale down proportionally.
+                  const cqmin =
+                    Math.min(widgetRect.width, widgetRect.height) / 100;
+                  const px = (cap: number, factor: number) =>
+                    Math.min(cap, cqmin * factor);
+                  const sz = {
+                    barGap: px(6, 1.5),
+                    barPaddingX: px(8, 2),
+                    barPaddingY: px(6, 1.5),
+                    buttonGap: px(6, 1.5),
+                    buttonHeight: px(32, 8),
+                    buttonPaddingX: px(12, 3),
+                    badgePaddingX: px(8, 2),
+                    fontXs: px(12, 4.5),
+                    fontBadge: px(10, 3.5),
+                    icon: px(14, 4),
+                    dividerHeight: px(20, 5),
+                    dividerMarginX: px(2, 0.5),
+                  };
+                  const iconStyle: React.CSSProperties = {
+                    width: sz.icon,
+                    height: sz.icon,
+                  };
+                  const buttonBaseStyle: React.CSSProperties = {
+                    height: sz.buttonHeight,
+                    paddingLeft: sz.buttonPaddingX,
+                    paddingRight: sz.buttonPaddingX,
+                    gap: sz.buttonGap,
+                    fontSize: sz.fontXs,
+                  };
                   return (
                     <div
                       data-settings-exclude
@@ -1098,8 +1137,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                       }}
                     >
                       <div
-                        className="flex items-center gap-1.5 bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg rounded-xl px-2 py-1.5 max-w-full"
-                        style={{ pointerEvents: 'auto' }}
+                        className="flex items-center bg-white/90 backdrop-blur-md border border-slate-200/60 shadow-lg rounded-xl max-w-full"
+                        style={{
+                          pointerEvents: 'auto',
+                          gap: sz.barGap,
+                          paddingLeft: sz.barPaddingX,
+                          paddingRight: sz.barPaddingX,
+                          paddingTop: sz.barPaddingY,
+                          paddingBottom: sz.barPaddingY,
+                        }}
                       >
                         {/* Left group: Assign / Assignments — hidden in
                             view-only mode (these are submission-tracking
@@ -1108,21 +1154,31 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                           <>
                             <button
                               onClick={() => handleOpenAssign(activeApp)}
-                              className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center gap-1.5 font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm h-8 px-3 text-xs"
+                              className="bg-indigo-600 hover:bg-indigo-500 text-white flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm"
+                              style={buttonBaseStyle}
                               title="Assign (copy student link)"
                             >
-                              <Link2 className="w-3.5 h-3.5" />
-                              <span className={labelClass}>Assign</span>
+                              <Link2 style={iconStyle} />
+                              <span style={labelStyle}>Assign</span>
                             </button>
                             <button
                               onClick={() => handleOpenAssignments(activeApp)}
-                              className="bg-white hover:bg-slate-50 text-slate-700 flex items-center gap-1.5 font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60 h-8 px-3 text-xs"
+                              className="bg-white hover:bg-slate-50 text-slate-700 flex items-center font-black uppercase tracking-widest transition-colors rounded-lg shadow-sm border border-slate-200/60"
+                              style={buttonBaseStyle}
                               title="View assignments"
                             >
-                              <BarChart3 className="w-3.5 h-3.5" />
-                              <span className={labelClass}>Assignments</span>
+                              <BarChart3 style={iconStyle} />
+                              <span style={labelStyle}>Assignments</span>
                             </button>
-                            <div className="w-px h-5 bg-slate-200/80 mx-0.5" />
+                            <div
+                              className="bg-slate-200/80"
+                              style={{
+                                width: 1,
+                                height: sz.dividerHeight,
+                                marginLeft: sz.dividerMarginX,
+                                marginRight: sz.dividerMarginX,
+                              }}
+                            />
                           </>
                         )}
 
@@ -1136,7 +1192,15 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                             "Back to library" button (further down) stays. */}
                         {config.activeAppUnsaved && !isActiveBoardReadOnly && (
                           <>
-                            <div className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400 h-8 px-2 text-[10px]">
+                            <div
+                              className="bg-red-500 text-white font-black uppercase tracking-tighter rounded-lg shadow-sm animate-pulse flex items-center justify-center border border-red-400"
+                              style={{
+                                height: sz.buttonHeight,
+                                paddingLeft: sz.badgePaddingX,
+                                paddingRight: sz.badgePaddingX,
+                                fontSize: sz.fontBadge,
+                              }}
+                            >
                               Unsaved
                             </div>
                             <button
@@ -1148,11 +1212,12 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                                 );
                                 setShowSaveForm(true);
                               }}
-                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-indigo-500 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                              className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-indigo-500 font-black transition-colors"
+                              style={buttonBaseStyle}
                               title="Save to library"
                             >
-                              <Save className="w-3.5 h-3.5" />
-                              <span className={labelClass}>Save</span>
+                              <Save style={iconStyle} />
+                              <span style={labelStyle}>Save</span>
                             </button>
                           </>
                         )}
@@ -1160,15 +1225,19 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                           <button
                             onClick={() => void handleCreateQrShare()}
                             disabled={isCreatingQrShare || !user}
-                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs disabled:opacity-60 disabled:cursor-not-allowed"
+                            className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                            style={buttonBaseStyle}
                             title="Share via QR — drops a QR-code widget that students can scan"
                           >
                             {isCreatingQrShare ? (
-                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              <Loader2
+                                style={iconStyle}
+                                className="animate-spin"
+                              />
                             ) : (
-                              <QrCode className="w-3.5 h-3.5" />
+                              <QrCode style={iconStyle} />
                             )}
-                            <span className={labelClass}>QR Share</span>
+                            <span style={labelStyle}>QR Share</span>
                           </button>
                         )}
                         {!config.activeAppUnsaved &&
@@ -1176,20 +1245,22 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                           !isActiveBoardReadOnly && (
                             <button
                               onClick={() => setShowSaveAsWidget(true)}
-                              className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                              className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
+                              style={buttonBaseStyle}
                               title="Save as widget — pin this mini app to your dock"
                             >
-                              <Bookmark className="w-3.5 h-3.5" />
-                              <span className={labelClass}>Save as Widget</span>
+                              <Bookmark style={iconStyle} />
+                              <span style={labelStyle}>Save as Widget</span>
                             </button>
                           )}
                         <button
                           onClick={handleCloseActive}
-                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors h-8 px-3 gap-1.5 text-xs"
+                          className="bg-white hover:bg-slate-50 text-slate-700 rounded-lg uppercase tracking-wider flex items-center shadow-sm border border-slate-200/60 font-black transition-colors"
+                          style={buttonBaseStyle}
                           title="Back to library"
                         >
-                          <LayoutGrid className="w-3.5 h-3.5" />
-                          <span className={labelClass}>Library</span>
+                          <LayoutGrid style={iconStyle} />
+                          <span style={labelStyle}>Library</span>
                         </button>
                       </div>
                     </div>
