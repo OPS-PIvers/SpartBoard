@@ -1088,10 +1088,18 @@ export const MiniAppWidget: React.FC<WidgetComponentProps> = ({
                   // Tailwind utilities. At the default 500×600 widget size
                   // every value matches its Tailwind original; small widgets
                   // scale down proportionally.
+                  // Floor at 1 so a zero `widgetRect` (before the
+                  // ResizeObserver fires) doesn't collapse every size to 0
+                  // and render an invisible toolbar.
                   const cqmin =
-                    Math.min(widgetRect.width, widgetRect.height) / 100;
+                    Math.max(Math.min(widgetRect.width, widgetRect.height), 1) /
+                    100;
+                  // Round to whole pixels so `gap` / `height` / `padding` /
+                  // `fontSize` don't pick up hairline sub-pixel differences
+                  // across display densities. The original Tailwind utilities
+                  // always produced integer pixel values.
                   const px = (cap: number, factor: number) =>
-                    Math.min(cap, cqmin * factor);
+                    Math.round(Math.min(cap, cqmin * factor));
                   const sz = {
                     barGap: px(6, 1.5),
                     barPaddingX: px(8, 2),
