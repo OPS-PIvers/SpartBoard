@@ -241,8 +241,11 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
 
   if (isLoading || !assignment || !config || !quizData) {
     return (
-      <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div
+        role="status"
+        className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-500"
+      >
+        <Loader2 className="w-8 h-8 animate-spin" aria-hidden="true" />
         <span className="text-sm">
           {t('plcDashboard.assignmentSession.loading', {
             defaultValue: 'Loading…',
@@ -276,8 +279,11 @@ export const PlcQuizSessionContent: React.FC<PlcQuizSessionContentProps> = ({
         onBack={onClose}
       />
     ) : (
-      <div className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-500">
-        <Loader2 className="w-8 h-8 animate-spin" />
+      <div
+        role="status"
+        className="h-full w-full flex flex-col items-center justify-center gap-3 text-slate-500"
+      >
+        <Loader2 className="w-8 h-8 animate-spin" aria-hidden="true" />
         <span className="text-sm">
           {t('plcDashboard.assignmentSession.resuming', {
             defaultValue: 'Resuming session…',

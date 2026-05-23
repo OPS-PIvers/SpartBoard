@@ -949,8 +949,14 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full min-h-[200px] text-slate-400">
+      <div
+        role="status"
+        className="flex items-center justify-center h-full min-h-[200px] text-slate-400"
+      >
         <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+        <span className="sr-only">
+          {t('plcDashboard.quizLibrary.loading', { defaultValue: 'Loading…' })}
+        </span>
       </div>
     );
   }
@@ -1116,6 +1122,9 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
                   onClick={() => setAssignTarget({ ...row, sourceId })}
                   disabled={anyImportBusy || !isDriveConnected}
                   className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-primary hover:bg-brand-blue-dark text-white rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40"
+                  aria-label={t('plcDashboard.quizLibrary.assignToClasses', {
+                    defaultValue: 'Assign to my classes',
+                  })}
                   title={t('plcDashboard.quizLibrary.assignToClasses', {
                     defaultValue: 'Assign to my classes',
                   })}
@@ -1148,6 +1157,15 @@ export const PlcQuizLibraryBody: React.FC<PlcQuizLibraryBodyProps> = ({
                       }
                       disabled={isBusy}
                       className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-blue-lighter hover:bg-brand-blue-light/30 text-brand-blue-primary rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors disabled:opacity-40"
+                      aria-label={
+                        inLibrary
+                          ? t('plcDashboard.quizLibrary.reimport', {
+                              defaultValue: 'Re-import',
+                            })
+                          : t('plcDashboard.quizLibrary.addToMyLibrary', {
+                              defaultValue: 'Add to my library',
+                            })
+                      }
                       title={
                         inLibrary
                           ? t('plcDashboard.quizLibrary.reimport', {

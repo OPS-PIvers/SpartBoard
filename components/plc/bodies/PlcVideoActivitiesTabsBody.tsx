@@ -86,6 +86,11 @@ export const PlcVideoActivitiesTabsBody: React.FC<
   // strips a button from the tab order, so we use `aria-disabled` + a
   // click guard instead so the control stays focusable and announces why.
   const videoCtaReasonId = useId();
+  // Stable ids so each tabpanel can point back at its tab via aria-labelledby
+  // and each tab can point at its panel via aria-controls (WCAG AA tablist).
+  const tabIdBase = useId();
+  const tabButtonId = (id: SubTabId) => `${tabIdBase}-tab-${id}`;
+  const tabPanelId = (id: SubTabId) => `${tabIdBase}-panel-${id}`;
 
   // Library counts + Drive-connect status feed the CTA disabled state.
   // Gated on `activeSubTab === 'library'` so the personal-library Firestore
@@ -136,7 +141,9 @@ export const PlcVideoActivitiesTabsBody: React.FC<
               <button
                 key={tab.id}
                 role="tab"
+                id={tabButtonId(tab.id)}
                 aria-selected={isActive}
+                aria-controls={tabPanelId(tab.id)}
                 type="button"
                 onClick={() => setActiveSubTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xxs font-bold uppercase tracking-wider transition-colors ${
@@ -188,7 +195,12 @@ export const PlcVideoActivitiesTabsBody: React.FC<
           </div>
         )}
       </div>
-      <div className="flex-1 min-h-0">
+      <div
+        role="tabpanel"
+        id={tabPanelId(activeSubTab)}
+        aria-labelledby={tabButtonId(activeSubTab)}
+        className="flex-1 min-h-0"
+      >
         {activeSubTab === 'library' && <PlcVideoActivitiesBody plc={plc} />}
         {activeSubTab === 'inProgress' && (
           <PlcAssignmentsInProgressSubTab
