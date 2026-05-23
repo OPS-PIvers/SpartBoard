@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ClipboardList, Loader2 } from 'lucide-react';
 import type {
   Plc,
+  PlcAssignmentIndexEntry,
   PlcAssignmentTemplate,
   QuizData,
   QuizSessionMode,
@@ -22,22 +23,24 @@ import {
 import type { SharedAssignmentImportMode } from '@/hooks/useQuizAssignments';
 import { logError } from '@/utils/logError';
 import { PlcAssignmentImportModal } from '../PlcAssignmentImportModal';
+import { PlcAssignmentSessionModal } from '../assignments/PlcAssignmentSessionModal';
 import { QuizAssignmentImportSetupModal } from '@/components/quiz/QuizAssignmentImportSetupModal';
 import { PlcAssignmentIndexRow } from './PlcAssignmentIndexRow';
 
 interface PlcAssignmentsInProgressSubTabProps {
   plc: Plc;
   /**
-   * Closes the PLC dashboard overlay. Forwarded to owner-row actions so
-   * Monitor/Results can hand off to the QuizWidget after dismissing the
-   * dashboard.
+   * Optional kind filter. When provided, only index entries whose `kind`
+   * matches are shown — used by the Quizzes section's In-progress sub-tab
+   * to scope the shared assignment index to quiz rows. Omitted on the
+   * standalone Assignments page, where all kinds are shown.
    */
-  onCloseDashboard: () => void;
+  kindFilter?: PlcAssignmentIndexEntry['kind'];
 }
 
 /**
  * Pending import target for the "Assign to my classes" flow on non-owner
- * rows — mirrors the equivalent state in PlcAssignmentsLibrarySubTab.
+ * rows — ported from the former PlcAssignmentsLibrarySubTab.
  */
 interface InProgressImportTarget {
   plcAssignmentId: string;
@@ -57,33 +60,32 @@ interface InProgressImportTarget {
  * their owner deactivates them.
  *
  * Per-row actions:
- *   - Owner row: Monitor + Results buttons (→ hand off to QuizWidget via
- *     `setPendingAssignmentMonitor` / `setPendingAssignmentResults`)
+ *   - Owner row: Monitor + Results buttons (→ open PlcAssignmentSessionModal
+ *     stacked on top of the PLC dashboard)
  *   - Non-owner row: "Assign to my classes" button (→ import the PLC
  *     assignment template onto the viewer's own board)
  */
 export const PlcAssignmentsInProgressSubTab: React.FC<
   PlcAssignmentsInProgressSubTabProps
-> = ({ plc, onCloseDashboard }) => {
+> = ({ plc, kindFilter }) => {
   const { t } = useTranslation();
   const { user } = useAuth();
-  const {
-    addToast,
-    rosters,
-    setPendingAssignmentMonitor,
-    setPendingAssignmentResults,
-  } = useDashboard();
+  const { addToast, rosters } = useDashboard();
   const { entries, loading } = usePlcAssignmentIndex(plc.id);
   // Subscribe to the PLC assignment templates so non-owner rows can match
   // to the template needed for the "Assign to my classes" import flow.
   const { templates, loading: templatesLoading } = usePlcAssignments(plc.id);
-  const { saveQuiz, deleteQuiz, attachSyncLinkage, isDriveConnected } = useQuiz(
-    user?.uid
-  );
-  const { assignments, createAssignment, setAssignmentRosters } =
-    useQuizAssignments(user?.uid);
 
-  // Import flow state (mirrors PlcAssignmentsLibrarySubTab).
+  // Monitor/Results modal target — opens PlcAssignmentSessionModal on top of
+  // the PLC dashboard for the owner's own assignment. `kind` selects the
+  // quiz vs. video-activity content inside the shared modal shell.
+  const [sessionModal, setSessionModal] = useState<{
+    assignmentId: string;
+    kind: PlcAssignmentIndexEntry['kind'];
+    view: 'monitor' | 'results';
+  } | null>(null);
+
+  // Import flow state (ported from the former PlcAssignmentsLibrarySubTab).
   const [importTarget, setImportTarget] =
     useState<InProgressImportTarget | null>(null);
   const [busyRowId, setBusyRowId] = useState<string | null>(null);
@@ -92,9 +94,29 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
     quizTitle: string;
   } | null>(null);
 
+  // The personal-library + assignment-archive listeners are only needed for
+  // the non-owner "Assign to my classes" import flow. Pass `undefined` uid
+  // until that flow is active so we don't pay for the Firestore listeners on
+  // every render. Both hooks early-return when uid is undefined, so passing
+  // `undefined` is the "off" switch. Stay mounted across the whole flow
+  // (target picked → import running → class-period picker open) because the
+  // post-import setup modal reads `assignments` and calls `setAssignmentRosters`.
+  const importActive =
+    importTarget !== null || busyRowId !== null || pendingSetup !== null;
+  const { saveQuiz, deleteQuiz, attachSyncLinkage, isDriveConnected } = useQuiz(
+    importActive ? user?.uid : undefined
+  );
+  const { assignments, createAssignment, setAssignmentRosters } =
+    useQuizAssignments(importActive ? user?.uid : undefined);
+
   const visible = useMemo(
-    () => entries.filter((e) => e.status === 'active' || e.status === 'paused'),
-    [entries]
+    () =>
+      entries.filter(
+        (e) =>
+          (e.status === 'active' || e.status === 'paused') &&
+          (kindFilter === undefined || e.kind === kindFilter)
+      ),
+    [entries, kindFilter]
   );
 
   /**
@@ -121,19 +143,17 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   }, [visible, templates]);
 
   const handleMonitor = useCallback(
-    (assignmentId: string) => {
-      setPendingAssignmentMonitor(assignmentId);
-      onCloseDashboard();
+    (assignmentId: string, kind: PlcAssignmentIndexEntry['kind']) => {
+      setSessionModal({ assignmentId, kind, view: 'monitor' });
     },
-    [onCloseDashboard, setPendingAssignmentMonitor]
+    []
   );
 
   const handleResults = useCallback(
-    (assignmentId: string) => {
-      setPendingAssignmentResults(assignmentId);
-      onCloseDashboard();
+    (assignmentId: string, kind: PlcAssignmentIndexEntry['kind']) => {
+      setSessionModal({ assignmentId, kind, view: 'results' });
     },
-    [onCloseDashboard, setPendingAssignmentResults]
+    []
   );
 
   const handleImport = useCallback(
@@ -314,9 +334,9 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
   const currentUid = user?.uid;
 
   // The assignment for the post-import class-period picker. Try the live
-  // snapshot first; fall back to the cached title (same pattern as
-  // PlcAssignmentsLibrarySubTab) so the modal renders before the listener
-  // surfaces the new doc.
+  // snapshot first; fall back to the cached title (the pattern ported from
+  // the former PlcAssignmentsLibrarySubTab) so the modal renders before the
+  // listener surfaces the new doc.
   const pendingSetupAssignment = pendingSetup
     ? (assignments.find((a) => a.id === pendingSetup.id) ?? null)
     : null;
@@ -349,14 +369,10 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
               entry={entry}
               showStatusPill
               onMonitor={
-                isOwner && entry.kind === 'quiz'
-                  ? () => handleMonitor(entry.id)
-                  : undefined
+                isOwner ? () => handleMonitor(entry.id, entry.kind) : undefined
               }
               onResults={
-                isOwner && entry.kind === 'quiz'
-                  ? () => handleResults(entry.id)
-                  : undefined
+                isOwner ? () => handleResults(entry.id, entry.kind) : undefined
               }
               onAssignToMyClasses={
                 !isOwner && template
@@ -377,6 +393,16 @@ export const PlcAssignmentsInProgressSubTab: React.FC<
           );
         })}
       </div>
+
+      {/* Monitor/Results — stacked on top of the PLC dashboard */}
+      {sessionModal && (
+        <PlcAssignmentSessionModal
+          assignmentId={sessionModal.assignmentId}
+          kind={sessionModal.kind}
+          view={sessionModal.view}
+          onClose={() => setSessionModal(null)}
+        />
+      )}
 
       {/* Sync/copy mode picker for "Assign to my classes" */}
       {importTarget && (

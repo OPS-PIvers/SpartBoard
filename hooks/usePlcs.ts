@@ -115,10 +115,6 @@ function parsePlc(id: string, data: Record<string, unknown>): Plc | null {
         typeof raw.videoActivities === 'boolean'
           ? raw.videoActivities
           : DEFAULT_PLC_FEATURE_SETTINGS.videoActivities,
-      assignments:
-        typeof raw.assignments === 'boolean'
-          ? raw.assignments
-          : DEFAULT_PLC_FEATURE_SETTINGS.assignments,
       notes:
         typeof raw.notes === 'boolean'
           ? raw.notes

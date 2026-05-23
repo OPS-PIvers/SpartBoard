@@ -1,7 +1,7 @@
 /**
- * Block A smoke test — the two Phase 2B body extractions
- * (`PlcQuizLibraryBody`, `PlcAssignmentsBody`) and their tab wrappers
- * should all be importable React function components.
+ * Block A smoke test — the Phase 2B body extraction
+ * (`PlcQuizLibraryBody`) and its tab wrapper should all be importable
+ * React function components.
  *
  * This is intentionally a static-shape test, not a render test. The
  * bodies pull in real Firestore / Drive collaborators through their
@@ -15,9 +15,7 @@
 import { describe, it, expect } from 'vitest';
 
 import { PlcQuizLibraryBody } from '@/components/plc/bodies/PlcQuizLibraryBody';
-import { PlcAssignmentsBody } from '@/components/plc/bodies/PlcAssignmentsBody';
 import { PlcQuizLibraryTab } from '@/components/plc/tabs/PlcQuizLibraryTab';
-import { PlcAssignmentsTab } from '@/components/plc/tabs/PlcAssignmentsTab';
 import { NotesBody } from '@/components/plc/bodies/NotesBody';
 import { TodosBody } from '@/components/plc/bodies/TodosBody';
 import { PlcAnalyticsBody } from '@/components/plc/bodies/PlcAnalyticsBody';
@@ -26,12 +24,10 @@ import { MembersBody } from '@/components/plc/bodies/MembersBody';
 describe('plc bodies — module shape', () => {
   it('Phase 2B bodies are function components', () => {
     expect(typeof PlcQuizLibraryBody).toBe('function');
-    expect(typeof PlcAssignmentsBody).toBe('function');
   });
 
   it('tab wrappers still export (so legacy v1 tab routing keeps working)', () => {
     expect(typeof PlcQuizLibraryTab).toBe('function');
-    expect(typeof PlcAssignmentsTab).toBe('function');
   });
 
   it('the Phase 2 bodies that shipped in #1582 are still exported', () => {

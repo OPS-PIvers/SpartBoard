@@ -162,7 +162,7 @@ export const AttentionCard: React.FC<AttentionCardProps> = ({
       {/* Footer CTA */}
       <button
         type="button"
-        onClick={() => onNavigate('assignments')}
+        onClick={() => onNavigate('quizzes')}
         className="flex items-center justify-center gap-1.5 px-5 py-3 border-t border-slate-100 text-xs font-bold uppercase tracking-wider text-brand-blue-primary hover:bg-brand-blue-lighter/40 transition-colors"
       >
         {t('plcDashboard.home.attention.openAll', {

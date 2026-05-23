@@ -38,7 +38,7 @@ export const QuickCreateBar: React.FC<QuickCreateBarProps> = ({
       icon: BookOpen,
       color:
         'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100 hover:border-blue-200',
-      section: 'assignments',
+      section: 'quizzes',
     },
     {
       key: 'video',
@@ -48,7 +48,7 @@ export const QuickCreateBar: React.FC<QuickCreateBarProps> = ({
       icon: Film,
       color:
         'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100 hover:border-violet-200',
-      section: 'assignments',
+      section: 'videoActivities',
     },
     {
       key: 'doc',

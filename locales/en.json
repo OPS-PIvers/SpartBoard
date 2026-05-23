@@ -263,8 +263,7 @@
     "close": "Close",
     "tabs": {
       "overview": "Overview",
-      "quizzes": "Quiz Library",
-      "assignments": "PLC Assignments",
+      "quizzes": "Quizzes",
       "videoActivities": "Video Activities",
       "notes": "Notes",
       "todos": "To-Do List",
@@ -282,10 +281,19 @@
       "inProgress": "In-progress",
       "completed": "Completed"
     },
+    "quizzesSubTabs": {
+      "label": "Quiz views",
+      "library": "Library",
+      "inProgress": "In-progress",
+      "completed": "Completed"
+    },
+    "videoActivitiesSubTabs": {
+      "label": "Video activity views",
+      "library": "Library",
+      "inProgress": "In-progress",
+      "completed": "Completed"
+    },
     "assignmentsLibrary": {
-      "heading": "Assignment Templates",
-      "count_one": "{{count}} template",
-      "count_other": "{{count}} templates",
       "bySharer": "shared by {{name}}",
       "unknownSharer": "a teammate",
       "addToMyBoard": "Add to my board",
@@ -340,10 +348,6 @@
       "quizzes": {
         "title": "Quiz Library",
         "description": "Share quizzes with the PLC. Members can sync edits or copy a quiz into their own library."
-      },
-      "assignments": {
-        "title": "PLC Assignments",
-        "description": "Author PLC-level assignments that members can pick up on their own boards."
       },
       "videoActivities": {
         "title": "Video Activities",

@@ -7,7 +7,6 @@ import { useAuth } from '@/context/useAuth';
 import { PlcDashboardRail, type PlcRailItem } from './PlcDashboardRail';
 import { PLC_SECTIONS, type PlcSectionId } from './sections';
 import { PlcHome } from './home/PlcHome';
-import { PlcAssignmentsSection } from './assignments/PlcAssignmentsSection';
 import { PlcSharedDataBody } from './sharedData/PlcSharedDataBody';
 import { PlcDocsBody } from './docs/PlcDocsBody';
 import { PlcResourcesBody } from './resources/PlcResourcesBody';
@@ -90,11 +89,9 @@ export const PlcDashboard: React.FC<PlcDashboardProps> = ({ plc, onClose }) => {
       case 'home':
         return <PlcHome plc={plc} onNavigate={handleNavigateSection} />;
       case 'quizzes':
-        return <PlcQuizLibraryTab plc={plc} />;
+        return <PlcQuizLibraryTab plc={plc} onCloseDashboard={onClose} />;
       case 'videoActivities':
         return <PlcVideoActivitiesTab plc={plc} />;
-      case 'assignments':
-        return <PlcAssignmentsSection plc={plc} />;
       case 'sharedData':
         return <PlcSharedDataBody plc={plc} />;
       case 'docs':

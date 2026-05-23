@@ -1,6 +1,55 @@
 {
   "entries": [
     {
+      "version": "2026.05.22.2",
+      "date": "2026-05-22",
+      "title": "A streamlined PLC quiz and video workspace",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "PLC quizzes & video activities",
+          "items": [
+            {
+              "text": "Quizzes and Video Activities each now have their own Library, In-Progress, and Completed tabs, so shared content and the assignments running from it live together — the separate Assignments page is gone."
+            },
+            {
+              "text": "Shared quizzes and saved assignment setups are now one combined Library, with an \"Assign to my classes\" action on every quiz."
+            },
+            {
+              "text": "Assign buttons sit right at the top of each section, so starting a new assignment is one click away."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "PLC quizzes & video activities",
+          "items": [
+            {
+              "text": "Monitor a running assignment or check its results — for both quizzes and video activities — without leaving the PLC."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "The PLC Quizzes and Video Activities sections each now have their own Library, In-Progress, and Completed tabs, so a section's shared content and the assignments running from it live in one place. The separate Assignments page is gone — everything you did there now happens right inside the Quizzes and Video Activities sections."
+        },
+        {
+          "type": "feature",
+          "text": "The PLC quiz library is now a single list. Shared quizzes and saved assignment setups are combined into one Library, and every quiz has an \"Assign to my classes\" action, so you can hand a colleague's shared quiz to your own students in one step — its run settings come along with it."
+        },
+        {
+          "type": "feature",
+          "text": "Assign buttons now sit at the top of the Quizzes and Video Activities sections, so starting a new assignment is one click from wherever you are in the PLC."
+        },
+        {
+          "type": "improvement",
+          "text": "Monitor an in-progress assignment or view its results without leaving the PLC. Both quizzes and video activities now open their live monitor and results in a clean window on top of the PLC space, instead of closing the PLC page first."
+        }
+      ]
+    },
+    {
       "version": "2026.05.22",
       "date": "2026-05-22",
       "title": "Built-in quiz settings and notebook editing upgrades",
