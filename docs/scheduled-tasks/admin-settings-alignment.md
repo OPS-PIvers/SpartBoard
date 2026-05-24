@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-17_
+_Last audited: 2026-05-24_
 _Last action: 2026-05-21_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
 
 ### MEDIUM Appearance settings (cardColor, cardOpacity, fontFamily, fontColor) exposed in user Settings.tsx but absent from admin building config
 
@@ -48,6 +50,13 @@ _Nothing currently in progress._
 - **File:** components/admin/ActivityWallConfigurationPanel.tsx, utils/adminBuildingConfig.ts, types.ts
 - **Detail:** `ActivityWallBuildingConfig` (types.ts:1226) defines three per-building admin defaults: `defaultMode` (text/photo), `defaultIdentificationMode` (anonymous/name/pin/name-pin), and `defaultModerationEnabled` (boolean). `ActivityWallGlobalConfig` (types.ts:1232) holds `buildingDefaults: Record<string, ActivityWallBuildingConfig>`. `ActivityWallConfigurationPanel.tsx` is fully implemented — it correctly reads/writes these per-building values via `BuildingSelector`. However: (1) there is no `case 'activity-wall':` in `utils/adminBuildingConfig.ts`, so `getAdminBuildingConfig('activity-wall')` falls through to `default: break` returning `{}`; (2) more importantly, `ActivityWallConfig` (the widget instance config, types.ts:1237) has no `defaultMode`, `defaultIdentificationMode`, or `defaultModerationEnabled` fields at all — these are _activity-level_ defaults, not widget-level defaults; (3) no code in `components/widgets/ActivityWall/` or `hooks/useActivityWallLibrary.ts` reads from `featurePermissions['activity-wall']` to apply building defaults when creating new activities. The admin panel stores data correctly in Firestore but nothing ever reads it.
 - **Fix:** In `components/widgets/ActivityWall/` (likely in the activity creation path inside `useActivityWallLibrary.ts` or the widget's new-activity handler), read `featurePermissions['activity-wall']` directly (pattern: `(featurePermissions['activity-wall']?.config as ActivityWallGlobalConfig | undefined)?.buildingDefaults?.[selectedBuilding]`) and apply `defaultMode`, `defaultIdentificationMode`, and `defaultModerationEnabled` as initial values when a teacher creates a new activity. No widget-config fields need to be added; the defaults should be applied at activity-creation time, not at widget-creation time. A `case 'activity-wall':` in `adminBuildingConfig.ts` is NOT needed since these aren't widget-level fields.
+
+### LOW `guided-learning` registered in BUILDING_CONFIG_PANELS with stub info-only panel
+
+- **Detected:** 2026-05-24
+- **File:** components/admin/GuidedLearningConfigurationPanel.tsx, components/admin/FeatureConfigurationPanel.tsx (~line 132)
+- **Detail:** `GuidedLearningConfigurationPanel` is registered in `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx`. The panel renders only an informational message: "Guided Learning settings are managed directly — please interact with the widget directly on your board." It has no `onChange` handler, writes nothing to Firestore, and there is no building defaults infrastructure for guided-learning (`GuidedLearningConfig` does not have a `BuildingGuidedLearningDefaults` interface in types.ts, and there is no `case 'guided-learning':` in `utils/adminBuildingConfig.ts`). The GuidedLearning widget reads `widget.config` directly — it does not read from feature_permissions at all. The admin panel button for this widget opens a panel that provides no functional value and shows a message that could be misleading (implying settings exist but are in-widget only).
+- **Fix:** Option (a): Remove `guided-learning` from `BUILDING_CONFIG_PANELS` so the admin UI falls through to the standard "No global settings available for this widget." placeholder — more accurate than an info stub. Option (b): If guided-learning admin defaults are genuinely planned (e.g., default view, default set library source), implement building defaults infrastructure (types.ts interface + adminBuildingConfig.ts case + real panel controls). Option (a) is lower-effort and more honest about current state.
 
 ### MEDIUM `need-do-put-then` has stub admin config panel but no getAdminBuildingConfig handler
 

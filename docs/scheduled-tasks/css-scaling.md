@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-23_
+_Last audited: 2026-05-24_
 _Last action: 2026-05-23_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-24: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits since 2026-05-23: feat(plc) remove Assignments page + unify quiz library, feat(notebook) place assets on page + rename notebooks. Neither touches widget front-face content. ActivityWall/Widget.tsx:2101-2110 `max-h-[75vh]` usage confirmed inside a `<Modal>` overlay (viewport-constrained media preview for full-screen submission viewing) — not inside the widget's CSS container-query context; acceptable. MusicWidget/Widget.tsx:570 `max-w-[85%]` is a structural truncation constraint on a flex-child label, not a content-cap violation. RecessGear/Widget.tsx:341 `max-w-[70%]` same pattern — truncation guard on a text label inside a row. MiniApp portaled toolbar fix still in scheduled-tasks branch (commit 74ff0f94) pending merge to dev-paul. All pre-existing open items remain valid. Zero new anti-patterns detected._
 
 _2026-05-23: Scanned all Widget.tsx / index.tsx files and new sub-components for anti-patterns. New dev-paul commits since 2026-05-22: feat(notebook)×4 + fix(notebook)×2 adding new SmartNotebook sub-components (PageCanvas.tsx, PageEditor.tsx, PageEditorOverlay.tsx). All three new sub-components: zero hardcoded Tailwind text-size classes, fixed icon sizes, or pixel-capped max-h/max-w constraints. PageCanvas and PageEditor are canvas-manipulation surfaces; PageEditorOverlay is a transparent interaction layer — none render front-face text in container-query context. Viewer.tsx existing `max-w-[240px] min-w-[160px]` on assets side-panel remains documented as acceptable structural constraint (per 2026-05-22 note). feat(widget) FAB kebab commit changes only DraggableWindow.tsx and Dock.tsx — not widget front-face content. QuizWidget/Widget.tsx and VideoActivityWidget/Widget.tsx changes are in skipScaling:false widgets (CSS transform scaling), so hardcoded Tailwind text sizes there are not CQ violations. No new anti-patterns detected. All pre-existing open items remain valid._
 

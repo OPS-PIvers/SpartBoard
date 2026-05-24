@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-23_
+_Last audited: 2026-05-24_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-24: Full audit of all 64 WidgetType values. New dev-paul commits since 2026-05-23: feat(plc) remove standalone Assignments page + unify quiz library, fix(pr-1682) sub-agent + bot review feedback, feat(notebook) place assets on page + rename imported notebooks. types.ts changes are all interface additions (PLCAssignmentSession fields, notebook sharing) — no new WidgetType members. WidgetRegistry.ts, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts unchanged. WIDGET_SCALING_CONFIG is `Record<WidgetType, ScalingConfig>` — TypeScript enforces exhaustiveness. 7 WidgetTypes correctly absent from tools.ts (programmatically-spawned sub-widgets: catalyst-instruction, catalyst-visual, blooms-detail, mathTool, custom-widget, onboarding, sticker — per tools.ts JSDoc). 3 InternalToolType entries (magic, record, remote) correctly present in tools.ts and not in WidgetType union. All 64 WidgetTypes remain correctly registered. Zero new gaps._
 
 _2026-05-23: Full audit of all 64 WidgetType values. New dev-paul commits merged since 2026-05-22: a11y(plc) aria-labels on PLC buttons/loaders/tabpanels, test(plc) coverage for assign-pickup/sync-join/kindFilter/run-settings/video states, fix(plc) review findings cleanup, feat(plc)×6 (unify quiz library, tabs for VA/Quiz sections, top-level Assign buttons, Monitor/Results stacked modal, remove Assignments page), feat(notebook)×4 + fix(notebook)×2 (marquee multi-select, hit tolerance, text edits, asset placement, share via paste-able link, rename imported notebooks), feat(widget) replace pill toolbar with FAB kebab when maximized. types.ts touched by feat(plc) and feat(notebook) commits — new interface types only (PLCAssignmentSession, SharedNotebook, notebook sharing types), no new WidgetType members added. WidgetRegistry.ts, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts all unchanged. All 64 WidgetTypes remain correctly registered. Zero new gaps._
 
