@@ -1,7 +1,23 @@
 import React, { useMemo, useRef, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, DrawableObject, DrawingConfig, TextConfig } from '@/types';
-import { Pencil, Eraser, Trash2, Undo2, Type } from 'lucide-react';
+import {
+  WidgetData,
+  DrawableObject,
+  DrawingConfig,
+  ShapeTool,
+  TextConfig,
+} from '@/types';
+import {
+  ArrowRight,
+  Circle,
+  Eraser,
+  Pencil,
+  Slash,
+  Square,
+  Trash2,
+  Type,
+  Undo2,
+} from 'lucide-react';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
@@ -9,6 +25,19 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
+
+const TOOL_BUTTONS: ReadonlyArray<{
+  tool: ShapeTool;
+  Icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}> = [
+  { tool: 'pen', Icon: Pencil, label: 'Pen' },
+  { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
+  { tool: 'line', Icon: Slash, label: 'Line' },
+  { tool: 'arrow', Icon: ArrowRight, label: 'Arrow' },
+  { tool: 'rect', Icon: Square, label: 'Rectangle' },
+  { tool: 'ellipse', Icon: Circle, label: 'Ellipse' },
+];
 
 export const DrawingWidget: React.FC<{
   widget: WidgetData;
@@ -29,6 +58,8 @@ export const DrawingWidget: React.FC<{
     width = DRAWING_DEFAULTS.WIDTH,
     objects,
     customColors = DRAWING_DEFAULTS.CUSTOM_COLORS,
+    activeTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
+    shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
   } = config;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -62,6 +93,8 @@ export const DrawingWidget: React.FC<{
     disabled: isStudentView,
     canvasSize,
     nextZ: nextZ(objects),
+    activeTool,
+    shapeFill,
   });
 
   const clear = () => {
@@ -137,9 +170,49 @@ export const DrawingWidget: React.FC<{
     }
   };
 
+  const setActiveTool = (tool: ShapeTool) => {
+    updateWidget(widget.id, {
+      config: { ...config, activeTool: tool } as DrawingConfig,
+    });
+  };
+
+  const isErasing = activeTool === 'eraser';
+
   const PaletteUI = (
     <div className="flex flex-wrap items-center gap-2 p-2">
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+      <div
+        role="radiogroup"
+        aria-label="Drawing tool"
+        className="flex gap-1 bg-slate-100 p-1 rounded-lg"
+      >
+        {TOOL_BUTTONS.map(({ tool, Icon, label }) => (
+          <button
+            key={tool}
+            type="button"
+            role="radio"
+            aria-checked={activeTool === tool}
+            onClick={() => setActiveTool(tool)}
+            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${
+              activeTool === tool
+                ? 'ring-2 ring-indigo-500'
+                : 'hover:bg-slate-50'
+            }`}
+            title={label}
+            aria-label={label}
+          >
+            <Icon className="w-3.5 h-3.5 text-slate-600" />
+          </button>
+        ))}
+      </div>
+
+      <div className="h-6 w-px bg-slate-200 mx-1" />
+
+      <div
+        className={`flex gap-1 bg-slate-100 p-1 rounded-lg transition-opacity ${
+          isErasing ? 'opacity-50 pointer-events-none' : ''
+        }`}
+        aria-hidden={isErasing}
+      >
         {customColors.map((c) => (
           <button
             key={c}
@@ -153,17 +226,6 @@ export const DrawingWidget: React.FC<{
             aria-label={`Color ${c}`}
           />
         ))}
-        <button
-          onClick={() =>
-            updateWidget(widget.id, {
-              config: { ...config, color: 'eraser' } as DrawingConfig,
-            })
-          }
-          className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${color === 'eraser' ? 'ring-2 ring-indigo-500' : ''}`}
-          aria-label="Eraser"
-        >
-          <Eraser className="w-3 h-3 text-slate-400" />
-        </button>
       </div>
 
       <div className="h-6 w-px bg-slate-200 mx-1" />

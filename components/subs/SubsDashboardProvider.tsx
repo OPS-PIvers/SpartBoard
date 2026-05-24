@@ -68,6 +68,8 @@ const DEFAULT_ANNOTATION_STATE: AnnotationState = {
   color: '#ef4444',
   width: 4,
   customColors: [],
+  activeTool: 'pen',
+  shapeFill: false,
 };
 
 /**

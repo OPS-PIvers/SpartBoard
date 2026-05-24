@@ -386,6 +386,8 @@ const mockDashboard: DashboardContextValue = {
     color: '#000000',
     width: 4,
     customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
+    activeTool: 'pen',
+    shapeFill: false,
   },
   openAnnotation: () => {
     // No-op

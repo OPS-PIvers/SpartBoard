@@ -432,6 +432,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     color: STANDARD_COLORS.slate,
     width: DRAWING_DEFAULTS.WIDTH,
     customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
+    activeTool: DRAWING_DEFAULTS.ACTIVE_TOOL,
+    shapeFill: DRAWING_DEFAULTS.SHAPE_FILL,
   }));
 
   // Helper to centralize active dashboard switching and its side-effects (like zoom reset)
@@ -4934,6 +4936,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       customColors: adminConfig.customColors ?? [
         ...DRAWING_DEFAULTS.CUSTOM_COLORS,
       ],
+      activeTool: prev.activeTool,
+      shapeFill: prev.shapeFill,
     }));
     // Reset the dashboard's overlay so a fresh session starts blank for
     // everyone (including remote participants on a synced board).

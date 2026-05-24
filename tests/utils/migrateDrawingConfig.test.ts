@@ -34,8 +34,16 @@ const pathObject = (overrides: Partial<PathObject> = {}): PathObject => ({
 
 describe('migrateDrawingConfig', () => {
   it('returns an empty config when input is null or undefined', () => {
-    expect(migrateDrawingConfig(null)).toEqual({ objects: [] });
-    expect(migrateDrawingConfig(undefined)).toEqual({ objects: [] });
+    expect(migrateDrawingConfig(null)).toEqual({
+      objects: [],
+      activeTool: 'pen',
+      shapeFill: false,
+    });
+    expect(migrateDrawingConfig(undefined)).toEqual({
+      objects: [],
+      activeTool: 'pen',
+      shapeFill: false,
+    });
   });
 
   it('passes through an already-migrated config unchanged', () => {
@@ -138,6 +146,51 @@ describe('migrateDrawingConfig', () => {
     expect(twice.color).toBe(once.color);
     expect(twice.width).toBe(once.width);
   });
+
+  it('migrates legacy color === "eraser" to activeTool: "eraser" and clears color', () => {
+    const input = {
+      objects: [pathObject()],
+      color: 'eraser',
+    } as unknown as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('eraser');
+    expect(out.color).toBeUndefined();
+  });
+
+  it('defaults missing activeTool to "pen"', () => {
+    const input = {
+      objects: [pathObject()],
+      color: '#ff0000',
+    } as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('pen');
+    expect(out.color).toBe('#ff0000');
+  });
+
+  it('defaults invalid activeTool strings to "pen"', () => {
+    const input = {
+      objects: [pathObject()],
+      color: '#0000ff',
+      activeTool: 'magic',
+    } as unknown as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('pen');
+  });
+
+  it('defaults missing shapeFill to false', () => {
+    const input = { objects: [pathObject()] } as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.shapeFill).toBe(false);
+  });
+
+  it('preserves an explicit shapeFill: true', () => {
+    const input = {
+      objects: [pathObject()],
+      shapeFill: true,
+    } as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.shapeFill).toBe(true);
+  });
 });
 
 describe('nextZ', () => {
@@ -174,7 +227,11 @@ describe('emptyDrawingConfig', () => {
   it('returns a fresh empty config each call', () => {
     const a = emptyDrawingConfig();
     const b = emptyDrawingConfig();
-    expect(a).toEqual({ objects: [] });
+    expect(a).toEqual({
+      objects: [],
+      activeTool: 'pen',
+      shapeFill: false,
+    });
     expect(a).not.toBe(b);
   });
 });

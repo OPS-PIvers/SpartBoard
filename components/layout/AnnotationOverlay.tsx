@@ -8,14 +8,19 @@ import React, {
 import { createPortal } from 'react-dom';
 import { toPng } from 'html-to-image';
 import {
-  Eraser,
-  Trash2,
-  Undo2,
-  MousePointer2,
-  X,
+  ArrowRight,
   Camera,
+  Circle,
+  Eraser,
   HardDriveUpload,
+  MousePointer2,
+  Pencil,
+  Slash,
+  Square,
+  Trash2,
   Type,
+  Undo2,
+  X,
 } from 'lucide-react';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
@@ -23,22 +28,39 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingCanvas';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
-import { DrawableObject, TextConfig } from '@/types';
+import { DrawableObject, ShapeTool, TextConfig } from '@/types';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
 import { nextZ } from '@/utils/migrateDrawingConfig';
+
+const TOOL_BUTTONS: ReadonlyArray<{
+  tool: ShapeTool;
+  Icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}> = [
+  { tool: 'pen', Icon: Pencil, label: 'Pen' },
+  { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
+  { tool: 'line', Icon: Slash, label: 'Line' },
+  { tool: 'arrow', Icon: ArrowRight, label: 'Arrow' },
+  { tool: 'rect', Icon: Square, label: 'Rectangle' },
+  { tool: 'ellipse', Icon: Circle, label: 'Ellipse' },
+];
 
 const FALLBACK_ANNOTATION_STATE: {
   objects: DrawableObject[];
   color: string;
   width: number;
   customColors: string[];
+  activeTool: ShapeTool;
+  shapeFill: boolean;
 } = {
   objects: [],
   color: STANDARD_COLORS.slate,
   width: DRAWING_DEFAULTS.WIDTH,
   customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
+  activeTool: DRAWING_DEFAULTS.ACTIVE_TOOL,
+  shapeFill: DRAWING_DEFAULTS.SHAPE_FILL,
 };
 
 /**
@@ -142,6 +164,8 @@ export const AnnotationOverlay: React.FC = () => {
     onObjectComplete: addAnnotationObject,
     canvasSize,
     nextZ: nextZ(annotationState.objects),
+    activeTool: annotationState.activeTool,
+    shapeFill: annotationState.shapeFill,
   });
 
   const capturePng = useCallback(async (): Promise<string | null> => {
@@ -254,7 +278,8 @@ export const AnnotationOverlay: React.FC = () => {
 
   if (!shouldRender || !portalTarget) return null;
 
-  const { color, width, customColors, objects } = annotationState;
+  const { color, width, customColors, objects, activeTool } = annotationState;
+  const isErasing = activeTool === 'eraser';
   // Read-only canvas for viewers and for the passive "remote strokes are
   // showing but I haven't opened the toolbar" state. No pen interaction,
   // no toolbar — just the strokes painted on top of the dashboard.
@@ -293,7 +318,37 @@ export const AnnotationOverlay: React.FC = () => {
             </span>
           </div>
 
-          <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+          <div
+            role="radiogroup"
+            aria-label="Drawing tool"
+            className="flex gap-1 bg-slate-100 p-1 rounded-lg"
+          >
+            {TOOL_BUTTONS.map(({ tool, Icon, label }) => (
+              <button
+                key={tool}
+                type="button"
+                role="radio"
+                aria-checked={activeTool === tool}
+                onClick={() => updateAnnotationState({ activeTool: tool })}
+                className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${
+                  activeTool === tool
+                    ? 'ring-2 ring-indigo-500'
+                    : 'hover:bg-slate-50'
+                }`}
+                title={label}
+                aria-label={label}
+              >
+                <Icon className="w-3.5 h-3.5 text-slate-600" />
+              </button>
+            ))}
+          </div>
+
+          <div
+            className={`flex gap-1 bg-slate-100 p-1 rounded-lg transition-opacity ${
+              isErasing ? 'opacity-50 pointer-events-none' : ''
+            }`}
+            aria-hidden={isErasing}
+          >
             {customColors.map((c) => (
               <button
                 key={c}
@@ -307,15 +362,6 @@ export const AnnotationOverlay: React.FC = () => {
                 aria-label={`Color ${c}`}
               />
             ))}
-            <button
-              onClick={() => updateAnnotationState({ color: 'eraser' })}
-              className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${
-                color === 'eraser' ? 'ring-2 ring-indigo-500' : ''
-              }`}
-              aria-label="Eraser"
-            >
-              <Eraser className="w-3.5 h-3.5 text-slate-500" />
-            </button>
           </div>
 
           {/* Width slider */}

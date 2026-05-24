@@ -172,6 +172,36 @@ describe('DrawingWidget', () => {
     expect(mockContext.stroke).toHaveBeenCalled();
   });
 
+  it('clicking the rect tool persists config.activeTool = "rect"', () => {
+    const { getByLabelText } = render(<DrawingWidget widget={widget} />);
+    fireEvent.click(getByLabelText('Rectangle'));
+    expect(mockUpdateWidget).toHaveBeenCalled();
+    const lastCall =
+      mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+    const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
+    expect(cfg.activeTool).toBe('rect');
+  });
+
+  it('clicking a color swatch updates color without changing activeTool', () => {
+    const widgetWithTool: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        activeTool: 'arrow',
+      } as DrawingConfig,
+    };
+    const { getByLabelText } = render(
+      <DrawingWidget widget={widgetWithTool} />
+    );
+    fireEvent.click(getByLabelText('Color #ff0000'));
+    const lastCall =
+      mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+    const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
+    expect(cfg.color).toBe('#ff0000');
+    // activeTool stays as it was — the color click did not flip it back to pen.
+    expect(cfg.activeTool).toBe('arrow');
+  });
+
   it('handles drawing interaction', () => {
     const { container } = render(<DrawingWidget widget={widget} />);
     const canvas = container.querySelector('canvas');

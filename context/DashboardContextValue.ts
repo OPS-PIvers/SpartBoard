@@ -14,6 +14,7 @@ import {
   AddWidgetOverrides,
   GridPosition,
   DrawableObject,
+  ShapeTool,
   Collection,
   CollectionSubstituteShareInput,
 } from '../types';
@@ -101,6 +102,10 @@ export interface AnnotationState {
   color: string;
   width: number;
   customColors: string[];
+  /** Active drawing tool. Defaults to `'pen'`. */
+  activeTool: ShapeTool;
+  /** Fill rectangles/ellipses with the current color when true. */
+  shapeFill: boolean;
 }
 
 export interface DashboardContextValue {

@@ -1007,6 +1007,15 @@ export interface SoundConfig {
   syncExpectations?: boolean;
 }
 
+/** Active drawing tool. Replaces the legacy `config.color === 'eraser'` overload. */
+export type ShapeTool =
+  | 'pen'
+  | 'eraser'
+  | 'rect'
+  | 'ellipse'
+  | 'line'
+  | 'arrow';
+
 export interface DrawingConfig {
   /**
    * @deprecated Annotation mode is now an app-level overlay (not a widget).
@@ -1026,9 +1035,17 @@ export interface DrawingConfig {
    * continue storing only `paths`.
    */
   objects?: DrawableObject[];
+  /**
+   * Active drawing color. Always a real color string after Phase 2 PR 2.1b —
+   * the legacy `'eraser'` overload is migrated away by `migrateDrawingConfig`.
+   */
   color?: string;
   width?: number;
   customColors?: string[];
+  /** Active tool. When absent, defaults to `'pen'`. */
+  activeTool?: ShapeTool;
+  /** If true, rect/ellipse render filled with the current color (stroke unchanged). Default false. */
+  shapeFill?: boolean;
 }
 
 export interface QRConfig {
