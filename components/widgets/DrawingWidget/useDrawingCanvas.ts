@@ -8,6 +8,7 @@ import {
   Point,
   RectObject,
   ShapeTool,
+  TextObject,
 } from '@/types';
 import {
   renderArrow,
@@ -15,6 +16,8 @@ import {
   renderLine,
   renderRect,
 } from './renderers/shapes';
+import { renderText } from './renderers/text';
+import { DRAWING_DEFAULTS } from './constants';
 
 interface UseDrawingCanvasOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -36,6 +39,14 @@ interface UseDrawingCanvasOptions {
   activeTool?: ShapeTool;
   /** Fill toggle for rect/ellipse. Defaults to `false`. */
   shapeFill?: boolean;
+  /**
+   * Fired when the user clicks the canvas with the text tool active. The
+   * hook builds a fresh empty `TextObject` at the click point and hands it
+   * to the caller, which is expected to (a) persist the object and (b) open
+   * the contenteditable overlay scoped to its id. Text creation is a click
+   * (not a drag) and routes around the in-progress shape pipeline.
+   */
+  onTextSpawn?: (obj: TextObject) => void;
 }
 
 interface UseDrawingCanvasResult {
@@ -82,6 +93,7 @@ export const useDrawingCanvas = ({
   nextZ,
   activeTool = 'pen',
   shapeFill = false,
+  onTextSpawn,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
@@ -158,8 +170,31 @@ export const useDrawingCanvas = ({
   const handleStart = useCallback(
     (e: React.PointerEvent) => {
       if (disabled) return;
-      setIsDrawing(true);
       const pos = getPos(e);
+
+      // Text is a click-only spawn — no drag, no in-progress preview. Emit a
+      // fresh empty TextObject through the caller and return without flipping
+      // `isDrawing`, so the subsequent pointer-move/up are no-ops.
+      if (activeTool === 'text') {
+        if (!onTextSpawn) return;
+        const spawned: TextObject = {
+          id: generateId(),
+          kind: 'text',
+          z: nextZ,
+          x: pos.x,
+          y: pos.y,
+          w: DRAWING_DEFAULTS.TEXT_PLACEHOLDER_W,
+          h: DRAWING_DEFAULTS.TEXT_PLACEHOLDER_H,
+          content: '',
+          fontFamily: DRAWING_DEFAULTS.TEXT_FONT_FAMILY,
+          fontSize: DRAWING_DEFAULTS.TEXT_FONT_SIZE_PX,
+          color: color ?? DRAWING_DEFAULTS.TEXT_COLOR,
+        };
+        onTextSpawn(spawned);
+        return;
+      }
+
+      setIsDrawing(true);
 
       if (activeTool === 'pen' || activeTool === 'eraser') {
         inProgressRef.current = {
@@ -196,7 +231,17 @@ export const useDrawingCanvas = ({
         y2: pos.y,
       };
     },
-    [disabled, getPos, canvasRef, setPathContextStyles, activeTool]
+    [
+      disabled,
+      getPos,
+      canvasRef,
+      setPathContextStyles,
+      activeTool,
+      onTextSpawn,
+      generateId,
+      nextZ,
+      color,
+    ]
   );
 
   const redrawWithInProgress = useCallback(() => {
@@ -353,7 +398,7 @@ export const useDrawingCanvas = ({
 };
 
 // --- Object dispatcher ---
-// `text`/`image` stay no-ops; they land in later waves.
+// `image` stays a no-op; it lands in Wave 3.
 
 const renderObject = (
   ctx: CanvasRenderingContext2D,
@@ -376,6 +421,12 @@ const renderObject = (
       renderArrow(ctx, obj);
       return;
     case 'text':
+      // Skip rendering empty text — empty content is the "in-edit" sentinel
+      // for a freshly-spawned object before the user types anything, and we
+      // don't want an invisible-but-still-allocating-baseline draw call.
+      if (obj.content === '') return;
+      renderText(ctx, obj);
+      return;
     case 'image':
       return;
   }

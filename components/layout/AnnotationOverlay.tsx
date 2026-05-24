@@ -19,6 +19,7 @@ import {
   Square,
   Trash2,
   Type,
+  TypeOutline,
   Undo2,
   X,
 } from 'lucide-react';
@@ -26,9 +27,10 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingCanvas';
+import { TextEditorOverlay } from '@/components/widgets/DrawingWidget/TextEditorOverlay';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
-import { DrawableObject, ShapeTool, TextConfig } from '@/types';
+import { DrawableObject, ShapeTool, TextConfig, TextObject } from '@/types';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
@@ -39,6 +41,7 @@ const TOOL_BUTTONS: ReadonlyArray<{
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
 }> = [
+  { tool: 'text', Icon: TypeOutline, label: 'Text' },
   { tool: 'pen', Icon: Pencil, label: 'Pen' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
   { tool: 'line', Icon: Slash, label: 'Line' },
@@ -112,6 +115,19 @@ export const AnnotationOverlay: React.FC = () => {
   const [isBusy, setIsBusy] = useState<null | 'download' | 'drive' | 'ocr'>(
     null
   );
+  // Text editing — local state, mirrors the widget's pattern. Not part of
+  // the shared `annotationState` because edits are local-only by design (per
+  // the "Live-share interaction" section of the Phase 2 design spec). We
+  // keep the in-flight TextObject in state until commit so a freshly spawned
+  // (empty) text never reaches the shared overlay objects array.
+  const [editingText, setEditingText] = useState<TextObject | null>(null);
+  const [canvasRect, setCanvasRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (!editingText) return;
+    const node = canvasRef.current;
+    if (!node) return;
+    setCanvasRect(node.getBoundingClientRect());
+  }, [editingText, viewport.width, viewport.height]);
 
   // Locate the dashboard root portal target (waits for mount if needed)
   useEffect(() => {
@@ -156,17 +172,80 @@ export const AnnotationOverlay: React.FC = () => {
     [viewport.width, viewport.height]
   );
 
+  const handleTextSpawn = useCallback((obj: TextObject) => {
+    // Hold the empty TextObject in local state until commit. Skipping the
+    // persist-then-edit round-trip means a cancelled spawn never reaches
+    // the live-share mirror.
+    setEditingText(obj);
+  }, []);
+
+  const commitTextEdit = useCallback(
+    (next: TextObject) => {
+      const existing = annotationState.objects.find((o) => o.id === next.id);
+      if (existing) {
+        // Re-edit: replace in place via the shared objects path.
+        const replaced = annotationState.objects.map((o) =>
+          o.id === next.id ? next : o
+        );
+        updateAnnotationState({ objects: replaced });
+      } else {
+        // First commit of a freshly spawned object — append via the
+        // standard add path so it picks up authorUid stamping for the
+        // per-author undo logic.
+        addAnnotationObject(next);
+      }
+      setEditingText(null);
+    },
+    [addAnnotationObject, annotationState.objects, updateAnnotationState]
+  );
+
+  const cancelTextEdit = useCallback(() => {
+    const stale = editingText;
+    setEditingText(null);
+    if (!stale) return;
+    const existing = annotationState.objects.find((o) => o.id === stale.id);
+    if (!existing) return;
+    if (existing.kind === 'text' && existing.content.trim() === '') {
+      updateAnnotationState({
+        objects: annotationState.objects.filter((o) => o.id !== stale.id),
+      });
+    }
+  }, [annotationState.objects, editingText, updateAnnotationState]);
+
   const { handleStart, handleMove, handleEnd } = useDrawingCanvas({
     canvasRef,
     color: annotationState.color,
     width: annotationState.width,
     objects: annotationState.objects,
     onObjectComplete: addAnnotationObject,
+    onTextSpawn: handleTextSpawn,
     canvasSize,
     nextZ: nextZ(annotationState.objects),
     activeTool: annotationState.activeTool,
     shapeFill: annotationState.shapeFill,
   });
+
+  // Double-click any existing text annotation to re-edit it.
+  const handleCanvasDoubleClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+      const px = (e.clientX - rect.left) * scaleX;
+      const py = (e.clientY - rect.top) * scaleY;
+      const texts = annotationState.objects.filter(
+        (o): o is TextObject => o.kind === 'text'
+      );
+      const sorted = [...texts].sort((a, b) => b.z - a.z);
+      const hit = sorted.find(
+        (o) => px >= o.x && px <= o.x + o.w && py >= o.y && py <= o.y + o.h
+      );
+      if (hit) setEditingText(hit);
+    },
+    [annotationState.objects]
+  );
 
   const capturePng = useCallback(async (): Promise<string | null> => {
     const root = document.getElementById('dashboard-root');
@@ -296,6 +375,7 @@ export const AnnotationOverlay: React.FC = () => {
         onPointerMove={interactive ? handleMove : undefined}
         onPointerUp={interactive ? handleEnd : undefined}
         onPointerLeave={interactive ? handleEnd : undefined}
+        onDoubleClick={interactive ? handleCanvasDoubleClick : undefined}
         className={`absolute inset-0 ${
           interactive
             ? 'pointer-events-auto cursor-crosshair'
@@ -303,6 +383,16 @@ export const AnnotationOverlay: React.FC = () => {
         }`}
         style={{ touchAction: interactive ? 'none' : 'auto' }}
       />
+
+      {interactive && editingText && canvasRect && (
+        <TextEditorOverlay
+          object={editingText}
+          canvasRect={canvasRect}
+          canvasSize={canvasSize}
+          onCommit={commitTextEdit}
+          onCancel={cancelTextEdit}
+        />
+      )}
 
       {/* Floating toolbar — sits where the Dock normally lives.
           Hidden for viewers and for the passive remote-stroke render path. */}

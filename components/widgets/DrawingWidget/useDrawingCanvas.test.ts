@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 import { useDrawingCanvas } from './useDrawingCanvas';
+import { DRAWING_DEFAULTS } from './constants';
 import type {
   ArrowObject,
   DrawableObject,
@@ -9,6 +10,7 @@ import type {
   LineObject,
   PathObject,
   RectObject,
+  TextObject,
 } from '@/types';
 
 interface MockCtx {
@@ -24,6 +26,7 @@ interface MockCtx {
   strokeRect: Mock;
   fillRect: Mock;
   ellipse: Mock;
+  fillText: Mock;
   canvas: { width: number; height: number };
   lineCap: string;
   lineJoin: string;
@@ -31,6 +34,8 @@ interface MockCtx {
   strokeStyle: string;
   fillStyle: string;
   lineWidth: number;
+  font: string;
+  textBaseline: string;
 }
 
 const makeMockCtx = (): MockCtx => ({
@@ -46,6 +51,7 @@ const makeMockCtx = (): MockCtx => ({
   strokeRect: vi.fn(),
   fillRect: vi.fn(),
   ellipse: vi.fn(),
+  fillText: vi.fn(),
   canvas: { width: 800, height: 600 },
   lineCap: 'round',
   lineJoin: 'round',
@@ -53,6 +59,8 @@ const makeMockCtx = (): MockCtx => ({
   strokeStyle: '#000000',
   fillStyle: '#000000',
   lineWidth: 1,
+  font: '10px sans-serif',
+  textBaseline: 'alphabetic',
 });
 
 const makeCanvas = (): HTMLCanvasElement => {
@@ -684,5 +692,162 @@ describe('useDrawingCanvas', () => {
       })
     );
     expect(mockCtx.strokeRect).toHaveBeenCalledWith(5, 6, 50, 40);
+  });
+
+  // --- Text tool (Phase 2 PR 2.1d) -----------------------------------------
+
+  it('text tool: click invokes onTextSpawn exactly once with a fresh empty TextObject', () => {
+    const canvasRef = { current: makeCanvas() };
+    const onTextSpawn = vi.fn();
+    const onObjectComplete = vi.fn();
+    const { result } = renderHook(() =>
+      useDrawingCanvas({
+        canvasRef,
+        color: '#123456',
+        width: 4,
+        objects: [],
+        onObjectComplete,
+        onTextSpawn,
+        canvasSize: { width: 800, height: 600 },
+        generateId: () => 'text-id',
+        nextZ: 7,
+        activeTool: 'text',
+      })
+    );
+    act(() => result.current.handleStart(mkPtr(123, 45)));
+    expect(onTextSpawn).toHaveBeenCalledTimes(1);
+    const spawned = onTextSpawn.mock.calls[0][0] as TextObject;
+    expect(spawned).toMatchObject({
+      id: 'text-id',
+      kind: 'text',
+      z: 7,
+      x: 123,
+      y: 45,
+      content: '',
+      color: '#123456',
+      fontFamily: DRAWING_DEFAULTS.TEXT_FONT_FAMILY,
+      fontSize: DRAWING_DEFAULTS.TEXT_FONT_SIZE_PX,
+      w: DRAWING_DEFAULTS.TEXT_PLACEHOLDER_W,
+      h: DRAWING_DEFAULTS.TEXT_PLACEHOLDER_H,
+    });
+    expect(onObjectComplete).not.toHaveBeenCalled();
+  });
+
+  it('text tool: pointer-move and pointer-up after spawn are no-ops (no extra emissions)', () => {
+    const canvasRef = { current: makeCanvas() };
+    const onTextSpawn = vi.fn();
+    const onObjectComplete = vi.fn();
+    const { result } = renderHook(() =>
+      useDrawingCanvas({
+        canvasRef,
+        color: '#000',
+        width: 4,
+        objects: [],
+        onObjectComplete,
+        onTextSpawn,
+        canvasSize: { width: 800, height: 600 },
+        nextZ: 0,
+        activeTool: 'text',
+      })
+    );
+    act(() => result.current.handleStart(mkPtr(10, 10)));
+    act(() => result.current.handleMove(mkPtr(50, 80)));
+    act(() => result.current.handleEnd());
+
+    expect(onTextSpawn).toHaveBeenCalledTimes(1);
+    expect(onObjectComplete).not.toHaveBeenCalled();
+    // isDrawing must stay false so handleMove is a true no-op and we never
+    // accidentally start a drag preview under the text editor.
+    expect(result.current.isDrawing).toBe(false);
+  });
+
+  it('text tool: spawn is suppressed when no onTextSpawn callback is wired', () => {
+    const canvasRef = { current: makeCanvas() };
+    const onObjectComplete = vi.fn();
+    const { result } = renderHook(() =>
+      useDrawingCanvas({
+        canvasRef,
+        color: '#000',
+        width: 4,
+        objects: [],
+        onObjectComplete,
+        canvasSize: { width: 800, height: 600 },
+        nextZ: 0,
+        activeTool: 'text',
+      })
+    );
+    act(() => result.current.handleStart(mkPtr(10, 10)));
+    expect(onObjectComplete).not.toHaveBeenCalled();
+    expect(result.current.isDrawing).toBe(false);
+  });
+
+  it('renders existing TextObjects via the text dispatcher (fillText per line)', () => {
+    const canvas = makeCanvas();
+    const canvasRef = { current: canvas };
+    const objects: DrawableObject[] = [
+      {
+        id: 't',
+        kind: 'text',
+        z: 0,
+        x: 10,
+        y: 20,
+        w: 200,
+        h: 48,
+        content: 'hello\nworld',
+        fontFamily: 'sans-serif',
+        fontSize: 24,
+        color: '#000',
+      },
+    ];
+    renderHook(() =>
+      useDrawingCanvas({
+        canvasRef,
+        color: '#000',
+        width: 4,
+        objects,
+        onObjectComplete: vi.fn(),
+        canvasSize: { width: 800, height: 600 },
+        nextZ: 1,
+      })
+    );
+    // First line baseline = y + fontSize = 20 + 24 = 44.
+    expect(mockCtx.fillText).toHaveBeenNthCalledWith(1, 'hello', 10, 44);
+    // Second line: previous + fontSize * 1.2 = 44 + 28.8 = 72.8.
+    const secondCall = mockCtx.fillText.mock.calls[1];
+    expect(secondCall[0]).toBe('world');
+    expect(secondCall[1]).toBe(10);
+    expect(secondCall[2]).toBeCloseTo(72.8, 5);
+  });
+
+  it('skips rendering empty-content TextObjects (in-edit sentinel)', () => {
+    const canvas = makeCanvas();
+    const canvasRef = { current: canvas };
+    const objects: DrawableObject[] = [
+      {
+        id: 't',
+        kind: 'text',
+        z: 0,
+        x: 0,
+        y: 0,
+        w: 200,
+        h: 48,
+        content: '',
+        fontFamily: 'sans-serif',
+        fontSize: 24,
+        color: '#000',
+      },
+    ];
+    renderHook(() =>
+      useDrawingCanvas({
+        canvasRef,
+        color: '#000',
+        width: 4,
+        objects,
+        onObjectComplete: vi.fn(),
+        canvasSize: { width: 800, height: 600 },
+        nextZ: 1,
+      })
+    );
+    expect(mockCtx.fillText).not.toHaveBeenCalled();
   });
 });

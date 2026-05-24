@@ -1014,7 +1014,8 @@ export type ShapeTool =
   | 'rect'
   | 'ellipse'
   | 'line'
-  | 'arrow';
+  | 'arrow'
+  | 'text';
 
 export interface DrawingConfig {
   /**

@@ -18,6 +18,7 @@ const VALID_TOOLS: readonly ShapeTool[] = [
   'ellipse',
   'line',
   'arrow',
+  'text',
 ];
 
 /**

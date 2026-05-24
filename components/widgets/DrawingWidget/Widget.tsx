@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -6,6 +6,7 @@ import {
   DrawingConfig,
   ShapeTool,
   TextConfig,
+  TextObject,
 } from '@/types';
 import {
   ArrowRight,
@@ -16,8 +17,10 @@ import {
   Square,
   Trash2,
   Type,
+  TypeOutline,
   Undo2,
 } from 'lucide-react';
+import { TextEditorOverlay } from './TextEditorOverlay';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
@@ -31,6 +34,9 @@ const TOOL_BUTTONS: ReadonlyArray<{
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
 }> = [
+  // Text leads the cluster: it's the most-used non-pen action when teachers
+  // are using the widget to label diagrams or capture quick notes.
+  { tool: 'text', Icon: TypeOutline, label: 'Text' },
   { tool: 'pen', Icon: Pencil, label: 'Pen' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
   { tool: 'line', Icon: Slash, label: 'Line' },
@@ -64,6 +70,21 @@ export const DrawingWidget: React.FC<{
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  // Snapshot of the TextObject currently being edited via TextEditorOverlay.
+  // Stored locally (not in config.objects) until commit, so the editor can
+  // position itself off the snapshot without round-tripping through Firestore.
+  // Local (transient) state — never persisted; matches the selection-state
+  // pattern documented in the Phase 2 design spec.
+  const [editingText, setEditingText] = useState<TextObject | null>(null);
+  // canvasRect drives the editor's positioning. We re-measure on commit/blur
+  // boundaries and on canvas-size changes so the editor follows resizes.
+  const [canvasRect, setCanvasRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (!editingText) return;
+    const node = canvasRef.current;
+    if (!node) return;
+    setCanvasRect(node.getBoundingClientRect());
+  }, [editingText, widget.w, widget.h]);
 
   // Canvas internal resolution follows the widget (minus header) in window mode,
   // or the parent container in student view.
@@ -84,12 +105,54 @@ export const DrawingWidget: React.FC<{
     });
   };
 
+  // Text spawn: keep the empty TextObject in local state and open the editor.
+  // We DON'T persist the empty object — it's added to `objects[]` only on
+  // commit, so an Esc/blur-with-no-text leaves the dashboard untouched.
+  const handleTextSpawn = (obj: TextObject) => {
+    setEditingText(obj);
+  };
+
+  // Commit edited text content back into the objects array. If the object id
+  // already exists, replace it (re-edit flow); otherwise, append (first edit
+  // of a freshly spawned object).
+  const commitTextEdit = (next: TextObject) => {
+    const existing = objects.find((o) => o.id === next.id);
+    const replaced = existing
+      ? objects.map((o) => (o.id === next.id ? next : o))
+      : [...objects, next];
+    updateWidget(widget.id, {
+      config: { ...config, objects: replaced } as DrawingConfig,
+    });
+    setEditingText(null);
+  };
+
+  // Cancel / empty-commit: if the object was already in `objects` (re-edit
+  // flow) and the new content is empty, remove it — matches the degenerate-
+  // shape drop rule for rect/ellipse/line/arrow. Freshly spawned objects are
+  // not in `objects` yet, so cancellation is a clean no-op.
+  const cancelTextEdit = () => {
+    const stale = editingText;
+    setEditingText(null);
+    if (!stale) return;
+    const existing = objects.find((o) => o.id === stale.id);
+    if (!existing) return;
+    if (existing.kind === 'text' && existing.content.trim() === '') {
+      updateWidget(widget.id, {
+        config: {
+          ...config,
+          objects: objects.filter((o) => o.id !== stale.id),
+        } as DrawingConfig,
+      });
+    }
+  };
+
   const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
     canvasRef,
     color,
     width,
     objects,
     onObjectComplete: appendObject,
+    onTextSpawn: handleTextSpawn,
     disabled: isStudentView,
     canvasSize,
     nextZ: nextZ(objects),
@@ -267,6 +330,26 @@ export const DrawingWidget: React.FC<{
     </div>
   );
 
+  // Double-click any existing TextObject to re-enter edit mode. This is the
+  // only double-click gesture in the widget; full hit-testing lands in Wave 4.
+  const handleCanvasDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isStudentView) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+    // Iterate top-to-bottom (highest z first) so the front-most text wins.
+    const texts = objects.filter((o): o is TextObject => o.kind === 'text');
+    const sorted = [...texts].sort((a, b) => b.z - a.z);
+    const hit = sorted.find(
+      (o) => px >= o.x && px <= o.x + o.w && py >= o.y && py <= o.y + o.h
+    );
+    if (hit) setEditingText(hit);
+  };
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div
@@ -280,6 +363,7 @@ export const DrawingWidget: React.FC<{
           onPointerMove={handleMove}
           onPointerUp={handleEnd}
           onPointerLeave={handleEnd}
+          onDoubleClick={handleCanvasDoubleClick}
           className="absolute inset-0"
           style={{ touchAction: 'none' }}
         />
@@ -287,6 +371,15 @@ export const DrawingWidget: React.FC<{
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
             <Pencil className="w-8 h-8 opacity-20" />
           </div>
+        )}
+        {editingText && canvasRect && (
+          <TextEditorOverlay
+            object={editingText}
+            canvasRect={canvasRect}
+            canvasSize={canvasSize}
+            onCommit={commitTextEdit}
+            onCancel={cancelTextEdit}
+          />
         )}
       </div>
       {!isStudentView && (

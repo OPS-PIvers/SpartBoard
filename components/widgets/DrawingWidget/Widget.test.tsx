@@ -19,12 +19,23 @@ interface MockContext {
   moveTo: Mock;
   lineTo: Mock;
   stroke: Mock;
+  save: Mock;
+  restore: Mock;
+  fill: Mock;
+  closePath: Mock;
+  strokeRect: Mock;
+  fillRect: Mock;
+  ellipse: Mock;
+  fillText: Mock;
   canvas: { width: number; height: number };
   lineCap: string;
   lineJoin: string;
   globalCompositeOperation: string;
   strokeStyle: string;
+  fillStyle: string;
   lineWidth: number;
+  font: string;
+  textBaseline: string;
 }
 
 describe('DrawingWidget', () => {
@@ -51,12 +62,23 @@ describe('DrawingWidget', () => {
       moveTo: vi.fn(),
       lineTo: vi.fn(),
       stroke: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      fill: vi.fn(),
+      closePath: vi.fn(),
+      strokeRect: vi.fn(),
+      fillRect: vi.fn(),
+      ellipse: vi.fn(),
+      fillText: vi.fn(),
       canvas: { width: 800, height: 600 },
       lineCap: 'round',
       lineJoin: 'round',
       globalCompositeOperation: 'source-over',
       strokeStyle: '#000000',
+      fillStyle: '#000000',
       lineWidth: 1,
+      font: '10px sans-serif',
+      textBaseline: 'alphabetic',
     };
 
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
@@ -200,6 +222,118 @@ describe('DrawingWidget', () => {
     expect(cfg.color).toBe('#ff0000');
     // activeTool stays as it was — the color click did not flip it back to pen.
     expect(cfg.activeTool).toBe('arrow');
+  });
+
+  it('clicking the text tool persists config.activeTool = "text"', () => {
+    const { getByLabelText } = render(<DrawingWidget widget={widget} />);
+    fireEvent.click(getByLabelText('Text'));
+    expect(mockUpdateWidget).toHaveBeenCalled();
+    const lastCall =
+      mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+    const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
+    expect(cfg.activeTool).toBe('text');
+  });
+
+  it('text tool: pointer-down on canvas mounts the editor (without persisting an empty object)', () => {
+    const widgetTextTool: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        activeTool: 'text',
+      } as DrawingConfig,
+    };
+    const { container } = render(<DrawingWidget widget={widgetTextTool} />);
+    expect(container.querySelector('[role="textbox"]')).toBeNull();
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+
+    // Calls so far are from the initial render (no spawn).
+    const callsBefore = mockUpdateWidget.mock.calls.length;
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 25,
+        clientY: 35,
+      })
+    );
+    // Editor mounts immediately, but the (empty) object is not persisted —
+    // it's held in local state until commit.
+    expect(container.querySelector('[role="textbox"]')).not.toBeNull();
+    expect(mockUpdateWidget.mock.calls.length).toBe(callsBefore);
+  });
+
+  it('text tool: typing + Cmd+Enter persists the text via updateWidget', () => {
+    const widgetTextTool: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        activeTool: 'text',
+      } as DrawingConfig,
+    };
+    const { container } = render(<DrawingWidget widget={widgetTextTool} />);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 25,
+        clientY: 35,
+      })
+    );
+    const editor = container.querySelector('[role="textbox"]');
+    if (!editor) throw new Error('Editor not found');
+    (editor as HTMLElement).innerText = 'classroom';
+    mockUpdateWidget.mockClear();
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true });
+
+    expect(mockUpdateWidget).toHaveBeenCalled();
+    const lastCall =
+      mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+    const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
+    const objs = cfg.objects ?? [];
+    expect(objs).toHaveLength(1);
+    expect(objs[0].kind).toBe('text');
+    if (objs[0].kind === 'text') {
+      expect(objs[0].content).toBe('classroom');
+    }
+  });
+
+  it('double-click on an existing text object re-opens the editor', () => {
+    const textObj = {
+      id: 't-1',
+      kind: 'text' as const,
+      z: 0,
+      x: 30,
+      y: 40,
+      w: 200,
+      h: 48,
+      content: 'Existing',
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    const widgetWithText: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        objects: [textObj],
+      } as DrawingConfig,
+    };
+    const { container } = render(<DrawingWidget widget={widgetWithText} />);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    expect(container.querySelector('[role="textbox"]')).toBeNull();
+
+    // Double-click inside the text bbox
+    fireEvent.doubleClick(canvas, { clientX: 50, clientY: 50 });
+    const editor = container.querySelector('[role="textbox"]');
+    expect(editor).not.toBeNull();
+    expect((editor as HTMLElement).innerText).toBe('Existing');
   });
 
   it('handles drawing interaction', () => {
