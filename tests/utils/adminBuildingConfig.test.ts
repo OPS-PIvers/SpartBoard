@@ -155,6 +155,24 @@ describe('getAdminBuildingConfig', () => {
       });
       expect(getAdminBuildingConfig('clock', [perm], ['high'])).toEqual({});
     });
+
+    it('passes clockStyle through independently when glow is invalid', () => {
+      const perm = makePerm('clock', {
+        high: { clockStyle: 'lcd', glow: 'yes' },
+      });
+      expect(getAdminBuildingConfig('clock', [perm], ['high'])).toEqual({
+        clockStyle: 'lcd',
+      });
+    });
+
+    it('passes glow through independently when clockStyle is invalid', () => {
+      const perm = makePerm('clock', {
+        high: { clockStyle: 'neon', glow: false },
+      });
+      expect(getAdminBuildingConfig('clock', [perm], ['high'])).toEqual({
+        glow: false,
+      });
+    });
   });
 
   it('returns empty for unknown widget types', () => {
