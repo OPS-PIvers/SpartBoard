@@ -126,6 +126,37 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('clock', () => {
+    it('passes through valid clockStyle and glow alongside existing fields', () => {
+      const perm = makePerm('clock', {
+        high: {
+          format24: false,
+          fontFamily: 'font-mono',
+          themeColor: '#ff0000',
+          clockStyle: 'lcd',
+          glow: true,
+        },
+      });
+      expect(getAdminBuildingConfig('clock', [perm], ['high'])).toEqual({
+        format24: false,
+        fontFamily: 'font-mono',
+        themeColor: '#ff0000',
+        clockStyle: 'lcd',
+        glow: true,
+      });
+    });
+
+    it('rejects unknown clockStyle and non-boolean glow', () => {
+      const perm = makePerm('clock', {
+        high: {
+          clockStyle: 'neon', // invalid
+          glow: 'yes', // invalid
+        },
+      });
+      expect(getAdminBuildingConfig('clock', [perm], ['high'])).toEqual({});
+    });
+  });
+
   it('returns empty for unknown widget types', () => {
     const perm = makePerm('clock', { high: { format24: true } });
     // Pass a type that has no case in the switch.

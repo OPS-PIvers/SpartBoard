@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-05-24_
-_Last action: 2026-05-21_
+_Last action: 2026-05-24_
 
 ---
 
@@ -29,13 +29,6 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
   - `checklist` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `ChecklistConfig`; `getAdminBuildingConfig` handles only `items`, `scaleMultiplier`
   - `stations` — `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` fields in `StationsConfig` (added 2026-05-03); exposed via `TypographySettings` + `SurfaceColorSettings` in `components/widgets/Stations/Settings.tsx`; no `StationsConfigurationPanel` exists and `stations` is not registered in `BUILDING_CONFIG_PANELS` or `getAdminBuildingConfig()`
 - **Fix:** For each widget, either (a) add the appearance fields to the widget's `Building*Defaults` interface in `types.ts` and add them to the `getAdminBuildingConfig()` case, plus expose them in the `*ConfigurationPanel.tsx`; or (b) add a note in the config interface comment that appearance fields are intentionally user-only and not admin-configurable per building.
-
-### MEDIUM Clock: `clockStyle` and `glow` configurable by user but not included in admin building defaults
-
-- **Detected:** 2026-04-16
-- **File:** types.ts (ClockConfig / BuildingClockDefaults), context/DashboardContext.tsx (~line 2153), components/admin/ClockConfigurationPanel.tsx
-- **Detail:** `ClockConfig` in types.ts has `clockStyle` and `glow` fields. The user-facing `ClockSettings.tsx` exposes both fields. However, `BuildingClockDefaults` does not include `clockStyle` or `glow`, and `getAdminBuildingConfig` case `'clock'` only applies `format24`, `fontFamily`, and `themeColor`. Admins cannot pre-set clock appearance style or glow effect per building.
-- **Fix:** Add `clockStyle` and `glow` to `BuildingClockDefaults` interface in types.ts. Add them to the `case 'clock'` handler in `getAdminBuildingConfig()`. Expose controls for both in `ClockConfigurationPanel.tsx`.
 
 ### LOW Checklist: `rosterMode` user-configurable but not in admin building config
 
@@ -68,6 +61,14 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM Clock: `clockStyle` and `glow` configurable by user but not included in admin building defaults
+
+- **Detected:** 2026-04-16
+- **Completed:** 2026-05-24
+- **File:** types.ts (BuildingClockDefaults), utils/adminBuildingConfig.ts (case 'clock'), components/admin/ClockConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `ClockConfig` exposed `clockStyle` ('modern' | 'lcd' | 'minimal') and `glow` (boolean) in user `ClockSettings.tsx`, but `BuildingClockDefaults` and the `case 'clock'` handler in `getAdminBuildingConfig()` only passed through `format24`, `fontFamily`, and `themeColor`. Admins could not set per-building clock display style or glow effect.
+- **Resolution:** Chose fix option (a) — implemented building defaults for both fields. (1) Added `clockStyle?: 'modern' | 'lcd' | 'minimal'` and `glow?: boolean` to `BuildingClockDefaults` in `types.ts`. (2) Updated `case 'clock'` in `utils/adminBuildingConfig.ts` to extract both fields with validation: `clockStyle` is validated against the `['modern', 'lcd', 'minimal']` allowlist, `glow` is validated with `typeof === 'boolean'` (matches the existing pattern from `reveal-grid` / `countdown` cases). (3) Added a 3-segment "Default Display Style" pill and a "Glow Effect" toggle to `ClockConfigurationPanel.tsx`, matching the existing visual pattern of the Font Family pill and 24-Hour Format toggle. (4) Added two new tests under a `describe('clock')` block in `tests/utils/adminBuildingConfig.test.ts`: one for valid pass-through (all five fields), one for rejection of unknown `clockStyle` and non-boolean `glow`. `pnpm exec tsc --noEmit`, `pnpm exec eslint ... --max-warnings 0`, and `pnpm exec prettier --check` all clean. `pnpm exec vitest run tests/utils/adminBuildingConfig.test.ts` — all 13 tests pass.
 
 ### MEDIUM 5 widgets have ConfigurationPanels but no Building\*Defaults type infrastructure
 
