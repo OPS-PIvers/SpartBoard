@@ -185,7 +185,7 @@ firestore.rules                                                Wave 8 (/users/{u
 
   Why: every render path needs the same fallback; centralizing prevents drift between Widget and AnnotationOverlay.
 
-- [ ] **Step 2:** Create `components/widgets/DrawingWidget/renderers/shapes.ts` with four pure renderers: `renderRect(ctx, obj)`, `renderEllipse(ctx, obj)`, `renderLine(ctx, obj)`, `renderArrow(ctx, obj)`. Each is ~10 lines. Use `ctx.save()`/`ctx.restore()` around each so `strokeStyle`/`lineWidth`/`fillStyle`/`globalCompositeOperation` never leak between objects. Arrow head: `headLen = Math.max(12, strokeWidth * 3)`; draw triangle at `(x2, y2)` via two `lineTo` + `ctx.fill()`.
+- [ ] **Step 2:** Create `components/widgets/DrawingWidget/renderers/shapes.ts` with four pure renderers: `renderRect(ctx, obj)`, `renderEllipse(ctx, obj)`, `renderLine(ctx, obj)`, `renderArrow(ctx, obj)`. Each is ~10 lines. Use `ctx.save()`/`ctx.restore()` around each so `strokeStyle`/`lineWidth`/`fillStyle`/`globalCompositeOperation` never leak between objects. Arrow head: compute the segment angle first (`const angle = Math.atan2(y2 - y1, x2 - x1);`), then derive the two triangle base points from `(x2, y2)` using `angle ± Math.PI/6` and `headLen = Math.max(12, strokeWidth * 3)`. Draw the triangle via two `lineTo` + `ctx.fill()`. Without the angle the head cannot rotate to follow the line direction.
 
 - [ ] **Step 3:** Write the unit tests in `tests/components/widgets/DrawingWidget/renderers/shapes.test.ts` using the `makeMockCtx` pattern from `useDrawingCanvas.test.ts:21`. Assert each renderer calls the expected ctx methods with the expected arguments and ends with `ctx.restore()`.
 
@@ -226,7 +226,7 @@ firestore.rules                                                Wave 8 (/users/{u
 
   Capture `activeTool` at start in a local ref so mid-drag tool switches are ignored (matches the roadmap's "tool switch during drag is ignored" requirement).
 
-- [ ] **Step 4:** Update `handleMove`: pen appends to points; shapes update the end coords. Re-render preview by passing the in-progress object to `draw()`.
+- [ ] **Step 4:** Update `handleMove`: pen appends to points; shapes update the end coords. Re-render preview by passing the in-progress object to `draw()`. **The `draw()` signature in `useDrawingCanvas.ts` must be widened from `(ctx, objects, currentPath: Point[])` to `(ctx, objects, inProgress: InProgress | null)`** — the previous `Point[]` parameter only covered pen/eraser previews and cannot represent shape primitives. Extract a `renderInProgress(ctx, inProgress, color, width, shapeFill)` helper that switches on `inProgress.kind` and reuses the same per-shape render math from `renderers/shapes.ts` (committed objects and in-progress previews must look identical).
 
 - [ ] **Step 5:** Update `handleEnd` to materialize the in-progress into a `DrawableObject`:
   - `path` → `PathObject` (existing logic).
@@ -306,7 +306,18 @@ firestore.rules                                                Wave 8 (/users/{u
 
 - [ ] **Step 1:** Extend `ShapeTool` union in `types.ts` to include `'text'`: `'pen' | 'eraser' | 'rect' | 'ellipse' | 'line' | 'arrow' | 'text'`. Update `VALID_TOOLS` in `migrateDrawingConfig.ts` accordingly.
 
-- [ ] **Step 2:** Append to `DRAWING_DEFAULTS` in `constants.ts`:
+- [ ] **Step 2:** Extend `DrawingConfig` in `types.ts` with the two persisted text defaults the spec requires (`docs/superpowers/specs/2026-05-24-whiteboard-phase-2-design.md:290-296`) — without these, teachers re-pick font on every text drop:
+
+  ```ts
+  /** Default font family for newly-spawned TextObjects. Default: 'Lexend, sans-serif'. */
+  defaultTextFontFamily?: string;
+  /** Default font size (px) for newly-spawned TextObjects. Default: 24. */
+  defaultTextFontSize?: number;
+  ```
+
+  Add the corresponding forward-migration rule in `utils/migrateDrawingConfig.ts` (validate `typeof === 'string'` for font family, `typeof === 'number'` and `> 0` for size; drop silently otherwise). Add a migration test for each.
+
+- [ ] **Step 3:** Append to `DRAWING_DEFAULTS` in `constants.ts`:
 
   ```ts
   TEXT_FONT_FAMILY: 'Lexend, sans-serif',
@@ -316,7 +327,7 @@ firestore.rules                                                Wave 8 (/users/{u
   TEXT_PLACEHOLDER_H: 48,
   ```
 
-  Why: a click-only spawn needs an initial bounding box.
+  Why: a click-only spawn needs an initial bounding box, and the spawn path reads `config.defaultTextFontFamily ?? DRAWING_DEFAULTS.TEXT_FONT_FAMILY` etc. when stamping the new `TextObject`.
 
 ### Task 2.2: Hook — capture click → spawn empty TextObject
 
@@ -409,7 +420,15 @@ firestore.rules                                                Wave 8 (/users/{u
 
 - [ ] **Step 1:** Hook signature: `useImageInsertion({ canvasRef, onImageReady })` returns `{ openPicker, handlePaste, handleDrop, isUploading }`. Internally calls `useImageUpload({ uploadFn })` where `uploadFn` wraps `uploadDisplayImage(user.uid, file)` from `hooks/useStorage.ts:83`.
 
-- [ ] **Step 2:** `handlePaste(e: ClipboardEvent)` — iterate `e.clipboardData.items`, find the first `type.startsWith('image/')`, call `processAndUploadImage(item.getAsFile(), { skipProcessing: true })`. Reason for `skipProcessing: true`: whiteboard images shouldn't have background removed (a teacher pasting a diagram wants the white background preserved).
+- [ ] **Step 2:** `handlePaste(e: ClipboardEvent)` — iterate `e.clipboardData.items`, find the first `type.startsWith('image/')`, then **null-guard `getAsFile()` before passing to the upload pipeline** (the Web API returns `File | null` — it returns `null` whenever `item.kind !== 'file'`, which includes string items that happen to carry an image MIME type):
+
+  ```ts
+  const file = item.getAsFile();
+  if (!file) continue;
+  processAndUploadImage(file, { skipProcessing: true });
+  ```
+
+  Reason for `skipProcessing: true`: whiteboard images shouldn't have background removed (a teacher pasting a diagram wants the white background preserved).
 
 - [ ] **Step 3:** `handleDrop(e: React.DragEvent)` — same for `e.dataTransfer.files[0]`. Computes drop position via `getBoundingClientRect()` and the file's intrinsic dimensions via a transient `Image` decode; passes both to `onImageReady`.
 
@@ -473,27 +492,69 @@ firestore.rules                                                Wave 8 (/users/{u
 
 **Files:** Create `components/widgets/DrawingWidget/useSelection.ts`, `tests/components/widgets/DrawingWidget/useSelection.test.ts`
 
-- [ ] **Step 1:** Hook signature: `useSelection({ objects, activeTool, onUpdateObject, onRemoveObject })` returns `{ selectedId, selectedObject, handleSelectPointerDown, handleSelectPointerMove, handleSelectPointerUp, handleKeyDown, transformState }`.
+- [ ] **Step 1:** Hook signature: `useSelection({ objects, activeTool, onTransformPreview, onTransformCommit, onRemoveObject })` returns `{ selectedId, selectedObject, handleSelectPointerDown, handleSelectPointerMove, handleSelectPointerUp, handleKeyDown, transformState }`.
 
-- [ ] **Step 2:** `handleSelectPointerDown(e, pos)` — if `activeTool === 'select'`: hit-test; set `selectedId`. If the hit is a resize handle or rotation handle (determined by checking proximity to handle positions of the currently selected object), enter `transformState = { mode: 'resize-nw' | ... | 'rotate' | 'translate', origin, startObj }`.
+  > **Preview vs commit (critical):** the spec (§2.1c) is explicit that
+  > only `pointerup` commits through `updateWidget`. A two-second drag at
+  > 60 fps produces ~120 pointer-move events; routing each one to
+  > `updateWidget` writes ~120 docs to Firestore and trips both the SDK's
+  > per-second write quota and client-side throttling on slow links. We
+  > split the callbacks so this regression cannot ship even as an interim
+  > Wave 4 build:
+  >
+  > - `onTransformPreview(next)` — fired on every `pointermove`; updates
+  >   local-only canvas state via `previewObjectsChange` (Wave 5
+  >   introduces the canonical name; in Wave 4 it is a local `useState`
+  >   on the widget that overrides `objects` for the render pass only).
+  >   **Never** calls `updateWidget`.
+  > - `onTransformCommit(next)` — fired exactly once on `pointerup`. This
+  >   is the only path that touches `updateWidget`.
 
-- [ ] **Step 3:** `handleSelectPointerMove(e, pos)` — when `transformState != null`, compute the in-flight transformed object and emit via `onUpdateObject(transformed)`. Use immutable updates (no in-place mutation of objects array entries).
+- [ ] **Step 2:** `handleSelectPointerDown(e, pos)` — if `activeTool === 'select'`: hit-test; set `selectedId`. If the hit is a resize handle or rotation handle (determined by numeric proximity to the handle positions painted by `renderSelectionChrome` in Task 4.4 Step 2), enter `transformState = { mode: 'resize-nw' | ... | 'rotate' | 'translate', origin, startObj }`.
 
-- [ ] **Step 4:** `handleSelectPointerUp` — clears `transformState`. The final position is the last `onUpdateObject` callback (no extra commit needed since transforms are emitted continuously).
+- [ ] **Step 3:** `handleSelectPointerMove(e, pos)` — when `transformState != null`, compute the in-flight transformed object and emit via `onTransformPreview(transformed)` (local-state only, no Firestore write). Use immutable updates.
+
+- [ ] **Step 4:** `handleSelectPointerUp` — compute the final transformed object once, call `onTransformCommit(final)` (the single `updateWidget` write), then clear `transformState` and the preview override.
 
 - [ ] **Step 5:** `handleKeyDown` — `Backspace`/`Delete` removes `selectedId` via `onRemoveObject`. Arrow keys nudge by 1px (Shift+Arrow = 10px).
 
 - [ ] **Step 6:** Tests: selecting an object sets `selectedId`; click-empty clears it; pointer-move during translate calls `onUpdateObject` per move; Backspace calls `onRemoveObject`.
 
-### Task 4.4: Selection overlay component
+### Task 4.4: Selection chrome — drawn inside `draw()` (no separate SVG layer)
 
-**Files:** Create `components/widgets/DrawingWidget/SelectionOverlay.tsx`
+**Files:** Modify `components/widgets/DrawingWidget/useDrawingCanvas.ts`; Create `components/widgets/DrawingWidget/SelectionOverlay.tsx`
 
-- [ ] **Step 1:** Props: `{ object: DrawableObject; canvasRect: DOMRect; transformState: TransformState | null }`. Renders an absolutely-positioned SVG layer over the canvas with: a dashed selection rectangle around the bbox, 8 white-with-blue-border resize handles (nw, n, ne, e, se, s, sw, w), and a rotation handle 24px above the n handle.
+> **Architecture note (resolves a plan/spec discrepancy):** the spec
+> (`docs/superpowers/specs/2026-05-24-whiteboard-phase-2-design.md` §2.1c)
+> requires selection chrome (bbox + 8 resize handles + rotation handle) to
+> be drawn **inside `draw()` after the object loop** — not in a sibling
+> SVG layer. Two reasons: (1) preserves Architecture Invariant #1 (the
+> `useDrawingCanvas` contract — "take a list of objects, paint them,
+> capture pointer interaction" — stays the single rendering surface), and
+> (2) keeps PNG export (Wave 7) a single `toDataURL` call. Selection
+> chrome is intentionally excluded from exports because the `draw()` call
+> that exports uses `selection: null`.
+>
+> `SelectionOverlay.tsx` still exists, but only as a **transparent
+> pointer-event interceptor** that calls back into the selection hook — no
+> visual content. Handle-hit-test is performed numerically in the hook
+> using the selected object's bbox + current handle positions, not via
+> `data-handle` DOM attributes.
 
-- [ ] **Step 2:** Each handle gets a `data-handle="nw"` attribute so the hook's pointer-down logic can identify it.
+- [ ] **Step 1:** Extend `UseDrawingCanvasOptions` per the spec (lines 252-258):
 
-- [ ] **Step 3:** Visually muted while `transformState != null` (handles dim) — gives the teacher a clear "transform in progress" affordance without adding cognitive load.
+  ```ts
+  selection?: { selectedId: string | null };
+  onSelect?: (id: string | null) => void;
+  onTransform?: (id: string, patch: Partial<DrawableObject>) => void;
+  onDelete?: (id: string) => void;
+  ```
+
+- [ ] **Step 2:** After the object render loop inside `draw()`, if `selection.selectedId` resolves to an object, call a new `renderSelectionChrome(ctx, obj, transformState)` helper: stroke a 1px indigo dashed rect at the bbox (`stroke: rgba(99,102,241,0.8)`), then paint 8 white-fill / indigo-border 10×10 handle squares at the corner and edge midpoints, then a circular rotation handle 20px above the bbox top. Dim handle alpha to `0.5` when `transformState != null`. The chrome is drawn in canvas pixel space so it scales with the canvas (no extra DOM math needed).
+
+- [ ] **Step 3:** Create `SelectionOverlay.tsx` as a **transparent** absolutely-positioned `<div>` that covers the canvas and forwards `pointerdown`/`pointermove`/`pointerup` to the selection hook with the local canvas coordinates. No SVG, no visible children, no `data-handle` attributes. The hook does numeric handle-hit-tests against the same handle positions it used to render in Step 2.
+
+- [ ] **Step 4:** Document in a code comment at the top of `SelectionOverlay.tsx` that selection chrome is rendered via `draw()` (not here) and is therefore automatically excluded from PNG/PDF export — Wave 7 needs no additional step.
 
 ### Task 4.5: Widget wiring
 
@@ -501,8 +562,9 @@ firestore.rules                                                Wave 8 (/users/{u
 
 - [ ] **Step 1:** Add the Select tool button (lucide `MousePointer2`) as the first button in the Tools cluster (selection-first is the dominant whiteboard pattern).
 
-- [ ] **Step 2:** Mount `useSelection({ objects, activeTool, onUpdateObject, onRemoveObject })` where:
-  - `onUpdateObject(next)` calls `updateWidget(widget.id, { config: { ...config, objects: objects.map(o => o.id === next.id ? next : o) } })`.
+- [ ] **Step 2:** Mount `useSelection({ objects, activeTool, onTransformPreview, onTransformCommit, onRemoveObject })` where:
+  - `onTransformPreview(next)` updates a local `useState<DrawableObject | null>(null)` that the render pass overlays on top of `objects` (find by id, swap in the preview). No `updateWidget` call.
+  - `onTransformCommit(next)` calls `updateWidget(widget.id, { config: { ...config, objects: objects.map(o => o.id === next.id ? next : o) } })` exactly once, then clears the preview override.
   - `onRemoveObject(id)` calls `updateWidget` with the filtered array.
 
 - [ ] **Step 3:** Route the canvas's pointer handlers through a chooser: if `activeTool === 'select'`, call selection handlers; otherwise call the existing draw handlers. Implement as a thin wrapper:
@@ -557,11 +619,11 @@ firestore.rules                                                Wave 8 (/users/{u
 
 **Files:** Create `components/widgets/DrawingWidget/useCommandStack.ts`, `tests/components/widgets/DrawingWidget/useCommandStack.test.ts`
 
-- [ ] **Step 1:** Hook: `useCommandStack({ objects, onObjectsChange })` returns `{ push, undo, redo, canUndo, canRedo }`. Internally tracks `past: DrawingCommand[]`, `future: DrawingCommand[]` via `useRef` (not state — we don't need re-renders on stack changes).
+- [ ] **Step 1:** Hook: `useCommandStack({ objects, onObjectsChange })` returns `{ push, undo, redo, canUndo, canRedo }`. Internally tracks `past: DrawingCommand[]` and `future: DrawingCommand[]` **in `useState`** (not `useRef`). The toolbar's Undo / Redo buttons disable on `!canUndo` / `!canRedo` (Task 5.3 Step 4) — if the stack lived in a ref, button enabled state would stay stale until something else triggered a re-render, leaving the UI lying about what's available. Use the functional `setPast(prev => ...)` form so concurrent commands don't drop each other.
 
-- [ ] **Step 2:** `push(cmd)` appends to `past`, clears `future`, and calls `onObjectsChange(applyCommand(objects, cmd, 'forward'))`.
+- [ ] **Step 2:** `push(cmd)` appends to `past` (state update), clears `future` (state update), and calls `onObjectsChange(applyCommand(objects, cmd, 'forward'))`. Derive `canUndo = past.length > 0` and `canRedo = future.length > 0` from the state directly so they re-render in lockstep.
 
-- [ ] **Step 3:** `undo()` pops `past`, pushes to `future`, calls `onObjectsChange(applyCommand(objects, popped, 'reverse'))`. `redo()` is the symmetric inverse.
+- [ ] **Step 3:** `undo()` pops `past`, pushes to `future`, calls `onObjectsChange(applyCommand(objects, popped, 'reverse'))`. `redo()` is the symmetric inverse. Both mutate via `setPast`/`setFuture` so `canUndo`/`canRedo` update synchronously with the action.
 
 - [ ] **Step 4:** Tests: add → undo → object gone; update → undo → object restored to before-state; redo after undo replays; pushing a new command after undo clears the redo stack.
 
@@ -600,28 +662,40 @@ firestore.rules                                                Wave 8 (/users/{u
 
 **Files:** Modify `types.ts`, `utils/migrateDrawingConfig.ts`, `tests/utils/migrateDrawingConfig.test.ts`
 
-- [ ] **Step 1:** Extend `DrawingConfig`:
+- [ ] **Step 1:** Extend `DrawingConfig` to match the spec (`docs/superpowers/specs/2026-05-24-whiteboard-phase-2-design.md:407-422`) — a `DrawingPage` is an **object** with `id`, `objects`, and an optional `background`, not a bare `DrawableObject[]`. The wrapper object is required so Wave 7 can attach per-page backgrounds and Wave 8 can store page metadata as a sibling doc:
 
   ```ts
-  /** Pages of objects. When absent, falls back to legacy single-page `objects`. */
-  pages?: DrawableObject[][];
-  currentPage?: number;
+  export interface DrawingPage {
+    id: string;
+    objects: DrawableObject[];
+    /** Per-page background template (falls back to widget-level background). Populated by Wave 7. */
+    background?: DrawingBackground;
+  }
+
+  export interface DrawingConfig {
+    // ...existing fields...
+    /** @deprecated post-2.3 — migrated into pages[0].objects */
+    objects?: DrawableObject[];
+    /** Pages of objects. When absent, falls back to legacy single-page `objects`. */
+    pages?: DrawingPage[];
+    currentPage?: number;
+  }
   ```
 
   Keep `objects?` for backward compatibility (the migration reads it as page 0).
 
-- [ ] **Step 2:** Add a forward-migration rule: if `raw.pages` is missing AND `raw.objects` is a non-empty array, set `pages = [raw.objects]`, `currentPage = 0`, and drop `objects` from the return. If both are missing, default to `pages = [[]]`, `currentPage = 0`.
+- [ ] **Step 2:** Add a forward-migration rule: if `raw.pages` is missing AND `raw.objects` is a non-empty array, set `pages = [{ id: crypto.randomUUID(), objects: raw.objects }]`, `currentPage = 0`, and drop `objects` from the return. If both are missing, default to `pages = [{ id: crypto.randomUUID(), objects: [] }]`, `currentPage = 0`. Stamp a fresh `id` on any page in `raw.pages` that's missing one (defensive against hand-edited docs).
 
-- [ ] **Step 3:** Tests: legacy `{ objects: [pathObj] }` migrates to `{ pages: [[pathObj]], currentPage: 0 }`; already-paged config round-trips unchanged; missing both fields produces `pages: [[]]`.
+- [ ] **Step 3:** Tests: legacy `{ objects: [pathObj] }` migrates to `{ pages: [{ id: <uuid>, objects: [pathObj] }], currentPage: 0 }`; already-paged config round-trips unchanged; missing both fields produces a single empty page with an id.
 
 ### Task 6.2: Page management helpers
 
 **Files:** Create `components/widgets/DrawingWidget/useDrawingPages.ts`, `tests/components/widgets/DrawingWidget/useDrawingPages.test.ts`
 
 - [ ] **Step 1:** Pure helpers (mirroring `utils/notebookPages.ts` shape — see SmartNotebook reference at `components/widgets/SmartNotebook/Widget.tsx:35-42`):
-  - `insertBlankPage(pages, afterIndex): DrawableObject[][]` → splice `[]` after the index.
-  - `deletePage(pages, index): { pages, removedObjects }` → never returns 0 pages; deleting the last page replaces it with `[[]]`.
-  - `movePage(pages, from, to): DrawableObject[][]`.
+  - `insertBlankPage(pages, afterIndex): DrawingPage[]` → splice `{ id: crypto.randomUUID(), objects: [] }` after the index.
+  - `deletePage(pages, index): { pages: DrawingPage[]; removedObjects: DrawableObject[] }` → never returns 0 pages; deleting the last page replaces it with a single fresh-id empty page.
+  - `movePage(pages, from, to): DrawingPage[]` — preserves each page's `id` and `background`.
   - `clampPageIndex(index, pageCount): number`.
 
 - [ ] **Step 2:** A `useDrawingPages({ config, updateConfig })` hook wraps the helpers + `currentPage` clamping into a single mutator API: `goToPage`, `addPage`, `removePage`, `movePageLeft`, `movePageRight`.
@@ -632,7 +706,7 @@ firestore.rules                                                Wave 8 (/users/{u
 
 **Files:** Modify `components/widgets/DrawingWidget/Widget.tsx`, `Widget.test.tsx`
 
-- [ ] **Step 1:** Replace every `objects` destructure with `pages[currentPage] ?? []`. Update `appendObject`/`onObjectsChange`/`onUpdateObject`/`onRemoveObject` to write the new page back into `pages` via `pages.map((p, i) => i === currentPage ? next : p)`, then call `updateWidget` with the full new `pages` array.
+- [ ] **Step 1:** Replace every `objects` destructure with `pages[currentPage]?.objects ?? []`. Update `appendObject`/`onObjectsChange`/`onUpdateObject`/`onRemoveObject` to write the new objects list back into the current page via `pages.map((p, i) => i === currentPage ? { ...p, objects: nextObjects } : p)` (preserving the page's `id` and `background`), then call `updateWidget` with the full new `pages` array.
 
 - [ ] **Step 2:** Hoist this into a `usePageScopedObjects()` derivation so the Widget body stays readable.
 
@@ -700,7 +774,7 @@ firestore.rules                                                Wave 8 (/users/{u
 
 - [ ] **Step 2:** `exportAllPagesPng(pages, pageSize): Promise<string[]>` — for each page, render to an offscreen canvas (no DOM mount), call `toDataURL`. Reuses the `renderObject` dispatcher from `useDrawingCanvas.ts:178-194` — extract it to a sibling module if needed for offscreen reuse.
 
-- [ ] **Step 3:** `exportPdf(pages, pageSize, filename)` — lazy-import `jspdf` (add as a dev/runtime dep if not present; check `package.json` first). Iterate `exportAllPagesPng`, `pdf.addImage` per page, `pdf.save(filename)`. If `jspdf` is not present, fall back to opening a print dialog with all pages as `<img>` tags in a new window (graceful degradation per the design spec's "calm confidence" principle).
+- [ ] **Step 3:** `exportPdf(pages, pageSize, filename)` — **no new dependency.** The spec (`docs/superpowers/specs/2026-05-24-whiteboard-phase-2-design.md:903-911`) explicitly forbids adding `jspdf` (or any PDF library): the dep cost (~250KB minified) is not worth a feature most teachers use ~once a week. Instead, open the browser's print dialog scoped to a hidden print-only DOM: build a new `window` (or a hidden iframe), `document.write` one full-page `<img src={pngDataUrl} />` per page wrapped in a `@media print { @page { size: ${pageSize} } }` stylesheet, then call `window.print()`. The user saves to PDF via their OS printer. Universal across the supported browsers (Chrome 90+, Edge 90+, Firefox 88+, Safari 14+ per `CLAUDE.md`).
 
 - [ ] **Step 4:** Tests: `exportPagePng` returns a PNG data URL; `exportAllPagesPng` returns one string per page; PDF export is mocked + verified call sequence.
 
@@ -724,23 +798,36 @@ firestore.rules                                                Wave 8 (/users/{u
 
 ## WAVE 8 — PR 2.6: Firestore subcollection + incremental render
 
-**Goal:** Move `pages[].objects[]` off the dashboard doc into `/users/{uid}/dashboards/{dashboardId}/drawings/{widgetId}/objects/{objectId}`. Subscribe via `onSnapshot` with `includeMetadataChanges`. Incremental render: when one object changes, redraw only its bbox region instead of `clearRect`-ing the whole canvas. Target: 500+ objects without lag.
+**Goal:** Move `pages[].objects[]` off the dashboard doc into the page-aware nested structure required by the spec (`docs/superpowers/specs/2026-05-24-whiteboard-phase-2-design.md:610-622` and §2.3 cross-reference at line 453-454):
+
+```
+/users/{uid}/dashboards/{dashboardId}/drawings/{widgetId}/pages/{pageId}
+/users/{uid}/dashboards/{dashboardId}/drawings/{widgetId}/pages/{pageId}/objects/{objectId}
+```
+
+The nesting is required so page-level metadata (background template, order, future per-page settings) gets its own document instead of being smeared across object docs via a denormalized `page` field. Subscribe via `onSnapshot` with `includeMetadataChanges`. Incremental render: when one object changes, redraw only its bbox region instead of `clearRect`-ing the whole canvas. Target: 500+ objects without lag.
 
 ### Task 8.1: Subcollection schema + Firestore rules
 
 **Files:** Modify `firestore.rules`, Create `tests/rules/drawingObjectsSubcollection.test.ts`
 
-- [ ] **Step 1:** In `firestore.rules`, add a nested match inside the existing `/users/{userId}/dashboards/{dashboardId}` block (`firestore.rules:421`):
+- [ ] **Step 1:** In `firestore.rules`, add nested matches inside the existing `/users/{userId}/dashboards/{dashboardId}` block (`firestore.rules:421`). Two rules — one for the page doc, one for the per-page objects subcollection — per the spec's nested layout:
 
   ```javascript
-  match /drawings/{widgetId}/objects/{objectId} {
+  match /drawings/{widgetId}/pages/{pageId} {
     allow read, write: if request.auth != null
                        && request.auth.uid == userId
                        && !isStudentRoleUser();
+
+    match /objects/{objectId} {
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId
+                         && !isStudentRoleUser();
+    }
   }
   ```
 
-  Why this nesting: the parent dashboard rule already gates owner-only access; the subcollection inherits the access pattern without adding a separate top-level rule.
+  Why this nesting: the parent dashboard rule already gates owner-only access; the nested page + objects subcollections inherit the access pattern without separate top-level rules, and page metadata lives in its own document instead of being duplicated across every object.
 
 - [ ] **Step 2:** Write rules test mirroring an existing `tests/rules/*.test.ts` harness: seeded user can read/write their own drawing objects; another user cannot.
 
@@ -750,11 +837,11 @@ firestore.rules                                                Wave 8 (/users/{u
 
 **Files:** Create `components/widgets/DrawingWidget/useDrawingObjectsDoc.ts`, `tests/components/widgets/DrawingWidget/useDrawingObjectsDoc.test.ts`
 
-- [ ] **Step 1:** Hook: `useDrawingObjectsDoc({ dashboardId, widgetId, currentPage })` returns `{ objects, addObject, updateObject, removeObject, clear, loading }`. Internally subscribes via `onSnapshot(query(collection(db, 'users', uid, 'dashboards', dashboardId, 'drawings', widgetId, 'objects'), where('page', '==', currentPage)))`.
+- [ ] **Step 1:** Hook: `useDrawingObjectsDoc({ dashboardId, widgetId, pageId })` returns `{ objects, addObject, updateObject, removeObject, clear, loading }`. Internally subscribes via `onSnapshot(collection(db, 'users', uid, 'dashboards', dashboardId, 'drawings', widgetId, 'pages', pageId, 'objects'))` — no `where('page', '==', ...)` filter needed because the page is encoded in the path.
 
-- [ ] **Step 2:** Each Firestore document is one `DrawableObject` + a `page: number` field so we can filter per page without pulling the whole subcollection.
+- [ ] **Step 2:** Each Firestore document is one `DrawableObject` (no extra `page` field — the path scopes it). Page metadata (background template, etc.) lives on the parent `pages/{pageId}` doc; expose a sibling `useDrawingPageDoc({ dashboardId, widgetId, pageId })` hook for reading/writing it.
 
-- [ ] **Step 3:** `addObject(obj)` → `setDoc(doc(..., obj.id), { ...obj, page: currentPage })`. `removeObject(id)` → `deleteDoc`. `updateObject(next)` → `setDoc` with merge.
+- [ ] **Step 3:** `addObject(obj)` → `setDoc(doc(db, 'users', uid, 'dashboards', dashboardId, 'drawings', widgetId, 'pages', pageId, 'objects', obj.id), obj)`. `removeObject(id)` → `deleteDoc` of the same ref. `updateObject(next)` → `setDoc` with merge.
 
 - [ ] **Step 4:** Tests: mock Firestore module; assert each mutator writes/deletes the expected ref; snapshot listener pushes new objects through to the `objects` state.
 
@@ -762,7 +849,20 @@ firestore.rules                                                Wave 8 (/users/{u
 
 **Files:** Modify `utils/migrateDrawingConfig.ts`, `tests/utils/migrateDrawingConfig.test.ts`, `context/DashboardContext.tsx`
 
-- [ ] **Step 1:** On widget hydration in `DashboardContext.tsx` (the path that loads widgets from the dashboard doc), detect any `DrawingConfig` with a non-empty `pages` field. For each, batch-write every object into the subcollection (one `setDoc` per object), then update the dashboard doc to set `pages: undefined` and `objects: undefined` (or write a single `{ migratedToSubcollection: true }` flag). Idempotent: skip if the flag is already set.
+- [ ] **Step 1:** On widget hydration in `DashboardContext.tsx` (the path that loads widgets from the dashboard doc), detect any `DrawingConfig` with a non-empty `pages` field. For each, batch-write every object into the subcollection, **chunking writes so no single batch exceeds 500 operations** — Firestore's hard limit is 500 writes per `writeBatch` ([SDK docs](https://firebase.google.com/docs/firestore/manage-data/transactions#batched-writes)). The Phase 2 perf target is 500+ objects, and per-page metadata writes count against the same budget, so a single batch will overflow on any non-trivial whiteboard:
+
+  ```ts
+  const FIRESTORE_BATCH_LIMIT = 500;
+  // Flatten { page → objects } into discrete write ops first (one per page doc + one per object).
+  const ops = [...pageDocOps, ...objectDocOps];
+  for (let i = 0; i < ops.length; i += FIRESTORE_BATCH_LIMIT) {
+    const batch = writeBatch(db);
+    for (const op of ops.slice(i, i + FIRESTORE_BATCH_LIMIT)) op(batch);
+    await batch.commit();
+  }
+  ```
+
+  Then update the dashboard doc to set `pages: undefined` and `objects: undefined` (or write a single `{ migratedToSubcollection: true }` flag). Idempotent: skip if the flag is already set.
 
 - [ ] **Step 2:** Add `migratedToSubcollection?: boolean` to `DrawingConfig`. Document the field as "set after the one-time migration in PR 2.6; never unset".
 
@@ -774,9 +874,9 @@ firestore.rules                                                Wave 8 (/users/{u
 
 - [ ] **Step 1:** Replace the page-scoped `objects` derivation from Wave 6 with `useDrawingObjectsDoc(...).objects`. Replace `appendObject`/`onUpdateObject`/`onRemoveObject` with the subcollection hook's mutators.
 
-- [ ] **Step 2:** Multi-page handling: `currentPage` is still on the widget config (cheap; one int per dashboard write), but the per-page object list comes from Firestore. Page metadata (`pages.length` for the strip) requires a separate aggregate — either a `pageCount` field on `DrawingConfig` (kept in sync by the page mutators) or an `getAggregateFromServer(count())` query. **Choose `pageCount` on config** for simplicity; pages stay implicit (no page document — just objects' `page` field).
+- [ ] **Step 2:** Multi-page handling: `currentPage` is still on the widget config (cheap; one int per dashboard write). The page list itself is now a subcollection (`/drawings/{widgetId}/pages`); subscribe via a sibling `useDrawingPagesList({ dashboardId, widgetId })` hook that returns `{ pages: DrawingPage[], loading }`, ordered by a `seq: number` field on each page doc (set on create, swapped on reorder). No `pageCount` field on config — derive from `pages.length`.
 
-- [ ] **Step 3:** Page actions (add/delete/move) rewrite the `page` field on affected objects (batch write) and bump `config.pageCount`.
+- [ ] **Step 3:** Page actions (add/delete/move) write to the `/pages/{pageId}` doc and (for delete) batch-delete the page's `objects` subcollection. **Apply the same 500-op chunking from Task 8.3 Step 1** when deleting a page that holds 500+ objects.
 
 - [ ] **Step 4:** Tests: drawing a path writes one Firestore doc, not a full dashboard update; clearing a page batch-deletes; switching pages re-runs the query.
 
