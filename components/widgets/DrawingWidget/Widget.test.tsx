@@ -27,6 +27,12 @@ interface MockContext {
   fillRect: Mock;
   ellipse: Mock;
   fillText: Mock;
+  // Selection chrome (Phase 2 PR 2.1c) uses setLineDash for the bbox dashes
+  // and arc for the rotation handle. Without these stubs the canvas mock
+  // throws as soon as a selection lands.
+  setLineDash: Mock;
+  arc: Mock;
+  globalAlpha: number;
   canvas: { width: number; height: number };
   lineCap: string;
   lineJoin: string;
@@ -70,6 +76,9 @@ describe('DrawingWidget', () => {
       fillRect: vi.fn(),
       ellipse: vi.fn(),
       fillText: vi.fn(),
+      setLineDash: vi.fn(),
+      arc: vi.fn(),
+      globalAlpha: 1,
       canvas: { width: 800, height: 600 },
       lineCap: 'round',
       lineJoin: 'round',
@@ -402,5 +411,178 @@ describe('DrawingWidget', () => {
         { x: 20, y: 20 },
       ]);
     }
+  });
+
+  it('clicking the select tool persists config.activeTool = "select"', () => {
+    const { getByLabelText } = render(<DrawingWidget widget={widget} />);
+    fireEvent.click(getByLabelText('Select'));
+    expect(mockUpdateWidget).toHaveBeenCalled();
+    const lastCall =
+      mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+    const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
+    expect(cfg.activeTool).toBe('select');
+  });
+
+  it('select tool: clicking an existing rect sets data-selected-id', () => {
+    const rectObj = {
+      id: 'rect-1',
+      kind: 'rect' as const,
+      z: 0,
+      x: 30,
+      y: 30,
+      w: 80,
+      h: 60,
+      stroke: '#000',
+      strokeWidth: 2,
+    };
+    const widgetSelect: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        activeTool: 'select',
+        objects: [rectObj],
+      } as DrawingConfig,
+    };
+    const { container } = render(<DrawingWidget widget={widgetSelect} />);
+    const canvas = container.querySelector('canvas');
+    const wrapper = container.querySelector('[data-selected-id]');
+    if (!canvas || !wrapper) throw new Error('Canvas/wrapper not found');
+    expect(wrapper.getAttribute('data-selected-id')).toBe('');
+
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 60,
+        clientY: 50,
+      })
+    );
+    expect(wrapper.getAttribute('data-selected-id')).toBe('rect-1');
+  });
+
+  it('select tool: 60 pointermove events between down/up produce EXACTLY ONE updateWidget call (no-flood)', () => {
+    const rectObj = {
+      id: 'rect-2',
+      kind: 'rect' as const,
+      z: 0,
+      x: 30,
+      y: 30,
+      w: 80,
+      h: 60,
+      stroke: '#000',
+      strokeWidth: 2,
+    };
+    const widgetSelect: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        activeTool: 'select',
+        objects: [rectObj],
+      } as DrawingConfig,
+    };
+    const { container } = render(<DrawingWidget widget={widgetSelect} />);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+
+    mockUpdateWidget.mockClear();
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 60,
+        clientY: 50,
+      })
+    );
+    for (let i = 0; i < 60; i++) {
+      fireEvent(
+        canvas,
+        new PointerEvent('pointermove', {
+          bubbles: true,
+          cancelable: true,
+          clientX: 60 + i,
+          clientY: 50 + i,
+        })
+      );
+    }
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 60 + 60,
+        clientY: 50 + 60,
+      })
+    );
+
+    // The Widget commits exactly once at pointer-up. All 60 pointer-moves
+    // are routed through the local preview state, never updateWidget.
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+    const call = mockUpdateWidget.mock.calls[0] as [
+      string,
+      Partial<WidgetData>,
+    ];
+    expect(call[0]).toBe(widget.id);
+    const cfg = call[1].config as DrawingConfig;
+    const objs = cfg.objects ?? [];
+    expect(objs).toHaveLength(1);
+    expect(objs[0].kind).toBe('rect');
+    if (objs[0].kind === 'rect') {
+      // Dragged the body by ~60px in each axis.
+      expect(objs[0].x).toBeGreaterThan(rectObj.x);
+      expect(objs[0].y).toBeGreaterThan(rectObj.y);
+    }
+  });
+
+  it('select tool: Backspace removes the selected object', () => {
+    const rectObj = {
+      id: 'rect-3',
+      kind: 'rect' as const,
+      z: 0,
+      x: 30,
+      y: 30,
+      w: 80,
+      h: 60,
+      stroke: '#000',
+      strokeWidth: 2,
+    };
+    const widgetSelect: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        activeTool: 'select',
+        objects: [rectObj],
+      } as DrawingConfig,
+    };
+    const { container } = render(<DrawingWidget widget={widgetSelect} />);
+    const canvas = container.querySelector('canvas');
+    const wrapper = container.querySelector('[data-selected-id]');
+    if (!canvas || !wrapper) throw new Error('Canvas/wrapper not found');
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 60,
+        clientY: 50,
+      })
+    );
+    // Release immediately so the translate doesn't commit.
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 60,
+        clientY: 50,
+      })
+    );
+    mockUpdateWidget.mockClear();
+    fireEvent.keyDown(wrapper, { key: 'Backspace' });
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+    const cfg = (mockUpdateWidget.mock.calls[0][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    expect(cfg.objects).toEqual([]);
   });
 });

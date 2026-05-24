@@ -27,6 +27,9 @@ interface MockCtx {
   fillRect: Mock;
   ellipse: Mock;
   fillText: Mock;
+  setLineDash: Mock;
+  arc: Mock;
+  globalAlpha: number;
   canvas: { width: number; height: number };
   lineCap: string;
   lineJoin: string;
@@ -52,6 +55,9 @@ const makeMockCtx = (): MockCtx => ({
   fillRect: vi.fn(),
   ellipse: vi.fn(),
   fillText: vi.fn(),
+  setLineDash: vi.fn(),
+  arc: vi.fn(),
+  globalAlpha: 1,
   canvas: { width: 800, height: 600 },
   lineCap: 'round',
   lineJoin: 'round',

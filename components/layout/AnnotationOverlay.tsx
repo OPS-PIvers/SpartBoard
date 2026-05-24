@@ -30,6 +30,7 @@ import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingCanvas';
 import { TextEditorOverlay } from '@/components/widgets/DrawingWidget/TextEditorOverlay';
 import { useImageInsertion } from '@/components/widgets/DrawingWidget/useImageInsertion';
+import { useSelection } from '@/components/widgets/DrawingWidget/useSelection';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
 import {
@@ -49,6 +50,7 @@ const TOOL_BUTTONS: ReadonlyArray<{
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
 }> = [
+  { tool: 'select', Icon: MousePointer2, label: 'Select' },
   { tool: 'text', Icon: TypeOutline, label: 'Text' },
   { tool: 'pen', Icon: Pencil, label: 'Pen' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
@@ -89,6 +91,8 @@ export const AnnotationOverlay: React.FC = () => {
     closeAnnotation,
     updateAnnotationState,
     addAnnotationObject,
+    updateAnnotationObject,
+    removeAnnotationObject,
     undoAnnotation,
     clearAnnotation,
     activeDashboard,
@@ -275,6 +279,47 @@ export const AnnotationOverlay: React.FC = () => {
       window.removeEventListener('paste', handleImageNativePaste, true);
   }, [annotationActive, isReadOnly, handleImageNativePaste]);
 
+  // Selection preview is local-only — never written to the shared overlay
+  // state. The single commit lands on pointer-up via updateAnnotationObject.
+  // (Per the spec's "Live-share interaction" section, the host's selection
+  // chrome is intentionally local — viewers do not see it.)
+  const [previewObject, setPreviewObject] = useState<DrawableObject | null>(
+    null
+  );
+
+  const handleTransformPreview = useCallback((next: DrawableObject) => {
+    setPreviewObject(next);
+  }, []);
+
+  const handleTransformCommit = useCallback(
+    (next: DrawableObject) => {
+      setPreviewObject(null);
+      updateAnnotationObject(next);
+    },
+    [updateAnnotationObject]
+  );
+
+  const {
+    selectedId,
+    selectedObject,
+    transformState,
+    handleSelectPointerDown,
+    handleSelectPointerMove,
+    handleSelectPointerUp,
+    handleKeyDown: handleSelectKeyDown,
+    clearSelection,
+  } = useSelection({
+    objects: annotationState.objects,
+    activeTool: annotationState.activeTool,
+    onTransformPreview: handleTransformPreview,
+    onTransformCommit: handleTransformCommit,
+    onRemoveObject: removeAnnotationObject,
+  });
+
+  useEffect(() => {
+    if (annotationState.activeTool !== 'select') clearSelection();
+  }, [annotationState.activeTool, clearSelection]);
+
   const { handleStart, handleMove, handleEnd } = useDrawingCanvas({
     canvasRef,
     color: annotationState.color,
@@ -286,7 +331,88 @@ export const AnnotationOverlay: React.FC = () => {
     nextZ: nextZ(annotationState.objects),
     activeTool: annotationState.activeTool,
     shapeFill: annotationState.shapeFill,
+    selectedObject,
+    transformState: transformState ? { active: true } : null,
+    previewObject,
   });
+
+  // Pointer chooser: route to selection handlers when Select is active.
+  const getCanvasPos = useCallback(
+    (e: React.PointerEvent): { x: number; y: number } => {
+      const canvas = canvasRef.current;
+      if (!canvas) return { x: 0, y: 0 };
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+      const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+      return {
+        x: (e.clientX - rect.left) * scaleX,
+        y: (e.clientY - rect.top) * scaleY,
+      };
+    },
+    []
+  );
+
+  const handlePointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (annotationState.activeTool === 'select') {
+        handleSelectPointerDown(e, getCanvasPos(e));
+        return;
+      }
+      handleStart(e);
+    },
+    [
+      annotationState.activeTool,
+      handleSelectPointerDown,
+      handleStart,
+      getCanvasPos,
+    ]
+  );
+  const handlePointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (annotationState.activeTool === 'select') {
+        handleSelectPointerMove(e, getCanvasPos(e));
+        return;
+      }
+      handleMove(e);
+    },
+    [
+      annotationState.activeTool,
+      handleSelectPointerMove,
+      handleMove,
+      getCanvasPos,
+    ]
+  );
+  const handlePointerUp = useCallback(
+    (e: React.PointerEvent) => {
+      if (annotationState.activeTool === 'select') {
+        handleSelectPointerUp(e, getCanvasPos(e));
+        return;
+      }
+      handleEnd();
+    },
+    [annotationState.activeTool, handleSelectPointerUp, handleEnd, getCanvasPos]
+  );
+
+  // Window-level keyboard listener for Backspace/Delete + arrow nudges.
+  // The overlay canvas isn't focusable (pointer-events bypass focus on a
+  // full-viewport overlay), so we listen at window scope while the overlay
+  // is interactive. Casts the native KeyboardEvent into the React shape the
+  // selection hook expects.
+  useEffect(() => {
+    const isInteractive = annotationActive && !isReadOnly;
+    if (!isInteractive) return undefined;
+    if (annotationState.activeTool !== 'select') return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      handleSelectKeyDown(e as unknown as React.KeyboardEvent);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [
+    annotationActive,
+    isReadOnly,
+    annotationState.activeTool,
+    handleSelectKeyDown,
+  ]);
 
   // Double-click any existing text annotation to re-edit it.
   const handleCanvasDoubleClick = useCallback(
@@ -434,16 +560,19 @@ export const AnnotationOverlay: React.FC = () => {
     >
       <canvas
         ref={canvasRef}
-        onPointerDown={interactive ? handleStart : undefined}
-        onPointerMove={interactive ? handleMove : undefined}
-        onPointerUp={interactive ? handleEnd : undefined}
-        onPointerLeave={interactive ? handleEnd : undefined}
+        onPointerDown={interactive ? handlePointerDown : undefined}
+        onPointerMove={interactive ? handlePointerMove : undefined}
+        onPointerUp={interactive ? handlePointerUp : undefined}
+        onPointerLeave={interactive ? handlePointerUp : undefined}
         onDoubleClick={interactive ? handleCanvasDoubleClick : undefined}
         onDrop={interactive ? handleImageDrop : undefined}
         onDragOver={interactive ? handleImageDragOver : undefined}
+        data-selected-id={selectedId ?? ''}
         className={`absolute inset-0 ${
           interactive
-            ? 'pointer-events-auto cursor-crosshair'
+            ? activeTool === 'select'
+              ? 'pointer-events-auto cursor-default'
+              : 'pointer-events-auto cursor-crosshair'
             : 'pointer-events-none'
         }`}
         style={{ touchAction: interactive ? 'none' : 'auto' }}

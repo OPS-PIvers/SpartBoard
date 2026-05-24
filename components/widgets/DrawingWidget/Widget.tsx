@@ -14,6 +14,7 @@ import {
   Circle,
   Eraser,
   ImagePlus,
+  MousePointer2,
   Pencil,
   Slash,
   Square,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { useImageInsertion } from './useImageInsertion';
+import { useSelection } from './useSelection';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
@@ -37,8 +39,10 @@ const TOOL_BUTTONS: ReadonlyArray<{
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
 }> = [
-  // Text leads the cluster: it's the most-used non-pen action when teachers
-  // are using the widget to label diagrams or capture quick notes.
+  // Select leads the cluster: selection-first is the dominant whiteboard
+  // pattern (Figma, Miro, FigJam), and it's the only tool that doesn't
+  // create new content.
+  { tool: 'select', Icon: MousePointer2, label: 'Select' },
   { tool: 'text', Icon: TypeOutline, label: 'Text' },
   { tool: 'pen', Icon: Pencil, label: 'Pen' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
@@ -191,6 +195,59 @@ export const DrawingWidget: React.FC<{
     onImageReady: handleImageReady,
   });
 
+  // Selection preview: local-only override applied during a transform drag.
+  // The persisted `objects[]` stays untouched until pointer-up commits, so a
+  // 60fps drag produces one Firestore write instead of ~120/sec.
+  const [previewObject, setPreviewObject] = useState<DrawableObject | null>(
+    null
+  );
+
+  const handleTransformPreview = (next: DrawableObject) => {
+    setPreviewObject(next);
+  };
+
+  const handleTransformCommit = (next: DrawableObject) => {
+    setPreviewObject(null);
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        objects: objects.map((o) => (o.id === next.id ? next : o)),
+      } as DrawingConfig,
+    });
+  };
+
+  const handleRemoveObject = (id: string) => {
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        objects: objects.filter((o) => o.id !== id),
+      } as DrawingConfig,
+    });
+  };
+
+  const {
+    selectedId,
+    selectedObject,
+    transformState,
+    handleSelectPointerDown,
+    handleSelectPointerMove,
+    handleSelectPointerUp,
+    handleKeyDown: handleSelectKeyDown,
+    clearSelection,
+  } = useSelection({
+    objects,
+    activeTool,
+    onTransformPreview: handleTransformPreview,
+    onTransformCommit: handleTransformCommit,
+    onRemoveObject: handleRemoveObject,
+  });
+
+  // Clear selection whenever the user switches off the Select tool. Without
+  // this, selection chrome lingers after the user clicks Pen/Rect/etc.
+  useEffect(() => {
+    if (activeTool !== 'select') clearSelection();
+  }, [activeTool, clearSelection]);
+
   const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
     canvasRef,
     color,
@@ -203,7 +260,49 @@ export const DrawingWidget: React.FC<{
     nextZ: nextZ(objects),
     activeTool,
     shapeFill,
+    selectedObject,
+    transformState: transformState ? { active: true } : null,
+    previewObject,
   });
+
+  // Pointer chooser: route to selection handlers when 'select' is active,
+  // to draw handlers otherwise. Keeps the canvas a single event surface.
+  const getCanvasPos = (e: React.PointerEvent): { x: number; y: number } => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (isStudentView) return;
+    if (activeTool === 'select') {
+      handleSelectPointerDown(e, getCanvasPos(e));
+      return;
+    }
+    handleStart(e);
+  };
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (isStudentView) return;
+    if (activeTool === 'select') {
+      handleSelectPointerMove(e, getCanvasPos(e));
+      return;
+    }
+    handleMove(e);
+  };
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (isStudentView) return;
+    if (activeTool === 'select') {
+      handleSelectPointerUp(e, getCanvasPos(e));
+      return;
+    }
+    handleEnd();
+  };
 
   const clear = () => {
     updateWidget(widget.id, {
@@ -411,27 +510,37 @@ export const DrawingWidget: React.FC<{
     if (hit) setEditingText(hit);
   };
 
+  // Cursor follows the active tool: 'select' uses a default pointer so the
+  // resize/rotation handles read as clickable; everything else uses the
+  // crosshair the freehand tools have always used.
+  const cursorClass = isStudentView
+    ? ''
+    : activeTool === 'select'
+      ? 'cursor-default'
+      : 'cursor-crosshair';
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div
         className={`flex-1 relative ${
           isStudentView ? 'bg-transparent' : 'bg-white/5'
-        } overflow-hidden focus:outline-none ${!isStudentView && 'cursor-crosshair'}`}
+        } overflow-hidden focus:outline-none ${cursorClass}`}
         // tabIndex makes the wrapper focusable so React's synthetic `paste`
-        // fires here when the user pastes after clicking into the widget.
-        // Drag-and-drop and the toolbar button cover the case where the
-        // widget doesn't currently hold focus.
+        // and `keydown` events fire here. Required for Backspace/Delete and
+        // arrow nudges to reach the selection hook without a focused child.
         tabIndex={isStudentView ? undefined : 0}
         onPaste={isStudentView ? undefined : handlePaste}
         onDrop={isStudentView ? undefined : handleDrop}
         onDragOver={isStudentView ? undefined : handleDragOver}
+        onKeyDown={isStudentView ? undefined : handleSelectKeyDown}
+        data-selected-id={selectedId ?? ''}
       >
         <canvas
           ref={canvasRef}
-          onPointerDown={handleStart}
-          onPointerMove={handleMove}
-          onPointerUp={handleEnd}
-          onPointerLeave={handleEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
           onDoubleClick={handleCanvasDoubleClick}
           className="absolute inset-0"
           style={{ touchAction: 'none' }}

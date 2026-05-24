@@ -18,6 +18,10 @@ import {
 } from './renderers/shapes';
 import { renderText } from './renderers/text';
 import { renderImage } from './renderers/image';
+import {
+  renderSelectionChrome,
+  TransformChromeState,
+} from './renderers/selection';
 import { DRAWING_DEFAULTS } from './constants';
 
 interface UseDrawingCanvasOptions {
@@ -48,6 +52,22 @@ interface UseDrawingCanvasOptions {
    * (not a drag) and routes around the in-progress shape pipeline.
    */
   onTextSpawn?: (obj: TextObject) => void;
+  /**
+   * Currently-selected object (for selection chrome rendering). When non-null,
+   * `renderSelectionChrome` paints a bbox + handles on top of the object
+   * after the main render loop. Hit-testing and pointer routing for the
+   * select tool live in `useSelection`; this hook just draws.
+   */
+  selectedObject?: DrawableObject | null;
+  /** Active transform state (used to dim handle alpha during a drag). */
+  transformState?: TransformChromeState | null;
+  /**
+   * Object to render INSTEAD of the underlying object with the same id.
+   * Set per-pointermove by the widget during a transform so the live drag
+   * is visible without the persisted `objects[]` changing. Cleared at
+   * pointer-up when the commit lands.
+   */
+  previewObject?: DrawableObject | null;
 }
 
 interface UseDrawingCanvasResult {
@@ -95,6 +115,9 @@ export const useDrawingCanvas = ({
   activeTool = 'pen',
   shapeFill = false,
   onTextSpawn,
+  selectedObject = null,
+  transformState = null,
+  previewObject = null,
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
@@ -128,8 +151,13 @@ export const useDrawingCanvas = ({
       ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
       // Render in z-order so later PRs (text, image) can layer cleanly
-      // without needing to touch this call site.
-      const sorted = [...allObjects].sort((a, b) => a.z - b.z);
+      // without needing to touch this call site. When a transform preview is
+      // active, swap in the preview object for the underlying object with
+      // the same id so the live drag is visible without `objects[]` mutating.
+      const effective = previewObject
+        ? allObjects.map((o) => (o.id === previewObject.id ? previewObject : o))
+        : allObjects;
+      const sorted = [...effective].sort((a, b) => a.z - b.z);
       sorted.forEach((obj) =>
         renderObject(ctx, obj, () => triggerRedrawRef.current?.())
       );
@@ -137,8 +165,19 @@ export const useDrawingCanvas = ({
       if (inProgress) {
         renderInProgress(ctx, inProgress, color, width, shapeFill);
       }
+
+      // Selection chrome paints AFTER the object loop so it sits on top of
+      // every object. Use the preview object's geometry when one is active
+      // so the bbox + handles follow the live drag.
+      if (selectedObject) {
+        const chromeTarget =
+          previewObject && previewObject.id === selectedObject.id
+            ? previewObject
+            : selectedObject;
+        renderSelectionChrome(ctx, chromeTarget, transformState, 1);
+      }
     },
-    [color, width, shapeFill]
+    [color, width, shapeFill, selectedObject, transformState, previewObject]
   );
 
   // Apply canvas resolution + redraw on size / object-list change
@@ -238,7 +277,14 @@ export const useDrawingCanvas = ({
         return;
       }
 
-      // line / arrow
+      // line / arrow — the only remaining branches that emit through this
+      // hook. Selection is routed away from the draw pipeline at the call
+      // site (Widget.tsx) so we never see 'select' here, but guard against
+      // future tool additions slipping through.
+      if (activeTool !== 'line' && activeTool !== 'arrow') {
+        setIsDrawing(false);
+        return;
+      }
       inProgressRef.current = {
         kind: activeTool,
         x1: pos.x,

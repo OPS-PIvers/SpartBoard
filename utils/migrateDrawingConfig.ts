@@ -19,6 +19,7 @@ const VALID_TOOLS: readonly ShapeTool[] = [
   'line',
   'arrow',
   'text',
+  'select',
 ];
 
 /**

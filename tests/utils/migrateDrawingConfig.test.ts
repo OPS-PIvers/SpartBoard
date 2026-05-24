@@ -200,6 +200,15 @@ describe('migrateDrawingConfig', () => {
     const out = migrateDrawingConfig(input);
     expect(out.activeTool).toBe('text');
   });
+
+  it('accepts "select" as a valid activeTool (Phase 2 PR 2.1c)', () => {
+    const input = {
+      objects: [pathObject()],
+      activeTool: 'select',
+    } as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.activeTool).toBe('select');
+  });
 });
 
 describe('nextZ', () => {

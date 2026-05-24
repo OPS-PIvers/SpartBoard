@@ -5016,6 +5016,35 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     setActiveAnnotationObjects([]);
   }, [setActiveAnnotationObjects]);
 
+  // Phase 2 PR 2.1c — selection mutations on the overlay. Go through the
+  // same shared `setActiveAnnotationObjects` path so live-share mirrors any
+  // edits made via the Select tool.
+  const updateAnnotationObject = useCallback(
+    (next: DrawableObject) => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      const current =
+        dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
+          ?.objects ?? [];
+      setActiveAnnotationObjects(
+        current.map((o) => (o.id === next.id ? next : o))
+      );
+    },
+    [setActiveAnnotationObjects]
+  );
+
+  const removeAnnotationObject = useCallback(
+    (id: string) => {
+      const activeId = activeIdRef.current;
+      if (!activeId) return;
+      const current =
+        dashboardsRef.current.find((d) => d.id === activeId)?.annotationOverlay
+          ?.objects ?? [];
+      setActiveAnnotationObjects(current.filter((o) => o.id !== id));
+    },
+    [setActiveAnnotationObjects]
+  );
+
   // Exposed `annotationState` merges per-user UI state with the active
   // dashboard's shared object list. This keeps a single shape for consumers
   // while making `objects` reactive to remote sync updates.
@@ -5146,6 +5175,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       closeAnnotation,
       updateAnnotationState,
       addAnnotationObject,
+      updateAnnotationObject,
+      removeAnnotationObject,
       undoAnnotation,
       clearAnnotation,
     }),
@@ -5266,6 +5297,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       closeAnnotation,
       updateAnnotationState,
       addAnnotationObject,
+      updateAnnotationObject,
+      removeAnnotationObject,
       undoAnnotation,
       clearAnnotation,
     ]
