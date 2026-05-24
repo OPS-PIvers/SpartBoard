@@ -850,4 +850,69 @@ describe('useDrawingCanvas', () => {
     );
     expect(mockCtx.fillText).not.toHaveBeenCalled();
   });
+
+  // --- Image rendering (Phase 2 PR 2.2) ------------------------------------
+
+  it('image rendering: first pass allocates an Image with crossOrigin=anonymous; no draw until load', () => {
+    // Stub `window.Image` to capture allocations without actually decoding.
+    class StubImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      crossOrigin: string | null = null;
+      complete = false;
+      naturalWidth = 0;
+      naturalHeight = 0;
+      private _src = '';
+      get src() {
+        return this._src;
+      }
+      set src(v: string) {
+        this._src = v;
+      }
+    }
+    const allocated: StubImage[] = [];
+    const Original = window.Image;
+    window.Image = class extends StubImage {
+      constructor() {
+        super();
+        allocated.push(this);
+      }
+    } as unknown as typeof Image;
+
+    const canvas = makeCanvas();
+    const drawImageSpy = vi.fn();
+    (mockCtx as unknown as { drawImage: typeof drawImageSpy }).drawImage =
+      drawImageSpy;
+    const canvasRef = { current: canvas };
+    const objects: DrawableObject[] = [
+      {
+        id: 'img-1',
+        kind: 'image',
+        z: 0,
+        x: 5,
+        y: 6,
+        w: 50,
+        h: 40,
+        src: 'https://example.com/draw-test.png',
+      },
+    ];
+    renderHook(() =>
+      useDrawingCanvas({
+        canvasRef,
+        color: '#000',
+        width: 4,
+        objects,
+        onObjectComplete: vi.fn(),
+        canvasSize: { width: 800, height: 600 },
+        nextZ: 1,
+      })
+    );
+    expect(allocated.length).toBe(1);
+    expect(allocated[0].crossOrigin).toBe('anonymous');
+    expect(allocated[0].src).toBe('https://example.com/draw-test.png');
+    // Not loaded yet, so drawImage must NOT have fired.
+    expect(drawImageSpy).not.toHaveBeenCalled();
+
+    window.Image = Original;
+  });
 });

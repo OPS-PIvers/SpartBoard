@@ -13,6 +13,7 @@ import {
   Circle,
   Eraser,
   HardDriveUpload,
+  ImagePlus,
   MousePointer2,
   Pencil,
   Slash,
@@ -28,9 +29,16 @@ import { useAuth } from '@/context/useAuth';
 import { useGoogleDrive } from '@/hooks/useGoogleDrive';
 import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingCanvas';
 import { TextEditorOverlay } from '@/components/widgets/DrawingWidget/TextEditorOverlay';
+import { useImageInsertion } from '@/components/widgets/DrawingWidget/useImageInsertion';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
-import { DrawableObject, ShapeTool, TextConfig, TextObject } from '@/types';
+import {
+  DrawableObject,
+  ImageObject,
+  ShapeTool,
+  TextConfig,
+  TextObject,
+} from '@/types';
 import { DRAWING_DEFAULTS } from '@/components/widgets/DrawingWidget/constants';
 import { STANDARD_COLORS } from '@/config/colors';
 import { Z_INDEX } from '@/config/zIndex';
@@ -212,6 +220,61 @@ export const AnnotationOverlay: React.FC = () => {
     }
   }, [annotationState.objects, editingText, updateAnnotationState]);
 
+  // Image insertion parity with DrawingWidget. Annotations are cleared on
+  // close so image cleanup is automatic — no asset bookkeeping needed here.
+  const handleImageReady = useCallback(
+    ({
+      src,
+      x,
+      y,
+      w,
+      h,
+    }: {
+      src: string;
+      x: number;
+      y: number;
+      w: number;
+      h: number;
+    }) => {
+      const obj: ImageObject = {
+        id: crypto.randomUUID(),
+        kind: 'image',
+        z: nextZ(annotationState.objects),
+        x,
+        y,
+        w,
+        h,
+        src,
+      };
+      addAnnotationObject(obj);
+    },
+    [addAnnotationObject, annotationState.objects]
+  );
+
+  const {
+    openPicker: openImagePicker,
+    fileInputProps,
+    handleNativePaste: handleImageNativePaste,
+    handleDrop: handleImageDrop,
+    handleDragOver: handleImageDragOver,
+    isUploading: isUploadingImage,
+  } = useImageInsertion({
+    canvasRef,
+    onImageReady: handleImageReady,
+  });
+
+  // Window-level paste listener for the overlay. The overlay's canvas is not
+  // focusable so React's `onPaste` can't reliably reach it; we listen at the
+  // window during interactive sessions and stop propagation on consume so
+  // Dock's smart-paste handler doesn't open a duplicate picker.
+  useEffect(() => {
+    const isInteractive = annotationActive && !isReadOnly;
+    if (!isInteractive) return undefined;
+    window.addEventListener('paste', handleImageNativePaste, true);
+    return () =>
+      window.removeEventListener('paste', handleImageNativePaste, true);
+  }, [annotationActive, isReadOnly, handleImageNativePaste]);
+
   const { handleStart, handleMove, handleEnd } = useDrawingCanvas({
     canvasRef,
     color: annotationState.color,
@@ -376,6 +439,8 @@ export const AnnotationOverlay: React.FC = () => {
         onPointerUp={interactive ? handleEnd : undefined}
         onPointerLeave={interactive ? handleEnd : undefined}
         onDoubleClick={interactive ? handleCanvasDoubleClick : undefined}
+        onDrop={interactive ? handleImageDrop : undefined}
+        onDragOver={interactive ? handleImageDragOver : undefined}
         className={`absolute inset-0 ${
           interactive
             ? 'pointer-events-auto cursor-crosshair'
@@ -383,6 +448,8 @@ export const AnnotationOverlay: React.FC = () => {
         }`}
         style={{ touchAction: interactive ? 'none' : 'auto' }}
       />
+
+      {interactive && <input {...fileInputProps} />}
 
       {interactive && editingText && canvasRect && (
         <TextEditorOverlay
@@ -490,6 +557,22 @@ export const AnnotationOverlay: React.FC = () => {
             size="icon"
             disabled={objects.length === 0}
             icon={<Trash2 className="w-4 h-4" />}
+          />
+
+          <Button
+            onClick={openImagePicker}
+            disabled={isUploadingImage}
+            title="Insert image"
+            aria-label="Insert image"
+            variant="ghost"
+            size="icon"
+            icon={
+              isUploadingImage ? (
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <ImagePlus className="w-4 h-4" />
+              )
+            }
           />
 
           <div className="h-6 w-px bg-slate-200 mx-1" />

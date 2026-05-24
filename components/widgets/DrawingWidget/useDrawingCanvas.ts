@@ -17,6 +17,7 @@ import {
   renderRect,
 } from './renderers/shapes';
 import { renderText } from './renderers/text';
+import { renderImage } from './renderers/image';
 import { DRAWING_DEFAULTS } from './constants';
 
 interface UseDrawingCanvasOptions {
@@ -97,6 +98,10 @@ export const useDrawingCanvas = ({
 }: UseDrawingCanvasOptions): UseDrawingCanvasResult => {
   const [isDrawing, setIsDrawing] = useState(false);
   const inProgressRef = useRef<InProgress | null>(null);
+  // Image renderer onload callback: stored as a ref so the (module-level)
+  // dispatcher can fire a redraw without us re-binding closures each render.
+  // The current draw() effect installs the latest redraw into this ref.
+  const triggerRedrawRef = useRef<(() => void) | null>(null);
 
   const setPathContextStyles = useCallback(
     (ctx: CanvasRenderingContext2D, tool: 'pen' | 'eraser') => {
@@ -125,7 +130,9 @@ export const useDrawingCanvas = ({
       // Render in z-order so later PRs (text, image) can layer cleanly
       // without needing to touch this call site.
       const sorted = [...allObjects].sort((a, b) => a.z - b.z);
-      sorted.forEach((obj) => renderObject(ctx, obj));
+      sorted.forEach((obj) =>
+        renderObject(ctx, obj, () => triggerRedrawRef.current?.())
+      );
 
       if (inProgress) {
         renderInProgress(ctx, inProgress, color, width, shapeFill);
@@ -143,6 +150,15 @@ export const useDrawingCanvas = ({
 
     if (canvas.width !== canvasSize.width) canvas.width = canvasSize.width;
     if (canvas.height !== canvasSize.height) canvas.height = canvasSize.height;
+
+    // Install the latest redraw closure for renderImage's onload callback.
+    // Async image decodes resolve via this ref, so a freshly-pasted image
+    // appears as soon as the bytes arrive — no polling, no setTimeout.
+    triggerRedrawRef.current = () => {
+      const c = canvasRef.current;
+      const c2 = c?.getContext('2d');
+      if (c && c2) draw(c2, objects, inProgressRef.current);
+    };
 
     draw(ctx, objects, inProgressRef.current);
   }, [canvasRef, canvasSize.width, canvasSize.height, objects, draw]);
@@ -398,11 +414,11 @@ export const useDrawingCanvas = ({
 };
 
 // --- Object dispatcher ---
-// `image` stays a no-op; it lands in Wave 3.
 
 const renderObject = (
   ctx: CanvasRenderingContext2D,
-  obj: DrawableObject
+  obj: DrawableObject,
+  onImageLoad?: () => void
 ): void => {
   switch (obj.kind) {
     case 'path':
@@ -428,6 +444,10 @@ const renderObject = (
       renderText(ctx, obj);
       return;
     case 'image':
+      // Image cache is module-level inside the renderer; the onload callback
+      // fires the canvas-level redraw so freshly-decoded images appear without
+      // needing another React state nudge.
+      renderImage(ctx, obj, onImageLoad);
       return;
   }
 };

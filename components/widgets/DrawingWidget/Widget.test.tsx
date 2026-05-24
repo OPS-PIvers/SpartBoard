@@ -336,6 +336,23 @@ describe('DrawingWidget', () => {
     expect((editor as HTMLElement).innerText).toBe('Existing');
   });
 
+  it('renders an Image button that opens the hidden file picker', () => {
+    const { getByLabelText, container } = render(
+      <DrawingWidget widget={widget} />
+    );
+    const button = getByLabelText('Insert image');
+    expect(button).not.toBeNull();
+    const input = container.querySelector('input[type="file"]');
+    expect(input).not.toBeNull();
+    const clickSpy = vi
+      .spyOn(HTMLInputElement.prototype, 'click')
+      .mockImplementation(() => {
+        /* noop spy */
+      });
+    fireEvent.click(button);
+    expect(clickSpy).toHaveBeenCalled();
+  });
+
   it('handles drawing interaction', () => {
     const { container } = render(<DrawingWidget widget={widget} />);
     const canvas = container.querySelector('canvas');

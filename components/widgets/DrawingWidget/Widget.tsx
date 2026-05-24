@@ -4,6 +4,7 @@ import {
   WidgetData,
   DrawableObject,
   DrawingConfig,
+  ImageObject,
   ShapeTool,
   TextConfig,
   TextObject,
@@ -12,6 +13,7 @@ import {
   ArrowRight,
   Circle,
   Eraser,
+  ImagePlus,
   Pencil,
   Slash,
   Square,
@@ -21,6 +23,7 @@ import {
   Undo2,
 } from 'lucide-react';
 import { TextEditorOverlay } from './TextEditorOverlay';
+import { useImageInsertion } from './useImageInsertion';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
@@ -145,6 +148,48 @@ export const DrawingWidget: React.FC<{
       });
     }
   };
+
+  // Image insertion: one-shot pipeline shared by paste / drag-drop / picker.
+  // Builds a fresh ImageObject once the upload finishes and stamps it into
+  // the page via the standard append path. Tool selection is unchanged — the
+  // toolbar Image button is a one-shot action, not a sticky mode (per spec).
+  const handleImageReady = ({
+    src,
+    x,
+    y,
+    w,
+    h,
+  }: {
+    src: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }) => {
+    const obj: ImageObject = {
+      id: crypto.randomUUID(),
+      kind: 'image',
+      z: nextZ(objects),
+      x,
+      y,
+      w,
+      h,
+      src,
+    };
+    appendObject(obj);
+  };
+
+  const {
+    openPicker: openImagePicker,
+    fileInputProps,
+    handlePaste,
+    handleDrop,
+    handleDragOver,
+    isUploading: isUploadingImage,
+  } = useImageInsertion({
+    canvasRef,
+    onImageReady: handleImageReady,
+  });
 
   const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
     canvasRef,
@@ -308,6 +353,22 @@ export const DrawingWidget: React.FC<{
         icon={<Trash2 className="w-4 h-4" />}
       />
 
+      <Button
+        onClick={openImagePicker}
+        disabled={isUploadingImage}
+        title="Insert image"
+        aria-label="Insert image"
+        variant="ghost"
+        size="icon"
+        icon={
+          isUploadingImage ? (
+            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <ImagePlus className="w-4 h-4" />
+          )
+        }
+      />
+
       {canAccessFeature('gemini-functions') && (
         <>
           <div className="h-6 w-px bg-slate-200 mx-1" />
@@ -355,7 +416,15 @@ export const DrawingWidget: React.FC<{
       <div
         className={`flex-1 relative ${
           isStudentView ? 'bg-transparent' : 'bg-white/5'
-        } overflow-hidden ${!isStudentView && 'cursor-crosshair'}`}
+        } overflow-hidden focus:outline-none ${!isStudentView && 'cursor-crosshair'}`}
+        // tabIndex makes the wrapper focusable so React's synthetic `paste`
+        // fires here when the user pastes after clicking into the widget.
+        // Drag-and-drop and the toolbar button cover the case where the
+        // widget doesn't currently hold focus.
+        tabIndex={isStudentView ? undefined : 0}
+        onPaste={isStudentView ? undefined : handlePaste}
+        onDrop={isStudentView ? undefined : handleDrop}
+        onDragOver={isStudentView ? undefined : handleDragOver}
       >
         <canvas
           ref={canvasRef}
@@ -381,6 +450,7 @@ export const DrawingWidget: React.FC<{
             onCancel={cancelTextEdit}
           />
         )}
+        {!isStudentView && <input {...fileInputProps} />}
       </div>
       {!isStudentView && (
         <div className="shrink-0 border-t border-white/20 bg-white/20 backdrop-blur-sm">
