@@ -5,6 +5,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
+import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -77,7 +78,22 @@ export const DrawingWidget: React.FC<{
   widget: WidgetData;
   isStudentView?: boolean;
 }> = ({ widget, isStudentView = false }) => {
-  const { updateWidget, activeDashboard, addToast, addWidget } = useDashboard();
+  const {
+    updateWidget,
+    activeDashboard,
+    addToast,
+    addWidget,
+    drawingWidgetsMigrating,
+  } = useDashboard();
+  // When this widget is mid-migration to the subcollection backing store
+  // (Phase 2 PR 2.6), gate user input so concurrent edits don't race the
+  // batched migration writes. The migration captures a snapshot, writes
+  // it to the subcollection, then flips `subcollectionMigrated: true` —
+  // any strokes that landed on the legacy `pages[].objects[]` during the
+  // multi-second migration window would otherwise be silently dropped
+  // when the widget switches to reading from the subcollection. We
+  // render a non-interactive overlay until the migration finishes.
+  const isMigratingSubcollection = drawingWidgetsMigrating.has(widget.id);
   const { canAccessFeature } = useAuth();
 
   // Defensive migration — the canonical migration happens during dashboard
@@ -137,6 +153,22 @@ export const DrawingWidget: React.FC<{
   const [isExporting, setIsExporting] = useState(false);
   const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const exportMenuRef = useRef<HTMLDivElement>(null);
+  // Viewport-anchored coords for the portalled popover. The widget's outer
+  // wrapper is `overflow-hidden` (so the canvas + page strip don't bleed
+  // past their bounds), which would clip an inline-positioned popover the
+  // same way the PageStrip kebab was clipped. Portalling into document.body
+  // and positioning via `position: fixed` against the viewport escapes that
+  // clipping container. The trigger element is queried via `exportMenuRef`
+  // (a `<div>` wrapping the Button — we can't ref the Button directly
+  // because it isn't a forwardRef component).
+  const [exportMenuAnchor, setExportMenuAnchor] = useState<{
+    bottom: number;
+    right: number;
+  } | null>(null);
+  const getExportTrigger = useCallback(
+    () => exportMenuRef.current?.querySelector('button[aria-label="Export"]'),
+    []
+  );
   // Snapshot of the TextObject currently being edited via TextEditorOverlay.
   // Stored locally (not in config.objects) until commit, so the editor can
   // position itself off the snapshot without round-tripping through Firestore.
@@ -523,7 +555,7 @@ export const DrawingWidget: React.FC<{
   };
 
   const handleExportCurrentPng = async () => {
-    setIsExportMenuOpen(false);
+    closeExportMenu();
     try {
       setIsExporting(true);
       // Route through the offscreen-render path so the background template
@@ -548,7 +580,7 @@ export const DrawingWidget: React.FC<{
   };
 
   const handleExportAllPng = async () => {
-    setIsExportMenuOpen(false);
+    closeExportMenu();
     if (pages.length === 0) return;
     try {
       setIsExporting(true);
@@ -570,7 +602,7 @@ export const DrawingWidget: React.FC<{
   };
 
   const handleExportPdf = async () => {
-    setIsExportMenuOpen(false);
+    closeExportMenu();
     if (pages.length === 0) return;
     try {
       setIsExporting(true);
@@ -590,18 +622,60 @@ export const DrawingWidget: React.FC<{
     }
   };
 
-  // Close the export popover on outside click OR Escape. Mirrors the
-  // click-outside pattern used elsewhere in the app; kept inline (rather
-  // than reaching for `useClickOutside`) because this is the only popover
-  // in the widget. Escape additionally restores focus to the trigger
-  // button (the only direct <button> child of `exportMenuRef`).
+  const closeExportMenu = useCallback(() => {
+    setIsExportMenuOpen(false);
+    setExportMenuAnchor(null);
+  }, []);
+
+  const openExportMenu = useCallback(() => {
+    const trigger = getExportTrigger();
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    setIsExportMenuOpen(true);
+    setExportMenuAnchor({
+      bottom: window.innerHeight - rect.top + 4,
+      right: window.innerWidth - rect.right,
+    });
+  }, [getExportTrigger]);
+
+  // Recompute anchor on scroll/resize so the portalled popover follows the
+  // trigger when the user pans the dashboard or the dock collapses. Mirrors
+  // the PageStrip kebab pattern.
+  useEffect(() => {
+    if (!isExportMenuOpen) return undefined;
+    const onScrollOrResize = () => {
+      const trigger = getExportTrigger();
+      if (!trigger) {
+        closeExportMenu();
+        return;
+      }
+      const rect = trigger.getBoundingClientRect();
+      setExportMenuAnchor({
+        bottom: window.innerHeight - rect.top + 4,
+        right: window.innerWidth - rect.right,
+      });
+    };
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [isExportMenuOpen, closeExportMenu, getExportTrigger]);
+
+  // Close the export popover on outside click OR Escape. The trigger button
+  // is the only `aria-label="Export"` button on the page; clicks on it are
+  // already handled by its own onClick toggle, so they bypass this listener
+  // via the contains() check below.
   useEffect(() => {
     if (!isExportMenuOpen) return;
     const onDocPointerDown = (e: PointerEvent) => {
-      const node = exportMenuRef.current;
-      if (node && !node.contains(e.target as Node)) {
-        setIsExportMenuOpen(false);
-      }
+      const target = e.target as Node | null;
+      if (!target) return;
+      const popup = document.getElementById('drawing-export-popover');
+      if (popup?.contains(target)) return;
+      if (getExportTrigger()?.contains(target)) return;
+      closeExportMenu();
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
@@ -612,14 +686,10 @@ export const DrawingWidget: React.FC<{
         // authoritative belt + suspenders.
         if (editingText) return;
         e.stopPropagation();
-        setIsExportMenuOpen(false);
+        closeExportMenu();
         // Return focus to the trigger so keyboard users land somewhere
-        // sensible. The trigger is the only button inside `exportMenuRef`
-        // with `aria-label="Export"` (the popover items are unlabelled).
-        const trigger = exportMenuRef.current?.querySelector(
-          'button[aria-label="Export"]'
-        );
-        (trigger as HTMLButtonElement | null)?.focus();
+        // sensible.
+        (getExportTrigger() as HTMLButtonElement | null)?.focus();
       }
     };
     document.addEventListener('pointerdown', onDocPointerDown);
@@ -628,7 +698,7 @@ export const DrawingWidget: React.FC<{
       document.removeEventListener('pointerdown', onDocPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isExportMenuOpen, editingText]);
+  }, [isExportMenuOpen, editingText, closeExportMenu, getExportTrigger]);
 
   const handleSendToText = async () => {
     const canvas = canvasRef.current;
@@ -806,7 +876,9 @@ export const DrawingWidget: React.FC<{
 
       <div ref={exportMenuRef} className="relative">
         <Button
-          onClick={() => setIsExportMenuOpen((v) => !v)}
+          onClick={() =>
+            isExportMenuOpen ? closeExportMenu() : openExportMenu()
+          }
           disabled={isExporting || pages.length === 0}
           title="Export"
           aria-label="Export"
@@ -825,40 +897,50 @@ export const DrawingWidget: React.FC<{
             )
           }
         />
-        {isExportMenuOpen && (
-          // Honest popover: plain <button>s in a positioned div, no ARIA
-          // menu role. Tab is the navigation; screen readers announce three
-          // buttons rather than a menu that doesn't navigate with arrows.
-          <div
-            data-testid="drawing-export-popover"
-            className="absolute right-0 bottom-full mb-2 min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden z-50"
-          >
-            <button
-              type="button"
-              onClick={() => void handleExportCurrentPng()}
-              disabled={isExporting}
-              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+        {isExportMenuOpen &&
+          exportMenuAnchor &&
+          // Portal into document.body so the widget's `overflow-hidden`
+          // wrapper can't clip the popover (same pattern as PageStrip's
+          // kebab). Positioning is `fixed` against the viewport, anchored
+          // to the trigger's `getBoundingClientRect` captured at open time
+          // and updated on scroll/resize.
+          createPortal(
+            <div
+              id="drawing-export-popover"
+              data-testid="drawing-export-popover"
+              className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
+              style={{
+                bottom: `${exportMenuAnchor.bottom}px`,
+                right: `${exportMenuAnchor.right}px`,
+              }}
             >
-              Export PNG (this page)
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleExportAllPng()}
-              disabled={isExporting || pages.length <= 1}
-              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Export PNG (all pages)
-            </button>
-            <button
-              type="button"
-              onClick={() => void handleExportPdf()}
-              disabled={isExporting}
-              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              Export PDF
-            </button>
-          </div>
-        )}
+              <button
+                type="button"
+                onClick={() => void handleExportCurrentPng()}
+                disabled={isExporting}
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Export PNG (this page)
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportAllPng()}
+                disabled={isExporting || pages.length <= 1}
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Export PNG (all pages)
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportPdf()}
+                disabled={isExporting}
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Export PDF
+              </button>
+            </div>,
+            document.body
+          )}
       </div>
 
       {canAccessFeature('gemini-functions') && (
@@ -929,11 +1011,21 @@ export const DrawingWidget: React.FC<{
         // tabIndex makes the wrapper focusable so React's synthetic `paste`
         // and `keydown` events fire here. Required for Backspace/Delete and
         // arrow nudges to reach the selection hook without a focused child.
-        tabIndex={isStudentView ? undefined : 0}
-        onPaste={isStudentView ? undefined : handlePaste}
-        onDrop={isStudentView ? undefined : handleDrop}
-        onDragOver={isStudentView ? undefined : handleDragOver}
-        onKeyDown={isStudentView ? undefined : handleWrapperKeyDown}
+        tabIndex={isStudentView || isMigratingSubcollection ? undefined : 0}
+        onPaste={
+          isStudentView || isMigratingSubcollection ? undefined : handlePaste
+        }
+        onDrop={
+          isStudentView || isMigratingSubcollection ? undefined : handleDrop
+        }
+        onDragOver={
+          isStudentView || isMigratingSubcollection ? undefined : handleDragOver
+        }
+        onKeyDown={
+          isStudentView || isMigratingSubcollection
+            ? undefined
+            : handleWrapperKeyDown
+        }
         data-selected-id={selectedId ?? ''}
       >
         {/* Background template layer (Wave 7). A sibling div BELOW the
@@ -994,6 +1086,26 @@ export const DrawingWidget: React.FC<{
             onCommit={commitTextEdit}
             onCancel={cancelTextEdit}
           />
+        )}
+        {/* Subcollection-migration lock (Phase 2 PR 2.6). pointer-events:
+            auto on this overlay swallows clicks/drags so they never reach
+            the canvas underneath — closes the data-loss race where strokes
+            on the legacy `pages[].objects[]` path get dropped when
+            `subcollectionMigrated: true` flips and the widget switches to
+            reading from the subcollection. */}
+        {isMigratingSubcollection && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm text-white"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 border-2 border-white/60 border-t-transparent rounded-full motion-safe:animate-spin" />
+              <span className="text-sm font-medium select-none">
+                Migrating drawing…
+              </span>
+            </div>
+          </div>
         )}
         {!isStudentView && <input {...fileInputProps} />}
       </div>

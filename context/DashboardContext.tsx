@@ -22,6 +22,7 @@ import {
   FeaturePermission,
   DrawableObject,
   DrawingConfig,
+  DrawingPage,
   UserProfile,
   SubstituteShareDriveGrant,
   ROOT_COLLECTION_KEY,
@@ -4069,6 +4070,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // (the context itself is torn down on sign-out today, but airtight keys
   // cost nothing).
   const subcollectionMigrationInFlightRef = useRef<Set<string>>(new Set());
+  // Public mirror of the in-flight ref, surfaced through context so widgets
+  // can render a "Migrating drawing…" overlay and gate input while their
+  // migration is running. Refs don't trigger re-renders, so we maintain a
+  // parallel `useState` Set as the reactive source for consumers. The ref
+  // stays the source of truth for the kicker's synchronous dedup (refs are
+  // observable during the same render that schedules the state update).
+  const [drawingWidgetsMigrating, setDrawingWidgetsMigrating] = useState<
+    ReadonlySet<string>
+  >(() => new Set<string>());
   // Ref-mirror the active dashboard so the effect can read the latest
   // widgets without listing `activeDashboard` (a fresh object every render)
   // in its dep array. The migration only needs to run when uid or the
@@ -4109,9 +4119,20 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       const key = `${uid}::${dashboardId}::${widget.id}`;
       if (subcollectionMigrationInFlightRef.current.has(key)) continue;
       subcollectionMigrationInFlightRef.current.add(key);
+      // Mirror to reactive state so the widget can render its migration
+      // overlay. Functional update to handle the close-coupled multi-
+      // widget case (two widgets on the same dashboard migrating in
+      // parallel both add themselves).
+      const migratingWidgetId = widget.id;
+      setDrawingWidgetsMigrating((prev) => {
+        if (prev.has(migratingWidgetId)) return prev;
+        const next = new Set(prev);
+        next.add(migratingWidgetId);
+        return next;
+      });
       void (async () => {
         try {
-          const { migratedConfig, ran } = await migrateDrawingToSubcollection({
+          const { ran } = await migrateDrawingToSubcollection({
             db,
             uid,
             dashboardId,
@@ -4119,11 +4140,39 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             config,
           });
           if (ran) {
-            // Persist the denormalized config (sets the
-            // subcollectionMigrated flag + drops `objects[]`). On batch
-            // failure the throw above leaves the flag unset so the next
-            // load retries.
-            updateWidgetRef.current?.(widget.id, { config: migratedConfig });
+            // Re-read the latest widget config at writeback time so user
+            // edits that landed in `pages[].objects` during the multi-second
+            // migration window (the widget stays interactive on the legacy
+            // path until `subcollectionMigrated: true` flips) are not
+            // overwritten by the snapshot we captured before the batch
+            // writes. We compute the emptied denormalized cache from the
+            // LATEST pages, preserving any newly-added page ids/backgrounds.
+            const latestDashboard = dashboardsRef.current.find(
+              (d) => d.id === dashboardId
+            );
+            const latestWidget = latestDashboard?.widgets.find(
+              (w) => w.id === widget.id
+            );
+            const latestConfig = latestWidget?.config as
+              | DrawingConfig
+              | undefined;
+            // If the widget was removed mid-migration, drop the writeback.
+            if (!latestConfig) return;
+            const latestPages = Array.isArray(latestConfig.pages)
+              ? latestConfig.pages
+              : config.pages;
+            const denormalizedPages: DrawingPage[] = latestPages.map((p) => ({
+              id: p.id,
+              objects: [],
+              background: p.background ?? 'blank',
+            }));
+            updateWidgetRef.current?.(widget.id, {
+              config: {
+                ...latestConfig,
+                pages: denormalizedPages,
+                subcollectionMigrated: true,
+              },
+            });
           }
         } catch (err) {
           logError('DashboardContext.drawingSubcollectionMigration', err, {
@@ -4132,6 +4181,12 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
           });
         } finally {
           subcollectionMigrationInFlightRef.current.delete(key);
+          setDrawingWidgetsMigrating((prev) => {
+            if (!prev.has(migratingWidgetId)) return prev;
+            const next = new Set(prev);
+            next.delete(migratingWidgetId);
+            return next;
+          });
         }
       })();
     }
@@ -4143,18 +4198,16 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // `subcollectionMigrationInFlightRef` Set dedupes per widget id).
   }, [user?.uid, activeDashboard?.id, activeDashboard?.widgets?.length]);
 
-  // Sign-out hygiene: clear the in-flight Set when the user changes so a
-  // stale entry from a previous session can't block a fresh migration. The
-  // Set's keys include uid, so this is belt-and-braces — but the cost is a
-  // single Set.clear() per uid transition. Capture the ref to a local at
-  // effect-run time so the cleanup closure operates on the same Set the
-  // current effect saw (ESLint's exhaustive-deps cleanup-on-ref warning).
-  useEffect(() => {
-    const inFlightSet = subcollectionMigrationInFlightRef.current;
-    return () => {
-      inFlightSet.clear();
-    };
-  }, [user?.uid]);
+  // Note: there is intentionally NO sign-out cleanup effect for
+  // `subcollectionMigrationInFlightRef`. An earlier draft cleared the Set
+  // on `user?.uid` change, but under React 19 StrictMode dev (which runs
+  // setup → cleanup → setup on initial mount) that cleanup fired between
+  // the two setup passes, emptied the Set, and the second migration-effect
+  // pass re-kicked the migration — defeating the StrictMode dedup the ref
+  // exists to provide. Since the Set's keys include `uid`, stale entries
+  // from a previous session are inert (they don't match a new session's
+  // keys) and harmless: leaving them in memory across sign-out costs a
+  // handful of bytes per migrated widget per session.
 
   // True when the user is viewing a board they joined as a viewer in
   // View-Only mode. Read-only mutation guards check this via a ref so
@@ -5330,6 +5383,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       importSharedBoard,
       stopSharingDashboard,
       isActiveBoardReadOnly,
+      drawingWidgetsMigrating,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,
@@ -5455,6 +5509,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       importSharedBoard,
       stopSharingDashboard,
       isActiveBoardReadOnly,
+      drawingWidgetsMigrating,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,

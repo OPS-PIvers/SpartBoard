@@ -220,6 +220,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       dashboards: [activeDashboard],
       activeDashboard,
       isActiveBoardReadOnly: true,
+      drawingWidgetsMigrating: new Set<string>(),
       updateWidget,
       bringToFront,
 

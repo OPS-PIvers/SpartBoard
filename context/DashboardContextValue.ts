@@ -297,6 +297,18 @@ export interface DashboardContextValue {
   stopSharingDashboard: (dashboardId: string) => Promise<void>;
   /** True when the active dashboard is a view-only guest copy. */
   isActiveBoardReadOnly: boolean;
+  /**
+   * Widget IDs currently undergoing the Phase 2 PR 2.6 subcollection
+   * migration. Drawing widgets in this set are mid-migration: the legacy
+   * `pages[].objects[]` shape still hosts the canvas content, but the
+   * batched writes to the new subcollection are in flight. The widget
+   * renders a non-interactive overlay while its id is in the set so user
+   * strokes don't race the writeback (the snapshot the migration captured
+   * is what gets denormalized — any concurrent edits would otherwise be
+   * silently dropped when `subcollectionMigrated: true` flips and the
+   * widget switches to reading from the subcollection).
+   */
+  drawingWidgetsMigrating: ReadonlySet<string>;
   pendingQuizShareId: string | null;
   clearPendingQuizShare: () => void;
   pendingAssignmentShareId: string | null;

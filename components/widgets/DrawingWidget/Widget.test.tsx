@@ -73,6 +73,7 @@ describe('DrawingWidget', () => {
       activeDashboard: { background: 'bg-slate-900', widgets: [] },
       addToast: vi.fn(),
       addWidget: vi.fn(),
+      drawingWidgetsMigrating: new Set<string>(),
     });
     (useAuth as Mock).mockReturnValue({
       user: { uid: 'user1' },
@@ -403,20 +404,22 @@ describe('DrawingWidget', () => {
         currentPage: 0,
       } as DrawingConfig,
     };
-    const { container, getByLabelText } = render(
+    const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithPage} />
     );
     // Open the export popover. Round 2 dropped role="menu" + role="menuitem"
     // for honest popover semantics (Tab navigation, plain <button>s), so we
-    // probe via the test-id rather than the old ARIA selectors.
+    // probe via the test-id rather than the old ARIA selectors. The popover
+    // is portalled into document.body so we query the document, not the
+    // test's render container.
     fireEvent.click(getByLabelText('Export'));
     expect(
-      container.querySelector('[data-testid="drawing-export-popover"]')
+      document.querySelector('[data-testid="drawing-export-popover"]')
     ).not.toBeNull();
     // Pointerdown on document.body (outside the popover) closes it.
     fireEvent.pointerDown(document.body);
     expect(
-      container.querySelector('[data-testid="drawing-export-popover"]')
+      document.querySelector('[data-testid="drawing-export-popover"]')
     ).toBeNull();
   });
 
@@ -433,17 +436,17 @@ describe('DrawingWidget', () => {
         currentPage: 0,
       } as DrawingConfig,
     };
-    const { container, getByLabelText } = render(
+    const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithPage} />
     );
     fireEvent.click(getByLabelText('Export'));
     expect(
-      container.querySelector('[data-testid="drawing-export-popover"]')
+      document.querySelector('[data-testid="drawing-export-popover"]')
     ).not.toBeNull();
     // Escape fires at document level (the widget attaches a document keydown).
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(
-      container.querySelector('[data-testid="drawing-export-popover"]')
+      document.querySelector('[data-testid="drawing-export-popover"]')
     ).toBeNull();
   });
 
@@ -457,16 +460,17 @@ describe('DrawingWidget', () => {
         currentPage: 0,
       } as DrawingConfig,
     };
-    const { container, getByLabelText } = render(
+    const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithPage} />
     );
     fireEvent.click(getByLabelText('Export'));
     // Locking in the round-2 consistency fix: no ARIA menu role anywhere on
-    // the popover or its items. The popover is plain <button>s in a div.
-    expect(container.querySelector('[role="menu"]')).toBeNull();
-    expect(container.querySelector('[role="menuitem"]')).toBeNull();
+    // the popover or its items. The popover is plain <button>s in a div,
+    // portalled into document.body.
+    expect(document.querySelector('[role="menu"]')).toBeNull();
+    expect(document.querySelector('[role="menuitem"]')).toBeNull();
     expect(
-      container.querySelectorAll(
+      document.querySelectorAll(
         '[data-testid="drawing-export-popover"] > button'
       ).length
     ).toBeGreaterThanOrEqual(3);
