@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-17_
-_Last action: 2026-05-21_
+_Last audited: 2026-05-24_
+_Last action: 2026-05-24_
 
 ---
 
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
 
 ### MEDIUM Appearance settings (cardColor, cardOpacity, fontFamily, fontColor) exposed in user Settings.tsx but absent from admin building config
 
@@ -27,13 +29,6 @@ _Nothing currently in progress._
   - `checklist` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `ChecklistConfig`; `getAdminBuildingConfig` handles only `items`, `scaleMultiplier`
   - `stations` — `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` fields in `StationsConfig` (added 2026-05-03); exposed via `TypographySettings` + `SurfaceColorSettings` in `components/widgets/Stations/Settings.tsx`; no `StationsConfigurationPanel` exists and `stations` is not registered in `BUILDING_CONFIG_PANELS` or `getAdminBuildingConfig()`
 - **Fix:** For each widget, either (a) add the appearance fields to the widget's `Building*Defaults` interface in `types.ts` and add them to the `getAdminBuildingConfig()` case, plus expose them in the `*ConfigurationPanel.tsx`; or (b) add a note in the config interface comment that appearance fields are intentionally user-only and not admin-configurable per building.
-
-### MEDIUM Clock: `clockStyle` and `glow` configurable by user but not included in admin building defaults
-
-- **Detected:** 2026-04-16
-- **File:** types.ts (ClockConfig / BuildingClockDefaults), context/DashboardContext.tsx (~line 2153), components/admin/ClockConfigurationPanel.tsx
-- **Detail:** `ClockConfig` in types.ts has `clockStyle` and `glow` fields. The user-facing `ClockSettings.tsx` exposes both fields. However, `BuildingClockDefaults` does not include `clockStyle` or `glow`, and `getAdminBuildingConfig` case `'clock'` only applies `format24`, `fontFamily`, and `themeColor`. Admins cannot pre-set clock appearance style or glow effect per building.
-- **Fix:** Add `clockStyle` and `glow` to `BuildingClockDefaults` interface in types.ts. Add them to the `case 'clock'` handler in `getAdminBuildingConfig()`. Expose controls for both in `ClockConfigurationPanel.tsx`.
 
 ### LOW Checklist: `rosterMode` user-configurable but not in admin building config
 
@@ -49,6 +44,13 @@ _Nothing currently in progress._
 - **Detail:** `ActivityWallBuildingConfig` (types.ts:1226) defines three per-building admin defaults: `defaultMode` (text/photo), `defaultIdentificationMode` (anonymous/name/pin/name-pin), and `defaultModerationEnabled` (boolean). `ActivityWallGlobalConfig` (types.ts:1232) holds `buildingDefaults: Record<string, ActivityWallBuildingConfig>`. `ActivityWallConfigurationPanel.tsx` is fully implemented — it correctly reads/writes these per-building values via `BuildingSelector`. However: (1) there is no `case 'activity-wall':` in `utils/adminBuildingConfig.ts`, so `getAdminBuildingConfig('activity-wall')` falls through to `default: break` returning `{}`; (2) more importantly, `ActivityWallConfig` (the widget instance config, types.ts:1237) has no `defaultMode`, `defaultIdentificationMode`, or `defaultModerationEnabled` fields at all — these are _activity-level_ defaults, not widget-level defaults; (3) no code in `components/widgets/ActivityWall/` or `hooks/useActivityWallLibrary.ts` reads from `featurePermissions['activity-wall']` to apply building defaults when creating new activities. The admin panel stores data correctly in Firestore but nothing ever reads it.
 - **Fix:** In `components/widgets/ActivityWall/` (likely in the activity creation path inside `useActivityWallLibrary.ts` or the widget's new-activity handler), read `featurePermissions['activity-wall']` directly (pattern: `(featurePermissions['activity-wall']?.config as ActivityWallGlobalConfig | undefined)?.buildingDefaults?.[selectedBuilding]`) and apply `defaultMode`, `defaultIdentificationMode`, and `defaultModerationEnabled` as initial values when a teacher creates a new activity. No widget-config fields need to be added; the defaults should be applied at activity-creation time, not at widget-creation time. A `case 'activity-wall':` in `adminBuildingConfig.ts` is NOT needed since these aren't widget-level fields.
 
+### LOW `guided-learning` registered in BUILDING_CONFIG_PANELS with stub info-only panel
+
+- **Detected:** 2026-05-24
+- **File:** components/admin/GuidedLearningConfigurationPanel.tsx, components/admin/FeatureConfigurationPanel.tsx (~line 132)
+- **Detail:** `GuidedLearningConfigurationPanel` is registered in `BUILDING_CONFIG_PANELS` in `FeatureConfigurationPanel.tsx`. The panel renders only an informational message: "Guided Learning settings are managed directly — please interact with the widget directly on your board." It has no `onChange` handler, writes nothing to Firestore, and there is no building defaults infrastructure for guided-learning (`GuidedLearningConfig` does not have a `BuildingGuidedLearningDefaults` interface in types.ts, and there is no `case 'guided-learning':` in `utils/adminBuildingConfig.ts`). The GuidedLearning widget reads `widget.config` directly — it does not read from feature_permissions at all. The admin panel button for this widget opens a panel that provides no functional value and shows a message that could be misleading (implying settings exist but are in-widget only).
+- **Fix:** Option (a): Remove `guided-learning` from `BUILDING_CONFIG_PANELS` so the admin UI falls through to the standard "No global settings available for this widget." placeholder — more accurate than an info stub. Option (b): If guided-learning admin defaults are genuinely planned (e.g., default view, default set library source), implement building defaults infrastructure (types.ts interface + adminBuildingConfig.ts case + real panel controls). Option (a) is lower-effort and more honest about current state.
+
 ### MEDIUM `need-do-put-then` has stub admin config panel but no getAdminBuildingConfig handler
 
 - **Detected:** 2026-04-26
@@ -59,6 +61,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM Clock: `clockStyle` and `glow` configurable by user but not included in admin building defaults
+
+- **Detected:** 2026-04-16
+- **Completed:** 2026-05-24
+- **File:** types.ts (BuildingClockDefaults), utils/adminBuildingConfig.ts (case 'clock'), components/admin/ClockConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `ClockConfig` exposed `clockStyle` ('modern' | 'lcd' | 'minimal') and `glow` (boolean) in user `ClockSettings.tsx`, but `BuildingClockDefaults` and the `case 'clock'` handler in `getAdminBuildingConfig()` only passed through `format24`, `fontFamily`, and `themeColor`. Admins could not set per-building clock display style or glow effect.
+- **Resolution:** Chose fix option (a) — implemented building defaults for both fields. (1) Added `clockStyle?: 'modern' | 'lcd' | 'minimal'` and `glow?: boolean` to `BuildingClockDefaults` in `types.ts`. (2) Updated `case 'clock'` in `utils/adminBuildingConfig.ts` to extract both fields with validation: `clockStyle` is validated against the `['modern', 'lcd', 'minimal']` allowlist, `glow` is validated with `typeof === 'boolean'` (matches the existing pattern from `reveal-grid` / `countdown` cases). (3) Added a 3-segment "Default Display Style" pill and a "Glow Effect" toggle to `ClockConfigurationPanel.tsx`, matching the existing visual pattern of the Font Family pill and 24-Hour Format toggle. (4) Added two new tests under a `describe('clock')` block in `tests/utils/adminBuildingConfig.test.ts`: one for valid pass-through (all five fields), one for rejection of unknown `clockStyle` and non-boolean `glow`. `pnpm exec tsc --noEmit`, `pnpm exec eslint ... --max-warnings 0`, and `pnpm exec prettier --check` all clean. `pnpm exec vitest run tests/utils/adminBuildingConfig.test.ts` — all 13 tests pass.
 
 ### MEDIUM 5 widgets have ConfigurationPanels but no Building\*Defaults type infrastructure
 

@@ -136,11 +136,20 @@ export const getAdminBuildingConfig = (
         out.alignment = raw.alignment;
       }
       break;
-    case 'clock':
+    case 'clock': {
+      const validClockStyles = ['modern', 'lcd', 'minimal'] as const;
       if (raw.format24 !== undefined) out.format24 = raw.format24;
       if (raw.fontFamily) out.fontFamily = raw.fontFamily;
       if (raw.themeColor) out.themeColor = raw.themeColor;
+      if (
+        typeof raw.clockStyle === 'string' &&
+        (validClockStyles as readonly string[]).includes(raw.clockStyle)
+      ) {
+        out.clockStyle = raw.clockStyle;
+      }
+      if (typeof raw.glow === 'boolean') out.glow = raw.glow;
       break;
+    }
     case 'breathing': {
       const validPatterns = ['4-4-4-4', '4-7-8', '5-5'] as const;
       const validVisuals = ['circle', 'lotus', 'wave'] as const;

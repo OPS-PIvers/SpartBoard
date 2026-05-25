@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-21_
-_Last action: 2026-05-16_
+_Last audited: 2026-05-24_
+_Last action: 2026-05-23_
 
 ---
 
@@ -21,6 +21,12 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-24: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits since 2026-05-23: feat(plc) remove Assignments page + unify quiz library, feat(notebook) place assets on page + rename notebooks. Neither touches widget front-face content. ActivityWall/Widget.tsx:2101-2110 `max-h-[75vh]` usage confirmed inside a `<Modal>` overlay (viewport-constrained media preview for full-screen submission viewing) — not inside the widget's CSS container-query context; acceptable. MusicWidget/Widget.tsx:570 `max-w-[85%]` is a structural truncation constraint on a flex-child label, not a content-cap violation. RecessGear/Widget.tsx:341 `max-w-[70%]` same pattern — truncation guard on a text label inside a row. MiniApp portaled toolbar fix still in scheduled-tasks branch (commit 74ff0f94) pending merge to dev-paul. All pre-existing open items remain valid. Zero new anti-patterns detected._
+
+_2026-05-23: Scanned all Widget.tsx / index.tsx files and new sub-components for anti-patterns. New dev-paul commits since 2026-05-22: feat(notebook)×4 + fix(notebook)×2 adding new SmartNotebook sub-components (PageCanvas.tsx, PageEditor.tsx, PageEditorOverlay.tsx). All three new sub-components: zero hardcoded Tailwind text-size classes, fixed icon sizes, or pixel-capped max-h/max-w constraints. PageCanvas and PageEditor are canvas-manipulation surfaces; PageEditorOverlay is a transparent interaction layer — none render front-face text in container-query context. Viewer.tsx existing `max-w-[240px] min-w-[160px]` on assets side-panel remains documented as acceptable structural constraint (per 2026-05-22 note). feat(widget) FAB kebab commit changes only DraggableWindow.tsx and Dock.tsx — not widget front-face content. QuizWidget/Widget.tsx and VideoActivityWidget/Widget.tsx changes are in skipScaling:false widgets (CSS transform scaling), so hardcoded Tailwind text sizes there are not CQ violations. No new anti-patterns detected. All pre-existing open items remain valid._
+
+_2026-05-22: Scanned all Widget.tsx / index.tsx files and new sub-components for anti-patterns. New dev-paul commits merged: feat(smart-notebook) high-fidelity SMART Notebook import — SmartNotebook/components/Library.tsx and Viewer.tsx both use cqmin units throughout (all headers, buttons, icons, text, spacing); no hardcoded Tailwind text-size or pixel-size classes in front-face content. Viewer.tsx uses `max-w-full max-h-full object-contain` on the notebook image (correct image-fill pattern per audit guidance) and `w-1/3 max-w-[240px] min-w-[160px]` on the assets side-panel (structural layout constraint on a supplementary drawer, not the main content area — acceptable). QuizBehaviorSettingsPanel and VideoActivityBehaviorSettingsPanel added to components/common/library/ — use text-sm/text-xs throughout but are settings/editor-context components rendered inside modals, not inside widget canvas container-query contexts — no violation. No new front-face scaling violations detected. All pre-existing open items remain valid._
 
 _2026-05-21: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits merged: feat(settings) Settings modal refactor (no widget front-face changes), refactor(admin) AdminSettings vertical nav (no widget front-face changes), fix/feat(spotify) 18 commits adding 9 new Spotify sub-components (PersonalSpotifyAdaptiveLayout, PersonalSpotifyCompactBar, PersonalSpotifyDefaultTabBar, PersonalSpotifyLibraryTab, PersonalSpotifyListState, PersonalSpotifyMinimalView, PersonalSpotifyNowPlayingTab, SpotifyResultRow, SpotifyTransportControls) — all use cqmin/cqh/cqw units throughout; no hardcoded Tailwind text-size or pixel-size classes in widget front-face content. MusicWidget continues using cqh-based sizing for its short/wide layout (documented as acceptable in journal guidance). No new violations. All pre-existing open items remain valid._
 
@@ -44,19 +50,20 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
-### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
-
-- **Detected:** 2026-05-15
-- **File:** components/widgets/MiniApp/Widget.tsx:1054–1191 (createPortal block)
-- **Detail:** The "active app overlay toolbar" — shown when a mini-app is running — is rendered via `createPortal` to `document.body` with `position: fixed`. It contains: `text-xs` on all button labels, `h-8` on all buttons, `w-3.5 h-3.5` on all icons, `gap-1.5` and `px-3` on buttons. Widget has `skipScaling: true`. Since the toolbar is portaled outside the widget's CSS container, `cqmin` units will not resolve against the widget's size — the same constraint as the EmbedWidget portaled zoom toolbar. The toolbar was added in commit `f043df3e` (2026-05-12). Distinct from the existing open item "MiniApp internal dialog overlays" which covers non-portaled modal overlays inside the container query context.
-- **Fix:** Two options: (a) Remove the portal — if the toolbar doesn't need to escape the DraggableWindow stacking context, render it inside the widget frame and convert all sizes to `cqmin`; (b) Keep the portal — derive a `cqmin`-equivalent pixel scale factor from `widgetRect.width / 300` (base widget width) and use computed pixel values in the portaled toolbar styles. The toolbar already reads `widgetRect` for positioning, so the scale factor is available with no additional prop-drilling. Example for `text-xs` (12px base): `fontSize: Math.round(widgetRect.width * 0.04)` (4% of width = cqw-equivalent at default sizes).
-
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
 - **Detected:** 2026-04-28
 - **File:** components/widgets/Embed/Widget.tsx:443 (zoom reset button), :437 (ZoomOut icon), :457 (ZoomIn icon), :426 (toolbar gap)
 - **Detail:** The hover-visible zoom toolbar uses `text-xs font-mono` on the percentage reset button (line 443), `className="w-4 h-4"` on ZoomOut/ZoomIn icons (lines 437, 457), `p-2` on the zoom buttons, and `gap: 4` (hardcoded pixels) on the toolbar flex container (line 426). Widget has `skipScaling: true`. Critically, the entire toolbar is rendered via `createPortal` to `document.body` (line 393) with `position: fixed` — it lives **outside** the widget's container query context, so `cqmin` units will not resolve against the widget size. The hardcoded sizes will not scale with the widget, but cqmin is not a straightforward fix either.
 - **Fix:** Two options: (a) Remove the portal if the toolbar doesn't need to escape the iframe stacking context — then convert to `cqmin` as normal: `text-xs` → `style={{ fontSize: 'min(11px, 4cqmin)' }}`, icons `w-4 h-4` → `style={{ width: 'min(16px, 4cqmin)', height: 'min(16px, 4cqmin)' }}`, `gap: 4` → `style={{ gap: 'min(4px, 1cqmin)' }}`; (b) Keep the portal and pass the widget's computed `cqmin`-equivalent pixel size down as a prop derived from the widget's `rect` dimensions, then use those pixel values directly in the portaled toolbar's styles.
+
+### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
+
+- **Detected:** 2026-05-15
+- **Pending merge of PR #1684:** Fix delivered on branch `scheduled-tasks` (commit `74ff0f9`); will move to Completed once PR #1684 merges into `dev-paul`.
+- **File:** components/widgets/MiniApp/Widget.tsx (createPortal block around lines 1060–1235)
+- **Detail:** The "active app overlay toolbar" — shown when a mini-app is running — is rendered via `createPortal` to `document.body` with `position: fixed` and `top` anchored to `widgetRect.bottom`. The toolbar lives outside the widget's CSS container, so `cqmin` units cannot resolve against the widget's size. The toolbar previously used hardcoded Tailwind sizing classes: `text-xs`, `text-[10px]` (Unsaved badge), `h-8`, `w-3.5 h-3.5` (icons), `gap-1.5`, `px-2`, `py-1.5`, `px-3`, `w-px h-5 mx-0.5` (divider).
+- **Resolution (pending merge):** Chose option (b) — kept the portal (required because the toolbar is positioned below/above the widget, outside its bounds, and needs `Z_INDEX.popover` to clear `DraggableWindow`'s stacking context). Inside the IIFE, computed a JS-side `cqmin` unit from `widgetRect` with a `Math.max(..., 1)` zero-guard (`Math.max(Math.min(width, height), 1) / 100`) and a `px(cap, factor)` helper that wraps `Math.min(cap, cqmin * factor)` in `Math.round()` to produce integer pixel values matching the original Tailwind utilities. Built a `sz` object with values matching every original Tailwind utility at the default 500×600 widget size — `text-xs` → `px(12, 4.5)`, `text-[10px]` → `px(10, 3.5)`, icons (14px) → `px(14, 4)`, `h-8` → `px(32, 8)`, `px-3` → `px(12, 3)`, `px-2` → `px(8, 2)`, `gap-1.5` → `px(6, 1.5)`, `py-1.5` → `px(6, 1.5)`, `h-5` → `px(20, 5)`, `mx-0.5` → `px(2, 0.5)`. Replaced all hardcoded sizing classes with inline styles via two reusable objects (`buttonBaseStyle`, `iconStyle`) plus per-element styles for the toolbar shell, the Unsaved badge, and the divider. Replaced the `inline`/`hidden` Tailwind label class with `labelStyle = { display: showLabels ? 'inline' : 'none' }` for consistency. Non-sizing classes (`bg-*`, `hover:*`, `border-*`, `rounded-*`, `font-*`, `tracking-*`, `transition-colors`, `shadow-*`, `animate-pulse`, `disabled:*`) were preserved on `className`. `widgetRect` is already kept current via the existing `ResizeObserver` + `MutationObserver` + scroll/resize listeners (lines 603–614), so sizes update live as the widget is resized. `pnpm exec tsc --noEmit`, `pnpm exec eslint components/widgets/MiniApp/Widget.tsx --max-warnings 0`, `pnpm exec prettier --check`, and `pnpm lint` all clean.
 
 ### LOW QuizResults period-filter `<select>` uses hardcoded `text-sm`
 
