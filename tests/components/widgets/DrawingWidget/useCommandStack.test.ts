@@ -23,22 +23,29 @@ const rect = (overrides: Partial<RectObject> = {}): RectObject => ({
  * subsequent push/undo/redo sees the latest snapshot. This is the only way to
  * verify `canUndo`/`canRedo` actually flip — `useRef` writes wouldn't.
  */
-const renderStack = (initial: DrawableObject[] = []) => {
+const renderStack = (initial: DrawableObject[] = [], pageKey = 'page-1') => {
   let objects: DrawableObject[] = initial;
+  let key = pageKey;
   const onObjectsChange = vi.fn((next: DrawableObject[]) => {
     objects = next;
   });
   const { result, rerender } = renderHook(
-    ({ objs }: { objs: DrawableObject[] }) =>
-      useCommandStack({ objects: objs, onObjectsChange }),
-    { initialProps: { objs: objects } }
+    ({ objs, k }: { objs: DrawableObject[]; k: string }) =>
+      useCommandStack({ pageKey: k, objects: objs, onObjectsChange }),
+    { initialProps: { objs: objects, k: key } }
   );
-  const sync = () => rerender({ objs: objects });
+  const sync = () => rerender({ objs: objects, k: key });
+  const switchPage = (nextKey: string, nextObjs: DrawableObject[] = []) => {
+    key = nextKey;
+    objects = nextObjs;
+    rerender({ objs: objects, k: key });
+  };
   return {
     result,
     onObjectsChange,
     getObjects: () => objects,
     sync,
+    switchPage,
   };
 };
 
@@ -252,5 +259,62 @@ describe('useCommandStack', () => {
     sync();
     expect(getObjects()).toEqual([]);
     expect(result.current.canUndo).toBe(false);
+  });
+
+  it('per-page: undo on a different page does not touch the originating page', () => {
+    // Page 1: draw `a`.
+    const a = rect({ id: 'a' });
+    const b = rect({ id: 'b' });
+    const t = renderStack([], 'page-1');
+    act(() => {
+      t.result.current.push({ kind: 'add', object: a });
+    });
+    t.sync();
+    expect(t.result.current.canUndo).toBe(true);
+
+    // Switch to page 2 — its stack is empty.
+    t.switchPage('page-2', []);
+    expect(t.result.current.canUndo).toBe(false);
+    expect(t.result.current.canRedo).toBe(false);
+
+    // Draw `b` on page 2, undo it — page 2 is now empty.
+    act(() => {
+      t.result.current.push({ kind: 'add', object: b });
+    });
+    t.sync();
+    act(() => {
+      t.result.current.undo();
+    });
+    t.sync();
+    expect(t.getObjects()).toEqual([]);
+    expect(t.result.current.canRedo).toBe(true);
+
+    // Back to page 1 with its original objects intact — its stack still has
+    // the `add a` command queued for undo.
+    t.switchPage('page-1', [a]);
+    expect(t.result.current.canUndo).toBe(true);
+    // page-1's redo branch is unaffected by page-2's redo state.
+    expect(t.result.current.canRedo).toBe(false);
+    act(() => {
+      t.result.current.undo();
+    });
+    t.sync();
+    expect(t.getObjects()).toEqual([]);
+  });
+
+  it("per-page: forgetPage drops a deleted page's history", () => {
+    const a = rect({ id: 'a' });
+    const t = renderStack([], 'page-1');
+    act(() => {
+      t.result.current.push({ kind: 'add', object: a });
+    });
+    t.sync();
+    act(() => {
+      t.result.current.forgetPage('page-1');
+    });
+    // After forget, the active page's stack reads empty.
+    t.sync();
+    expect(t.result.current.canUndo).toBe(false);
+    expect(t.result.current.canRedo).toBe(false);
   });
 });

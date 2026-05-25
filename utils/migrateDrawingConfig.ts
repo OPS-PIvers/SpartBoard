@@ -1,14 +1,20 @@
 import {
   DrawableObject,
   DrawingConfig,
+  DrawingPage,
   Path,
   PathObject,
   ShapeTool,
 } from '../types';
 
-/** DrawingConfig with `objects` guaranteed non-optional. Post-migration shape. */
+/**
+ * DrawingConfig with `pages` guaranteed non-empty and `currentPage` clamped
+ * into range. Post-Phase-2-PR-2.3 shape. `objects` is preserved as `undefined`
+ * (the deprecated single-page field is dropped during migration).
+ */
 export type MigratedDrawingConfig = DrawingConfig & {
-  objects: DrawableObject[];
+  pages: DrawingPage[];
+  currentPage: number;
 };
 
 const VALID_TOOLS: readonly ShapeTool[] = [
@@ -25,20 +31,16 @@ const VALID_TOOLS: readonly ShapeTool[] = [
 /**
  * Forward-migrate a DrawingConfig to the Phase-2 object-model shape.
  *
- * Legacy (Phase 1) shape: `{ paths: Path[]; mode?; color?; width?; customColors? }`.
- * Canonical (Phase 2a) shape: `{ objects: DrawableObject[]; ... }`.
- *
- * Behavior:
- * - If `objects[]` is non-empty, it's the source of truth — we keep it and
- *   drop any lingering legacy `paths`/`mode`.
- * - If `objects` is missing or empty AND `paths` has content, each legacy
- *   Path is wrapped as a `PathObject` with a fresh UUID and sequential z.
- *   Preferring `paths` in this edge case prevents data loss when a widget is
- *   halfway through migration (shouldn't happen in production, but defensive
- *   behavior is cheap).
- * - If neither has content, `objects` becomes `[]`.
- * - Malformed `paths` entries (missing points array, empty points, etc.) are
- *   dropped rather than crashing the widget.
+ * Migration steps (ordered, idempotent, pure):
+ * 1. Strip legacy `paths` + `mode` from Phase 1.
+ * 2. Rewrite `color === 'eraser'` into `activeTool: 'eraser'`.
+ * 3. Default `activeTool` to `'pen'`, `shapeFill` to `false`.
+ * 4. If legacy `objects[]` is non-empty, use it. Otherwise wrap legacy
+ *    `paths[]` into `PathObject[]` (defensive; production never sees this).
+ * 5. Wrap the resulting single object list into `pages: [{ id, objects }]`
+ *    if `pages` is missing. If `pages` exists but a page lacks an `id`,
+ *    backfill it. Drop the deprecated top-level `objects` field once paged.
+ * 6. Default `currentPage` to 0; clamp into `[0, pages.length - 1]`.
  *
  * This function is pure and idempotent — calling it on an already-migrated
  * config returns an equivalent config.
@@ -47,7 +49,12 @@ export const migrateDrawingConfig = (
   raw: DrawingConfig | undefined | null
 ): MigratedDrawingConfig => {
   if (!raw || typeof raw !== 'object') {
-    return { objects: [], activeTool: 'pen', shapeFill: false };
+    return {
+      pages: [{ id: crypto.randomUUID(), objects: [] }],
+      currentPage: 0,
+      activeTool: 'pen',
+      shapeFill: false,
+    };
   }
 
   const { paths, mode: _mode, ...rest } = raw;
@@ -62,37 +69,66 @@ export const migrateDrawingConfig = (
   }
   if (!activeTool || !VALID_TOOLS.includes(activeTool)) activeTool = 'pen';
   const shapeFill = rest.shapeFill ?? false;
-  const normalizedRest = { ...rest, color, activeTool, shapeFill };
 
+  // Step 1: collapse legacy single-page sources into a flat `singlePageObjects`
+  // array. `pages` (if present) takes precedence over `objects`/`paths`.
+  let singlePageObjects: DrawableObject[] = [];
   if (Array.isArray(raw.objects) && raw.objects.length > 0) {
-    // Already migrated with content — strip legacy fields and return.
-    return { ...normalizedRest, objects: raw.objects };
+    singlePageObjects = raw.objects;
+  } else {
+    const migratedFromPaths: PathObject[] = Array.isArray(paths)
+      ? paths.reduce<PathObject[]>((acc, p, idx) => {
+          if (!isValidLegacyPath(p)) return acc;
+          acc.push({
+            id: crypto.randomUUID(),
+            kind: 'path',
+            z: idx,
+            points: p.points,
+            color: p.color,
+            width: p.width,
+          });
+          return acc;
+        }, [])
+      : [];
+    singlePageObjects = migratedFromPaths;
   }
 
-  const migratedFromPaths: PathObject[] = Array.isArray(paths)
-    ? paths.reduce<PathObject[]>((acc, p, idx) => {
-        if (!isValidLegacyPath(p)) return acc;
-        acc.push({
-          id: crypto.randomUUID(),
-          kind: 'path',
-          z: idx,
-          points: p.points,
-          color: p.color,
-          width: p.width,
-        });
-        return acc;
-      }, [])
-    : [];
-
-  if (migratedFromPaths.length > 0) {
-    return { ...normalizedRest, objects: migratedFromPaths };
+  // Step 2: build the page list.
+  let pages: DrawingPage[];
+  if (Array.isArray(raw.pages) && raw.pages.length > 0) {
+    // Already paged. Backfill missing ids defensively (hand-edited docs,
+    // imports). Preserve `background` + `objects` references where present.
+    pages = raw.pages.map((p) => {
+      const objects = Array.isArray(p?.objects) ? p.objects : [];
+      const id = typeof p?.id === 'string' && p.id ? p.id : crypto.randomUUID();
+      return p?.background
+        ? { id, objects, background: p.background }
+        : { id, objects };
+    });
+  } else {
+    // Wrap legacy single-page content into one page. Always produce at least
+    // one page so the widget never has to render against an empty array.
+    pages = [{ id: crypto.randomUUID(), objects: singlePageObjects }];
   }
 
-  // Nothing to migrate — preserve existing `objects` (even if empty) so that
-  // intentional resets like `clear()` round-trip correctly.
+  // Step 3: clamp currentPage into range.
+  const rawCurrent =
+    typeof raw.currentPage === 'number' && Number.isFinite(raw.currentPage)
+      ? raw.currentPage
+      : 0;
+  const currentPage = Math.max(0, Math.min(rawCurrent, pages.length - 1));
+
+  // Strip the deprecated top-level `objects` field — `pages[0].objects` is
+  // the source of truth post-migration.
+  const { objects: _legacyObjects, pages: _legacyPages, ...restClean } = rest;
+
   return {
-    ...normalizedRest,
-    objects: Array.isArray(raw.objects) ? raw.objects : [],
+    ...restClean,
+    color,
+    activeTool,
+    shapeFill,
+    pages,
+    currentPage,
   };
 };
 
@@ -111,7 +147,8 @@ const isValidLegacyPath = (p: unknown): p is Path => {
  * Convenience: the "empty" drawing config used for new widgets.
  */
 export const emptyDrawingConfig = (): MigratedDrawingConfig => ({
-  objects: [],
+  pages: [{ id: crypto.randomUUID(), objects: [] }],
+  currentPage: 0,
   activeTool: 'pen',
   shapeFill: false,
 });

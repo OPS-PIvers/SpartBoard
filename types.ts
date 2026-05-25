@@ -1018,6 +1018,27 @@ export type ShapeTool =
   | 'text'
   | 'select';
 
+/**
+ * Reserved background-template field for a Drawing page. Phase 2 PR 2.3
+ * defines the field on the type so multi-page data can carry it forward; the
+ * UI for selecting backgrounds and the CSS rendering layer land in PR 2.5.
+ */
+export type DrawingBackground = 'blank' | 'grid' | 'lines' | 'dots';
+
+/**
+ * One page of a multi-page DrawingWidget. Each page owns its own object list
+ * (which keeps undo/redo, selection, and rendering trivially page-scoped) plus
+ * an optional per-page background (populated by Phase 2 PR 2.5). The `id` is
+ * stable across reorders so per-page state (e.g. the command stack keyed by
+ * page id) survives Move Left / Move Right operations.
+ */
+export interface DrawingPage {
+  id: string;
+  objects: DrawableObject[];
+  /** Per-page background template (falls back to widget-level background). Populated by Wave 7. */
+  background?: DrawingBackground;
+}
+
 export interface DrawingConfig {
   /**
    * @deprecated Annotation mode is now an app-level overlay (not a widget).
@@ -1032,11 +1053,19 @@ export interface DrawingConfig {
    */
   paths?: Path[];
   /**
-   * Canonical whiteboard content for the DrawingWidget: a polymorphic list
-   * of drawable objects. Optional so the per-widget annotation feature can
-   * continue storing only `paths`.
+   * @deprecated post-2.3 — migrated into `pages[0].objects` by
+   * `migrateDrawingConfig`. Kept on the type so older clients reading new
+   * data continue to compile, and so the migration can detect un-paged docs.
    */
   objects?: DrawableObject[];
+  /**
+   * Pages of drawable objects. When absent on read, `migrateDrawingConfig`
+   * wraps any legacy `objects[]` into `pages: [{ id, objects }]`. After
+   * Phase 2 PR 2.3 this is always present post-migration.
+   */
+  pages?: DrawingPage[];
+  /** Active page index. Defaults to 0. Clamped to `[0, pages.length - 1]`. */
+  currentPage?: number;
   /**
    * Active drawing color. Always a real color string after Phase 2 PR 2.1b —
    * the legacy `'eraser'` overload is migrated away by `migrateDrawingConfig`.

@@ -97,9 +97,11 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
     };
   }
 
-  // Phase 2a: migrate legacy drawing configs (paths[]) forward to the
-  // polymorphic objects[] model. The widget also does this defensively, but
-  // hydrating into the canonical shape avoids spurious Firestore re-writes.
+  // Phase 2a + 2.3: migrate legacy drawing configs forward.
+  //  - 2.1a wrapped legacy `paths[]` into `objects[]`.
+  //  - 2.3 wrapped `objects[]` into `pages[{ id, objects }]`.
+  // The widget also does this defensively, but hydrating into the canonical
+  // shape avoids spurious Firestore re-writes.
   if (type === 'drawing') {
     const raw = w.config as DrawingConfig;
     const migrated = migrateDrawingConfig(raw);
@@ -107,7 +109,10 @@ export const migrateWidget = (widget: WidgetData): WidgetData => {
     // keep React reference equality stable for already-migrated widgets.
     const hadLegacyPaths = Array.isArray(raw?.paths);
     const hadLegacyMode = typeof raw?.mode === 'string';
-    if (hadLegacyPaths || hadLegacyMode || !Array.isArray(raw?.objects)) {
+    const hadLegacyObjects =
+      !Array.isArray(raw?.pages) && Array.isArray(raw?.objects);
+    const lacksPages = !Array.isArray(raw?.pages) || raw.pages.length === 0;
+    if (hadLegacyPaths || hadLegacyMode || hadLegacyObjects || lacksPages) {
       return { ...w, config: migrated };
     }
   }

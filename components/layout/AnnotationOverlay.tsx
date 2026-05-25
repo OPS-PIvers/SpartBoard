@@ -1,3 +1,20 @@
+/**
+ * AnnotationOverlay — the app-level "draw over the whole dashboard" surface.
+ *
+ * Pagination is intentionally NOT supported here (Phase 2 PR 2.3 decision).
+ * Annotations are ephemeral: they represent "things drawn over the current
+ * dashboard view" rather than a persistent document. The DrawingWidget owns
+ * the multi-page document model (`DrawingConfig.pages[]`); the overlay
+ * deliberately diverges and continues to store a flat `objects[]` on
+ * `dashboard.annotationOverlay`. The shared `useDrawingCanvas` /
+ * `useSelection` / `useImageInsertion` hooks are page-agnostic, so the
+ * overlay reuses them directly without any page-awareness.
+ *
+ * If you find yourself adding `pages`, `currentPage`, or anything resembling
+ * page navigation to this file, stop and reconsider — the design decision
+ * lives in docs/superpowers/specs/2026-05-24-whiteboard-phase-2-design.md
+ * (§"AnnotationOverlay parity").
+ */
 import React, {
   useCallback,
   useEffect,

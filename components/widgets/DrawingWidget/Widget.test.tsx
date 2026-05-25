@@ -1,9 +1,23 @@
 import { describe, it, expect, vi, beforeEach, afterEach, Mock } from 'vitest';
 import { render, fireEvent } from '@testing-library/react';
 import { DrawingWidget } from './Widget';
-import { WidgetData, DrawingConfig } from '@/types';
+import { WidgetData, DrawingConfig, DrawableObject } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
+
+/**
+ * Phase 2 PR 2.3 helper — every updateWidget(...) payload now carries the
+ * post-migration `pages[]` shape. Most existing assertions only care about
+ * the objects on the active page (page 0 in most tests), so this thin
+ * accessor reads page 0's objects (falling back to legacy `objects` for any
+ * remaining tests that haven't been ported).
+ */
+const objectsFromConfig = (cfg: DrawingConfig): DrawableObject[] => {
+  if (Array.isArray(cfg.pages) && cfg.pages.length > 0) {
+    return cfg.pages[0].objects;
+  }
+  return cfg.objects ?? [];
+};
 
 // Mock hooks
 vi.mock('../../../context/useDashboard', () => ({
@@ -304,7 +318,7 @@ describe('DrawingWidget', () => {
     const lastCall =
       mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
     const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
-    const objs = cfg.objects ?? [];
+    const objs = objectsFromConfig(cfg);
     expect(objs).toHaveLength(1);
     expect(objs[0].kind).toBe('text');
     if (objs[0].kind === 'text') {
@@ -400,7 +414,7 @@ describe('DrawingWidget', () => {
     const args = mockUpdateWidget.mock.calls[0];
     expect(args[0]).toBe(widget.id);
     const newConfig = (args[1] as Partial<WidgetData>).config as DrawingConfig;
-    const objects = newConfig.objects ?? [];
+    const objects = objectsFromConfig(newConfig);
     expect(objects).toHaveLength(1);
     const created = objects[0];
     expect(created.kind).toBe('path');
@@ -525,7 +539,7 @@ describe('DrawingWidget', () => {
     ];
     expect(call[0]).toBe(widget.id);
     const cfg = call[1].config as DrawingConfig;
-    const objs = cfg.objects ?? [];
+    const objs = objectsFromConfig(cfg);
     expect(objs).toHaveLength(1);
     expect(objs[0].kind).toBe('rect');
     if (objs[0].kind === 'rect') {
@@ -620,15 +634,16 @@ describe('DrawingWidget', () => {
     const undoCfg = (
       mockUpdateWidget.mock.calls[callsAfterDraw][1] as Partial<WidgetData>
     ).config as DrawingConfig;
-    expect(undoCfg.objects ?? []).toHaveLength(0);
+    expect(objectsFromConfig(undoCfg)).toHaveLength(0);
     // Ctrl+Shift+Z → applyCommand re-applies forward → object back in payload.
     fireEvent.keyDown(wrapper, { key: 'z', ctrlKey: true, shiftKey: true });
     expect(mockUpdateWidget.mock.calls.length).toBe(callsAfterDraw + 2);
     const redoCfg = (
       mockUpdateWidget.mock.calls[callsAfterDraw + 1][1] as Partial<WidgetData>
     ).config as DrawingConfig;
-    expect(redoCfg.objects ?? []).toHaveLength(1);
-    expect(redoCfg.objects?.[0].kind).toBe('path');
+    const redoObjs = objectsFromConfig(redoCfg);
+    expect(redoObjs).toHaveLength(1);
+    expect(redoObjs[0].kind).toBe('path');
   });
 
   it('Clear All is a single bulk command — one undo restores everything', () => {
@@ -669,7 +684,7 @@ describe('DrawingWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
     const clearCfg = (mockUpdateWidget.mock.calls[0][1] as Partial<WidgetData>)
       .config as DrawingConfig;
-    expect(clearCfg.objects).toEqual([]);
+    expect(objectsFromConfig(clearCfg)).toEqual([]);
     // Undo brings BOTH objects back in a single command — not two undo presses.
     const wrapper = container.querySelector('[data-selected-id]');
     if (!wrapper) throw new Error('wrapper not found');
@@ -677,7 +692,7 @@ describe('DrawingWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledTimes(2);
     const undoCfg = (mockUpdateWidget.mock.calls[1][1] as Partial<WidgetData>)
       .config as DrawingConfig;
-    expect(undoCfg.objects).toHaveLength(2);
+    expect(objectsFromConfig(undoCfg)).toHaveLength(2);
   });
 
   it('select tool: Backspace removes the selected object', () => {
@@ -728,6 +743,115 @@ describe('DrawingWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
     const cfg = (mockUpdateWidget.mock.calls[0][1] as Partial<WidgetData>)
       .config as DrawingConfig;
-    expect(cfg.objects).toEqual([]);
+    expect(objectsFromConfig(cfg)).toEqual([]);
+  });
+
+  // ---------------------------------------------------------------------------
+  // Phase 2 PR 2.3 — multi-page widgets
+  // ---------------------------------------------------------------------------
+
+  it('multi-page: renders a page strip with one page chip by default', () => {
+    const { getByLabelText } = render(<DrawingWidget widget={widget} />);
+    // The page strip exposes the page chip via its aria-label.
+    expect(getByLabelText('Page 1')).not.toBeNull();
+    // And an explicit "Add page" affordance.
+    expect(getByLabelText('Add page')).not.toBeNull();
+  });
+
+  it('multi-page: clicking Add page persists a second page and navigates to it', () => {
+    const { getByLabelText } = render(<DrawingWidget widget={widget} />);
+    fireEvent.click(getByLabelText('Add page'));
+    expect(mockUpdateWidget).toHaveBeenCalled();
+    const lastCall =
+      mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+    const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
+    expect(cfg.pages).toHaveLength(2);
+    expect(cfg.currentPage).toBe(1);
+  });
+
+  it('multi-page: pre-Wave-6 saved widget data auto-migrates and renders unchanged', () => {
+    // Simulate a pre-2.3 widget — legacy `objects[]`, no `pages`/`currentPage`.
+    const legacy: WidgetData = {
+      ...widget,
+      config: {
+        color: '#000',
+        width: 4,
+        // Note: `objects` only — no `pages`. The widget's defensive
+        // migration must wrap this into pages[0].objects on read.
+        objects: [
+          {
+            id: 'legacy-rect',
+            kind: 'rect' as const,
+            z: 0,
+            x: 10,
+            y: 10,
+            w: 50,
+            h: 50,
+            stroke: '#000',
+            strokeWidth: 2,
+          },
+        ],
+      } as DrawingConfig,
+    };
+    const { getByLabelText } = render(<DrawingWidget widget={legacy} />);
+    // Single page is implied; the strip exposes Page 1.
+    expect(getByLabelText('Page 1')).not.toBeNull();
+    // The legacy rect is rendered exactly as it was — strokeRect was called.
+    expect(mockContext.strokeRect).toHaveBeenCalled();
+  });
+
+  it('multi-page: deleting a page persists currentPage clamping (the test that locks in page-N+1 contents)', () => {
+    // Seed a two-page config: page 0 has a rect, page 1 is empty.
+    const pagedWidget: WidgetData = {
+      ...widget,
+      config: {
+        color: '#000',
+        width: 4,
+        pages: [
+          {
+            id: 'p1',
+            objects: [
+              {
+                id: 'kept-rect',
+                kind: 'rect' as const,
+                z: 0,
+                x: 20,
+                y: 20,
+                w: 40,
+                h: 40,
+                stroke: '#000',
+                strokeWidth: 2,
+              },
+            ],
+          },
+          { id: 'p2', objects: [] },
+        ],
+        currentPage: 1,
+      } as DrawingConfig,
+    };
+    const { getByLabelText } = render(<DrawingWidget widget={pagedWidget} />);
+    // Open page 2's kebab and delete.
+    fireEvent.click(getByLabelText('Page 2 actions'));
+    // Use role=menuitem text to click Delete reliably.
+    const menuButtons = document.querySelectorAll('[role="menuitem"]');
+    const deleteBtn = Array.from(menuButtons).find(
+      (b) => (b.textContent ?? '').trim().toLowerCase() === 'delete'
+    ) as HTMLElement | undefined;
+    if (!deleteBtn) throw new Error('Delete menu item not found');
+    mockUpdateWidget.mockClear();
+    fireEvent.click(deleteBtn);
+    expect(mockUpdateWidget).toHaveBeenCalled();
+    const cfg = (
+      mockUpdateWidget.mock.calls[
+        mockUpdateWidget.mock.calls.length - 1
+      ][1] as Partial<WidgetData>
+    ).config as DrawingConfig;
+    expect(cfg.pages).toHaveLength(1);
+    // Page 0's contents (the rect) are preserved.
+    expect(cfg.pages?.[0].id).toBe('p1');
+    expect(cfg.pages?.[0].objects).toHaveLength(1);
+    expect(cfg.pages?.[0].objects[0].id).toBe('kept-rect');
+    // currentPage clamps from 1 → 0.
+    expect(cfg.currentPage).toBe(0);
   });
 });

@@ -34,6 +34,8 @@ import { TextEditorOverlay } from './TextEditorOverlay';
 import { useImageInsertion } from './useImageInsertion';
 import { useSelection } from './useSelection';
 import { useCommandStack } from './useCommandStack';
+import { useDrawingPages } from './useDrawingPages';
+import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
@@ -41,6 +43,7 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
+import type { DrawingPage } from '@/types';
 
 const TOOL_BUTTONS: ReadonlyArray<{
   tool: ShapeTool;
@@ -77,11 +80,19 @@ export const DrawingWidget: React.FC<{
   const {
     color = STANDARD_COLORS.slate,
     width = DRAWING_DEFAULTS.WIDTH,
-    objects,
+    pages,
+    currentPage,
     customColors = DRAWING_DEFAULTS.CUSTOM_COLORS,
     activeTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
     shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
   } = config;
+
+  // Page-scoped object slice. `migrateDrawingConfig` guarantees pages is
+  // non-empty and currentPage is clamped, so this never falls back to `[]`
+  // in production — but we keep the guard for defensive symmetry with the
+  // legacy single-page path.
+  const activePage: DrawingPage = pages[currentPage] ?? pages[0];
+  const objects = activePage.objects;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -111,21 +122,48 @@ export const DrawingWidget: React.FC<{
     return { width: widget.w, height: Math.max(widget.h - 40, 0) };
   }, [isStudentView, widget.w, widget.h]);
 
-  // Central sink: every command-stack apply (push / undo / redo) lands here,
-  // and pushes one updateWidget. Wrapped in useCallback so the command stack
-  // hook's `onObjectsChange` identity stays stable across renders.
+  // Page-scoped sink: every command-stack apply (push / undo / redo) lands
+  // here. The hook hands us a new `objects[]` for the active page; we splice
+  // it back into `pages[]` (preserving each other page's id + background)
+  // and emit one updateWidget per write. Wrapped in useCallback so the
+  // command stack hook's `onObjectsChange` identity stays stable across
+  // renders.
   const writeObjects = useCallback(
     (next: DrawableObject[]) => {
+      const nextPages = pages.map((p, i) =>
+        i === currentPage ? { ...p, objects: next } : p
+      );
       updateWidget(widget.id, {
-        config: { ...config, objects: next } as DrawingConfig,
+        config: { ...config, pages: nextPages } as DrawingConfig,
+      });
+    },
+    [updateWidget, widget.id, config, pages, currentPage]
+  );
+
+  // Partial-config writer used by `useDrawingPages` for navigation /
+  // add / delete / reorder. Same single-write pattern as writeObjects.
+  const updateConfig = useCallback(
+    (partial: Partial<DrawingConfig>) => {
+      updateWidget(widget.id, {
+        config: { ...config, ...partial } as DrawingConfig,
       });
     },
     [updateWidget, widget.id, config]
   );
 
   const commandStack = useCommandStack({
+    // Per-page stack keyed by page id. Switching pages surfaces that page's
+    // independent undo/redo history; deleting a page calls `forgetPage` to
+    // drop the corresponding record.
+    pageKey: activePage.id,
     objects,
     onObjectsChange: writeObjects,
+  });
+
+  const pageNav = useDrawingPages({
+    config: { ...config, pages, currentPage },
+    updateConfig,
+    onPageRemoved: commandStack.forgetPage,
   });
 
   // Each create path (pen, shapes, image, text-first-commit) becomes a single
@@ -265,6 +303,18 @@ export const DrawingWidget: React.FC<{
   useEffect(() => {
     if (activeTool !== 'select') clearSelection();
   }, [activeTool, clearSelection]);
+
+  // Clear selection + transform preview on page switch. Selection state is
+  // page-scoped — a selected object id on page 1 has no meaning on page 2,
+  // and the transient `previewObject` from an in-flight drag must not bleed
+  // across pages. Tracking `activePage.id` (not `currentPage`) survives
+  // reorders cleanly.
+  const [prevPageId, setPrevPageId] = useState(activePage.id);
+  if (activePage.id !== prevPageId) {
+    setPrevPageId(activePage.id);
+    clearSelection();
+    setPreviewObject(null);
+  }
 
   const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
     canvasRef,
@@ -622,6 +672,20 @@ export const DrawingWidget: React.FC<{
         <div className="shrink-0 border-t border-white/20 bg-white/20 backdrop-blur-sm">
           {PaletteUI}
         </div>
+      )}
+      {!isStudentView && (
+        <PageStrip
+          pages={pageNav.pages}
+          currentPage={pageNav.currentPage}
+          onSelectPage={pageNav.goToPage}
+          onAddPage={pageNav.addPage}
+          onDeletePage={pageNav.removePage}
+          onMovePage={(idx, dir) =>
+            dir === 'left'
+              ? pageNav.movePageLeft(idx)
+              : pageNav.movePageRight(idx)
+          }
+        />
       )}
     </div>
   );

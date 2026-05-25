@@ -7,6 +7,7 @@ import {
 import type {
   DrawableObject,
   DrawingConfig,
+  DrawingPage,
   Path,
   PathObject,
   RectObject,
@@ -32,21 +33,29 @@ const pathObject = (overrides: Partial<PathObject> = {}): PathObject => ({
   ...overrides,
 });
 
+const page = (overrides: Partial<DrawingPage> = {}): DrawingPage => ({
+  id: 'page-fixed-id',
+  objects: [],
+  ...overrides,
+});
+
 describe('migrateDrawingConfig', () => {
-  it('returns an empty config when input is null or undefined', () => {
-    expect(migrateDrawingConfig(null)).toEqual({
-      objects: [],
-      activeTool: 'pen',
-      shapeFill: false,
-    });
-    expect(migrateDrawingConfig(undefined)).toEqual({
-      objects: [],
-      activeTool: 'pen',
-      shapeFill: false,
-    });
+  it('returns an empty single-page config when input is null or undefined', () => {
+    const outNull = migrateDrawingConfig(null);
+    expect(outNull.pages).toHaveLength(1);
+    expect(outNull.pages[0].objects).toEqual([]);
+    expect(typeof outNull.pages[0].id).toBe('string');
+    expect(outNull.pages[0].id).not.toHaveLength(0);
+    expect(outNull.currentPage).toBe(0);
+    expect(outNull.activeTool).toBe('pen');
+    expect(outNull.shapeFill).toBe(false);
+
+    const outUndef = migrateDrawingConfig(undefined);
+    expect(outUndef.pages).toHaveLength(1);
+    expect(outUndef.pages[0].objects).toEqual([]);
   });
 
-  it('passes through an already-migrated config unchanged', () => {
+  it('wraps a legacy already-migrated `objects[]` into pages[0]', () => {
     const existing: DrawableObject[] = [
       pathObject(),
       pathObject({ id: 'obj-2', z: 1 }),
@@ -58,10 +67,28 @@ describe('migrateDrawingConfig', () => {
       customColors: ['#111', '#222'],
     };
     const out = migrateDrawingConfig(input);
-    expect(out.objects).toBe(existing);
+    expect(out.pages).toHaveLength(1);
+    expect(out.pages[0].objects).toBe(existing);
+    expect(out.currentPage).toBe(0);
     expect(out.color).toBe('#ff0000');
     expect(out.width).toBe(6);
     expect(out.customColors).toEqual(['#111', '#222']);
+    // Deprecated top-level `objects` is stripped post-migration.
+    expect(out.objects).toBeUndefined();
+  });
+
+  it('passes through an already-paged config without changing it', () => {
+    const input: DrawingConfig = {
+      pages: [page({ id: 'p1', objects: [pathObject()] })],
+      currentPage: 0,
+      color: '#123',
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.pages).toHaveLength(1);
+    expect(out.pages[0].id).toBe('p1');
+    expect(out.pages[0].objects).toHaveLength(1);
+    expect(out.currentPage).toBe(0);
+    expect(out.color).toBe('#123');
   });
 
   it('strips deprecated `paths` and `mode` even from migrated configs', () => {
@@ -73,7 +100,7 @@ describe('migrateDrawingConfig', () => {
     const out = migrateDrawingConfig(input as DrawingConfig);
     expect(out).not.toHaveProperty('paths');
     expect(out).not.toHaveProperty('mode');
-    expect(out.objects).toHaveLength(1);
+    expect(out.pages[0].objects).toHaveLength(1);
   });
 
   it('wraps legacy paths as PathObjects with fresh UUIDs and sequential z', () => {
@@ -91,14 +118,15 @@ describe('migrateDrawingConfig', () => {
     ];
 
     const out = migrateDrawingConfig(input);
-    expect(out.objects).toHaveLength(3);
-    out.objects.forEach((o, i) => {
+    const objs = out.pages[0].objects;
+    expect(objs).toHaveLength(3);
+    objs.forEach((o, i) => {
       expect(o.kind).toBe('path');
       expect(o.z).toBe(i);
       expect(typeof o.id).toBe('string');
       expect(o.id).not.toHaveLength(0);
     });
-    const colors = out.objects.map((o) => (o as PathObject).color);
+    const colors = objs.map((o) => (o as PathObject).color);
     expect(colors).toEqual(['#aaa', '#bbb', '#ccc']);
   });
 
@@ -107,7 +135,7 @@ describe('migrateDrawingConfig', () => {
       paths: [legacyPath(), legacyPath(), legacyPath()],
     } as unknown as DrawingConfig;
     const out = migrateDrawingConfig(input);
-    const ids = out.objects.map((o) => o.id);
+    const ids = out.pages[0].objects.map((o) => o.id);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
@@ -124,13 +152,14 @@ describe('migrateDrawingConfig', () => {
       ],
     } as unknown as DrawingConfig;
     const out = migrateDrawingConfig(input);
-    expect(out.objects).toHaveLength(1);
+    expect(out.pages[0].objects).toHaveLength(1);
   });
 
-  it('returns an empty objects array when neither paths nor objects exist', () => {
+  it('returns a single empty page when neither paths, objects, nor pages exist', () => {
     const input = { color: '#000' } as unknown as DrawingConfig;
     const out = migrateDrawingConfig(input);
-    expect(out.objects).toEqual([]);
+    expect(out.pages).toHaveLength(1);
+    expect(out.pages[0].objects).toEqual([]);
     expect(out.color).toBe('#000');
   });
 
@@ -142,7 +171,8 @@ describe('migrateDrawingConfig', () => {
     } as unknown as DrawingConfig;
     const once = migrateDrawingConfig(input);
     const twice = migrateDrawingConfig(once);
-    expect(twice.objects).toEqual(once.objects);
+    expect(twice.pages).toEqual(once.pages);
+    expect(twice.currentPage).toBe(once.currentPage);
     expect(twice.color).toBe(once.color);
     expect(twice.width).toBe(once.width);
   });
@@ -209,6 +239,99 @@ describe('migrateDrawingConfig', () => {
     const out = migrateDrawingConfig(input);
     expect(out.activeTool).toBe('select');
   });
+
+  // ---------------------------------------------------------------------------
+  // Phase 2 PR 2.3 — pages + currentPage
+  // ---------------------------------------------------------------------------
+
+  it('PR 2.3: legacy `{ objects: [obj] }` migrates to `{ pages: [{ id, objects: [obj] }], currentPage: 0 }`', () => {
+    const obj = pathObject();
+    const input = { objects: [obj] } as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.pages).toHaveLength(1);
+    expect(out.pages[0].objects).toEqual([obj]);
+    expect(typeof out.pages[0].id).toBe('string');
+    expect(out.pages[0].id).not.toHaveLength(0);
+    expect(out.currentPage).toBe(0);
+    expect(out.objects).toBeUndefined();
+  });
+
+  it('PR 2.3: already-paged config round-trips unchanged (idempotent)', () => {
+    const input: DrawingConfig = {
+      pages: [
+        page({ id: 'p1', objects: [pathObject({ id: 'a' })] }),
+        page({ id: 'p2', objects: [pathObject({ id: 'b' })] }),
+      ],
+      currentPage: 1,
+    };
+    const once = migrateDrawingConfig(input);
+    const twice = migrateDrawingConfig(once);
+    expect(twice.pages).toEqual(once.pages);
+    expect(twice.currentPage).toBe(1);
+    // Page ids survive migration.
+    expect(twice.pages.map((p) => p.id)).toEqual(['p1', 'p2']);
+  });
+
+  it('PR 2.3: missing both `pages` and `objects` produces a single empty page with an id', () => {
+    const input = {} as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.pages).toHaveLength(1);
+    expect(out.pages[0].objects).toEqual([]);
+    expect(typeof out.pages[0].id).toBe('string');
+    expect(out.pages[0].id).not.toHaveLength(0);
+    expect(out.currentPage).toBe(0);
+  });
+
+  it('PR 2.3: a page missing `id` gets a fresh uuid backfilled', () => {
+    const input = {
+      pages: [{ objects: [] }, { id: 'has-id', objects: [] }],
+    } as unknown as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.pages).toHaveLength(2);
+    expect(typeof out.pages[0].id).toBe('string');
+    expect(out.pages[0].id).not.toHaveLength(0);
+    expect(out.pages[1].id).toBe('has-id');
+  });
+
+  it('PR 2.3: currentPage is clamped into [0, pages.length-1]', () => {
+    const input: DrawingConfig = {
+      pages: [page({ id: 'a' }), page({ id: 'b' })],
+      currentPage: 99,
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.currentPage).toBe(1);
+
+    const negative: DrawingConfig = {
+      pages: [page({ id: 'a' })],
+      currentPage: -5,
+    };
+    expect(migrateDrawingConfig(negative).currentPage).toBe(0);
+  });
+
+  it('PR 2.3: paged config preserves per-page `background`', () => {
+    const input: DrawingConfig = {
+      pages: [
+        page({ id: 'p1', background: 'grid' }),
+        page({ id: 'p2', background: 'dots' }),
+      ],
+      currentPage: 0,
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.pages[0].background).toBe('grid');
+    expect(out.pages[1].background).toBe('dots');
+  });
+
+  it('PR 2.3: `pages` takes precedence over legacy `objects` when both exist', () => {
+    const input = {
+      pages: [page({ id: 'p1', objects: [pathObject({ id: 'fromPages' })] })],
+      objects: [pathObject({ id: 'fromLegacy' })],
+    } as unknown as DrawingConfig;
+    const out = migrateDrawingConfig(input);
+    expect(out.pages).toHaveLength(1);
+    expect(out.pages[0].objects).toHaveLength(1);
+    expect(out.pages[0].objects[0].id).toBe('fromPages');
+    expect(out.objects).toBeUndefined();
+  });
 });
 
 describe('nextZ', () => {
@@ -242,14 +365,15 @@ describe('nextZ', () => {
 });
 
 describe('emptyDrawingConfig', () => {
-  it('returns a fresh empty config each call', () => {
+  it('returns a fresh empty single-page config each call', () => {
     const a = emptyDrawingConfig();
     const b = emptyDrawingConfig();
-    expect(a).toEqual({
-      objects: [],
-      activeTool: 'pen',
-      shapeFill: false,
-    });
-    expect(a).not.toBe(b);
+    expect(a.pages).toHaveLength(1);
+    expect(a.pages[0].objects).toEqual([]);
+    expect(a.currentPage).toBe(0);
+    expect(a.activeTool).toBe('pen');
+    expect(a.shapeFill).toBe(false);
+    // Distinct page ids per call — no shared mutable state.
+    expect(a.pages[0].id).not.toBe(b.pages[0].id);
   });
 });
