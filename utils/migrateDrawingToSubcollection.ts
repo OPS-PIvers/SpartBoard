@@ -32,6 +32,14 @@ import type {
  *   WITHOUT setting `subcollectionMigrated`. The next load will retry the
  *   migration from scratch. `setDoc` is idempotent (the same object id
  *   overwrites cleanly), so re-running cannot duplicate data.
+ *
+ * Invariant: callers MUST run {@link migrateDrawingConfig} on the input
+ * config BEFORE calling this function. That synchronous migration handles
+ * legacy → paged conversion and sanitises `background` against the
+ * `VALID_BACKGROUNDS` allowlist, so the page-meta + denormalized-cache
+ * write sites below can write `p.background` directly. The kicker in
+ * `context/DashboardContext.tsx` enforces this; do not call this function
+ * directly with raw `widget.config`.
  */
 
 /** Firestore allows 500 ops per writeBatch; reserve a small margin so page

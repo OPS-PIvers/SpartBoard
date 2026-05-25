@@ -351,6 +351,7 @@ export const AnnotationOverlay: React.FC = () => {
     onTransformPreview: handleTransformPreview,
     onTransformCommit: handleTransformCommit,
     onRemoveObject: removeAnnotationObject,
+    canvasRef,
   });
 
   useEffect(() => {
@@ -763,7 +764,7 @@ export const AnnotationOverlay: React.FC = () => {
             size="icon"
             icon={
               isUploadingImage ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
               ) : (
                 <ImagePlus className="w-4 h-4" />
               )
@@ -788,7 +789,7 @@ export const AnnotationOverlay: React.FC = () => {
             title="Save to Google Drive"
             icon={
               isBusy === 'drive' ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
               ) : (
                 <HardDriveUpload className="w-4 h-4" />
               )
@@ -803,7 +804,7 @@ export const AnnotationOverlay: React.FC = () => {
               title="Extract text (AI)"
               icon={
                 isBusy === 'ocr' ? (
-                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                  <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
                 ) : (
                   <Type className="w-4 h-4" />
                 )

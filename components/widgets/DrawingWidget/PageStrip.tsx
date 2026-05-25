@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ChevronLeft,
   ChevronRight,
@@ -45,8 +46,80 @@ export const PageStrip: React.FC<PageStripProps> = ({
 }) => {
   // A single open kebab at a time keeps the visual noise down. -1 = closed.
   const [openMenuIndex, setOpenMenuIndex] = useState<number>(-1);
+  // Anchor coordinates for the portalled popup. We compute these from the
+  // kebab trigger's getBoundingClientRect at open time so the popup can be
+  // rendered into document.body (escaping the strip's `overflow-y-hidden`)
+  // while still appearing directly below its trigger button.
+  const [menuAnchor, setMenuAnchor] = useState<{
+    top: number;
+    right: number;
+  } | null>(null);
+  // Track the active kebab trigger so we can re-measure on scroll/resize.
+  const triggerRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
 
-  const closeMenu = () => setOpenMenuIndex(-1);
+  const closeMenu = () => {
+    setOpenMenuIndex(-1);
+    setMenuAnchor(null);
+  };
+
+  const openMenu = (index: number, triggerEl: HTMLButtonElement) => {
+    const rect = triggerEl.getBoundingClientRect();
+    setOpenMenuIndex(index);
+    // `right` here is the distance from the viewport's right edge to the
+    // trigger's right edge — used with `position: fixed; right: <Npx>` so the
+    // popup hugs the kebab from the right (same visual as the old
+    // `right-0 mt-1` style, just measured from the viewport instead of the
+    // chip).
+    setMenuAnchor({
+      top: rect.bottom + 4,
+      right: window.innerWidth - rect.right,
+    });
+  };
+
+  // Re-measure / close on scroll or resize so the popup follows the kebab
+  // even if the user pans the dashboard or the dock collapses. Closing on
+  // scroll is the standard popover behavior and matches what teachers expect
+  // when the underlying widget moves out from under the popup.
+  useEffect(() => {
+    if (openMenuIndex < 0) return undefined;
+    const onScrollOrResize = () => {
+      const trigger = triggerRefs.current.get(openMenuIndex);
+      if (!trigger) {
+        closeMenu();
+        return;
+      }
+      const rect = trigger.getBoundingClientRect();
+      setMenuAnchor({
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+      });
+    };
+    // `capture: true` catches scroll on any ancestor (the strip itself is
+    // horizontally scrollable, and parent containers may scroll too).
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [openMenuIndex]);
+
+  // Outside-click dismissal. We listen at document level so clicks anywhere
+  // outside the portalled popup AND outside the trigger button close it.
+  // The trigger's onClick handles the toggle case separately.
+  useEffect(() => {
+    if (openMenuIndex < 0) return undefined;
+    const onDocPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      const popup = document.getElementById('drawing-page-strip-popup');
+      const trigger = triggerRefs.current.get(openMenuIndex);
+      if (popup?.contains(target) || trigger?.contains(target)) return;
+      closeMenu();
+    };
+    document.addEventListener('pointerdown', onDocPointerDown);
+    return () => document.removeEventListener('pointerdown', onDocPointerDown);
+  }, [openMenuIndex]);
 
   return (
     <div
@@ -96,12 +169,22 @@ export const PageStrip: React.FC<PageStripProps> = ({
             {/* Kebab — visible on hover, or while its menu is open. */}
             <button
               type="button"
+              ref={(el) => {
+                triggerRefs.current.set(index, el);
+              }}
               onClick={(e) => {
                 e.stopPropagation();
-                setOpenMenuIndex(openMenuIndex === index ? -1 : index);
+                if (openMenuIndex === index) {
+                  closeMenu();
+                } else {
+                  openMenu(index, e.currentTarget);
+                }
               }}
               aria-label={`Page ${index + 1} actions`}
-              aria-haspopup="true"
+              // The popup is not an ARIA menu (no roving-tabindex / arrow-key
+              // navigation), so `aria-haspopup` is omitted — `aria-expanded`
+              // is sufficient to expose the toggle relationship to screen
+              // readers without overpromising on keyboard semantics.
               aria-expanded={openMenuIndex === index}
               className={`absolute top-0 right-0 rounded-bl bg-white/80 hover:bg-white text-slate-700 transition-opacity ${
                 openMenuIndex === index
@@ -117,58 +200,67 @@ export const PageStrip: React.FC<PageStripProps> = ({
                 }}
               />
             </button>
-            {openMenuIndex === index && (
-              // Honest popup: plain <button>s in a positioned div, not an
-              // ARIA menu. The proper menu pattern requires Esc/arrow-key
-              // navigation and focus restoration, which this popup doesn't
-              // implement — using role=menu without that behavior is worse
-              // than no role at all (screen readers announce a menu that
-              // doesn't navigate like one).
-              <div
-                onClick={(e) => e.stopPropagation()}
-                className="absolute z-50 top-full right-0 mt-1 bg-white rounded-md shadow-lg border border-slate-200 py-1 min-w-[140px]"
-                style={{ fontSize: 'min(12px, 3.8cqmin)' }}
-              >
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMenu();
-                    onMovePage(index, 'left');
-                  }}
-                  disabled={index === 0}
-                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5" />
-                  Move Left
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMenu();
-                    onMovePage(index, 'right');
-                  }}
-                  disabled={index === pages.length - 1}
-                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
-                >
-                  <ChevronRight className="w-3.5 h-3.5" />
-                  Move Right
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    closeMenu();
-                    onDeletePage(index);
-                  }}
-                  className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  Delete
-                </button>
-              </div>
-            )}
           </div>
         );
       })}
+      {openMenuIndex >= 0 &&
+        menuAnchor &&
+        // Portal the popup into document.body so the strip's `overflow-y-hidden`
+        // (needed to keep the horizontal scroll behavior tidy) doesn't clip
+        // the popup. Positioning is `fixed` against the viewport, anchored to
+        // the trigger's getBoundingClientRect captured at open time and
+        // updated on scroll/resize.
+        createPortal(
+          <div
+            id="drawing-page-strip-popup"
+            onClick={(e) => e.stopPropagation()}
+            className="fixed z-[2147483600] bg-white rounded-md shadow-lg border border-slate-200 py-1 min-w-[140px] text-xs"
+            style={{
+              top: `${menuAnchor.top}px`,
+              right: `${menuAnchor.right}px`,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => {
+                const idx = openMenuIndex;
+                closeMenu();
+                onMovePage(idx, 'left');
+              }}
+              disabled={openMenuIndex === 0}
+              className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              <ChevronLeft className="w-3.5 h-3.5" />
+              Move Left
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const idx = openMenuIndex;
+                closeMenu();
+                onMovePage(idx, 'right');
+              }}
+              disabled={openMenuIndex === pages.length - 1}
+              className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
+            >
+              <ChevronRight className="w-3.5 h-3.5" />
+              Move Right
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const idx = openMenuIndex;
+                closeMenu();
+                onDeletePage(idx);
+              }}
+              className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+          </div>,
+          document.body
+        )}
       <button
         type="button"
         onClick={(e) => {

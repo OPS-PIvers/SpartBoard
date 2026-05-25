@@ -31,6 +31,8 @@ interface MockCtx {
   arc: Mock;
   rect: Mock;
   clip: Mock;
+  translate: Mock;
+  rotate: Mock;
   globalAlpha: number;
   canvas: { width: number; height: number };
   lineCap: string;
@@ -61,6 +63,13 @@ const makeMockCtx = (): MockCtx => ({
   arc: vi.fn(),
   rect: vi.fn(),
   clip: vi.fn(),
+  // translate/rotate added to match the renderer/selection mocks — the
+  // dispatcher invokes these for rotated kinds (rect/ellipse/text/image).
+  // None of the existing tests in this file pass a rotated object, so the
+  // absence of these mocks was previously invisible; adding them future-
+  // proofs the suite for rotation-aware tests.
+  translate: vi.fn(),
+  rotate: vi.fn(),
   globalAlpha: 1,
   canvas: { width: 800, height: 600 },
   lineCap: 'round',

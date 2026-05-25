@@ -47,6 +47,7 @@ import {
   migrateDrawingToSubcollection,
   needsSubcollectionMigration,
 } from '../utils/migrateDrawingToSubcollection';
+import { migrateDrawingConfig } from '../utils/migrateDrawingConfig';
 import {
   REFERENCE_VIEWPORT,
   pixelToProp,
@@ -4090,7 +4091,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     const dashboardId = dashboard.id;
     for (const widget of dashboard.widgets) {
       if (widget.type !== 'drawing') continue;
-      const config = widget.config as DrawingConfig;
+      const rawConfig = widget.config as DrawingConfig;
+      // Run the synchronous DrawingConfig migration FIRST so pre-Phase-2
+      // legacy widgets (which still carry `config.objects[]` and no
+      // `pages[]`) are converted to the paged shape before we check whether
+      // the subcollection migration applies. Without this, legacy widgets
+      // would sit un-migrated indefinitely because `needsSubcollectionMigration`
+      // requires `pages[]` to be present. The synchronous migrator is pure
+      // and idempotent — calling it on already-paged configs is a no-op.
+      // It also sanitizes per-page `background` against the allowlist, so
+      // the subcollection-migration write sites can trust the values they
+      // see in `pages[].background` (no need for re-sanitization there).
+      const config = migrateDrawingConfig(rawConfig);
       if (!needsSubcollectionMigration(config)) continue;
       const key = `${uid}::${dashboardId}::${widget.id}`;
       if (subcollectionMigrationInFlightRef.current.has(key)) continue;
@@ -4121,7 +4133,26 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       })();
     }
-  }, [user?.uid, activeDashboard?.id]);
+    // Including `widgets.length` in the deps catches the duplicate-widget /
+    // newly-added-widget case: switching dashboards triggers off the id, but
+    // a user duplicating a legacy drawing widget mid-session needs the
+    // effect to re-fire so the dupe's migration runs too. The body still
+    // reads via the ref, so this dep is cheap (no extra batch commits — the
+    // `subcollectionMigrationInFlightRef` Set dedupes per widget id).
+  }, [user?.uid, activeDashboard?.id, activeDashboard?.widgets?.length]);
+
+  // Sign-out hygiene: clear the in-flight Set when the user changes so a
+  // stale entry from a previous session can't block a fresh migration. The
+  // Set's keys include uid, so this is belt-and-braces — but the cost is a
+  // single Set.clear() per uid transition. Capture the ref to a local at
+  // effect-run time so the cleanup closure operates on the same Set the
+  // current effect saw (ESLint's exhaustive-deps cleanup-on-ref warning).
+  useEffect(() => {
+    const inFlightSet = subcollectionMigrationInFlightRef.current;
+    return () => {
+      inFlightSet.clear();
+    };
+  }, [user?.uid]);
 
   // True when the user is viewing a board they joined as a viewer in
   // View-Only mode. Read-only mutation guards check this via a ref so

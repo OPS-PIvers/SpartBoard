@@ -14,6 +14,13 @@ const HANDLE_BORDER = '#3b82f6'; // Tailwind blue-500
 const HANDLE_FILL = '#ffffff';
 const BBOX_STROKE = 'rgba(59, 130, 246, 0.9)';
 const BBOX_DASH: [number, number] = [6, 4];
+/**
+ * Radius multiplier for the rotation handle circle, relative to the square
+ * resize handle's edge length. 0.7 puts the circle's diameter slightly under
+ * the square's edge so the rotation handle reads as visually distinct
+ * (smaller-but-rounder) rather than identical-with-rounded-corners.
+ */
+const ROTATE_HANDLE_VISUAL_MULT = 0.7;
 
 export interface TransformChromeState {
   /** When non-null, the chrome dims its handle fills to signal an active drag. */
@@ -78,10 +85,13 @@ export const renderSelectionChrome = (
   // Rotation handle lead line: from the top-center handle up to the rotation
   // circle position. The lead line uses the handle border color (NOT
   // BBOX_STROKE) — setting strokeStyle explicitly here so the previous
-  // strokeRect's color doesn't bleed into the lead line.
+  // strokeRect's color doesn't bleed into the lead line. Set lineWidth to
+  // handleStroke BEFORE the stroke so the lead line matches the handle
+  // border weight (the bbox stroke set it to the thinner `lineWidth`).
   const rotPos = positions.rotate;
   const topMid = positions.n;
   ctx.strokeStyle = HANDLE_BORDER;
+  ctx.lineWidth = handleStroke;
   ctx.beginPath();
   ctx.moveTo(topMid.x, topMid.y);
   ctx.lineTo(rotPos.x, rotPos.y);
@@ -90,7 +100,13 @@ export const renderSelectionChrome = (
   ctx.fillStyle = HANDLE_FILL;
   ctx.strokeStyle = HANDLE_BORDER;
   ctx.lineWidth = handleStroke;
-  ctx.arc(rotPos.x, rotPos.y, handleSize * 0.7, 0, Math.PI * 2);
+  ctx.arc(
+    rotPos.x,
+    rotPos.y,
+    handleSize * ROTATE_HANDLE_VISUAL_MULT,
+    0,
+    Math.PI * 2
+  );
   ctx.fill();
   ctx.stroke();
 

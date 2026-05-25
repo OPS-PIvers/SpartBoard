@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { DrawableObject } from '@/types';
 import { DrawingCommand, applyCommand } from './commands';
 
@@ -72,64 +72,96 @@ export const useCommandStack = ({
 }: UseCommandStackOptions): UseCommandStackResult => {
   const [stacks, setStacks] = useState<Record<string, PerPageStack>>({});
 
+  // Live ref tracking the latest objects + stacks. Assigned in render so the
+  // closures in `push`/`undo`/`redo` always see the up-to-date snapshot —
+  // critical for rapid (synchronous) undo/redo calls (e.g. Cmd+Z auto-repeat)
+  // where two invocations in the same tick would otherwise share a stale
+  // closure-captured `objects` and apply the SAME reverse twice while the
+  // functional setStacks updater correctly chains past/future.
+  //
+  // Refs assigned during render is the pattern CLAUDE.md recommends for
+  // keeping derived state in sync without an effect. The newer
+  // `react-hooks/refs` lint rule flags this on principle, but the pattern is
+  // intentional and the assignments are idempotent (same input → same ref
+  // value) so the StrictMode double-invoke is safe.
+  const objectsRef = useRef<readonly DrawableObject[]>(objects);
+  // eslint-disable-next-line react-hooks/refs
+  objectsRef.current = objects;
+  const stacksRef = useRef<Record<string, PerPageStack>>(stacks);
+  // eslint-disable-next-line react-hooks/refs
+  stacksRef.current = stacks;
+
   const active = stacks[pageKey] ?? EMPTY_STACK;
 
   const push = useCallback(
     (cmd: DrawingCommand) => {
-      const next = applyCommand(objects, cmd, 'forward');
-      // Functional setter so two near-simultaneous push() calls don't
-      // collapse into one — e.g. a transform-commit fired in the same tick
-      // as a Clear-All button press would otherwise lose history.
-      setStacks((prev) => {
-        const cur = prev[pageKey] ?? EMPTY_STACK;
-        return {
-          ...prev,
-          [pageKey]: {
-            past: [...cur.past, cmd],
-            // Any new action invalidates the redo branch — standard undo
-            // semantics, scoped to this page.
-            future: [],
-          },
-        };
-      });
+      const next = applyCommand(objectsRef.current, cmd, 'forward');
+      const curStack = stacksRef.current[pageKey] ?? EMPTY_STACK;
+      // Synchronously update the stacks ref so a subsequent push/undo/redo
+      // in the same tick sees the new history. We still apply via the
+      // ref-snapshot (NOT a functional updater) because we've already
+      // sourced the cur via the live ref. Two near-simultaneous push()
+      // calls correctly chain because the second reads the updated ref.
+      const nextStacks: Record<string, PerPageStack> = {
+        ...stacksRef.current,
+        [pageKey]: {
+          past: [...curStack.past, cmd],
+          // Any new action invalidates the redo branch — standard undo
+          // semantics, scoped to this page.
+          future: [],
+        },
+      };
+      stacksRef.current = nextStacks;
+      setStacks(nextStacks);
+      // Keep the local ref synchronized so a subsequent push/undo/redo in
+      // the same tick sees the new objects array.
+      objectsRef.current = next;
       onObjectsChange(next);
     },
-    [pageKey, objects, onObjectsChange]
+    [pageKey, onObjectsChange]
   );
 
   const undo = useCallback(() => {
-    if (active.past.length === 0) return;
-    const cmd = active.past[active.past.length - 1];
-    const next = applyCommand(objects, cmd, 'reverse');
-    setStacks((prev) => {
-      const cur = prev[pageKey] ?? EMPTY_STACK;
-      return {
-        ...prev,
-        [pageKey]: {
-          past: cur.past.slice(0, -1),
-          future: [...cur.future, cmd],
-        },
-      };
-    });
+    const curStack = stacksRef.current[pageKey] ?? EMPTY_STACK;
+    if (curStack.past.length === 0) return;
+    const cmd = curStack.past[curStack.past.length - 1];
+    const next = applyCommand(objectsRef.current, cmd, 'reverse');
+    // Update both refs SYNCHRONOUSLY so a second undo() call in the same
+    // tick (Cmd+Z auto-repeat) sees the new past/future stacks and the
+    // post-reverse objects array. Without this, the second call would grab
+    // the SAME cmd again and apply the same reverse, while the functional
+    // setStacks updater (correctly) chains past/future — leaving the user
+    // with two commands moved to future but only one reverse applied.
+    const nextStacks: Record<string, PerPageStack> = {
+      ...stacksRef.current,
+      [pageKey]: {
+        past: curStack.past.slice(0, -1),
+        future: [...curStack.future, cmd],
+      },
+    };
+    stacksRef.current = nextStacks;
+    setStacks(nextStacks);
+    objectsRef.current = next;
     onObjectsChange(next);
-  }, [active.past, pageKey, objects, onObjectsChange]);
+  }, [pageKey, onObjectsChange]);
 
   const redo = useCallback(() => {
-    if (active.future.length === 0) return;
-    const cmd = active.future[active.future.length - 1];
-    const next = applyCommand(objects, cmd, 'forward');
-    setStacks((prev) => {
-      const cur = prev[pageKey] ?? EMPTY_STACK;
-      return {
-        ...prev,
-        [pageKey]: {
-          past: [...cur.past, cmd],
-          future: cur.future.slice(0, -1),
-        },
-      };
-    });
+    const curStack = stacksRef.current[pageKey] ?? EMPTY_STACK;
+    if (curStack.future.length === 0) return;
+    const cmd = curStack.future[curStack.future.length - 1];
+    const next = applyCommand(objectsRef.current, cmd, 'forward');
+    const nextStacks: Record<string, PerPageStack> = {
+      ...stacksRef.current,
+      [pageKey]: {
+        past: [...curStack.past, cmd],
+        future: curStack.future.slice(0, -1),
+      },
+    };
+    stacksRef.current = nextStacks;
+    setStacks(nextStacks);
+    objectsRef.current = next;
     onObjectsChange(next);
-  }, [active.future, pageKey, objects, onObjectsChange]);
+  }, [pageKey, onObjectsChange]);
 
   const clear = useCallback(() => {
     setStacks((prev) => {
@@ -143,8 +175,13 @@ export const useCommandStack = ({
   const forgetPage = useCallback((key: string) => {
     setStacks((prev) => {
       if (!(key in prev)) return prev;
-      const { [key]: _dropped, ...rest } = prev;
-      return rest;
+      // Avoid the `{[key]: _dropped, ...rest}` destructure-and-drop pattern
+      // — some ESLint configs (no-unused-vars without `_`-prefix exemption)
+      // would flag `_dropped`. A copy + delete is equally cheap and
+      // unambiguously side-effect-free w.r.t. the destination map.
+      const next = { ...prev };
+      delete next[key];
+      return next;
     });
   }, []);
 

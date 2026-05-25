@@ -106,6 +106,13 @@ export interface BoundingBox {
  * Axis-aligned bounding box for any DrawableObject. Used by both the
  * selection chrome renderer and the hit-test pass. Line/arrow are
  * normalized so x/y are the min coords and w/h are non-negative.
+ *
+ * @deprecated Empty paths return `{x:0,y:0,w:0,h:0}` (legacy contract). New
+ * callers should prefer {@link getBoundingBoxOrNull} which surfaces the
+ * empty-bbox case as `null` — letting consumers (incremental render dirty
+ * union, etc.) skip degenerate entries instead of dragging the origin into
+ * a bbox union. This signature stays around because several internal call
+ * sites already assume a non-null return.
  */
 export const getBoundingBox = (obj: DrawableObject): BoundingBox => {
   switch (obj.kind) {

@@ -54,6 +54,11 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   // firing). Inline ref assignment (per CLAUDE.md: useEffect is an escape
   // hatch, not a default — refs derived from props should be assigned in the
   // render body, not in an effect).
+  //
+  // StrictMode safety: assigning to ref.current during render is safe even
+  // under StrictMode's double-invoke render — the assignment is idempotent
+  // (same prop value each time) and React clears refs between mounts. The
+  // anti-pattern is mutating non-ref state during render, which we don't do.
   const onCommitRef = useRef(onCommit);
   const onCancelRef = useRef(onCancel);
   const objectRef = useRef(object);

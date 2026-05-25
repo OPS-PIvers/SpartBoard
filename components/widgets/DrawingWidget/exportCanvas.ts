@@ -166,7 +166,6 @@ export const downloadDataUrl = (dataUrl: string, filename: string): void => {
 export const exportPdf = async (
   pages: readonly DrawingPage[],
   pageSize: PageSize,
-  _filename: string,
   // Test seam: allow tests to inject a fake `window.open` impl without monkey-
   // patching the global. Defaults to the real browser API.
   openWindow: (url?: string, target?: string) => Window | null = (
@@ -185,8 +184,10 @@ export const exportPdf = async (
   }
 
   // Build the print doc. The `@page { size: ... }` and CSS reset guarantee
-  // each image fills exactly one printed page without margins, and
-  // `page-break-after: always` between pages keeps multi-page exports clean.
+  // each image fills exactly one printed page without margins. The inline
+  // `page-break-after: always` on each <img> is the source of truth for page
+  // breaks — we deliberately do NOT duplicate the rule via `img + img` so
+  // there's only one place to look when debugging multi-page PDFs.
   const imgsHtml = pngs
     .map(
       (src) =>
@@ -203,7 +204,6 @@ export const exportPdf = async (
       @page { size: ${pageSize.w}px ${pageSize.h}px; margin: 0; }
       html, body { margin: 0; padding: 0; }
       img { width: 100%; height: auto; display: block; }
-      img + img { page-break-before: always; }
     </style>
   </head>
   <body>${imgsHtml}</body>
@@ -212,6 +212,26 @@ export const exportPdf = async (
   printWindow.document.open();
   printWindow.document.write(html);
   printWindow.document.close();
+
+  // Auto-close the print window once the user dismisses the print dialog
+  // (whether they printed or cancelled — Chrome fires `onafterprint` either
+  // way). We MUST set this BEFORE calling `print()` so the handler is in
+  // place when the dialog dismisses. A 30s fallback handles browsers that
+  // don't reliably fire `onafterprint` (some Safari/Firefox builds): worst
+  // case is a leaked tab if the user closes the print dialog within 30s and
+  // we never get a signal, which is a clean degradation.
+  let closed = false;
+  const closeOnce = () => {
+    if (closed) return;
+    closed = true;
+    try {
+      printWindow.close();
+    } catch {
+      /* cross-origin or already-closed window — ignore */
+    }
+  };
+  printWindow.onafterprint = closeOnce;
+  setTimeout(closeOnce, 30_000);
 
   // Trigger print only after every image has decoded. Otherwise the print
   // dialog can snapshot the page before pixels are ready and produce blank

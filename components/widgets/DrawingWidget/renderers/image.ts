@@ -33,11 +33,15 @@ export const ensureImageLoaded = (src: string): Promise<void> => {
     if (existing.complete && existing.naturalWidth > 0)
       return Promise.resolve();
     if (existing.complete) {
-      // complete but naturalWidth = 0 means it errored out. The renderer
-      // would already have purged the cache entry on the error event, so
-      // hitting this branch usually means the load is mid-flight in a JSDOM
-      // env where `complete` is true without the load event having fired.
-      // Falling through to the wait-for-load path is the safest behavior.
+      // `complete` is true but `naturalWidth === 0` — the load already
+      // terminated (success would have naturalWidth > 0; the only other
+      // way `complete` is true is after a load error or an aborted decode).
+      // The error event has already fired (or will never fire because the
+      // decode is done), so attaching new load/error listeners would hang
+      // the export indefinitely. Resolve immediately — the renderer's
+      // `cached.complete && cached.naturalWidth > 0` guard ensures we don't
+      // paint an empty image, so resolving here is safe.
+      return Promise.resolve();
     }
     return new Promise<void>((resolve) => {
       const done = () => resolve();

@@ -209,10 +209,15 @@ describe('exportPdf', () => {
           { complete: true, naturalWidth: 1, addEventListener: vi.fn() },
         ] as unknown as HTMLImageElement[],
       };
-      const win: Partial<Window> = {
+      const win: Partial<Window> & {
+        onafterprint?: (() => void) | null;
+        close?: () => void;
+      } = {
         document: doc as unknown as Document,
         print: printSpy,
         focus: focusSpy,
+        close: vi.fn(),
+        onafterprint: null,
       };
       return win as Window;
     });
@@ -221,7 +226,7 @@ describe('exportPdf', () => {
       page('b', [pathObject({ id: 'b1' })]),
     ];
 
-    await exportPdf(pages, { w: 800, h: 600 }, 'Whiteboard.pdf', openSpy);
+    await exportPdf(pages, { w: 800, h: 600 }, openSpy);
 
     expect(openSpy).toHaveBeenCalledOnce();
     // Body HTML should contain exactly N <img> tags (one per page).
@@ -232,17 +237,68 @@ describe('exportPdf', () => {
     expect(printSpy).toHaveBeenCalledOnce();
   });
 
+  it('sets onafterprint BEFORE calling print() so the print window auto-closes', async () => {
+    // Regression guard for the PDF print-window cleanup. Sequence we want:
+    //   1. `onafterprint` is assigned a function before `print()` runs.
+    //   2. Invoking that handler triggers `printWindow.close()`.
+    let onafterprintAtPrintTime: unknown = 'not-set';
+    const closeSpy = vi.fn();
+    const printSpy = vi.fn();
+    const focusSpy = vi.fn();
+    const winRef: { current: Window | null } = { current: null };
+    const openSpy = vi.fn().mockImplementation(() => {
+      const doc = {
+        open: vi.fn(),
+        write: vi.fn(),
+        close: vi.fn(),
+        images: [
+          { complete: true, naturalWidth: 1, addEventListener: vi.fn() },
+        ] as unknown as HTMLImageElement[],
+      };
+      const win: Partial<Window> & {
+        onafterprint?: (() => void) | null;
+      } = {
+        document: doc as unknown as Document,
+        // Capture the handler value at the exact moment print() is invoked.
+        print: vi.fn(() => {
+          onafterprintAtPrintTime = win.onafterprint;
+          printSpy();
+        }),
+        focus: focusSpy,
+        close: closeSpy,
+        onafterprint: null,
+      };
+      winRef.current = win as Window;
+      return win as Window;
+    });
+    const pages: DrawingPage[] = [page('a', [pathObject({ id: 'a1' })])];
+
+    await exportPdf(pages, { w: 800, h: 600 }, openSpy);
+
+    // The handler was a function (not null) at the moment print() fired.
+    expect(typeof onafterprintAtPrintTime).toBe('function');
+    expect(printSpy).toHaveBeenCalledOnce();
+
+    // Triggering onafterprint (as the browser does post-dialog) closes the
+    // print window — no leaked tabs.
+    const win = winRef.current as unknown as {
+      onafterprint: (() => void) | null;
+    };
+    win.onafterprint?.();
+    expect(closeSpy).toHaveBeenCalled();
+  });
+
   it('throws when the pop-up blocker prevents window.open', async () => {
     const openSpy = vi.fn().mockReturnValue(null);
     const pages: DrawingPage[] = [page('a', [pathObject({ id: 'a1' })])];
-    await expect(
-      exportPdf(pages, { w: 800, h: 600 }, 'Whiteboard.pdf', openSpy)
-    ).rejects.toThrow(/blocked/i);
+    await expect(exportPdf(pages, { w: 800, h: 600 }, openSpy)).rejects.toThrow(
+      /blocked/i
+    );
   });
 
   it('is a no-op when there are no pages to export', async () => {
     const openSpy = vi.fn();
-    await exportPdf([], { w: 800, h: 600 }, 'Whiteboard.pdf', openSpy);
+    await exportPdf([], { w: 800, h: 600 }, openSpy);
     expect(openSpy).not.toHaveBeenCalled();
   });
 });

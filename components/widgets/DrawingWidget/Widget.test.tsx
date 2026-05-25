@@ -406,12 +406,78 @@ describe('DrawingWidget', () => {
     const { container, getByLabelText } = render(
       <DrawingWidget widget={widgetWithPage} />
     );
-    // Open the export popover.
+    // Open the export popover. Round 2 dropped role="menu" + role="menuitem"
+    // for honest popover semantics (Tab navigation, plain <button>s), so we
+    // probe via the test-id rather than the old ARIA selectors.
     fireEvent.click(getByLabelText('Export'));
-    expect(container.querySelector('[role="menu"]')).not.toBeNull();
-    // Pointerdown on document.body (outside the menu) closes it.
+    expect(
+      container.querySelector('[data-testid="drawing-export-popover"]')
+    ).not.toBeNull();
+    // Pointerdown on document.body (outside the popover) closes it.
     fireEvent.pointerDown(document.body);
+    expect(
+      container.querySelector('[data-testid="drawing-export-popover"]')
+    ).toBeNull();
+  });
+
+  it('export popover dismisses on Escape', () => {
+    // Regression guard for the Escape-handler dismissal path. The handler
+    // is gated on `editingText == null` so Escape doesn't race the text
+    // editor's cancel handling — covered separately by TextEditorOverlay.test.
+    const widgetWithPage: WidgetData = {
+      ...widget,
+      config: {
+        color: '#000',
+        width: 4,
+        pages: [{ id: 'p1', objects: [] }],
+        currentPage: 0,
+      } as DrawingConfig,
+    };
+    const { container, getByLabelText } = render(
+      <DrawingWidget widget={widgetWithPage} />
+    );
+    fireEvent.click(getByLabelText('Export'));
+    expect(
+      container.querySelector('[data-testid="drawing-export-popover"]')
+    ).not.toBeNull();
+    // Escape fires at document level (the widget attaches a document keydown).
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(
+      container.querySelector('[data-testid="drawing-export-popover"]')
+    ).toBeNull();
+  });
+
+  it('export popover items are plain buttons (no role="menu" / "menuitem")', () => {
+    const widgetWithPage: WidgetData = {
+      ...widget,
+      config: {
+        color: '#000',
+        width: 4,
+        pages: [{ id: 'p1', objects: [] }],
+        currentPage: 0,
+      } as DrawingConfig,
+    };
+    const { container, getByLabelText } = render(
+      <DrawingWidget widget={widgetWithPage} />
+    );
+    fireEvent.click(getByLabelText('Export'));
+    // Locking in the round-2 consistency fix: no ARIA menu role anywhere on
+    // the popover or its items. The popover is plain <button>s in a div.
     expect(container.querySelector('[role="menu"]')).toBeNull();
+    expect(container.querySelector('[role="menuitem"]')).toBeNull();
+    expect(
+      container.querySelectorAll(
+        '[data-testid="drawing-export-popover"] > button'
+      ).length
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it('empty state shows a visible "Start drawing" label (not a tooltip-only hint)', () => {
+    // The empty-state container is `pointer-events-none`, so a `title`
+    // tooltip would never trigger. Round 2 replaced the tooltip with a
+    // static, glanceable text label.
+    const { container } = render(<DrawingWidget widget={widget} />);
+    expect(container.textContent ?? '').toContain('Start drawing');
   });
 
   it('double-click on an existing text object re-opens the editor', () => {
@@ -942,5 +1008,35 @@ describe('DrawingWidget', () => {
     expect(cfg.pages?.[0].objects[0].id).toBe('kept-rect');
     // currentPage clamps from 1 → 0.
     expect(cfg.currentPage).toBe(0);
+  });
+
+  it('multi-page: kebab popup is portalled to document.body (escapes strip overflow clipping)', () => {
+    // Regression guard for the round-2 portal fix. The strip has
+    // `overflow-y-hidden` for horizontal-scroll behavior, which was
+    // clipping the popup's bottom edge. Now the popup is rendered into
+    // document.body so it can never be clipped by the strip.
+    const pagedWidget: WidgetData = {
+      ...widget,
+      config: {
+        color: '#000',
+        width: 4,
+        pages: [
+          { id: 'p1', objects: [] },
+          { id: 'p2', objects: [] },
+        ],
+        currentPage: 0,
+      } as DrawingConfig,
+    };
+    const { getByLabelText, container } = render(
+      <DrawingWidget widget={pagedWidget} />
+    );
+    fireEvent.click(getByLabelText('Page 1 actions'));
+    const popup = document.getElementById('drawing-page-strip-popup');
+    if (!popup) throw new Error('Portalled popup not found');
+    // The popup is mounted on document.body (or one of its direct children),
+    // NOT inside the rendered widget container — that's the entire point of
+    // the portal.
+    expect(container.contains(popup)).toBe(false);
+    expect(document.body.contains(popup)).toBe(true);
   });
 });

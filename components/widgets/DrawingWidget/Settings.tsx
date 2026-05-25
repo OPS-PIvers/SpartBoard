@@ -116,8 +116,13 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
 
       <div>
         <SettingsLabel icon={LayoutGrid}>Background</SettingsLabel>
+        {/* Toggle-button group (not radiogroup) — selecting a background is a
+            mode toggle. The button + aria-pressed pattern gives us native
+            Tab/Space/Enter without the roving-tabindex machinery that a true
+            radiogroup requires. Matches the pattern in Widget.tsx and
+            AnnotationOverlay.tsx (PR 1685 round-1 fix). */}
         <div
-          role="radiogroup"
+          role="group"
           aria-label="Background template"
           className="flex gap-2 px-2"
         >
@@ -127,10 +132,10 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
               <button
                 key={value}
                 type="button"
-                role="radio"
-                aria-checked={selected}
+                aria-pressed={selected}
+                aria-label={label}
                 onClick={() => handleBackgroundChange(value)}
-                className={`flex-1 flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 transition-all ${
+                className={`flex-1 flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 transition-colors ${
                   selected
                     ? 'border-indigo-500 bg-indigo-50'
                     : 'border-slate-200 hover:border-slate-300 bg-white'

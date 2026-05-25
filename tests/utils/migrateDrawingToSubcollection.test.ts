@@ -20,6 +20,7 @@ import {
   migrateDrawingToSubcollection,
   needsSubcollectionMigration,
 } from '@/utils/migrateDrawingToSubcollection';
+import { migrateDrawingConfig } from '@/utils/migrateDrawingConfig';
 
 const pathObj = (overrides: Partial<PathObject> = {}): PathObject => ({
   id: 'obj-1',
@@ -262,6 +263,56 @@ describe('migrateDrawingToSubcollection', () => {
       'objects',
       'obj-x',
     ]);
+  });
+
+  it('migrates a pre-Phase-2 legacy widget (objects[], no pages) through the full chain', async () => {
+    // Real-world legacy shape: a widget authored before PR 2.3 carries
+    // `objects[]` at the top level and has no `pages[]`. The kicker MUST
+    // run the synchronous DrawingConfig migration first; otherwise
+    // `needsSubcollectionMigration` returns false and the subcollection
+    // writes never fire. This test exercises the full chain.
+    const legacyConfig = {
+      objects: [pathObj({ id: 'legacy-1' }), pathObj({ id: 'legacy-2', z: 1 })],
+      color: '#abc',
+    } as unknown as DrawingConfig;
+    expect(needsSubcollectionMigration(legacyConfig)).toBe(false);
+    const synced = migrateDrawingConfig(legacyConfig);
+    expect(needsSubcollectionMigration(synced)).toBe(true);
+    const { ran, migratedConfig } = await migrateDrawingToSubcollection({
+      db: dummyDb,
+      uid: 'u',
+      dashboardId: 'd',
+      widgetId: 'w',
+      config: synced,
+    });
+    expect(ran).toBe(true);
+    expect(migratedConfig.subcollectionMigrated).toBe(true);
+    // One batch covers: 1 page-meta + 2 objects = 3 ops.
+    expect(batches).toHaveLength(1);
+    expect(batches[0].set).toHaveBeenCalledTimes(3);
+  });
+
+  it('writes a single page-meta batch for a config with empty pages (defensive)', async () => {
+    // This is a paranoid path — `needsSubcollectionMigration` returns false
+    // for a `pages: [{objects: []}]` config so the kicker won't call this
+    // function. But if it ever IS called directly, the result should be a
+    // small but well-formed batch (one page-meta op) rather than an
+    // exception. Locks the invariant for future maintenance.
+    const config: DrawingConfig = {
+      pages: [{ id: 'p1', objects: [], background: 'blank' }],
+    };
+    const { ran, migratedConfig } = await migrateDrawingToSubcollection({
+      db: dummyDb,
+      uid: 'u',
+      dashboardId: 'd',
+      widgetId: 'w',
+      config,
+    });
+    expect(ran).toBe(true);
+    expect(batches).toHaveLength(1);
+    // One page-meta write, no object writes.
+    expect(batches[0].set).toHaveBeenCalledTimes(1);
+    expect(migratedConfig.subcollectionMigrated).toBe(true);
   });
 });
 

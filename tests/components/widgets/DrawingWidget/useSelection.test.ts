@@ -340,4 +340,139 @@ describe('useSelection', () => {
     expect(onTransformPreview).toHaveBeenCalledTimes(60);
     expect(onTransformCommit).toHaveBeenCalledTimes(1);
   });
+
+  it('resize on rotated object: drag visual NW handle keeps the OPPOSITE (SE) corner pinned in WORLD space', () => {
+    // 100x100 rect at origin, rotated 90° CW. Visual NW (rotated) sits at
+    // world (100, 0) per the canvas y-down/positive-rotation convention; the
+    // opposite SE sits at world (0, 100). Dragging visual NW by (+10, 0) in
+    // world coords should keep SE at world (0, 100).
+    const onTransformCommit = vi.fn();
+    const start: RectObject = {
+      id: 'r1',
+      kind: 'rect',
+      z: 0,
+      x: 0,
+      y: 0,
+      w: 100,
+      h: 100,
+      stroke: '#000',
+      strokeWidth: 2,
+      rotation: Math.PI / 2,
+    };
+    const { result, rerender } = renderHook(
+      ({ objs }) =>
+        useSelection({
+          objects: objs,
+          activeTool: 'select',
+          onTransformPreview: vi.fn(),
+          onTransformCommit,
+          onRemoveObject: vi.fn(),
+        }),
+      { initialProps: { objs: [start] as DrawableObject[] } }
+    );
+    // Select the rect first.
+    act(() => {
+      result.current.handleSelectPointerDown(pe(), { x: 50, y: 50 });
+    });
+    act(() => {
+      result.current.handleSelectPointerUp(pe(), { x: 50, y: 50 });
+    });
+    rerender({ objs: [start] as DrawableObject[] });
+    // Drag the visual NW handle (world position (100, 0)) to (110, 0).
+    act(() => {
+      result.current.handleSelectPointerDown(pe(), { x: 100, y: 0 });
+    });
+    act(() => {
+      result.current.handleSelectPointerMove(pe(), { x: 110, y: 0 });
+    });
+    act(() => {
+      result.current.handleSelectPointerUp(pe(), { x: 110, y: 0 });
+    });
+    expect(onTransformCommit).toHaveBeenCalledTimes(1);
+    const resized = onTransformCommit.mock.calls[0][0] as RectObject;
+    // Pin check: SE corner in WORLD space must remain at (0, 100). The
+    // renderer computes world SE as rotatePoint(local_SE, new_center, rot).
+    const newCx = resized.x + resized.w / 2;
+    const newCy = resized.y + resized.h / 2;
+    const localSE = { x: resized.x + resized.w, y: resized.y + resized.h };
+    const rot = resized.rotation ?? 0;
+    // Apply the same rotation the renderer applies.
+    const cos = Math.cos(rot);
+    const sin = Math.sin(rot);
+    const dx = localSE.x - newCx;
+    const dy = localSE.y - newCy;
+    const worldSE = {
+      x: newCx + dx * cos - dy * sin,
+      y: newCy + dx * sin + dy * cos,
+    };
+    expect(worldSE.x).toBeCloseTo(0, 5);
+    expect(worldSE.y).toBeCloseTo(100, 5);
+    // And the dragged NW should now land near world (110, 0).
+    const localNW = { x: resized.x, y: resized.y };
+    const dnwX = localNW.x - newCx;
+    const dnwY = localNW.y - newCy;
+    const worldNW = {
+      x: newCx + dnwX * cos - dnwY * sin,
+      y: newCy + dnwX * sin + dnwY * cos,
+    };
+    expect(worldNW.x).toBeCloseTo(110, 5);
+    expect(worldNW.y).toBeCloseTo(0, 5);
+  });
+
+  it('handle hit-test uses canvasRef-derived scale (regression: M3 / N-C1)', () => {
+    // Mock a canvas where internal resolution is 800x600 but CSS rect is
+    // 400x300 — a 2:1 ratio. At scale=2, the handle hit half-side is
+    // (HANDLE_SIZE / scale) * 0.75 = (10/2)*0.75 = 3.75 canvas-px. At the
+    // (uncorrected) default scale=1 it'd be 7.5 canvas-px — so a click 5px
+    // outside the visual handle would (wrongly) resolve as a handle hit
+    // instead of a body translate.
+    const onTransformCommit = vi.fn();
+    const onTransformPreview = vi.fn();
+    const canvasEl = document.createElement('canvas');
+    canvasEl.width = 800;
+    canvasEl.height = 600;
+    // Stub getBoundingClientRect to return 2:1 ratio.
+    canvasEl.getBoundingClientRect = (() =>
+      ({
+        x: 0,
+        y: 0,
+        left: 0,
+        top: 0,
+        right: 400,
+        bottom: 300,
+        width: 400,
+        height: 300,
+        toJSON: () => ({}),
+      }) as DOMRect) as () => DOMRect;
+    const canvasRef = {
+      current: canvasEl,
+    } as React.RefObject<HTMLCanvasElement>;
+    const r = rect({ x: 0, y: 0, w: 100, h: 100 });
+    const { result, rerender } = renderHook(
+      ({ objs }) =>
+        useSelection({
+          objects: objs,
+          activeTool: 'select',
+          onTransformPreview,
+          onTransformCommit,
+          onRemoveObject: vi.fn(),
+          canvasRef,
+        }),
+      { initialProps: { objs: [r] as DrawableObject[] } }
+    );
+    // Select first.
+    act(() => {
+      result.current.handleSelectPointerDown(pe(), { x: 50, y: 50 });
+    });
+    act(() => {
+      result.current.handleSelectPointerUp(pe(), { x: 50, y: 50 });
+    });
+    rerender({ objs: [r] as DrawableObject[] });
+    // NW handle is at canvas coords (0, 0). At scale=2, half-side = 3.75.
+    // Click at (3, 3) — inside the scaled hit region. Should resolve to 'nw'.
+    act(() => {
+      result.current.handleSelectPointerDown(pe(), { x: 3, y: 3 });
+    });
+    expect(result.current.transformState?.mode).toBe('nw');
+  });
 });

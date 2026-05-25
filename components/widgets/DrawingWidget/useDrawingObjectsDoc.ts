@@ -34,6 +34,22 @@ import type { DrawableObject } from '@/types';
  * AnnotationOverlay is intentionally NOT migrated to this hook: annotation
  * objects remain on the dashboard document under `annotationOverlay`. See
  * `context/DashboardContext.tsx` for the annotation persistence path.
+ *
+ * KNOWN LIMITATION (synced-board viewers — slice 1 N1):
+ * This hook always reads from `/users/{current-user-uid}/...`. For a synced
+ * board where the host has migrated to the subcollection, a viewer/
+ * collaborator (under their own uid) will see an empty drawing — the
+ * Firestore rules at `firestore.rules` deny cross-user reads, and the
+ * mirrored dashboard doc's `pages[].objects[]` is stripped post-migration.
+ * Synced-share of drawing CONTENT is therefore broken after the host's
+ * migration runs. AnnotationOverlay (which IS mirrored through the
+ * shared_boards doc) is unaffected.
+ *
+ * TODO (post-2.6): either (a) include actual `objects[]` in the mirrored
+ * dashboard payload for synced boards (host serializes pre-migration shape
+ * into the mirror), or (b) extend Firestore rules + this hook with a
+ * `hostUid` option for cross-user reads under the shared-board contract.
+ * Tracked in PR #1685 review round 2 (slice 1 finding N1).
  */
 
 const FIRESTORE_BATCH_LIMIT = 450;
@@ -61,14 +77,46 @@ interface UseDrawingObjectsDocResult {
 // widgets don't share an eviction budget. Modules are singletons in Vite, so
 // this map persists across hook remounts.
 const LRU_MAX = 2;
+
+/**
+ * Cache entry for an active page subscription.
+ *
+ * - `unsubscribe` / `refs`: lifecycle for the underlying `onSnapshot`.
+ * - `lastObjects`: the most-recent snapshot data, mirrored here so a new
+ *   consumer who hits a warm cache entry (back-navigation within the LRU
+ *   window) can hydrate `objects` synchronously instead of waiting for the
+ *   next remote re-emission. `null` until the first snapshot arrives.
+ * - `version`: monotonically increments on each successful snapshot.
+ *   Reserved for future stale-snapshot diagnostics — not currently read.
+ */
 type ActiveSub = {
   unsubscribe: Unsubscribe;
   refs: number;
+  lastObjects: DrawableObject[] | null;
+  version: number;
 };
 const activeSubsByContext = new Map<string, Map<string, ActiveSub>>();
 
 const subContextKey = (uid: string, dashboardId: string, widgetId: string) =>
   `${uid}::${dashboardId}::${widgetId}`;
+
+/**
+ * Test-only escape hatch: clear the module-level LRU cache between vitest
+ * runs so per-test state can't leak. Not exported through the public hook
+ * surface — only the test file should import this symbol.
+ */
+export const __resetForTests = () => {
+  for (const ctx of activeSubsByContext.values()) {
+    for (const sub of ctx.values()) {
+      try {
+        sub.unsubscribe();
+      } catch {
+        // best-effort: tests routinely use stubbed unsubscribe fns
+      }
+    }
+  }
+  activeSubsByContext.clear();
+};
 
 const evictOldestIfFull = (contextMap: Map<string, ActiveSub>) => {
   while (contextMap.size >= LRU_MAX) {
@@ -108,27 +156,31 @@ export const useDrawingObjectsDoc = ({
     pageId: string;
   } | null>(null);
 
+  // Per-instance gate: each `useDrawingObjectsDoc` instance should only
+  // accept snapshot callbacks from the entry it is CURRENTLY subscribed to.
+  // Without this, a stale listener (entry for page A, still warm in LRU)
+  // could fire while the instance has moved on to page B, and the
+  // setObjects call would clobber B's data with A's. We compare the
+  // listener's `(contextKey, pageId)` against this ref before applying.
+  const activeSubKeyRef = useRef<{
+    contextKey: string;
+    pageId: string;
+  } | null>(null);
+
   useEffect(() => {
     if (!uid || !dashboardId || !pageId) {
       // No active subscription — reset to the empty/idle baseline. These
       // setState calls are the standard "drop external subscription"
-      // pattern: synchronizing with the absence of the external system is
-      // still synchronizing with it. ESLint flags the first setState
-      // (which is the rule's heuristic anchor for the cascade-render
-      // warning); follow-up setStates in the same branch don't add a
-      // second flag, so a single suppression covers the block.
+      // pattern: synchronizing with the absence of the external system.
+      // The rule flags only the FIRST setState site per branch as the
+      // anchor; subsequent setStates in the same branch don't get a fresh
+      // diagnostic, so a single suppression covers the cluster.
+      activeSubKeyRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setObjects([]);
       setLoading(false);
       return;
     }
-
-    // Mark the new subscription as "loading until first snapshot"
-    // synchronously so a render between subscribe and the snapshot
-    // callback shows the spinner instead of a stale page. This setState
-    // tracks the subscribe → first-snapshot edge — a legitimate
-    // synchronization-with-external-system use of useEffect.
-    setLoading(true);
 
     const contextKey = subContextKey(uid, dashboardId, widgetId);
     let contextMap = activeSubsByContext.get(contextKey);
@@ -137,7 +189,13 @@ export const useDrawingObjectsDoc = ({
       activeSubsByContext.set(contextKey, contextMap);
     }
 
+    // Mark which page this instance is now actively subscribed to BEFORE we
+    // touch React state — so the snapshot-callback gate below uses the
+    // current page id rather than a stale one.
+    activeSubKeyRef.current = { contextKey, pageId };
+
     let entry = contextMap.get(pageId);
+    const isCacheReuse = !!entry;
     if (!entry) {
       evictOldestIfFull(contextMap);
       const colRef = collection(
@@ -152,25 +210,76 @@ export const useDrawingObjectsDoc = ({
         pageId,
         'objects'
       );
+      // Pre-create the entry so the snapshot callback can write
+      // `entry.lastObjects` even on the synchronous first callback.
+      const newEntry: ActiveSub = {
+        // Reassigned below after onSnapshot returns.
+        unsubscribe: () => undefined,
+        refs: 0,
+        lastObjects: null,
+        version: 0,
+      };
       const unsubscribe = onSnapshot(
         colRef,
         (snapshot) => {
           const next = snapshot.docs.map((d) => d.data() as DrawableObject);
           // Stable z-order: callers expect ascending z (last-on-top render).
           next.sort((a, b) => a.z - b.z);
-          setObjects(next);
-          setLoading(false);
+          newEntry.lastObjects = next;
+          newEntry.version += 1;
+          // Gate: only update React state if THIS hook instance is still
+          // subscribed to this (contextKey, pageId). A listener firing for
+          // a page the instance has navigated away from must NOT clobber
+          // the new page's data. Other instances reading from this same
+          // entry still get the new data via their own effects (cache-
+          // reuse hydration on subscribe, or this same gate when they're
+          // the active reader).
+          const active = activeSubKeyRef.current;
+          if (
+            active &&
+            active.contextKey === contextKey &&
+            active.pageId === pageId
+          ) {
+            setObjects(next);
+            setLoading(false);
+          }
         },
         (err) => {
           console.error('[useDrawingObjectsDoc] subscription error:', err);
-          setLoading(false);
+          const active = activeSubKeyRef.current;
+          if (
+            active &&
+            active.contextKey === contextKey &&
+            active.pageId === pageId
+          ) {
+            setLoading(false);
+          }
         }
       );
-      entry = { unsubscribe, refs: 0 };
-      contextMap.set(pageId, entry);
+      newEntry.unsubscribe = unsubscribe;
+      contextMap.set(pageId, newEntry);
+      entry = newEntry;
     }
     entry.refs += 1;
     subscribedKeyRef.current = { contextKey, pageId };
+
+    if (isCacheReuse) {
+      // Hydrate from the cache entry synchronously. If a snapshot has
+      // already fired for this entry, replay it so the consumer sees the
+      // data immediately instead of waiting for the next server emission
+      // (which may never come if the page is static). If no snapshot has
+      // landed yet (still waiting on the original subscribe), stay in
+      // loading=true.
+      if (entry.lastObjects !== null) {
+        setObjects(entry.lastObjects);
+        setLoading(false);
+      } else {
+        setLoading(true);
+      }
+    } else {
+      // Fresh subscribe — the snapshot callback will flip loading=false.
+      setLoading(true);
+    }
 
     return () => {
       const subKey = subscribedKeyRef.current;

@@ -93,10 +93,14 @@ export const applyCommand = (
     default: {
       // Exhaustiveness guard: TypeScript flags this as unreachable today,
       // but a future kind added to the union would surface as a compile
-      // error here instead of silently falling through.
+      // error here instead of silently falling through. We stringify `cmd`
+      // (not the narrowed-to-`never` `_exhaustive`) so the runtime error
+      // surfaces the actual command shape — `_exhaustive` exists only to
+      // pin the compile-time assertion; at runtime it's still `cmd`.
       const _exhaustive: never = cmd;
+      void _exhaustive;
       throw new Error(
-        `applyCommand: unhandled command kind ${JSON.stringify(_exhaustive)}`
+        `applyCommand: unhandled command kind ${JSON.stringify(cmd)}`
       );
     }
   }

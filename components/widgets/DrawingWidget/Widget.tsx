@@ -390,6 +390,7 @@ export const DrawingWidget: React.FC<{
     onTransformPreview: handleTransformPreview,
     onTransformCommit: handleTransformCommit,
     onRemoveObject: handleRemoveObject,
+    canvasRef,
   });
 
   // Clear selection whenever the user switches off the Select tool. Without
@@ -572,11 +573,10 @@ export const DrawingWidget: React.FC<{
     if (pages.length === 0) return;
     try {
       setIsExporting(true);
-      await exportPdf(
-        pages,
-        { w: canvasSize.width, h: canvasSize.height },
-        `${exportFilenameStem()}.pdf`
-      );
+      // PDF export goes through the browser print dialog (one-shot OS-level
+      // "Save as PDF"); the dialog owns the final filename so we no longer
+      // pass one in.
+      await exportPdf(pages, { w: canvasSize.width, h: canvasSize.height });
     } catch (e) {
       console.error('PDF export failed:', e);
       const message =
@@ -604,12 +604,19 @@ export const DrawingWidget: React.FC<{
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
+        // Gate on `editingText == null` so Escape inside the text editor
+        // cancels the edit rather than racing the popover dismissal. The
+        // editor's synthetic stopPropagation does NOT stop native window
+        // listeners on the same native event — this gate is the
+        // authoritative belt + suspenders.
+        if (editingText) return;
         e.stopPropagation();
         setIsExportMenuOpen(false);
         // Return focus to the trigger so keyboard users land somewhere
-        // sensible — the standard ARIA-menu dismissal pattern.
+        // sensible. The trigger is the only button inside `exportMenuRef`
+        // with `aria-label="Export"` (the popover items are unlabelled).
         const trigger = exportMenuRef.current?.querySelector(
-          'button[aria-haspopup="menu"]'
+          'button[aria-label="Export"]'
         );
         (trigger as HTMLButtonElement | null)?.focus();
       }
@@ -620,7 +627,7 @@ export const DrawingWidget: React.FC<{
       document.removeEventListener('pointerdown', onDocPointerDown);
       document.removeEventListener('keydown', onKeyDown);
     };
-  }, [isExportMenuOpen]);
+  }, [isExportMenuOpen, editingText]);
 
   const handleSendToText = async () => {
     const canvas = canvasRef.current;
@@ -708,7 +715,14 @@ export const DrawingWidget: React.FC<{
             type="button"
             aria-pressed={activeTool === tool}
             onClick={() => setActiveTool(tool)}
-            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+            // - `transition-colors` (not `transition-all`): we only animate
+            //   the background and ring colors; `transition-all` paid for
+            //   width/height/transform interpolations we never use.
+            // - `focus-visible:ring-offset-2` + `ring-offset-slate-100`:
+            //   the offset visually separates the focus ring from the
+            //   active-tool ring (both are indigo) so keyboard users can
+            //   tell which button is focused vs. which is the active tool.
+            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 ${
               activeTool === tool
                 ? 'ring-2 ring-indigo-500'
                 : 'hover:bg-slate-50'
@@ -782,7 +796,7 @@ export const DrawingWidget: React.FC<{
         size="icon"
         icon={
           isUploadingImage ? (
-            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
           ) : (
             <ImagePlus className="w-4 h-4" />
           )
@@ -795,25 +809,30 @@ export const DrawingWidget: React.FC<{
           disabled={isExporting || pages.length === 0}
           title="Export"
           aria-label="Export"
-          aria-haspopup="menu"
+          // The popup is plain <button>s in a positioned div (not an ARIA
+          // menu — no roving-tabindex / arrow-key navigation), so we drop
+          // `aria-haspopup` and let `aria-expanded` carry the toggle
+          // semantics. Matches the PageStrip kebab pattern.
           aria-expanded={isExportMenuOpen}
           variant="ghost"
           size="icon"
           icon={
             isExporting ? (
-              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
             ) : (
               <Download className="w-4 h-4" />
             )
           }
         />
         {isExportMenuOpen && (
+          // Honest popover: plain <button>s in a positioned div, no ARIA
+          // menu role. Tab is the navigation; screen readers announce three
+          // buttons rather than a menu that doesn't navigate with arrows.
           <div
-            role="menu"
+            data-testid="drawing-export-popover"
             className="absolute right-0 bottom-full mb-2 min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden z-50"
           >
             <button
-              role="menuitem"
               type="button"
               onClick={() => void handleExportCurrentPng()}
               disabled={isExporting}
@@ -822,7 +841,6 @@ export const DrawingWidget: React.FC<{
               Export PNG (this page)
             </button>
             <button
-              role="menuitem"
               type="button"
               onClick={() => void handleExportAllPng()}
               disabled={isExporting || pages.length <= 1}
@@ -831,7 +849,6 @@ export const DrawingWidget: React.FC<{
               Export PNG (all pages)
             </button>
             <button
-              role="menuitem"
               type="button"
               onClick={() => void handleExportPdf()}
               disabled={isExporting}
@@ -854,7 +871,7 @@ export const DrawingWidget: React.FC<{
             title="Extract Text (AI)"
             icon={
               isExtracting ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
               ) : (
                 <Type className="w-4 h-4" />
               )
@@ -897,6 +914,10 @@ export const DrawingWidget: React.FC<{
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div
+        // `ring-inset` (not `ring-offset`) is deliberate: this wrapper has
+        // `overflow-hidden` and the canvas fills its interior, so an
+        // offset ring would be clipped away by the parent. The inset ring
+        // sits on the inside edge of the wrapper and stays visible.
         className={`flex-1 relative ${
           isStudentView ? 'bg-transparent' : 'bg-white/5'
         } overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset ${cursorClass}`}
@@ -941,18 +962,23 @@ export const DrawingWidget: React.FC<{
             "draw here" before the snapshot lands. */}
         {config.subcollectionMigrated && objectsLoading && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
-            <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full animate-spin opacity-50" />
+            <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin opacity-50" />
           </div>
         )}
         {objects.length === 0 &&
           !isDrawing &&
           !(config.subcollectionMigrated && objectsLoading) && (
-            <div
-              className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400"
-              title="Start drawing"
-              aria-label="Start drawing"
-            >
+            // Empty state: a pencil icon + visible "Start drawing" label.
+            // The wrapping div is `pointer-events-none` so it never blocks
+            // canvas pointer input — that's why we use a static label
+            // instead of a `title` tooltip (a tooltip requires hover, which
+            // pointer-events-none prevents). The label is self-describing
+            // so no `aria-label` on the container is needed.
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none text-slate-400">
               <Pencil className="w-8 h-8 opacity-20" aria-hidden />
+              <span className="text-sm font-medium opacity-60 select-none">
+                Start drawing
+              </span>
             </div>
           )}
         {editingText && canvasRect && (

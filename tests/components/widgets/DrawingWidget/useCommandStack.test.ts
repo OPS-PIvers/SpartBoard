@@ -317,4 +317,52 @@ describe('useCommandStack', () => {
     expect(t.result.current.canUndo).toBe(false);
     expect(t.result.current.canRedo).toBe(false);
   });
+
+  it('rapid synchronous undo (Cmd+Z auto-repeat): two undo() calls in one tick apply distinct reverses', () => {
+    // Push three add commands so past = [add A, add B, add C], objects = [A,B,C].
+    const a = rect({ id: 'a' });
+    const b = rect({ id: 'b' });
+    const c = rect({ id: 'c' });
+    const t = renderStack();
+    act(() => {
+      t.result.current.push({ kind: 'add', object: a });
+    });
+    t.sync();
+    act(() => {
+      t.result.current.push({ kind: 'add', object: b });
+    });
+    t.sync();
+    act(() => {
+      t.result.current.push({ kind: 'add', object: c });
+    });
+    t.sync();
+    expect(t.getObjects()).toEqual([a, b, c]);
+    t.onObjectsChange.mockClear();
+    // Synchronous double undo — emulates Cmd+Z auto-repeat in one tick.
+    // Without the ref-based fix, both calls would share a stale closure
+    // `objects = [a,b,c]` and a stale closure `cmd = add C`, producing two
+    // onObjectsChange calls with the SAME reversed value [a,b] while
+    // past/future still chained correctly (past=[add A], future=[add C, add B]).
+    act(() => {
+      t.result.current.undo();
+      t.result.current.undo();
+    });
+    t.sync();
+    // Both reverses must have landed on the actual objects array.
+    expect(t.getObjects()).toEqual([a]);
+    // Two distinct onObjectsChange calls — first reverses C, then B.
+    expect(t.onObjectsChange).toHaveBeenCalledTimes(2);
+    expect(t.onObjectsChange.mock.calls[0][0]).toEqual([a, b]);
+    expect(t.onObjectsChange.mock.calls[1][0]).toEqual([a]);
+    // Past/future stacks must reflect both reverses (not just the bookkeeping).
+    expect(t.result.current.canUndo).toBe(true); // add A still on past
+    expect(t.result.current.canRedo).toBe(true); // both add B and add C on future
+    // One more undo unwinds add A.
+    act(() => {
+      t.result.current.undo();
+    });
+    t.sync();
+    expect(t.getObjects()).toEqual([]);
+    expect(t.result.current.canUndo).toBe(false);
+  });
 });

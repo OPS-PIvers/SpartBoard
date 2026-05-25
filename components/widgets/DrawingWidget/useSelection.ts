@@ -17,6 +17,9 @@ import {
   getBoundingBox,
   hitTestHandle,
   hitTestObjects,
+  objectHonorsRotation,
+  reverseRotatePoint,
+  rotatePoint,
 } from './hitTest';
 
 export type TransformMode = 'translate' | 'rotate' | HandleName;
@@ -129,6 +132,16 @@ export const useSelection = ({
     () => objects.find((o) => o.id === selectedId) ?? null,
     [objects, selectedId]
   );
+  // Ref-mirror of `selectedObject` so `handleKeyDown` can read the current
+  // selection without depending on it. Otherwise every `objects[]` mutation
+  // (stroke completion, transform commit, remote sync) would invalidate
+  // `handleKeyDown` and force AnnotationOverlay's window-keydown effect to
+  // tear down + re-attach the listener — cheap but unnecessary churn.
+  // The render-time ref assignment matches CLAUDE.md's "useEffect is an
+  // escape hatch" guidance — see TextEditorOverlay for the same pattern.
+  const selectedObjectRef = useRef<DrawableObject | null>(selectedObject);
+  // eslint-disable-next-line react-hooks/refs
+  selectedObjectRef.current = selectedObject;
 
   const clearSelection = useCallback(() => {
     setSelectedId(null);
@@ -212,10 +225,13 @@ export const useSelection = ({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (activeTool !== 'select') return;
-      if (!selectedObject) return;
+      // Read selectedObject from the ref so this callback stays stable across
+      // `objects[]` mutations — see selectedObjectRef declaration above.
+      const sel = selectedObjectRef.current;
+      if (!sel) return;
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
-        onRemoveObject(selectedObject.id);
+        onRemoveObject(sel.id);
         clearSelection();
         return;
       }
@@ -231,22 +247,16 @@ export const useSelection = ({
           e.key === 'ArrowLeft' ? -step : e.key === 'ArrowRight' ? step : 0;
         const dy =
           e.key === 'ArrowUp' ? -step : e.key === 'ArrowDown' ? step : 0;
-        const nudged = translateObject(selectedObject, dx, dy);
+        const nudged = translateObject(sel, dx, dy);
         // Arrow nudges commit immediately — there's no drag gesture to
         // batch into, and a single keystroke producing a single write is
-        // already on the Firestore-friendly side. Pass `selectedObject` as
-        // the before-snapshot so Wave 5's command stack records the nudge
-        // as a `{ kind: 'update', before, after }` command.
-        onTransformCommit(nudged, selectedObject);
+        // already on the Firestore-friendly side. Pass the pre-nudge object
+        // as the before-snapshot so Wave 5's command stack records the
+        // nudge as a `{ kind: 'update', before, after }` command.
+        onTransformCommit(nudged, sel);
       }
     },
-    [
-      activeTool,
-      selectedObject,
-      onRemoveObject,
-      onTransformCommit,
-      clearSelection,
-    ]
+    [activeTool, onRemoveObject, onTransformCommit, clearSelection]
   );
 
   return {
@@ -472,6 +482,16 @@ const rotateObject = (
 /**
  * Dispatch on the gesture mode and return the transformed object. Pure —
  * given the same inputs always produces the same output.
+ *
+ * Rotated-resize handling: for kinds that honor `rotation` with a non-zero
+ * angle, the pointer (`pos`) and `state.origin` arrive in WORLD coords but
+ * `resizeBbox` operates in the object's local (unrotated) frame. We reverse-
+ * rotate both into local space, run the standard resize math there, then
+ * remap the new local bbox back into a world-frame AABB whose center is
+ * shifted so the pin point (opposite corner / edge of the dragged handle)
+ * stays at its original WORLD position. Without this, dragging the visually-
+ * NW handle of a rotated rect treats the world pointer as if it were a
+ * local-frame coord and the rect's geometry corrupts on the first move.
  */
 const applyTransform = (
   state: TransformState,
@@ -486,7 +506,55 @@ const applyTransform = (
   if (state.mode === 'rotate') {
     return rotateObject(state.startObj, state.startBbox, state.origin, pos);
   }
-  // 8 resize handles
-  const next = resizeBbox(state.startBbox, state.mode, pos, shift);
-  return applyBboxToObject(state.startObj, state.startBbox, next);
+
+  const rot = state.startObj.rotation ?? 0;
+  const honorsRotation =
+    objectHonorsRotation(state.startObj) && Number.isFinite(rot) && rot !== 0;
+
+  // 8 resize handles. For rotated kinds, reverse-rotate the pointer into the
+  // object's local frame before handing to resizeBbox.
+  const oldCenter: Point = {
+    x: state.startBbox.x + state.startBbox.w / 2,
+    y: state.startBbox.y + state.startBbox.h / 2,
+  };
+  const localPos = honorsRotation
+    ? reverseRotatePoint(pos, oldCenter, rot)
+    : pos;
+  const next = resizeBbox(state.startBbox, state.mode, localPos, shift);
+
+  if (!honorsRotation) {
+    return applyBboxToObject(state.startObj, state.startBbox, next);
+  }
+
+  // Pin-preservation math (see JSDoc above). The pin is the opposite
+  // corner/edge of the dragged handle. In LOCAL frame the pin is at the same
+  // local coord on both the start bbox and `next` (by construction of
+  // resizeBbox — it only moves the edges the handle controls). So the
+  // displacement of the bbox CENTER in local space is half the displacement
+  // of the moved edges. Rotating that displacement by `rot` gives the
+  // displacement of the center in world space; offsetting the start world
+  // center by that gives the new world center. The persisted world AABB is
+  // (new world center) − (next.w/2, next.h/2).
+  const newLocalCenter: Point = {
+    x: next.x + next.w / 2,
+    y: next.y + next.h / 2,
+  };
+  const localCenterDelta: Point = {
+    x: newLocalCenter.x - oldCenter.x,
+    y: newLocalCenter.y - oldCenter.y,
+  };
+  // Rotate the local center-displacement by +rot to get the world
+  // center-displacement.
+  const worldCenterDelta = rotatePoint(localCenterDelta, { x: 0, y: 0 }, rot);
+  const newWorldCenter: Point = {
+    x: oldCenter.x + worldCenterDelta.x,
+    y: oldCenter.y + worldCenterDelta.y,
+  };
+  const worldBbox: BoundingBox = {
+    x: newWorldCenter.x - next.w / 2,
+    y: newWorldCenter.y - next.h / 2,
+    w: next.w,
+    h: next.h,
+  };
+  return applyBboxToObject(state.startObj, state.startBbox, worldBbox);
 };

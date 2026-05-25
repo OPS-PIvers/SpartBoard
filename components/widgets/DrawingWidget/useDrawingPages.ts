@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 import { DrawableObject, DrawingConfig, DrawingPage } from '@/types';
 import {
   clampPageIndex,
@@ -120,26 +120,20 @@ export const useDrawingPages = ({
     [pages, currentPage, updateConfig]
   );
 
-  return useMemo(
-    () => ({
-      pages,
-      currentPage,
-      goToPage,
-      addPage,
-      removePage,
-      movePageLeft,
-      movePageRight,
-    }),
-    [
-      pages,
-      currentPage,
-      goToPage,
-      addPage,
-      removePage,
-      movePageLeft,
-      movePageRight,
-    ]
-  );
+  // No `useMemo` wrapper — its deps include `pages` and `currentPage`,
+  // which change on every meaningful config update, so the memo would
+  // invalidate on the same cadence as its inputs. Returning a fresh object
+  // each render is identical in observable behavior and avoids the dead
+  // memo allocation.
+  return {
+    pages,
+    currentPage,
+    goToPage,
+    addPage,
+    removePage,
+    movePageLeft,
+    movePageRight,
+  };
 };
 
 // Re-export pure helpers for direct test consumption.

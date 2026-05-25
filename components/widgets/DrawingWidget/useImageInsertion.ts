@@ -231,9 +231,17 @@ export const useImageInsertion = ({
   );
 
   const handleNativePaste = useCallback(
+    /**
+     * Window-level paste handler. Bails out when the paste target is a
+     * focusable text surface (`<input>`, `<textarea>`, or `contenteditable`).
+     * This is INTENTIONAL: while the user is editing text (the
+     * TextEditorOverlay's contenteditable, a search box, a chat input,
+     * etc.), Cmd/Ctrl+V should land inside that surface as text — not
+     * spawn an image on the whiteboard. Without this bail, a teacher who
+     * has an image on the clipboard would unexpectedly drop it on the
+     * canvas the moment they paste a URL into the editor.
+     */
     (e: ClipboardEvent) => {
-      // Skip if the paste is destined for a text input — we don't want to
-      // intercept the user typing into a search box or contenteditable.
       const target = e.target as HTMLElement | null;
       if (
         target &&
