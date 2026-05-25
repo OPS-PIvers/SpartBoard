@@ -356,4 +356,25 @@ describe('QRSettings', () => {
 
     expect(screen.getByText(/No Text Widget found/i)).toBeInTheDocument();
   });
+
+  it('shows the live synced text content in the disabled input when sync is on', () => {
+    const syncedText = 'https://from-text-widget.example';
+    mockActiveDashboard.widgets = [
+      {
+        id: 'text-widget-1',
+        type: 'text',
+        config: { content: syncedText } as TextConfig,
+      } as WidgetData,
+    ];
+    // Stored url intentionally stale.
+    const widget = createMockWidget({
+      syncWithTextWidget: true,
+      url: 'https://stale-stored.example',
+    });
+    render(<QRSettings widget={widget} />);
+
+    const input = screen.getByRole('textbox');
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue(syncedText);
+  });
 });

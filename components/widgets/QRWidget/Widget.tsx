@@ -3,7 +3,6 @@ import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
   QRConfig,
-  TextConfig,
   QRGlobalConfig,
   FeaturePermission,
 } from '@/types';
@@ -11,22 +10,7 @@ import { Link } from 'lucide-react';
 import { WidgetLayout } from '../WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-
-const stripHtml = (html: string) => {
-  if (typeof DOMParser === 'undefined') {
-    // Basic fallback for SSR environments to remove HTML tags.
-    // Loop until stable to prevent partial-tag bypass (e.g. <scr<script>ipt>).
-    let result = html;
-    let prev: string;
-    do {
-      prev = result;
-      result = prev.replace(/<[^>]*>?/gm, '');
-    } while (result !== prev);
-    return result.replace(/[<>]/g, '');
-  }
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
-};
+import { extractSyncedUrl, getSyncedTextContent } from './deriveSyncedUrl';
 
 export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { activeDashboard } = useDashboard();
@@ -55,16 +39,15 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Two-step memoization: cheap find runs whenever widgets array reference
   // changes, but the expensive DOMParser-based stripHtml only runs when the
   // raw text content actually changes (prevents jank during drag/resize).
-  const textWidgetContent = useMemo(() => {
-    if (!config.syncWithTextWidget) return undefined;
-    const textWidget = activeDashboard?.widgets.find((w) => w.type === 'text');
-    return (textWidget?.config as TextConfig | undefined)?.content;
-  }, [config.syncWithTextWidget, activeDashboard?.widgets]);
+  const textWidgetContent = useMemo(
+    () => getSyncedTextContent(config, activeDashboard?.widgets),
+    [config, activeDashboard?.widgets]
+  );
 
-  const syncedUrl = useMemo(() => {
-    if (!textWidgetContent) return undefined;
-    return stripHtml(textWidgetContent).trim() || undefined;
-  }, [textWidgetContent]);
+  const syncedUrl = useMemo(
+    () => extractSyncedUrl(textWidgetContent),
+    [textWidgetContent]
+  );
 
   // Use synced text content first, then widget config, then building defaults, then hardcoded.
   // Treat empty string as absent so nullish coalescing works correctly.
