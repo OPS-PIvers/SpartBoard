@@ -1,12 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import {
-  TimeToolConfig,
-  WidgetData,
-  ExpectationsConfig,
-  WidgetConfig,
-  TrafficConfig,
-  StationsConfig,
-} from '@/types';
+import { TimeToolConfig, WidgetData, WidgetConfig } from '@/types';
 import { useDashboard } from '@/context/useDashboard';
 import { playTimerAlert, resumeAudio } from '@/utils/timeToolAudio';
 
@@ -213,7 +206,6 @@ export const useTimeTool = (widget: WidgetData) => {
       if (expWidget) {
         updateWidget(expWidget.id, {
           config: {
-            ...(expWidget.config as ExpectationsConfig),
             voiceLevel: config.timerEndVoiceLevel,
           } as WidgetConfig,
         });
@@ -228,7 +220,6 @@ export const useTimeTool = (widget: WidgetData) => {
       if (trafficWidget) {
         updateWidget(trafficWidget.id, {
           config: {
-            ...(trafficWidget.config as TrafficConfig),
             active: config.timerEndTrafficColor,
           } as WidgetConfig,
         });
@@ -247,7 +238,6 @@ export const useTimeTool = (widget: WidgetData) => {
       if (randomWidget) {
         updateWidget(randomWidget.id, {
           config: {
-            ...randomWidget.config,
             externalTrigger: Date.now(),
           } as WidgetConfig,
         });
@@ -266,7 +256,6 @@ export const useTimeTool = (widget: WidgetData) => {
       if (nextUpWidget) {
         updateWidget(nextUpWidget.id, {
           config: {
-            ...nextUpWidget.config,
             externalTrigger: Date.now(),
           } as WidgetConfig,
         });
@@ -285,7 +274,6 @@ export const useTimeTool = (widget: WidgetData) => {
       if (stationsWidget) {
         updateWidget(stationsWidget.id, {
           config: {
-            ...(stationsWidget.config as StationsConfig),
             rotationTrigger: Date.now(),
           } as WidgetConfig,
         });
