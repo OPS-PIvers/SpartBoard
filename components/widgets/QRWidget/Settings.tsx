@@ -1,14 +1,26 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { WidgetData, QRConfig } from '@/types';
 import { Link, AlertCircle } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
+import { deriveSyncedUrl } from './deriveSyncedUrl';
 
 export const QRSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const { updateWidget, activeDashboard } = useDashboard();
   const config = widget.config as QRConfig;
 
   const hasTextWidget = activeDashboard?.widgets.some((w) => w.type === 'text');
+
+  // When sync is on, show the currently-effective synced URL in the disabled
+  // input so the user can see what the QR is actually pointing at. When sync
+  // is off, show their stored URL (which they're free to edit).
+  const syncedUrl = useMemo(
+    () => deriveSyncedUrl(config, activeDashboard?.widgets),
+    [config, activeDashboard?.widgets]
+  );
+  const displayedUrl = config.syncWithTextWidget
+    ? (syncedUrl ?? '')
+    : (config.url ?? '');
 
   return (
     <div className="space-y-6">
@@ -18,7 +30,7 @@ export const QRSettings: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         </label>
         <input
           type="text"
-          value={config.url ?? ''}
+          value={displayedUrl}
           onChange={(e) =>
             updateWidget(widget.id, {
               config: { ...config, url: e.target.value } as QRConfig,
