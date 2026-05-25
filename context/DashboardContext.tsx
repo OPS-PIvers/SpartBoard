@@ -376,8 +376,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   const activeIdRef = useRef(activeId);
   // Forward-declared ref so the drawing-subcollection migration effect
   // (which sits above updateWidget's definition in this file) can invoke
-  // the same callback once it's assigned. Wired up below via a useEffect
-  // mirror so the ref always holds the latest closure.
+  // the same callback once it's assigned. The ref is updated by a direct
+  // in-render assignment below (`updateWidgetRef.current = updateWidget`),
+  // not a useEffect — per CLAUDE.md, refs derived from values can be
+  // assigned in the render body and don't need an effect.
   const updateWidgetRef = useRef<
     ((id: string, updates: Partial<WidgetData>) => void) | null
   >(null);
@@ -4124,10 +4126,10 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             updateWidgetRef.current?.(widget.id, { config: migratedConfig });
           }
         } catch (err) {
-          console.error(
-            '[DashboardContext] drawing subcollection migration failed:',
-            err
-          );
+          logError('DashboardContext.drawingSubcollectionMigration', err, {
+            dashboardId,
+            widgetId: widget.id,
+          });
         } finally {
           subcollectionMigrationInFlightRef.current.delete(key);
         }

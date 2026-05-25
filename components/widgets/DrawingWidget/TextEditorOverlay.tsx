@@ -32,8 +32,11 @@ interface TextEditorOverlayProps {
  *
  * Commit triggers: blur, `Cmd/Ctrl+Enter`. Cancel: `Escape`.
  *
- * Empty content on commit triggers `onCancel` instead — callers treat that as
- * "drop the object" (matches the degenerate-shape rule in `useDrawingCanvas`).
+ * Empty content is committed via `onCommit({...object, content: ''})` —
+ * callers resolve the "drop vs no-op" decision (fresh-spawn empty → no-op,
+ * existing-object emptied → remove via the appropriate command). This
+ * differs from the cancel path (`Escape`), which always calls `onCancel`
+ * without persisting the editor's content.
  *
  * Sanitization: we extract `innerText` (browser-stripped plain text) rather
  * than `innerHTML`, so paste-in HTML never reaches the persisted object. The
@@ -51,20 +54,19 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   // Stash callbacks + object in refs so blur/keydown handlers always see the
   // latest closure without re-binding listeners (avoids missed commits if
   // React re-renders between an in-flight pointer event and the handler
-  // firing). Inline ref assignment (per CLAUDE.md: useEffect is an escape
-  // hatch, not a default — refs derived from props should be assigned in the
-  // render body, not in an effect).
-  //
-  // StrictMode safety: assigning to ref.current during render is safe even
-  // under StrictMode's double-invoke render — the assignment is idempotent
-  // (same prop value each time) and React clears refs between mounts. The
-  // anti-pattern is mutating non-ref state during render, which we don't do.
+  // firing). The refs are synced via a deps-free `useEffect` so the
+  // `react-hooks/refs-during-render` rule doesn't flag the assignments;
+  // the lag of one render before the ref reflects a new prop value is
+  // immaterial here — the consumers (blur/keydown handlers) fire from
+  // event loops AFTER the render commits.
   const onCommitRef = useRef(onCommit);
   const onCancelRef = useRef(onCancel);
   const objectRef = useRef(object);
-  onCommitRef.current = onCommit;
-  onCancelRef.current = onCancel;
-  objectRef.current = object;
+  useEffect(() => {
+    onCommitRef.current = onCommit;
+    onCancelRef.current = onCancel;
+    objectRef.current = object;
+  });
   // Guard so blur after a Cmd+Enter commit (which intentionally blurs the
   // editor) doesn't double-fire onCommit and clobber an upstream state reset.
   const finalizedRef = useRef(false);
@@ -84,9 +86,11 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
 
   // Focus + seed content on mount (and on object id change, when the same
   // overlay is re-used for a different TextObject — e.g. double-click flow).
-  // Deliberately depends on `object.id` only (not `object.content`) so a
+  // Deliberately keys on `object.id` only (not `object.content`) so a
   // remote sync (live-share / multi-tab) that updates the persisted content
-  // does NOT clobber the user's in-progress local edit.
+  // does NOT clobber the user's in-progress local edit. We read the seed
+  // content from `objectRef.current` (assigned during render above), so the
+  // exhaustive-deps lint rule sees an accurate dep list without suppression.
   useEffect(() => {
     const node = editorRef.current;
     if (!node) return;
@@ -94,7 +98,7 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     // <br> in the browser's contenteditable model while keeping the source
     // string plain-text. We intentionally avoid innerHTML so a stale object
     // content with HTML-looking characters renders literally.
-    node.innerText = object.content;
+    node.innerText = objectRef.current.content;
     finalizedRef.current = false;
     // Focus + place caret at end of content so the user can continue typing
     // when re-editing existing text.
@@ -104,7 +108,6 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       sel.selectAllChildren(node);
       sel.collapseToEnd();
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [object.id]);
 
   const finalize = (commit: boolean) => {

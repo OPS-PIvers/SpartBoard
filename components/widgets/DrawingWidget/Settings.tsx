@@ -5,6 +5,7 @@ import { Pencil, Palette, Square, LayoutGrid } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { DRAWING_DEFAULTS } from './constants';
 import { getBackgroundStyle } from './backgroundTemplates';
+import { migrateDrawingConfig } from '@/utils/migrateDrawingConfig';
 
 const BACKGROUND_OPTIONS: ReadonlyArray<{
   value: DrawingBackground;
@@ -39,16 +40,27 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
     DRAWING_DEFAULTS.BACKGROUND;
 
   const handleBackgroundChange = (next: DrawingBackground) => {
+    // Run the synchronous migration first so a legacy/new-widget config
+    // with no `pages` arrives at the canonical single-page shape before we
+    // apply the edit. Without this, `pages.map(...)` returns `[]` on an
+    // empty `pages`, the persisted payload becomes `pages: []`, and the
+    // "never zero pages" invariant is violated until next hydration.
+    const migrated = migrateDrawingConfig(config);
+    const migratedPages = migrated.pages;
+    const targetIndex = Math.max(
+      0,
+      Math.min(migrated.currentPage, migratedPages.length - 1)
+    );
+    const nextPages = migratedPages.map((p, i) =>
+      i === targetIndex ? { ...p, background: next } : p
+    );
     // Update both: (a) the active page's `background` so this edit applies
     // immediately, and (b) the widget-level `background` so freshly-added
     // pages inherit the latest choice. This matches the spec's per-page +
     // widget-default model.
-    const nextPages = pages.map((p, i) =>
-      i === currentPage ? { ...p, background: next } : p
-    );
     updateWidget(widget.id, {
       config: {
-        ...config,
+        ...migrated,
         background: next,
         pages: nextPages,
       } as DrawingConfig,

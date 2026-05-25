@@ -79,6 +79,21 @@ interface UseDrawingObjectsDocResult {
 const LRU_MAX = 2;
 
 /**
+ * Per-instance subscriber callbacks. Each hook instance currently subscribed
+ * to a cache entry registers a pair here; the entry's `onSnapshot` callback
+ * fans out to every registered subscriber. This means:
+ *   - The shared listener can't accidentally call setState on an UNMOUNTED
+ *     hook instance — cleanup unregisters before unmount completes.
+ *   - Multiple live consumers of the same page (e.g. live-share viewer + host
+ *     in the same tab, or React StrictMode's double-mount) all observe the
+ *     latest data, not just the instance that opened the listener.
+ */
+interface EntrySubscriber {
+  setObjects: (next: DrawableObject[]) => void;
+  setLoading: (next: boolean) => void;
+}
+
+/**
  * Cache entry for an active page subscription.
  *
  * - `unsubscribe` / `refs`: lifecycle for the underlying `onSnapshot`.
@@ -86,14 +101,16 @@ const LRU_MAX = 2;
  *   consumer who hits a warm cache entry (back-navigation within the LRU
  *   window) can hydrate `objects` synchronously instead of waiting for the
  *   next remote re-emission. `null` until the first snapshot arrives.
- * - `version`: monotonically increments on each successful snapshot.
- *   Reserved for future stale-snapshot diagnostics — not currently read.
+ * - `subscribers`: the live hook instances reading from this entry. The
+ *   `onSnapshot` callback iterates this set rather than closing over any
+ *   single instance's setState — so an unmounted instance can never be
+ *   pushed an update.
  */
 type ActiveSub = {
   unsubscribe: Unsubscribe;
   refs: number;
   lastObjects: DrawableObject[] | null;
-  version: number;
+  subscribers: Set<EntrySubscriber>;
 };
 const activeSubsByContext = new Map<string, Map<string, ActiveSub>>();
 
@@ -145,8 +162,15 @@ export const useDrawingObjectsDoc = ({
   const { user } = useAuth();
   const uid = user?.uid;
 
+  // Initialize state from preconditions so the idle case never has to call
+  // setState inside an effect (sidesteps the react-hooks/set-state-in-effect
+  // lint flag). When preconditions become satisfied, the active branch of
+  // the effect below transitions loading via cache-reuse hydration or via
+  // the snapshot callback — both legitimate external-system synchronization
+  // sites that the rule has no quarrel with.
+  const hasPreconditions = !!uid && !!dashboardId && !!pageId;
   const [objects, setObjects] = useState<DrawableObject[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(hasPreconditions);
 
   // Track which (dashboardId, widgetId, pageId) tuple this hook instance is
   // subscribed to so the cleanup path can decrement the right refcount even
@@ -156,29 +180,19 @@ export const useDrawingObjectsDoc = ({
     pageId: string;
   } | null>(null);
 
-  // Per-instance gate: each `useDrawingObjectsDoc` instance should only
-  // accept snapshot callbacks from the entry it is CURRENTLY subscribed to.
-  // Without this, a stale listener (entry for page A, still warm in LRU)
-  // could fire while the instance has moved on to page B, and the
-  // setObjects call would clobber B's data with A's. We compare the
-  // listener's `(contextKey, pageId)` against this ref before applying.
-  const activeSubKeyRef = useRef<{
-    contextKey: string;
-    pageId: string;
-  } | null>(null);
-
   useEffect(() => {
     if (!uid || !dashboardId || !pageId) {
-      // No active subscription — reset to the empty/idle baseline. These
-      // setState calls are the standard "drop external subscription"
-      // pattern: synchronizing with the absence of the external system.
-      // The rule flags only the FIRST setState site per branch as the
-      // anchor; subsequent setStates in the same branch don't get a fresh
-      // diagnostic, so a single suppression covers the cluster.
-      activeSubKeyRef.current = null;
+      // Hook is parked — synchronize local state with the absence of the
+      // subscription. The functional updaters short-circuit when the new
+      // value would match the old, so re-renders only fire when state
+      // actually changes (e.g. props going from active → idle mid-session).
+      // This IS legitimate "synchronize with external system" — the absent
+      // subscription is the external system — but the lint rule's
+      // heuristic flags every setState-in-effect, so suppress here.
+      subscribedKeyRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setObjects([]);
-      setLoading(false);
+      setObjects((prev) => (prev.length === 0 ? prev : []));
+      setLoading((prev) => (prev ? false : prev));
       return;
     }
 
@@ -188,11 +202,6 @@ export const useDrawingObjectsDoc = ({
       contextMap = new Map();
       activeSubsByContext.set(contextKey, contextMap);
     }
-
-    // Mark which page this instance is now actively subscribed to BEFORE we
-    // touch React state — so the snapshot-callback gate below uses the
-    // current page id rather than a stale one.
-    activeSubKeyRef.current = { contextKey, pageId };
 
     let entry = contextMap.get(pageId);
     const isCacheReuse = !!entry;
@@ -210,14 +219,14 @@ export const useDrawingObjectsDoc = ({
         pageId,
         'objects'
       );
-      // Pre-create the entry so the snapshot callback can write
-      // `entry.lastObjects` even on the synchronous first callback.
+      // Pre-create the entry so the snapshot callback can populate
+      // `lastObjects` + fan out to subscribers on the very first emission.
       const newEntry: ActiveSub = {
         // Reassigned below after onSnapshot returns.
         unsubscribe: () => undefined,
         refs: 0,
         lastObjects: null,
-        version: 0,
+        subscribers: new Set<EntrySubscriber>(),
       };
       const unsubscribe = onSnapshot(
         colRef,
@@ -226,33 +235,19 @@ export const useDrawingObjectsDoc = ({
           // Stable z-order: callers expect ascending z (last-on-top render).
           next.sort((a, b) => a.z - b.z);
           newEntry.lastObjects = next;
-          newEntry.version += 1;
-          // Gate: only update React state if THIS hook instance is still
-          // subscribed to this (contextKey, pageId). A listener firing for
-          // a page the instance has navigated away from must NOT clobber
-          // the new page's data. Other instances reading from this same
-          // entry still get the new data via their own effects (cache-
-          // reuse hydration on subscribe, or this same gate when they're
-          // the active reader).
-          const active = activeSubKeyRef.current;
-          if (
-            active &&
-            active.contextKey === contextKey &&
-            active.pageId === pageId
-          ) {
-            setObjects(next);
-            setLoading(false);
+          // Fan out to every live subscriber. Unmounted hook instances are
+          // removed from this set by their effect cleanup BEFORE unmount
+          // commits, so a setState on an unmounted component is impossible
+          // by construction.
+          for (const sub of newEntry.subscribers) {
+            sub.setObjects(next);
+            sub.setLoading(false);
           }
         },
         (err) => {
           console.error('[useDrawingObjectsDoc] subscription error:', err);
-          const active = activeSubKeyRef.current;
-          if (
-            active &&
-            active.contextKey === contextKey &&
-            active.pageId === pageId
-          ) {
-            setLoading(false);
+          for (const sub of newEntry.subscribers) {
+            sub.setLoading(false);
           }
         }
       );
@@ -261,23 +256,21 @@ export const useDrawingObjectsDoc = ({
       entry = newEntry;
     }
     entry.refs += 1;
+    const subscriber: EntrySubscriber = { setObjects, setLoading };
+    entry.subscribers.add(subscriber);
     subscribedKeyRef.current = { contextKey, pageId };
 
-    if (isCacheReuse) {
+    if (isCacheReuse && entry.lastObjects !== null) {
       // Hydrate from the cache entry synchronously. If a snapshot has
       // already fired for this entry, replay it so the consumer sees the
       // data immediately instead of waiting for the next server emission
-      // (which may never come if the page is static). If no snapshot has
-      // landed yet (still waiting on the original subscribe), stay in
-      // loading=true.
-      if (entry.lastObjects !== null) {
-        setObjects(entry.lastObjects);
-        setLoading(false);
-      } else {
-        setLoading(true);
-      }
+      // (which may never come if the page is static).
+      setObjects(entry.lastObjects);
+      setLoading(false);
     } else {
-      // Fresh subscribe — the snapshot callback will flip loading=false.
+      // Fresh subscribe (or warm entry that hasn't received its first
+      // snapshot yet) — the snapshot callback will flip loading=false when
+      // it fires.
       setLoading(true);
     }
 
@@ -288,6 +281,7 @@ export const useDrawingObjectsDoc = ({
       if (!cm) return;
       const e = cm.get(subKey.pageId);
       if (!e) return;
+      e.subscribers.delete(subscriber);
       e.refs -= 1;
       // Eviction is deferred to the next subscribe — keeping the listener
       // around for the LRU window costs only a handful of bytes and lets
