@@ -29,6 +29,8 @@ interface MockCtx {
   fillText: Mock;
   setLineDash: Mock;
   arc: Mock;
+  rect: Mock;
+  clip: Mock;
   globalAlpha: number;
   canvas: { width: number; height: number };
   lineCap: string;
@@ -57,6 +59,8 @@ const makeMockCtx = (): MockCtx => ({
   fillText: vi.fn(),
   setLineDash: vi.fn(),
   arc: vi.fn(),
+  rect: vi.fn(),
+  clip: vi.fn(),
   globalAlpha: 1,
   canvas: { width: 800, height: 600 },
   lineCap: 'round',
@@ -920,5 +924,120 @@ describe('useDrawingCanvas', () => {
     expect(drawImageSpy).not.toHaveBeenCalled();
 
     window.Image = Original;
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Phase 2 PR 2.6 — incremental render
+  // ─────────────────────────────────────────────────────────────────────────
+
+  describe('incremental render', () => {
+    const makeObjects = (count: number): DrawableObject[] =>
+      Array.from({ length: count }, (_, i) =>
+        pathObj({
+          id: `obj-${i}`,
+          z: i,
+          // Spread the objects across the canvas so the dirty-region
+          // intersect test in the hook has something nontrivial to do.
+          points: [
+            { x: (i * 7) % 700, y: (i * 11) % 500 },
+            { x: ((i * 7) % 700) + 5, y: ((i * 11) % 500) + 5 },
+          ],
+        })
+      );
+
+    it('changing 1 of 100 objects clears only a small region, not the full canvas', () => {
+      const canvas = makeCanvas();
+      const canvasRef = { current: canvas };
+      const initial = makeObjects(100);
+
+      const { rerender } = renderHook(
+        ({ objects }: { objects: DrawableObject[] }) =>
+          useDrawingCanvas({
+            canvasRef,
+            color: '#000',
+            width: 4,
+            objects,
+            onObjectComplete: vi.fn(),
+            canvasSize: { width: 800, height: 600 },
+            nextZ: 100,
+          }),
+        { initialProps: { objects: initial } }
+      );
+
+      mockCtx.clearRect.mockClear();
+
+      // Mutate one object — produce a fresh object so reference equality
+      // marks it dirty.
+      const next: DrawableObject[] = initial.map((o, i) => {
+        if (i !== 50 || o.kind !== 'path') return o;
+        return pathObj({
+          id: o.id,
+          z: o.z,
+          color: o.color,
+          width: o.width,
+          points: [
+            { x: 200, y: 200 },
+            { x: 210, y: 210 },
+          ],
+        });
+      });
+      rerender({ objects: next });
+
+      expect(mockCtx.clearRect).toHaveBeenCalled();
+      // The incremental path clears a region SMALLER than the full canvas
+      // (800 × 600). Walk every clearRect call; at least one must have
+      // smaller width AND smaller height than the canvas.
+      const calls = mockCtx.clearRect.mock.calls;
+      const partialClear = calls.some(
+        (args) => (args[2] as number) < 800 || (args[3] as number) < 600
+      );
+      expect(partialClear).toBe(true);
+    });
+
+    it('changing 30 of 100 objects falls back to a full-canvas clear', () => {
+      const canvas = makeCanvas();
+      const canvasRef = { current: canvas };
+      const initial = makeObjects(100);
+
+      const { rerender } = renderHook(
+        ({ objects }: { objects: DrawableObject[] }) =>
+          useDrawingCanvas({
+            canvasRef,
+            color: '#000',
+            width: 4,
+            objects,
+            onObjectComplete: vi.fn(),
+            canvasSize: { width: 800, height: 600 },
+            nextZ: 100,
+          }),
+        { initialProps: { objects: initial } }
+      );
+
+      mockCtx.clearRect.mockClear();
+
+      // Mutate 30 objects (≥ 25 absolute and ≥ 25% of total) — exceeds
+      // both thresholds in the hook so the fallback path runs.
+      const next: DrawableObject[] = initial.map((o, i) => {
+        if (i >= 30 || o.kind !== 'path') return o;
+        return pathObj({
+          id: o.id,
+          z: o.z,
+          color: o.color,
+          width: o.width,
+          points: [
+            { x: 100 + i, y: 100 + i },
+            { x: 110 + i, y: 110 + i },
+          ],
+        });
+      });
+      rerender({ objects: next });
+
+      // Full-canvas clear must have happened at least once.
+      const fullClearHit = mockCtx.clearRect.mock.calls.some(
+        (args) =>
+          args[0] === 0 && args[1] === 0 && args[2] === 800 && args[3] === 600
+      );
+      expect(fullClearHit).toBe(true);
+    });
   });
 });

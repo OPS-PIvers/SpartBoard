@@ -46,6 +46,10 @@ interface MockContext {
   // throws as soon as a selection lands.
   setLineDash: Mock;
   arc: Mock;
+  // Phase 2 PR 2.6 incremental render uses rect + clip to mask the dirty
+  // region during partial redraws.
+  rect: Mock;
+  clip: Mock;
   globalAlpha: number;
   canvas: { width: number; height: number };
   lineCap: string;
@@ -92,6 +96,8 @@ describe('DrawingWidget', () => {
       fillText: vi.fn(),
       setLineDash: vi.fn(),
       arc: vi.fn(),
+      rect: vi.fn(),
+      clip: vi.fn(),
       globalAlpha: 1,
       canvas: { width: 800, height: 600 },
       lineCap: 'round',

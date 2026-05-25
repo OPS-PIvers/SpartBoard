@@ -35,6 +35,7 @@ import { TextEditorOverlay } from './TextEditorOverlay';
 import { useImageInsertion } from './useImageInsertion';
 import { useSelection } from './useSelection';
 import { useCommandStack } from './useCommandStack';
+import { useDrawingObjectsDoc } from './useDrawingObjectsDoc';
 import { useDrawingPages } from './useDrawingPages';
 import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
@@ -100,7 +101,35 @@ export const DrawingWidget: React.FC<{
   // in production — but we keep the guard for defensive symmetry with the
   // legacy single-page path.
   const activePage: DrawingPage = pages[currentPage] ?? pages[0];
-  const objects = activePage.objects;
+
+  // Phase 2 PR 2.6: object content lives in a page-nested Firestore
+  // subcollection, not on the dashboard doc. The dashboard config still
+  // carries `pages[].id` + `pages[].background` (a denormalized cache so
+  // the page list is readable in one snapshot), but `objects[]` is
+  // sourced from this hook. AnnotationOverlay is intentionally NOT migrated
+  // to the subcollection — it keeps its single-doc annotation state on the
+  // dashboard (see context/DashboardContext.tsx).
+  const dashboardId = activeDashboard?.id ?? null;
+  const {
+    objects: subcollectionObjects,
+    addObject: subAddObject,
+    updateObject: subUpdateObject,
+    removeObject: subRemoveObject,
+    clear: subClearObjects,
+    loading: objectsLoading,
+  } = useDrawingObjectsDoc({
+    dashboardId,
+    widgetId: widget.id,
+    pageId: activePage.id,
+  });
+
+  // Before the migration flag is set we keep reading objects off the
+  // dashboard doc so the widget shows the user's existing canvas while the
+  // batch writes are in flight. Once `subcollectionMigrated` flips true,
+  // the subcollection becomes the source of truth.
+  const objects: DrawableObject[] = config.subcollectionMigrated
+    ? subcollectionObjects
+    : activePage.objects;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isExtracting, setIsExtracting] = useState(false);
@@ -134,13 +163,48 @@ export const DrawingWidget: React.FC<{
   }, [isStudentView, widget.w, widget.h]);
 
   // Page-scoped sink: every command-stack apply (push / undo / redo) lands
-  // here. The hook hands us a new `objects[]` for the active page; we splice
-  // it back into `pages[]` (preserving each other page's id + background)
-  // and emit one updateWidget per write. Wrapped in useCallback so the
-  // command stack hook's `onObjectsChange` identity stays stable across
-  // renders.
+  // here. The hook hands us a new `objects[]` for the active page.
+  //
+  // Phase 2 PR 2.6 — post-migration, object writes route to the subcollection
+  // (one Firestore op per added/changed/removed object). Pre-migration, we
+  // still write the whole `pages[]` block to the dashboard doc so the
+  // widget stays functional during the migration window.
+  //
+  // The diff path matches React's reconciliation pattern: keyed by id,
+  // we compute the (added, updated, removed) sets and dispatch one mutator
+  // per. setDoc / deleteDoc are async but we don't await — Firestore's
+  // optimistic listener will surface the new state through the subscription
+  // anyway, and waiting would block the synchronous command-stack flow.
   const writeObjects = useCallback(
     (next: DrawableObject[]) => {
+      if (config.subcollectionMigrated) {
+        // Clear All path — route through the chunked batch-delete so a
+        // 1000-object wipe ships as 3 batched commits instead of 1000
+        // individual deletes.
+        if (next.length === 0 && objects.length > 0) {
+          void subClearObjects();
+          return;
+        }
+        const prevById = new Map(objects.map((o) => [o.id, o]));
+        const nextById = new Map(next.map((o) => [o.id, o]));
+        // Removed: in prev but not in next.
+        for (const [id] of prevById) {
+          if (!nextById.has(id)) {
+            void subRemoveObject(id);
+          }
+        }
+        // Added or updated: walk next.
+        for (const [id, obj] of nextById) {
+          const prev = prevById.get(id);
+          if (!prev) {
+            void subAddObject(obj);
+          } else if (prev !== obj) {
+            void subUpdateObject(obj);
+          }
+        }
+        return;
+      }
+      // Legacy path — single doc write of the whole page list.
       const nextPages = pages.map((p, i) =>
         i === currentPage ? { ...p, objects: next } : p
       );
@@ -148,7 +212,18 @@ export const DrawingWidget: React.FC<{
         config: { ...config, pages: nextPages } as DrawingConfig,
       });
     },
-    [updateWidget, widget.id, config, pages, currentPage]
+    [
+      updateWidget,
+      widget.id,
+      config,
+      pages,
+      currentPage,
+      objects,
+      subAddObject,
+      subUpdateObject,
+      subRemoveObject,
+      subClearObjects,
+    ]
   );
 
   // Partial-config writer used by `useDrawingPages` for navigation /
@@ -824,11 +899,23 @@ export const DrawingWidget: React.FC<{
           className="absolute inset-0"
           style={{ touchAction: 'none' }}
         />
-        {objects.length === 0 && !isDrawing && (
+        {/* Loading state — only shown while the subcollection subscription
+            is hydrating its first snapshot. Keeps the toolbar / page strip
+            interactive (a teacher can switch tools and pages while waiting)
+            but suppresses the empty-state hint so it doesn't briefly flash
+            "draw here" before the snapshot lands. */}
+        {config.subcollectionMigrated && objectsLoading && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
-            <Pencil className="w-8 h-8 opacity-20" />
+            <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full animate-spin opacity-50" />
           </div>
         )}
+        {objects.length === 0 &&
+          !isDrawing &&
+          !(config.subcollectionMigrated && objectsLoading) && (
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
+              <Pencil className="w-8 h-8 opacity-20" />
+            </div>
+          )}
         {editingText && canvasRect && (
           <TextEditorOverlay
             object={editingText}

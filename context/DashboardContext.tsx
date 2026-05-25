@@ -21,6 +21,7 @@ import {
   GridPosition,
   FeaturePermission,
   DrawableObject,
+  DrawingConfig,
   UserProfile,
   SubstituteShareDriveGrant,
   ROOT_COLLECTION_KEY,
@@ -42,6 +43,10 @@ import {
   migrateLocalStorageToFirestore,
   migrateWidget,
 } from '../utils/migration';
+import {
+  migrateDrawingToSubcollection,
+  needsSubcollectionMigration,
+} from '../utils/migrateDrawingToSubcollection';
 import {
   REFERENCE_VIEWPORT,
   pixelToProp,
@@ -368,6 +373,13 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
+  // Forward-declared ref so the drawing-subcollection migration effect
+  // (which sits above updateWidget's definition in this file) can invoke
+  // the same callback once it's assigned. Wired up below via a useEffect
+  // mirror so the ref always holds the latest closure.
+  const updateWidgetRef = useRef<
+    ((id: string, updates: Partial<WidgetData>) => void) | null
+  >(null);
   // Keep a ref to account-level remote control so the Firestore snapshot
   // handler can read the latest value without triggering a re-subscription.
   const accountRemoteControlEnabledRef = useRef(accountRemoteControlEnabled);
@@ -4041,6 +4053,53 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
+  // Phase 2 PR 2.6 — relocate DrawingWidget `pages[].objects[]` to the
+  // page-nested Firestore subcollection on first load. Idempotent: skips
+  // any widget whose `subcollectionMigrated` flag is already set. We track
+  // in-flight migrations in a ref so React StrictMode's double-invocation
+  // does not fire two concurrent batch writes for the same widget. The
+  // dashboard doc's `pages[]` is kept as a denormalized cache (id +
+  // background only) so the page list survives without an extra read.
+  const subcollectionMigrationInFlightRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!user || !activeDashboard || isAuthBypass) return;
+    const uid = user.uid;
+    const dashboardId = activeDashboard.id;
+    for (const widget of activeDashboard.widgets) {
+      if (widget.type !== 'drawing') continue;
+      const config = widget.config as DrawingConfig;
+      if (!needsSubcollectionMigration(config)) continue;
+      const key = `${dashboardId}::${widget.id}`;
+      if (subcollectionMigrationInFlightRef.current.has(key)) continue;
+      subcollectionMigrationInFlightRef.current.add(key);
+      void (async () => {
+        try {
+          const { migratedConfig, ran } = await migrateDrawingToSubcollection({
+            db,
+            uid,
+            dashboardId,
+            widgetId: widget.id,
+            config,
+          });
+          if (ran) {
+            // Persist the denormalized config (sets the
+            // subcollectionMigrated flag + drops `objects[]`). On batch
+            // failure the throw above leaves the flag unset so the next
+            // load retries.
+            updateWidgetRef.current?.(widget.id, { config: migratedConfig });
+          }
+        } catch (err) {
+          console.error(
+            '[DashboardContext] drawing subcollection migration failed:',
+            err
+          );
+        } finally {
+          subcollectionMigrationInFlightRef.current.delete(key);
+        }
+      })();
+    }
+  }, [user, activeDashboard]);
+
   // True when the user is viewing a board they joined as a viewer in
   // View-Only mode. Read-only mutation guards check this via a ref so
   // memoized action callbacks don't have to invalidate on every change.
@@ -4514,6 +4573,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     },
     [saveWidgetConfig]
   );
+
+  // Mirror the latest updateWidget closure into the forward-declared ref
+  // so callbacks defined upstream (the drawing-subcollection migration
+  // effect, etc.) can invoke it without circular `useCallback` dependencies.
+  updateWidgetRef.current = updateWidget;
 
   // --- Widget grouping ---
 

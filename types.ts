@@ -1083,6 +1083,14 @@ export interface DrawingConfig {
    * Defaults to `'blank'` when absent.
    */
   background?: DrawingBackground;
+  /**
+   * Phase 2 PR 2.6 — set once the widget's `pages[].objects[]` have been
+   * relocated to the Firestore subcollection (see
+   * `utils/migrateDrawingToSubcollection.ts`). After migration, the
+   * dashboard doc keeps `pages[]` as a denormalized cache (id + background
+   * only — `objects[]` is dropped). One-way flag: never unset.
+   */
+  subcollectionMigrated?: boolean;
 }
 
 export interface QRConfig {

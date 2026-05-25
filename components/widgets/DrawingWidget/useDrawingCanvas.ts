@@ -22,6 +22,7 @@ import {
   TransformChromeState,
 } from './renderers/selection';
 import { DRAWING_DEFAULTS } from './constants';
+import { getBoundingBox, type BoundingBox } from './hitTest';
 
 interface UseDrawingCanvasOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -124,6 +125,17 @@ export const useDrawingCanvas = ({
   // dispatcher can fire a redraw without us re-binding closures each render.
   // The current draw() effect installs the latest redraw into this ref.
   const triggerRedrawRef = useRef<(() => void) | null>(null);
+  // Phase 2 PR 2.6 — incremental render bookkeeping. We remember the
+  // last-rendered objects keyed by id; on each new render we diff against
+  // the incoming list to identify which ids changed (added, removed, or
+  // mutated by reference). When the dirty set is small enough we clear
+  // ONLY the union bbox of the dirty objects (plus a stroke-width padding)
+  // and re-render only objects whose bbox intersects that region — instead
+  // of a full-canvas clear + N-object redraw. Reference-equality is the
+  // right comparator here because the command-stack/subcollection sinks
+  // always produce a new object on update; an unchanged object retains its
+  // identity through the reducer's `map(o => o.id === ... ? next : o)`.
+  const prevObjectsRef = useRef<Map<string, DrawableObject>>(new Map());
 
   const setPathContextStyles = useCallback(
     (ctx: CanvasRenderingContext2D, tool: 'pen' | 'eraser') => {
@@ -179,27 +191,202 @@ export const useDrawingCanvas = ({
     [color, width, shapeFill, selectedObject, transformState, previewObject]
   );
 
-  // Apply canvas resolution + redraw on size / object-list change
+  /**
+   * Phase 2 PR 2.6 incremental draw. Clears the union bbox of `dirtyIds`
+   * (padded for stroke width) and re-renders only objects whose bbox
+   * intersects that region. Z-order is preserved by filtering the sorted
+   * full list — a stale higher-z object that overlaps the dirty region
+   * gets repainted on top so it doesn't appear behind the changed object.
+   *
+   * `previewObject` is applied as in the full draw. Selection chrome and
+   * in-progress shapes are always re-rendered fresh — they're transient
+   * and their bbox isn't reliably known until pointer-up.
+   */
+  const drawIncremental = useCallback(
+    (
+      ctx: CanvasRenderingContext2D,
+      allObjects: DrawableObject[],
+      inProgress: InProgress | null,
+      dirtyIds: Set<string>,
+      prevObjects: Map<string, DrawableObject>
+    ): void => {
+      // Compute the union bbox of every dirty object across BOTH the
+      // previous and next snapshots — a removed object leaves its old
+      // pixels behind, so we must clear its pre-removal bbox. The padding
+      // covers stroke widths and arrow heads that extend beyond a path's
+      // points.
+      const STROKE_PAD = 16;
+      let unionX = Infinity;
+      let unionY = Infinity;
+      let unionR = -Infinity;
+      let unionB = -Infinity;
+      const expand = (bbox: BoundingBox) => {
+        if (bbox.x < unionX) unionX = bbox.x;
+        if (bbox.y < unionY) unionY = bbox.y;
+        const right = bbox.x + bbox.w;
+        const bottom = bbox.y + bbox.h;
+        if (right > unionR) unionR = right;
+        if (bottom > unionB) unionB = bottom;
+      };
+      const nextById = new Map(allObjects.map((o) => [o.id, o]));
+      dirtyIds.forEach((id) => {
+        const prev = prevObjects.get(id);
+        if (prev) expand(getBoundingBox(prev));
+        const next = nextById.get(id);
+        if (next) expand(getBoundingBox(next));
+      });
+      // If nothing valid landed (should not happen with a non-empty dirty
+      // set), bail to a full clear for safety.
+      if (
+        !Number.isFinite(unionX) ||
+        !Number.isFinite(unionY) ||
+        !Number.isFinite(unionR) ||
+        !Number.isFinite(unionB)
+      ) {
+        draw(ctx, allObjects, inProgress);
+        return;
+      }
+      const dirtyX = Math.max(0, Math.floor(unionX - STROKE_PAD));
+      const dirtyY = Math.max(0, Math.floor(unionY - STROKE_PAD));
+      const dirtyR = Math.min(ctx.canvas.width, Math.ceil(unionR + STROKE_PAD));
+      const dirtyB = Math.min(
+        ctx.canvas.height,
+        Math.ceil(unionB + STROKE_PAD)
+      );
+      const dirtyW = dirtyR - dirtyX;
+      const dirtyH = dirtyB - dirtyY;
+      if (dirtyW <= 0 || dirtyH <= 0) return;
+
+      ctx.clearRect(dirtyX, dirtyY, dirtyW, dirtyH);
+
+      // Z-order matters even in the incremental path: clip to the dirty
+      // region so anything we redraw can't accidentally paint outside the
+      // cleared area.
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(dirtyX, dirtyY, dirtyW, dirtyH);
+      ctx.clip();
+
+      const effective = previewObject
+        ? allObjects.map((o) => (o.id === previewObject.id ? previewObject : o))
+        : allObjects;
+      const sorted = [...effective].sort((a, b) => a.z - b.z);
+      // AABB overlap test against the dirty region.
+      const intersects = (obj: DrawableObject): boolean => {
+        const bbox = getBoundingBox(obj);
+        if (bbox.x + bbox.w < dirtyX) return false;
+        if (bbox.x > dirtyR) return false;
+        if (bbox.y + bbox.h < dirtyY) return false;
+        if (bbox.y > dirtyB) return false;
+        return true;
+      };
+      sorted
+        .filter((obj) => intersects(obj))
+        .forEach((obj) =>
+          renderObject(ctx, obj, () => triggerRedrawRef.current?.())
+        );
+
+      ctx.restore();
+
+      if (inProgress) {
+        renderInProgress(ctx, inProgress, color, width, shapeFill);
+      }
+      if (selectedObject) {
+        const chromeTarget =
+          previewObject && previewObject.id === selectedObject.id
+            ? previewObject
+            : selectedObject;
+        renderSelectionChrome(ctx, chromeTarget, transformState, 1);
+      }
+    },
+    [
+      draw,
+      color,
+      width,
+      shapeFill,
+      selectedObject,
+      transformState,
+      previewObject,
+    ]
+  );
+
+  // Apply canvas resolution + redraw on size / object-list change.
+  // Incremental render: when fewer than ~25% of objects (and < 25 absolute)
+  // have changed by reference since the last draw, clip to the union dirty
+  // bbox instead of clearing the full canvas. Otherwise fall back to a
+  // full clear+redraw (the original behavior).
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
+    const sizeChanged =
+      canvas.width !== canvasSize.width || canvas.height !== canvasSize.height;
     if (canvas.width !== canvasSize.width) canvas.width = canvasSize.width;
     if (canvas.height !== canvasSize.height) canvas.height = canvasSize.height;
 
     // Install the latest redraw closure for renderImage's onload callback.
     // Async image decodes resolve via this ref, so a freshly-pasted image
     // appears as soon as the bytes arrive — no polling, no setTimeout.
+    // The redraw is always a full draw — async decode-completion doesn't
+    // know which objects are "dirty" relative to anything.
     triggerRedrawRef.current = () => {
       const c = canvasRef.current;
       const c2 = c?.getContext('2d');
-      if (c && c2) draw(c2, objects, inProgressRef.current);
+      if (c && c2) {
+        draw(c2, objects, inProgressRef.current);
+        prevObjectsRef.current = new Map(objects.map((o) => [o.id, o]));
+      }
     };
 
-    draw(ctx, objects, inProgressRef.current);
-  }, [canvasRef, canvasSize.width, canvasSize.height, objects, draw]);
+    // Diff against last render. Reference-equality is the comparator:
+    // every mutation produces a new object via map/spread, so identity
+    // change = "this object's geometry or style is potentially different".
+    const prev = prevObjectsRef.current;
+    const dirtyIds = new Set<string>();
+    const nextIds = new Set(objects.map((o) => o.id));
+    objects.forEach((obj) => {
+      const prevObj = prev.get(obj.id);
+      if (!prevObj || prevObj !== obj) dirtyIds.add(obj.id);
+    });
+    prev.forEach((_obj, id) => {
+      if (!nextIds.has(id)) dirtyIds.add(id);
+    });
+
+    // Selection chrome / preview-object / in-progress changes don't
+    // produce a dirtyIds entry on their own but still need a full repaint
+    // (they live outside the object list). The cheapest heuristic that
+    // catches them: if there's an active in-progress draw, an active
+    // preview, OR an active selection, do a full redraw. These are all
+    // transient UI states — they don't last long enough for the perf cost
+    // to matter, and skipping them risks ghosted handles.
+    const fallbackFull =
+      sizeChanged ||
+      prev.size === 0 ||
+      dirtyIds.size === 0 ||
+      dirtyIds.size >= 25 ||
+      dirtyIds.size >= objects.length / 4 ||
+      inProgressRef.current !== null ||
+      previewObject !== null ||
+      selectedObject !== null;
+
+    if (fallbackFull) {
+      draw(ctx, objects, inProgressRef.current);
+    } else {
+      drawIncremental(ctx, objects, inProgressRef.current, dirtyIds, prev);
+    }
+    prevObjectsRef.current = new Map(objects.map((o) => [o.id, o]));
+  }, [
+    canvasRef,
+    canvasSize.width,
+    canvasSize.height,
+    objects,
+    draw,
+    drawIncremental,
+    previewObject,
+    selectedObject,
+  ]);
 
   // Translate a pointer event's client coords into the canvas's internal
   // resolution (which is also the coordinate space stored on DrawableObjects).
