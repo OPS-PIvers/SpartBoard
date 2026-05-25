@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
   QRConfig,
-  TextConfig,
   QRGlobalConfig,
   FeaturePermission,
 } from '@/types';
@@ -11,25 +10,10 @@ import { Link } from 'lucide-react';
 import { WidgetLayout } from '../WidgetLayout';
 import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
-
-const stripHtml = (html: string) => {
-  if (typeof DOMParser === 'undefined') {
-    // Basic fallback for SSR environments to remove HTML tags.
-    // Loop until stable to prevent partial-tag bypass (e.g. <scr<script>ipt>).
-    let result = html;
-    let prev: string;
-    do {
-      prev = result;
-      result = prev.replace(/<[^>]*>?/gm, '');
-    } while (result !== prev);
-    return result.replace(/[<>]/g, '');
-  }
-  const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
-};
+import { extractSyncedUrl, getSyncedTextContent } from './deriveSyncedUrl';
 
 export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
-  const { activeDashboard, updateWidget } = useDashboard();
+  const { activeDashboard } = useDashboard();
   const { subscribeToPermission } = useFeaturePermissions();
   const buildingId = useWidgetBuildingId(widget);
   const config = widget.config as QRConfig;
@@ -49,9 +33,26 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const isValidHex = (hex: string) => /^[0-9a-fA-F]{6}$/.test(hex);
 
-  // Use config values if explicitly set, fallback to building defaults, then hardcoded defaults
-  // Treat empty string as absent so nullish coalescing works correctly
+  // Link Repeater: derive URL live from the first Text widget when sync is enabled.
+  // Derived state only — never written back to Firestore (was causing a Firestore
+  // write on every dashboard mutation when sync was on).
+  // Two-step memoization: cheap find runs whenever widgets array reference
+  // changes, but the expensive DOMParser-based stripHtml only runs when the
+  // raw text content actually changes (prevents jank during drag/resize).
+  const textWidgetContent = useMemo(
+    () => getSyncedTextContent(config, activeDashboard?.widgets),
+    [config, activeDashboard?.widgets]
+  );
+
+  const syncedUrl = useMemo(
+    () => extractSyncedUrl(textWidgetContent),
+    [textWidgetContent]
+  );
+
+  // Use synced text content first, then widget config, then building defaults, then hardcoded.
+  // Treat empty string as absent so nullish coalescing works correctly.
   const url =
+    syncedUrl ??
     (config.url !== '' ? config.url : undefined) ??
     defaults?.defaultUrl ??
     'https://google.com';
@@ -68,34 +69,6 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
 
   const qrColor: string = isValidHex(rawColor) ? rawColor : '000000';
   const qrBgColor: string = isValidHex(rawBgColor) ? rawBgColor : 'ffffff';
-
-  // Nexus Connection: Link Repeater (Text -> QR)
-  useEffect(() => {
-    if (config.syncWithTextWidget && activeDashboard?.widgets) {
-      const textWidget = activeDashboard.widgets.find((w) => w.type === 'text');
-      if (textWidget) {
-        const textConfig = textWidget.config as TextConfig;
-        const plainText = stripHtml(textConfig.content || '').trim();
-
-        if (plainText && plainText !== config.url) {
-          updateWidget(widget.id, {
-            config: {
-              ...config,
-              url: plainText,
-              syncWithTextWidget: true,
-            } as QRConfig,
-          });
-        }
-      }
-    }
-  }, [
-    config,
-    config.syncWithTextWidget,
-    activeDashboard?.widgets,
-    config.url,
-    widget.id,
-    updateWidget,
-  ]);
 
   // Use a simple public API for QR codes
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=1000x1000&data=${encodeURIComponent(
