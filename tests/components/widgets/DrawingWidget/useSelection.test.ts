@@ -122,6 +122,12 @@ describe('useSelection', () => {
     const finalObj = onTransformCommit.mock.calls[0][0] as RectObject;
     expect(finalObj.x).toBe(30); // 10 + (70 - 50)
     expect(finalObj.y).toBe(25); // 10 + (65 - 50)
+    // Wave 5: the commit must also expose the pre-gesture snapshot so the
+    // widget can push a `{ kind: 'update', before, after }` command without
+    // reaching into transformState.
+    const before = onTransformCommit.mock.calls[0][1] as RectObject;
+    expect(before.x).toBe(10);
+    expect(before.y).toBe(10);
   });
 
   it('no-op translate (pointer-up at origin) does NOT commit', () => {
@@ -210,6 +216,9 @@ describe('useSelection', () => {
     expect(onTransformCommit).toHaveBeenCalledTimes(1);
     const moved = onTransformCommit.mock.calls[0][0] as RectObject;
     expect(moved.x).toBe(11); // 10 + 1
+    // Wave 5: each nudge also passes the pre-nudge snapshot.
+    const beforeNudge = onTransformCommit.mock.calls[0][1] as RectObject;
+    expect(beforeNudge.x).toBe(10);
 
     act(() => {
       result.current.handleKeyDown(ke('ArrowDown', { shiftKey: true }));

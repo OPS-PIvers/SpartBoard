@@ -410,6 +410,10 @@ const mockDashboard: DashboardContextValue = {
   undoAnnotation: () => {
     // No-op
   },
+  redoAnnotation: () => {
+    // No-op — students don't surface the annotation overlay.
+  },
+  canRedoAnnotation: false,
   clearAnnotation: () => {
     // No-op
   },

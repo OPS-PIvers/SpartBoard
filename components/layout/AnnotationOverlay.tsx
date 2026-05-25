@@ -21,6 +21,7 @@ import {
   Trash2,
   Type,
   TypeOutline,
+  Redo2,
   Undo2,
   X,
 } from 'lucide-react';
@@ -94,6 +95,8 @@ export const AnnotationOverlay: React.FC = () => {
     updateAnnotationObject,
     removeAnnotationObject,
     undoAnnotation,
+    redoAnnotation,
+    canRedoAnnotation,
     clearAnnotation,
     activeDashboard,
     addToast,
@@ -292,7 +295,10 @@ export const AnnotationOverlay: React.FC = () => {
   }, []);
 
   const handleTransformCommit = useCallback(
-    (next: DrawableObject) => {
+    // The overlay does NOT use the widget's command stack (see the
+    // long-form comment on the Undo/Redo buttons below for why) — it just
+    // ignores the `before` snapshot Wave 5 added to the signature.
+    (next: DrawableObject, _before: DrawableObject) => {
       setPreviewObject(null);
       updateAnnotationObject(next);
     },
@@ -671,13 +677,32 @@ export const AnnotationOverlay: React.FC = () => {
 
           <div className="h-6 w-px bg-slate-200 mx-1" />
 
+          {/*
+            Per-author Undo: scans for the local user's most recent stroke
+            so a synced collaborator can't accidentally clobber another
+            teacher's drawing. Wave 5 deliberately did NOT unify this with
+            the DrawingWidget's command stack — the widget treats commands
+            as global writes, which would break multi-author safety. Redo
+            below is an in-memory stack layered on top of that per-author
+            undo (see DashboardContext.redoAnnotation for the implementation).
+          */}
           <Button
             onClick={undoAnnotation}
             title="Undo"
+            aria-label="Undo"
             variant="ghost"
             size="icon"
             disabled={objects.length === 0}
             icon={<Undo2 className="w-4 h-4" />}
+          />
+          <Button
+            onClick={redoAnnotation}
+            title="Redo"
+            aria-label="Redo"
+            variant="ghost"
+            size="icon"
+            disabled={!canRedoAnnotation}
+            icon={<Redo2 className="w-4 h-4" />}
           />
           <Button
             onClick={clearAnnotation}

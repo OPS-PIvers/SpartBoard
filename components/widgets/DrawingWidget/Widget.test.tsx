@@ -535,6 +535,151 @@ describe('DrawingWidget', () => {
     }
   });
 
+  it('Undo button is disabled until a command is pushed; Redo flips after undo', () => {
+    const { container } = render(<DrawingWidget widget={widget} />);
+    const canvas = container.querySelector('canvas');
+    const undoBtn = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Undo"]'
+    );
+    const redoBtn = container.querySelector<HTMLButtonElement>(
+      '[aria-label="Redo"]'
+    );
+    if (!canvas || !undoBtn || !redoBtn) {
+      throw new Error('Canvas / Undo / Redo button not found');
+    }
+    // Fresh widget — both stacks empty.
+    expect(undoBtn.disabled).toBe(true);
+    expect(redoBtn.disabled).toBe(true);
+    // Draw a stroke (a single path command).
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 10,
+        clientY: 10,
+      })
+    );
+    fireEvent(
+      canvas,
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 20,
+        clientY: 20,
+      })
+    );
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerup', { bubbles: true, cancelable: true })
+    );
+    // canUndo is reactive — Undo button must enable on the same render.
+    expect(undoBtn.disabled).toBe(false);
+    expect(redoBtn.disabled).toBe(true);
+    // Undo via button click → Redo button enables.
+    fireEvent.click(undoBtn);
+    expect(undoBtn.disabled).toBe(true);
+    expect(redoBtn.disabled).toBe(false);
+  });
+
+  it('Ctrl+Z and Ctrl+Shift+Z roundtrip: draw → undo → redo', () => {
+    const { container } = render(<DrawingWidget widget={widget} />);
+    const canvas = container.querySelector('canvas');
+    const wrapper = container.querySelector('[data-selected-id]');
+    if (!canvas || !wrapper) throw new Error('Canvas/wrapper not found');
+    // Draw.
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 10,
+        clientY: 10,
+      })
+    );
+    fireEvent(
+      canvas,
+      new PointerEvent('pointermove', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 30,
+        clientY: 30,
+      })
+    );
+    fireEvent(
+      canvas,
+      new PointerEvent('pointerup', { bubbles: true, cancelable: true })
+    );
+    // The first updateWidget call is the add; capture its call count.
+    const callsAfterDraw = mockUpdateWidget.mock.calls.length;
+    expect(callsAfterDraw).toBeGreaterThan(0);
+    // Ctrl+Z → applyCommand reverses the add → updateWidget receives an
+    // empty objects array.
+    fireEvent.keyDown(wrapper, { key: 'z', ctrlKey: true });
+    expect(mockUpdateWidget.mock.calls.length).toBe(callsAfterDraw + 1);
+    const undoCfg = (
+      mockUpdateWidget.mock.calls[callsAfterDraw][1] as Partial<WidgetData>
+    ).config as DrawingConfig;
+    expect(undoCfg.objects ?? []).toHaveLength(0);
+    // Ctrl+Shift+Z → applyCommand re-applies forward → object back in payload.
+    fireEvent.keyDown(wrapper, { key: 'z', ctrlKey: true, shiftKey: true });
+    expect(mockUpdateWidget.mock.calls.length).toBe(callsAfterDraw + 2);
+    const redoCfg = (
+      mockUpdateWidget.mock.calls[callsAfterDraw + 1][1] as Partial<WidgetData>
+    ).config as DrawingConfig;
+    expect(redoCfg.objects ?? []).toHaveLength(1);
+    expect(redoCfg.objects?.[0].kind).toBe('path');
+  });
+
+  it('Clear All is a single bulk command — one undo restores everything', () => {
+    const seed = [
+      {
+        id: 'p-1',
+        kind: 'path' as const,
+        z: 0,
+        color: '#000',
+        width: 4,
+        points: [
+          { x: 5, y: 5 },
+          { x: 10, y: 10 },
+        ],
+      },
+      {
+        id: 'p-2',
+        kind: 'path' as const,
+        z: 1,
+        color: '#000',
+        width: 4,
+        points: [
+          { x: 20, y: 20 },
+          { x: 30, y: 30 },
+        ],
+      },
+    ];
+    const widgetWithObjs: WidgetData = {
+      ...widget,
+      config: { ...widget.config, objects: seed } as DrawingConfig,
+    };
+    const { container, getByTitle } = render(
+      <DrawingWidget widget={widgetWithObjs} />
+    );
+    mockUpdateWidget.mockClear();
+    fireEvent.click(getByTitle('Clear All'));
+    // Clear is one push → one updateWidget call → empty objects.
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(1);
+    const clearCfg = (mockUpdateWidget.mock.calls[0][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    expect(clearCfg.objects).toEqual([]);
+    // Undo brings BOTH objects back in a single command — not two undo presses.
+    const wrapper = container.querySelector('[data-selected-id]');
+    if (!wrapper) throw new Error('wrapper not found');
+    fireEvent.keyDown(wrapper, { key: 'z', ctrlKey: true });
+    expect(mockUpdateWidget).toHaveBeenCalledTimes(2);
+    const undoCfg = (mockUpdateWidget.mock.calls[1][1] as Partial<WidgetData>)
+      .config as DrawingConfig;
+    expect(undoCfg.objects).toHaveLength(2);
+  });
+
   it('select tool: Backspace removes the selected object', () => {
     const rectObj = {
       id: 'rect-3',

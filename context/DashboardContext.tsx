@@ -4965,6 +4965,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [setActiveAnnotationObjects]
   );
 
+  // Forward-declared setter for the Wave 5 redo stack — declared below but
+  // referenced from `addAnnotationObject` so a fresh stroke invalidates the
+  // redo branch (standard undo/redo semantics: any new action drops redo).
+  // We use a ref dance to avoid the temporal-dead-zone problem of referencing
+  // a useState setter that's defined later in the function body.
+  const annotationRedoSetterRef = useRef<React.Dispatch<
+    React.SetStateAction<DrawableObject[]>
+  > | null>(null);
+
   const addAnnotationObject = useCallback(
     (obj: DrawableObject) => {
       const id = activeIdRef.current;
@@ -4977,9 +4986,42 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
           ?.objects ?? [];
       setActiveAnnotationObjects([...current, stamped]);
+      // Wave 5: invalidate the redo branch on every fresh add. Guarded so
+      // `redoAnnotation` (which calls addAnnotationObject internally) doesn't
+      // wipe the stack it's trying to drain — see `redoAnnotation` for the
+      // bypass.
+      if (!isRedoingAnnotationRef.current) {
+        annotationRedoSetterRef.current?.((prev) =>
+          prev.length === 0 ? prev : []
+        );
+      }
     },
     [setActiveAnnotationObjects, user?.uid]
   );
+
+  // Ref-based flag flipped on inside `redoAnnotation` so the
+  // `addAnnotationObject` call it makes doesn't also clear the redo stack
+  // it's currently draining.
+  const isRedoingAnnotationRef = useRef(false);
+
+  // Wave 5 — Redo stack for annotation overlay.
+  //
+  // IMPORTANT: we deliberately do NOT replace the per-author undo above with
+  // the widget's command-stack model. The overlay's undo is per-author by
+  // design so two teachers on a synced share can't clobber each other's
+  // strokes (see `undoAnnotation` body for the per-author scan). The widget's
+  // command stack is per-instance and treats commands as global writes,
+  // which would break that multi-author safety. Wave 5 layers redo on TOP:
+  // each `undoAnnotation` pushes the removed object onto `annotationRedoStack`,
+  // and `redoAnnotation` pops the top and re-emits via `addAnnotationObject`.
+  // Any new `addAnnotationObject` call (a fresh stroke) invalidates the redo
+  // branch, matching standard undo/redo semantics.
+  const [annotationRedoStack, setAnnotationRedoStack] = useState<
+    DrawableObject[]
+  >([]);
+  // Expose the setter to `addAnnotationObject` via the forward-declared ref
+  // so a fresh stroke can drop the redo branch without circular hook deps.
+  annotationRedoSetterRef.current = setAnnotationRedoStack;
 
   const undoAnnotation = useCallback(() => {
     const id = activeIdRef.current;
@@ -5005,15 +5047,40 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (removeAt < 0) {
       removeAt = current.length - 1;
     }
+    const removed = current[removeAt];
     const next = [
       ...current.slice(0, removeAt),
       ...current.slice(removeAt + 1),
     ];
     setActiveAnnotationObjects(next);
+    // Push onto the redo stack so a subsequent redoAnnotation can re-emit
+    // the exact same object (preserving id, authorUid, geometry, etc.).
+    setAnnotationRedoStack((prev) => [...prev, removed]);
   }, [setActiveAnnotationObjects, user?.uid]);
+
+  const redoAnnotation = useCallback(() => {
+    setAnnotationRedoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const top = prev[prev.length - 1];
+      // Flag the upcoming addAnnotationObject so it doesn't also clear our
+      // redo branch — without this, `redo` would always leave the stack at 0.
+      isRedoingAnnotationRef.current = true;
+      try {
+        // Re-emit through the canonical add path so the live-share mirror,
+        // author-uid stamping, and listener semantics all stay consistent.
+        addAnnotationObject(top);
+      } finally {
+        isRedoingAnnotationRef.current = false;
+      }
+      return prev.slice(0, -1);
+    });
+  }, [addAnnotationObject]);
 
   const clearAnnotation = useCallback(() => {
     setActiveAnnotationObjects([]);
+    // Clearing also drops any pending redo branch — there's nothing
+    // sensible to redo back into after a full wipe.
+    setAnnotationRedoStack([]);
   }, [setActiveAnnotationObjects]);
 
   // Phase 2 PR 2.1c — selection mutations on the overlay. Go through the
@@ -5178,6 +5245,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updateAnnotationObject,
       removeAnnotationObject,
       undoAnnotation,
+      redoAnnotation,
+      canRedoAnnotation: annotationRedoStack.length > 0,
       clearAnnotation,
     }),
     [
@@ -5300,6 +5369,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       updateAnnotationObject,
       removeAnnotationObject,
       undoAnnotation,
+      redoAnnotation,
+      annotationRedoStack.length,
       clearAnnotation,
     ]
   );

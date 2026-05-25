@@ -220,6 +220,18 @@ export interface DashboardContextValue {
    *  given id from the active overlay. */
   removeAnnotationObject: (id: string) => void;
   undoAnnotation: () => void;
+  /** Re-emit the last undone annotation object via `addAnnotationObject`.
+   *
+   *  Why we DON'T unify with the DrawingWidget's command stack: the overlay's
+   *  undo is intentionally per-author (see `undoAnnotation` impl) so two
+   *  teachers on a synced share can't clobber each other's strokes. The widget
+   *  command stack is per-instance and treats every command as global, which
+   *  would break that multi-author safety guarantee. Wave 5 instead layers a
+   *  small in-memory redo stack on top of the existing per-author undo. */
+  redoAnnotation: () => void;
+  /** True when redoAnnotation has at least one undone object to re-emit.
+   *  Drives the disabled state on the overlay toolbar's Redo button. */
+  canRedoAnnotation: boolean;
   clearAnnotation: () => void;
 
   // Zoom system

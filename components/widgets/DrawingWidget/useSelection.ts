@@ -48,8 +48,13 @@ interface UseSelectionOptions {
    *  updateWidget would flood Firestore. */
   onTransformPreview: (next: DrawableObject) => void;
   /** Called exactly once on pointer-up with the final transformed object.
-   *  This is the only path that touches updateWidget. */
-  onTransformCommit: (next: DrawableObject) => void;
+   *  This is the only path that touches updateWidget.
+   *
+   *  `before` is the snapshot captured at pointer-down (or pre-nudge for
+   *  arrow-key gestures). Wave 5's command stack uses it to emit a single
+   *  `{ kind: 'update', before, after }` command per gesture without the
+   *  Widget having to introspect `transformState` from outside the hook. */
+  onTransformCommit: (next: DrawableObject, before: DrawableObject) => void;
   /** Remove the currently selected object. Wired to Backspace/Delete. */
   onRemoveObject: (id: string) => void;
   /** Scale factor between canvas pixel space and on-screen CSS px. Used to
@@ -179,7 +184,7 @@ export const useSelection = ({
       // Skip the commit if the geometry didn't actually change (e.g. a bare
       // click that picked a body but never moved) — avoids a no-op write.
       if (!objectsEqual(state.startObj, final)) {
-        onTransformCommit(final);
+        onTransformCommit(final, state.startObj);
       }
     },
     [activeTool, transformState, onTransformCommit]
@@ -210,8 +215,10 @@ export const useSelection = ({
         const nudged = translateObject(selectedObject, dx, dy);
         // Arrow nudges commit immediately — there's no drag gesture to
         // batch into, and a single keystroke producing a single write is
-        // already on the Firestore-friendly side.
-        onTransformCommit(nudged);
+        // already on the Firestore-friendly side. Pass `selectedObject` as
+        // the before-snapshot so Wave 5's command stack records the nudge
+        // as a `{ kind: 'update', before, after }` command.
+        onTransformCommit(nudged, selectedObject);
       }
     },
     [

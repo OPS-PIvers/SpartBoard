@@ -1,4 +1,10 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import {
   WidgetData,
@@ -16,6 +22,7 @@ import {
   ImagePlus,
   MousePointer2,
   Pencil,
+  Redo2,
   Slash,
   Square,
   Trash2,
@@ -26,6 +33,7 @@ import {
 import { TextEditorOverlay } from './TextEditorOverlay';
 import { useImageInsertion } from './useImageInsertion';
 import { useSelection } from './useSelection';
+import { useCommandStack } from './useCommandStack';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
@@ -103,14 +111,31 @@ export const DrawingWidget: React.FC<{
     return { width: widget.w, height: Math.max(widget.h - 40, 0) };
   }, [isStudentView, widget.w, widget.h]);
 
-  const appendObject = (obj: DrawableObject) => {
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        objects: [...objects, obj],
-      } as DrawingConfig,
-    });
-  };
+  // Central sink: every command-stack apply (push / undo / redo) lands here,
+  // and pushes one updateWidget. Wrapped in useCallback so the command stack
+  // hook's `onObjectsChange` identity stays stable across renders.
+  const writeObjects = useCallback(
+    (next: DrawableObject[]) => {
+      updateWidget(widget.id, {
+        config: { ...config, objects: next } as DrawingConfig,
+      });
+    },
+    [updateWidget, widget.id, config]
+  );
+
+  const commandStack = useCommandStack({
+    objects,
+    onObjectsChange: writeObjects,
+  });
+
+  // Each create path (pen, shapes, image, text-first-commit) becomes a single
+  // `add` command. The stack handles the array mutation + write.
+  const pushAdd = useCallback(
+    (obj: DrawableObject) => {
+      commandStack.push({ kind: 'add', object: obj });
+    },
+    [commandStack]
+  );
 
   // Text spawn: keep the empty TextObject in local state and open the editor.
   // We DON'T persist the empty object — it's added to `objects[]` only on
@@ -120,16 +145,15 @@ export const DrawingWidget: React.FC<{
   };
 
   // Commit edited text content back into the objects array. If the object id
-  // already exists, replace it (re-edit flow); otherwise, append (first edit
-  // of a freshly spawned object).
+  // already exists, replace it (re-edit flow → update command); otherwise,
+  // append (first edit of a freshly spawned object → add command).
   const commitTextEdit = (next: TextObject) => {
     const existing = objects.find((o) => o.id === next.id);
-    const replaced = existing
-      ? objects.map((o) => (o.id === next.id ? next : o))
-      : [...objects, next];
-    updateWidget(widget.id, {
-      config: { ...config, objects: replaced } as DrawingConfig,
-    });
+    if (existing) {
+      commandStack.push({ kind: 'update', before: existing, after: next });
+    } else {
+      commandStack.push({ kind: 'add', object: next });
+    }
     setEditingText(null);
   };
 
@@ -144,12 +168,7 @@ export const DrawingWidget: React.FC<{
     const existing = objects.find((o) => o.id === stale.id);
     if (!existing) return;
     if (existing.kind === 'text' && existing.content.trim() === '') {
-      updateWidget(widget.id, {
-        config: {
-          ...config,
-          objects: objects.filter((o) => o.id !== stale.id),
-        } as DrawingConfig,
-      });
+      commandStack.push({ kind: 'remove', object: existing });
     }
   };
 
@@ -180,7 +199,7 @@ export const DrawingWidget: React.FC<{
       h,
       src,
     };
-    appendObject(obj);
+    pushAdd(obj);
   };
 
   const {
@@ -206,23 +225,22 @@ export const DrawingWidget: React.FC<{
     setPreviewObject(next);
   };
 
-  const handleTransformCommit = (next: DrawableObject) => {
+  // Pointer-up commit: the selection hook hands us BOTH the post-gesture
+  // object and the pre-gesture snapshot it captured at pointer-down. We turn
+  // that pair into a single `update` command so a 60fps drag still produces
+  // exactly one entry on the undo stack (and one Firestore write).
+  const handleTransformCommit = (
+    next: DrawableObject,
+    before: DrawableObject
+  ) => {
     setPreviewObject(null);
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        objects: objects.map((o) => (o.id === next.id ? next : o)),
-      } as DrawingConfig,
-    });
+    commandStack.push({ kind: 'update', before, after: next });
   };
 
   const handleRemoveObject = (id: string) => {
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        objects: objects.filter((o) => o.id !== id),
-      } as DrawingConfig,
-    });
+    const target = objects.find((o) => o.id === id);
+    if (!target) return;
+    commandStack.push({ kind: 'remove', object: target });
   };
 
   const {
@@ -253,7 +271,7 @@ export const DrawingWidget: React.FC<{
     color,
     width,
     objects,
-    onObjectComplete: appendObject,
+    onObjectComplete: pushAdd,
     onTextSpawn: handleTextSpawn,
     disabled: isStudentView,
     canvasSize,
@@ -304,16 +322,43 @@ export const DrawingWidget: React.FC<{
     handleEnd();
   };
 
+  // Clear All ships as a single bulk-remove command — one undo restores
+  // every object. This is the user-visible regression from today's
+  // irreversible clear and matches the design spec's deliberate choice.
   const clear = () => {
-    updateWidget(widget.id, {
-      config: { ...config, objects: [] } as DrawingConfig,
-    });
+    if (objects.length === 0) return;
+    commandStack.push({ kind: 'clear', objects: [...objects] });
   };
 
   const undo = () => {
-    updateWidget(widget.id, {
-      config: { ...config, objects: objects.slice(0, -1) } as DrawingConfig,
-    });
+    commandStack.undo();
+  };
+
+  const redo = () => {
+    commandStack.redo();
+  };
+
+  // Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z = redo, Ctrl/Cmd+Y = redo (Windows
+  // muscle memory alias). The wrapper's existing handler (`handleSelectKeyDown`)
+  // still receives the event for Backspace/Delete/Arrow nudges; we delegate
+  // to it for anything that isn't an undo/redo shortcut.
+  const handleWrapperKeyDown = (e: React.KeyboardEvent) => {
+    const isMod = e.metaKey || e.ctrlKey;
+    if (isMod && (e.key === 'z' || e.key === 'Z')) {
+      e.preventDefault();
+      if (e.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+      return;
+    }
+    if (isMod && (e.key === 'y' || e.key === 'Y')) {
+      e.preventDefault();
+      redo();
+      return;
+    }
+    handleSelectKeyDown(e);
   };
 
   const handleSendToText = async () => {
@@ -440,15 +485,27 @@ export const DrawingWidget: React.FC<{
       <Button
         onClick={undo}
         title="Undo"
+        aria-label="Undo"
         variant="ghost"
         size="icon"
+        disabled={!commandStack.canUndo}
         icon={<Undo2 className="w-4 h-4" />}
+      />
+      <Button
+        onClick={redo}
+        title="Redo"
+        aria-label="Redo"
+        variant="ghost"
+        size="icon"
+        disabled={!commandStack.canRedo}
+        icon={<Redo2 className="w-4 h-4" />}
       />
       <Button
         onClick={clear}
         title="Clear All"
         variant="ghost-danger"
         size="icon"
+        disabled={objects.length === 0}
         icon={<Trash2 className="w-4 h-4" />}
       />
 
@@ -532,7 +589,7 @@ export const DrawingWidget: React.FC<{
         onPaste={isStudentView ? undefined : handlePaste}
         onDrop={isStudentView ? undefined : handleDrop}
         onDragOver={isStudentView ? undefined : handleDragOver}
-        onKeyDown={isStudentView ? undefined : handleSelectKeyDown}
+        onKeyDown={isStudentView ? undefined : handleWrapperKeyDown}
         data-selected-id={selectedId ?? ''}
       >
         <canvas

@@ -325,6 +325,8 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       updateAnnotationObject: NOOP,
       removeAnnotationObject: NOOP,
       undoAnnotation: NOOP,
+      redoAnnotation: NOOP,
+      canRedoAnnotation: false,
       clearAnnotation: NOOP,
       setZoom: NOOP,
       setSelectedWidgetId: NOOP,
