@@ -1,4 +1,4 @@
-import { render } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import { QRWidget } from '@/components/widgets/QRWidget';
 import { vi, describe, it, expect, beforeEach } from 'vitest';
 import { WidgetData, QRConfig, TextConfig } from '@/types';
@@ -39,7 +39,7 @@ describe('QRWidget Link Repeater Connection', () => {
     });
   });
 
-  it('updates QR url when Text Widget content changes and sync is enabled', () => {
+  it('renders QR using Text Widget content when sync is enabled (no Firestore write)', () => {
     // Setup dashboard with a Text Widget
     const textWidget: WidgetData = {
       id: 'text-1',
@@ -81,14 +81,14 @@ describe('QRWidget Link Repeater Connection', () => {
 
     render(<QRWidget widget={qrWidget} />);
 
-    // Expect updateWidget to be called with the text content
-    expect(mockUpdateWidget).toHaveBeenCalledWith('qr-1', {
-      config: {
-        ...qrWidget.config,
-        url: 'https://example.com/synced',
-        syncWithTextWidget: true,
-      },
-    });
+    // Displayed QR points at the synced text content, not the stale stored URL.
+    const img = screen.getByAltText('QR Code');
+    expect(img).toHaveAttribute(
+      'src',
+      expect.stringContaining(encodeURIComponent('https://example.com/synced'))
+    );
+    // No mirroring write — derived state stays derived.
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 
   it('does not update if sync is disabled', () => {
@@ -128,6 +128,48 @@ describe('QRWidget Link Repeater Connection', () => {
       activeDashboard: {
         widgets: [textWidget, qrWidget],
       },
+      updateWidget: mockUpdateWidget,
+    });
+
+    render(<QRWidget widget={qrWidget} />);
+
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  it('does not write to Firestore even when stored url is stale', () => {
+    // The original bug: when sync was on, every dashboard mutation re-ran an
+    // effect that wrote text-widget content back into qr config.url. This test
+    // proves the derived-url approach never writes, even when the stored value
+    // differs from the live text content.
+    const textWidget: WidgetData = {
+      id: 'text-1',
+      type: 'text',
+      x: 0,
+      y: 0,
+      w: 2,
+      h: 2,
+      z: 1,
+      flipped: false,
+      config: { content: 'https://fresh.example' } as TextConfig,
+    };
+
+    const qrWidget: WidgetData = {
+      id: 'qr-1',
+      type: 'qr',
+      x: 2,
+      y: 0,
+      w: 2,
+      h: 2,
+      z: 1,
+      flipped: false,
+      config: {
+        url: 'https://stale-stored.example',
+        syncWithTextWidget: true,
+      } as QRConfig,
+    };
+
+    (useDashboard as unknown as ReturnType<typeof vi.fn>).mockReturnValue({
+      activeDashboard: { widgets: [textWidget, qrWidget] },
       updateWidget: mockUpdateWidget,
     });
 
