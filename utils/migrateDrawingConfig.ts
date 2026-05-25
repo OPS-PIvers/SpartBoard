@@ -50,7 +50,7 @@ export const migrateDrawingConfig = (
 ): MigratedDrawingConfig => {
   if (!raw || typeof raw !== 'object') {
     return {
-      pages: [{ id: crypto.randomUUID(), objects: [] }],
+      pages: [{ id: crypto.randomUUID(), objects: [], background: 'blank' }],
       currentPage: 0,
       activeTool: 'pen',
       shapeFill: false,
@@ -94,6 +94,15 @@ export const migrateDrawingConfig = (
   }
 
   // Step 2: build the page list.
+  // PR 2.5: every page gets a `background` field. Defaults to the widget-level
+  // `background` (if set on `raw`) and finally to `'blank'`. We materialise the
+  // field at migration time so consumers (renderer, settings UI, export
+  // pipeline) can read a guaranteed value without per-call fallback chains.
+  const widgetDefaultBackground = (rest.background ?? 'blank') as
+    | 'blank'
+    | 'grid'
+    | 'lines'
+    | 'dots';
   let pages: DrawingPage[];
   if (Array.isArray(raw.pages) && raw.pages.length > 0) {
     // Already paged. Backfill missing ids defensively (hand-edited docs,
@@ -101,14 +110,19 @@ export const migrateDrawingConfig = (
     pages = raw.pages.map((p) => {
       const objects = Array.isArray(p?.objects) ? p.objects : [];
       const id = typeof p?.id === 'string' && p.id ? p.id : crypto.randomUUID();
-      return p?.background
-        ? { id, objects, background: p.background }
-        : { id, objects };
+      const background = p?.background ?? widgetDefaultBackground;
+      return { id, objects, background };
     });
   } else {
     // Wrap legacy single-page content into one page. Always produce at least
     // one page so the widget never has to render against an empty array.
-    pages = [{ id: crypto.randomUUID(), objects: singlePageObjects }];
+    pages = [
+      {
+        id: crypto.randomUUID(),
+        objects: singlePageObjects,
+        background: widgetDefaultBackground,
+      },
+    ];
   }
 
   // Step 3: clamp currentPage into range.
@@ -147,7 +161,7 @@ const isValidLegacyPath = (p: unknown): p is Path => {
  * Convenience: the "empty" drawing config used for new widgets.
  */
 export const emptyDrawingConfig = (): MigratedDrawingConfig => ({
-  pages: [{ id: crypto.randomUUID(), objects: [] }],
+  pages: [{ id: crypto.randomUUID(), objects: [], background: 'blank' }],
   currentPage: 0,
   activeTool: 'pen',
   shapeFill: false,

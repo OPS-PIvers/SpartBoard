@@ -1,9 +1,20 @@
 import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, DrawingConfig } from '@/types';
-import { Pencil, Palette, Square } from 'lucide-react';
+import { WidgetData, DrawingConfig, DrawingBackground } from '@/types';
+import { Pencil, Palette, Square, LayoutGrid } from 'lucide-react';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { DRAWING_DEFAULTS } from './constants';
+import { getBackgroundStyle } from './backgroundTemplates';
+
+const BACKGROUND_OPTIONS: ReadonlyArray<{
+  value: DrawingBackground;
+  label: string;
+}> = [
+  { value: 'blank', label: 'Blank' },
+  { value: 'grid', label: 'Grid' },
+  { value: 'lines', label: 'Lines' },
+  { value: 'dots', label: 'Dots' },
+];
 
 export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
   widget,
@@ -13,6 +24,36 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
   const width = config.width ?? DRAWING_DEFAULTS.WIDTH;
   const customColors = config.customColors ?? DRAWING_DEFAULTS.CUSTOM_COLORS;
   const shapeFill = config.shapeFill ?? DRAWING_DEFAULTS.SHAPE_FILL;
+
+  // Background editing targets the active page (per-page background is the
+  // source of truth, per Wave 6). Fall back to the widget-level default and
+  // finally to 'blank' so the picker always shows a selected radio.
+  const pages = config.pages ?? [];
+  const currentPage = Math.max(
+    0,
+    Math.min(config.currentPage ?? 0, pages.length - 1)
+  );
+  const activePageBackground =
+    pages[currentPage]?.background ??
+    config.background ??
+    DRAWING_DEFAULTS.BACKGROUND;
+
+  const handleBackgroundChange = (next: DrawingBackground) => {
+    // Update both: (a) the active page's `background` so this edit applies
+    // immediately, and (b) the widget-level `background` so freshly-added
+    // pages inherit the latest choice. This matches the spec's per-page +
+    // widget-default model.
+    const nextPages = pages.map((p, i) =>
+      i === currentPage ? { ...p, background: next } : p
+    );
+    updateWidget(widget.id, {
+      config: {
+        ...config,
+        background: next,
+        pages: nextPages,
+      } as DrawingConfig,
+    });
+  };
 
   const handleColorChange = (index: number, newColor: string) => {
     const nextColors = [...customColors];
@@ -70,6 +111,45 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
           <span className="w-10 text-center font-mono  text-slate-700 text-sm">
             {width}px
           </span>
+        </div>
+      </div>
+
+      <div>
+        <SettingsLabel icon={LayoutGrid}>Background</SettingsLabel>
+        <div
+          role="radiogroup"
+          aria-label="Background template"
+          className="flex gap-2 px-2"
+        >
+          {BACKGROUND_OPTIONS.map(({ value, label }) => {
+            const selected = activePageBackground === value;
+            return (
+              <button
+                key={value}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => handleBackgroundChange(value)}
+                className={`flex-1 flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 transition-all ${
+                  selected
+                    ? 'border-indigo-500 bg-indigo-50'
+                    : 'border-slate-200 hover:border-slate-300 bg-white'
+                }`}
+                title={label}
+              >
+                {/* Mini preview: a 40x30 box rendered with the same CSS
+                    background as the widget would use, on a slate base so
+                    transparent (blank) reads as "no pattern" rather than
+                    a hole in the panel. */}
+                <div
+                  className="w-10 h-7 rounded border border-slate-200 bg-slate-50"
+                  style={getBackgroundStyle(value)}
+                  aria-hidden
+                />
+                <span className="text-xxs text-slate-700">{label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 

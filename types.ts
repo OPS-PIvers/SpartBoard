@@ -1077,6 +1077,12 @@ export interface DrawingConfig {
   activeTool?: ShapeTool;
   /** If true, rect/ellipse render filled with the current color (stroke unchanged). Default false. */
   shapeFill?: boolean;
+  /**
+   * Widget-level default background template applied to a page when the
+   * page's own `background` field is unset. Populated by Phase 2 PR 2.5.
+   * Defaults to `'blank'` when absent.
+   */
+  background?: DrawingBackground;
 }
 
 export interface QRConfig {

@@ -321,6 +321,52 @@ describe('migrateDrawingConfig', () => {
     expect(out.pages[1].background).toBe('dots');
   });
 
+  it('PR 2.5: defaults a missing per-page background to "blank"', () => {
+    // Pages without an explicit `background` field must materialise as
+    // `'blank'` post-migration so the renderer / Settings UI / exporter can
+    // read a guaranteed value without per-call fallback logic.
+    const input: DrawingConfig = {
+      pages: [page({ id: 'p1' }), page({ id: 'p2' })],
+      currentPage: 0,
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.pages[0].background).toBe('blank');
+    expect(out.pages[1].background).toBe('blank');
+  });
+
+  it('PR 2.5: inherits widget-level `background` onto pages that lack one', () => {
+    // The widget-level default (added in PR 2.5) propagates onto any page that
+    // doesn't override it, but per-page values still win.
+    const input: DrawingConfig = {
+      background: 'grid',
+      pages: [page({ id: 'p1' }), page({ id: 'p2', background: 'dots' })],
+      currentPage: 0,
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.pages[0].background).toBe('grid');
+    expect(out.pages[1].background).toBe('dots');
+  });
+
+  it('PR 2.5: legacy single-page migration assigns a "blank" background', () => {
+    // Wrapping a legacy `objects[]` into pages[0] must still produce a page
+    // with a usable `background` field.
+    const input: DrawingConfig = {
+      objects: [pathObject()],
+    };
+    const out = migrateDrawingConfig(input);
+    expect(out.pages).toHaveLength(1);
+    expect(out.pages[0].background).toBe('blank');
+  });
+
+  it('PR 2.5: null/undefined input produces a page with background="blank"', () => {
+    expect(migrateDrawingConfig(null).pages[0].background).toBe('blank');
+    expect(migrateDrawingConfig(undefined).pages[0].background).toBe('blank');
+  });
+
+  it('PR 2.5: emptyDrawingConfig() seeds page background to "blank"', () => {
+    expect(emptyDrawingConfig().pages[0].background).toBe('blank');
+  });
+
   it('PR 2.3: `pages` takes precedence over legacy `objects` when both exist', () => {
     const input = {
       pages: [page({ id: 'p1', objects: [pathObject({ id: 'fromPages' })] })],

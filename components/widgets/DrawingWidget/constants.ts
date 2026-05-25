@@ -13,4 +13,7 @@ export const DRAWING_DEFAULTS = {
   TEXT_COLOR: STANDARD_COLORS.slate,
   TEXT_PLACEHOLDER_W: 200,
   TEXT_PLACEHOLDER_H: 48,
+  // Background template default (Phase 2 PR 2.5). Pages without an explicit
+  // `background` field fall back to this value when rendering.
+  BACKGROUND: 'blank' as const,
 };

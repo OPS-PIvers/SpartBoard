@@ -18,6 +18,7 @@ import {
 import {
   ArrowRight,
   Circle,
+  Download,
   Eraser,
   ImagePlus,
   MousePointer2,
@@ -44,6 +45,13 @@ import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
 import type { DrawingPage } from '@/types';
+import { getBackgroundStyle } from './backgroundTemplates';
+import {
+  downloadDataUrl,
+  exportAllPagesPng,
+  exportPagePng,
+  exportPdf,
+} from './exportCanvas';
 
 const TOOL_BUTTONS: ReadonlyArray<{
   tool: ShapeTool;
@@ -96,6 +104,9 @@ export const DrawingWidget: React.FC<{
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
   // Snapshot of the TextObject currently being edited via TextEditorOverlay.
   // Stored locally (not in config.objects) until commit, so the editor can
   // position itself off the snapshot without round-tripping through Firestore.
@@ -411,6 +422,101 @@ export const DrawingWidget: React.FC<{
     handleSelectKeyDown(e);
   };
 
+  // --- Export helpers (Wave 7) ---
+  // The actions cluster surfaces three exports: current-page PNG (cheapest —
+  // uses the live canvas's `toDataURL`), all-pages PNG (one offscreen render
+  // per page → N separate downloads), and PDF (offscreen renders → browser
+  // print dialog). Selection chrome is cleared before any PNG export so the
+  // dashed bbox doesn't bleed into the saved file.
+  const exportFilenameStem = () => {
+    const date = new Date().toISOString().split('T')[0];
+    return `Whiteboard-${date}`;
+  };
+
+  const handleExportCurrentPng = async () => {
+    setIsExportMenuOpen(false);
+    try {
+      setIsExporting(true);
+      // Route through the offscreen-render path so the background template
+      // (which lives as a CSS div on the live canvas) gets baked into pixels.
+      // Selection chrome is never on the offscreen canvas so we don't need
+      // to clear selection first.
+      const dataUrl = await exportPagePng(activePage, {
+        w: canvasSize.width,
+        h: canvasSize.height,
+      });
+      downloadDataUrl(
+        dataUrl,
+        `${exportFilenameStem()}-page-${currentPage + 1}.png`
+      );
+      addToast('Page exported as PNG', 'success');
+    } catch (e) {
+      console.error('PNG export failed:', e);
+      addToast('Failed to export page.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportAllPng = async () => {
+    setIsExportMenuOpen(false);
+    if (pages.length === 0) return;
+    try {
+      setIsExporting(true);
+      const dataUrls = await exportAllPagesPng(pages, {
+        w: canvasSize.width,
+        h: canvasSize.height,
+      });
+      dataUrls.forEach((url, idx) => {
+        if (!url) return;
+        downloadDataUrl(url, `${exportFilenameStem()}-page-${idx + 1}.png`);
+      });
+      addToast(`${dataUrls.length} pages exported`, 'success');
+    } catch (e) {
+      console.error('All-pages PNG export failed:', e);
+      addToast('Failed to export pages.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    setIsExportMenuOpen(false);
+    if (pages.length === 0) return;
+    try {
+      setIsExporting(true);
+      await exportPdf(
+        pages,
+        { w: canvasSize.width, h: canvasSize.height },
+        `${exportFilenameStem()}.pdf`
+      );
+    } catch (e) {
+      console.error('PDF export failed:', e);
+      const message =
+        e instanceof Error && /blocked/i.test(e.message)
+          ? 'Please allow pop-ups to export as PDF.'
+          : 'Failed to export PDF.';
+      addToast(message, 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  // Close the export popover on outside click. Mirrors the click-outside
+  // pattern used elsewhere in the app; kept inline (rather than reaching for
+  // `useClickOutside`) because this is the only popover in the widget.
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const onDocPointerDown = (e: PointerEvent) => {
+      const node = exportMenuRef.current;
+      if (node && !node.contains(e.target as Node)) {
+        setIsExportMenuOpen(false);
+      }
+    };
+    document.addEventListener('pointerdown', onDocPointerDown);
+    return () => document.removeEventListener('pointerdown', onDocPointerDown);
+  }, [isExportMenuOpen]);
+
   const handleSendToText = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -575,6 +681,58 @@ export const DrawingWidget: React.FC<{
         }
       />
 
+      <div ref={exportMenuRef} className="relative">
+        <Button
+          onClick={() => setIsExportMenuOpen((v) => !v)}
+          disabled={isExporting || pages.length === 0}
+          title="Export"
+          aria-label="Export"
+          aria-haspopup="menu"
+          aria-expanded={isExportMenuOpen}
+          variant="ghost"
+          size="icon"
+          icon={
+            isExporting ? (
+              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )
+          }
+        />
+        {isExportMenuOpen && (
+          <div
+            role="menu"
+            className="absolute right-0 bottom-full mb-2 min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden z-50"
+          >
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => void handleExportCurrentPng()}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+            >
+              Export PNG (this page)
+            </button>
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => void handleExportAllPng()}
+              disabled={pages.length <= 1}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              Export PNG (all pages)
+            </button>
+            <button
+              role="menuitem"
+              type="button"
+              onClick={() => void handleExportPdf()}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100"
+            >
+              Export PDF
+            </button>
+          </div>
+        )}
+      </div>
+
       {canAccessFeature('gemini-functions') && (
         <>
           <div className="h-6 w-px bg-slate-200 mx-1" />
@@ -642,6 +800,20 @@ export const DrawingWidget: React.FC<{
         onKeyDown={isStudentView ? undefined : handleWrapperKeyDown}
         data-selected-id={selectedId ?? ''}
       >
+        {/* Background template layer (Wave 7). A sibling div BELOW the
+            canvas — keeps the canvas pixel data clean (no full repaint on
+            template change) and lets the user-chosen dashboard background
+            bleed through "blank" pages. Bake-into-pixels happens only at
+            export time via `paintBackground` in exportCanvas.ts. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={getBackgroundStyle(
+            activePage.background ??
+              config.background ??
+              DRAWING_DEFAULTS.BACKGROUND
+          )}
+        />
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
