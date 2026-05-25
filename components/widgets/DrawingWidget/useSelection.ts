@@ -120,9 +120,6 @@ export const useSelection = ({
   const [transformState, setTransformState] = useState<TransformState | null>(
     null
   );
-  // Latest in-flight transformed object. Held in a ref so pointer-up can
-  // commit the final value without re-deriving from a stale closure.
-  const latestTransformedRef = useRef<DrawableObject | null>(null);
 
   // selectedObject is derived from `selectedId` + `objects` so it
   // automatically follows external mutations (e.g. a remote sync update
@@ -132,6 +129,17 @@ export const useSelection = ({
     () => objects.find((o) => o.id === selectedId) ?? null,
     [objects, selectedId]
   );
+  // Adjust-state-during-render: if the selected object has disappeared
+  // (deleted via remote sync, undo, or external mutation), clear the
+  // selection id and tear down any in-flight transform. React's docs
+  // explicitly endorse setState-in-render for state derived from external
+  // state — preferable to a useEffect here because it commits in the same
+  // render pass that observed the missing object, avoiding a flash of
+  // stale `data-selected-id` on the canvas wrapper.
+  if (selectedId !== null && selectedObject === null) {
+    setSelectedId(null);
+    setTransformState(null);
+  }
   // Ref-mirror of `selectedObject` so `handleKeyDown` can read the current
   // selection without depending on it. Otherwise every `objects[]` mutation
   // (stroke completion, transform commit, remote sync) would invalidate
@@ -146,7 +154,6 @@ export const useSelection = ({
   const clearSelection = useCallback(() => {
     setSelectedId(null);
     setTransformState(null);
-    latestTransformedRef.current = null;
   }, []);
 
   const handleSelectPointerDown = useCallback(
@@ -166,7 +173,6 @@ export const useSelection = ({
             startBbox: bbox,
             shift: e.shiftKey,
           });
-          latestTransformedRef.current = selectedObject;
           return;
         }
       }
@@ -187,7 +193,6 @@ export const useSelection = ({
         startBbox: bbox,
         shift: e.shiftKey,
       });
-      latestTransformedRef.current = hit;
     },
     [activeTool, objects, selectedObject, clearSelection, getScale]
   );
@@ -198,7 +203,6 @@ export const useSelection = ({
       const state = transformState;
       if (!state) return;
       const next = applyTransform(state, pos, e.shiftKey || state.shift);
-      latestTransformedRef.current = next;
       // Preview only — never persist.
       onTransformPreview(next);
     },
@@ -212,7 +216,6 @@ export const useSelection = ({
       if (!state) return;
       const final = applyTransform(state, pos, e.shiftKey || state.shift);
       setTransformState(null);
-      latestTransformedRef.current = null;
       // Skip the commit if the geometry didn't actually change (e.g. a bare
       // click that picked a body but never moved) — avoids a no-op write.
       if (!objectsEqual(state.startObj, final)) {

@@ -292,12 +292,13 @@ describe('migrateDrawingToSubcollection', () => {
     expect(batches[0].set).toHaveBeenCalledTimes(3);
   });
 
-  it('writes a single page-meta batch for a config with empty pages (defensive)', async () => {
-    // This is a paranoid path — `needsSubcollectionMigration` returns false
-    // for a `pages: [{objects: []}]` config so the kicker won't call this
-    // function. But if it ever IS called directly, the result should be a
-    // small but well-formed batch (one page-meta op) rather than an
-    // exception. Locks the invariant for future maintenance.
+  it('is a no-op for a config with empty pages (no wasted batch, no flag flip)', async () => {
+    // `needsSubcollectionMigration` returns false for `pages: [{objects:[]}]`
+    // so the kicker won't call this function in production — but admin
+    // scripts and direct callers should also see a true no-op rather than
+    // a wasted batch commit. Matches the function docstring's idempotency
+    // claim: a call with nothing to relocate produces zero writes and
+    // returns `ran: false`.
     const config: DrawingConfig = {
       pages: [{ id: 'p1', objects: [], background: 'blank' }],
     };
@@ -308,11 +309,11 @@ describe('migrateDrawingToSubcollection', () => {
       widgetId: 'w',
       config,
     });
-    expect(ran).toBe(true);
-    expect(batches).toHaveLength(1);
-    // One page-meta write, no object writes.
-    expect(batches[0].set).toHaveBeenCalledTimes(1);
-    expect(migratedConfig.subcollectionMigrated).toBe(true);
+    expect(ran).toBe(false);
+    expect(batches).toHaveLength(0);
+    // Untouched config returned (no flag flip).
+    expect(migratedConfig).toBe(config);
+    expect(migratedConfig.subcollectionMigrated).toBeUndefined();
   });
 });
 

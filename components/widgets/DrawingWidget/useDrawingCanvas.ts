@@ -303,10 +303,11 @@ export const useDrawingCanvas = ({
       ctx.rect(dirtyX, dirtyY, dirtyW, dirtyH);
       ctx.clip();
 
-      const effective = previewObject
-        ? allObjects.map((o) => (o.id === previewObject.id ? previewObject : o))
-        : allObjects;
-      const sorted = [...effective].sort((a, b) => a.z - b.z);
+      // Note: `previewObject` substitution is omitted here because the
+      // fallback-full predicate (see `fallbackFull` below) forces a full
+      // draw whenever `previewObject !== null`. The incremental path only
+      // runs when no preview is in flight, so there's nothing to swap in.
+      const sorted = [...allObjects].sort((a, b) => a.z - b.z);
       // AABB overlap test against the dirty region using the STROKED bbox.
       // The geometric bbox ignores stroke half-width, so a thick neighbor
       // stroke that visually intrudes into the dirty region would be

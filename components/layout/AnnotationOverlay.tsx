@@ -665,7 +665,7 @@ export const AnnotationOverlay: React.FC = () => {
                 type="button"
                 aria-pressed={activeTool === tool}
                 onClick={() => updateAnnotationState({ activeTool: tool })}
-                className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
+                className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 ${
                   activeTool === tool
                     ? 'ring-2 ring-indigo-500'
                     : 'hover:bg-slate-50'

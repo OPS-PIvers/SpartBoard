@@ -16,6 +16,13 @@ import {
 export type MigratedDrawingConfig = DrawingConfig & {
   pages: DrawingPage[];
   currentPage: number;
+  // The migration guarantees these are non-optional after running — every
+  // call site that destructures one of them off the result is reading a
+  // definite value, not `undefined`. Tightening the type captures the full
+  // post-migration invariant so consumers don't have to handle impossible
+  // undefined cases.
+  activeTool: ShapeTool;
+  shapeFill: boolean;
 };
 
 const VALID_TOOLS: readonly ShapeTool[] = [

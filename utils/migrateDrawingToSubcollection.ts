@@ -82,6 +82,15 @@ export const migrateDrawingToSubcollection = async ({
 
   const pages: DrawingPage[] = Array.isArray(config.pages) ? config.pages : [];
 
+  // No-op if there's nothing to relocate. The kicker in `DashboardContext`
+  // already gates on `needsSubcollectionMigration`, but call sites that
+  // invoke this function directly (admin scripts, tests) should still see
+  // a true no-op rather than a wasted batch commit and a `migrated: true`
+  // writeback. Matches the function docstring's idempotency claim.
+  if (pages.every((p) => !p.objects || p.objects.length === 0)) {
+    return { migratedConfig: config, ran: false };
+  }
+
   // Build the flat write queue. Each entry is a (ref, payload) pair so we
   // can chunk uniformly. Mixing page-doc writes with object writes in the
   // same queue keeps ordering deterministic (page meta before its objects).

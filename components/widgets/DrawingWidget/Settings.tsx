@@ -147,7 +147,7 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
                 aria-pressed={selected}
                 aria-label={label}
                 onClick={() => handleBackgroundChange(value)}
-                className={`flex-1 flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 transition-colors ${
+                className={`flex-1 flex flex-col items-center gap-1.5 p-1.5 rounded-lg border-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white ${
                   selected
                     ? 'border-indigo-500 bg-indigo-50'
                     : 'border-slate-200 hover:border-slate-300 bg-white'

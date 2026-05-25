@@ -187,9 +187,11 @@ export const useDrawingObjectsDoc = ({
       // subscription. The functional updaters short-circuit when the new
       // value would match the old, so re-renders only fire when state
       // actually changes (e.g. props going from active → idle mid-session).
-      // This IS legitimate "synchronize with external system" — the absent
-      // subscription is the external system — but the lint rule's
-      // heuristic flags every setState-in-effect, so suppress here.
+      // The rule's heuristic flags only the FIRST setState site in this
+      // particular control-flow branch (the parked-idle reset); subsequent
+      // setStates in the same branch reuse the diagnostic — verified by
+      // running `pnpm run lint` against this file. The single suppression
+      // below covers the cluster.
       subscribedKeyRef.current = null;
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setObjects((prev) => (prev.length === 0 ? prev : []));
