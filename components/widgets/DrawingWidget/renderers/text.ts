@@ -8,8 +8,16 @@ import { TextObject } from '@/types';
 // Rotation: when `obj.rotation` is non-zero, the canvas is rotated around
 // the bbox center BEFORE the per-line `fillText` calls so the entire text
 // block rotates together (rather than each line rotating around its own
-// baseline). The contenteditable overlay positions its rotated box the same
-// way so the editing visual matches the persisted draw.
+// baseline).
+//
+// Known limitation: `TextEditorOverlay` is intentionally NOT rotation-aware —
+// it positions the contenteditable with `left`/`top` only, so editing a
+// rotated `TextObject` opens the editor at the object's unrotated top-left
+// (the world-coord anchor), not at its visual rotated position. The persisted
+// draw still rotates correctly on commit. Adding `transform: rotate(...)` to
+// the editor would require synchronizing the transform-origin with the
+// renderer's bbox center AND adjusting caret/selection geometry in a rotated
+// contenteditable — non-trivial; deferred.
 
 const LINE_HEIGHT_RATIO = 1.2;
 

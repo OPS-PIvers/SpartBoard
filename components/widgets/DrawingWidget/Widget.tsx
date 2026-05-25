@@ -37,6 +37,7 @@ import { useSelection } from './useSelection';
 import { useCommandStack } from './useCommandStack';
 import { useDrawingObjectsDoc } from './useDrawingObjectsDoc';
 import { useDrawingPages } from './useDrawingPages';
+import { hitTestObject } from './hitTest';
 import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
@@ -894,11 +895,15 @@ export const DrawingWidget: React.FC<{
     const px = (e.clientX - rect.left) * scaleX;
     const py = (e.clientY - rect.top) * scaleY;
     // Iterate top-to-bottom (highest z first) so the front-most text wins.
+    // Use the shared `hitTestObject` instead of a raw AABB check — text
+    // objects can be rotated, and the renderer/selection pipeline already
+    // honors `obj.rotation` via reverse-rotate-around-bbox-center. An AABB
+    // here would produce false positives (clicks in the AABB but outside
+    // the rotated visual) and false negatives (clicks in the rotated
+    // visual but outside the AABB).
     const texts = objects.filter((o): o is TextObject => o.kind === 'text');
     const sorted = [...texts].sort((a, b) => b.z - a.z);
-    const hit = sorted.find(
-      (o) => px >= o.x && px <= o.x + o.w && py >= o.y && py <= o.y + o.h
-    );
+    const hit = sorted.find((o) => hitTestObject(o, { x: px, y: py }));
     if (hit) setEditingText(hit);
   };
 

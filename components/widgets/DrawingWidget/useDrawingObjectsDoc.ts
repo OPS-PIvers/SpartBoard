@@ -10,6 +10,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
+import { logError } from '@/utils/logError';
 import type { DrawableObject } from '@/types';
 
 /**
@@ -245,7 +246,11 @@ export const useDrawingObjectsDoc = ({
           }
         },
         (err) => {
-          console.error('[useDrawingObjectsDoc] subscription error:', err);
+          logError('useDrawingObjectsDoc.subscription', err, {
+            dashboardId,
+            widgetId,
+            pageId,
+          });
           for (const sub of newEntry.subscribers) {
             sub.setLoading(false);
           }

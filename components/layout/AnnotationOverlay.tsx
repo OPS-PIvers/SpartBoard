@@ -49,6 +49,7 @@ import { useDrawingCanvas } from '@/components/widgets/DrawingWidget/useDrawingC
 import { TextEditorOverlay } from '@/components/widgets/DrawingWidget/TextEditorOverlay';
 import { useImageInsertion } from '@/components/widgets/DrawingWidget/useImageInsertion';
 import { useSelection } from '@/components/widgets/DrawingWidget/useSelection';
+import { hitTestObject } from '@/components/widgets/DrawingWidget/hitTest';
 import { Button } from '@/components/common/Button';
 import { extractTextWithGemini } from '@/utils/ai';
 import {
@@ -470,13 +471,13 @@ export const AnnotationOverlay: React.FC = () => {
       const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
       const px = (e.clientX - rect.left) * scaleX;
       const py = (e.clientY - rect.top) * scaleY;
+      // Use the shared `hitTestObject` rather than a raw AABB — text objects
+      // can be rotated, and an AABB would misfire on the rotated visual.
       const texts = annotationState.objects.filter(
         (o): o is TextObject => o.kind === 'text'
       );
       const sorted = [...texts].sort((a, b) => b.z - a.z);
-      const hit = sorted.find(
-        (o) => px >= o.x && px <= o.x + o.w && py >= o.y && py <= o.y + o.h
-      );
+      const hit = sorted.find((o) => hitTestObject(o, { x: px, y: py }));
       if (hit) setEditingText(hit);
     },
     [annotationState.objects]
