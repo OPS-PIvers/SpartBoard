@@ -1549,6 +1549,8 @@ export interface BuildingClockDefaults {
   format24?: boolean;
   fontFamily?: string;
   themeColor?: string;
+  clockStyle?: 'modern' | 'lcd' | 'minimal';
+  glow?: boolean;
 }
 
 export interface ClockGlobalConfig {

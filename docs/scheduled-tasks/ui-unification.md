@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-05-13_
+_Last audited: 2026-05-22_
 _Last action: never_
 
 ---
@@ -82,6 +82,8 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+_2026-05-22: Audited all Settings.tsx files under components/widgets/, WIDGET_APPEARANCE_COMPONENTS, and new \*ConfigurationPanel.tsx files. New dev-paul additions: `SmartNotebookConfigurationPanel.tsx` added and wired in FeatureConfigurationPanel.tsx (import at line 54, registered at lines 129–130 as `SmartNotebook: SmartNotebookConfigurationPanel as unknown as BuildingConfigPanel`). `SmartNotebookAppearanceSettings` correctly registered in WIDGET_APPEARANCE_COMPONENTS. New PLC modals (`PlcNewQuizAssignmentModal`, `PlcNewVideoActivityAssignmentModal`) and quiz behavior panels use standard Tailwind patterns; no snowflake custom form controls or hardcoded hex colors detected. `components/settingsModal/sections/AppearanceSection.tsx` declares `DEFAULT_PRIMARY_COLOR = '#2d3f89'` and `DEFAULT_ACCENT_COLOR = '#ad2122'` as fallback literals for `DEFAULT_GLOBAL_STYLE` — these are fallback defaults for a config object, not inline style replacements for CSS variables; acceptable. All pre-existing open items remain valid._
 
 _2026-05-13: Audited all Settings.tsx files under components/widgets/, all \*ConfigurationPanel.tsx under components/admin/, and WIDGET_APPEARANCE_COMPONENTS. New findings: (1) `stations` widget has no `StationsConfigurationPanel` and no entry in `FeatureConfigurationPanel.tsx` — admin building defaults cannot be set for it despite StationsConfig having fontFamily/fontColor/cardColor/cardOpacity. (2) All existing config panels confirmed to use SchemaDrivenConfigurationPanel (except MagicConfigurationPanel and RecordConfigurationPanel which are intentional exceptions). (3) Hardcoded brand hex colors found in NextUpConfigurationPanel.tsx (lines 24, 106-107), StudentPageView.tsx (lines 19-20), NewUserSetup.tsx (line 96), MaterialsWidget/Settings.tsx (line 23), Countdown/Settings.tsx (line 179), Countdown/Widget.tsx (line 44), and AnalyticsManager.tsx (multiple). Existing open items remain valid._
 

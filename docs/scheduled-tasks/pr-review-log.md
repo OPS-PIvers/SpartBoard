@@ -4,6 +4,27 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-25
+
+- PRs reviewed:
+  - #1687 — perf(time-tool): stop RAF restarting on every dashboard change (base `dev-paul`, head `claude/dev-paul-bug-perf-fix-1xnnH`, draft)
+  - #1686 — docs: comprehensive useEffect audit (base `dev-paul`, head `claude/useeffect-audit-1G9oi`, draft)
+  - #1685 — feat(drawing): Whiteboard Phase 2 — shapes, text, images, selection, multi-page, undo, export (base `main`, head `claude/whiteboard-implementation-status-SNkii`, draft)
+  - #1684 — MiniApp portaled toolbar (JS cqmin) + Clock building defaults (base `dev-paul`, head `scheduled-tasks`, draft)
+- Comments processed: 9 unresolved review threads across the four PRs — 5 fixed (PR #1687 config-spread cleanup), 3 explained as already-addressed (PR #1686 audit-doc inaccuracies — all fixed in 9a2302d on the branch). PR #1685's 11 review threads and PR #1684's 1 review thread are all marked outdated with author resolution replies pointing at follow-up commits (4c35a4c on #1685; 8bf7759 + ed08dbc on #1684) — no further action.
+- Fixes pushed: 1
+  - PR #1687 (`claude/dev-paul-bug-perf-fix-1xnnH`) — commit `80967e6` `fix(pr-1687): drop config spread in TimeTool auto-trigger updateWidget calls`. Removed 5 redundant `...widget.config` spreads inside the new auto-trigger effect and the now-unused `ExpectationsConfig`/`TrafficConfig`/`StationsConfig` imports. Verified: `pnpm type-check` ✓, `pnpm exec eslint components/widgets/TimeTool/useTimeTool.ts --max-warnings 0` ✓, `pnpm exec prettier --check components/widgets/TimeTool/useTimeTool.ts` ✓, `pnpm exec vitest run components/widgets/TimeTool/TimeToolConnection.test.tsx` 6/6 ✓.
+- Reviews posted: 4
+  - PR #1687 TimeTool RAF perf fix: Ready — root-cause fix splits the conflated tick + auto-trigger into two effects with the correct dep array for each concern; new regression tests cover both the perf bug and the closure-via-effect freshness invariant.
+  - PR #1686 useEffect audit doc: Ready — doc-only, 9a2302d fixup commit reconciled the headline numbers (527 graded of 567 total) and corrected the DriveFileAttachment/DashboardView/BoardNavFab/MusicManager entries. Suggested nice-to-have: permalink the actionable D/C entries at audit-base SHA `8765c4f` for line-drift resilience.
+  - PR #1685 Whiteboard Phase 2: Needs description update + Wave 8 + test-plan checkboxes — PR description still says "Wave 1 in progress / Waves 2-8 pending" but waves 1-7 have landed on this branch as separate per-wave commits; only Wave 8 (Firestore subcollection) remains. Branch also drags in the unmerged dev-paul backlog because it's based off main — confirm merge plan.
+  - PR #1684 MiniApp toolbar + Clock building defaults: Ready with minor notes — both items well-scoped, all self-review feedback addressed (rounding + zero-guard in 8bf7759/ed08dbc, partial-validity tests, `Completed-pending-merge` journal convention). Manual visual-regression checkboxes in test plan still unticked.
+- Notes:
+  - Branch safety: 1 push to `claude/dev-paul-bug-perf-fix-1xnnH` (fair game per safety rule). No pushes to `main` or `dev-paul`.
+  - The five `gemini-code-assist` comments on PR #1687 were all valid — `updateWidget` already shallow-merges via `context/DashboardContext.tsx:4470`, so the `...widget.config` spread was redundant and risked write-skew with the stale `activeDashboard` closure when timer-end triggers fire.
+
+---
+
 ## 2026-05-20
 
 - PRs reviewed:
@@ -634,3 +655,16 @@ _Automated nightly review by claude-opus-4-6_
 - Notes:
   - Branch-safety: #1676 head `dev-paul-plc-redesign` matches `dev-*` → treated read-only (review comment only, no push). #1677 head `scheduled-tasks` and #1366 head `docs/*` are pushable, but Phase 1 produced no fixes, so no pushes to any PR branch this run.
   - This run's log + summary committed on branch `claude/clever-johnson-GghmZ` (the harness-designated development branch) rather than pushed directly to `scheduled-tasks`, since `scheduled-tasks` is the head of open PR #1677 and pushing to it would alter that PR without authorization.
+
+## 2026-05-22
+
+- PRs reviewed: 1
+  - #1366 — docs: line-endings normalization plan (head `docs/line-endings-normalization-plan`, base `main`)
+- Comments processed: 0 actionable
+  - #1366: 6 inline review threads `is_resolved:false` but 5 `is_outdated:true` (1 not outdated); every thread already carries an author "Addressed/Fixed in [commit]" reply from prior cycles. 26 PR-level review comments, all from prior automated sweeps and all already addressed — most recent sweep `17dfae3` (2026-05-20) covered the latest 5 comments; nothing posted since. No new fix or reply needed (re-replying would be noise).
+- Fixes pushed: 0
+- Reviews posted: 1
+  - PR #1366: Ready — doc-only; read the full 336-line doc and verified all prior reviewer feedback is now reflected at HEAD: step references consistent (Step 1→"step 4 adds the hash"), logical step order (config→renormalize→verify→register→cleanup), `--ignore-cr-at-eol` (not over-broad `--ignore-all-space`), subject-grep+`grep -i`+hard-fail hash lookup, rebase remediation with `git add`/`--continue`/unconditional working-tree refresh/`--force-with-lease`, `--ours`/`--theirs` rebase-vs-merge note, rollback via PR with `--no-edit` (main protected), and `blame.ignoreRevsFile` local config. Execution must wait for a no-open-PR window.
+- Notes:
+  - Branch-safety: only #1366 is open this run (PR #1677 from the 2026-05-21 entry is no longer open, so `scheduled-tasks` is no longer a PR head). #1366 head `docs/*` is pushable but Phase 1 produced no fixes — no pushes to any PR branch.
+  - Log committed and pushed to `scheduled-tasks` directly this run, since it is no longer the head of any open PR.
