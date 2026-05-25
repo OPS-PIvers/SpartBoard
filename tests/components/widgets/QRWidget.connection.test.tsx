@@ -7,7 +7,7 @@ import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 
 // Mock useDashboard
-vi.mock('../../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 

@@ -8,7 +8,7 @@ import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 
 // Mock the context using the standard pattern
-vi.mock('../../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 

@@ -52,14 +52,19 @@ export const QRWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // Link Repeater: derive URL live from the first Text widget when sync is enabled.
   // Derived state only — never written back to Firestore (was causing a Firestore
   // write on every dashboard mutation when sync was on).
-  const syncedUrl = useMemo(() => {
+  // Two-step memoization: cheap find runs whenever widgets array reference
+  // changes, but the expensive DOMParser-based stripHtml only runs when the
+  // raw text content actually changes (prevents jank during drag/resize).
+  const textWidgetContent = useMemo(() => {
     if (!config.syncWithTextWidget) return undefined;
     const textWidget = activeDashboard?.widgets.find((w) => w.type === 'text');
-    if (!textWidget) return undefined;
-    const textConfig = textWidget.config as TextConfig;
-    const plainText = stripHtml(textConfig.content || '').trim();
-    return plainText || undefined;
+    return (textWidget?.config as TextConfig | undefined)?.content;
   }, [config.syncWithTextWidget, activeDashboard?.widgets]);
+
+  const syncedUrl = useMemo(() => {
+    if (!textWidgetContent) return undefined;
+    return stripHtml(textWidgetContent).trim() || undefined;
+  }, [textWidgetContent]);
 
   // Use synced text content first, then widget config, then building defaults, then hardcoded.
   // Treat empty string as absent so nullish coalescing works correctly.
