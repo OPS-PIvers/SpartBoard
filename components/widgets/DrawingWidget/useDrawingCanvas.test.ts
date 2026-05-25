@@ -994,6 +994,100 @@ describe('useDrawingCanvas', () => {
       expect(partialClear).toBe(true);
     });
 
+    it('thick-stroke neighbor adjacent to a dirty region is redrawn via the STROKED-bbox intersect', () => {
+      // Two objects:
+      //   * neighbor: thick stroke at (95..105, 0..200). Geometric bbox sits
+      //     just OUTSIDE a dirty region centered on (50..90, 50..90), but
+      //     its STROKED bbox (with strokeWidth=20 → pad=10) overlaps.
+      //   * target: the object that mutates and pulls in the dirty region.
+      // Without the stroked-bbox intersect, the neighbor would be skipped
+      // and the cleared dirty region would bite its stroke.
+      const canvas = makeCanvas();
+      const canvasRef = { current: canvas };
+      // Need 25+ objects so the incremental path runs (small-N early-exit).
+      const filler = Array.from({ length: 30 }, (_, i) =>
+        pathObj({
+          id: `filler-${i}`,
+          z: i,
+          // Position filler off in a corner so they don't interfere with
+          // the dirty-region intersect math.
+          points: [
+            { x: 700 + i * 0.1, y: 500 + i * 0.1 },
+            { x: 705 + i * 0.1, y: 505 + i * 0.1 },
+          ],
+        })
+      );
+      const initial: DrawableObject[] = [
+        ...filler,
+        // A thick path running vertically just east of the dirty region.
+        // strokeWidth=20 means pad=10 → stroked bbox overlaps x=50..90.
+        pathObj({
+          id: 'thick-neighbor',
+          z: 100,
+          width: 20,
+          points: [
+            { x: 100, y: 0 },
+            { x: 100, y: 200 },
+          ],
+        }),
+        // The object that will mutate. Its bbox is 50..90 / 50..90.
+        pathObj({
+          id: 'target',
+          z: 101,
+          points: [
+            { x: 50, y: 50 },
+            { x: 90, y: 90 },
+          ],
+        }),
+      ];
+
+      const { rerender } = renderHook(
+        ({ objects }: { objects: DrawableObject[] }) =>
+          useDrawingCanvas({
+            canvasRef,
+            color: '#000',
+            width: 4,
+            objects,
+            onObjectComplete: vi.fn(),
+            canvasSize: { width: 800, height: 600 },
+            nextZ: 200,
+          }),
+        { initialProps: { objects: initial } }
+      );
+
+      // Reset spies before the diff render so we only see the incremental
+      // pass.
+      mockCtx.clearRect.mockClear();
+      mockCtx.moveTo.mockClear();
+      mockCtx.lineTo.mockClear();
+
+      // Mutate the target only.
+      const next: DrawableObject[] = initial.map((o) => {
+        if (o.id !== 'target' || o.kind !== 'path') return o;
+        return pathObj({
+          id: o.id,
+          z: o.z,
+          color: o.color,
+          width: o.width,
+          points: [
+            { x: 55, y: 55 },
+            { x: 95, y: 95 },
+          ],
+        });
+      });
+      rerender({ objects: next });
+
+      // The neighbor's stroke runs along x=100 — its STROKED bbox extends
+      // to x=90. The dirty region (from the target's bbox 50..90 plus 24px
+      // STROKE_PAD) extends to x=114. So the neighbor's stroked bbox
+      // intersects the dirty region and must be re-rendered: at least one
+      // moveTo at (100, 0) must show up.
+      const neighborRedrawn = mockCtx.moveTo.mock.calls.some(
+        (args) => args[0] === 100 && args[1] === 0
+      );
+      expect(neighborRedrawn).toBe(true);
+    });
+
     it('changing 30 of 100 objects falls back to a full-canvas clear', () => {
       const canvas = makeCanvas();
       const canvasRef = { current: canvas };

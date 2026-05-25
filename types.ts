@@ -1047,9 +1047,10 @@ export interface DrawingConfig {
    */
   mode?: 'window' | 'overlay';
   /**
-   * Legacy pen-only stroke list. Still used by the per-widget annotation
-   * feature on DraggableWindow (`widget.annotation.paths`). The DrawingWidget
-   * migrates this to `objects[]` on read via `migrateDrawingConfig`.
+   * Pen-only stroke list. **Active** for the per-widget annotation feature
+   * (`WidgetData.annotation.paths` on DraggableWindow). **Deprecated** for the
+   * DrawingWidget — `migrateDrawingConfig` strips this field and any data is
+   * rewritten into `pages[0].objects` as `PathObject[]`.
    */
   paths?: Path[];
   /**

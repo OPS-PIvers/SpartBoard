@@ -189,15 +189,22 @@ export const AnnotationOverlay: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [shouldRender]);
 
-  // Escape key exits annotation
+  // Escape key exits annotation — but NOT while the user is editing text:
+  // pressing Escape inside the editor should cancel the text edit (handled
+  // locally in TextEditorOverlay), not close the whole annotation overlay.
+  // We resolve the priority issue by ALSO gating this listener on
+  // `editingText == null` (belt + suspenders alongside stopPropagation in
+  // the editor's React handler — window-capture listeners can fire before
+  // the React bubble phase).
   useEffect(() => {
     if (!shouldRender) return undefined;
+    if (editingText) return undefined;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeAnnotation();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [shouldRender, closeAnnotation]);
+  }, [shouldRender, closeAnnotation, editingText]);
 
   const canvasSize = useMemo(
     () => ({ width: viewport.width, height: viewport.height }),
@@ -214,35 +221,42 @@ export const AnnotationOverlay: React.FC = () => {
   const commitTextEdit = useCallback(
     (next: TextObject) => {
       const existing = annotationState.objects.find((o) => o.id === next.id);
+      const isEmpty = next.content.trim() === '';
       if (existing) {
-        // Re-edit: replace in place via the shared objects path.
-        const replaced = annotationState.objects.map((o) =>
-          o.id === next.id ? next : o
-        );
-        updateAnnotationState({ objects: replaced });
-      } else {
+        if (isEmpty) {
+          // Re-edit erased to empty → remove the existing object.
+          removeAnnotationObject(existing.id);
+        } else {
+          // Re-edit: replace in place via the shared objects path.
+          const replaced = annotationState.objects.map((o) =>
+            o.id === next.id ? next : o
+          );
+          updateAnnotationState({ objects: replaced });
+        }
+      } else if (!isEmpty) {
         // First commit of a freshly spawned object — append via the
         // standard add path so it picks up authorUid stamping for the
         // per-author undo logic.
         addAnnotationObject(next);
       }
+      // Fresh spawn + empty falls through with no write — the unsaved local
+      // object simply vanishes when we clear editingText below.
       setEditingText(null);
     },
-    [addAnnotationObject, annotationState.objects, updateAnnotationState]
+    [
+      addAnnotationObject,
+      annotationState.objects,
+      removeAnnotationObject,
+      updateAnnotationState,
+    ]
   );
 
+  // Explicit Escape cancel: discard editor content and leave the persisted
+  // object untouched. Fresh spawns disappear (never persisted), existing
+  // objects keep their pre-edit content.
   const cancelTextEdit = useCallback(() => {
-    const stale = editingText;
     setEditingText(null);
-    if (!stale) return;
-    const existing = annotationState.objects.find((o) => o.id === stale.id);
-    if (!existing) return;
-    if (existing.kind === 'text' && existing.content.trim() === '') {
-      updateAnnotationState({
-        objects: annotationState.objects.filter((o) => o.id !== stale.id),
-      });
-    }
-  }, [annotationState.objects, editingText, updateAnnotationState]);
+  }, []);
 
   // Image insertion parity with DrawingWidget. Annotations are cleared on
   // close so image cleanup is automatic — no asset bookkeeping needed here.
@@ -421,10 +435,17 @@ export const AnnotationOverlay: React.FC = () => {
   // full-viewport overlay), so we listen at window scope while the overlay
   // is interactive. Casts the native KeyboardEvent into the React shape the
   // selection hook expects.
+  //
+  // ALSO gate on `editingText == null` — when the user is editing text we
+  // don't want Backspace/Arrow keys to delete or nudge the underlying
+  // object. The editor itself calls stopPropagation, but window-capture
+  // listeners can fire before React's bubble phase, so this gate is the
+  // authoritative belt + suspenders.
   useEffect(() => {
     const isInteractive = annotationActive && !isReadOnly;
     if (!isInteractive) return undefined;
     if (annotationState.activeTool !== 'select') return undefined;
+    if (editingText) return undefined;
     const onKey = (e: KeyboardEvent) => {
       handleSelectKeyDown(e as unknown as React.KeyboardEvent);
     };
@@ -435,6 +456,7 @@ export const AnnotationOverlay: React.FC = () => {
     isReadOnly,
     annotationState.activeTool,
     handleSelectKeyDown,
+    editingText,
   ]);
 
   // Double-click any existing text annotation to re-edit it.
@@ -618,17 +640,20 @@ export const AnnotationOverlay: React.FC = () => {
       {interactive && (
         <div
           data-screenshot="exclude"
-          className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex items-center gap-2 animate-in slide-in-from-bottom duration-300"
+          className="absolute bottom-6 left-1/2 -translate-x-1/2 pointer-events-auto bg-white/80 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/40 p-2 flex items-center gap-2 motion-safe:animate-in motion-safe:slide-in-from-bottom motion-safe:duration-300"
         >
           <div className="px-2 flex items-center gap-2 border-r border-slate-200 mr-1">
-            <MousePointer2 className="w-4 h-4 text-indigo-600 animate-pulse" />
+            <MousePointer2 className="w-4 h-4 text-indigo-600 motion-safe:animate-pulse" />
             <span className="text-xxs font-black uppercase tracking-widest text-slate-700">
               Annotating
             </span>
           </div>
 
+          {/* Toggle-button group (not radiogroup) — tools are modes; the
+              button + aria-pressed pattern gives us native Tab/Space/Enter
+              keyboard handling without roving-tabindex machinery. */}
           <div
-            role="radiogroup"
+            role="group"
             aria-label="Drawing tool"
             className="flex gap-1 bg-slate-100 p-1 rounded-lg"
           >
@@ -636,10 +661,9 @@ export const AnnotationOverlay: React.FC = () => {
               <button
                 key={tool}
                 type="button"
-                role="radio"
-                aria-checked={activeTool === tool}
+                aria-pressed={activeTool === tool}
                 onClick={() => updateAnnotationState({ activeTool: tool })}
-                className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${
+                className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
                   activeTool === tool
                     ? 'ring-2 ring-indigo-500'
                     : 'hover:bg-slate-50'
@@ -647,7 +671,7 @@ export const AnnotationOverlay: React.FC = () => {
                 title={label}
                 aria-label={label}
               >
-                <Icon className="w-3.5 h-3.5 text-slate-600" />
+                <Icon className="w-4 h-4 text-slate-600" />
               </button>
             ))}
           </div>

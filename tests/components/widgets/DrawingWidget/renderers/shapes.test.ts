@@ -189,9 +189,10 @@ describe('renderArrow', () => {
       ctx as unknown as CanvasRenderingContext2D,
       arrowObj({ x1: 0, y1: 0, x2: 100, y2: 0, strokeWidth: 2 })
     );
-    // Wing y-coords for horizontal arrow are ±headLen*sin(wingAngle)
+    // Wing y-coords for horizontal arrow are ±headLen*sin(wingAngle).
+    // Wing angle = Math.PI/6 (30°) per the Phase 2 design plan.
     const headLen = 12;
-    const wingAngle = Math.PI / 7;
+    const wingAngle = Math.PI / 6;
     const wingY = headLen * Math.sin(wingAngle);
     const wingX = 100 - headLen * Math.cos(wingAngle);
     const left = ctx.lineTo.mock.calls[1];

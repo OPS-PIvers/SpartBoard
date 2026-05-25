@@ -223,6 +223,26 @@ describe('DrawingWidget', () => {
     expect(mockContext.stroke).toHaveBeenCalled();
   });
 
+  it('tool buttons use aria-pressed reflecting activeTool (toggle-button group, not radiogroup)', () => {
+    const widgetWithTool: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        activeTool: 'arrow',
+      } as DrawingConfig,
+    };
+    const { getByLabelText } = render(
+      <DrawingWidget widget={widgetWithTool} />
+    );
+    // The active tool's button is aria-pressed=true; all others are false.
+    expect(getByLabelText('Arrow')).toHaveAttribute('aria-pressed', 'true');
+    expect(getByLabelText('Select')).toHaveAttribute('aria-pressed', 'false');
+    expect(getByLabelText('Pen')).toHaveAttribute('aria-pressed', 'false');
+    // Old role="radio" / aria-checked are GONE — assert it.
+    expect(getByLabelText('Arrow')).not.toHaveAttribute('aria-checked');
+    expect(getByLabelText('Arrow').getAttribute('role')).not.toBe('radio');
+  });
+
   it('clicking the rect tool persists config.activeTool = "rect"', () => {
     const { getByLabelText } = render(<DrawingWidget widget={widget} />);
     fireEvent.click(getByLabelText('Rectangle'));
@@ -330,6 +350,68 @@ describe('DrawingWidget', () => {
     if (objs[0].kind === 'text') {
       expect(objs[0].content).toBe('classroom');
     }
+  });
+
+  it('re-edit existing TextObject + erase all + Cmd+Enter removes the object via a remove command', () => {
+    const textObj = {
+      id: 't-erase',
+      kind: 'text' as const,
+      z: 0,
+      x: 30,
+      y: 40,
+      w: 200,
+      h: 48,
+      content: 'goodbye',
+      fontFamily: 'sans-serif',
+      fontSize: 24,
+      color: '#000',
+    };
+    const widgetWithText: WidgetData = {
+      ...widget,
+      config: {
+        ...widget.config,
+        objects: [textObj],
+      } as DrawingConfig,
+    };
+    const { container } = render(<DrawingWidget widget={widgetWithText} />);
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+    // Re-open via double-click.
+    fireEvent.doubleClick(canvas, { clientX: 50, clientY: 50 });
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement;
+    if (!editor) throw new Error('Editor not found');
+    // Erase the content and commit.
+    editor.innerText = '';
+    mockUpdateWidget.mockClear();
+    fireEvent.keyDown(editor, { key: 'Enter', metaKey: true });
+    // Empty re-edit commits the empty content through onCommit; the Widget
+    // resolves that to a remove command, so the persisted objects[] is empty.
+    expect(mockUpdateWidget).toHaveBeenCalled();
+    const lastCall =
+      mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
+    const cfg = (lastCall[1] as Partial<WidgetData>).config as DrawingConfig;
+    expect(objectsFromConfig(cfg)).toEqual([]);
+  });
+
+  it('export popover dismisses on outside pointerdown', () => {
+    const widgetWithPage: WidgetData = {
+      ...widget,
+      config: {
+        color: '#000',
+        width: 4,
+        pages: [{ id: 'p1', objects: [] }],
+        currentPage: 0,
+      } as DrawingConfig,
+    };
+    const { container, getByLabelText } = render(
+      <DrawingWidget widget={widgetWithPage} />
+    );
+    // Open the export popover.
+    fireEvent.click(getByLabelText('Export'));
+    expect(container.querySelector('[role="menu"]')).not.toBeNull();
+    // Pointerdown on document.body (outside the menu) closes it.
+    fireEvent.pointerDown(document.body);
+    expect(container.querySelector('[role="menu"]')).toBeNull();
   });
 
   it('double-click on an existing text object re-opens the editor', () => {
@@ -838,12 +920,13 @@ describe('DrawingWidget', () => {
     const { getByLabelText } = render(<DrawingWidget widget={pagedWidget} />);
     // Open page 2's kebab and delete.
     fireEvent.click(getByLabelText('Page 2 actions'));
-    // Use role=menuitem text to click Delete reliably.
-    const menuButtons = document.querySelectorAll('[role="menuitem"]');
-    const deleteBtn = Array.from(menuButtons).find(
+    // The kebab popup is intentionally NOT an ARIA menu (see PageStrip
+    // comment) — find the Delete button by text content.
+    const popupButtons = document.querySelectorAll('button');
+    const deleteBtn = Array.from(popupButtons).find(
       (b) => (b.textContent ?? '').trim().toLowerCase() === 'delete'
     ) as HTMLElement | undefined;
-    if (!deleteBtn) throw new Error('Delete menu item not found');
+    if (!deleteBtn) throw new Error('Delete button not found');
     mockUpdateWidget.mockClear();
     fireEvent.click(deleteBtn);
     expect(mockUpdateWidget).toHaveBeenCalled();

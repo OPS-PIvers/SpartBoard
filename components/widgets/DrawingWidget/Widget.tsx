@@ -150,7 +150,10 @@ export const DrawingWidget: React.FC<{
     const node = canvasRef.current;
     if (!node) return;
     setCanvasRect(node.getBoundingClientRect());
-  }, [editingText, widget.w, widget.h]);
+    // Re-measure on widget moves too — DraggableWindow lets the user drag a
+    // widget while the editor is open; without `widget.x`/`widget.y` here
+    // the editor would float over the canvas's old position.
+  }, [editingText, widget.w, widget.h, widget.x, widget.y]);
 
   // Canvas internal resolution follows the widget (minus header) in window mode,
   // or the parent container in student view.
@@ -268,32 +271,37 @@ export const DrawingWidget: React.FC<{
     setEditingText(obj);
   };
 
-  // Commit edited text content back into the objects array. If the object id
-  // already exists, replace it (re-edit flow → update command); otherwise,
-  // append (first edit of a freshly spawned object → add command).
+  // Commit edited text content back into the objects array. The editor
+  // hands us its final content (including the empty string); we apply the
+  // empty-removes-object rule here so first-spawn vs re-edit get the right
+  // semantics:
+  //  - existing object + empty content  → remove (matches degenerate-shape rule)
+  //  - existing object + non-empty      → update command
+  //  - fresh spawn + empty content      → no-op (don't persist an empty obj)
+  //  - fresh spawn + non-empty content  → add command
   const commitTextEdit = (next: TextObject) => {
     const existing = objects.find((o) => o.id === next.id);
+    const isEmpty = next.content.trim() === '';
     if (existing) {
-      commandStack.push({ kind: 'update', before: existing, after: next });
-    } else {
+      if (isEmpty) {
+        commandStack.push({ kind: 'remove', object: existing });
+      } else {
+        commandStack.push({ kind: 'update', before: existing, after: next });
+      }
+    } else if (!isEmpty) {
       commandStack.push({ kind: 'add', object: next });
     }
+    // Fresh spawn + empty falls through with no command — the unsaved local
+    // object simply vanishes when we clear editingText below.
     setEditingText(null);
   };
 
-  // Cancel / empty-commit: if the object was already in `objects` (re-edit
-  // flow) and the new content is empty, remove it — matches the degenerate-
-  // shape drop rule for rect/ellipse/line/arrow. Freshly spawned objects are
-  // not in `objects` yet, so cancellation is a clean no-op.
+  // Explicit Escape cancel: discard the editor's content and leave the
+  // persisted object untouched. Fresh spawns simply disappear (never
+  // persisted). Existing objects keep their pre-edit content because the
+  // editor's content was thrown away in `finalize(false)`.
   const cancelTextEdit = () => {
-    const stale = editingText;
     setEditingText(null);
-    if (!stale) return;
-    const existing = objects.find((o) => o.id === stale.id);
-    if (!existing) return;
-    if (existing.kind === 'text' && existing.content.trim() === '') {
-      commandStack.push({ kind: 'remove', object: existing });
-    }
   };
 
   // Image insertion: one-shot pipeline shared by paste / drag-drop / picker.
@@ -480,7 +488,8 @@ export const DrawingWidget: React.FC<{
   // to it for anything that isn't an undo/redo shortcut.
   const handleWrapperKeyDown = (e: React.KeyboardEvent) => {
     const isMod = e.metaKey || e.ctrlKey;
-    if (isMod && (e.key === 'z' || e.key === 'Z')) {
+    const key = e.key.toLowerCase();
+    if (isMod && key === 'z') {
       e.preventDefault();
       if (e.shiftKey) {
         redo();
@@ -489,7 +498,7 @@ export const DrawingWidget: React.FC<{
       }
       return;
     }
-    if (isMod && (e.key === 'y' || e.key === 'Y')) {
+    if (isMod && key === 'y') {
       e.preventDefault();
       redo();
       return;
@@ -504,8 +513,11 @@ export const DrawingWidget: React.FC<{
   // print dialog). Selection chrome is cleared before any PNG export so the
   // dashed bbox doesn't bleed into the saved file.
   const exportFilenameStem = () => {
-    const date = new Date().toISOString().split('T')[0];
-    return `Whiteboard-${date}`;
+    // ISO timestamp with `:` and `.` replaced so the filename is valid on
+    // every OS — also collision-free if a teacher exports the same widget
+    // twice in one session.
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `Whiteboard-${timestamp}`;
   };
 
   const handleExportCurrentPng = async () => {
@@ -577,9 +589,11 @@ export const DrawingWidget: React.FC<{
     }
   };
 
-  // Close the export popover on outside click. Mirrors the click-outside
-  // pattern used elsewhere in the app; kept inline (rather than reaching for
-  // `useClickOutside`) because this is the only popover in the widget.
+  // Close the export popover on outside click OR Escape. Mirrors the
+  // click-outside pattern used elsewhere in the app; kept inline (rather
+  // than reaching for `useClickOutside`) because this is the only popover
+  // in the widget. Escape additionally restores focus to the trigger
+  // button (the only direct <button> child of `exportMenuRef`).
   useEffect(() => {
     if (!isExportMenuOpen) return;
     const onDocPointerDown = (e: PointerEvent) => {
@@ -588,8 +602,24 @@ export const DrawingWidget: React.FC<{
         setIsExportMenuOpen(false);
       }
     };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        setIsExportMenuOpen(false);
+        // Return focus to the trigger so keyboard users land somewhere
+        // sensible — the standard ARIA-menu dismissal pattern.
+        const trigger = exportMenuRef.current?.querySelector(
+          'button[aria-haspopup="menu"]'
+        );
+        (trigger as HTMLButtonElement | null)?.focus();
+      }
+    };
     document.addEventListener('pointerdown', onDocPointerDown);
-    return () => document.removeEventListener('pointerdown', onDocPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onDocPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
   }, [isExportMenuOpen]);
 
   const handleSendToText = async () => {
@@ -663,8 +693,12 @@ export const DrawingWidget: React.FC<{
 
   const PaletteUI = (
     <div className="flex flex-wrap items-center gap-2 p-2">
+      {/* Toggle-button group (not radiogroup) — tools are modes, and the
+          button + aria-pressed pattern gives us native Tab/Space/Enter
+          keyboard handling without the roving-tabindex machinery that a
+          true radiogroup requires. */}
       <div
-        role="radiogroup"
+        role="group"
         aria-label="Drawing tool"
         className="flex gap-1 bg-slate-100 p-1 rounded-lg"
       >
@@ -672,10 +706,9 @@ export const DrawingWidget: React.FC<{
           <button
             key={tool}
             type="button"
-            role="radio"
-            aria-checked={activeTool === tool}
+            aria-pressed={activeTool === tool}
             onClick={() => setActiveTool(tool)}
-            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${
+            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${
               activeTool === tool
                 ? 'ring-2 ring-indigo-500'
                 : 'hover:bg-slate-50'
@@ -683,7 +716,7 @@ export const DrawingWidget: React.FC<{
             title={label}
             aria-label={label}
           >
-            <Icon className="w-3.5 h-3.5 text-slate-600" />
+            <Icon className="w-4 h-4 text-slate-600" />
           </button>
         ))}
       </div>
@@ -783,7 +816,8 @@ export const DrawingWidget: React.FC<{
               role="menuitem"
               type="button"
               onClick={() => void handleExportCurrentPng()}
-              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100"
+              disabled={isExporting}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Export PNG (this page)
             </button>
@@ -791,7 +825,7 @@ export const DrawingWidget: React.FC<{
               role="menuitem"
               type="button"
               onClick={() => void handleExportAllPng()}
-              disabled={pages.length <= 1}
+              disabled={isExporting || pages.length <= 1}
               className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Export PNG (all pages)
@@ -800,7 +834,8 @@ export const DrawingWidget: React.FC<{
               role="menuitem"
               type="button"
               onClick={() => void handleExportPdf()}
-              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100"
+              disabled={isExporting}
+              className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Export PDF
             </button>
@@ -864,7 +899,7 @@ export const DrawingWidget: React.FC<{
       <div
         className={`flex-1 relative ${
           isStudentView ? 'bg-transparent' : 'bg-white/5'
-        } overflow-hidden focus:outline-none ${cursorClass}`}
+        } overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset ${cursorClass}`}
         // tabIndex makes the wrapper focusable so React's synthetic `paste`
         // and `keydown` events fire here. Required for Backspace/Delete and
         // arrow nudges to reach the selection hook without a focused child.
@@ -912,8 +947,12 @@ export const DrawingWidget: React.FC<{
         {objects.length === 0 &&
           !isDrawing &&
           !(config.subcollectionMigrated && objectsLoading) && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
-              <Pencil className="w-8 h-8 opacity-20" />
+            <div
+              className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400"
+              title="Start drawing"
+              aria-label="Start drawing"
+            >
+              <Pencil className="w-8 h-8 opacity-20" aria-hidden />
             </div>
           )}
         {editingText && canvasRect && (

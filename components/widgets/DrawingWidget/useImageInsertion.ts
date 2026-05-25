@@ -256,9 +256,14 @@ export const useImageInsertion = ({
   const handleDragOver = useCallback((e: React.DragEvent) => {
     // Suppress default so the browser fires the subsequent `drop`. Without
     // preventDefault here, drag-and-drop is a no-op in most browsers.
-    if (e.dataTransfer?.types?.includes('Files')) {
-      e.preventDefault();
-    }
+    //
+    // We unconditionally preventDefault rather than gating on
+    // dataTransfer.types.includes('Files'): some browsers omit 'Files' from
+    // the type list until the `drop` event itself, which would cause
+    // cross-window file drags to silently no-op. Since the canvas only
+    // accepts files (handleDrop bails on non-image drops), the worst-case
+    // behavior on a non-file drag is a slightly different visual cursor.
+    e.preventDefault();
   }, []);
 
   const handleDrop = useCallback(

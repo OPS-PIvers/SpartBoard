@@ -104,20 +104,18 @@ describe('migrateDrawingConfig', () => {
   });
 
   it('wraps legacy paths as PathObjects with fresh UUIDs and sequential z', () => {
-    const input: DrawingConfig = {
-      objects: [] as DrawableObject[],
-      // Intentionally set objects undefined via cast — simulating a legacy
-      // document that only has `paths`.
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } as any;
-    delete (input as unknown as { objects?: unknown }).objects;
-    (input as unknown as { paths: Path[] }).paths = [
-      legacyPath({ color: '#aaa' }),
-      legacyPath({ color: '#bbb' }),
-      legacyPath({ color: '#ccc' }),
-    ];
+    // Test-only narrow type for legacy DrawingConfig docs that only carry
+    // `paths` (no `objects`/`pages`) — lets us avoid `as any` casts.
+    type LegacyDrawingConfig = { paths?: Path[] };
+    const input: LegacyDrawingConfig = {
+      paths: [
+        legacyPath({ color: '#aaa' }),
+        legacyPath({ color: '#bbb' }),
+        legacyPath({ color: '#ccc' }),
+      ],
+    };
 
-    const out = migrateDrawingConfig(input);
+    const out = migrateDrawingConfig(input as DrawingConfig);
     const objs = out.pages[0].objects;
     expect(objs).toHaveLength(3);
     objs.forEach((o, i) => {

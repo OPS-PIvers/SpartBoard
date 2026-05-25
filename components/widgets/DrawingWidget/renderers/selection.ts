@@ -1,5 +1,9 @@
 import { DrawableObject } from '@/types';
-import { getBoundingBox, getHandlePositions } from '../hitTest';
+import {
+  getBoundingBox,
+  getHandlePositions,
+  objectHonorsRotation,
+} from '../hitTest';
 
 // Selection chrome renderer. Painted INSIDE the canvas after the object loop
 // (not as a sibling SVG/DOM overlay) — keeps `useDrawingCanvas` the single
@@ -21,6 +25,15 @@ export interface TransformChromeState {
  * handle) for the given object. Sizes scale inversely with `scale` so a 10px
  * screen handle stays pointer-friendly at any canvas zoom. Wrapped in
  * save()/restore() so style state never leaks into the next paint.
+ *
+ * Rotation handling: for kinds that honor `obj.rotation`, the bbox stroke
+ * and all handles are rotated around the bbox center to match the on-screen
+ * rotated geometry. The rotation handle's lead line and circle stay anchored
+ * to the object's local "top-center" — so after rotation the handle appears
+ * "above" the rotated top edge, which matches user expectation. We rotate by
+ * mutating the ctx transform (single save/restore) rather than by computing
+ * rotated handle positions in JS — keeps the line widths / dashes drawn in
+ * stable screen-space units.
  */
 export const renderSelectionChrome = (
   ctx: CanvasRenderingContext2D,
@@ -43,6 +56,18 @@ export const renderSelectionChrome = (
   ctx.globalCompositeOperation = 'source-over';
   ctx.globalAlpha = transformState?.active ? 0.75 : 1;
 
+  // Apply rotation around the bbox center inside the save/restore so chrome
+  // visuals match the rotated object. Line/arrow/path ignore rotation so
+  // their chrome stays axis-aligned around their geometric bbox.
+  const rot = obj.rotation ?? 0;
+  if (objectHonorsRotation(obj) && Number.isFinite(rot) && rot !== 0) {
+    const cx = bbox.x + bbox.w / 2;
+    const cy = bbox.y + bbox.h / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.translate(-cx, -cy);
+  }
+
   // Bounding box: 1px dashed indigo.
   ctx.lineWidth = lineWidth;
   ctx.strokeStyle = BBOX_STROKE;
@@ -50,18 +75,22 @@ export const renderSelectionChrome = (
   ctx.strokeRect(bbox.x, bbox.y, bbox.w, bbox.h);
   ctx.setLineDash([]);
 
-  // Rotation handle: line from top-center down to the bbox top + circle.
-  const rot = positions.rotate;
+  // Rotation handle lead line: from the top-center handle up to the rotation
+  // circle position. The lead line uses the handle border color (NOT
+  // BBOX_STROKE) — setting strokeStyle explicitly here so the previous
+  // strokeRect's color doesn't bleed into the lead line.
+  const rotPos = positions.rotate;
   const topMid = positions.n;
+  ctx.strokeStyle = HANDLE_BORDER;
   ctx.beginPath();
   ctx.moveTo(topMid.x, topMid.y);
-  ctx.lineTo(rot.x, rot.y);
+  ctx.lineTo(rotPos.x, rotPos.y);
   ctx.stroke();
   ctx.beginPath();
   ctx.fillStyle = HANDLE_FILL;
   ctx.strokeStyle = HANDLE_BORDER;
   ctx.lineWidth = handleStroke;
-  ctx.arc(rot.x, rot.y, handleSize * 0.7, 0, Math.PI * 2);
+  ctx.arc(rotPos.x, rotPos.y, handleSize * 0.7, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 

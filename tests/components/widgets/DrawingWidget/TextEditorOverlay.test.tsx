@@ -136,7 +136,7 @@ describe('TextEditorOverlay', () => {
     expect(committed.content).toBe('after blur');
   });
 
-  it('empty (whitespace-only) commit routes through onCancel instead', () => {
+  it('empty (whitespace-only) commit fires onCommit with the empty content (caller decides remove vs no-op)', () => {
     const onCommit = vi.fn();
     const onCancel = vi.fn();
     const { container } = render(
@@ -153,8 +153,39 @@ describe('TextEditorOverlay', () => {
       editor.innerText = '   ';
     });
     fireEvent.keyDown(editor, { key: 'Enter', metaKey: true });
-    expect(onCommit).not.toHaveBeenCalled();
-    expect(onCancel).toHaveBeenCalledTimes(1);
+    // The editor itself no longer makes the empty-removes-object decision —
+    // that's the caller's job. The committed content is the whitespace-only
+    // string (caller will see content.trim() === '' and act accordingly).
+    expect(onCommit).toHaveBeenCalledTimes(1);
+    const committed = onCommit.mock.calls[0][0] as TextObject;
+    expect(committed.content.trim()).toBe('');
+    expect(onCancel).not.toHaveBeenCalled();
+  });
+
+  it('stops React-synthetic keydown propagation (Backspace/Arrow keys do not bubble to canvas-level handlers)', () => {
+    // The wrapper this overlay mounts inside (Widget / AnnotationOverlay)
+    // attaches its own onKeyDown for selection/undo. We assert the editor's
+    // handler invokes `stopPropagation` on its synthetic event so those
+    // wrappers never see Backspace/Arrow keys while editing. We probe this
+    // via an ancestor React handler — synthetic propagation is gated.
+    const ancestorHandler = vi.fn();
+    const { container } = render(
+      <div onKeyDown={ancestorHandler}>
+        <TextEditorOverlay
+          object={baseObject({ content: 'edit me' })}
+          canvasRect={canvasRect}
+          canvasSize={canvasSize}
+          onCommit={vi.fn()}
+          onCancel={vi.fn()}
+        />
+      </div>
+    );
+    const editor = container.querySelector('[role="textbox"]') as HTMLElement;
+    fireEvent.keyDown(editor, { key: 'Backspace' });
+    expect(ancestorHandler).not.toHaveBeenCalled();
+    // Arrow keys also stay local to the editor.
+    fireEvent.keyDown(editor, { key: 'ArrowLeft' });
+    expect(ancestorHandler).not.toHaveBeenCalled();
   });
 
   it('blur after commit does not double-fire onCommit', () => {

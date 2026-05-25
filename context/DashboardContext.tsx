@@ -4060,16 +4060,39 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   // does not fire two concurrent batch writes for the same widget. The
   // dashboard doc's `pages[]` is kept as a denormalized cache (id +
   // background only) so the page list survives without an extra read.
+  //
+  // The in-flight key is `uid::dashboardId::widgetId` so the ref's
+  // semantics survive a sign-out / sign-in-as-different-user transition
+  // (the context itself is torn down on sign-out today, but airtight keys
+  // cost nothing).
   const subcollectionMigrationInFlightRef = useRef<Set<string>>(new Set());
+  // Ref-mirror the active dashboard so the effect can read the latest
+  // widgets without listing `activeDashboard` (a fresh object every render)
+  // in its dep array. The migration only needs to run when uid or the
+  // dashboard *identity* changes, not on every widget mutation.
+  const activeDashboardForMigrationRef = useRef(activeDashboard);
+  activeDashboardForMigrationRef.current = activeDashboard;
+  const migrationUidRef = useRef<string | null>(null);
+  migrationUidRef.current = user?.uid ?? null;
   useEffect(() => {
-    if (!user || !activeDashboard || isAuthBypass) return;
-    const uid = user.uid;
-    const dashboardId = activeDashboard.id;
-    for (const widget of activeDashboard.widgets) {
+    const dashboard = activeDashboardForMigrationRef.current;
+    const uid = migrationUidRef.current;
+    if (!uid || !dashboard || isAuthBypass) return;
+    // Shared / synced boards: the migration must run under the host's uid
+    // so writes land at the right Firestore path and the rules don't reject
+    // them. A viewer/collaborator running under their own uid would either
+    // hit a permission denial or write orphaned data under their own
+    // namespace. Skip — the host's tab will run the migration when they
+    // open the board.
+    if (dashboard.linkedShareRole && dashboard.linkedShareRole !== 'owner') {
+      return;
+    }
+    const dashboardId = dashboard.id;
+    for (const widget of dashboard.widgets) {
       if (widget.type !== 'drawing') continue;
       const config = widget.config as DrawingConfig;
       if (!needsSubcollectionMigration(config)) continue;
-      const key = `${dashboardId}::${widget.id}`;
+      const key = `${uid}::${dashboardId}::${widget.id}`;
       if (subcollectionMigrationInFlightRef.current.has(key)) continue;
       subcollectionMigrationInFlightRef.current.add(key);
       void (async () => {
@@ -4098,7 +4121,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         }
       })();
     }
-  }, [user, activeDashboard]);
+  }, [user?.uid, activeDashboard?.id]);
 
   // True when the user is viewing a board they joined as a viewer in
   // View-Only mode. Read-only mutation guards check this via a ref so

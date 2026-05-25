@@ -1,5 +1,6 @@
 import {
   DrawableObject,
+  DrawingBackground,
   DrawingConfig,
   DrawingPage,
   Path,
@@ -9,8 +10,8 @@ import {
 
 /**
  * DrawingConfig with `pages` guaranteed non-empty and `currentPage` clamped
- * into range. Post-Phase-2-PR-2.3 shape. `objects` is preserved as `undefined`
- * (the deprecated single-page field is dropped during migration).
+ * into range. Post-Phase-2-PR-2.3 shape. The deprecated top-level `objects`
+ * field is stripped from the returned config (the field becomes absent).
  */
 export type MigratedDrawingConfig = DrawingConfig & {
   pages: DrawingPage[];
@@ -27,6 +28,26 @@ const VALID_TOOLS: readonly ShapeTool[] = [
   'text',
   'select',
 ];
+
+const VALID_BACKGROUNDS: readonly DrawingBackground[] = [
+  'blank',
+  'grid',
+  'lines',
+  'dots',
+];
+
+const sanitizeBackground = (
+  value: unknown,
+  fallback: DrawingBackground
+): DrawingBackground => {
+  if (
+    typeof value === 'string' &&
+    VALID_BACKGROUNDS.includes(value as DrawingBackground)
+  ) {
+    return value as DrawingBackground;
+  }
+  return fallback;
+};
 
 /**
  * Forward-migrate a DrawingConfig to the Phase-2 object-model shape.
@@ -60,60 +81,66 @@ export const migrateDrawingConfig = (
   const { paths, mode: _mode, ...rest } = raw;
 
   // Phase 2 PR 2.1b: legacy `color === 'eraser'` overload becomes explicit
-  // `activeTool`. Once migrated, `color` is always a real color string.
-  let activeTool = rest.activeTool;
-  let color = rest.color;
-  if (color === 'eraser') {
-    activeTool = 'eraser';
-    color = undefined; // fall back to the palette default at render time
-  }
-  if (!activeTool || !VALID_TOOLS.includes(activeTool)) activeTool = 'pen';
+  // `activeTool`. Once migrated, `color` is always a real color string (or
+  // undefined → fall back to palette default at render time).
+  const isLegacyEraser = rest.color === 'eraser';
+  const rawActiveTool = isLegacyEraser ? 'eraser' : rest.activeTool;
+  const color = isLegacyEraser ? undefined : rest.color;
+  const activeTool: ShapeTool =
+    rawActiveTool && VALID_TOOLS.includes(rawActiveTool)
+      ? rawActiveTool
+      : 'pen';
   const shapeFill = rest.shapeFill ?? false;
 
-  // Step 1: collapse legacy single-page sources into a flat `singlePageObjects`
-  // array. `pages` (if present) takes precedence over `objects`/`paths`.
-  let singlePageObjects: DrawableObject[] = [];
-  if (Array.isArray(raw.objects) && raw.objects.length > 0) {
-    singlePageObjects = raw.objects;
-  } else {
-    const migratedFromPaths: PathObject[] = Array.isArray(paths)
-      ? paths.reduce<PathObject[]>((acc, p, idx) => {
-          if (!isValidLegacyPath(p)) return acc;
-          acc.push({
-            id: crypto.randomUUID(),
-            kind: 'path',
-            z: idx,
-            points: p.points,
-            color: p.color,
-            width: p.width,
-          });
-          return acc;
-        }, [])
-      : [];
-    singlePageObjects = migratedFromPaths;
-  }
-
-  // Step 2: build the page list.
+  // Step 1: build the page list.
   // PR 2.5: every page gets a `background` field. Defaults to the widget-level
   // `background` (if set on `raw`) and finally to `'blank'`. We materialise the
   // field at migration time so consumers (renderer, settings UI, export
   // pipeline) can read a guaranteed value without per-call fallback chains.
-  const widgetDefaultBackground = (rest.background ?? 'blank') as
-    | 'blank'
-    | 'grid'
-    | 'lines'
-    | 'dots';
+  // The widget-level default is sanitized against the allowlist so a corrupt
+  // import (e.g. hand-edited JSON with `background: 'foo'`) can't leak an
+  // invalid value through the migration.
+  const widgetDefaultBackground = sanitizeBackground(rest.background, 'blank');
   let pages: DrawingPage[];
   if (Array.isArray(raw.pages) && raw.pages.length > 0) {
     // Already paged. Backfill missing ids defensively (hand-edited docs,
     // imports). Preserve `background` + `objects` references where present.
+    // Per-page backgrounds are also validated through the allowlist so the
+    // renderer only ever sees a known value.
     pages = raw.pages.map((p) => {
       const objects = Array.isArray(p?.objects) ? p.objects : [];
       const id = typeof p?.id === 'string' && p.id ? p.id : crypto.randomUUID();
-      const background = p?.background ?? widgetDefaultBackground;
+      const background = sanitizeBackground(
+        p?.background,
+        widgetDefaultBackground
+      );
       return { id, objects, background };
     });
   } else {
+    // Collapse legacy single-page sources into a flat object list. `pages`
+    // (handled above) takes precedence over `objects`/`paths`; this branch
+    // only runs when no paged data exists, so we lazily compute the
+    // legacy-to-pages-0 conversion here instead of unconditionally upstream.
+    let singlePageObjects: DrawableObject[];
+    if (Array.isArray(raw.objects) && raw.objects.length > 0) {
+      singlePageObjects = raw.objects;
+    } else {
+      const migratedFromPaths: PathObject[] = Array.isArray(paths)
+        ? paths.reduce<PathObject[]>((acc, p, idx) => {
+            if (!isValidLegacyPath(p)) return acc;
+            acc.push({
+              id: crypto.randomUUID(),
+              kind: 'path',
+              z: idx,
+              points: p.points,
+              color: p.color,
+              width: p.width,
+            });
+            return acc;
+          }, [])
+        : [];
+      singlePageObjects = migratedFromPaths;
+    }
     // Wrap legacy single-page content into one page. Always produce at least
     // one page so the widget never has to render against an empty array.
     pages = [
@@ -158,7 +185,12 @@ const isValidLegacyPath = (p: unknown): p is Path => {
 };
 
 /**
- * Convenience: the "empty" drawing config used for new widgets.
+ * Convenience: the "empty" drawing config used for new widgets. Note that
+ * `subcollectionMigrated` is intentionally absent — a fresh widget has no
+ * objects to relocate, so `needsSubcollectionMigration` will return false
+ * until the user draws something. When that first object lands in
+ * `pages[0].objects`, the migration kicker picks it up on the next render
+ * and writes the subcollection / flips the flag.
  */
 export const emptyDrawingConfig = (): MigratedDrawingConfig => ({
   pages: [{ id: crypto.randomUUID(), objects: [], background: 'blank' }],
@@ -170,6 +202,11 @@ export const emptyDrawingConfig = (): MigratedDrawingConfig => ({
 /**
  * Return the next z-index to use when appending a new object. Matches the
  * "last-drawn-on-top" rule: max(z) + 1, or 0 for an empty list.
+ *
+ * Performance: O(n) over the full object list. Intentional — classroom-scale
+ * widgets cap out around 500-1000 objects and this is microseconds even at
+ * the upper bound; keeping the implementation a plain loop avoids any
+ * incremental-tracking footgun.
  */
 export const nextZ = (objects: readonly DrawableObject[]): number => {
   if (objects.length === 0) return 0;

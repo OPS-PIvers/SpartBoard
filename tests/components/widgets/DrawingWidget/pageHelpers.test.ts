@@ -97,9 +97,19 @@ describe('pageHelpers', () => {
 
   describe('movePage', () => {
     it('moves the page at `from` to position `to` preserving ids', () => {
-      const pages = [page('a'), page('b'), page('c')];
+      const pageA = page('a');
+      const pageB = page('b');
+      const pageC = page('c');
+      const pages = [pageA, pageB, pageC];
       const out = movePage(pages, 0, 2);
       expect(out.map((p) => p.id)).toEqual(['b', 'c', 'a']);
+      // Stronger assertion: each moved page's id must be the SAME string
+      // we started with — a regression that regenerated UUIDs during reorder
+      // would still produce ['b','c','a'] ordering but break per-id state
+      // (e.g. the command stack keyed by page id).
+      expect(out[0].id).toBe(pageB.id);
+      expect(out[1].id).toBe(pageC.id);
+      expect(out[2].id).toBe(pageA.id);
     });
     it('preserves per-page background across reorders', () => {
       const pages: DrawingPage[] = [

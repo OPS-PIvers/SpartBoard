@@ -5,7 +5,8 @@ import {
   exportPagePng,
   exportPdf,
 } from '@/components/widgets/DrawingWidget/exportCanvas';
-import type { DrawingPage, PathObject } from '@/types';
+import { _clearImageCacheForTesting } from '@/components/widgets/DrawingWidget/renderers/image';
+import type { DrawingPage, ImageObject, PathObject } from '@/types';
 
 // Stub `toDataURL` on every HTMLCanvasElement so jsdom-allocated canvases
 // produce a deterministic PNG data URL. The renderer's actual paint calls are
@@ -47,6 +48,110 @@ describe('exportPagePng', () => {
   it('handles an empty page without throwing', async () => {
     const out = await exportPagePng(page('empty', []), { w: 800, h: 600 });
     expect(out).toBe(STUB_PNG);
+  });
+
+  it('pre-loads ImageObjects into the renderer cache so drawImage runs during export', async () => {
+    // Without the shared cache, `preloadImages` would allocate Image
+    // elements that get GC'd before the offscreen paint runs, and the
+    // export's offscreen renderImage call would see "still loading" and
+    // skip the image entirely.
+    _clearImageCacheForTesting();
+
+    // Stub Image so it "loads" synchronously on `src=` assignment.
+    const OriginalImage = window.Image;
+    class StubImage {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      crossOrigin: string | null = null;
+      complete = false;
+      naturalWidth = 0;
+      naturalHeight = 0;
+      private _src = '';
+      private _listeners = new Map<string, EventListener[]>();
+      addEventListener(type: string, fn: EventListener): void {
+        const arr = this._listeners.get(type) ?? [];
+        arr.push(fn);
+        this._listeners.set(type, arr);
+      }
+      get src(): string {
+        return this._src;
+      }
+      set src(value: string) {
+        this._src = value;
+        // Resolve on the microtask queue so the export's await sees the
+        // load event before the offscreen paint runs. Mark the promise as
+        // intentionally unawaited (void) — the test driver doesn't need to
+        // synchronize on it directly because the export pipeline waits for
+        // each Image's load event before painting the offscreen canvas.
+        void Promise.resolve().then(() => {
+          this.complete = true;
+          this.naturalWidth = 100;
+          this.naturalHeight = 100;
+          this.onload?.();
+          for (const l of this._listeners.get('load') ?? []) {
+            l(new Event('load'));
+          }
+        });
+      }
+    }
+    window.Image = StubImage as unknown as typeof Image;
+
+    // Stub the offscreen canvas's getContext to observe drawImage calls.
+    const drawImageSpy = vi.fn();
+    const getContextSpy = vi
+      .spyOn(HTMLCanvasElement.prototype, 'getContext')
+      .mockImplementation(
+        () =>
+          ({
+            save: vi.fn(),
+            restore: vi.fn(),
+            clearRect: vi.fn(),
+            fillRect: vi.fn(),
+            strokeRect: vi.fn(),
+            beginPath: vi.fn(),
+            moveTo: vi.fn(),
+            lineTo: vi.fn(),
+            stroke: vi.fn(),
+            fill: vi.fn(),
+            ellipse: vi.fn(),
+            fillText: vi.fn(),
+            translate: vi.fn(),
+            rotate: vi.fn(),
+            closePath: vi.fn(),
+            arc: vi.fn(),
+            setLineDash: vi.fn(),
+            drawImage: drawImageSpy,
+            canvas: { width: 800, height: 600 },
+            globalCompositeOperation: 'source-over',
+            strokeStyle: '#000',
+            fillStyle: '#000',
+            lineWidth: 1,
+            lineCap: 'butt',
+            lineJoin: 'miter',
+            globalAlpha: 1,
+            font: '',
+            textBaseline: 'alphabetic',
+          }) as unknown as CanvasRenderingContext2D
+      );
+
+    const img: ImageObject = {
+      id: 'i',
+      kind: 'image',
+      z: 0,
+      x: 0,
+      y: 0,
+      w: 50,
+      h: 50,
+      src: 'https://example.com/test.png',
+    };
+    const target: DrawingPage = { id: 'p', objects: [img] };
+    await exportPagePng(target, { w: 800, h: 600 });
+    expect(drawImageSpy).toHaveBeenCalledTimes(1);
+
+    // Cleanup.
+    getContextSpy.mockRestore();
+    window.Image = OriginalImage;
+    _clearImageCacheForTesting();
   });
 });
 

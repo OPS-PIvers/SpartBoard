@@ -101,7 +101,7 @@ export const PageStrip: React.FC<PageStripProps> = ({
                 setOpenMenuIndex(openMenuIndex === index ? -1 : index);
               }}
               aria-label={`Page ${index + 1} actions`}
-              aria-haspopup="menu"
+              aria-haspopup="true"
               aria-expanded={openMenuIndex === index}
               className={`absolute top-0 right-0 rounded-bl bg-white/80 hover:bg-white text-slate-700 transition-opacity ${
                 openMenuIndex === index
@@ -118,15 +118,19 @@ export const PageStrip: React.FC<PageStripProps> = ({
               />
             </button>
             {openMenuIndex === index && (
+              // Honest popup: plain <button>s in a positioned div, not an
+              // ARIA menu. The proper menu pattern requires Esc/arrow-key
+              // navigation and focus restoration, which this popup doesn't
+              // implement — using role=menu without that behavior is worse
+              // than no role at all (screen readers announce a menu that
+              // doesn't navigate like one).
               <div
-                role="menu"
                 onClick={(e) => e.stopPropagation()}
-                className="absolute z-10 top-full right-0 mt-1 bg-white rounded-md shadow-lg border border-slate-200 py-1 min-w-[140px]"
+                className="absolute z-50 top-full right-0 mt-1 bg-white rounded-md shadow-lg border border-slate-200 py-1 min-w-[140px]"
                 style={{ fontSize: 'min(12px, 3.8cqmin)' }}
               >
                 <button
                   type="button"
-                  role="menuitem"
                   onClick={() => {
                     closeMenu();
                     onMovePage(index, 'left');
@@ -139,7 +143,6 @@ export const PageStrip: React.FC<PageStripProps> = ({
                 </button>
                 <button
                   type="button"
-                  role="menuitem"
                   onClick={() => {
                     closeMenu();
                     onMovePage(index, 'right');
@@ -152,7 +155,6 @@ export const PageStrip: React.FC<PageStripProps> = ({
                 </button>
                 <button
                   type="button"
-                  role="menuitem"
                   onClick={() => {
                     closeMenu();
                     onDeletePage(index);

@@ -146,6 +146,10 @@ describe('/users/{uid}/dashboards/{id}/drawings/{wid}/pages/{pid}', () => {
     );
   });
 
+  it('another user cannot delete the page metadata', async () => {
+    await assertFails(deleteDoc(doc(asOtherTeacher(), pagePath(TEACHER_UID))));
+  });
+
   it('studentRole user cannot read the page metadata even under their own uid', async () => {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       await setDoc(
@@ -156,8 +160,20 @@ describe('/users/{uid}/dashboards/{id}/drawings/{wid}/pages/{pid}', () => {
     await assertFails(getDoc(doc(asStudentRole(), pagePath(STUDENT_UID))));
   });
 
+  it('studentRole user cannot write the page metadata under their own uid', async () => {
+    await assertFails(
+      setDoc(doc(asStudentRole(), pagePath(STUDENT_UID)), pageDocFields())
+    );
+  });
+
   it('unauthenticated caller cannot read the page metadata', async () => {
     await assertFails(getDoc(doc(asUnauth(), pagePath(TEACHER_UID))));
+  });
+
+  it('unauthenticated caller cannot write the page metadata', async () => {
+    await assertFails(
+      setDoc(doc(asUnauth(), pagePath(TEACHER_UID)), pageDocFields())
+    );
   });
 });
 

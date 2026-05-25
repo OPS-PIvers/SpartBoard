@@ -12,9 +12,15 @@ interface TextEditorOverlayProps {
    * the inverse of the pointer-coord scaling in `useDrawingCanvas.getPos`).
    */
   canvasSize: { width: number; height: number };
-  /** Called when the user commits non-empty text (Esc still cancels). */
+  /**
+   * Called when the user commits text. The `next` object always carries the
+   * editor's final (sanitized) content — including the empty string. The
+   * caller decides what an empty commit means (for the DrawingWidget /
+   * AnnotationOverlay, an empty commit on an EXISTING TextObject removes it;
+   * on a fresh spawn it just closes the overlay).
+   */
   onCommit: (next: TextObject) => void;
-  /** Called when the user cancels OR commits empty text (overlay should close). */
+  /** Called only when the user explicitly cancels via Escape. */
   onCancel: () => void;
 }
 
@@ -45,15 +51,15 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   // Stash callbacks + object in refs so blur/keydown handlers always see the
   // latest closure without re-binding listeners (avoids missed commits if
   // React re-renders between an in-flight pointer event and the handler
-  // firing). Sync via effect to satisfy `react-hooks/refs`.
+  // firing). Inline ref assignment (per CLAUDE.md: useEffect is an escape
+  // hatch, not a default — refs derived from props should be assigned in the
+  // render body, not in an effect).
   const onCommitRef = useRef(onCommit);
   const onCancelRef = useRef(onCancel);
   const objectRef = useRef(object);
-  useEffect(() => {
-    onCommitRef.current = onCommit;
-    onCancelRef.current = onCancel;
-    objectRef.current = object;
-  });
+  onCommitRef.current = onCommit;
+  onCancelRef.current = onCancel;
+  objectRef.current = object;
   // Guard so blur after a Cmd+Enter commit (which intentionally blurs the
   // editor) doesn't double-fire onCommit and clobber an upstream state reset.
   const finalizedRef = useRef(false);
@@ -73,6 +79,9 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
 
   // Focus + seed content on mount (and on object id change, when the same
   // overlay is re-used for a different TextObject — e.g. double-click flow).
+  // Deliberately depends on `object.id` only (not `object.content`) so a
+  // remote sync (live-share / multi-tab) that updates the persisted content
+  // does NOT clobber the user's in-progress local edit.
   useEffect(() => {
     const node = editorRef.current;
     if (!node) return;
@@ -90,7 +99,8 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
       sel.selectAllChildren(node);
       sel.collapseToEnd();
     }
-  }, [object.id, object.content]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [object.id]);
 
   const finalize = (commit: boolean) => {
     if (finalizedRef.current) return;
@@ -102,19 +112,26 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
     // when the cursor sits on an empty trailing line.
     const sanitized = raw.replace(/\r\n/g, '\n').replace(/\n+$/u, '');
     if (!commit) {
+      // Explicit Escape: caller restores prior state. Editor content is
+      // discarded.
       onCancelRef.current();
       return;
     }
-    if (sanitized.trim() === '') {
-      // Empty commit deletes the object — matches the degenerate-shape rule
-      // in useDrawingCanvas (e.g. a rect with w=0,h=0 is also dropped).
-      onCancelRef.current();
-      return;
-    }
+    // Always commit with the editor's final content — including the empty
+    // string. The caller decides what an empty commit means (remove for an
+    // existing object, no-op for a fresh spawn).
     onCommitRef.current({ ...objectRef.current, content: sanitized });
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    // Always stop propagation so keystrokes inside the editor never reach the
+    // canvas wrapper's key handler (which would delete the underlying object
+    // on Backspace, or nudge it on Arrow keys) or the AnnotationOverlay's
+    // window-level Escape handler (which would close the overlay entirely).
+    // The overlay's window listener is ALSO gated on editingText==null —
+    // belt + suspenders, since window-capture listeners can fire before
+    // React's bubble phase.
+    e.stopPropagation();
     if (e.key === 'Escape') {
       e.preventDefault();
       finalize(false);

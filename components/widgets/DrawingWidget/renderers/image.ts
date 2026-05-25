@@ -16,6 +16,53 @@ export const _clearImageCacheForTesting = (): void => {
 };
 
 /**
+ * Ensure the given image source is in the module-level cache, optionally
+ * resolving when it finishes loading. Used by the export pipeline
+ * (`exportCanvas.preloadImages`) to populate the SAME cache the live
+ * renderer reads from — without this, the export's allocated Image elements
+ * would be GC'd before the offscreen paint runs and the rendered objects
+ * would silently appear empty in the exported PNG/PDF.
+ *
+ * Failed loads resolve (do not reject) so a single bad image doesn't block
+ * an export of an otherwise-fine page. The failed entry is dropped from the
+ * cache the same way `renderImage`'s own error path drops it.
+ */
+export const ensureImageLoaded = (src: string): Promise<void> => {
+  const existing = imageCache.get(src);
+  if (existing) {
+    if (existing.complete && existing.naturalWidth > 0)
+      return Promise.resolve();
+    if (existing.complete) {
+      // complete but naturalWidth = 0 means it errored out. The renderer
+      // would already have purged the cache entry on the error event, so
+      // hitting this branch usually means the load is mid-flight in a JSDOM
+      // env where `complete` is true without the load event having fired.
+      // Falling through to the wait-for-load path is the safest behavior.
+    }
+    return new Promise<void>((resolve) => {
+      const done = () => resolve();
+      // Attach own listeners — the existing entry already has its own
+      // onload set by `renderImage`, so we use addEventListener to avoid
+      // clobbering that path.
+      existing.addEventListener('load', done, { once: true });
+      existing.addEventListener('error', done, { once: true });
+    });
+  }
+  return new Promise<void>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    const done = () => resolve();
+    img.addEventListener('load', done, { once: true });
+    img.addEventListener('error', () => {
+      imageCache.delete(src);
+      resolve();
+    });
+    imageCache.set(src, img);
+    img.src = src;
+  });
+};
+
+/**
  * Pure Canvas 2D renderer for an ImageObject.
  *
  * - On first paint of a previously-unseen `src`, allocates an `HTMLImageElement`
@@ -28,6 +75,11 @@ export const _clearImageCacheForTesting = (): void => {
  *   nothing rather than leaving stale state. A future PR may surface a
  *   placeholder/error chip; for now we match the spec's "render nothing"
  *   guidance to keep the canvas clean for export.
+ *
+ * Rotation: when `obj.rotation` is non-zero, the canvas is rotated around
+ * the bbox center BEFORE `drawImage` so the image (and its bbox) rotate
+ * together. Lines/arrows ignore rotation (endpoint-defined) but image is a
+ * bbox + rotation pair like rect/ellipse/text.
  */
 export const renderImage = (
   ctx: CanvasRenderingContext2D,
@@ -39,6 +91,14 @@ export const renderImage = (
     if (cached.complete && cached.naturalWidth > 0) {
       ctx.save();
       ctx.globalCompositeOperation = 'source-over';
+      const rot = obj.rotation ?? 0;
+      if (Number.isFinite(rot) && rot !== 0) {
+        const cx = obj.x + obj.w / 2;
+        const cy = obj.y + obj.h / 2;
+        ctx.translate(cx, cy);
+        ctx.rotate(rot);
+        ctx.translate(-cx, -cy);
+      }
       ctx.drawImage(cached, obj.x, obj.y, obj.w, obj.h);
       ctx.restore();
     }

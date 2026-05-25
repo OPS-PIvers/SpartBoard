@@ -22,7 +22,7 @@ import {
   TransformChromeState,
 } from './renderers/selection';
 import { DRAWING_DEFAULTS } from './constants';
-import { getBoundingBox, type BoundingBox } from './hitTest';
+import { getStrokedBoundingBox, type BoundingBox } from './hitTest';
 
 interface UseDrawingCanvasOptions {
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
@@ -153,6 +153,20 @@ export const useDrawingCanvas = ({
     [color, width]
   );
 
+  /**
+   * Live canvas-to-CSS scale (canvas internal px per CSS px). The selection
+   * chrome must use this so a 10-screen-px handle stays 10 screen px when the
+   * canvas is rendered at a non-1:1 ratio (e.g. CSS-scaled inside a parent
+   * `transform: scale()`). Returns 1 when the canvas isn't laid out yet.
+   */
+  const getLiveScale = useCallback((): number => {
+    const canvas = canvasRef.current;
+    if (!canvas) return 1;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0) return 1;
+    return canvas.width / rect.width;
+  }, [canvasRef]);
+
   const draw = useCallback(
     (
       ctx: CanvasRenderingContext2D,
@@ -179,16 +193,31 @@ export const useDrawingCanvas = ({
 
       // Selection chrome paints AFTER the object loop so it sits on top of
       // every object. Use the preview object's geometry when one is active
-      // so the bbox + handles follow the live drag.
+      // so the bbox + handles follow the live drag. The live canvas-to-CSS
+      // scale keeps handle/dash widths constant on-screen regardless of any
+      // parent `transform: scale()` on the dashboard.
       if (selectedObject) {
         const chromeTarget =
           previewObject && previewObject.id === selectedObject.id
             ? previewObject
             : selectedObject;
-        renderSelectionChrome(ctx, chromeTarget, transformState, 1);
+        renderSelectionChrome(
+          ctx,
+          chromeTarget,
+          transformState,
+          getLiveScale()
+        );
       }
     },
-    [color, width, shapeFill, selectedObject, transformState, previewObject]
+    [
+      color,
+      width,
+      shapeFill,
+      selectedObject,
+      transformState,
+      previewObject,
+      getLiveScale,
+    ]
   );
 
   /**
@@ -212,15 +241,22 @@ export const useDrawingCanvas = ({
     ): void => {
       // Compute the union bbox of every dirty object across BOTH the
       // previous and next snapshots — a removed object leaves its old
-      // pixels behind, so we must clear its pre-removal bbox. The padding
-      // covers stroke widths and arrow heads that extend beyond a path's
-      // points.
-      const STROKE_PAD = 16;
+      // pixels behind, so we must clear its pre-removal bbox.
+      //
+      // STROKE_PAD sits comfortably above the max supported stroke width
+      // (currently 20px from Settings.tsx → half = 10) so adjacent thick
+      // strokes aren't bitten when we clear a dirty region next to them.
+      // The bbox we use for the union ALREADY includes each object's
+      // stroke half-width (via `getStrokedBoundingBox`); STROKE_PAD is an
+      // additional safety margin to absorb subpixel rasterization and any
+      // stroke-extent we under-estimated for arrows/eraser composite ops.
+      const STROKE_PAD = 24;
       let unionX = Infinity;
       let unionY = Infinity;
       let unionR = -Infinity;
       let unionB = -Infinity;
-      const expand = (bbox: BoundingBox) => {
+      const expand = (bbox: BoundingBox | null) => {
+        if (!bbox) return;
         if (bbox.x < unionX) unionX = bbox.x;
         if (bbox.y < unionY) unionY = bbox.y;
         const right = bbox.x + bbox.w;
@@ -231,12 +267,12 @@ export const useDrawingCanvas = ({
       const nextById = new Map(allObjects.map((o) => [o.id, o]));
       dirtyIds.forEach((id) => {
         const prev = prevObjects.get(id);
-        if (prev) expand(getBoundingBox(prev));
+        if (prev) expand(getStrokedBoundingBox(prev));
         const next = nextById.get(id);
-        if (next) expand(getBoundingBox(next));
+        if (next) expand(getStrokedBoundingBox(next));
       });
-      // If nothing valid landed (should not happen with a non-empty dirty
-      // set), bail to a full clear for safety.
+      // If nothing valid landed (e.g. every dirty entry was an empty path
+      // whose stroked-bbox is null), bail to a full clear for safety.
       if (
         !Number.isFinite(unionX) ||
         !Number.isFinite(unionY) ||
@@ -271,9 +307,14 @@ export const useDrawingCanvas = ({
         ? allObjects.map((o) => (o.id === previewObject.id ? previewObject : o))
         : allObjects;
       const sorted = [...effective].sort((a, b) => a.z - b.z);
-      // AABB overlap test against the dirty region.
+      // AABB overlap test against the dirty region using the STROKED bbox.
+      // The geometric bbox ignores stroke half-width, so a thick neighbor
+      // stroke that visually intrudes into the dirty region would be
+      // skipped by a geometric-bbox check — and then look bitten because
+      // we just cleared the dirty region underneath it.
       const intersects = (obj: DrawableObject): boolean => {
-        const bbox = getBoundingBox(obj);
+        const bbox = getStrokedBoundingBox(obj);
+        if (!bbox) return false;
         if (bbox.x + bbox.w < dirtyX) return false;
         if (bbox.x > dirtyR) return false;
         if (bbox.y + bbox.h < dirtyY) return false;
@@ -296,7 +337,12 @@ export const useDrawingCanvas = ({
           previewObject && previewObject.id === selectedObject.id
             ? previewObject
             : selectedObject;
-        renderSelectionChrome(ctx, chromeTarget, transformState, 1);
+        renderSelectionChrome(
+          ctx,
+          chromeTarget,
+          transformState,
+          getLiveScale()
+        );
       }
     },
     [
@@ -307,6 +353,7 @@ export const useDrawingCanvas = ({
       selectedObject,
       transformState,
       previewObject,
+      getLiveScale,
     ]
   );
 
@@ -361,10 +408,32 @@ export const useDrawingCanvas = ({
     // preview, OR an active selection, do a full redraw. These are all
     // transient UI states — they don't last long enough for the perf cost
     // to matter, and skipping them risks ghosted handles.
+    //
+    // m3: when literally nothing has changed since the last render and no
+    // transient UI state is active, do nothing. Without this guard, the
+    // effect would repaint the canvas on every parent re-render even though
+    // every pixel would be identical.
+    if (
+      !sizeChanged &&
+      dirtyIds.size === 0 &&
+      previewObject === null &&
+      selectedObject === null &&
+      inProgressRef.current === null
+    ) {
+      // Sync the prev-snapshot anyway so the diff stays consistent if a
+      // future render adds a new dirty entry.
+      prevObjectsRef.current = new Map(objects.map((o) => [o.id, o]));
+      return;
+    }
+
     const fallbackFull =
       sizeChanged ||
       prev.size === 0 ||
       dirtyIds.size === 0 ||
+      // m7: skip incremental for tiny scenes — clearing the full canvas is
+      // already cheap when there are < 25 objects total, so the incremental
+      // overhead (diff, clip, intersect-filter) isn't worth it.
+      objects.length < 25 ||
       dirtyIds.size >= 25 ||
       dirtyIds.size >= objects.length / 4 ||
       inProgressRef.current !== null ||
@@ -515,6 +584,14 @@ export const useDrawingCanvas = ({
           ctx.moveTo(prev.x, prev.y);
           ctx.lineTo(pos.x, pos.y);
           ctx.stroke();
+          // m6: defensive composite reset. The eraser branch above sets
+          // `destination-out`, and an exception thrown elsewhere in the
+          // event loop between this segment and the next pointer-move
+          // could leave the context in eraser mode and paint subsequent
+          // shapes (in-progress previews, selection chrome) destructively.
+          if (inProgress.tool === 'eraser') {
+            ctx.globalCompositeOperation = 'source-over';
+          }
         }
         return;
       }
@@ -704,6 +781,11 @@ const renderInProgress = (
     case 'line':
     case 'arrow': {
       const { x1, y1, x2, y2 } = inProgress;
+      // n4: suppress the in-progress preview entirely for a degenerate
+      // arrow (start === end). `renderArrow`'s head math `atan2(0,0)`
+      // yields 0 and would paint a stray head pointing east at the
+      // pointer-down spot before the user has dragged anywhere.
+      if (inProgress.kind === 'arrow' && x1 === x2 && y1 === y2) return;
       const base = {
         id: '__preview__',
         z: 0,

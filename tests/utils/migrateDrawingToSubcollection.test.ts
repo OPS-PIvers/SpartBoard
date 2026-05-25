@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import type { Firestore } from 'firebase/firestore';
 import type { DrawableObject, DrawingConfig, PathObject } from '@/types';
 
 interface MockBatch {
@@ -38,9 +39,7 @@ const makeBatch = (): MockBatch => ({
   commit: vi.fn().mockResolvedValue(undefined),
 });
 
-const dummyDb = { __mock: 'db' } as unknown as Parameters<
-  typeof migrateDrawingToSubcollection
->[0]['db'];
+const dummyDb = { __mock: 'db' } as unknown as Firestore;
 
 describe('migrateDrawingToSubcollection', () => {
   let batches: MockBatch[];
@@ -135,11 +134,74 @@ describe('migrateDrawingToSubcollection', () => {
     });
     expect(ran).toBe(true);
     // Total ops = 2 page docs + 1200 object docs = 1202. With a 450-op
-    // chunk size, that's ceil(1202 / 450) = 3 batches.
+    // chunk size, that's ceil(1202 / 450) = 3 batches. The expected per-
+    // batch counts (450, 450, 302) rely on the WriteOp queue ordering
+    // (page-meta before its objects, page by page); a refactor that flips
+    // object-then-page ordering would still chunk correctly but the slice
+    // boundaries below would no longer split cleanly along page edges.
     expect(batches).toHaveLength(3);
     expect(batches[0].set).toHaveBeenCalledTimes(450);
     expect(batches[1].set).toHaveBeenCalledTimes(450);
     expect(batches[2].set).toHaveBeenCalledTimes(1202 - 900);
+  });
+
+  it.each([
+    { totalObjs: 449, expectedBatches: 1 }, // 449 objs + 1 page = 450 ops, 1 batch
+    { totalObjs: 450, expectedBatches: 2 }, // 450 objs + 1 page = 451 ops, 2 batches
+    { totalObjs: 899, expectedBatches: 2 }, // 899 + 1 = 900 ops, 2 batches
+    { totalObjs: 900, expectedBatches: 3 }, // 900 + 1 = 901 ops, 3 batches
+  ])(
+    'chunks $totalObjs objects (+ 1 page meta) into $expectedBatches batch(es) at the 450-op boundary',
+    async ({ totalObjs, expectedBatches }) => {
+      const config: DrawingConfig = {
+        pages: [
+          {
+            id: 'p1',
+            objects: Array.from({ length: totalObjs }, (_, i) =>
+              pathObj({ id: `o-${i}`, z: i })
+            ),
+            background: 'blank',
+          },
+        ],
+      };
+      await migrateDrawingToSubcollection({
+        db: dummyDb,
+        uid: 'u',
+        dashboardId: 'd',
+        widgetId: 'w',
+        config,
+      });
+      expect(batches).toHaveLength(expectedBatches);
+    }
+  );
+
+  it('is idempotent: re-running on the post-migration output is a no-op', async () => {
+    const config: DrawingConfig = {
+      pages: [
+        { id: 'p1', objects: [pathObj({ id: 'a' })], background: 'grid' },
+      ],
+    };
+    const { migratedConfig } = await migrateDrawingToSubcollection({
+      db: dummyDb,
+      uid: 'u',
+      dashboardId: 'd',
+      widgetId: 'w',
+      config,
+    });
+    // Reset captured batches so we only count what the SECOND call writes.
+    batches.length = 0;
+    writeBatchMock.mockClear();
+    const second = await migrateDrawingToSubcollection({
+      db: dummyDb,
+      uid: 'u',
+      dashboardId: 'd',
+      widgetId: 'w',
+      config: migratedConfig,
+    });
+    expect(second.ran).toBe(false);
+    expect(second.migratedConfig).toBe(migratedConfig);
+    expect(batches).toHaveLength(0);
+    expect(writeBatchMock).not.toHaveBeenCalled();
   });
 
   it('rethrows on batch failure WITHOUT setting subcollectionMigrated (retry-safe)', async () => {

@@ -65,6 +65,16 @@ export const applyCommand = (
       // Forward = before -> after; Reverse = after -> before. We always
       // match by id, never by reference, so out-of-band mutations (e.g. a
       // remote sync) don't strand the undo.
+      //
+      // Runtime invariant: the two snapshots must describe the same object.
+      // A future caller building an `update` from two different objects
+      // (e.g. "convert this rect into an ellipse") would silently get a
+      // one-way command without this guard.
+      if (cmd.before.id !== cmd.after.id) {
+        throw new Error(
+          `applyCommand: update command id mismatch (before.id=${cmd.before.id} after.id=${cmd.after.id}). update is a transform-in-place; build separate remove+add commands for id changes.`
+        );
+      }
       const target = direction === 'forward' ? cmd.after : cmd.before;
       return objects.map((o) => (o.id === cmd.after.id ? target : o));
     }
@@ -79,6 +89,15 @@ export const applyCommand = (
       if (direction === 'forward') return [];
       // Defensive copy so the caller can't mutate our stored snapshot.
       return [...cmd.objects];
+    }
+    default: {
+      // Exhaustiveness guard: TypeScript flags this as unreachable today,
+      // but a future kind added to the union would surface as a compile
+      // error here instead of silently falling through.
+      const _exhaustive: never = cmd;
+      throw new Error(
+        `applyCommand: unhandled command kind ${JSON.stringify(_exhaustive)}`
+      );
     }
   }
 };

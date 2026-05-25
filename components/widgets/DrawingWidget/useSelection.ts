@@ -59,8 +59,15 @@ interface UseSelectionOptions {
   onRemoveObject: (id: string) => void;
   /** Scale factor between canvas pixel space and on-screen CSS px. Used to
    *  size handle hit regions so a 10px screen handle still resolves at any
-   *  zoom. Defaults to 1 (1:1 mapping). */
+   *  zoom. Defaults to 1 (1:1 mapping). Prefer `canvasRef` over this when
+   *  the canvas may be CSS-scaled — the live ratio off `getBoundingClientRect`
+   *  is more accurate than a snapshot value plumbed through props. */
   scale?: number;
+  /** When provided, the hook derives the canvas-to-CSS scale from
+   *  `canvas.width / rect.width` at every pointer-down. This is the
+   *  preferred way to thread scale through — a snapshotted `scale` prop
+   *  can be stale if the canvas resizes between renders. */
+  canvasRef?: React.RefObject<HTMLCanvasElement | null>;
 }
 
 interface UseSelectionResult {
@@ -93,7 +100,19 @@ export const useSelection = ({
   onTransformCommit,
   onRemoveObject,
   scale = 1,
+  canvasRef,
 }: UseSelectionOptions): UseSelectionResult => {
+  // Live canvas-to-CSS scale. When a `canvasRef` is supplied we always
+  // prefer the bounding-rect-derived value — that handles parent
+  // `transform: scale()` and post-resize states correctly. The `scale` prop
+  // is the fallback for callers that don't have a canvas ref handy.
+  const getScale = useCallback((): number => {
+    const canvas = canvasRef?.current;
+    if (!canvas) return scale;
+    const rect = canvas.getBoundingClientRect();
+    if (rect.width <= 0) return scale;
+    return canvas.width / rect.width;
+  }, [canvasRef, scale]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [transformState, setTransformState] = useState<TransformState | null>(
     null
@@ -124,7 +143,7 @@ export const useSelection = ({
       // selected — a small handle inside the bbox of its own object would
       // otherwise be unreachable.
       if (selectedObject) {
-        const handle = hitTestHandle(selectedObject, pos, scale);
+        const handle = hitTestHandle(selectedObject, pos, getScale());
         if (handle) {
           const bbox = getBoundingBox(selectedObject);
           setTransformState({
@@ -157,7 +176,7 @@ export const useSelection = ({
       });
       latestTransformedRef.current = hit;
     },
-    [activeTool, objects, selectedObject, clearSelection, scale]
+    [activeTool, objects, selectedObject, clearSelection, getScale]
   );
 
   const handleSelectPointerMove = useCallback(

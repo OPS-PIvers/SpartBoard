@@ -1,5 +1,6 @@
 import type { DrawableObject, DrawingPage } from '@/types';
 import { renderObject } from './renderers/dispatcher';
+import { ensureImageLoaded } from './renderers/image';
 import { paintBackground } from './backgroundTemplates';
 
 // Export pipeline for the DrawingWidget (Phase 2 PR 2.5).
@@ -44,8 +45,14 @@ export const exportPagePng = (
  * exported file. Pre-loading here decouples export latency from the order in
  * which the live canvas happened to paint things.
  *
- * Failed loads (CORS, 404) are resolved (not rejected) so one bad image
- * doesn't block the export of every other object on the page.
+ * Uses `ensureImageLoaded` so the SAME module-level cache that `renderImage`
+ * reads from is populated by the export pipeline. Without this, the locally-
+ * allocated Image elements would be GC'd before the offscreen paint runs and
+ * `renderImage` would re-allocate on a cache miss — meaning the offscreen
+ * paint would see "still loading" and skip the image entirely.
+ *
+ * Failed loads (CORS, 404) are resolved (not rejected) by `ensureImageLoaded`
+ * so one bad image doesn't block the export of every other object on the page.
  */
 const preloadImages = async (
   objects: readonly DrawableObject[]
@@ -56,18 +63,7 @@ const preloadImages = async (
   }
   if (sources.size === 0) return;
 
-  await Promise.all(
-    Array.from(sources).map(
-      (src) =>
-        new Promise<void>((resolve) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve();
-          img.onerror = () => resolve(); // tolerant: skip broken images
-          img.src = src;
-        })
-    )
-  );
+  await Promise.all(Array.from(sources).map((src) => ensureImageLoaded(src)));
 };
 
 /**

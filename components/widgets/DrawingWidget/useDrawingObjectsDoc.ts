@@ -110,23 +110,24 @@ export const useDrawingObjectsDoc = ({
 
   useEffect(() => {
     if (!uid || !dashboardId || !pageId) {
-      // No active subscription — reset to the empty/idle baseline. The
+      // No active subscription — reset to the empty/idle baseline. These
       // setState calls are the standard "drop external subscription"
-      // pattern: synchronizing with the absence of the external system
-      // is still synchronizing with it, so the lint rule's false positive
-      // here is suppressed.
+      // pattern: synchronizing with the absence of the external system is
+      // still synchronizing with it. ESLint flags the first setState
+      // (which is the rule's heuristic anchor for the cascade-render
+      // warning); follow-up setStates in the same branch don't add a
+      // second flag, so a single suppression covers the block.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setObjects([]);
-
       setLoading(false);
       return;
     }
 
     // Mark the new subscription as "loading until first snapshot"
     // synchronously so a render between subscribe and the snapshot
-    // callback shows the spinner instead of a stale page. Same lint
-    // suppression rationale: this IS the synchronization edge.
-
+    // callback shows the spinner instead of a stale page. This setState
+    // tracks the subscribe → first-snapshot edge — a legitimate
+    // synchronization-with-external-system use of useEffect.
     setLoading(true);
 
     const contextKey = subContextKey(uid, dashboardId, widgetId);
@@ -238,6 +239,13 @@ export const useDrawingObjectsDoc = ({
 
   const clear = useCallback(async () => {
     if (!uid || !dashboardId || !pageId) return;
+    // Builds the delete list from the React-state `objects` array (closure
+    // capture at render time). For the current single-tab teacher CRUD use
+    // case this is correct — there is no concurrent writer that could add
+    // an object between the React render and this batch commit. If we ever
+    // open the DrawingWidget to multi-tab or remote writes, switch to
+    // `getDocs(colRef)` immediately before batching so concurrent inserts
+    // don't survive Clear-All.
     const ids = objects.map((o) => o.id);
     if (ids.length === 0) return;
     for (let i = 0; i < ids.length; i += FIRESTORE_BATCH_LIMIT) {

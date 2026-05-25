@@ -42,7 +42,9 @@ export const renderObject = (
     case 'text':
       // Skip rendering empty text — empty content is the "in-edit" sentinel
       // for a freshly-spawned object before the user types anything, and we
-      // don't want an invisible-but-still-allocating-baseline draw call.
+      // don't want an invisible-but-still-allocating-baseline draw call. See
+      // `TextEditorOverlay.tsx` for the corresponding contenteditable behavior
+      // that keeps the editor open until the user types or escapes.
       if (obj.content === '') return;
       renderText(ctx, obj);
       return;
@@ -58,8 +60,12 @@ export const renderObject = (
 /**
  * Pure path-points renderer. Shared by the dispatcher (committed PathObjects)
  * and the live-preview path renderer in `useDrawingCanvas` (in-flight stroke).
- * Resets `globalCompositeOperation` back to `source-over` at the end so eraser
- * strokes don't leak their composite mode into subsequent paints.
+ *
+ * Intentionally ignores any rotation field — paths are point-list defined,
+ * so any rotation is already encoded in the points themselves. Wrapped in
+ * save()/restore() for consistency with the other renderers; the eraser
+ * composite op is also explicitly reset before restore so nothing leaks
+ * even on contexts where save/restore don't capture composite mode.
  */
 export const renderPathPoints = (
   ctx: CanvasRenderingContext2D,
@@ -68,6 +74,7 @@ export const renderPathPoints = (
   width: number
 ): void => {
   if (points.length < 2) return;
+  ctx.save();
   ctx.beginPath();
   ctx.lineCap = 'round';
   ctx.lineJoin = 'round';
@@ -84,5 +91,8 @@ export const renderPathPoints = (
     ctx.lineTo(points[i].x, points[i].y);
   }
   ctx.stroke();
+  // Explicit reset before restore — see comment above on save/restore
+  // capturing composite mode unreliably across canvas polyfills.
   ctx.globalCompositeOperation = 'source-over';
+  ctx.restore();
 };

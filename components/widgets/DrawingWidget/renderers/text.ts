@@ -4,6 +4,12 @@ import { TextObject } from '@/types';
 // fillStyle / textBaseline never leak into other objects in the dispatcher
 // render loop. Multi-line content is split on '\n' and laid out by advancing
 // y by `fontSize * 1.2` (a standard line-height ratio) per line.
+//
+// Rotation: when `obj.rotation` is non-zero, the canvas is rotated around
+// the bbox center BEFORE the per-line `fillText` calls so the entire text
+// block rotates together (rather than each line rotating around its own
+// baseline). The contenteditable overlay positions its rotated box the same
+// way so the editing visual matches the persisted draw.
 
 const LINE_HEIGHT_RATIO = 1.2;
 
@@ -16,6 +22,16 @@ export const renderText = (
   ctx.font = `${obj.fontSize}px ${obj.fontFamily}`;
   ctx.fillStyle = obj.color;
   ctx.textBaseline = 'alphabetic';
+
+  // Rotation pivots around the bbox center.
+  const rot = obj.rotation ?? 0;
+  if (Number.isFinite(rot) && rot !== 0) {
+    const cx = obj.x + obj.w / 2;
+    const cy = obj.y + obj.h / 2;
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    ctx.translate(-cx, -cy);
+  }
 
   // First baseline sits one full font-size below the top of the bbox so the
   // glyph caps land roughly at the top edge of the object — matches what the

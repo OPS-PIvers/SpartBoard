@@ -1,5 +1,10 @@
 import { doc, writeBatch, type Firestore } from 'firebase/firestore';
-import type { DrawableObject, DrawingConfig, DrawingPage } from '@/types';
+import type {
+  DrawableObject,
+  DrawingBackground,
+  DrawingConfig,
+  DrawingPage,
+} from '@/types';
 
 /**
  * Phase 2 PR 2.6 — relocate `DrawingConfig.pages[].objects[]` from the
@@ -18,10 +23,11 @@ import type { DrawableObject, DrawingConfig, DrawingPage } from '@/types';
  *   snapshot. This is the one-release backward-compat window the spec calls
  *   out; older clients can still read page id + background but will see
  *   empty `objects[]` until they pick up the subcollection hook.
- * - Writes are chunked into batches of {@link FIRESTORE_BATCH_OP_LIMIT} so
- *   widgets with >500 objects don't trip Firestore's per-batch hard cap.
- *   Page-metadata writes interleave with object writes in the same batch
- *   stream — they count against the same 500-op budget.
+ * - Writes are chunked into batches of {@link FIRESTORE_BATCH_OP_LIMIT}
+ *   (currently 450, leaving headroom under Firestore's 500-op hard cap) so
+ *   widgets with >450 objects don't trip the per-batch limit. Page-metadata
+ *   writes interleave with object writes in the same batch stream — they
+ *   count against the same 450-op budget.
  * - Partial failure: if a batch commit throws, the function rethrows
  *   WITHOUT setting `subcollectionMigrated`. The next load will retry the
  *   migration from scratch. `setDoc` is idempotent (the same object id
@@ -29,7 +35,8 @@ import type { DrawableObject, DrawingConfig, DrawingPage } from '@/types';
  */
 
 /** Firestore allows 500 ops per writeBatch; reserve a small margin so page
- *  metadata writes can interleave without pushing a batch over the limit. */
+ *  metadata writes can interleave without pushing a batch over the limit.
+ *  Exported so unit tests can assert the limit is held. */
 export const FIRESTORE_BATCH_OP_LIMIT = 450;
 
 interface MigrateOptions {
@@ -71,7 +78,11 @@ export const migrateDrawingToSubcollection = async ({
   // can chunk uniformly. Mixing page-doc writes with object writes in the
   // same queue keeps ordering deterministic (page meta before its objects).
   type WriteOp =
-    | { kind: 'page'; pageId: string; payload: { background?: string } }
+    | {
+        kind: 'page';
+        pageId: string;
+        payload: { background?: DrawingBackground };
+      }
     | {
         kind: 'object';
         pageId: string;
@@ -127,6 +138,10 @@ export const migrateDrawingToSubcollection = async ({
           'objects',
           op.objectId
         );
+        // Full overwrite (no `{ merge: true }`) is intentional — object docs
+        // are written by id, so a retry after partial failure rewrites the
+        // same id with the same payload. setDoc is idempotent in that case
+        // and re-running cannot duplicate data.
         batch.set(ref, op.payload);
       }
     }
@@ -136,10 +151,13 @@ export const migrateDrawingToSubcollection = async ({
   // Denormalized cache: keep pages[] (id + background) on the dashboard doc
   // so the page list is readable without an extra round trip, but drop the
   // `objects[]` arrays since the subcollection is now the source of truth.
+  // Default a missing `background` to `'blank'` so the cache always carries
+  // a usable value (matches `migrateDrawingConfig`'s default at the
+  // synchronous-migration site).
   const denormalizedPages: DrawingPage[] = pages.map((p) => ({
     id: p.id,
     objects: [],
-    background: p.background,
+    background: p.background ?? 'blank',
   }));
 
   return {
