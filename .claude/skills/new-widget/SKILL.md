@@ -540,12 +540,12 @@ first added (or read both in the component and let instance config override).
 Study these before writing new widget code — they represent the current
 gold standard for each pattern:
 
-| Pattern                             | Reference File                                     |
-| ----------------------------------- | -------------------------------------------------- |
-| Clean scaling (hero number)         | `components/widgets/ClockWidget/Widget.tsx`        |
-| Icon + text layout                  | `components/widgets/Weather/Widget.tsx`            |
-| List with cqmin rows                | `components/widgets/LunchCount/Widget.tsx`         |
-| Building-defaults consumption       | `components/widgets/SpecialistSchedule/Widget.tsx` |
-| Settings + Appearance split         | `components/widgets/ClockWidget/Settings.tsx`      |
-| Good empty state usage              | `components/widgets/QRWidget/Widget.tsx`           |
-| Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx` |
+| Pattern                             | Reference File                                                                                                                            |
+| ----------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| Clean scaling (hero number)         | `components/widgets/ClockWidget/Widget.tsx`                                                                                               |
+| Icon + text layout                  | `components/widgets/Weather/Widget.tsx`                                                                                                   |
+| List with cqmin rows                | `components/widgets/LunchCount/Widget.tsx`                                                                                                |
+| Building-defaults consumption       | `components/widgets/SpecialistSchedule/SpecialistScheduleWidget.tsx` (exception to the standard `Widget.tsx` convention — do not imitate) |
+| Settings + Appearance split         | `components/widgets/ClockWidget/Settings.tsx`                                                                                             |
+| Good empty state usage              | `components/widgets/QRWidget/Widget.tsx`                                                                                                  |
+| Transparent-root front-face pattern | `components/widgets/ExpectationsWidget/Widget.tsx`                                                                                        |

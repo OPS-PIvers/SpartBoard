@@ -14,6 +14,7 @@ import {
   AddWidgetOverrides,
   GridPosition,
   DrawableObject,
+  ShapeTool,
   Collection,
   CollectionSubstituteShareInput,
 } from '../types';
@@ -101,6 +102,10 @@ export interface AnnotationState {
   color: string;
   width: number;
   customColors: string[];
+  /** Active drawing tool. Defaults to `'pen'`. */
+  activeTool: ShapeTool;
+  /** Fill rectangles/ellipses with the current color when true. */
+  shapeFill: boolean;
 }
 
 export interface DashboardContextValue {
@@ -207,7 +212,26 @@ export interface DashboardContextValue {
   closeAnnotation: () => void;
   updateAnnotationState: (updates: Partial<AnnotationState>) => void;
   addAnnotationObject: (obj: DrawableObject) => void;
+  /** Phase 2 PR 2.1c — selection mutation: replace `next` (matched by id)
+   *  in the active overlay objects. Routed through the same mirror-friendly
+   *  setter as add/undo so synced participants see edits live. */
+  updateAnnotationObject: (next: DrawableObject) => void;
+  /** Phase 2 PR 2.1c — selection mutation: remove the object with the
+   *  given id from the active overlay. */
+  removeAnnotationObject: (id: string) => void;
   undoAnnotation: () => void;
+  /** Re-emit the last undone annotation object via `addAnnotationObject`.
+   *
+   *  Why we DON'T unify with the DrawingWidget's command stack: the overlay's
+   *  undo is intentionally per-author (see `undoAnnotation` impl) so two
+   *  teachers on a synced share can't clobber each other's strokes. The widget
+   *  command stack is per-instance and treats every command as global, which
+   *  would break that multi-author safety guarantee. Wave 5 instead layers a
+   *  small in-memory redo stack on top of the existing per-author undo. */
+  redoAnnotation: () => void;
+  /** True when redoAnnotation has at least one undone object to re-emit.
+   *  Drives the disabled state on the overlay toolbar's Redo button. */
+  canRedoAnnotation: boolean;
   clearAnnotation: () => void;
 
   // Zoom system
@@ -273,6 +297,18 @@ export interface DashboardContextValue {
   stopSharingDashboard: (dashboardId: string) => Promise<void>;
   /** True when the active dashboard is a view-only guest copy. */
   isActiveBoardReadOnly: boolean;
+  /**
+   * Widget IDs currently undergoing the Phase 2 PR 2.6 subcollection
+   * migration. Drawing widgets in this set are mid-migration: the legacy
+   * `pages[].objects[]` shape still hosts the canvas content, but the
+   * batched writes to the new subcollection are in flight. The widget
+   * renders a non-interactive overlay while its id is in the set so user
+   * strokes don't race the writeback (the snapshot the migration captured
+   * is what gets denormalized — any concurrent edits would otherwise be
+   * silently dropped when `subcollectionMigrated: true` flips and the
+   * widget switches to reading from the subcollection).
+   */
+  drawingWidgetsMigrating: ReadonlySet<string>;
   pendingQuizShareId: string | null;
   clearPendingQuizShare: () => void;
   pendingAssignmentShareId: string | null;

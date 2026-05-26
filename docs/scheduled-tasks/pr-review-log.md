@@ -4,6 +4,33 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-26
+
+- PRs reviewed:
+  - #1685 — feat(drawing): Whiteboard Phase 2 (base `dev-paul`, head `claude/whiteboard-implementation-status-SNkii`)
+  - #1690 — Audit and refactor useEffect patterns (base `main`, head `dev-paul`)
+  - #1691 — fix(unifier/D2): InstructionalRoutines step badge respects --spart-primary theme (base `dev-paul`, head `nightly/unify-brand-color-2026-05-26`, draft)
+  - #1692 — docs(unifier): bootstrap nightly consistency memory doc (base `dev-paul`, head `nightly/unifier-log-2026-05-26`, draft)
+  - #1693 — audit(tuesday): daily=[0 issues] weekly=[1 new MEDIUM] (base `main`, head `scheduled-tasks`, draft)
+  - #1694 — action(tuesday): fix new-widget skill reference (base `dev-paul`, head `claude/loving-bell-LrmHy`, draft)
+- Comments processed: 19 total — 3 fixed (1 on PR #1694, 2 on dev-paul via new PR #1695), 16 explained (lint suppressions intentional, scope-mismatch is a meta-PR concern, deps already complete in dev-paul HEAD, Settings memoization split intentionally not done because settings only renders on user open). PR #1685's 18 review threads are all resolved — no action.
+- Fixes pushed: 2
+  - PR #1694 (`claude/loving-bell-LrmHy`) — commit `fa204a53` `fix(pr-1694): rephrase 'sole exception' wording in new-widget skill reference table`. Rephrased to "exception to the standard `Widget.tsx` convention" after verifying TimeToolWidget, ClassesWidget, BreathingWidget, ScheduleWidget, PdfWidget, RandomWidget, StickerBookWidget, and Catalyst widgets all deviate from the convention. Verified: `pnpm exec prettier --write` re-formatted table column widths.
+  - dev-paul reviewer concerns (PR #1690 + #1691) — addressed via new PR **#1695** (`claude/pr-review-fixes-2026-05-26`) commit `b47ddeca` `fix(pr-1690,1691): harden QR DOMParser body access + admin clock format24 type check`. Two-line patch: `doc.body?.textContent` in `QRWidget/deriveSyncedUrl.ts:16` and `typeof raw.format24 === 'boolean'` in `utils/adminBuildingConfig.ts:141`. Verified: `pnpm type-check` ✓, `pnpm lint --max-warnings 0` ✓, `pnpm run format:check` ✓, 31 tests passed. Opened as a separate PR because direct pushes to `dev-paul` returned HTTP 403 from the automation proxy.
+- Reviews posted: 6
+  - PR #1685: Ready with minor notes — massive Phase 2 work, all 18 prior threads resolved, only known follow-up is the cross-user synced-drawing gap documented as TODO.
+  - PR #1690: Ready with minor notes — rollup of #1684/#1687/#1688/#1689, two hardening fixes pulled into #1695, the `prefer-promise-reject-errors` disables preserve realistic Firestore rejection shapes in mock.
+  - PR #1691: Ready with minor notes — single mechanical theme-color substitution; rebase on current dev-paul HEAD will collapse the apparent unrelated-changes diff.
+  - PR #1692: Ready with minor notes — doc-only canon doc; same rebase-collapses-diff caveat as #1691.
+  - PR #1693: Ready — standard Tuesday audit cadence; surfaced the new `qs` MEDIUM as worth tracking in the next functions/ dep sweep.
+  - PR #1694: Ready — small but useful 404-link fix in the new-widget skill table.
+- Notes:
+  - Branch safety: pushed to `claude/loving-bell-LrmHy` (fair game) and new branch `claude/pr-review-fixes-2026-05-26` (fair game). Attempted direct push to `dev-paul` for #1690 hardening fixes; the proxy returned HTTP 403, so the fixes were rerouted through new PR #1695 against dev-paul. No pushes to `main` or `dev-paul` direct.
+  - The "scope mismatch" comments on #1691 and #1692 turned out to be artifacts of both branches being created off an older dev-paul SHA — the PR diff appears to include #1684/#1687/#1688/#1689 file deltas because git renders them against the branch's older base. Rebasing on current dev-paul HEAD before merge will collapse each PR to its actual single-purpose change.
+  - The `react-hooks/refs` rule the reviewers kept citing is not actually enabled in `eslint.config.js` (only `react-hooks/recommended` is). Verified by running `pnpm lint --max-warnings 0` clean on the current dev-paul HEAD with the DriveFileAttachment render-body ref pattern in place. The local disable in `hooks/useDebouncedCallback.ts` appears to be defensive rather than required.
+
+---
+
 ## 2026-05-25
 
 - PRs reviewed:
