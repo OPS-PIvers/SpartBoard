@@ -732,7 +732,21 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    containerRef.current?.releasePointerCapture?.(e.pointerId);
+    // releasePointerCapture throws NotFoundError when no active capture
+    // exists for this pointerId — and optional chaining short-circuits on
+    // null but does NOT swallow exceptions. Without this guard the throw
+    // aborts the rest of this handler (including `dragRef.current = null`)
+    // and the dragged object stays stuck to the cursor on every subsequent
+    // pointermove. Implicit capture can be released by browser-side
+    // pointercancel or by React reconciliation that briefly detaches the
+    // captured element, so we have to assume it may already be gone.
+    try {
+      containerRef.current?.releasePointerCapture(e.pointerId);
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'NotFoundError')) {
+        throw err;
+      }
+    }
 
     if (strokeRef.current) {
       const svgEl = svgRef.current;
