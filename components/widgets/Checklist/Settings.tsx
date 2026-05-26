@@ -56,20 +56,19 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
     };
   }, []);
 
+  // Render-body ref sync so the debounced save closure below reads the
+  // freshest values. Matches hooks/useDebouncedCallback.ts and ListPresetRow.tsx.
   const configRef = React.useRef(config);
-  React.useEffect(() => {
-    configRef.current = config;
-  }, [config]);
+  // eslint-disable-next-line react-hooks/refs
+  configRef.current = config;
 
   const updateWidgetRef = React.useRef(updateWidget);
-  React.useEffect(() => {
-    updateWidgetRef.current = updateWidget;
-  }, [updateWidget]);
+  // eslint-disable-next-line react-hooks/refs
+  updateWidgetRef.current = updateWidget;
 
   const itemsRef = React.useRef(safeItems);
-  React.useEffect(() => {
-    itemsRef.current = safeItems;
-  }, [safeItems]);
+  // eslint-disable-next-line react-hooks/refs
+  itemsRef.current = safeItems;
 
   const handleBulkChange = (text: string) => {
     setLocalText(text);

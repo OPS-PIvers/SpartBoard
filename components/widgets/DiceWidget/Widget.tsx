@@ -13,18 +13,13 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const diceCount = config.count ?? 1;
   const { diceColor = '#ffffff', dotColor = '#1e293b' } = config;
 
-  const [values, setValues] = useState<number[]>(() =>
+  const [animatedValues, setAnimatedValues] = useState<number[]>(() =>
     config.lastRoll?.length === diceCount
       ? config.lastRoll
       : new Array<number>(diceCount).fill(1)
   );
   const [prevDiceCount, setPrevDiceCount] = useState(diceCount);
   const [isRolling, setIsRolling] = useState(false);
-  // Ref so the remote-sync effect can read the current isRolling without
-  // listing it as a dependency (avoids overwriting locally-rolled values
-  // when the local roll finishes and isRolling flips back to false).
-  const isRollingRef = useRef(false);
-  isRollingRef.current = isRolling;
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -35,12 +30,6 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (!isRollingRef.current && config.lastRoll?.length === diceCount) {
-      setValues(config.lastRoll);
-    }
-  }, [config.lastRoll, diceCount]);
 
   const roll = async () => {
     if (isRolling) return;
@@ -53,7 +42,9 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     const maxRolls = 12;
 
     intervalRef.current = setInterval(() => {
-      setValues((prev) => prev.map(() => Math.floor(Math.random() * 6) + 1));
+      setAnimatedValues((prev) =>
+        prev.map(() => Math.floor(Math.random() * 6) + 1)
+      );
       playRollSound();
       rolls++;
 
@@ -66,7 +57,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           { length: diceCount },
           () => Math.floor(Math.random() * 6) + 1
         );
-        setValues(finalValues);
+        setAnimatedValues(finalValues);
         updateWidget(widget.id, {
           config: { ...config, lastRoll: finalValues } as DiceConfig,
         });
@@ -75,12 +66,18 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     }, 80);
   };
 
-  if (diceCount !== prevDiceCount || values.length !== diceCount) {
+  if (diceCount !== prevDiceCount || animatedValues.length !== diceCount) {
     if (diceCount !== prevDiceCount) setPrevDiceCount(diceCount);
-    setValues(
+    setAnimatedValues(
       Array.from({ length: diceCount }, () => Math.floor(Math.random() * 6) + 1)
     );
   }
+
+  const displayValues = isRolling
+    ? animatedValues
+    : config.lastRoll?.length === diceCount
+      ? config.lastRoll
+      : animatedValues;
 
   const getGridCols = () => {
     if (diceCount === 1) return 'grid-cols-1';
@@ -116,7 +113,7 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             .join(' ')}
           style={{ gap: '4cqmin', padding: '6cqmin' }}
         >
-          {values.map((v, i) => (
+          {displayValues.map((v, i) => (
             <DiceFace
               key={i}
               value={v}
