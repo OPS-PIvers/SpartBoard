@@ -69,10 +69,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     left: PANEL_MARGIN,
   });
 
-  // Pure-ish position calculator. Defined as a useCallback with its real deps
-  // so we can include it in the layout-effect's dep list without churn.
-  // `widgetRef` is stable (refs don't change identity) but we list it for
-  // completeness.
+  // Pure-ish position calculator. Lists only its real captured deps; the
+  // layout effect below adds `viewport` and `zoom` to its own dep list so
+  // the recompute fires when the window resizes or the dashboard zooms
+  // (both reshape the rect we read off `widgetRef.current` even though the
+  // function body doesn't reference those values directly).
   const updatePosition = useCallback(() => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
@@ -119,13 +120,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setPosition({ top, left: Math.max(PANEL_MARGIN, (vw - pw) / 2) });
   }, [widget.x, widget.y, widget.w, widget.maximized, widgetRef]);
 
-  // Recompute on mount and whenever the widget position/size, viewport, or
-  // canvas zoom changes. getBoundingClientRect is not reactive, so any input
-  // that can alter the widget's screen rect must be in this dep list.
-  // `viewport` and `zoom` are listed because they change the rect we read
-  // off `widgetRef.current`; the function itself doesn't reference them.
-  // useLayoutEffect (not useEffect) so the position is applied before paint
-  // and the panel never flashes at the wrong spot.
+  // Recompute on mount and whenever the widget rect or any reactive input
+  // that reshapes it (viewport size, dashboard zoom) changes. useLayoutEffect
+  // (not useEffect) so the position is applied before paint and the panel
+  // never flashes at the wrong spot.
   //
   // Synchronous setState inside a layout effect is the React-recommended
   // pattern for DOM-measurement → render flows (you can't compute the rect
@@ -135,8 +133,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   useLayoutEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     updatePosition();
-    void viewport;
-    void zoom;
   }, [updatePosition, viewport, zoom]);
 
   // Animate in on mount (track both rAF handles for safe cleanup)

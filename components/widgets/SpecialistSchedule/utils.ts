@@ -27,9 +27,10 @@ export const computeIsPast = (
   nowMinutes: number
 ): boolean => {
   if (isActive) return false;
-  // An empty-string endTime must fall back to startTime (matching how endTime
-  // is treated elsewhere in the widget); `??` alone wouldn't catch '', so
-  // test absence explicitly here.
+  // Empty-string endTime must fall back to startTime (matching how endTime
+  // is treated elsewhere in the widget). Explicit equality checks rather
+  // than `??` (which only catches null/undefined) or a truthy ternary
+  // (which the lint rule rewrites to `??`).
   const effective =
     endTime !== undefined && endTime !== '' ? endTime : startTime;
   const effectiveMinutes = parseTime(effective);

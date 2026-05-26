@@ -459,7 +459,7 @@ const PageThumbnail: React.FC<{
   liveObjects?: DrawableObject[];
   subcollectionMigrated?: boolean;
 }> = ({ page, liveObjects, subcollectionMigrated = false }) => {
-  const objects = liveObjects ?? page.objects;
+  const objects = liveObjects ?? page.objects ?? [];
   if (objects.length > 0) {
     const bboxes = objects.map((obj) => getBoundingBox(obj));
     const maxX = bboxes.reduce((m, b) => Math.max(m, b.x + b.w), 0);

@@ -369,9 +369,15 @@ export const DrawingWidget: React.FC<{
   // (post-migration) batch-delete its Firestore subcollection. Without the
   // subcollection cleanup, the page-meta doc and all its child object docs
   // would linger forever even though the page is gone from the dashboard.
+  //
+  // Destructure `forgetPage` so the callback below only re-creates when
+  // `forgetPage` itself changes (which is never — it's a stable useCallback
+  // in useCommandStack). Depending on the whole `commandStack` object would
+  // re-create this callback on every drawing stroke.
+  const { forgetPage } = commandStack;
   const handlePageRemoved = useCallback(
     (removedPageId: string) => {
-      commandStack.forgetPage(removedPageId);
+      forgetPage(removedPageId);
       if (!config.subcollectionMigrated) return;
       const uid = user?.uid;
       if (!uid || !dashboardId) return;
@@ -393,7 +399,7 @@ export const DrawingWidget: React.FC<{
       });
     },
     [
-      commandStack,
+      forgetPage,
       config.subcollectionMigrated,
       user?.uid,
       dashboardId,

@@ -64,21 +64,7 @@ export const deleteDrawingPageSubcollection = async ({
     const batch = writeBatch(db);
     const slice = ids.slice(i, i + FIRESTORE_BATCH_LIMIT);
     for (const id of slice) {
-      batch.delete(
-        doc(
-          db,
-          'users',
-          uid,
-          'dashboards',
-          dashboardId,
-          'drawings',
-          widgetId,
-          'pages',
-          pageId,
-          'objects',
-          id
-        )
-      );
+      batch.delete(doc(objectsCol, id));
     }
     await batch.commit();
   }
