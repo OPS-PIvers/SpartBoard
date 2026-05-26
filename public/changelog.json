@@ -1,6 +1,67 @@
 {
   "entries": [
     {
+      "version": "2026.05.26",
+      "date": "2026-05-26",
+      "title": "Clock building defaults and widget polish",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Clock building defaults",
+          "items": [
+            {
+              "text": "Admins can now set a default Clock display style (Modern, LCD, or Minimal) and a Glow Effect for each building, so new Clock widgets land in the look your school prefers."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Smoother, lighter widgets",
+          "items": [
+            {
+              "text": "Timers and stopwatches now run smoothly while you drag or edit other widgets on the board."
+            },
+            {
+              "text": "The Mini App toolbar scales with the widget — buttons, icons, and labels stay properly sized when you resize a running mini app."
+            },
+            {
+              "text": "A QR widget syncing its URL from a Text widget no longer writes to the cloud on every unrelated board change."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Turning off \"sync URL from a Text widget\" on a QR widget now keeps the URL you'd typed in before — your saved address is no longer wiped."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Clock building defaults now include the default display style (Modern, LCD, or Minimal) and a Glow Effect toggle. Admins can set these per building from the Clock configuration panel, so new Clock widgets in each building start with the look you want — alongside the existing time format, font, and theme color defaults."
+        },
+        {
+          "type": "improvement",
+          "text": "Timers and stopwatches run smoother on busy boards. The countdown no longer hitches or skips when you're dragging or editing other widgets while a timer is running."
+        },
+        {
+          "type": "improvement",
+          "text": "The Mini App toolbar that appears when an app is running now scales with the widget. Buttons, icons, labels, and spacing stay properly sized as you make the mini app widget larger or smaller."
+        },
+        {
+          "type": "improvement",
+          "text": "QR widgets paired with a Text widget (the \"sync URL from a Text widget\" option) are now much lighter on the cloud — they no longer save behind the scenes every time anything on the board changes. The QR code still updates live as you edit the linked text."
+        },
+        {
+          "type": "fix",
+          "text": "Turning off the \"sync URL from a Text widget\" option on a QR widget now keeps whatever URL you had typed in before turning sync on. Previously, toggling sync on and then off would replace your saved URL with the synced text."
+        }
+      ]
+    },
+    {
       "version": "2026.05.22.2",
       "date": "2026-05-22",
       "title": "A streamlined PLC quiz and video workspace",

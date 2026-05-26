@@ -2115,6 +2115,7 @@ export const ActivityWallWidget: React.FC<{ widget: WidgetData }> = ({
         )}
       </Modal>
       <ActivityWallShareModal
+        key={isShareModalOpen ? (activeActivity?.id ?? 'closed') : 'closed'}
         isOpen={isShareModalOpen}
         onClose={() => setIsShareModalOpen(false)}
         activity={activeActivity}
