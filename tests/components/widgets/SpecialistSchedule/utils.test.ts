@@ -63,14 +63,14 @@ describe('computeIsPast', () => {
     // Before the fix: parseTime(undefined ?? undefined) = parseTime(undefined) = -1
     // and -1 < 600 was true, so this returned true (bug).
     // After the fix: -1 < 0 guard short-circuits, returning false.
-    expect(
-      computeIsPast(
-        undefined,
-        undefined as unknown as string,
-        false,
-        NOW_MINUTES
-      )
-    ).toBe(false);
+    expect(computeIsPast(undefined, undefined, false, NOW_MINUTES)).toBe(false);
+  });
+
+  it('returns false when endTime is an empty string and startTime is valid future time', () => {
+    // Regression for `||` vs `??`: with `??`, '' would be passed to parseTime
+    // and return -1, hiding the valid startTime fallback. With `||`,
+    // the empty-string endTime is skipped and startTime drives the result.
+    expect(computeIsPast('', '11:00', false, NOW_MINUTES)).toBe(false);
   });
 
   it('returns false when startTime is an empty string (invalid time data)', () => {

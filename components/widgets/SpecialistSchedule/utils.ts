@@ -22,12 +22,14 @@ export const parseTime = (t: string | undefined): number => {
  */
 export const computeIsPast = (
   endTime: string | undefined,
-  startTime: string,
+  startTime: string | undefined,
   isActive: boolean,
   nowMinutes: number
 ): boolean => {
   if (isActive) return false;
-  const effectiveMinutes = parseTime(endTime ?? startTime);
+  // Use || (not ??) so an empty-string endTime falls back to startTime,
+  // matching how endTime is treated elsewhere in the widget.
+  const effectiveMinutes = parseTime(endTime || startTime);
   if (effectiveMinutes < 0) return false; // unparseable — do not flag as past
   return effectiveMinutes < nowMinutes;
 };
