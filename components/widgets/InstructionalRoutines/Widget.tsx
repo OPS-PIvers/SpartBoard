@@ -214,7 +214,7 @@ const RoutineStepItem: React.FC<RoutineStepItemProps> = ({
                 width: '2.5em',
                 height: '2.5em',
                 fontSize: '0.8em',
-                backgroundColor: '#2d3f89',
+                backgroundColor: 'var(--spart-primary, #2d3f89)',
               }}
             >
               {index + 1}
