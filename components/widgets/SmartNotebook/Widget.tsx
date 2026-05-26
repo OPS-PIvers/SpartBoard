@@ -4,6 +4,7 @@ import {
   WidgetData,
   SmartNotebookConfig,
   NotebookItem,
+  NotebookObjectLink,
   NotebookSection,
   PlacedNotebookAsset,
 } from '@/types';
@@ -103,6 +104,7 @@ export const SmartNotebookWidget: React.FC<{
           assetUrls: (data.assetUrls as string[]) ?? [],
           createdAt: (data.createdAt as number) ?? 0,
           sections: data.sections as NotebookSection[] | undefined,
+          objectLinks: data.objectLinks as NotebookObjectLink[] | undefined,
         } as NotebookItem;
       });
       setNotebooks(items);
@@ -477,6 +479,44 @@ export const SmartNotebookWidget: React.FC<{
     updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
   };
 
+  // Add or replace an object→page link. The same {objectId, sourcePage}
+  // pair always maps to ONE hotspot, so we filter any prior entry out
+  // before appending the new one.
+  const handleSaveObjectLink = async (
+    link: NotebookObjectLink
+  ): Promise<void> => {
+    if (!user || !activeNotebook) return;
+    const others = (activeNotebook.objectLinks ?? []).filter(
+      (l) => !(l.objectId === link.objectId && l.sourcePage === link.sourcePage)
+    );
+    const next = [...others, link];
+    try {
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+        { objectLinks: next }
+      );
+    } catch (err) {
+      console.error('Failed to save object link', err);
+      addToast('Could not save link', 'error');
+    }
+  };
+
+  const handleRemoveObjectLink = async (linkId: string): Promise<void> => {
+    if (!user || !activeNotebook) return;
+    const next = (activeNotebook.objectLinks ?? []).filter(
+      (l) => l.id !== linkId
+    );
+    try {
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+        { objectLinks: next }
+      );
+    } catch (err) {
+      console.error('Failed to remove object link', err);
+      addToast('Could not remove link', 'error');
+    }
+  };
+
   // Persist a new page list (urls/paths/sections) to Firestore.
   const persistPageList = async (next: PageListState) => {
     if (!user || !activeNotebook) return;
@@ -624,6 +664,9 @@ export const SmartNotebookWidget: React.FC<{
         cachedSvg={editedSvgsRef.current.get(currentPage) ?? null}
         currentPage={currentPage}
         sections={activeNotebook.sections}
+        objectLinks={activeNotebook.objectLinks}
+        onSaveObjectLink={(link) => void handleSaveObjectLink(link)}
+        onRemoveObjectLink={(linkId) => void handleRemoveObjectLink(linkId)}
         saveStatus={saveStatus}
         onEditChange={handleEditChange}
         onPageChange={navigateToPage}

@@ -2320,6 +2320,32 @@ export interface NotebookItem {
   createdAt: number;
   /** Optional lesson grouping; present when the imported file carried it. */
   sections?: NotebookSection[];
+  /**
+   * Object-to-page hyperlinks authored in edit mode. In present mode each
+   * link renders as an invisible clickable hotspot over the page image
+   * (positioned by xFrac/yFrac/wFrac/hFrac of the page's intrinsic size)
+   * that jumps to `targetPage` when tapped. The hotspot box is captured at
+   * link creation; it does not auto-track subsequent moves of the linked
+   * object (re-link to refresh).
+   */
+  objectLinks?: NotebookObjectLink[];
+}
+
+export interface NotebookObjectLink {
+  /** Stable id for this link, separate from objectId so the same object
+   *  could in principle carry multiple hotspots in the future. */
+  id: string;
+  /** data-edit-id of the linked SVG object (assigned by the page editor). */
+  objectId: string;
+  /** 0-based page index the link lives on. */
+  sourcePage: number;
+  /** 0-based page index to jump to when the hotspot is clicked. */
+  targetPage: number;
+  /** Hotspot box, normalized [0..1] against the page's intrinsic dims. */
+  xFrac: number;
+  yFrac: number;
+  wFrac: number;
+  hFrac: number;
 }
 
 /**

@@ -19,11 +19,12 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import { NotebookSection } from '@/types';
+import { NotebookObjectLink, NotebookSection } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { PageEditor } from './PageEditor';
+import { PageEditor, LinkRequest } from './PageEditor';
 import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
 import { PageJumpMenu } from './PageJumpMenu';
+import { LinkTargetPicker } from './LinkTargetPicker';
 
 interface PageEditorOverlayProps {
   title: string;
@@ -40,9 +41,15 @@ interface PageEditorOverlayProps {
   cachedSvg: string | null;
   currentPage: number;
   sections?: NotebookSection[];
+  /** Existing object→page links for the active notebook (all pages). */
+  objectLinks?: NotebookObjectLink[];
   saveStatus: 'idle' | 'saving' | 'error';
   onEditChange: (svg: string) => void;
   onPageChange: (page: number) => void;
+  /** Add or update a link from a single object to a target page. */
+  onSaveObjectLink?: (link: NotebookObjectLink) => void;
+  /** Remove an existing link by id. */
+  onRemoveObjectLink?: (linkId: string) => void;
   onAddPage?: () => void;
   onDeletePage?: () => void;
   onMovePage?: (dir: -1 | 1) => void;
@@ -65,9 +72,12 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   cachedSvg,
   currentPage,
   sections,
+  objectLinks,
   saveStatus,
   onEditChange,
   onPageChange,
+  onSaveObjectLink,
+  onRemoveObjectLink,
   onAddPage,
   onDeletePage,
   onMovePage,
@@ -89,6 +99,10 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   const [tool, setTool] = useState<Tool>('select');
   const [penColor, setPenColor] = useState<string>(PEN_COLORS[0]);
   const [penWidth, setPenWidth] = useState<number>(PEN_WIDTHS[1]);
+  // Set when the user clicks the link FAB on a selected object. The
+  // LinkTargetPicker reads this to know which object's link it's editing
+  // and which hotspot box to record on save.
+  const [linkRequest, setLinkRequest] = useState<LinkRequest | null>(null);
 
   // Reset state when the page changes (adjust-state-while-rendering, so the
   // loading effect below stays free of synchronous setState).
@@ -325,14 +339,59 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             // PageEditor remounts on currentPage change because we key on it —
             // that's intentional so prepareEditableSvg re-runs against the new
             // page's source instead of trying to diff the SVG tree.
-            <PageEditor
-              key={currentPage}
-              svg={svgToEdit}
-              tool={tool}
-              penColor={penColor}
-              penWidth={penWidth}
-              onChange={onEditChange}
-            />
+            <>
+              <PageEditor
+                key={currentPage}
+                svg={svgToEdit}
+                tool={tool}
+                penColor={penColor}
+                penWidth={penWidth}
+                onChange={onEditChange}
+                onRequestLink={setLinkRequest}
+              />
+              {linkRequest && (
+                <LinkTargetPicker
+                  pageUrls={pageUrls}
+                  sections={sections}
+                  sourcePage={currentPage}
+                  currentTarget={
+                    objectLinks?.find(
+                      (l) =>
+                        l.objectId === linkRequest.objectId &&
+                        l.sourcePage === currentPage
+                    )?.targetPage ?? null
+                  }
+                  onSelect={(targetPage) => {
+                    // Reuse the existing link's id when updating so the
+                    // Firestore record gets overwritten in place rather
+                    // than accumulating duplicate hotspots.
+                    const existing = objectLinks?.find(
+                      (l) =>
+                        l.objectId === linkRequest.objectId &&
+                        l.sourcePage === currentPage
+                    );
+                    onSaveObjectLink?.({
+                      id: existing?.id ?? crypto.randomUUID(),
+                      objectId: linkRequest.objectId,
+                      sourcePage: currentPage,
+                      targetPage,
+                      ...linkRequest.box,
+                    });
+                    setLinkRequest(null);
+                  }}
+                  onRemove={() => {
+                    const existing = objectLinks?.find(
+                      (l) =>
+                        l.objectId === linkRequest.objectId &&
+                        l.sourcePage === currentPage
+                    );
+                    if (existing) onRemoveObjectLink?.(existing.id);
+                    setLinkRequest(null);
+                  }}
+                  onClose={() => setLinkRequest(null)}
+                />
+              )}
+            </>
           )}
         </div>
       }

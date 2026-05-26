@@ -254,6 +254,16 @@ export const Viewer: React.FC<ViewerProps> = ({
             onPlaceAsset={onPlaceAsset}
             onUpdatePlacedAsset={onUpdatePlacedAsset}
             onRemovePlacedAsset={onRemovePlacedAsset}
+            objectLinks={activeNotebook.objectLinks?.filter(
+              (l) => l.sourcePage === currentPage
+            )}
+            onFollowLink={(targetPage) => {
+              const clamped = Math.max(
+                0,
+                Math.min(activeNotebook.pageUrls.length - 1, targetPage)
+              );
+              setCurrentPage(clamped);
+            }}
           />
 
           {/* Assets Panel */}

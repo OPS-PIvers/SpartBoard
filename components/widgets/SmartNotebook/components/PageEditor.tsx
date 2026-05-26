@@ -21,6 +21,19 @@ import {
 } from '@/utils/notebookSvgEdit';
 import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
 
+/** Normalized hotspot box, in fractions of the page's intrinsic size. */
+export interface NormalizedBox {
+  xFrac: number;
+  yFrac: number;
+  wFrac: number;
+  hFrac: number;
+}
+
+export interface LinkRequest {
+  objectId: string;
+  box: NormalizedBox;
+}
+
 interface PageEditorProps {
   /** Raw page SVG text (from a parsed notebook page). */
   svg: string;
@@ -38,6 +51,14 @@ interface PageEditorProps {
   onSelectionChange?: (selection: EditableObjectInfo[]) => void;
   /** Fires (with the cleaned, persistable SVG) after any edit. */
   onChange?: (svg: string) => void;
+  /**
+   * Fires when the user clicks the link FAB on a single selected object.
+   * The host opens its own target-page picker and persists the link.
+   * Box is the object's AABB in page-fractional coordinates, captured at
+   * click time so the workspace can record a hotspot without re-reading
+   * the SVG.
+   */
+  onRequestLink?: (request: LinkRequest) => void;
 }
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
@@ -207,6 +228,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   penWidth = PEN_WIDTHS[1],
   onSelectionChange,
   onChange,
+  onRequestLink,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -224,6 +246,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     stem: SVGLineElement;
     dot: SVGCircleElement;
   } | null>(null);
+  // Link FAB: small circular badge offset from the bbox's top-right corner.
+  // Click (not drag) on this group calls onRequestLink so the host can show a
+  // target-page picker. Separate from corner / rotate handles because the
+  // interaction is a click, not a drag-and-update.
+  const linkHandleRef = useRef<{
+    group: SVGGElement;
+    bg: SVGCircleElement;
+    icon: SVGPathElement;
+  } | null>(null);
+  const onRequestLinkRef = useRef(onRequestLink);
+
+  onRequestLinkRef.current = onRequestLink;
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
   // Active freehand stroke (pen/highlighter) and eraser session.
@@ -315,6 +349,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       if (rotateHandleRef.current) {
         rotateHandleRef.current.group.style.display = 'none';
       }
+      if (linkHandleRef.current) {
+        linkHandleRef.current.group.style.display = 'none';
+      }
       return;
     }
     const box = transformedBox(svgEl, only);
@@ -352,6 +389,25 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       rDot.setAttribute('r', String(hs / 2));
       group.style.display = '';
     }
+
+    // Link FAB: sits just outside the top-right corner of the bbox.
+    if (linkHandleRef.current) {
+      const { group, bg, icon } = linkHandleRef.current;
+      const fabRadius = hs * 0.95;
+      const fabCx = box.maxX + fabRadius * 1.1;
+      const fabCy = box.minY - fabRadius * 1.1;
+      bg.setAttribute('cx', String(fabCx));
+      bg.setAttribute('cy', String(fabCy));
+      bg.setAttribute('r', String(fabRadius));
+      // The link path is authored in a 24×24 box; translate to FAB centre
+      // and scale so the icon fits inside the badge with a small margin.
+      const iconScale = (fabRadius * 1.3) / 24;
+      icon.setAttribute(
+        'transform',
+        `translate(${fabCx - 12 * iconScale} ${fabCy - 12 * iconScale}) scale(${iconScale})`
+      );
+      group.style.display = '';
+    }
   }, []);
 
   const emitChange = useCallback(() => {
@@ -366,6 +422,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     svgRef.current = el;
     handlesRef.current = new Map();
     rotateHandleRef.current = null;
+    linkHandleRef.current = null;
     if (!el) {
       selGroupRef.current = null;
       marqueeRef.current = null;
@@ -423,6 +480,39 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     rotateGroup.appendChild(dot);
     el.appendChild(rotateGroup);
     rotateHandleRef.current = { group: rotateGroup, stem, dot };
+
+    // Link FAB — circular badge offset above-right of the selection box.
+    // Uses a tinted background + lucide "link" icon path so the affordance
+    // reads at a glance. Only ever appears for single selections.
+    const linkGroup = document.createElementNS(SVG_NS, 'g');
+    linkGroup.setAttribute(EDIT_OVERLAY_ATTR, '1');
+    linkGroup.setAttribute(HANDLE_ATTR, 'link');
+    linkGroup.style.cursor = 'pointer';
+    linkGroup.style.display = 'none';
+    const linkBg = document.createElementNS(SVG_NS, 'circle');
+    linkBg.setAttribute('fill', '#6366f1');
+    linkBg.setAttribute('stroke', '#ffffff');
+    linkBg.setAttribute('stroke-width', '1.5');
+    linkBg.setAttribute('vector-effect', 'non-scaling-stroke');
+    linkGroup.appendChild(linkBg);
+    // Compact link-chain path (lucide "link" mark, simplified for small sizes).
+    // The transform attribute is set in renderSelection so it scales to fit
+    // the badge regardless of zoom.
+    const linkIcon = document.createElementNS(SVG_NS, 'path');
+    linkIcon.setAttribute(
+      'd',
+      'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'
+    );
+    linkIcon.setAttribute('fill', 'none');
+    linkIcon.setAttribute('stroke', '#ffffff');
+    linkIcon.setAttribute('stroke-width', '2');
+    linkIcon.setAttribute('stroke-linecap', 'round');
+    linkIcon.setAttribute('stroke-linejoin', 'round');
+    linkIcon.setAttribute('vector-effect', 'non-scaling-stroke');
+    linkIcon.setAttribute('pointer-events', 'none');
+    linkGroup.appendChild(linkIcon);
+    el.appendChild(linkGroup);
+    linkHandleRef.current = { group: linkGroup, bg: linkBg, icon: linkIcon };
 
     const marquee = document.createElementNS(SVG_NS, 'rect');
     marquee.setAttribute('fill', 'rgba(99,102,241,0.10)');
@@ -659,6 +749,29 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     // / <circle>, so an exact-target lookup would miss it.
     const handleEl = target.closest(`[${HANDLE_ATTR}]`);
     const handle = handleEl?.getAttribute(HANDLE_ATTR) ?? null;
+
+    if (handle === 'link' && selectedIds.length === 1) {
+      const obj = findObjectById(svgEl, selectedIds[0]);
+      if (!obj) return;
+      const vb = svgEl.viewBox.baseVal;
+      // Need a populated viewBox to map AABB → normalized hotspot. Every
+      // page SVG gets one via prepareEditableSvg, so a missing/zero viewBox
+      // would be a real bug rather than an expected miss.
+      if (vb && vb.width > 0 && vb.height > 0) {
+        const box = transformedBox(svgEl, obj);
+        onRequestLinkRef.current?.({
+          objectId: selectedIds[0],
+          box: {
+            xFrac: box.minX / vb.width,
+            yFrac: box.minY / vb.height,
+            wFrac: (box.maxX - box.minX) / vb.width,
+            hFrac: (box.maxY - box.minY) / vb.height,
+          },
+        });
+      }
+      // Click only — do not start a drag.
+      return;
+    }
 
     if (handle === 'rotate' && selectedIds.length === 1) {
       const obj = findObjectById(svgEl, selectedIds[0]);
