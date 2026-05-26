@@ -56,15 +56,8 @@ export const ChecklistSettings: React.FC<{ widget: WidgetData }> = ({
     };
   }, []);
 
-  // Keep refs that always hold the latest values so the debounced save
-  // closure (timeoutRef setTimeout below) invokes the freshest config /
-  // updateWidget / items. Per the project styleguide, refs that mirror a
-  // value should be assigned in the render body rather than via useEffect.
-  // The react-hooks/refs rule's strict reading flags this; the local
-  // disables are intentional and match the pattern used in
-  // hooks/useDebouncedCallback.ts and components/admin/BackgroundManager/
-  // ListPresetRow.tsx. The deferred setTimeout always fires after render
-  // commits, so the assignments are guaranteed to land before any read.
+  // Render-body ref sync so the debounced save closure below reads the
+  // freshest values. Matches hooks/useDebouncedCallback.ts and ListPresetRow.tsx.
   const configRef = React.useRef(config);
   // eslint-disable-next-line react-hooks/refs
   configRef.current = config;
