@@ -77,6 +77,56 @@ describe('widgetNeedsProportionalMigration', () => {
     });
     expect(widgetNeedsProportionalMigration(stalePosition)).toBe(true);
   });
+
+  it('flags widgets with negative pixel-valued xProp/yProp (drag-past-edge case)', () => {
+    // A widget dragged past the top/left edge can have legitimately negative
+    // pixel coordinates. If those leaked into xProp/yProp, a plain `> 1.5`
+    // check would miss them (since -150 > 1.5 is false). Math.abs() catches
+    // both signs.
+    const negativeStale = baseWidget({
+      x: -150,
+      y: -120,
+      w: 200,
+      h: 200,
+      xProp: -150,
+      yProp: -120,
+      wProp: 0.15,
+      hProp: 0.18,
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(negativeStale)).toBe(true);
+  });
+
+  it('flags widgets with non-finite proportional fields (NaN / Infinity)', () => {
+    // NaN and Infinity are `typeof === 'number'`, so the typeof guards above
+    // would not catch them. They must be re-migrated rather than propagating
+    // corrupted values into the layout calculation.
+    const nanWidget = baseWidget({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 200,
+      xProp: Number.NaN,
+      yProp: 0.1,
+      wProp: 0.15,
+      hProp: 0.18,
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(nanWidget)).toBe(true);
+
+    const infinityWidget = baseWidget({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 200,
+      xProp: 0.1,
+      yProp: 0.1,
+      wProp: Number.POSITIVE_INFINITY,
+      hProp: 0.18,
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(infinityWidget)).toBe(true);
+  });
 });
 
 describe('migrateWidgetToProportional', () => {
