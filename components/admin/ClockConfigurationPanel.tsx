@@ -20,6 +20,15 @@ const FONT_FAMILY_OPTIONS = [
   { value: 'font-handwritten', label: 'Handwritten' },
 ];
 
+const CLOCK_STYLE_OPTIONS: {
+  value: NonNullable<BuildingClockDefaults['clockStyle']>;
+  label: string;
+}[] = [
+  { value: 'modern', label: 'Modern' },
+  { value: 'lcd', label: 'LCD' },
+  { value: 'minimal', label: 'Minimal' },
+];
+
 export const ClockConfigurationPanel: React.FC<
   ClockConfigurationPanelProps
 > = ({ config, onChange }) => {
@@ -134,6 +143,42 @@ export const ClockConfigurationPanel: React.FC<
               </button>
             )}
           </div>
+        </div>
+
+        {/* Clock Style */}
+        <div>
+          <SettingsLabel className="mb-1">Default Display Style</SettingsLabel>
+          <div className="flex bg-white rounded-lg border border-slate-200 p-1 gap-1">
+            {CLOCK_STYLE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => handleUpdateBuilding({ clockStyle: opt.value })}
+                className={`flex-1 py-1.5 text-xxs font-bold rounded transition-colors ${
+                  (currentBuildingConfig.clockStyle ?? 'modern') === opt.value
+                    ? 'bg-brand-blue-primary text-white shadow-sm'
+                    : 'text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Glow */}
+        <div className="flex items-center justify-between p-2 bg-white rounded-lg border border-slate-200">
+          <div>
+            <span className="text-xxs font-bold text-slate-700 block">
+              Glow Effect
+            </span>
+            <span className="text-xxs text-slate-400">Widget default: Off</span>
+          </div>
+          <Toggle
+            checked={currentBuildingConfig.glow ?? false}
+            onChange={(checked) => handleUpdateBuilding({ glow: checked })}
+            size="xs"
+            showLabels={false}
+          />
         </div>
       </Card>
     </div>

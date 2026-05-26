@@ -18,7 +18,7 @@
  * share doc so deleting the share also cleans them up.
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import {
   Check,
   Copy,
@@ -134,19 +134,6 @@ export const ActivityWallShareModal: React.FC<ActivityWallShareModalProps> = ({
   const [createdUrl, setCreatedUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    setAllowComments(true);
-    setAllowCommentResponses(true);
-    setAllowLikes(true);
-    setEnableExpiration(false);
-    setExpiresAtInput('');
-    setCreating(false);
-    setCreatedUrl(null);
-    setCopied(false);
-    setError(null);
-  }, [isOpen, activity?.id]);
 
   if (!isOpen) return null;
 

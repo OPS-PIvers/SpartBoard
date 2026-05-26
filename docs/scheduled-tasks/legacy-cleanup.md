@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-17_
+_Last audited: 2026-05-24_
 _Last action: never_
 
 ---
@@ -39,7 +39,18 @@ _Nothing currently in progress._
 
 ---
 
+---
+
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-05-24, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only referenced in `utils/migration.ts:71-80` — correct. Not generated elsewhere.
+- Old type string 'workSymbols': Only referenced in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Actively called in `context/DashboardContext.tsx:1971`. Still needed.
+- New utils since 2026-05-17: `quizBehavior.ts`, `videoActivityBehavior.ts`, `notebookPlacedAssets.ts` — all imported from production code (plc components, notebook hooks). Clean.
+- Commented-out code: None found in new commits (feat(plc), feat(notebook)).
+- console.log(): Zero in components/, context/, hooks/, utils/.
 
 Migration code audit (2026-05-17, re-verified):
 

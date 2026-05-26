@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, Mock } from 'vitest';
 import { QRWidget } from './Widget';
 import { QRSettings } from './Settings';
@@ -8,7 +8,7 @@ import { useFeaturePermissions } from '@/hooks/useFeaturePermissions';
 import { useAuth } from '@/context/useAuth';
 
 // Mock the context using the standard pattern
-vi.mock('../../../context/useDashboard', () => ({
+vi.mock('@/context/useDashboard', () => ({
   useDashboard: vi.fn(),
 }));
 
@@ -197,8 +197,8 @@ describe('QRWidget', () => {
     expect(screen.queryByText('Linked')).not.toBeInTheDocument();
   });
 
-  it('syncs URL from Text Widget via Nexus Connection', async () => {
-    const targetText = 'Synced Text Content';
+  it('renders synced URL from Text Widget without writing to Firestore', () => {
+    const targetText = 'https://synced-from-text.example';
     // Mock a text widget in the dashboard
     mockActiveDashboard.widgets = [
       {
@@ -208,26 +208,83 @@ describe('QRWidget', () => {
       } as WidgetData,
     ];
 
-    // QR Widget configured to sync
+    // QR Widget configured to sync — stored url is stale; the widget must
+    // derive the displayed URL from the text widget without writing back.
     const widget = createMockWidget({
       syncWithTextWidget: true,
-      url: 'Old URL',
+      url: 'https://stale-stored.example',
     });
 
     render(<QRWidget widget={widget} />);
 
-    // Expect updateWidget to be called to sync the URL
-    await waitFor(() => {
-      expect(mockUpdateWidget).toHaveBeenCalledWith(
-        'test-widget-id',
-        expect.objectContaining({
-          config: expect.objectContaining({
-            url: targetText,
-            syncWithTextWidget: true,
-          }) as unknown,
-        })
-      );
+    const img = screen.getByAltText('QR Code');
+    expect(img).toHaveAttribute(
+      'src',
+      expect.stringContaining(encodeURIComponent(targetText))
+    );
+    // No Firestore write — the URL is derived, not mirrored.
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+  });
+
+  // Regression test for the bug fixed in this PR. The previous implementation
+  // ran a useEffect that called updateWidget() any time activeDashboard.widgets
+  // changed identity (i.e. on every dashboard mutation), generating a Firestore
+  // write per dashboard render when stored qr.url differed from current text
+  // widget content. The fix derives the URL inline via useMemo; this test
+  // guards the regression by mutating the text content and asserting that the
+  // displayed url updates without any write back to the QR widget's config.
+  it('reflects updated Text Widget content without writing to Firestore', () => {
+    const initialText = 'https://initial.example';
+    mockActiveDashboard.widgets = [
+      {
+        id: 'text-widget-1',
+        type: 'text',
+        config: { content: initialText } as TextConfig,
+      } as WidgetData,
+    ];
+
+    // Stored url intentionally stale — the old code would have written
+    // updateWidget() on mount to "catch up" to the text content.
+    const widget = createMockWidget({
+      syncWithTextWidget: true,
+      url: 'https://stored-but-ignored.example',
     });
+
+    const { rerender } = render(<QRWidget widget={widget} />);
+    expect(screen.getByAltText('QR Code')).toHaveAttribute(
+      'src',
+      expect.stringContaining(encodeURIComponent(initialText))
+    );
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
+
+    // Simulate the text widget content changing (and a sibling appearing).
+    const updatedText = 'https://updated.example';
+    mockActiveDashboard.widgets = [
+      {
+        id: 'text-widget-1',
+        type: 'text',
+        config: { content: updatedText } as TextConfig,
+      } as WidgetData,
+      {
+        id: 'clock-widget-1',
+        type: 'clock',
+        config: {},
+      } as WidgetData,
+    ];
+    (useDashboard as Mock).mockReturnValue({
+      activeDashboard: mockActiveDashboard,
+      updateWidget: mockUpdateWidget,
+    });
+    rerender(<QRWidget widget={widget} />);
+
+    // Display updates live...
+    expect(screen.getByAltText('QR Code')).toHaveAttribute(
+      'src',
+      expect.stringContaining(encodeURIComponent(updatedText))
+    );
+    // ...and still no Firestore writes. The buggy implementation would have
+    // called updateWidget on both renders.
+    expect(mockUpdateWidget).not.toHaveBeenCalled();
   });
 });
 
@@ -298,5 +355,26 @@ describe('QRSettings', () => {
     render(<QRSettings widget={widget} />);
 
     expect(screen.getByText(/No Text Widget found/i)).toBeInTheDocument();
+  });
+
+  it('shows the live synced text content in the disabled input when sync is on', () => {
+    const syncedText = 'https://from-text-widget.example';
+    mockActiveDashboard.widgets = [
+      {
+        id: 'text-widget-1',
+        type: 'text',
+        config: { content: syncedText } as TextConfig,
+      } as WidgetData,
+    ];
+    // Stored url intentionally stale.
+    const widget = createMockWidget({
+      syncWithTextWidget: true,
+      url: 'https://stale-stored.example',
+    });
+    render(<QRSettings widget={widget} />);
+
+    const input = screen.getByRole('textbox');
+    expect(input).toBeDisabled();
+    expect(input).toHaveValue(syncedText);
   });
 });
