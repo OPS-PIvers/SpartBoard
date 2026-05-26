@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-24_
+_Last audited: 2026-05-26_
 _Last action: 2026-05-23_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-26: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits merged since 2026-05-24: refactor(effects) (#1689) touched DiceWidget/Widget.tsx and Checklist/Settings.tsx; perf(qr) (#1688) rewrote QRWidget/Widget.tsx. QRWidget/Widget.tsx verified clean — all sizing uses cqmin inline styles, no hardcoded Tailwind text/size classes in front-face content. DiceWidget/Widget.tsx: new cqmin additions added to the grid div (`gap: '4cqmin', padding: '6cqmin'`) and Roll Dice button (`style={{ fontSize: 'min(20px, 5cqmin)' }}`), but the footer wrapper `className="px-3 pb-3"` and button `py-4 px-6 gap-3` remain hardcoded — group open item still valid for those specific violations. MiniApp portaled toolbar fix (commit 74ff0f94 on scheduled-tasks) confirmed merged into dev-paul via PR #1684 (`7145b53d`) — moving to Completed. No new anti-patterns detected. All remaining pre-existing open items valid._
 
 _2026-05-24: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits since 2026-05-23: feat(plc) remove Assignments page + unify quiz library, feat(notebook) place assets on page + rename notebooks. Neither touches widget front-face content. ActivityWall/Widget.tsx:2101-2110 `max-h-[75vh]` usage confirmed inside a `<Modal>` overlay (viewport-constrained media preview for full-screen submission viewing) — not inside the widget's CSS container-query context; acceptable. MusicWidget/Widget.tsx:570 `max-w-[85%]` is a structural truncation constraint on a flex-child label, not a content-cap violation. RecessGear/Widget.tsx:341 `max-w-[70%]` same pattern — truncation guard on a text label inside a row. MiniApp portaled toolbar fix still in scheduled-tasks branch (commit 74ff0f94) pending merge to dev-paul. All pre-existing open items remain valid. Zero new anti-patterns detected._
 
@@ -106,6 +108,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
+
+- **Detected:** 2026-05-15
+- **Completed:** 2026-05-26
+- **File:** components/widgets/MiniApp/Widget.tsx (createPortal block around lines 1060–1235)
+- **Detail:** The "active app overlay toolbar" rendered via `createPortal` to `document.body` lived outside the widget's CSS container-query context, so `cqmin` units could not resolve against the widget's size. Toolbar used hardcoded Tailwind sizing: `text-xs`, `text-[10px]`, `h-8`, `w-3.5 h-3.5`, `gap-1.5`, `px-2`, `py-1.5`, `px-3`, `w-px h-5 mx-0.5`.
+- **Resolution:** Fix delivered on `scheduled-tasks` branch (commit `74ff0f94`) — computed JS-side `cqmin` from `widgetRect` with zero-guard, `px(cap, factor)` helper, and a `sz` object matching every original utility at default 500×600 widget size. Merged into `dev-paul` via PR #1684 (commit `7145b53d`, 2026-05-26). `pnpm type-check`, `pnpm lint`, and `pnpm format:check` all clean.
 
 ### LOW NumberLineWidget hover hint `text-xs` still present — prior completion was inaccurate
 

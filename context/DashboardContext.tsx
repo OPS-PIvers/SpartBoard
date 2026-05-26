@@ -21,6 +21,8 @@ import {
   GridPosition,
   FeaturePermission,
   DrawableObject,
+  DrawingConfig,
+  DrawingPage,
   UserProfile,
   SubstituteShareDriveGrant,
   ROOT_COLLECTION_KEY,
@@ -42,6 +44,11 @@ import {
   migrateLocalStorageToFirestore,
   migrateWidget,
 } from '../utils/migration';
+import {
+  migrateDrawingToSubcollection,
+  needsSubcollectionMigration,
+} from '../utils/migrateDrawingToSubcollection';
+import { migrateDrawingConfig } from '../utils/migrateDrawingConfig';
 import {
   REFERENCE_VIEWPORT,
   pixelToProp,
@@ -368,6 +375,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const activeIdRef = useRef(activeId);
+  // Forward-declared ref so the drawing-subcollection migration effect
+  // (which sits above updateWidget's definition in this file) can invoke
+  // the same callback once it's assigned. The ref is updated by a direct
+  // in-render assignment below (`updateWidgetRef.current = updateWidget`),
+  // not a useEffect — per CLAUDE.md, refs derived from values can be
+  // assigned in the render body and don't need an effect.
+  const updateWidgetRef = useRef<
+    ((id: string, updates: Partial<WidgetData>) => void) | null
+  >(null);
   // Keep a ref to account-level remote control so the Firestore snapshot
   // handler can read the latest value without triggering a re-subscription.
   const accountRemoteControlEnabledRef = useRef(accountRemoteControlEnabled);
@@ -432,6 +448,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     color: STANDARD_COLORS.slate,
     width: DRAWING_DEFAULTS.WIDTH,
     customColors: [...DRAWING_DEFAULTS.CUSTOM_COLORS],
+    activeTool: DRAWING_DEFAULTS.ACTIVE_TOOL,
+    shapeFill: DRAWING_DEFAULTS.SHAPE_FILL,
   }));
 
   // Helper to centralize active dashboard switching and its side-effects (like zoom reset)
@@ -4039,6 +4057,158 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
 
   const activeDashboard = dashboards.find((d) => d.id === activeId) ?? null;
 
+  // Phase 2 PR 2.6 — relocate DrawingWidget `pages[].objects[]` to the
+  // page-nested Firestore subcollection on first load. Idempotent: skips
+  // any widget whose `subcollectionMigrated` flag is already set. We track
+  // in-flight migrations in a ref so React StrictMode's double-invocation
+  // does not fire two concurrent batch writes for the same widget. The
+  // dashboard doc's `pages[]` is kept as a denormalized cache (id +
+  // background only) so the page list survives without an extra read.
+  //
+  // The in-flight key is `uid::dashboardId::widgetId` so the ref's
+  // semantics survive a sign-out / sign-in-as-different-user transition
+  // (the context itself is torn down on sign-out today, but airtight keys
+  // cost nothing).
+  const subcollectionMigrationInFlightRef = useRef<Set<string>>(new Set());
+  // Public mirror of the in-flight ref, surfaced through context so widgets
+  // can render a "Migrating drawing…" overlay and gate input while their
+  // migration is running. Refs don't trigger re-renders, so we maintain a
+  // parallel `useState` Set as the reactive source for consumers. The ref
+  // stays the source of truth for the kicker's synchronous dedup (refs are
+  // observable during the same render that schedules the state update).
+  const [drawingWidgetsMigrating, setDrawingWidgetsMigrating] = useState<
+    ReadonlySet<string>
+  >(() => new Set<string>());
+  // Ref-mirror the active dashboard so the effect can read the latest
+  // widgets without listing `activeDashboard` (a fresh object every render)
+  // in its dep array. The migration only needs to run when uid or the
+  // dashboard *identity* changes, not on every widget mutation.
+  const activeDashboardForMigrationRef = useRef(activeDashboard);
+  activeDashboardForMigrationRef.current = activeDashboard;
+  const migrationUidRef = useRef<string | null>(null);
+  migrationUidRef.current = user?.uid ?? null;
+  useEffect(() => {
+    const dashboard = activeDashboardForMigrationRef.current;
+    const uid = migrationUidRef.current;
+    if (!uid || !dashboard || isAuthBypass) return;
+    // Shared / synced boards: the migration must run under the host's uid
+    // so writes land at the right Firestore path and the rules don't reject
+    // them. A viewer/collaborator running under their own uid would either
+    // hit a permission denial or write orphaned data under their own
+    // namespace. Skip — the host's tab will run the migration when they
+    // open the board.
+    if (dashboard.linkedShareRole && dashboard.linkedShareRole !== 'owner') {
+      return;
+    }
+    const dashboardId = dashboard.id;
+    for (const widget of dashboard.widgets) {
+      if (widget.type !== 'drawing') continue;
+      const rawConfig = widget.config as DrawingConfig;
+      // Run the synchronous DrawingConfig migration FIRST so pre-Phase-2
+      // legacy widgets (which still carry `config.objects[]` and no
+      // `pages[]`) are converted to the paged shape before we check whether
+      // the subcollection migration applies. Without this, legacy widgets
+      // would sit un-migrated indefinitely because `needsSubcollectionMigration`
+      // requires `pages[]` to be present. The synchronous migrator is pure
+      // and idempotent — calling it on already-paged configs is a no-op.
+      // It also sanitizes per-page `background` against the allowlist, so
+      // the subcollection-migration write sites can trust the values they
+      // see in `pages[].background` (no need for re-sanitization there).
+      const config = migrateDrawingConfig(rawConfig);
+      if (!needsSubcollectionMigration(config)) continue;
+      const key = `${uid}::${dashboardId}::${widget.id}`;
+      if (subcollectionMigrationInFlightRef.current.has(key)) continue;
+      subcollectionMigrationInFlightRef.current.add(key);
+      // Mirror to reactive state so the widget can render its migration
+      // overlay. Functional update to handle the close-coupled multi-
+      // widget case (two widgets on the same dashboard migrating in
+      // parallel both add themselves).
+      const migratingWidgetId = widget.id;
+      setDrawingWidgetsMigrating((prev) => {
+        if (prev.has(migratingWidgetId)) return prev;
+        const next = new Set(prev);
+        next.add(migratingWidgetId);
+        return next;
+      });
+      void (async () => {
+        try {
+          const { ran } = await migrateDrawingToSubcollection({
+            db,
+            uid,
+            dashboardId,
+            widgetId: widget.id,
+            config,
+          });
+          if (ran) {
+            // Re-read the latest widget config at writeback time so user
+            // edits that landed in `pages[].objects` during the multi-second
+            // migration window (the widget stays interactive on the legacy
+            // path until `subcollectionMigrated: true` flips) are not
+            // overwritten by the snapshot we captured before the batch
+            // writes. We compute the emptied denormalized cache from the
+            // LATEST pages, preserving any newly-added page ids/backgrounds.
+            const latestDashboard = dashboardsRef.current.find(
+              (d) => d.id === dashboardId
+            );
+            const latestWidget = latestDashboard?.widgets.find(
+              (w) => w.id === widget.id
+            );
+            const latestConfig = latestWidget?.config as
+              | DrawingConfig
+              | undefined;
+            // If the widget was removed mid-migration, drop the writeback.
+            if (!latestConfig) return;
+            const latestPages = Array.isArray(latestConfig.pages)
+              ? latestConfig.pages
+              : config.pages;
+            const denormalizedPages: DrawingPage[] = latestPages.map((p) => ({
+              id: p.id,
+              objects: [],
+              background: p.background ?? 'blank',
+            }));
+            updateWidgetRef.current?.(widget.id, {
+              config: {
+                ...latestConfig,
+                pages: denormalizedPages,
+                subcollectionMigrated: true,
+              },
+            });
+          }
+        } catch (err) {
+          logError('DashboardContext.drawingSubcollectionMigration', err, {
+            dashboardId,
+            widgetId: widget.id,
+          });
+        } finally {
+          subcollectionMigrationInFlightRef.current.delete(key);
+          setDrawingWidgetsMigrating((prev) => {
+            if (!prev.has(migratingWidgetId)) return prev;
+            const next = new Set(prev);
+            next.delete(migratingWidgetId);
+            return next;
+          });
+        }
+      })();
+    }
+    // Including `widgets.length` in the deps catches the duplicate-widget /
+    // newly-added-widget case: switching dashboards triggers off the id, but
+    // a user duplicating a legacy drawing widget mid-session needs the
+    // effect to re-fire so the dupe's migration runs too. The body still
+    // reads via the ref, so this dep is cheap (no extra batch commits — the
+    // `subcollectionMigrationInFlightRef` Set dedupes per widget id).
+  }, [user?.uid, activeDashboard?.id, activeDashboard?.widgets?.length]);
+
+  // Note: there is intentionally NO sign-out cleanup effect for
+  // `subcollectionMigrationInFlightRef`. An earlier draft cleared the Set
+  // on `user?.uid` change, but under React 19 StrictMode dev (which runs
+  // setup → cleanup → setup on initial mount) that cleanup fired between
+  // the two setup passes, emptied the Set, and the second migration-effect
+  // pass re-kicked the migration — defeating the StrictMode dedup the ref
+  // exists to provide. Since the Set's keys include `uid`, stale entries
+  // from a previous session are inert (they don't match a new session's
+  // keys) and harmless: leaving them in memory across sign-out costs a
+  // handful of bytes per migrated widget per session.
+
   // True when the user is viewing a board they joined as a viewer in
   // View-Only mode. Read-only mutation guards check this via a ref so
   // memoized action callbacks don't have to invalidate on every change.
@@ -4513,6 +4683,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [saveWidgetConfig]
   );
 
+  // Mirror the latest updateWidget closure into the forward-declared ref
+  // so callbacks defined upstream (the drawing-subcollection migration
+  // effect, etc.) can invoke it without circular `useCallback` dependencies.
+  updateWidgetRef.current = updateWidget;
+
   // --- Widget grouping ---
 
   const updateWidgets = useCallback(
@@ -4934,6 +5109,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       customColors: adminConfig.customColors ?? [
         ...DRAWING_DEFAULTS.CUSTOM_COLORS,
       ],
+      activeTool: prev.activeTool,
+      shapeFill: prev.shapeFill,
     }));
     // Reset the dashboard's overlay so a fresh session starts blank for
     // everyone (including remote participants on a synced board).
@@ -4961,6 +5138,15 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     [setActiveAnnotationObjects]
   );
 
+  // Forward-declared setter for the Wave 5 redo stack — declared below but
+  // referenced from `addAnnotationObject` so a fresh stroke invalidates the
+  // redo branch (standard undo/redo semantics: any new action drops redo).
+  // We use a ref dance to avoid the temporal-dead-zone problem of referencing
+  // a useState setter that's defined later in the function body.
+  const annotationRedoSetterRef = useRef<React.Dispatch<
+    React.SetStateAction<DrawableObject[]>
+  > | null>(null);
+
   const addAnnotationObject = useCallback(
     (obj: DrawableObject) => {
       const id = activeIdRef.current;
@@ -4973,9 +5159,42 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
           ?.objects ?? [];
       setActiveAnnotationObjects([...current, stamped]);
+      // Wave 5: invalidate the redo branch on every fresh add. Guarded so
+      // `redoAnnotation` (which calls addAnnotationObject internally) doesn't
+      // wipe the stack it's trying to drain — see `redoAnnotation` for the
+      // bypass.
+      if (!isRedoingAnnotationRef.current) {
+        annotationRedoSetterRef.current?.((prev) =>
+          prev.length === 0 ? prev : []
+        );
+      }
     },
     [setActiveAnnotationObjects, user?.uid]
   );
+
+  // Ref-based flag flipped on inside `redoAnnotation` so the
+  // `addAnnotationObject` call it makes doesn't also clear the redo stack
+  // it's currently draining.
+  const isRedoingAnnotationRef = useRef(false);
+
+  // Wave 5 — Redo stack for annotation overlay.
+  //
+  // IMPORTANT: we deliberately do NOT replace the per-author undo above with
+  // the widget's command-stack model. The overlay's undo is per-author by
+  // design so two teachers on a synced share can't clobber each other's
+  // strokes (see `undoAnnotation` body for the per-author scan). The widget's
+  // command stack is per-instance and treats commands as global writes,
+  // which would break that multi-author safety. Wave 5 layers redo on TOP:
+  // each `undoAnnotation` pushes the removed object onto `annotationRedoStack`,
+  // and `redoAnnotation` pops the top and re-emits via `addAnnotationObject`.
+  // Any new `addAnnotationObject` call (a fresh stroke) invalidates the redo
+  // branch, matching standard undo/redo semantics.
+  const [annotationRedoStack, setAnnotationRedoStack] = useState<
+    DrawableObject[]
+  >([]);
+  // Expose the setter to `addAnnotationObject` via the forward-declared ref
+  // so a fresh stroke can drop the redo branch without circular hook deps.
+  annotationRedoSetterRef.current = setAnnotationRedoStack;
 
   const undoAnnotation = useCallback(() => {
     const id = activeIdRef.current;
@@ -5001,16 +5220,70 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     if (removeAt < 0) {
       removeAt = current.length - 1;
     }
+    const removed = current[removeAt];
     const next = [
       ...current.slice(0, removeAt),
       ...current.slice(removeAt + 1),
     ];
     setActiveAnnotationObjects(next);
+    // Push onto the redo stack so a subsequent redoAnnotation can re-emit
+    // the exact same object (preserving id, authorUid, geometry, etc.).
+    setAnnotationRedoStack((prev) => [...prev, removed]);
   }, [setActiveAnnotationObjects, user?.uid]);
+
+  const redoAnnotation = useCallback(() => {
+    setAnnotationRedoStack((prev) => {
+      if (prev.length === 0) return prev;
+      const top = prev[prev.length - 1];
+      // Flag the upcoming addAnnotationObject so it doesn't also clear our
+      // redo branch — without this, `redo` would always leave the stack at 0.
+      isRedoingAnnotationRef.current = true;
+      try {
+        // Re-emit through the canonical add path so the live-share mirror,
+        // author-uid stamping, and listener semantics all stay consistent.
+        addAnnotationObject(top);
+      } finally {
+        isRedoingAnnotationRef.current = false;
+      }
+      return prev.slice(0, -1);
+    });
+  }, [addAnnotationObject]);
 
   const clearAnnotation = useCallback(() => {
     setActiveAnnotationObjects([]);
+    // Clearing also drops any pending redo branch — there's nothing
+    // sensible to redo back into after a full wipe.
+    setAnnotationRedoStack([]);
   }, [setActiveAnnotationObjects]);
+
+  // Phase 2 PR 2.1c — selection mutations on the overlay. Go through the
+  // same shared `setActiveAnnotationObjects` path so live-share mirrors any
+  // edits made via the Select tool.
+  const updateAnnotationObject = useCallback(
+    (next: DrawableObject) => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      const current =
+        dashboardsRef.current.find((d) => d.id === id)?.annotationOverlay
+          ?.objects ?? [];
+      setActiveAnnotationObjects(
+        current.map((o) => (o.id === next.id ? next : o))
+      );
+    },
+    [setActiveAnnotationObjects]
+  );
+
+  const removeAnnotationObject = useCallback(
+    (id: string) => {
+      const activeId = activeIdRef.current;
+      if (!activeId) return;
+      const current =
+        dashboardsRef.current.find((d) => d.id === activeId)?.annotationOverlay
+          ?.objects ?? [];
+      setActiveAnnotationObjects(current.filter((o) => o.id !== id));
+    },
+    [setActiveAnnotationObjects]
+  );
 
   // Exposed `annotationState` merges per-user UI state with the active
   // dashboard's shared object list. This keeps a single shape for consumers
@@ -5110,6 +5383,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       importSharedBoard,
       stopSharingDashboard,
       isActiveBoardReadOnly,
+      drawingWidgetsMigrating,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,
@@ -5142,7 +5416,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       closeAnnotation,
       updateAnnotationState,
       addAnnotationObject,
+      updateAnnotationObject,
+      removeAnnotationObject,
       undoAnnotation,
+      redoAnnotation,
+      canRedoAnnotation: annotationRedoStack.length > 0,
       clearAnnotation,
     }),
     [
@@ -5231,6 +5509,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       importSharedBoard,
       stopSharingDashboard,
       isActiveBoardReadOnly,
+      drawingWidgetsMigrating,
       pendingQuizShareId,
       clearPendingQuizShare,
       setPendingQuizShareId,
@@ -5262,7 +5541,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
       closeAnnotation,
       updateAnnotationState,
       addAnnotationObject,
+      updateAnnotationObject,
+      removeAnnotationObject,
       undoAnnotation,
+      redoAnnotation,
+      annotationRedoStack.length,
       clearAnnotation,
     ]
   );

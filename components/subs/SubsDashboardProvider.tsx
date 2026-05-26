@@ -68,6 +68,8 @@ const DEFAULT_ANNOTATION_STATE: AnnotationState = {
   color: '#ef4444',
   width: 4,
   customColors: [],
+  activeTool: 'pen',
+  shapeFill: false,
 };
 
 /**
@@ -218,6 +220,7 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       dashboards: [activeDashboard],
       activeDashboard,
       isActiveBoardReadOnly: true,
+      drawingWidgetsMigrating: new Set<string>(),
       updateWidget,
       bringToFront,
 
@@ -320,7 +323,11 @@ export const SubsDashboardProvider: React.FC<SubsDashboardProviderProps> = ({
       closeAnnotation: NOOP,
       updateAnnotationState: NOOP,
       addAnnotationObject: NOOP,
+      updateAnnotationObject: NOOP,
+      removeAnnotationObject: NOOP,
       undoAnnotation: NOOP,
+      redoAnnotation: NOOP,
+      canRedoAnnotation: false,
       clearAnnotation: NOOP,
       setZoom: NOOP,
       setSelectedWidgetId: NOOP,
