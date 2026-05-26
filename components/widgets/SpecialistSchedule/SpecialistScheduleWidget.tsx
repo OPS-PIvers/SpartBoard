@@ -16,19 +16,12 @@ import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { resolveTextPresetMultiplier } from '@/config/widgetAppearance';
 import { WIDGET_DEFAULTS } from '@/config/widgetDefaults';
 import { hexToRgba } from '@/utils/styles';
+import { parseTime, computeIsPast } from './utils';
 import {
   REFERENCE_VIEWPORT,
   computeWidgetPixelRect,
 } from '@/utils/proportionalLayout';
 import { SNAP_LAYOUT_CONSTANTS } from '@/utils/layoutMath';
-
-/** Parses an "HH:MM" time string and returns minutes since midnight, or -1 if invalid. */
-const parseTime = (t: string | undefined): number => {
-  if (!t || !t.includes(':')) return -1;
-  const [h, m] = t.split(':').map(Number);
-  if (isNaN(h) || isNaN(m)) return -1;
-  return h * 60 + m;
-};
 
 const formatTime = (time: string, format24: boolean): string => {
   if (!time.includes(':')) return time;
@@ -384,10 +377,12 @@ export const SpecialistScheduleWidget: React.FC<{ widget: WidgetData }> = ({
           >
             {currentItems.map((item, i) => {
               const isActive = i === activeIndex;
-              const isPast =
-                !isActive &&
-                parseTime(item.endTime ?? item.startTime) <
-                  now.getHours() * 60 + now.getMinutes();
+              const isPast = computeIsPast(
+                item.endTime,
+                item.startTime,
+                isActive,
+                now.getHours() * 60 + now.getMinutes()
+              );
               const bgColor = isPast
                 ? hexToRgba('#cbd5e1', cardOpacity)
                 : hexToRgba(cardColor, cardOpacity);
