@@ -18,9 +18,13 @@ export const widgetNeedsProportionalMigration = (w: WidgetData): boolean => {
   if (typeof w.xProp !== 'number') return true;
   if (typeof w.yProp !== 'number') return true;
   // Defensive: a proportional field that's clearly a pixel value (>1.5 in
-  // either width or height) means the proportional fields were never
+  // any of the four fields) means the proportional fields were never
   // populated correctly — re-derive from the pixel x/y/w/h.
-  if (w.wProp > 1.5 || w.hProp > 1.5) return true;
+  // NOTE: all four proportional fields are checked, not just width/height.
+  // A widget with pixel-valued xProp/yProp but correct wProp/hProp would
+  // otherwise pass this guard and render at the wrong position.
+  if (w.wProp > 1.5 || w.hProp > 1.5 || w.xProp > 1.5 || w.yProp > 1.5)
+    return true;
   return false;
 };
 
