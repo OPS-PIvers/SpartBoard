@@ -18,12 +18,48 @@ export const parseGeminiJson = <T>(raw: string): T => {
     .replace(/```\s*$/i, '')
     .trim();
 
+  // Walk forward from the first `{` counting brace depth to find the
+  // *matching* closing brace for the outermost JSON object. Using
+  // `lastIndexOf('}')` is incorrect: any `}` in trailing prose
+  // (explanations, CSS examples, JSON notation) would extend the slice past
+  // the JSON boundary and cause JSON.parse to throw even though the embedded
+  // JSON is valid.
   const firstBrace = fenced.indexOf('{');
-  const lastBrace = fenced.lastIndexOf('}');
-  const slice =
-    firstBrace !== -1 && lastBrace > firstBrace
-      ? fenced.slice(firstBrace, lastBrace + 1)
-      : fenced;
+  let slice = fenced;
+  if (firstBrace !== -1) {
+    let depth = 0;
+    let inString = false;
+    let escape = false;
+    let closingPos = -1;
+    for (let i = firstBrace; i < fenced.length; i++) {
+      const ch = fenced[i];
+      if (escape) {
+        escape = false;
+        continue;
+      }
+      if (ch === '\\' && inString) {
+        escape = true;
+        continue;
+      }
+      if (ch === '"') {
+        inString = !inString;
+        continue;
+      }
+      if (!inString) {
+        if (ch === '{') depth++;
+        else if (ch === '}') {
+          depth--;
+          if (depth === 0) {
+            closingPos = i;
+            break;
+          }
+        }
+      }
+    }
+    if (closingPos !== -1) {
+      slice = fenced.slice(firstBrace, closingPos + 1);
+    }
+  }
 
   return JSON.parse(slice) as T;
 };
