@@ -188,7 +188,8 @@ export const SmartNotebookWidget: React.FC<{
     // Firestore write) fails, instead of leaking orphaned blobs (quota cost).
     let uploadedStoragePaths: string[] = [];
     try {
-      const { title, pages, assets, sections } = await parseNotebookFile(file);
+      const { title, pages, assets, sections, objectLinks } =
+        await parseNotebookFile(file);
       const notebookId = crypto.randomUUID();
 
       // Helper to upload a set of blobs to a specific path structure
@@ -232,8 +233,11 @@ export const SmartNotebookWidget: React.FC<{
         pagePaths: uploadedPaths,
         assetUrls: uploadedAssetUrls,
         createdAt: Date.now(),
-        // Only include `sections` when present — Firestore rejects `undefined`.
+        // Only include optional fields when populated — Firestore rejects
+        // `undefined`, and empty arrays would create distracting "no
+        // sections / no links" diffs in console.
         ...(sections && sections.length > 0 ? { sections } : {}),
+        ...(objectLinks && objectLinks.length > 0 ? { objectLinks } : {}),
       };
 
       await setDoc(
