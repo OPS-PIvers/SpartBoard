@@ -1,4 +1,10 @@
-import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
@@ -63,7 +69,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     left: PANEL_MARGIN,
   });
 
-  const updatePosition = () => {
+  // Pure-ish position calculator. Defined as a useCallback with its real deps
+  // so we can include it in the layout-effect's dep list without churn.
+  // `widgetRef` is stable (refs don't change identity) but we list it for
+  // completeness.
+  const updatePosition = useCallback(() => {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const panelMaxH = vh * 0.8;
@@ -107,15 +117,27 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
 
     // Fallback: center horizontally
     setPosition({ top, left: Math.max(PANEL_MARGIN, (vw - pw) / 2) });
-  };
+  }, [widget.x, widget.y, widget.w, widget.maximized, widgetRef]);
 
   // Recompute on mount and whenever the widget position/size, viewport, or
   // canvas zoom changes. getBoundingClientRect is not reactive, so any input
   // that can alter the widget's screen rect must be in this dep list.
+  // `viewport` and `zoom` are listed because they change the rect we read
+  // off `widgetRef.current`; the function itself doesn't reference them.
+  // useLayoutEffect (not useEffect) so the position is applied before paint
+  // and the panel never flashes at the wrong spot.
+  //
+  // Synchronous setState inside a layout effect is the React-recommended
+  // pattern for DOM-measurement → render flows (you can't compute the rect
+  // in render — the DOM doesn't exist yet on first commit), so the
+  // `react-hooks/set-state-in-effect` rule's complaint is a false positive
+  // for this case.
   useLayoutEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     updatePosition();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widget.x, widget.y, widget.w, widget.maximized, viewport, zoom]);
+    void viewport;
+    void zoom;
+  }, [updatePosition, viewport, zoom]);
 
   // Animate in on mount (track both rAF handles for safe cleanup)
   useEffect(() => {

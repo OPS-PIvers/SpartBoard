@@ -79,9 +79,7 @@ export const useCommandStack = ({
   // closure-captured `objects` and apply the SAME reverse twice while the
   // functional setStacks updater correctly chains past/future.
   //
-  // Refs assigned during render is the pattern CLAUDE.md recommends for
-  // keeping derived state in sync without an effect. The newer
-  // `react-hooks/refs` lint rule flags this on principle, but the pattern is
+  // The `react-hooks/refs` rule flags this on principle, but the pattern is
   // intentional and the assignments are idempotent (same input → same ref
   // value) so the StrictMode double-invoke is safe.
   const objectsRef = useRef<readonly DrawableObject[]>(objects);

@@ -27,12 +27,12 @@ export const computeIsPast = (
   nowMinutes: number
 ): boolean => {
   if (isActive) return false;
-  // Intentional `||` (not `??`): an empty-string endTime must also fall back
-  // to startTime, matching how endTime is treated elsewhere in the widget.
-  // parseTime would return -1 for '' anyway, but doing the fallback here
-  // preserves the valid startTime path.
-  // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing
-  const effectiveMinutes = parseTime(endTime || startTime);
+  // An empty-string endTime must fall back to startTime (matching how endTime
+  // is treated elsewhere in the widget); `??` alone wouldn't catch '', so
+  // test absence explicitly here.
+  const effective =
+    endTime !== undefined && endTime !== '' ? endTime : startTime;
+  const effectiveMinutes = parseTime(effective);
   if (effectiveMinutes < 0) return false; // unparseable — do not flag as past
   return effectiveMinutes < nowMinutes;
 };

@@ -290,9 +290,24 @@ export const useDrawingObjectsDoc = ({
       if (!e) return;
       e.subscribers.delete(subscriber);
       e.refs -= 1;
-      // Eviction is deferred to the next subscribe — keeping the listener
-      // around for the LRU window costs only a handful of bytes and lets
-      // back-navigation reuse the cached data.
+      // Eviction within the LRU window is deferred to the next subscribe —
+      // keeping the listener around costs only a handful of bytes and lets
+      // back-navigation reuse the cached data. But if the entire widget has
+      // unmounted (no remaining refs across any page in this context), we
+      // must tear down all of its listeners so Firestore reads don't leak
+      // for the lifetime of the tab. Defer to a microtask so a back-to-back
+      // unmount + remount (e.g. a page switch) sees the new subscribe
+      // increment a ref BEFORE we check the total.
+      const ctxKey = subKey.contextKey;
+      queueMicrotask(() => {
+        const currentCm = activeSubsByContext.get(ctxKey);
+        if (!currentCm) return;
+        let totalRefs = 0;
+        for (const sub of currentCm.values()) totalRefs += sub.refs;
+        if (totalRefs > 0) return;
+        for (const sub of currentCm.values()) sub.unsubscribe();
+        activeSubsByContext.delete(ctxKey);
+      });
     };
   }, [uid, dashboardId, widgetId, pageId]);
 
