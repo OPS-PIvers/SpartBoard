@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { MousePointer2, Pen, Highlighter, Eraser } from 'lucide-react';
 import {
   prepareEditableSvg,
   ensureObjectIds,
@@ -20,18 +19,27 @@ import {
   ORIG_TRANSFORM_ATTR,
   EditableObjectInfo,
 } from '@/utils/notebookSvgEdit';
+import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
 
 interface PageEditorProps {
   /** Raw page SVG text (from a parsed notebook page). */
   svg: string;
   className?: string;
+  /**
+   * Tool/color/width are controlled by the host (PageEditorOverlay) so the
+   * toolbar can live in the workspace chrome instead of floating over the
+   * canvas. Optional with safe defaults so the dev harness and unit tests
+   * can mount PageEditor directly without wiring a toolbar.
+   */
+  tool?: Tool;
+  penColor?: string;
+  penWidth?: number;
   /** Notifies the host which objects are selected (id + kind); empty when none. */
   onSelectionChange?: (selection: EditableObjectInfo[]) => void;
   /** Fires (with the cleaned, persistable SVG) after any edit. */
   onChange?: (svg: string) => void;
 }
 
-type Tool = 'select' | 'pen' | 'highlighter' | 'eraser';
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
 
 interface DragState {
@@ -69,9 +77,6 @@ const MIN_SCALE = 0.05;
 const EDIT_MATRIX_ATTR = 'data-edit-matrix';
 const HANDLE_ATTR = 'data-edit-handle';
 const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
-
-const PEN_COLORS = ['#e11d48', '#2563eb', '#16a34a', '#111827', '#f59e0b'];
-const PEN_WIDTHS = [2, 5, 10];
 
 const matrixString = (m: DOMMatrix): string =>
   `${m.a},${m.b},${m.c},${m.d},${m.e},${m.f}`;
@@ -190,6 +195,9 @@ const transformedBox = (svgEl: SVGSVGElement, obj: SVGGraphicsElement): Box => {
 export const PageEditor: React.FC<PageEditorProps> = ({
   svg,
   className,
+  tool = 'select',
+  penColor = PEN_COLORS[0],
+  penWidth = PEN_WIDTHS[1],
   onSelectionChange,
   onChange,
 }) => {
@@ -214,17 +222,20 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     onChangeRef.current = onChange;
   });
 
-  const [tool, setTool] = useState<Tool>('select');
-  const [penColor, setPenColor] = useState(PEN_COLORS[0]);
-  const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1]);
+  // Mirror controlled tool props into refs so the pointer handlers always see
+  // the latest value at fire time. Assigning in render body is the project's
+  // documented escape hatch for ref mirroring (CLAUDE.md "useEffect is an
+  // escape hatch"). The selection-clear on tool change is handled below,
+  // after selectedIds state is declared.
   const toolRef = useRef(tool);
   const penColorRef = useRef(penColor);
   const penWidthRef = useRef(penWidth);
-  useEffect(() => {
-    toolRef.current = tool;
-    penColorRef.current = penColor;
-    penWidthRef.current = penWidth;
-  });
+
+  toolRef.current = tool;
+
+  penColorRef.current = penColor;
+
+  penWidthRef.current = penWidth;
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState<{
@@ -243,6 +254,17 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     setPrevPrepared(prepared);
     setSelectedIds([]);
     setEditing(null);
+  }
+
+  // Drop any active selection when the host switches off the select tool —
+  // otherwise the highlight rect / handles would linger over a pen or
+  // eraser canvas.
+  const [prevTool, setPrevTool] = useState(tool);
+  if (tool !== prevTool) {
+    setPrevTool(tool);
+    if (tool !== 'select' && selectedIds.length > 0) {
+      setSelectedIds([]);
+    }
   }
 
   // Draw one highlight rect per selected object (reusing rect nodes to avoid
@@ -797,38 +819,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (drag.moved) emitChange();
   };
 
-  const selectTool = (next: Tool) => {
-    setTool(next);
-    if (next !== 'select') setSelectedIds([]);
-  };
-
   const cursor =
     tool === 'pen' || tool === 'highlighter'
       ? 'crosshair'
       : tool === 'eraser'
         ? 'cell'
         : 'default';
-
-  const toolBtn = (
-    value: Tool,
-    Icon: React.ComponentType<{ className?: string }>,
-    label: string
-  ) => (
-    <button
-      type="button"
-      onClick={() => selectTool(value)}
-      title={label}
-      aria-label={label}
-      aria-pressed={tool === value}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-        tool === value
-          ? 'bg-indigo-600 text-white'
-          : 'text-slate-600 hover:bg-slate-100'
-      }`}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
-  );
 
   return (
     // data-no-drag opts this subtree out of DraggableWindow's drag-surface
@@ -850,48 +846,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         onDoubleClick={handleDoubleClick}
         role="presentation"
       />
-
-      {/* Floating tool palette */}
-      <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 px-1.5 py-1 shadow-lg backdrop-blur">
-        {toolBtn('select', MousePointer2, 'Select')}
-        {toolBtn('pen', Pen, 'Pen')}
-        {toolBtn('highlighter', Highlighter, 'Highlighter')}
-        {toolBtn('eraser', Eraser, 'Eraser')}
-        <div className="mx-1 h-6 w-px bg-slate-200" />
-        {PEN_COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setPenColor(c)}
-            title={`Color ${c}`}
-            aria-label={`Color ${c}`}
-            className={`h-5 w-5 rounded-full border-2 transition-transform ${
-              penColor === c
-                ? 'scale-110 border-slate-800'
-                : 'border-white hover:scale-105'
-            }`}
-            style={{ backgroundColor: c }}
-          />
-        ))}
-        <div className="mx-1 h-6 w-px bg-slate-200" />
-        {PEN_WIDTHS.map((w, i) => (
-          <button
-            key={w}
-            type="button"
-            onClick={() => setPenWidth(w)}
-            title={`Width ${['thin', 'medium', 'thick'][i]}`}
-            aria-label={`Width ${['thin', 'medium', 'thick'][i]}`}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-              penWidth === w ? 'bg-slate-200' : 'hover:bg-slate-100'
-            }`}
-          >
-            <span
-              className="rounded-full bg-slate-700"
-              style={{ width: w + 2, height: w + 2 }}
-            />
-          </button>
-        ))}
-      </div>
 
       {editing && (
         <textarea

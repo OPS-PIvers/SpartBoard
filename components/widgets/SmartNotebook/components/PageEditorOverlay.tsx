@@ -7,7 +7,11 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Eraser,
+  Highlighter,
   Loader2,
+  MousePointer2,
+  Pen,
   Pencil,
   Play,
   Plus,
@@ -18,6 +22,7 @@ import {
 import { NotebookSection } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { PageEditor } from './PageEditor';
+import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
 import { PageJumpMenu } from './PageJumpMenu';
 
 interface PageEditorOverlayProps {
@@ -78,6 +83,12 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [jumpMenuOpen, setJumpMenuOpen] = useState(false);
   const jumpTriggerRef = useRef<HTMLButtonElement>(null);
+  // Tool state lives at the workspace level so the toolbar can sit in the
+  // chrome (matching the DrawingWidget's bottom-rail layout) instead of
+  // floating over the page like the previous SMART-style palette.
+  const [tool, setTool] = useState<Tool>('select');
+  const [penColor, setPenColor] = useState<string>(PEN_COLORS[0]);
+  const [penWidth, setPenWidth] = useState<number>(PEN_WIDTHS[1]);
 
   // Reset state when the page changes (adjust-state-while-rendering, so the
   // loading effect below stays free of synchronous setState).
@@ -317,112 +328,279 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             <PageEditor
               key={currentPage}
               svg={svgToEdit}
+              tool={tool}
+              penColor={penColor}
+              penWidth={penWidth}
               onChange={onEditChange}
             />
           )}
         </div>
       }
       footer={
-        <div
-          className="relative flex items-center justify-center shrink-0 border-t border-slate-200 bg-white"
-          style={{
-            padding: 'min(12px, 3cqmin)',
-            gap: 'min(24px, 5cqmin)',
-          }}
-        >
-          <button
-            disabled={currentPage === 0}
-            onClick={() => onPageChange(Math.max(0, currentPage - 1))}
-            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
-            style={{ padding: 'min(10px, 2.5cqmin)' }}
-            title="Previous page"
-          >
-            <ChevronLeft
-              style={{
-                width: 'min(20px, 4.5cqmin)',
-                height: 'min(20px, 4.5cqmin)',
-              }}
-            />
-          </button>
-
+        <div className="shrink-0 border-t border-slate-200 bg-white">
+          <Toolbar
+            tool={tool}
+            penColor={penColor}
+            penWidth={penWidth}
+            onToolChange={setTool}
+            onColorChange={setPenColor}
+            onWidthChange={setPenWidth}
+          />
           <div
-            className="relative flex flex-col items-center"
-            style={{ minWidth: '80px' }}
+            className="relative flex items-center justify-center"
+            style={{
+              padding: 'min(10px, 2.5cqmin)',
+              gap: 'min(24px, 5cqmin)',
+            }}
           >
             <button
-              ref={jumpTriggerRef}
-              onClick={() => setJumpMenuOpen((o) => !o)}
-              className="flex items-center rounded-lg hover:bg-slate-100 transition-colors"
-              style={{
-                gap: 'min(4px, 1cqmin)',
-                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
-              }}
-              aria-haspopup="dialog"
-              aria-expanded={jumpMenuOpen}
-              title="Jump to page"
+              disabled={currentPage === 0}
+              onClick={() => onPageChange(Math.max(0, currentPage - 1))}
+              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
+              style={{ padding: 'min(10px, 2.5cqmin)' }}
+              title="Previous page"
             >
-              <span
-                className="font-black text-slate-700 tracking-widest uppercase"
-                style={{ fontSize: 'min(12px, 3cqmin)' }}
-              >
-                {currentPage + 1} / {totalPages}
-              </span>
-              <ChevronUp
-                className={`text-slate-400 transition-transform ${jumpMenuOpen ? '' : 'rotate-180'}`}
+              <ChevronLeft
                 style={{
-                  width: 'min(12px, 3cqmin)',
-                  height: 'min(12px, 3cqmin)',
+                  width: 'min(20px, 4.5cqmin)',
+                  height: 'min(20px, 4.5cqmin)',
                 }}
               />
             </button>
+
             <div
-              className="w-full bg-slate-100 rounded-full overflow-hidden"
-              style={{
-                height: 'min(4px, 1cqmin)',
-                marginTop: 'min(6px, 1.5cqmin)',
-              }}
+              className="relative flex flex-col items-center"
+              style={{ minWidth: '80px' }}
             >
-              <div
-                className="h-full bg-indigo-500 transition-all duration-300"
+              <button
+                ref={jumpTriggerRef}
+                onClick={() => setJumpMenuOpen((o) => !o)}
+                className="flex items-center rounded-lg hover:bg-slate-100 transition-colors"
                 style={{
-                  width: `${((currentPage + 1) / totalPages) * 100}%`,
+                  gap: 'min(4px, 1cqmin)',
+                  padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+                }}
+                aria-haspopup="dialog"
+                aria-expanded={jumpMenuOpen}
+                title="Jump to page"
+              >
+                <span
+                  className="font-black text-slate-700 tracking-widest uppercase"
+                  style={{ fontSize: 'min(12px, 3cqmin)' }}
+                >
+                  {currentPage + 1} / {totalPages}
+                </span>
+                <ChevronUp
+                  className={`text-slate-400 transition-transform ${jumpMenuOpen ? '' : 'rotate-180'}`}
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+              </button>
+              <div
+                className="w-full bg-slate-100 rounded-full overflow-hidden"
+                style={{
+                  height: 'min(4px, 1cqmin)',
+                  marginTop: 'min(6px, 1.5cqmin)',
+                }}
+              >
+                <div
+                  className="h-full bg-indigo-500 transition-all duration-300"
+                  style={{
+                    width: `${((currentPage + 1) / totalPages) * 100}%`,
+                  }}
+                />
+              </div>
+              {jumpMenuOpen && (
+                <PageJumpMenu
+                  // Thumbnails point at the committed Storage URLs — a page
+                  // being edited shows its last-saved thumb until autosave
+                  // catches up, which is the right thing for at-a-glance nav.
+                  pageUrls={pageUrls}
+                  sections={sections}
+                  currentPage={currentPage}
+                  onSelect={onPageChange}
+                  onClose={() => setJumpMenuOpen(false)}
+                  triggerRef={jumpTriggerRef}
+                />
+              )}
+            </div>
+
+            <button
+              disabled={currentPage === totalPages - 1}
+              onClick={() =>
+                onPageChange(Math.min(totalPages - 1, currentPage + 1))
+              }
+              className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
+              style={{ padding: 'min(10px, 2.5cqmin)' }}
+              title="Next page"
+            >
+              <ChevronRight
+                style={{
+                  width: 'min(20px, 4.5cqmin)',
+                  height: 'min(20px, 4.5cqmin)',
                 }}
               />
-            </div>
-            {jumpMenuOpen && (
-              <PageJumpMenu
-                // Thumbnails point at the committed Storage URLs — a page
-                // being edited shows its last-saved thumb until autosave
-                // catches up, which is the right thing for at-a-glance nav.
-                pageUrls={pageUrls}
-                sections={sections}
-                currentPage={currentPage}
-                onSelect={onPageChange}
-                onClose={() => setJumpMenuOpen(false)}
-                triggerRef={jumpTriggerRef}
-              />
-            )}
+            </button>
           </div>
-
-          <button
-            disabled={currentPage === totalPages - 1}
-            onClick={() =>
-              onPageChange(Math.min(totalPages - 1, currentPage + 1))
-            }
-            className="bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-2xl disabled:opacity-30 disabled:grayscale transition-all shadow-sm active:scale-90"
-            style={{ padding: 'min(10px, 2.5cqmin)' }}
-            title="Next page"
-          >
-            <ChevronRight
-              style={{
-                width: 'min(20px, 4.5cqmin)',
-                height: 'min(20px, 4.5cqmin)',
-              }}
-            />
-          </button>
         </div>
       }
     />
+  );
+};
+
+/**
+ * Notebook editor toolbar — bottom strip just above page nav, sharing the
+ * DrawingWidget's dark-chrome / segmented-control look so the two editors
+ * feel like cousins. PageEditor stays presentational; tool state lives in
+ * the workspace.
+ */
+const TOOL_BUTTONS: ReadonlyArray<{
+  tool: Tool;
+  Icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}> = [
+  { tool: 'select', Icon: MousePointer2, label: 'Select' },
+  { tool: 'pen', Icon: Pen, label: 'Pen' },
+  { tool: 'highlighter', Icon: Highlighter, label: 'Highlighter' },
+  { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
+];
+
+const WIDTH_LABELS = ['Thin', 'Medium', 'Thick'] as const;
+
+const Toolbar: React.FC<{
+  tool: Tool;
+  penColor: string;
+  penWidth: number;
+  onToolChange: (t: Tool) => void;
+  onColorChange: (c: string) => void;
+  onWidthChange: (w: number) => void;
+}> = ({
+  tool,
+  penColor,
+  penWidth,
+  onToolChange,
+  onColorChange,
+  onWidthChange,
+}) => {
+  const inkActive = tool === 'pen' || tool === 'highlighter';
+  return (
+    <div
+      className="bg-slate-900/95 backdrop-blur"
+      style={{ padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)' }}
+    >
+      <div
+        className="mx-auto flex items-center justify-center"
+        style={{ gap: 'min(12px, 2.5cqmin)', maxWidth: '720px' }}
+      >
+        {/* Tool segmented control */}
+        <div
+          role="group"
+          aria-label="Drawing tool"
+          className="flex items-stretch rounded-lg bg-slate-950/40 ring-1 ring-white/5"
+          style={{ gap: 'min(2px, 0.5cqmin)', padding: 'min(4px, 1cqmin)' }}
+        >
+          {TOOL_BUTTONS.map(({ tool: t, Icon, label }) => {
+            const isActive = tool === t;
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => onToolChange(t)}
+                aria-pressed={isActive}
+                title={label}
+                aria-label={label}
+                className={`flex items-center justify-center rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-brand-blue-primary text-white shadow-sm'
+                    : 'text-slate-300 hover:bg-white/10'
+                }`}
+                style={{
+                  width: 'min(32px, 7cqmin)',
+                  height: 'min(28px, 6cqmin)',
+                }}
+              >
+                <Icon className="h-4 w-4" />
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Color swatches — only meaningful for ink tools; dim them otherwise
+            so the eraser/select state doesn't suggest a "current color". */}
+        <div
+          className={`flex items-center transition-opacity ${
+            inkActive ? 'opacity-100' : 'opacity-40'
+          }`}
+          style={{ gap: 'min(6px, 1.5cqmin)' }}
+        >
+          {PEN_COLORS.map((c) => {
+            const isActive = penColor === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                onClick={() => onColorChange(c)}
+                disabled={!inkActive}
+                title={`Color ${c}`}
+                aria-label={`Color ${c}`}
+                aria-pressed={isActive}
+                className={`rounded-full transition-transform ${
+                  isActive
+                    ? 'scale-110 ring-2 ring-white'
+                    : 'ring-1 ring-white/30 hover:scale-105'
+                } ${inkActive ? 'cursor-pointer' : 'cursor-default'}`}
+                style={{
+                  width: 'min(20px, 4.5cqmin)',
+                  height: 'min(20px, 4.5cqmin)',
+                  backgroundColor: c,
+                }}
+              />
+            );
+          })}
+        </div>
+
+        {/* Stroke width dots — same opacity treatment. */}
+        <div
+          className={`flex items-center transition-opacity ${
+            inkActive ? 'opacity-100' : 'opacity-40'
+          }`}
+          style={{ gap: 'min(2px, 0.5cqmin)' }}
+        >
+          {PEN_WIDTHS.map((w, i) => {
+            const isActive = penWidth === w;
+            return (
+              <button
+                key={w}
+                type="button"
+                onClick={() => onWidthChange(w)}
+                disabled={!inkActive}
+                title={WIDTH_LABELS[i]}
+                aria-label={WIDTH_LABELS[i]}
+                aria-pressed={isActive}
+                className={`flex items-center justify-center rounded-md transition-colors ${
+                  isActive
+                    ? 'bg-white/20'
+                    : inkActive
+                      ? 'hover:bg-white/10'
+                      : ''
+                }`}
+                style={{
+                  width: 'min(28px, 6cqmin)',
+                  height: 'min(28px, 6cqmin)',
+                }}
+              >
+                <span
+                  className="rounded-full bg-white"
+                  style={{ width: w + 2, height: w + 2 }}
+                />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 };
 
