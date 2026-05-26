@@ -45,4 +45,14 @@ describe('parseGeminiJson', () => {
   it('throws on genuinely malformed JSON', () => {
     expect(() => parseGeminiJson('{not json at all}')).toThrow();
   });
+
+  it('parses correctly when trailing explanation contains closing-brace characters', () => {
+    // Regression: lastIndexOf('}') was used to find the slice end, so any `}`
+    // in the trailing prose (JSON notation, template literals, CSS rules, etc.)
+    // caused the slice to extend past the JSON boundary, producing a string
+    // that JSON.parse rejects even though the embedded JSON is valid.
+    const raw =
+      '{"foo":"bar","items":[1,2]}\n\nNote: use {curly braces} in JSON objects.';
+    expect(parseGeminiJson<Sample>(raw)).toEqual({ foo: 'bar', items: [1, 2] });
+  });
 });
