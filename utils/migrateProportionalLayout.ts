@@ -17,10 +17,28 @@ export const widgetNeedsProportionalMigration = (w: WidgetData): boolean => {
   if (typeof w.hProp !== 'number') return true;
   if (typeof w.xProp !== 'number') return true;
   if (typeof w.yProp !== 'number') return true;
-  // Defensive: a proportional field that's clearly a pixel value (>1.5 in
-  // either width or height) means the proportional fields were never
-  // populated correctly — re-derive from the pixel x/y/w/h.
-  if (w.wProp > 1.5 || w.hProp > 1.5) return true;
+  // Defensive: any proportional field that is non-finite (NaN / Infinity) or
+  // whose magnitude is unmistakably a pixel value (>1.5) means the
+  // proportional fields were never populated correctly — re-derive from the
+  // pixel x/y/w/h. xProp / yProp use Math.abs because widgets dragged past
+  // the viewport edge can legitimately have a negative pixel coordinate, so
+  // -150 must still be flagged as "not a proportion".
+  if (
+    !Number.isFinite(w.wProp) ||
+    !Number.isFinite(w.hProp) ||
+    !Number.isFinite(w.xProp) ||
+    !Number.isFinite(w.yProp)
+  ) {
+    return true;
+  }
+  if (
+    w.wProp > 1.5 ||
+    w.hProp > 1.5 ||
+    Math.abs(w.xProp) > 1.5 ||
+    Math.abs(w.yProp) > 1.5
+  ) {
+    return true;
+  }
   return false;
 };
 
