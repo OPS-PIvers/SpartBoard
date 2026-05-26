@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ChevronLeft,
   ChevronRight,
-  MoreVertical,
+  Layers,
+  Pencil,
   Plus,
   Trash2,
 } from 'lucide-react';
@@ -16,25 +17,39 @@ interface PageStripProps {
   onSelectPage: (index: number) => void;
   onAddPage: () => void;
   onDeletePage: (index: number) => void;
-  onMovePage: (index: number, direction: 'left' | 'right') => void;
+  onRenamePage: (index: number, title: string) => void;
 }
 
 /**
- * Per-widget page strip (Phase 2 PR 2.3). Renders the active drawing's pages
- * as small numbered chips with bbox-only thumbnails — full canvas thumbnails
- * are out of scope for this PR (Wave 7 will revisit when backgrounds land).
+ * Fallback page title. Used in two places (toolbar chip + popover row) so
+ * a single helper keeps the "Page N" convention consistent. `title` is
+ * trimmed at write time, so an all-whitespace title here surfaces as empty
+ * and falls through to the default.
+ */
+const pageLabel = (page: DrawingPage, index: number): string => {
+  const trimmed = page.title?.trim() ?? '';
+  // Empty string should fall through to the "Page N" default; `??` alone
+  // wouldn't catch it, so we test explicitly. ('||' would work but reads
+  // less intentionally here.)
+  return trimmed === '' ? `Page ${index + 1}` : trimmed;
+};
+
+/**
+ * Compact in-toolbar page control with editable per-page titles.
  *
- * Layout:
- *  - Horizontally scrollable strip; chips are fixed-width so adding more
- *    pages widens the strip rather than shrinking each chip past readability.
- *  - The active chip wears `ring-2 ring-indigo-500`.
- *  - Each chip exposes a hover-revealed kebab with Delete / Move Left /
- *    Move Right. Disabled states are visible (greyed out at the edges of
- *    the list).
- *  - A trailing `+` button adds a new blank page after the current one.
+ * Visual states:
+ *  - 1 page  → `[+ Add page]  [Page 1]` (the title is click-to-edit).
+ *  - ≥2 pages → `[◀]  [N / M]  [▶]  [Page N]` (title is the current page's,
+ *               also click-to-edit; the counter still opens the popover).
  *
- * Sizing uses container queries so the strip remains usable when the widget
- * is shrunk — chips, gaps and the kebab affordance all scale via `cqmin`.
+ * The popover (multi-page only) lists every page with a thumbnail, label,
+ * and a pair of hover-revealed icons: edit (✎) and delete (🗑). Clicking
+ * edit swaps the row's label for an inline input bound to the parent's
+ * `onRenamePage` sink.
+ *
+ * Popover is portalled into document.body so the widget's `overflow-hidden`
+ * shell can't clip it — same pattern as the export and tool-options
+ * popovers elsewhere in the widget.
  */
 export const PageStrip: React.FC<PageStripProps> = ({
   pages,
@@ -42,267 +57,382 @@ export const PageStrip: React.FC<PageStripProps> = ({
   onSelectPage,
   onAddPage,
   onDeletePage,
-  onMovePage,
+  onRenamePage,
 }) => {
-  // A single open kebab at a time keeps the visual noise down. -1 = closed.
-  const [openMenuIndex, setOpenMenuIndex] = useState<number>(-1);
-  // Anchor coordinates for the portalled popup. We compute these from the
-  // kebab trigger's getBoundingClientRect at open time so the popup can be
-  // rendered into document.body (escaping the strip's `overflow-y-hidden`)
-  // while still appearing directly below its trigger button.
-  const [menuAnchor, setMenuAnchor] = useState<{
-    top: number;
-    right: number;
-  } | null>(null);
-  // Track the active kebab trigger so we can re-measure on scroll/resize.
-  const triggerRefs = useRef<Map<number, HTMLButtonElement | null>>(new Map());
+  const [isOpen, setIsOpen] = useState(false);
+  const [anchor, setAnchor] = useState<{ bottom: number; left: number } | null>(
+    null
+  );
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
-  const closeMenu = () => {
-    setOpenMenuIndex(-1);
-    setMenuAnchor(null);
-  };
+  // Per-row inline-edit state for the popover. We store the index of the row
+  // currently in edit mode; -1 = nobody is editing. The current-page title
+  // chip in the toolbar tracks its own edit state (`isTitleEditing` below)
+  // because it lives outside the popover and survives the popover close.
+  const [editingRowIndex, setEditingRowIndex] = useState<number>(-1);
 
-  const openMenu = (index: number, triggerEl: HTMLButtonElement) => {
-    const rect = triggerEl.getBoundingClientRect();
-    setOpenMenuIndex(index);
-    // `right` here is the distance from the viewport's right edge to the
-    // trigger's right edge — used with `position: fixed; right: <Npx>` so the
-    // popup hugs the kebab from the right (same visual as the old
-    // `right-0 mt-1` style, just measured from the viewport instead of the
-    // chip).
-    setMenuAnchor({
-      top: rect.bottom + 4,
-      right: window.innerWidth - rect.right,
+  const close = useCallback(() => {
+    setIsOpen(false);
+    setAnchor(null);
+    setEditingRowIndex(-1);
+  }, []);
+
+  const openAnchoredTo = (el: HTMLElement) => {
+    const rect = el.getBoundingClientRect();
+    setIsOpen(true);
+    setAnchor({
+      bottom: window.innerHeight - rect.top + 8,
+      left: rect.left,
     });
   };
 
-  // Re-measure / close on scroll or resize so the popup follows the kebab
-  // even if the user pans the dashboard or the dock collapses. Closing on
-  // scroll is the standard popover behavior and matches what teachers expect
-  // when the underlying widget moves out from under the popup.
+  // Re-measure on scroll/resize so the portalled popover follows the trigger
+  // when the dashboard pans or the dock collapses.
   useEffect(() => {
-    if (openMenuIndex < 0) return undefined;
+    if (!isOpen) return undefined;
     const onScrollOrResize = () => {
-      const trigger = triggerRefs.current.get(openMenuIndex);
-      if (!trigger) {
-        closeMenu();
+      const el = triggerRef.current;
+      if (!el) {
+        close();
         return;
       }
-      const rect = trigger.getBoundingClientRect();
-      setMenuAnchor({
-        top: rect.bottom + 4,
-        right: window.innerWidth - rect.right,
+      const rect = el.getBoundingClientRect();
+      setAnchor({
+        bottom: window.innerHeight - rect.top + 8,
+        left: rect.left,
       });
     };
-    // `capture: true` catches scroll on any ancestor (the strip itself is
-    // horizontally scrollable, and parent containers may scroll too).
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize);
     return () => {
       window.removeEventListener('scroll', onScrollOrResize, true);
       window.removeEventListener('resize', onScrollOrResize);
     };
-  }, [openMenuIndex]);
+  }, [isOpen, close]);
 
-  // Outside-click dismissal. We listen at document level so clicks anywhere
-  // outside the portalled popup AND outside the trigger button close it.
-  // The trigger's onClick handles the toggle case separately.
+  // Outside-click + Escape dismiss for the popover.
   useEffect(() => {
-    if (openMenuIndex < 0) return undefined;
+    if (!isOpen) return undefined;
     const onDocPointerDown = (e: PointerEvent) => {
       const target = e.target as Node | null;
       if (!target) return;
-      const popup = document.getElementById('drawing-page-strip-popup');
-      const trigger = triggerRefs.current.get(openMenuIndex);
-      if (popup?.contains(target) || trigger?.contains(target)) return;
-      closeMenu();
+      const popup = document.getElementById('drawing-page-popover');
+      if (popup?.contains(target)) return;
+      if (triggerRef.current?.contains(target)) return;
+      close();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
     };
     document.addEventListener('pointerdown', onDocPointerDown);
-    return () => document.removeEventListener('pointerdown', onDocPointerDown);
-  }, [openMenuIndex]);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('pointerdown', onDocPointerDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [isOpen, close]);
 
-  return (
-    <div
-      role="group"
-      aria-label="Drawing pages"
-      className="relative flex items-center gap-1 overflow-x-auto overflow-y-hidden border-t border-white/20 bg-white/10 backdrop-blur-sm"
-      style={{
-        padding: 'min(6px, 1.5cqmin)',
-        // Cap height so the strip doesn't dominate when the widget is short.
-        minHeight: 'min(56px, 14cqmin)',
-      }}
-      onClick={closeMenu}
-    >
-      {pages.map((page, index) => {
-        const isActive = index === currentPage;
-        return (
-          <div
-            key={page.id}
-            className="relative shrink-0 group"
-            style={{
-              width: 'min(72px, 18cqmin)',
-              height: 'min(48px, 12cqmin)',
-            }}
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                closeMenu();
-                onSelectPage(index);
+  // Shared button classes for the compact in-toolbar chips.
+  const chipBase =
+    'h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
+
+  const currentTitle = pageLabel(pages[currentPage], currentPage);
+
+  // ----- Multi-page render path -----
+  if (pages.length > 1) {
+    const isFirst = currentPage === 0;
+    const isLast = currentPage === pages.length - 1;
+    return (
+      <div className="flex items-center gap-0.5 flex-shrink-0">
+        <button
+          type="button"
+          onClick={() => onSelectPage(currentPage - 1)}
+          disabled={isFirst}
+          title="Previous page"
+          aria-label="Previous page"
+          className={`${chipBase} w-7`}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        <button
+          ref={triggerRef}
+          type="button"
+          onClick={(e) => {
+            if (isOpen) {
+              close();
+            } else {
+              openAnchoredTo(e.currentTarget);
+            }
+          }}
+          title="Manage pages"
+          aria-label="Manage pages"
+          aria-expanded={isOpen}
+          className={`${chipBase} px-2 font-mono text-xs tabular-nums gap-1`}
+        >
+          <Layers className="w-3.5 h-3.5 opacity-70" />
+          <span>
+            {currentPage + 1} / {pages.length}
+          </span>
+        </button>
+        <button
+          type="button"
+          onClick={() => onSelectPage(currentPage + 1)}
+          disabled={isLast}
+          title="Next page"
+          aria-label="Next page"
+          className={`${chipBase} w-7`}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+        <InlineTitle
+          // Re-mount on page switch so the input cleanly resets to the new
+          // page's title without a stale-edit edge case.
+          key={`title-${pages[currentPage].id}`}
+          value={currentTitle}
+          onCommit={(next) => onRenamePage(currentPage, next)}
+        />
+
+        {isOpen &&
+          anchor &&
+          createPortal(
+            <div
+              id="drawing-page-popover"
+              data-testid="drawing-page-popover"
+              role="dialog"
+              aria-label="Pages"
+              className="fixed z-[2147483600] w-[280px] max-h-[60vh] flex flex-col rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 overflow-hidden"
+              style={{
+                bottom: `${anchor.bottom}px`,
+                left: `${anchor.left}px`,
               }}
-              aria-label={`Page ${index + 1}`}
-              aria-current={isActive ? 'page' : undefined}
-              title={`Page ${index + 1}`}
-              className={`relative w-full h-full rounded-md bg-white/70 border border-slate-300 overflow-hidden transition-all flex items-end justify-start ${
-                isActive ? 'ring-2 ring-indigo-500' : 'hover:bg-white/90'
-              }`}
             >
-              <PageThumbnail page={page} />
-              <span
-                className="absolute top-0 left-0 px-1 py-0.5 text-slate-700 font-medium bg-white/70 rounded-br"
-                style={{ fontSize: 'min(10px, 3.5cqmin)' }}
+              <div className="px-3 py-2 text-xxs uppercase tracking-widest text-slate-400 border-b border-white/10">
+                Pages
+              </div>
+              <ul className="flex-1 overflow-y-auto py-1">
+                {pages.map((page, index) => {
+                  const isActive = index === currentPage;
+                  const isEditing = editingRowIndex === index;
+                  return (
+                    <li
+                      key={page.id}
+                      className={`group flex items-center gap-2 px-2 py-1.5 transition-colors ${
+                        isActive
+                          ? 'bg-brand-blue-primary/30'
+                          : 'hover:bg-white/5'
+                      }`}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (isEditing) return;
+                          onSelectPage(index);
+                          close();
+                        }}
+                        aria-label={`Page ${index + 1}`}
+                        aria-current={isActive ? 'page' : undefined}
+                        disabled={isEditing}
+                        className="flex-1 flex items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light rounded disabled:cursor-text"
+                      >
+                        <span
+                          className={`w-12 h-9 shrink-0 rounded border border-white/10 bg-white/5 overflow-hidden relative ${
+                            isActive ? 'ring-1 ring-brand-blue-light' : ''
+                          }`}
+                        >
+                          <PageThumbnail page={page} />
+                        </span>
+                        {isEditing ? (
+                          <InlineTitle
+                            // Keyed by row so the input remounts cleanly per
+                            // edit session.
+                            key={`row-${page.id}-edit`}
+                            value={pageLabel(page, index)}
+                            autoFocusOnMount
+                            onCommit={(next) => {
+                              onRenamePage(index, next);
+                              setEditingRowIndex(-1);
+                            }}
+                            onCancel={() => setEditingRowIndex(-1)}
+                          />
+                        ) : (
+                          <span
+                            className={`font-mono text-xs tabular-nums truncate ${
+                              isActive ? 'text-white' : 'text-slate-300'
+                            }`}
+                          >
+                            {pageLabel(page, index)}
+                          </span>
+                        )}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingRowIndex(isEditing ? -1 : index);
+                        }}
+                        title={`Rename page ${index + 1}`}
+                        aria-label={`Rename page ${index + 1}`}
+                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-slate-300 hover:bg-white/10 hover:text-white"
+                      >
+                        <Pencil className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeletePage(index)}
+                        disabled={pages.length <= 1}
+                        title={`Delete page ${index + 1}`}
+                        aria-label={`Page ${index + 1} actions`}
+                        className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 transition-opacity p-1 rounded text-red-300 hover:bg-red-500/20 hover:text-red-200 disabled:opacity-20 disabled:hover:bg-transparent"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+              <button
+                type="button"
+                onClick={() => onAddPage()}
+                aria-label="Add page"
+                className="border-t border-white/10 px-3 py-2 text-sm text-slate-200 hover:bg-white/5 flex items-center gap-2 transition-colors focus-visible:outline-none focus-visible:bg-white/5"
               >
-                {index + 1}
-              </span>
-            </button>
-            {/* Kebab — visible on hover, or while its menu is open. */}
-            <button
-              type="button"
-              ref={(el) => {
-                triggerRefs.current.set(index, el);
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (openMenuIndex === index) {
-                  closeMenu();
-                } else {
-                  openMenu(index, e.currentTarget);
-                }
-              }}
-              aria-label={`Page ${index + 1} actions`}
-              // The popup is not an ARIA menu (no roving-tabindex / arrow-key
-              // navigation), so `aria-haspopup` is omitted — `aria-expanded`
-              // is sufficient to expose the toggle relationship to screen
-              // readers without overpromising on keyboard semantics.
-              aria-expanded={openMenuIndex === index}
-              className={`absolute top-0 right-0 rounded-bl bg-white/80 hover:bg-white text-slate-700 transition-opacity ${
-                openMenuIndex === index
-                  ? 'opacity-100'
-                  : 'opacity-0 group-hover:opacity-100 focus:opacity-100'
-              }`}
-              style={{ padding: 'min(2px, 0.5cqmin)' }}
-            >
-              <MoreVertical
-                style={{
-                  width: 'min(14px, 4cqmin)',
-                  height: 'min(14px, 4cqmin)',
-                }}
-              />
-            </button>
-          </div>
-        );
-      })}
-      {openMenuIndex >= 0 &&
-        menuAnchor &&
-        // Portal the popup into document.body so the strip's `overflow-y-hidden`
-        // (needed to keep the horizontal scroll behavior tidy) doesn't clip
-        // the popup. Positioning is `fixed` against the viewport, anchored to
-        // the trigger's getBoundingClientRect captured at open time and
-        // updated on scroll/resize.
-        createPortal(
-          <div
-            id="drawing-page-strip-popup"
-            onClick={(e) => e.stopPropagation()}
-            className="fixed z-[2147483600] bg-white rounded-md shadow-lg border border-slate-200 py-1 min-w-[140px] text-xs"
-            style={{
-              top: `${menuAnchor.top}px`,
-              right: `${menuAnchor.right}px`,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => {
-                const idx = openMenuIndex;
-                closeMenu();
-                onMovePage(idx, 'left');
-              }}
-              disabled={openMenuIndex === 0}
-              className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
-            >
-              <ChevronLeft className="w-3.5 h-3.5" />
-              Move Left
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const idx = openMenuIndex;
-                closeMenu();
-                onMovePage(idx, 'right');
-              }}
-              disabled={openMenuIndex === pages.length - 1}
-              className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:hover:bg-transparent"
-            >
-              <ChevronRight className="w-3.5 h-3.5" />
-              Move Right
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                const idx = openMenuIndex;
-                closeMenu();
-                onDeletePage(idx);
-              }}
-              className="w-full px-3 py-1.5 text-left flex items-center gap-2 text-red-600 hover:bg-red-50"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete
-            </button>
-          </div>,
-          document.body
-        )}
+                <Plus className="w-4 h-4" />
+                Add page
+              </button>
+            </div>,
+            document.body
+          )}
+      </div>
+    );
+  }
+
+  // ----- Single-page render path: [+ Add page] [Page 1 (editable)] -----
+  return (
+    <div className="flex items-center gap-1 flex-shrink-0">
       <button
         type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          closeMenu();
-          onAddPage();
-        }}
-        aria-label="Add page"
+        onClick={onAddPage}
         title="Add page"
-        className="shrink-0 rounded-md border border-dashed border-slate-400 bg-white/40 hover:bg-white/70 flex items-center justify-center text-slate-600"
-        style={{
-          width: 'min(48px, 12cqmin)',
-          height: 'min(48px, 12cqmin)',
-        }}
+        aria-label="Add page"
+        className={`${chipBase} px-2 gap-1 text-xs font-medium`}
       >
-        <Plus
-          style={{
-            width: 'min(20px, 5cqmin)',
-            height: 'min(20px, 5cqmin)',
-          }}
-        />
+        <Plus className="w-4 h-4" />
+        <span>Add page</span>
       </button>
+      <InlineTitle
+        key={`title-${pages[currentPage].id}`}
+        value={currentTitle}
+        onCommit={(next) => onRenamePage(currentPage, next)}
+      />
     </div>
   );
 };
 
 /**
+ * Click-to-edit page title chip. Displays as a text button by default;
+ * clicking (or focusing + Enter) swaps in an inline `<input>` bound to the
+ * current value. The input commits on Enter or blur, cancels on Escape.
+ *
+ * Why a self-contained component: the same control appears in two places
+ * (toolbar chip + popover row when its row is in edit mode), and each needs
+ * its own edit-mode lifecycle. Hoisting the state here keeps both call sites
+ * trivial.
+ */
+const InlineTitle: React.FC<{
+  value: string;
+  onCommit: (next: string) => void;
+  onCancel?: () => void;
+  autoFocusOnMount?: boolean;
+}> = ({ value, onCommit, onCancel, autoFocusOnMount = false }) => {
+  const [isEditing, setIsEditing] = useState(autoFocusOnMount);
+  const [draft, setDraft] = useState(value);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  // Sync local draft when the parent's `value` changes while we're NOT
+  // editing (external rename, page switch). Uses the "adjusting state while
+  // rendering" React pattern — store the previous value, compare during
+  // render, call the setter immediately if they differ. Avoids the
+  // useEffect-with-setState anti-pattern that triggers a second render.
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
+    if (!isEditing) setDraft(value);
+  }
+
+  useEffect(() => {
+    if (!isEditing) return;
+    // Defer focus by one tick so the input is in the DOM before we focus.
+    // selectionStart/End to the end gives the natural "click to edit, keep
+    // typing where I left off" feel.
+    const id = window.setTimeout(() => {
+      inputRef.current?.focus();
+      inputRef.current?.select();
+    }, 0);
+    return () => window.clearTimeout(id);
+  }, [isEditing]);
+
+  const commit = () => {
+    onCommit(draft);
+    setIsEditing(false);
+  };
+
+  const cancel = () => {
+    setDraft(value);
+    setIsEditing(false);
+    onCancel?.();
+  };
+
+  if (!isEditing) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsEditing(true)}
+        title="Rename page"
+        aria-label={`Rename "${value}"`}
+        className="h-7 px-2 max-w-[140px] truncate rounded-md text-xs text-slate-200 font-medium hover:bg-white/10 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+      >
+        {value}
+      </button>
+    );
+  }
+
+  return (
+    <input
+      ref={inputRef}
+      type="text"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          commit();
+        } else if (e.key === 'Escape') {
+          e.preventDefault();
+          cancel();
+        }
+        // Don't bubble — the widget wrapper listens for Backspace/Delete
+        // (selection nudges) and arrow keys (object nudges); without
+        // stopPropagation a user editing the title would trigger those.
+        e.stopPropagation();
+      }}
+      aria-label="Page title"
+      className="h-7 px-2 max-w-[160px] rounded-md text-xs bg-slate-800 text-white ring-1 ring-brand-blue-light focus:outline-none focus:ring-2"
+    />
+  );
+};
+
+/**
  * Minimal bbox-only thumbnail. Each object's bounding box renders as a thin
- * outlined rect, projected from the implicit canvas size (taken from the
- * largest extent of any object) into the chip's dimensions. This is
- * deliberately a sketch — full per-page renders cost too much to draw 30
- * pages on every keystroke, and the chip is small enough that crispness
- * doesn't add information.
+ * outlined rect, projected from the implicit canvas size (largest extent of
+ * any object) into the chip's dimensions. Deliberately a sketch — full
+ * per-page renders cost too much to draw N pages on every keystroke.
  */
 const PageThumbnail: React.FC<{ page: DrawingPage }> = ({ page }) => {
   if (page.objects.length === 0) return null;
-  // Compute the union bbox so the thumbnail uses the chip's full width even
-  // when content is concentrated in one corner.
   const bboxes = page.objects.map((obj) => getBoundingBox(obj));
   const maxX = bboxes.reduce((m, b) => Math.max(m, b.x + b.w), 0);
   const maxY = bboxes.reduce((m, b) => Math.max(m, b.y + b.h), 0);
-  // Fall back to a sensible canvas-ish ratio if all objects sit at the origin.
   const W = Math.max(maxX, 1);
   const H = Math.max(maxY, 1);
   return (
@@ -320,8 +450,8 @@ const PageThumbnail: React.FC<{ page: DrawingPage }> = ({ page }) => {
           width={Math.max(b.w, 1)}
           height={Math.max(b.h, 1)}
           fill="none"
-          stroke="#475569"
-          strokeWidth={Math.max(W, H) * 0.01}
+          stroke="rgba(226, 232, 240, 0.6)"
+          strokeWidth={Math.max(W, H) * 0.012}
         />
       ))}
     </svg>

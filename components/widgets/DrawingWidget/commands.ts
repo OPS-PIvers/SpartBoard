@@ -26,7 +26,15 @@ export type DrawingCommand =
    * design spec's "Clear All as a single bulk-remove command" decision —
    * a deliberate behavior change from today's irreversible clear).
    */
-  | { kind: 'clear'; objects: DrawableObject[] };
+  | { kind: 'clear'; objects: DrawableObject[] }
+  /**
+   * Partial bulk-remove for the object and lasso eraser modes. Captures the
+   * removed objects so undo restores them as a single step (matches the
+   * Clear-All semantic but only for a subset). Distinct from `clear` so the
+   * forward apply doesn't wipe the whole page when only a few objects were
+   * targeted.
+   */
+  | { kind: 'bulkRemove'; objects: DrawableObject[] };
 
 export type CommandDirection = 'forward' | 'reverse';
 
@@ -89,6 +97,18 @@ export const applyCommand = (
       if (direction === 'forward') return [];
       // Defensive copy so the caller can't mutate our stored snapshot.
       return [...cmd.objects];
+    }
+    case 'bulkRemove': {
+      // Forward = drop every captured object by id; Reverse = re-insert
+      // them. Same shape as `remove` but for a set, and one entry on the
+      // undo stack restores the whole batch in a single step.
+      if (direction === 'forward') {
+        const removeIds = new Set(cmd.objects.map((o) => o.id));
+        return objects.filter((o) => !removeIds.has(o.id));
+      }
+      const existingIds = new Set(objects.map((o) => o.id));
+      const restored = cmd.objects.filter((o) => !existingIds.has(o.id));
+      return [...objects, ...restored];
     }
     default: {
       // Exhaustiveness guard: TypeScript flags this as unreachable today,

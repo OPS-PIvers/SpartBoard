@@ -1019,6 +1019,18 @@ export type ShapeTool =
   | 'select';
 
 /**
+ * Eraser sub-tool. The DrawingWidget eraser surfaces three modes:
+ *   - `stroke`  — pixel-based erase along the cursor path (legacy behavior,
+ *                 `globalCompositeOperation = 'destination-out'`).
+ *   - `object`  — click-and-drag deletes any object touched by the cursor in
+ *                 one undo group. Width defines hit radius.
+ *   - `lasso`   — draw a closed region; on pointer-up any object whose bbox
+ *                 is fully enclosed (all four corners inside the polygon)
+ *                 is removed in a single bulk command.
+ */
+export type EraserMode = 'stroke' | 'object' | 'lasso';
+
+/**
  * Reserved background-template field for a Drawing page. Phase 2 PR 2.3
  * defines the field on the type so multi-page data can carry it forward; the
  * UI for selecting backgrounds and the CSS rendering layer land in PR 2.5.
@@ -1037,6 +1049,12 @@ export interface DrawingPage {
   objects: DrawableObject[];
   /** Per-page background template (falls back to widget-level background). Populated by Wave 7. */
   background?: DrawingBackground;
+  /**
+   * User-provided title. When absent or empty after trim, the UI falls back
+   * to a 1-indexed default of `"Page N"`. Kept optional so existing pages
+   * (migration round 2.3+) need no upgrade pass to gain the field.
+   */
+  title?: string;
 }
 
 export interface DrawingConfig {
@@ -1076,6 +1094,8 @@ export interface DrawingConfig {
   customColors?: string[];
   /** Active tool. When absent, defaults to `'pen'`. */
   activeTool?: ShapeTool;
+  /** Active eraser sub-tool. Defaults to `'stroke'` (legacy pixel eraser). */
+  eraserMode?: EraserMode;
   /** If true, rect/ellipse render filled with the current color (stroke unchanged). Default false. */
   shapeFill?: boolean;
   /**

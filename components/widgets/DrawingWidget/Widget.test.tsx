@@ -114,9 +114,12 @@ describe('DrawingWidget', () => {
     vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(
       mockContext as unknown as CanvasRenderingContext2D
     );
-    // The widget sets canvas internal resolution from canvasSize =
-    // { w: widget.w, h: widget.h - 40 } → 400x260 for the test widget below.
-    // Mock the rect to match so pointer coords translate 1:1 (no CSS scaling).
+    // The widget sets canvas internal resolution from canvasSize, which is
+    // sourced from the canvas wrapper's measured size. In jsdom the
+    // ResizeObserver fires with 0×0 (no layout), so the initial fallback
+    // `{ w: widget.w, h: widget.h - 88 }` — accounting for the 2-row Phase 2
+    // toolbar — stays in effect → 400x212 for the test widget below. Mock the
+    // rect to match so pointer coords translate 1:1 (no CSS scaling).
     vi.spyOn(
       HTMLCanvasElement.prototype,
       'getBoundingClientRect'
@@ -124,9 +127,9 @@ describe('DrawingWidget', () => {
       left: 0,
       top: 0,
       width: 400,
-      height: 260,
+      height: 212,
       right: 400,
-      bottom: 260,
+      bottom: 212,
       x: 0,
       y: 0,
       toJSON: () => ({}),
@@ -265,6 +268,10 @@ describe('DrawingWidget', () => {
     const { getByLabelText } = render(
       <DrawingWidget widget={widgetWithTool} />
     );
+    // Color swatches live inside the per-tool options popover (Phase 2
+    // toolbar redesign). Open it by clicking the already-active Arrow tool
+    // button — that toggles the popover open without changing activeTool.
+    fireEvent.click(getByLabelText('Arrow'));
     fireEvent.click(getByLabelText('Color #ff0000'));
     const lastCall =
       mockUpdateWidget.mock.calls[mockUpdateWidget.mock.calls.length - 1];
@@ -908,12 +915,18 @@ describe('DrawingWidget', () => {
   // Phase 2 PR 2.3 — multi-page widgets
   // ---------------------------------------------------------------------------
 
-  it('multi-page: renders a page strip with one page chip by default', () => {
-    const { getByLabelText } = render(<DrawingWidget widget={widget} />);
-    // The page strip exposes the page chip via its aria-label.
-    expect(getByLabelText('Page 1')).not.toBeNull();
-    // And an explicit "Add page" affordance.
+  it('multi-page: renders an Add Page control when only one page exists', () => {
+    // Phase 2 toolbar redesign: with a single page there's nothing to
+    // navigate to, so the compact control collapses to a lone "Add page"
+    // button. Per-page chrome ("Page 1" labels) lives inside the multi-
+    // page popover only.
+    const { getByLabelText, queryByLabelText } = render(
+      <DrawingWidget widget={widget} />
+    );
     expect(getByLabelText('Add page')).not.toBeNull();
+    // No per-page chip is rendered for the 1-page case — the redesign
+    // hides page UI when there's nothing to navigate.
+    expect(queryByLabelText('Page 1')).toBeNull();
   });
 
   it('multi-page: clicking Add page persists a second page and navigates to it', () => {
@@ -952,8 +965,8 @@ describe('DrawingWidget', () => {
       } as DrawingConfig,
     };
     const { getByLabelText } = render(<DrawingWidget widget={legacy} />);
-    // Single page is implied; the strip exposes Page 1.
-    expect(getByLabelText('Page 1')).not.toBeNull();
+    // Single page is implied; the compact control shows just "Add page".
+    expect(getByLabelText('Add page')).not.toBeNull();
     // The legacy rect is rendered exactly as it was — strokeRect was called.
     expect(mockContext.strokeRect).toHaveBeenCalled();
   });
@@ -988,17 +1001,14 @@ describe('DrawingWidget', () => {
       } as DrawingConfig,
     };
     const { getByLabelText } = render(<DrawingWidget widget={pagedWidget} />);
-    // Open page 2's kebab and delete.
-    fireEvent.click(getByLabelText('Page 2 actions'));
-    // The kebab popup is intentionally NOT an ARIA menu (see PageStrip
-    // comment) — find the Delete button by text content.
-    const popupButtons = document.querySelectorAll('button');
-    const deleteBtn = Array.from(popupButtons).find(
-      (b) => (b.textContent ?? '').trim().toLowerCase() === 'delete'
-    ) as HTMLElement | undefined;
-    if (!deleteBtn) throw new Error('Delete button not found');
+    // Phase 2 toolbar redesign: per-page actions live inside the Pages
+    // popover. Open it via the "Manage pages" trigger, then click page 2's
+    // delete button (aria-label preserved as "Page N actions" so external
+    // test contracts hold; the new design folds the kebab + Delete pair
+    // into a single per-row trash icon).
+    fireEvent.click(getByLabelText('Manage pages'));
     mockUpdateWidget.mockClear();
-    fireEvent.click(deleteBtn);
+    fireEvent.click(getByLabelText('Page 2 actions'));
     expect(mockUpdateWidget).toHaveBeenCalled();
     const cfg = (
       mockUpdateWidget.mock.calls[
@@ -1014,11 +1024,11 @@ describe('DrawingWidget', () => {
     expect(cfg.currentPage).toBe(0);
   });
 
-  it('multi-page: kebab popup is portalled to document.body (escapes strip overflow clipping)', () => {
-    // Regression guard for the round-2 portal fix. The strip has
-    // `overflow-y-hidden` for horizontal-scroll behavior, which was
-    // clipping the popup's bottom edge. Now the popup is rendered into
-    // document.body so it can never be clipped by the strip.
+  it('multi-page: page popover is portalled to document.body (escapes widget overflow clipping)', () => {
+    // Phase 2 toolbar redesign: the per-chip kebab is gone; per-page actions
+    // and navigation live inside the "Manage pages" popover. The popover is
+    // portalled into document.body so the widget's `overflow-hidden` shell
+    // can't clip it — same pattern as the export and tool-options popovers.
     const pagedWidget: WidgetData = {
       ...widget,
       config: {
@@ -1034,12 +1044,9 @@ describe('DrawingWidget', () => {
     const { getByLabelText, container } = render(
       <DrawingWidget widget={pagedWidget} />
     );
-    fireEvent.click(getByLabelText('Page 1 actions'));
-    const popup = document.getElementById('drawing-page-strip-popup');
+    fireEvent.click(getByLabelText('Manage pages'));
+    const popup = document.getElementById('drawing-page-popover');
     if (!popup) throw new Error('Portalled popup not found');
-    // The popup is mounted on document.body (or one of its direct children),
-    // NOT inside the rendered widget container — that's the entire point of
-    // the portal.
     expect(container.contains(popup)).toBe(false);
     expect(document.body.contains(popup)).toBe(true);
   });

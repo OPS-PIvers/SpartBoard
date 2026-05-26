@@ -107,7 +107,7 @@ export const DrawingSettings: React.FC<{ widget: WidgetData }> = ({
           <input
             type="range"
             min="1"
-            max="20"
+            max="80"
             step="1"
             value={width}
             onChange={(e) =>

@@ -4,6 +4,7 @@ export const DRAWING_DEFAULTS = {
   WIDTH: 4,
   CUSTOM_COLORS: WIDGET_PALETTE.slice(0, 5),
   ACTIVE_TOOL: 'pen' as const,
+  ERASER_MODE: 'stroke' as const,
   SHAPE_FILL: false,
   // Text tool defaults — used by both the canvas-side renderer and the
   // contenteditable overlay so a freshly-spawned TextObject and its editor

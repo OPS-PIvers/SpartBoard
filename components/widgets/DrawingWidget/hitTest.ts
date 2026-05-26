@@ -354,6 +354,70 @@ export const hitTestObjects = (
 };
 
 /**
+ * Standard ray-casting point-in-polygon test. Polygon is an ordered list of
+ * vertices; edges are taken between consecutive vertices AND from last back
+ * to first (implicit close). Behavior on edge / vertex is implementation-
+ * defined and not stabilized — callers that need vertex inclusion should
+ * pad the polygon.
+ */
+export const pointInPolygon = (
+  p: Point,
+  polygon: readonly Point[]
+): boolean => {
+  if (polygon.length < 3) return false;
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].x;
+    const yi = polygon[i].y;
+    const xj = polygon[j].x;
+    const yj = polygon[j].y;
+    const intersect =
+      yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+
+/**
+ * True when an object is "fully enclosed" by the given lasso polygon. Uses
+ * the object's (rotation-aware) bbox corners — all four must sit inside the
+ * polygon. This is the deletion criterion for the lasso eraser mode and
+ * matches the user-visible intuition "if I draw a loop around something, it
+ * goes away".
+ *
+ * Caveat: with a non-convex polygon an object could have all 4 corners inside
+ * but a center point outside (e.g. a banana-shaped lasso pinching the bbox).
+ * A freehand-drawn loop is convex in practice, so we accept that edge case.
+ */
+export const isObjectEnclosedByPolygon = (
+  obj: DrawableObject,
+  polygon: readonly Point[]
+): boolean => {
+  const bbox = getBoundingBoxOrNull(obj);
+  if (!bbox) return false;
+  const rot = obj.rotation ?? 0;
+  const corners: Point[] = [
+    { x: bbox.x, y: bbox.y },
+    { x: bbox.x + bbox.w, y: bbox.y },
+    { x: bbox.x + bbox.w, y: bbox.y + bbox.h },
+    { x: bbox.x, y: bbox.y + bbox.h },
+  ];
+  // For rotation-honoring kinds, transform the bbox corners into world space
+  // before testing — the on-canvas visual is the rotated rect, not the AABB.
+  const worldCorners =
+    objectHonorsRotation(obj) && Number.isFinite(rot) && rot !== 0
+      ? corners.map((c) =>
+          rotatePoint(
+            c,
+            { x: bbox.x + bbox.w / 2, y: bbox.y + bbox.h / 2 },
+            rot
+          )
+        )
+      : corners;
+  return worldCorners.every((c) => pointInPolygon(c, polygon));
+};
+
+/**
  * Pixel size of a resize handle on screen. Multiplied by `1/scale` at the
  * call site so handles stay pointer-friendly at any canvas zoom. Square
  * resize handles are HANDLE_SIZE wide; the rotation handle is a circle of

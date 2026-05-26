@@ -31,6 +31,7 @@ interface UseDrawingPagesResult {
   removePage: (index: number) => void;
   movePageLeft: (index: number) => void;
   movePageRight: (index: number) => void;
+  renamePage: (index: number, title: string) => void;
 }
 
 /**
@@ -120,6 +121,34 @@ export const useDrawingPages = ({
     [pages, currentPage, updateConfig]
   );
 
+  const renamePage = useCallback(
+    (index: number, title: string) => {
+      if (index < 0 || index >= pages.length) return;
+      // Trim before persisting; an all-whitespace title is treated as "clear"
+      // (the UI then falls back to the "Page N" default). Skip the write
+      // when nothing actually changed so we don't churn Firestore on every
+      // blur of an unedited input.
+      const trimmed = title.trim();
+      const current = pages[index].title ?? '';
+      if (trimmed === current) return;
+      const nextPages = pages.map((p, i) =>
+        i === index
+          ? trimmed === ''
+            ? // Drop the field entirely when cleared so the type's "absent →
+              // fallback" branch carries the page back to the default label.
+              (() => {
+                const { title: _t, ...rest } = p;
+                void _t;
+                return rest;
+              })()
+            : { ...p, title: trimmed }
+          : p
+      );
+      updateConfig({ pages: nextPages });
+    },
+    [pages, updateConfig]
+  );
+
   // No `useMemo` wrapper — its deps include `pages` and `currentPage`,
   // which change on every meaningful config update, so the memo would
   // invalidate on the same cadence as its inputs. Returning a fresh object
@@ -133,6 +162,7 @@ export const useDrawingPages = ({
     removePage,
     movePageLeft,
     movePageRight,
+    renamePage,
   };
 };
 

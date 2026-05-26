@@ -704,7 +704,7 @@ export const AnnotationOverlay: React.FC = () => {
             <input
               type="range"
               min={1}
-              max={20}
+              max={80}
               step={1}
               value={width}
               onChange={(e) =>
@@ -713,7 +713,7 @@ export const AnnotationOverlay: React.FC = () => {
               className="w-20 accent-indigo-600"
               aria-label="Brush thickness"
             />
-            <span className="w-7 text-center font-mono text-xs text-slate-600">
+            <span className="w-9 text-center font-mono text-xs text-slate-600">
               {width}px
             </span>
           </div>

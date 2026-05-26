@@ -11,7 +11,9 @@ import {
   WidgetData,
   DrawableObject,
   DrawingConfig,
+  EraserMode,
   ImageObject,
+  Point,
   ShapeTool,
   TextConfig,
   TextObject,
@@ -22,7 +24,9 @@ import {
   Download,
   Eraser,
   ImagePlus,
+  Lasso,
   MousePointer2,
+  MousePointerClick,
   Pencil,
   Redo2,
   Slash,
@@ -38,11 +42,10 @@ import { useSelection } from './useSelection';
 import { useCommandStack } from './useCommandStack';
 import { useDrawingObjectsDoc } from './useDrawingObjectsDoc';
 import { useDrawingPages } from './useDrawingPages';
-import { hitTestObject } from './hitTest';
+import { hitTestObject, isObjectEnclosedByPolygon } from './hitTest';
 import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
-import { Button } from '@/components/common/Button';
 import { STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
@@ -65,8 +68,10 @@ const TOOL_BUTTONS: ReadonlyArray<{
   // pattern (Figma, Miro, FigJam), and it's the only tool that doesn't
   // create new content.
   { tool: 'select', Icon: MousePointer2, label: 'Select' },
-  { tool: 'text', Icon: TypeOutline, label: 'Text' },
+  // Pen comes before text: drawing is the primary action on a whiteboard,
+  // and the muscle memory ordering teachers expect is select → draw → annotate.
   { tool: 'pen', Icon: Pencil, label: 'Pen' },
+  { tool: 'text', Icon: TypeOutline, label: 'Text' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
   { tool: 'line', Icon: Slash, label: 'Line' },
   { tool: 'arrow', Icon: ArrowRight, label: 'Arrow' },
@@ -110,6 +115,7 @@ export const DrawingWidget: React.FC<{
     currentPage,
     customColors = DRAWING_DEFAULTS.CUSTOM_COLORS,
     activeTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
+    eraserMode = DRAWING_DEFAULTS.ERASER_MODE,
     shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
   } = config;
 
@@ -159,8 +165,9 @@ export const DrawingWidget: React.FC<{
   // same way the PageStrip kebab was clipped. Portalling into document.body
   // and positioning via `position: fixed` against the viewport escapes that
   // clipping container. The trigger element is queried via `exportMenuRef`
-  // (a `<div>` wrapping the Button — we can't ref the Button directly
-  // because it isn't a forwardRef component).
+  // (a `<div>` wrapping the export button — we query the inner <button> by
+  // aria-label instead of refing it directly so the wrapper can stay a
+  // styling/positioning anchor independent of the button itself).
   const [exportMenuAnchor, setExportMenuAnchor] = useState<{
     bottom: number;
     right: number;
@@ -169,6 +176,25 @@ export const DrawingWidget: React.FC<{
     () => exportMenuRef.current?.querySelector('button[aria-label="Export"]'),
     []
   );
+
+  // Per-tool options popover (color swatches + stroke width slider). Clicking
+  // a drawing tool sets the tool active AND surfaces this popover anchored to
+  // the clicked button. The eraser flavour hides the color row (eraser ignores
+  // color) and shows width only; select doesn't open the popover at all.
+  // We track which tool's popover is open separately from `activeTool` so the
+  // popover can be dismissed (outside click / Escape) without changing the
+  // active tool.
+  const [toolPopover, setToolPopover] = useState<ShapeTool | null>(null);
+  const [toolPopoverAnchor, setToolPopoverAnchor] = useState<{
+    left: number;
+    bottom: number;
+  } | null>(null);
+  const toolBarRef = useRef<HTMLDivElement>(null);
+  // Hidden input that triggers the browser's native color picker for the
+  // `+` custom-color button. We click the input programmatically rather than
+  // rendering it visibly because the native swatch UI looks out of place
+  // inside the dark popover.
+  const customColorInputRef = useRef<HTMLInputElement>(null);
   // Snapshot of the TextObject currently being edited via TextEditorOverlay.
   // Stored locally (not in config.objects) until commit, so the editor can
   // position itself off the snapshot without round-tripping through Firestore.
@@ -188,15 +214,57 @@ export const DrawingWidget: React.FC<{
     // the editor would float over the canvas's old position.
   }, [editingText, widget.w, widget.h, widget.x, widget.y]);
 
-  // Canvas internal resolution follows the widget (minus header) in window mode,
-  // or the parent container in student view.
+  // Canvas internal resolution tracks the actual on-screen canvas wrapper.
+  //
+  // History: the legacy formula `widget.h - 40` hardcoded the old single-row
+  // toolbar height. After the Phase 2 toolbar redesign the toolbar grew to
+  // a 2-row, ~87px-tall surface — and `widget.h - 40` overshot by ~47px,
+  // pushing the canvas DOM past its overflow-hidden wrapper (visually the
+  // toolbar appeared to float in the middle of the widget).
+  //
+  // The fix is to stop guessing the toolbar height entirely: we measure the
+  // canvas wrapper via ResizeObserver and feed its real dimensions into
+  // canvasSize. Exports, text overlay positioning, and the SVG lasso
+  // overlay all flow through this value so they stay aligned with the
+  // visible canvas regardless of how the toolbar grows.
+  const canvasWrapperRef = useRef<HTMLDivElement>(null);
+  const [wrapperSize, setWrapperSize] = useState<{
+    width: number;
+    height: number;
+  }>(() => ({ width: widget.w, height: Math.max(widget.h - 88, 0) }));
+  useEffect(() => {
+    const node = canvasWrapperRef.current;
+    if (!node) return undefined;
+    const update = () => {
+      const r = node.getBoundingClientRect();
+      // Skip zero-sized measurements. In jsdom (and on first paint before
+      // layout has settled) `getBoundingClientRect` returns 0×0 — accepting
+      // that would set the canvas to a 0-sized bitmap and break pointer
+      // coordinate math. The initial widget-derived value remains in place
+      // until the wrapper has a real layout box.
+      if (r.width <= 0 || r.height <= 0) return;
+      // Round to integer px to avoid sub-pixel jitter triggering re-renders
+      // on every animation frame during a resize gesture.
+      const next = {
+        width: Math.round(r.width),
+        height: Math.round(r.height),
+      };
+      setWrapperSize((prev) =>
+        prev.width === next.width && prev.height === next.height ? prev : next
+      );
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
   const canvasSize = useMemo(() => {
     if (isStudentView) {
       // Student view sizes canvas to its container; fall back to widget dims.
       return { width: widget.w, height: widget.h };
     }
-    return { width: widget.w, height: Math.max(widget.h - 40, 0) };
-  }, [isStudentView, widget.w, widget.h]);
+    return wrapperSize;
+  }, [isStudentView, widget.w, widget.h, wrapperSize]);
 
   // Page-scoped sink: every command-stack apply (push / undo / redo) lands
   // here. The hook hands us a new `objects[]` for the active page.
@@ -386,6 +454,25 @@ export const DrawingWidget: React.FC<{
     null
   );
 
+  // Eraser-mode (object / lasso) transient state — analogous to the
+  // pen/shape `previewObject` pattern: gesture state lives locally during
+  // the drag and only commits to the command stack on pointer-up, producing
+  // a single undo entry per gesture.
+  //
+  // `objectEraseQueueRef`: ids of objects the cursor has touched during the
+  // current Object-erase drag. Tracked as a ref (not state) so we don't
+  // re-render the canvas on every pointer move. Queued-objects visual
+  // feedback (dimming) is a deliberate follow-up — requires plumbing the
+  // queue IDs into the canvas render pipeline.
+  const objectEraseQueueRef = useRef<Set<string>>(new Set());
+
+  // Lasso polygon points accumulated during the current lasso-erase drag.
+  // Rendered as an SVG overlay above the canvas (NOT on the canvas itself —
+  // mixing transient UI with the persistent canvas pixel state would break
+  // the incremental-render dirty-region logic). On pointer-up we run the
+  // enclosure check and emit a single bulkRemove command.
+  const [lassoPoints, setLassoPoints] = useState<Point[] | null>(null);
+
   const handleTransformPreview = (next: DrawableObject) => {
     setPreviewObject(next);
   };
@@ -481,6 +568,18 @@ export const DrawingWidget: React.FC<{
       handleSelectPointerDown(e, getCanvasPos(e));
       return;
     }
+    // Eraser sub-modes (object / lasso) bypass the legacy pixel-stroke
+    // path entirely — they operate on object identity, not canvas pixels.
+    if (activeTool === 'eraser' && eraserMode === 'object') {
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+      handleObjectErasePointerDown(getCanvasPos(e));
+      return;
+    }
+    if (activeTool === 'eraser' && eraserMode === 'lasso') {
+      (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+      handleLassoPointerDown(getCanvasPos(e));
+      return;
+    }
     handleStart(e);
   };
   const handlePointerMove = (e: React.PointerEvent) => {
@@ -489,12 +588,28 @@ export const DrawingWidget: React.FC<{
       handleSelectPointerMove(e, getCanvasPos(e));
       return;
     }
+    if (activeTool === 'eraser' && eraserMode === 'object') {
+      handleObjectErasePointerMove(getCanvasPos(e));
+      return;
+    }
+    if (activeTool === 'eraser' && eraserMode === 'lasso') {
+      handleLassoPointerMove(getCanvasPos(e));
+      return;
+    }
     handleMove(e);
   };
   const handlePointerUp = (e: React.PointerEvent) => {
     if (isStudentView) return;
     if (activeTool === 'select') {
       handleSelectPointerUp(e, getCanvasPos(e));
+      return;
+    }
+    if (activeTool === 'eraser' && eraserMode === 'object') {
+      handleObjectErasePointerUp();
+      return;
+    }
+    if (activeTool === 'eraser' && eraserMode === 'lasso') {
+      handleLassoPointerUp();
       return;
     }
     handleEnd();
@@ -627,6 +742,11 @@ export const DrawingWidget: React.FC<{
     setExportMenuAnchor(null);
   }, []);
 
+  const closeToolPopover = useCallback(() => {
+    setToolPopover(null);
+    setToolPopoverAnchor(null);
+  }, []);
+
   const openExportMenu = useCallback(() => {
     const trigger = getExportTrigger();
     if (!trigger) return;
@@ -700,6 +820,73 @@ export const DrawingWidget: React.FC<{
     };
   }, [isExportMenuOpen, editingText, closeExportMenu, getExportTrigger]);
 
+  // Tool-popover anchor refresh: when the toolbar moves (widget drag, dock
+  // collapse, dashboard pan), the captured `getBoundingClientRect` goes
+  // stale. We re-measure the originating tool button on scroll/resize and
+  // close the popover if the trigger is gone (e.g. tool was removed).
+  useEffect(() => {
+    if (!toolPopover) return undefined;
+    const findTrigger = () =>
+      toolBarRef.current?.querySelector<HTMLButtonElement>(
+        `button[data-tool="${toolPopover}"]`
+      );
+    const onScrollOrResize = () => {
+      const trigger = findTrigger();
+      if (!trigger) {
+        closeToolPopover();
+        return;
+      }
+      const rect = trigger.getBoundingClientRect();
+      setToolPopoverAnchor({
+        left: rect.left,
+        bottom: window.innerHeight - rect.top + 8,
+      });
+    };
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [toolPopover, closeToolPopover]);
+
+  // Outside-click + Escape dismiss for the tool popover. Clicks on the
+  // originating tool button bypass this listener (the button's own onClick
+  // toggles the popover); clicks inside the popover (color swatches, slider,
+  // custom-color input) also bypass via contains().
+  useEffect(() => {
+    if (!toolPopover) return;
+    const onDocPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      const popup = document.getElementById('drawing-tool-popover');
+      if (popup?.contains(target)) return;
+      const trigger = toolBarRef.current?.querySelector(
+        `button[data-tool="${toolPopover}"]`
+      );
+      if (trigger?.contains(target)) return;
+      closeToolPopover();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      // Same belt-and-suspenders gate as the export popover: don't race the
+      // text editor's own Escape handler.
+      if (editingText) return;
+      e.stopPropagation();
+      closeToolPopover();
+      const trigger = toolBarRef.current?.querySelector<HTMLButtonElement>(
+        `button[data-tool="${toolPopover}"]`
+      );
+      trigger?.focus();
+    };
+    document.addEventListener('pointerdown', onDocPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onDocPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [toolPopover, editingText, closeToolPopover]);
+
   const handleSendToText = async () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -767,201 +954,450 @@ export const DrawingWidget: React.FC<{
     });
   };
 
-  const isErasing = activeTool === 'eraser';
+  const handleToolClick = (
+    tool: ShapeTool,
+    e: React.MouseEvent<HTMLButtonElement>
+  ) => {
+    setActiveTool(tool);
+    // Select gets no popover — it has no color/width options.
+    if (tool === 'select') {
+      closeToolPopover();
+      return;
+    }
+    // Re-clicking the same tool whose popover is already open closes it.
+    if (toolPopover === tool) {
+      closeToolPopover();
+      return;
+    }
+    const rect = e.currentTarget.getBoundingClientRect();
+    // Position popover ABOVE the trigger (the tool buttons live in the
+    // toolbar at the bottom of the widget; opening upward keeps the popover
+    // visible without extending past the widget). 8px of breathing room.
+    setToolPopover(tool);
+    setToolPopoverAnchor({
+      left: rect.left,
+      bottom: window.innerHeight - rect.top + 8,
+    });
+  };
+
+  const setColor = (next: string) => {
+    updateWidget(widget.id, {
+      config: { ...config, color: next } as DrawingConfig,
+    });
+  };
+
+  const setWidth = (px: number) => {
+    updateWidget(widget.id, {
+      config: { ...config, width: px } as DrawingConfig,
+    });
+  };
+
+  const setEraserMode = (mode: EraserMode) => {
+    updateWidget(widget.id, {
+      config: { ...config, eraserMode: mode } as DrawingConfig,
+    });
+  };
+
+  // Object-erase pointer handlers. Each pointer event hit-tests the cursor
+  // against every object and queues any hit for deletion. Commit on
+  // pointer-up: single `bulkRemove` command → one undo restores everything.
+  const handleObjectErasePointerDown = (p: Point) => {
+    objectEraseQueueRef.current = new Set();
+    queueObjectEraseHits(p);
+  };
+  const handleObjectErasePointerMove = (p: Point) => {
+    queueObjectEraseHits(p);
+  };
+  const handleObjectErasePointerUp = () => {
+    const ids = objectEraseQueueRef.current;
+    objectEraseQueueRef.current = new Set();
+    if (ids.size === 0) return;
+    const removed = objects.filter((o) => ids.has(o.id));
+    if (removed.length === 0) return;
+    commandStack.push({ kind: 'bulkRemove', objects: removed });
+  };
+  const queueObjectEraseHits = (p: Point) => {
+    for (const obj of objects) {
+      if (objectEraseQueueRef.current.has(obj.id)) continue;
+      if (hitTestObject(obj, p)) {
+        objectEraseQueueRef.current.add(obj.id);
+      }
+    }
+  };
+
+  // Lasso-erase pointer handlers. Accumulate polygon points during drag,
+  // render as an SVG overlay. On pointer-up: hit-test all objects against
+  // the polygon (fully enclosed = all 4 bbox corners inside) and emit one
+  // bulkRemove command for the enclosed set. A trivial polygon (< 3 pts)
+  // is dropped silently — matches the "click without dragging" no-op
+  // convention used by the selection marquee.
+  const handleLassoPointerDown = (p: Point) => {
+    setLassoPoints([p]);
+  };
+  const handleLassoPointerMove = (p: Point) => {
+    setLassoPoints((prev) => (prev ? [...prev, p] : [p]));
+  };
+  const handleLassoPointerUp = () => {
+    const poly = lassoPoints;
+    setLassoPoints(null);
+    if (!poly || poly.length < 3) return;
+    const enclosed = objects.filter((o) => isObjectEnclosedByPolygon(o, poly));
+    if (enclosed.length === 0) return;
+    commandStack.push({ kind: 'bulkRemove', objects: enclosed });
+  };
+
+  // Shared classes for the row-2 action chips (undo / redo / clear / image /
+  // export / extract). Keeps the visual rhythm consistent and disabled-state
+  // contrast legible on the dark glass surface.
+  const actionBtnBase =
+    'w-7 h-7 rounded-md flex items-center justify-center transition-colors text-slate-200 hover:bg-white/10 disabled:opacity-30 disabled:hover:bg-transparent disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900';
 
   const PaletteUI = (
-    <div className="flex flex-wrap items-center gap-2 p-2">
-      {/* Toggle-button group (not radiogroup) — tools are modes, and the
-          button + aria-pressed pattern gives us native Tab/Space/Enter
-          keyboard handling without the roving-tabindex machinery that a
-          true radiogroup requires. */}
+    <div ref={toolBarRef} className="flex flex-col gap-1.5 px-2 py-2">
+      {/* Row 1 — tool segmented control. One row, full width. Uses
+          aria-pressed (not role=radiogroup) so the Pen/Text/etc. buttons
+          remain individually tabbable and Space/Enter activates them
+          natively. */}
       <div
         role="group"
         aria-label="Drawing tool"
-        className="flex gap-1 bg-slate-100 p-1 rounded-lg"
+        className="flex w-full items-stretch gap-0.5 rounded-lg bg-slate-950/40 p-1 ring-1 ring-white/5"
       >
-        {TOOL_BUTTONS.map(({ tool, Icon, label }) => (
+        {TOOL_BUTTONS.map(({ tool, Icon, label }) => {
+          const isActive = activeTool === tool;
+          // Each drawing tool also reflects whether its options popover is
+          // currently open via `aria-expanded`; select stays a plain toggle.
+          const hasPopover = tool !== 'select';
+          return (
+            <button
+              key={tool}
+              type="button"
+              aria-pressed={isActive}
+              aria-expanded={hasPopover ? toolPopover === tool : undefined}
+              data-tool={tool}
+              onClick={(e) => handleToolClick(tool, e)}
+              className={`flex-1 h-7 rounded-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
+                isActive
+                  ? 'bg-brand-blue-primary text-white shadow-sm'
+                  : 'text-slate-300 hover:bg-white/10'
+              }`}
+              title={label}
+              aria-label={label}
+            >
+              <Icon className="w-4 h-4" />
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Row 2 — actions only. Color and stroke width moved into the per-tool
+          popover (anchored to the pen/eraser/shape button that opens it), so
+          this row stays compact and never wraps. */}
+      <div className="flex items-center gap-2">
+        {/* History group — undo / redo / clear. Clear gets a destructive
+            red tint on hover but lives with the history actions, not the
+            color picker (where it used to read as a sixth swatch). */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
           <button
-            key={tool}
             type="button"
-            aria-pressed={activeTool === tool}
-            onClick={() => setActiveTool(tool)}
-            // - `transition-colors` (not `transition-all`): we only animate
-            //   the background and ring colors; `transition-all` paid for
-            //   width/height/transform interpolations we never use.
-            // - `focus-visible:ring-offset-2` + `ring-offset-slate-100`:
-            //   the offset visually separates the focus ring from the
-            //   active-tool ring (both are indigo) so keyboard users can
-            //   tell which button is focused vs. which is the active tool.
-            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 ${
-              activeTool === tool
-                ? 'ring-2 ring-indigo-500'
-                : 'hover:bg-slate-50'
-            }`}
-            title={label}
-            aria-label={label}
+            onClick={undo}
+            disabled={!commandStack.canUndo}
+            title="Undo"
+            aria-label="Undo"
+            className={actionBtnBase}
           >
-            <Icon className="w-4 h-4 text-slate-600" />
+            <Undo2 className="w-4 h-4" />
           </button>
-        ))}
-      </div>
-
-      <div className="h-6 w-px bg-slate-200 mx-1" />
-
-      <div
-        className={`flex gap-1 bg-slate-100 p-1 rounded-lg transition-opacity ${
-          isErasing ? 'opacity-50 pointer-events-none' : ''
-        }`}
-        aria-hidden={isErasing}
-      >
-        {customColors.map((c) => (
           <button
-            key={c}
-            onClick={() =>
-              updateWidget(widget.id, {
-                config: { ...config, color: c } as DrawingConfig,
-              })
-            }
-            className={`w-6 h-6 rounded-md transition-all ${color === c ? 'scale-110 shadow-sm ring-2 ring-indigo-500' : 'hover:scale-105'}`}
-            style={{ backgroundColor: c }}
-            aria-label={`Color ${c}`}
-          />
-        ))}
-      </div>
+            type="button"
+            onClick={redo}
+            disabled={!commandStack.canRedo}
+            title="Redo"
+            aria-label="Redo"
+            className={actionBtnBase}
+          >
+            <Redo2 className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
+            onClick={clear}
+            disabled={objects.length === 0}
+            title="Clear All"
+            aria-label="Clear All"
+            className={`${actionBtnBase} hover:!bg-red-500/20 hover:text-red-300`}
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
 
-      <div className="h-6 w-px bg-slate-200 mx-1" />
-
-      <Button
-        onClick={undo}
-        title="Undo"
-        aria-label="Undo"
-        variant="ghost"
-        size="icon"
-        disabled={!commandStack.canUndo}
-        icon={<Undo2 className="w-4 h-4" />}
-      />
-      <Button
-        onClick={redo}
-        title="Redo"
-        aria-label="Redo"
-        variant="ghost"
-        size="icon"
-        disabled={!commandStack.canRedo}
-        icon={<Redo2 className="w-4 h-4" />}
-      />
-      <Button
-        onClick={clear}
-        title="Clear All"
-        variant="ghost-danger"
-        size="icon"
-        disabled={objects.length === 0}
-        icon={<Trash2 className="w-4 h-4" />}
-      />
-
-      <Button
-        onClick={openImagePicker}
-        disabled={isUploadingImage}
-        title="Insert image"
-        aria-label="Insert image"
-        variant="ghost"
-        size="icon"
-        icon={
-          isUploadingImage ? (
-            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
-          ) : (
-            <ImagePlus className="w-4 h-4" />
-          )
-        }
-      />
-
-      <div ref={exportMenuRef} className="relative">
-        <Button
-          onClick={() =>
-            isExportMenuOpen ? closeExportMenu() : openExportMenu()
-          }
-          disabled={isExporting || pages.length === 0}
-          title="Export"
-          aria-label="Export"
-          // The popup is plain <button>s in a positioned div (not an ARIA
-          // menu — no roving-tabindex / arrow-key navigation), so we drop
-          // `aria-haspopup` and let `aria-expanded` carry the toggle
-          // semantics. Matches the PageStrip kebab pattern.
-          aria-expanded={isExportMenuOpen}
-          variant="ghost"
-          size="icon"
-          icon={
-            isExporting ? (
+        {/* I/O group — insert image + export. Both are one-shot actions;
+            export still opens the existing portalled popover. */}
+        <div className="flex items-center gap-0.5 flex-shrink-0">
+          <button
+            type="button"
+            onClick={openImagePicker}
+            disabled={isUploadingImage}
+            title="Insert image"
+            aria-label="Insert image"
+            className={actionBtnBase}
+          >
+            {isUploadingImage ? (
               <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
             ) : (
-              <Download className="w-4 h-4" />
-            )
-          }
-        />
-        {isExportMenuOpen &&
-          exportMenuAnchor &&
-          // Portal into document.body so the widget's `overflow-hidden`
-          // wrapper can't clip the popover (same pattern as PageStrip's
-          // kebab). Positioning is `fixed` against the viewport, anchored
-          // to the trigger's `getBoundingClientRect` captured at open time
-          // and updated on scroll/resize.
-          createPortal(
-            <div
-              id="drawing-export-popover"
-              data-testid="drawing-export-popover"
-              className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
-              style={{
-                bottom: `${exportMenuAnchor.bottom}px`,
-                right: `${exportMenuAnchor.right}px`,
-              }}
-            >
-              <button
-                type="button"
-                onClick={() => void handleExportCurrentPng()}
-                disabled={isExporting}
-                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Export PNG (this page)
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleExportAllPng()}
-                disabled={isExporting || pages.length <= 1}
-                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Export PNG (all pages)
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleExportPdf()}
-                disabled={isExporting}
-                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                Export PDF
-              </button>
-            </div>,
-            document.body
-          )}
-      </div>
+              <ImagePlus className="w-4 h-4" />
+            )}
+          </button>
 
-      {canAccessFeature('gemini-functions') && (
-        <>
-          <div className="h-6 w-px bg-slate-200 mx-1" />
-          <Button
-            onClick={() => void handleSendToText()}
-            disabled={isExtracting}
-            variant="ghost"
-            size="icon"
-            title="Extract Text (AI)"
-            icon={
-              isExtracting ? (
+          <div ref={exportMenuRef} className="relative">
+            <button
+              type="button"
+              onClick={() =>
+                isExportMenuOpen ? closeExportMenu() : openExportMenu()
+              }
+              disabled={isExporting || pages.length === 0}
+              title="Export"
+              aria-label="Export"
+              aria-expanded={isExportMenuOpen}
+              className={actionBtnBase}
+            >
+              {isExporting ? (
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+              ) : (
+                <Download className="w-4 h-4" />
+              )}
+            </button>
+            {isExportMenuOpen &&
+              exportMenuAnchor &&
+              // Portal into document.body so the widget's `overflow-hidden`
+              // wrapper can't clip the popover (same pattern as PageStrip's
+              // kebab). Positioning is `fixed` against the viewport,
+              // anchored to the trigger's `getBoundingClientRect` captured
+              // at open time and updated on scroll/resize.
+              createPortal(
+                <div
+                  id="drawing-export-popover"
+                  data-testid="drawing-export-popover"
+                  className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
+                  style={{
+                    bottom: `${exportMenuAnchor.bottom}px`,
+                    right: `${exportMenuAnchor.right}px`,
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => void handleExportCurrentPng()}
+                    disabled={isExporting}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Export PNG (this page)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleExportAllPng()}
+                    disabled={isExporting || pages.length <= 1}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Export PNG (all pages)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleExportPdf()}
+                    disabled={isExporting}
+                    className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    Export PDF
+                  </button>
+                </div>,
+                document.body
+              )}
+          </div>
+
+          {canAccessFeature('gemini-functions') && (
+            <button
+              type="button"
+              onClick={() => void handleSendToText()}
+              disabled={isExtracting}
+              title="Extract Text (AI)"
+              aria-label="Extract Text (AI)"
+              className={actionBtnBase}
+            >
+              {isExtracting ? (
                 <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
               ) : (
                 <Type className="w-4 h-4" />
-              )
-            }
+              )}
+            </button>
+          )}
+        </div>
+
+        {/* Page control — pushed to the right with `ml-auto` so the multi-
+            page chevrons + counter live opposite the history group. When
+            there's only one page this collapses to a single "Add page"
+            button (still right-aligned). The PageStrip component handles
+            its own visual states; we just give it room. */}
+        <div className="ml-auto flex items-center">
+          <PageStrip
+            pages={pageNav.pages}
+            currentPage={pageNav.currentPage}
+            onSelectPage={pageNav.goToPage}
+            onAddPage={pageNav.addPage}
+            onDeletePage={pageNav.removePage}
+            onRenamePage={pageNav.renamePage}
           />
-        </>
-      )}
+        </div>
+      </div>
+
+      {/* Hidden input that backs the `+` custom-color button in the tool
+          popover. Lives on the toolbar (always mounted) so its click handler
+          and value stay stable across popover open/close cycles. */}
+      <input
+        ref={customColorInputRef}
+        type="color"
+        value={color}
+        onChange={(e) => setColor(e.target.value)}
+        // sr-only keeps the input in the accessibility tree (label
+        // announces correctly) while hiding it visually.
+        className="sr-only"
+        aria-label="Custom color"
+        tabIndex={-1}
+      />
+
+      {/* Per-tool options popover (color swatches + stroke width slider).
+          Portalled into document.body so the widget's `overflow-hidden`
+          shell can't clip it — same pattern as the export popover. */}
+      {toolPopover &&
+        toolPopoverAnchor &&
+        createPortal(
+          <div
+            id="drawing-tool-popover"
+            data-testid="drawing-tool-popover"
+            role="dialog"
+            aria-label={`${toolPopover === 'eraser' ? 'Eraser' : 'Tool'} options`}
+            className="fixed z-[2147483600] w-[260px] rounded-xl bg-slate-900/95 backdrop-blur-md shadow-xl border border-white/10 p-3"
+            style={{
+              bottom: `${toolPopoverAnchor.bottom}px`,
+              left: `${toolPopoverAnchor.left}px`,
+            }}
+          >
+            {/* Eraser mode selector — surfaced only when the eraser popover
+                is open. Three modes (stroke / object / lasso) share the same
+                visual treatment as the tool segmented control above so the
+                pattern feels consistent. */}
+            {toolPopover === 'eraser' && (
+              <div
+                role="group"
+                aria-label="Eraser mode"
+                className="flex items-stretch gap-0.5 rounded-lg bg-slate-950/60 p-1 ring-1 ring-white/5 mb-3"
+              >
+                {(
+                  [
+                    { mode: 'stroke', Icon: Eraser, label: 'Stroke eraser' },
+                    {
+                      mode: 'object',
+                      Icon: MousePointerClick,
+                      label: 'Object eraser',
+                    },
+                    { mode: 'lasso', Icon: Lasso, label: 'Lasso eraser' },
+                  ] as const
+                ).map(({ mode, Icon, label }) => {
+                  const isActive = eraserMode === mode;
+                  return (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-pressed={isActive}
+                      onClick={() => setEraserMode(mode)}
+                      className={`flex-1 h-8 rounded-md flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 ${
+                        isActive
+                          ? 'bg-brand-blue-primary text-white shadow-sm'
+                          : 'text-slate-300 hover:bg-white/10'
+                      }`}
+                      title={label}
+                      aria-label={label}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Color row — hidden when the eraser popover is showing
+                (eraser ignores stroke color). `justify-between` spreads the
+                5 swatches + custom button across the full popover width so
+                the row visually aligns edge-to-edge with the slider row
+                below it (no awkward trailing gap on the right). */}
+            {toolPopover !== 'eraser' && (
+              <div className="flex items-center justify-between mb-3">
+                {customColors.map((c) => {
+                  const isActive = color === c;
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      onClick={() => setColor(c)}
+                      className={`w-6 h-6 rounded-full transition-transform focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 ${
+                        isActive
+                          ? 'ring-2 ring-white scale-110 shadow-sm'
+                          : 'ring-1 ring-white/20 hover:scale-110'
+                      }`}
+                      style={{ backgroundColor: c }}
+                      aria-label={`Color ${c}`}
+                      title={`Color ${c}`}
+                    />
+                  );
+                })}
+                {/* Custom color trigger — opens the native color picker via
+                    the hidden input on the toolbar. */}
+                <button
+                  type="button"
+                  onClick={() => customColorInputRef.current?.click()}
+                  className="w-6 h-6 rounded-full flex items-center justify-center bg-slate-800/60 ring-1 ring-white/20 text-slate-300 hover:bg-slate-700/80 hover:text-white transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900"
+                  title="Custom color"
+                  aria-label="Pick a custom color"
+                >
+                  <span className="text-lg leading-none" aria-hidden>
+                    +
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Stroke width slider — full 1–80px range, matched to the
+                Settings panel. The thumb preview on the left shows the
+                current width as a filled dot the user can eyeball before
+                drawing; the visual is capped at 28px so a really chunky
+                stroke doesn't overflow the popover, while the px count
+                still tells the truth. Hidden for the Lasso eraser
+                (selection-by-region, not by hit radius). */}
+            {!(toolPopover === 'eraser' && eraserMode === 'lasso') && (
+              <div className="flex items-center gap-3">
+                <span
+                  aria-hidden
+                  className="block rounded-full bg-white shrink-0"
+                  style={{
+                    width: `${Math.max(4, Math.min(28, width))}px`,
+                    height: `${Math.max(4, Math.min(28, width))}px`,
+                  }}
+                />
+                <input
+                  type="range"
+                  min={1}
+                  max={80}
+                  step={1}
+                  value={width}
+                  onChange={(e) => setWidth(parseInt(e.target.value, 10))}
+                  aria-label="Stroke width"
+                  className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                />
+                <span className="font-mono text-xs text-slate-300 w-10 text-right tabular-nums">
+                  {width}px
+                </span>
+              </div>
+            )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 
@@ -1001,6 +1437,7 @@ export const DrawingWidget: React.FC<{
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div
+        ref={canvasWrapperRef}
         // `ring-inset` (not `ring-offset`) is deliberate: this wrapper has
         // `overflow-hidden` and the canvas fills its interior, so an
         // offset ring would be clipped away by the parent. The inset ring
@@ -1049,9 +1486,36 @@ export const DrawingWidget: React.FC<{
           onPointerUp={handlePointerUp}
           onPointerLeave={handlePointerUp}
           onDoubleClick={handleCanvasDoubleClick}
-          className="absolute inset-0"
+          // Explicit width/height: 100% is required for <canvas>. Tailwind's
+          // `inset-0` sets top/right/bottom/left to 0, but a <canvas> with
+          // HTML width/height attributes (set by useDrawingCanvas to match
+          // canvasSize) reports those as its intrinsic CSS size and ignores
+          // the inset-based height calculation. The 100% style forces CSS
+          // to fill the wrapper regardless of the bitmap-resolution attrs.
+          className="absolute inset-0 w-full h-full"
           style={{ touchAction: 'none' }}
         />
+        {/* Lasso preview overlay — SVG above the canvas, in canvas-pixel
+            coordinates via viewBox. pointer-events:none so the canvas
+            still receives the in-flight drag events that build this
+            polygon. Rendered only while a lasso gesture is active. */}
+        {lassoPoints && lassoPoints.length > 0 && (
+          <svg
+            aria-hidden
+            className="absolute inset-0 pointer-events-none"
+            viewBox={`0 0 ${canvasSize.width} ${canvasSize.height}`}
+            preserveAspectRatio="none"
+          >
+            <polygon
+              points={lassoPoints.map((p) => `${p.x},${p.y}`).join(' ')}
+              fill="rgba(99, 102, 241, 0.12)"
+              stroke="rgb(99, 102, 241)"
+              strokeWidth={2}
+              strokeDasharray="6 4"
+              vectorEffect="non-scaling-stroke"
+            />
+          </svg>
+        )}
         {/* Loading state — only shown while the subcollection subscription
             is hydrating its first snapshot. Keeps the toolbar / page strip
             interactive (a teacher can switch tools and pages while waiting)
@@ -1110,23 +1574,9 @@ export const DrawingWidget: React.FC<{
         {!isStudentView && <input {...fileInputProps} />}
       </div>
       {!isStudentView && (
-        <div className="shrink-0 border-t border-white/20 bg-white/20 backdrop-blur-sm">
+        <div className="shrink-0 border-t border-white/10 bg-slate-900/70 backdrop-blur-md">
           {PaletteUI}
         </div>
-      )}
-      {!isStudentView && (
-        <PageStrip
-          pages={pageNav.pages}
-          currentPage={pageNav.currentPage}
-          onSelectPage={pageNav.goToPage}
-          onAddPage={pageNav.addPage}
-          onDeletePage={pageNav.removePage}
-          onMovePage={(idx, dir) =>
-            dir === 'left'
-              ? pageNav.movePageLeft(idx)
-              : pageNav.movePageRight(idx)
-          }
-        />
       )}
     </div>
   );
