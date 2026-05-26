@@ -831,7 +831,15 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   );
 
   return (
-    <div className={`relative h-full w-full ${className ?? ''}`}>
+    // data-no-drag opts this subtree out of DraggableWindow's drag-surface
+    // (DRAG_BLOCKING_SELECTOR). Without it, every pointerdown on an object —
+    // select, marquee, pen, eraser — also starts a widget drag, which fights
+    // with the editor's own setPointerCapture and leaves objects feeling
+    // "stuck" because both gestures are active at once.
+    <div
+      data-no-drag="true"
+      className={`relative h-full w-full ${className ?? ''}`}
+    >
       <div
         ref={containerRef}
         className="h-full w-full touch-none select-none"
