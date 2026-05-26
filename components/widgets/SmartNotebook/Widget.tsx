@@ -63,10 +63,22 @@ export const SmartNotebookWidget: React.FC<{
   const [currentPage, setCurrentPage] = useState(0);
   const [isImporting, setIsImporting] = useState(false);
   const [showAssets, setShowAssets] = useState(false);
-  const [editMode, setEditMode] = useState(false);
-  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  // Open notebooks in edit mode by default — matches SMART Notebook's flow
+  // (teachers edit, then optionally switch to a present view).
+  const [presentMode, setPresentMode] = useState(false);
+  // Pages with an in-flight save. Drives the editor's "Saving…" indicator.
+  const [savingPages, setSavingPages] = useState<Set<number>>(new Set());
+  const [saveErrorPage, setSaveErrorPage] = useState<number | null>(null);
   const [isPageOp, setIsPageOp] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Per-page cache of locally-edited SVGs. Lives in a ref because PageEditor's
+  // onChange fires on every stroke — promoting these to state would re-render
+  // the whole widget tree on each keystroke. Reset when the active notebook
+  // changes (see the "adjusting state during rendering" block below).
+  const editedSvgsRef = useRef<Map<number, string>>(new Map());
+  // Pending autosave timer. Cleared (and flushed immediately) on page nav,
+  // present-mode toggle, and close — so jumping pages never loses edits.
+  const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Fetch notebooks from Firestore.
   // The subscription is gated on `isActive`: when the host Board is hidden by
@@ -133,6 +145,17 @@ export const SmartNotebookWidget: React.FC<{
     if (currentPage !== 0) {
       setCurrentPage(0);
     }
+    // Switching notebooks must drop in-memory edits for the previous one and
+    // land in edit mode again — anything else either leaks edits across
+    // notebooks or surprises the teacher with "present" on a fresh open.
+    editedSvgsRef.current = new Map();
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    if (savingPages.size > 0) setSavingPages(new Set());
+    if (saveErrorPage !== null) setSaveErrorPage(null);
+    if (presentMode) setPresentMode(false);
   } else if (pageCount !== prevPageCount) {
     setPrevPageCount(pageCount);
     const clamped = clampPageIndex(currentPage, pageCount);
@@ -365,37 +388,30 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
-  const handleClose = () => {
-    updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
-  };
-
-  // Persist an edited page: re-upload the edited SVG to its Storage path and
-  // point the page URL at the new upload. Only the edited page is written.
-  const handleSavePageEdit = async (svgString: string) => {
-    if (!user || !activeNotebook) {
-      setEditMode(false);
-      return;
-    }
-    // An empty export means serialization failed — don't close as if saved.
-    if (!svgString) {
-      addToast('Could not save page edits — please try again', 'error');
-      return;
-    }
-    setIsSavingEdit(true);
+  // Upload one page's edited SVG to its Storage path and update the page URL
+  // in Firestore. Returns nothing — callers fire-and-forget; saving state is
+  // tracked via `savingPages` / `saveErrorPage` for the UI indicator.
+  const flushPage = async (page: number, svgString: string): Promise<void> => {
+    if (!user || !activeNotebook || !svgString) return;
+    setSavingPages((prev) => {
+      const next = new Set(prev);
+      next.add(page);
+      return next;
+    });
+    if (saveErrorPage === page) setSaveErrorPage(null);
     try {
       const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
       const path =
-        activeNotebook.pagePaths?.[currentPage] ??
-        `${notebookPath}/page${currentPage}.svg`;
-      const file = new File([svgString], `page${currentPage}.svg`, {
+        activeNotebook.pagePaths?.[page] ?? `${notebookPath}/page${page}.svg`;
+      const file = new File([svgString], `page${page}.svg`, {
         type: 'image/svg+xml',
       });
       const url = await uploadFile(path, file);
 
       const newPageUrls = [...activeNotebook.pageUrls];
-      newPageUrls[currentPage] = url;
+      newPageUrls[page] = url;
       const newPagePaths = [...(activeNotebook.pagePaths ?? [])];
-      newPagePaths[currentPage] = path;
+      newPagePaths[page] = path;
 
       await updateDoc(
         doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
@@ -404,14 +420,61 @@ export const SmartNotebookWidget: React.FC<{
           pagePaths: newPagePaths,
         }
       );
-      addToast('Page saved', 'success');
-      setEditMode(false);
     } catch (err) {
       console.error('Failed to save edited page', err);
-      addToast('Failed to save page', 'error');
+      setSaveErrorPage(page);
+      addToast('Autosave failed — your edits are kept locally', 'error');
     } finally {
-      setIsSavingEdit(false);
+      setSavingPages((prev) => {
+        const next = new Set(prev);
+        next.delete(page);
+        return next;
+      });
     }
+  };
+
+  // Cancel any pending autosave for `page` and fire the upload immediately.
+  // Used on page navigation, present-mode toggle, and close so jumping never
+  // strands edits in the debounce window.
+  const flushPending = (page: number): void => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    const svg = editedSvgsRef.current.get(page);
+    if (svg) void flushPage(page, svg);
+  };
+
+  // PageEditor emits an updated SVG after each edit. Cache it (ref, no
+  // re-render) and (re)start the autosave countdown. 1.5s feels responsive
+  // without burning a Storage upload on every stroke of a long sketch.
+  const AUTOSAVE_DEBOUNCE_MS = 1500;
+  const handleEditChange = (svgString: string): void => {
+    editedSvgsRef.current.set(currentPage, svgString);
+    if (autosaveTimerRef.current) clearTimeout(autosaveTimerRef.current);
+    const pageToSave = currentPage;
+    autosaveTimerRef.current = setTimeout(() => {
+      autosaveTimerRef.current = null;
+      const latest = editedSvgsRef.current.get(pageToSave);
+      if (latest) void flushPage(pageToSave, latest);
+    }, AUTOSAVE_DEBOUNCE_MS);
+  };
+
+  const navigateToPage = (newPage: number): void => {
+    if (newPage === currentPage) return;
+    flushPending(currentPage);
+    setCurrentPage(newPage);
+  };
+
+  const togglePresentMode = (): void => {
+    // Flush before showing the class — they shouldn't see a stale page.
+    flushPending(currentPage);
+    setPresentMode((p) => !p);
+  };
+
+  const handleClose = (): void => {
+    flushPending(currentPage);
+    updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
   };
 
   // Persist a new page list (urls/paths/sections) to Firestore.
@@ -547,21 +610,37 @@ export const SmartNotebookWidget: React.FC<{
     persistPlacedAssets(removePlacedAssetIn(placedAssets, id));
   };
 
-  // Page editor (full-surface) when editing a page.
-  if (activeNotebook && editMode && activeNotebook.pageUrls[currentPage]) {
+  // Edit mode (default) — page nav + autosave live inside the editor overlay.
+  if (activeNotebook && !presentMode && activeNotebook.pageUrls[currentPage]) {
+    const saveStatus: 'idle' | 'saving' | 'error' = savingPages.has(currentPage)
+      ? 'saving'
+      : saveErrorPage === currentPage
+        ? 'error'
+        : 'idle';
     return (
       <PageEditorOverlay
-        pageUrl={activeNotebook.pageUrls[currentPage]}
-        pageNumber={currentPage + 1}
-        totalPages={activeNotebook.pageUrls.length}
-        isSaving={isSavingEdit}
-        onSave={handleSavePageEdit}
-        onClose={() => setEditMode(false)}
+        title={activeNotebook.title}
+        pageUrls={activeNotebook.pageUrls}
+        cachedSvg={editedSvgsRef.current.get(currentPage) ?? null}
+        currentPage={currentPage}
+        sections={activeNotebook.sections}
+        saveStatus={saveStatus}
+        onEditChange={handleEditChange}
+        onPageChange={navigateToPage}
+        onAddPage={() => void handleAddPage()}
+        onDeletePage={() => void handleDeletePage()}
+        onMovePage={(dir) => void handleMovePage(dir)}
+        canMoveEarlier={canMovePage(activeNotebook, currentPage, -1)}
+        canMoveLater={canMovePage(activeNotebook, currentPage, 1)}
+        pageOpBusy={isPageOp}
+        onPresent={togglePresentMode}
+        onClose={handleClose}
       />
     );
   }
 
-  // Viewer
+  // Present mode (opt-in) — the original Viewer, opened explicitly via the
+  // editor's "Present" toggle.
   if (activeNotebook) {
     const hasAssets =
       activeNotebook.assetUrls && activeNotebook.assetUrls.length > 0;
@@ -583,7 +662,7 @@ export const SmartNotebookWidget: React.FC<{
         onPlaceAsset={handlePlaceAsset}
         onUpdatePlacedAsset={handleUpdatePlacedAsset}
         onRemovePlacedAsset={handleRemovePlacedAsset}
-        onEditPage={() => setEditMode(true)}
+        onEditPage={togglePresentMode}
         onAddPage={() => void handleAddPage()}
         onDeletePage={() => void handleDeletePage()}
         onMovePage={(dir) => void handleMovePage(dir)}
