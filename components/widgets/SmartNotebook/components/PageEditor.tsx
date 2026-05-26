@@ -41,9 +41,10 @@ interface PageEditorProps {
 }
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
+const CORNER_SET = new Set<string>(['nw', 'ne', 'sw', 'se']);
 
 interface DragState {
-  mode: 'move' | 'resize' | 'marquee';
+  mode: 'move' | 'resize' | 'marquee' | 'rotate';
   startX: number;
   startY: number;
   moved: boolean;
@@ -57,6 +58,12 @@ interface DragState {
   // marquee: start corner in root-svg user space + the selection to union onto
   startUser?: { x: number; y: number };
   baseSelection?: string[];
+  // rotate: object center in root user space + initial pointer angle (deg).
+  // We rotate around the captured pivot rather than recomputing the AABB
+  // centre each frame so the object pivots about a stable point instead of
+  // drifting as the bounding box reshapes during rotation.
+  pivot?: { x: number; y: number };
+  startAngleDeg?: number;
 }
 
 interface Box {
@@ -209,6 +216,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Rubber-band rect drawn while marquee-selecting.
   const marqueeRef = useRef<SVGRectElement | null>(null);
   const handlesRef = useRef<Map<Corner, SVGRectElement>>(new Map());
+  // Rotation handle is a small group (stem + dot) drawn above the top-centre
+  // of the selection box. Stored separately from the corner handles because
+  // its geometry and pointer semantics are different (rotation, not resize).
+  const rotateHandleRef = useRef<{
+    group: SVGGElement;
+    stem: SVGLineElement;
+    dot: SVGCircleElement;
+  } | null>(null);
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
   // Active freehand stroke (pen/highlighter) and eraser session.
@@ -297,6 +312,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const only = ids.length === 1 ? findObjectById(svgEl, ids[0]) : null;
     if (!only) {
       handlesRef.current.forEach((h) => (h.style.display = 'none'));
+      if (rotateHandleRef.current) {
+        rotateHandleRef.current.group.style.display = 'none';
+      }
       return;
     }
     const box = transformedBox(svgEl, only);
@@ -316,6 +334,24 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       h.setAttribute('height', String(hs));
       h.style.display = '';
     });
+
+    // Rotation handle: stem rises from the top edge midpoint, dot sits above.
+    // Stem length scales with the handle size so it stays proportional on
+    // zoom / viewport changes.
+    if (rotateHandleRef.current) {
+      const { group, stem: rStem, dot: rDot } = rotateHandleRef.current;
+      const midX = (box.minX + box.maxX) / 2;
+      const stemBottom = box.minY;
+      const stemTop = box.minY - hs * 2.25;
+      rStem.setAttribute('x1', String(midX));
+      rStem.setAttribute('y1', String(stemBottom));
+      rStem.setAttribute('x2', String(midX));
+      rStem.setAttribute('y2', String(stemTop));
+      rDot.setAttribute('cx', String(midX));
+      rDot.setAttribute('cy', String(stemTop));
+      rDot.setAttribute('r', String(hs / 2));
+      group.style.display = '';
+    }
   }, []);
 
   const emitChange = useCallback(() => {
@@ -329,6 +365,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const el = container.querySelector('svg');
     svgRef.current = el;
     handlesRef.current = new Map();
+    rotateHandleRef.current = null;
     if (!el) {
       selGroupRef.current = null;
       marqueeRef.current = null;
@@ -362,6 +399,30 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       el.appendChild(h);
       handlesRef.current.set(corner, h);
     }
+
+    // Rotation handle: a short vertical stem above the top edge of the
+    // bounding box, capped with a small circle. The whole group carries
+    // data-edit-handle="rotate" so pointer events on either the stem or
+    // the dot enter the rotate branch of handlePointerDown.
+    const rotateGroup = document.createElementNS(SVG_NS, 'g');
+    rotateGroup.setAttribute(EDIT_OVERLAY_ATTR, '1');
+    rotateGroup.setAttribute(HANDLE_ATTR, 'rotate');
+    rotateGroup.style.cursor = 'grab';
+    rotateGroup.style.display = 'none';
+    const stem = document.createElementNS(SVG_NS, 'line');
+    stem.setAttribute('stroke', '#6366f1');
+    stem.setAttribute('stroke-width', '1.5');
+    stem.setAttribute('vector-effect', 'non-scaling-stroke');
+    stem.setAttribute('pointer-events', 'stroke');
+    rotateGroup.appendChild(stem);
+    const dot = document.createElementNS(SVG_NS, 'circle');
+    dot.setAttribute('fill', '#ffffff');
+    dot.setAttribute('stroke', '#6366f1');
+    dot.setAttribute('stroke-width', '1.5');
+    dot.setAttribute('vector-effect', 'non-scaling-stroke');
+    rotateGroup.appendChild(dot);
+    el.appendChild(rotateGroup);
+    rotateHandleRef.current = { group: rotateGroup, stem, dot };
 
     const marquee = document.createElementNS(SVG_NS, 'rect');
     marquee.setAttribute('fill', 'rgba(99,102,241,0.10)');
@@ -591,10 +652,44 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       return;
     }
 
-    // select / move / resize
+    // select / move / resize / rotate
     const target = e.target as Element;
-    const handle = target.getAttribute(HANDLE_ATTR) as Corner | null;
-    if (handle && selectedIds.length === 1) {
+    // Walk up to the nearest [data-edit-handle] ancestor — corner rects ARE
+    // the handle itself, but the rotation handle is a <g> with child <line>
+    // / <circle>, so an exact-target lookup would miss it.
+    const handleEl = target.closest(`[${HANDLE_ATTR}]`);
+    const handle = handleEl?.getAttribute(HANDLE_ATTR) ?? null;
+
+    if (handle === 'rotate' && selectedIds.length === 1) {
+      const obj = findObjectById(svgEl, selectedIds[0]);
+      if (!obj) return;
+      const box = transformedBox(svgEl, obj);
+      // Pivot is the AABB centre captured at drag start. We hold it fixed
+      // for the duration of the gesture so the object rotates around the
+      // same point even as the AABB reshapes.
+      const pivot = {
+        x: (box.minX + box.maxX) / 2,
+        y: (box.minY + box.maxY) / 2,
+      };
+      const userPt = toRootUser(e.clientX, e.clientY);
+      const startAngleDeg =
+        Math.atan2(userPt.y - pivot.y, userPt.x - pivot.x) * (180 / Math.PI);
+      dragRef.current = {
+        id: selectedIds[0],
+        mode: 'rotate',
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        m0: readEditMatrix(obj),
+        pivot,
+        startAngleDeg,
+      };
+      containerRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (handle && CORNER_SET.has(handle) && selectedIds.length === 1) {
+      const corner = handle as Corner;
       const obj = findObjectById(svgEl, selectedIds[0]);
       if (!obj) return;
       const box = transformedBox(svgEl, obj);
@@ -617,8 +712,8 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         startY: e.clientY,
         m0: readEditMatrix(obj),
         moved: false,
-        anchor: cornerPt[opposite[handle]],
-        startCorner: cornerPt[handle],
+        anchor: cornerPt[opposite[corner]],
+        startCorner: cornerPt[corner],
       };
       containerRef.current?.setPointerCapture(e.pointerId);
       return;
@@ -749,6 +844,31 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         .scaleSelf(sx, sy)
         .translateSelf(-anchor.x, -anchor.y);
       applyEditMatrix(obj, a.multiply(drag.m0));
+      renderSelection([drag.id]);
+      return;
+    }
+
+    if (
+      drag.mode === 'rotate' &&
+      drag.id &&
+      drag.m0 &&
+      drag.pivot &&
+      drag.startAngleDeg !== undefined
+    ) {
+      const obj = findObjectById(svgEl, drag.id);
+      if (!obj) return;
+      const userPt = toRootUser(e.clientX, e.clientY);
+      const currentAngle =
+        Math.atan2(userPt.y - drag.pivot.y, userPt.x - drag.pivot.x) *
+        (180 / Math.PI);
+      const deltaDeg = currentAngle - drag.startAngleDeg;
+      // Rotation around the captured pivot: translate→rotate→translate-back,
+      // then composed with the object's pre-drag matrix.
+      const r = new DOMMatrix()
+        .translateSelf(drag.pivot.x, drag.pivot.y)
+        .rotateSelf(deltaDeg)
+        .translateSelf(-drag.pivot.x, -drag.pivot.y);
+      applyEditMatrix(obj, r.multiply(drag.m0));
       renderSelection([drag.id]);
     }
   };
