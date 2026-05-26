@@ -1,6 +1,129 @@
 {
   "entries": [
     {
+      "version": "2026.05.26.2",
+      "date": "2026-05-26",
+      "title": "The Draw widget becomes a full whiteboard",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Draw widget upgrade",
+          "items": [
+            {
+              "text": "Add shapes — rectangles, ellipses, lines, and arrows — from a new Tools cluster in the Draw toolbar."
+            },
+            {
+              "text": "Drop in a text box anywhere on the canvas and edit it in place."
+            },
+            {
+              "text": "Add images by pasting, dragging a file onto the canvas, or clicking the Image button."
+            },
+            {
+              "text": "Pick the Select tool to move, resize, rotate, or delete any object on the canvas."
+            },
+            {
+              "text": "Build multi-page Draw widgets and flip between pages from a page strip in the toolbar."
+            },
+            {
+              "text": "Undo and redo any change with Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z."
+            },
+            {
+              "text": "Export the Draw widget as a PNG image or PDF."
+            },
+            {
+              "text": "Choose a per-page background template: Blank, Grid, Lines, or Dots."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "Draw widgets stay smooth with hundreds of shapes, text boxes, and images across many pages."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Widget settings panels stay anchored next to their widget when you zoom the board."
+            },
+            {
+              "text": "Specialist Schedule items missing a complete time no longer show up as already finished."
+            },
+            {
+              "text": "The Boards Manager color picker now shows the right labels in German, Spanish, and French."
+            },
+            {
+              "text": "Instructional Routines step badges follow your board's theme color."
+            },
+            {
+              "text": "Widgets with partially-migrated layouts now land in the right spot on screen."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Shape tools on the Draw widget — add rectangles, ellipses, lines, and arrows. The toolbar now has a six-button Tools cluster (Pen, Eraser, Line, Arrow, Rectangle, Ellipse), and a Shape Fill toggle in settings switches new shapes between filled and outline-only. The annotation overlay that lets you draw on top of any board gets the same shape tools."
+        },
+        {
+          "type": "feature",
+          "text": "Text boxes on the Draw widget — pick the new Text tool, click anywhere on the canvas, and start typing. Text commits when you click away or press Cmd-Enter, and you can edit a text box again by double-clicking it. Font, size, and color come from the widget's typography settings."
+        },
+        {
+          "type": "feature",
+          "text": "Images on the Draw widget — paste an image from the clipboard, drag a file onto the canvas, or click the new Image button in the toolbar. All three drop the image where you placed it, sized to fit, and uploads sync to your board."
+        },
+        {
+          "type": "feature",
+          "text": "Select, move, resize, and rotate on the Draw widget — switch to the new Select tool to grab any object on the canvas. Eight handles let you resize from any edge or corner, a top handle rotates, dragging the body moves it, Backspace or Delete removes the selection, and the arrow keys nudge by 1px (10px with Shift)."
+        },
+        {
+          "type": "feature",
+          "text": "Multi-page Draw widgets — a single Draw widget can now hold any number of pages. A page strip across the toolbar lets you flip between pages, and a kebab menu on each page chip handles add, delete, and reorder. Each page keeps its own contents and background."
+        },
+        {
+          "type": "feature",
+          "text": "Undo and redo on the Draw widget — every drawing, shape, text edit, image insertion, move, resize, rotate, and delete is now an undoable step. Ctrl/Cmd+Z steps back, Ctrl/Cmd+Shift+Z (or Ctrl+Y) steps forward, and Undo and Redo buttons in the toolbar do the same. Clear All counts as a single step you can fully undo."
+        },
+        {
+          "type": "feature",
+          "text": "Export Draw widgets — save the current page as a PNG, save every page as PNGs one at a time, or open a print dialog with one printable page per Draw page that you can save as a PDF. Selection handles are never baked into the exported image."
+        },
+        {
+          "type": "feature",
+          "text": "Background templates on the Draw widget — each page can use a Blank, Grid, Lines, or Dots background. Pick the template in settings; the active page updates right away and your choice becomes the default for new pages on that widget."
+        },
+        {
+          "type": "improvement",
+          "text": "Draw widgets stay fast with lots of content. Each shape, text box, or image now syncs to the cloud on its own instead of rewriting the whole board every time you draw, so Draw widgets with hundreds of objects across many pages stay responsive while you work."
+        },
+        {
+          "type": "fix",
+          "text": "Widget settings panel positioning. Opening a widget's settings panel while the board is zoomed now anchors the panel correctly next to its widget. Previously the panel could land in the wrong spot when the board's zoom didn't match the default."
+        },
+        {
+          "type": "fix",
+          "text": "Specialist Schedule items with missing or malformed time data no longer appear permanently as finished — with a strikethrough, green checkmark, and greyed background — before they actually occur. They now show as upcoming until their real time elapses."
+        },
+        {
+          "type": "fix",
+          "text": "The color picker in the Boards Manager (used when assigning a color to a collection) now shows the correct labels in German, Spanish, and French. Previously these languages were missing the new picker's strings and showed raw key names."
+        },
+        {
+          "type": "fix",
+          "text": "The numbered step badge in the Instructional Routines widget now uses your board's primary theme color instead of ignoring it."
+        },
+        {
+          "type": "fix",
+          "text": "Widgets whose stored position was partially converted to the newer proportional layout now render at the correct spot. Previously a partial conversion could leave a widget at the wrong on-screen position until you moved it by hand."
+        }
+      ]
+    },
+    {
       "version": "2026.05.26",
       "date": "2026-05-26",
       "title": "Clock building defaults and widget polish",
