@@ -14,15 +14,7 @@
 
 import React, { useRef } from 'react';
 import { render, screen, act } from '@testing-library/react';
-import {
-  describe,
-  it,
-  expect,
-  vi,
-  beforeEach,
-  afterEach,
-  type MockInstance,
-} from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { SettingsPanel } from '@/components/common/SettingsPanel';
 import { WidgetData, GlobalStyle } from '@/types';
 
@@ -36,6 +28,14 @@ vi.mock('@/components/common/WidgetBuildingToggle', () => ({
 
 vi.mock('@/components/common/UniversalStyleSettings', () => ({
   UniversalStyleSettings: () => null,
+}));
+
+// SettingsPanel now subscribes to useDashboard for zoom; tests do not render a
+// DashboardProvider, so stub the hook with stable defaults.
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: () => ({
+    zoom: 1,
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -109,8 +109,6 @@ function findFixedAncestor(el: HTMLElement): HTMLElement | null {
 // ---------------------------------------------------------------------------
 
 describe('SettingsPanel', () => {
-  let getBCRSpy: MockInstance;
-
   beforeEach(() => {
     // rAF is used for the isVisible animation; run callbacks synchronously.
     vi.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => {
@@ -128,24 +126,22 @@ describe('SettingsPanel', () => {
   });
 
   afterEach(() => {
+    // vi.restoreAllMocks() also restores the getBCRSpy created in each test.
     vi.restoreAllMocks();
-    getBCRSpy?.mockRestore();
   });
 
   it('renders settings content inside the panel', () => {
-    getBCRSpy = vi
-      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-      .mockReturnValue({
-        left: 300,
-        top: 100,
-        right: 500,
-        bottom: 250,
-        width: 200,
-        height: 150,
-        x: 300,
-        y: 100,
-        toJSON: () => ({}),
-      });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 300,
+      top: 100,
+      right: 500,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 300,
+      y: 100,
+      toJSON: () => ({}),
+    });
 
     act(() => {
       render(<Harness />);
@@ -170,19 +166,17 @@ describe('SettingsPanel', () => {
   it('positions the panel using getBoundingClientRect, not world coordinates', () => {
     // Mock getBoundingClientRect to return a screen rect that DIFFERS from the
     // widget's world coordinates — simulating a zoom/pan transform on the canvas.
-    getBCRSpy = vi
-      .spyOn(HTMLElement.prototype, 'getBoundingClientRect')
-      .mockReturnValue({
-        left: 0,
-        top: 100,
-        right: 200, // ← screen right (differs from world right = 100+200 = 300)
-        bottom: 250,
-        width: 200,
-        height: 150,
-        x: 0,
-        y: 100,
-        toJSON: () => ({}),
-      });
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 100,
+      right: 200, // ← screen right (differs from world right = 100+200 = 300)
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
 
     act(() => {
       render(<Harness />);

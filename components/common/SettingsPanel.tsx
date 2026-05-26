@@ -7,6 +7,7 @@ import { WidgetData, GlobalStyle } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { UniversalStyleSettings } from '@/components/common/UniversalStyleSettings';
 import { useWindowSize } from '@/hooks/useWindowSize';
+import { useDashboard } from '@/context/useDashboard';
 
 interface SettingsPanelProps {
   widget: WidgetData;
@@ -38,6 +39,11 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'settings' | 'style'>('settings');
   const viewport = useWindowSize();
+  // Subscribe to zoom so the panel re-positions when the canvas zoom changes
+  // while open. Pan offset is intentionally local state in DashboardView (not
+  // in context) to avoid re-render cascades, so pan-while-open is not tracked
+  // here — the initial-open case is correctly handled by getBoundingClientRect.
+  const { zoom } = useDashboard();
 
   const transparency = widget.transparency ?? globalStyle.windowTransparency;
 
@@ -103,11 +109,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     setPosition({ top, left: Math.max(PANEL_MARGIN, (vw - pw) / 2) });
   };
 
-  // Recompute on mount and whenever the widget position/size or viewport changes.
+  // Recompute on mount and whenever the widget position/size, viewport, or
+  // canvas zoom changes. getBoundingClientRect is not reactive, so any input
+  // that can alter the widget's screen rect must be in this dep list.
   useLayoutEffect(() => {
     updatePosition();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widget.x, widget.y, widget.w, widget.maximized, viewport]);
+  }, [widget.x, widget.y, widget.w, widget.maximized, viewport, zoom]);
 
   // Animate in on mount (track both rAF handles for safe cleanup)
   useEffect(() => {
