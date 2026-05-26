@@ -1,7 +1,45 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { createPortal } from 'react-dom';
 import { useDashboard } from '@/context/useDashboard';
-import { WidgetData, DrawableObject, DrawingConfig, TextConfig } from '@/types';
-import { Pencil, Eraser, Trash2, Undo2, Type } from 'lucide-react';
+import {
+  WidgetData,
+  DrawableObject,
+  DrawingConfig,
+  ImageObject,
+  ShapeTool,
+  TextConfig,
+  TextObject,
+} from '@/types';
+import {
+  ArrowRight,
+  Circle,
+  Download,
+  Eraser,
+  ImagePlus,
+  MousePointer2,
+  Pencil,
+  Redo2,
+  Slash,
+  Square,
+  Trash2,
+  Type,
+  TypeOutline,
+  Undo2,
+} from 'lucide-react';
+import { TextEditorOverlay } from './TextEditorOverlay';
+import { useImageInsertion } from './useImageInsertion';
+import { useSelection } from './useSelection';
+import { useCommandStack } from './useCommandStack';
+import { useDrawingObjectsDoc } from './useDrawingObjectsDoc';
+import { useDrawingPages } from './useDrawingPages';
+import { hitTestObject } from './hitTest';
+import { PageStrip } from './PageStrip';
 import { extractTextWithGemini } from '@/utils/ai';
 import { useAuth } from '@/context/useAuth';
 import { Button } from '@/components/common/Button';
@@ -9,12 +47,53 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
+import type { DrawingPage } from '@/types';
+import { getBackgroundStyle } from './backgroundTemplates';
+import {
+  downloadDataUrl,
+  exportAllPagesPng,
+  exportPagePng,
+  exportPdf,
+} from './exportCanvas';
+
+const TOOL_BUTTONS: ReadonlyArray<{
+  tool: ShapeTool;
+  Icon: React.ComponentType<{ className?: string }>;
+  label: string;
+}> = [
+  // Select leads the cluster: selection-first is the dominant whiteboard
+  // pattern (Figma, Miro, FigJam), and it's the only tool that doesn't
+  // create new content.
+  { tool: 'select', Icon: MousePointer2, label: 'Select' },
+  { tool: 'text', Icon: TypeOutline, label: 'Text' },
+  { tool: 'pen', Icon: Pencil, label: 'Pen' },
+  { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
+  { tool: 'line', Icon: Slash, label: 'Line' },
+  { tool: 'arrow', Icon: ArrowRight, label: 'Arrow' },
+  { tool: 'rect', Icon: Square, label: 'Rectangle' },
+  { tool: 'ellipse', Icon: Circle, label: 'Ellipse' },
+];
 
 export const DrawingWidget: React.FC<{
   widget: WidgetData;
   isStudentView?: boolean;
 }> = ({ widget, isStudentView = false }) => {
-  const { updateWidget, activeDashboard, addToast, addWidget } = useDashboard();
+  const {
+    updateWidget,
+    activeDashboard,
+    addToast,
+    addWidget,
+    drawingWidgetsMigrating,
+  } = useDashboard();
+  // When this widget is mid-migration to the subcollection backing store
+  // (Phase 2 PR 2.6), gate user input so concurrent edits don't race the
+  // batched migration writes. The migration captures a snapshot, writes
+  // it to the subcollection, then flips `subcollectionMigrated: true` —
+  // any strokes that landed on the legacy `pages[].objects[]` during the
+  // multi-second migration window would otherwise be silently dropped
+  // when the widget switches to reading from the subcollection. We
+  // render a non-interactive overlay until the migration finishes.
+  const isMigratingSubcollection = drawingWidgetsMigrating.has(widget.id);
   const { canAccessFeature } = useAuth();
 
   // Defensive migration — the canonical migration happens during dashboard
@@ -27,12 +106,87 @@ export const DrawingWidget: React.FC<{
   const {
     color = STANDARD_COLORS.slate,
     width = DRAWING_DEFAULTS.WIDTH,
-    objects,
+    pages,
+    currentPage,
     customColors = DRAWING_DEFAULTS.CUSTOM_COLORS,
+    activeTool = DRAWING_DEFAULTS.ACTIVE_TOOL,
+    shapeFill = DRAWING_DEFAULTS.SHAPE_FILL,
   } = config;
+
+  // Page-scoped object slice. `migrateDrawingConfig` guarantees pages is
+  // non-empty and currentPage is clamped, so this never falls back to `[]`
+  // in production — but we keep the guard for defensive symmetry with the
+  // legacy single-page path.
+  const activePage: DrawingPage = pages[currentPage] ?? pages[0];
+
+  // Phase 2 PR 2.6: object content lives in a page-nested Firestore
+  // subcollection, not on the dashboard doc. The dashboard config still
+  // carries `pages[].id` + `pages[].background` (a denormalized cache so
+  // the page list is readable in one snapshot), but `objects[]` is
+  // sourced from this hook. AnnotationOverlay is intentionally NOT migrated
+  // to the subcollection — it keeps its single-doc annotation state on the
+  // dashboard (see context/DashboardContext.tsx).
+  const dashboardId = activeDashboard?.id ?? null;
+  const {
+    objects: subcollectionObjects,
+    addObject: subAddObject,
+    updateObject: subUpdateObject,
+    removeObject: subRemoveObject,
+    clear: subClearObjects,
+    loading: objectsLoading,
+  } = useDrawingObjectsDoc({
+    dashboardId,
+    widgetId: widget.id,
+    pageId: activePage.id,
+  });
+
+  // Before the migration flag is set we keep reading objects off the
+  // dashboard doc so the widget shows the user's existing canvas while the
+  // batch writes are in flight. Once `subcollectionMigrated` flips true,
+  // the subcollection becomes the source of truth.
+  const objects: DrawableObject[] = config.subcollectionMigrated
+    ? subcollectionObjects
+    : activePage.objects;
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isExtracting, setIsExtracting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
+  // Viewport-anchored coords for the portalled popover. The widget's outer
+  // wrapper is `overflow-hidden` (so the canvas + page strip don't bleed
+  // past their bounds), which would clip an inline-positioned popover the
+  // same way the PageStrip kebab was clipped. Portalling into document.body
+  // and positioning via `position: fixed` against the viewport escapes that
+  // clipping container. The trigger element is queried via `exportMenuRef`
+  // (a `<div>` wrapping the Button — we can't ref the Button directly
+  // because it isn't a forwardRef component).
+  const [exportMenuAnchor, setExportMenuAnchor] = useState<{
+    bottom: number;
+    right: number;
+  } | null>(null);
+  const getExportTrigger = useCallback(
+    () => exportMenuRef.current?.querySelector('button[aria-label="Export"]'),
+    []
+  );
+  // Snapshot of the TextObject currently being edited via TextEditorOverlay.
+  // Stored locally (not in config.objects) until commit, so the editor can
+  // position itself off the snapshot without round-tripping through Firestore.
+  // Local (transient) state — never persisted; matches the selection-state
+  // pattern documented in the Phase 2 design spec.
+  const [editingText, setEditingText] = useState<TextObject | null>(null);
+  // canvasRect drives the editor's positioning. We re-measure on commit/blur
+  // boundaries and on canvas-size changes so the editor follows resizes.
+  const [canvasRect, setCanvasRect] = useState<DOMRect | null>(null);
+  useEffect(() => {
+    if (!editingText) return;
+    const node = canvasRef.current;
+    if (!node) return;
+    setCanvasRect(node.getBoundingClientRect());
+    // Re-measure on widget moves too — DraggableWindow lets the user drag a
+    // widget while the editor is open; without `widget.x`/`widget.y` here
+    // the editor would float over the canvas's old position.
+  }, [editingText, widget.w, widget.h, widget.x, widget.y]);
 
   // Canvas internal resolution follows the widget (minus header) in window mode,
   // or the parent container in student view.
@@ -44,37 +198,507 @@ export const DrawingWidget: React.FC<{
     return { width: widget.w, height: Math.max(widget.h - 40, 0) };
   }, [isStudentView, widget.w, widget.h]);
 
-  const appendObject = (obj: DrawableObject) => {
-    updateWidget(widget.id, {
-      config: {
-        ...config,
-        objects: [...objects, obj],
-      } as DrawingConfig,
-    });
+  // Page-scoped sink: every command-stack apply (push / undo / redo) lands
+  // here. The hook hands us a new `objects[]` for the active page.
+  //
+  // Phase 2 PR 2.6 — post-migration, object writes route to the subcollection
+  // (one Firestore op per added/changed/removed object). Pre-migration, we
+  // still write the whole `pages[]` block to the dashboard doc so the
+  // widget stays functional during the migration window.
+  //
+  // The diff path matches React's reconciliation pattern: keyed by id,
+  // we compute the (added, updated, removed) sets and dispatch one mutator
+  // per. setDoc / deleteDoc are async but we don't await — Firestore's
+  // optimistic listener will surface the new state through the subscription
+  // anyway, and waiting would block the synchronous command-stack flow.
+  const writeObjects = useCallback(
+    (next: DrawableObject[]) => {
+      if (config.subcollectionMigrated) {
+        // Clear All path — route through the chunked batch-delete so a
+        // 1000-object wipe ships as 3 batched commits instead of 1000
+        // individual deletes.
+        if (next.length === 0 && objects.length > 0) {
+          void subClearObjects();
+          return;
+        }
+        const prevById = new Map(objects.map((o) => [o.id, o]));
+        const nextById = new Map(next.map((o) => [o.id, o]));
+        // Removed: in prev but not in next.
+        for (const [id] of prevById) {
+          if (!nextById.has(id)) {
+            void subRemoveObject(id);
+          }
+        }
+        // Added or updated: walk next.
+        for (const [id, obj] of nextById) {
+          const prev = prevById.get(id);
+          if (!prev) {
+            void subAddObject(obj);
+          } else if (prev !== obj) {
+            void subUpdateObject(obj);
+          }
+        }
+        return;
+      }
+      // Legacy path — single doc write of the whole page list.
+      const nextPages = pages.map((p, i) =>
+        i === currentPage ? { ...p, objects: next } : p
+      );
+      updateWidget(widget.id, {
+        config: { ...config, pages: nextPages } as DrawingConfig,
+      });
+    },
+    [
+      updateWidget,
+      widget.id,
+      config,
+      pages,
+      currentPage,
+      objects,
+      subAddObject,
+      subUpdateObject,
+      subRemoveObject,
+      subClearObjects,
+    ]
+  );
+
+  // Partial-config writer used by `useDrawingPages` for navigation /
+  // add / delete / reorder. Same single-write pattern as writeObjects.
+  const updateConfig = useCallback(
+    (partial: Partial<DrawingConfig>) => {
+      updateWidget(widget.id, {
+        config: { ...config, ...partial } as DrawingConfig,
+      });
+    },
+    [updateWidget, widget.id, config]
+  );
+
+  const commandStack = useCommandStack({
+    // Per-page stack keyed by page id. Switching pages surfaces that page's
+    // independent undo/redo history; deleting a page calls `forgetPage` to
+    // drop the corresponding record.
+    pageKey: activePage.id,
+    objects,
+    onObjectsChange: writeObjects,
+  });
+
+  const pageNav = useDrawingPages({
+    config: { ...config, pages, currentPage },
+    updateConfig,
+    onPageRemoved: commandStack.forgetPage,
+  });
+
+  // Each create path (pen, shapes, image, text-first-commit) becomes a single
+  // `add` command. The stack handles the array mutation + write.
+  const pushAdd = useCallback(
+    (obj: DrawableObject) => {
+      commandStack.push({ kind: 'add', object: obj });
+    },
+    [commandStack]
+  );
+
+  // Text spawn: keep the empty TextObject in local state and open the editor.
+  // We DON'T persist the empty object — it's added to `objects[]` only on
+  // commit, so an Esc/blur-with-no-text leaves the dashboard untouched.
+  const handleTextSpawn = (obj: TextObject) => {
+    setEditingText(obj);
   };
+
+  // Commit edited text content back into the objects array. The editor
+  // hands us its final content (including the empty string); we apply the
+  // empty-removes-object rule here so first-spawn vs re-edit get the right
+  // semantics:
+  //  - existing object + empty content  → remove (matches degenerate-shape rule)
+  //  - existing object + non-empty      → update command
+  //  - fresh spawn + empty content      → no-op (don't persist an empty obj)
+  //  - fresh spawn + non-empty content  → add command
+  const commitTextEdit = (next: TextObject) => {
+    const existing = objects.find((o) => o.id === next.id);
+    const isEmpty = next.content.trim() === '';
+    if (existing) {
+      if (isEmpty) {
+        commandStack.push({ kind: 'remove', object: existing });
+      } else {
+        commandStack.push({ kind: 'update', before: existing, after: next });
+      }
+    } else if (!isEmpty) {
+      commandStack.push({ kind: 'add', object: next });
+    }
+    // Fresh spawn + empty falls through with no command — the unsaved local
+    // object simply vanishes when we clear editingText below.
+    setEditingText(null);
+  };
+
+  // Explicit Escape cancel: discard the editor's content and leave the
+  // persisted object untouched. Fresh spawns simply disappear (never
+  // persisted). Existing objects keep their pre-edit content because the
+  // editor's content was thrown away in `finalize(false)`.
+  const cancelTextEdit = () => {
+    setEditingText(null);
+  };
+
+  // Image insertion: one-shot pipeline shared by paste / drag-drop / picker.
+  // Builds a fresh ImageObject once the upload finishes and stamps it into
+  // the page via the standard append path. Tool selection is unchanged — the
+  // toolbar Image button is a one-shot action, not a sticky mode (per spec).
+  const handleImageReady = ({
+    src,
+    x,
+    y,
+    w,
+    h,
+  }: {
+    src: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  }) => {
+    const obj: ImageObject = {
+      id: crypto.randomUUID(),
+      kind: 'image',
+      z: nextZ(objects),
+      x,
+      y,
+      w,
+      h,
+      src,
+    };
+    pushAdd(obj);
+  };
+
+  const {
+    openPicker: openImagePicker,
+    fileInputProps,
+    handlePaste,
+    handleDrop,
+    handleDragOver,
+    isUploading: isUploadingImage,
+  } = useImageInsertion({
+    canvasRef,
+    onImageReady: handleImageReady,
+  });
+
+  // Selection preview: local-only override applied during a transform drag.
+  // The persisted `objects[]` stays untouched until pointer-up commits, so a
+  // 60fps drag produces one Firestore write instead of ~120/sec.
+  const [previewObject, setPreviewObject] = useState<DrawableObject | null>(
+    null
+  );
+
+  const handleTransformPreview = (next: DrawableObject) => {
+    setPreviewObject(next);
+  };
+
+  // Pointer-up commit: the selection hook hands us BOTH the post-gesture
+  // object and the pre-gesture snapshot it captured at pointer-down. We turn
+  // that pair into a single `update` command so a 60fps drag still produces
+  // exactly one entry on the undo stack (and one Firestore write).
+  const handleTransformCommit = (
+    next: DrawableObject,
+    before: DrawableObject
+  ) => {
+    setPreviewObject(null);
+    commandStack.push({ kind: 'update', before, after: next });
+  };
+
+  const handleRemoveObject = (id: string) => {
+    const target = objects.find((o) => o.id === id);
+    if (!target) return;
+    commandStack.push({ kind: 'remove', object: target });
+  };
+
+  const {
+    selectedId,
+    selectedObject,
+    transformState,
+    handleSelectPointerDown,
+    handleSelectPointerMove,
+    handleSelectPointerUp,
+    handleKeyDown: handleSelectKeyDown,
+    clearSelection,
+  } = useSelection({
+    objects,
+    activeTool,
+    onTransformPreview: handleTransformPreview,
+    onTransformCommit: handleTransformCommit,
+    onRemoveObject: handleRemoveObject,
+    canvasRef,
+  });
+
+  // Clear selection whenever the user switches off the Select tool. Without
+  // this, selection chrome lingers after the user clicks Pen/Rect/etc.
+  useEffect(() => {
+    if (activeTool !== 'select') clearSelection();
+  }, [activeTool, clearSelection]);
+
+  // Clear selection + transform preview on page switch. Selection state is
+  // page-scoped — a selected object id on page 1 has no meaning on page 2,
+  // and the transient `previewObject` from an in-flight drag must not bleed
+  // across pages. Tracking `activePage.id` (not `currentPage`) survives
+  // reorders cleanly.
+  const [prevPageId, setPrevPageId] = useState(activePage.id);
+  if (activePage.id !== prevPageId) {
+    setPrevPageId(activePage.id);
+    clearSelection();
+    setPreviewObject(null);
+  }
 
   const { handleStart, handleMove, handleEnd, isDrawing } = useDrawingCanvas({
     canvasRef,
     color,
     width,
     objects,
-    onObjectComplete: appendObject,
+    onObjectComplete: pushAdd,
+    onTextSpawn: handleTextSpawn,
     disabled: isStudentView,
     canvasSize,
     nextZ: nextZ(objects),
+    activeTool,
+    shapeFill,
+    selectedObject,
+    transformState: transformState ? { active: true } : null,
+    previewObject,
   });
 
+  // Pointer chooser: route to selection handlers when 'select' is active,
+  // to draw handlers otherwise. Keeps the canvas a single event surface.
+  const getCanvasPos = (e: React.PointerEvent): { x: number; y: number } => {
+    const canvas = canvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    return {
+      x: (e.clientX - rect.left) * scaleX,
+      y: (e.clientY - rect.top) * scaleY,
+    };
+  };
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (isStudentView) return;
+    if (activeTool === 'select') {
+      handleSelectPointerDown(e, getCanvasPos(e));
+      return;
+    }
+    handleStart(e);
+  };
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (isStudentView) return;
+    if (activeTool === 'select') {
+      handleSelectPointerMove(e, getCanvasPos(e));
+      return;
+    }
+    handleMove(e);
+  };
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (isStudentView) return;
+    if (activeTool === 'select') {
+      handleSelectPointerUp(e, getCanvasPos(e));
+      return;
+    }
+    handleEnd();
+  };
+
+  // Clear All ships as a single bulk-remove command — one undo restores
+  // every object. This is the user-visible regression from today's
+  // irreversible clear and matches the design spec's deliberate choice.
   const clear = () => {
-    updateWidget(widget.id, {
-      config: { ...config, objects: [] } as DrawingConfig,
-    });
+    if (objects.length === 0) return;
+    commandStack.push({ kind: 'clear', objects: [...objects] });
   };
 
   const undo = () => {
-    updateWidget(widget.id, {
-      config: { ...config, objects: objects.slice(0, -1) } as DrawingConfig,
-    });
+    commandStack.undo();
   };
+
+  const redo = () => {
+    commandStack.redo();
+  };
+
+  // Ctrl/Cmd+Z = undo, Ctrl/Cmd+Shift+Z = redo, Ctrl/Cmd+Y = redo (Windows
+  // muscle memory alias). The wrapper's existing handler (`handleSelectKeyDown`)
+  // still receives the event for Backspace/Delete/Arrow nudges; we delegate
+  // to it for anything that isn't an undo/redo shortcut.
+  const handleWrapperKeyDown = (e: React.KeyboardEvent) => {
+    const isMod = e.metaKey || e.ctrlKey;
+    const key = e.key.toLowerCase();
+    if (isMod && key === 'z') {
+      e.preventDefault();
+      if (e.shiftKey) {
+        redo();
+      } else {
+        undo();
+      }
+      return;
+    }
+    if (isMod && key === 'y') {
+      e.preventDefault();
+      redo();
+      return;
+    }
+    handleSelectKeyDown(e);
+  };
+
+  // --- Export helpers (Wave 7) ---
+  // The actions cluster surfaces three exports: current-page PNG (cheapest —
+  // uses the live canvas's `toDataURL`), all-pages PNG (one offscreen render
+  // per page → N separate downloads), and PDF (offscreen renders → browser
+  // print dialog). Selection chrome is cleared before any PNG export so the
+  // dashed bbox doesn't bleed into the saved file.
+  const exportFilenameStem = () => {
+    // ISO timestamp with `:` and `.` replaced so the filename is valid on
+    // every OS — also collision-free if a teacher exports the same widget
+    // twice in one session.
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    return `Whiteboard-${timestamp}`;
+  };
+
+  const handleExportCurrentPng = async () => {
+    closeExportMenu();
+    try {
+      setIsExporting(true);
+      // Route through the offscreen-render path so the background template
+      // (which lives as a CSS div on the live canvas) gets baked into pixels.
+      // Selection chrome is never on the offscreen canvas so we don't need
+      // to clear selection first.
+      const dataUrl = await exportPagePng(activePage, {
+        w: canvasSize.width,
+        h: canvasSize.height,
+      });
+      downloadDataUrl(
+        dataUrl,
+        `${exportFilenameStem()}-page-${currentPage + 1}.png`
+      );
+      addToast('Page exported as PNG', 'success');
+    } catch (e) {
+      console.error('PNG export failed:', e);
+      addToast('Failed to export page.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportAllPng = async () => {
+    closeExportMenu();
+    if (pages.length === 0) return;
+    try {
+      setIsExporting(true);
+      const dataUrls = await exportAllPagesPng(pages, {
+        w: canvasSize.width,
+        h: canvasSize.height,
+      });
+      dataUrls.forEach((url, idx) => {
+        if (!url) return;
+        downloadDataUrl(url, `${exportFilenameStem()}-page-${idx + 1}.png`);
+      });
+      addToast(`${dataUrls.length} pages exported`, 'success');
+    } catch (e) {
+      console.error('All-pages PNG export failed:', e);
+      addToast('Failed to export pages.', 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportPdf = async () => {
+    closeExportMenu();
+    if (pages.length === 0) return;
+    try {
+      setIsExporting(true);
+      // PDF export goes through the browser print dialog (one-shot OS-level
+      // "Save as PDF"); the dialog owns the final filename so we no longer
+      // pass one in.
+      await exportPdf(pages, { w: canvasSize.width, h: canvasSize.height });
+    } catch (e) {
+      console.error('PDF export failed:', e);
+      const message =
+        e instanceof Error && /blocked/i.test(e.message)
+          ? 'Please allow pop-ups to export as PDF.'
+          : 'Failed to export PDF.';
+      addToast(message, 'error');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const closeExportMenu = useCallback(() => {
+    setIsExportMenuOpen(false);
+    setExportMenuAnchor(null);
+  }, []);
+
+  const openExportMenu = useCallback(() => {
+    const trigger = getExportTrigger();
+    if (!trigger) return;
+    const rect = trigger.getBoundingClientRect();
+    setIsExportMenuOpen(true);
+    setExportMenuAnchor({
+      bottom: window.innerHeight - rect.top + 4,
+      right: window.innerWidth - rect.right,
+    });
+  }, [getExportTrigger]);
+
+  // Recompute anchor on scroll/resize so the portalled popover follows the
+  // trigger when the user pans the dashboard or the dock collapses. Mirrors
+  // the PageStrip kebab pattern.
+  useEffect(() => {
+    if (!isExportMenuOpen) return undefined;
+    const onScrollOrResize = () => {
+      const trigger = getExportTrigger();
+      if (!trigger) {
+        closeExportMenu();
+        return;
+      }
+      const rect = trigger.getBoundingClientRect();
+      setExportMenuAnchor({
+        bottom: window.innerHeight - rect.top + 4,
+        right: window.innerWidth - rect.right,
+      });
+    };
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+    return () => {
+      window.removeEventListener('scroll', onScrollOrResize, true);
+      window.removeEventListener('resize', onScrollOrResize);
+    };
+  }, [isExportMenuOpen, closeExportMenu, getExportTrigger]);
+
+  // Close the export popover on outside click OR Escape. The trigger button
+  // is the only `aria-label="Export"` button on the page; clicks on it are
+  // already handled by its own onClick toggle, so they bypass this listener
+  // via the contains() check below.
+  useEffect(() => {
+    if (!isExportMenuOpen) return;
+    const onDocPointerDown = (e: PointerEvent) => {
+      const target = e.target as Node | null;
+      if (!target) return;
+      const popup = document.getElementById('drawing-export-popover');
+      if (popup?.contains(target)) return;
+      if (getExportTrigger()?.contains(target)) return;
+      closeExportMenu();
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Gate on `editingText == null` so Escape inside the text editor
+        // cancels the edit rather than racing the popover dismissal. The
+        // editor's synthetic stopPropagation does NOT stop native window
+        // listeners on the same native event — this gate is the
+        // authoritative belt + suspenders.
+        if (editingText) return;
+        e.stopPropagation();
+        closeExportMenu();
+        // Return focus to the trigger so keyboard users land somewhere
+        // sensible.
+        (getExportTrigger() as HTMLButtonElement | null)?.focus();
+      }
+    };
+    document.addEventListener('pointerdown', onDocPointerDown);
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('pointerdown', onDocPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [isExportMenuOpen, editingText, closeExportMenu, getExportTrigger]);
 
   const handleSendToText = async () => {
     const canvas = canvasRef.current;
@@ -137,9 +761,59 @@ export const DrawingWidget: React.FC<{
     }
   };
 
+  const setActiveTool = (tool: ShapeTool) => {
+    updateWidget(widget.id, {
+      config: { ...config, activeTool: tool } as DrawingConfig,
+    });
+  };
+
+  const isErasing = activeTool === 'eraser';
+
   const PaletteUI = (
     <div className="flex flex-wrap items-center gap-2 p-2">
-      <div className="flex gap-1 bg-slate-100 p-1 rounded-lg">
+      {/* Toggle-button group (not radiogroup) — tools are modes, and the
+          button + aria-pressed pattern gives us native Tab/Space/Enter
+          keyboard handling without the roving-tabindex machinery that a
+          true radiogroup requires. */}
+      <div
+        role="group"
+        aria-label="Drawing tool"
+        className="flex gap-1 bg-slate-100 p-1 rounded-lg"
+      >
+        {TOOL_BUTTONS.map(({ tool, Icon, label }) => (
+          <button
+            key={tool}
+            type="button"
+            aria-pressed={activeTool === tool}
+            onClick={() => setActiveTool(tool)}
+            // - `transition-colors` (not `transition-all`): we only animate
+            //   the background and ring colors; `transition-all` paid for
+            //   width/height/transform interpolations we never use.
+            // - `focus-visible:ring-offset-2` + `ring-offset-slate-100`:
+            //   the offset visually separates the focus ring from the
+            //   active-tool ring (both are indigo) so keyboard users can
+            //   tell which button is focused vs. which is the active tool.
+            className={`w-7 h-7 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-100 ${
+              activeTool === tool
+                ? 'ring-2 ring-indigo-500'
+                : 'hover:bg-slate-50'
+            }`}
+            title={label}
+            aria-label={label}
+          >
+            <Icon className="w-4 h-4 text-slate-600" />
+          </button>
+        ))}
+      </div>
+
+      <div className="h-6 w-px bg-slate-200 mx-1" />
+
+      <div
+        className={`flex gap-1 bg-slate-100 p-1 rounded-lg transition-opacity ${
+          isErasing ? 'opacity-50 pointer-events-none' : ''
+        }`}
+        aria-hidden={isErasing}
+      >
         {customColors.map((c) => (
           <button
             key={c}
@@ -153,17 +827,6 @@ export const DrawingWidget: React.FC<{
             aria-label={`Color ${c}`}
           />
         ))}
-        <button
-          onClick={() =>
-            updateWidget(widget.id, {
-              config: { ...config, color: 'eraser' } as DrawingConfig,
-            })
-          }
-          className={`w-6 h-6 rounded-md bg-white border border-slate-200 flex items-center justify-center transition-all ${color === 'eraser' ? 'ring-2 ring-indigo-500' : ''}`}
-          aria-label="Eraser"
-        >
-          <Eraser className="w-3 h-3 text-slate-400" />
-        </button>
       </div>
 
       <div className="h-6 w-px bg-slate-200 mx-1" />
@@ -171,17 +834,114 @@ export const DrawingWidget: React.FC<{
       <Button
         onClick={undo}
         title="Undo"
+        aria-label="Undo"
         variant="ghost"
         size="icon"
+        disabled={!commandStack.canUndo}
         icon={<Undo2 className="w-4 h-4" />}
+      />
+      <Button
+        onClick={redo}
+        title="Redo"
+        aria-label="Redo"
+        variant="ghost"
+        size="icon"
+        disabled={!commandStack.canRedo}
+        icon={<Redo2 className="w-4 h-4" />}
       />
       <Button
         onClick={clear}
         title="Clear All"
         variant="ghost-danger"
         size="icon"
+        disabled={objects.length === 0}
         icon={<Trash2 className="w-4 h-4" />}
       />
+
+      <Button
+        onClick={openImagePicker}
+        disabled={isUploadingImage}
+        title="Insert image"
+        aria-label="Insert image"
+        variant="ghost"
+        size="icon"
+        icon={
+          isUploadingImage ? (
+            <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+          ) : (
+            <ImagePlus className="w-4 h-4" />
+          )
+        }
+      />
+
+      <div ref={exportMenuRef} className="relative">
+        <Button
+          onClick={() =>
+            isExportMenuOpen ? closeExportMenu() : openExportMenu()
+          }
+          disabled={isExporting || pages.length === 0}
+          title="Export"
+          aria-label="Export"
+          // The popup is plain <button>s in a positioned div (not an ARIA
+          // menu — no roving-tabindex / arrow-key navigation), so we drop
+          // `aria-haspopup` and let `aria-expanded` carry the toggle
+          // semantics. Matches the PageStrip kebab pattern.
+          aria-expanded={isExportMenuOpen}
+          variant="ghost"
+          size="icon"
+          icon={
+            isExporting ? (
+              <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
+            ) : (
+              <Download className="w-4 h-4" />
+            )
+          }
+        />
+        {isExportMenuOpen &&
+          exportMenuAnchor &&
+          // Portal into document.body so the widget's `overflow-hidden`
+          // wrapper can't clip the popover (same pattern as PageStrip's
+          // kebab). Positioning is `fixed` against the viewport, anchored
+          // to the trigger's `getBoundingClientRect` captured at open time
+          // and updated on scroll/resize.
+          createPortal(
+            <div
+              id="drawing-export-popover"
+              data-testid="drawing-export-popover"
+              className="fixed z-[2147483600] min-w-[200px] bg-white shadow-lg border border-slate-200 rounded-lg overflow-hidden"
+              style={{
+                bottom: `${exportMenuAnchor.bottom}px`,
+                right: `${exportMenuAnchor.right}px`,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => void handleExportCurrentPng()}
+                disabled={isExporting}
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Export PNG (this page)
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportAllPng()}
+                disabled={isExporting || pages.length <= 1}
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Export PNG (all pages)
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleExportPdf()}
+                disabled={isExporting}
+                className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-100 border-t border-slate-100 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Export PDF
+              </button>
+            </div>,
+            document.body
+          )}
+      </div>
 
       {canAccessFeature('gemini-functions') && (
         <>
@@ -194,7 +954,7 @@ export const DrawingWidget: React.FC<{
             title="Extract Text (AI)"
             icon={
               isExtracting ? (
-                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full animate-spin" />
+                <div className="w-4 h-4 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin" />
               ) : (
                 <Type className="w-4 h-4" />
               )
@@ -205,32 +965,168 @@ export const DrawingWidget: React.FC<{
     </div>
   );
 
+  // Double-click any existing TextObject to re-enter edit mode. This is the
+  // only double-click gesture in the widget; full hit-testing lands in Wave 4.
+  const handleCanvasDoubleClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
+    if (isStudentView) return;
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? canvas.height / rect.height : 1;
+    const px = (e.clientX - rect.left) * scaleX;
+    const py = (e.clientY - rect.top) * scaleY;
+    // Iterate top-to-bottom (highest z first) so the front-most text wins.
+    // Use the shared `hitTestObject` instead of a raw AABB check — text
+    // objects can be rotated, and the renderer/selection pipeline already
+    // honors `obj.rotation` via reverse-rotate-around-bbox-center. An AABB
+    // here would produce false positives (clicks in the AABB but outside
+    // the rotated visual) and false negatives (clicks in the rotated
+    // visual but outside the AABB).
+    const texts = objects.filter((o): o is TextObject => o.kind === 'text');
+    const sorted = [...texts].sort((a, b) => b.z - a.z);
+    const hit = sorted.find((o) => hitTestObject(o, { x: px, y: py }));
+    if (hit) setEditingText(hit);
+  };
+
+  // Cursor follows the active tool: 'select' uses a default pointer so the
+  // resize/rotation handles read as clickable; everything else uses the
+  // crosshair the freehand tools have always used.
+  const cursorClass = isStudentView
+    ? ''
+    : activeTool === 'select'
+      ? 'cursor-default'
+      : 'cursor-crosshair';
+
   return (
     <div className="h-full flex flex-col overflow-hidden">
       <div
+        // `ring-inset` (not `ring-offset`) is deliberate: this wrapper has
+        // `overflow-hidden` and the canvas fills its interior, so an
+        // offset ring would be clipped away by the parent. The inset ring
+        // sits on the inside edge of the wrapper and stays visible.
         className={`flex-1 relative ${
           isStudentView ? 'bg-transparent' : 'bg-white/5'
-        } overflow-hidden ${!isStudentView && 'cursor-crosshair'}`}
+        } overflow-hidden focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 focus-visible:ring-inset ${cursorClass}`}
+        // tabIndex makes the wrapper focusable so React's synthetic `paste`
+        // and `keydown` events fire here. Required for Backspace/Delete and
+        // arrow nudges to reach the selection hook without a focused child.
+        tabIndex={isStudentView || isMigratingSubcollection ? undefined : 0}
+        onPaste={
+          isStudentView || isMigratingSubcollection ? undefined : handlePaste
+        }
+        onDrop={
+          isStudentView || isMigratingSubcollection ? undefined : handleDrop
+        }
+        onDragOver={
+          isStudentView || isMigratingSubcollection ? undefined : handleDragOver
+        }
+        onKeyDown={
+          isStudentView || isMigratingSubcollection
+            ? undefined
+            : handleWrapperKeyDown
+        }
+        data-selected-id={selectedId ?? ''}
       >
+        {/* Background template layer (Wave 7). A sibling div BELOW the
+            canvas — keeps the canvas pixel data clean (no full repaint on
+            template change) and lets the user-chosen dashboard background
+            bleed through "blank" pages. Bake-into-pixels happens only at
+            export time via `paintBackground` in exportCanvas.ts. */}
+        <div
+          aria-hidden
+          className="absolute inset-0 pointer-events-none"
+          style={getBackgroundStyle(
+            activePage.background ??
+              config.background ??
+              DRAWING_DEFAULTS.BACKGROUND
+          )}
+        />
         <canvas
           ref={canvasRef}
-          onPointerDown={handleStart}
-          onPointerMove={handleMove}
-          onPointerUp={handleEnd}
-          onPointerLeave={handleEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onDoubleClick={handleCanvasDoubleClick}
           className="absolute inset-0"
           style={{ touchAction: 'none' }}
         />
-        {objects.length === 0 && !isDrawing && (
+        {/* Loading state — only shown while the subcollection subscription
+            is hydrating its first snapshot. Keeps the toolbar / page strip
+            interactive (a teacher can switch tools and pages while waiting)
+            but suppresses the empty-state hint so it doesn't briefly flash
+            "draw here" before the snapshot lands. */}
+        {config.subcollectionMigrated && objectsLoading && (
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none text-slate-400">
-            <Pencil className="w-8 h-8 opacity-20" />
+            <div className="w-6 h-6 border-2 border-slate-400 border-t-transparent rounded-full motion-safe:animate-spin opacity-50" />
           </div>
         )}
+        {objects.length === 0 &&
+          !isDrawing &&
+          !(config.subcollectionMigrated && objectsLoading) && (
+            // Empty state: a pencil icon + visible "Start drawing" label.
+            // The wrapping div is `pointer-events-none` so it never blocks
+            // canvas pointer input — that's why we use a static label
+            // instead of a `title` tooltip (a tooltip requires hover, which
+            // pointer-events-none prevents). The label is self-describing
+            // so no `aria-label` on the container is needed.
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 pointer-events-none text-slate-400">
+              <Pencil className="w-8 h-8 opacity-20" aria-hidden />
+              <span className="text-sm font-medium opacity-60 select-none">
+                Start drawing
+              </span>
+            </div>
+          )}
+        {editingText && canvasRect && (
+          <TextEditorOverlay
+            object={editingText}
+            canvasRect={canvasRect}
+            canvasSize={canvasSize}
+            onCommit={commitTextEdit}
+            onCancel={cancelTextEdit}
+          />
+        )}
+        {/* Subcollection-migration lock (Phase 2 PR 2.6). pointer-events:
+            auto on this overlay swallows clicks/drags so they never reach
+            the canvas underneath — closes the data-loss race where strokes
+            on the legacy `pages[].objects[]` path get dropped when
+            `subcollectionMigrated: true` flips and the widget switches to
+            reading from the subcollection. */}
+        {isMigratingSubcollection && (
+          <div
+            role="status"
+            aria-live="polite"
+            className="absolute inset-0 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm text-white"
+          >
+            <div className="flex flex-col items-center gap-2">
+              <div className="w-6 h-6 border-2 border-white/60 border-t-transparent rounded-full motion-safe:animate-spin" />
+              <span className="text-sm font-medium select-none">
+                Migrating drawing…
+              </span>
+            </div>
+          </div>
+        )}
+        {!isStudentView && <input {...fileInputProps} />}
       </div>
       {!isStudentView && (
         <div className="shrink-0 border-t border-white/20 bg-white/20 backdrop-blur-sm">
           {PaletteUI}
         </div>
+      )}
+      {!isStudentView && (
+        <PageStrip
+          pages={pageNav.pages}
+          currentPage={pageNav.currentPage}
+          onSelectPage={pageNav.goToPage}
+          onAddPage={pageNav.addPage}
+          onDeletePage={pageNav.removePage}
+          onMovePage={(idx, dir) =>
+            dir === 'left'
+              ? pageNav.movePageLeft(idx)
+              : pageNav.movePageRight(idx)
+          }
+        />
       )}
     </div>
   );

@@ -324,6 +324,7 @@ const mockDashboard: DashboardContextValue = {
     // No-op
   },
   isActiveBoardReadOnly: false,
+  drawingWidgetsMigrating: new Set<string>(),
   pendingQuizShareId: null,
   clearPendingQuizShare: () => {
     // No-op
@@ -386,6 +387,8 @@ const mockDashboard: DashboardContextValue = {
     color: '#000000',
     width: 4,
     customColors: ['#000000', '#ffffff', '#ff0000', '#00ff00', '#0000ff'],
+    activeTool: 'pen',
+    shapeFill: false,
   },
   openAnnotation: () => {
     // No-op
@@ -399,9 +402,19 @@ const mockDashboard: DashboardContextValue = {
   addAnnotationObject: () => {
     // No-op
   },
+  updateAnnotationObject: () => {
+    // No-op
+  },
+  removeAnnotationObject: () => {
+    // No-op
+  },
   undoAnnotation: () => {
     // No-op
   },
+  redoAnnotation: () => {
+    // No-op — students don't surface the annotation overlay.
+  },
+  canRedoAnnotation: false,
   clearAnnotation: () => {
     // No-op
   },
