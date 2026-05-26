@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-19_
+_Last audited: 2026-05-26_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-26: Skill files NOT accessible at `/mnt/skills/user/` in this environment. Codebase-side verifications performed: (1) `SpecialistSchedule/` still contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts` — `Widget.tsx` still absent; MEDIUM item #1 remains valid. (2) `FeaturePermissionsManager.tsx` exclusion array (lines 941–953) still contains the same 13 hardcoded types as 2026-05-12/19 — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` has grown: `checklist` was added since 2026-05-19 (new `ChecklistConfigurationPanel.tsx`). The LOW item #2 about the undocumented secondary exclusion gate remains valid and slightly more stale now that `checklist` is present in the panel map. (4) lazyNamed() convention confirmed correct across WidgetRegistry.ts. All 4 open items remain valid. No new stale references introduced by recent commits._
 
 _2026-05-19: Skill files ARE accessible at `/mnt/skills/user/` in this environment (unlike prior runs at 2026-05-12). Both skill files read and verified. Codebase-side verification confirms: `components/widgets/SpecialistSchedule/` contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, and `index.ts` — there is NO `Widget.tsx`. This means the MEDIUM open item referencing `SpecialistSchedule/Widget.tsx` remains valid. Similarly `SpecialistScheduleSettings.tsx` does not exist (actual path: `components/widgets/SpecialistSchedule/Settings.tsx`) — MEDIUM item #2 remains valid. `FeaturePermissionsManager.tsx` exclusion array (lines 941–953) contains 13 types — LOW item #1 remains valid (array in skill still outdated). `FeatureConfigurationPanel.tsx` secondary exclusion gate undocumented in skill — LOW item #2 remains valid. lazyNamed() convention confirmed correct. No new stale references detected. All 4 open items remain valid._
 
