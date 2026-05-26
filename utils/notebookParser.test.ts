@@ -169,6 +169,27 @@ describe('parseNotebookFile — .spartnb bundle', () => {
     const first = await blobText(result.pages[0].blob);
     expect(first).toContain('height="600"');
   });
+
+  it('returns page blobs tagged image/svg+xml so they render via <img>', async () => {
+    // Without this MIME tag the blob inherits JSZip's application/octet-stream
+    // default, the upload to Storage is served back as octet-stream, and every
+    // imported page shows a broken-image icon.
+    const zip = new JSZip();
+    zip.file(
+      'manifest.json',
+      JSON.stringify({
+        version: 1,
+        title: 'Mime Check',
+        pageCount: 1,
+        pages: [{ file: 'pages/0.svg', width: 800, height: 600 }],
+      })
+    );
+    zip.file('pages/0.svg', pageSvg(600));
+    const file = await toFile(zip, 'MimeCheck.spartnb');
+
+    const result = await parseNotebookFile(file);
+    expect(result.pages[0].blob.type).toBe('image/svg+xml');
+  });
 });
 
 describe('parseNotebookFile — size cap', () => {

@@ -65,7 +65,12 @@ const parseBundle = async (
     pageList.map(async (p) => {
       const entry = zip.file(p.file);
       if (!entry) throw new Error(`Bundle missing page file: ${p.file}`);
-      const blob = await entry.async('blob');
+      // JSZip's async('blob') returns application/octet-stream regardless of
+      // file content. Re-wrap with the SVG mime type so the page renders when
+      // served back from Storage via <img src>; without it the browser refuses
+      // to render the response and every page shows a broken-image icon.
+      const raw = await entry.async('blob');
+      const blob = new Blob([raw], { type: 'image/svg+xml' });
       return { blob, extension: extensionOf(p.file) };
     })
   );
