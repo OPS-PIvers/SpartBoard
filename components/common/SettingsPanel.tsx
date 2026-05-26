@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { IconButton } from '@/components/common/IconButton';
@@ -47,23 +47,37 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     viewport.width - 2 * PANEL_MARGIN
   );
 
-  // Compute panel position from widget props + viewport (no DOM measurement)
-  const position = useMemo(() => {
-    const { width: vw, height: vh } = viewport;
+  // Compute panel position using the widget element's actual screen rect via
+  // getBoundingClientRect(). This is the only correct approach when the widget
+  // canvas has a CSS transform (zoom / pan) applied to it: widget.x/y are world
+  // coordinates, not viewport coordinates, so using them directly as `position:
+  // fixed` offsets produces a misaligned panel whenever zoom ≠ 1 or pan ≠ 0.
+  const [position, setPosition] = useState<{ top: number; left: number }>({
+    top: PANEL_MARGIN,
+    left: PANEL_MARGIN,
+  });
+
+  const updatePosition = () => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
     const panelMaxH = vh * 0.8;
     const pw = Math.min(PANEL_WIDTH, vw - 2 * PANEL_MARGIN);
 
     // Maximized widgets: center the panel
     if (widget.maximized) {
-      return {
+      setPosition({
         top: Math.max(PANEL_MARGIN, (vh - panelMaxH) / 2),
         left: Math.max(PANEL_MARGIN, (vw - pw) / 2),
-      };
+      });
+      return;
     }
 
-    const widgetRight = widget.x + widget.w;
-    const widgetLeft = widget.x;
-    const widgetTop = widget.y;
+    // Use the live screen rect of the widget element, which accounts for any
+    // CSS transforms (zoom/pan surface) applied to ancestor elements.
+    const rect = widgetRef.current?.getBoundingClientRect();
+    const widgetLeft = rect?.left ?? widget.x;
+    const widgetTop = rect?.top ?? widget.y;
+    const widgetRight = rect != null ? rect.right : widget.x + widget.w;
 
     // Vertical: align top with widget, clamped to viewport
     const top = Math.max(
@@ -74,20 +88,25 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     // Try right side of widget
     const rightX = widgetRight + PANEL_MARGIN;
     if (rightX + pw + PANEL_MARGIN <= vw) {
-      return { top, left: rightX };
+      setPosition({ top, left: rightX });
+      return;
     }
 
     // Try left side of widget
     const leftX = widgetLeft - PANEL_MARGIN - pw;
     if (leftX >= PANEL_MARGIN) {
-      return { top, left: leftX };
+      setPosition({ top, left: leftX });
+      return;
     }
 
     // Fallback: center horizontally
-    return {
-      top,
-      left: Math.max(PANEL_MARGIN, (vw - pw) / 2),
-    };
+    setPosition({ top, left: Math.max(PANEL_MARGIN, (vw - pw) / 2) });
+  };
+
+  // Recompute on mount and whenever the widget position/size or viewport changes.
+  useLayoutEffect(() => {
+    updatePosition();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widget.x, widget.y, widget.w, widget.maximized, viewport]);
 
   // Animate in on mount (track both rAF handles for safe cleanup)
