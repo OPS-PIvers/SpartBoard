@@ -138,7 +138,7 @@ export const getAdminBuildingConfig = (
       break;
     case 'clock': {
       const validClockStyles = ['modern', 'lcd', 'minimal'] as const;
-      if (raw.format24 !== undefined) out.format24 = raw.format24;
+      if (typeof raw.format24 === 'boolean') out.format24 = raw.format24;
       if (raw.fontFamily) out.fontFamily = raw.fontFamily;
       if (raw.themeColor) out.themeColor = raw.themeColor;
       if (
