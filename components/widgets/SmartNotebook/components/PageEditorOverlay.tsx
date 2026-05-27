@@ -7,16 +7,21 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  Circle,
   Eraser,
   Highlighter,
   Loader2,
+  Minus,
   MousePointer2,
+  MoveUpRight,
   Pen,
   Pencil,
   Play,
   Plus,
   RotateCcw,
+  Square,
   Trash2,
+  Type,
   X,
 } from 'lucide-react';
 import { NotebookObjectLink, NotebookSection } from '@/types';
@@ -576,7 +581,22 @@ const TOOL_BUTTONS: ReadonlyArray<{
   { tool: 'pen', Icon: Pen, label: 'Pen' },
   { tool: 'highlighter', Icon: Highlighter, label: 'Highlighter' },
   { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
+  { tool: 'text', Icon: Type, label: 'Text' },
+  { tool: 'rect', Icon: Square, label: 'Rectangle' },
+  { tool: 'circle', Icon: Circle, label: 'Circle' },
+  { tool: 'line', Icon: Minus, label: 'Line' },
+  { tool: 'arrow', Icon: MoveUpRight, label: 'Arrow' },
 ];
+
+const TOOL_CONTROL_PALETTE = new Set<Tool>([
+  'pen',
+  'highlighter',
+  'text',
+  'rect',
+  'circle',
+  'line',
+  'arrow',
+]);
 
 const WIDTH_LABELS = ['Thin', 'Medium', 'Thick'] as const;
 
@@ -595,15 +615,24 @@ const Toolbar: React.FC<{
   onColorChange,
   onWidthChange,
 }) => {
-  const inkActive = tool === 'pen' || tool === 'highlighter';
+  // Tools that use the color/width controls light up the palette; select +
+  // eraser dim it because the swatches don't influence them. Text uses
+  // color (not width); shapes use both — we keep them lit for either case
+  // since fading width for text only would add a third visual state for
+  // little gain.
+  const inkActive = TOOL_CONTROL_PALETTE.has(tool);
   return (
     <div
       className="bg-slate-900/95 backdrop-blur"
       style={{ padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)' }}
     >
       <div
-        className="mx-auto flex items-center justify-center"
-        style={{ gap: 'min(12px, 2.5cqmin)', maxWidth: '720px' }}
+        className="mx-auto flex flex-wrap items-center justify-center"
+        style={{
+          gap: 'min(12px, 2.5cqmin)',
+          rowGap: 'min(6px, 1.5cqmin)',
+          maxWidth: '960px',
+        }}
       >
         {/* Tool segmented control */}
         <div

@@ -19,7 +19,7 @@ import {
   ORIG_TRANSFORM_ATTR,
   EditableObjectInfo,
 } from '@/utils/notebookSvgEdit';
-import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
+import { PEN_COLORS, PEN_WIDTHS, Tool, isShapeTool } from './pageEditorTypes';
 
 /** Normalized hotspot box, in fractions of the page's intrinsic size. */
 export interface NormalizedBox {
@@ -332,6 +332,17 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Active freehand stroke (pen/highlighter) and eraser session.
   const strokeRef = useRef<{ path: SVGPathElement; d: string } | null>(null);
   const erasedRef = useRef(false);
+  // Active shape (rect/circle/line/arrow) drag — captures the start point
+  // and a reference to the SVG element being shaped so pointermove can
+  // update its dimensions live. The wrapping <g> carries the editable id.
+  const shapeRef = useRef<{
+    tool: 'rect' | 'circle' | 'line' | 'arrow';
+    wrapper: SVGGElement;
+    shape: SVGElement;
+    arrowhead?: SVGPolygonElement;
+    startX: number;
+    startY: number;
+  } | null>(null);
   // The exact SVG string we last emitted upstream via onChange. When the
   // host's autosave round-trips that same content back to us (as the new
   // `svg` prop) we recognize it and skip resetting the DOM — otherwise the
@@ -1243,6 +1254,117 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       return;
     }
 
+    if (t === 'text') {
+      // Click drops a new text object at the click point and immediately
+      // opens the inline editor. Color follows the pen-color selection so
+      // the active palette acts as a "current text color" too.
+      const fg = findForeground(svgEl);
+      if (!fg) return;
+      const vb = svgEl.viewBox.baseVal;
+      const pageH = vb && vb.height > 0 ? vb.height : 750;
+      const p = toForegroundPoint(e.clientX, e.clientY);
+      const fontSize = Math.max(20, Math.round(pageH * 0.04));
+      const wrapper = document.createElementNS(SVG_NS, 'g');
+      const newId = `obj-text-${crypto.randomUUID()}`;
+      wrapper.setAttribute('data-edit-id', newId);
+      wrapper.setAttribute(ORIG_TRANSFORM_ATTR, '');
+      const textEl = document.createElementNS(SVG_NS, 'text');
+      textEl.setAttribute('x', String(p.x));
+      textEl.setAttribute('y', String(p.y));
+      textEl.setAttribute('font-family', 'sans-serif');
+      textEl.setAttribute('font-size', String(fontSize));
+      textEl.setAttribute('fill', penColorRef.current);
+      // Default placeholder so the empty object is visible until the user
+      // types; replaced by their input when the editor commits.
+      textEl.textContent = 'Text';
+      wrapper.appendChild(textEl);
+      fg.appendChild(wrapper);
+      objectsRef.current = ensureObjectIds(svgEl);
+      // Open the inline text editor over the new element so the user can
+      // type immediately without an extra dblclick.
+      const container = containerRef.current;
+      if (container) {
+        const c = container.getBoundingClientRect();
+        const r = textEl.getBoundingClientRect();
+        setSelectedIds([newId]);
+        setEditing({
+          id: newId,
+          left: r.left - c.left,
+          top: r.top - c.top,
+          width: Math.max(r.width, 120),
+          height: Math.max(r.height, 32),
+          value: textEl.textContent ?? '',
+        });
+      }
+      emitChange();
+      return;
+    }
+
+    if (isShapeTool(t)) {
+      const fg = findForeground(svgEl);
+      if (!fg) return;
+      const p = toForegroundPoint(e.clientX, e.clientY);
+      const color = penColorRef.current;
+      const width = penWidthRef.current;
+      const wrapper = document.createElementNS(SVG_NS, 'g');
+      const newId = `obj-shape-${crypto.randomUUID()}`;
+      wrapper.setAttribute('data-edit-id', newId);
+      wrapper.setAttribute(ORIG_TRANSFORM_ATTR, '');
+      let shape: SVGElement;
+      let arrowhead: SVGPolygonElement | undefined;
+      if (t === 'rect') {
+        shape = document.createElementNS(SVG_NS, 'rect');
+        shape.setAttribute('x', String(p.x));
+        shape.setAttribute('y', String(p.y));
+        shape.setAttribute('width', '0');
+        shape.setAttribute('height', '0');
+        shape.setAttribute('fill', 'none');
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-width', String(width));
+      } else if (t === 'circle') {
+        // Authored as an ellipse so width and height can differ — matches
+        // the "drag a bounding box" gesture more naturally than a perfect
+        // circle would. Holding shift could constrain it later.
+        shape = document.createElementNS(SVG_NS, 'ellipse');
+        shape.setAttribute('cx', String(p.x));
+        shape.setAttribute('cy', String(p.y));
+        shape.setAttribute('rx', '0');
+        shape.setAttribute('ry', '0');
+        shape.setAttribute('fill', 'none');
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-width', String(width));
+      } else {
+        // line or arrow — line element does the bulk; arrow adds a polygon
+        // head whose orientation is recomputed each pointermove.
+        shape = document.createElementNS(SVG_NS, 'line');
+        shape.setAttribute('x1', String(p.x));
+        shape.setAttribute('y1', String(p.y));
+        shape.setAttribute('x2', String(p.x));
+        shape.setAttribute('y2', String(p.y));
+        shape.setAttribute('stroke', color);
+        shape.setAttribute('stroke-width', String(width));
+        shape.setAttribute('stroke-linecap', 'round');
+        if (t === 'arrow') {
+          arrowhead = document.createElementNS(SVG_NS, 'polygon');
+          arrowhead.setAttribute('fill', color);
+          arrowhead.setAttribute('points', '0,0 0,0 0,0');
+        }
+      }
+      wrapper.appendChild(shape);
+      if (arrowhead) wrapper.appendChild(arrowhead);
+      fg.appendChild(wrapper);
+      shapeRef.current = {
+        tool: t as 'rect' | 'circle' | 'line' | 'arrow',
+        wrapper,
+        shape,
+        arrowhead,
+        startX: p.x,
+        startY: p.y,
+      };
+      containerRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
+
     // select / move / resize / rotate
     const target = e.target as Element;
     // Walk up to the nearest [data-edit-handle] ancestor — corner rects ARE
@@ -1427,6 +1549,62 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       return;
     }
 
+    // Shape drag — update the in-flight rect/ellipse/line dimensions on
+    // each pointermove. Negative widths/heights are flipped so dragging
+    // up-and-left still produces a positive-sized rect that selects + edits
+    // sanely afterward.
+    const shape = shapeRef.current;
+    if (shape) {
+      const p = toForegroundPoint(e.clientX, e.clientY);
+      const { startX, startY, tool: shapeTool, shape: el, arrowhead } = shape;
+      if (shapeTool === 'rect') {
+        const x = Math.min(startX, p.x);
+        const y = Math.min(startY, p.y);
+        el.setAttribute('x', String(x));
+        el.setAttribute('y', String(y));
+        el.setAttribute('width', String(Math.abs(p.x - startX)));
+        el.setAttribute('height', String(Math.abs(p.y - startY)));
+      } else if (shapeTool === 'circle') {
+        const cx = (startX + p.x) / 2;
+        const cy = (startY + p.y) / 2;
+        const rx = Math.abs(p.x - startX) / 2;
+        const ry = Math.abs(p.y - startY) / 2;
+        el.setAttribute('cx', String(cx));
+        el.setAttribute('cy', String(cy));
+        el.setAttribute('rx', String(rx));
+        el.setAttribute('ry', String(ry));
+      } else {
+        // line or arrow
+        el.setAttribute('x2', String(p.x));
+        el.setAttribute('y2', String(p.y));
+        if (arrowhead) {
+          const angle = Math.atan2(p.y - startY, p.x - startX);
+          // Arrowhead size grows with stroke width so it stays proportional
+          // to the line's visual weight.
+          const headLen = Math.max(
+            12,
+            Number(el.getAttribute('stroke-width') ?? 2) * 4
+          );
+          const headWidth = headLen * 0.6;
+          // Three points: tip at the line end, two base corners flared
+          // back along the line direction by (cos±sin) rotation.
+          const tipX = p.x;
+          const tipY = p.y;
+          const baseX = p.x - headLen * Math.cos(angle);
+          const baseY = p.y - headLen * Math.sin(angle);
+          const leftX = baseX + headWidth * Math.sin(angle);
+          const leftY = baseY - headWidth * Math.cos(angle);
+          const rightX = baseX - headWidth * Math.sin(angle);
+          const rightY = baseY + headWidth * Math.cos(angle);
+          arrowhead.setAttribute(
+            'points',
+            `${tipX},${tipY} ${leftX},${leftY} ${rightX},${rightY}`
+          );
+        }
+      }
+      return;
+    }
+
     const drag = dragRef.current;
     const svgEl = svgRef.current;
     if (!drag || !svgEl) return;
@@ -1542,6 +1720,27 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       emitChange();
       return;
     }
+    // Shape commit. Tiny drags (< 5px in both axes) are treated as
+    // accidental clicks and remove the placeholder shape instead of
+    // dropping a zero-size object that's annoying to select afterward.
+    const shape = shapeRef.current;
+    if (shape) {
+      const svgEl = svgRef.current;
+      shapeRef.current = null;
+      const p = toForegroundPoint(e.clientX, e.clientY);
+      const dx = Math.abs(p.x - shape.startX);
+      const dy = Math.abs(p.y - shape.startY);
+      if (dx < 5 && dy < 5) {
+        shape.wrapper.remove();
+        if (svgEl) objectsRef.current = ensureObjectIds(svgEl);
+        return;
+      }
+      if (svgEl) objectsRef.current = ensureObjectIds(svgEl);
+      const newId = shape.wrapper.getAttribute('data-edit-id');
+      if (newId) setSelectedIds([newId]);
+      emitChange();
+      return;
+    }
     if (toolRef.current === 'eraser') {
       if (erasedRef.current) emitChange();
       erasedRef.current = false;
@@ -1585,11 +1784,13 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   };
 
   const cursor =
-    tool === 'pen' || tool === 'highlighter'
+    tool === 'pen' || tool === 'highlighter' || isShapeTool(tool)
       ? 'crosshair'
       : tool === 'eraser'
         ? 'cell'
-        : 'default';
+        : tool === 'text'
+          ? 'text'
+          : 'default';
 
   return (
     // data-no-drag opts this subtree out of DraggableWindow's drag-surface
