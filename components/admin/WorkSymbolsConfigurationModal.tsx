@@ -22,7 +22,7 @@ interface WorkSymbolsConfigurationModalProps {
   isOpen: boolean;
   onClose: () => void;
   permission: FeaturePermission;
-  onSave: (updates: Partial<FeaturePermission>) => void;
+  onSave: (updates: Partial<FeaturePermission>) => void | Promise<void>;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -56,9 +56,16 @@ export const WorkSymbolsConfigurationModal: React.FC<
     setGlobalConfig(normalizeConfig(permission.config));
   }
 
-  const setSymbols = useCallback((symbols: WorkSymbol[]) => {
-    setGlobalConfig((prev) => ({ ...prev, symbols }));
-  }, []);
+  const setSymbols = useCallback(
+    (updater: WorkSymbol[] | ((prev: WorkSymbol[]) => WorkSymbol[])) => {
+      setGlobalConfig((prev) => ({
+        ...prev,
+        symbols:
+          typeof updater === 'function' ? updater(prev.symbols) : updater,
+      }));
+    },
+    []
+  );
 
   // --- Upload ---
   const handleFiles = useCallback(
@@ -99,11 +106,13 @@ export const WorkSymbolsConfigurationModal: React.FC<
         }
       }
       if (newSymbols.length > 0) {
-        setSymbols([...globalConfig.symbols, ...newSymbols]);
+        // Functional update: appends to the latest committed symbols list,
+        // so concurrent edits during long-running uploads are not clobbered.
+        setSymbols((prev) => [...prev, ...newSymbols]);
       }
       setUploading(false);
     },
-    [addToast, globalConfig.symbols, setSymbols, uploadAdminWorkSymbol]
+    [addToast, setSymbols, uploadAdminWorkSymbol]
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -147,10 +156,10 @@ export const WorkSymbolsConfigurationModal: React.FC<
   };
 
   // --- Save / Close ---
-  const handleSave = () => {
+  const handleSave = async () => {
     setIsSaving(true);
     try {
-      onSave({
+      await onSave({
         config: globalConfig as unknown as Record<string, unknown>,
       });
       uploadedThisSessionRef.current.clear();
