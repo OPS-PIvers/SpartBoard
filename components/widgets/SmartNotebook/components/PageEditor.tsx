@@ -64,14 +64,6 @@ interface ClipboardEntry {
   targetPage: number | null;
 }
 
-/**
- * In-memory cross-page clipboard. Module-scoped so it survives PageEditor
- * remounts on page-change (PageEditor is keyed on currentPage). Not persisted
- * — copying clears on full reload, which matches the spreadsheet-like mental
- * model teachers expect.
- */
-let pageEditorClipboard: ClipboardEntry[] = [];
-
 interface PageEditorProps {
   /** Raw page SVG text (from a parsed notebook page). */
   svg: string;
@@ -162,6 +154,13 @@ interface Box {
 /** AABB overlap test (touch/intersect semantics) in a shared coordinate space. */
 const boxesIntersect = (a: Box, b: Box): boolean =>
   a.minX <= b.maxX && a.maxX >= b.minX && a.minY <= b.maxY && a.maxY >= b.minY;
+
+const isEditableTarget = (t: EventTarget | null): boolean => {
+  if (!(t instanceof HTMLElement)) return false;
+  if (t.isContentEditable) return true;
+  const tag = t.tagName;
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+};
 
 const SVG_NS = 'http://www.w3.org/2000/svg';
 const DRAG_THRESHOLD_PX = 3;
@@ -382,9 +381,19 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Per-page undo / redo stacks. Cleared automatically when the editor
   // remounts on a page change (key={currentPage} in the host). Capped so
   // a long session of editing doesn't pin large SVG strings forever.
+  // Heavy entries (e.g. a page with an embedded data: URL background) blow
+  // the budget at the normal depth, so anything above LARGE_ENTRY_BYTES
+  // tightens the cap to LARGE_ENTRY_UNDO_DEPTH to keep heap bounded.
   const MAX_UNDO_DEPTH = 50;
+  const LARGE_ENTRY_BYTES = 500_000;
+  const LARGE_ENTRY_UNDO_DEPTH = 5;
   const pastSvgStackRef = useRef<string[]>([]);
   const futureSvgStackRef = useRef<string[]>([]);
+  // Per-editor-instance clipboard. Scoped to this PageEditor so two notebook
+  // widgets don't share state and copied content can't leak across sign-out
+  // within the SPA. Survives page-navigation remounts because PageEditor's
+  // host keys on currentPage and re-creates this ref fresh per page.
+  const clipboardRef = useRef<ClipboardEntry[]>([]);
   // Timestamp of the last text-edit commit (blur or Enter). The pointerdown
   // that triggered the blur ALSO fires this component's onPointerDown a
   // moment later — by then React has flushed the setEditing(null) from the
@@ -429,6 +438,8 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     width: number;
     height: number;
     value: string;
+    initialValue: string;
+    isPlaceholder: boolean;
   } | null>(null);
 
   // PageEditor is purely write-only after mount: it reads the `svg` prop
@@ -587,7 +598,11 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const previousBaseline = lastEmittedSvgRef.current ?? initialSvgRef.current;
     if (previousBaseline !== null && previousBaseline !== serialized) {
       pastSvgStackRef.current.push(previousBaseline);
-      if (pastSvgStackRef.current.length > MAX_UNDO_DEPTH) {
+      const cap =
+        previousBaseline.length > LARGE_ENTRY_BYTES
+          ? LARGE_ENTRY_UNDO_DEPTH
+          : MAX_UNDO_DEPTH;
+      while (pastSvgStackRef.current.length > cap) {
         pastSvgStackRef.current.shift();
       }
       // Any new edit invalidates the redo branch — user has committed
@@ -653,6 +668,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     rotateHandleRef.current = null;
     linkHandleRef.current = null;
     followHandleRef.current = null;
+    dragRef.current = null;
+    strokeRef.current = null;
+    shapeRef.current = null;
     if (!el) {
       selGroupRef.current = null;
       marqueeRef.current = null;
@@ -888,7 +906,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         targetPage: linkMap[id] ?? null,
       });
     }
-    if (entries.length > 0) pageEditorClipboard = entries;
+    if (entries.length > 0) clipboardRef.current = entries;
   }, [selectedIds]);
 
   // Insert a freshly built SVG element into the page foreground as a new
@@ -999,7 +1017,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
   const pasteFromClipboard = useCallback(() => {
     const svgEl = svgRef.current;
-    if (!svgEl || pageEditorClipboard.length === 0) return;
+    if (!svgEl || clipboardRef.current.length === 0) return;
     const fg = findForeground(svgEl);
     if (!fg) return;
     // Parse via a temporary SVG host so each clipboard entry deserializes
@@ -1009,7 +1027,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const parser = new DOMParser();
     const newIds: string[] = [];
     const newLinks: ClonedLinkInfo[] = [];
-    for (const entry of pageEditorClipboard) {
+    for (const entry of clipboardRef.current) {
       const doc = parser.parseFromString(
         `<svg xmlns="${SVG_NS}">${entry.svg}</svg>`,
         'image/svg+xml'
@@ -1029,6 +1047,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       );
       clone.removeAttribute(EDIT_MATRIX_ATTR);
       fg.appendChild(clone);
+      applyEditMatrix(clone, new DOMMatrix().translateSelf(20, 20));
       newIds.push(newId);
       if (entry.targetPage !== null) {
         const box = normalizedBoxFor(svgEl, clone);
@@ -1244,6 +1263,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing) return;
+      if (isEditableTarget(e.target)) return;
       // Undo / Redo land in their own branch so they fire whether or not
       // anything is selected — the prior emit might've been a paste with
       // selection still active, or a tool-mode action with no selection.
@@ -1342,27 +1362,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
       if (editing) return;
+      if (isEditableTarget(e.target)) return;
       const svgEl = svgRef.current;
       if (!svgEl) return;
-      // Ignore pastes targeted at native inputs / contenteditable elements
-      // elsewhere on the page (e.g. the LinkTargetPicker's search box, the
-      // sidebar's dashboard title). Without this guard we'd hijack their
-      // paste and dump the clipboard onto the notebook page instead.
-      const target = e.target as Element | null;
-      if (
-        target &&
-        (target.closest('input') ||
-          target.closest('textarea') ||
-          (target instanceof HTMLElement && target.isContentEditable))
-      ) {
-        return;
-      }
       // In-app clipboard wins. Cross-page object copy/paste is the dominant
       // editor workflow; falling through to the OS clipboard first meant a
       // stale screenshot in the OS clipboard would silently override the
       // teacher's just-issued Cmd+C in the notebook.
-      if (pageEditorClipboard.length > 0) {
+      if (clipboardRef.current.length > 0) {
         e.preventDefault();
+        e.stopImmediatePropagation();
         pasteFromClipboard();
         return;
       }
@@ -1374,6 +1383,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
             const file = item.getAsFile();
             if (file) {
               e.preventDefault();
+              e.stopImmediatePropagation();
               pasteImageFile(file);
               return;
             }
@@ -1382,13 +1392,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         const text = data.getData('text/plain');
         if (text) {
           e.preventDefault();
+          e.stopImmediatePropagation();
           pasteTextString(text);
           return;
         }
       }
     };
-    window.addEventListener('paste', onPaste);
-    return () => window.removeEventListener('paste', onPaste);
+    window.addEventListener('paste', onPaste, true);
+    return () => window.removeEventListener('paste', onPaste, true);
   }, [editing, pasteFromClipboard, pasteImageFile, pasteTextString]);
 
   // When a text edit opens, focus the field and put the caret at the end —
@@ -1464,6 +1475,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (!obj || getTextLeaves(obj).length === 0) return;
     const c = container.getBoundingClientRect();
     const r = obj.getBoundingClientRect();
+    const existing = readTextLines(obj);
     setSelectedIds([id]);
     setEditing({
       id,
@@ -1471,7 +1483,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       top: r.top - c.top,
       width: Math.max(r.width, 60),
       height: Math.max(r.height, 28),
-      value: readTextLines(obj),
+      value: existing,
+      initialValue: existing,
+      isPlaceholder: false,
     });
   };
 
@@ -1480,8 +1494,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (!svgEl || !editing) return;
     const obj = findObjectById(svgEl, editing.id);
     if (obj) {
-      writeTextLines(obj, editing.value);
-      renderSelection(selectedIds);
+      if (editing.isPlaceholder && editing.value === editing.initialValue) {
+        obj.remove();
+        objectsRef.current = ensureObjectIds(svgEl);
+        setSelectedIds([]);
+      } else {
+        writeTextLines(obj, editing.value);
+        renderSelection(selectedIds);
+      }
       emitChange();
     }
     // Stamp the close so the click that triggered this blur doesn't ALSO
@@ -1594,6 +1614,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
           if (container) {
             const c = container.getBoundingClientRect();
             const r = hitObj.getBoundingClientRect();
+            const existing = readTextLines(hitObj);
             setSelectedIds([hitId]);
             setEditing({
               id: hitId,
@@ -1601,7 +1622,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
               top: r.top - c.top,
               width: Math.max(r.width, 120),
               height: Math.max(r.height, 32),
-              value: readTextLines(hitObj),
+              value: existing,
+              initialValue: existing,
+              isPlaceholder: false,
             });
           }
           return;
@@ -1631,9 +1654,11 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       textEl.setAttribute('font-family', 'sans-serif');
       textEl.setAttribute('font-size', String(fontSize));
       textEl.setAttribute('fill', penColorRef.current);
-      // Default placeholder so the empty object is visible until the user
-      // types; replaced by their input when the editor commits.
-      textEl.textContent = 'Text';
+      // Placeholder so the empty object is visible until the user types.
+      // Replaced when the editor commits; removed (along with the wrapper)
+      // if the user escapes or blurs without typing.
+      const placeholder = 'Text';
+      textEl.textContent = placeholder;
       wrapper.appendChild(textEl);
       fg.appendChild(wrapper);
       objectsRef.current = ensureObjectIds(svgEl);
@@ -1650,7 +1675,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
           top: r.top - c.top,
           width: Math.max(r.width, 120),
           height: Math.max(r.height, 32),
-          value: textEl.textContent ?? '',
+          value: placeholder,
+          initialValue: placeholder,
+          isPlaceholder: true,
         });
       }
       emitChange();
@@ -2183,6 +2210,21 @@ export const PageEditor: React.FC<PageEditorProps> = ({
           onKeyDown={(e) => {
             if (e.key === 'Escape') {
               e.preventDefault();
+              if (
+                editing &&
+                editing.isPlaceholder &&
+                editing.value === editing.initialValue
+              ) {
+                const svgEl = svgRef.current;
+                const obj = svgEl ? findObjectById(svgEl, editing.id) : null;
+                if (obj && svgEl) {
+                  obj.remove();
+                  objectsRef.current = ensureObjectIds(svgEl);
+                  setSelectedIds([]);
+                  emitChange();
+                }
+              }
+              lastEditingCloseAtRef.current = Date.now();
               setEditing(null);
             } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
               e.preventDefault();

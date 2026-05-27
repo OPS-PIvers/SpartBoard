@@ -1382,7 +1382,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const maxWordLength = useMemo(
     () =>
       students
-        .flatMap((name) => name.trim().split(/\s+/))
+        .flatMap((name) => name.trim().split(/[ \t\n\r\f\v]+/))
         .reduce((maxLen, word) => Math.max(maxLen, word.length), 0),
     [students]
   );
@@ -1428,6 +1428,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       .reduce((maxLen, word) => Math.max(maxLen, word.length), 0);
   }, [displayResult]);
   const resFontSize = useMemo(() => {
+    // Truly-empty case: no roster AND no displayed result. The placeholder
+    // can grow generously into the empty widget — use a wider cqw and a
+    // tighter cqh cap so the lone "Ready?" reads from across the room.
+    if (maxWordLength === 0 && displayedWordLength === 0 && !isSpinning) {
+      return 'min(26cqw, 20cqh)';
+    }
     // Three regimes — keep them in sync with the tests in
     // tests/components/widgets/RandomWidget.test.tsx "text scaling" block:
     //   - Spinning: use the roster's worst-case word so the font is stable

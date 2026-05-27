@@ -40,4 +40,8 @@ export const PEN_COLORS = [
   '#8b5cf6', // violet
 ];
 
+// Red reads on both light pages and dark SMART-imported backgrounds, so it's
+// the safer default than the near-black at PEN_COLORS[0].
+export const DEFAULT_PEN_COLOR = '#e11d48';
+
 export const PEN_WIDTHS = [2, 5, 10];

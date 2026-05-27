@@ -133,18 +133,18 @@ export const WorkSymbolsConfigurationModal: React.FC<
       uploadedThisSessionRef.current.delete(symbol.imageUrl);
       void deleteFile(symbol.imageUrl);
     }
-    setSymbols(globalConfig.symbols.filter((s) => s.id !== symbol.id));
+    setSymbols((prev) => prev.filter((s) => s.id !== symbol.id));
   };
 
   const updateSymbolTitle = (symbolId: string, title: string) => {
-    setSymbols(
-      globalConfig.symbols.map((s) => (s.id === symbolId ? { ...s, title } : s))
+    setSymbols((prev) =>
+      prev.map((s) => (s.id === symbolId ? { ...s, title } : s))
     );
   };
 
   const toggleBuilding = (symbolId: string, buildingId: string) => {
-    setSymbols(
-      globalConfig.symbols.map((s) => {
+    setSymbols((prev) =>
+      prev.map((s) => {
         if (s.id !== symbolId) return s;
         const current = s.buildings;
         const next = current.includes(buildingId)
@@ -156,14 +156,19 @@ export const WorkSymbolsConfigurationModal: React.FC<
   };
 
   // --- Save / Close ---
+  // Storage cleanup only happens on Cancel; the outer "Save Changes" in
+  // FeaturePermissionsManager finalizes persistence, so we leave uploaded URLs
+  // tracked here until the user closes via Cancel.
   const handleSave = async () => {
     setIsSaving(true);
     try {
       await onSave({
         config: globalConfig as unknown as Record<string, unknown>,
       });
-      uploadedThisSessionRef.current.clear();
-      addToast('Work Symbols configuration saved', 'success');
+      addToast(
+        'Work Symbols updates applied — click Save Changes to persist',
+        'success'
+      );
       onClose();
     } catch (error) {
       console.error('Error saving config:', error);
@@ -325,8 +330,8 @@ export const WorkSymbolsConfigurationModal: React.FC<
                                   const allExcept = BUILDINGS.map(
                                     (x) => x.id
                                   ).filter((id) => id !== b.id);
-                                  setSymbols(
-                                    globalConfig.symbols.map((s) =>
+                                  setSymbols((prev) =>
+                                    prev.map((s) =>
                                       s.id === symbol.id
                                         ? { ...s, buildings: allExcept }
                                         : s

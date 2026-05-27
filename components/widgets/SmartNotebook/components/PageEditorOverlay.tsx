@@ -39,13 +39,25 @@ import {
   PageEditorImperativeApi,
   PageBackgroundChange,
 } from './PageEditor';
-import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
+import {
+  DEFAULT_PEN_COLOR,
+  PEN_COLORS,
+  PEN_WIDTHS,
+  Tool,
+} from './pageEditorTypes';
 import { PageJumpMenu } from './PageJumpMenu';
 import { LinkTargetPicker } from './LinkTargetPicker';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface PageEditorOverlayProps {
   title: string;
+  /**
+   * Identifies which notebook these pages belong to. Combined with currentPage
+   * into the PageEditor's key so switching notebooks at the same page index
+   * forces a remount (otherwise prepareEditableSvg holds the previous
+   * notebook's tree).
+   */
+  activeNotebookId: string;
   /**
    * All page URLs in order. The current page (`pageUrls[currentPage]`) is
    * what the editor loads; the rest power the jump-menu thumbnails.
@@ -93,6 +105,7 @@ interface PageEditorOverlayProps {
  */
 export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   title,
+  activeNotebookId,
   pageUrls,
   cachedSvg,
   currentPage,
@@ -123,7 +136,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   // chrome (matching the DrawingWidget's bottom-rail layout) instead of
   // floating over the page like the previous SMART-style palette.
   const [tool, setTool] = useState<Tool>('select');
-  const [penColor, setPenColor] = useState<string>(PEN_COLORS[0]);
+  const [penColor, setPenColor] = useState<string>(DEFAULT_PEN_COLOR);
   const [penWidth, setPenWidth] = useState<number>(PEN_WIDTHS[1]);
   // Text and eraser have their own size dimension — font-size for text,
   // hit-radius for the eraser. Kept separate from penWidth so switching
@@ -396,7 +409,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             // page's source instead of trying to diff the SVG tree.
             <>
               <PageEditor
-                key={currentPage}
+                key={`${activeNotebookId}:${currentPage}`}
                 svg={svgToEdit}
                 tool={tool}
                 penColor={penColor}
@@ -408,7 +421,13 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 onSelectionChange={(sel) => setHasSelection(sel.length > 0)}
                 onChange={onEditChange}
                 onRequestLink={setLinkRequest}
-                onFollowLink={onPageChange}
+                onFollowLink={(targetPage) => {
+                  const clamped = Math.max(
+                    0,
+                    Math.min(pageUrls.length - 1, targetPage)
+                  );
+                  onPageChange(clamped);
+                }}
                 onClonedLinks={(clones: ClonedLinkInfo[]) => {
                   if (clones.length === 0) return;
                   const links: NotebookObjectLink[] = clones.map((c) => ({
