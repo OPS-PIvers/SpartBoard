@@ -422,6 +422,27 @@ service cloud.firestore {
       allow read, write: if request.auth != null
                          && request.auth.uid == userId
                          && !isStudentRoleUser();
+
+      // Phase 2 PR 2.6: DrawingWidget object content moves off the dashboard
+      // document into a page-nested subcollection so a single Firestore write
+      // is one object (not the whole canvas). Page-level metadata lives on
+      // the parent /pages/{pageId} doc (background template, future per-page
+      // settings); the inner /objects/{objectId} collection carries the
+      // DrawableObject list. The parent dashboard rule already establishes
+      // owner-only access; these nested rules keep the same boundary so the
+      // subcollection inherits dashboard semantics without a separate
+      // top-level match.
+      match /drawings/{widgetId}/pages/{pageId} {
+        allow read, write: if request.auth != null
+                           && request.auth.uid == userId
+                           && !isStudentRoleUser();
+
+        match /objects/{objectId} {
+          allow read, write: if request.auth != null
+                             && request.auth.uid == userId
+                             && !isStudentRoleUser();
+        }
+      }
     }
 
     // Rosters - users can only access their own rosters in their subcollection

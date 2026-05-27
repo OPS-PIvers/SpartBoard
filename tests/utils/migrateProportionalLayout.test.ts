@@ -59,6 +59,74 @@ describe('widgetNeedsProportionalMigration', () => {
     });
     expect(widgetNeedsProportionalMigration(stale)).toBe(true);
   });
+
+  it('flags widgets whose x/y positions still look like pixels even when w/h are proportional', () => {
+    // Regression: the guard previously only checked wProp/hProp for pixel-sized
+    // values, so a widget with pixel-valued xProp/yProp (e.g. from a partial
+    // migration) would pass the check and render at the wrong on-screen position.
+    const stalePosition = baseWidget({
+      x: 300,
+      y: 150,
+      w: 200,
+      h: 200,
+      xProp: 300, // clearly a pixel value, not a proportion
+      yProp: 150, // clearly a pixel value, not a proportion
+      wProp: 0.15, // looks like a valid proportion
+      hProp: 0.18, // looks like a valid proportion
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(stalePosition)).toBe(true);
+  });
+
+  it('flags widgets with negative pixel-valued xProp/yProp (drag-past-edge case)', () => {
+    // A widget dragged past the top/left edge can have legitimately negative
+    // pixel coordinates. If those leaked into xProp/yProp, a plain `> 1.5`
+    // check would miss them (since -150 > 1.5 is false). Math.abs() catches
+    // both signs.
+    const negativeStale = baseWidget({
+      x: -150,
+      y: -120,
+      w: 200,
+      h: 200,
+      xProp: -150,
+      yProp: -120,
+      wProp: 0.15,
+      hProp: 0.18,
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(negativeStale)).toBe(true);
+  });
+
+  it('flags widgets with non-finite proportional fields (NaN / Infinity)', () => {
+    // NaN and Infinity are `typeof === 'number'`, so the typeof guards above
+    // would not catch them. They must be re-migrated rather than propagating
+    // corrupted values into the layout calculation.
+    const nanWidget = baseWidget({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 200,
+      xProp: Number.NaN,
+      yProp: 0.1,
+      wProp: 0.15,
+      hProp: 0.18,
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(nanWidget)).toBe(true);
+
+    const infinityWidget = baseWidget({
+      x: 100,
+      y: 100,
+      w: 200,
+      h: 200,
+      xProp: 0.1,
+      yProp: 0.1,
+      wProp: Number.POSITIVE_INFINITY,
+      hProp: 0.18,
+      aspectRatio: 1,
+    });
+    expect(widgetNeedsProportionalMigration(infinityWidget)).toBe(true);
+  });
 });
 
 describe('migrateWidgetToProportional', () => {

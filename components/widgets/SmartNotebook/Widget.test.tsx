@@ -217,11 +217,23 @@ describe('SmartNotebookWidget', () => {
     expect(mockUpdateWidget).toHaveBeenCalled(); // Auto-selects
   });
 
-  it('displays active notebook', () => {
+  it('opens an active notebook in edit mode by default', () => {
+    // The editor fetches the current page's SVG on mount. Stub fetch so the
+    // PageEditorOverlay can clear its loading state in tests; we don't need
+    // the real SVG to run the geometry-free assertions below.
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+      })
+    );
+
     const mockNotebook = {
       id: 'notebook-1',
       title: 'My Lesson',
-      pageUrls: ['http://example.com/p1.png', 'http://example.com/p2.png'],
+      pageUrls: ['http://example.com/p1.svg', 'http://example.com/p2.svg'],
       createdAt: 123,
     };
 
@@ -247,18 +259,27 @@ describe('SmartNotebookWidget', () => {
     render(<SmartNotebookWidget widget={activeWidget} />);
 
     expect(screen.getByText('My Lesson')).toBeInTheDocument();
-    expect(screen.getAllByText('1 / 2')[0]).toBeInTheDocument();
-    expect(screen.getByAltText('Page 1')).toHaveAttribute(
-      'src',
-      'http://example.com/p1.png'
-    );
+    // Editor header surfaces "Editing · Page N of M" instead of Viewer's "N/M"
+    expect(screen.getByText(/Editing · Page 1 of 2/)).toBeInTheDocument();
+    expect(screen.getByTitle('Switch to present mode')).toBeInTheDocument();
+
+    vi.unstubAllGlobals();
   });
 
-  it('toggles assets panel', () => {
+  it('exposes the assets panel after switching to present mode', () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue({
+        ok: true,
+        text: () =>
+          Promise.resolve('<svg xmlns="http://www.w3.org/2000/svg"/>'),
+      })
+    );
+
     const mockNotebook = {
       id: 'notebook-1',
       title: 'My Lesson',
-      pageUrls: ['http://example.com/p1.png'],
+      pageUrls: ['http://example.com/p1.svg'],
       assetUrls: ['http://example.com/a1.png'],
       createdAt: 123,
     };
@@ -284,6 +305,10 @@ describe('SmartNotebookWidget', () => {
 
     render(<SmartNotebookWidget widget={activeWidget} />);
 
+    // Notebook lands in the editor; flip to Present to reach the Viewer's
+    // assets panel.
+    fireEvent.click(screen.getByTitle('Switch to present mode'));
+
     const toggleBtn = screen.getByTitle('Toggle Assets');
     fireEvent.click(toggleBtn);
 
@@ -292,6 +317,8 @@ describe('SmartNotebookWidget', () => {
       'src',
       'http://example.com/a1.png'
     );
+
+    vi.unstubAllGlobals();
   });
 
   it('handles deletion of notebook and its storage assets', async () => {

@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
+  ChevronUp,
   FileText,
   Pencil,
   Plus,
@@ -14,6 +15,7 @@ import {
 import { NotebookItem, PlacedNotebookAsset } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { PageCanvas } from './PageCanvas';
+import { PageJumpMenu } from './PageJumpMenu';
 
 interface ViewerProps {
   activeNotebook: NotebookItem;
@@ -63,6 +65,8 @@ export const Viewer: React.FC<ViewerProps> = ({
   canMoveLater = false,
   pageOpBusy = false,
 }) => {
+  const [jumpMenuOpen, setJumpMenuOpen] = useState(false);
+  const jumpTriggerRef = useRef<HTMLButtonElement>(null);
   const iconStyle = {
     width: 'min(16px, 4cqmin)',
     height: 'min(16px, 4cqmin)',
@@ -250,6 +254,16 @@ export const Viewer: React.FC<ViewerProps> = ({
             onPlaceAsset={onPlaceAsset}
             onUpdatePlacedAsset={onUpdatePlacedAsset}
             onRemovePlacedAsset={onRemovePlacedAsset}
+            objectLinks={activeNotebook.objectLinks?.filter(
+              (l) => l.sourcePage === currentPage
+            )}
+            onFollowLink={(targetPage) => {
+              const clamped = Math.max(
+                0,
+                Math.min(activeNotebook.pageUrls.length - 1, targetPage)
+              );
+              setCurrentPage(clamped);
+            }}
           />
 
           {/* Assets Panel */}
@@ -323,15 +337,35 @@ export const Viewer: React.FC<ViewerProps> = ({
             />
           </button>
           <div
-            className="flex flex-col items-center"
+            className="relative flex flex-col items-center"
             style={{ minWidth: '80px' }}
           >
-            <span
-              className="font-black text-slate-700 tracking-widest uppercase"
-              style={{ fontSize: 'min(12px, 3cqmin)' }}
+            <button
+              ref={jumpTriggerRef}
+              onClick={() => setJumpMenuOpen((o) => !o)}
+              className="flex items-center rounded-lg hover:bg-slate-100 transition-colors"
+              style={{
+                gap: 'min(4px, 1cqmin)',
+                padding: 'min(4px, 1cqmin) min(8px, 2cqmin)',
+              }}
+              aria-haspopup="dialog"
+              aria-expanded={jumpMenuOpen}
+              title="Jump to page"
             >
-              {currentPage + 1} / {activeNotebook.pageUrls.length}
-            </span>
+              <span
+                className="font-black text-slate-700 tracking-widest uppercase"
+                style={{ fontSize: 'min(12px, 3cqmin)' }}
+              >
+                {currentPage + 1} / {activeNotebook.pageUrls.length}
+              </span>
+              <ChevronUp
+                className={`text-slate-400 transition-transform ${jumpMenuOpen ? '' : 'rotate-180'}`}
+                style={{
+                  width: 'min(12px, 3cqmin)',
+                  height: 'min(12px, 3cqmin)',
+                }}
+              />
+            </button>
             <div
               className="w-full bg-slate-100 rounded-full overflow-hidden"
               style={{
@@ -346,6 +380,16 @@ export const Viewer: React.FC<ViewerProps> = ({
                 }}
               />
             </div>
+            {jumpMenuOpen && (
+              <PageJumpMenu
+                pageUrls={activeNotebook.pageUrls}
+                sections={sections}
+                currentPage={currentPage}
+                onSelect={(page) => setCurrentPage(page)}
+                onClose={() => setJumpMenuOpen(false)}
+                triggerRef={jumpTriggerRef}
+              />
+            )}
           </div>
           <button
             disabled={currentPage === activeNotebook.pageUrls.length - 1}

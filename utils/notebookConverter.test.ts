@@ -130,4 +130,73 @@ describe('convertNotebookToBundle', () => {
     });
     expect(seen).toEqual([1, 2, 3]);
   });
+
+  it('preserves SMART shortcut hyperlinks into manifest.objectLinks', async () => {
+    // Mirrors the on-disk format observed in the Minnesota Studies Baseball
+    // Final Review notebook: SMART writes page jumps as image elements with
+    // shortcut="page://pageN.svg" plus shortcutArea="1". The converter must
+    // translate the filename target into the .spartnb's own page index AND
+    // stamp a stable data-edit-id on the linked element so the editor can
+    // reconnect the FAB later.
+    const zip = new JSZip();
+    zip.file('imsmanifest.xml', MANIFEST);
+    zip.file('images/home.png', pngBytes());
+    // page2 (manifest position 0) carries a home-base hotspot pointing at
+    // page1 (manifest position 2 in the second lesson group).
+    const pageWithLink =
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>` +
+      `<svg width="800" height="600" xml:id="p">` +
+      `<g class="foreground">` +
+      `<image xmlns:xlink="http://www.w3.org/1999/xlink" ` +
+      `shortcut="page://page1.svg" shortcutArea="1" ` +
+      `xml:id="annotation.HOMEBASE1" ` +
+      `x="640" y="450" width="80" height="80" ` +
+      `xlink:href="images/home.png"/>` +
+      `</g></svg>`;
+    zip.file('page2.svg', pageWithLink);
+    zip.file('page0.svg', pageSvg(720));
+    zip.file('page1.svg', pageSvg(600));
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const file = new File([blob], 'WithLinks.notebook');
+
+    const result = await convertNotebookToBundle(file, {
+      optimizeImage: stubOptimizer,
+    });
+    const bundle = await readBundle(result.blob);
+    interface WithLinks extends BundleManifest {
+      objectLinks?: {
+        objectId: string;
+        sourcePage: number;
+        targetPage: number;
+        xFrac: number;
+        yFrac: number;
+        wFrac: number;
+        hFrac: number;
+      }[];
+    }
+    const manifest = JSON.parse(
+      await readEntry(bundle, 'manifest.json')
+    ) as WithLinks;
+
+    // Manifest order from the test fixture: page2 (idx 0), page0 (idx 1),
+    // page1 (idx 2). The shortcut on source page2 → target page1 should
+    // become sourcePage:0, targetPage:2 in the converted bundle.
+    expect(manifest.objectLinks).toHaveLength(1);
+    const link = (manifest.objectLinks ?? [])[0];
+    expect(link).toMatchObject({
+      objectId: 'link-annotation.HOMEBASE1',
+      sourcePage: 0,
+      targetPage: 2,
+    });
+    // Normalized hotspot box: x=640/800, y=450/600, w=80/800, h=80/600.
+    expect(link.xFrac).toBeCloseTo(0.8, 5);
+    expect(link.yFrac).toBeCloseTo(0.75, 5);
+    expect(link.wFrac).toBeCloseTo(0.1, 5);
+    expect(link.hFrac).toBeCloseTo(0.1333333, 5);
+
+    // The linked element should carry the stamped data-edit-id so the
+    // editor's ensureObjectIds preserves it and the link FAB reconnects.
+    const page0Svg = await readEntry(bundle, 'pages/0.svg');
+    expect(page0Svg).toContain('data-edit-id="link-annotation.HOMEBASE1"');
+  });
 });

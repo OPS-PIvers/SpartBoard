@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
-import { PlacedNotebookAsset } from '@/types';
+import { NotebookObjectLink, PlacedNotebookAsset } from '@/types';
 import { clampPosFrac, clampWidthFrac } from '@/utils/notebookPlacedAssets';
 
 /** dataTransfer type for an asset dragged from the Assets panel onto a page. */
@@ -24,6 +24,13 @@ interface PageCanvasProps {
   onPlaceAsset: (url: string, xFrac: number, yFrac: number) => void;
   onUpdatePlacedAsset: (id: string, patch: AssetPatch) => void;
   onRemovePlacedAsset: (id: string) => void;
+  /** Hotspots that jump to another page when clicked. Only links on the
+   *  current page are passed in; positioned by xFrac/yFrac/wFrac/hFrac of
+   *  the visible (object-contain) image rect. */
+  objectLinks?: NotebookObjectLink[];
+  /** Fires when a hotspot is clicked. No-op in edit mode (links are
+   *  authored, not navigated). */
+  onFollowLink?: (targetPage: number) => void;
 }
 
 interface DragSession {
@@ -49,6 +56,8 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
   onPlaceAsset,
   onUpdatePlacedAsset,
   onRemovePlacedAsset,
+  objectLinks,
+  onFollowLink,
 }) => {
   // The positioned container has NO padding so absolute children share the same
   // origin as getBoundingClientRect (the border box).
@@ -261,6 +270,29 @@ export const PageCanvas: React.FC<PageCanvasProps> = ({
               </div>
             );
           })}
+
+        {/* Link hotspots — clickable, otherwise invisible. Subtle outline
+            appears on hover so the affordance is discoverable but doesn't
+            cover the page in present mode. Only rendered when an
+            onFollowLink handler is provided (i.e. present mode). */}
+        {content &&
+          onFollowLink &&
+          objectLinks?.map((link) => (
+            <button
+              key={link.id}
+              onClick={() => onFollowLink(link.targetPage)}
+              className="absolute rounded-md ring-1 ring-transparent hover:ring-2 hover:ring-indigo-500 hover:bg-indigo-500/10 transition-all"
+              style={{
+                left: content.left + link.xFrac * content.width,
+                top: content.top + link.yFrac * content.height,
+                width: link.wFrac * content.width,
+                height: link.hFrac * content.height,
+                cursor: 'pointer',
+              }}
+              title={`Jump to page ${link.targetPage + 1}`}
+              aria-label={`Jump to page ${link.targetPage + 1}`}
+            />
+          ))}
       </div>
     </div>
   );

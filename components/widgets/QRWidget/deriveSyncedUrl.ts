@@ -13,7 +13,7 @@ const stripHtml = (html: string): string => {
     return result.replace(/[<>]/g, '');
   }
   const doc = new DOMParser().parseFromString(html, 'text/html');
-  return doc.body.textContent || '';
+  return doc.body?.textContent || '';
 };
 
 /**

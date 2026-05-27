@@ -244,6 +244,80 @@ class ConvertStats:
     images_missing: int = 0
     bytes_images_before: int = 0
     bytes_images_after: int = 0
+    object_links: int = 0
+
+
+# Match opening tag of any element carrying shortcut="page://…".
+# Captures: 1=tag, 2=full attrs (no closing > or />), 3=target filename,
+# 4=self-closing slash (empty when not self-closing).
+_SHORTCUT_TAG_RE = re.compile(
+    r'<(\w+)\b([^>]*\bshortcut="page://([^"]+)"[^>]*?)(/?)>',
+)
+_ATTR_VALUE_RE_CACHE: dict[str, re.Pattern[str]] = {}
+
+
+def _attr_value(attrs: str, name: str) -> Optional[str]:
+    pat = _ATTR_VALUE_RE_CACHE.get(name)
+    if pat is None:
+        pat = re.compile(rf'\b{re.escape(name)}\s*=\s*"([^"]*)"')
+        _ATTR_VALUE_RE_CACHE[name] = pat
+    m = pat.search(attrs)
+    return m.group(1) if m else None
+
+
+def extract_shortcut_links(
+    svg_text: str, source_page: int, width: float, height: float
+) -> tuple[str, list[dict]]:
+    """
+    Strip SMART page-jump shortcuts off the page SVG and return them as
+    link records. Each linked element gets a stable `data-edit-id` stamped
+    on it so the in-editor link FAB can reconnect to its source object
+    (the editor's ensureObjectIds preserves pre-set ids).
+
+    Returns (mutated svg, list of links). Each link is a dict shaped like
+    the JS-side `NotebookObjectLink` minus the `targetPage` index — the
+    caller resolves filename → index via its page-order plan.
+    """
+    if width <= 0 or height <= 0:
+        return svg_text, []
+    links: list[dict] = []
+    counter = [0]  # mutable closure box for replace callback
+
+    def repl(m: re.Match[str]) -> str:
+        tag = m.group(1)
+        attrs = m.group(2)
+        target = m.group(3)
+        self_close = m.group(4)
+        try:
+            x = float(_attr_value(attrs, "x") or "nan")
+            y = float(_attr_value(attrs, "y") or "nan")
+            w = float(_attr_value(attrs, "width") or "nan")
+            h = float(_attr_value(attrs, "height") or "nan")
+        except ValueError:
+            return m.group(0)
+        if not all(map(lambda v: v == v, (x, y, w, h))) or w <= 0 or h <= 0:
+            return m.group(0)
+        xml_id = _attr_value(attrs, "xml:id")
+        object_id = (
+            f"link-{xml_id}" if xml_id else f"link-p{source_page}-{counter[0]}"
+        )
+        counter[0] += 1
+        links.append(
+            {
+                "objectId": object_id,
+                "sourcePage": source_page,
+                "targetFile": target,
+                "xFrac": x / width,
+                "yFrac": y / height,
+                "wFrac": w / width,
+                "hFrac": h / height,
+            }
+        )
+        if re.search(r"\bdata-edit-id\s*=", attrs):
+            return m.group(0)
+        return f'<{tag}{attrs} data-edit-id="{object_id}"{self_close}>'
+
+    return _SHORTCUT_TAG_RE.sub(repl, svg_text), links
 
 
 def _optimize_image(raw: bytes, opts: OptimizeOptions) -> tuple[bytes, str]:
@@ -416,6 +490,13 @@ def convert(
         # Cache: same image used on many pages is optimized once, reused as URI.
         image_cache: dict[str, str] = {}
 
+        # SMART shortcuts reference original filenames; we resolve those to
+        # the .spartnb's output page indices via this map.
+        filename_to_index = {
+            name: idx for idx, name in enumerate(plan.ordered_pages)
+        }
+        collected_links: list[dict] = []
+
         manifest_pages: list[dict] = []
 
         with zipfile.ZipFile(output_path, "w", zipfile.ZIP_DEFLATED) as out:
@@ -429,6 +510,34 @@ def convert(
                 )
                 svg_text = ensure_svg_namespaces(svg_text)
 
+                # Pull out SMART page-jump shortcuts before writing so the
+                # manifest can carry the link records and the linked element
+                # gets a stable data-edit-id stamped on it for the editor.
+                svg_text, page_links = extract_shortcut_links(
+                    svg_text, index, width, height
+                )
+                for link in page_links:
+                    target_page = filename_to_index.get(link["targetFile"])
+                    if target_page is None:
+                        # Orphaned shortcut target — skip rather than emit a
+                        # broken hotspot.
+                        continue
+                    if target_page == index:
+                        continue  # self-references are useless
+                    collected_links.append(
+                        {
+                            "id": link["objectId"],
+                            "objectId": link["objectId"],
+                            "sourcePage": link["sourcePage"],
+                            "targetPage": target_page,
+                            "xFrac": link["xFrac"],
+                            "yFrac": link["yFrac"],
+                            "wFrac": link["wFrac"],
+                            "hFrac": link["hFrac"],
+                        }
+                    )
+                stats.object_links = len(collected_links)
+
                 out_name = f"pages/{index}.svg"
                 out.writestr(out_name, svg_text)
                 manifest_pages.append(
@@ -438,7 +547,7 @@ def convert(
                 if verbose and (index + 1) % 25 == 0:
                     print(f"  ... {index + 1}/{len(plan.ordered_pages)} pages", flush=True)
 
-            manifest = {
+            manifest: dict = {
                 "version": 1,
                 "title": notebook_path.stem,
                 "pageCount": len(manifest_pages),
@@ -452,6 +561,8 @@ def convert(
                     for s in plan.sections
                 ],
             }
+            if collected_links:
+                manifest["objectLinks"] = collected_links
             out.writestr("manifest.json", json.dumps(manifest, indent=2))
 
     return stats
@@ -510,6 +621,8 @@ def main(argv: Optional[list[str]] = None) -> int:
             f"  Image bytes:     {_fmt_mb(stats.bytes_images_before)} -> "
             f"{_fmt_mb(stats.bytes_images_after)}"
         )
+        if stats.object_links:
+            print(f"  Page links:      {stats.object_links}")
         print(f"  Bundle size:     {_fmt_mb(src_size)} -> {_fmt_mb(out_size)}")
         print(f"  Output:          {output}")
 

@@ -46,6 +46,19 @@ HTMLCanvasElement.prototype.getContext = vi.fn((contextId: string): any => {
       clearRect: vi.fn(),
       arc: vi.fn(),
       fill: vi.fn(),
+      save: vi.fn(),
+      restore: vi.fn(),
+      strokeRect: vi.fn(),
+      fillRect: vi.fn(),
+      ellipse: vi.fn(),
+      fillText: vi.fn(),
+      // Selection chrome (DrawingWidget) calls these — without stubs, any
+      // test that mounts a DrawingWidget with a selected object would throw
+      // when the canvas paint runs.
+      setLineDash: vi.fn(),
+      closePath: vi.fn(),
+      drawImage: vi.fn(),
+      globalAlpha: 1,
       canvas: {
         width: 800,
         height: 600,
