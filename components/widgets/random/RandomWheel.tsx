@@ -138,10 +138,13 @@ export const RandomWheel: React.FC<RandomWheelProps> = ({
           <div
             className="bg-white rounded-[2rem] shadow-[0_25px_60px_rgba(0,0,0,0.3)] text-indigo-900 animate-pulse text-center max-w-[90%]"
             style={{
+              // 300px hard cap matches RandomFlash so the new 80cqw / 60cqh
+              // ceilings in RandomWidget can't drive a tiny-string winner
+              // ("1.", "X") past the winner-overlay card on a large wheel.
               fontSize:
                 typeof resultFontSize === 'number'
-                  ? `${resultFontSize}px`
-                  : resultFontSize,
+                  ? `min(300px, ${resultFontSize}px)`
+                  : `min(300px, ${resultFontSize})`,
               lineHeight: 1.1,
               padding: 'min(24px, 5cqmin) min(40px, 8cqmin)',
               borderWidth: 'min(6px, 1.5cqmin)',

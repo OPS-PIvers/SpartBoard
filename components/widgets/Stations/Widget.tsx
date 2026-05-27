@@ -324,16 +324,17 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 size="sm"
                 className="rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-brand-blue-primary"
                 style={{
-                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                  height: 'min(32px, 8cqmin)',
-                  fontSize: 'min(11px, 3.5cqmin)',
+                  padding:
+                    'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
+                  height: 'clamp(32px, 8cqmin, 48px)',
+                  fontSize: 'clamp(11px, 3.5cqmin, 18px)',
                 }}
                 title="Shuffle students into stations"
               >
                 <Shuffle
                   style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
+                    width: 'clamp(14px, 4cqmin, 22px)',
+                    height: 'clamp(14px, 4cqmin, 22px)',
                   }}
                 />
                 <span
@@ -349,16 +350,17 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 size="sm"
                 className="rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-brand-blue-primary"
                 style={{
-                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-                  height: 'min(32px, 8cqmin)',
-                  fontSize: 'min(11px, 3.5cqmin)',
+                  padding:
+                    'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
+                  height: 'clamp(32px, 8cqmin, 48px)',
+                  fontSize: 'clamp(11px, 3.5cqmin, 18px)',
                 }}
                 title="Rotate clockwise"
               >
                 <RefreshCw
                   style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
+                    width: 'clamp(14px, 4cqmin, 22px)',
+                    height: 'clamp(14px, 4cqmin, 22px)',
                   }}
                 />
                 <span
@@ -374,17 +376,17 @@ export const StationsWidget: React.FC<{ widget: WidgetData }> = ({
                 size="sm"
                 className="rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-brand-red-primary"
                 style={{
-                  padding: 'min(6px, 1.5cqmin)',
-                  width: 'min(32px, 8cqmin)',
-                  height: 'min(32px, 8cqmin)',
+                  padding: 'clamp(6px, 1.5cqmin, 10px)',
+                  width: 'clamp(32px, 8cqmin, 48px)',
+                  height: 'clamp(32px, 8cqmin, 48px)',
                 }}
                 title="Reset all"
                 aria-label="Reset all"
               >
                 <RotateCcw
                   style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
+                    width: 'clamp(14px, 4cqmin, 22px)',
+                    height: 'clamp(14px, 4cqmin, 22px)',
                   }}
                 />
               </Button>
