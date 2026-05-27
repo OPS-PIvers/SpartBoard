@@ -25,8 +25,6 @@ import fr from '@/locales/fr.json';
 /** Keys in the `common` namespace that every locale must provide. */
 const REQUIRED_COMMON_KEYS = ['saved', 'success', 'error'] as const;
 
-type LocaleFile = typeof en;
-
 describe('EN locale — common namespace baseline', () => {
   it('has all required common keys', () => {
     for (const key of REQUIRED_COMMON_KEYS) {
@@ -38,9 +36,9 @@ describe('EN locale — common namespace baseline', () => {
 });
 
 describe.each([
-  { code: 'de', locale: de as unknown as LocaleFile },
-  { code: 'es', locale: es as unknown as LocaleFile },
-  { code: 'fr', locale: fr as unknown as LocaleFile },
+  { code: 'de', locale: de },
+  { code: 'es', locale: es },
+  { code: 'fr', locale: fr },
 ])('$code locale — common namespace parity with EN', ({ code, locale }) => {
   it(`${code}: has all required common keys`, () => {
     for (const key of REQUIRED_COMMON_KEYS) {
