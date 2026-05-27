@@ -45,6 +45,24 @@ export interface ClonedLinkInfo {
   box: NormalizedBox;
 }
 
+/**
+ * Imperative handle the host can hold via a ref, so the editor toolbar can
+ * trigger selection-scoped actions (layer reordering, background change)
+ * without lifting all of PageEditor's selection state up to the parent.
+ * The handle is reassigned whenever the underlying callbacks change.
+ */
+export interface PageEditorImperativeApi {
+  /** Re-order the current selection within the page's foreground group. */
+  reorder: (direction: 'forward' | 'backward' | 'front' | 'back') => void;
+  /** Replace the page background with a solid color, pattern, or image. */
+  setBackground: (background: PageBackgroundChange) => void;
+}
+
+export type PageBackgroundChange =
+  | { kind: 'color'; color: string }
+  | { kind: 'pattern'; pattern: 'lines' | 'grid' | 'dots'; color: string }
+  | { kind: 'image'; dataUrl: string };
+
 interface ClipboardEntry {
   /** Serialized outerHTML of the copied SVG object. */
   svg: string;
@@ -102,6 +120,12 @@ interface PageEditorProps {
    * the link id and using the current page as the sourcePage.
    */
   onClonedLinks?: (clones: ClonedLinkInfo[]) => void;
+  /**
+   * Lets the host call imperative editor actions (layer reorder, background
+   * change). Populated on mount and kept in sync via an effect — null when
+   * the editor isn't mounted yet, e.g. while the page is still fetching.
+   */
+  imperativeApiRef?: React.MutableRefObject<PageEditorImperativeApi | null>;
 }
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
@@ -275,6 +299,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   onRequestLink,
   onFollowLink,
   onClonedLinks,
+  imperativeApiRef,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -990,6 +1015,141 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     },
     [selectedIds, emitChange]
   );
+
+  // Replace the page background with a solid color, repeating pattern, or
+  // uploaded image. Finds the existing g.background group (every imported
+  // .notebook/.spartnb page has one); if it's missing, we synthesize one
+  // and insert before the foreground so it paints behind editable objects.
+  // Pattern definitions are pushed into the page's <defs> so the bg rect
+  // can reference them by id; existing pattern defs with our prefix are
+  // cleaned up first to avoid orphans piling up across rounds of changes.
+  const setBackground = useCallback(
+    (change: PageBackgroundChange) => {
+      const svgEl = svgRef.current;
+      if (!svgEl) return;
+      const vb = svgEl.viewBox.baseVal;
+      const w = vb && vb.width > 0 ? vb.width : 1000;
+      const h = vb && vb.height > 0 ? vb.height : 750;
+      const x = vb?.x ?? 0;
+      const y = vb?.y ?? 0;
+      // Find or create the background group, positioned BEFORE the
+      // foreground so it paints behind editable content.
+      let bg = svgEl.querySelector<SVGGElement>(
+        'g.background, g[class~="background"]'
+      );
+      if (!bg) {
+        bg = document.createElementNS(SVG_NS, 'g');
+        bg.setAttribute('class', 'background');
+        const fg = findForeground(svgEl);
+        if (fg) svgEl.insertBefore(bg, fg);
+        else svgEl.appendChild(bg);
+      }
+      while (bg.firstChild) bg.removeChild(bg.firstChild);
+      // Clean up any previously-injected pattern definitions so old ones
+      // don't accumulate when the teacher cycles through patterns.
+      svgEl
+        .querySelectorAll('defs [id^="spartboard-bg-"]')
+        .forEach((n) => n.remove());
+
+      if (change.kind === 'color') {
+        const rect = document.createElementNS(SVG_NS, 'rect');
+        rect.setAttribute('x', String(x));
+        rect.setAttribute('y', String(y));
+        rect.setAttribute('width', String(w));
+        rect.setAttribute('height', String(h));
+        rect.setAttribute('fill', change.color);
+        bg.appendChild(rect);
+      } else if (change.kind === 'pattern') {
+        // Ensure a <defs> exists at the root for the pattern reference.
+        let defs = svgEl.querySelector('defs');
+        if (!defs) {
+          defs = document.createElementNS(SVG_NS, 'defs');
+          svgEl.insertBefore(defs, svgEl.firstChild);
+        }
+        const patternId = `spartboard-bg-${crypto.randomUUID()}`;
+        const pattern = document.createElementNS(SVG_NS, 'pattern');
+        pattern.setAttribute('id', patternId);
+        pattern.setAttribute('patternUnits', 'userSpaceOnUse');
+        const cellSize = Math.max(20, Math.round(Math.min(w, h) / 30));
+        pattern.setAttribute('width', String(cellSize));
+        pattern.setAttribute('height', String(cellSize));
+        if (change.pattern === 'lines') {
+          const line = document.createElementNS(SVG_NS, 'line');
+          line.setAttribute('x1', '0');
+          line.setAttribute('y1', String(cellSize));
+          line.setAttribute('x2', String(cellSize));
+          line.setAttribute('y2', String(cellSize));
+          line.setAttribute('stroke', '#94a3b8');
+          line.setAttribute('stroke-width', '1');
+          pattern.appendChild(line);
+        } else if (change.pattern === 'grid') {
+          const path = document.createElementNS(SVG_NS, 'path');
+          path.setAttribute('d', `M ${cellSize} 0 L 0 0 0 ${cellSize}`);
+          path.setAttribute('fill', 'none');
+          path.setAttribute('stroke', '#cbd5e1');
+          path.setAttribute('stroke-width', '1');
+          pattern.appendChild(path);
+        } else {
+          // dots
+          const dot = document.createElementNS(SVG_NS, 'circle');
+          dot.setAttribute('cx', String(cellSize / 2));
+          dot.setAttribute('cy', String(cellSize / 2));
+          dot.setAttribute('r', '1.2');
+          dot.setAttribute('fill', '#94a3b8');
+          pattern.appendChild(dot);
+        }
+        defs.appendChild(pattern);
+        // Two rects: solid base color so the pattern reads against
+        // whatever the teacher picked, then the pattern overlay.
+        const base = document.createElementNS(SVG_NS, 'rect');
+        base.setAttribute('x', String(x));
+        base.setAttribute('y', String(y));
+        base.setAttribute('width', String(w));
+        base.setAttribute('height', String(h));
+        base.setAttribute('fill', change.color);
+        bg.appendChild(base);
+        const overlay = document.createElementNS(SVG_NS, 'rect');
+        overlay.setAttribute('x', String(x));
+        overlay.setAttribute('y', String(y));
+        overlay.setAttribute('width', String(w));
+        overlay.setAttribute('height', String(h));
+        overlay.setAttribute('fill', `url(#${patternId})`);
+        bg.appendChild(overlay);
+      } else {
+        // image — embed the data URL directly so the page SVG remains
+        // self-contained (no Storage upload needed).
+        const img = document.createElementNS(SVG_NS, 'image');
+        img.setAttribute('href', change.dataUrl);
+        img.setAttributeNS(
+          'http://www.w3.org/1999/xlink',
+          'xlink:href',
+          change.dataUrl
+        );
+        img.setAttribute('x', String(x));
+        img.setAttribute('y', String(y));
+        img.setAttribute('width', String(w));
+        img.setAttribute('height', String(h));
+        img.setAttribute('preserveAspectRatio', 'xMidYMid slice');
+        bg.appendChild(img);
+      }
+      emitChange();
+    },
+    [emitChange]
+  );
+
+  // Publish the imperative handle so the host can drive layer-order and
+  // background changes from its toolbar. Re-runs whenever the underlying
+  // callbacks change so the handle always points at the latest closures.
+  useEffect(() => {
+    if (!imperativeApiRef) return;
+    imperativeApiRef.current = {
+      reorder: reorderSelected,
+      setBackground,
+    };
+    return () => {
+      if (imperativeApiRef.current) imperativeApiRef.current = null;
+    };
+  }, [imperativeApiRef, reorderSelected, setBackground]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

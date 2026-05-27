@@ -3,7 +3,9 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  BringToFront,
   CheckCircle2,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronUp,
@@ -14,22 +16,32 @@ import {
   Minus,
   MousePointer2,
   MoveUpRight,
+  PaintBucket,
   Pen,
   Pencil,
   Play,
   Plus,
   RotateCcw,
+  SendToBack,
   Square,
   Trash2,
   Type,
+  Upload,
   X,
 } from 'lucide-react';
 import { NotebookObjectLink, NotebookSection } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { PageEditor, LinkRequest, ClonedLinkInfo } from './PageEditor';
+import {
+  PageEditor,
+  LinkRequest,
+  ClonedLinkInfo,
+  PageEditorImperativeApi,
+  PageBackgroundChange,
+} from './PageEditor';
 import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
 import { PageJumpMenu } from './PageJumpMenu';
 import { LinkTargetPicker } from './LinkTargetPicker';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface PageEditorOverlayProps {
   title: string;
@@ -116,6 +128,16 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   // LinkTargetPicker reads this to know which object's link it's editing
   // and which hotspot box to record on save.
   const [linkRequest, setLinkRequest] = useState<LinkRequest | null>(null);
+  // Mirror of PageEditor's selection count so the toolbar can disable its
+  // layer-order buttons when nothing is selected. We don't lift the full
+  // selection state up — only the cardinality, which is all the toolbar
+  // needs to render correctly.
+  const [hasSelection, setHasSelection] = useState(false);
+  const [backgroundPickerOpen, setBackgroundPickerOpen] = useState(false);
+  // Imperative handle into the live PageEditor so the toolbar (which lives
+  // in this parent) can trigger selection-scoped actions without the
+  // selection itself having to flow up here.
+  const editorApiRef = useRef<PageEditorImperativeApi | null>(null);
 
   // Reset state when the page changes (adjust-state-while-rendering, so the
   // loading effect below stays free of synchronous setState).
@@ -125,6 +147,8 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
     setFetchedSvg(null);
     setError(null);
     setJumpMenuOpen(false);
+    setHasSelection(false);
+    setBackgroundPickerOpen(false);
   }
 
   // Load the page SVG text — but only if we don't already have a local cached
@@ -371,6 +395,8 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 penColor={penColor}
                 penWidth={penWidth}
                 linkedObjectTargets={linkedObjectTargets}
+                imperativeApiRef={editorApiRef}
+                onSelectionChange={(sel) => setHasSelection(sel.length > 0)}
                 onChange={onEditChange}
                 onRequestLink={setLinkRequest}
                 onFollowLink={onPageChange}
@@ -448,6 +474,15 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                     />
                   );
                 })()}
+              {backgroundPickerOpen && (
+                <BackgroundPicker
+                  onApply={(change) => {
+                    editorApiRef.current?.setBackground(change);
+                    setBackgroundPickerOpen(false);
+                  }}
+                  onClose={() => setBackgroundPickerOpen(false)}
+                />
+              )}
             </>
           )}
         </div>
@@ -458,9 +493,12 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             tool={tool}
             penColor={penColor}
             penWidth={penWidth}
+            hasSelection={hasSelection}
             onToolChange={setTool}
             onColorChange={setPenColor}
             onWidthChange={setPenWidth}
+            onReorder={(direction) => editorApiRef.current?.reorder(direction)}
+            onOpenBackgroundPicker={() => setBackgroundPickerOpen(true)}
           />
           <div
             className="relative flex items-center justify-center"
@@ -604,16 +642,22 @@ const Toolbar: React.FC<{
   tool: Tool;
   penColor: string;
   penWidth: number;
+  hasSelection: boolean;
   onToolChange: (t: Tool) => void;
   onColorChange: (c: string) => void;
   onWidthChange: (w: number) => void;
+  onReorder: (direction: 'forward' | 'backward' | 'front' | 'back') => void;
+  onOpenBackgroundPicker: () => void;
 }> = ({
   tool,
   penColor,
   penWidth,
+  hasSelection,
   onToolChange,
   onColorChange,
   onWidthChange,
+  onReorder,
+  onOpenBackgroundPicker,
 }) => {
   // Tools that use the color/width controls light up the palette; select +
   // eraser dim it because the swatches don't influence them. Text uses
@@ -739,8 +783,463 @@ const Toolbar: React.FC<{
             );
           })}
         </div>
+
+        {/* Layer-order group — drives the same reorderSelected the
+            keyboard shortcuts call. Dimmed when nothing is selected
+            since each action operates on the active selection. */}
+        <div
+          role="group"
+          aria-label="Layer order"
+          className={`flex items-stretch rounded-lg bg-slate-950/40 ring-1 ring-white/5 transition-opacity ${
+            hasSelection ? 'opacity-100' : 'opacity-40'
+          }`}
+          style={{ gap: 'min(2px, 0.5cqmin)', padding: 'min(4px, 1cqmin)' }}
+        >
+          {(
+            [
+              {
+                dir: 'front',
+                Icon: BringToFront,
+                label: 'Bring to front (Cmd+Shift+])',
+              },
+              {
+                dir: 'forward',
+                Icon: ChevronUp,
+                label: 'Bring forward (Cmd+])',
+              },
+              {
+                dir: 'backward',
+                Icon: ChevronDown,
+                label: 'Send backward (Cmd+[)',
+              },
+              {
+                dir: 'back',
+                Icon: SendToBack,
+                label: 'Send to back (Cmd+Shift+[)',
+              },
+            ] as const
+          ).map(({ dir, Icon, label }) => (
+            <button
+              key={dir}
+              type="button"
+              onClick={() => onReorder(dir)}
+              disabled={!hasSelection}
+              title={label}
+              aria-label={label}
+              className="flex items-center justify-center rounded-md text-slate-300 hover:bg-white/10 transition-colors disabled:cursor-default"
+              style={{
+                width: 'min(28px, 6cqmin)',
+                height: 'min(28px, 6cqmin)',
+              }}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          ))}
+        </div>
+
+        {/* Background button — opens the page-background picker modal.
+            Always enabled since "set the page background" is a page-level
+            action, not selection-scoped. */}
+        <button
+          type="button"
+          onClick={onOpenBackgroundPicker}
+          title="Page background"
+          aria-label="Page background"
+          className="flex items-center rounded-md text-slate-300 hover:bg-white/10 transition-colors"
+          style={{
+            padding: 'min(4px, 1cqmin) min(10px, 2cqmin)',
+            gap: 'min(6px, 1.5cqmin)',
+            height: 'min(36px, 8cqmin)',
+          }}
+        >
+          <PaintBucket className="h-4 w-4" />
+          <span
+            className="font-bold uppercase tracking-tight"
+            style={{ fontSize: 'min(11px, 2.6cqmin)' }}
+          >
+            Background
+          </span>
+        </button>
       </div>
     </div>
+  );
+};
+
+/**
+ * Page-background picker. Centered modal mirroring LinkTargetPicker's
+ * shape (backdrop + click-outside + ESC) so the editor's secondary
+ * dialogs all feel like the same dialect. Three modes:
+ *   1. Solid color
+ *   2. Solid color + repeating pattern (lines/grid/dots)
+ *   3. Uploaded image, embedded as a data URL so the page SVG remains
+ *      self-contained
+ * "Apply" commits to the live SVG via PageEditor's imperative API; the
+ * autosave debounce picks it up from the resulting emitChange.
+ */
+const BACKGROUND_COLORS = [
+  '#ffffff',
+  '#f8fafc',
+  '#fef3c7',
+  '#dbeafe',
+  '#dcfce7',
+  '#fce7f3',
+  '#1f2937',
+];
+
+const BackgroundPicker: React.FC<{
+  onApply: (change: PageBackgroundChange) => void;
+  onClose: () => void;
+}> = ({ onApply, onClose }) => {
+  const panelRef = useRef<HTMLDivElement>(null);
+  useClickOutside(panelRef, onClose);
+  const [mode, setMode] = useState<'color' | 'pattern' | 'image'>('color');
+  const [color, setColor] = useState<string>(BACKGROUND_COLORS[0]);
+  const [pattern, setPattern] = useState<'lines' | 'grid' | 'dots'>('grid');
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  const handleFile = (file: File) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') setImageDataUrl(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const apply = () => {
+    if (mode === 'color') onApply({ kind: 'color', color });
+    else if (mode === 'pattern') onApply({ kind: 'pattern', pattern, color });
+    else if (imageDataUrl) onApply({ kind: 'image', dataUrl: imageDataUrl });
+  };
+
+  const modeBtn = (target: 'color' | 'pattern' | 'image', label: string) => (
+    <button
+      type="button"
+      onClick={() => setMode(target)}
+      aria-pressed={mode === target}
+      className={`rounded-lg font-bold uppercase tracking-tight transition-colors ${
+        mode === target
+          ? 'bg-indigo-600 text-white shadow-sm'
+          : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+      }`}
+      style={{
+        padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin)',
+        fontSize: 'min(11px, 2.6cqmin)',
+      }}
+    >
+      {label}
+    </button>
+  );
+
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-label="Page background"
+      className="absolute inset-0 z-30 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm"
+    >
+      <div
+        ref={panelRef}
+        className="bg-white border border-slate-200 rounded-2xl shadow-2xl flex flex-col"
+        style={{
+          width: 'min(440px, 92cqmin)',
+          maxHeight: 'min(560px, 86cqmin)',
+        }}
+      >
+        <div
+          className="flex items-center justify-between border-b border-slate-200"
+          style={{ padding: 'min(16px, 3cqmin)' }}
+        >
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)' }}
+          >
+            <PaintBucket
+              className="text-indigo-600"
+              style={{
+                width: 'min(16px, 4cqmin)',
+                height: 'min(16px, 4cqmin)',
+              }}
+            />
+            <span
+              className="font-black text-slate-700 uppercase tracking-widest"
+              style={{ fontSize: 'min(12px, 3cqmin)' }}
+            >
+              Page background
+            </span>
+          </div>
+          <button
+            onClick={onClose}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors"
+            style={{ padding: 'min(6px, 1.5cqmin)' }}
+            aria-label="Close"
+          >
+            <X
+              style={{
+                width: 'min(14px, 3.5cqmin)',
+                height: 'min(14px, 3.5cqmin)',
+              }}
+            />
+          </button>
+        </div>
+
+        <div
+          className="flex"
+          style={{
+            gap: 'min(8px, 2cqmin)',
+            padding: 'min(12px, 3cqmin)',
+            borderBottom: '1px solid #e2e8f0',
+          }}
+        >
+          {modeBtn('color', 'Color')}
+          {modeBtn('pattern', 'Pattern')}
+          {modeBtn('image', 'Image')}
+        </div>
+
+        <div
+          className="flex-1 overflow-y-auto"
+          style={{ padding: 'min(16px, 3.5cqmin)' }}
+        >
+          {(mode === 'color' || mode === 'pattern') && (
+            <div>
+              <div
+                className="font-black uppercase tracking-widest text-slate-400"
+                style={{
+                  fontSize: 'min(10px, 2.5cqmin)',
+                  marginBottom: 'min(8px, 2cqmin)',
+                }}
+              >
+                Base color
+              </div>
+              <div
+                className="flex flex-wrap items-center"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
+                {BACKGROUND_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setColor(c)}
+                    aria-label={`Color ${c}`}
+                    aria-pressed={color === c}
+                    className={`rounded-full transition-transform ${
+                      color === c
+                        ? 'scale-110 ring-2 ring-indigo-600'
+                        : 'ring-1 ring-slate-300 hover:scale-105'
+                    }`}
+                    style={{
+                      width: 'min(28px, 6cqmin)',
+                      height: 'min(28px, 6cqmin)',
+                      backgroundColor: c,
+                    }}
+                  />
+                ))}
+                <input
+                  type="color"
+                  aria-label="Custom color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  className="rounded-md border border-slate-300 cursor-pointer"
+                  style={{
+                    width: 'min(34px, 7cqmin)',
+                    height: 'min(28px, 6cqmin)',
+                  }}
+                />
+              </div>
+            </div>
+          )}
+          {mode === 'pattern' && (
+            <div style={{ marginTop: 'min(16px, 3.5cqmin)' }}>
+              <div
+                className="font-black uppercase tracking-widest text-slate-400"
+                style={{
+                  fontSize: 'min(10px, 2.5cqmin)',
+                  marginBottom: 'min(8px, 2cqmin)',
+                }}
+              >
+                Pattern
+              </div>
+              <div
+                className="grid grid-cols-3"
+                style={{ gap: 'min(8px, 2cqmin)' }}
+              >
+                {(
+                  [
+                    { key: 'lines', label: 'Lines' },
+                    { key: 'grid', label: 'Grid' },
+                    { key: 'dots', label: 'Dots' },
+                  ] as const
+                ).map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPattern(key)}
+                    aria-pressed={pattern === key}
+                    className={`rounded-xl border-2 overflow-hidden transition-all ${
+                      pattern === key
+                        ? 'border-indigo-600 shadow-md'
+                        : 'border-slate-200 hover:border-indigo-300'
+                    }`}
+                    style={{ aspectRatio: '3 / 2' }}
+                    aria-label={label}
+                    title={label}
+                  >
+                    <PatternPreview pattern={key} color={color} />
+                    <div
+                      className={`text-center font-bold ${
+                        pattern === key
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-slate-50 text-slate-700'
+                      }`}
+                      style={{
+                        fontSize: 'min(10px, 2.5cqmin)',
+                        padding: 'min(2px, 0.5cqmin)',
+                      }}
+                    >
+                      {label}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {mode === 'image' && (
+            <div className="flex flex-col items-center">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFile(file);
+                }}
+              />
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl transition-colors"
+                style={{
+                  padding: 'min(10px, 2.5cqmin) min(20px, 4cqmin)',
+                  gap: 'min(8px, 2cqmin)',
+                }}
+              >
+                <Upload
+                  style={{
+                    width: 'min(16px, 4cqmin)',
+                    height: 'min(16px, 4cqmin)',
+                  }}
+                />
+                <span
+                  className="font-bold uppercase tracking-tight"
+                  style={{ fontSize: 'min(12px, 3cqmin)' }}
+                >
+                  Choose image
+                </span>
+              </button>
+              {imageDataUrl && (
+                <img
+                  src={imageDataUrl}
+                  alt="Background preview"
+                  className="rounded-xl border border-slate-200"
+                  style={{
+                    marginTop: 'min(16px, 3.5cqmin)',
+                    maxWidth: '100%',
+                    maxHeight: '200px',
+                    objectFit: 'contain',
+                  }}
+                />
+              )}
+            </div>
+          )}
+        </div>
+
+        <div
+          className="flex justify-end border-t border-slate-200"
+          style={{
+            padding: 'min(12px, 3cqmin)',
+            gap: 'min(8px, 2cqmin)',
+          }}
+        >
+          <button
+            onClick={onClose}
+            className="bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors font-bold uppercase tracking-tight"
+            style={{
+              padding: 'min(8px, 2cqmin) min(16px, 3cqmin)',
+              fontSize: 'min(11px, 2.6cqmin)',
+            }}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={apply}
+            disabled={mode === 'image' && !imageDataUrl}
+            className="bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors font-bold uppercase tracking-tight disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              padding: 'min(8px, 2cqmin) min(16px, 3cqmin)',
+              fontSize: 'min(11px, 2.6cqmin)',
+            }}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
+ * Small SVG-pattern preview for the picker tiles. Authored inline so the
+ * tile previews share the exact same pattern geometry the editor injects
+ * into the page SVG via setBackground.
+ */
+const PatternPreview: React.FC<{
+  pattern: 'lines' | 'grid' | 'dots';
+  color: string;
+}> = ({ pattern, color }) => {
+  const id = `bg-preview-${pattern}`;
+  return (
+    <svg
+      width="100%"
+      height="100%"
+      preserveAspectRatio="none"
+      style={{ display: 'block', background: color }}
+    >
+      <defs>
+        <pattern id={id} width="14" height="14" patternUnits="userSpaceOnUse">
+          {pattern === 'lines' && (
+            <line
+              x1="0"
+              y1="14"
+              x2="14"
+              y2="14"
+              stroke="#94a3b8"
+              strokeWidth="1"
+            />
+          )}
+          {pattern === 'grid' && (
+            <path
+              d="M 14 0 L 0 0 0 14"
+              fill="none"
+              stroke="#cbd5e1"
+              strokeWidth="1"
+            />
+          )}
+          {pattern === 'dots' && (
+            <circle cx="7" cy="7" r="1.2" fill="#94a3b8" />
+          )}
+        </pattern>
+      </defs>
+      <rect width="100%" height="100%" fill={`url(#${id})`} />
+    </svg>
   );
 };
 
