@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-05-18_
+_Last audited: 2026-05-27_
 _Last action: never_
 
 ---
@@ -49,10 +49,10 @@ _Nothing currently in progress._
 - **Detail:** PR #1368 (merged April 21, 2026) rebuilt `generateGuidedLearning` from a single-image function with rate limiting into a multi-image function (up to 10 images, 20 MB cap) gated admin-only server-side. Two regressions relative to the April 17 audit: (1) the cloud function no longer performs any `ai_usage` rate-limit check — any admin can call it unlimited times per day; (2) the client-side gate changed from a feature permission check to a direct `isAdmin` check in `GuidedLearning/Widget.tsx`, meaning no admin can selectively disable this AI feature for certain buildings without removing the widget entirely. The journal table has been updated to reflect current state (see above).
 - **Fix:** (a) Restore per-user rate limiting in `generateGuidedLearning` by adding an `ai_usage` check against the global `gemini-functions` daily limit (consistent with other `generateWithAI` functions that are not admin-only). (b) Either keep admin-only behavior (acceptable since GL AI is an admin authoring tool) and document the design intent explicitly in the function's docblock, OR add a `canAccessFeature('guided-learning-ai')` check in `GuidedLearning/Widget.tsx` for finer-grained access control. At minimum, add a JSDoc comment explaining why rate limiting is omitted.
 
-### LOW Hardcoded model string at functions/src/index.ts:1980 (was :1714, :1616)
+### LOW Hardcoded model string at functions/src/index.ts:2525 (was :1980, :1714, :1616)
 
 - **Detected:** 2026-04-17
-- **File:** functions/src/index.ts:1980 (line number shifts with function additions)
+- **File:** functions/src/index.ts:2525 (line number shifts with function additions — confirmed at 2525 as of 2026-05-27)
 - **Detail:** The `generateVideoActivity` function selects a model with `perm.config?.model ?? 'gemini-3.1-flash-lite-preview'`. This duplicates the literal string defined by the `DEFAULT_STANDARD_MODEL` constant at line 97. If the default model is updated, this line will not automatically follow.
 - **Fix:** Replace the hardcoded string with `DEFAULT_STANDARD_MODEL`: `perm.config?.model ?? DEFAULT_STANDARD_MODEL`.
 
@@ -84,6 +84,8 @@ The following widgets have structured config schemas well-suited for AI content 
 ---
 
 ## Completed
+
+_2026-05-27: AI integration audit. New commits since 2026-05-18: fix(parseGeminiJson) use depth counter instead of lastIndexOf (safer JSON extraction — no new gen type), feat(spotify) Spotify OAuth Cloud Function added (`spotifyOAuth.ts` — not an AI generation type), feat(smart-notebook) multiple sub-components + page hyperlinks + rotation handle (not AI-related), feat(drawing-widget) toolbar redesign (not AI-related). No new AI generation types added. All 12 generation types from the table remain current. Hardcoded model string confirmed at line 2525 (updated from 1980 above). Verified `transcribeVideoWithGemini` is the function containing the duplicate string at line 2525 (not `generateVideoActivity` as previously noted — `generateVideoActivity` uses `geminiConfig.standardModel` correctly). All other existing open items unchanged._
 
 _2026-05-18: AI integration audit. New commits since 2026-05-13 checked: `fix(ai-draft) 7125a4c6` (per-type question mix fix + drop hallucinated timestamps) — addressed a bug in `generateQuiz` where the AI always produced MC questions despite the quiz type setting; fixed on the functions side, no new integration type added, no new permission gap introduced. No new AI generation types added in collection-level sharing (Plans 1–4), what's-new, or quiz-results-protection PRs. The 12-type table remains current. All existing open items unchanged._
 

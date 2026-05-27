@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
-_Last audited: 2026-05-22_
+_Last audited: 2026-05-27_
 _Last action: 2026-05-22 — HIGH DashboardContext extraction assessed and BLOCKED pending supervised runtime-verified session_
 
 ---
@@ -19,6 +19,7 @@ _Nothing currently in progress._
 ### MEDIUM `DashboardContext.tsx` is 3481 lines and growing — at least three extractable responsibilities
 
 - **Detected:** 2026-04-15
+- **Updated:** 2026-05-27 — file is now **5275 lines** (slight decrease from 5303 on 2026-05-22, likely due to minor cleanups). Recent commits (smart-notebook feature additions, drawing-widget toolbar redesign, migration fixes) did not add new context responsibilities. BLOCKED status unchanged — collections/Drive extraction still requires supervised runtime-verified session. DashboardContext extraction remains the top-priority structural issue.
 - **Updated:** 2026-05-22 — file is now **5303 lines** (+1262 from 4041 post-extraction on 2026-05-13, +31% in 9 days). Primary drivers: PLC collaborative space redesign (`55b03269` Merge feat/quiz-settings-on-content) added extensive collection management logic (191 lines of collection/lastBoardId references), boards-modal inline Share+Duplicate icons (`9faae3c3`), admin personal-spotify global feature gate with building scoping (`3b885467`), and PLC in-progress assignments Monitor/Results/member copy (`82da7cb9`). The `getAdminBuildingConfig` extraction reduced the file by ~400 lines (May 13) but 1262 new lines have since been added. Drive-sync extraction remains unaddressed.
 - **Updated:** 2026-05-13 — file is now 4441 lines (+937 from 2026-05-06). Significant growth; 15 exported Cloud Functions now visible: `getClassLinkRosterV1`, `generateWithAI`, `fetchExternalProxy`, `archiveActivityWallPhoto`, `checkUrlCompatibility`, `generateVideoActivity`, `transcribeVideoWithGemini`, `generateGuidedLearning`, `adminAnalytics`, `studentLoginV1`, `getAssignmentPseudonymV1`, `getStudentClassDirectoryV1`, `getPseudonymsForAssignmentV1`, `commitRosterPinIndexV1`, `pinLoginV1`. One inline model string at line 1980 (`'gemini-3.1-flash-lite-preview'`) instead of `DEFAULT_STANDARD_MODEL` constant — minor consistency gap (see ai-integration.md). No v1 imports detected; all functions use v2. `minInstances` set on `getPseudonymsForAssignmentV1` (intentional for latency). `extractDataForContext` in split files (`adminAnalyticsCompute.ts`, `adminAnalyticsSnapshot.ts`, `organizationBuildingCounters.ts`, etc.) suggests split has begun for some modules.
 - **Updated:** 2026-05-06 — file grew from 3481 to 3504 lines (+23) since 2026-04-29 audit. Growth rate remains slow but file continues to increase.
@@ -29,6 +30,7 @@ _Nothing currently in progress._
 ### MEDIUM `functions/src/index.ts` is 3525 lines — single file for all Cloud Functions (growth stalled)
 
 - **Detected:** 2026-04-15
+- **Updated:** 2026-05-27 — functions/src/index.ts now primarily re-exports from domain modules (spotifyOAuth.ts, syncedQuizGroups.ts, syncedVideoActivityGroups.ts, expireSubShares.ts added as new modules). The split-by-domain pattern is already in progress for newer functions. 3 new Cloud Functions added since 2026-05-22: `spotifyOAuth` (Spotify OAuth exchange), synced quiz/video-activity group helpers (exported from domain files). The functions split work has organically begun — consider documenting the in-progress state and formalizing the remaining consolidation.
 - **Updated:** 2026-05-22 — file is now **4300 lines** (+775 from 3525 on 2026-05-13). 15 exported Cloud Functions (count unchanged). Growth is from expansion of existing functions (not new ones). New large hooks added since last audit: `hooks/useVideoActivityAssignments.ts` (1100 lines), `hooks/useStudentAssignments.ts` (619 lines), `hooks/useCollections.ts` (604 lines), `hooks/useFolders.ts` (531 lines) — all exceeding 500 lines. No 3+ level relative import depth issues found in new PLC components.
 - **Updated:** 2026-05-13 — `DashboardContext.tsx` is now 4441 lines (+937 from 3504 on 2026-05-06). Major growth. `getAdminBuildingConfig` switch is now 18 cases (was 30+ noted earlier; count stabilized). Single-consumer utils list updated: now also includes `lastActiveThrottle.ts`, `migrateProportionalLayout.ts`, `proportionalLayout.ts`, `mockGuidedLearningDriveService.ts`, `periodCompat.ts`, `quizShuffle.ts`, `rosterRestrictions.ts`, `smartPaste.ts`, `testClassAccess.ts`, `youtubeSearch.ts`.
 - **Updated:** 2026-05-06 — file stable at 3525 lines (from 3524, +1) since 2026-04-29 audit. Growth has stalled.

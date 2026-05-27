@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-26_
+_Last audited: 2026-05-27_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-27: Full audit of all 64 WidgetType values. New dev-paul commits since 2026-05-26: fix(smart-notebook) address PR #1702 review feedback (#1703), feat(smart-notebook) preserve SMART page-jump hyperlinks, object→page hyperlinks, rotation handle, fix(draggable-window) don't toggle floating toolbar on canvas clicks, refactor(smart-notebook) move editor toolbar to bottom chrome, feat(smart-notebook) edit-first + autosave + in-editor page nav + page jump menu with thumbnails, fix(smart-notebook) tag pages as image/svg+xml on import, feat(drawing-widget) redesign toolbar with eraser modes + page titles. types.ts additions are DrawingTool union, EraserMode type, DrawingBackground type, and new HotspotImage object/page-coordinate fields — no new WidgetType members. WidgetRegistry.ts, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts all unchanged. DrawingWidget has skipScaling:false so toolbar redesign doesn't affect CQ scaling. All 64 WidgetTypes remain correctly registered. Zero new gaps._
 
 _2026-05-26: Full audit of all 64 WidgetType values. New dev-paul commits merged since 2026-05-24: refactor(effects) clear Grade D + top Grade C useEffect anti-patterns (#1689), perf(qr) derive synced URL inline (#1688), action MiniApp portaled toolbar + Clock building defaults (#1684), perf(time-tool) stop RAF restart (#1687), docs(changelog) release entry. types.ts NOT in the merge diff — no new WidgetType members. WidgetRegistry.ts, widgetDefaults.ts, tools.ts, and widgetGradeLevels.ts all unchanged. DiceWidget/Widget.tsx and QRWidget/Widget.tsx changed (CSS + logic fixes), but no registry-level changes. All 64 WidgetTypes remain correctly registered (`sticker` intentionally handled via WidgetRenderer special-case per JSDoc). Zero new gaps._
 
