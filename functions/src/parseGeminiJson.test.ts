@@ -118,4 +118,15 @@ describe('parseGeminiJson', () => {
       items: [1, 2, 3],
     });
   });
+
+  it('handles leading prose containing brackets before a JSON object', () => {
+    // Symmetric guard: leading prose that includes `[` characters (e.g.,
+    // Markdown links like `[docs]`) must not cause the scanner to mis-pick
+    // the array branch when the actual payload is an object.
+    const raw = 'See the [docs] for details:\n{"foo":"bar","items":[1,2]}';
+    expect(parseGeminiJson<Sample>(raw)).toEqual({
+      foo: 'bar',
+      items: [1, 2],
+    });
+  });
 });

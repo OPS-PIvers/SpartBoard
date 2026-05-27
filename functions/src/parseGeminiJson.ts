@@ -70,19 +70,27 @@ export const parseGeminiJson = <T>(raw: string): T => {
   const firstBracket = fenced.indexOf('[');
   const firstBrace = fenced.indexOf('{');
 
-  // Choose whichever opener appears first in the string (ignoring absent ones).
-  let slice = fenced;
-  const useArray =
+  // Try the array path first when its opener appears before any brace, but
+  // fall back to the brace path if parsing the array slice fails — leading
+  // prose may contain a stray `[` (e.g. a Markdown link `[docs]`) that
+  // precedes the real JSON object.
+  const tryArrayFirst =
     firstBracket !== -1 && (firstBrace === -1 || firstBracket < firstBrace);
 
-  if (useArray) {
-    // Top-level array: scan from `[` to its matching `]`.
+  if (tryArrayFirst) {
     const closingPos = scanToClose(fenced, firstBracket, '[', ']');
     if (closingPos !== -1) {
-      slice = fenced.slice(firstBracket, closingPos + 1);
+      const candidate = fenced.slice(firstBracket, closingPos + 1);
+      try {
+        return JSON.parse(candidate) as T;
+      } catch {
+        // Stray `[…]` in leading prose — fall through to the brace path.
+      }
     }
-  } else if (firstBrace !== -1) {
-    // Top-level object: scan from `{` to its matching `}`.
+  }
+
+  let slice = fenced;
+  if (firstBrace !== -1) {
     const closingPos = scanToClose(fenced, firstBrace, '{', '}');
     if (closingPos !== -1) {
       slice = fenced.slice(firstBrace, closingPos + 1);
