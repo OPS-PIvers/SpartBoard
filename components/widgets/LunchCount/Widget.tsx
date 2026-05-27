@@ -580,7 +580,7 @@ export const LunchCountWidget: React.FC<{ widget: WidgetData }> = ({
                     hotLunchItem.length > 20
                       ? 'min(45cqh, 10cqw)'
                       : 'min(55cqh, 12cqw)',
-                  color: '#2d3f89', // Brand Blue Primary
+                  color: 'var(--spart-primary, #2d3f89)', // Brand Blue Primary
                 }}
               >
                 {hotLunchItem}
