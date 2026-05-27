@@ -139,42 +139,40 @@ export const ScoreboardItem = React.memo(
           {team.name}
         </div>
         <div
-          className="font-black text-white tabular-nums drop-shadow-sm"
-          style={{
-            fontSize: 'min(60cqh, 50cqw)',
-            lineHeight: 1,
-            marginBottom: 'min(4cqh, 2cqmin)',
-          }}
-        >
-          {team.score}
-        </div>
-        <div
-          className="flex opacity-100 transition-opacity"
-          style={{ gap: 'min(12px, 3cqw)' }}
+          className="flex items-center justify-center w-full flex-1 min-h-0"
+          style={{ gap: 'min(8px, 2cqmin)' }}
         >
           <button
             onClick={() => onUpdateScore(team.id, -1)}
             aria-label="Decrease score"
-            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
-            style={{ padding: 'min(8px, 2cqh)' }}
+            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+            style={{ padding: 'min(14px, 4cqmin)' }}
           >
             <Minus
               style={{
-                width: 'min(12cqh, 6cqw)',
-                height: 'min(12cqh, 6cqw)',
+                width: 'min(28px, 12cqmin)',
+                height: 'min(28px, 12cqmin)',
               }}
             />
           </button>
+          <div
+            className="font-black text-white tabular-nums drop-shadow-sm flex-1 text-center min-w-0 leading-none"
+            style={{
+              fontSize: 'min(70cqh, 22cqw)',
+            }}
+          >
+            {team.score}
+          </div>
           <button
             onClick={() => onUpdateScore(team.id, 1)}
             aria-label="Increase score"
-            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all`}
-            style={{ padding: 'min(8px, 2cqh)' }}
+            className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
+            style={{ padding: 'min(14px, 4cqmin)' }}
           >
             <Plus
               style={{
-                width: 'min(12cqh, 6cqw)',
-                height: 'min(12cqh, 6cqw)',
+                width: 'min(28px, 12cqmin)',
+                height: 'min(28px, 12cqmin)',
               }}
             />
           </button>
