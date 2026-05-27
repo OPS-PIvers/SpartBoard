@@ -92,8 +92,14 @@ export const migrateDrawingToSubcollection = async ({
   }
 
   // Build the flat write queue. Each entry is a (ref, payload) pair so we
-  // can chunk uniformly. Mixing page-doc writes with object writes in the
-  // same queue keeps ordering deterministic (page meta before its objects).
+  // can chunk uniformly.
+  //
+  // Pseudo-atomicity across batches: queue ALL object (child) writes BEFORE
+  // any page-meta (parent) writes. If a chunk commit fails partway through,
+  // the parent doc(s) for that page never landed, so a subsequent reader
+  // that uses the parent's existence as a "children are persisted" signal
+  // won't observe a half-migrated page. The setDoc / batch.set calls are
+  // idempotent on retry.
   type WriteOp =
     | {
         kind: 'page';
@@ -106,16 +112,17 @@ export const migrateDrawingToSubcollection = async ({
         objectId: string;
         payload: DrawableObject;
       };
-  const ops: WriteOp[] = [];
+  const pageOps: WriteOp[] = [];
+  const objectOps: WriteOp[] = [];
 
   for (const page of pages) {
-    ops.push({
+    pageOps.push({
       kind: 'page',
       pageId: page.id,
       payload: { background: page.background ?? 'blank' },
     });
     for (const obj of page.objects ?? []) {
-      ops.push({
+      objectOps.push({
         kind: 'object',
         pageId: page.id,
         objectId: obj.id,
@@ -123,6 +130,8 @@ export const migrateDrawingToSubcollection = async ({
       });
     }
   }
+  // Children first, parents last.
+  const ops: WriteOp[] = [...objectOps, ...pageOps];
 
   for (let i = 0; i < ops.length; i += FIRESTORE_BATCH_OP_LIMIT) {
     const batch = writeBatch(db);

@@ -50,6 +50,9 @@ import { STANDARD_COLORS } from '@/config/colors';
 import { DRAWING_DEFAULTS } from './constants';
 import { useDrawingCanvas } from './useDrawingCanvas';
 import { migrateDrawingConfig, nextZ } from '@/utils/migrateDrawingConfig';
+import { deleteDrawingPageSubcollection } from '@/utils/deleteDrawingPageSubcollection';
+import { db } from '@/config/firebase';
+import { logError } from '@/utils/logError';
 import type { DrawingPage } from '@/types';
 import { getBackgroundStyle } from './backgroundTemplates';
 import {
@@ -99,7 +102,7 @@ export const DrawingWidget: React.FC<{
   // when the widget switches to reading from the subcollection. We
   // render a non-interactive overlay until the migration finishes.
   const isMigratingSubcollection = drawingWidgetsMigrating.has(widget.id);
-  const { canAccessFeature } = useAuth();
+  const { user, canAccessFeature } = useAuth();
 
   // Defensive migration — the canonical migration happens during dashboard
   // hydration, but widgets constructed in tests or edge cases may still
@@ -278,7 +281,18 @@ export const DrawingWidget: React.FC<{
   // we compute the (added, updated, removed) sets and dispatch one mutator
   // per. setDoc / deleteDoc are async but we don't await — Firestore's
   // optimistic listener will surface the new state through the subscription
-  // anyway, and waiting would block the synchronous command-stack flow.
+  // anyway, and waiting would block the synchronous command-stack flow. On
+  // failure, the snapshot will revert the canvas to the pre-write state, so
+  // we surface an error toast so the user knows their change didn't persist.
+  const onSubWriteError = useCallback(
+    (err: unknown) => {
+      logError('DrawingWidget.subcollectionWrite', err, {
+        widgetId: widget.id,
+      });
+      addToast('Drawing change could not be saved.', 'error');
+    },
+    [addToast, widget.id]
+  );
   const writeObjects = useCallback(
     (next: DrawableObject[]) => {
       if (config.subcollectionMigrated) {
@@ -286,7 +300,7 @@ export const DrawingWidget: React.FC<{
         // 1000-object wipe ships as 3 batched commits instead of 1000
         // individual deletes.
         if (next.length === 0 && objects.length > 0) {
-          void subClearObjects();
+          subClearObjects().catch(onSubWriteError);
           return;
         }
         const prevById = new Map(objects.map((o) => [o.id, o]));
@@ -294,16 +308,16 @@ export const DrawingWidget: React.FC<{
         // Removed: in prev but not in next.
         for (const [id] of prevById) {
           if (!nextById.has(id)) {
-            void subRemoveObject(id);
+            subRemoveObject(id).catch(onSubWriteError);
           }
         }
         // Added or updated: walk next.
         for (const [id, obj] of nextById) {
           const prev = prevById.get(id);
           if (!prev) {
-            void subAddObject(obj);
+            subAddObject(obj).catch(onSubWriteError);
           } else if (prev !== obj) {
-            void subUpdateObject(obj);
+            subUpdateObject(obj).catch(onSubWriteError);
           }
         }
         return;
@@ -327,6 +341,7 @@ export const DrawingWidget: React.FC<{
       subUpdateObject,
       subRemoveObject,
       subClearObjects,
+      onSubWriteError,
     ]
   );
 
@@ -350,10 +365,53 @@ export const DrawingWidget: React.FC<{
     onObjectsChange: writeObjects,
   });
 
+  // When a page is deleted, drop the local command-stack history for it AND
+  // (post-migration) batch-delete its Firestore subcollection. Without the
+  // subcollection cleanup, the page-meta doc and all its child object docs
+  // would linger forever even though the page is gone from the dashboard.
+  //
+  // Destructure `forgetPage` so the callback below only re-creates when
+  // `forgetPage` itself changes (which is never — it's a stable useCallback
+  // in useCommandStack). Depending on the whole `commandStack` object would
+  // re-create this callback on every drawing stroke.
+  const { forgetPage } = commandStack;
+  const handlePageRemoved = useCallback(
+    (removedPageId: string) => {
+      forgetPage(removedPageId);
+      if (!config.subcollectionMigrated) return;
+      const uid = user?.uid;
+      if (!uid || !dashboardId) return;
+      deleteDrawingPageSubcollection({
+        db,
+        uid,
+        dashboardId,
+        widgetId: widget.id,
+        pageId: removedPageId,
+      }).catch((err: unknown) => {
+        logError('DrawingWidget.deletePageSubcollection', err, {
+          widgetId: widget.id,
+          pageId: removedPageId,
+        });
+        addToast(
+          'Page deleted, but cleanup failed in the background.',
+          'error'
+        );
+      });
+    },
+    [
+      forgetPage,
+      config.subcollectionMigrated,
+      user?.uid,
+      dashboardId,
+      widget.id,
+      addToast,
+    ]
+  );
+
   const pageNav = useDrawingPages({
     config: { ...config, pages, currentPage },
     updateConfig,
-    onPageRemoved: commandStack.forgetPage,
+    onPageRemoved: handlePageRemoved,
   });
 
   // Each create path (pen, shapes, image, text-first-commit) becomes a single
@@ -513,11 +571,9 @@ export const DrawingWidget: React.FC<{
     canvasRef,
   });
 
-  // Clear selection whenever the user switches off the Select tool. Without
-  // this, selection chrome lingers after the user clicks Pen/Rect/etc.
-  useEffect(() => {
-    if (activeTool !== 'select') clearSelection();
-  }, [activeTool, clearSelection]);
+  // Selection chrome is cleared by `setActiveTool` directly when leaving the
+  // Select tool — see the event-handler path below — so a state-sync effect
+  // here is unnecessary.
 
   // Clear selection + transform preview on page switch. Selection state is
   // page-scoped — a selected object id on page 1 has no meaning on page 2,
@@ -949,6 +1005,10 @@ export const DrawingWidget: React.FC<{
   };
 
   const setActiveTool = (tool: ShapeTool) => {
+    // Leaving Select clears selection chrome so it doesn't linger after the
+    // user picks Pen/Rect/etc. Done synchronously in the handler — no
+    // useEffect needed because the event already knows the new tool.
+    if (tool !== 'select') clearSelection();
     updateWidget(widget.id, {
       config: { ...config, activeTool: tool } as DrawingConfig,
     });
@@ -1243,6 +1303,8 @@ export const DrawingWidget: React.FC<{
             onAddPage={pageNav.addPage}
             onDeletePage={pageNav.removePage}
             onRenamePage={pageNav.renamePage}
+            activePageObjects={objects}
+            subcollectionMigrated={config.subcollectionMigrated}
           />
         </div>
       </div>

@@ -4,7 +4,10 @@ import { TextObject } from '@/types';
 interface TextEditorOverlayProps {
   /** The TextObject being edited. The overlay positions/styles itself from this. */
   object: TextObject;
-  /** Bounding rect of the canvas the object lives on, in CSS px on the page. */
+  /** Bounding rect of the canvas the object lives on, in viewport-relative
+   *  CSS px (i.e. the value returned by `getBoundingClientRect()` — no scroll
+   *  offsets applied). The overlay is `position: fixed`, so it consumes these
+   *  coordinates as-is. */
   canvasRect: DOMRect;
   /**
    * Internal canvas resolution. Object coordinates live in this space, so we
@@ -54,19 +57,20 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   // Stash callbacks + object in refs so blur/keydown handlers always see the
   // latest closure without re-binding listeners (avoids missed commits if
   // React re-renders between an in-flight pointer event and the handler
-  // firing). The refs are synced via a deps-free `useEffect` so the
-  // `react-hooks/refs-during-render` rule doesn't flag the assignments;
-  // the lag of one render before the ref reflects a new prop value is
-  // immaterial here — the consumers (blur/keydown handlers) fire from
-  // event loops AFTER the render commits.
+  // firing). Refs are assigned during render — the consumers (blur/keydown
+  // handlers) fire from event loops after the render commits, so the
+  // synchronous assignment is exactly what they need. The `react-hooks/refs`
+  // rule flags this on principle, but the assignments are idempotent and the
+  // pattern is the standard "ref-as-latest-prop" trick.
   const onCommitRef = useRef(onCommit);
   const onCancelRef = useRef(onCancel);
   const objectRef = useRef(object);
-  useEffect(() => {
-    onCommitRef.current = onCommit;
-    onCancelRef.current = onCancel;
-    objectRef.current = object;
-  });
+  // eslint-disable-next-line react-hooks/refs
+  onCommitRef.current = onCommit;
+  // eslint-disable-next-line react-hooks/refs
+  onCancelRef.current = onCancel;
+  // eslint-disable-next-line react-hooks/refs
+  objectRef.current = object;
   // Guard so blur after a Cmd+Enter commit (which intentionally blurs the
   // editor) doesn't double-fire onCommit and clobber an upstream state reset.
   const finalizedRef = useRef(false);
@@ -75,9 +79,10 @@ export const TextEditorOverlay: React.FC<TextEditorOverlayProps> = ({
   const scaleX = canvasSize.width > 0 ? canvasRect.width / canvasSize.width : 1;
   const scaleY =
     canvasSize.height > 0 ? canvasRect.height / canvasSize.height : 1;
-  // Use page-level coords so the overlay sits over the canvas no matter
-  // where the parent container is scrolled. canvasRect already accounts for
-  // page scroll via getBoundingClientRect + scroll offsets at call site.
+  // The overlay is `position: fixed`, so coordinates are viewport-relative
+  // — exactly what `getBoundingClientRect()` returns at the call site. Do
+  // NOT add window.scrollX/Y here: that would double-shift the overlay when
+  // the page is scrolled.
   const leftPx = canvasRect.left + object.x * scaleX;
   const topPx = canvasRect.top + object.y * scaleY;
   const widthPx = object.w * scaleX;

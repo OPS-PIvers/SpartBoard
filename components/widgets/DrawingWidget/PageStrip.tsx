@@ -8,7 +8,7 @@ import {
   Plus,
   Trash2,
 } from 'lucide-react';
-import { DrawingPage } from '@/types';
+import { DrawableObject, DrawingPage } from '@/types';
 import { getBoundingBox } from './hitTest';
 
 interface PageStripProps {
@@ -18,6 +18,15 @@ interface PageStripProps {
   onAddPage: () => void;
   onDeletePage: (index: number) => void;
   onRenamePage: (index: number, title: string) => void;
+  /** Live objects for the active page (subcollection-sourced post-migration).
+   *  Used to render an accurate thumbnail for the current page even when the
+   *  denormalized `pages[currentPage].objects` array is empty. */
+  activePageObjects?: DrawableObject[];
+  /** True once this widget's `pages[].objects[]` has been moved to the
+   *  Firestore subcollection. After migration, non-active pages have an empty
+   *  denormalized `objects[]` array — the thumbnail uses this flag to render
+   *  a "has content" placeholder instead of returning null. */
+  subcollectionMigrated?: boolean;
 }
 
 /**
@@ -58,6 +67,8 @@ export const PageStrip: React.FC<PageStripProps> = ({
   onAddPage,
   onDeletePage,
   onRenamePage,
+  activePageObjects,
+  subcollectionMigrated = false,
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [anchor, setAnchor] = useState<{ bottom: number; left: number } | null>(
@@ -239,7 +250,16 @@ export const PageStrip: React.FC<PageStripProps> = ({
                             isActive ? 'ring-1 ring-brand-blue-light' : ''
                           }`}
                         >
-                          <PageThumbnail page={page} />
+                          <PageThumbnail
+                            page={page}
+                            // Hydrate the active page from the live
+                            // subcollection slice so its thumbnail is accurate
+                            // even when the denormalized cache is empty.
+                            liveObjects={
+                              isActive ? activePageObjects : undefined
+                            }
+                            subcollectionMigrated={subcollectionMigrated}
+                          />
                         </span>
                         {isEditing ? (
                           <InlineTitle
@@ -427,33 +447,57 @@ const InlineTitle: React.FC<{
  * outlined rect, projected from the implicit canvas size (largest extent of
  * any object) into the chip's dimensions. Deliberately a sketch — full
  * per-page renders cost too much to draw N pages on every keystroke.
+ *
+ * Post-migration caveat: once the widget's pages have moved to the Firestore
+ * subcollection, only the currently-loaded page knows its real `objects[]`
+ * (via the `liveObjects` prop). For non-active pages we fall back to a
+ * neutral "has content" placeholder — the alternative would be N extra
+ * Firestore reads per popover open, which isn't justified for a sketch.
  */
-const PageThumbnail: React.FC<{ page: DrawingPage }> = ({ page }) => {
-  if (page.objects.length === 0) return null;
-  const bboxes = page.objects.map((obj) => getBoundingBox(obj));
-  const maxX = bboxes.reduce((m, b) => Math.max(m, b.x + b.w), 0);
-  const maxY = bboxes.reduce((m, b) => Math.max(m, b.y + b.h), 0);
-  const W = Math.max(maxX, 1);
-  const H = Math.max(maxY, 1);
-  return (
-    <svg
-      viewBox={`0 0 ${W} ${H}`}
-      preserveAspectRatio="xMidYMid meet"
-      className="absolute inset-0 w-full h-full"
-      aria-hidden="true"
-    >
-      {bboxes.map((b, i) => (
-        <rect
-          key={i}
-          x={b.x}
-          y={b.y}
-          width={Math.max(b.w, 1)}
-          height={Math.max(b.h, 1)}
-          fill="none"
-          stroke="rgba(226, 232, 240, 0.6)"
-          strokeWidth={Math.max(W, H) * 0.012}
-        />
-      ))}
-    </svg>
-  );
+const PageThumbnail: React.FC<{
+  page: DrawingPage;
+  liveObjects?: DrawableObject[];
+  subcollectionMigrated?: boolean;
+}> = ({ page, liveObjects, subcollectionMigrated = false }) => {
+  const objects = liveObjects ?? page.objects ?? [];
+  if (objects.length > 0) {
+    const bboxes = objects.map((obj) => getBoundingBox(obj));
+    const maxX = bboxes.reduce((m, b) => Math.max(m, b.x + b.w), 0);
+    const maxY = bboxes.reduce((m, b) => Math.max(m, b.y + b.h), 0);
+    const W = Math.max(maxX, 1);
+    const H = Math.max(maxY, 1);
+    return (
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        preserveAspectRatio="xMidYMid meet"
+        className="absolute inset-0 w-full h-full"
+        aria-hidden="true"
+      >
+        {bboxes.map((b, i) => (
+          <rect
+            key={i}
+            x={b.x}
+            y={b.y}
+            width={Math.max(b.w, 1)}
+            height={Math.max(b.h, 1)}
+            fill="none"
+            stroke="rgba(226, 232, 240, 0.6)"
+            strokeWidth={Math.max(W, H) * 0.012}
+          />
+        ))}
+      </svg>
+    );
+  }
+  // Post-migration non-active page: render a neutral filled rect so the chip
+  // doesn't look empty when the page may in fact have content we haven't
+  // loaded. Pre-migration empty pages fall through to null (no placeholder).
+  if (subcollectionMigrated) {
+    return (
+      <span
+        className="absolute inset-1 rounded-sm bg-white/10"
+        aria-hidden="true"
+      />
+    );
+  }
+  return null;
 };
