@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   prepareEditableSvg,
   ensureObjectIds,
@@ -419,28 +413,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const eraserSizeRef = useRef(eraserSize);
   eraserSizeRef.current = eraserSize;
 
-  const [selectedIds, setSelectedIdsRaw] = useState<string[]>([]);
-  const setSelectedIds: typeof setSelectedIdsRaw = (next) => {
-    if (typeof next === 'function') {
-      setSelectedIdsRaw((prev) => {
-        const computed = (next as (p: string[]) => string[])(prev);
-        // eslint-disable-next-line no-console
-        console.log('[nb-debug] setSelectedIds(fn)', {
-          from: prev,
-          to: computed,
-          stack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-        });
-        return computed;
-      });
-    } else {
-      // eslint-disable-next-line no-console
-      console.log('[nb-debug] setSelectedIds', {
-        to: next,
-        stack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
-      });
-      setSelectedIdsRaw(next);
-    }
-  };
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState<{
     id: string;
     left: number;
@@ -450,20 +423,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     value: string;
   } | null>(null);
 
-  const prepared = useMemo(() => prepareEditableSvg(svg), [svg]);
-  // True when the incoming `svg` prop is exactly the string we last emitted
-  // — i.e. an autosave round-trip rather than a genuine external change.
-  // We advance prevPrepared without disturbing selection or DOM in that case.
-  const isOwnRoundTrip = svg === lastEmittedSvgRef.current;
-
-  const [prevPrepared, setPrevPrepared] = useState(prepared);
-  if (prepared !== prevPrepared) {
-    setPrevPrepared(prepared);
-    if (!isOwnRoundTrip) {
-      setSelectedIds([]);
-      setEditing(null);
-    }
-  }
+  // PageEditor is purely write-only after mount: it reads the `svg` prop
+  // exactly once (in the mount effect below) and never reacts to subsequent
+  // prop changes. The host's autosave feedback (Storage URL bouncing back
+  // through Firestore → editedSvgsRef → cachedSvg → svg prop) used to flow
+  // back in here as a "round-trip" we tried to defensively skip, but the
+  // skip was reference-equality based and fragile — any mismatch tore down
+  // the live DOM. One-way data flow is simpler and safer: the host can
+  // hold whatever it wants, the editor doesn't care.
 
   // Drop any active selection when the host switches off the select tool —
   // otherwise the highlight rect / handles would linger over a pen or
@@ -816,22 +783,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
   rebuildEditorDomRef.current = rebuildEditorDom;
 
+  // Mount-once initialization. Runs exactly when this PageEditor instance
+  // first appears (or remounts via a key change — currentPage is the host's
+  // key, so page navigation and notebook switches naturally trigger a fresh
+  // mount). Subsequent `svg` prop changes are intentionally ignored: the
+  // editor owns its own DOM state from here on and only writes upstream.
   useEffect(() => {
-    // Autosave round-trip: the host is feeding us back the SVG we just
-    // emitted. The DOM already reflects this content; tearing it down and
-    // rebuilding would clobber any in-flight drag (e.g. the user started
-    // moving an image after release-resizing, then the resize autosave
-    // landed mid-move). Detection is reference-equality based; the host
-    // stores our emit verbatim and hands it back via editedSvgsRef.
-    if (isOwnRoundTrip) return;
     rebuildEditorDom(svg);
-    // Capture the baseline as the first undo target so Cmd+Z from the
-    // very first edit restores the page as it was loaded.
     initialSvgRef.current = svg;
     pastSvgStackRef.current = [];
     futureSvgStackRef.current = [];
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [prepared, isOwnRoundTrip, rebuildEditorDom]);
+  }, []);
 
   useEffect(() => {
     renderSelection(selectedIds);
@@ -844,7 +807,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     // selection rendering when the link map for the active page changes
     // (e.g. teacher just added or removed a link) so the arrow FAB appears
     // or disappears without needing to re-select the object.
-  }, [selectedIds, renderSelection, prepared, linkedObjectTargets]);
+  }, [selectedIds, renderSelection, linkedObjectTargets]);
 
   // Compute a NormalizedBox in page-fraction coordinates from a freshly
   // appended clone. Used by both duplicate and paste to construct the new
@@ -1268,16 +1231,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Delete' || e.key === 'Backspace') {
-        // eslint-disable-next-line no-console
-        console.log('[nb-debug] keydown Delete/Backspace', {
-          key: e.key,
-          editing: !!editing,
-          selectedIds: [...selectedIds],
-          phase: e.eventPhase,
-          targetTag: (e.target as Element)?.tagName,
-        });
-      }
       if (editing) return;
       // Undo / Redo land in their own branch so they fire whether or not
       // anything is selected — the prior emit might've been a paste with
