@@ -1383,17 +1383,61 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     [students]
   );
 
-  // 130/N cqw guarantees the N-char word fits (uppercase bold, ~0.65
-  // char-width ratio, 15 % safety margin). Derived dynamically so the
-  // guarantee holds for any word length, not just those in a lookup table.
-  // Capped at 40cqw for very short words and 4cqw as an absolute minimum.
-  // The cqh cap (20cqh) prevents vertical overflow in very wide-but-short
-  // widgets where a pure cqw value could produce an impossibly tall font.
+  // Size the result text to fit the CURRENTLY DISPLAYED string so short
+  // winners ("1.") fill the widget instead of being pinned to whatever the
+  // longest student name in the roster happens to be.
+  //
+  // Horizontal fit: 100/N cqw assumes ~0.85 char-width ratio for bold
+  // uppercase (Lexend) with ~15 % safety margin — wider than the historical
+  // 130/N which assumed 0.65 and let wide letters like R/E/A overflow.
+  // Multi-word strings wrap at spaces (white-space normal, no mid-word
+  // breaks) so the formula only needs to fit the longest single word.
+  //
+  // Caps: cqw cap raised to 80 so 1-2 char results ("1.", "X") can grow
+  // into available vertical space instead of being clipped by an artificially
+  // tight horizontal cap. cqh cap of 60 gives single-word results room to
+  // fill ~60 % of widget height while still allowing 2-line wrap on typical
+  // FirstName-LastName picks (60×2 = 120 cqh just clips, which is the
+  // wrap-fallback case and acceptable).
+  //
+  // Falls back to the 6-char "Ready?" placeholder length when displayResult
+  // is empty / not a string (e.g. Groups mode), so the formula stays defined.
+  const displayedWordLength = useMemo(() => {
+    if (typeof displayResult === 'string' && displayResult.length > 0) {
+      return displayResult
+        .trim()
+        .split(/\s+/)
+        .reduce((maxLen, word) => Math.max(maxLen, word.length), 0);
+    }
+    return 0;
+  }, [displayResult]);
   const resFontSize = useMemo(() => {
-    if (maxWordLength === 0) return 'min(26cqw, 20cqh)';
-    const cqwValue = Math.min(40, Math.max(4, Math.round(130 / maxWordLength)));
-    return `min(${cqwValue}cqw, 20cqh)`;
-  }, [maxWordLength]);
+    // Three regimes:
+    //   - Spinning: use the roster's worst-case word so the font is stable
+    //     across animation ticks (otherwise every random name swap retriggers
+    //     a font-size transition mid-spin).
+    //   - Settled winner: size to the actually-displayed string so short
+    //     winners ("1.") fill the widget.
+    //   - Placeholder ("Ready?"): always 6 chars — we don't fall back to
+    //     maxWordLength because a roster of short names (e.g. a 1-letter
+    //     "Q") would size the 6-char placeholder too large and overflow.
+    let effectiveLength: number;
+    if (isSpinning) {
+      effectiveLength = maxWordLength > 0 ? maxWordLength : 6;
+    } else if (displayedWordLength > 0) {
+      effectiveLength = displayedWordLength;
+    } else {
+      effectiveLength = 6;
+    }
+    // 75 = 100% width / (char_ratio ~1.13 with margin) — Lexend bold
+    // uppercase letters like R/E/A/D/Y run wider than typical sans-serif so
+    // the multiplier needs to be conservative or short words will overflow.
+    const cqwValue = Math.min(
+      80,
+      Math.max(4, Math.round(75 / effectiveLength))
+    );
+    return `min(${cqwValue}cqw, 60cqh)`;
+  }, [isSpinning, displayedWordLength, maxWordLength]);
 
   const renderSinglePick = () => {
     if (visualStyle === 'wheel' && students.length > 0) {
@@ -1539,9 +1583,10 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 disabled={isSpinning}
                 className="flex items-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2"
                 style={{
-                  gap: 'min(6px, 1.5cqmin)',
-                  padding: 'min(6px, 1.5cqmin) min(12px, 2.5cqmin)',
-                  height: 'min(32px, 8cqmin)',
+                  gap: 'clamp(6px, 1.5cqmin, 10px)',
+                  padding:
+                    'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
+                  minHeight: 'clamp(32px, 8cqmin, 48px)',
                 }}
                 aria-label={t('widgets.random.modeChipAria', {
                   mode: currentModeLabel,
@@ -1555,13 +1600,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 <ModeIcon
                   className="text-brand-blue-primary shrink-0"
                   style={{
-                    width: 'min(14px, 4cqmin)',
-                    height: 'min(14px, 4cqmin)',
+                    width: 'clamp(14px, 4cqmin, 22px)',
+                    height: 'clamp(14px, 4cqmin, 22px)',
                   }}
                 />
                 <span
                   className="font-black uppercase text-brand-blue-primary truncate min-w-0 tracking-widest"
-                  style={{ fontSize: 'min(13px, 3.5cqmin)' }}
+                  style={{ fontSize: 'clamp(13px, 3.5cqmin, 18px)' }}
                 >
                   {currentModeLabel}
                 </span>
@@ -1602,7 +1647,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             </div>
             <div
               className="flex items-center"
-              style={{ gap: 'min(6px, 1.5cqmin)' }}
+              style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
             >
               {/* AbsentButton is the canonical "remove a student" entry
                   point — only valid when a class roster is active, since
@@ -1720,9 +1765,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 })}
                 className="flex-1 min-w-0"
                 style={{
-                  height: 'min(48px, 9cqmin)',
-                  paddingLeft: 'min(14px, 2.5cqmin)',
-                  paddingRight: 'min(14px, 2.5cqmin)',
+                  height: 'clamp(40px, 10cqmin, 72px)',
+                  paddingLeft: 'clamp(10px, 3cqmin, 24px)',
+                  paddingRight: 'clamp(10px, 3cqmin, 24px)',
                 }}
                 title={t('widgets.random.launchJigsawHint', {
                   defaultValue: 'Show expert groups',
@@ -1730,15 +1775,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 icon={
                   <Sparkles
                     style={{
-                      width: 'min(18px, 4.5cqmin)',
-                      height: 'min(18px, 4.5cqmin)',
+                      width: 'clamp(16px, 4.5cqmin, 32px)',
+                      height: 'clamp(16px, 4.5cqmin, 32px)',
                     }}
                   />
                 }
               >
                 <span
                   className="font-black uppercase tracking-wider truncate"
-                  style={{ fontSize: 'min(12px, 2.8cqmin)' }}
+                  style={{ fontSize: 'clamp(11px, 3cqmin, 18px)' }}
                 >
                   {t('widgets.random.launchJigsawShort', {
                     defaultValue: 'Expert',
@@ -1767,9 +1812,9 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 })}
                 className="flex-1 min-w-0"
                 style={{
-                  height: 'min(48px, 9cqmin)',
-                  paddingLeft: 'min(14px, 2.5cqmin)',
-                  paddingRight: 'min(14px, 2.5cqmin)',
+                  height: 'clamp(40px, 10cqmin, 72px)',
+                  paddingLeft: 'clamp(10px, 3cqmin, 24px)',
+                  paddingRight: 'clamp(10px, 3cqmin, 24px)',
                 }}
                 title={t('widgets.random.launchHomeGroupHint', {
                   defaultValue: 'Return to home groups',
@@ -1777,15 +1822,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 icon={
                   <Home
                     style={{
-                      width: 'min(18px, 4.5cqmin)',
-                      height: 'min(18px, 4.5cqmin)',
+                      width: 'clamp(16px, 4.5cqmin, 32px)',
+                      height: 'clamp(16px, 4.5cqmin, 32px)',
                     }}
                   />
                 }
               >
                 <span
                   className="font-black uppercase tracking-wider truncate"
-                  style={{ fontSize: 'min(12px, 2.8cqmin)' }}
+                  style={{ fontSize: 'clamp(11px, 3cqmin, 18px)' }}
                 >
                   {t('widgets.random.launchHomeGroupShort', {
                     defaultValue: 'Home',
@@ -1800,8 +1845,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 disabled={isSpinning}
                 className="flex-shrink-0"
                 style={{
-                  width: 'min(48px, 9cqmin)',
-                  height: 'min(48px, 9cqmin)',
+                  width: 'clamp(40px, 10cqmin, 72px)',
+                  height: 'clamp(40px, 10cqmin, 72px)',
                   padding: 0,
                 }}
                 aria-label={isSpinning ? 'Picking' : 'Randomize'}
@@ -1810,8 +1855,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <Shuffle
                     className={isSpinning ? 'animate-spin' : ''}
                     style={{
-                      width: 'min(22px, 5cqmin)',
-                      height: 'min(22px, 5cqmin)',
+                      width: 'clamp(20px, 5cqmin, 36px)',
+                      height: 'clamp(20px, 5cqmin, 36px)',
                     }}
                   />
                 }
@@ -1838,8 +1883,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     onClick={handleSendToScoreboard}
                     aria-label={t('widgets.random.sendToScoreboard')}
                     style={{
-                      width: 'min(48px, 9cqmin)',
-                      height: 'min(48px, 9cqmin)',
+                      width: 'clamp(40px, 10cqmin, 72px)',
+                      height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
                     }}
                     className="flex-shrink-0"
@@ -1847,8 +1892,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                     icon={
                       <Trophy
                         style={{
-                          width: 'min(22px, 5cqmin)',
-                          height: 'min(22px, 5cqmin)',
+                          width: 'clamp(20px, 5cqmin, 36px)',
+                          height: 'clamp(20px, 5cqmin, 36px)',
                         }}
                         className="text-amber-500"
                       />
@@ -1906,8 +1951,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       defaultValue: 'Rotate groups',
                     })}
                     style={{
-                      width: 'min(48px, 9cqmin)',
-                      height: 'min(48px, 9cqmin)',
+                      width: 'clamp(40px, 10cqmin, 72px)',
+                      height: 'clamp(40px, 10cqmin, 72px)',
                       padding: 0,
                     }}
                     className="flex-shrink-0 ml-auto"
@@ -1919,8 +1964,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                       <RefreshCw
                         className={isRotating ? 'animate-spin' : ''}
                         style={{
-                          width: 'min(22px, 5cqmin)',
-                          height: 'min(22px, 5cqmin)',
+                          width: 'clamp(20px, 5cqmin, 36px)',
+                          height: 'clamp(20px, 5cqmin, 36px)',
                         }}
                       />
                     }
@@ -1934,8 +1979,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                 disabled={isSpinning}
                 className={`flex-shrink-0${mode === 'groups' && Array.isArray(displayResult) && displayResult.length > 1 ? '' : ' ml-auto'}`}
                 style={{
-                  width: 'min(48px, 9cqmin)',
-                  height: 'min(48px, 9cqmin)',
+                  width: 'clamp(40px, 10cqmin, 72px)',
+                  height: 'clamp(40px, 10cqmin, 72px)',
                   padding: 0,
                 }}
                 aria-label={isSpinning ? 'Picking' : 'Randomize'}
@@ -1944,8 +1989,8 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
                   <Shuffle
                     className={isSpinning ? 'animate-spin' : ''}
                     style={{
-                      width: 'min(22px, 5cqmin)',
-                      height: 'min(22px, 5cqmin)',
+                      width: 'clamp(20px, 5cqmin, 36px)',
+                      height: 'clamp(20px, 5cqmin, 36px)',
                     }}
                   />
                 }

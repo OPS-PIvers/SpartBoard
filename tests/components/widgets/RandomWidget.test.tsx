@@ -126,9 +126,11 @@ describe('RandomWidget', () => {
 
   describe('text scaling', () => {
     // Shorter words get a larger cqw value; longer words get a smaller one.
-    // Formula: round(130 / maxWordLength) cqw, capped at [4, 40].
-    // 'Alice'       →  5 chars → round(130/5)  = 26 → 'min(26cqw, 20cqh)'
-    // 'Christopher' → 11 chars → round(130/11) = 12 → 'min(12cqw, 20cqh)'
+    // When lastResult is set (settled winner), formula sizes based on the
+    // displayed string's longest word: round(75 / wordLength) cqw, capped at
+    // [4, 80], with a 60cqh vertical cap.
+    // 'Alice'       →  5 chars → round(75/5)  = 15 → 'min(15cqw, 60cqh)'
+    // 'Christopher' → 11 chars → round(75/11) =  7 → 'min(7cqw, 60cqh)'
 
     it('assigns a smaller font size for longer words than for shorter ones', () => {
       const shortWidget = {
@@ -164,8 +166,8 @@ describe('RandomWidget', () => {
         .getByTestId('random-flash')
         .getAttribute('data-font-size');
 
-      expect(shortFontSize).toBe('min(26cqw, 20cqh)');
-      expect(longFontSize).toBe('min(12cqw, 20cqh)');
+      expect(shortFontSize).toBe('min(15cqw, 60cqh)');
+      expect(longFontSize).toBe('min(7cqw, 60cqh)');
     });
 
     it('sizes font by the longest WORD, not the full name length', () => {
@@ -207,12 +209,13 @@ describe('RandomWidget', () => {
         .getAttribute('data-font-size');
 
       // Both rosters have a max word length of 11 → same font size
-      expect(multiFontSize).toBe('min(12cqw, 20cqh)');
-      expect(singleFontSize).toBe('min(12cqw, 20cqh)');
+      expect(multiFontSize).toBe('min(7cqw, 60cqh)');
+      expect(singleFontSize).toBe('min(7cqw, 60cqh)');
     });
 
     it('produces a valid font size for words longer than 18 characters', () => {
-      // 34-char word → round(130/34) = 4 (the minimum) → 'min(4cqw, 20cqh)'
+      // 34-char word → round(75/34) = 2 → clamped to the [4, 80] floor →
+      // 'min(4cqw, 60cqh)'
       const longWordWidget = {
         ...mockWidget,
         config: {
@@ -229,7 +232,7 @@ describe('RandomWidget', () => {
         .getByTestId('random-flash')
         .getAttribute('data-font-size');
 
-      expect(fontSize).toBe('min(4cqw, 20cqh)');
+      expect(fontSize).toBe('min(4cqw, 60cqh)');
     });
   });
 });

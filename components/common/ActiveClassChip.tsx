@@ -137,16 +137,22 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
   if (!activeRoster) return null;
 
   const iconSizeStyle = compact
-    ? { width: 'min(14px, 4cqmin)', height: 'min(14px, 4cqmin)' }
+    ? {
+        width: 'clamp(12px, 4cqmin, 18px)',
+        height: 'clamp(12px, 4cqmin, 18px)',
+      }
     : {
         width: 'clamp(14px, 3.6cqmin, 28px)',
         height: 'clamp(14px, 3.6cqmin, 28px)',
       };
   const labelFontStyle = compact
-    ? { fontSize: 'min(11px, 3.5cqmin)' }
+    ? { fontSize: 'clamp(10px, 3.5cqmin, 14px)' }
     : { fontSize: 'clamp(12px, 3cqmin, 20px)' };
   const chevronSizeStyle = compact
-    ? { width: 'min(12px, 3.5cqmin)', height: 'min(12px, 3.5cqmin)' }
+    ? {
+        width: 'clamp(10px, 3.5cqmin, 16px)',
+        height: 'clamp(10px, 3.5cqmin, 16px)',
+      }
     : {
         width: 'clamp(12px, 3cqmin, 22px)',
         height: 'clamp(12px, 3cqmin, 22px)',
@@ -184,9 +190,9 @@ export const ActiveClassChip: React.FC<ActiveClassChipProps> = ({
     : 'flex items-center bg-brand-blue-lighter rounded-full border border-brand-blue-light';
   const chipStyle: React.CSSProperties = compact
     ? {
-        gap: 'min(6px, 1.5cqmin)',
-        padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-        height: 'min(32px, 8cqmin)',
+        gap: 'clamp(5px, 1.5cqmin, 8px)',
+        padding: 'clamp(5px, 1.5cqmin, 8px) clamp(8px, 2.5cqmin, 14px)',
+        minHeight: 'clamp(26px, 8cqmin, 36px)',
       }
     : {
         gap: 'clamp(6px, 2cqmin, 14px)',

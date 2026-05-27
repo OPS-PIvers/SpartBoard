@@ -33,7 +33,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
       aria-label={title}
       title={title}
       className="flex items-stretch bg-white/80 border border-slate-200 rounded-full overflow-hidden shadow-sm flex-shrink-0"
-      style={{ height: 'min(48px, 9cqmin)' }}
+      style={{ height: 'clamp(40px, 9cqmin, 72px)' }}
     >
       <button
         type="button"
@@ -41,7 +41,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
         disabled={atMin}
         className="flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         style={{
-          width: 'min(32px, 7cqmin)',
+          width: 'clamp(28px, 7cqmin, 48px)',
         }}
         aria-label={t('widgets.random.stepperDecrease', {
           name: title,
@@ -50,30 +50,30 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
       >
         <Minus
           style={{
-            width: 'min(14px, 3.5cqmin)',
-            height: 'min(14px, 3.5cqmin)',
+            width: 'clamp(12px, 3.5cqmin, 22px)',
+            height: 'clamp(12px, 3.5cqmin, 22px)',
           }}
         />
       </button>
       <div
         className="flex flex-col items-center justify-center"
         style={{
-          paddingLeft: 'min(4px, 0.5cqmin)',
-          paddingRight: 'min(4px, 0.5cqmin)',
-          minWidth: 'min(28px, 6cqmin)',
+          paddingLeft: 'clamp(4px, 0.5cqmin, 8px)',
+          paddingRight: 'clamp(4px, 0.5cqmin, 8px)',
+          minWidth: 'clamp(28px, 6cqmin, 44px)',
         }}
       >
         {label && (
           <span
             className="uppercase tracking-wider text-slate-400 font-bold leading-none"
-            style={{ fontSize: 'min(9px, 1.8cqmin)' }}
+            style={{ fontSize: 'clamp(9px, 1.8cqmin, 12px)' }}
           >
             {label}
           </span>
         )}
         <span
           className="font-bold font-mono text-slate-700 tabular-nums leading-tight"
-          style={{ fontSize: 'min(15px, 3.5cqmin)' }}
+          style={{ fontSize: 'clamp(14px, 3.5cqmin, 22px)' }}
         >
           {value}
         </span>
@@ -84,7 +84,7 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
         disabled={atMax}
         className="flex items-center justify-center text-slate-600 hover:bg-slate-100 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
         style={{
-          width: 'min(32px, 7cqmin)',
+          width: 'clamp(28px, 7cqmin, 48px)',
         }}
         aria-label={t('widgets.random.stepperIncrease', {
           name: title,
@@ -93,8 +93,8 @@ export const GroupSizeStepper: React.FC<GroupSizeStepperProps> = ({
       >
         <Plus
           style={{
-            width: 'min(14px, 3.5cqmin)',
-            height: 'min(14px, 3.5cqmin)',
+            width: 'clamp(12px, 3.5cqmin, 22px)',
+            height: 'clamp(12px, 3.5cqmin, 22px)',
           }}
         />
       </button>
