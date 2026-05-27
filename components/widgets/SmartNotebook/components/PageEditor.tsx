@@ -381,6 +381,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // moment later. Reference equality is enough because the host stores and
   // returns the same string instance via editedSvgsRef.
   const lastEmittedSvgRef = useRef<string | null>(null);
+  // First-load baseline string used as the initial undo target — captured
+  // from the prop on mount so Cmd+Z from the very first edit restores the
+  // page as it was loaded.
+  const initialSvgRef = useRef<string | null>(null);
+  // Per-page undo / redo stacks. Cleared automatically when the editor
+  // remounts on a page change (key={currentPage} in the host). Capped so
+  // a long session of editing doesn't pin large SVG strings forever.
+  const MAX_UNDO_DEPTH = 50;
+  const pastSvgStackRef = useRef<string[]>([]);
+  const futureSvgStackRef = useRef<string[]>([]);
 
   const onSelRef = useRef(onSelectionChange);
   const onChangeRef = useRef(onChange);
@@ -572,21 +582,75 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const emitChange = useCallback(() => {
     if (!svgRef.current) return;
     const serialized = exportEditedSvg(svgRef.current);
+    // Snapshot the baseline that was in effect BEFORE this edit so the
+    // user can Cmd+Z back to it. The very first emit uses the initial
+    // prop string (page-as-loaded) since lastEmittedSvgRef hasn't been
+    // populated by a previous emit yet. Identical strings are skipped
+    // so a no-op pointerup (e.g. drag below the threshold) doesn't fill
+    // the stack with duplicates.
+    const previousBaseline = lastEmittedSvgRef.current ?? initialSvgRef.current;
+    if (previousBaseline !== null && previousBaseline !== serialized) {
+      pastSvgStackRef.current.push(previousBaseline);
+      if (pastSvgStackRef.current.length > MAX_UNDO_DEPTH) {
+        pastSvgStackRef.current.shift();
+      }
+      // Any new edit invalidates the redo branch — user has committed
+      // to a different future from this point.
+      futureSvgStackRef.current = [];
+    }
     lastEmittedSvgRef.current = serialized;
     onChangeRef.current?.(serialized);
   }, []);
 
-  useEffect(() => {
+  // Cmd+Z restores the SVG to the most recent past baseline. Cmd+Shift+Z
+  // replays the next future. Both rebuild the DOM directly via
+  // rebuildEditorDom — emitting and waiting for the prop round-trip
+  // would be skipped by the isOwnRoundTrip guard above. We dispatch
+  // through rebuildEditorDomRef rather than a direct closure over
+  // rebuildEditorDom because that callback is declared further down
+  // the file (its useCallback can't be moved without ferrying around
+  // 150 lines of overlay-creation code), and a const-ref pattern is
+  // the cleanest way to break the forward-reference cycle.
+  const rebuildEditorDomRef = useRef<((svgString: string) => void) | null>(
+    null
+  );
+  const undo = useCallback(() => {
+    if (pastSvgStackRef.current.length === 0) return;
+    const prev = pastSvgStackRef.current.pop();
+    if (prev === undefined) return;
+    if (lastEmittedSvgRef.current !== null) {
+      futureSvgStackRef.current.push(lastEmittedSvgRef.current);
+    }
+    rebuildEditorDomRef.current?.(prev);
+    lastEmittedSvgRef.current = prev;
+    setSelectedIds([]);
+    setEditing(null);
+    onChangeRef.current?.(prev);
+  }, []);
+
+  const redo = useCallback(() => {
+    if (futureSvgStackRef.current.length === 0) return;
+    const next = futureSvgStackRef.current.pop();
+    if (next === undefined) return;
+    if (lastEmittedSvgRef.current !== null) {
+      pastSvgStackRef.current.push(lastEmittedSvgRef.current);
+    }
+    rebuildEditorDomRef.current?.(next);
+    lastEmittedSvgRef.current = next;
+    setSelectedIds([]);
+    setEditing(null);
+    onChangeRef.current?.(next);
+  }, []);
+
+  // Rebuild the editor DOM from a serialized SVG string. Owns all overlay
+  // creation (selection group, corner handles, rotate handle, link FABs,
+  // marquee). Pulled out of the mount effect so undo / redo can re-init
+  // the DOM directly without needing the host to push a new svg prop
+  // through (the autosave round-trip skip would block that path).
+  const rebuildEditorDom = useCallback((svgString: string) => {
     const container = containerRef.current;
     if (!container) return;
-    // Autosave round-trip: the host is feeding us back the SVG we just
-    // emitted. The DOM already reflects this content; tearing it down and
-    // rebuilding from `prepared` would clobber any in-flight drag (e.g. the
-    // user started moving an image after release-resizing, then the resize
-    // autosave landed mid-move). Detection is reference-equality based; the
-    // host stores our emit verbatim and hands it back via editedSvgsRef.
-    if (isOwnRoundTrip) return;
-    container.innerHTML = prepared;
+    container.innerHTML = prepareEditableSvg(svgString);
     const el = container.querySelector('svg');
     svgRef.current = el;
     handlesRef.current = new Map();
@@ -727,7 +791,26 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     marquee.style.display = 'none';
     el.appendChild(marquee);
     marqueeRef.current = marquee;
-  }, [prepared, isOwnRoundTrip]);
+  }, []);
+
+  rebuildEditorDomRef.current = rebuildEditorDom;
+
+  useEffect(() => {
+    // Autosave round-trip: the host is feeding us back the SVG we just
+    // emitted. The DOM already reflects this content; tearing it down and
+    // rebuilding would clobber any in-flight drag (e.g. the user started
+    // moving an image after release-resizing, then the resize autosave
+    // landed mid-move). Detection is reference-equality based; the host
+    // stores our emit verbatim and hands it back via editedSvgsRef.
+    if (isOwnRoundTrip) return;
+    rebuildEditorDom(svg);
+    // Capture the baseline as the first undo target so Cmd+Z from the
+    // very first edit restores the page as it was loaded.
+    initialSvgRef.current = svg;
+    pastSvgStackRef.current = [];
+    futureSvgStackRef.current = [];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prepared, isOwnRoundTrip, rebuildEditorDom]);
 
   useEffect(() => {
     renderSelection(selectedIds);
@@ -1165,6 +1248,27 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing) return;
+      // Undo / Redo land in their own branch so they fire whether or not
+      // anything is selected — the prior emit might've been a paste with
+      // selection still active, or a tool-mode action with no selection.
+      if (
+        (e.metaKey || e.ctrlKey) &&
+        !e.altKey &&
+        (e.key === 'z' || e.key === 'Z')
+      ) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.shiftKey) redo();
+        else undo();
+        return;
+      }
+      // Cmd+Y as the alternate redo binding (Windows convention).
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'y' || e.key === 'Y')) {
+        e.preventDefault();
+        e.stopPropagation();
+        redo();
+        return;
+      }
       if (e.key === 'Escape') {
         setSelectedIds([]);
         return;
@@ -1224,15 +1328,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     duplicateSelected,
     copySelected,
     reorderSelected,
+    undo,
+    redo,
   ]);
 
-  // Paste handler — runs on the native `paste` event rather than a Cmd+V
-  // keydown so the browser actually populates clipboardData with whatever
-  // the OS clipboard has (image bytes, text, HTML). Priority:
-  //   1. Image data on the OS clipboard → SVG <image> with data URL
-  //   2. Plain-text data on the OS clipboard → SVG <text>
-  //   3. Fall back to the in-app clipboard (copy of page objects, with
-  //      their hotspot links preserved)
+  // Paste handler — runs on the native `paste` event so the browser
+  // populates clipboardData with whatever the OS clipboard has. Priority:
+  //   1. If the in-app clipboard has objects (a Cmd+C happened inside this
+  //      editor), paste those — most teachers Cmd+C → Cmd+V to duplicate
+  //      across pages and expect THEIR copy to win over whatever the OS
+  //      clipboard might also have lying around.
+  //   2. Image data on the OS clipboard → SVG <image> (screenshots).
+  //   3. Plain-text data on the OS clipboard → SVG <text>.
   // The listener is on window so it fires without the canvas being a
   // focused editable target; we early-return when editing a text node so
   // a paste inside the textarea behaves natively.
@@ -1254,10 +1361,17 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       ) {
         return;
       }
+      // In-app clipboard wins. Cross-page object copy/paste is the dominant
+      // editor workflow; falling through to the OS clipboard first meant a
+      // stale screenshot in the OS clipboard would silently override the
+      // teacher's just-issued Cmd+C in the notebook.
+      if (pageEditorClipboard.length > 0) {
+        e.preventDefault();
+        pasteFromClipboard();
+        return;
+      }
       const data = e.clipboardData;
       if (data) {
-        // Look for an image file first — handles screenshots and "Copy
-        // image" actions in browsers / file managers.
         for (let i = 0; i < data.items.length; i++) {
           const item = data.items[i];
           if (item.kind === 'file' && item.type.startsWith('image/')) {
@@ -1275,11 +1389,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
           pasteTextString(text);
           return;
         }
-      }
-      // No usable OS-clipboard payload — fall back to the in-app clipboard.
-      if (pageEditorClipboard.length > 0) {
-        e.preventDefault();
-        pasteFromClipboard();
       }
     };
     window.addEventListener('paste', onPaste);
@@ -1403,12 +1512,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       const target = document.elementFromPoint(sx, sy);
       if (!target) continue;
       const id = objectIdForTarget(svgEl, target);
-      if (!id) continue;
-      const info = objectsRef.current.find((o) => o.id === id);
-      // Eraser only removes ink — leaves text/shapes/images alone so a
-      // teacher mid-erase doesn't accidentally delete a labeled object.
-      if (info?.kind !== 'ink') continue;
-      hitIds.add(id);
+      // Eraser removes anything it touches (ink, text, shapes, images).
+      // The earlier ink-only restriction surprised teachers who expected
+      // it to behave like the SMART Notebook eraser — wipe whatever is
+      // under the cursor. They can still undo (Cmd+Z) if they erase
+      // something on purpose.
+      if (id) hitIds.add(id);
     }
     if (hitIds.size === 0) return;
     for (const id of hitIds) {
