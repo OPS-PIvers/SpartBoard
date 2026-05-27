@@ -63,24 +63,24 @@ export const AbsentButton: React.FC<AbsentButtonProps> = ({
         })}
         className={`relative flex items-center rounded-xl bg-white border border-slate-200 text-slate-500 hover:bg-slate-50 hover:text-brand-blue-primary transition-colors cursor-pointer ${className ?? ''}`.trim()}
         style={{
-          gap: 'min(6px, 1.5cqmin)',
-          padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
-          height: 'min(32px, 8cqmin)',
+          gap: 'clamp(6px, 1.5cqmin, 10px)',
+          padding: 'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
+          minHeight: 'clamp(32px, 8cqmin, 48px)',
         }}
       >
         <UserX
           className="shrink-0"
           style={{
-            width: 'min(14px, 4cqmin)',
-            height: 'min(14px, 4cqmin)',
+            width: 'clamp(14px, 4cqmin, 22px)',
+            height: 'clamp(14px, 4cqmin, 22px)',
           }}
         />
         {absentCount > 0 && (
           <span
             className="font-black bg-red-500 text-white rounded-full leading-none tabular-nums shrink-0"
             style={{
-              fontSize: 'min(10px, 3cqmin)',
-              padding: 'min(2px, 0.6cqmin) min(6px, 1.6cqmin)',
+              fontSize: 'clamp(9px, 3cqmin, 12px)',
+              padding: 'clamp(2px, 0.6cqmin, 3px) clamp(5px, 1.6cqmin, 8px)',
             }}
           >
             {absentCount}

@@ -2,6 +2,13 @@ import React from 'react';
 import { useDashboard } from '@/context/useDashboard';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 
+/**
+ * Placeholder text shown when no winner has been picked yet. Exported so the
+ * sizing formula in RandomWidget can match its width to this exact string —
+ * keep the two in sync if this is ever translated or replaced.
+ */
+export const RANDOM_FLASH_PLACEHOLDER = 'Ready?';
+
 interface RandomFlashProps {
   displayResult: string | string[] | string[][] | null;
   isSpinning: boolean;
@@ -25,7 +32,7 @@ export const RandomFlash: React.FC<RandomFlashProps> = ({
   const label =
     typeof displayResult === 'string' && displayResult.length > 0
       ? displayResult
-      : 'Ready?';
+      : RANDOM_FLASH_PLACEHOLDER;
 
   return (
     <div
