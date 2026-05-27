@@ -385,6 +385,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const MAX_UNDO_DEPTH = 50;
   const pastSvgStackRef = useRef<string[]>([]);
   const futureSvgStackRef = useRef<string[]>([]);
+  // Timestamp of the last text-edit commit (blur or Enter). The pointerdown
+  // that triggered the blur ALSO fires this component's onPointerDown a
+  // moment later — by then React has flushed the setEditing(null) from the
+  // blur handler, so the text-tool branch sees a stale `editing=null` and
+  // would happily drop a second text at the click point. This timestamp
+  // lets that branch recognize "we just closed an editor; this click is
+  // the same click that did it" and bail out.
+  const lastEditingCloseAtRef = useRef<number>(0);
 
   const onSelRef = useRef(onSelectionChange);
   const onChangeRef = useRef(onChange);
@@ -1385,9 +1393,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   useEffect(() => {
     const ta = textareaRef.current;
     if (!editing || !ta) return;
-    ta.focus();
-    const end = ta.value.length;
-    ta.setSelectionRange(end, end);
+    // Defer focus by one animation frame. When the editor opens via the
+    // text-tool drop, the SAME pointerdown event is still in flight —
+    // calling focus() synchronously can race with the pointer-up landing
+    // on the canvas (which steals focus back to document.body in some
+    // browsers). One rAF lets the pointer event settle before we grab
+    // focus; the textarea is already in the DOM by render-commit time.
+    const id = requestAnimationFrame(() => {
+      ta.focus();
+      const end = ta.value.length;
+      ta.setSelectionRange(end, end);
+    });
+    return () => cancelAnimationFrame(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing?.id]);
 
@@ -1463,6 +1480,9 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       renderSelection(selectedIds);
       emitChange();
     }
+    // Stamp the close so the click that triggered this blur doesn't ALSO
+    // drop a new text in the text-tool branch — see the ref's docstring.
+    lastEditingCloseAtRef.current = Date.now();
     setEditing(null);
   };
 
@@ -1549,8 +1569,42 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     }
 
     if (t === 'text') {
-      // Click drops a new text object at the click point and immediately
-      // opens the inline editor. Color follows the pen-color selection so
+      // Suppress text-drop if we just closed a text editor in this same
+      // click sequence. Without this, the pointerdown that blurred the
+      // textarea ALSO ends up here with `editing` already cleared
+      // (React's setEditing(null) from onBlur committed between the
+      // blur and the pointerdown), and we'd drop a stray second text
+      // at the click location.
+      if (Date.now() - lastEditingCloseAtRef.current < 250) return;
+      // If the user clicked an existing text object, open it for editing
+      // instead of dropping another text on top — matches the dblclick
+      // behavior and gives them a sane "click to edit" affordance while
+      // the text tool is active.
+      const hitId =
+        objectIdForTarget(svgEl, e.target as Element) ??
+        objectNearClient(svgEl, e.clientX, e.clientY);
+      if (hitId) {
+        const hitObj = findObjectById(svgEl, hitId);
+        if (hitObj && getTextLeaves(hitObj).length > 0) {
+          const container = containerRef.current;
+          if (container) {
+            const c = container.getBoundingClientRect();
+            const r = hitObj.getBoundingClientRect();
+            setSelectedIds([hitId]);
+            setEditing({
+              id: hitId,
+              left: r.left - c.left,
+              top: r.top - c.top,
+              width: Math.max(r.width, 120),
+              height: Math.max(r.height, 32),
+              value: readTextLines(hitObj),
+            });
+          }
+          return;
+        }
+      }
+      // Empty canvas — drop a new text object at the click point and
+      // immediately open the inline editor. Color follows pen-color so
       // the active palette acts as a "current text color" too.
       const fg = findForeground(svgEl);
       if (!fg) return;
