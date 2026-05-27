@@ -11,7 +11,10 @@
     "none": "Ninguno",
     "loading": "Cargando...",
     "saving": "Guardando...",
+    "saved": "Guardado",
     "upload": "Subir",
+    "success": "Éxito",
+    "error": "Error",
     "clearAll": "Borrar Todo"
   },
   "boardNav": {

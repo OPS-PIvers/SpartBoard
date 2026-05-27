@@ -11,7 +11,10 @@
     "none": "Keine",
     "loading": "Laden...",
     "saving": "Speichern...",
+    "saved": "Gespeichert",
     "upload": "Hochladen",
+    "success": "Erfolg",
+    "error": "Fehler",
     "clearAll": "Alles löschen"
   },
   "boardNav": {
