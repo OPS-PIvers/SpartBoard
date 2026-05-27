@@ -47,8 +47,15 @@ export function isAnswerCorrect(
 
   if (q.type === 'matching') {
     if (!Array.isArray(answer) || !q.matchingPairs) return false;
-    return q.matchingPairs.every((pair) =>
-      answer.includes(`${pair.left}:${pair.right}`)
+    // Require the submitted set to be exactly the correct set: every correct
+    // pair must be present AND no extra pairs may appear. Without the length
+    // guard a student who submits all correct pairs plus one wrong pair would
+    // be marked correct because `every` only checks the answer-key side.
+    return (
+      answer.length === q.matchingPairs.length &&
+      q.matchingPairs.every((pair) =>
+        answer.includes(`${pair.left}:${pair.right}`)
+      )
     );
   }
 

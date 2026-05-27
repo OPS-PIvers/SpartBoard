@@ -1,0 +1,408 @@
+/**
+ * Regression test for: Dock render loop uses canAccessWidget for InternalToolType
+ *
+ * Bug: The dock item render loop called `canAccessWidget(tool.type as WidgetType)`
+ * for ALL tools, including InternalToolType tools like `record`, `magic`, and `remote`.
+ * The correct check for those is `canAccessTool(type)` which routes them to
+ * `canAccessFeature(...)`.
+ *
+ * Consequence: A FeaturePermission record for `record` with `enabled: false` would
+ * suppress the Record button via the wrong widget permission check, even if
+ * `canAccessFeature('screen-recording')` returns true (the correct gate).
+ *
+ * Fix: Replace `canAccessWidget(tool.type as WidgetType)` with `canAccessTool(tool.type)`
+ * at the top of the dock items render loop.
+ */
+import React from 'react';
+import { render, screen, fireEvent } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Dock } from '@/components/layout/Dock';
+
+// ── Module mocks ─────────────────────────────────────────────────────────────
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, opts?: { defaultValue?: string }) =>
+      opts?.defaultValue ?? key,
+  }),
+}));
+
+vi.mock('@/context/useDashboard', () => ({
+  useDashboard: vi.fn(),
+}));
+
+vi.mock('@/context/useAuth', () => ({
+  useAuth: vi.fn(),
+}));
+
+vi.mock('@/context/useCustomWidgets', () => ({
+  useCustomWidgets: vi.fn(),
+}));
+
+vi.mock('@/context/useSavedWidgets', () => ({
+  useSavedWidgets: vi.fn(),
+}));
+
+vi.mock('@/context/useDialog', () => ({
+  useDialog: vi.fn(),
+}));
+
+vi.mock('@/hooks/useLiveSession', () => ({
+  useLiveSession: vi.fn(),
+}));
+
+vi.mock('@/hooks/useClickOutside', () => ({
+  useClickOutside: vi.fn(),
+}));
+
+vi.mock('@/hooks/useDragScroll', () => ({
+  useDragScroll: vi.fn(),
+}));
+
+vi.mock('@/hooks/useScreenRecord', () => ({
+  useScreenRecord: vi.fn(),
+}));
+
+vi.mock('@/hooks/useNotebookSharing', () => ({
+  useNotebookSharing: vi.fn(),
+}));
+
+vi.mock('@/hooks/useGoogleDrive', () => ({
+  useGoogleDrive: vi.fn(),
+}));
+
+vi.mock('@/hooks/useCatalystSets', () => ({
+  useCatalystSets: vi.fn(),
+}));
+
+vi.mock('@/hooks/useImageUpload', () => ({
+  useImageUpload: vi.fn(),
+}));
+
+vi.mock('@/utils/widgetDragFlag', () => ({
+  beginWidgetDrag: vi.fn(),
+  endWidgetDrag: vi.fn(),
+}));
+
+// Mock heavy sub-components to keep the test focused on the permission logic
+vi.mock('@/components/layout/dock/WidgetLibrary', () => {
+  const WidgetLibraryMock = React.forwardRef<HTMLDivElement>(() => (
+    <div data-testid="widget-library" />
+  ));
+  WidgetLibraryMock.displayName = 'WidgetLibrary';
+  return { WidgetLibrary: WidgetLibraryMock };
+});
+
+vi.mock('@/components/layout/dock/ToolDockItem', () => ({
+  ToolDockItem: ({ tool }: { tool: { type: string; label: string } }) => (
+    <button data-testid={`dock-item-${tool.type}`}>{tool.label}</button>
+  ),
+}));
+
+vi.mock('@/components/layout/dock/FolderItem', () => ({
+  FolderItem: () => <div data-testid="folder-item" />,
+}));
+
+vi.mock('@/components/layout/dock/DockIcon', () => ({
+  DockIcon: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="dock-icon">{children}</div>
+  ),
+}));
+
+vi.mock('@/components/layout/dock/DockLabel', () => ({
+  DockLabel: ({ children }: { children: React.ReactNode }) => (
+    <span>{children}</span>
+  ),
+}));
+
+vi.mock('@/components/layout/dock/QuickAccessButton', () => ({
+  QuickAccessButton: () => <div data-testid="quick-access-button" />,
+}));
+
+vi.mock('@/components/layout/dock/SavedWidgetDockItem', () => ({
+  SavedWidgetDockItem: () => <div data-testid="saved-widget-dock-item" />,
+}));
+
+vi.mock('@/components/layout/dock/RenameFolderModal', () => ({
+  RenameFolderModal: () => <div data-testid="rename-folder-modal" />,
+}));
+
+vi.mock('@/components/layout/dock/MagicLayoutModal', () => ({
+  MagicLayoutModal: () => <div data-testid="magic-layout-modal" />,
+}));
+
+vi.mock('@/components/layout/dock/SmartPastePickerModal', () => ({
+  SmartPastePickerModal: () => <div data-testid="smart-paste-picker-modal" />,
+}));
+
+vi.mock('@/components/layout/dock/UrlPickerModal', () => ({
+  UrlPickerModal: () => <div data-testid="url-picker-modal" />,
+}));
+
+vi.mock('@/components/layout/dock/ImagePastePickerModal', () => ({
+  ImagePastePickerModal: () => <div data-testid="image-paste-picker-modal" />,
+}));
+
+vi.mock('@/components/layout/ClassRosterMenu', () => ({
+  default: () => <div data-testid="class-roster-menu" />,
+}));
+
+vi.mock('@/components/layout/RemoteControlMenu', () => ({
+  default: () => <div data-testid="remote-control-menu" />,
+}));
+
+vi.mock('@/components/widgets/Catalyst/CatalystSetPickerPopover', () => ({
+  CatalystSetPickerPopover: () => (
+    <div data-testid="catalyst-set-picker-popover" />
+  ),
+}));
+
+vi.mock('@/components/common/GlassCard', () => {
+  const GlassCardMock = React.forwardRef<
+    HTMLDivElement,
+    React.HTMLAttributes<HTMLDivElement> & {
+      children?: React.ReactNode;
+      globalStyle?: unknown;
+      transparency?: number;
+      allowInvisible?: boolean;
+      cornerRadius?: unknown;
+    }
+  >(({ children, className, style }, ref) => (
+    <div ref={ref} className={className} style={style}>
+      {children}
+    </div>
+  ));
+  GlassCardMock.displayName = 'GlassCard';
+  return { GlassCard: GlassCardMock };
+});
+
+vi.mock('@dnd-kit/core', () => ({
+  DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  closestCenter: vi.fn(),
+  rectIntersection: vi.fn(() => []),
+  MouseSensor: vi.fn(),
+  TouchSensor: vi.fn(),
+  useSensor: vi.fn(),
+  useSensors: vi.fn(() => []),
+  DragOverlay: () => null,
+}));
+
+vi.mock('@dnd-kit/sortable', () => ({
+  SortableContext: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  horizontalListSortingStrategy: vi.fn(),
+  verticalListSortingStrategy: vi.fn(),
+  arrayMove: vi.fn(),
+}));
+
+// ── Imports after mocks ────────────────────────────────────────────────────
+
+import { useDashboard } from '@/context/useDashboard';
+import { useAuth } from '@/context/useAuth';
+import { useCustomWidgets } from '@/context/useCustomWidgets';
+import { useSavedWidgets } from '@/context/useSavedWidgets';
+import { useDialog } from '@/context/useDialog';
+import { useLiveSession } from '@/hooks/useLiveSession';
+import { useScreenRecord } from '@/hooks/useScreenRecord';
+import { useGoogleDrive } from '@/hooks/useGoogleDrive';
+import { useCatalystSets } from '@/hooks/useCatalystSets';
+import { useImageUpload } from '@/hooks/useImageUpload';
+import { useNotebookSharing } from '@/hooks/useNotebookSharing';
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+
+/** Wire up all required hook mocks with safe defaults. */
+function setupMocks({
+  canAccessWidget = vi.fn().mockReturnValue(true),
+  canAccessFeature = vi.fn().mockReturnValue(true),
+  dockItems = [] as { type: 'tool'; toolType: string }[],
+}: {
+  canAccessWidget?: ReturnType<typeof vi.fn>;
+  canAccessFeature?: ReturnType<typeof vi.fn>;
+  dockItems?: { type: 'tool'; toolType: string }[];
+} = {}) {
+  vi.mocked(useDashboard).mockReturnValue({
+    addWidget: vi.fn(),
+    removeWidget: vi.fn(),
+    removeWidgets: vi.fn(),
+    visibleTools: [],
+    dockItems,
+    reorderDockItems: vi.fn(),
+    activeDashboard: null,
+    updateWidget: vi.fn(),
+    toggleToolVisibility: vi.fn(),
+    reorderLibrary: vi.fn(),
+    libraryOrder: [],
+    addFolder: vi.fn(),
+    renameFolder: vi.fn(),
+    deleteFolder: vi.fn(),
+    addItemToFolder: vi.fn(),
+    moveItemOutOfFolder: vi.fn(),
+    reorderFolderItems: vi.fn(),
+    addToast: vi.fn(),
+    setPendingQuizShareId: vi.fn(),
+    setPendingAssignmentShareId: vi.fn(),
+  } as unknown as ReturnType<typeof useDashboard>);
+
+  vi.mocked(useAuth).mockReturnValue({
+    canAccessWidget,
+    canAccessFeature,
+    user: { uid: 'test-uid', email: 'test@test.com' },
+    userGradeLevels: [],
+    selectedBuildings: [],
+    featurePermissions: [],
+    dockPosition: 'bottom',
+  } as unknown as ReturnType<typeof useAuth>);
+
+  vi.mocked(useCustomWidgets).mockReturnValue({
+    customWidgets: [],
+  } as unknown as ReturnType<typeof useCustomWidgets>);
+
+  vi.mocked(useSavedWidgets).mockReturnValue({
+    savedWidgets: [],
+    setPinnedToDock: vi.fn(),
+    deleteSavedWidget: vi.fn(),
+  } as unknown as ReturnType<typeof useSavedWidgets>);
+
+  vi.mocked(useDialog).mockReturnValue({
+    showConfirm: vi.fn(),
+  } as unknown as ReturnType<typeof useDialog>);
+
+  vi.mocked(useLiveSession).mockReturnValue({
+    session: null,
+    students: [],
+  } as unknown as ReturnType<typeof useLiveSession>);
+
+  vi.mocked(useScreenRecord).mockReturnValue({
+    isRecording: false,
+    duration: 0,
+    startRecording: vi.fn(),
+    stopRecording: vi.fn(),
+  } as unknown as ReturnType<typeof useScreenRecord>);
+
+  vi.mocked(useGoogleDrive).mockReturnValue({
+    driveService: null,
+    isConnected: false,
+  } as unknown as ReturnType<typeof useGoogleDrive>);
+
+  vi.mocked(useCatalystSets).mockReturnValue({
+    sets: [],
+    executeRoutine: vi.fn(),
+  } as unknown as ReturnType<typeof useCatalystSets>);
+
+  vi.mocked(useImageUpload).mockReturnValue({
+    processAndUploadImage: vi.fn(),
+  } as unknown as ReturnType<typeof useImageUpload>);
+
+  vi.mocked(useNotebookSharing).mockReturnValue({
+    importSharedNotebookCopy: vi.fn(),
+  } as unknown as ReturnType<typeof useNotebookSharing>);
+}
+
+/** Expand the dock so the tool items are visible. */
+function expandDock() {
+  const openButton = screen.getByTitle('sidebar.header.openTools');
+  fireEvent.click(openButton);
+}
+
+// ── Tests ─────────────────────────────────────────────────────────────────
+
+describe('Dock – InternalToolType permission gate', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('shows the Record button when canAccessFeature("screen-recording") is true, even when canAccessWidget returns false for "record"', () => {
+    /**
+     * Regression: Before the fix, the dock render loop called
+     * `canAccessWidget(tool.type as WidgetType)` for ALL tools including
+     * InternalToolType tools like `record`. When an admin created a
+     * FeaturePermission record with widgetType='record' and enabled=false,
+     * `canAccessWidget('record')` returned false — hiding the button even
+     * though `canAccessFeature('screen-recording')` returned true.
+     *
+     * After the fix, `canAccessTool(tool.type)` is called instead, which
+     * correctly routes 'record' → canAccessFeature('screen-recording').
+     */
+    const canAccessWidget = vi.fn().mockImplementation((type: string) => {
+      // Simulate a FeaturePermission record for 'record' with enabled: false
+      if (type === 'record') return false;
+      return true;
+    });
+    const canAccessFeature = vi.fn().mockImplementation((feature: string) => {
+      // screen-recording is accessible
+      if (feature === 'screen-recording') return true;
+      return false;
+    });
+
+    setupMocks({
+      canAccessWidget,
+      canAccessFeature,
+      dockItems: [{ type: 'tool', toolType: 'record' }],
+    });
+
+    render(<Dock />);
+    expandDock();
+
+    // The Record dock item should be visible because the correct gate
+    // (canAccessFeature('screen-recording')) returns true.
+    expect(screen.getByTestId('dock-item-record')).toBeInTheDocument();
+  });
+
+  it('hides the Record button when canAccessFeature("screen-recording") is false', () => {
+    const canAccessWidget = vi.fn().mockReturnValue(true);
+    const canAccessFeature = vi.fn().mockImplementation((feature: string) => {
+      if (feature === 'screen-recording') return false;
+      return true;
+    });
+
+    setupMocks({
+      canAccessWidget,
+      canAccessFeature,
+      dockItems: [{ type: 'tool', toolType: 'record' }],
+    });
+
+    render(<Dock />);
+    expandDock();
+
+    // When canAccessFeature('screen-recording') is false, the Record button
+    // should NOT appear regardless of canAccessWidget.
+    expect(screen.queryByTestId('dock-item-record')).not.toBeInTheDocument();
+  });
+
+  it('shows a regular widget button when canAccessWidget returns true', () => {
+    const canAccessWidget = vi.fn().mockReturnValue(true);
+    const canAccessFeature = vi.fn().mockReturnValue(true);
+
+    setupMocks({
+      canAccessWidget,
+      canAccessFeature,
+      dockItems: [{ type: 'tool', toolType: 'clock' }],
+    });
+
+    render(<Dock />);
+    expandDock();
+
+    expect(screen.getByTestId('dock-item-clock')).toBeInTheDocument();
+  });
+
+  it('hides a regular widget button when canAccessWidget returns false', () => {
+    const canAccessWidget = vi.fn().mockImplementation((type: string) => {
+      if (type === 'clock') return false;
+      return true;
+    });
+    const canAccessFeature = vi.fn().mockReturnValue(true);
+
+    setupMocks({
+      canAccessWidget,
+      canAccessFeature,
+      dockItems: [{ type: 'tool', toolType: 'clock' }],
+    });
+
+    render(<Dock />);
+    expandDock();
+
+    expect(screen.queryByTestId('dock-item-clock')).not.toBeInTheDocument();
+  });
+});

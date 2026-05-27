@@ -4,6 +4,37 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-27
+
+- PRs reviewed:
+  - #1702 — Implement Phase 2 features for whiteboard: shapes, text, images, selection, multi-page, undo, export (base `main`, head `dev-paul`)
+  - #1704 — refactor(D1): MaterialsWidget ScaledEmptyState migration (base `dev-paul`, head `nightly/unify-empty-states-2026-05-27-clean`, draft)
+  - #1705 — refactor(D2): LunchCount brand color → CSS var (base `dev-paul`, head `nightly/unify-brand-colors-2026-05-27-clean`, draft)
+  - #1706 — refactor(D3): Schedule/Settings SettingsLabel migration (base `dev-paul`, head `nightly/unify-settings-labels-2026-05-27-clean`, draft)
+  - #1707 — refactor(D4): @/ alias imports in layout/widgets/student (base `dev-paul`, head `nightly/unify-import-paths-2026-05-27-clean`, draft)
+  - #1708 — refactor(D5): WorkSymbolsConfigurationModal addToast (base `dev-paul`, head `nightly/unify-toast-arch-2026-05-27-clean`, draft)
+  - #1709 — docs(unifier): run 2 memory log (base `dev-paul`, head `nightly/unifier-log-2026-05-27`, draft)
+  - #1710 — fix(dock): canAccessTool for InternalToolType (base `dev-paul`, head `nightly/dashboard-layout-2026-05-27`, draft)
+  - #1711 — fix(embed): YouTube playlist URL regex (base `dev-paul`, head `nightly/widgets-2026-05-27`, draft)
+  - #1712 — fix(parseGeminiJson): top-level JSON arrays (base `dev-paul`, head `nightly/build-tooling-2026-05-27`, draft)
+  - #1713 — fix(i18n): missing common.saved/success/error in DE/ES/FR (base `dev-paul`, head `nightly/admin-config-2026-05-27`, draft)
+  - #1714 — chore(nightly): debugger log update (base `dev-paul`, head `nightly/debugger-log-2026-05-27`, draft)
+  - #1715 — fix(guided-learning): matching answer length check (base `dev-paul`, head `nightly/state-data-2026-05-27`, draft)
+  - #1716 — action(specialist-schedule): register appearance panel (base `dev-paul`, head `scheduled-tasks`, draft)
+- Comments processed: 13 total — 4 fixed (PRs #1708, #1712, #1713 with one extra cross-cutting fix landed in #1708), 9 explained (5 cross-cutting WorkSymbolsConfigurationModal duplicates on #1704/#1706/#1707/#1709 pointing at #1708 fix; 1 declined URL-API refactor on #1711; 1 docs guidance on #1714 worktree clean recommendation; 1 outdated docs comment on #1714; 1 type-safety wrap on #1716 declined as the codebase pattern doesn't wrap).
+- Fixes pushed: 3
+  - PR #1713 (`nightly/admin-config-2026-05-27`) — commit `de87e4e` `fix(pr-1713): remove unnecessary LocaleFile type assertions`. Dropped the `LocaleFile` alias and double `as unknown as` casts; TypeScript infers `.common` on JSON imports. Verified: type-check ✓ lint ✓ tests ✓ (4/4).
+  - PR #1712 (`nightly/build-tooling-2026-05-27`) — commit `8cf7332` `fix(pr-1712): handle leading prose with brackets before JSON object`. Added the gemini-suggested test case which exposed a real bug (stray `[` in leading prose like `[docs]` caused `parseGeminiJson` to try parsing `[docs]` as a JSON array). Updated the implementation to retry the brace path if the array-slice parse fails. Verified: type-check ✓ lint ✓ tests ✓ (15/15).
+  - PR #1708 (`nightly/unify-toast-arch-2026-05-27-clean`) — commit `d37b011` `fix(pr-1708): functional setSymbols update + async handleSave`. `setSymbols` now accepts both array and functional-updater forms; `handleFiles` uses functional update and no longer depends on `globalConfig.symbols`; `handleSave` is async, prop signature accepts `void | Promise<void>`. Verified: type-check ✓ lint ✓.
+- Reviews posted: 14 (all open PRs received a structured review comment).
+- Notes:
+  - Branch safety: pushed to nightly/admin-config-2026-05-27, nightly/build-tooling-2026-05-27, nightly/unify-toast-arch-2026-05-27-clean (all fair game). No push to `main` or `dev-paul`. PR #1702 (`dev-paul → main`) received review comment only — its two open threads already have author-replies pointing at #1703 fixes.
+  - Cross-cutting bleed-through observation: PRs #1704, #1706, #1707, #1709 all carry the WorkSymbolsConfigurationModal.tsx diff from a shared base with #1708, which is why gemini-code-assist left the same race/async findings on each. Replied on each PR explaining the canonical fix lives in #1708 (commit d37b011) and no per-PR push is needed.
+  - Declined refactor: the URL-API rewrite suggestion on #1711 was scoped much larger than the targeted YouTube playlist regression — would touch all 36 existing tests. Recommended a separate follow-up PR.
+  - Declined wrapper on #1716: gemini suggested wrapping `updateConfig` to narrow the type. The reference pattern in `NeedDoPutThen/Settings.tsx` (whose config also lacks `scaleMultiplier`) passes a direct callback under strict type-check, and the `writeScaleMultiplier={false}` default prevents `scaleMultiplier` from ever being dispatched at runtime. Not changing the established pattern.
+
+---
+
 ## 2026-05-26
 
 - PRs reviewed:

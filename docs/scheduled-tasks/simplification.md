@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Friday_
-_Last audited: 2026-05-18_
+_Last audited: 2026-05-27_
 _Last action: 2026-05-01_
 
 ---
@@ -15,6 +15,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### MEDIUM `as unknown as` double-casts in `utils/ai_security.ts` mask structuredClone type loss
+
+- **Detected:** 2026-05-27
+- **File:** utils/ai_security.ts (7 instances at lines approximately 51, 56, 62, 88, 110, 144, 174)
+- **Detail:** The `sanitizeAIConfig` function calls `structuredClone(config)` to deep-copy widget config objects before sanitization. `structuredClone` returns `unknown`, and the function then casts back to specific config types with `as unknown as Partial<MiniAppConfig>` (and similar). The `as unknown as` bridges hide the fact that the clone lost its type — if `structuredClone` is ever replaced or a partial type guard is added, the double-cast will silently accept an incompatible type. This is the same anti-pattern tracked in the existing LOW item for `FeatureConfigurationPanel.tsx`, extended to a utility with 7 occurrences.
+- **Fix:** Replace `structuredClone(config) as unknown as T` with a type-preserving helper: `function typedClone<T>(v: T): T { return structuredClone(v) as T; }`. This single-cast form is safer — it preserves the input type through the round-trip without the unsafe `unknown` bridge. Alternatively, replace `structuredClone` with a typed JSON round-trip: `JSON.parse(JSON.stringify(config)) as T` (acceptable for plain widget config objects). Add the helper to `utils/typeUtils.ts` if that file exists, or inline it in `ai_security.ts`.
 
 ### LOW `as unknown as BuildingConfigPanel` repeated throughout FeatureConfigurationPanel
 
@@ -47,6 +54,8 @@ _Nothing currently in progress._
 - **Fix:** For `useScreenRecord`, group `{ isRecording, duration, error }` into a single `useState` object to reduce the state surface. The 4 refs are all distinct external handles and should remain individual. For `useLiveSession`, group `{ studentId, studentPin }` (always set/cleared together) into a single state object. Severity is LOW because the individual state declarations are cohesive and readable.
 
 ---
+
+_2026-05-27: Audited Object.assign patterns (mergeWidgetConfig helper already extracted — no new duplication), as unknown as casts (7 new instances in ai_security.ts added as MEDIUM item above), hook complexity (useQuizSession 21 calls / useVideoActivitySession 17 calls — unchanged from prior audits; useSpotifyWebPlayback added at 14 calls), prop drilling (minimal, context APIs used correctly), nested ternaries (~15 instances in admin UI labels — LOW severity, unchanged). One new MEDIUM item added._
 
 ## Completed
 

@@ -9,12 +9,12 @@ import {
   WidgetType,
   DashboardSettings,
 } from '@/types';
-import { DraggableWindow } from '../common/DraggableWindow';
+import { DraggableWindow } from '@/components/common/DraggableWindow';
 import { LiveControl } from './LiveControl';
 import { StickerItemWidget } from './stickers/StickerItemWidget';
 import { getTitle } from '@/utils/widgetHelpers';
 import { getJoinUrl } from '@/utils/urlHelpers';
-import { ScalableWidget } from '../common/ScalableWidget';
+import { ScalableWidget } from '@/components/common/ScalableWidget';
 import { WidgetLayoutWrapper } from '@/components/widgets/WidgetLayout';
 import { useWindowSize } from '@/hooks/useWindowSize';
 import { useAuth } from '@/context/useAuth';

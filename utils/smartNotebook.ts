@@ -108,6 +108,105 @@ export const resolveImageKey = (
 };
 
 // ---------------------------------------------------------------------------
+// SMART shortcut hyperlinks (object → page jumps)
+// ---------------------------------------------------------------------------
+
+/**
+ * A page-jump link extracted from a SMART page SVG. Target is the original
+ * filename (e.g. "page1.svg") because the caller knows the mapping to
+ * output page index via its own page-order plan. Box is normalized [0..1]
+ * against the page's intrinsic dimensions, captured from the element's
+ * un-transformed x/y/width/height (matches v1's "captured at link
+ * creation" semantics — rotations on linked elements are rare and we
+ * accept slight hotspot misalignment when they occur).
+ */
+export interface ImportedShortcutLink {
+  objectId: string;
+  sourcePage: number;
+  targetFile: string;
+  xFrac: number;
+  yFrac: number;
+  wFrac: number;
+  hFrac: number;
+}
+
+// Match the opening tag of any element carrying shortcut="page://...".
+// Captures: 1=tag name, 2=full attrs (no closing > or />), 3=target filename.
+// SMART writes these on <image>, but accepting any tag keeps us robust to
+// future format variants.
+const SHORTCUT_TAG_RE =
+  /<(\w+)\b([^>]*\bshortcut="page:\/\/([^"]+)"[^>]*?)(\/?)>/g;
+
+const attrValue = (attrs: string, name: string): string | null => {
+  const m = new RegExp(`\\b${name}\\s*=\\s*"([^"]*)"`).exec(attrs);
+  return m ? m[1] : null;
+};
+
+/**
+ * Walk a page SVG, extract every shortcut="page://" element as a link
+ * record, and stamp `data-edit-id` on each linked element so the in-editor
+ * link FAB can later reconnect to its source object (ensureObjectIds
+ * preserves pre-set ids).
+ *
+ * Returns the mutated SVG and the list of links found. The shortcut /
+ * shortcutArea attributes are preserved on the element — they're harmless
+ * in browsers (unknown attrs are ignored) and removing them would require
+ * a regex pass we don't need for v1.
+ */
+export const extractShortcutLinks = (
+  svgText: string,
+  sourcePage: number,
+  pageDims: { width: number; height: number }
+): { svg: string; links: ImportedShortcutLink[] } => {
+  const links: ImportedShortcutLink[] = [];
+  if (pageDims.width <= 0 || pageDims.height <= 0) {
+    return { svg: svgText, links };
+  }
+  let counter = 0;
+  const mutated = svgText.replace(
+    SHORTCUT_TAG_RE,
+    (full, tag: string, attrs: string, target: string, selfClose: string) => {
+      const x = parseFloat(attrValue(attrs, 'x') ?? 'NaN');
+      const y = parseFloat(attrValue(attrs, 'y') ?? 'NaN');
+      const w = parseFloat(attrValue(attrs, 'width') ?? 'NaN');
+      const h = parseFloat(attrValue(attrs, 'height') ?? 'NaN');
+      if (
+        !Number.isFinite(x) ||
+        !Number.isFinite(y) ||
+        !Number.isFinite(w) ||
+        !Number.isFinite(h) ||
+        w <= 0 ||
+        h <= 0
+      ) {
+        return full;
+      }
+      // Seed the object id from the SMART xml:id when present — same element
+      // re-imported repeatedly keeps a stable id, which means re-importing a
+      // notebook doesn't create duplicate orphan links if Firestore links
+      // are merged on the destination.
+      const xmlId = attrValue(attrs, 'xml:id');
+      const objectId = xmlId
+        ? `link-${xmlId}`
+        : `link-p${sourcePage}-${counter}`;
+      counter += 1;
+      links.push({
+        objectId,
+        sourcePage,
+        targetFile: target,
+        xFrac: x / pageDims.width,
+        yFrac: y / pageDims.height,
+        wFrac: w / pageDims.width,
+        hFrac: h / pageDims.height,
+      });
+      // Stamp data-edit-id only if absent (idempotent re-runs).
+      if (/\bdata-edit-id\s*=/.test(attrs)) return full;
+      return `<${tag}${attrs} data-edit-id="${objectId}"${selfClose}>`;
+    }
+  );
+  return { svg: mutated, links };
+};
+
+// ---------------------------------------------------------------------------
 // Manifest parsing (page order + lesson sections)
 // ---------------------------------------------------------------------------
 

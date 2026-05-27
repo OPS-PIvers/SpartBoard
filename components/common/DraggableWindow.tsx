@@ -1578,6 +1578,13 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const target = e.target as HTMLElement;
     const isInteractive = target.closest(INTERACTIVE_ELEMENTS_SELECTOR);
     if (isInteractive) return;
+    // Subtrees marked data-no-drag manage their own pointer interactions
+    // (e.g. SMART Notebook's PageEditor canvas — select/draw/erase). Bubbling
+    // clicks from those would otherwise flip the widget's floating toolbar
+    // on every pointerup inside the editor, which is visually distracting
+    // and easy to mistake for a UI bug. The widget still comes to front via
+    // handlePointerDown's bringToFront, just without toggling the toolbar.
+    if (target.closest('[data-no-drag="true"]')) return;
 
     // Only toggle tools if it wasn't a drag (less than the threshold movement)
     if (!isEditingTitle && dragDistanceRef.current < DRAG_CLICK_THRESHOLD_PX) {

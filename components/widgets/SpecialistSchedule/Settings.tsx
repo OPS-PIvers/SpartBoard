@@ -71,9 +71,9 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
   const { cycleDays = [], recurringItems = [] } = config;
 
-  const [activeTab, setActiveTab] = useState<
-    'general' | 'schedules' | 'recurring'
-  >('general');
+  const [activeTab, setActiveTab] = useState<'schedules' | 'recurring'>(
+    'schedules'
+  );
   const [selectedCycleDay, setSelectedCycleDay] = useState(1);
   const [editingItemIndex, setEditingItemIndex] = useState<number | null>(null);
   const [editingRecurringIndex, setEditingRecurringIndex] = useState<
@@ -219,12 +219,6 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       {/* Tabs */}
       <div className="flex border-b border-slate-200">
         <button
-          onClick={() => setActiveTab('general')}
-          className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'general' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
-        >
-          General
-        </button>
-        <button
           onClick={() => setActiveTab('schedules')}
           className={`flex-1 py-2 text-xs font-bold uppercase tracking-wider transition-colors border-b-2 ${activeTab === 'schedules' ? 'border-teal-600 text-teal-600' : 'border-transparent text-slate-400 hover:text-slate-600'}`}
         >
@@ -237,44 +231,6 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           Recurring
         </button>
       </div>
-
-      {activeTab === 'general' && (
-        <div className="space-y-6 animate-in fade-in duration-200">
-          <TextSizePresetSettings
-            config={config}
-            updateConfig={(updates) =>
-              updateWidget(widget.id, {
-                config: {
-                  ...config,
-                  ...updates,
-                } as SpecialistScheduleConfig,
-              })
-            }
-          />
-          <TypographySettings
-            config={config}
-            updateConfig={(updates) =>
-              updateWidget(widget.id, {
-                config: {
-                  ...config,
-                  ...updates,
-                } as SpecialistScheduleConfig,
-              })
-            }
-          />
-          <SurfaceColorSettings
-            config={config}
-            updateConfig={(updates) =>
-              updateWidget(widget.id, {
-                config: {
-                  ...config,
-                  ...updates,
-                } as SpecialistScheduleConfig,
-              })
-            }
-          />
-        </div>
-      )}
 
       {activeTab === 'schedules' && (
         <div className="space-y-4 animate-in fade-in duration-200">
@@ -728,6 +684,27 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
           )}
         </div>
       )}
+    </div>
+  );
+};
+
+export const SpecialistScheduleAppearanceSettings: React.FC<{
+  widget: WidgetData;
+}> = ({ widget }) => {
+  const { updateWidget } = useDashboard();
+  const config = (widget.config ?? {}) as SpecialistScheduleConfig;
+
+  const update = (updates: Partial<SpecialistScheduleConfig>) => {
+    updateWidget(widget.id, {
+      config: { ...config, ...updates } as SpecialistScheduleConfig,
+    });
+  };
+
+  return (
+    <div className="p-4 space-y-6">
+      <TypographySettings config={config} updateConfig={update} />
+      <TextSizePresetSettings config={config} updateConfig={update} />
+      <SurfaceColorSettings config={config} updateConfig={update} />
     </div>
   );
 };

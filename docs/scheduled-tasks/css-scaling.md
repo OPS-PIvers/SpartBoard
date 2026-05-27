@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-26_
+_Last audited: 2026-05-27_
 _Last action: 2026-05-23_
 
 ---
@@ -22,6 +22,7 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-05-27: Scanned recently changed Widget.tsx files for anti-patterns. New dev-paul commits since 2026-05-26 touching widget content: feat(drawing-widget) toolbar redesign + eraser modes + page titles (DrawingWidget has `skipScaling: false` — CSS transform scaling, not container queries; hardcoded Tailwind sizes in the toolbar are not CQ violations). feat(smart-notebook) multiple sub-component updates — SmartNotebook sub-components verified clean (no hardcoded Tailwind text-size classes in front-face content; `max-w-[240px] min-w-[160px]` on assets side-panel previously documented as acceptable structural constraint). Stations and RevealGrid widgets unchanged. QRWidget (positive reference) still clean. No new anti-patterns detected. All pre-existing open items remain valid._
 _2026-05-26: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits merged since 2026-05-24: refactor(effects) (#1689) touched DiceWidget/Widget.tsx and Checklist/Settings.tsx; perf(qr) (#1688) rewrote QRWidget/Widget.tsx. QRWidget/Widget.tsx verified clean — all sizing uses cqmin inline styles, no hardcoded Tailwind text/size classes in front-face content. DiceWidget/Widget.tsx: new cqmin additions added to the grid div (`gap: '4cqmin', padding: '6cqmin'`) and Roll Dice button (`style={{ fontSize: 'min(20px, 5cqmin)' }}`), but the footer wrapper `className="px-3 pb-3"` and button `py-4 px-6 gap-3` remain hardcoded — group open item still valid for those specific violations. MiniApp portaled toolbar fix (commit 74ff0f94 on scheduled-tasks) confirmed merged into dev-paul via PR #1684 (`7145b53d`) — moving to Completed. No new anti-patterns detected. All remaining pre-existing open items valid._
 
 _2026-05-24: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits since 2026-05-23: feat(plc) remove Assignments page + unify quiz library, feat(notebook) place assets on page + rename notebooks. Neither touches widget front-face content. ActivityWall/Widget.tsx:2101-2110 `max-h-[75vh]` usage confirmed inside a `<Modal>` overlay (viewport-constrained media preview for full-screen submission viewing) — not inside the widget's CSS container-query context; acceptable. MusicWidget/Widget.tsx:570 `max-w-[85%]` is a structural truncation constraint on a flex-child label, not a content-cap violation. RecessGear/Widget.tsx:341 `max-w-[70%]` same pattern — truncation guard on a text label inside a row. MiniApp portaled toolbar fix still in scheduled-tasks branch (commit 74ff0f94) pending merge to dev-paul. All pre-existing open items remain valid. Zero new anti-patterns detected._

@@ -4,7 +4,7 @@ import { auth } from '@/config/firebase';
 import { useLiveSession } from '@/hooks/useLiveSession';
 import { StudentLobby } from './StudentLobby';
 import { TeacherPreviewBanner } from './TeacherPreviewBanner';
-import { WidgetRenderer } from '../widgets/WidgetRenderer';
+import { WidgetRenderer } from '@/components/widgets/WidgetRenderer';
 import { Cast, Snowflake, Radio } from 'lucide-react';
 import { WidgetData, DEFAULT_GLOBAL_STYLE, LiveSession } from '@/types';
 import { getDefaultWidgetConfig } from '@/utils/widgetHelpers';

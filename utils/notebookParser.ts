@@ -1,14 +1,16 @@
 import JSZip from 'jszip';
-import { NotebookSection } from '@/types';
+import { NotebookObjectLink, NotebookSection } from '@/types';
 import {
   PAGE_SVG_RE,
   extensionOf,
+  extractShortcutLinks,
   imageSubtype,
   imageHrefRegex,
   ensureSvgNamespaces,
   buildImageLookup,
   resolveImageKey,
   resolvePageOrder,
+  svgDimensions,
 } from './smartNotebook';
 
 export interface ParsedNotebook {
@@ -16,6 +18,9 @@ export interface ParsedNotebook {
   pages: { blob: Blob; extension: string }[];
   assets: { blob: Blob; extension: string }[];
   sections?: NotebookSection[];
+  /** Object→page hyperlinks extracted from SMART's `shortcut="page://…"`
+   *  attributes, or carried through a pre-converted .spartnb bundle. */
+  objectLinks?: NotebookObjectLink[];
 }
 
 /**
@@ -49,6 +54,7 @@ interface BundleManifest {
   title?: string;
   pages?: { file: string; width?: number; height?: number }[];
   sections?: NotebookSection[];
+  objectLinks?: NotebookObjectLink[];
 }
 
 const parseBundle = async (
@@ -65,7 +71,12 @@ const parseBundle = async (
     pageList.map(async (p) => {
       const entry = zip.file(p.file);
       if (!entry) throw new Error(`Bundle missing page file: ${p.file}`);
-      const blob = await entry.async('blob');
+      // JSZip's async('blob') returns application/octet-stream regardless of
+      // file content. Re-wrap with the SVG mime type so the page renders when
+      // served back from Storage via <img src>; without it the browser refuses
+      // to render the response and every page shows a broken-image icon.
+      const raw = await entry.async('blob');
+      const blob = new Blob([raw], { type: 'image/svg+xml' });
       return { blob, extension: extensionOf(p.file) };
     })
   );
@@ -79,11 +90,17 @@ const parseBundle = async (
       ? manifest.sections
       : undefined;
 
+  const objectLinks =
+    Array.isArray(manifest.objectLinks) && manifest.objectLinks.length > 0
+      ? manifest.objectLinks
+      : undefined;
+
   return {
     title: manifest.title?.trim() ? manifest.title : fallbackTitle,
     pages,
     assets: [], // images are inlined into the page SVGs
     sections,
+    objectLinks,
   };
 };
 
@@ -169,12 +186,19 @@ const parseRawNotebook = async (
   const availablePages = pageEntries.map((p) => p.name);
   const plan = await resolvePageOrder(zip, availablePages);
   const entryByName = new Map(pageEntries.map((p) => [p.name, p.obj]));
+  // Map source filename → output page index. SMART's shortcut targets
+  // reference original filenames; we need indices to populate
+  // NotebookObjectLink.targetPage.
+  const filenameToIndex = new Map<string, number>();
+  plan.order.forEach((name, i) => filenameToIndex.set(name, i));
 
-  // Inline images into each page (shared cache dedupes repeated images).
+  // Inline images into each page (shared cache dedupes repeated images),
+  // and lift any SMART page-jump shortcuts into an objectLinks list.
   const imageLookup = buildImageLookup(zip);
   const imageCache = new Map<string, string>();
+  const collectedLinks: NotebookObjectLink[] = [];
   const pages = await Promise.all(
-    plan.order.map(async (name) => {
+    plan.order.map(async (name, pageIndex) => {
       const obj = entryByName.get(name);
       if (!obj) throw new Error(`Missing page entry: ${name}`);
       const svgText = await obj.async('string');
@@ -184,10 +208,29 @@ const parseRawNotebook = async (
         imageLookup,
         imageCache
       );
+      const withNs = ensureSvgNamespaces(inlined);
+      const dims = svgDimensions(withNs);
+      const { svg: finalSvg, links } = extractShortcutLinks(
+        withNs,
+        pageIndex,
+        dims
+      );
+      for (const link of links) {
+        const targetPage = filenameToIndex.get(link.targetFile);
+        if (targetPage === undefined || targetPage === pageIndex) continue;
+        collectedLinks.push({
+          id: link.objectId,
+          objectId: link.objectId,
+          sourcePage: link.sourcePage,
+          targetPage,
+          xFrac: link.xFrac,
+          yFrac: link.yFrac,
+          wFrac: link.wFrac,
+          hFrac: link.hFrac,
+        });
+      }
       return {
-        blob: new Blob([ensureSvgNamespaces(inlined)], {
-          type: 'image/svg+xml',
-        }),
+        blob: new Blob([finalSvg], { type: 'image/svg+xml' }),
         extension: 'svg',
       };
     })
@@ -207,6 +250,7 @@ const parseRawNotebook = async (
     pages,
     assets,
     sections: plan.sections.length > 0 ? plan.sections : undefined,
+    objectLinks: collectedLinks.length > 0 ? collectedLinks : undefined,
   };
 };
 

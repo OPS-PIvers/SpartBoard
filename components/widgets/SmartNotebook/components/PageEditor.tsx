@@ -5,7 +5,6 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { MousePointer2, Pen, Highlighter, Eraser } from 'lucide-react';
 import {
   prepareEditableSvg,
   ensureObjectIds,
@@ -20,22 +19,53 @@ import {
   ORIG_TRANSFORM_ATTR,
   EditableObjectInfo,
 } from '@/utils/notebookSvgEdit';
+import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
+
+/** Normalized hotspot box, in fractions of the page's intrinsic size. */
+export interface NormalizedBox {
+  xFrac: number;
+  yFrac: number;
+  wFrac: number;
+  hFrac: number;
+}
+
+export interface LinkRequest {
+  objectId: string;
+  box: NormalizedBox;
+}
 
 interface PageEditorProps {
   /** Raw page SVG text (from a parsed notebook page). */
   svg: string;
   className?: string;
+  /**
+   * Tool/color/width are controlled by the host (PageEditorOverlay) so the
+   * toolbar can live in the workspace chrome instead of floating over the
+   * canvas. Optional with safe defaults so the dev harness and unit tests
+   * can mount PageEditor directly without wiring a toolbar.
+   */
+  tool?: Tool;
+  penColor?: string;
+  penWidth?: number;
   /** Notifies the host which objects are selected (id + kind); empty when none. */
   onSelectionChange?: (selection: EditableObjectInfo[]) => void;
   /** Fires (with the cleaned, persistable SVG) after any edit. */
   onChange?: (svg: string) => void;
+  /**
+   * Fires when the user clicks the link FAB on a single selected object.
+   * The host opens its own target-page picker and persists the link.
+   * Box is the object's AABB in page-fractional coordinates, captured at
+   * click time so the workspace can record a hotspot without re-reading
+   * the SVG.
+   */
+  onRequestLink?: (request: LinkRequest) => void;
 }
 
-type Tool = 'select' | 'pen' | 'highlighter' | 'eraser';
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
+const CORNER_SET = new Set<string>(['nw', 'ne', 'sw', 'se']);
 
 interface DragState {
-  mode: 'move' | 'resize' | 'marquee';
+  mode: 'move' | 'resize' | 'marquee' | 'rotate';
   startX: number;
   startY: number;
   moved: boolean;
@@ -49,6 +79,12 @@ interface DragState {
   // marquee: start corner in root-svg user space + the selection to union onto
   startUser?: { x: number; y: number };
   baseSelection?: string[];
+  // rotate: object center in root user space + initial pointer angle (deg).
+  // We rotate around the captured pivot rather than recomputing the AABB
+  // centre each frame so the object pivots about a stable point instead of
+  // drifting as the bounding box reshapes during rotation.
+  pivot?: { x: number; y: number };
+  startAngleDeg?: number;
 }
 
 interface Box {
@@ -69,9 +105,6 @@ const MIN_SCALE = 0.05;
 const EDIT_MATRIX_ATTR = 'data-edit-matrix';
 const HANDLE_ATTR = 'data-edit-handle';
 const CORNERS: Corner[] = ['nw', 'ne', 'sw', 'se'];
-
-const PEN_COLORS = ['#e11d48', '#2563eb', '#16a34a', '#111827', '#f59e0b'];
-const PEN_WIDTHS = [2, 5, 10];
 
 const matrixString = (m: DOMMatrix): string =>
   `${m.a},${m.b},${m.c},${m.d},${m.e},${m.f}`;
@@ -190,8 +223,12 @@ const transformedBox = (svgEl: SVGSVGElement, obj: SVGGraphicsElement): Box => {
 export const PageEditor: React.FC<PageEditorProps> = ({
   svg,
   className,
+  tool = 'select',
+  penColor = PEN_COLORS[0],
+  penWidth = PEN_WIDTHS[1],
   onSelectionChange,
   onChange,
+  onRequestLink,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -201,6 +238,26 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Rubber-band rect drawn while marquee-selecting.
   const marqueeRef = useRef<SVGRectElement | null>(null);
   const handlesRef = useRef<Map<Corner, SVGRectElement>>(new Map());
+  // Rotation handle is a small group (stem + dot) drawn above the top-centre
+  // of the selection box. Stored separately from the corner handles because
+  // its geometry and pointer semantics are different (rotation, not resize).
+  const rotateHandleRef = useRef<{
+    group: SVGGElement;
+    stem: SVGLineElement;
+    dot: SVGCircleElement;
+  } | null>(null);
+  // Link FAB: small circular badge offset from the bbox's top-right corner.
+  // Click (not drag) on this group calls onRequestLink so the host can show a
+  // target-page picker. Separate from corner / rotate handles because the
+  // interaction is a click, not a drag-and-update.
+  const linkHandleRef = useRef<{
+    group: SVGGElement;
+    bg: SVGCircleElement;
+    icon: SVGPathElement;
+  } | null>(null);
+  const onRequestLinkRef = useRef(onRequestLink);
+
+  onRequestLinkRef.current = onRequestLink;
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
   // Active freehand stroke (pen/highlighter) and eraser session.
@@ -214,17 +271,20 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     onChangeRef.current = onChange;
   });
 
-  const [tool, setTool] = useState<Tool>('select');
-  const [penColor, setPenColor] = useState(PEN_COLORS[0]);
-  const [penWidth, setPenWidth] = useState(PEN_WIDTHS[1]);
+  // Mirror controlled tool props into refs so the pointer handlers always see
+  // the latest value at fire time. Assigning in render body is the project's
+  // documented escape hatch for ref mirroring (CLAUDE.md "useEffect is an
+  // escape hatch"). The selection-clear on tool change is handled below,
+  // after selectedIds state is declared.
   const toolRef = useRef(tool);
   const penColorRef = useRef(penColor);
   const penWidthRef = useRef(penWidth);
-  useEffect(() => {
-    toolRef.current = tool;
-    penColorRef.current = penColor;
-    penWidthRef.current = penWidth;
-  });
+
+  toolRef.current = tool;
+
+  penColorRef.current = penColor;
+
+  penWidthRef.current = penWidth;
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState<{
@@ -243,6 +303,17 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     setPrevPrepared(prepared);
     setSelectedIds([]);
     setEditing(null);
+  }
+
+  // Drop any active selection when the host switches off the select tool —
+  // otherwise the highlight rect / handles would linger over a pen or
+  // eraser canvas.
+  const [prevTool, setPrevTool] = useState(tool);
+  if (tool !== prevTool) {
+    setPrevTool(tool);
+    if (tool !== 'select' && selectedIds.length > 0) {
+      setSelectedIds([]);
+    }
   }
 
   // Draw one highlight rect per selected object (reusing rect nodes to avoid
@@ -275,6 +346,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const only = ids.length === 1 ? findObjectById(svgEl, ids[0]) : null;
     if (!only) {
       handlesRef.current.forEach((h) => (h.style.display = 'none'));
+      if (rotateHandleRef.current) {
+        rotateHandleRef.current.group.style.display = 'none';
+      }
+      if (linkHandleRef.current) {
+        linkHandleRef.current.group.style.display = 'none';
+      }
       return;
     }
     const box = transformedBox(svgEl, only);
@@ -294,6 +371,43 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       h.setAttribute('height', String(hs));
       h.style.display = '';
     });
+
+    // Rotation handle: stem rises from the top edge midpoint, dot sits above.
+    // Stem length scales with the handle size so it stays proportional on
+    // zoom / viewport changes.
+    if (rotateHandleRef.current) {
+      const { group, stem: rStem, dot: rDot } = rotateHandleRef.current;
+      const midX = (box.minX + box.maxX) / 2;
+      const stemBottom = box.minY;
+      const stemTop = box.minY - hs * 2.25;
+      rStem.setAttribute('x1', String(midX));
+      rStem.setAttribute('y1', String(stemBottom));
+      rStem.setAttribute('x2', String(midX));
+      rStem.setAttribute('y2', String(stemTop));
+      rDot.setAttribute('cx', String(midX));
+      rDot.setAttribute('cy', String(stemTop));
+      rDot.setAttribute('r', String(hs / 2));
+      group.style.display = '';
+    }
+
+    // Link FAB: sits just outside the top-right corner of the bbox.
+    if (linkHandleRef.current) {
+      const { group, bg, icon } = linkHandleRef.current;
+      const fabRadius = hs * 0.95;
+      const fabCx = box.maxX + fabRadius * 1.1;
+      const fabCy = box.minY - fabRadius * 1.1;
+      bg.setAttribute('cx', String(fabCx));
+      bg.setAttribute('cy', String(fabCy));
+      bg.setAttribute('r', String(fabRadius));
+      // The link path is authored in a 24×24 box; translate to FAB centre
+      // and scale so the icon fits inside the badge with a small margin.
+      const iconScale = (fabRadius * 1.3) / 24;
+      icon.setAttribute(
+        'transform',
+        `translate(${fabCx - 12 * iconScale} ${fabCy - 12 * iconScale}) scale(${iconScale})`
+      );
+      group.style.display = '';
+    }
   }, []);
 
   const emitChange = useCallback(() => {
@@ -307,6 +421,8 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const el = container.querySelector('svg');
     svgRef.current = el;
     handlesRef.current = new Map();
+    rotateHandleRef.current = null;
+    linkHandleRef.current = null;
     if (!el) {
       selGroupRef.current = null;
       marqueeRef.current = null;
@@ -340,6 +456,63 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       el.appendChild(h);
       handlesRef.current.set(corner, h);
     }
+
+    // Rotation handle: a short vertical stem above the top edge of the
+    // bounding box, capped with a small circle. The whole group carries
+    // data-edit-handle="rotate" so pointer events on either the stem or
+    // the dot enter the rotate branch of handlePointerDown.
+    const rotateGroup = document.createElementNS(SVG_NS, 'g');
+    rotateGroup.setAttribute(EDIT_OVERLAY_ATTR, '1');
+    rotateGroup.setAttribute(HANDLE_ATTR, 'rotate');
+    rotateGroup.style.cursor = 'grab';
+    rotateGroup.style.display = 'none';
+    const stem = document.createElementNS(SVG_NS, 'line');
+    stem.setAttribute('stroke', '#6366f1');
+    stem.setAttribute('stroke-width', '1.5');
+    stem.setAttribute('vector-effect', 'non-scaling-stroke');
+    stem.setAttribute('pointer-events', 'stroke');
+    rotateGroup.appendChild(stem);
+    const dot = document.createElementNS(SVG_NS, 'circle');
+    dot.setAttribute('fill', '#ffffff');
+    dot.setAttribute('stroke', '#6366f1');
+    dot.setAttribute('stroke-width', '1.5');
+    dot.setAttribute('vector-effect', 'non-scaling-stroke');
+    rotateGroup.appendChild(dot);
+    el.appendChild(rotateGroup);
+    rotateHandleRef.current = { group: rotateGroup, stem, dot };
+
+    // Link FAB — circular badge offset above-right of the selection box.
+    // Uses a tinted background + lucide "link" icon path so the affordance
+    // reads at a glance. Only ever appears for single selections.
+    const linkGroup = document.createElementNS(SVG_NS, 'g');
+    linkGroup.setAttribute(EDIT_OVERLAY_ATTR, '1');
+    linkGroup.setAttribute(HANDLE_ATTR, 'link');
+    linkGroup.style.cursor = 'pointer';
+    linkGroup.style.display = 'none';
+    const linkBg = document.createElementNS(SVG_NS, 'circle');
+    linkBg.setAttribute('fill', '#6366f1');
+    linkBg.setAttribute('stroke', '#ffffff');
+    linkBg.setAttribute('stroke-width', '1.5');
+    linkBg.setAttribute('vector-effect', 'non-scaling-stroke');
+    linkGroup.appendChild(linkBg);
+    // Compact link-chain path (lucide "link" mark, simplified for small sizes).
+    // The transform attribute is set in renderSelection so it scales to fit
+    // the badge regardless of zoom.
+    const linkIcon = document.createElementNS(SVG_NS, 'path');
+    linkIcon.setAttribute(
+      'd',
+      'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71'
+    );
+    linkIcon.setAttribute('fill', 'none');
+    linkIcon.setAttribute('stroke', '#ffffff');
+    linkIcon.setAttribute('stroke-width', '2');
+    linkIcon.setAttribute('stroke-linecap', 'round');
+    linkIcon.setAttribute('stroke-linejoin', 'round');
+    linkIcon.setAttribute('vector-effect', 'non-scaling-stroke');
+    linkIcon.setAttribute('pointer-events', 'none');
+    linkGroup.appendChild(linkIcon);
+    el.appendChild(linkGroup);
+    linkHandleRef.current = { group: linkGroup, bg: linkBg, icon: linkIcon };
 
     const marquee = document.createElementNS(SVG_NS, 'rect');
     marquee.setAttribute('fill', 'rgba(99,102,241,0.10)');
@@ -569,10 +742,67 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       return;
     }
 
-    // select / move / resize
+    // select / move / resize / rotate
     const target = e.target as Element;
-    const handle = target.getAttribute(HANDLE_ATTR) as Corner | null;
-    if (handle && selectedIds.length === 1) {
+    // Walk up to the nearest [data-edit-handle] ancestor — corner rects ARE
+    // the handle itself, but the rotation handle is a <g> with child <line>
+    // / <circle>, so an exact-target lookup would miss it.
+    const handleEl = target.closest(`[${HANDLE_ATTR}]`);
+    const handle = handleEl?.getAttribute(HANDLE_ATTR) ?? null;
+
+    if (handle === 'link' && selectedIds.length === 1) {
+      const obj = findObjectById(svgEl, selectedIds[0]);
+      if (!obj) return;
+      const vb = svgEl.viewBox.baseVal;
+      // Need a populated viewBox to map AABB → normalized hotspot. Every
+      // page SVG gets one via prepareEditableSvg, so a missing/zero viewBox
+      // would be a real bug rather than an expected miss.
+      if (vb && vb.width > 0 && vb.height > 0) {
+        const box = transformedBox(svgEl, obj);
+        onRequestLinkRef.current?.({
+          objectId: selectedIds[0],
+          box: {
+            xFrac: box.minX / vb.width,
+            yFrac: box.minY / vb.height,
+            wFrac: (box.maxX - box.minX) / vb.width,
+            hFrac: (box.maxY - box.minY) / vb.height,
+          },
+        });
+      }
+      // Click only — do not start a drag.
+      return;
+    }
+
+    if (handle === 'rotate' && selectedIds.length === 1) {
+      const obj = findObjectById(svgEl, selectedIds[0]);
+      if (!obj) return;
+      const box = transformedBox(svgEl, obj);
+      // Pivot is the AABB centre captured at drag start. We hold it fixed
+      // for the duration of the gesture so the object rotates around the
+      // same point even as the AABB reshapes.
+      const pivot = {
+        x: (box.minX + box.maxX) / 2,
+        y: (box.minY + box.maxY) / 2,
+      };
+      const userPt = toRootUser(e.clientX, e.clientY);
+      const startAngleDeg =
+        Math.atan2(userPt.y - pivot.y, userPt.x - pivot.x) * (180 / Math.PI);
+      dragRef.current = {
+        id: selectedIds[0],
+        mode: 'rotate',
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+        m0: readEditMatrix(obj),
+        pivot,
+        startAngleDeg,
+      };
+      containerRef.current?.setPointerCapture(e.pointerId);
+      return;
+    }
+
+    if (handle && CORNER_SET.has(handle) && selectedIds.length === 1) {
+      const corner = handle as Corner;
       const obj = findObjectById(svgEl, selectedIds[0]);
       if (!obj) return;
       const box = transformedBox(svgEl, obj);
@@ -595,8 +825,8 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         startY: e.clientY,
         m0: readEditMatrix(obj),
         moved: false,
-        anchor: cornerPt[opposite[handle]],
-        startCorner: cornerPt[handle],
+        anchor: cornerPt[opposite[corner]],
+        startCorner: cornerPt[corner],
       };
       containerRef.current?.setPointerCapture(e.pointerId);
       return;
@@ -728,11 +958,50 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         .translateSelf(-anchor.x, -anchor.y);
       applyEditMatrix(obj, a.multiply(drag.m0));
       renderSelection([drag.id]);
+      return;
+    }
+
+    if (
+      drag.mode === 'rotate' &&
+      drag.id &&
+      drag.m0 &&
+      drag.pivot &&
+      drag.startAngleDeg !== undefined
+    ) {
+      const obj = findObjectById(svgEl, drag.id);
+      if (!obj) return;
+      const userPt = toRootUser(e.clientX, e.clientY);
+      const currentAngle =
+        Math.atan2(userPt.y - drag.pivot.y, userPt.x - drag.pivot.x) *
+        (180 / Math.PI);
+      const deltaDeg = currentAngle - drag.startAngleDeg;
+      // Rotation around the captured pivot: translate→rotate→translate-back,
+      // then composed with the object's pre-drag matrix.
+      const r = new DOMMatrix()
+        .translateSelf(drag.pivot.x, drag.pivot.y)
+        .rotateSelf(deltaDeg)
+        .translateSelf(-drag.pivot.x, -drag.pivot.y);
+      applyEditMatrix(obj, r.multiply(drag.m0));
+      renderSelection([drag.id]);
     }
   };
 
   const handlePointerUp = (e: React.PointerEvent) => {
-    containerRef.current?.releasePointerCapture?.(e.pointerId);
+    // releasePointerCapture throws NotFoundError when no active capture
+    // exists for this pointerId — and optional chaining short-circuits on
+    // null but does NOT swallow exceptions. Without this guard the throw
+    // aborts the rest of this handler (including `dragRef.current = null`)
+    // and the dragged object stays stuck to the cursor on every subsequent
+    // pointermove. Implicit capture can be released by browser-side
+    // pointercancel or by React reconciliation that briefly detaches the
+    // captured element, so we have to assume it may already be gone.
+    try {
+      containerRef.current?.releasePointerCapture(e.pointerId);
+    } catch (err) {
+      if (!(err instanceof DOMException && err.name === 'NotFoundError')) {
+        throw err;
+      }
+    }
 
     if (strokeRef.current) {
       const svgEl = svgRef.current;
@@ -783,11 +1052,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (drag.moved) emitChange();
   };
 
-  const selectTool = (next: Tool) => {
-    setTool(next);
-    if (next !== 'select') setSelectedIds([]);
-  };
-
   const cursor =
     tool === 'pen' || tool === 'highlighter'
       ? 'crosshair'
@@ -795,29 +1059,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         ? 'cell'
         : 'default';
 
-  const toolBtn = (
-    value: Tool,
-    Icon: React.ComponentType<{ className?: string }>,
-    label: string
-  ) => (
-    <button
-      type="button"
-      onClick={() => selectTool(value)}
-      title={label}
-      aria-label={label}
-      aria-pressed={tool === value}
-      className={`flex h-8 w-8 items-center justify-center rounded-lg transition-colors ${
-        tool === value
-          ? 'bg-indigo-600 text-white'
-          : 'text-slate-600 hover:bg-slate-100'
-      }`}
-    >
-      <Icon className="h-4 w-4" />
-    </button>
-  );
-
   return (
-    <div className={`relative h-full w-full ${className ?? ''}`}>
+    // data-no-drag opts this subtree out of DraggableWindow's drag-surface
+    // (DRAG_BLOCKING_SELECTOR). Without it, every pointerdown on an object —
+    // select, marquee, pen, eraser — also starts a widget drag, which fights
+    // with the editor's own setPointerCapture and leaves objects feeling
+    // "stuck" because both gestures are active at once.
+    <div
+      data-no-drag="true"
+      className={`relative h-full w-full ${className ?? ''}`}
+    >
       <div
         ref={containerRef}
         className="h-full w-full touch-none select-none"
@@ -828,48 +1079,6 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         onDoubleClick={handleDoubleClick}
         role="presentation"
       />
-
-      {/* Floating tool palette */}
-      <div className="absolute left-3 top-3 z-10 flex items-center gap-1 rounded-xl border border-slate-200 bg-white/95 px-1.5 py-1 shadow-lg backdrop-blur">
-        {toolBtn('select', MousePointer2, 'Select')}
-        {toolBtn('pen', Pen, 'Pen')}
-        {toolBtn('highlighter', Highlighter, 'Highlighter')}
-        {toolBtn('eraser', Eraser, 'Eraser')}
-        <div className="mx-1 h-6 w-px bg-slate-200" />
-        {PEN_COLORS.map((c) => (
-          <button
-            key={c}
-            type="button"
-            onClick={() => setPenColor(c)}
-            title={`Color ${c}`}
-            aria-label={`Color ${c}`}
-            className={`h-5 w-5 rounded-full border-2 transition-transform ${
-              penColor === c
-                ? 'scale-110 border-slate-800'
-                : 'border-white hover:scale-105'
-            }`}
-            style={{ backgroundColor: c }}
-          />
-        ))}
-        <div className="mx-1 h-6 w-px bg-slate-200" />
-        {PEN_WIDTHS.map((w, i) => (
-          <button
-            key={w}
-            type="button"
-            onClick={() => setPenWidth(w)}
-            title={`Width ${['thin', 'medium', 'thick'][i]}`}
-            aria-label={`Width ${['thin', 'medium', 'thick'][i]}`}
-            className={`flex h-7 w-7 items-center justify-center rounded-lg transition-colors ${
-              penWidth === w ? 'bg-slate-200' : 'hover:bg-slate-100'
-            }`}
-          >
-            <span
-              className="rounded-full bg-slate-700"
-              style={{ width: w + 2, height: w + 2 }}
-            />
-          </button>
-        ))}
-      </div>
 
       {editing && (
         <textarea

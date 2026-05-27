@@ -1,11 +1,12 @@
 import JSZip from 'jszip';
-import { NotebookSection } from '@/types';
+import { NotebookObjectLink, NotebookSection } from '@/types';
 import {
   PAGE_SVG_RE,
   imageSubtype,
   imageHrefRegex,
   ensureSvgNamespaces,
   buildImageLookup,
+  extractShortcutLinks,
   resolveImageKey,
   resolvePageOrder,
   svgDimensions,
@@ -130,6 +131,11 @@ export const convertNotebookToBundle = async (
 
   const out = new JSZip();
   const manifestPages: { file: string; width: number; height: number }[] = [];
+  // Map original filename → output page index so SMART shortcut targets can
+  // be resolved to the .spartnb's own indexing rather than the source order.
+  const filenameToIndex = new Map<string, number>();
+  plan.order.forEach((name, i) => filenameToIndex.set(name, i));
+  const collectedLinks: NotebookObjectLink[] = [];
 
   // Sequential page loop keeps peak memory bounded and progress meaningful.
   for (let index = 0; index < plan.order.length; index++) {
@@ -181,6 +187,38 @@ export const convertNotebookToBundle = async (
     svgText = ensureSvgNamespaces(svgText);
 
     const { width, height } = svgDimensions(svgText);
+
+    // Pull out SMART page-jump shortcuts before writing the SVG so the
+    // bundle's manifest.json carries the link records and the linked
+    // element gets a stable data-edit-id stamped on it for the editor.
+    const extraction = extractShortcutLinks(svgText, index, { width, height });
+    svgText = extraction.svg;
+    for (const link of extraction.links) {
+      const targetPage = filenameToIndex.get(link.targetFile);
+      // Targets pointing at a page the manifest doesn't include become
+      // orphaned references — log and drop rather than emit a broken
+      // hotspot that does nothing in the viewer.
+      if (targetPage === undefined) {
+        console.warn(
+          `smart→spart: shortcut on page ${index} targets "${link.targetFile}" which is not in the page order; dropping link.`
+        );
+        continue;
+      }
+      // Self-referential shortcuts ("page jumps to itself") are useless
+      // and would visually distract teachers, so drop them too.
+      if (targetPage === index) continue;
+      collectedLinks.push({
+        id: link.objectId,
+        objectId: link.objectId,
+        sourcePage: link.sourcePage,
+        targetPage,
+        xFrac: link.xFrac,
+        yFrac: link.yFrac,
+        wFrac: link.wFrac,
+        hFrac: link.hFrac,
+      });
+    }
+
     const outName = `pages/${index}.svg`;
     out.file(outName, svgText);
     manifestPages.push({ file: outName, width, height });
@@ -199,6 +237,9 @@ export const convertNotebookToBundle = async (
         pageCount: manifestPages.length,
         pages: manifestPages,
         sections,
+        // Only include the field when there's actually data to write —
+        // keeps existing converted bundles diff-clean and parsers happy.
+        ...(collectedLinks.length > 0 ? { objectLinks: collectedLinks } : {}),
       },
       null,
       2

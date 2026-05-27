@@ -177,18 +177,11 @@ export const MaterialsWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
                 ))}
               </div>
             ) : (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <Package
-                  style={{
-                    width: 'min(48px, 12cqmin)',
-                    height: 'min(48px, 12cqmin)',
-                  }}
-                  className="mb-2 opacity-20"
-                />
-                <span style={{ fontSize: 'min(14px, 4cqmin)' }}>
-                  {isFocused ? 'Select items below' : 'Nothing needed yet'}
-                </span>
-              </div>
+              <ScaledEmptyState
+                icon={Package}
+                title={isFocused ? 'Select items below' : 'Nothing needed yet'}
+                iconClassName="text-slate-300 opacity-20"
+              />
             )}
           </div>
 
