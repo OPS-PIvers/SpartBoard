@@ -746,6 +746,112 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (entries.length > 0) pageEditorClipboard = entries;
   }, [selectedIds]);
 
+  // Insert a freshly built SVG element into the page foreground as a new
+  // editable object. Used by image / text paste from the OS clipboard.
+  // Returns the new edit id, or null if there's no live svg / foreground.
+  const insertNewObject = useCallback(
+    (innerEl: SVGElement): string | null => {
+      const svgEl = svgRef.current;
+      if (!svgEl) return null;
+      const fg = findForeground(svgEl);
+      if (!fg) return null;
+      const wrapper = document.createElementNS(SVG_NS, 'g');
+      const newId = `obj-paste-${crypto.randomUUID()}`;
+      wrapper.setAttribute('data-edit-id', newId);
+      wrapper.setAttribute(ORIG_TRANSFORM_ATTR, '');
+      wrapper.appendChild(innerEl);
+      fg.appendChild(wrapper);
+      objectsRef.current = ensureObjectIds(svgEl);
+      setSelectedIds([newId]);
+      emitChange();
+      return newId;
+    },
+    [emitChange]
+  );
+
+  // Paste an OS-clipboard image. Reads the file as a base64 data URL so the
+  // SVG is self-contained (no Storage upload needed). We probe natural
+  // dimensions first so the image lands at its real aspect ratio, capped to
+  // ~half the page so a 4K screenshot doesn't dwarf the slide.
+  const pasteImageFile = useCallback(
+    (file: File) => {
+      const svgEl = svgRef.current;
+      if (!svgEl) return;
+      const vb = svgEl.viewBox.baseVal;
+      const pageW = vb && vb.width > 0 ? vb.width : 1000;
+      const pageH = vb && vb.height > 0 ? vb.height : 750;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result;
+        if (typeof dataUrl !== 'string') return;
+        const probe = new Image();
+        probe.onload = () => {
+          const nw = probe.naturalWidth || pageW * 0.4;
+          const nh = probe.naturalHeight || pageH * 0.4;
+          const maxW = pageW * 0.5;
+          const maxH = pageH * 0.5;
+          const scale = Math.min(1, maxW / nw, maxH / nh);
+          const w = nw * scale;
+          const h = nh * scale;
+          const x = (vb?.x ?? 0) + (pageW - w) / 2;
+          const y = (vb?.y ?? 0) + (pageH - h) / 2;
+          const img = document.createElementNS(SVG_NS, 'image');
+          img.setAttribute('href', dataUrl);
+          // Both the xlink:href and href attrs are recognized by SVG 2 /
+          // SVG 1.1 viewers respectively. Setting both keeps older renderers
+          // happy (e.g. some Firefox versions still favor xlink).
+          img.setAttributeNS(
+            'http://www.w3.org/1999/xlink',
+            'xlink:href',
+            dataUrl
+          );
+          img.setAttribute('x', String(x));
+          img.setAttribute('y', String(y));
+          img.setAttribute('width', String(w));
+          img.setAttribute('height', String(h));
+          img.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+          insertNewObject(img);
+        };
+        probe.src = dataUrl;
+      };
+      reader.readAsDataURL(file);
+    },
+    [insertNewObject]
+  );
+
+  // Paste OS-clipboard text. Multi-line strings split into <tspan> rows so
+  // line breaks survive the round-trip; dblclick on the resulting object
+  // opens the existing text editor for follow-up edits.
+  const pasteTextString = useCallback(
+    (text: string) => {
+      const svgEl = svgRef.current;
+      if (!svgEl) return;
+      const vb = svgEl.viewBox.baseVal;
+      const pageW = vb && vb.width > 0 ? vb.width : 1000;
+      const pageH = vb && vb.height > 0 ? vb.height : 750;
+      const lines = text.split(/\r?\n/);
+      const fontSize = Math.max(16, Math.round(pageH * 0.035));
+      const x = (vb?.x ?? 0) + pageW / 2;
+      const y = (vb?.y ?? 0) + pageH / 2 - (lines.length - 1) * fontSize * 0.6;
+      const textEl = document.createElementNS(SVG_NS, 'text');
+      textEl.setAttribute('x', String(x));
+      textEl.setAttribute('y', String(y));
+      textEl.setAttribute('font-family', 'sans-serif');
+      textEl.setAttribute('font-size', String(fontSize));
+      textEl.setAttribute('fill', '#111827');
+      textEl.setAttribute('text-anchor', 'middle');
+      lines.forEach((line, i) => {
+        const tspan = document.createElementNS(SVG_NS, 'tspan');
+        tspan.setAttribute('x', String(x));
+        if (i > 0) tspan.setAttribute('dy', `${fontSize * 1.2}`);
+        tspan.textContent = line;
+        textEl.appendChild(tspan);
+      });
+      insertNewObject(textEl);
+    },
+    [insertNewObject]
+  );
+
   const pasteFromClipboard = useCallback(() => {
     const svgEl = svgRef.current;
     if (!svgEl || pageEditorClipboard.length === 0) return;
@@ -796,6 +902,61 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     if (newLinks.length > 0) onClonedLinksRef.current?.(newLinks);
   }, [emitChange, normalizedBoxFor]);
 
+  // Layer ordering: SVG paint order is sibling order in the foreground group,
+  // so reordering data-edit-id'd children IS the z-order. Bring-forward /
+  // send-backward swap with the adjacent sibling; to-front / to-back move
+  // to the edge. Iteration direction matters for multi-select: when moving
+  // forward, iterate selection in REVERSE document order so each swap doesn't
+  // bump the next selected sibling out of place; mirrored for backward.
+  const reorderSelected = useCallback(
+    (direction: 'forward' | 'backward' | 'front' | 'back') => {
+      const svgEl = svgRef.current;
+      if (!svgEl || selectedIds.length === 0) return;
+      const fg = findForeground(svgEl);
+      if (!fg) return;
+      const selectedSet = new Set(selectedIds);
+      // Snapshot the current sibling order so we can iterate stably even
+      // as we mutate fg's children below.
+      const orderedSelected = Array.from(fg.children)
+        .filter((c) => selectedSet.has(c.getAttribute('data-edit-id') ?? ''))
+        .map((c) => c as SVGGraphicsElement);
+      if (orderedSelected.length === 0) return;
+      if (direction === 'front') {
+        for (const obj of orderedSelected) fg.appendChild(obj);
+      } else if (direction === 'back') {
+        // Reverse so the first-selected ends up frontmost among the moved
+        // group, matching how "send to back" works in design tools.
+        for (let i = orderedSelected.length - 1; i >= 0; i--) {
+          fg.insertBefore(orderedSelected[i], fg.firstChild);
+        }
+      } else if (direction === 'forward') {
+        for (let i = orderedSelected.length - 1; i >= 0; i--) {
+          const obj = orderedSelected[i];
+          const next = obj.nextElementSibling;
+          if (
+            next &&
+            !selectedSet.has(next.getAttribute('data-edit-id') ?? '')
+          ) {
+            fg.insertBefore(next, obj);
+          }
+        }
+      } else {
+        for (const obj of orderedSelected) {
+          const prev = obj.previousElementSibling;
+          if (
+            prev &&
+            !selectedSet.has(prev.getAttribute('data-edit-id') ?? '')
+          ) {
+            fg.insertBefore(obj, prev);
+          }
+        }
+      }
+      objectsRef.current = ensureObjectIds(svgEl);
+      emitChange();
+    },
+    [selectedIds, emitChange]
+  );
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (editing) return;
@@ -834,32 +995,91 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         e.preventDefault();
         e.stopPropagation();
         copySelected();
+      } else if ((e.metaKey || e.ctrlKey) && e.key === ']') {
+        // Cmd+] / Ctrl+] — bring forward one layer.
+        // With Shift: bring all the way to the front.
+        e.preventDefault();
+        e.stopPropagation();
+        reorderSelected(e.shiftKey ? 'front' : 'forward');
+      } else if ((e.metaKey || e.ctrlKey) && e.key === '[') {
+        // Cmd+[ / Ctrl+[ — send backward one layer (Shift = to the back).
+        e.preventDefault();
+        e.stopPropagation();
+        reorderSelected(e.shiftKey ? 'back' : 'backward');
       }
     };
     // Capture phase: the window listener fires before React's root onKeyDown,
     // so we can stop a selection-delete from also deleting the host widget.
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [selectedIds, emitChange, editing, duplicateSelected, copySelected]);
+  }, [
+    selectedIds,
+    emitChange,
+    editing,
+    duplicateSelected,
+    copySelected,
+    reorderSelected,
+  ]);
 
-  // Paste is a separate listener because it must fire even with no selection
-  // — the teacher may have copied on page 2, navigated to page 5 (clearing
-  // selection on page change), and now wants to paste. The early-return in
-  // the main key handler `if (selectedIds.length === 0) return;` would
-  // suppress that case if paste were folded in there.
+  // Paste handler — runs on the native `paste` event rather than a Cmd+V
+  // keydown so the browser actually populates clipboardData with whatever
+  // the OS clipboard has (image bytes, text, HTML). Priority:
+  //   1. Image data on the OS clipboard → SVG <image> with data URL
+  //   2. Plain-text data on the OS clipboard → SVG <text>
+  //   3. Fall back to the in-app clipboard (copy of page objects, with
+  //      their hotspot links preserved)
+  // The listener is on window so it fires without the canvas being a
+  // focused editable target; we early-return when editing a text node so
+  // a paste inside the textarea behaves natively.
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
+    const onPaste = (e: ClipboardEvent) => {
       if (editing) return;
-      if (!(e.metaKey || e.ctrlKey)) return;
-      if (e.key !== 'v' && e.key !== 'V') return;
-      if (pageEditorClipboard.length === 0) return;
-      e.preventDefault();
-      e.stopPropagation();
-      pasteFromClipboard();
+      const svgEl = svgRef.current;
+      if (!svgEl) return;
+      // Ignore pastes targeted at native inputs / contenteditable elements
+      // elsewhere on the page (e.g. the LinkTargetPicker's search box, the
+      // sidebar's dashboard title). Without this guard we'd hijack their
+      // paste and dump the clipboard onto the notebook page instead.
+      const target = e.target as Element | null;
+      if (
+        target &&
+        (target.closest('input') ||
+          target.closest('textarea') ||
+          (target instanceof HTMLElement && target.isContentEditable))
+      ) {
+        return;
+      }
+      const data = e.clipboardData;
+      if (data) {
+        // Look for an image file first — handles screenshots and "Copy
+        // image" actions in browsers / file managers.
+        for (let i = 0; i < data.items.length; i++) {
+          const item = data.items[i];
+          if (item.kind === 'file' && item.type.startsWith('image/')) {
+            const file = item.getAsFile();
+            if (file) {
+              e.preventDefault();
+              pasteImageFile(file);
+              return;
+            }
+          }
+        }
+        const text = data.getData('text/plain');
+        if (text) {
+          e.preventDefault();
+          pasteTextString(text);
+          return;
+        }
+      }
+      // No usable OS-clipboard payload — fall back to the in-app clipboard.
+      if (pageEditorClipboard.length > 0) {
+        e.preventDefault();
+        pasteFromClipboard();
+      }
     };
-    window.addEventListener('keydown', onKey, true);
-    return () => window.removeEventListener('keydown', onKey, true);
-  }, [editing, pasteFromClipboard]);
+    window.addEventListener('paste', onPaste);
+    return () => window.removeEventListener('paste', onPaste);
+  }, [editing, pasteFromClipboard, pasteImageFile, pasteTextString]);
 
   // When a text edit opens, focus the field and put the caret at the end —
   // editing usually means appending, so starting at the far left is annoying.
