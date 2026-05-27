@@ -1014,6 +1014,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         `<svg xmlns="${SVG_NS}">${entry.svg}</svg>`,
         'image/svg+xml'
       );
+      if (doc.querySelector('parsererror')) continue;
       const sourceEl = doc.documentElement.firstElementChild;
       if (!sourceEl) continue;
       const clone = sourceEl.cloneNode(true) as SVGGraphicsElement;
@@ -1072,7 +1073,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         // Reverse so the first-selected ends up frontmost among the moved
         // group, matching how "send to back" works in design tools.
         for (let i = orderedSelected.length - 1; i >= 0; i--) {
-          fg.insertBefore(orderedSelected[i], fg.firstChild);
+          const obj = orderedSelected[i];
+          if (obj !== fg.firstChild) {
+            fg.insertBefore(obj, fg.firstChild);
+          }
         }
       } else if (direction === 'forward') {
         for (let i = orderedSelected.length - 1; i >= 0; i--) {
