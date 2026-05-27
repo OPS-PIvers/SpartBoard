@@ -23,6 +23,7 @@ import {
   Plus,
   RotateCcw,
   SendToBack,
+  Shapes,
   Square,
   Trash2,
   Type,
@@ -610,26 +611,28 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
  * feel like cousins. PageEditor stays presentational; tool state lives in
  * the workspace.
  */
-const TOOL_BUTTONS: ReadonlyArray<{
-  tool: Tool;
+/**
+ * Top-level toolbar buttons. Shape variants live behind a single "Shapes"
+ * popover entry so the bar stays compact; the popover sets the active
+ * shape sub-tool directly. Select / Eraser take no options, so they
+ * don't carry a popover. Pen / Highlighter / Text expose color (and width
+ * where it's meaningful) via their per-button popover, matching the
+ * DrawingWidget's pattern that teachers already know from the whiteboard.
+ */
+type PopoverKey = 'pen' | 'highlighter' | 'text' | 'shapes';
+
+const SHAPE_SUB_TOOLS: ReadonlyArray<{
+  tool: 'rect' | 'circle' | 'line' | 'arrow';
   Icon: React.ComponentType<{ className?: string }>;
   label: string;
 }> = [
-  { tool: 'select', Icon: MousePointer2, label: 'Select' },
-  { tool: 'pen', Icon: Pen, label: 'Pen' },
-  { tool: 'highlighter', Icon: Highlighter, label: 'Highlighter' },
-  { tool: 'eraser', Icon: Eraser, label: 'Eraser' },
-  { tool: 'text', Icon: Type, label: 'Text' },
   { tool: 'rect', Icon: Square, label: 'Rectangle' },
   { tool: 'circle', Icon: Circle, label: 'Circle' },
   { tool: 'line', Icon: Minus, label: 'Line' },
   { tool: 'arrow', Icon: MoveUpRight, label: 'Arrow' },
 ];
 
-const TOOL_CONTROL_PALETTE = new Set<Tool>([
-  'pen',
-  'highlighter',
-  'text',
+const SHAPE_TOOL_KEYS: ReadonlySet<Tool> = new Set([
   'rect',
   'circle',
   'line',
@@ -659,15 +662,88 @@ const Toolbar: React.FC<{
   onReorder,
   onOpenBackgroundPicker,
 }) => {
-  // Tools that use the color/width controls light up the palette; select +
-  // eraser dim it because the swatches don't influence them. Text uses
-  // color (not width); shapes use both — we keep them lit for either case
-  // since fading width for text only would add a third visual state for
-  // little gain.
-  const inkActive = TOOL_CONTROL_PALETTE.has(tool);
+  const [popover, setPopover] = useState<PopoverKey | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  useClickOutside(containerRef, () => setPopover(null));
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setPopover(null);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, []);
+
+  // Map a top-level tool button to (a) which tool it activates and
+  // (b) which popover it opens. Selecting Shapes opens the popover but
+  // does NOT change the active tool — the shape sub-button inside the
+  // popover does that. Select and Eraser have no popover.
+  const handleToolClick = (
+    key: 'select' | 'pen' | 'highlighter' | 'eraser' | 'text' | 'shapes'
+  ) => {
+    if (key === 'select' || key === 'eraser') {
+      onToolChange(key);
+      setPopover(null);
+      return;
+    }
+    if (key === 'shapes') {
+      setPopover((p) => (p === 'shapes' ? null : 'shapes'));
+      return;
+    }
+    onToolChange(key);
+    setPopover((p) => (p === key ? null : key));
+  };
+
+  const isShapeActive = SHAPE_TOOL_KEYS.has(tool);
+  const activeShape = isShapeActive
+    ? SHAPE_SUB_TOOLS.find((s) => s.tool === tool)
+    : null;
+  const ShapesIcon = activeShape?.Icon ?? Shapes;
+
+  // Per-tool button row builder. Returns JSX (not a component) to satisfy
+  // the static-components rule while keeping the markup readable. Active
+  // state covers both "this tool is currently selected" and (for Shapes)
+  // "the active tool is one of my sub-tools".
+  type ToolButtonKey =
+    | 'select'
+    | 'pen'
+    | 'highlighter'
+    | 'eraser'
+    | 'text'
+    | 'shapes';
+  const renderToolButton = (
+    keyId: ToolButtonKey,
+    Icon: React.ComponentType<{ className?: string }>,
+    label: string,
+    isActive: boolean,
+    hasPopover: boolean
+  ) => (
+    <button
+      key={keyId}
+      type="button"
+      onClick={() => handleToolClick(keyId)}
+      aria-pressed={isActive}
+      aria-haspopup={hasPopover ? 'dialog' : undefined}
+      aria-expanded={hasPopover ? popover === keyId : undefined}
+      title={label}
+      aria-label={label}
+      className={`flex items-center justify-center rounded-md transition-colors ${
+        isActive
+          ? 'bg-brand-blue-primary text-white shadow-sm'
+          : 'text-slate-300 hover:bg-white/10'
+      }`}
+      style={{
+        width: 'min(36px, 8cqmin)',
+        height: 'min(32px, 7cqmin)',
+      }}
+    >
+      <Icon className="h-4 w-4" />
+    </button>
+  );
+
   return (
     <div
-      className="bg-slate-900/95 backdrop-blur"
+      ref={containerRef}
+      className="relative bg-slate-900/95 backdrop-blur"
       style={{ padding: 'min(8px, 2cqmin) min(12px, 2.5cqmin)' }}
     >
       <div
@@ -675,118 +751,49 @@ const Toolbar: React.FC<{
         style={{
           gap: 'min(12px, 2.5cqmin)',
           rowGap: 'min(6px, 1.5cqmin)',
-          maxWidth: '960px',
+          maxWidth: '720px',
         }}
       >
-        {/* Tool segmented control */}
+        {/* Tool segmented control — 6 entries, popover holds the options */}
         <div
           role="group"
           aria-label="Drawing tool"
           className="flex items-stretch rounded-lg bg-slate-950/40 ring-1 ring-white/5"
           style={{ gap: 'min(2px, 0.5cqmin)', padding: 'min(4px, 1cqmin)' }}
         >
-          {TOOL_BUTTONS.map(({ tool: t, Icon, label }) => {
-            const isActive = tool === t;
-            return (
-              <button
-                key={t}
-                type="button"
-                onClick={() => onToolChange(t)}
-                aria-pressed={isActive}
-                title={label}
-                aria-label={label}
-                className={`flex items-center justify-center rounded-md transition-colors ${
-                  isActive
-                    ? 'bg-brand-blue-primary text-white shadow-sm'
-                    : 'text-slate-300 hover:bg-white/10'
-                }`}
-                style={{
-                  width: 'min(32px, 7cqmin)',
-                  height: 'min(28px, 6cqmin)',
-                }}
-              >
-                <Icon className="h-4 w-4" />
-              </button>
-            );
-          })}
+          {renderToolButton(
+            'select',
+            MousePointer2,
+            'Select',
+            tool === 'select',
+            false
+          )}
+          {renderToolButton('pen', Pen, 'Pen', tool === 'pen', true)}
+          {renderToolButton(
+            'highlighter',
+            Highlighter,
+            'Highlighter',
+            tool === 'highlighter',
+            true
+          )}
+          {renderToolButton(
+            'eraser',
+            Eraser,
+            'Eraser',
+            tool === 'eraser',
+            false
+          )}
+          {renderToolButton('text', Type, 'Text', tool === 'text', true)}
+          {renderToolButton(
+            'shapes',
+            ShapesIcon,
+            activeShape ? `Shapes — ${activeShape.label}` : 'Shapes',
+            isShapeActive,
+            true
+          )}
         </div>
 
-        {/* Color swatches — only meaningful for ink tools; dim them otherwise
-            so the eraser/select state doesn't suggest a "current color". */}
-        <div
-          className={`flex items-center transition-opacity ${
-            inkActive ? 'opacity-100' : 'opacity-40'
-          }`}
-          style={{ gap: 'min(6px, 1.5cqmin)' }}
-        >
-          {PEN_COLORS.map((c) => {
-            const isActive = penColor === c;
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => onColorChange(c)}
-                disabled={!inkActive}
-                title={`Color ${c}`}
-                aria-label={`Color ${c}`}
-                aria-pressed={isActive}
-                className={`rounded-full transition-transform ${
-                  isActive
-                    ? 'scale-110 ring-2 ring-white'
-                    : 'ring-1 ring-white/30 hover:scale-105'
-                } ${inkActive ? 'cursor-pointer' : 'cursor-default'}`}
-                style={{
-                  width: 'min(20px, 4.5cqmin)',
-                  height: 'min(20px, 4.5cqmin)',
-                  backgroundColor: c,
-                }}
-              />
-            );
-          })}
-        </div>
-
-        {/* Stroke width dots — same opacity treatment. */}
-        <div
-          className={`flex items-center transition-opacity ${
-            inkActive ? 'opacity-100' : 'opacity-40'
-          }`}
-          style={{ gap: 'min(2px, 0.5cqmin)' }}
-        >
-          {PEN_WIDTHS.map((w, i) => {
-            const isActive = penWidth === w;
-            return (
-              <button
-                key={w}
-                type="button"
-                onClick={() => onWidthChange(w)}
-                disabled={!inkActive}
-                title={WIDTH_LABELS[i]}
-                aria-label={WIDTH_LABELS[i]}
-                aria-pressed={isActive}
-                className={`flex items-center justify-center rounded-md transition-colors ${
-                  isActive
-                    ? 'bg-white/20'
-                    : inkActive
-                      ? 'hover:bg-white/10'
-                      : ''
-                }`}
-                style={{
-                  width: 'min(28px, 6cqmin)',
-                  height: 'min(28px, 6cqmin)',
-                }}
-              >
-                <span
-                  className="rounded-full bg-white"
-                  style={{ width: w + 2, height: w + 2 }}
-                />
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Layer-order group — drives the same reorderSelected the
-            keyboard shortcuts call. Dimmed when nothing is selected
-            since each action operates on the active selection. */}
+        {/* Layer-order group — disabled visual when nothing is selected. */}
         <div
           role="group"
           aria-label="Layer order"
@@ -837,9 +844,7 @@ const Toolbar: React.FC<{
           ))}
         </div>
 
-        {/* Background button — opens the page-background picker modal.
-            Always enabled since "set the page background" is a page-level
-            action, not selection-scoped. */}
+        {/* Background — always available since it's a page-level action. */}
         <button
           type="button"
           onClick={onOpenBackgroundPicker}
@@ -861,6 +866,144 @@ const Toolbar: React.FC<{
           </span>
         </button>
       </div>
+
+      {/* Popover — anchored above the toolbar, centered horizontally. */}
+      {popover && (
+        <div
+          role="dialog"
+          aria-label={`${popover} options`}
+          className="absolute z-20 left-1/2 -translate-x-1/2 rounded-xl bg-slate-900/98 backdrop-blur-md shadow-2xl border border-white/10"
+          style={{
+            bottom: 'calc(100% + 8px)',
+            padding: 'min(12px, 2.5cqmin)',
+            minWidth: '280px',
+          }}
+        >
+          {popover === 'shapes' && (
+            <div
+              className="flex items-stretch rounded-lg bg-slate-950/60 ring-1 ring-white/5"
+              style={{
+                gap: 'min(2px, 0.5cqmin)',
+                padding: 'min(4px, 1cqmin)',
+                marginBottom: 'min(12px, 2.5cqmin)',
+              }}
+            >
+              {SHAPE_SUB_TOOLS.map(({ tool: subTool, Icon, label }) => {
+                const isActive = tool === subTool;
+                return (
+                  <button
+                    key={subTool}
+                    type="button"
+                    onClick={() => {
+                      onToolChange(subTool);
+                      // Keep popover open so teachers can also tweak the
+                      // shape's color/width after picking the variant.
+                    }}
+                    aria-pressed={isActive}
+                    title={label}
+                    aria-label={label}
+                    className={`flex-1 flex items-center justify-center rounded-md transition-colors ${
+                      isActive
+                        ? 'bg-brand-blue-primary text-white shadow-sm'
+                        : 'text-slate-300 hover:bg-white/10'
+                    }`}
+                    style={{ height: 'min(36px, 8cqmin)' }}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Color row — eight swatches + native color input for arbitrary
+              picks. Hidden when the active popover is one where color
+              doesn't apply (none currently — eraser/select have no
+              popover at all). */}
+          <div
+            className="flex items-center"
+            style={{ gap: 'min(8px, 2cqmin)', flexWrap: 'wrap' }}
+          >
+            {PEN_COLORS.map((c) => {
+              const isActive = penColor === c;
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  onClick={() => onColorChange(c)}
+                  title={`Color ${c}`}
+                  aria-label={`Color ${c}`}
+                  aria-pressed={isActive}
+                  className={`rounded-full transition-transform ${
+                    isActive
+                      ? 'scale-110 ring-2 ring-white shadow-sm'
+                      : 'ring-1 ring-white/30 hover:scale-110'
+                  }`}
+                  style={{
+                    width: 'min(24px, 5cqmin)',
+                    height: 'min(24px, 5cqmin)',
+                    backgroundColor: c,
+                  }}
+                />
+              );
+            })}
+            <label
+              className="flex items-center justify-center rounded-full bg-slate-800/60 ring-1 ring-white/30 text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors"
+              style={{
+                width: 'min(24px, 5cqmin)',
+                height: 'min(24px, 5cqmin)',
+              }}
+              title="Custom color"
+            >
+              <span className="text-base leading-none" aria-hidden>
+                +
+              </span>
+              <input
+                type="color"
+                value={penColor}
+                onChange={(e) => onColorChange(e.target.value)}
+                className="sr-only"
+                aria-label="Custom color"
+              />
+            </label>
+          </div>
+
+          {/* Stroke width — hidden for Text (which uses font-size derived
+              from page height, not stroke width). */}
+          {popover !== 'text' && (
+            <div
+              className="flex items-center"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                marginTop: 'min(12px, 2.5cqmin)',
+              }}
+            >
+              {PEN_WIDTHS.map((w, i) => {
+                const isActive = penWidth === w;
+                return (
+                  <button
+                    key={w}
+                    type="button"
+                    onClick={() => onWidthChange(w)}
+                    title={WIDTH_LABELS[i]}
+                    aria-label={WIDTH_LABELS[i]}
+                    aria-pressed={isActive}
+                    className={`flex-1 flex items-center justify-center rounded-md transition-colors ${
+                      isActive ? 'bg-white/20' : 'hover:bg-white/10'
+                    }`}
+                    style={{ height: 'min(32px, 7cqmin)' }}
+                  >
+                    <span
+                      className="rounded-full bg-white"
+                      style={{ width: w + 4, height: w + 4 }}
+                    />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };

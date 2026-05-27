@@ -26,12 +26,18 @@ export const SHAPE_TOOLS: ReadonlyArray<Tool> = [
 
 export const isShapeTool = (t: Tool): boolean => SHAPE_TOOLS.includes(t);
 
+// Eight-color palette including white (intentionally added so teachers can
+// strike through dark imported SMART backgrounds) and a near-black for ink
+// readability. Ordered to roughly match the rainbow + neutrals at the ends.
 export const PEN_COLORS = [
-  '#e11d48',
-  '#2563eb',
-  '#16a34a',
-  '#111827',
-  '#f59e0b',
+  '#111827', // near-black
+  '#ffffff', // white
+  '#e11d48', // red
+  '#f59e0b', // amber
+  '#facc15', // yellow
+  '#16a34a', // green
+  '#2563eb', // blue
+  '#8b5cf6', // violet
 ];
 
 export const PEN_WIDTHS = [2, 5, 10];
