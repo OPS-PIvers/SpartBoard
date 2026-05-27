@@ -419,7 +419,28 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const eraserSizeRef = useRef(eraserSize);
   eraserSizeRef.current = eraserSize;
 
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [selectedIds, setSelectedIdsRaw] = useState<string[]>([]);
+  const setSelectedIds: typeof setSelectedIdsRaw = (next) => {
+    if (typeof next === 'function') {
+      setSelectedIdsRaw((prev) => {
+        const computed = (next as (p: string[]) => string[])(prev);
+        // eslint-disable-next-line no-console
+        console.log('[nb-debug] setSelectedIds(fn)', {
+          from: prev,
+          to: computed,
+          stack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+        });
+        return computed;
+      });
+    } else {
+      // eslint-disable-next-line no-console
+      console.log('[nb-debug] setSelectedIds', {
+        to: next,
+        stack: new Error().stack?.split('\n').slice(1, 5).join('\n'),
+      });
+      setSelectedIdsRaw(next);
+    }
+  };
   const [editing, setEditing] = useState<{
     id: string;
     left: number;
@@ -1247,6 +1268,16 @@ export const PageEditor: React.FC<PageEditorProps> = ({
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        // eslint-disable-next-line no-console
+        console.log('[nb-debug] keydown Delete/Backspace', {
+          key: e.key,
+          editing: !!editing,
+          selectedIds: [...selectedIds],
+          phase: e.eventPhase,
+          targetTag: (e.target as Element)?.tagName,
+        });
+      }
       if (editing) return;
       // Undo / Redo land in their own branch so they fire whether or not
       // anything is selected — the prior emit might've been a paste with
