@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -142,6 +142,17 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   }, [pageUrl, cachedSvg]);
 
   const svgToEdit = cachedSvg ?? fetchedSvg;
+
+  // objectId → target page map for links on the current source page, so the
+  // editor can resolve Ctrl/Cmd+click without re-scanning the link array per
+  // pointer event.
+  const linkedObjectTargets = useMemo<Record<string, number>>(() => {
+    const map: Record<string, number> = {};
+    for (const link of objectLinks ?? []) {
+      if (link.sourcePage === currentPage) map[link.objectId] = link.targetPage;
+    }
+    return map;
+  }, [objectLinks, currentPage]);
 
   // Lesson grouping mirrors the Viewer's footer: surface the current section
   // and a jump dropdown so teachers can hop straight to a lesson.
@@ -305,7 +316,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
         </div>
       }
       content={
-        <div className="flex-1 h-full w-full bg-slate-100">
+        <div className="relative flex-1 h-full w-full bg-slate-100">
           {error ? (
             <div
               className="h-full w-full flex flex-col items-center justify-center text-center text-slate-600"
@@ -346,51 +357,64 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 tool={tool}
                 penColor={penColor}
                 penWidth={penWidth}
+                linkedObjectTargets={linkedObjectTargets}
                 onChange={onEditChange}
                 onRequestLink={setLinkRequest}
+                onFollowLink={onPageChange}
               />
-              {linkRequest && (
-                <LinkTargetPicker
-                  pageUrls={pageUrls}
-                  sections={sections}
-                  sourcePage={currentPage}
-                  currentTarget={
+              {linkRequest &&
+                (() => {
+                  const existingTarget =
                     objectLinks?.find(
                       (l) =>
                         l.objectId === linkRequest.objectId &&
                         l.sourcePage === currentPage
-                    )?.targetPage ?? null
-                  }
-                  onSelect={(targetPage) => {
-                    // Reuse the existing link's id when updating so the
-                    // Firestore record gets overwritten in place rather
-                    // than accumulating duplicate hotspots.
-                    const existing = objectLinks?.find(
-                      (l) =>
-                        l.objectId === linkRequest.objectId &&
-                        l.sourcePage === currentPage
-                    );
-                    onSaveObjectLink?.({
-                      id: existing?.id ?? crypto.randomUUID(),
-                      objectId: linkRequest.objectId,
-                      sourcePage: currentPage,
-                      targetPage,
-                      ...linkRequest.box,
-                    });
-                    setLinkRequest(null);
-                  }}
-                  onRemove={() => {
-                    const existing = objectLinks?.find(
-                      (l) =>
-                        l.objectId === linkRequest.objectId &&
-                        l.sourcePage === currentPage
-                    );
-                    if (existing) onRemoveObjectLink?.(existing.id);
-                    setLinkRequest(null);
-                  }}
-                  onClose={() => setLinkRequest(null)}
-                />
-              )}
+                    )?.targetPage ?? null;
+                  return (
+                    <LinkTargetPicker
+                      pageUrls={pageUrls}
+                      sections={sections}
+                      sourcePage={currentPage}
+                      currentTarget={existingTarget}
+                      onSelect={(targetPage) => {
+                        // Reuse the existing link's id when updating so the
+                        // Firestore record gets overwritten in place rather
+                        // than accumulating duplicate hotspots.
+                        const existing = objectLinks?.find(
+                          (l) =>
+                            l.objectId === linkRequest.objectId &&
+                            l.sourcePage === currentPage
+                        );
+                        onSaveObjectLink?.({
+                          id: existing?.id ?? crypto.randomUUID(),
+                          objectId: linkRequest.objectId,
+                          sourcePage: currentPage,
+                          targetPage,
+                          ...linkRequest.box,
+                        });
+                        setLinkRequest(null);
+                      }}
+                      onRemove={() => {
+                        const existing = objectLinks?.find(
+                          (l) =>
+                            l.objectId === linkRequest.objectId &&
+                            l.sourcePage === currentPage
+                        );
+                        if (existing) onRemoveObjectLink?.(existing.id);
+                        setLinkRequest(null);
+                      }}
+                      onJumpToTarget={
+                        existingTarget !== null
+                          ? () => {
+                              setLinkRequest(null);
+                              onPageChange(existingTarget);
+                            }
+                          : undefined
+                      }
+                      onClose={() => setLinkRequest(null)}
+                    />
+                  );
+                })()}
             </>
           )}
         </div>

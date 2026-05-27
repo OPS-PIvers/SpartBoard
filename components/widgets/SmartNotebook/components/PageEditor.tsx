@@ -47,6 +47,12 @@ interface PageEditorProps {
   tool?: Tool;
   penColor?: string;
   penWidth?: number;
+  /**
+   * Map of objectId → target page for hotspot links on the *current* page.
+   * Used so a Ctrl/Cmd+click on a linked object can follow its hyperlink
+   * directly without opening the picker.
+   */
+  linkedObjectTargets?: Record<string, number>;
   /** Notifies the host which objects are selected (id + kind); empty when none. */
   onSelectionChange?: (selection: EditableObjectInfo[]) => void;
   /** Fires (with the cleaned, persistable SVG) after any edit. */
@@ -59,6 +65,11 @@ interface PageEditorProps {
    * the SVG.
    */
   onRequestLink?: (request: LinkRequest) => void;
+  /**
+   * Fires when the user Ctrl/Cmd+clicks a linked object. The host should
+   * navigate to the target page.
+   */
+  onFollowLink?: (targetPage: number) => void;
 }
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
@@ -226,9 +237,11 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   tool = 'select',
   penColor = PEN_COLORS[0],
   penWidth = PEN_WIDTHS[1],
+  linkedObjectTargets,
   onSelectionChange,
   onChange,
   onRequestLink,
+  onFollowLink,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -250,7 +263,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Click (not drag) on this group calls onRequestLink so the host can show a
   // target-page picker. Separate from corner / rotate handles because the
   // interaction is a click, not a drag-and-update.
+  // For LINKED objects the chain FAB means "manage link" (change/remove);
+  // for UNLINKED objects it means "add link". A separate followHandleRef
+  // appears next to it on linked objects for the primary "jump" action.
   const linkHandleRef = useRef<{
+    group: SVGGElement;
+    bg: SVGCircleElement;
+    icon: SVGPathElement;
+  } | null>(null);
+  // Follow-link FAB: arrow icon, only visible when the selected object has a
+  // link. Clicking jumps to the target page via onFollowLink. Sits next to
+  // the chain FAB so the two together communicate "go" vs. "manage".
+  const followHandleRef = useRef<{
     group: SVGGElement;
     bg: SVGCircleElement;
     icon: SVGPathElement;
@@ -258,6 +282,14 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const onRequestLinkRef = useRef(onRequestLink);
 
   onRequestLinkRef.current = onRequestLink;
+
+  const onFollowLinkRef = useRef(onFollowLink);
+
+  onFollowLinkRef.current = onFollowLink;
+
+  const linkedObjectTargetsRef = useRef(linkedObjectTargets);
+
+  linkedObjectTargetsRef.current = linkedObjectTargets;
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
   // Active freehand stroke (pen/highlighter) and eraser session.
@@ -352,8 +384,13 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       if (linkHandleRef.current) {
         linkHandleRef.current.group.style.display = 'none';
       }
+      if (followHandleRef.current) {
+        followHandleRef.current.group.style.display = 'none';
+      }
       return;
     }
+    const onlyLinkedTarget = linkedObjectTargetsRef.current?.[ids[0]];
+    const isLinked = onlyLinkedTarget !== undefined;
     const box = transformedBox(svgEl, only);
     const inv = svgEl.getScreenCTM()?.inverse();
     const hs = HANDLE_PX * (inv ? Math.abs(inv.a) : 1);
@@ -390,23 +427,48 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       group.style.display = '';
     }
 
-    // Link FAB: sits just outside the top-right corner of the bbox.
-    if (linkHandleRef.current) {
-      const { group, bg, icon } = linkHandleRef.current;
-      const fabRadius = hs * 0.95;
-      const fabCx = box.maxX + fabRadius * 1.1;
-      const fabCy = box.minY - fabRadius * 1.1;
-      bg.setAttribute('cx', String(fabCx));
-      bg.setAttribute('cy', String(fabCy));
+    // FAB layout: chain FAB ("manage/add link") sits closest to the bbox
+    // top-right corner. When the object is linked, a follow-link FAB (arrow
+    // icon) sits next to it as the primary "jump" action. We always position
+    // the chain FAB first; when linked, we shift it left and place the arrow
+    // FAB to its right (further out from the corner).
+    const fabRadius = hs * 0.95;
+    const layoutFab = (
+      handle: {
+        group: SVGGElement;
+        bg: SVGCircleElement;
+        icon: SVGPathElement;
+      },
+      cx: number,
+      cy: number
+    ) => {
+      const { group, bg, icon } = handle;
+      bg.setAttribute('cx', String(cx));
+      bg.setAttribute('cy', String(cy));
       bg.setAttribute('r', String(fabRadius));
-      // The link path is authored in a 24×24 box; translate to FAB centre
-      // and scale so the icon fits inside the badge with a small margin.
+      // Icon paths are authored in a 24×24 box; translate + scale to fit
+      // inside the badge with a small margin.
       const iconScale = (fabRadius * 1.3) / 24;
       icon.setAttribute(
         'transform',
-        `translate(${fabCx - 12 * iconScale} ${fabCy - 12 * iconScale}) scale(${iconScale})`
+        `translate(${cx - 12 * iconScale} ${cy - 12 * iconScale}) scale(${iconScale})`
       );
       group.style.display = '';
+    };
+    if (linkHandleRef.current) {
+      const linkCx = box.maxX + fabRadius * 1.1;
+      const linkCy = box.minY - fabRadius * 1.1;
+      layoutFab(linkHandleRef.current, linkCx, linkCy);
+    }
+    if (followHandleRef.current) {
+      if (isLinked) {
+        // Arrow FAB sits to the right of the chain FAB, sharing the same y.
+        const followCx = box.maxX + fabRadius * 3.4;
+        const followCy = box.minY - fabRadius * 1.1;
+        layoutFab(followHandleRef.current, followCx, followCy);
+      } else {
+        followHandleRef.current.group.style.display = 'none';
+      }
     }
   }, []);
 
@@ -423,6 +485,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     handlesRef.current = new Map();
     rotateHandleRef.current = null;
     linkHandleRef.current = null;
+    followHandleRef.current = null;
     if (!el) {
       selGroupRef.current = null;
       marqueeRef.current = null;
@@ -514,6 +577,38 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     el.appendChild(linkGroup);
     linkHandleRef.current = { group: linkGroup, bg: linkBg, icon: linkIcon };
 
+    // Follow-link FAB — arrow icon, emerald background so it visually
+    // separates from the chain "manage" FAB. Only shown when the selected
+    // object has a link; clicking jumps to the target page.
+    const followGroup = document.createElementNS(SVG_NS, 'g');
+    followGroup.setAttribute(EDIT_OVERLAY_ATTR, '1');
+    followGroup.setAttribute(HANDLE_ATTR, 'follow-link');
+    followGroup.style.cursor = 'pointer';
+    followGroup.style.display = 'none';
+    const followBg = document.createElementNS(SVG_NS, 'circle');
+    followBg.setAttribute('fill', '#10b981');
+    followBg.setAttribute('stroke', '#ffffff');
+    followBg.setAttribute('stroke-width', '1.5');
+    followBg.setAttribute('vector-effect', 'non-scaling-stroke');
+    followGroup.appendChild(followBg);
+    // Right-arrow path (lucide "arrow-right"), authored in a 24×24 box.
+    const followIcon = document.createElementNS(SVG_NS, 'path');
+    followIcon.setAttribute('d', 'M5 12h14M13 5l7 7-7 7');
+    followIcon.setAttribute('fill', 'none');
+    followIcon.setAttribute('stroke', '#ffffff');
+    followIcon.setAttribute('stroke-width', '2.5');
+    followIcon.setAttribute('stroke-linecap', 'round');
+    followIcon.setAttribute('stroke-linejoin', 'round');
+    followIcon.setAttribute('vector-effect', 'non-scaling-stroke');
+    followIcon.setAttribute('pointer-events', 'none');
+    followGroup.appendChild(followIcon);
+    el.appendChild(followGroup);
+    followHandleRef.current = {
+      group: followGroup,
+      bg: followBg,
+      icon: followIcon,
+    };
+
     const marquee = document.createElementNS(SVG_NS, 'rect');
     marquee.setAttribute('fill', 'rgba(99,102,241,0.10)');
     marquee.setAttribute('stroke', '#6366f1');
@@ -533,7 +628,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       .map((id) => objectsRef.current.find((o) => o.id === id))
       .filter((o): o is EditableObjectInfo => Boolean(o));
     onSelRef.current?.(infos);
-  }, [selectedIds, renderSelection, prepared]);
+    // linkedObjectTargets is read via ref inside renderSelection, but the
+    // FAB layout depends on whether the current selection is linked. Re-run
+    // selection rendering when the link map for the active page changes
+    // (e.g. teacher just added or removed a link) so the arrow FAB appears
+    // or disappears without needing to re-select the object.
+  }, [selectedIds, renderSelection, prepared, linkedObjectTargets]);
 
   const duplicateSelected = useCallback(() => {
     const svgEl = svgRef.current;
@@ -750,7 +850,26 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const handleEl = target.closest(`[${HANDLE_ATTR}]`);
     const handle = handleEl?.getAttribute(HANDLE_ATTR) ?? null;
 
+    if (handle === 'follow-link' && selectedIds.length === 1) {
+      const targetPage = linkedObjectTargetsRef.current?.[selectedIds[0]];
+      if (targetPage !== undefined) {
+        e.preventDefault();
+        onFollowLinkRef.current?.(targetPage);
+      }
+      // Click only — do not start a drag.
+      return;
+    }
+
     if (handle === 'link' && selectedIds.length === 1) {
+      // Stop the native event from bubbling to document. Otherwise the same
+      // pointerdown that mounts the LinkTargetPicker also fires
+      // useClickOutside's document listener (the picker's effect attaches it
+      // synchronously on mount, before this native event finishes bubbling),
+      // which then dismisses the picker as a "click outside". Both calls are
+      // required: React's stopPropagation only halts synthetic dispatch, while
+      // the native call halts the addEventListener-based listener at document.
+      e.stopPropagation();
+      e.nativeEvent.stopPropagation();
       const obj = findObjectById(svgEl, selectedIds[0]);
       if (!obj) return;
       const vb = svgEl.viewBox.baseVal;
@@ -835,6 +954,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     const id =
       objectIdForTarget(svgEl, target) ??
       objectNearClient(svgEl, e.clientX, e.clientY);
+
+    // Modifier-click on a linked object follows its hyperlink directly,
+    // mirroring the present-mode hotspot behavior. Cmd on macOS, Ctrl
+    // everywhere else; we accept either so muscle memory works on any platform.
+    if (id && (e.metaKey || e.ctrlKey)) {
+      const targetPage = linkedObjectTargetsRef.current?.[id];
+      if (targetPage !== undefined) {
+        e.preventDefault();
+        onFollowLinkRef.current?.(targetPage);
+        return;
+      }
+    }
 
     // Empty canvas: begin a marquee (rubber-band) selection. Shift unions onto
     // the current selection; otherwise the selection clears as the drag starts.
