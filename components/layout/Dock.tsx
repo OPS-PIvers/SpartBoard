@@ -50,7 +50,7 @@ import { getJoinUrl } from '@/utils/urlHelpers';
 import ClassRosterMenu from './ClassRosterMenu';
 import RemoteControlMenu from './RemoteControlMenu';
 import { CatalystSetPickerPopover } from '@/components/widgets/Catalyst/CatalystSetPickerPopover';
-import { GlassCard } from '../common/GlassCard';
+import { GlassCard } from '@/components/common/GlassCard';
 import { DEFAULT_GLOBAL_STYLE } from '@/types';
 import { Z_INDEX } from '@/config/zIndex';
 import { WidgetLibrary } from './dock/WidgetLibrary';

@@ -4,7 +4,7 @@ import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { Smartphone, ExternalLink, Copy, Check } from 'lucide-react';
 import { Z_INDEX } from '@/config/zIndex';
-import { Toggle } from '../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 
 interface Props {
   onClose: () => void;
