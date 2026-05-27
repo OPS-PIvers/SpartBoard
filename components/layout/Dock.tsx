@@ -1070,8 +1070,7 @@ export const Dock: React.FC = () => {
                         const tool = TOOLS.find(
                           (t) => t.type === item.toolType
                         );
-                        if (!tool || !canAccessWidget(tool.type as WidgetType))
-                          return null;
+                        if (!tool || !canAccessTool(tool.type)) return null;
 
                         // Handle special internal tools that aren't standard widgets
                         if (
