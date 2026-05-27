@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { NotebookObjectLink, NotebookSection } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
-import { PageEditor, LinkRequest } from './PageEditor';
+import { PageEditor, LinkRequest, ClonedLinkInfo } from './PageEditor';
 import { PEN_COLORS, PEN_WIDTHS, Tool } from './pageEditorTypes';
 import { PageJumpMenu } from './PageJumpMenu';
 import { LinkTargetPicker } from './LinkTargetPicker';
@@ -48,6 +48,13 @@ interface PageEditorOverlayProps {
   onPageChange: (page: number) => void;
   /** Add or update a link from a single object to a target page. */
   onSaveObjectLink?: (link: NotebookObjectLink) => void;
+  /**
+   * Persist new links produced by a duplicate or paste of linked objects.
+   * Optional helper alongside onSaveObjectLink: a batch path lets the host
+   * coalesce multiple writes (e.g. one Firestore update for all the pasted
+   * hotspots) instead of one round-trip per object.
+   */
+  onSaveObjectLinksBatch?: (links: NotebookObjectLink[]) => void;
   /** Remove an existing link by id. */
   onRemoveObjectLink?: (linkId: string) => void;
   onAddPage?: () => void;
@@ -77,6 +84,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   onEditChange,
   onPageChange,
   onSaveObjectLink,
+  onSaveObjectLinksBatch,
   onRemoveObjectLink,
   onAddPage,
   onDeletePage,
@@ -361,6 +369,26 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 onChange={onEditChange}
                 onRequestLink={setLinkRequest}
                 onFollowLink={onPageChange}
+                onClonedLinks={(clones: ClonedLinkInfo[]) => {
+                  if (clones.length === 0) return;
+                  const links: NotebookObjectLink[] = clones.map((c) => ({
+                    id: crypto.randomUUID(),
+                    objectId: c.newObjectId,
+                    sourcePage: currentPage,
+                    targetPage: c.targetPage,
+                    xFrac: c.box.xFrac,
+                    yFrac: c.box.yFrac,
+                    wFrac: c.box.wFrac,
+                    hFrac: c.box.hFrac,
+                  }));
+                  if (onSaveObjectLinksBatch) {
+                    onSaveObjectLinksBatch(links);
+                  } else {
+                    // Fallback: per-link save, accepting an extra Firestore
+                    // write per clone for older host wiring.
+                    for (const link of links) onSaveObjectLink?.(link);
+                  }
+                }}
               />
               {linkRequest &&
                 (() => {

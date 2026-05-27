@@ -505,6 +505,26 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Persist many new object→page links in one Firestore write — used after
+  // paste / duplicate of linked objects so a clipboard with five hotspots
+  // doesn't fan out to five sequential round-trips. New ids are assumed
+  // to be unique (caller generates them), so we just append.
+  const handleSaveObjectLinksBatch = async (
+    links: NotebookObjectLink[]
+  ): Promise<void> => {
+    if (!user || !activeNotebook || links.length === 0) return;
+    const next = [...(activeNotebook.objectLinks ?? []), ...links];
+    try {
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+        { objectLinks: next }
+      );
+    } catch (err) {
+      console.error('Failed to save object links batch', err);
+      addToast('Could not save pasted links', 'error');
+    }
+  };
+
   const handleRemoveObjectLink = async (linkId: string): Promise<void> => {
     if (!user || !activeNotebook) return;
     const next = (activeNotebook.objectLinks ?? []).filter(
@@ -670,6 +690,9 @@ export const SmartNotebookWidget: React.FC<{
         sections={activeNotebook.sections}
         objectLinks={activeNotebook.objectLinks}
         onSaveObjectLink={(link) => void handleSaveObjectLink(link)}
+        onSaveObjectLinksBatch={(links) =>
+          void handleSaveObjectLinksBatch(links)
+        }
         onRemoveObjectLink={(linkId) => void handleRemoveObjectLink(linkId)}
         saveStatus={saveStatus}
         onEditChange={handleEditChange}

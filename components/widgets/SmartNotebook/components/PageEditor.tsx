@@ -34,6 +34,32 @@ export interface LinkRequest {
   box: NormalizedBox;
 }
 
+/**
+ * Emitted after a copy-paste or duplicate that produced new linked objects.
+ * Lets the host persist a fresh NotebookObjectLink per clone (host owns the
+ * `id` and `sourcePage`, which the editor doesn't know about).
+ */
+export interface ClonedLinkInfo {
+  newObjectId: string;
+  targetPage: number;
+  box: NormalizedBox;
+}
+
+interface ClipboardEntry {
+  /** Serialized outerHTML of the copied SVG object. */
+  svg: string;
+  /** Target page if the original was linked, else null. */
+  targetPage: number | null;
+}
+
+/**
+ * In-memory cross-page clipboard. Module-scoped so it survives PageEditor
+ * remounts on page-change (PageEditor is keyed on currentPage). Not persisted
+ * — copying clears on full reload, which matches the spreadsheet-like mental
+ * model teachers expect.
+ */
+let pageEditorClipboard: ClipboardEntry[] = [];
+
 interface PageEditorProps {
   /** Raw page SVG text (from a parsed notebook page). */
   svg: string;
@@ -70,6 +96,12 @@ interface PageEditorProps {
    * navigate to the target page.
    */
   onFollowLink?: (targetPage: number) => void;
+  /**
+   * Fires after a paste or duplicate that produced new linked objects.
+   * The host should persist one NotebookObjectLink per entry, generating
+   * the link id and using the current page as the sourcePage.
+   */
+  onClonedLinks?: (clones: ClonedLinkInfo[]) => void;
 }
 
 type Corner = 'nw' | 'ne' | 'sw' | 'se';
@@ -242,6 +274,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   onChange,
   onRequestLink,
   onFollowLink,
+  onClonedLinks,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -290,6 +323,10 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const linkedObjectTargetsRef = useRef(linkedObjectTargets);
 
   linkedObjectTargetsRef.current = linkedObjectTargets;
+
+  const onClonedLinksRef = useRef(onClonedLinks);
+
+  onClonedLinksRef.current = onClonedLinks;
   const objectsRef = useRef<EditableObjectInfo[]>([]);
   const dragRef = useRef<DragState | null>(null);
   // Active freehand stroke (pen/highlighter) and eraser session.
@@ -635,10 +672,31 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     // or disappears without needing to re-select the object.
   }, [selectedIds, renderSelection, prepared, linkedObjectTargets]);
 
+  // Compute a NormalizedBox in page-fraction coordinates from a freshly
+  // appended clone. Used by both duplicate and paste to construct the new
+  // link hotspot. Returns null if the viewBox is degenerate (treat the clone
+  // as un-linkable in that case rather than persisting bogus coordinates).
+  const normalizedBoxFor = useCallback(
+    (svgEl: SVGSVGElement, obj: SVGGraphicsElement): NormalizedBox | null => {
+      const vb = svgEl.viewBox.baseVal;
+      if (!vb || vb.width <= 0 || vb.height <= 0) return null;
+      const box = transformedBox(svgEl, obj);
+      return {
+        xFrac: box.minX / vb.width,
+        yFrac: box.minY / vb.height,
+        wFrac: (box.maxX - box.minX) / vb.width,
+        hFrac: (box.maxY - box.minY) / vb.height,
+      };
+    },
+    []
+  );
+
   const duplicateSelected = useCallback(() => {
     const svgEl = svgRef.current;
     if (!svgEl || selectedIds.length === 0) return;
     const newIds: string[] = [];
+    const newLinks: ClonedLinkInfo[] = [];
+    const linkMap = linkedObjectTargetsRef.current ?? {};
     for (const id of selectedIds) {
       const obj = findObjectById(svgEl, id);
       const fg = obj?.parentElement;
@@ -654,12 +712,89 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       fg.appendChild(clone);
       applyEditMatrix(clone, new DOMMatrix().translateSelf(20, 20));
       newIds.push(newId);
+      // Carry the link forward so duplicates of a linked object are also
+      // linked. Compute the hotspot from the post-translate position so the
+      // link follows the duplicate to its offset location.
+      const targetPage = linkMap[id];
+      if (targetPage !== undefined) {
+        const box = normalizedBoxFor(svgEl, clone);
+        if (box) {
+          newLinks.push({ newObjectId: newId, targetPage, box });
+        }
+      }
     }
     if (newIds.length === 0) return;
     objectsRef.current = ensureObjectIds(svgEl);
     setSelectedIds(newIds);
     emitChange();
-  }, [selectedIds, emitChange]);
+    if (newLinks.length > 0) onClonedLinksRef.current?.(newLinks);
+  }, [selectedIds, emitChange, normalizedBoxFor]);
+
+  const copySelected = useCallback(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl || selectedIds.length === 0) return;
+    const linkMap = linkedObjectTargetsRef.current ?? {};
+    const entries: ClipboardEntry[] = [];
+    for (const id of selectedIds) {
+      const obj = findObjectById(svgEl, id);
+      if (!obj) continue;
+      entries.push({
+        svg: obj.outerHTML,
+        targetPage: linkMap[id] ?? null,
+      });
+    }
+    if (entries.length > 0) pageEditorClipboard = entries;
+  }, [selectedIds]);
+
+  const pasteFromClipboard = useCallback(() => {
+    const svgEl = svgRef.current;
+    if (!svgEl || pageEditorClipboard.length === 0) return;
+    const fg = findForeground(svgEl);
+    if (!fg) return;
+    // Parse via a temporary SVG host so each clipboard entry deserializes
+    // back into a real Element with the correct SVG namespace; appending
+    // the parsed node directly into the live foreground would otherwise
+    // miss the namespace and silently render nothing.
+    const parser = new DOMParser();
+    const newIds: string[] = [];
+    const newLinks: ClonedLinkInfo[] = [];
+    for (const entry of pageEditorClipboard) {
+      const doc = parser.parseFromString(
+        `<svg xmlns="${SVG_NS}">${entry.svg}</svg>`,
+        'image/svg+xml'
+      );
+      const sourceEl = doc.documentElement.firstElementChild;
+      if (!sourceEl) continue;
+      const clone = sourceEl.cloneNode(true) as SVGGraphicsElement;
+      const newId = `obj-paste-${crypto.randomUUID()}`;
+      clone.setAttribute('data-edit-id', newId);
+      // Reset edit-bookkeeping so the pasted object starts fresh: its
+      // original transform becomes the new baseline, with no leftover
+      // edit-matrix from prior moves on the source page.
+      clone.setAttribute(
+        ORIG_TRANSFORM_ATTR,
+        clone.getAttribute('transform') ?? ''
+      );
+      clone.removeAttribute(EDIT_MATRIX_ATTR);
+      fg.appendChild(clone);
+      newIds.push(newId);
+      if (entry.targetPage !== null) {
+        const box = normalizedBoxFor(svgEl, clone);
+        if (box) {
+          newLinks.push({
+            newObjectId: newId,
+            targetPage: entry.targetPage,
+            box,
+          });
+        }
+      }
+    }
+    if (newIds.length === 0) return;
+    objectsRef.current = ensureObjectIds(svgEl);
+    setSelectedIds(newIds);
+    emitChange();
+    if (newLinks.length > 0) onClonedLinksRef.current?.(newLinks);
+  }, [emitChange, normalizedBoxFor]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -695,13 +830,36 @@ export const PageEditor: React.FC<PageEditorProps> = ({
         e.preventDefault();
         e.stopPropagation();
         duplicateSelected();
+      } else if ((e.metaKey || e.ctrlKey) && (e.key === 'c' || e.key === 'C')) {
+        e.preventDefault();
+        e.stopPropagation();
+        copySelected();
       }
     };
     // Capture phase: the window listener fires before React's root onKeyDown,
     // so we can stop a selection-delete from also deleting the host widget.
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
-  }, [selectedIds, emitChange, editing, duplicateSelected]);
+  }, [selectedIds, emitChange, editing, duplicateSelected, copySelected]);
+
+  // Paste is a separate listener because it must fire even with no selection
+  // — the teacher may have copied on page 2, navigated to page 5 (clearing
+  // selection on page change), and now wants to paste. The early-return in
+  // the main key handler `if (selectedIds.length === 0) return;` would
+  // suppress that case if paste were folded in there.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (editing) return;
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key !== 'v' && e.key !== 'V') return;
+      if (pageEditorClipboard.length === 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      pasteFromClipboard();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [editing, pasteFromClipboard]);
 
   // When a text edit opens, focus the field and put the caret at the end —
   // editing usually means appending, so starting at the far left is annoying.
