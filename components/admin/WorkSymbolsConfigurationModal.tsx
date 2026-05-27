@@ -14,9 +14,9 @@ import {
   WorkSymbolsGlobalConfig,
 } from '@/types';
 import { useStorage } from '@/hooks/useStorage';
-import { Toast } from '../common/Toast';
-import { Button } from '../common/Button';
-import { Card } from '../common/Card';
+import { useDashboard } from '@/context/useDashboard';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 
 interface WorkSymbolsConfigurationModalProps {
   isOpen: boolean;
@@ -36,11 +36,11 @@ export const WorkSymbolsConfigurationModal: React.FC<
   WorkSymbolsConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
   const BUILDINGS = useAdminBuildings();
+  const { addToast } = useDashboard();
   const [globalConfig, setGlobalConfig] = useState<WorkSymbolsGlobalConfig>(
     () => normalizeConfig(permission.config)
   );
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -72,8 +72,9 @@ export const WorkSymbolsConfigurationModal: React.FC<
       const fileArray = imageFiles.filter((f) => f.size <= MAX_FILE_SIZE);
 
       if (oversized.length > 0) {
-        setToastMessage(
-          `${oversized.length} file${oversized.length > 1 ? 's' : ''} exceeded 5MB limit and ${oversized.length > 1 ? 'were' : 'was'} skipped`
+        addToast(
+          `${oversized.length} file${oversized.length > 1 ? 's' : ''} exceeded 5MB limit and ${oversized.length > 1 ? 'were' : 'was'} skipped`,
+          'warning'
         );
       }
 
@@ -102,7 +103,7 @@ export const WorkSymbolsConfigurationModal: React.FC<
       }
       setUploading(false);
     },
-    [globalConfig.symbols, setSymbols, uploadAdminWorkSymbol]
+    [addToast, globalConfig.symbols, setSymbols, uploadAdminWorkSymbol]
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,11 +154,11 @@ export const WorkSymbolsConfigurationModal: React.FC<
         config: globalConfig as unknown as Record<string, unknown>,
       });
       uploadedThisSessionRef.current.clear();
-      setToastMessage('Work Symbols configuration saved');
+      addToast('Work Symbols configuration saved', 'success');
       onClose();
     } catch (error) {
       console.error('Error saving config:', error);
-      setToastMessage('Error saving configuration');
+      addToast('Error saving configuration', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -374,10 +375,6 @@ export const WorkSymbolsConfigurationModal: React.FC<
           </Button>
         </div>
       </div>
-
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-      )}
     </div>
   );
 };
