@@ -2220,7 +2220,19 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt']) &&
+           // `lastWriteAt` is the idle-auto-submit cutoff field. Students
+           // stamp it on every answer write so the scheduled cleanup
+           // function can find stale-in-progress responses. Monotonic
+           // (only stay same or increase) so a confused/buggy client
+           // can't roll the timestamp backward and prematurely trigger
+           // an idle auto-submit. Server-side clock skew is not bounded
+           // here — forgery has no practical attack value (a student
+           // who forges a future timestamp just stays in the joined
+           // bucket longer; tab-switch protections still finalize them).
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastWriteAt']) ||
+            (request.resource.data.lastWriteAt is number &&
+             request.resource.data.lastWriteAt >= resource.data.get('lastWriteAt', 0))) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
@@ -2270,6 +2282,37 @@ service cloud.firestore {
         );
         allow delete: if request.auth != null &&
           (request.auth.uid == sessionTeacherUid() || isAdmin());
+      }
+
+      // Archived responses — copies of student responses that the teacher
+      // removed (which used to be a hard delete). Live response is gone
+      // so the deterministic key is free for a fresh rejoin; the archive
+      // preserves partial answers so the teacher can recover them and so
+      // the dev (and admins) can fetch attempts that never reached
+      // submit. Students never read archived responses — privacy from
+      // classmates and from themselves (no use case where they would
+      // need to). Idle auto-submit does NOT archive — those land back
+      // in /responses with `autoSubmitted: true`.
+      match /archived_responses/{responseKey} {
+        function sessionTeacherUidArch() {
+          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid;
+        }
+        allow read: if request.auth != null && (
+          request.auth.uid == sessionTeacherUidArch() || isAdmin()
+        );
+        // Only the session teacher can write the archive, and only as
+        // themselves (no proxy writes). archivedAt + archivedBy must be
+        // present on create; archiveReason is constrained to a known
+        // small set so a future log query can bucket by reason.
+        allow create: if request.auth != null &&
+          request.auth.uid == sessionTeacherUidArch() &&
+          request.resource.data.archivedBy == request.auth.uid &&
+          request.resource.data.archivedAt is number &&
+          request.resource.data.get('archiveReason', '') in
+            ['teacher-removed', 'session-ended', 'idle-auto-submit-failed'];
+        // Archive is otherwise immutable from the client. Future
+        // cleanup (delete after N days) will run via admin SDK only.
+        allow update, delete: if isAdmin();
       }
 
       // View tracking for view-only Share links. Each pageview by a student

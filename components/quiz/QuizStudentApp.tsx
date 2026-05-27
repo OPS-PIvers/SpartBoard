@@ -1011,9 +1011,11 @@ const ActiveQuiz: React.FC<{
   // picks up exactly where the student left off.
   const [writtenAnswer, setWrittenAnswer] = useState<string>('');
   const writtenAnswerRef = useRef<string>('');
-  const writtenAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(
-    null
-  );
+  // Per-question draft autosave timer. Originally written-response-only;
+  // now coalesces autosaves for every answer type (MC, FIB, Matching,
+  // Ordering, short, essay) because dropping non-written answers on tab
+  // close was the primary source of the reported quiz data loss.
+  const draftAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Which question id the current `writtenAnswer` belongs to. Used by the
   // autosave effect to refuse writes during the single render between
   // `currentQuestion.id` advancing (student-paced submit-and-advance) and
@@ -1250,62 +1252,114 @@ const ActiveQuiz: React.FC<{
       });
   }, [autoSubmitTriggeredFor]);
 
-  // Written-response autosave. Debounced 500ms to mirror the PLC notes
-  // editor pattern; flushed synchronously on unmount, visibility-hidden,
-  // and when the teacher pauses the session so a student can resume on
-  // a new day without losing typing. Submit/advance also persists the
-  // final state, so the debounce is purely a write-rate optimization.
+  // Per-question draft autosave for every answer type. Originally
+  // written-response-only — MC/FIB/Matching/Ordering used to only write
+  // on explicit Submit, so a tab close mid-attempt silently dropped the
+  // student's answers (the bug the user reported as "sporadic data
+  // loss"). The 500 ms debounce mirrors the PLC notes editor pattern;
+  // Submit/advance still writes the final state, so the debounce is
+  // purely a write-rate optimization.
+  //
+  // Matching/Ordering live in `structuredAnswerRef` (a ref so drag-and-
+  // drop doesn't re-render this whole component on every move), so they
+  // schedule their own autosave from the StructuredQuestionInput's
+  // `onAnswerChange` callback via `scheduleDraftAutosave` below. This
+  // effect covers the state-driven types (MC, FIB, short, essay).
   useEffect(() => {
     const qid = currentQuestion?.id;
-    const isWritten =
-      currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
-    if (!isWritten || !qid) return;
+    const type = currentQuestion?.type;
+    if (!qid || !type) return;
     if (submitted) return;
 
-    // Race guard: if `currentQuestion.id` has advanced (student-paced
-    // submit-and-advance) but `hydrateAnswerControls` hasn't yet replaced
-    // `writtenAnswer` with the new question's saved value, the draft we
-    // see here is still from the previous question. Refuse to write —
-    // the next render after hydration will re-evaluate this effect with
-    // the correct draft.
-    if (writtenAnswerQuestionIdRef.current !== qid) return;
-
-    // Skip the initial-hydration call: if the editor's seeded value
-    // matches the saved response, there's nothing to write.
-    if (writtenAnswer === (savedAnswerForCurrent ?? '')) return;
-
-    if (writtenAutosaveTimer.current) {
-      clearTimeout(writtenAutosaveTimer.current);
+    let draft: string | null = null;
+    if (type === 'short' || type === 'essay') {
+      // Race guard: if `currentQuestion.id` has advanced (student-paced
+      // submit-and-advance) but `hydrateAnswerControls` hasn't yet
+      // replaced `writtenAnswer` with the new question's saved value,
+      // the draft we see here is still from the previous question.
+      // Refuse to write — the next render after hydration will
+      // re-evaluate with the correct draft.
+      if (writtenAnswerQuestionIdRef.current !== qid) return;
+      draft = writtenAnswer;
+    } else if (type === 'MC') {
+      draft = draftMcAnswer;
+    } else if (type === 'FIB') {
+      draft = fibAnswer;
+    } else {
+      // Matching/Ordering autosave via scheduleDraftAutosave from the
+      // structured input's onAnswerChange; not driven by this effect.
+      return;
     }
-    const draft = writtenAnswer;
-    writtenAutosaveTimer.current = setTimeout(() => {
+
+    if (draft === null) return;
+    // Skip empties (nothing to save yet — student hasn't chosen/typed).
+    // Empty-string drafts ARE meaningful for written types (the student
+    // may have just cleared the editor — that's a real edit worth
+    // persisting). For MC null already covered above; for FIB an empty
+    // string is "no answer yet" so skip.
+    if (type === 'FIB' && draft === '') return;
+    // Skip the initial-hydration call: if the seeded value matches what
+    // was already saved, there's nothing to write.
+    if (draft === (savedAnswerForCurrent ?? '')) return;
+
+    if (draftAutosaveTimer.current) {
+      clearTimeout(draftAutosaveTimer.current);
+    }
+    const snapshot = draft;
+    draftAutosaveTimer.current = setTimeout(() => {
       void onAnswerRef
-        .current(qid, draft, undefined, { isDraft: true })
+        .current(qid, snapshot, undefined, { isDraft: true })
         .catch((err: unknown) => {
-          logError('QuizStudentApp.writtenAutosave', err, {
+          logError('QuizStudentApp.draftAutosave', err, {
             questionId: qid,
+            questionType: type,
           });
         });
     }, 500);
 
     return () => {
-      if (writtenAutosaveTimer.current) {
-        clearTimeout(writtenAutosaveTimer.current);
+      if (draftAutosaveTimer.current) {
+        clearTimeout(draftAutosaveTimer.current);
       }
     };
   }, [
     writtenAnswer,
+    draftMcAnswer,
+    fibAnswer,
     currentQuestion?.id,
     currentQuestion?.type,
     submitted,
     savedAnswerForCurrent,
   ]);
 
-  // Flush pending written-response autosave on unmount and on the
-  // visibility-hidden / pause transitions so a closed tab or a teacher
-  // pause never loses in-flight typing. The synchronous Firestore write
-  // can't be awaited inside a unload handler, but kicking it off before
-  // the page tears down is the best-effort flush we can do.
+  // Imperative draft autosave for ref-driven types (Matching/Ordering)
+  // whose value updates don't flow through React state. Called from the
+  // child StructuredQuestionInput's `onAnswerChange` on every drag/drop
+  // so the same 500 ms debounce window coalesces rapid placements.
+  const scheduleDraftAutosave = useCallback((qid: string, answer: string) => {
+    if (myResponseStatusRef.current === 'completed') return;
+    if (draftAutosaveTimer.current) {
+      clearTimeout(draftAutosaveTimer.current);
+    }
+    draftAutosaveTimer.current = setTimeout(() => {
+      void onAnswerRef
+        .current(qid, answer, undefined, { isDraft: true })
+        .catch((err: unknown) => {
+          logError('QuizStudentApp.draftAutosave', err, {
+            questionId: qid,
+            questionType: 'structured',
+          });
+        });
+    }, 500);
+  }, []);
+
+  // Flush pending draft autosave for the current question on unmount,
+  // visibility-hidden, beforeunload, and on the teacher pause event. The
+  // synchronous Firestore write can't be awaited inside an unload
+  // handler, but kicking it off before the page tears down is the best-
+  // effort flush we can do. Covers every answer type — without this the
+  // 500 ms debounce window is enough for tab-close to lose the last
+  // typed character / clicked option / dropped chip.
   useEffect(() => {
     const flush = () => {
       // Bail if the response has already been finalized. The cleanup
@@ -1313,24 +1367,45 @@ const ActiveQuiz: React.FC<{
       // flipping to `'completed'` — without this guard, the flush would
       // re-write the answer with `status: 'draft'`, downgrading the
       // parent doc from `'completed'` back to `'in-progress'` and
-      // breaking the teacher's results view ("0 finished", "in
-      // progress" badge, score distribution empty).
+      // breaking the teacher's results view.
       if (myResponseStatusRef.current === 'completed') return;
       const qid = currentQuestionRef.current?.id;
       const type = currentQuestionRef.current?.type;
-      if (type !== 'short' && type !== 'essay') return;
-      if (!qid) return;
-      const draft = writtenAnswerRef.current;
+      if (!qid || !type) return;
+
+      let draft: string | null = null;
+      switch (type) {
+        case 'short':
+        case 'essay':
+          draft = writtenAnswerRef.current;
+          break;
+        case 'MC':
+          draft = draftMcAnswerRef.current;
+          break;
+        case 'FIB':
+          draft = fibAnswerRef.current;
+          break;
+        case 'Matching':
+        case 'Ordering':
+          draft = structuredAnswerRef.current;
+          break;
+        default:
+          return;
+      }
+      if (draft === null) return;
+      if (type === 'FIB' && draft === '') return;
       if (draft === (savedAnswerForCurrent ?? '')) return;
-      if (writtenAutosaveTimer.current) {
-        clearTimeout(writtenAutosaveTimer.current);
-        writtenAutosaveTimer.current = null;
+
+      if (draftAutosaveTimer.current) {
+        clearTimeout(draftAutosaveTimer.current);
+        draftAutosaveTimer.current = null;
       }
       void onAnswerRef
         .current(qid, draft, undefined, { isDraft: true })
         .catch((err: unknown) => {
-          logError('QuizStudentApp.writtenAutosaveFlush', err, {
+          logError('QuizStudentApp.draftFlush', err, {
             questionId: qid,
+            questionType: type,
           });
         });
     };
@@ -1338,8 +1413,10 @@ const ActiveQuiz: React.FC<{
       if (document.visibilityState === 'hidden') flush();
     };
     // Custom event from `ActiveQuiz.handleAutoSubmit` so a strike-3
-    // auto-submit lands the latest essay draft before completing the
-    // response. Internal-only event name; not part of any public API.
+    // auto-submit lands the latest draft (of any type) before completing
+    // the response. Name preserved for backwards compatibility with the
+    // existing `dispatchEvent('spartboard:quiz:flush-written')` call;
+    // semantically it now flushes whichever type is active.
     document.addEventListener('visibilitychange', onVisibilityChange);
     document.addEventListener('spartboard:quiz:flush-written', flush);
     window.addEventListener('beforeunload', flush);
@@ -1969,6 +2046,9 @@ const ActiveQuiz: React.FC<{
             onSubmitAndAdvance={(answer) => void handleSubmitAndAdvance(answer)}
             onAnswerChange={(answer) => {
               structuredAnswerRef.current = answer;
+              // Persist the placement as a draft so a tab close before
+              // Submit doesn't lose the student's in-progress pairings.
+              scheduleDraftAutosave(currentQuestion.id, answer);
             }}
             submitting={submitting}
             isStudentPaced={isStudentPaced}

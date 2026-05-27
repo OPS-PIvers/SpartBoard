@@ -52,6 +52,17 @@ export type { QuizSessionOptions } from '../types';
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
 export const RESPONSES_COLLECTION = 'responses';
 /**
+ * Archive subcollection for responses removed by the teacher. Holds a
+ * copy of the original response doc plus archive metadata
+ * (`archivedAt`, `archivedBy`, `archiveReason`). The live doc is deleted
+ * so the deterministic key is freed for a fresh rejoin; the archive
+ * preserves partial answers for teacher recovery + dev queries beyond
+ * the 48h window the user asked for. Cleanup is intentionally not
+ * scheduled — retention is currently indefinite; revisit if storage
+ * cost becomes a concern.
+ */
+export const ARCHIVED_RESPONSES_COLLECTION = 'archived_responses';
+/**
  * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
  * and accumulates a student's completed-attempt count across every session
  * the teacher creates for the same quiz. Without this collection, the
@@ -682,10 +693,32 @@ export const useQuizSessionTeacher = (
             )
           : null;
 
-      // Delete in a batch so the response and ledger reset are atomic
-      // from a UI perspective (no half-state where the response is
-      // gone but the cap still blocks rejoin).
+      // Archive the response before delete so partial answers survive
+      // the teacher's "remove" action. The deterministic key model means
+      // we can't soft-delete in place (the slot must be free for a fresh
+      // rejoin), so we stash a copy under `archived_responses` and then
+      // delete the live doc + ledger atomically. If `target` is missing
+      // (snapshot race), skip the archive and fall back to the original
+      // delete-only behavior — there's no in-memory copy to archive.
       const batch = writeBatch(db);
+      if (target) {
+        const archiveRef = doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          ARCHIVED_RESPONSES_COLLECTION,
+          responseKey
+        );
+        // Strip the listener-only `_responseKey` tag before writing so
+        // the archive matches the original Firestore schema.
+        const { _responseKey: _, ...archivePayload } = target;
+        batch.set(archiveRef, {
+          ...archivePayload,
+          archivedAt: Date.now(),
+          archivedBy: auth.currentUser?.uid ?? null,
+          archiveReason: 'teacher-removed',
+        });
+      }
       batch.delete(responseRef);
       if (ledgerRef) batch.delete(ledgerRef);
       await batch.commit();
@@ -1293,12 +1326,43 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               },
               { matched: boolean; customToken?: string; reason?: string }
             >(functions, 'pinLoginV1');
-            const res = await callable({
-              kind: 'quiz',
-              code: normCode,
-              pin: sanitizedPin,
-              period: classPeriod,
-            });
+            const callBridge = () =>
+              callable({
+                kind: 'quiz',
+                code: normCode,
+                pin: sanitizedPin,
+                period: classPeriod,
+              });
+            // Retry once on transient errors (cold start, brief network
+            // blip, function deploy mid-call). The lockout the user
+            // reported on tab pop-out happens when the new tab's bridge
+            // call fails with a transient error, falls through to the
+            // anonymous flow, and then can't claim the existing response
+            // doc keyed by the first tab's HMAC pseudonym. Retrying
+            // here covers the common case without adding a second
+            // user-visible failure mode.
+            //
+            // Non-retryable codes (not-found, invalid-argument,
+            // permission-denied) are deterministic — re-running won't
+            // change the answer, so we surface them on the first try.
+            let res;
+            try {
+              res = await callBridge();
+            } catch (err) {
+              const code = getErrorCode(err);
+              const transient =
+                code === 'unavailable' ||
+                code === 'deadline-exceeded' ||
+                code === 'internal' ||
+                code === 'aborted';
+              if (!transient) throw err;
+              console.warn(
+                '[useQuizSession] pinLoginV1 bridge transient failure — retrying:',
+                { code }
+              );
+              await new Promise((r) => setTimeout(r, 300));
+              res = await callBridge();
+            }
             if (res.data.matched && res.data.customToken) {
               await signInWithCustomToken(auth, res.data.customToken);
               const refreshed = auth.currentUser;
@@ -1307,6 +1371,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 studentUid = refreshed.uid;
                 isAnonymous = refreshed.isAnonymous;
               }
+            } else {
+              // Bridge returned `matched: false` — log the reason so we
+              // can correlate client-side rejoin lockouts with the
+              // server-side fall-through cause (e.g. `no-index-entry`
+              // = roster pin_index out of date). Without this the
+              // anonymous fall-through is silent.
+              console.warn('[useQuizSession] pinLoginV1 bridge no-match:', {
+                reason: res.data.reason ?? 'unknown',
+                hasRoster: sessionHasRosters,
+                classPeriod,
+              });
             }
           } catch (err) {
             // The bridge is best-effort by design — falling through to
@@ -1609,6 +1684,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           const newResponse: QuizResponse = {
             studentUid,
             joinedAt: Date.now(),
+            // Seed `lastWriteAt` at join so a student who joins but
+            // never answers still ages into the idle auto-submit
+            // query (which uses an inequality filter — Firestore
+            // skips docs without the field).
+            lastWriteAt: Date.now(),
             status: 'joined',
             answers: [],
             score: null,
@@ -1711,8 +1791,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           getErrorCode(err) === 'permission-denied' &&
           auth.currentUser?.isAnonymous
         ) {
+          // Distinguish the "popped out into a new tab" case from a
+          // genuine PIN collision. Both look the same from Firestore's
+          // perspective (existing doc's studentUid ≠ ours), so we steer
+          // the student toward closing duplicate tabs first — that's the
+          // common case after our pinLoginV1 retry hardening above — and
+          // only escalate to "ask your teacher" if the student is sure
+          // they're not still open elsewhere.
           msg =
-            "Looks like that PIN has already joined this quiz. Ask your teacher to clear it for you, or double-check that you've selected the right class period.";
+            "It looks like you're already in this quiz on another tab or device. Close any other tabs you have this quiz open in and try again. If you're still stuck, ask your teacher to release your attempt.";
         } else if (getErrorCode(err) === 'permission-denied') {
           msg =
             "You can't join this quiz. Ask your teacher to make sure you're enrolled in the right class.";
@@ -1785,7 +1872,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           RESPONSES_COLLECTION,
           responseKey
         ),
-        { status: nextStatus, answers: updated }
+        // `lastWriteAt` is the idle-auto-submit Cloud Function's cutoff
+        // field: any joined/in-progress response whose `lastWriteAt` is
+        // older than the assignment's idle threshold gets finalized
+        // automatically. Stamped on every answer write (draft or
+        // submitted) — tab-switch warnings deliberately do NOT update
+        // it, so a student who toggles tabs without answering still
+        // ages out as expected.
+        {
+          status: nextStatus,
+          answers: updated,
+          lastWriteAt: Date.now(),
+        }
       );
     },
     []
