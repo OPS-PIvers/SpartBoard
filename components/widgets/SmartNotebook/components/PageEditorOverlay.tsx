@@ -125,6 +125,12 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
   const [tool, setTool] = useState<Tool>('select');
   const [penColor, setPenColor] = useState<string>(PEN_COLORS[0]);
   const [penWidth, setPenWidth] = useState<number>(PEN_WIDTHS[1]);
+  // Text and eraser have their own size dimension — font-size for text,
+  // hit-radius for the eraser. Kept separate from penWidth so switching
+  // between Pen and Text (or Eraser) doesn't blow away the previous
+  // tool's calibrated size.
+  const [textSize, setTextSize] = useState<number>(36);
+  const [eraserSize, setEraserSize] = useState<number>(24);
   // Set when the user clicks the link FAB on a selected object. The
   // LinkTargetPicker reads this to know which object's link it's editing
   // and which hotspot box to record on save.
@@ -395,6 +401,8 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
                 tool={tool}
                 penColor={penColor}
                 penWidth={penWidth}
+                textSize={textSize}
+                eraserSize={eraserSize}
                 linkedObjectTargets={linkedObjectTargets}
                 imperativeApiRef={editorApiRef}
                 onSelectionChange={(sel) => setHasSelection(sel.length > 0)}
@@ -494,10 +502,14 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
             tool={tool}
             penColor={penColor}
             penWidth={penWidth}
+            textSize={textSize}
+            eraserSize={eraserSize}
             hasSelection={hasSelection}
             onToolChange={setTool}
             onColorChange={setPenColor}
             onWidthChange={setPenWidth}
+            onTextSizeChange={setTextSize}
+            onEraserSizeChange={setEraserSize}
             onReorder={(direction) => editorApiRef.current?.reorder(direction)}
             onOpenBackgroundPicker={() => setBackgroundPickerOpen(true)}
           />
@@ -619,7 +631,7 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
  * where it's meaningful) via their per-button popover, matching the
  * DrawingWidget's pattern that teachers already know from the whiteboard.
  */
-type PopoverKey = 'pen' | 'highlighter' | 'text' | 'shapes';
+type PopoverKey = 'pen' | 'highlighter' | 'text' | 'shapes' | 'eraser';
 
 const SHAPE_SUB_TOOLS: ReadonlyArray<{
   tool: 'rect' | 'circle' | 'line' | 'arrow';
@@ -639,26 +651,32 @@ const SHAPE_TOOL_KEYS: ReadonlySet<Tool> = new Set([
   'arrow',
 ]);
 
-const WIDTH_LABELS = ['Thin', 'Medium', 'Thick'] as const;
-
 const Toolbar: React.FC<{
   tool: Tool;
   penColor: string;
   penWidth: number;
+  textSize: number;
+  eraserSize: number;
   hasSelection: boolean;
   onToolChange: (t: Tool) => void;
   onColorChange: (c: string) => void;
   onWidthChange: (w: number) => void;
+  onTextSizeChange: (s: number) => void;
+  onEraserSizeChange: (s: number) => void;
   onReorder: (direction: 'forward' | 'backward' | 'front' | 'back') => void;
   onOpenBackgroundPicker: () => void;
 }> = ({
   tool,
   penColor,
   penWidth,
+  textSize,
+  eraserSize,
   hasSelection,
   onToolChange,
   onColorChange,
   onWidthChange,
+  onTextSizeChange,
+  onEraserSizeChange,
   onReorder,
   onOpenBackgroundPicker,
 }) => {
@@ -676,11 +694,11 @@ const Toolbar: React.FC<{
   // Map a top-level tool button to (a) which tool it activates and
   // (b) which popover it opens. Selecting Shapes opens the popover but
   // does NOT change the active tool — the shape sub-button inside the
-  // popover does that. Select and Eraser have no popover.
+  // popover does that. Select has no popover.
   const handleToolClick = (
     key: 'select' | 'pen' | 'highlighter' | 'eraser' | 'text' | 'shapes'
   ) => {
-    if (key === 'select' || key === 'eraser') {
+    if (key === 'select') {
       onToolChange(key);
       setPopover(null);
       return;
@@ -781,7 +799,7 @@ const Toolbar: React.FC<{
             Eraser,
             'Eraser',
             tool === 'eraser',
-            false
+            true
           )}
           {renderToolButton('text', Type, 'Text', tool === 'text', true)}
           {renderToolButton(
@@ -867,16 +885,19 @@ const Toolbar: React.FC<{
         </button>
       </div>
 
-      {/* Popover — anchored above the toolbar, centered horizontally. */}
+      {/* Popover — anchored above the toolbar, centered horizontally.
+          bg-slate-900/95 is intentionally NOT bg-slate-900/98 — Tailwind
+          only ships standard opacity steps (0, 5, 10, 20, ..., 95, 100);
+          /98 falls through to no-bg and the popover renders transparent. */}
       {popover && (
         <div
           role="dialog"
           aria-label={`${popover} options`}
-          className="absolute z-20 left-1/2 -translate-x-1/2 rounded-xl bg-slate-900/98 backdrop-blur-md shadow-2xl border border-white/10"
+          className="absolute z-20 left-1/2 -translate-x-1/2 rounded-xl bg-slate-900/95 backdrop-blur-md shadow-2xl border border-white/10"
           style={{
             bottom: 'calc(100% + 8px)',
             padding: 'min(12px, 2.5cqmin)',
-            minWidth: '280px',
+            minWidth: '300px',
           }}
         >
           {popover === 'shapes' && (
@@ -916,92 +937,129 @@ const Toolbar: React.FC<{
             </div>
           )}
 
-          {/* Color row — eight swatches + native color input for arbitrary
-              picks. Hidden when the active popover is one where color
-              doesn't apply (none currently — eraser/select have no
-              popover at all). */}
-          <div
-            className="flex items-center"
-            style={{ gap: 'min(8px, 2cqmin)', flexWrap: 'wrap' }}
-          >
-            {PEN_COLORS.map((c) => {
-              const isActive = penColor === c;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  onClick={() => onColorChange(c)}
-                  title={`Color ${c}`}
-                  aria-label={`Color ${c}`}
-                  aria-pressed={isActive}
-                  className={`rounded-full transition-transform ${
-                    isActive
-                      ? 'scale-110 ring-2 ring-white shadow-sm'
-                      : 'ring-1 ring-white/30 hover:scale-110'
-                  }`}
-                  style={{
-                    width: 'min(24px, 5cqmin)',
-                    height: 'min(24px, 5cqmin)',
-                    backgroundColor: c,
-                  }}
-                />
-              );
-            })}
-            <label
-              className="flex items-center justify-center rounded-full bg-slate-800/60 ring-1 ring-white/30 text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors"
-              style={{
-                width: 'min(24px, 5cqmin)',
-                height: 'min(24px, 5cqmin)',
-              }}
-              title="Custom color"
-            >
-              <span className="text-base leading-none" aria-hidden>
-                +
-              </span>
-              <input
-                type="color"
-                value={penColor}
-                onChange={(e) => onColorChange(e.target.value)}
-                className="sr-only"
-                aria-label="Custom color"
-              />
-            </label>
-          </div>
-
-          {/* Stroke width — hidden for Text (which uses font-size derived
-              from page height, not stroke width). */}
-          {popover !== 'text' && (
+          {/* Color row — hidden when the active popover is the eraser
+              (eraser doesn't paint, so it has no current color). */}
+          {popover !== 'eraser' && (
             <div
               className="flex items-center"
-              style={{
-                gap: 'min(6px, 1.5cqmin)',
-                marginTop: 'min(12px, 2.5cqmin)',
-              }}
+              style={{ gap: 'min(8px, 2cqmin)', flexWrap: 'wrap' }}
             >
-              {PEN_WIDTHS.map((w, i) => {
-                const isActive = penWidth === w;
+              {PEN_COLORS.map((c) => {
+                const isActive = penColor === c;
                 return (
                   <button
-                    key={w}
+                    key={c}
                     type="button"
-                    onClick={() => onWidthChange(w)}
-                    title={WIDTH_LABELS[i]}
-                    aria-label={WIDTH_LABELS[i]}
+                    onClick={() => onColorChange(c)}
+                    title={`Color ${c}`}
+                    aria-label={`Color ${c}`}
                     aria-pressed={isActive}
-                    className={`flex-1 flex items-center justify-center rounded-md transition-colors ${
-                      isActive ? 'bg-white/20' : 'hover:bg-white/10'
+                    className={`rounded-full transition-transform ${
+                      isActive
+                        ? 'scale-110 ring-2 ring-white shadow-sm'
+                        : 'ring-1 ring-white/30 hover:scale-110'
                     }`}
-                    style={{ height: 'min(32px, 7cqmin)' }}
-                  >
-                    <span
-                      className="rounded-full bg-white"
-                      style={{ width: w + 4, height: w + 4 }}
-                    />
-                  </button>
+                    style={{
+                      width: 'min(24px, 5cqmin)',
+                      height: 'min(24px, 5cqmin)',
+                      backgroundColor: c,
+                    }}
+                  />
                 );
               })}
+              <label
+                className="flex items-center justify-center rounded-full bg-slate-800/60 ring-1 ring-white/30 text-slate-300 hover:bg-slate-700 cursor-pointer transition-colors"
+                style={{
+                  width: 'min(24px, 5cqmin)',
+                  height: 'min(24px, 5cqmin)',
+                }}
+                title="Custom color"
+              >
+                <span className="text-base leading-none" aria-hidden>
+                  +
+                </span>
+                <input
+                  type="color"
+                  value={penColor}
+                  onChange={(e) => onColorChange(e.target.value)}
+                  className="sr-only"
+                  aria-label="Custom color"
+                />
+              </label>
             </div>
           )}
+
+          {/* Size slider — replaces the previous thin/medium/thick presets
+              with a continuous range. The active dimension depends on the
+              popover: pen/highlighter/shapes drive strokeWidth, text
+              drives fontSize, eraser drives hit-radius. */}
+          {(() => {
+            let value: number;
+            let setValue: (v: number) => void;
+            let min: number;
+            let max: number;
+            let label: string;
+            let suffix: string;
+            if (popover === 'text') {
+              value = textSize;
+              setValue = onTextSizeChange;
+              min = 12;
+              max = 96;
+              label = 'Text size';
+              suffix = 'pt';
+            } else if (popover === 'eraser') {
+              value = eraserSize;
+              setValue = onEraserSizeChange;
+              min = 4;
+              max = 80;
+              label = 'Eraser size';
+              suffix = 'px';
+            } else {
+              value = penWidth;
+              setValue = onWidthChange;
+              min = 1;
+              max = 40;
+              label = 'Stroke width';
+              suffix = 'px';
+            }
+            // Visual swatch on the left previews the current size. Capped
+            // visually at 28px so a huge value doesn't blow up the popover,
+            // while the numeric label on the right tells the truth.
+            const swatchSize = Math.max(4, Math.min(28, value));
+            return (
+              <div
+                className="flex items-center"
+                style={{
+                  gap: 'min(10px, 2cqmin)',
+                  marginTop:
+                    popover !== 'eraser' ? 'min(12px, 2.5cqmin)' : '0px',
+                }}
+              >
+                <span
+                  aria-hidden
+                  className="block rounded-full bg-white shrink-0"
+                  style={{
+                    width: `${swatchSize}px`,
+                    height: `${swatchSize}px`,
+                  }}
+                />
+                <input
+                  type="range"
+                  min={min}
+                  max={max}
+                  step={1}
+                  value={value}
+                  onChange={(e) => setValue(parseInt(e.target.value, 10))}
+                  aria-label={label}
+                  className="flex-1 h-1.5 rounded-full bg-slate-700 appearance-none cursor-pointer accent-brand-blue-light focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                />
+                <span className="font-mono text-xs text-slate-300 w-12 text-right tabular-nums">
+                  {value}
+                  {suffix}
+                </span>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

@@ -91,6 +91,10 @@ interface PageEditorProps {
   tool?: Tool;
   penColor?: string;
   penWidth?: number;
+  /** Font size for new text objects dropped via the Text tool. */
+  textSize?: number;
+  /** Hit-radius (in screen px) for the eraser tool. */
+  eraserSize?: number;
   /**
    * Map of objectId → target page for hotspot links on the *current* page.
    * Used so a Ctrl/Cmd+click on a linked object can follow its hyperlink
@@ -293,6 +297,8 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   tool = 'select',
   penColor = PEN_COLORS[0],
   penWidth = PEN_WIDTHS[1],
+  textSize = 36,
+  eraserSize = 24,
   linkedObjectTargets,
   onSelectionChange,
   onChange,
@@ -397,6 +403,11 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   penColorRef.current = penColor;
 
   penWidthRef.current = penWidth;
+
+  const textSizeRef = useRef(textSize);
+  textSizeRef.current = textSize;
+  const eraserSizeRef = useRef(eraserSize);
+  eraserSizeRef.current = eraserSize;
 
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [editing, setEditing] = useState<{
@@ -1366,13 +1377,43 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   const eraseAt = (cx: number, cy: number) => {
     const svgEl = svgRef.current;
     if (!svgEl) return;
-    const target = document.elementFromPoint(cx, cy);
-    if (!target) return;
-    const id = objectIdForTarget(svgEl, target);
-    if (!id) return;
-    const info = objectsRef.current.find((o) => o.id === id);
-    if (info?.kind !== 'ink') return; // eraser only removes ink
-    findObjectById(svgEl, id)?.remove();
+    // Eraser size is a screen-space radius. We sample the center plus
+    // eight points on the radius circle (cardinal + ordinal); any ink
+    // object hit by any of those points is removed. Cheap and good
+    // enough for whiteboard-style erasing — the radius is the visible
+    // cursor diameter so users get what they see.
+    const radius = Math.max(0, eraserSizeRef.current / 2);
+    const samples: Array<[number, number]> = [[cx, cy]];
+    if (radius > 0) {
+      const r = radius;
+      const d = r * 0.7071; // cos/sin 45deg
+      samples.push(
+        [cx + r, cy],
+        [cx - r, cy],
+        [cx, cy + r],
+        [cx, cy - r],
+        [cx + d, cy + d],
+        [cx + d, cy - d],
+        [cx - d, cy + d],
+        [cx - d, cy - d]
+      );
+    }
+    const hitIds = new Set<string>();
+    for (const [sx, sy] of samples) {
+      const target = document.elementFromPoint(sx, sy);
+      if (!target) continue;
+      const id = objectIdForTarget(svgEl, target);
+      if (!id) continue;
+      const info = objectsRef.current.find((o) => o.id === id);
+      // Eraser only removes ink — leaves text/shapes/images alone so a
+      // teacher mid-erase doesn't accidentally delete a labeled object.
+      if (info?.kind !== 'ink') continue;
+      hitIds.add(id);
+    }
+    if (hitIds.size === 0) return;
+    for (const id of hitIds) {
+      findObjectById(svgEl, id)?.remove();
+    }
     objectsRef.current = ensureObjectIds(svgEl);
     erasedRef.current = true;
   };
@@ -1423,7 +1464,12 @@ export const PageEditor: React.FC<PageEditorProps> = ({
       const vb = svgEl.viewBox.baseVal;
       const pageH = vb && vb.height > 0 ? vb.height : 750;
       const p = toForegroundPoint(e.clientX, e.clientY);
-      const fontSize = Math.max(20, Math.round(pageH * 0.04));
+      // textSize is expressed in screen px (what the toolbar slider shows);
+      // convert it to user-space units so the rendered text matches the
+      // chosen size regardless of how the page SVG is zoomed.
+      const ctm = svgEl.getScreenCTM();
+      const userScale = ctm ? 1 / Math.abs(ctm.a) : pageH / 750;
+      const fontSize = Math.max(8, textSizeRef.current) * userScale;
       const wrapper = document.createElementNS(SVG_NS, 'g');
       const newId = `obj-text-${crypto.randomUUID()}`;
       wrapper.setAttribute('data-edit-id', newId);
