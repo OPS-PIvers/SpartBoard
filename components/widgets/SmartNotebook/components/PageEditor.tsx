@@ -332,6 +332,13 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   // Active freehand stroke (pen/highlighter) and eraser session.
   const strokeRef = useRef<{ path: SVGPathElement; d: string } | null>(null);
   const erasedRef = useRef(false);
+  // The exact SVG string we last emitted upstream via onChange. When the
+  // host's autosave round-trips that same content back to us (as the new
+  // `svg` prop) we recognize it and skip resetting the DOM — otherwise the
+  // mid-flight drag would be wiped when its own resize's autosave lands a
+  // moment later. Reference equality is enough because the host stores and
+  // returns the same string instance via editedSvgsRef.
+  const lastEmittedSvgRef = useRef<string | null>(null);
 
   const onSelRef = useRef(onSelectionChange);
   const onChangeRef = useRef(onChange);
@@ -366,12 +373,18 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   } | null>(null);
 
   const prepared = useMemo(() => prepareEditableSvg(svg), [svg]);
+  // True when the incoming `svg` prop is exactly the string we last emitted
+  // — i.e. an autosave round-trip rather than a genuine external change.
+  // We advance prevPrepared without disturbing selection or DOM in that case.
+  const isOwnRoundTrip = svg === lastEmittedSvgRef.current;
 
   const [prevPrepared, setPrevPrepared] = useState(prepared);
   if (prepared !== prevPrepared) {
     setPrevPrepared(prepared);
-    setSelectedIds([]);
-    setEditing(null);
+    if (!isOwnRoundTrip) {
+      setSelectedIds([]);
+      setEditing(null);
+    }
   }
 
   // Drop any active selection when the host switches off the select tool —
@@ -510,12 +523,22 @@ export const PageEditor: React.FC<PageEditorProps> = ({
   }, []);
 
   const emitChange = useCallback(() => {
-    if (svgRef.current) onChangeRef.current?.(exportEditedSvg(svgRef.current));
+    if (!svgRef.current) return;
+    const serialized = exportEditedSvg(svgRef.current);
+    lastEmittedSvgRef.current = serialized;
+    onChangeRef.current?.(serialized);
   }, []);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    // Autosave round-trip: the host is feeding us back the SVG we just
+    // emitted. The DOM already reflects this content; tearing it down and
+    // rebuilding from `prepared` would clobber any in-flight drag (e.g. the
+    // user started moving an image after release-resizing, then the resize
+    // autosave landed mid-move). Detection is reference-equality based; the
+    // host stores our emit verbatim and hands it back via editedSvgsRef.
+    if (isOwnRoundTrip) return;
     container.innerHTML = prepared;
     const el = container.querySelector('svg');
     svgRef.current = el;
@@ -657,7 +680,7 @@ export const PageEditor: React.FC<PageEditorProps> = ({
     marquee.style.display = 'none';
     el.appendChild(marquee);
     marqueeRef.current = marquee;
-  }, [prepared]);
+  }, [prepared, isOwnRoundTrip]);
 
   useEffect(() => {
     renderSelection(selectedIds);
