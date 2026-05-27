@@ -142,6 +142,18 @@ describe('urlHelpers', () => {
       );
     });
 
+    it('converts YouTube playlist+video URLs where list= precedes v=', () => {
+      // When a user copies a URL from a YouTube playlist page the browser
+      // produces ?list=PLxxx&v=VIDEO_ID — the v= parameter is not first.
+      // The old regex anchored to "watch?v=" so this case was never matched,
+      // leaving a raw watch?v= URL in the iframe src instead of an embed URL.
+      expect(
+        convertToEmbedUrl(
+          'https://www.youtube.com/watch?list=PLrAXtmErZgOeciFP3CBCkEghxA23gf9T&v=dQw4w9WgXcQ'
+        )
+      ).toBe('https://www.youtube.com/embed/dQw4w9WgXcQ');
+    });
+
     it('converts YouTube Live URLs to embed URLs', () => {
       expect(
         convertToEmbedUrl('https://www.youtube.com/live/dQw4w9WgXcQ')
