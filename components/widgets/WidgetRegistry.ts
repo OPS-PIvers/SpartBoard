@@ -479,6 +479,10 @@ export const WIDGET_APPEARANCE_COMPONENTS: Partial<
     () => import('./SyntaxFramer'),
     'SyntaxFramerAppearanceSettings'
   ),
+  'specialist-schedule': lazyNamed(
+    () => import('./SpecialistSchedule'),
+    'SpecialistScheduleAppearanceSettings'
+  ),
   'starter-pack': lazyNamed(
     () => import('./StarterPack/Settings'),
     'StarterPackAppearanceSettings'

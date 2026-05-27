@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-05-27_
-_Last action: never_
+_Last action: 2026-05-27 — MEDIUM specialist-schedule appearance panel registered_
 
 ---
 
@@ -15,20 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### MEDIUM `specialist-schedule` widget has full appearance config but no `WIDGET_APPEARANCE_COMPONENTS` entry
-
-- **Detected:** 2026-04-15
-- **File:** components/widgets/WidgetRegistry.ts (line 339), components/widgets/SpecialistSchedule/Settings.tsx (lines 23-24, 254-270), types.ts (`SpecialistScheduleConfig`)
-- **Detail:** `SpecialistScheduleConfig` in types.ts declares `fontFamily`, `fontColor`, `textSizePreset`, `cardColor`, and `cardOpacity`. The widget's `SpecialistScheduleWidget.tsx` reads and applies all five fields. `Settings.tsx` imports and renders `TypographySettings` and `SurfaceColorSettings` inside the `general` tab. However, `specialist-schedule` is absent from `WIDGET_APPEARANCE_COMPONENTS` in WidgetRegistry.ts. As a result, `WidgetRenderer.tsx` (line 160) never finds an `AppearanceComponent` for this type and the DraggableWindow does not render an Appearance tab. The appearance controls are only accessible via the flip panel's `general` tab — buried after schedule-specific content — which diverges from the standard UX where appearance settings get their own dedicated tab.
-- **Fix:** Create a `SpecialistScheduleAppearanceSettings` export in `components/widgets/SpecialistSchedule/Settings.tsx` that renders only `TypographySettings` and `SurfaceColorSettings` (factored out of the current general tab). Register it in `WIDGET_APPEARANCE_COMPONENTS`:
-  ```ts
-  'specialist-schedule': lazyNamed(
-    () => import('./SpecialistSchedule'),
-    'SpecialistScheduleAppearanceSettings'
-  ),
-  ```
-  Remove the duplicated appearance controls from the general tab.
 
 ### MEDIUM `CarRiderProConfig` declares `cardColor` / `cardOpacity` but no code reads or renders them
 
@@ -96,6 +82,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM `specialist-schedule` widget has full appearance config but no `WIDGET_APPEARANCE_COMPONENTS` entry
+
+- **Detected:** 2026-04-15
+- **Completed:** 2026-05-27
+- **File:** components/widgets/WidgetRegistry.ts, components/widgets/SpecialistSchedule/Settings.tsx
+- **Detail:** `SpecialistScheduleConfig` declared `fontFamily`, `fontColor`, `textSizePreset`, `cardColor`, and `cardOpacity` and the widget consumed all five, but `specialist-schedule` was absent from `WIDGET_APPEARANCE_COMPONENTS`. The appearance controls were buried in the flip panel's `general` tab instead of getting the standard dedicated Appearance tab in DraggableWindow.
+- **Resolution:** Added `SpecialistScheduleAppearanceSettings` export to `components/widgets/SpecialistSchedule/Settings.tsx` rendering `TypographySettings`, `TextSizePresetSettings`, and `SurfaceColorSettings` via a shared `update` helper (matching the `NeedDoPutThenAppearanceSettings` reference pattern). Registered it in `WIDGET_APPEARANCE_COMPONENTS` so `WidgetRenderer.tsx` now surfaces the dedicated Appearance tab. Removed the now-redundant `general` tab from the flip panel — the only content there was the three appearance primitives, so the tab union narrowed to `'schedules' | 'recurring'` with `'schedules'` as the new default. `pnpm exec tsc --noEmit`, `pnpm exec eslint`, `pnpm exec prettier --check`, and `pnpm exec vitest run tests/components` (1056 tests across 127 files) all clean.
 
 _2026-05-27: Audited all recently added Settings.tsx files (Stations, SmartNotebook, drawing-widget toolbar — skipScaling:false so not a CQ concern), WIDGET_APPEARANCE_COMPONENTS cross-referenced against types.ts appearance fields. New commits since 2026-05-22 did not add new widget types requiring appearance panels. Two new open items added: ExpectationsWidget custom toggle, Countdown/AnalyticsManager hardcoded brand hex. All pre-existing open items remain valid._
 
