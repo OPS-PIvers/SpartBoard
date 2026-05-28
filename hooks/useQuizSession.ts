@@ -812,6 +812,39 @@ export const useQuizSessionTeacher = (
             )
           : null;
 
+      // Clean up the answer-history subcollection BEFORE deleting the
+      // parent response. Firestore does not cascade subcollection
+      // deletes, so without this the snapshots orphan — and because the
+      // response key is deterministic (`auth.uid` for SSO, `pin-…` for
+      // anonymous), a removed student who rejoins lands on the same key
+      // and the history read rule (`request.auth.uid == parentStudentUid`)
+      // would let them read their own prior-attempt drafts. The teacher's
+      // archive preserves the final answers; the intermediate-draft
+      // history is intentionally discarded on removal. Chunked at 450 to
+      // stay under the 500-op Firestore batch limit; these are independent
+      // of the atomic archive+delete batch below, so a partial failure
+      // just leaves a smaller orphan tail that a retry sweeps.
+      const historyDocs = (
+        await getDocs(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_COLLECTION,
+            responseKey,
+            RESPONSE_HISTORY_COLLECTION
+          )
+        )
+      ).docs;
+      const HISTORY_DELETE_CHUNK = 450;
+      for (let i = 0; i < historyDocs.length; i += HISTORY_DELETE_CHUNK) {
+        const historyBatch = writeBatch(db);
+        for (const d of historyDocs.slice(i, i + HISTORY_DELETE_CHUNK)) {
+          historyBatch.delete(d.ref);
+        }
+        await historyBatch.commit();
+      }
+
       // Archive the response before delete so partial answers survive
       // the teacher's "remove" action. The deterministic key model
       // means we can't soft-delete in place (the slot must be free for
@@ -2096,7 +2129,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             questionId: priorEntry.questionId,
             answer: priorEntry.answer,
             answeredAt: priorEntry.answeredAt,
-            status: priorEntry.status ?? 'submitted',
+            // Narrow explicitly rather than `?? 'submitted'`: the rule
+            // pins `status in ['draft','submitted']`, so any future
+            // schema value would silently fail every history write.
+            status: priorEntry.status === 'draft' ? 'draft' : 'submitted',
             snapshotAt: serverTimestamp(),
           }
         )
@@ -2108,8 +2144,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             // doc had been written.
             lastHistorySnapshotAtRef.current.set(questionId, now);
           })
-          .catch(() => {
-            // Safety-net write; nothing actionable on failure.
+          .catch((err: unknown) => {
+            // Safety-net write — recovery still works without it, so we
+            // don't surface to the student. But log it: a silently
+            // failing recovery net (e.g. a future rules/schema drift)
+            // should be visible rather than vanish.
+            console.error(
+              '[useQuizSession] history snapshot write failed:',
+              err
+            );
           });
       }
     },

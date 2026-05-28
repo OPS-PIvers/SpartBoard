@@ -1744,6 +1744,14 @@ function setupTeacherMocks(): TeacherMockEnv {
   (firestore.writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
     env.batch
   );
+  // removeStudent fetches the answer-history subcollection to cascade-
+  // delete it before removing the parent response. Default to an empty
+  // result so the common path issues no history batch; tests that need
+  // orphan cleanup override this with `mockResolvedValueOnce`.
+  (firestore.getDocs as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    docs: [],
+    empty: true,
+  });
 
   return env;
 }
@@ -1833,6 +1841,73 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
     // No batch should be created when sessionId is null.
     expect(env.batch.delete).not.toHaveBeenCalled();
     expect(env.batch.commit).not.toHaveBeenCalled();
+  });
+
+  it('cascade-deletes the answer-history subcollection before removing the parent response', async () => {
+    // Firestore does not cascade subcollection deletes, so removeStudent
+    // must sweep `responses/{key}/history/*` itself — otherwise the
+    // snapshots orphan and a rejoined student under the same
+    // deterministic key could read their prior-attempt drafts.
+    const historyDocs = [
+      {
+        ref: {
+          __type: 'doc',
+          path: [
+            'quiz_sessions',
+            'sess-1',
+            'responses',
+            'pin-period_1-9999',
+            'history',
+            'h1',
+          ],
+        },
+      },
+      {
+        ref: {
+          __type: 'doc',
+          path: [
+            'quiz_sessions',
+            'sess-1',
+            'responses',
+            'pin-period_1-9999',
+            'history',
+            'h2',
+          ],
+        },
+      },
+    ];
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ docs: historyDocs, empty: false });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    await act(async () => {
+      await result.current.removeStudent('pin-period_1-9999');
+    });
+
+    // Both history docs + the parent response doc are deleted.
+    expect(env.batch.delete).toHaveBeenCalledTimes(3);
+    // One commit for the history chunk, one for the archive/delete batch.
+    expect(env.batch.commit).toHaveBeenCalledTimes(2);
+    const deletedPaths = env.batch.delete.mock.calls.map(
+      (c) => (c[0] as { path: string[] }).path
+    );
+    expect(deletedPaths).toContainEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+      'history',
+      'h1',
+    ]);
+    expect(deletedPaths).toContainEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+      'history',
+      'h2',
+    ]);
   });
 
   it('revealAnswer writes a dotted-path map entry on the session doc', async () => {
