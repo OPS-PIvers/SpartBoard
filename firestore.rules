@@ -2156,18 +2156,19 @@ service cloud.firestore {
           // Tags are written by the teacher on sync, never by the
           // student.
           request.resource.data.get('preSyncVersion', 0) == 0 &&
-          // Field whitelist: a student creating a fresh response may
-          // only write the schema fields the join path actually emits.
-          // Without this, a malicious join payload could include
-          // `autoSubmitted: true` (cron-only signal), `unlocked: true`
-          // (teacher-only), forged `grading.*` (teacher-only), etc.
-          // The UPDATE rule already enforces an allowlist; this
-          // closes the symmetric CREATE-side hole.
-          request.resource.data.keys().hasOnly([
-            'studentUid', 'joinedAt', 'lastWriteAt', 'status', 'answers',
-            'score', 'submittedAt', 'completedAttempts', 'preSyncVersion',
-            'pin', 'classPeriod', 'classId'
-          ]) &&
+          // Block forgery of teacher-only / cron-only fields at create
+          // time. A malicious join payload could otherwise include
+          // `autoSubmitted: true` (cron signal), `unlocked: true`
+          // (teacher signal — would trip the rejoin resume-unlocked
+          // branch), `unlockedAt`, or forged `grading.*` (teacher
+          // grading data). Explicitly deny these rather than maintain
+          // an exhaustive allowlist — the UPDATE rule already has a
+          // hasOnly whitelist that's the source of truth for the
+          // student's mutable surface.
+          request.resource.data.get('autoSubmitted', null) == null &&
+          request.resource.data.get('unlocked', null) == null &&
+          request.resource.data.get('unlockedAt', null) == null &&
+          request.resource.data.get('grading', null) == null &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
