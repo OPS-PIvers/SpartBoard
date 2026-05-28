@@ -96,7 +96,10 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       );
       if (!ok) return;
     }
-    const { stations, assignments } = buildStationsFromRandomGroups(groups);
+    const { stations, assignments } = buildStationsFromRandomGroups(
+      groups,
+      activeDashboard?.sharedGroups
+    );
     updateWidget(stationsWidget.id, {
       config: {
         ...(stationsWidget.config as StationsConfig),
