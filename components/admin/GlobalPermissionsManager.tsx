@@ -48,8 +48,8 @@ import { useAuth } from '@/context/useAuth';
 import { useStorage } from '@/hooks/useStorage';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { logError } from '@/utils/logError';
-import { Toggle } from '../common/Toggle';
-import { Toast } from '../common/Toast';
+import { Toggle } from '@/components/common/Toggle';
+import { Toast } from '@/components/common/Toast';
 import { PermissionBuildingMultiSelect } from '@/components/admin/PermissionBuildingMultiSelect';
 import { FEATURE_DEFAULTS } from '@/config/featureDefaults';
 

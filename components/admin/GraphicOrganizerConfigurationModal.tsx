@@ -18,9 +18,9 @@ import {
   GlobalFontFamily,
   FeaturePermission,
 } from '@/types';
-import { Toast } from '../common/Toast';
-import { Button } from '../common/Button';
-import { ConfirmDialog } from '../widgets/InstructionalRoutines/ConfirmDialog';
+import { Toast } from '@/components/common/Toast';
+import { Button } from '@/components/common/Button';
+import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 
 interface GraphicOrganizerConfigurationModalProps {

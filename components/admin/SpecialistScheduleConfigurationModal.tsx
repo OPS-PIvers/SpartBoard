@@ -20,9 +20,9 @@ import {
 } from '@/types';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { Toast } from '../common/Toast';
-import { Modal } from '../common/Modal';
-import { Button } from '../common/Button';
+import { Toast } from '@/components/common/Toast';
+import { Modal } from '@/components/common/Modal';
+import { Button } from '@/components/common/Button';
 import { Card } from '@/components/common/Card';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 

@@ -27,4 +27,20 @@ describe('sanitizePrompt', () => {
     expect(sanitizePrompt(undefined)).toBe('');
     expect(sanitizePrompt(null as unknown as string)).toBe('');
   });
+
+  it('escapes & before applying entity replacements so pre-formed entities cannot bypass sanitization', () => {
+    // Regression: without escaping `&` first, a user who types `&#123;` gets
+    // `&#123;` in the output — which is the HTML entity for `{`, defeating the
+    // curly-brace sanitization. The AI prompt ultimately sees `{` again.
+    //
+    // Correct behaviour: `&` is escaped to `&amp;` first, so `&#123;` becomes
+    // `&amp;#123;` — a literal ampersand + hash + digits, not a curly brace.
+    expect(sanitizePrompt('&#123;injected&#125;')).toBe(
+      '&amp;#123;injected&amp;#125;'
+    );
+    // Same bypass via tag entities.
+    expect(sanitizePrompt('&lt;script&gt;')).toBe('&amp;lt;script&amp;gt;');
+    // Plain & in ordinary text must also be escaped.
+    expect(sanitizePrompt('fish & chips')).toBe('fish &amp; chips');
+  });
 });

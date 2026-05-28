@@ -16,6 +16,7 @@ import { useWidgetBuildingId } from '@/hooks/useWidgetBuildingId';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { Toggle } from '@/components/common/Toggle';
 import { extractCalendarId } from './constants';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
@@ -101,9 +102,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-6">
       {/* 1. Display Options */}
       <section>
-        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-          <Settings2 className="w-3 h-3" /> Display Options
-        </label>
+        <SettingsLabel icon={Settings2}>Display Options</SettingsLabel>
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -167,9 +166,9 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
       {/* 2. Personal Google Calendars */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
-            <ShieldCheck className="w-3 h-3" /> Personal Google Calendars
-          </label>
+          <SettingsLabel icon={ShieldCheck} className="mb-0">
+            Personal Google Calendars
+          </SettingsLabel>
           <button
             onClick={() => setShowInstructions(!showInstructions)}
             className="text-xxs font-black text-blue-500 uppercase tracking-tight flex items-center gap-1 hover:text-blue-600 transition-colors"
@@ -268,9 +267,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* 3. Local Events */}
       <section className="space-y-3">
-        <label className="text-xxs text-slate-400 uppercase tracking-widest block">
-          Local Manual Events
-        </label>
+        <SettingsLabel className="mb-0">Local Manual Events</SettingsLabel>
 
         {isAddingLocal ? (
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">

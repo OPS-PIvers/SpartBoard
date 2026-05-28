@@ -20,6 +20,7 @@ import {
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import { ListOrdered, RefreshCcw } from 'lucide-react';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 import { useDialog } from '@/context/useDialog';
 
 const SESSIONS_COLLECTION = 'nextup_sessions';
@@ -292,24 +293,11 @@ export const NextUpWidget: React.FC<WidgetComponentProps> = ({ widget }) => {
     return (
       <WidgetLayout
         content={
-          <div className="flex flex-col items-center justify-center h-full text-slate-400 p-6 text-center">
-            <ListOrdered
-              className="mb-4 opacity-20"
-              style={{
-                width: 'min(48px, 12cqmin)',
-                height: 'min(48px, 12cqmin)',
-              }}
-            />
-            <p
-              className="font-medium"
-              style={{ fontSize: 'min(14px, 3.5cqmin)' }}
-            >
-              Queue is not active
-            </p>
-            <p className="mt-1" style={{ fontSize: 'min(10px, 2.5cqmin)' }}>
-              Flip to settings to start a session
-            </p>
-          </div>
+          <ScaledEmptyState
+            icon={ListOrdered}
+            title="Queue is not active"
+            subtitle="Flip to settings to start a session"
+          />
         }
       />
     );
