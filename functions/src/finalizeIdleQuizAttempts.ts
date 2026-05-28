@@ -95,6 +95,7 @@ export const finalizeIdleQuizAttempts = onSchedule(
     const finalizedAt = Date.now();
     let finalized = 0;
     let skippedRaced = 0;
+    let failed = 0;
 
     // Per-doc transactions instead of a single batch so a student who
     // submits between our query read and the write isn't overwritten —
@@ -149,11 +150,20 @@ export const finalizeIdleQuizAttempts = onSchedule(
           // to `completed` with `autoSubmitted: true` so it falls
           // out of the live "joined" bucket; teachers can review
           // and (if needed) clear the row via removeStudent.
+          //
+          // Also clear `unlocked`: if the cron finalizes a doc that
+          // was previously teacher-unlocked but the student never
+          // came back, leaving `unlocked: true` would trip the
+          // `existing.status === 'completed' && existing.unlocked`
+          // rejoin branch in useQuizSession (joinQuizSession resume-
+          // unlocked path) and grant another attempt without
+          // consuming a slot — silently bypassing the cap.
           const update: Record<string, unknown> = {
             status: 'completed',
             submittedAt: finalizedAt,
             autoSubmitted: true,
             answers: finalAnswers,
+            unlocked: false,
           };
           if (finalAnswers.length > 0) {
             update.completedAttempts = (fresh.completedAttempts ?? 0) + 1;
@@ -167,6 +177,7 @@ export const finalizeIdleQuizAttempts = onSchedule(
           skippedRaced++;
         }
       } catch (err) {
+        failed++;
         console.warn(
           '[finalizeIdleQuizAttempts] tx failed',
           docSnap.ref.path,
@@ -176,7 +187,19 @@ export const finalizeIdleQuizAttempts = onSchedule(
     }
 
     console.log(
-      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (raced=${skippedRaced}, cutoff=${cutoff.toDate().toISOString()})`
+      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (raced=${skippedRaced}, failed=${failed}, cutoff=${cutoff.toDate().toISOString()})`
     );
+
+    // If more than ~10% of attempts failed, escalate by throwing so the
+    // scheduler logs an error-level event and retries on the next tick.
+    // Lower the threshold once we have a baseline; for now this catches
+    // structural problems (e.g., a rule deploy gap, a malformed-doc
+    // backlog) without paging on isolated contention races.
+    const total = finalized + skippedRaced + failed;
+    if (total > 0 && failed * 10 > total) {
+      throw new Error(
+        `[finalizeIdleQuizAttempts] elevated failure rate: ${failed}/${total}`
+      );
+    }
   }
 );

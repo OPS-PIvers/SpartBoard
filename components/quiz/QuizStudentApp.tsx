@@ -1257,6 +1257,16 @@ const ActiveQuiz: React.FC<{
     if (!autoSubmitTriggeredFor) return;
     const question = currentQuestionRef.current;
     if (!question || question.id !== autoSubmitTriggeredFor) return;
+    // Cancel any pending draft autosave for the same question — same
+    // rationale as handleSubmit/handleSubmitAndAdvance. Without this
+    // clear, the question-change watcher will later fire the captured
+    // draft with `isDraft: true`, downgrading the just-auto-submitted
+    // answer's status back to 'draft' on the next advance.
+    if (draftAutosaveTimer.current) {
+      clearTimeout(draftAutosaveTimer.current);
+      draftAutosaveTimer.current = null;
+    }
+    pendingDraftRef.current = null;
     // Pull from the type-appropriate live ref so a half-completed
     // matching/ordering answer is preserved on timeout instead of
     // submitting the empty string.
@@ -1347,25 +1357,20 @@ const ActiveQuiz: React.FC<{
     pendingDraftRef.current = { qid: capturedQid, write: writeNow };
 
     return () => {
+      // Only clear the timer here. We CAN'T flush from this cleanup
+      // even when the question has advanced: React commits cleanups
+      // BEFORE the ref-sync effect at L1205 updates
+      // `currentQuestionRef.current` to the new id, so any condition
+      // like `currentQuestionRef.current?.id !== capturedQid` would
+      // always read stale (equal) refs and never fire. The actual
+      // flush-on-advance happens in the question-change watcher at
+      // L1418, which runs AFTER the ref-sync. handleSubmit /
+      // handleSubmitAndAdvance / the timer-expiry auto-submit effect
+      // all explicitly null `pendingDraftRef.current` so the watcher
+      // skips already-submitted answers.
       if (draftAutosaveTimer.current) {
         clearTimeout(draftAutosaveTimer.current);
         draftAutosaveTimer.current = null;
-      }
-      // Flush only when (a) this same effect's scheduled write is still
-      // the latest pending draft AND (b) the question has advanced.
-      // handleSubmit/handleSubmitAndAdvance synchronously null out
-      // `pendingDraftRef` before submitting, so if our captured write
-      // has been superseded by an explicit submit we skip the flush —
-      // otherwise we'd double-fire submitAnswer and downgrade the
-      // just-submitted answer's status from 'submitted' to 'draft'.
-      const pending = pendingDraftRef.current;
-      if (
-        pending &&
-        pending.qid === capturedQid &&
-        currentQuestionRef.current?.id !== capturedQid
-      ) {
-        writeNow();
-        pendingDraftRef.current = null;
       }
     };
   }, [
@@ -1391,6 +1396,15 @@ const ActiveQuiz: React.FC<{
     // onAnswerChange, the resulting draft write would silently
     // un-submit the question and drop it from the teacher's results.
     if (submittedRef.current) return;
+    // Saved-equal guard: StructuredQuestionInput's mount effect re-emits
+    // the saved answer on every remount. Without this short-circuit
+    // each question advance triggers a redundant 500ms-debounced write
+    // (cost) AND overwrites pendingDraftRef.qid to the new question
+    // before the question-change watcher can flush the outgoing
+    // question's still-pending draft — silently dropping it. Mirrors
+    // the state-driven effect's `draft === savedAnswerForCurrent`
+    // short-circuit.
+    if (answer === (savedAnswerForCurrentRef.current ?? '')) return;
     if (draftAutosaveTimer.current) {
       clearTimeout(draftAutosaveTimer.current);
     }
@@ -1436,13 +1450,17 @@ const ActiveQuiz: React.FC<{
   // typed character / clicked option / dropped chip.
   useEffect(() => {
     const flush = () => {
-      // Bail if the response has already been finalized. The cleanup
-      // flush runs on unmount, which is triggered by `myResponse.status`
-      // flipping to `'completed'` — without this guard, the flush would
-      // re-write the answer with `status: 'draft'`, downgrading the
-      // parent doc from `'completed'` back to `'in-progress'` and
-      // breaking the teacher's results view.
+      // Bail if the response has already been finalized at the doc
+      // level (last-question submit / completeQuiz), OR if the current
+      // question was just explicitly submitted locally. The doc-level
+      // check covers the post-completeQuiz unmount path; the
+      // `submittedRef` check covers the per-question-submit + tab-close
+      // race where the listener hasn't yet propagated the just-submitted
+      // answer back into savedAnswerForCurrent, so the saved-equal
+      // bail-out below would otherwise fail and re-write the answer as
+      // a draft — downgrading the just-submitted answer.
       if (myResponseStatusRef.current === 'completed') return;
+      if (submittedRef.current) return;
       const qid = currentQuestionRef.current?.id;
       const type = currentQuestionRef.current?.type;
       if (!qid || !type) return;
@@ -3125,7 +3143,11 @@ const QuizSubmittedWaitScreen: React.FC<{
   >;
   pin: string;
 }> = ({ session, myResponse, pin }) => {
-  const autoSubmitted = (myResponse.tabSwitchWarnings ?? 0) >= 3;
+  // Local variable name avoids shadowing `QuizResponse.autoSubmitted`
+  // (the cron-set flag for idle-finalized responses). This banner is
+  // tab-switch-specific; the cron-finalized case has no banner yet
+  // (deferred UI surface).
+  const tabSwitchAutoSubmitted = (myResponse.tabSwitchWarnings ?? 0) >= 3;
   const scoreSuffix = getScoreSuffix(session);
 
   return (
@@ -3152,7 +3174,7 @@ const QuizSubmittedWaitScreen: React.FC<{
         </p>
       </div>
 
-      {autoSubmitted && (
+      {tabSwitchAutoSubmitted && (
         <div className="max-w-sm mb-6 p-3 bg-amber-500/20 border border-amber-500/40 rounded-xl text-amber-200 text-sm">
           Auto-submitted because you left the quiz tab 3 times.
         </div>

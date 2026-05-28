@@ -695,10 +695,9 @@ export const useQuizSessionTeacher = (
         responseKey
       );
       if (!target) {
-        // Best-effort fetch; if it fails or returns no snapshot, fall
-        // through to delete-only behavior (preserves the pre-fix
-        // semantics for this rare race and avoids breaking tests
-        // whose mocks return undefined from getDoc).
+        // Best-effort fetch when the snapshot listener hasn't yet
+        // surfaced the response (rare race after a fresh mount). We
+        // need this to satisfy the archive contract for partial work.
         try {
           const fallbackSnap = await getDoc(responseRef);
           if (fallbackSnap?.exists?.()) {
@@ -707,8 +706,21 @@ export const useQuizSessionTeacher = (
               _responseKey: fallbackSnap.id,
             };
           }
-        } catch {
-          // ignore — fall through to delete-only.
+          // If the doc legitimately doesn't exist (already removed),
+          // fall through to a no-op delete — preserves the pre-fix
+          // delete-only semantics for this case.
+        } catch (err) {
+          // Don't silently swallow permission/transport errors — they
+          // mean the archive write will ALSO fail (same auth/network),
+          // so proceeding with the delete-only batch silently destroys
+          // the student's partial work. Log + rethrow so the caller
+          // toasts the error and the teacher can retry, rather than
+          // discovering later that the archive doesn't exist.
+          console.error(
+            '[useQuizSession] removeStudent fallback getDoc failed; aborting to preserve archive contract',
+            err
+          );
+          throw err;
         }
       }
 
