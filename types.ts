@@ -2867,17 +2867,25 @@ export interface QuizResponse {
   pin?: string;
   joinedAt: number;
   /**
-   * Wall-clock ms of the student's most recent answer write (draft or
-   * submitted). Stamped on every `submitAnswer` call and at join time;
+   * Firestore server-stamped time of the student's most recent answer
+   * write (draft or submitted). Stamped on every `submitAnswer` call,
+   * at join time, and whenever a join/unlock path resets the response.
    * NOT touched by tab-switch warnings. Used by the scheduled idle
    * auto-submit Cloud Function to find responses that have been
    * sitting in `joined`/`in-progress` past the assignment's idle
-   * threshold. Optional on legacy responses written before the field
-   * existed — those are skipped by the inequality query, which is the
-   * correct behavior (don't retroactively auto-submit historical
-   * attempts).
+   * threshold.
+   *
+   * Server-stamped (Firestore Timestamp) — not a client `Date.now()` —
+   * so a Chromebook with a skewed clock can't (a) seed a past
+   * timestamp and get force-finalized on the next sweep, (b) seed a
+   * future timestamp to evade auto-submit indefinitely, or (c) trip
+   * the monotonic rule when two tabs disagree on the wall clock.
+   *
+   * Optional on legacy responses written before the field existed —
+   * those are skipped by the inequality query, which is the correct
+   * behavior (don't retroactively auto-submit historical attempts).
    */
-  lastWriteAt?: number;
+  lastWriteAt?: import('firebase/firestore').Timestamp;
   /**
    * Set by the idle auto-submit Cloud Function when a stale response
    * was finalized without the student clicking Submit. Lets the

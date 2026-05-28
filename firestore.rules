@@ -2134,6 +2134,11 @@ service cloud.firestore {
         // the cross-auth-type paths are now closed.
         allow create: if request.auth != null &&
           request.resource.data.studentUid == request.auth.uid &&
+          // `lastWriteAt` must be server-stamped (`serverTimestamp()`
+          // from the SDK resolves to `request.time` at rule evaluation
+          // time). Forbidding client-stamped values here closes the
+          // CREATE-side hole symmetric to the UPDATE rule below.
+          request.resource.data.lastWriteAt == request.time &&
           // Students cannot forge a score on creation
           request.resource.data.score == null &&
           // Students cannot forge prior completions
@@ -2221,18 +2226,18 @@ service cloud.firestore {
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
              .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt']) &&
-           // `lastWriteAt` is the idle-auto-submit cutoff field. Students
-           // stamp it on every answer write so the scheduled cleanup
-           // function can find stale-in-progress responses. Monotonic
-           // (only stay same or increase) so a confused/buggy client
-           // can't roll the timestamp backward and prematurely trigger
-           // an idle auto-submit. Server-side clock skew is not bounded
-           // here — forgery has no practical attack value (a student
-           // who forges a future timestamp just stays in the joined
-           // bucket longer; tab-switch protections still finalize them).
+           // `lastWriteAt` is the idle-auto-submit cutoff field. Must
+           // be server-stamped (`serverTimestamp()` from the SDK, which
+           // resolves to `request.time` at rule evaluation), NOT a
+           // client `Date.now()`. Equality with `request.time` enforces
+           // server stamping: any client that passes a raw Timestamp
+           // or a number is rejected. This closes the clock-skew
+           // failure modes — past-clock devices can't get force-
+           // finalized on the next sweep, future-clock devices can't
+           // evade idle auto-submit indefinitely, and multi-tab
+           // students with drifting clocks can't lock themselves out.
            (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastWriteAt']) ||
-            (request.resource.data.lastWriteAt is number &&
-             request.resource.data.lastWriteAt >= resource.data.get('lastWriteAt', 0))) &&
+            request.resource.data.lastWriteAt == request.time) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
@@ -2300,12 +2305,16 @@ service cloud.firestore {
         allow read: if request.auth != null && (
           request.auth.uid == sessionTeacherUidArch() || isAdmin()
         );
-        // Only the session teacher can write the archive, and only as
-        // themselves (no proxy writes). archivedAt + archivedBy must be
-        // present on create; archiveReason is constrained to a known
-        // small set so a future log query can bucket by reason.
+        // The session teacher OR an admin can archive a response. The
+        // delete rule on the parent /responses doc has always allowed
+        // both — without symmetric allowance here, an admin removing a
+        // student would have the archive create rejected and the whole
+        // batch (including the delete) rolls back. archivedBy must be
+        // the writer's own auth.uid (no proxy writes), and the
+        // archiveReason is constrained to a small set so a future log
+        // query can bucket by reason.
         allow create: if request.auth != null &&
-          request.auth.uid == sessionTeacherUidArch() &&
+          (request.auth.uid == sessionTeacherUidArch() || isAdmin()) &&
           request.resource.data.archivedBy == request.auth.uid &&
           request.resource.data.archivedAt is number &&
           request.resource.data.get('archiveReason', '') in

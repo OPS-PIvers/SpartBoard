@@ -1178,6 +1178,25 @@ const ActiveQuiz: React.FC<{
   // response from `'completed'` back to `'in-progress'` and silently
   // breaking the teacher's "Finished" counter.
   const myResponseStatusRef = useRef(myResponse?.status);
+  // Mirror of the per-question `submitted` state so the imperative
+  // autosave path (Matching/Ordering's onAnswerChange) can refuse to
+  // schedule a draft write for an already-submitted question. Without
+  // this, back-navigating to a submitted structured question and
+  // triggering onAnswerChange (e.g., StructuredQuestionInput's mount
+  // effect re-emits the saved answer) downgrades the answer from
+  // `status: 'submitted'` to `status: 'draft'`, vanishing it from the
+  // teacher's results view.
+  const submittedRef = useRef(false);
+  submittedRef.current = submitted;
+  // Pending draft tracker for question-change flushes. Both the state-
+  // driven autosave effect AND scheduleDraftAutosave populate this when
+  // they schedule a write; a watcher on `currentQuestion?.id` calls
+  // `write()` synchronously when the question advances, flushing the
+  // outgoing question's last edit before the new question's autosave
+  // path clobbers the shared timer slot.
+  const pendingDraftRef = useRef<{ qid: string; write: () => void } | null>(
+    null
+  );
   // Live serialized answer for Matching/Ordering, written by the child
   // StructuredQuestionInput on every drag/tap so timer auto-submit can
   // capture partial placements instead of submitting the empty string.
@@ -1301,34 +1320,52 @@ const ActiveQuiz: React.FC<{
     }
 
     if (draft === null) return;
-    // Skip empties (nothing to save yet — student hasn't chosen/typed).
-    // Empty-string drafts ARE meaningful for written types (the student
-    // may have just cleared the editor — that's a real edit worth
-    // persisting). For MC null already covered above; for FIB an empty
-    // string is "no answer yet" so skip.
-    if (type === 'FIB' && draft === '') return;
     // Skip the initial-hydration call: if the seeded value matches what
-    // was already saved, there's nothing to write.
+    // was already saved, there's nothing to write. This also handles
+    // the "FIB: empty draft + no prior save" case (both sides reduce
+    // to '') without short-circuiting on empty draft alone — which
+    // would have silently dropped a deliberate clear of a previously-
+    // saved FIB answer.
     if (draft === (savedAnswerForCurrent ?? '')) return;
 
     if (draftAutosaveTimer.current) {
       clearTimeout(draftAutosaveTimer.current);
     }
     const snapshot = draft;
-    draftAutosaveTimer.current = setTimeout(() => {
+    const capturedQid = qid;
+    const writeNow = () => {
       void onAnswerRef
-        .current(qid, snapshot, undefined, { isDraft: true })
+        .current(capturedQid, snapshot, undefined, { isDraft: true })
         .catch((err: unknown) => {
           logError('QuizStudentApp.draftAutosave', err, {
-            questionId: qid,
+            questionId: capturedQid,
             questionType: type,
           });
         });
-    }, 500);
+    };
+    draftAutosaveTimer.current = setTimeout(writeNow, 500);
+    pendingDraftRef.current = { qid: capturedQid, write: writeNow };
 
     return () => {
       if (draftAutosaveTimer.current) {
         clearTimeout(draftAutosaveTimer.current);
+        draftAutosaveTimer.current = null;
+      }
+      // Flush only when (a) this same effect's scheduled write is still
+      // the latest pending draft AND (b) the question has advanced.
+      // handleSubmit/handleSubmitAndAdvance synchronously null out
+      // `pendingDraftRef` before submitting, so if our captured write
+      // has been superseded by an explicit submit we skip the flush —
+      // otherwise we'd double-fire submitAnswer and downgrade the
+      // just-submitted answer's status from 'submitted' to 'draft'.
+      const pending = pendingDraftRef.current;
+      if (
+        pending &&
+        pending.qid === capturedQid &&
+        currentQuestionRef.current?.id !== capturedQid
+      ) {
+        writeNow();
+        pendingDraftRef.current = null;
       }
     };
   }, [
@@ -1347,10 +1384,17 @@ const ActiveQuiz: React.FC<{
   // so the same 500 ms debounce window coalesces rapid placements.
   const scheduleDraftAutosave = useCallback((qid: string, answer: string) => {
     if (myResponseStatusRef.current === 'completed') return;
+    // Per-question guard: don't downgrade an already-submitted answer
+    // back to draft. Back-navigation in student-paced mode can land on
+    // a previously-submitted Matching/Ordering question; if
+    // StructuredQuestionInput's mount effect (or a stray drag) calls
+    // onAnswerChange, the resulting draft write would silently
+    // un-submit the question and drop it from the teacher's results.
+    if (submittedRef.current) return;
     if (draftAutosaveTimer.current) {
       clearTimeout(draftAutosaveTimer.current);
     }
-    draftAutosaveTimer.current = setTimeout(() => {
+    const writeNow = () => {
       void onAnswerRef
         .current(qid, answer, undefined, { isDraft: true })
         .catch((err: unknown) => {
@@ -1359,8 +1403,29 @@ const ActiveQuiz: React.FC<{
             questionType: 'structured',
           });
         });
-    }, 500);
+    };
+    draftAutosaveTimer.current = setTimeout(writeNow, 500);
+    pendingDraftRef.current = { qid, write: writeNow };
   }, []);
+
+  // Question-change watcher: if a draft is pending for the OUTGOING
+  // question when the user advances, flush it synchronously before
+  // the new question's autosave path clobbers the shared timer slot.
+  // The state-driven effect's cleanup also flushes when its own deps
+  // caused the cleanup, but Matching/Ordering pending saves are
+  // scheduled imperatively (not in a tracked effect), so this watcher
+  // is the only path that flushes them on advance.
+  useEffect(() => {
+    const pending = pendingDraftRef.current;
+    if (pending && pending.qid !== currentQuestion?.id) {
+      if (draftAutosaveTimer.current) {
+        clearTimeout(draftAutosaveTimer.current);
+        draftAutosaveTimer.current = null;
+      }
+      pending.write();
+      pendingDraftRef.current = null;
+    }
+  }, [currentQuestion?.id]);
 
   // Flush pending draft autosave for the current question on unmount,
   // visibility-hidden, beforeunload, and on the teacher pause event. The
@@ -1402,11 +1467,12 @@ const ActiveQuiz: React.FC<{
           return;
       }
       if (draft === null) return;
-      if (type === 'FIB' && draft === '') return;
       // Use the ref-synced live value rather than the closure-captured
       // `savedAnswerForCurrent`, which was frozen at mount because this
-      // effect has [] deps. See the ref declaration above for full
-      // rationale.
+      // effect has [] deps. The saved-equal check handles the "never
+      // typed" empty case (saved null, draft '') without short-
+      // circuiting on empty draft alone — which would have silently
+      // dropped a deliberate clear of a previously-saved FIB answer.
       if (draft === (savedAnswerForCurrentRef.current ?? '')) return;
 
       if (draftAutosaveTimer.current) {
@@ -1507,6 +1573,17 @@ const ActiveQuiz: React.FC<{
 
   const handleSubmit = async (answer: string) => {
     if (submitting || submitted) return;
+    // Cancel any pending draft autosave so the flush-on-question-change
+    // path doesn't double-fire submitAnswer with `isDraft: true` after
+    // we explicitly submit. Without this clear, the autosave timer
+    // captured the same (qid, answer) and its cleanup-on-advance fires
+    // a redundant write that DOWNGRADES the just-submitted answer's
+    // status back to 'draft'.
+    if (draftAutosaveTimer.current) {
+      clearTimeout(draftAutosaveTimer.current);
+      draftAutosaveTimer.current = null;
+    }
+    pendingDraftRef.current = null;
     setSubmitting(true);
     setSubmitted(true);
     setSelectedAnswer(answer);
@@ -1613,6 +1690,13 @@ const ActiveQuiz: React.FC<{
     // Self-paced revisits are intentional re-submissions — let them through
     // even when `submitted=true`. Teacher-paced still locks after first submit.
     if (submitted && !isStudentPaced) return;
+    // Cancel any pending draft autosave (see handleSubmit for the
+    // double-fire-downgrade rationale).
+    if (draftAutosaveTimer.current) {
+      clearTimeout(draftAutosaveTimer.current);
+      draftAutosaveTimer.current = null;
+    }
+    pendingDraftRef.current = null;
     advancingRef.current = true;
     setSubmitting(true);
     setSaveError(null);

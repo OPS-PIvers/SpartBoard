@@ -28,7 +28,9 @@ import {
   increment,
   deleteField,
   runTransaction,
+  serverTimestamp,
   type DocumentSnapshot,
+  type FieldValue,
 } from 'firebase/firestore';
 import { db, auth, functions } from '@/config/firebase';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -665,15 +667,24 @@ export const useQuizSessionTeacher = (
   const removeStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) return;
+      // Auth must be present before we open the batch — the archive
+      // create rule requires `archivedBy == request.auth.uid`, so a
+      // mid-token-refresh null would cause the entire batch (including
+      // the delete) to roll back. Bail early with a clear error
+      // instead.
+      const writerUid = auth.currentUser?.uid;
+      if (!writerUid) {
+        throw new Error(
+          'You must be signed in to remove a student. Try refreshing the page.'
+        );
+      }
       // Look up the response in the snapshot-driven `responses` list to
       // recover the studentUid + quizId we need for the ledger reset
-      // (Phase 2). The teacher's existing UX for `removeStudent` is
-      // "free the student up to retake" — which today only freed the
-      // per-session counter. After Phase 2 the cross-launch ledger
-      // would still cap them, so the reset must clear the ledger entry
-      // too. Falls back to a response-only delete when the response
-      // isn't in the snapshot list (race with a stale UI click).
-      const target = responses.find(
+      // (Phase 2). If the snapshot listener hasn't propagated yet
+      // (teacher just opened the monitor), fall back to a direct
+      // `getDoc` so we still produce an archive — silently skipping
+      // the archive would defeat the data-preservation contract.
+      let target = responses.find(
         (r) => (r._responseKey ?? r.studentUid) === responseKey
       );
       const responseRef = doc(
@@ -683,6 +694,23 @@ export const useQuizSessionTeacher = (
         RESPONSES_COLLECTION,
         responseKey
       );
+      if (!target) {
+        // Best-effort fetch; if it fails or returns no snapshot, fall
+        // through to delete-only behavior (preserves the pre-fix
+        // semantics for this rare race and avoids breaking tests
+        // whose mocks return undefined from getDoc).
+        try {
+          const fallbackSnap = await getDoc(responseRef);
+          if (fallbackSnap?.exists?.()) {
+            target = {
+              ...(fallbackSnap.data() as QuizResponse),
+              _responseKey: fallbackSnap.id,
+            };
+          }
+        } catch {
+          // ignore — fall through to delete-only.
+        }
+      }
 
       const ledgerRef =
         target && session?.quizId
@@ -694,12 +722,12 @@ export const useQuizSessionTeacher = (
           : null;
 
       // Archive the response before delete so partial answers survive
-      // the teacher's "remove" action. The deterministic key model means
-      // we can't soft-delete in place (the slot must be free for a fresh
-      // rejoin), so we stash a copy under `archived_responses` and then
-      // delete the live doc + ledger atomically. If `target` is missing
-      // (snapshot race), skip the archive and fall back to the original
-      // delete-only behavior — there's no in-memory copy to archive.
+      // the teacher's "remove" action. The deterministic key model
+      // means we can't soft-delete in place (the slot must be free for
+      // a fresh rejoin), so we stash a copy under `archived_responses`
+      // and then delete the live doc + ledger atomically. If `target`
+      // is still missing after the fallback fetch (doc already gone),
+      // skip the archive — there's nothing left to preserve.
       const batch = writeBatch(db);
       if (target) {
         const archiveRef = doc(
@@ -715,7 +743,7 @@ export const useQuizSessionTeacher = (
         batch.set(archiveRef, {
           ...archivePayload,
           archivedAt: Date.now(),
-          archivedBy: auth.currentUser?.uid ?? null,
+          archivedBy: writerUid,
           archiveReason: 'teacher-removed',
         });
       }
@@ -774,6 +802,11 @@ export const useQuizSessionTeacher = (
         completedAttempts: refundedAttempts,
         unlocked: true,
         unlockedAt: Date.now(),
+        // Refresh lastWriteAt so the idle auto-submit Cloud Function
+        // doesn't immediately re-finalize this freshly-unlocked attempt
+        // on its next sweep. Without this, an unlock done >90 min after
+        // the original submit would be silently undone within the hour.
+        lastWriteAt: serverTimestamp(),
       });
       if (ledgerRef && ledgerSnap?.exists()) {
         const ledgerCurrent =
@@ -1519,6 +1552,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               status: 'in-progress',
               submittedAt: null,
               score: null,
+              // Refresh so idle auto-submit doesn't immediately
+              // re-finalize the resumed attempt (lastWriteAt would
+              // otherwise still point at the prior submit).
+              lastWriteAt: serverTimestamp(),
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
@@ -1558,6 +1595,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               score: null,
               submittedAt: null,
               preSyncVersion: 0,
+              // Refresh so the idle auto-submit cron doesn't destroy
+              // the fresh attempt — without this, a rejoin >90 min
+              // after the prior submit gets finalized on the next
+              // sweep with zero answers.
+              lastWriteAt: serverTimestamp(),
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
@@ -1575,16 +1617,20 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           } else if (classPeriod && existing.classPeriod !== classPeriod) {
             // Backfill classPeriod on an in-flight response (e.g. student
             // joined before periods were configured or reloaded after a
-            // change).
-            await updateDoc(responseRef, { classPeriod }).catch(
-              (err: unknown) =>
-                logQuizJoinFirestoreError('update-backfill-period', err, {
-                  sessionId: sessionDoc.id,
-                  responseKey,
-                  studentUid,
-                  existingStudentUid: existing.studentUid,
-                  isAnonymous,
-                })
+            // change). Treat this as activity — refresh lastWriteAt so
+            // a long-running session doesn't trip the idle auto-submit
+            // on the next sweep just because of a backfill touch.
+            await updateDoc(responseRef, {
+              classPeriod,
+              lastWriteAt: serverTimestamp(),
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-backfill-period', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                existingStudentUid: existing.studentUid,
+                isAnonymous,
+              })
             );
           }
         } else if (limit !== null && ledgerCompleted >= limit) {
@@ -1681,14 +1727,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           // the same `classPeriod` field so all downstream surfaces (period
           // dropdown, export sheet) read uniformly.
           const finalClassPeriod = classPeriod ?? resolvedPeriodName;
-          const newResponse: QuizResponse = {
+          const newResponse: Omit<QuizResponse, 'lastWriteAt'> & {
+            lastWriteAt: FieldValue;
+          } = {
             studentUid,
             joinedAt: Date.now(),
             // Seed `lastWriteAt` at join so a student who joins but
-            // never answers still ages into the idle auto-submit
-            // query (which uses an inequality filter — Firestore
-            // skips docs without the field).
-            lastWriteAt: Date.now(),
+            // never answers still ages into the idle auto-submit query.
+            // Server-stamped (not Date.now()) so a Chromebook with a
+            // skewed clock can't (a) seed a past timestamp and get
+            // force-finalized on the next sweep, or (b) seed a future
+            // timestamp to evade auto-submit indefinitely.
+            lastWriteAt: serverTimestamp(),
             status: 'joined',
             answers: [],
             score: null,
@@ -1746,6 +1796,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (existing.classPeriod !== resolvedPeriodName) {
             await updateDoc(responseRef, {
               classPeriod: resolvedPeriodName,
+              // Refresh — backfill is a rejoin action, the student is
+              // active. See the in-flight backfill branch above for
+              // the symmetric refresh.
+              lastWriteAt: serverTimestamp(),
             }).catch((err: unknown) =>
               logQuizJoinFirestoreError('update-backfill-class-period', err, {
                 sessionId: sessionDoc.id,
@@ -1878,11 +1932,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // automatically. Stamped on every answer write (draft or
         // submitted) — tab-switch warnings deliberately do NOT update
         // it, so a student who toggles tabs without answering still
-        // ages out as expected.
+        // ages out as expected. Server-stamped so client clock skew
+        // can't trigger spurious auto-submit or evade it.
         {
           status: nextStatus,
           answers: updated,
-          lastWriteAt: Date.now(),
+          lastWriteAt: serverTimestamp(),
         }
       );
     },

@@ -52,7 +52,7 @@ interface QuizAnswer {
 
 interface QuizResponseDoc {
   status?: string;
-  lastWriteAt?: number;
+  lastWriteAt?: admin.firestore.Timestamp;
   completedAttempts?: number;
   answers?: QuizAnswer[];
 }
@@ -66,7 +66,14 @@ export const finalizeIdleQuizAttempts = onSchedule(
   },
   async () => {
     const db = admin.firestore();
-    const cutoff = Date.now() - IDLE_THRESHOLD_MS;
+    // lastWriteAt is a server-stamped Firestore Timestamp (see
+    // `firestore.rules` for the request.time == lastWriteAt
+    // enforcement). The cutoff must be a Timestamp too, otherwise
+    // the inequality query against a Timestamp-typed field returns
+    // zero rows (Firestore strict type comparison).
+    const cutoff = admin.firestore.Timestamp.fromMillis(
+      Date.now() - IDLE_THRESHOLD_MS
+    );
 
     const stale = await db
       .collectionGroup('responses')
@@ -92,20 +99,38 @@ export const finalizeIdleQuizAttempts = onSchedule(
       if (!docSnap.ref.path.startsWith('quiz_sessions/')) continue;
 
       const data = (docSnap.data() ?? {}) as QuizResponseDoc;
-      const answers = Array.isArray(data.answers) ? data.answers : [];
+      // Defensive: filter out any null/non-object answer entries so
+      // a legacy/aborted-write doc doesn't propagate sparse entries
+      // through the auto-finalized response (the teacher results
+      // surface previously never saw these because the student
+      // never clicked Submit; auto-finalization could force them
+      // through and crash render code that assumes
+      // `answer.questionId` exists).
+      const answers = (Array.isArray(data.answers) ? data.answers : []).filter(
+        (a): a is QuizAnswer => a !== null && typeof a === 'object'
+      );
       // Promote any pending drafts to submitted so the teacher's
       // results view counts them as the student's final answers.
       const finalAnswers = answers.map((a) =>
-        a && a.status === 'draft' ? { ...a, status: 'submitted' } : a
+        a.status === 'draft' ? { ...a, status: 'submitted' } : a
       );
 
-      batch.update(docSnap.ref, {
+      // Don't consume an attempt slot for a student who joined but
+      // never wrote a single answer — they'd otherwise hit the cap
+      // without seeing a question. The doc still flips to
+      // `completed` with `autoSubmitted: true` so it falls out of
+      // the live "joined" bucket; teachers can review and (if
+      // needed) clear the row via removeStudent.
+      const update: Record<string, unknown> = {
         status: 'completed',
         submittedAt: finalizedAt,
-        completedAttempts: (data.completedAttempts ?? 0) + 1,
         autoSubmitted: true,
         answers: finalAnswers,
-      });
+      };
+      if (finalAnswers.length > 0) {
+        update.completedAttempts = (data.completedAttempts ?? 0) + 1;
+      }
+      batch.update(docSnap.ref, update);
       batchOps++;
       finalized++;
 
@@ -120,7 +145,7 @@ export const finalizeIdleQuizAttempts = onSchedule(
     }
 
     console.log(
-      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (cutoff=${new Date(cutoff).toISOString()})`
+      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (cutoff=${cutoff.toDate().toISOString()})`
     );
   }
 );
