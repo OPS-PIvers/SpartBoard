@@ -148,9 +148,18 @@ export const InstructionalRoutinesManager: React.FC<
               routine={editingRoutine}
               onChange={setEditingRoutine}
               onSave={async () => {
-                await saveRoutine(editingRoutine);
-                setEditingRoutine(null);
-                addToast('Routine saved to library', 'success');
+                if (!editingRoutine) return;
+                try {
+                  await saveRoutine(editingRoutine);
+                  setEditingRoutine(null);
+                  addToast('Routine saved to library', 'success');
+                } catch (error) {
+                  console.error('Failed to save routine:', error);
+                  addToast(
+                    'Failed to save routine. Please try again.',
+                    'error'
+                  );
+                }
               }}
               onCancel={() => setEditingRoutine(null)}
             />
@@ -166,6 +175,7 @@ export const InstructionalRoutinesManager: React.FC<
           confirmLabel="Delete"
           cancelLabel="Cancel"
           onConfirm={async () => {
+            if (!deleteConfirm) return;
             try {
               await deleteRoutine(deleteConfirm.routineId);
               addToast('Routine deleted successfully', 'success');
