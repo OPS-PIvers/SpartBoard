@@ -104,6 +104,19 @@ export const getAdminBuildingConfig = (
     }
     case 'numberLine': {
       const validDisplayModes = ['integers', 'decimals', 'fractions'] as const;
+      const validFontFamilies = [
+        'sans',
+        'serif',
+        'mono',
+        'handwritten',
+        'rounded',
+        'fun',
+        'comic',
+        'slab',
+        'retro',
+        'marker',
+        'cursive',
+      ] as const;
       if (typeof raw.min === 'number' && Number.isFinite(raw.min))
         out.min = raw.min;
       if (typeof raw.max === 'number' && Number.isFinite(raw.max))
@@ -129,7 +142,10 @@ export const getAdminBuildingConfig = (
         raw.cardOpacity <= 1
       )
         out.cardOpacity = raw.cardOpacity;
-      if (typeof raw.fontFamily === 'string' && raw.fontFamily.trim() !== '')
+      if (
+        typeof raw.fontFamily === 'string' &&
+        (validFontFamilies as readonly string[]).includes(raw.fontFamily)
+      )
         out.fontFamily = raw.fontFamily;
       if (typeof raw.fontColor === 'string' && raw.fontColor.trim() !== '')
         out.fontColor = raw.fontColor;

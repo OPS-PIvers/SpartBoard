@@ -27,6 +27,9 @@ const FONT_FAMILY_OPTIONS: {
   { value: 'cursive', label: 'Cursive' },
 ];
 
+const isValidHex = (color?: string): boolean =>
+  typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color);
+
 interface NumberLineConfigurationPanelProps {
   config: NumberLineGlobalConfig;
   onChange: (newConfig: NumberLineGlobalConfig) => void;
@@ -202,7 +205,11 @@ export const NumberLineConfigurationPanel: React.FC<
             <div className="flex items-center gap-3">
               <input
                 type="color"
-                value={currentBuildingConfig.fontColor ?? '#334155'}
+                value={
+                  isValidHex(currentBuildingConfig.fontColor)
+                    ? currentBuildingConfig.fontColor
+                    : '#334155'
+                }
                 onChange={(e) =>
                   handleUpdateBuilding({ fontColor: e.target.value })
                 }
@@ -239,7 +246,11 @@ export const NumberLineConfigurationPanel: React.FC<
             <div className="flex items-center gap-3">
               <input
                 type="color"
-                value={currentBuildingConfig.cardColor ?? '#ffffff'}
+                value={
+                  isValidHex(currentBuildingConfig.cardColor)
+                    ? currentBuildingConfig.cardColor
+                    : '#ffffff'
+                }
                 onChange={(e) =>
                   handleUpdateBuilding({ cardColor: e.target.value })
                 }

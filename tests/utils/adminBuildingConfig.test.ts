@@ -232,6 +232,15 @@ describe('getAdminBuildingConfig', () => {
         { cardOpacity: 1 }
       );
     });
+
+    it('rejects fontFamily values outside the GlobalFontFamily union', () => {
+      const perm = makePerm('numberLine', {
+        high: { fontFamily: 'not-a-real-font' },
+      });
+      expect(getAdminBuildingConfig('numberLine', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
   });
 
   it('returns empty for unknown widget types', () => {
