@@ -1041,11 +1041,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
         // feature, so existing users who set up their dock before that
         // commit have dockItems but no flag — without this fallback, on
         // a new device the init effect would seed building defaults on top
-        // of their real layout. Also backfill the flag so future hydrations
-        // (and the next persistence write) carry the source of truth.
+        // of their real layout. The next dock mutation will persist the
+        // explicit flag via the persist effect below; we don't fire an
+        // extra setDoc here just to backfill (saves a per-load write).
+        //
+        // An *explicit* `dockInitialized: false` still takes precedence
+        // over the inference — that's the documented escape hatch for
+        // re-onboarding a user (admin tool or Cloud Function writes false
+        // while leaving the existing dockItems intact).
         const inferredInitialized =
-          cloudInitialized === true ||
-          (cloudDock !== null && cloudDock.length > 0);
+          cloudInitialized !== false &&
+          (cloudInitialized === true ||
+            (cloudDock !== null && cloudDock.length > 0));
         if (inferredInitialized) {
           setIsDockInitialized(true);
           localStorage.setItem('classroom_dock_initialized', 'true');

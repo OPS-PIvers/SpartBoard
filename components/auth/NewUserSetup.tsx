@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { doc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -140,18 +141,22 @@ export const NewUserSetup: React.FC = () => {
         type: 'tool',
         toolType: t,
       }));
+      // Canonicalize before persisting so legacy building IDs from
+      // useAdminBuildings (e.g. `orono-high-school`) match what every
+      // downstream consumer expects. setSelectedBuildings does this
+      // internally; we mirror it here so the atomic write doesn't
+      // briefly store the raw form.
+      const canonicalBuildings = canonicalizeBuildingIds(selectedBuildings);
 
-      // Persist the wizard's full state in a single Firestore write so we
-      // don't half-save (e.g. setupCompleted=true with no dockItems would
-      // make the empty-dock recovery effect overwrite the picks on next
-      // load). DashboardContext's dock-init effects are gated on
-      // setupCompleted, so dockItems stays the wizard's choice until this
-      // write commits.
+      // Persist dock + setup-completion atomically. The empty-dock recovery
+      // effect would otherwise overwrite the wizard's picks if setupCompleted
+      // landed without dockItems. `selectedBuildings` is intentionally NOT in
+      // this write — setSelectedBuildings owns that field, runs the same
+      // canonicalization, and mirrors to /users/{uid} for analytics.
       if (user && !isAuthBypass) {
         await setDoc(
           doc(db, 'users', user.uid, 'userProfile', 'profile'),
           {
-            selectedBuildings,
             dockItems,
             dockInitialized: true,
             setupCompleted: true,
@@ -160,19 +165,23 @@ export const NewUserSetup: React.FC = () => {
         );
       }
 
-      // Local state updates for instant UX. setSelectedBuildings/completeSetup
-      // also write to Firestore individually; those writes are now redundant
-      // (small cost, harmless) but we keep them so AuthContext stays the
-      // canonical owner of these fields.
-      await setSelectedBuildings(selectedBuildings);
+      // ORDER MATTERS: reorderDockItems must run before completeSetup.
+      // completeSetup flips local setupCompleted=true, which unblocks the
+      // dock-init effect (DashboardContext.tsx ~:859). That effect takes
+      // the localStorage-preserve branch only if reorderDockItems has
+      // already populated `classroom_dock_items`. Reversing these calls
+      // would cause one render where setupCompleted is true but dockItems
+      // is still empty, firing the recovery effect's default-seed path
+      // and clobbering the wizard's picks until next reload.
+      await setSelectedBuildings(canonicalBuildings);
       setGlobalStyle(style);
       reorderDockItems(dockItems);
       await completeSetup();
     } catch (error) {
-      // AuthContext persists changes optimistically: completeSetup / setSelectedBuildings
-      // update React state first and swallow Firestore errors internally, so they
-      // will not reach here under normal operation. If something else in this block
-      // throws unexpectedly, log it and reset the spinner so the user can retry.
+      // setSelectedBuildings and completeSetup wrap their own try/catch +
+      // logger, so a Firestore failure inside them won't reach here — but
+      // an unexpected throw from anywhere else in this block should still
+      // reset the spinner so the user can retry.
       console.error('NewUserSetup: handleFinish failed', error);
       setFinishing(false);
     }
