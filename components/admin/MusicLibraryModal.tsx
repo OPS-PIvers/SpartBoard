@@ -1,6 +1,6 @@
 import React from 'react';
 import { Music, X } from 'lucide-react';
-import { Modal } from '../common/Modal';
+import { Modal } from '@/components/common/Modal';
 import { MusicManager } from './MusicManager';
 
 interface MusicLibraryModalProps {

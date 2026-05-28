@@ -16,8 +16,8 @@ import {
   BloomsTaxonomyBuildingConfig,
   FeaturePermission,
 } from '@/types';
-import { Toast } from '../common/Toast';
-import { Modal } from '../common/Modal';
+import { Toast } from '@/components/common/Toast';
+import { Modal } from '@/components/common/Modal';
 import {
   BLOOMS_LEVELS,
   BLOOMS_LABELS,
@@ -26,8 +26,8 @@ import {
   CATEGORY_LABELS,
   type BloomsLevel,
   type ContentCategory,
-} from '../widgets/BloomsTaxonomy/constants';
-import { DEFAULT_BLOOMS_CONTENT } from '../widgets/BloomsTaxonomy/defaultContent';
+} from '@/components/widgets/BloomsTaxonomy/constants';
+import { DEFAULT_BLOOMS_CONTENT } from '@/components/widgets/BloomsTaxonomy/defaultContent';
 
 const normalizeConfig = (raw: unknown): BloomsTaxonomyGlobalConfig => {
   const config = raw as BloomsTaxonomyGlobalConfig | undefined;

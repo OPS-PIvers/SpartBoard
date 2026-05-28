@@ -3,7 +3,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { RandomGlobalConfig, BuildingRandomDefaults } from '@/types';
-import { Toggle } from '../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
 
 interface RandomConfigurationPanelProps {

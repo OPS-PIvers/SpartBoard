@@ -58,7 +58,7 @@ import { First5ConfigurationPanel } from './First5ConfigurationPanel';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 import { LunchCountConfigurationPanel } from './LunchCountConfigurationPanel';
 import { NeedDoPutThenConfigurationPanel } from './NeedDoPutThenConfigurationPanel';
-import { Toggle } from '../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 
 // Shared prop shape for all "building-defaults" config panels
 type BuildingConfigPanel = React.ComponentType<{
