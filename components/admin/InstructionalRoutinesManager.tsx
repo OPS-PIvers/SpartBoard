@@ -1,11 +1,11 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { X, Plus, Edit, Trash2, Sparkles } from 'lucide-react';
 import { useInstructionalRoutines } from '@/hooks/useInstructionalRoutines';
 import { LibraryManager } from '@/components/widgets/InstructionalRoutines/LibraryManager';
 import { InstructionalRoutine } from '@/config/instructionalRoutines';
 import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 import { getRoutineColorClasses } from '@/components/widgets/InstructionalRoutines/colorHelpers';
-import { Toast } from '@/components/common/Toast';
+import { useDashboard } from '@/context/useDashboard';
 
 interface InstructionalRoutinesManagerProps {
   onClose: () => void;
@@ -15,34 +15,13 @@ export const InstructionalRoutinesManager: React.FC<
   InstructionalRoutinesManagerProps
 > = ({ onClose }) => {
   const { routines, deleteRoutine, saveRoutine } = useInstructionalRoutines();
+  const { addToast } = useDashboard();
   const [editingRoutine, setEditingRoutine] =
     useState<InstructionalRoutine | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{
     routineId: string;
     routineName: string;
   } | null>(null);
-  const [message, setMessage] = useState<{
-    type: 'success' | 'error';
-    text: string;
-  } | null>(null);
-
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-    };
-  }, []);
-
-  const showMessage = useCallback((type: 'success' | 'error', text: string) => {
-    setMessage({ type, text });
-    if (timeoutRef.current) {
-      clearTimeout(timeoutRef.current);
-    }
-    timeoutRef.current = setTimeout(() => setMessage(null), 3000);
-  }, []);
 
   return (
     <div className="fixed inset-0 z-modal-nested bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -171,7 +150,7 @@ export const InstructionalRoutinesManager: React.FC<
               onSave={async () => {
                 await saveRoutine(editingRoutine);
                 setEditingRoutine(null);
-                showMessage('success', 'Routine saved to library');
+                addToast('Routine saved to library', 'success');
               }}
               onCancel={() => setEditingRoutine(null)}
             />
@@ -189,27 +168,15 @@ export const InstructionalRoutinesManager: React.FC<
           onConfirm={async () => {
             try {
               await deleteRoutine(deleteConfirm.routineId);
-              showMessage('success', 'Routine deleted successfully');
+              addToast('Routine deleted successfully', 'success');
             } catch (error) {
               console.error('Failed to delete routine:', error);
-              showMessage(
-                'error',
-                'Failed to delete routine. Please try again.'
-              );
+              addToast('Failed to delete routine. Please try again.', 'error');
             } finally {
               setDeleteConfirm(null);
             }
           }}
           onCancel={() => setDeleteConfirm(null)}
-        />
-      )}
-
-      {/* Toast Notification */}
-      {message && (
-        <Toast
-          message={message.text}
-          type={message.type}
-          onClose={() => setMessage(null)}
         />
       )}
     </div>
