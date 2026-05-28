@@ -1065,6 +1065,15 @@ const ActiveQuiz: React.FC<{
         (a) => a.questionId === currentQuestion.id
       )?.answer ?? null)
     : null;
+  // Synchronize `savedAnswerForCurrent` into a ref from the render body so
+  // the draft-flush effect (deps: []) compares against the live value
+  // instead of the mount-time closure capture. Without this, a student who
+  // types and triggers a save before closing the tab would see the flush
+  // compare draft against null (initial saved value) instead of the actually
+  // persisted draft — almost always benign because most diffs are nonzero,
+  // but a flush-after-no-edit would still spuriously re-write.
+  const savedAnswerForCurrentRef = useRef<string | null>(null);
+  savedAnswerForCurrentRef.current = savedAnswerForCurrent;
 
   // Hydrate the answer controls from any saved answer so a previously-
   // answered question shows the student's prior choice. For MC we set
@@ -1394,7 +1403,11 @@ const ActiveQuiz: React.FC<{
       }
       if (draft === null) return;
       if (type === 'FIB' && draft === '') return;
-      if (draft === (savedAnswerForCurrent ?? '')) return;
+      // Use the ref-synced live value rather than the closure-captured
+      // `savedAnswerForCurrent`, which was frozen at mount because this
+      // effect has [] deps. See the ref declaration above for full
+      // rationale.
+      if (draft === (savedAnswerForCurrentRef.current ?? '')) return;
 
       if (draftAutosaveTimer.current) {
         clearTimeout(draftAutosaveTimer.current);
@@ -1426,10 +1439,10 @@ const ActiveQuiz: React.FC<{
       window.removeEventListener('beforeunload', flush);
       flush();
     };
-    // savedAnswerForCurrent is intentionally not a dep — we flush against
-    // whatever the current saved value is at flush time, not on every
-    // change of saved state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Event listeners register once; the live state needed by `flush`
+    // (current question, draft values, saved-answer baseline) is read
+    // fresh at flush time via refs synced in the render body, so this
+    // effect has no React-tracked deps.
   }, []);
 
   // Watch for teacher revealing answers after student already submitted.
