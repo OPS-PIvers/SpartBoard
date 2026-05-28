@@ -16,11 +16,13 @@ import type {
   SharedQuizAssignment,
 } from '@/types';
 
-// `deleteField()` returns a Firestore sentinel; the production code stores
-// the sentinel in the patch object and Firestore SDK interprets it on the
-// wire. For tests we use a unique branded marker so assertions can verify
-// the sentinel landed in the right field without depending on the real SDK.
+// `deleteField()` and `serverTimestamp()` return Firestore sentinels; the
+// production code stores the sentinel in the patch object and Firestore SDK
+// interprets it on the wire. For tests we use unique branded markers so
+// assertions can verify the sentinel landed in the right field without
+// depending on the real SDK.
 const DELETE_FIELD_SENTINEL = Symbol('test:deleteField()');
+const SERVER_TIMESTAMP_SENTINEL = Symbol('test:serverTimestamp()');
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
@@ -32,6 +34,7 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
+  serverTimestamp: vi.fn(() => SERVER_TIMESTAMP_SENTINEL),
   updateDoc: vi.fn(),
   writeBatch: vi.fn(),
 }));
@@ -154,6 +157,7 @@ function makePublicQuestions(n: number): QuizPublicQuestion[] {
 describe('useQuizAssignments - reopenAssignment', () => {
   const batchUpdate = vi.fn();
   const batchCommit = vi.fn();
+  const mockGetDocs = getDocs as Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -170,6 +174,13 @@ describe('useQuizAssignments - reopenAssignment', () => {
       update: batchUpdate,
       commit: batchCommit,
     });
+    // `resumeAssignment` now batch-refreshes `lastWriteAt` on every
+    // joined/in-progress response so the idle-finalize cron doesn't
+    // force-finalize students on the next tick after resume. The
+    // reopen + resume tests don't seed any live responses, so an
+    // empty snapshot is the right default; tests that exercise the
+    // refresh behavior override this with their own mock.
+    mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
   });
 
   function findSessionPatch(): Record<string, unknown> {
@@ -367,6 +378,62 @@ describe('useQuizAssignments - reopenAssignment', () => {
     if (!resumeSessionCall)
       throw new Error('expected resume batch.update on quiz_sessions/*');
     expect(resumeSessionCall[1]).toMatchObject({ status: 'waiting' });
+  });
+
+  it('resumeAssignment refreshes lastWriteAt on every joined/in-progress response so the idle-finalize cron does not force-finalize resumed students on the next tick', async () => {
+    // Regression shield for PR #1736 review finding: the cron
+    // (functions/src/finalizeIdleQuizAttempts.ts) skips parent-status
+    // 'paused' / 'waiting', but if a teacher pauses on Friday and
+    // resumes Monday, `session.status` flips to 'active' while every
+    // response's `lastWriteAt` is still 48h+ stale. Without this
+    // refresh, the very next hourly cron tick after resume force-
+    // finalizes every paused student with `autoSubmitted: true`
+    // before they have a chance to type. The refresh stamps
+    // `lastWriteAt: serverTimestamp()` on each joined/in-progress
+    // response so the cron's idle threshold restarts from now.
+    const session: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'teacher',
+      status: 'paused',
+      currentQuestionIndex: 2,
+      totalQuestions: 5,
+      startedAt: 1000,
+    };
+    mockGetDoc.mockResolvedValueOnce({ data: () => session });
+
+    // Three live responses (2 joined, 1 in-progress) and one already-
+    // completed response that should NOT be touched.
+    const respRefs = {
+      r1: 'quiz_sessions/asg-1/responses/r1',
+      r2: 'quiz_sessions/asg-1/responses/r2',
+      r3: 'quiz_sessions/asg-1/responses/r3',
+    };
+    mockGetDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ ref: respRefs.r1 }, { ref: respRefs.r2 }, { ref: respRefs.r3 }],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+
+    // Every live response got a lastWriteAt: serverTimestamp() update.
+    // Asserting on the sentinel identity proves the production code
+    // didn't substitute a client-side Date.now() or other value — the
+    // new firestore.rules predicate `lastWriteAt == request.time`
+    // would reject anything that's not the server stamp.
+    const responseUpdates = batchUpdate.mock.calls.filter(
+      ([ref]) =>
+        typeof ref === 'string' &&
+        ref.startsWith('quiz_sessions/') &&
+        ref.includes('/responses/')
+    );
+    expect(responseUpdates).toHaveLength(3);
+    for (const [, patch] of responseUpdates) {
+      expect(patch).toEqual({ lastWriteAt: SERVER_TIMESTAMP_SENTINEL });
+    }
   });
 });
 

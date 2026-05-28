@@ -23,6 +23,7 @@ import {
   query,
   where,
   orderBy,
+  serverTimestamp,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
@@ -923,6 +924,43 @@ export const useQuizAssignments = (
         'active',
         neverStarted ? 'waiting' : 'active'
       );
+      // Refresh `lastWriteAt` on every joined / in-progress response so the
+      // hourly idle-finalize cron (functions/src/finalizeIdleQuizAttempts.ts)
+      // doesn't force-finalize students who paused with the teacher and
+      // haven't had a chance to re-engage yet. Without this touch, a Friday
+      // pause + Monday resume would leave responses 48h+ stale; the cron
+      // tick after resume would auto-submit every paused student before
+      // they typed a single character. Teacher branch in `firestore.rules`
+      // is unrestricted, so writing `lastWriteAt: serverTimestamp()` on
+      // student-owned response docs is allowed here. Batched so a typical
+      // 30-student session is one Firestore round-trip; sessions over the
+      // 500-op batch cap chunk into multiple batches.
+      const responsesSnap = await getDocs(
+        query(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            RESPONSES_COLLECTION
+          ),
+          where('status', 'in', ['joined', 'in-progress'])
+        )
+      );
+      if (!responsesSnap.empty) {
+        const BATCH_LIMIT = 450; // headroom under the 500-op Firestore cap
+        let batch = writeBatch(db);
+        let opsInBatch = 0;
+        for (const respSnap of responsesSnap.docs) {
+          batch.update(respSnap.ref, { lastWriteAt: serverTimestamp() });
+          opsInBatch++;
+          if (opsInBatch >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            opsInBatch = 0;
+          }
+        }
+        if (opsInBatch > 0) await batch.commit();
+      }
     },
     [userId, setStatus]
   );
