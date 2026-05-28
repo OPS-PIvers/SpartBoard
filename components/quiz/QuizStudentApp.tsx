@@ -1025,8 +1025,23 @@ const ActiveQuiz: React.FC<{
   //   - FIB: the typed string
   //   - Matching / Ordering: pipe-delimited serialization
   const [answerCache, setAnswerCache] = useState<Record<string, string>>({});
-  const answerCacheRef = useRef<Record<string, string>>(answerCache);
-  answerCacheRef.current = answerCache;
+  // Narrow ref mirror of ONLY the current question's cached value — not the
+  // whole cache. The two imperative readers below (the timer auto-submit
+  // effect and the visibility/unmount flush handler) are scoped to `[]`/
+  // single-dep effects and can't read render state, but each only ever needs
+  // the ACTIVE question's draft. Mirroring the entire cache (potentially 60
+  // multi-paragraph essay answers on a long assignment) through the ref gave
+  // those readers a handle on far more than they use; the previous
+  // `answerCacheRef.current = answerCache` was a reference alias, so it never
+  // duplicated the answer text, but a single-entry ref keeps the imperative
+  // paths honest about what they touch and the ref's retained graph O(1).
+  // The `qid` tag lets those readers confirm the mirror still matches the
+  // question they're acting on. Synced in the render body once `cachedDraft`
+  // is computed (see below).
+  const currentAnswerRef = useRef<{
+    qid: string | undefined;
+    value: string | undefined;
+  }>({ qid: undefined, value: undefined });
 
   // Per-question draft autosave timer. Coalesces autosaves for every
   // answer type — dropping non-written answers on tab close was the
@@ -1172,13 +1187,19 @@ const ActiveQuiz: React.FC<{
 
   // Keep refs for volatile state used by the countdown / autosave / flush
   // paths so the timer doesn't restart on every keystroke or selection
-  // change. Per-type live values were folded into `answerCacheRef`.
+  // change. The current question's live answer is mirrored separately
+  // into `currentAnswerRef` (synced in the render body, above) so this
+  // set only carries the values the cache doesn't represent.
   //
   // These are synced by direct assignment in the render body (not a
   // useEffect): every consumer reads them from an effect or an event
   // handler that runs AFTER commit, so assigning during render gives
   // them the freshest value with no staleness window — matching
-  // `answerCacheRef` / `submittedRef` and the project's ref-sync rule.
+  // `submittedRef` / `currentAnswerRef` and the project's ref-sync rule
+  // (CLAUDE.md "useEffect is an escape hatch, not a default"). Using an
+  // effect here would have meant any imperative reader firing in the
+  // same commit (visibility flush, structured input change) would see
+  // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
   currentQuestionRef.current = currentQuestion;
   const selectedAnswerRef = useRef(selectedAnswer);
@@ -1245,15 +1266,18 @@ const ActiveQuiz: React.FC<{
       draftAutosaveTimer.current = null;
     }
     pendingDraftRef.current = null;
-    // Pull from the cache so a half-finished value (typed essay,
-    // partial matching placement, etc.) is preserved on timeout
-    // instead of submitting empty. selectedAnswerRef is a fallback
-    // for the rare case where the student submitted, didn't touch
-    // the cache afterward, and the timer expired.
-    const answer =
-      answerCacheRef.current[autoSubmitTriggeredFor] ??
-      selectedAnswerRef.current ??
-      '';
+    // Pull from the current-answer ref so a half-finished value (typed
+    // essay, partial matching placement, etc.) is preserved on timeout
+    // instead of submitting empty. The guard above already confirmed this
+    // is the active question, so the ref's `qid` matches; check it anyway
+    // and fall back to selectedAnswerRef (the post-explicit-submit value)
+    // for the rare case where the student submitted, didn't touch the
+    // cache afterward, and the timer expired.
+    const cached =
+      currentAnswerRef.current.qid === autoSubmitTriggeredFor
+        ? currentAnswerRef.current.value
+        : undefined;
+    const answer = cached ?? selectedAnswerRef.current ?? '';
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
@@ -1283,6 +1307,28 @@ const ActiveQuiz: React.FC<{
   // available. `cachedDraft` (cache-only) is what drives autosave —
   // they intentionally differ here.
   const liveAnswer = cachedDraft ?? savedAnswerForCurrent ?? null;
+  // Mirror only the current question's cached value into the ref for the
+  // imperative readers (auto-submit, flush). `cachedDraft` is null when the
+  // question has no cache entry; store `undefined` to preserve the old
+  // per-key lookup semantics (`record[qid]` was `undefined` when absent).
+  currentAnswerRef.current = {
+    qid: currentQid,
+    value: cachedDraft ?? undefined,
+  };
+  // Submit-gating value: the cache-backed answer ONLY (no Firestore
+  // fallback). The Submit / NEXT affordances gate on this — not on
+  // `liveAnswer` — so a tap can never fire on a value the student hasn't
+  // committed to the cache: something they typed/selected this session, or
+  // that the cache-miss-fill seeded from a saved value (resume / revisit).
+  // `liveAnswer` still feeds the inputs/highlights so a saved answer shows
+  // immediately while the submit affordance waits for the cache to back it.
+  // (React coalesces the cache-miss-fill render-phase update into the same
+  // commit, so today this matches `liveAnswer` in committed renders — but
+  // gating on the cache is the correct statement of intent and stays safe
+  // if that seed ever moves into an effect, where the fallback WOULD reach
+  // a committed render and a fast tap could re-submit-and-advance an answer
+  // the student never re-affirmed.)
+  const submittableAnswer = cachedDraft;
   // Convenience cache writer for the editor / input onChange handlers.
   // Updates the cache for the current question; no-ops if there's no
   // current question (impossible in practice during render of an
@@ -1409,10 +1455,15 @@ const ActiveQuiz: React.FC<{
       const type = currentQuestionRef.current?.type;
       if (!qid || !type) return;
 
-      // Read the live value from the cache. A `null` here means the
-      // student never touched this question in the current session,
-      // so there's nothing to flush.
-      const cacheValue = answerCacheRef.current[qid];
+      // Read the live value from the narrow current-answer ref. An
+      // `undefined` here means either the student never touched this
+      // question in the current session, or the ref has already advanced to
+      // a different question — either way there's nothing for THIS question
+      // to flush.
+      const cacheValue =
+        currentAnswerRef.current.qid === qid
+          ? currentAnswerRef.current.value
+          : undefined;
       if (cacheValue === undefined) return;
       const draft = cacheValue;
       // Saved-equal short-circuit. Uses the ref-synced saved value so
@@ -1495,9 +1546,7 @@ const ActiveQuiz: React.FC<{
       // submission during the teacher's reveal-snapshot tick.
       const studentAns =
         selectedAnswer ??
-        (currentQuestion?.id
-          ? answerCacheRef.current[currentQuestion.id]
-          : undefined) ??
+        cachedDraft ??
         myResponse?.answers.find((a) => a.questionId === currentQuestion?.id)
           ?.answer;
       if (studentAns) {
@@ -1650,7 +1699,18 @@ const ActiveQuiz: React.FC<{
   // On rejection we surface a retry banner via `saveError` instead of letting
   // the failure vanish into the console; the student's selection is still
   // intact (we never reset it on error) so the same tap retries.
-  const handleSubmitAndAdvance = async (answer: string) => {
+  //
+  // `skipWrite` advances WITHOUT calling `onAnswer`. It's used by the written
+  // editor when the cache has no entry for the question (`submittableAnswer`
+  // is null): the student either never typed (a deliberate skip) or their
+  // saved answer hasn't echoed back into `myResponse` yet. In both cases
+  // writing the editor's empty value would be wrong — at best a meaningless
+  // blank, at worst an explicit-submit blank that CLOBBERS the not-yet-loaded
+  // saved essay (explicit submits bypass the `isUnsafeBlankDraft` autosave
+  // guard). Skipping the write lets the student move on while any saved answer
+  // on the server is preserved untouched. A deliberate clear (cache holds '')
+  // still writes through — `submittableAnswer` is '' there, not null.
+  const handleSubmitAndAdvance = async (answer: string, skipWrite = false) => {
     if (advancingRef.current || submitting) return;
     // Self-paced revisits are intentional re-submissions — let them through
     // even when `submitted=true`. Teacher-paced still locks after first submit.
@@ -1666,25 +1726,27 @@ const ActiveQuiz: React.FC<{
     setSubmitting(true);
     setSaveError(null);
     try {
-      let computedSpeedBonus: number | undefined;
-      if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
-        const remaining = Math.max(0, timeLeft ?? 0);
-        const bonusPct = Math.round(
-          (remaining / currentQuestion.timeLimit) * 50
-        );
-        if (bonusPct > 0) computedSpeedBonus = bonusPct;
-      }
+      if (!skipWrite) {
+        let computedSpeedBonus: number | undefined;
+        if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+          const remaining = Math.max(0, timeLeft ?? 0);
+          const bonusPct = Math.round(
+            (remaining / currentQuestion.timeLimit) * 50
+          );
+          if (bonusPct > 0) computedSpeedBonus = bonusPct;
+        }
 
-      try {
-        await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
-      } catch (err) {
-        console.error(
-          '[QuizStudentApp] onAnswer failed for question',
-          currentQuestion.id,
-          err
-        );
-        setSaveError("Couldn't save your answer. Tap to try again.");
-        return;
+        try {
+          await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+        } catch (err) {
+          console.error(
+            '[QuizStudentApp] onAnswer failed for question',
+            currentQuestion.id,
+            err
+          );
+          setSaveError("Couldn't save your answer. Tap to try again.");
+          return;
+        }
       }
 
       const isLast = currentIndex >= session.totalQuestions - 1;
@@ -1941,9 +2003,10 @@ const ActiveQuiz: React.FC<{
                     {saveError && <SaveErrorBanner message={saveError} />}
                     <button
                       onClick={() =>
-                        liveAnswer && void handleSubmitAndAdvance(liveAnswer)
+                        submittableAnswer &&
+                        void handleSubmitAndAdvance(submittableAnswer)
                       }
-                      disabled={!liveAnswer || submitting}
+                      disabled={!submittableAnswer || submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
@@ -1964,8 +2027,10 @@ const ActiveQuiz: React.FC<{
                 )
               ) : !submitted ? (
                 <button
-                  onClick={() => liveAnswer && void handleSubmit(liveAnswer)}
-                  disabled={!liveAnswer || submitting}
+                  onClick={() =>
+                    submittableAnswer && void handleSubmit(submittableAnswer)
+                  }
+                  disabled={!submittableAnswer || submitting}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (
@@ -2008,12 +2073,8 @@ const ActiveQuiz: React.FC<{
               className="w-full px-5 py-4 bg-slate-800 border-2 border-slate-700 rounded-2xl text-white text-sm focus:outline-none focus:ring-0 focus:border-violet-500 disabled:opacity-50"
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
-                const trimmed = (liveAnswer ?? '').trim();
-                // Allow an empty Enter when there's a saved answer to
-                // clear — the autosave's deliberate-clear branch refuses
-                // the write and instructs the student to use Submit/Enter,
-                // so blocking here would deadlock the clear path.
-                if (!trimmed && !savedAnswerForCurrent) return;
+                const trimmed = (submittableAnswer ?? '').trim();
+                if (!trimmed) return;
                 if (isStudentPaced) {
                   void handleSubmitAndAdvance(trimmed);
                 } else if (!submitted) {
@@ -2042,18 +2103,13 @@ const ActiveQuiz: React.FC<{
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
                     <button
-                      onClick={() => {
-                        const trimmed = (liveAnswer ?? '').trim();
-                        // Allow empty submit when there's a saved answer
-                        // to clear — autosave routes the student here for
-                        // the deliberate-clear path.
-                        if (!trimmed && !savedAnswerForCurrent) return;
-                        void handleSubmitAndAdvance(trimmed);
-                      }}
-                      disabled={
-                        submitting ||
-                        (!(liveAnswer ?? '').trim() && !savedAnswerForCurrent)
+                      onClick={() =>
+                        (submittableAnswer ?? '').trim() &&
+                        void handleSubmitAndAdvance(
+                          (submittableAnswer ?? '').trim()
+                        )
                       }
+                      disabled={!(submittableAnswer ?? '').trim() || submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
@@ -2074,18 +2130,11 @@ const ActiveQuiz: React.FC<{
                 )
               ) : !submitted ? (
                 <button
-                  onClick={() => {
-                    const trimmed = (liveAnswer ?? '').trim();
-                    // Allow empty submit when there's a saved answer to
-                    // clear — autosave routes the student here for the
-                    // deliberate-clear path.
-                    if (!trimmed && !savedAnswerForCurrent) return;
-                    void handleSubmit(trimmed);
-                  }}
-                  disabled={
-                    submitting ||
-                    (!(liveAnswer ?? '').trim() && !savedAnswerForCurrent)
+                  onClick={() =>
+                    (submittableAnswer ?? '').trim() &&
+                    void handleSubmit((submittableAnswer ?? '').trim())
                   }
+                  disabled={!(submittableAnswer ?? '').trim() || submitting}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (
@@ -2185,9 +2234,20 @@ const ActiveQuiz: React.FC<{
                 ) : (
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
+                    {/* Written NEXT stays enabled (only `submitting` gates it)
+                        so a student can advance past a blank essay; gating it
+                        on the cache like MC/FIB would trap anyone who wants to
+                        skip. When the cache HAS a value (typed, seeded, or a
+                        deliberate clear) we submit it; when it's unseeded
+                        (`submittableAnswer === null`) we advance WITHOUT writing
+                        so a fast tap can't clobber a not-yet-loaded saved essay
+                        with a blank (see handleSubmitAndAdvance `skipWrite`). */}
                     <button
                       onClick={() =>
-                        void handleSubmitAndAdvance(liveAnswer ?? '')
+                        void handleSubmitAndAdvance(
+                          submittableAnswer ?? '',
+                          submittableAnswer === null
+                        )
                       }
                       disabled={submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
@@ -2209,9 +2269,17 @@ const ActiveQuiz: React.FC<{
                   </>
                 )
               ) : !submitted ? (
+                // Teacher-paced has no self-advance, so (unlike self-paced) we
+                // can safely gate Submit on the cache: disabled while the
+                // editor is unseeded (`submittableAnswer === null`) — never
+                // typed, or the saved answer hasn't echoed yet — so a fast tap
+                // can't write a blank over a not-yet-loaded saved essay. A
+                // deliberate clear (cache holds '') is non-null, so it stays
+                // enabled. The button re-enables once the student types or the
+                // saved answer loads and seeds the cache.
                 <button
-                  onClick={() => void handleSubmit(liveAnswer ?? '')}
-                  disabled={submitting}
+                  onClick={() => void handleSubmit(submittableAnswer ?? '')}
+                  disabled={submitting || submittableAnswer === null}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (
