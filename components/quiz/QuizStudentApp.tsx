@@ -1004,27 +1004,66 @@ const ActiveQuiz: React.FC<{
   const initialTimeLimit = currentQuestion?.timeLimit ?? 0;
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [fibAnswer, setFibAnswer] = useState('');
-  const [draftMcAnswer, setDraftMcAnswer] = useState<string | null>(null);
-  // Written-response live draft (sanitized HTML). Hydrated on question
-  // change from any saved response so pause/resume next class period
-  // picks up exactly where the student left off.
-  const [writtenAnswer, setWrittenAnswer] = useState<string>('');
-  const writtenAnswerRef = useRef<string>('');
-  // Per-question draft autosave timer. Originally written-response-only;
-  // now coalesces autosaves for every answer type (MC, FIB, Matching,
-  // Ordering, short, essay) because dropping non-written answers on tab
-  // close was the primary source of the reported quiz data loss.
+
+  // Per-question live answer cache. Source of truth for editors and
+  // inputs during a session — replaces the per-type live state slots
+  // (writtenAnswer / fibAnswer / draftMcAnswer / structuredAnswerRef)
+  // that used to be reset and re-hydrated from Firestore on every
+  // question change. With the cache:
+  //   - Navigation (next/back) reads from the cache. No Firestore round
+  //     trip, no hydration race.
+  //   - The Firestore snapshot only seeds the cache on demand — once
+  //     per question, the first time it's visited with a saved value
+  //     available. After that, the local value is authoritative.
+  //   - The autosave path writes the cache value to Firestore in the
+  //     background; student typing never depends on Firestore being
+  //     current.
+  //
+  // Values are the canonical serialized form per type:
+  //   - short / essay: sanitized HTML
+  //   - MC: the chosen option string (absent if never clicked)
+  //   - FIB: the typed string
+  //   - Matching / Ordering: pipe-delimited serialization
+  const [answerCache, setAnswerCache] = useState<Record<string, string>>({});
+  // Narrow ref mirror of ONLY the current question's cached value — not the
+  // whole cache. The two imperative readers below (the timer auto-submit
+  // effect and the visibility/unmount flush handler) are scoped to `[]`/
+  // single-dep effects and can't read render state, but each only ever needs
+  // the ACTIVE question's draft. Mirroring the entire cache (potentially 60
+  // multi-paragraph essay answers on a long assignment) through the ref gave
+  // those readers a handle on far more than they use; the previous
+  // `answerCacheRef.current = answerCache` was a reference alias, so it never
+  // duplicated the answer text, but a single-entry ref keeps the imperative
+  // paths honest about what they touch and the ref's retained graph O(1).
+  // The `qid` tag lets those readers confirm the mirror still matches the
+  // question they're acting on. Synced in the render body once `cachedDraft`
+  // is computed (see below).
+  const currentAnswerRef = useRef<{
+    qid: string | undefined;
+    value: string | undefined;
+  }>({ qid: undefined, value: undefined });
+  // Questions the student has locally edited this session. Once a question
+  // is touched, the in-memory cache is authoritative for it: the
+  // seed-from-server block below stops mirroring later snapshots into it so
+  // a resync can't clobber an in-progress local edit. Untouched questions
+  // keep tracking the freshest saved value, which keeps the autosave's
+  // saved-equal short-circuit holding and prevents a stale seed from being
+  // written back over a newer server answer.
+  const touchedQuestionsRef = useRef<Set<string>>(new Set());
+  // Questions whose cache entry was seeded from a Firestore saved value
+  // (the seed-from-server block), NOT the student's own typing. The
+  // `WrittenResponseEditor` seeds its `innerHTML` once on mount, so it must
+  // remount when recovered text arrives after an empty mount — but it must
+  // NOT remount when the student types the first character. Keying the
+  // editor on general cache presence conflated the two and stole focus /
+  // reset the caret on the first keystroke; keying on this set flips
+  // `init`→`seeded` only for the recovery case.
+  const seededQuestionsRef = useRef<Set<string>>(new Set());
+
+  // Per-question draft autosave timer. Coalesces autosaves for every
+  // answer type — dropping non-written answers on tab close was the
+  // primary source of the originally reported quiz data loss.
   const draftAutosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Which question id the current `writtenAnswer` belongs to. Used by the
-  // autosave effect to refuse writes during the single render between
-  // `currentQuestion.id` advancing (student-paced submit-and-advance) and
-  // the hydration branch replacing `writtenAnswer` with the new
-  // question's saved value. Without this guard, the diff
-  // `writtenAnswer !== savedAnswerForCurrent` is briefly true on the new
-  // question and would persist the *previous* question's draft against
-  // the new question's id 500 ms later.
-  const writtenAnswerQuestionIdRef = useRef<string | undefined>(undefined);
 
   const [submitted, setSubmitted] = useState(alreadyAnswered);
   const [timeLeft, setTimeLeft] = useState<number | null>(
@@ -1075,40 +1114,51 @@ const ActiveQuiz: React.FC<{
   const savedAnswerForCurrentRef = useRef<string | null>(null);
   savedAnswerForCurrentRef.current = savedAnswerForCurrent;
 
-  // Hydrate the answer controls from any saved answer so a previously-
-  // answered question shows the student's prior choice. For MC we set
-  // `draftMcAnswer` (not `selectedAnswer`) so the existing draft styling
-  // highlights it and the NEXT button is enabled immediately. Inline so we
-  // can call it from both the question-change branch (back-nav) and the
-  // alreadyAnswered branch (page reload while answers are mid-load).
+  // Reset `selectedAnswer` on question change. The per-type live values
+  // (what's currently typed/selected) now live in `answerCache` and are
+  // populated by the seed-from-server block below — so there's
+  // nothing per-question to wipe here besides the post-submit display
+  // indicator.
   const hydrateAnswerControls = (): void => {
-    if (alreadyAnswered && savedAnswerForCurrent !== null) {
-      setSelectedAnswer(savedAnswerForCurrent);
-      setDraftMcAnswer(
-        currentQuestion?.type === 'MC' ? savedAnswerForCurrent : null
-      );
-      setFibAnswer(
-        currentQuestion?.type === 'FIB' ? savedAnswerForCurrent : ''
-      );
-    } else {
-      setSelectedAnswer(null);
-      setDraftMcAnswer(null);
-      setFibAnswer('');
-    }
-    // Always seed the written-answer slot from any saved response so
-    // pause/resume across class periods rehydrates the editor at the
-    // exact text the student left behind. Other types get an empty
-    // string here, which the editor branches never read. The
-    // question-id ref is updated in lockstep so the autosave effect
-    // refuses to write the new question with a draft that's still about
-    // to be replaced (see the autosave effect comment).
-    const isWritten =
-      currentQuestion?.type === 'short' || currentQuestion?.type === 'essay';
-    const next = isWritten ? (savedAnswerForCurrent ?? '') : '';
-    setWrittenAnswer(next);
-    writtenAnswerRef.current = next;
-    writtenAnswerQuestionIdRef.current = currentQuestion?.id;
+    setSelectedAnswer(
+      alreadyAnswered && savedAnswerForCurrent !== null
+        ? savedAnswerForCurrent
+        : null
+    );
   };
+
+  // Seed-from-server for the current question. For any question the
+  // student hasn't locally edited this session, mirror the freshest saved
+  // value into the cache so navigation / refresh / teacher-resume all
+  // recover prior work without dedicated effects. Handles the same load
+  // orders the old lazy-fill did (initial mount before myResponse arrives;
+  // page refresh mid-quiz; teacher resume / late snapshot) plus the
+  // stale-seed-clobber race. Two correctness details:
+  //
+  //   - Refresh, not fill-once: if the saved value changes while the
+  //     question is still untouched, update the cache to match so the
+  //     autosave's saved-equal short-circuit holds and never writes an
+  //     outdated seed back over a newer server answer. Touched questions
+  //     are skipped — the cache wins after the first local edit.
+  //   - Re-read `savedAnswerForCurrentRef.current` inside the updater: if a
+  //     newer snapshot lands between scheduling and React applying it, the
+  //     closure would otherwise lock the stale value into the cache.
+  if (
+    currentQuestion?.id &&
+    savedAnswerForCurrent !== null &&
+    !touchedQuestionsRef.current.has(currentQuestion.id) &&
+    answerCache[currentQuestion.id] !== savedAnswerForCurrent
+  ) {
+    const qid = currentQuestion.id;
+    // Mark as seeded BEFORE the setState so the editor questionKey (read
+    // later in this same render pass) sees the right state on this commit.
+    seededQuestionsRef.current.add(qid);
+    setAnswerCache((prev) => {
+      const fresh = savedAnswerForCurrentRef.current;
+      if (fresh === null || prev[qid] === fresh) return prev;
+      return { ...prev, [qid]: fresh };
+    });
+  }
 
   // Derived state: full reset on question change, narrow update on alreadyAnswered flips.
   //
@@ -1163,13 +1213,27 @@ const ActiveQuiz: React.FC<{
     setSubmitted(true);
   }
 
-  // Keep refs for volatile state used by the countdown effect so the timer
-  // doesn't restart on every keystroke or selection change.
+  // Keep refs for volatile state used by the countdown / autosave / flush
+  // paths so the timer doesn't restart on every keystroke or selection
+  // change. The current question's live answer is mirrored separately
+  // into `currentAnswerRef` (synced in the render body, above) so this
+  // set only carries the values the cache doesn't represent.
+  //
+  // These are synced by direct assignment in the render body (not a
+  // useEffect): every consumer reads them from an effect or an event
+  // handler that runs AFTER commit, so assigning during render gives
+  // them the freshest value with no staleness window — matching
+  // `submittedRef` / `currentAnswerRef` and the project's ref-sync rule
+  // (CLAUDE.md "useEffect is an escape hatch, not a default"). Using an
+  // effect here would have meant any imperative reader firing in the
+  // same commit (visibility flush, structured input change) would see
+  // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
+  currentQuestionRef.current = currentQuestion;
   const selectedAnswerRef = useRef(selectedAnswer);
-  const fibAnswerRef = useRef(fibAnswer);
-  const draftMcAnswerRef = useRef(draftMcAnswer);
+  selectedAnswerRef.current = selectedAnswer;
   const onAnswerRef = useRef(onAnswer);
+  onAnswerRef.current = onAnswer;
   // Mirror of `myResponse.status` for the visibility/unmount flush
   // handlers (which are scoped to `[]` deps and can't read state
   // directly). Used to short-circuit the flush after the student has
@@ -1178,57 +1242,20 @@ const ActiveQuiz: React.FC<{
   // response from `'completed'` back to `'in-progress'` and silently
   // breaking the teacher's "Finished" counter.
   const myResponseStatusRef = useRef(myResponse?.status);
-  // Mirror of the per-question `submitted` state so the imperative
-  // autosave path (Matching/Ordering's onAnswerChange) can refuse to
-  // schedule a draft write for an already-submitted question. Without
-  // this, back-navigating to a submitted structured question and
-  // triggering onAnswerChange (e.g., StructuredQuestionInput's mount
-  // effect re-emits the saved answer) downgrades the answer from
-  // `status: 'submitted'` to `status: 'draft'`, vanishing it from the
-  // teacher's results view.
+  myResponseStatusRef.current = myResponse?.status;
+  // Mirror of the per-question `submitted` state for the imperative
+  // paths (flush handler, structured-input change callbacks) that can't
+  // read state directly.
   const submittedRef = useRef(false);
   submittedRef.current = submitted;
-  // Pending draft tracker for question-change flushes. Both the state-
-  // driven autosave effect AND scheduleDraftAutosave populate this when
-  // they schedule a write; a watcher on `currentQuestion?.id` calls
-  // `write()` synchronously when the question advances, flushing the
-  // outgoing question's last edit before the new question's autosave
-  // path clobbers the shared timer slot.
+  // Pending draft tracker for question-change flushes. The state-driven
+  // autosave effect populates this when it schedules a write; a watcher
+  // on `currentQuestion?.id` calls `write()` synchronously when the
+  // question advances, flushing the outgoing question's last edit before
+  // the new question's autosave path clobbers the shared timer slot.
   const pendingDraftRef = useRef<{ qid: string; write: () => void } | null>(
     null
   );
-  // Live serialized answer for Matching/Ordering, written by the child
-  // StructuredQuestionInput on every drag/tap so timer auto-submit can
-  // capture partial placements instead of submitting the empty string.
-  const structuredAnswerRef = useRef<string>('');
-
-  useEffect(() => {
-    currentQuestionRef.current = currentQuestion;
-    selectedAnswerRef.current = selectedAnswer;
-    fibAnswerRef.current = fibAnswer;
-    draftMcAnswerRef.current = draftMcAnswer;
-    onAnswerRef.current = onAnswer;
-    writtenAnswerRef.current = writtenAnswer;
-    myResponseStatusRef.current = myResponse?.status;
-  }, [
-    currentQuestion,
-    selectedAnswer,
-    fibAnswer,
-    draftMcAnswer,
-    onAnswer,
-    writtenAnswer,
-    myResponse?.status,
-  ]);
-
-  // Reset the structured answer ref when the question changes so a stale
-  // answer from a previous question can't leak into auto-submit.
-  const [prevStructuredQuestionId, setPrevStructuredQuestionId] = useState(
-    currentQuestion?.id ?? null
-  );
-  if ((currentQuestion?.id ?? null) !== prevStructuredQuestionId) {
-    setPrevStructuredQuestionId(currentQuestion?.id ?? null);
-    structuredAnswerRef.current = '';
-  }
 
   // Countdown — only runs the interval; auto-submit is handled above.
   useEffect(() => {
@@ -1267,18 +1294,18 @@ const ActiveQuiz: React.FC<{
       draftAutosaveTimer.current = null;
     }
     pendingDraftRef.current = null;
-    // Pull from the type-appropriate live ref so a half-completed
-    // matching/ordering answer is preserved on timeout instead of
-    // submitting the empty string.
-    const answer =
-      question.type === 'Matching' || question.type === 'Ordering'
-        ? structuredAnswerRef.current
-        : question.type === 'short' || question.type === 'essay'
-          ? writtenAnswerRef.current
-          : (selectedAnswerRef.current ??
-            draftMcAnswerRef.current ??
-            fibAnswerRef.current ??
-            '');
+    // Pull from the current-answer ref so a half-finished value (typed
+    // essay, partial matching placement, etc.) is preserved on timeout
+    // instead of submitting empty. The guard above already confirmed this
+    // is the active question, so the ref's `qid` matches; check it anyway
+    // and fall back to selectedAnswerRef (the post-explicit-submit value)
+    // for the rare case where the student submitted, didn't touch the
+    // cache afterward, and the timer expired.
+    const cached =
+      currentAnswerRef.current.qid === autoSubmitTriggeredFor
+        ? currentAnswerRef.current.value
+        : undefined;
+    const answer = cached ?? selectedAnswerRef.current ?? '';
     void onAnswerRef
       .current(
         autoSubmitTriggeredFor,
@@ -1290,58 +1317,89 @@ const ActiveQuiz: React.FC<{
       });
   }, [autoSubmitTriggeredFor]);
 
-  // Per-question draft autosave for every answer type. Originally
-  // written-response-only — MC/FIB/Matching/Ordering used to only write
-  // on explicit Submit, so a tab close mid-attempt silently dropped the
-  // student's answers (the bug the user reported as "sporadic data
-  // loss"). The 500 ms debounce mirrors the PLC notes editor pattern;
-  // Submit/advance still writes the final state, so the debounce is
-  // purely a write-rate optimization.
-  //
-  // Matching/Ordering live in `structuredAnswerRef` (a ref so drag-and-
-  // drop doesn't re-render this whole component on every move), so they
-  // schedule their own autosave from the StructuredQuestionInput's
-  // `onAnswerChange` callback via `scheduleDraftAutosave` below. This
-  // effect covers the state-driven types (MC, FIB, short, essay).
+  // Per-question draft autosave driven by the live answer cache. The
+  // cache is the only source of truth for in-progress values, so this
+  // single effect now covers every answer type — MC, FIB, short,
+  // essay, matching, ordering. 500 ms debounce coalesces rapid edits.
+  // Explicit Submit / submit-and-advance write the final state through
+  // their own paths; the debounce is purely a write-rate optimization
+  // and a tab-close safety net.
+  const currentQid = currentQuestion?.id;
+  const cachedDraft =
+    currentQid && currentQid in answerCache ? answerCache[currentQid] : null;
+  // Render-time live answer for editors and inputs. Falls back to the
+  // Firestore saved value on the single render between question
+  // navigation and the seed-from-server block populating the cache, so
+  // controlled inputs (MC highlight, FIB value, structured initial
+  // seed) never flicker through an empty state when a saved value is
+  // available. `cachedDraft` (cache-only) is what drives autosave —
+  // they intentionally differ here.
+  const liveAnswer = cachedDraft ?? savedAnswerForCurrent ?? null;
+  // Mirror only the current question's cached value into the ref for the
+  // imperative readers (auto-submit, flush). `cachedDraft` is null when the
+  // question has no cache entry; store `undefined` to preserve the old
+  // per-key lookup semantics (`record[qid]` was `undefined` when absent).
+  currentAnswerRef.current = {
+    qid: currentQid,
+    value: cachedDraft ?? undefined,
+  };
+  // Submit-gating value: the cache-backed answer ONLY (no Firestore
+  // fallback). The Submit / NEXT affordances gate on this — not on
+  // `liveAnswer` — so a tap can never fire on a value the student hasn't
+  // committed to the cache: something they typed/selected this session, or
+  // that the seed-from-server seeded from a saved value (resume / revisit).
+  // `liveAnswer` still feeds the inputs/highlights so a saved answer shows
+  // immediately while the submit affordance waits for the cache to back it.
+  // (React coalesces the seed-from-server render-phase update into the same
+  // commit, so today this matches `liveAnswer` in committed renders — but
+  // gating on the cache is the correct statement of intent and stays safe
+  // if that seed ever moves into an effect, where the fallback WOULD reach
+  // a committed render and a fast tap could re-submit-and-advance an answer
+  // the student never re-affirmed.)
+  const submittableAnswer = cachedDraft;
+  // Convenience cache writer for the editor / input onChange handlers.
+  // Updates the cache for the current question; no-ops if there's no
+  // current question (impossible in practice during render of an
+  // answer slot, but keeps the type signature honest).
+  const setCacheForCurrent = (value: string): void => {
+    if (!currentQid) return;
+    // Mark the question touched so the seed-from-server block above stops
+    // mirroring later snapshots over this local edit.
+    touchedQuestionsRef.current.add(currentQid);
+    setAnswerCache((prev) => ({ ...prev, [currentQid]: value }));
+    // Clear any stale save-error banner once the student resumes editing.
+    // The deliberate-clear banner ("Click Submit to clear it") and other
+    // transient autosave errors otherwise linger on screen after the
+    // student starts typing/selecting again, which is misleading.
+    setSaveError(null);
+  };
   useEffect(() => {
-    const qid = currentQuestion?.id;
+    const qid = currentQid;
     const type = currentQuestion?.type;
     if (!qid || !type) return;
     if (submitted) return;
-
-    let draft: string | null = null;
-    if (type === 'short' || type === 'essay') {
-      // Race guard: if `currentQuestion.id` has advanced (student-paced
-      // submit-and-advance) but `hydrateAnswerControls` hasn't yet
-      // replaced `writtenAnswer` with the new question's saved value,
-      // the draft we see here is still from the previous question.
-      // Refuse to write — the next render after hydration will
-      // re-evaluate with the correct draft.
-      if (writtenAnswerQuestionIdRef.current !== qid) return;
-      draft = writtenAnswer;
-    } else if (type === 'MC') {
-      draft = draftMcAnswer;
-    } else if (type === 'FIB') {
-      draft = fibAnswer;
-    } else {
-      // Matching/Ordering autosave via scheduleDraftAutosave from the
-      // structured input's onAnswerChange; not driven by this effect.
+    // Cache miss — student hasn't touched this question this session
+    // and there's no saved value either. Nothing to write.
+    if (cachedDraft === null) return;
+    // Saved-equal short-circuit: don't write what's already on the
+    // server. Handles the "lazy-fill seeded cache from saved value"
+    // case (cache and saved are identical → no-op) and the
+    // "deliberate re-type to identical text" case.
+    if (cachedDraft === (savedAnswerForCurrent ?? '')) return;
+    // Deliberate-clear short-circuit: the student cleared a previously-
+    // saved answer. The hook's `isUnsafeBlankDraft` guard would refuse
+    // the write silently, so detect the condition here and surface a
+    // hint to the student instead of queuing a doomed timer. Submit
+    // with the explicit Submit/Next button still bypasses the guard
+    // and lets them persist an empty answer if that's really intended.
+    if (cachedDraft === '' && (savedAnswerForCurrent ?? '') !== '') {
+      setSaveError(
+        'Your previously-saved answer is still on file. Click Submit to clear it.'
+      );
       return;
     }
 
-    if (draft === null) return;
-    // Skip the initial-hydration call: if the seeded value matches what
-    // was already saved, there's nothing to write. This also handles
-    // the "FIB: empty draft + no prior save" case (both sides reduce
-    // to '') without short-circuiting on empty draft alone — which
-    // would have silently dropped a deliberate clear of a previously-
-    // saved FIB answer.
-    if (draft === (savedAnswerForCurrent ?? '')) return;
-
-    if (draftAutosaveTimer.current) {
-      clearTimeout(draftAutosaveTimer.current);
-    }
-    const snapshot = draft;
+    const snapshot = cachedDraft;
     const capturedQid = qid;
     const writeNow = () => {
       void onAnswerRef
@@ -1351,31 +1409,29 @@ const ActiveQuiz: React.FC<{
             questionId: capturedQid,
             questionType: type,
           });
-          // Surface autosave failures to the student. The new
-          // `lastWriteAt == request.time` Firestore rule (response
-          // UPDATE predicate) rejects writes from clients with stale
-          // auth tokens or session state, AND any other transient
-          // failure (offline, quota) lands here too. Without this
-          // setter the student silently loses every keystroke for up
-          // to 90 min until the idle-finalize cron sweeps them with
-          // whatever last successfully persisted. The existing
-          // SaveErrorBanner + "Retry Submit" button repurposing
-          // already handles the recovery affordance.
+          // Surface autosave failures to the student. The
+          // `lastWriteAt == request.time` Firestore rule rejects
+          // writes from clients with stale auth tokens / session
+          // state, and other transient failures (offline, quota)
+          // land here too. Without this setter the student silently
+          // loses keystrokes until the idle-finalize cron sweeps
+          // their last successfully persisted value.
           setSaveError("Couldn't save your answer. Tap to try again.");
         });
     };
+
+    if (draftAutosaveTimer.current) {
+      clearTimeout(draftAutosaveTimer.current);
+    }
     draftAutosaveTimer.current = setTimeout(writeNow, 500);
     pendingDraftRef.current = { qid: capturedQid, write: writeNow };
 
     return () => {
-      // Only clear the timer here. We CAN'T flush from this cleanup
-      // even when the question has advanced: React commits cleanups
-      // BEFORE the ref-sync effect at L1205 updates
-      // `currentQuestionRef.current` to the new id, so any condition
-      // like `currentQuestionRef.current?.id !== capturedQid` would
-      // always read stale (equal) refs and never fire. The actual
-      // flush-on-advance happens in the question-change watcher at
-      // L1418, which runs AFTER the ref-sync. handleSubmit /
+      // Only clear the timer here. We can't flush from this cleanup
+      // when the question has advanced — React runs cleanups BEFORE
+      // the ref-sync effect updates `currentQuestionRef.current`. The
+      // flush-on-advance happens in the question-change watcher
+      // below, which runs after the ref-sync. handleSubmit /
       // handleSubmitAndAdvance / the timer-expiry auto-submit effect
       // all explicitly null `pendingDraftRef.current` so the watcher
       // skips already-submitted answers.
@@ -1385,59 +1441,12 @@ const ActiveQuiz: React.FC<{
       }
     };
   }, [
-    writtenAnswer,
-    draftMcAnswer,
-    fibAnswer,
-    currentQuestion?.id,
+    cachedDraft,
+    currentQid,
     currentQuestion?.type,
     submitted,
     savedAnswerForCurrent,
   ]);
-
-  // Imperative draft autosave for ref-driven types (Matching/Ordering)
-  // whose value updates don't flow through React state. Called from the
-  // child StructuredQuestionInput's `onAnswerChange` on every drag/drop
-  // so the same 500 ms debounce window coalesces rapid placements.
-  const scheduleDraftAutosave = useCallback((qid: string, answer: string) => {
-    if (myResponseStatusRef.current === 'completed') return;
-    // Per-question guard: don't downgrade an already-submitted answer
-    // back to draft. Back-navigation in student-paced mode can land on
-    // a previously-submitted Matching/Ordering question; if
-    // StructuredQuestionInput's mount effect (or a stray drag) calls
-    // onAnswerChange, the resulting draft write would silently
-    // un-submit the question and drop it from the teacher's results.
-    if (submittedRef.current) return;
-    // Saved-equal guard: StructuredQuestionInput's mount effect re-emits
-    // the saved answer on every remount. Without this short-circuit
-    // each question advance triggers a redundant 500ms-debounced write
-    // (cost) AND overwrites pendingDraftRef.qid to the new question
-    // before the question-change watcher can flush the outgoing
-    // question's still-pending draft — silently dropping it. Mirrors
-    // the state-driven effect's `draft === savedAnswerForCurrent`
-    // short-circuit.
-    if (answer === (savedAnswerForCurrentRef.current ?? '')) return;
-    if (draftAutosaveTimer.current) {
-      clearTimeout(draftAutosaveTimer.current);
-    }
-    const writeNow = () => {
-      void onAnswerRef
-        .current(qid, answer, undefined, { isDraft: true })
-        .catch((err: unknown) => {
-          logError('QuizStudentApp.draftAutosave', err, {
-            questionId: qid,
-            questionType: 'structured',
-          });
-          // Same rationale as the state-driven autosave path above:
-          // surface autosave failures so the student isn't silently
-          // losing Matching/Ordering placements when Firestore rejects
-          // (rule denial, expired auth, offline) until the idle-finalize
-          // cron picks them up 90 min later.
-          setSaveError("Couldn't save your answer. Tap to try again.");
-        });
-    };
-    draftAutosaveTimer.current = setTimeout(writeNow, 500);
-    pendingDraftRef.current = { qid, write: writeNow };
-  }, []);
 
   // Question-change watcher: if a draft is pending for the OUTGOING
   // question when the user advances, flush it synchronously before
@@ -1482,32 +1491,23 @@ const ActiveQuiz: React.FC<{
       const type = currentQuestionRef.current?.type;
       if (!qid || !type) return;
 
-      let draft: string | null = null;
-      switch (type) {
-        case 'short':
-        case 'essay':
-          draft = writtenAnswerRef.current;
-          break;
-        case 'MC':
-          draft = draftMcAnswerRef.current;
-          break;
-        case 'FIB':
-          draft = fibAnswerRef.current;
-          break;
-        case 'Matching':
-        case 'Ordering':
-          draft = structuredAnswerRef.current;
-          break;
-        default:
-          return;
-      }
-      if (draft === null) return;
-      // Use the ref-synced live value rather than the closure-captured
-      // `savedAnswerForCurrent`, which was frozen at mount because this
-      // effect has [] deps. The saved-equal check handles the "never
-      // typed" empty case (saved null, draft '') without short-
-      // circuiting on empty draft alone — which would have silently
-      // dropped a deliberate clear of a previously-saved FIB answer.
+      // Read the live value from the narrow current-answer ref. An
+      // `undefined` here means either the student never touched this
+      // question in the current session, or the ref has already advanced to
+      // a different question — either way there's nothing for THIS question
+      // to flush.
+      const cacheValue =
+        currentAnswerRef.current.qid === qid
+          ? currentAnswerRef.current.value
+          : undefined;
+      if (cacheValue === undefined) return;
+      const draft = cacheValue;
+      // Saved-equal short-circuit. Uses the ref-synced saved value so
+      // the [] deps don't freeze the closure. Handles the "never typed"
+      // empty case (saved null, draft '') without short-circuiting on
+      // empty draft alone — a deliberate clear of a previously-saved
+      // answer is allowed through; the #1 guard in submitAnswer
+      // refuses the unsafe blank-over-non-blank case from there.
       if (draft === (savedAnswerForCurrentRef.current ?? '')) return;
 
       if (draftAutosaveTimer.current) {
@@ -1574,8 +1574,15 @@ const ActiveQuiz: React.FC<{
       session.showResultToStudent &&
       answerFeedback === null
     ) {
+      // Read order: selectedAnswer (post-explicit-submit) → cache (timer
+      // auto-submit landed but the response listener hasn't echoed yet)
+      // → Firestore answers as the final fallback. Without the cache
+      // hop, an auto-submitted answer compared against a stale
+      // myResponse can produce a false-incorrect on a correct
+      // submission during the teacher's reveal-snapshot tick.
       const studentAns =
         selectedAnswer ??
+        cachedDraft ??
         myResponse?.answers.find((a) => a.questionId === currentQuestion?.id)
           ?.answer;
       if (studentAns) {
@@ -1728,7 +1735,18 @@ const ActiveQuiz: React.FC<{
   // On rejection we surface a retry banner via `saveError` instead of letting
   // the failure vanish into the console; the student's selection is still
   // intact (we never reset it on error) so the same tap retries.
-  const handleSubmitAndAdvance = async (answer: string) => {
+  //
+  // `skipWrite` advances WITHOUT calling `onAnswer`. It's used by the written
+  // editor when the cache has no entry for the question (`submittableAnswer`
+  // is null): the student either never typed (a deliberate skip) or their
+  // saved answer hasn't echoed back into `myResponse` yet. In both cases
+  // writing the editor's empty value would be wrong — at best a meaningless
+  // blank, at worst an explicit-submit blank that CLOBBERS the not-yet-loaded
+  // saved essay (explicit submits bypass the `isUnsafeBlankDraft` autosave
+  // guard). Skipping the write lets the student move on while any saved answer
+  // on the server is preserved untouched. A deliberate clear (cache holds '')
+  // still writes through — `submittableAnswer` is '' there, not null.
+  const handleSubmitAndAdvance = async (answer: string, skipWrite = false) => {
     if (advancingRef.current || submitting) return;
     // Self-paced revisits are intentional re-submissions — let them through
     // even when `submitted=true`. Teacher-paced still locks after first submit.
@@ -1744,25 +1762,27 @@ const ActiveQuiz: React.FC<{
     setSubmitting(true);
     setSaveError(null);
     try {
-      let computedSpeedBonus: number | undefined;
-      if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
-        const remaining = Math.max(0, timeLeft ?? 0);
-        const bonusPct = Math.round(
-          (remaining / currentQuestion.timeLimit) * 50
-        );
-        if (bonusPct > 0) computedSpeedBonus = bonusPct;
-      }
+      if (!skipWrite) {
+        let computedSpeedBonus: number | undefined;
+        if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+          const remaining = Math.max(0, timeLeft ?? 0);
+          const bonusPct = Math.round(
+            (remaining / currentQuestion.timeLimit) * 50
+          );
+          if (bonusPct > 0) computedSpeedBonus = bonusPct;
+        }
 
-      try {
-        await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
-      } catch (err) {
-        console.error(
-          '[QuizStudentApp] onAnswer failed for question',
-          currentQuestion.id,
-          err
-        );
-        setSaveError("Couldn't save your answer. Tap to try again.");
-        return;
+        try {
+          await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+        } catch (err) {
+          console.error(
+            '[QuizStudentApp] onAnswer failed for question',
+            currentQuestion.id,
+            err
+          );
+          setSaveError("Couldn't save your answer. Tap to try again.");
+          return;
+        }
       }
 
       const isLast = currentIndex >= session.totalQuestions - 1;
@@ -1959,12 +1979,17 @@ const ActiveQuiz: React.FC<{
         {currentQuestion.type === 'MC' && (
           <div className="space-y-3 flex-1">
             {options.map((opt) => {
-              // Self-paced revisits stay editable, so we use the draft styling
-              // (and `draftMcAnswer` highlight) even when `submitted=true`.
+              // Self-paced revisits stay editable, so the highlight tracks
+              // the live cache value. When locked, fall back to the
+              // post-submit `selectedAnswer` indicator; timer auto-submit
+              // never sets selectedAnswer, so degrade to liveAnswer so the
+              // student can still see which option was submitted from
+              // their cached pick.
               const isLocked = submitted && !isStudentPaced;
+              const lockedRef = selectedAnswer ?? liveAnswer;
               const isSelected = isLocked
-                ? selectedAnswer === opt
-                : draftMcAnswer === opt;
+                ? lockedRef === opt
+                : liveAnswer === opt;
               let cls =
                 'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
               if (!isLocked) {
@@ -1979,7 +2004,7 @@ const ActiveQuiz: React.FC<{
               return (
                 <button
                   key={opt}
-                  onClick={() => !isLocked && setDraftMcAnswer(opt)}
+                  onClick={() => !isLocked && setCacheForCurrent(opt)}
                   disabled={isLocked || submitting}
                   className={cls}
                 >
@@ -2014,10 +2039,10 @@ const ActiveQuiz: React.FC<{
                     {saveError && <SaveErrorBanner message={saveError} />}
                     <button
                       onClick={() =>
-                        draftMcAnswer &&
-                        void handleSubmitAndAdvance(draftMcAnswer)
+                        submittableAnswer &&
+                        void handleSubmitAndAdvance(submittableAnswer)
                       }
-                      disabled={!draftMcAnswer || submitting}
+                      disabled={!submittableAnswer || submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
@@ -2039,9 +2064,9 @@ const ActiveQuiz: React.FC<{
               ) : !submitted ? (
                 <button
                   onClick={() =>
-                    draftMcAnswer && void handleSubmit(draftMcAnswer)
+                    submittableAnswer && void handleSubmit(submittableAnswer)
                   }
-                  disabled={!draftMcAnswer || submitting}
+                  disabled={!submittableAnswer || submitting}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (
@@ -2077,14 +2102,14 @@ const ActiveQuiz: React.FC<{
           <div className="space-y-4 flex-1">
             <input
               type="text"
-              value={fibAnswer}
-              onChange={(e) => setFibAnswer(e.target.value)}
+              value={liveAnswer ?? ''}
+              onChange={(e) => setCacheForCurrent(e.target.value)}
               disabled={submitted && !isStudentPaced}
               placeholder="Type your answer…"
               className="w-full px-5 py-4 bg-slate-800 border-2 border-slate-700 rounded-2xl text-white text-sm focus:outline-none focus:ring-0 focus:border-violet-500 disabled:opacity-50"
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
-                const trimmed = fibAnswer.trim();
+                const trimmed = (submittableAnswer ?? '').trim();
                 if (!trimmed) return;
                 if (isStudentPaced) {
                   void handleSubmitAndAdvance(trimmed);
@@ -2115,10 +2140,12 @@ const ActiveQuiz: React.FC<{
                     {saveError && <SaveErrorBanner message={saveError} />}
                     <button
                       onClick={() =>
-                        fibAnswer.trim() &&
-                        void handleSubmitAndAdvance(fibAnswer.trim())
+                        (submittableAnswer ?? '').trim() &&
+                        void handleSubmitAndAdvance(
+                          (submittableAnswer ?? '').trim()
+                        )
                       }
-                      disabled={!fibAnswer.trim() || submitting}
+                      disabled={!(submittableAnswer ?? '').trim() || submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
@@ -2140,9 +2167,10 @@ const ActiveQuiz: React.FC<{
               ) : !submitted ? (
                 <button
                   onClick={() =>
-                    fibAnswer.trim() && void handleSubmit(fibAnswer.trim())
+                    (submittableAnswer ?? '').trim() &&
+                    void handleSubmit((submittableAnswer ?? '').trim())
                   }
-                  disabled={!fibAnswer.trim() || submitting}
+                  disabled={!(submittableAnswer ?? '').trim() || submitting}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (
@@ -2181,14 +2209,25 @@ const ActiveQuiz: React.FC<{
             question={currentQuestion}
             submitted={submitted}
             isAutoSubmitted={autoSubmitTriggeredFor === currentQuestion.id}
-            savedAnswer={savedAnswerForCurrent}
+            savedAnswer={liveAnswer}
             onSubmit={(answer) => void handleSubmit(answer)}
             onSubmitAndAdvance={(answer) => void handleSubmitAndAdvance(answer)}
             onAnswerChange={(answer) => {
-              structuredAnswerRef.current = answer;
-              // Persist the placement as a draft so a tab close before
-              // Submit doesn't lose the student's in-progress pairings.
-              scheduleDraftAutosave(currentQuestion.id, answer);
+              // The input remounts per question (keyed by id) and its mount
+              // effect re-emits the seeded answer. Skip the write when the
+              // emitted value already matches the cached value: a back-nav
+              // remount would otherwise mark the question touched (freezing
+              // out the seed-from-server refresh) and churn the autosave /
+              // pollute the history log for a no-op overwrite. Genuine
+              // placements differ from the cache and fall through.
+              if (
+                currentAnswerRef.current.qid === currentQid &&
+                currentAnswerRef.current.value === answer
+              )
+                return;
+              // Push the live placement into the cache; the autosave
+              // effect picks it up and debounces the Firestore write.
+              setCacheForCurrent(answer);
             }}
             submitting={submitting}
             isStudentPaced={isStudentPaced}
@@ -2209,15 +2248,28 @@ const ActiveQuiz: React.FC<{
               }
             >
               <WrittenResponseEditor
-                questionKey={currentQuestion.id}
-                value={writtenAnswer}
-                onChange={(html) => {
-                  setWrittenAnswer(html);
-                  writtenAnswerRef.current = html;
-                  // Mark the draft as belonging to this question so the
-                  // autosave race guard lets it through.
-                  writtenAnswerQuestionIdRef.current = currentQuestion.id;
-                }}
+                // The editor seeds its `innerHTML` once on mount (caret
+                // preservation), so we encode a "recovered text needs
+                // injecting" boolean in the questionKey. A page refresh
+                // mid-essay first mounts with value='' (cache empty,
+                // saved null); when the Firestore snapshot arrives the
+                // seed-from-server block recovery-seeds the cache, the key
+                // flips from `…:init` → `…:seeded`, and the editor
+                // remounts with the recovered text. Without this, the
+                // student stares at a blank editor while React state
+                // already holds the recovered value.
+                //
+                // Keyed on `seededQuestionsRef` (Firestore-sourced seeds)
+                // rather than general cache presence: a student's own first
+                // keystroke also populates `answerCache`, and keying on that
+                // remounted the editor mid-type, stealing focus and the caret.
+                questionKey={`${currentQuestion.id}:${
+                  seededQuestionsRef.current.has(currentQuestion.id)
+                    ? 'seeded'
+                    : 'init'
+                }`}
+                value={liveAnswer ?? ''}
+                onChange={(html) => setCacheForCurrent(html)}
                 placeholder={currentQuestion.placeholder}
                 maxWords={currentQuestion.maxWords}
                 disabled={submitted && !isStudentPaced}
@@ -2237,8 +2289,21 @@ const ActiveQuiz: React.FC<{
                 ) : (
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
+                    {/* Written NEXT stays enabled (only `submitting` gates it)
+                        so a student can advance past a blank essay; gating it
+                        on the cache like MC/FIB would trap anyone who wants to
+                        skip. When the cache HAS a value (typed, seeded, or a
+                        deliberate clear) we submit it; when it's unseeded
+                        (`submittableAnswer === null`) we advance WITHOUT writing
+                        so a fast tap can't clobber a not-yet-loaded saved essay
+                        with a blank (see handleSubmitAndAdvance `skipWrite`). */}
                     <button
-                      onClick={() => void handleSubmitAndAdvance(writtenAnswer)}
+                      onClick={() =>
+                        void handleSubmitAndAdvance(
+                          submittableAnswer ?? '',
+                          submittableAnswer === null
+                        )
+                      }
                       disabled={submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
@@ -2259,9 +2324,17 @@ const ActiveQuiz: React.FC<{
                   </>
                 )
               ) : !submitted ? (
+                // Teacher-paced has no self-advance, so (unlike self-paced) we
+                // can safely gate Submit on the cache: disabled while the
+                // editor is unseeded (`submittableAnswer === null`) — never
+                // typed, or the saved answer hasn't echoed yet — so a fast tap
+                // can't write a blank over a not-yet-loaded saved essay. A
+                // deliberate clear (cache holds '') is non-null, so it stays
+                // enabled. The button re-enables once the student types or the
+                // saved answer loads and seeds the cache.
                 <button
-                  onClick={() => void handleSubmit(writtenAnswer)}
-                  disabled={submitting}
+                  onClick={() => void handleSubmit(submittableAnswer ?? '')}
+                  disabled={submitting || submittableAnswer === null}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (

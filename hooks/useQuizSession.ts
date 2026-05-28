@@ -19,6 +19,7 @@ import {
   collection,
   onSnapshot,
   setDoc,
+  addDoc,
   updateDoc,
   getDocs,
   getDoc,
@@ -65,6 +66,25 @@ export const RESPONSES_COLLECTION = 'responses';
  */
 export const ARCHIVED_RESPONSES_COLLECTION = 'archived_responses';
 /**
+ * Append-only per-response snapshot log. Each entry captures the prior
+ * value of a question's answer just before it gets overwritten in the
+ * `responses/{rid}.answers` array, so a teacher (or admin) can recover
+ * text that was lost to a race, a stray empty draft, or a student who
+ * retyped over their own work. Writes are fire-and-forget and throttled
+ * per-question (see `HISTORY_SNAPSHOT_THROTTLE_MS`) to keep storage and
+ * write costs bounded — typical essay quiz has a low double-digit
+ * count per student.
+ */
+export const RESPONSE_HISTORY_COLLECTION = 'history';
+/**
+ * Minimum interval between history snapshots for the same questionId on
+ * the same response. The autosave debounce is 500 ms; without throttling
+ * a long essay would fan out to hundreds of near-identical history docs.
+ * 5 s gives "enough resolution to recover meaningful state" without
+ * making history a per-keystroke audit log.
+ */
+const HISTORY_SNAPSHOT_THROTTLE_MS = 5000;
+/**
  * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
  * and accumulates a student's completed-attempt count across every session
  * the teacher creates for the same quiz. Without this collection, the
@@ -88,6 +108,72 @@ export function quizLedgerKey(quizId: string, studentUid: string): string {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Defensive predicate: refuse a draft autosave that would overwrite a
+ * non-empty saved answer with the empty string. Almost always indicates
+ * a race (editor briefly emitted '' after a remount or a hydration miss)
+ * rather than a deliberate clear. Explicit submits (`isDraft=false`)
+ * bypass this — a student who really wants to clear an answer can still
+ * submit empty.
+ */
+export function isUnsafeBlankDraft(
+  answer: string,
+  isDraft: boolean,
+  priorEntry: QuizResponseAnswer | undefined
+): boolean {
+  return isDraft && answer === '' && !!priorEntry && priorEntry.answer !== '';
+}
+
+/**
+ * Defensive predicate: refuse a draft autosave that would downgrade an
+ * already-submitted answer's status to 'draft'. The cache-driven
+ * autosave path can re-fire for the same question during the SSO
+ * listener-fast race window (back-nav before the response listener
+ * echoes the just-submitted answer back, so the local `submitted` state
+ * briefly flips false), and without this guard the autosave silently
+ * flips status 'submitted' → 'draft' and drops the question from the
+ * teacher's "Finished" view. Explicit submits (`isDraft=false`) still
+ * pass through.
+ */
+export function isUnsafeStatusDowngrade(
+  isDraft: boolean,
+  priorEntry: QuizResponseAnswer | undefined
+): boolean {
+  // Use `!== 'draft'` rather than `=== 'submitted'` so legacy entries
+  // with `status === undefined` (predate the draft flag — treated as
+  // submitted everywhere else via `isAnswerSubmitted`) are also
+  // protected from being silently downgraded to draft.
+  return isDraft && priorEntry !== undefined && priorEntry.status !== 'draft';
+}
+
+/**
+ * Decide whether to snapshot the prior answer entry to the history
+ * subcollection before overwriting. Captures any prior non-empty value
+ * the incoming write is about to lose — either because the text
+ * changed, or because the status is being destructively downgraded
+ * from 'submitted' to 'draft' (which can erase grading state even
+ * with identical text). The per-question throttle keeps a long essay
+ * from fanning out to hundreds of near-identical docs.
+ */
+export function shouldSnapshotHistory(
+  priorEntry: QuizResponseAnswer | undefined,
+  newAnswer: string,
+  newIsDraft: boolean,
+  lastSnapshotAt: number,
+  now: number,
+  throttleMs: number = HISTORY_SNAPSHOT_THROTTLE_MS
+): boolean {
+  if (!priorEntry) return false;
+  if (priorEntry.answer === '') return false;
+  const textChanged = priorEntry.answer !== newAnswer;
+  // Mirror `isUnsafeStatusDowngrade`: treat legacy entries with
+  // `status === undefined` as submitted so a downgrade attempt on a
+  // legacy answer still gets a forensic snapshot.
+  const statusDowngrade = priorEntry.status !== 'draft' && newIsDraft;
+  if (!textChanged && !statusDowngrade) return false;
+  return now - lastSnapshotAt >= throttleMs;
+}
 
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
 function fisherYatesShuffle<T>(arr: T[]): T[] {
@@ -733,6 +819,39 @@ export const useQuizSessionTeacher = (
             )
           : null;
 
+      // Clean up the answer-history subcollection BEFORE deleting the
+      // parent response. Firestore does not cascade subcollection
+      // deletes, so without this the snapshots orphan — and because the
+      // response key is deterministic (`auth.uid` for SSO, `pin-…` for
+      // anonymous), a removed student who rejoins lands on the same key
+      // and the history read rule (`request.auth.uid == parentStudentUid`)
+      // would let them read their own prior-attempt drafts. The teacher's
+      // archive preserves the final answers; the intermediate-draft
+      // history is intentionally discarded on removal. Chunked at 450 to
+      // stay under the 500-op Firestore batch limit; these are independent
+      // of the atomic archive+delete batch below, so a partial failure
+      // just leaves a smaller orphan tail that a retry sweeps.
+      const historyDocs = (
+        await getDocs(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_COLLECTION,
+            responseKey,
+            RESPONSE_HISTORY_COLLECTION
+          )
+        )
+      ).docs;
+      const HISTORY_DELETE_CHUNK = 450;
+      for (let i = 0; i < historyDocs.length; i += HISTORY_DELETE_CHUNK) {
+        const historyBatch = writeBatch(db);
+        for (const d of historyDocs.slice(i, i + HISTORY_DELETE_CHUNK)) {
+          historyBatch.delete(d.ref);
+        }
+        await historyBatch.commit();
+      }
+
       // Archive the response before delete so partial answers survive
       // the teacher's "remove" action. The deterministic key model
       // means we can't soft-delete in place (the slot must be free for
@@ -1132,6 +1251,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
 
+  // Per-questionId timestamp of the most recent history snapshot write.
+  // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
+  const lastHistorySnapshotAtRef = useRef<Map<string, number>>(new Map());
+
   // Optimistic local counter state to ensure UI updates immediately.
   // warningCountRef mirrors the state so reportTabSwitch can return the
   // updated value synchronously (React functional updaters run on the next
@@ -1282,6 +1405,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     ): Promise<string> => {
       setLoading(true);
       setError(null);
+      // Clear per-question history throttle on every join. The same hook
+      // instance survives a teacher unlock / attempt-cap rejoin, so a
+      // stale `lastSnapshotAt` from the prior attempt would suppress
+      // legitimate snapshots in the new one.
+      lastHistorySnapshotAtRef.current.clear();
       try {
         const normCode = code
           .trim()
@@ -1912,6 +2040,85 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // only) from an explicit submit. The student's `alreadyAnswered` gate
       // checks for `'submitted'` so a draft autosave doesn't masquerade as
       // a final answer and prematurely fire the completion card.
+      const existingAnswers = myResponseRef.current?.answers ?? [];
+      const priorEntry = existingAnswers.find(
+        (a) => a.questionId === questionId
+      );
+
+      // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
+      // that would silently clobber a non-empty saved answer with ''.
+      if (isUnsafeBlankDraft(answer, opts?.isDraft === true, priorEntry)) {
+        return;
+      }
+
+      // #5 history snapshot decision — runs BEFORE the status-downgrade
+      // guard so a rejected downgrade attempt is still recorded as a
+      // forensic snapshot. Without this ordering, the downgrade branch
+      // of `shouldSnapshotHistory` was unreachable in production
+      // (`isUnsafeStatusDowngrade` returns early on the very condition
+      // the snapshot path wants to capture). Keeping it here means the
+      // recovery log records both completed and rejected overwrites.
+      const now = Date.now();
+      const lastAt = lastHistorySnapshotAtRef.current.get(questionId) ?? 0;
+      const wantSnapshot =
+        !!priorEntry &&
+        shouldSnapshotHistory(
+          priorEntry,
+          answer,
+          opts?.isDraft === true,
+          lastAt,
+          now
+        );
+      if (wantSnapshot && priorEntry) {
+        // Consume the throttle slot eagerly — BEFORE issuing the addDoc
+        // — so a tap-storm with multiple in-flight writes can't all see
+        // the same stale `lastAt` and slip past the throttle, and an
+        // out-of-order resolution can't move the timestamp backwards.
+        // A one-time failure burns the throttle slot for the window
+        // (logged below); the alternative is unbounded write-
+        // amplification on a flaky network, which is the worse failure
+        // mode for a fire-and-forget safety net.
+        lastHistorySnapshotAtRef.current.set(questionId, now);
+        void addDoc(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_COLLECTION,
+            responseKey,
+            RESPONSE_HISTORY_COLLECTION
+          ),
+          {
+            questionId: priorEntry.questionId,
+            answer: priorEntry.answer,
+            // `answeredAt` is typed `number` (required) but Firestore
+            // can return any shape on legacy docs — fall back to `now`
+            // so the rule's required-fields check still passes instead
+            // of crashing on `undefined`.
+            answeredAt: priorEntry.answeredAt ?? now,
+            // Narrow explicitly rather than `?? 'submitted'`: the rule
+            // pins `status in ['draft','submitted']`, so any future
+            // schema value would silently fail every history write.
+            status: priorEntry.status === 'draft' ? 'draft' : 'submitted',
+            snapshotAt: serverTimestamp(),
+          }
+        ).catch((err: unknown) => {
+          // Safety-net write — recovery still works without it, so we
+          // don't surface to the student. But log it: a silently
+          // failing recovery net (e.g. a future rules/schema drift)
+          // should be visible rather than vanish.
+          console.error('[useQuizSession] history snapshot write failed:', err);
+        });
+      }
+
+      // Status-downgrade guard — see `isUnsafeStatusDowngrade` doc.
+      // Stops the back-nav listener-lag race from silently flipping a
+      // 'submitted' answer back to 'draft' status. Runs AFTER the
+      // history snapshot so the rejected attempt is still recorded.
+      if (isUnsafeStatusDowngrade(opts?.isDraft === true, priorEntry)) {
+        return;
+      }
+
       const newAnswer: QuizResponseAnswer = {
         questionId,
         answer,
@@ -1922,7 +2129,6 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           : {}),
       };
 
-      const existingAnswers = myResponseRef.current?.answers ?? [];
       const updated = [
         ...existingAnswers.filter((a) => a.questionId !== questionId),
         newAnswer,

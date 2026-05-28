@@ -691,3 +691,395 @@ describe('QuizStudentApp — self-paced flow', () => {
     );
   });
 });
+
+// ─── In-memory answer cache (#2 fix) ──────────────────────────────────────────
+//
+// The cache makes question navigation read from local state instead of
+// re-fetching from the Firestore snapshot. These tests cover the two
+// scenarios where the prior hydration-on-every-question-change design
+// could (and did) lose student work in production:
+//   - Next → Back when the response listener hadn't echoed the just-
+//     submitted answer back yet.
+//   - A late-arriving snapshot for the current question (teacher resume,
+//     SSO listener-fast race) seeding a blank that overwrites local edits.
+
+describe('QuizStudentApp — in-memory answer cache', () => {
+  it('preserves the locally-selected MC option across Next → Back even when Firestore never echoes the submit', async () => {
+    // Drop the default `appendAnswer` side-effect so the answer is never
+    // visible via `myResponse`. The cache is then the ONLY thing
+    // remembering which option the student picked — exactly the pre-fix
+    // race scenario where the snapshot listener fell behind.
+    mockSubmitAnswer.mockImplementation(async () => {
+      // No-op: don't update hookState, don't trigger refresh.
+    });
+    const user = userEvent.setup();
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // Pick "4", advance to Q2.
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+
+    // Back to Q1.
+    await user.click(
+      screen.getByRole('button', { name: /Previous question/i })
+    );
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // "4" must still be highlighted in the editable draft style. Before
+    // the cache fix this would have come back blank because
+    // savedAnswerForCurrent was null and hydrate seeded the editor with
+    // an empty value.
+    const choice = screen.getByRole('button', { name: '4' });
+    expect(choice.className).toContain('border-violet-500');
+  });
+
+  it('does not clobber a locally-selected option when a snapshot with empty answers fires after the click', async () => {
+    // Simulates the "teacher resume" / late-snapshot race: the student
+    // clicks an option, then a Firestore snapshot arrives for the SAME
+    // question with no saved answer. Pre-fix the editor was reset to
+    // the saved value via hydrateAnswerControls and the student saw
+    // their selection vanish. Post-fix the cache wins because it
+    // already has a value for this question.
+    const user = userEvent.setup();
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '4' }));
+    expect(screen.getByRole('button', { name: '4' }).className).toContain(
+      'border-violet-500'
+    );
+
+    // Fire a snapshot for an empty response — the kind of state the
+    // listener briefly returns after a teacher unlock or a slow round
+    // trip.
+    act(() => {
+      hookState.myResponse = buildResponse({ answers: [] });
+      triggerRefresh();
+    });
+
+    // Selection must still be intact.
+    expect(screen.getByRole('button', { name: '4' }).className).toContain(
+      'border-violet-500'
+    );
+  });
+
+  it('does not write a stale seed over a newer snapshot value (untouched question)', async () => {
+    // The student never touches q1 this session — its value comes purely
+    // from the server. The saved answer is a DRAFT so `submitted` stays
+    // false and the autosave path stays armed. The cache seeds from the
+    // first snapshot, then a later snapshot (teacher resync, listener
+    // catch-up) moves the saved value to a NEWER one — still with no local
+    // edit. Pre-fix the cache kept the first seed ('4') while saved moved to
+    // '5', and the autosave diffed the two and wrote the stale '4' back over
+    // the server's '5'. The seed-from-server block must track the freshest
+    // saved value for untouched questions.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockSubmitAnswer.mockImplementation(async () => {
+        // No-op: keep writes out of `myResponse` so we can assert exactly
+        // what the autosave did (and didn't) attempt to persist.
+      });
+      hookState.myResponse = buildResponse({
+        answers: [
+          {
+            questionId: 'q1',
+            answer: '4',
+            answeredAt: Date.now(),
+            status: 'draft',
+          },
+        ],
+      });
+
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+      // A newer snapshot for the SAME untouched question.
+      act(() => {
+        hookState.myResponse = buildResponse({
+          answers: [
+            {
+              questionId: 'q1',
+              answer: '5',
+              answeredAt: Date.now() + 1,
+              status: 'draft',
+            },
+          ],
+        });
+        triggerRefresh();
+      });
+
+      // Drain the 500 ms autosave debounce.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+
+      // The newer value won the cache — '5' carries the editable draft
+      // highlight, not the stale '4'.
+      expect(screen.getByRole('button', { name: '5' }).className).toContain(
+        'border-violet-500'
+      );
+      // And the stale '4' was never autosaved back over the server's '5'.
+      expect(mockSubmitAnswer).not.toHaveBeenCalledWith('q1', '4', undefined, {
+        isDraft: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('back-nav to a saved Matching question keeps it seed-tracked (no stale draft write after a resync)', async () => {
+    // StructuredQuestionInput remounts per question and its mount effect
+    // re-emits the seeded answer through onAnswerChange. If that no-op
+    // re-emit reached setCacheForCurrent it would mark the never-edited
+    // question touched, freezing out the seed-from-server refresh — so a
+    // later resync to a newer saved value would be ignored and the autosave
+    // would write the stale draft back over it. The re-emit guard skips it,
+    // keeping the question untouched and seed-tracked.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const matching: QuizPublicQuestion = {
+        id: 'qm',
+        type: 'Matching',
+        text: 'Match the capitals',
+        timeLimit: 0,
+        matchingLeft: ['France', 'Germany'],
+        matchingRight: ['Paris', 'Berlin'],
+      };
+      hookState.session = buildSession({
+        publicQuestions: [QUESTIONS[0], matching],
+        totalQuestions: 2,
+      });
+      // Matching answer saved as a DRAFT so `submitted` stays false (autosave
+      // armed) and the question renders its editable form.
+      hookState.myResponse = buildResponse({
+        answers: [
+          {
+            questionId: 'qm',
+            answer: 'France:Paris|Germany:Berlin',
+            answeredAt: Date.now(),
+            status: 'draft',
+          },
+        ],
+      });
+
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+      // Forward to the Matching question (submitting q1 on the way).
+      await user.click(screen.getByRole('button', { name: '4' }));
+      await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+      expect(
+        await screen.findByText(/Match the capitals/i)
+      ).toBeInTheDocument();
+
+      // Back to q1, then forward again — the second arrival is the remount
+      // that re-fires StructuredQuestionInput's mount-only re-emit.
+      await user.click(
+        screen.getByRole('button', { name: /Previous question/i })
+      );
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+      expect(
+        await screen.findByText(/Match the capitals/i)
+      ).toBeInTheDocument();
+
+      // Teacher resync moves the saved draft to a NEWER arrangement while the
+      // student still hasn't touched the question.
+      act(() => {
+        hookState.myResponse = buildResponse({
+          answers: [
+            { questionId: 'q1', answer: '4', answeredAt: Date.now() },
+            {
+              questionId: 'qm',
+              answer: 'France:Paris|Germany:Madrid',
+              answeredAt: Date.now() + 1,
+              status: 'draft',
+            },
+          ],
+        });
+        triggerRefresh();
+      });
+
+      // Drain the autosave debounce.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+
+      // The stale 'Berlin' arrangement must never be autosaved back over the
+      // server's newer 'Madrid'.
+      expect(mockSubmitAnswer).not.toHaveBeenCalledWith(
+        'qm',
+        'France:Paris|Germany:Berlin',
+        undefined,
+        { isDraft: true }
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+// ─── Narrowed current-answer ref + submit gating (#1741 follow-up) ────────────
+//
+// Issue #2: `currentAnswerRef` mirrors ONLY the active question's cached value
+// (not the whole cache). The two imperative readers — the timer auto-submit
+// effect and the visibility/unmount flush handler — must still see the current
+// question's live draft through it. These pin both read paths for a
+// non-structured type (the Matching/Ordering timer tests above cover the
+// structured auto-submit path).
+//
+// Issue #1: the Submit/NEXT affordances gate on the cache-backed value
+// (`submittableAnswer`), not on `liveAnswer` (which folds in the Firestore
+// fallback). The transient pre-seed render the fix guards against is coalesced
+// away by React (the cache-miss-fill is a render-phase update), so it isn't
+// observable here; the test below pins the end-state contract — the gate tracks
+// the cache, going from disabled → enabled as the option lands in it.
+
+describe('QuizStudentApp — current-answer ref + submit gating', () => {
+  it('auto-submits the cached MC selection on timeout (reads currentAnswerRef)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      hookState.session = buildSession({
+        publicQuestions: [
+          { ...QUESTIONS[0], timeLimit: 5 },
+          QUESTIONS[1],
+          QUESTIONS[2],
+        ],
+      });
+
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+      // Pick "4" but never submit — the value lives only in the cache,
+      // mirrored into the narrowed currentAnswerRef.
+      await user.click(screen.getByRole('button', { name: '4' }));
+
+      // Run the clock out. The auto-submit effect must read the cached "4"
+      // back out of the ref, not submit an empty answer.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+      });
+
+      expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', '4', 0, undefined);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flushes the current question's cached draft on visibilitychange→hidden (reads currentAnswerRef)", async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // Cache "4". The 500 ms autosave debounce hasn't fired yet.
+    await user.click(screen.getByRole('button', { name: '4' }));
+
+    // Tab-switch away. The flush handler reads the active question's value out
+    // of the narrowed ref and writes it as a draft immediately (best-effort,
+    // before the debounce would have).
+    try {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      });
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await waitFor(() => {
+        expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', '4', undefined, {
+          isDraft: true,
+        });
+      });
+    } finally {
+      // Drop the instance override so the jsdom prototype getter (default
+      // 'visible') is restored for other tests.
+      Reflect.deleteProperty(document, 'visibilityState');
+    }
+  });
+
+  it('keeps NEXT disabled until an option is cached, then enables it (gates on the cache, not the saved fallback)', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // Fresh question, nothing selected → no cache entry → the submit
+    // affordance is disabled. It gates on `submittableAnswer` (cache-backed),
+    // never on a Firestore fallback showing through `liveAnswer`.
+    expect(screen.getByRole('button', { name: /^NEXT/i })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: '4' }));
+    expect(screen.getByRole('button', { name: /^NEXT/i })).not.toBeDisabled();
+  });
+});
+
+// ─── Written blank-overwrite guard (#1741 follow-up) ──────────────────────────
+//
+// The written editor's submit affordance is the one explicit-submit path that
+// can fire with an empty value (MC/FIB/structured all gate on content). An
+// explicit submit bypasses the autosave `isUnsafeBlankDraft` guard, so a fast
+// tap on a blank-but-unseeded essay — never typed, OR the saved answer hasn't
+// echoed into myResponse yet — would clobber the saved essay with ''. The fix:
+// when the cache has no entry (`submittableAnswer === null`), self-paced
+// advances WITHOUT writing and teacher-paced disables Submit; a deliberate
+// clear (cache holds '') still writes through.
+
+describe('QuizStudentApp — written blank-overwrite guard', () => {
+  const ESSAY: QuizPublicQuestion = {
+    id: 'qe',
+    type: 'essay',
+    text: 'Describe your summer',
+    timeLimit: 0,
+  };
+
+  it('advances a blank, unseeded essay WITHOUT writing a blank (self-paced)', async () => {
+    const user = userEvent.setup();
+    hookState.session = buildSession({
+      publicQuestions: [ESSAY, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+
+    render(<QuizStudentApp />);
+    expect(
+      await screen.findByText(/Describe your summer/i)
+    ).toBeInTheDocument();
+    // Let the lazy editor settle so NEXT isn't tapped mid-Suspense.
+    await screen.findByRole('textbox', { name: /Your response/i });
+
+    // Tap NEXT without typing. The cache has no entry for this question, so we
+    // must advance without writing — a blank explicit submit here would
+    // clobber a saved essay that simply hasn't echoed back yet.
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+
+    // Advanced to Q2…
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    // …and nothing was written for the blank essay.
+    expect(mockSubmitAnswer).not.toHaveBeenCalled();
+  });
+
+  it('disables teacher-paced essay Submit while the editor is unseeded', async () => {
+    hookState.session = buildSession({
+      sessionMode: 'teacher',
+      publicQuestions: [ESSAY, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+
+    render(<QuizStudentApp />);
+    expect(
+      await screen.findByText(/Describe your summer/i)
+    ).toBeInTheDocument();
+    await screen.findByRole('textbox', { name: /Your response/i });
+
+    // No saved answer + nothing typed → cache unseeded → Submit is disabled so
+    // a fast tap can't write a blank over a not-yet-loaded saved essay.
+    expect(
+      screen.getByRole('button', { name: /Submit Response/i })
+    ).toBeDisabled();
+  });
+});

@@ -1,6 +1,54 @@
 {
   "entries": [
     {
+      "version": "2026.05.28.4",
+      "date": "2026-05-28",
+      "title": "Live quiz answer integrity safeguards",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Answers no longer disappear",
+          "items": [
+            {
+              "text": "Student-typed essay and written answers no longer come back blank when you unlock a question for editing or when students back-navigate to a previously-submitted question."
+            },
+            {
+              "text": "When a question's timer auto-submits a multiple choice answer, the committed option now stays highlighted on the locked screen instead of appearing blank."
+            },
+            {
+              "text": "Revealing answers immediately after a timer auto-submit no longer shows students a brief flash of \"incorrect\" feedback before the correct response catches up."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "If a student tries to clear a previously-saved answer by deleting all their text, a banner now tells them to use Submit to confirm the clear — previously the deletion was silently blocked and the student had no idea why it didn't stick."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Live quiz — student-typed essay and written answers no longer disappear when you unlock a question for editing, or when students back-navigate to a previously-submitted question. The student app now keeps every answer in local memory and prefers that over slower cloud syncs, so a late-arriving sync can't wipe out text the student already typed. Reported on a live \"Independent Reading Test\" essay quiz where students saw their work come back blank after a teacher unlock."
+        },
+        {
+          "type": "fix",
+          "text": "Live quiz — when a question's timer expires and auto-submits a multiple choice answer, the chosen option is now highlighted on the locked screen. Previously the answer was committed correctly but the highlight was missing, making the locked screen look as if nothing had been chosen."
+        },
+        {
+          "type": "fix",
+          "text": "Live quiz — when you reveal answers right after a timer auto-submit, students no longer see a brief flash of \"incorrect\" feedback before the correct response catches up. The reveal now reads from the same local cache the student just committed against, so the feedback matches what they actually answered."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — if a student tries to clear a previously-saved answer by deleting all the text in the field, the app now surfaces a banner asking them to use Submit to confirm the clear. Previously, the deletion was silently refused as a safeguard against accidental loss, and the student had no UI signal explaining why their clear didn't stick."
+        }
+      ]
+    },
+    {
       "version": "2026.05.28.3",
       "date": "2026-05-28",
       "title": "Shared notebook hotspots and Boards modal copy",

@@ -7,11 +7,15 @@ import {
   toPublicQuestion,
   useQuizSessionStudent,
   useQuizSessionTeacher,
+  isUnsafeBlankDraft,
+  isUnsafeStatusDowngrade,
+  shouldSnapshotHistory,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
 import type {
   QuizQuestion,
   QuizResponse,
+  QuizResponseAnswer,
   QuizSession,
   QuizPublicQuestion,
 } from '@/types';
@@ -466,6 +470,222 @@ describe('toPublicQuestion', () => {
     expect(pub).not.toHaveProperty('correctAnswer');
     expect(pub.id).toBe('q4');
     expect(pub.type).toBe('FIB');
+  });
+});
+
+// ─── Draft-write defensive predicates ─────────────────────────────────────────
+//
+// `isUnsafeBlankDraft` and `shouldSnapshotHistory` are the two guards
+// `submitAnswer` consults before writing the response doc. They are
+// extracted as pure predicates so the race / overwrite logic can be
+// tested without setting up a full Firestore mock — the hook integration
+// is covered separately by the component-level cache tests.
+
+describe('isUnsafeBlankDraft (#1 guard)', () => {
+  const priorWithText: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'My long essay response',
+    answeredAt: 100,
+    status: 'submitted',
+  };
+  const priorEmpty: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: '',
+    answeredAt: 100,
+    status: 'draft',
+  };
+
+  it('refuses a draft autosave writing "" over a non-empty prior answer', () => {
+    expect(isUnsafeBlankDraft('', true, priorWithText)).toBe(true);
+  });
+
+  it('allows a draft autosave writing "" when the prior answer was also empty', () => {
+    // Both sides reduce to '' — no data loss possible, the write is a no-op
+    // on the data dimension but still legitimate (timestamps may update).
+    expect(isUnsafeBlankDraft('', true, priorEmpty)).toBe(false);
+  });
+
+  it('allows a draft autosave writing "" when no prior entry exists', () => {
+    expect(isUnsafeBlankDraft('', true, undefined)).toBe(false);
+  });
+
+  it('allows a draft autosave writing non-empty text over a non-empty prior', () => {
+    // Normal "student kept typing" path — must not be blocked.
+    expect(isUnsafeBlankDraft('new text', true, priorWithText)).toBe(false);
+  });
+
+  it('allows an explicit (non-draft) submit of "" over a non-empty prior', () => {
+    // Student deliberately cleared and clicked Submit — only autosaves are
+    // gated; explicit intent is respected.
+    expect(isUnsafeBlankDraft('', false, priorWithText)).toBe(false);
+  });
+});
+
+describe('isUnsafeStatusDowngrade (review fix)', () => {
+  const submittedPrior: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'committed answer',
+    answeredAt: 100,
+    status: 'submitted',
+  };
+  const draftPrior: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'work in progress',
+    answeredAt: 100,
+    status: 'draft',
+  };
+  // Predates the draft flag — `status` field omitted, treated as
+  // submitted everywhere else via `isAnswerSubmitted`.
+  const legacyPrior: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'legacy answer',
+    answeredAt: 100,
+  };
+
+  it('refuses a draft autosave when the prior entry was status=submitted', () => {
+    // The back-nav listener-lag race: cache holds the just-submitted value,
+    // `submitted` state briefly flips false, and the autosave would otherwise
+    // rewrite the entry as a draft.
+    expect(isUnsafeStatusDowngrade(true, submittedPrior)).toBe(true);
+  });
+
+  it('refuses a draft autosave when the prior entry was legacy (status=undefined)', () => {
+    // Legacy docs without a `status` field are treated as submitted by
+    // `isAnswerSubmitted`. The downgrade guard must match — without it,
+    // a back-nav race on a legacy entry would silently flip the doc to
+    // `status: 'draft'` and drop it from the teacher's "Finished" view.
+    expect(isUnsafeStatusDowngrade(true, legacyPrior)).toBe(true);
+  });
+
+  it('allows a draft autosave when the prior entry was already a draft', () => {
+    expect(isUnsafeStatusDowngrade(true, draftPrior)).toBe(false);
+  });
+
+  it('allows a draft autosave when no prior entry exists', () => {
+    expect(isUnsafeStatusDowngrade(true, undefined)).toBe(false);
+  });
+
+  it('allows an explicit submit even over a previously-submitted entry', () => {
+    // A real student-paced re-submit must always pass — the gate only
+    // applies to background draft writes.
+    expect(isUnsafeStatusDowngrade(false, submittedPrior)).toBe(false);
+  });
+});
+
+describe('shouldSnapshotHistory (#5 throttle)', () => {
+  const priorWithText: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'first draft',
+    answeredAt: 100,
+    status: 'draft',
+  };
+  const priorSubmitted: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'committed answer',
+    answeredAt: 100,
+    status: 'submitted',
+  };
+  // Legacy entry — predates the draft flag, `status` omitted. Treated
+  // as submitted everywhere via `isAnswerSubmitted`, so a downgrade
+  // attempt on it must still snapshot.
+  const priorLegacy: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'legacy answer',
+    answeredAt: 100,
+  };
+  const THROTTLE = 5000;
+
+  it('captures a snapshot when overwriting a non-empty prior with different content past the throttle window', () => {
+    expect(
+      shouldSnapshotHistory(
+        priorWithText,
+        'second draft',
+        true,
+        0,
+        6000,
+        THROTTLE
+      )
+    ).toBe(true);
+  });
+
+  it('skips when no prior entry exists', () => {
+    // First write for this question — nothing to snapshot.
+    expect(
+      shouldSnapshotHistory(undefined, 'first text', true, 0, 1e9, THROTTLE)
+    ).toBe(false);
+  });
+
+  it('skips when the prior entry was empty', () => {
+    const priorEmpty: QuizResponseAnswer = {
+      questionId: 'q1',
+      answer: '',
+      answeredAt: 0,
+      status: 'draft',
+    };
+    expect(
+      shouldSnapshotHistory(priorEmpty, 'new text', true, 0, 1e9, THROTTLE)
+    ).toBe(false);
+  });
+
+  it('skips when the new value matches the prior text AND the status is not being downgraded', () => {
+    // Autosaves can fire with no actual content change in some races;
+    // a snapshot would be wasteful when both text and status are unchanged.
+    expect(
+      shouldSnapshotHistory(
+        priorWithText,
+        'first draft',
+        true,
+        0,
+        1e9,
+        THROTTLE
+      )
+    ).toBe(false);
+  });
+
+  it('captures a snapshot on a status downgrade even with identical text', () => {
+    // The back-nav race silently writes the same text back as a draft over
+    // a previously-submitted entry — the 'submitted' fact is being destroyed
+    // and must be recoverable.
+    expect(
+      shouldSnapshotHistory(
+        priorSubmitted,
+        'committed answer',
+        true,
+        0,
+        1e9,
+        THROTTLE
+      )
+    ).toBe(true);
+  });
+
+  it('captures a snapshot on a status downgrade from legacy (status=undefined) even with identical text', () => {
+    // Legacy submitted-equivalents (status omitted) must be recoverable
+    // when a draft write would overwrite them — same protection as the
+    // explicit `status: 'submitted'` case above.
+    expect(
+      shouldSnapshotHistory(
+        priorLegacy,
+        'legacy answer',
+        true,
+        0,
+        1e9,
+        THROTTLE
+      )
+    ).toBe(true);
+  });
+
+  it('throttles back-to-back snapshots inside the window', () => {
+    // Previous snapshot was 1s ago, throttle is 5s → not yet allowed.
+    expect(
+      shouldSnapshotHistory(
+        priorWithText,
+        'second draft',
+        true,
+        4000,
+        5000,
+        THROTTLE
+      )
+    ).toBe(false);
   });
 });
 
@@ -1563,6 +1783,14 @@ function setupTeacherMocks(): TeacherMockEnv {
   (firestore.writeBatch as unknown as ReturnType<typeof vi.fn>).mockReturnValue(
     env.batch
   );
+  // removeStudent fetches the answer-history subcollection to cascade-
+  // delete it before removing the parent response. Default to an empty
+  // result so the common path issues no history batch; tests that need
+  // orphan cleanup override this with `mockResolvedValueOnce`.
+  (firestore.getDocs as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    docs: [],
+    empty: true,
+  });
 
   return env;
 }
@@ -1652,6 +1880,73 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
     // No batch should be created when sessionId is null.
     expect(env.batch.delete).not.toHaveBeenCalled();
     expect(env.batch.commit).not.toHaveBeenCalled();
+  });
+
+  it('cascade-deletes the answer-history subcollection before removing the parent response', async () => {
+    // Firestore does not cascade subcollection deletes, so removeStudent
+    // must sweep `responses/{key}/history/*` itself — otherwise the
+    // snapshots orphan and a rejoined student under the same
+    // deterministic key could read their prior-attempt drafts.
+    const historyDocs = [
+      {
+        ref: {
+          __type: 'doc',
+          path: [
+            'quiz_sessions',
+            'sess-1',
+            'responses',
+            'pin-period_1-9999',
+            'history',
+            'h1',
+          ],
+        },
+      },
+      {
+        ref: {
+          __type: 'doc',
+          path: [
+            'quiz_sessions',
+            'sess-1',
+            'responses',
+            'pin-period_1-9999',
+            'history',
+            'h2',
+          ],
+        },
+      },
+    ];
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({ docs: historyDocs, empty: false });
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+    await act(async () => {
+      await result.current.removeStudent('pin-period_1-9999');
+    });
+
+    // Both history docs + the parent response doc are deleted.
+    expect(env.batch.delete).toHaveBeenCalledTimes(3);
+    // One commit for the history chunk, one for the archive/delete batch.
+    expect(env.batch.commit).toHaveBeenCalledTimes(2);
+    const deletedPaths = env.batch.delete.mock.calls.map(
+      (c) => (c[0] as { path: string[] }).path
+    );
+    expect(deletedPaths).toContainEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+      'history',
+      'h1',
+    ]);
+    expect(deletedPaths).toContainEqual([
+      'quiz_sessions',
+      'sess-1',
+      'responses',
+      'pin-period_1-9999',
+      'history',
+      'h2',
+    ]);
   });
 
   it('revealAnswer writes a dotted-path map entry on the session doc', async () => {

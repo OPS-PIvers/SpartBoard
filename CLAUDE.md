@@ -41,24 +41,34 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 │   ├── miniApp/         # Mini-app runner
 │   ├── activityWall/    # Activity wall
 │   ├── announcements/   # Announcement system
-│   └── classes/         # Roster / class management UI
-├── context/             # React Context providers (Auth, Dashboard, CustomWidgets, Dialog)
+│   ├── classes/         # Roster / class management UI
+│   ├── plc/             # PLC (professional learning community) sharing UI
+│   ├── subs/            # Substitute teacher portal (/subs)
+│   ├── converter/       # SMART Notebook → .spartnb converter (/convert)
+│   ├── spotify/         # Spotify OAuth + library integration
+│   ├── share/           # Share/collaboration UI
+│   ├── settingsModal/   # User settings modal
+│   ├── backgroundsModal/, boardsModal/, quickAccessModal/  # Sidebar/dock modals
+│   └── dev/             # DEV-only harnesses (e.g. NotebookEditorDevHarness)
+├── context/             # React Context providers (Auth, Dashboard, CustomWidgets, SavedWidgets, Dialog, StudentAuth)
 │   ├── AuthContext.tsx           # Authentication and permissions
 │   ├── DashboardContext.tsx      # Dashboard state management
 │   ├── CustomWidgetsContext.tsx  # Custom widget system
+│   ├── SavedWidgetsContext.tsx   # User's saved/pinned widget configs
 │   ├── DialogContext.tsx         # Dialog/modal management
-│   └── *.ts files               # Context value types + hook exports (useAuth, useDashboard, useCustomWidgets, useDialog)
+│   ├── StudentAuthContext.tsx    # SSO student session lifecycle (/my-assignments)
+│   └── *.ts files               # Context value types + hook exports (useAuth, useDashboard, useCustomWidgets, useSavedWidgets, useDialog, useStudentAuth)
 ├── hooks/               # Custom React hooks (see directory for full list)
 ├── config/              # Configuration files (see directory for full list)
 ├── utils/               # Utility functions (see directory for full list)
 ├── scripts/             # Setup and maintenance scripts (admin setup, version generation, env setup)
 ├── i18n/                # Internationalization setup (i18next)
 ├── locales/             # Translation files (en, de, es, fr)
-├── tests/               # Test suites (components, e2e, hooks, i18n, utils)
+├── tests/               # Test suites (components, context, e2e, hooks, i18n, rules, utils) — also many *.test.ts colocated with source
 ├── docs/                # Project documentation (ADMIN_SETUP, DEV_WORKFLOW, LINTING_SETUP, etc.)
 ├── functions/           # Firebase Cloud Functions (Node.js)
 ├── .github/workflows/   # CI/CD GitHub Actions (pr-validation, firebase-deploy, firebase-dev-deploy, docker-build)
-├── App.tsx              # Root component with BrowserRouter
+├── App.tsx              # Root component + manual pathname-based router (no react-router)
 ├── index.tsx            # Application entry point
 ├── types.ts             # Global TypeScript types
 ├── vite.config.ts       # Vite configuration
@@ -97,6 +107,8 @@ SpartBoard is an interactive classroom management dashboard built with React 19,
 
 - **Run unit tests**: `pnpm run test`
 - **Run E2E tests**: `pnpm run test:e2e`
+- **Run Firestore rules tests**: `pnpm run test:rules` (boots the Firestore emulator and runs `vitest.rules.config.ts` against `tests/rules/`)
+- **Run all unit tests (root + functions)**: `pnpm run test:all`
 - **Watch mode**: `pnpm run test:watch`
 - **Coverage report**: `pnpm run test:coverage`
 
@@ -161,8 +173,14 @@ For development and automated testing, you can enable an authentication bypass m
 - **CustomWidgetsContext** (`context/CustomWidgetsContext.tsx`): Custom widget creation and management
   - Provides `useCustomWidgets()` hook
 
+- **SavedWidgetsContext** (`context/SavedWidgetsContext.tsx`): User's saved/pinned widget configurations
+  - Provides `useSavedWidgets()` hook
+
 - **DialogContext** (`context/DialogContext.tsx`): Dialog/modal state management
   - Provides `useDialog()` hook
+
+- **StudentAuthContext** (`context/StudentAuthContext.tsx`): SSO student session lifecycle (idle timeout, custom claims)
+  - Provides `useStudentAuth()` hook; gates the `/my-assignments` route via `RequireStudentAuth`
 
 **Widget System**: Plugin-based architecture
 
@@ -183,42 +201,55 @@ For development and automated testing, you can enable an authentication bypass m
 
 **Component Hierarchy**:
 
+**Routing**: There is **no react-router**. `App.tsx` inspects `window.location.pathname` directly and renders the matching subtree (each route mounts only the providers it needs, so anonymous/student routes don't boot teacher Firestore listeners).
+
 ```
-App.tsx (root, BrowserRouter)
-├── Student routes (lazy-loaded, no auth required):
-│   ├── /join → StudentApp (student lobby & live session)
-│   ├── /quiz → QuizStudentApp
-│   ├── /activity → VideoActivityStudentApp
-│   ├── /activity-wall → ActivityWallStudentApp
-│   ├── /guided-learning → GuidedLearningStudentApp
-│   ├── /miniapp → MiniAppStudentApp
-│   └── /nextup → NextUpStudentApp
-├── /remote → MobileRemoteView (mobile remote control)
+App.tsx (root — manual pathname switch)
+├── Anonymous / no-provider routes:
+│   ├── /r, /r/:code        → ShortLinkRedirect (single Firestore lookup + redirect)
+│   ├── /spotify-callback   → SpotifyCallback (popup; posts code to window.opener)
+│   ├── /convert            → ConverterPage (SMART Notebook → .spartnb, client-only)
+│   └── /notebook-editor-dev → NotebookEditorDevHarness (DEV builds only)
+├── Student routes (lazy-loaded, wrapped in DialogProvider only):
+│   ├── /join               → StudentApp (lobby & live session)
+│   ├── /quiz               → QuizStudentApp (self-handles anonymous/custom-token auth)
+│   ├── /activity           → VideoActivityStudentApp
+│   ├── /activity-wall      → ActivityWallStudentApp (+ /activity-wall/gallery → gallery view)
+│   ├── /guided-learning    → GuidedLearningStudentApp
+│   ├── /miniapp/...        → MiniAppStudentApp
+│   ├── /nextup             → NextUpStudentApp
+│   ├── /student/login      → StudentLoginPage (PII-free GIS sign-in)
+│   └── /my-assignments     → StudentAuthProvider → RequireStudentAuth → MyAssignmentsPage
+├── Auth-only routes (AuthProvider, no DashboardProvider):
+│   ├── /invite/...         → InviteAcceptance (org invite)
+│   ├── /plc-invite/...     → PlcInviteAcceptance
+│   └── /subs               → SubsApp (substitute teacher portal)
+├── /remote                 → AuthProvider → AuthenticatedApp (isRemote) → MobileRemoteView
 └── / → Teacher app:
-    └── AuthProvider
-        └── DashboardProvider
-            └── CustomWidgetsProvider
-                └── DialogProvider
-                    └── Conditional: isAuthenticated?
-                        ├── DashboardView (main app)
-                        │   ├── Background layer
-                        │   ├── WidgetRenderer (one per widget)
-                        │   │   └── DraggableWindow (wraps all widgets)
-                        │   │       ├── Front face (widget content)
-                        │   │       └── Back face (settings panel)
-                        │   ├── Sidebar (dashboard + background management)
-                        │   ├── Dock (widget toolbar)
-                        │   └── AdminSettings (admin-only)
-                        └── ToastContainer (notifications)
-                        OR
-                        └── LoginScreen (if not authenticated)
+    └── DialogProvider
+        └── AuthProvider
+            └── (if signed in) CustomWidgetsProvider
+                └── SavedWidgetsProvider
+                    └── DashboardProvider
+                        └── AppContent
+                            ├── NewUserSetup (first run, if !setupCompleted)
+                            └── DashboardView (main app)
+                                ├── Background layer
+                                ├── WidgetRenderer (one per widget)
+                                │   └── DraggableWindow (drag/resize/flip/z-index)
+                                │       ├── Front face (widget content)
+                                │       └── Back face (settings panel)
+                                ├── Sidebar (dashboard + background management)
+                                ├── Dock (widget toolbar)
+                                └── AdminSettings (admin-only)
+            └── (if not signed in) LoginScreen
 ```
 
 ### Key Files
 
 **Root Level:**
 
-- `App.tsx`: Root component with BrowserRouter, lazy-loaded student routes, and teacher app providers
+- `App.tsx`: Root component with manual `window.location.pathname` routing (no react-router), lazy-loaded student routes, and teacher app providers
 - `index.tsx`: Application entry point, mounts App to DOM
 - `types.ts`: All TypeScript type definitions (WidgetType union, WidgetData, Dashboard, etc.)
 
@@ -276,7 +307,7 @@ Domain-specific config (catalyst colors, sound library, snap layouts, instructio
 
 The project uses `@/` as an alias for the **root directory** (not `src/`):
 
-- Configured in `vite.config.ts` (line 12-14) and `tsconfig.json` (line 15-17)
+- Configured in `vite.config.ts` (`resolve.alias`) and `tsconfig.json` (`compilerOptions.paths`)
 - Example: `import { useDashboard } from '@/context/DashboardContext'`
 - Maps to: `/context/DashboardContext.tsx` (no src folder)
 
@@ -297,18 +328,38 @@ The project uses `@/` as an alias for the **root directory** (not `src/`):
 /users/{userId}/userProfile/{profileId}     # User profile / building selection
 /users/{userId}/quiz_assignments/{id}       # Teacher's quiz assignment archive
 
+# Organization / building system (multi-tenant; org admins write, members read)
+/organizations/{orgId}                      # Organization root
+/organizations/{orgId}/buildings/{id}       # Buildings within an org
+/organizations/{orgId}/domains/{id}         # Email domains mapped to the org
+/organizations/{orgId}/roles/{id}           # Custom roles
+/organizations/{orgId}/members/{uid}        # Org membership + roleId per user
+/organizations/{orgId}/invitations/{id}     # Pending org invites (claimed at /invite)
+/organizations/{orgId}/studentPageConfig/{id} # Student landing-page config
+/organizations/{orgId}/testClasses/{id}     # Test/demo classes
+
 # Admin collections (admin read/write, authenticated read)
 /admins/{email}                             # Admin users (existence = admin)
-/feature_permissions/{widgetType}           # Widget access levels
+/feature_permissions/{widgetType}           # Widget access levels (keyed per building)
 /global_permissions/{featureId}             # Global feature permissions
 /admin_settings/{document}                  # Admin-only configuration
+/admin_audit_log/{entryId}                  # Admin action audit trail
 /admin_backgrounds/{backgroundId}           # Admin background images
 /dashboard_templates/{templateId}           # Shared dashboard templates
 /instructional_routines/{routineId}         # Instructional routines library
+/short_links/{code}                         # /r/:code short-link redirects
+/mail/{id}                                  # Outbound email queue (invite emails)
 
 # Shared/global collections
 /shared_boards/{shareId}                    # Shared dashboards
+/shared_collections/{shareId}               # Shared folder/collection bundles
 /shared_assignments/{shareId}               # Shared quiz assignments (PLC sharing)
+/shared_quizzes/{shareId}                   # Shared standalone quizzes
+/shared_video_activity_assignments/{id}     # Shared video-activity assignments
+/shared_notebooks/{shareId}                 # Shared SMART notebooks
+/shared_activity_walls/{shareId}            # Shared activity walls
+/synced_quizzes/{id}                        # PLC-synced quiz library
+/synced_video_activities/{id}               # PLC-synced video-activity library
 /global_weather/{document}                  # Cached weather data
 /global_music_stations/{document}           # Shared music stations
 /global_pdfs/{pdfId}                        # Shared PDF library
@@ -316,6 +367,13 @@ The project uses `@/` as an alias for the **root directory** (not `src/`):
 /global_video_activities/{activityId}       # Shared video activities
 /custom_widgets/{widgetId}                  # Custom widgets (user-built)
 /announcements/{announcementId}             # School announcements
+/preset_sub_emails/{id}                     # Preset substitute-teacher emails
+
+# PLC (Professional Learning Community) collections
+/plcs/{plcId}                               # PLC root (members, shared library)
+/plcs/{plcId}/{quizzes|video_activities|assignments|notes|docs|todos|contributions}/{id}
+/plc_invitations/{id}                       # PLC invites (claimed at /plc-invite)
+/plc_resources/{id}                         # PLC shared resources
 
 # Live session collections
 /sessions/{userId}/students/{studentId}     # Live session students
@@ -617,20 +675,17 @@ Widgets use a two-mode scaling system configured in `components/widgets/WidgetRe
 
 ### Audio Context Management
 
-Widgets using sound (Timer, Stopwatch, SoundWidget) use a global AudioContext singleton pattern to avoid browser's context limits:
+Widgets using sound share a single lazily-created `AudioContext` singleton (SSR-safe, `webkitAudioContext` fallback) to avoid the browser's per-page context limit. The canonical helper lives in `utils/timeToolAudio.ts`:
 
 ```typescript
-let globalAudioContext: AudioContext | null = null;
+import { getAudioCtx, resumeAudio } from '@/utils/timeToolAudio';
 
-const getAudioContext = (): AudioContext => {
-  if (!globalAudioContext) {
-    globalAudioContext = new AudioContext();
-  }
-  return globalAudioContext;
-};
+// getAudioCtx() returns the shared context (or null outside the browser).
+// resumeAudio() must be called from a user gesture before playback —
+// browsers start the context 'suspended'.
 ```
 
-See `components/widgets/TimeToolWidget.tsx` lines 20-35 for reference.
+See `utils/timeToolAudio.ts` for the singleton + sound-synthesis helpers, and `utils/quizAudio.ts` for the quiz variant. Widget components import these rather than instantiating their own `AudioContext`.
 
 ### Persistence
 
@@ -839,7 +894,7 @@ See [docs/DEV_WORKFLOW.md](docs/DEV_WORKFLOW.md) for development branch workflow
 - **TypeScript**: Strict mode enabled, no `any` without explicit annotation
 - **ESLint**: Zero errors allowed, warnings acceptable
 - **Prettier**: All files must be formatted
-- **Tests**: (Not yet implemented)
+- **Tests**: Vitest (unit/integration) + Playwright (E2E) + a Firestore-rules suite (`test:rules`). `pnpm run validate` runs type-check, lint, format-check, and the root + functions test suites.
 
 See [docs/LINTING_SETUP.md](docs/LINTING_SETUP.md) for complete linting documentation.
 
@@ -901,15 +956,18 @@ See [docs/LINTING_SETUP.md](docs/LINTING_SETUP.md) for complete linting document
 
 - **Run unit tests**: `pnpm run test`
 - **Run E2E tests**: `pnpm run test:e2e`
+- **Run Firestore rules tests**: `pnpm run test:rules` (Firestore emulator + `vitest.rules.config.ts`)
 - **Watch mode**: `pnpm run test:watch`
 - **Coverage report**: `pnpm run test:coverage`
 
-Test directories:
+Test directories (note: many `*.test.ts(x)` files also live colocated next to their source):
 
 - `tests/components/` - Component tests
+- `tests/context/` - Context provider tests
 - `tests/hooks/` - Hook tests (useClickOutside, useFeaturePermissions, useWindowSize, useMusicStations)
 - `tests/utils/` - Utility function tests (migration, security, smartPaste, widgetHelpers)
 - `tests/i18n/` - Internationalization tests
+- `tests/rules/` - Firestore security-rules tests (run via `test:rules`)
 - `tests/e2e/` - Playwright E2E tests
 
 ## Performance Considerations
@@ -978,7 +1036,7 @@ Test directories:
 
 ---
 
-**Last Updated**: 2026-04-17
+**Last Updated**: 2026-05-28
 **Version**: 2.1.0
 
 ## Widget Appearance Standard (Visual System)
