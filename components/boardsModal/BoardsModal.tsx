@@ -505,7 +505,7 @@ export const BoardsModal: React.FC<BoardsModalProps> = ({ onClose }) => {
       <div className="bg-white w-full h-full overflow-hidden flex flex-col">
         <div className="bg-gradient-to-r from-brand-blue-primary to-brand-blue-dark text-white h-14 md:h-16 px-4 flex items-center justify-between shadow-sm shrink-0">
           <h2 id="boards-modal-title" className="text-lg font-bold">
-            {t('boardsModal.title', { defaultValue: 'Boards' })}
+            {t('boardsModal.title', { defaultValue: 'Boards & Collections' })}
           </h2>
           <button
             onClick={onClose}
