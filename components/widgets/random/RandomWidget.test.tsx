@@ -371,6 +371,34 @@ describe('RandomWidget', () => {
         })
       );
     });
+
+    it('renders the remaining-students counter alongside the mode chip in single mode', () => {
+      // Counter used to live in a separate badge after the reset button.
+      // It now sits inside the mode chip's visual shell but as a SIBLING
+      // of the cycle <button>, so tapping the counter text does not cycle
+      // the mode. The aria-label on the button still includes the count
+      // for screen readers.
+      const widget = widgetWithMode('single');
+      (widget.config as RandomConfig).remainingStudents = ['Alice', 'Bob'];
+      render(<RandomWidget widget={widget} />);
+      const modeButton = screen.getByRole('button', {
+        name: /Operation mode: Pick One\. 2 students left/i,
+      });
+      expect(modeButton.textContent).toMatch(/PICK ONE/i);
+      // Counter is a sibling element within the chip shell — assert it
+      // exists in the header and not inside the cycle button.
+      expect(screen.getByText(/2 Left/i)).toBeInTheDocument();
+      expect(modeButton.textContent).not.toMatch(/Left/i);
+    });
+
+    it('hides the inline counter in non-single modes', () => {
+      render(<RandomWidget widget={widgetWithMode('shuffle')} />);
+      const modeButton = screen.getByRole('button', {
+        name: /Operation mode: Shuffle/i,
+      });
+      expect(modeButton.textContent).not.toMatch(/Left/i);
+      expect(screen.queryByText(/Left/i)).not.toBeInTheDocument();
+    });
   });
 
   it('sends groups to scoreboard when button is clicked (New Connection)', () => {

@@ -57,6 +57,26 @@ jobs:
       - name: Build project
         run: pnpm run build:all
 
+      # Deploy backend (rules, indexes, functions, storage) BEFORE hosting.
+      # Reason: a new Firestore composite index isn't usable until it
+      # finishes building, but `firebase deploy --only firestore` returns
+      # success as soon as the build is queued. If hosting went first, a
+      # query in the new client bundle that needs a not-yet-built index
+      # would fail with FAILED_PRECONDITION the moment a teacher hit the
+      # code path. Order: backend first, wait for indexes, hosting last.
+      - name: Create Service Account File
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
+
+      - name: Deploy Firebase Rules, Indexes, Functions, Storage
+        run: pnpm exec firebase deploy --only functions,firestore,storage --project spartboard --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
+
+      - name: Wait for Firestore composite indexes to be READY
+        run: ./.github/scripts/wait-for-firestore-indexes.sh spartboard
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
+
       - name: Deploy to Firebase Hosting (Live)
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
@@ -64,14 +84,6 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           projectId: spartboard
           channelId: live
-
-      - name: Create Service Account File
-        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
-
-      - name: Deploy Firebase Rules and Functions
-        run: pnpm exec firebase deploy --only functions,firestore,storage --project spartboard --force
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
 
       - name: Cleanup Service Account File
         if: always()

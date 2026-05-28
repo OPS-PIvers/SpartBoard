@@ -125,40 +125,43 @@ export const ScoreboardItem = React.memo(
     return (
       <div
         className={`flex flex-col items-center justify-center ${colorClass} text-white rounded-2xl border border-white/20 shadow-sm relative group transition-all hover:shadow-md`}
-        style={{ containerType: 'size', padding: 'min(4px, 1cqmin)' }}
+        style={{
+          containerType: 'size',
+          padding: 'clamp(4px, 5cqmin, 24px)',
+        }}
       >
         <div
           className="font-black uppercase tracking-widest text-white text-center line-clamp-1 w-full"
           style={{
-            fontSize: 'min(15cqh, 80cqw)',
-            marginBottom: 'min(2cqh, 1cqmin)',
-            paddingLeft: 'min(8px, 2cqw)',
-            paddingRight: 'min(8px, 2cqw)',
+            fontSize: 'clamp(10px, 10cqmin, 48px)',
+            marginBottom: 'clamp(2px, 2cqmin, 12px)',
+            paddingLeft: 'clamp(2px, 2cqmin, 12px)',
+            paddingRight: 'clamp(2px, 2cqmin, 12px)',
           }}
         >
           {team.name}
         </div>
         <div
           className="flex items-center justify-center w-full flex-1 min-h-0"
-          style={{ gap: 'min(8px, 2cqmin)' }}
+          style={{ gap: 'clamp(4px, 4cqmin, 24px)' }}
         >
           <button
             onClick={() => onUpdateScore(team.id, -1)}
             aria-label="Decrease score"
             className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
-            style={{ padding: 'min(14px, 4cqmin)' }}
+            style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
           >
             <Minus
               style={{
-                width: 'min(28px, 12cqmin)',
-                height: 'min(28px, 12cqmin)',
+                width: 'clamp(12px, 14cqmin, 56px)',
+                height: 'clamp(12px, 14cqmin, 56px)',
               }}
             />
           </button>
           <div
             className="font-black text-white tabular-nums drop-shadow-sm flex-1 text-center min-w-0 leading-none"
             style={{
-              fontSize: 'min(70cqh, 22cqw)',
+              fontSize: 'clamp(16px, 45cqmin, 220px)',
             }}
           >
             {team.score}
@@ -167,12 +170,12 @@ export const ScoreboardItem = React.memo(
             onClick={() => onUpdateScore(team.id, 1)}
             aria-label="Increase score"
             className={`bg-white ${buttonIconColor} rounded-lg shadow-sm hover:bg-slate-50 active:scale-95 transition-all shrink-0 flex items-center justify-center`}
-            style={{ padding: 'min(14px, 4cqmin)' }}
+            style={{ padding: 'clamp(4px, 6cqmin, 28px)' }}
           >
             <Plus
               style={{
-                width: 'min(28px, 12cqmin)',
-                height: 'min(28px, 12cqmin)',
+                width: 'clamp(12px, 14cqmin, 56px)',
+                height: 'clamp(12px, 14cqmin, 56px)',
               }}
             />
           </button>

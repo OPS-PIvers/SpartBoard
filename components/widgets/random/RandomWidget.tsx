@@ -18,9 +18,8 @@ import {
   Student,
 } from '@/types';
 import { Button } from '@/components/common/Button';
-import { ActiveClassChip } from '@/components/common/ActiveClassChip';
-import { AbsentButton } from '@/components/common/AbsentButton';
 import { AbsentStudentsModal } from '@/components/common/AbsentStudentsModal';
+import { RandomClassContextButton } from './RandomClassContextButton';
 import {
   Users,
   RefreshCw,
@@ -1597,91 +1596,112 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
               className="flex items-center"
               style={{ gap: 'clamp(6px, 2cqmin, 14px)' }}
             >
-              <button
-                type="button"
-                onClick={cycleMode}
-                disabled={isSpinning}
-                className="flex items-center rounded-xl bg-white border border-slate-200 hover:bg-slate-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2"
+              {/* Mode chip + inline counter sit in one rounded shell, but the
+                  counter is a sibling of the actual cycle <button>, not a
+                  child — taps on "N Left" must NOT cycle the mode. The
+                  shared shell is a styled wrapper, the button only spans
+                  icon+label. */}
+              <div
+                className={`flex items-center rounded-xl bg-white border border-slate-200 ${
+                  isSpinning ? 'opacity-50' : ''
+                } transition-opacity`}
                 style={{
                   gap: 'clamp(6px, 1.5cqmin, 10px)',
                   padding:
                     'clamp(6px, 1.5cqmin, 10px) clamp(10px, 2.5cqmin, 18px)',
                   minHeight: 'clamp(32px, 8cqmin, 48px)',
                 }}
-                aria-label={t('widgets.random.modeChipAria', {
-                  mode: currentModeLabel,
-                  defaultValue: 'Operation mode: {{mode}}',
-                })}
-                title={t('widgets.random.modeChipTitle', {
-                  mode: currentModeLabel,
-                  defaultValue: 'Mode: {{mode}} — click to cycle',
-                })}
               >
-                <ModeIcon
-                  className="text-brand-blue-primary shrink-0"
-                  style={{
-                    width: 'clamp(14px, 4cqmin, 22px)',
-                    height: 'clamp(14px, 4cqmin, 22px)',
-                  }}
-                />
-                <span
-                  className="font-black uppercase text-brand-blue-primary truncate min-w-0 tracking-widest"
-                  style={{ fontSize: 'clamp(13px, 3.5cqmin, 18px)' }}
+                <button
+                  type="button"
+                  onClick={cycleMode}
+                  disabled={isSpinning}
+                  className="flex items-center bg-transparent border-0 p-0 m-0 hover:opacity-80 transition-opacity cursor-pointer disabled:cursor-not-allowed focus-visible:outline-2 focus-visible:outline-brand-blue-primary focus-visible:outline-offset-2 rounded"
+                  style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
+                  aria-label={
+                    mode === 'single' && remainingStudents.length > 0
+                      ? t('widgets.random.modeChipAriaWithCount', {
+                          mode: currentModeLabel,
+                          count: remainingStudents.length,
+                          defaultValue:
+                            'Operation mode: {{mode}}. {{count}} students left.',
+                        })
+                      : t('widgets.random.modeChipAria', {
+                          mode: currentModeLabel,
+                          defaultValue: 'Operation mode: {{mode}}',
+                        })
+                  }
+                  title={t('widgets.random.modeChipTitle', {
+                    mode: currentModeLabel,
+                    defaultValue: 'Mode: {{mode}} — click to cycle',
+                  })}
                 >
-                  {currentModeLabel}
-                </span>
-              </button>
-              {mode === 'single' && (
-                <>
-                  <button
-                    onClick={handleReset}
-                    disabled={
-                      isSpinning ||
-                      (remainingStudents.length === 0 && !displayResult)
-                    }
-                    className="hover:bg-slate-100 rounded-full text-slate-400 hover:text-brand-blue-primary transition-all disabled:opacity-30"
-                    style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
-                    title="Reset student pool"
+                  <ModeIcon
+                    className="text-brand-blue-primary shrink-0"
+                    style={{
+                      width: 'clamp(14px, 4cqmin, 22px)',
+                      height: 'clamp(14px, 4cqmin, 22px)',
+                    }}
+                  />
+                  <span
+                    className="font-black uppercase text-brand-blue-primary truncate min-w-0 tracking-widest"
+                    style={{ fontSize: 'clamp(13px, 3.5cqmin, 18px)' }}
                   >
-                    <RotateCcw
-                      style={{
-                        width: 'clamp(14px, 4cqmin, 28px)',
-                        height: 'clamp(14px, 4cqmin, 28px)',
-                      }}
-                    />
-                  </button>
-                  {remainingStudents.length > 0 && (
+                    {currentModeLabel}
+                  </span>
+                </button>
+                {mode === 'single' && remainingStudents.length > 0 && (
+                  <>
                     <span
-                      className="font-black text-slate-500 uppercase tracking-tight bg-slate-50 rounded border border-slate-200"
-                      style={{
-                        fontSize: 'clamp(10px, 2.6cqmin, 18px)',
-                        padding:
-                          'clamp(2px, 0.7cqmin, 6px) clamp(6px, 2cqmin, 14px)',
-                      }}
+                      aria-hidden="true"
+                      className="text-brand-blue-primary opacity-40 select-none shrink-0"
+                      style={{ fontSize: 'clamp(11px, 2.8cqmin, 14px)' }}
+                    >
+                      ·
+                    </span>
+                    <span
+                      className="font-black uppercase text-slate-500 tabular-nums tracking-wide shrink-0"
+                      style={{ fontSize: 'clamp(11px, 2.8cqmin, 14px)' }}
                     >
                       {remainingStudents.length} Left
                     </span>
-                  )}
-                </>
+                  </>
+                )}
+              </div>
+              {mode === 'single' && (
+                <button
+                  onClick={handleReset}
+                  disabled={
+                    isSpinning ||
+                    (remainingStudents.length === 0 && !displayResult)
+                  }
+                  className="hover:bg-slate-100 rounded-full text-slate-400 hover:text-brand-blue-primary transition-all disabled:opacity-30"
+                  style={{ padding: 'clamp(6px, 2cqmin, 14px)' }}
+                  title="Reset student pool"
+                >
+                  <RotateCcw
+                    style={{
+                      width: 'clamp(14px, 4cqmin, 28px)',
+                      height: 'clamp(14px, 4cqmin, 28px)',
+                    }}
+                  />
+                </button>
               )}
             </div>
             <div
               className="flex items-center"
               style={{ gap: 'clamp(6px, 1.5cqmin, 10px)' }}
             >
-              {/* AbsentButton is the canonical "remove a student" entry
-                  point — only valid when a class roster is active, since
-                  absence is stored on the roster doc. */}
-              {activeRoster && rosterMode === 'class' && (
-                <AbsentButton
-                  roster={activeRoster}
-                  onClick={() => setAbsentModalOpen(true)}
-                />
-              )}
-              {/* Class selector is always visible so teachers can pick or
-                  switch a class straight from the header, regardless of
-                  whether the widget started in custom-names mode. */}
-              <ActiveClassChip compact />
+              {/* Single icon-only chip combining class switch + absent
+                  attendance. Replaces the separate AbsentButton +
+                  ActiveClassChip pair to keep the header legible at narrow
+                  widths. Modal lifecycle stays hoisted on RandomWidget so
+                  the empty-state branch can also trigger it. */}
+              <RandomClassContextButton
+                roster={activeRoster}
+                rosterMode={rosterMode}
+                onOpenAbsentModal={() => setAbsentModalOpen(true)}
+              />
             </div>
           </div>
         }
