@@ -324,10 +324,16 @@ describe('shared_collections — create, substitute field constraints', () => {
   });
 
   it('substitute create rejected when expiresAt is more than 14 days out', async () => {
+    // 5-minute margin (not 10s) so the assertion still trips on a slow CI
+    // run. NOW_MS is captured at module load; by the time this test fires,
+    // request.time inside the emulator has drifted forward. A 10s margin
+    // can vanish during emulator boot + earlier-test execution, making the
+    // request fall inside the 14-day cap and silently *succeed* — that
+    // already caused a false-positive CI failure on dev-paul.
     await assertFails(
       setDoc(
         doc(asHost(), sharePath),
-        subShareDoc({ expiresAt: NOW_MS + FOURTEEN_DAYS_MS + 10_000 })
+        subShareDoc({ expiresAt: NOW_MS + FOURTEEN_DAYS_MS + 5 * 60 * 1000 })
       )
     );
   });
