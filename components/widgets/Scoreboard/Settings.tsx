@@ -8,7 +8,7 @@ import {
   RandomGroup,
 } from '@/types';
 import { useDebounce } from '@/hooks/useDebounce';
-import { Plus, Trash2, Users, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Users, RefreshCw, LayoutGrid, List } from 'lucide-react';
 import { Button } from '@/components/common/Button';
 import { SCOREBOARD_COLORS as TEAM_COLORS } from '@/config/scoreboard';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
@@ -54,6 +54,12 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const config = widget.config as ScoreboardConfig;
   const teams = Array.isArray(config.teams) ? config.teams : [];
+  const layout = config.layout ?? 'cards';
+
+  const setLayout = (next: 'cards' | 'rows') => {
+    if (next === layout) return;
+    updateWidget(widget.id, { config: { ...config, layout: next } });
+  };
 
   // Find Random Widget
   const randomWidget = useMemo(
@@ -172,6 +178,44 @@ export const ScoreboardSettings: React.FC<{ widget: WidgetData }> = ({
 
   return (
     <div className="space-y-6">
+      <div>
+        <SettingsLabel>Layout</SettingsLabel>
+        <div
+          className="flex items-center bg-slate-200/80 rounded-lg p-0.5"
+          role="radiogroup"
+          aria-label="Scoreboard layout"
+        >
+          <button
+            type="button"
+            role="radio"
+            aria-checked={layout === 'cards'}
+            onClick={() => setLayout('cards')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+              layout === 'cards'
+                ? 'bg-white text-slate-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            Cards
+          </button>
+          <button
+            type="button"
+            role="radio"
+            aria-checked={layout === 'rows'}
+            onClick={() => setLayout('rows')}
+            className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 text-xs font-bold rounded-md transition-all ${
+              layout === 'rows'
+                ? 'bg-white text-slate-700 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            <List className="w-3.5 h-3.5" />
+            List
+          </button>
+        </div>
+      </div>
+
       <div className="p-4 bg-indigo-50 border border-indigo-100 rounded-2xl flex flex-col gap-3">
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-2 text-indigo-900">
