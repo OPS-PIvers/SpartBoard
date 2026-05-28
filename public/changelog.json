@@ -1,6 +1,21 @@
 {
   "entries": [
     {
+      "version": "2026.05.28.3",
+      "date": "2026-05-28",
+      "title": "Shared notebook hotspots and Boards modal copy",
+      "details": [
+        {
+          "type": "fix",
+          "text": "Shared notebooks — page-link hotspots no longer disappear when a colleague imports a shared notebook. If you authored a notebook with objects that jump to another page on Ctrl/Cmd+click, those hotspots now travel with the share, and the teacher who imports the copy gets the same jumps wired up to the same objects."
+        },
+        {
+          "type": "improvement",
+          "text": "Boards modal — the header now reads \"Boards & Collections\" instead of just \"Boards\", matching the search placeholder copy already in place and making it clearer that collections live alongside individual boards in the same modal."
+        }
+      ]
+    },
+    {
       "version": "2026.05.28.2",
       "date": "2026-05-28",
       "title": "Quiz safeguards, Scoreboard layout, and Random widget chip",
