@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ChevronRight,
   ChevronLeft,
@@ -253,7 +253,11 @@ export const NewUserSetup: React.FC = () => {
           )}
           {step === 1 && <StepAppearance style={style} onChange={setStyle} />}
           {step === 2 && (
-            <StepDock dockTypes={dockTypes} onToggle={toggleDockType} />
+            <StepDock
+              dockTypes={dockTypes}
+              onToggle={toggleDockType}
+              selectedBuildings={selectedBuildings}
+            />
           )}
         </div>
 
@@ -504,9 +508,21 @@ const StepAppearance: React.FC<{
 const StepDock: React.FC<{
   dockTypes: WidgetType[];
   onToggle: (type: WidgetType) => void;
-}> = ({ dockTypes, onToggle }) => {
+  selectedBuildings: string[];
+}> = ({ dockTypes, onToggle, selectedBuildings }) => {
   const { canAccessWidget } = useAuth();
   const toolMap = new Map(TOOLS.map((t) => [t.type, t]));
+  // The wizard's `selectedBuildings` lives in local state until handleFinish
+  // persists it, so AuthContext.selectedBuildings is still [] at this point
+  // and the per-building gate inside canAccessWidget would no-op. Canonicalize
+  // and pass the live selection so widgets restricted by `dockDefaults` for
+  // the user's actual schools are filtered out of the picker — otherwise the
+  // user could select widgets they'll immediately lose access to once setup
+  // completes.
+  const canonicalBuildings = useMemo(
+    () => canonicalizeBuildingIds(selectedBuildings),
+    [selectedBuildings]
+  );
 
   return (
     <div className="space-y-5">
@@ -522,7 +538,8 @@ const StepDock: React.FC<{
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {cat.types.map((type) => {
               const tool = toolMap.get(type);
-              if (!tool || !canAccessWidget(type)) return null;
+              if (!tool || !canAccessWidget(type, canonicalBuildings))
+                return null;
               const Icon = tool.icon;
               const isSelected = dockTypes.includes(type);
               return (

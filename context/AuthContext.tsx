@@ -1804,7 +1804,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Wrapped in useCallback to prevent unnecessary re-renders since this function
   // is passed through context and used in component dependencies
   const canAccessWidget = useCallback(
-    (widgetType: WidgetType): boolean => {
+    (widgetType: WidgetType, customBuildings?: string[]): boolean => {
       // In bypass mode, always allow everything
       if (isAuthBypass) return true;
 
@@ -1845,17 +1845,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       // building" — and without this gate the widget library still showed
       // restricted widgets. Semantics:
       //  - missing dockDefaults → no opinion, allow
-      //  - user has no selectedBuildings → no opinion, allow
+      //  - user has no selected buildings → no opinion, allow
       //  - building entry missing or true → allow
       //  - only deny when *every* selected building is explicitly `false`
       // canonicalize() so legacy IDs from pre-canonicalization admin writes
-      // still match selectedBuildings (which are always canonical).
+      // still match the selection (which is always canonicalized post-load).
+      //
+      // `customBuildings` lets callers that hold a building selection
+      // outside AuthContext state (the new-user wizard, where picks live
+      // in local component state until handleFinish persists them)
+      // evaluate against the in-flight selection. Without this override
+      // the wizard's StepDock would always see AuthContext's empty array
+      // and skip the gate, letting users pick widgets they'd then lose
+      // access to the moment setup completed.
       const rawDockDefaults = permission.config?.dockDefaults as
         | Record<string, boolean>
         | undefined;
-      if (rawDockDefaults && selectedBuildings.length > 0) {
+      const checkBuildings = customBuildings ?? selectedBuildings;
+      if (rawDockDefaults && checkBuildings.length > 0) {
         const dockDefaults = canonicalizeBuildingKeyedRecord(rawDockDefaults);
-        const allExplicitlyOff = selectedBuildings.every(
+        const allExplicitlyOff = checkBuildings.every(
           (bid) => dockDefaults[bid] === false
         );
         if (allExplicitlyOff) return false;
