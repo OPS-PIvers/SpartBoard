@@ -8,6 +8,8 @@ import {
   Palette,
   LayoutGrid,
 } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, isAuthBypass } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -134,12 +136,36 @@ export const NewUserSetup: React.FC = () => {
   const handleFinish = async () => {
     setFinishing(true);
     try {
-      await setSelectedBuildings(selectedBuildings);
-      setGlobalStyle(style);
       const dockItems: DockItem[] = dockTypes.map((t) => ({
         type: 'tool',
         toolType: t,
       }));
+
+      // Persist the wizard's full state in a single Firestore write so we
+      // don't half-save (e.g. setupCompleted=true with no dockItems would
+      // make the empty-dock recovery effect overwrite the picks on next
+      // load). DashboardContext's dock-init effects are gated on
+      // setupCompleted, so dockItems stays the wizard's choice until this
+      // write commits.
+      if (user && !isAuthBypass) {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          {
+            selectedBuildings,
+            dockItems,
+            dockInitialized: true,
+            setupCompleted: true,
+          },
+          { merge: true }
+        );
+      }
+
+      // Local state updates for instant UX. setSelectedBuildings/completeSetup
+      // also write to Firestore individually; those writes are now redundant
+      // (small cost, harmless) but we keep them so AuthContext stays the
+      // canonical owner of these fields.
+      await setSelectedBuildings(selectedBuildings);
+      setGlobalStyle(style);
       reorderDockItems(dockItems);
       await completeSetup();
     } catch (error) {

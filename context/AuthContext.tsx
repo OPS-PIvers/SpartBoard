@@ -48,6 +48,7 @@ import { AuthContext } from './AuthContextValue';
 import {
   buildingRecordToBuilding,
   canonicalizeBuildingIds,
+  canonicalizeBuildingKeyedRecord,
   getBuildingGradeLevels,
 } from '../config/buildings';
 import i18n from '../i18n';
@@ -1829,14 +1830,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         case 'admin':
           return false; // Only admins can access
         case 'beta':
-          return isBetaUser(permission.betaUsers, user.email);
+          if (!isBetaUser(permission.betaUsers, user.email)) return false;
+          break;
         case 'public':
-          return true;
+          break;
         default:
           return false;
       }
+
+      // Per-building gate: when an admin has explicitly turned a widget off
+      // for every one of the user's buildings via `config.dockDefaults`, deny
+      // access. `dockDefaults` was originally just an initial-dock seed, but
+      // admins reasonably read the toggle as "this widget is off for this
+      // building" — and without this gate the widget library still showed
+      // restricted widgets. Semantics:
+      //  - missing dockDefaults → no opinion, allow
+      //  - user has no selectedBuildings → no opinion, allow
+      //  - building entry missing or true → allow
+      //  - only deny when *every* selected building is explicitly `false`
+      // canonicalize() so legacy IDs from pre-canonicalization admin writes
+      // still match selectedBuildings (which are always canonical).
+      const rawDockDefaults = permission.config?.dockDefaults as
+        | Record<string, boolean>
+        | undefined;
+      if (rawDockDefaults && selectedBuildings.length > 0) {
+        const dockDefaults = canonicalizeBuildingKeyedRecord(rawDockDefaults);
+        const allExplicitlyOff = selectedBuildings.every(
+          (bid) => dockDefaults[bid] === false
+        );
+        if (allExplicitlyOff) return false;
+      }
+
+      return true;
     },
-    [user, featurePermissions, isAdmin, isBetaUser]
+    [user, featurePermissions, isAdmin, isBetaUser, selectedBuildings]
   );
 
   /**
