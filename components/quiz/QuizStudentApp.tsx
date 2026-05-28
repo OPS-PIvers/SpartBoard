@@ -1035,6 +1035,17 @@ const ActiveQuiz: React.FC<{
   // saved-equal short-circuit holding and prevents a stale seed from being
   // written back over a newer server answer.
   const touchedQuestionsRef = useRef<Set<string>>(new Set());
+  // Questions whose cache entry was populated by the seed-from-server
+  // block (i.e. a real Firestore value, not a local edit). Used by the
+  // `WrittenResponseEditor` questionKey to decide between `init` (no
+  // saved value to recover) and `seeded` (saved value recovered, force
+  // a one-time remount so the editor's mount-time `innerHTML` seed
+  // picks it up). Tracking this separately from `answerCache` keys
+  // avoids the bug where the student's first keystroke on an unanswered
+  // question would add the question to `answerCache`, flip the key from
+  // `init` to `seeded`, and remount the editor mid-type — stealing
+  // focus and resetting the caret.
+  const seededQuestionsRef = useRef<Set<string>>(new Set());
 
   // Per-question draft autosave timer. Coalesces autosaves for every
   // answer type — dropping non-written answers on tab close was the
@@ -1135,6 +1146,9 @@ const ActiveQuiz: React.FC<{
     // ref so the seed still uses the freshest value if React applies it on
     // a later tick.
     const qid = currentQuestion.id;
+    // Mark as seeded BEFORE the setState so a render-phase reader (the
+    // editor questionKey) sees the right state on the same commit.
+    seededQuestionsRef.current.add(qid);
     setAnswerCache((prev) => {
       const fresh = savedAnswerForCurrentRef.current;
       if (fresh === null || prev[qid] === fresh) return prev;
@@ -1316,6 +1330,11 @@ const ActiveQuiz: React.FC<{
     // mirroring later snapshots over this local edit.
     touchedQuestionsRef.current.add(currentQid);
     setAnswerCache((prev) => ({ ...prev, [currentQid]: value }));
+    // Clear any stale save-error banner once the student resumes editing.
+    // The deliberate-clear banner ("Click Submit to clear it") and other
+    // transient autosave errors otherwise persist on screen after the
+    // student starts typing/selecting again, which is misleading.
+    setSaveError(null);
   };
   useEffect(() => {
     const qid = currentQid;
@@ -2179,7 +2198,9 @@ const ActiveQuiz: React.FC<{
                 // student stares at a blank editor while React state
                 // already holds the recovered value.
                 questionKey={`${currentQuestion.id}:${
-                  currentQuestion.id in answerCache ? 'seeded' : 'init'
+                  seededQuestionsRef.current.has(currentQuestion.id)
+                    ? 'seeded'
+                    : 'init'
                 }`}
                 value={liveAnswer ?? ''}
                 onChange={(html) => setCacheForCurrent(html)}
