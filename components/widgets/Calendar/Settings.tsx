@@ -102,9 +102,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
     <div className="space-y-6">
       {/* 1. Display Options */}
       <section>
-        <SettingsLabel icon={Settings2} className="mb-3">
-          Display Options
-        </SettingsLabel>
+        <SettingsLabel icon={Settings2}>Display Options</SettingsLabel>
         <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex flex-col">
@@ -168,7 +166,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
       {/* 2. Personal Google Calendars */}
       <section className="space-y-3">
         <div className="flex items-center justify-between">
-          <SettingsLabel icon={ShieldCheck}>
+          <SettingsLabel icon={ShieldCheck} className="mb-0">
             Personal Google Calendars
           </SettingsLabel>
           <button
@@ -269,7 +267,7 @@ export const CalendarSettings: React.FC<{ widget: WidgetData }> = ({
 
       {/* 3. Local Events */}
       <section className="space-y-3">
-        <SettingsLabel>Local Manual Events</SettingsLabel>
+        <SettingsLabel className="mb-0">Local Manual Events</SettingsLabel>
 
         {isAddingLocal ? (
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
