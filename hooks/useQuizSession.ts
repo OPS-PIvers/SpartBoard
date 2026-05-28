@@ -126,22 +126,45 @@ export function isUnsafeBlankDraft(
 }
 
 /**
+ * Defensive predicate: refuse a draft autosave that would downgrade an
+ * already-submitted answer's status to 'draft'. The cache-driven
+ * autosave path can re-fire for the same question during the SSO
+ * listener-fast race window (back-nav before the response listener
+ * echoes the just-submitted answer back, so the local `submitted` state
+ * briefly flips false), and without this guard the autosave silently
+ * flips status 'submitted' → 'draft' and drops the question from the
+ * teacher's "Finished" view. Explicit submits (`isDraft=false`) still
+ * pass through.
+ */
+export function isUnsafeStatusDowngrade(
+  isDraft: boolean,
+  priorEntry: QuizResponseAnswer | undefined
+): boolean {
+  return isDraft && priorEntry?.status === 'submitted';
+}
+
+/**
  * Decide whether to snapshot the prior answer entry to the history
- * subcollection before overwriting. Only meaningful prior values
- * (non-empty and different from the incoming value) are worth
- * snapshotting, and the per-question throttle keeps a long essay from
- * fanning out to hundreds of near-identical docs.
+ * subcollection before overwriting. Captures any prior non-empty value
+ * the incoming write is about to lose — either because the text
+ * changed, or because the status is being destructively downgraded
+ * from 'submitted' to 'draft' (which can erase grading state even
+ * with identical text). The per-question throttle keeps a long essay
+ * from fanning out to hundreds of near-identical docs.
  */
 export function shouldSnapshotHistory(
   priorEntry: QuizResponseAnswer | undefined,
   newAnswer: string,
+  newIsDraft: boolean,
   lastSnapshotAt: number,
   now: number,
   throttleMs: number = HISTORY_SNAPSHOT_THROTTLE_MS
 ): boolean {
   if (!priorEntry) return false;
   if (priorEntry.answer === '') return false;
-  if (priorEntry.answer === newAnswer) return false;
+  const textChanged = priorEntry.answer !== newAnswer;
+  const statusDowngrade = priorEntry.status === 'submitted' && newIsDraft;
+  if (!textChanged && !statusDowngrade) return false;
   return now - lastSnapshotAt >= throttleMs;
 }
 
@@ -1342,6 +1365,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     ): Promise<string> => {
       setLoading(true);
       setError(null);
+      // Clear per-question history throttle on every join. The same hook
+      // instance survives a teacher unlock / attempt-cap rejoin, so a
+      // stale `lastSnapshotAt` from the prior attempt would suppress
+      // legitimate snapshots in the new one.
+      lastHistorySnapshotAtRef.current.clear();
       try {
         const normCode = code
           .trim()
@@ -1982,6 +2010,12 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       if (isUnsafeBlankDraft(answer, opts?.isDraft === true, priorEntry)) {
         return;
       }
+      // Status-downgrade guard — see `isUnsafeStatusDowngrade` doc.
+      // Stops the back-nav listener-lag race from silently flipping a
+      // 'submitted' answer back to 'draft' status.
+      if (isUnsafeStatusDowngrade(opts?.isDraft === true, priorEntry)) {
+        return;
+      }
 
       const newAnswer: QuizResponseAnswer = {
         questionId,
@@ -2040,10 +2074,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       const now = Date.now();
       const lastAt = lastHistorySnapshotAtRef.current.get(questionId) ?? 0;
       if (
-        shouldSnapshotHistory(priorEntry, answer, lastAt, now) &&
+        shouldSnapshotHistory(
+          priorEntry,
+          answer,
+          opts?.isDraft === true,
+          lastAt,
+          now
+        ) &&
         priorEntry
       ) {
-        lastHistorySnapshotAtRef.current.set(questionId, now);
         void addDoc(
           collection(
             db,
@@ -2060,9 +2099,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
             status: priorEntry.status ?? 'submitted',
             snapshotAt: serverTimestamp(),
           }
-        ).catch(() => {
-          // Safety-net write; nothing actionable on failure.
-        });
+        )
+          .then(() => {
+            // Only consume the throttle slot for snapshots that actually
+            // landed. A failed write (offline, rule denial, quota) used
+            // to bump `now` regardless, suppressing the next legitimate
+            // snapshot for the throttle window even though no recovery
+            // doc had been written.
+            lastHistorySnapshotAtRef.current.set(questionId, now);
+          })
+          .catch(() => {
+            // Safety-net write; nothing actionable on failure.
+          });
       }
     },
     []

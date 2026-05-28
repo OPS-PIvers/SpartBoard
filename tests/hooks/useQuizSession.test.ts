@@ -8,6 +8,7 @@ import {
   useQuizSessionStudent,
   useQuizSessionTeacher,
   isUnsafeBlankDraft,
+  isUnsafeStatusDowngrade,
   shouldSnapshotHistory,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
@@ -520,6 +521,42 @@ describe('isUnsafeBlankDraft (#1 guard)', () => {
   });
 });
 
+describe('isUnsafeStatusDowngrade (review fix)', () => {
+  const submittedPrior: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'committed answer',
+    answeredAt: 100,
+    status: 'submitted',
+  };
+  const draftPrior: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'work in progress',
+    answeredAt: 100,
+    status: 'draft',
+  };
+
+  it('refuses a draft autosave when the prior entry was status=submitted', () => {
+    // The back-nav listener-lag race: cache holds the just-submitted value,
+    // `submitted` state briefly flips false, and the autosave would otherwise
+    // rewrite the entry as a draft.
+    expect(isUnsafeStatusDowngrade(true, submittedPrior)).toBe(true);
+  });
+
+  it('allows a draft autosave when the prior entry was already a draft', () => {
+    expect(isUnsafeStatusDowngrade(true, draftPrior)).toBe(false);
+  });
+
+  it('allows a draft autosave when no prior entry exists', () => {
+    expect(isUnsafeStatusDowngrade(true, undefined)).toBe(false);
+  });
+
+  it('allows an explicit submit even over a previously-submitted entry', () => {
+    // A real student-paced re-submit must always pass — the gate only
+    // applies to background draft writes.
+    expect(isUnsafeStatusDowngrade(false, submittedPrior)).toBe(false);
+  });
+});
+
 describe('shouldSnapshotHistory (#5 throttle)', () => {
   const priorWithText: QuizResponseAnswer = {
     questionId: 'q1',
@@ -527,18 +564,31 @@ describe('shouldSnapshotHistory (#5 throttle)', () => {
     answeredAt: 100,
     status: 'draft',
   };
+  const priorSubmitted: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'committed answer',
+    answeredAt: 100,
+    status: 'submitted',
+  };
   const THROTTLE = 5000;
 
   it('captures a snapshot when overwriting a non-empty prior with different content past the throttle window', () => {
     expect(
-      shouldSnapshotHistory(priorWithText, 'second draft', 0, 6000, THROTTLE)
+      shouldSnapshotHistory(
+        priorWithText,
+        'second draft',
+        true,
+        0,
+        6000,
+        THROTTLE
+      )
     ).toBe(true);
   });
 
   it('skips when no prior entry exists', () => {
     // First write for this question — nothing to snapshot.
     expect(
-      shouldSnapshotHistory(undefined, 'first text', 0, 1e9, THROTTLE)
+      shouldSnapshotHistory(undefined, 'first text', true, 0, 1e9, THROTTLE)
     ).toBe(false);
   });
 
@@ -550,22 +600,52 @@ describe('shouldSnapshotHistory (#5 throttle)', () => {
       status: 'draft',
     };
     expect(
-      shouldSnapshotHistory(priorEmpty, 'new text', 0, 1e9, THROTTLE)
+      shouldSnapshotHistory(priorEmpty, 'new text', true, 0, 1e9, THROTTLE)
     ).toBe(false);
   });
 
-  it('skips when the new value is identical to the prior (no-op overwrite)', () => {
+  it('skips when the new value matches the prior text AND the status is not being downgraded', () => {
     // Autosaves can fire with no actual content change in some races;
-    // a snapshot would be wasteful and noise the recovery log.
+    // a snapshot would be wasteful when both text and status are unchanged.
     expect(
-      shouldSnapshotHistory(priorWithText, 'first draft', 0, 1e9, THROTTLE)
+      shouldSnapshotHistory(
+        priorWithText,
+        'first draft',
+        true,
+        0,
+        1e9,
+        THROTTLE
+      )
     ).toBe(false);
+  });
+
+  it('captures a snapshot on a status downgrade even with identical text', () => {
+    // The back-nav race silently writes the same text back as a draft over
+    // a previously-submitted entry — the 'submitted' fact is being destroyed
+    // and must be recoverable.
+    expect(
+      shouldSnapshotHistory(
+        priorSubmitted,
+        'committed answer',
+        true,
+        0,
+        1e9,
+        THROTTLE
+      )
+    ).toBe(true);
   });
 
   it('throttles back-to-back snapshots inside the window', () => {
     // Previous snapshot was 1s ago, throttle is 5s → not yet allowed.
     expect(
-      shouldSnapshotHistory(priorWithText, 'second draft', 4000, 5000, THROTTLE)
+      shouldSnapshotHistory(
+        priorWithText,
+        'second draft',
+        true,
+        4000,
+        5000,
+        THROTTLE
+      )
     ).toBe(false);
   });
 });

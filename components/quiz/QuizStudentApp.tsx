@@ -1299,12 +1299,21 @@ const ActiveQuiz: React.FC<{
     if (cachedDraft === null) return;
     // Saved-equal short-circuit: don't write what's already on the
     // server. Handles the "lazy-fill seeded cache from saved value"
-    // case (cache and saved are identical → no-op), the "deliberate
-    // re-type to identical text" case (also no-op), and crucially
-    // does NOT short-circuit a deliberate clear (saved=text, draft=''
-    // → diff, the #1 guard in submitAnswer handles the unsafe-blank
-    // case from there).
+    // case (cache and saved are identical → no-op) and the
+    // "deliberate re-type to identical text" case.
     if (cachedDraft === (savedAnswerForCurrent ?? '')) return;
+    // Deliberate-clear short-circuit: the student cleared a previously-
+    // saved answer. The hook's `isUnsafeBlankDraft` guard would refuse
+    // the write silently, so detect the condition here and surface a
+    // hint to the student instead of queuing a doomed timer. Submit
+    // with the explicit Submit/Next button still bypasses the guard
+    // and lets them persist an empty answer if that's really intended.
+    if (cachedDraft === '' && (savedAnswerForCurrent ?? '') !== '') {
+      setSaveError(
+        'Your previously-saved answer is still on file. Click Submit to clear it.'
+      );
+      return;
+    }
 
     const snapshot = cachedDraft;
     const capturedQid = qid;
@@ -1476,8 +1485,17 @@ const ActiveQuiz: React.FC<{
       session.showResultToStudent &&
       answerFeedback === null
     ) {
+      // Read order: selectedAnswer (post-explicit-submit) → cache (timer
+      // auto-submit landed but the response listener hasn't echoed yet)
+      // → Firestore answers as the final fallback. Without the cache
+      // hop, an auto-submitted answer compared against a stale
+      // myResponse can produce a false-incorrect on a correct
+      // submission during the teacher's reveal-snapshot tick.
       const studentAns =
         selectedAnswer ??
+        (currentQuestion?.id
+          ? answerCacheRef.current[currentQuestion.id]
+          : undefined) ??
         myResponse?.answers.find((a) => a.questionId === currentQuestion?.id)
           ?.answer;
       if (studentAns) {
@@ -1862,13 +1880,15 @@ const ActiveQuiz: React.FC<{
           <div className="space-y-3 flex-1">
             {options.map((opt) => {
               // Self-paced revisits stay editable, so the highlight tracks
-              // the live cache value (which is what the student last
-              // clicked). When locked, fall back to the post-submit
-              // `selectedAnswer` indicator — equal to the cache value in
-              // practice but kept explicit for clarity.
+              // the live cache value. When locked, fall back to the
+              // post-submit `selectedAnswer` indicator; timer auto-submit
+              // never sets selectedAnswer, so degrade to liveAnswer so the
+              // student can still see which option was submitted from
+              // their cached pick.
               const isLocked = submitted && !isStudentPaced;
+              const lockedRef = selectedAnswer ?? liveAnswer;
               const isSelected = isLocked
-                ? selectedAnswer === opt
+                ? lockedRef === opt
                 : liveAnswer === opt;
               let cls =
                 'w-full text-left px-5 py-4 rounded-2xl border-2 text-sm font-medium transition-all ';
@@ -2111,7 +2131,19 @@ const ActiveQuiz: React.FC<{
               }
             >
               <WrittenResponseEditor
-                questionKey={currentQuestion.id}
+                // The editor seeds its `innerHTML` once on mount (caret
+                // preservation), so we encode the "cache has been
+                // seeded" boolean in the questionKey. A page refresh
+                // mid-essay first mounts with value='' (cache empty,
+                // saved null); when the Firestore snapshot arrives the
+                // cache-miss-fill block populates the cache, the key
+                // flips from `…:init` → `…:seeded`, and the editor
+                // remounts with the recovered text. Without this, the
+                // student stares at a blank editor while React state
+                // already holds the recovered value.
+                questionKey={`${currentQuestion.id}:${
+                  currentQuestion.id in answerCache ? 'seeded' : 'init'
+                }`}
                 value={liveAnswer ?? ''}
                 onChange={(html) => setCacheForCurrent(html)}
                 placeholder={currentQuestion.placeholder}
