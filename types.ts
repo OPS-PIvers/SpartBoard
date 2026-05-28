@@ -4124,7 +4124,15 @@ export interface NumberLineConfig {
 
 export type BuildingNumberLineDefaults = Pick<
   NumberLineConfig,
-  'min' | 'max' | 'step' | 'displayMode' | 'showArrows'
+  | 'min'
+  | 'max'
+  | 'step'
+  | 'displayMode'
+  | 'showArrows'
+  | 'cardColor'
+  | 'cardOpacity'
+  | 'fontFamily'
+  | 'fontColor'
 >;
 
 export interface NumberLineGlobalConfig {
