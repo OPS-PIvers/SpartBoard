@@ -298,6 +298,14 @@
         { "fieldPath": "status", "order": "ASCENDING" },
         { "fieldPath": "lastWriteAt", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "responses",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "lastWriteAt", "order": "ASCENDING" }
+      ]
     }
   ],
   "fieldOverrides": [
