@@ -6,7 +6,7 @@ import {
   BuildingNumberLineDefaults,
   NumberLineMode,
 } from '@/types';
-import { Toggle } from '../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 
 interface NumberLineConfigurationPanelProps {
   config: NumberLineGlobalConfig;

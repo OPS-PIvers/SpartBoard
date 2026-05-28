@@ -13,7 +13,7 @@ import {
   MATERIAL_ICON_OPTIONS,
   getMaterialsCatalog,
   resolveMaterialIcon,
-} from '../widgets/MaterialsWidget/constants';
+} from '@/components/widgets/MaterialsWidget/constants';
 import { IconPicker } from '@/components/widgets/InstructionalRoutines/IconPicker';
 import { Button } from '@/components/common/Button';
 import { Plus, Trash2, Search } from 'lucide-react';

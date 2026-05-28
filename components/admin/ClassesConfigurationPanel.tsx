@@ -2,7 +2,7 @@ import React from 'react';
 import { ClassesGlobalConfig, BuildingClassesDefaults } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
-import { Toggle } from '../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 
 interface ClassesConfigurationPanelProps {
   config: ClassesGlobalConfig;

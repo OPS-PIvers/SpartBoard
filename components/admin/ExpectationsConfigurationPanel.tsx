@@ -4,7 +4,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { ExpectationsGlobalConfig, ExpectationsOptionOverride } from '@/types';
-import { Toggle } from '../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 import {
   VOLUME_OPTIONS,
   GROUP_OPTIONS,

@@ -3,7 +3,7 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { BuildingSelector } from './BuildingSelector';
 import { ClockGlobalConfig, BuildingClockDefaults } from '@/types';
-import { Toggle } from '../common/Toggle';
+import { Toggle } from '@/components/common/Toggle';
 import { STANDARD_COLORS } from '@/config/colors';
 import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Card } from '@/components/common/Card';
