@@ -3,7 +3,7 @@
     {
       "version": "2026.05.28.2",
       "date": "2026-05-28",
-      "title": "Quiz auto-submit safeguards",
+      "title": "Quiz safeguards, Scoreboard layout, and Random widget chip",
       "overview": [
         {
           "type": "improvement",
@@ -13,10 +13,28 @@
               "text": "Pausing a live quiz now also pauses the 90-minute idle auto-submit, so you can hold a session over lunch, a fire drill, or until tomorrow's class without students being force-submitted while you're away."
             },
             {
-              "text": "Students sitting in the lobby of a quiz you haven't launched yet no longer get force-submitted with empty answers if you get pulled away before starting question 1."
+              "text": "Students sitting in the lobby of a quiz you haven't launched yet no longer get force-submitted with empty answers if you get pulled away before starting question 1. Lobby sessions left untouched for more than 24 hours are treated as abandoned and finalized normally."
             },
             {
-              "text": "Resuming a paused session gives every student a fresh 90-minute idle window, so a long pause never causes their work to auto-submit the moment they reconnect."
+              "text": "Resuming a paused session gives every still-joined student a fresh 90-minute idle window, so a long pause never causes their work to auto-submit the moment they reconnect."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Scoreboard layout",
+          "items": [
+            {
+              "text": "The Cards vs Rows layout toggle moved out of the Scoreboard's chrome and into the Settings panel, where it sits alongside team and color settings — easier to find when you're setting up a board for the first time."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Random widget — class context chip",
+          "items": [
+            {
+              "text": "The active class chip and the Mark Absent button merged into a single icon-only chip with a popover. Click the target icon to see the class name, switch class, or mark absent students — frees up header room at narrow widget widths."
             }
           ]
         }
@@ -28,11 +46,19 @@
         },
         {
           "type": "improvement",
-          "text": "Live quiz — lobby attendees are no longer force-submitted. If you create a quiz, students join the lobby, and you get pulled away before launching question 1, those students stay in the lobby with their join intact rather than being auto-finalized with 0 answers after 90 minutes."
+          "text": "Live quiz — lobby attendees are no longer force-submitted while the session sits in the waiting state. If you create a quiz, students join the lobby, and you get pulled away before launching question 1, those students stay in the lobby with their join intact instead of being auto-finalized with 0 answers after 90 minutes. Lobby sessions that sit untouched for more than 24 hours are treated as abandoned and swept on the next cron pass, so old practice/demo sessions don't accumulate as never-finalized rows."
         },
         {
           "type": "improvement",
-          "text": "Live quiz — when you resume a paused session, the 90-minute idle clock restarts for every joined and in-progress student. Even if the pause lasted overnight, students get a full fresh window to keep working when they reconnect, instead of being immediately auto-submitted because their last activity was hours or days ago."
+          "text": "Live quiz — when you resume a paused session, the 90-minute idle clock restarts for every still-joined and in-progress student before the session flips back to active. Even if the pause lasted overnight, students get a full fresh window to keep working when they reconnect, instead of being immediately auto-submitted because their last activity was hours or days ago."
+        },
+        {
+          "type": "improvement",
+          "text": "Scoreboard widget — the Cards / Rows layout toggle moved from the widget header into the Settings panel as a labelled control. Existing scoreboards keep whichever layout they were already using; the header is now reserved for the score display itself."
+        },
+        {
+          "type": "improvement",
+          "text": "Random widget — the active class chip and the Mark Absent button merged into a single icon-only chip with a popover. The popover shows the class name, lets you switch class, and offers a Mark Absent Students action when the Randomizer is pointing at a real class roster (the action hides itself when you're in custom-names mode). Stations, Seating Chart, and Lunch Count keep their separate chips for now."
         }
       ]
     },
