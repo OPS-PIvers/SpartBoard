@@ -79,6 +79,11 @@ export const finalizeIdleQuizAttempts = onSchedule(
       .collectionGroup('responses')
       .where('status', 'in', ['joined', 'in-progress'])
       .where('lastWriteAt', '<', cutoff)
+      // Oldest-first so a sustained backlog doesn't starve the docs
+      // that have been waiting longest. Without an explicit order
+      // Firestore's default is by document key, which is effectively
+      // random for the responses subcollection.
+      .orderBy('lastWriteAt', 'asc')
       .limit(MAX_FINALIZE_PER_RUN)
       .get();
 
@@ -88,64 +93,90 @@ export const finalizeIdleQuizAttempts = onSchedule(
     }
 
     const finalizedAt = Date.now();
-    let batch = db.batch();
-    let batchOps = 0;
     let finalized = 0;
+    let skippedRaced = 0;
 
+    // Per-doc transactions instead of a single batch so a student who
+    // submits between our query read and the write isn't overwritten —
+    // each transaction re-reads the response and re-checks `status` +
+    // `lastWriteAt` before promoting drafts. The batch alternative
+    // would let one stale doc roll back finalizations for the entire
+    // run, OR (without a precondition) silently clobber a fresh
+    // submission with `autoSubmitted: true`. Per-doc txs trade some
+    // throughput for correctness; at the per-hour cadence and the
+    // 400-doc cap, the cost is bounded (~20s on a full sweep).
     for (const docSnap of stale.docs) {
       // Defense in depth: collectionGroup('responses') matches any path
       // ending in /responses/{id}. We only want quiz responses; reject
       // anything not under `quiz_sessions/{sid}/responses/{id}`.
       if (!docSnap.ref.path.startsWith('quiz_sessions/')) continue;
 
-      const data = (docSnap.data() ?? {}) as QuizResponseDoc;
-      // Defensive: filter out any null/non-object answer entries so
-      // a legacy/aborted-write doc doesn't propagate sparse entries
-      // through the auto-finalized response (the teacher results
-      // surface previously never saw these because the student
-      // never clicked Submit; auto-finalization could force them
-      // through and crash render code that assumes
-      // `answer.questionId` exists).
-      const answers = (Array.isArray(data.answers) ? data.answers : []).filter(
-        (a): a is QuizAnswer => a !== null && typeof a === 'object'
-      );
-      // Promote any pending drafts to submitted so the teacher's
-      // results view counts them as the student's final answers.
-      const finalAnswers = answers.map((a) =>
-        a.status === 'draft' ? { ...a, status: 'submitted' } : a
-      );
+      try {
+        const result = await db.runTransaction(async (tx) => {
+          const freshSnap = await tx.get(docSnap.ref);
+          if (!freshSnap.exists) return 'gone' as const;
+          const fresh = (freshSnap.data() ?? {}) as QuizResponseDoc;
+          // Re-check the snapshot-read predicates inside the tx. A
+          // student submit (status → 'completed') or any subsequent
+          // answer write (lastWriteAt advanced past cutoff) between
+          // the query and the tx-read means this doc is no longer
+          // eligible.
+          if (fresh.status !== 'joined' && fresh.status !== 'in-progress') {
+            return 'raced-status' as const;
+          }
+          if (
+            fresh.lastWriteAt &&
+            fresh.lastWriteAt.toMillis() >= cutoff.toMillis()
+          ) {
+            return 'raced-write' as const;
+          }
 
-      // Don't consume an attempt slot for a student who joined but
-      // never wrote a single answer — they'd otherwise hit the cap
-      // without seeing a question. The doc still flips to
-      // `completed` with `autoSubmitted: true` so it falls out of
-      // the live "joined" bucket; teachers can review and (if
-      // needed) clear the row via removeStudent.
-      const update: Record<string, unknown> = {
-        status: 'completed',
-        submittedAt: finalizedAt,
-        autoSubmitted: true,
-        answers: finalAnswers,
-      };
-      if (finalAnswers.length > 0) {
-        update.completedAttempts = (data.completedAttempts ?? 0) + 1;
-      }
-      batch.update(docSnap.ref, update);
-      batchOps++;
-      finalized++;
+          // Defensive: filter out any null/non-object answer entries so
+          // a legacy/aborted-write doc doesn't propagate sparse entries
+          // through the auto-finalized response.
+          const answers = (
+            Array.isArray(fresh.answers) ? fresh.answers : []
+          ).filter((a): a is QuizAnswer => a !== null && typeof a === 'object');
+          // Promote any pending drafts to submitted so the teacher's
+          // results view counts them as the student's final answers.
+          const finalAnswers = answers.map((a) =>
+            a.status === 'draft' ? { ...a, status: 'submitted' } : a
+          );
 
-      if (batchOps >= 400) {
-        await batch.commit();
-        batch = db.batch();
-        batchOps = 0;
+          // Don't consume an attempt slot for a student who joined
+          // but never wrote a single answer — they'd otherwise hit
+          // the cap without seeing a question. The doc still flips
+          // to `completed` with `autoSubmitted: true` so it falls
+          // out of the live "joined" bucket; teachers can review
+          // and (if needed) clear the row via removeStudent.
+          const update: Record<string, unknown> = {
+            status: 'completed',
+            submittedAt: finalizedAt,
+            autoSubmitted: true,
+            answers: finalAnswers,
+          };
+          if (finalAnswers.length > 0) {
+            update.completedAttempts = (fresh.completedAttempts ?? 0) + 1;
+          }
+          tx.update(docSnap.ref, update);
+          return 'finalized' as const;
+        });
+        if (result === 'finalized') {
+          finalized++;
+        } else if (result === 'raced-status' || result === 'raced-write') {
+          skippedRaced++;
+        }
+      } catch (err) {
+        console.warn(
+          '[finalizeIdleQuizAttempts] tx failed',
+          docSnap.ref.path,
+          err
+        );
       }
-    }
-    if (batchOps > 0) {
-      await batch.commit();
     }
 
     console.log(
-      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (cutoff=${cutoff.toDate().toISOString()})`
+      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (raced=${skippedRaced}, cutoff=${cutoff.toDate().toISOString()})`
     );
   }
 );
