@@ -1,6 +1,95 @@
 {
   "entries": [
     {
+      "version": "2026.05.28",
+      "date": "2026-05-28",
+      "title": "Quiz reliability, grading fixes, and translations",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "Live quiz reliability",
+          "items": [
+            {
+              "text": "Student answers to every question type — multiple choice, fill in the blank, matching, and ordering — now save automatically as students work, so closing a tab mid-attempt no longer drops their progress."
+            },
+            {
+              "text": "Popping a quiz into a new browser tab no longer locks students out with a \"PIN already joined\" error — the new tab now retries and recovers automatically."
+            },
+            {
+              "text": "Abandoned quiz attempts auto-submit after 90 minutes of inactivity instead of sitting in limbo on the teacher's monitor."
+            },
+            {
+              "text": "Removing a student from a live quiz now archives their partial work so you can recover their answers later, instead of deleting them."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "\"Send Groups → Stations\" from the Random widget now uses the group names you set (or \"Group 1\", \"Group 2\", …) instead of long, cryptic ID strings."
+            },
+            {
+              "text": "Drawing strokes no longer cut off when your pointer briefly crosses the edge of the canvas mid-stroke."
+            },
+            {
+              "text": "Video Activity scoring no longer counts duplicate questions twice against a student's possible score — a fully correct answer now reads 100% even when the question list contains repeats."
+            },
+            {
+              "text": "PLC panels (titles, buttons, dialogs, and the Remote Control link) now show in German, Spanish, and French instead of silently falling back to English."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Admin building defaults",
+          "items": [
+            {
+              "text": "Set per-building Number Line defaults for font family, text color, surface color, and surface opacity from Admin Settings — new Number Line widgets in that building start with your chosen look."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Live quiz — student answers to multiple choice, fill in the blank, matching, and ordering questions now autosave as the student works, the same way written responses already did. If a student closes their tab, switches devices, or loses connection mid-attempt, the answers they had entered are preserved and reappear when they rejoin."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — popping a quiz out into its own browser window or tab no longer triggers a \"PIN already joined\" lockout for the student. The new tab now retries through a brief network blip and the lockout message points students at closing the other tab first instead of asking the teacher for help."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — abandoned attempts that sit untouched for 90 minutes are now auto-submitted in the background and marked complete, instead of staying as \"in progress\" on the teacher's monitor forever. Whatever the student had answered is kept; unanswered questions stay blank."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — when you remove a student from a session, their partial work is now archived rather than deleted, so you can recover their answers if they were removed by mistake."
+        },
+        {
+          "type": "fix",
+          "text": "Random widget — \"Send Groups → Stations\" now creates stations labeled with the group names you saved (or \"Group 1\", \"Group 2\", …) instead of long ID strings."
+        },
+        {
+          "type": "fix",
+          "text": "Annotation canvas — fast strokes whose motion briefly crosses the canvas edge no longer commit prematurely. The stroke now stays in progress until you actually lift your pointer."
+        },
+        {
+          "type": "fix",
+          "text": "Video Activity grading — if the same question appears twice in an activity (for example, through a Drive sync hiccup), the duplicate no longer inflates the maximum possible score. A fully correct answer now reads 100% in those cases instead of 50%."
+        },
+        {
+          "type": "fix",
+          "text": "Translations — the PLC (Professional Learning Community) sidebar panel and Remote Control sidebar link now display in German, Spanish, and French, instead of silently falling back to English."
+        },
+        {
+          "type": "improvement",
+          "text": "Admin Settings — the Number Line widget configuration panel gains an \"Appearance Defaults\" section, so admins can set per-building default font family, text color, surface color, and surface opacity. Teachers in that building get those defaults the next time they add a new Number Line widget."
+        }
+      ]
+    },
+    {
       "version": "2026.05.27",
       "date": "2026-05-27",
       "title": "Notebook editor: shapes, links, copy/paste, and undo",
