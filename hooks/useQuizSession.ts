@@ -742,21 +742,31 @@ export const useQuizSessionTeacher = (
       // skip the archive — there's nothing left to preserve.
       const batch = writeBatch(db);
       if (target) {
+        // Suffix the archive doc id with `archivedAt` so a student who
+        // rejoins (same deterministic responseKey) and is removed again
+        // doesn't collide with the prior archive. The archive rule only
+        // allows create — a colliding `set()` would be evaluated as
+        // update and rejected, breaking the entire removeStudent
+        // batch. Querying by `originalResponseKey` (a field on the
+        // archive doc) or by `archived_responses` collection-group +
+        // path filter recovers per-student history.
+        const archivedAt = Date.now();
         const archiveRef = doc(
           db,
           QUIZ_SESSIONS_COLLECTION,
           sessionId,
           ARCHIVED_RESPONSES_COLLECTION,
-          responseKey
+          `${responseKey}__${archivedAt}`
         );
         // Strip the listener-only `_responseKey` tag before writing so
         // the archive matches the original Firestore schema.
         const { _responseKey: _, ...archivePayload } = target;
         batch.set(archiveRef, {
           ...archivePayload,
-          archivedAt: Date.now(),
+          archivedAt,
           archivedBy: writerUid,
           archiveReason: 'teacher-removed',
+          originalResponseKey: responseKey,
         });
       }
       batch.delete(responseRef);
