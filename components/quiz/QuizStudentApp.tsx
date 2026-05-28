@@ -2009,7 +2009,11 @@ const ActiveQuiz: React.FC<{
               onKeyDown={(e) => {
                 if (e.key !== 'Enter') return;
                 const trimmed = (liveAnswer ?? '').trim();
-                if (!trimmed) return;
+                // Allow an empty Enter when there's a saved answer to
+                // clear — the autosave's deliberate-clear branch refuses
+                // the write and instructs the student to use Submit/Enter,
+                // so blocking here would deadlock the clear path.
+                if (!trimmed && !savedAnswerForCurrent) return;
                 if (isStudentPaced) {
                   void handleSubmitAndAdvance(trimmed);
                 } else if (!submitted) {
@@ -2038,11 +2042,18 @@ const ActiveQuiz: React.FC<{
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
                     <button
-                      onClick={() =>
-                        (liveAnswer ?? '').trim() &&
-                        void handleSubmitAndAdvance((liveAnswer ?? '').trim())
+                      onClick={() => {
+                        const trimmed = (liveAnswer ?? '').trim();
+                        // Allow empty submit when there's a saved answer
+                        // to clear — autosave routes the student here for
+                        // the deliberate-clear path.
+                        if (!trimmed && !savedAnswerForCurrent) return;
+                        void handleSubmitAndAdvance(trimmed);
+                      }}
+                      disabled={
+                        submitting ||
+                        (!(liveAnswer ?? '').trim() && !savedAnswerForCurrent)
                       }
-                      disabled={!(liveAnswer ?? '').trim() || submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
                     >
                       {submitting ? (
@@ -2063,11 +2074,18 @@ const ActiveQuiz: React.FC<{
                 )
               ) : !submitted ? (
                 <button
-                  onClick={() =>
-                    (liveAnswer ?? '').trim() &&
-                    void handleSubmit((liveAnswer ?? '').trim())
+                  onClick={() => {
+                    const trimmed = (liveAnswer ?? '').trim();
+                    // Allow empty submit when there's a saved answer to
+                    // clear — autosave routes the student here for the
+                    // deliberate-clear path.
+                    if (!trimmed && !savedAnswerForCurrent) return;
+                    void handleSubmit(trimmed);
+                  }}
+                  disabled={
+                    submitting ||
+                    (!(liveAnswer ?? '').trim() && !savedAnswerForCurrent)
                   }
-                  disabled={!(liveAnswer ?? '').trim() || submitting}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (
