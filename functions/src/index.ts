@@ -38,6 +38,7 @@ export { joinPlcAssignmentSyncGroup } from './plcAssignmentSyncJoin';
 export { joinPlcVideoActivitySyncGroup } from './plcVideoActivitySyncJoin';
 export { recomputeAdminAnalytics } from './adminAnalyticsSnapshot';
 export { expireSubShares } from './expireSubShares';
+export { finalizeIdleQuizAttempts } from './finalizeIdleQuizAttempts';
 export {
   exchangeGoogleAuthCode,
   refreshGoogleAccessToken,
@@ -4194,6 +4195,12 @@ export const pinLoginV1 = onCall(
         return s === 'waiting' || s === 'active' || s === 'paused';
       });
       if (!joinable) {
+        console.warn('[pinLoginV1] fallback', {
+          kind,
+          reason: 'no-joinable-session',
+          codeMatchCount: codeMatch.size,
+          period,
+        });
         return { matched: false, reason: 'no-joinable-session' };
       }
       sessionRef = joinable.ref;
@@ -4211,12 +4218,24 @@ export const pinLoginV1 = onCall(
 
     const sessionSnap = await sessionRef.get();
     if (!sessionSnap.exists) {
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'session-not-found',
+        sessionId: sessionRef.id,
+        period,
+      });
       return { matched: false, reason: 'session-not-found' };
     }
     const sessionData = sessionSnap.data() ?? {};
     const teacherUid =
       typeof sessionData.teacherUid === 'string' ? sessionData.teacherUid : '';
     if (!teacherUid) {
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'session-missing-teacher',
+        sessionId: sessionRef.id,
+        period,
+      });
       return { matched: false, reason: 'session-missing-teacher' };
     }
     const rosterIds = Array.isArray(sessionData.rosterIds)
@@ -4226,7 +4245,16 @@ export const pinLoginV1 = onCall(
       : [];
     if (rosterIds.length === 0) {
       // No roster on the session — can't bridge. Fall through to the
-      // legacy anonymous PIN flow on the client.
+      // legacy anonymous PIN flow on the client. Common for legacy
+      // PIN-only sessions; surface so we can spot a rostered session
+      // that lost its rosterIds via a bad write.
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'no-rosters-on-session',
+        sessionId: sessionRef.id,
+        teacherUid,
+        period,
+      });
       return { matched: false, reason: 'no-rosters-on-session' };
     }
 
@@ -4280,6 +4308,21 @@ export const pinLoginV1 = onCall(
     }
 
     if (!matched) {
+      // The PIN+period tuple didn't resolve to any roster entry across
+      // the session's rosters. This is the most diagnostically valuable
+      // fallback — it usually means either (a) the teacher hasn't run
+      // commitRosterPinIndexV1 since the roster was last edited, or
+      // (b) the period the student entered doesn't match the roster's
+      // encoded period. Period is logged (not the PIN itself) so we can
+      // diff against the roster's period encoding.
+      console.warn('[pinLoginV1] fallback', {
+        kind,
+        reason: 'no-index-entry',
+        sessionId: sessionRef.id,
+        teacherUid,
+        rosterCount: rosterIds.length,
+        period,
+      });
       return { matched: false, reason: 'no-index-entry' };
     }
 
