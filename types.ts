@@ -2392,6 +2392,13 @@ export interface SharedNotebook {
   pageUrls: string[];
   assetUrls?: string[];
   sections?: NotebookSection[];
+  /**
+   * Object-to-page hyperlinks authored by the original teacher. Page indices
+   * (sourcePage/targetPage) and normalized hotspot fractions stay valid across
+   * a copy import because the importer preserves page order, and the linked
+   * SVG objects' `data-edit-id`s round-trip unchanged through the re-upload.
+   */
+  objectLinks?: NotebookObjectLink[];
   originalAuthor: string;
   sharedAt: number;
 }
