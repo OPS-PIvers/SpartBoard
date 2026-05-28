@@ -2304,6 +2304,44 @@ service cloud.firestore {
         );
         allow delete: if request.auth != null &&
           (request.auth.uid == sessionTeacherUid() || isAdmin());
+
+        // Append-only snapshot log of overwritten answers. Each entry
+        // captures a prior `answers[i]` value the moment before it gets
+        // replaced in the parent response doc — see `submitAnswer` in
+        // `useQuizSession.ts`. Used to recover student text lost to a
+        // race (stray blank draft after a hydration miss) or to a
+        // student retyping over their own work after a lockout. Writes
+        // are throttled per-question on the client; the rule still
+        // pins the doc shape so a hostile authenticated user can't
+        // dump arbitrary data into the subcollection.
+        match /history/{historyId} {
+          function parentStudentUid() {
+            return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)).data.studentUid;
+          }
+          // Read: teacher, admin, or the owning student.
+          allow read: if request.auth != null && (
+            isAdmin() ||
+            request.auth.uid == sessionTeacherUid() ||
+            request.auth.uid == parentStudentUid()
+          );
+          // Create: only the owning student of the parent response.
+          // Field shape is strict so a malicious caller can't smuggle
+          // fields; `snapshotAt == request.time` forces server stamping.
+          allow create: if request.auth != null &&
+            request.auth.uid == parentStudentUid() &&
+            request.resource.data.keys().hasOnly(
+              ['questionId', 'answer', 'answeredAt', 'status', 'snapshotAt']
+            ) &&
+            request.resource.data.questionId is string &&
+            request.resource.data.answer is string &&
+            request.resource.data.answeredAt is number &&
+            request.resource.data.status in ['draft', 'submitted'] &&
+            request.resource.data.snapshotAt == request.time;
+          // Immutable from clients. Teachers/admins may clean up.
+          allow update: if false;
+          allow delete: if request.auth != null &&
+            (request.auth.uid == sessionTeacherUid() || isAdmin());
+        }
       }
 
       // Archived responses — copies of student responses that the teacher
