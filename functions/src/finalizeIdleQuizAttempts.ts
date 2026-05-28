@@ -92,9 +92,51 @@ export const finalizeIdleQuizAttempts = onSchedule(
       return;
     }
 
+    // Batch-read parent quiz_session docs so we can skip docs whose
+    // session is paused. A paused session is one the teacher
+    // intentionally stopped (often end-of-day, intending to resume next
+    // class period). Without this check students get force-finalized
+    // with `autoSubmitted: true` 90 min after pause, requiring the
+    // teacher to per-student `unlockStudentAttempt` to recover the
+    // live attempt. One Firestore read per unique sid, not per response
+    // — kept cheap for the public-ed budget. The race-window between
+    // this batch read and the per-doc tx below is bounded by the run
+    // duration (~20s on a full sweep): a teacher who pauses inside
+    // that window may still see some students finalized, but worst
+    // case they re-pause next tick and the rest are caught.
+    const parentSessionIds = new Set<string>();
+    for (const docSnap of stale.docs) {
+      if (!docSnap.ref.path.startsWith('quiz_sessions/')) continue;
+      // Path shape: quiz_sessions/{sid}/responses/{rid}
+      const segments = docSnap.ref.path.split('/');
+      if (segments.length < 4 || segments[0] !== 'quiz_sessions') continue;
+      parentSessionIds.add(segments[1]);
+    }
+    const sessionRefs = Array.from(parentSessionIds).map((sid) =>
+      db.doc(`quiz_sessions/${sid}`)
+    );
+    // `getAll` issues one network round-trip for N docs; returns docs in
+    // the same order as the input refs. Missing docs come back as
+    // `exists === false` snapshots, which we treat as "session gone" —
+    // a deleted parent session means orphan responses, which should be
+    // skipped (don't sweep into a missing parent; if the teacher
+    // deleted the whole session deliberately, the responses are
+    // already inaccessible from the live monitor).
+    const sessionStatusBySid = new Map<string, string | undefined>();
+    if (sessionRefs.length > 0) {
+      const sessionDocs = await db.getAll(...sessionRefs);
+      for (const sessionDoc of sessionDocs) {
+        if (!sessionDoc.exists) continue;
+        const status = (sessionDoc.data() ?? {}).status as string | undefined;
+        sessionStatusBySid.set(sessionDoc.id, status);
+      }
+    }
+
     const finalizedAt = Date.now();
     let finalized = 0;
     let skippedRaced = 0;
+    let skippedPaused = 0;
+    let skippedOrphan = 0;
     let failed = 0;
 
     // Per-doc transactions instead of a single batch so a student who
@@ -111,6 +153,25 @@ export const finalizeIdleQuizAttempts = onSchedule(
       // ending in /responses/{id}. We only want quiz responses; reject
       // anything not under `quiz_sessions/{sid}/responses/{id}`.
       if (!docSnap.ref.path.startsWith('quiz_sessions/')) continue;
+
+      const sid = docSnap.ref.path.split('/')[1];
+      // Skip docs whose parent session is paused: the teacher
+      // intentionally stopped the session and force-finalizing now
+      // would erase the live attempt with `autoSubmitted: true`.
+      // Resumed sessions naturally re-enter the sweep (lastWriteAt
+      // ages again from whenever the student next answers).
+      const parentStatus = sessionStatusBySid.get(sid);
+      if (parentStatus === 'paused') {
+        skippedPaused++;
+        continue;
+      }
+      // Orphan response: parent session was deleted or unreadable.
+      // Counted separately so the operational metric reflects that
+      // these aren't write failures — there's nothing to sweep into.
+      if (!sessionStatusBySid.has(sid)) {
+        skippedOrphan++;
+        continue;
+      }
 
       try {
         const result = await db.runTransaction(async (tx) => {
@@ -187,18 +248,23 @@ export const finalizeIdleQuizAttempts = onSchedule(
     }
 
     console.log(
-      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (raced=${skippedRaced}, failed=${failed}, cutoff=${cutoff.toDate().toISOString()})`
+      `[finalizeIdleQuizAttempts] finalized ${finalized} stale responses (raced=${skippedRaced}, paused=${skippedPaused}, orphan=${skippedOrphan}, failed=${failed}, cutoff=${cutoff.toDate().toISOString()})`
     );
 
-    // If more than ~10% of attempts failed, escalate by throwing so the
-    // scheduler logs an error-level event and retries on the next tick.
-    // Lower the threshold once we have a baseline; for now this catches
-    // structural problems (e.g., a rule deploy gap, a malformed-doc
-    // backlog) without paging on isolated contention races.
-    const total = finalized + skippedRaced + failed;
-    if (total > 0 && failed * 10 > total) {
+    // If more than ~10% of *attempted writes* failed, escalate by
+    // throwing so the scheduler logs an error-level event and retries
+    // on the next tick. The denominator deliberately excludes skip
+    // categories (raced / paused / orphan) — those aren't write
+    // attempts and including them would hide a structural problem:
+    // e.g. 380 raced + 20 failed (100% of attempted writes failing)
+    // would not have tripped the prior `total = finalized + raced +
+    // failed` denominator. Catches rule deploy gaps and malformed-doc
+    // backlogs without paging on isolated contention races or on
+    // benign paused-session skips.
+    const attempted = finalized + failed;
+    if (attempted > 0 && failed * 10 > attempted) {
       throw new Error(
-        `[finalizeIdleQuizAttempts] elevated failure rate: ${failed}/${total}`
+        `[finalizeIdleQuizAttempts] elevated failure rate: ${failed}/${attempted}`
       );
     }
   }
