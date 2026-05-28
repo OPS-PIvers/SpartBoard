@@ -29,6 +29,7 @@ vi.mock('@/components/widgets/random/audioUtils', () => ({
 // jsdom does not support CSS min() so we cannot reliably check computed styles;
 // capturing the prop string directly is the most reliable alternative.
 vi.mock('@/components/widgets/random/RandomFlash', () => ({
+  RANDOM_FLASH_PLACEHOLDER: 'Ready?',
   RandomFlash: ({
     fontSize,
     displayResult,
@@ -126,9 +127,11 @@ describe('RandomWidget', () => {
 
   describe('text scaling', () => {
     // Shorter words get a larger cqw value; longer words get a smaller one.
-    // Formula: round(130 / maxWordLength) cqw, capped at [4, 40].
-    // 'Alice'       →  5 chars → round(130/5)  = 26 → 'min(26cqw, 20cqh)'
-    // 'Christopher' → 11 chars → round(130/11) = 12 → 'min(12cqw, 20cqh)'
+    // When lastResult is set (settled winner), formula sizes based on the
+    // displayed string's longest word: round(75 / wordLength) cqw, capped at
+    // [4, 80], with a 60cqh vertical cap.
+    // 'Alice'       →  5 chars → round(75/5)  = 15 → 'min(15cqw, 60cqh)'
+    // 'Christopher' → 11 chars → round(75/11) =  7 → 'min(7cqw, 60cqh)'
 
     it('assigns a smaller font size for longer words than for shorter ones', () => {
       const shortWidget = {
@@ -164,8 +167,8 @@ describe('RandomWidget', () => {
         .getByTestId('random-flash')
         .getAttribute('data-font-size');
 
-      expect(shortFontSize).toBe('min(26cqw, 20cqh)');
-      expect(longFontSize).toBe('min(12cqw, 20cqh)');
+      expect(shortFontSize).toBe('min(15cqw, 60cqh)');
+      expect(longFontSize).toBe('min(7cqw, 60cqh)');
     });
 
     it('sizes font by the longest WORD, not the full name length', () => {
@@ -207,12 +210,13 @@ describe('RandomWidget', () => {
         .getAttribute('data-font-size');
 
       // Both rosters have a max word length of 11 → same font size
-      expect(multiFontSize).toBe('min(12cqw, 20cqh)');
-      expect(singleFontSize).toBe('min(12cqw, 20cqh)');
+      expect(multiFontSize).toBe('min(7cqw, 60cqh)');
+      expect(singleFontSize).toBe('min(7cqw, 60cqh)');
     });
 
     it('produces a valid font size for words longer than 18 characters', () => {
-      // 34-char word → round(130/34) = 4 (the minimum) → 'min(4cqw, 20cqh)'
+      // 34-char word → round(75/34) = 2 → clamped to the [4, 80] floor →
+      // 'min(4cqw, 60cqh)'
       const longWordWidget = {
         ...mockWidget,
         config: {
@@ -229,7 +233,81 @@ describe('RandomWidget', () => {
         .getByTestId('random-flash')
         .getAttribute('data-font-size');
 
-      expect(fontSize).toBe('min(4cqw, 20cqh)');
+      expect(fontSize).toBe('min(4cqw, 60cqh)');
+    });
+
+    it('uses the 6-char placeholder length when lastResult is empty, regardless of roster word length', () => {
+      // A roster with a 1-letter name has maxWordLength=1, but with no
+      // lastResult the formula must size the placeholder ("Ready?", 6 chars)
+      // based on PLACEHOLDER_LENGTH — NOT the roster max — otherwise a
+      // 1-letter roster would oversize the placeholder and overflow.
+      // round(75/6) = 13 → 'min(13cqw, 60cqh)'.
+      const placeholderWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Q', // maxWordLength = 1
+          lastNames: '',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: null,
+        },
+      } as unknown as WidgetData;
+
+      renderWidget(placeholderWidget);
+      const fontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+
+      expect(fontSize).toBe('min(13cqw, 60cqh)');
+    });
+
+    it('splits multi-word display strings on ASCII whitespace only — NBSP-joined names stay one word so the font sizes for the unbreakable rendered width', () => {
+      // CSS `white-space: normal` does not wrap at U+00A0 NBSP, so the
+      // formula must NOT split there either — otherwise the font is sized
+      // for 5 chars ("Smith") but rendered as one unbreakable 10-char unit
+      // and overflows. NBSP-joined name = treat as a single 10-char word.
+      // round(75/10) = 8 → 'min(8cqw, 60cqh)'.
+      const nbspWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Mary Smith',
+          lastNames: '',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: 'Mary Smith',
+        },
+      } as unknown as WidgetData;
+
+      renderWidget(nbspWidget);
+      const fontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+
+      expect(fontSize).toBe('min(8cqw, 60cqh)');
+    });
+
+    it('sizes regular-space multi-word names to the longest single word (wraps at the space)', () => {
+      // Sanity counterpart to the NBSP test: 'Mary Smith' with an ASCII
+      // space splits into ['Mary','Smith'], sizes for the longest word
+      // (5 chars). round(75/5) = 15 -> 'min(15cqw, 60cqh)'. Names wrap
+      // at the ASCII space so each line fits horizontally.
+      const multiWordWidget = {
+        ...mockWidget,
+        config: {
+          firstNames: 'Mary',
+          lastNames: 'Smith',
+          mode: 'single',
+          remainingStudents: [],
+          lastResult: 'Mary Smith',
+        },
+      } as unknown as WidgetData;
+
+      renderWidget(multiWordWidget);
+      const fontSize = screen
+        .getByTestId('random-flash')
+        .getAttribute('data-font-size');
+
+      expect(fontSize).toBe('min(15cqw, 60cqh)');
     });
   });
 });

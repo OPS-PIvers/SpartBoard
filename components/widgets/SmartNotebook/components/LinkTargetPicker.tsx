@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef } from 'react';
-import { Link2, Unlink2, X } from 'lucide-react';
+import { ArrowRight, Link2, Unlink2, X } from 'lucide-react';
 import { NotebookSection } from '@/types';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
@@ -14,6 +14,9 @@ interface LinkTargetPickerProps {
   onSelect: (page: number) => void;
   /** Optional — only shown when currentTarget is non-null. */
   onRemove?: () => void;
+  /** Optional — only shown when currentTarget is non-null. Closes the picker
+   *  and navigates the editor to the target page. */
+  onJumpToTarget?: () => void;
   onClose: () => void;
 }
 
@@ -35,6 +38,7 @@ export const LinkTargetPicker: React.FC<LinkTargetPickerProps> = ({
   currentTarget,
   onSelect,
   onRemove,
+  onJumpToTarget,
   onClose,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -108,6 +112,30 @@ export const LinkTargetPicker: React.FC<LinkTargetPickerProps> = ({
             className="flex items-center"
             style={{ gap: 'min(6px, 1.5cqmin)' }}
           >
+            {currentTarget !== null && onJumpToTarget && (
+              <button
+                onClick={onJumpToTarget}
+                className="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg transition-colors flex items-center"
+                style={{
+                  padding: 'min(6px, 1.5cqmin) min(10px, 2.5cqmin)',
+                  gap: 'min(4px, 1cqmin)',
+                }}
+                title={`Go to page ${currentTarget + 1}`}
+              >
+                <ArrowRight
+                  style={{
+                    width: 'min(13px, 3.2cqmin)',
+                    height: 'min(13px, 3.2cqmin)',
+                  }}
+                />
+                <span
+                  className="font-bold uppercase tracking-tight"
+                  style={{ fontSize: 'min(10px, 2.5cqmin)' }}
+                >
+                  Go to page {currentTarget + 1}
+                </span>
+              </button>
+            )}
             {currentTarget !== null && onRemove && (
               <button
                 onClick={onRemove}

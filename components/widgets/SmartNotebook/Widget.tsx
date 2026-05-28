@@ -26,6 +26,8 @@ import {
   deleteDoc,
   query,
   orderBy,
+  arrayRemove,
+  arrayUnion,
 } from 'firebase/firestore';
 import { db } from '@/config/firebase';
 import {
@@ -484,36 +486,57 @@ export const SmartNotebookWidget: React.FC<{
   };
 
   // Add or replace an object→page link. The same {objectId, sourcePage}
-  // pair always maps to ONE hotspot, so we filter any prior entry out
-  // before appending the new one.
+  // pair always maps to ONE hotspot, so any prior entry is removed before
+  // the new one is unioned in. arrayRemove + arrayUnion keep concurrent
+  // writers from clobbering each other the way a read-modify-write would.
   const handleSaveObjectLink = async (
     link: NotebookObjectLink
   ): Promise<void> => {
     if (!user || !activeNotebook) return;
-    const others = (activeNotebook.objectLinks ?? []).filter(
-      (l) => !(l.objectId === link.objectId && l.sourcePage === link.sourcePage)
+    const existing = (activeNotebook.objectLinks ?? []).find(
+      (l) => l.objectId === link.objectId && l.sourcePage === link.sourcePage
     );
-    const next = [...others, link];
+    const ref = doc(db, 'users', user.uid, 'notebooks', activeNotebook.id);
     try {
-      await updateDoc(
-        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
-        { objectLinks: next }
-      );
+      if (existing) {
+        await updateDoc(ref, { objectLinks: arrayRemove(existing) });
+      }
+      await updateDoc(ref, { objectLinks: arrayUnion(link) });
     } catch (err) {
       console.error('Failed to save object link', err);
       addToast('Could not save link', 'error');
     }
   };
 
-  const handleRemoveObjectLink = async (linkId: string): Promise<void> => {
-    if (!user || !activeNotebook) return;
-    const next = (activeNotebook.objectLinks ?? []).filter(
-      (l) => l.id !== linkId
-    );
+  // Persist many new object→page links in one Firestore write — used after
+  // paste / duplicate of linked objects so a clipboard with five hotspots
+  // doesn't fan out to five sequential round-trips. arrayUnion dedupes by
+  // deep equality, so two concurrent batches can't drop each other's links.
+  const handleSaveObjectLinksBatch = async (
+    links: NotebookObjectLink[]
+  ): Promise<void> => {
+    if (!user || !activeNotebook || links.length === 0) return;
     try {
       await updateDoc(
         doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
-        { objectLinks: next }
+        { objectLinks: arrayUnion(...links) }
+      );
+    } catch (err) {
+      console.error('Failed to save object links batch', err);
+      addToast('Could not save pasted links', 'error');
+    }
+  };
+
+  const handleRemoveObjectLink = async (linkId: string): Promise<void> => {
+    if (!user || !activeNotebook) return;
+    const target = (activeNotebook.objectLinks ?? []).find(
+      (l) => l.id === linkId
+    );
+    if (!target) return;
+    try {
+      await updateDoc(
+        doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
+        { objectLinks: arrayRemove(target) }
       );
     } catch (err) {
       console.error('Failed to remove object link', err);
@@ -664,12 +687,16 @@ export const SmartNotebookWidget: React.FC<{
     return (
       <PageEditorOverlay
         title={activeNotebook.title}
+        activeNotebookId={activeNotebook.id}
         pageUrls={activeNotebook.pageUrls}
         cachedSvg={editedSvgsRef.current.get(currentPage) ?? null}
         currentPage={currentPage}
         sections={activeNotebook.sections}
         objectLinks={activeNotebook.objectLinks}
         onSaveObjectLink={(link) => void handleSaveObjectLink(link)}
+        onSaveObjectLinksBatch={(links) =>
+          void handleSaveObjectLinksBatch(links)
+        }
         onRemoveObjectLink={(linkId) => void handleRemoveObjectLink(linkId)}
         saveStatus={saveStatus}
         onEditChange={handleEditChange}

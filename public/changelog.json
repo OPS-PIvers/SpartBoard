@@ -1,6 +1,182 @@
 {
   "entries": [
     {
+      "version": "2026.05.27",
+      "date": "2026-05-27",
+      "title": "Notebook editor: shapes, links, copy/paste, and undo",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Notebook editor",
+          "items": [
+            {
+              "text": "Add text boxes and shapes — rectangle, ellipse, line, and arrow — straight from the editor toolbar."
+            },
+            {
+              "text": "Link any object on a page to another page in the same notebook, then Ctrl/Cmd+click it during a lesson to jump there."
+            },
+            {
+              "text": "Copy and paste objects across notebook pages — any page-jump links travel with the paste."
+            },
+            {
+              "text": "Paste images and text straight from your operating system clipboard onto the current page."
+            },
+            {
+              "text": "Undo and redo any edit with Cmd/Ctrl+Z and Cmd/Ctrl+Shift+Z — each page keeps its own 50-step history."
+            },
+            {
+              "text": "Set a per-page background:",
+              "items": [
+                {
+                  "text": "Solid color from an 8-swatch palette or a custom color."
+                },
+                { "text": "Pattern overlay — lines, grid, or dots." },
+                { "text": "Your own uploaded image." }
+              ]
+            },
+            {
+              "text": "Reorder layers with a new toolbar cluster or with Cmd/Ctrl+] and Cmd/Ctrl+[ shortcuts."
+            },
+            {
+              "text": "Rotate any selected object with a new top handle."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Notebook editor",
+          "items": [
+            {
+              "text": "The eraser now removes any object under your cursor — not just ink."
+            },
+            {
+              "text": "Toolbar collapsed into six popover-driven tools with continuous size sliders, and white was added to the color palette."
+            },
+            {
+              "text": "Notebook autosave runs quietly behind the scenes without ever clobbering a live drag, resize, or text edit."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "Specialist Schedule widget gains a proper Appearance tab for typography, colors, and text size."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Random widget result text now sizes to the winner shown — short results like \"1.\" fill the widget."
+            },
+            {
+              "text": "Random and Stations widget buttons no longer collapse on small widget sizes."
+            },
+            {
+              "text": "YouTube playlist URLs embed correctly even when the playlist ID comes before the video ID."
+            },
+            {
+              "text": "Guided Learning matching questions no longer mark a student correct when they include extra wrong pairs."
+            },
+            {
+              "text": "AI quiz and mini-app generation no longer fails to parse when the AI returns a list of items."
+            },
+            {
+              "text": "\"Saved\", \"Success\", and \"Error\" messages now show in German, Spanish, and French."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Notebook editor — new text and shape tools. The toolbar now has a Text tool that drops an editable text box anywhere on the page, plus a Shapes button hiding rectangle, ellipse, line, and arrow tools. Each shape and text object joins the same select / move / resize / rotate / delete / link pipeline that drawn objects already use, so you can manipulate the whole page the same way."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — object-to-page hyperlinks. Link any object on a notebook page to another page in the same notebook. A jump-to-link button (arrow) appears next to the manage-link button on linked objects, Ctrl/Cmd+clicking a linked object follows the link, and the link picker has a \"Go to page N\" button so you can verify the target without leaving editing mode. The picker also no longer dismisses itself the moment you open it."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — page-jump hyperlinks preserved on SMART Notebook import. Imported decks now carry over their original page-to-page links, so existing lessons keep working without re-wiring."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — cross-page copy and paste with link preservation. Cmd/Ctrl+C copies any selection, Cmd/Ctrl+V drops it onto the page you're currently viewing (even a different page), and any object-to-page links travel with the paste — clones automatically point at the right page. Cmd/Ctrl+D in-page duplicates also carry links forward."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — paste from your operating system clipboard. Cmd/Ctrl+V with an image on your clipboard drops the image onto the current page as a movable object. Pasted text becomes an editable text object at page center. When both clipboards have content, the in-app clipboard wins so a stale screenshot can't replace a notebook copy."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — undo and redo. Every edit — drawing, shape, text, move, resize, rotate, delete, paste, layer change — is now an undoable step. Cmd/Ctrl+Z walks back, Cmd/Ctrl+Shift+Z (or Ctrl+Y) walks forward, and each page keeps its own 50-step history that starts from the page as you loaded it."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — per-page background picker. Pick a solid color from an 8-swatch palette (or a custom color), overlay a pattern (lines, grid, or dots), or upload your own background image. Backgrounds save with the page so the notebook stays self-contained when you share it."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — layer ordering. Reorder any selected object with a new four-button Layers cluster in the toolbar — bring to front, bring forward, send backward, send to back — or with Cmd/Ctrl+], Cmd/Ctrl+[, Cmd/Ctrl+Shift+], and Cmd/Ctrl+Shift+[."
+        },
+        {
+          "type": "feature",
+          "text": "Notebook editor — rotation handle on selected objects. A new handle at the top of the selection box rotates the object, alongside the existing eight resize handles."
+        },
+        {
+          "type": "improvement",
+          "text": "Notebook editor toolbar redesigned. Nine inline tools, five colors, and three width buttons collapsed into six top-level tools, each with its own popover. Shapes live behind a Shapes button. Size is now a continuous slider — 4 to 80 pixels for pen, highlighter, shapes, and eraser, and 12 to 96 pt for text. White was added to the palette. Popovers are opaque so they don't blend into the page underneath."
+        },
+        {
+          "type": "improvement",
+          "text": "Notebook eraser now removes any object under the cursor. Previously the eraser only cleared ink — it now also removes shapes, text boxes, and images, with the new eraser-size slider driving a multi-sample hit radius."
+        },
+        {
+          "type": "improvement",
+          "text": "Notebook autosave never clobbers a live edit. The editor is now strictly write-only after mount: autosave can run as often as it wants without ever overwriting an in-flight drag, resize, or text edit. This eliminates a class of \"my work got reverted\" and \"the page snapped back\" bugs."
+        },
+        {
+          "type": "improvement",
+          "text": "Notebook Text tool — focus and second-drop fixes. Clicking outside an active text object no longer drops a second empty text on the next click. Initial typing into a new text object lands reliably. Clicking an existing text object while the Text tool is active opens it for editing instead of creating a new one over the top."
+        },
+        {
+          "type": "improvement",
+          "text": "Specialist Schedule widget now has a proper Appearance tab. Typography, font color, card color, and text size presets all live in a dedicated Appearance settings panel. A redundant General tab was removed so the settings match the rest of the widgets in the dock."
+        },
+        {
+          "type": "fix",
+          "text": "Random widget result text now sizes to what's actually displayed. Short results like \"1.\" fill the widget instead of being pinned to the size of the longest roster name, and three sizing regimes (spinning, settled, placeholder) make each state look intentional."
+        },
+        {
+          "type": "fix",
+          "text": "Random and Stations widget controls no longer collapse on small widget sizes. Chips, buttons, and icons recover their minimum size floors that an earlier sizing sweep had erased — Shuffle, Rotate, and Reset on the Stations widget are usable again on small layouts."
+        },
+        {
+          "type": "fix",
+          "text": "YouTube playlist URLs now embed correctly even when the playlist ID appears before the video ID in the URL — copying the URL straight from a playlist page no longer breaks the embed."
+        },
+        {
+          "type": "fix",
+          "text": "Guided Learning matching questions are now graded strictly. A student who submitted every correct pair plus one extra wrong pair was previously getting full credit; the answer is now marked wrong unless the submission matches the expected pairs exactly."
+        },
+        {
+          "type": "fix",
+          "text": "AI-generated content (quiz items, mini-app pieces, and other Gemini-driven outputs) no longer fails to parse when the AI returns a top-level list of items instead of an object. \"Couldn't read the AI response\" errors on otherwise valid generations should be gone."
+        },
+        {
+          "type": "fix",
+          "text": "\"Saved\", \"Success\", and \"Error\" status messages now display in your selected language. Missing translation keys were added to German, Spanish, and French locales."
+        },
+        {
+          "type": "fix",
+          "text": "Record, Magic, and Remote dock buttons now respect the right permission gate. An admin disabling a per-widget permission for these toolbar actions no longer hides them — they correctly follow their own feature-permission setting."
+        }
+      ]
+    },
+    {
       "version": "2026.05.26.2",
       "date": "2026-05-26",
       "title": "The Draw widget becomes a full whiteboard",

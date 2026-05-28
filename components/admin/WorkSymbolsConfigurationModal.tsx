@@ -14,15 +14,15 @@ import {
   WorkSymbolsGlobalConfig,
 } from '@/types';
 import { useStorage } from '@/hooks/useStorage';
-import { Toast } from '../common/Toast';
-import { Button } from '../common/Button';
-import { Card } from '../common/Card';
+import { useDashboard } from '@/context/useDashboard';
+import { Button } from '@/components/common/Button';
+import { Card } from '@/components/common/Card';
 
 interface WorkSymbolsConfigurationModalProps {
   isOpen: boolean;
   onClose: () => void;
   permission: FeaturePermission;
-  onSave: (updates: Partial<FeaturePermission>) => void;
+  onSave: (updates: Partial<FeaturePermission>) => void | Promise<void>;
 }
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -36,11 +36,11 @@ export const WorkSymbolsConfigurationModal: React.FC<
   WorkSymbolsConfigurationModalProps
 > = ({ isOpen, onClose, permission, onSave }) => {
   const BUILDINGS = useAdminBuildings();
+  const { addToast } = useDashboard();
   const [globalConfig, setGlobalConfig] = useState<WorkSymbolsGlobalConfig>(
     () => normalizeConfig(permission.config)
   );
   const [isSaving, setIsSaving] = useState(false);
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
 
@@ -56,9 +56,16 @@ export const WorkSymbolsConfigurationModal: React.FC<
     setGlobalConfig(normalizeConfig(permission.config));
   }
 
-  const setSymbols = useCallback((symbols: WorkSymbol[]) => {
-    setGlobalConfig((prev) => ({ ...prev, symbols }));
-  }, []);
+  const setSymbols = useCallback(
+    (updater: WorkSymbol[] | ((prev: WorkSymbol[]) => WorkSymbol[])) => {
+      setGlobalConfig((prev) => ({
+        ...prev,
+        symbols:
+          typeof updater === 'function' ? updater(prev.symbols) : updater,
+      }));
+    },
+    []
+  );
 
   // --- Upload ---
   const handleFiles = useCallback(
@@ -72,8 +79,9 @@ export const WorkSymbolsConfigurationModal: React.FC<
       const fileArray = imageFiles.filter((f) => f.size <= MAX_FILE_SIZE);
 
       if (oversized.length > 0) {
-        setToastMessage(
-          `${oversized.length} file${oversized.length > 1 ? 's' : ''} exceeded 5MB limit and ${oversized.length > 1 ? 'were' : 'was'} skipped`
+        addToast(
+          `${oversized.length} file${oversized.length > 1 ? 's' : ''} exceeded 5MB limit and ${oversized.length > 1 ? 'were' : 'was'} skipped`,
+          'warning'
         );
       }
 
@@ -98,11 +106,13 @@ export const WorkSymbolsConfigurationModal: React.FC<
         }
       }
       if (newSymbols.length > 0) {
-        setSymbols([...globalConfig.symbols, ...newSymbols]);
+        // Functional update: appends to the latest committed symbols list,
+        // so concurrent edits during long-running uploads are not clobbered.
+        setSymbols((prev) => [...prev, ...newSymbols]);
       }
       setUploading(false);
     },
-    [globalConfig.symbols, setSymbols, uploadAdminWorkSymbol]
+    [addToast, setSymbols, uploadAdminWorkSymbol]
   );
 
   const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -123,18 +133,18 @@ export const WorkSymbolsConfigurationModal: React.FC<
       uploadedThisSessionRef.current.delete(symbol.imageUrl);
       void deleteFile(symbol.imageUrl);
     }
-    setSymbols(globalConfig.symbols.filter((s) => s.id !== symbol.id));
+    setSymbols((prev) => prev.filter((s) => s.id !== symbol.id));
   };
 
   const updateSymbolTitle = (symbolId: string, title: string) => {
-    setSymbols(
-      globalConfig.symbols.map((s) => (s.id === symbolId ? { ...s, title } : s))
+    setSymbols((prev) =>
+      prev.map((s) => (s.id === symbolId ? { ...s, title } : s))
     );
   };
 
   const toggleBuilding = (symbolId: string, buildingId: string) => {
-    setSymbols(
-      globalConfig.symbols.map((s) => {
+    setSymbols((prev) =>
+      prev.map((s) => {
         if (s.id !== symbolId) return s;
         const current = s.buildings;
         const next = current.includes(buildingId)
@@ -146,18 +156,23 @@ export const WorkSymbolsConfigurationModal: React.FC<
   };
 
   // --- Save / Close ---
-  const handleSave = () => {
+  // Storage cleanup only happens on Cancel; the outer "Save Changes" in
+  // FeaturePermissionsManager finalizes persistence, so we leave uploaded URLs
+  // tracked here until the user closes via Cancel.
+  const handleSave = async () => {
     setIsSaving(true);
     try {
-      onSave({
+      await onSave({
         config: globalConfig as unknown as Record<string, unknown>,
       });
-      uploadedThisSessionRef.current.clear();
-      setToastMessage('Work Symbols configuration saved');
+      addToast(
+        'Work Symbols updates applied — click Save Changes to persist',
+        'success'
+      );
       onClose();
     } catch (error) {
       console.error('Error saving config:', error);
-      setToastMessage('Error saving configuration');
+      addToast('Error saving configuration', 'error');
     } finally {
       setIsSaving(false);
     }
@@ -315,8 +330,8 @@ export const WorkSymbolsConfigurationModal: React.FC<
                                   const allExcept = BUILDINGS.map(
                                     (x) => x.id
                                   ).filter((id) => id !== b.id);
-                                  setSymbols(
-                                    globalConfig.symbols.map((s) =>
+                                  setSymbols((prev) =>
+                                    prev.map((s) =>
                                       s.id === symbol.id
                                         ? { ...s, buildings: allExcept }
                                         : s
@@ -374,10 +389,6 @@ export const WorkSymbolsConfigurationModal: React.FC<
           </Button>
         </div>
       </div>
-
-      {toastMessage && (
-        <Toast message={toastMessage} onClose={() => setToastMessage(null)} />
-      )}
     </div>
   );
 };

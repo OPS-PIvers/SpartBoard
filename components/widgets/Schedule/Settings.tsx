@@ -39,6 +39,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { Toggle } from '@/components/common/Toggle';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
@@ -717,9 +718,9 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
       <>
         {/* Auto-Checkoff & Scroll */}
         <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <CheckCircle2 className="w-3 h-3" /> Auto-Checkoff &amp; Scroll
-          </label>
+          <SettingsLabel icon={CheckCircle2}>
+            Auto-Checkoff &amp; Scroll
+          </SettingsLabel>
 
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
@@ -771,9 +772,7 @@ export const ScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Building Sync */}
         <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <Settings2 className="w-3 h-3" /> Building Integration
-          </label>
+          <SettingsLabel icon={Settings2}>Building Integration</SettingsLabel>
           <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 space-y-3">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-slate-700">

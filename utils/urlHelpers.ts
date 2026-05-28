@@ -69,11 +69,19 @@ export const convertToEmbedUrl = (url: string): string => {
   if (!url) return '';
   const trimmedUrl = url.trim();
 
-  // YouTube watch & short links
-  const ytMatch =
-    /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/.exec(
+  // YouTube watch & short links.
+  // The watch-URL branch uses a [?&]v= lookahead so it matches whether v= is
+  // the first query parameter (watch?v=…) or follows another parameter such as
+  // list= (watch?list=PLxxx&v=…), which is the shape the browser produces when
+  // a user copies a URL from a YouTube playlist page.
+  const ytWatchMatch =
+    /(?:https?:\/\/)?(?:www\.)?youtube\.com\/watch(?:\?[^#]*[?&])??[?&]?v=([a-zA-Z0-9_-]{11})/.exec(
       trimmedUrl
     );
+  const ytShortMatch = /(?:https?:\/\/)?youtu\.be\/([a-zA-Z0-9_-]{11})/.exec(
+    trimmedUrl
+  );
+  const ytMatch = ytWatchMatch ?? ytShortMatch;
   if (ytMatch) {
     return `https://www.youtube.com/embed/${ytMatch[1]}`;
   }

@@ -15,6 +15,7 @@ vi.mock('./RandomSlots', () => ({
   RandomSlots: () => <div data-testid="random-slots" />,
 }));
 vi.mock('./RandomFlash', () => ({
+  RANDOM_FLASH_PLACEHOLDER: 'Ready?',
   RandomFlash: () => <div data-testid="random-flash" />,
 }));
 vi.mock('./audioUtils', () => ({
