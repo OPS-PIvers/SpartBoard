@@ -96,14 +96,21 @@ const asStudent = () =>
 // ---------------------------------------------------------------------------
 
 beforeAll(async () => {
+  // Resolve emulator host/port explicitly rather than via a chained
+  // optional + `[0]`/`[1]` access. The chained form is technically
+  // safe under ES2020 short-circuit semantics, but the explicit form
+  // reads better, avoids surprising future readers, and is robust to
+  // a malformed value (e.g. host with no `:port`) which would otherwise
+  // resolve to `Number(undefined) = NaN` and silently fail emulator
+  // connection.
+  const emulatorHost = process.env.FIRESTORE_EMULATOR_HOST;
+  const [hostPart, portPart] = emulatorHost ? emulatorHost.split(':') : [];
   testEnv = await initializeTestEnvironment({
     projectId: PROJECT_ID,
     firestore: {
       rules: readFileSync(RULES_PATH, 'utf8'),
-      host: process.env.FIRESTORE_EMULATOR_HOST?.split(':')[0] ?? '127.0.0.1',
-      port: Number(
-        process.env.FIRESTORE_EMULATOR_HOST?.split(':')[1] ?? '8080'
-      ),
+      host: hostPart || '127.0.0.1',
+      port: portPart ? Number(portPart) : 8080,
     },
   });
 });
@@ -263,6 +270,23 @@ describe('quiz response CREATE — lastWriteAt server-stamp enforcement', () => 
       )
     );
   });
+
+  it('CREATE with lastWriteAt: Date.now() (number) is REJECTED', async () => {
+    // Symmetric regression shield to the UPDATE-side numeric-rejection
+    // test below. The pre-PR-#1720 codepath wrote `Date.now()` on both
+    // CREATE and UPDATE; without a CREATE-side test, a partial
+    // regression that only re-introduces a numeric stamp on the join
+    // path would slip through.
+    await assertFails(
+      setDoc(
+        doc(
+          asAnonStudent(),
+          `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`
+        ),
+        { ...baseAnonCreate(), lastWriteAt: Date.now() }
+      )
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -278,12 +302,20 @@ describe('quiz response UPDATE — lastWriteAt server-stamp enforcement', () => 
   ) {
     const key = opts.key ?? PIN_KEY;
     const studentUid = opts.studentUid ?? ANON_UID;
+    // Seed with the full production schema (classId + classIds present)
+    // so the assertFails tests below anchor on the rule under test
+    // rather than on incidental gaps in the seed. If a future rules
+    // change adds a response-side classId requirement, this defense-in-
+    // depth keeps the existing tests from silently turning into
+    // assertFails-for-wrong-reason green-lights.
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
       await setDoc(doc(db, `quiz_sessions/${SESSION_ID}/responses/${key}`), {
         studentUid,
         pin: '01',
         classPeriod: 'period_1',
+        classId: CLASS_ID,
+        classIds: [CLASS_ID],
         joinedAt: 1000,
         score: null,
         answers: [],
@@ -375,25 +407,80 @@ describe('quiz response UPDATE — lastWriteAt server-stamp enforcement', () => 
 });
 
 // ---------------------------------------------------------------------------
+// UPDATE: teacher-context lastWriteAt refresh on student-owned response
+// ---------------------------------------------------------------------------
+
+describe('quiz response UPDATE — teacher refreshes lastWriteAt on student-owned response', () => {
+  // `resumeAssignment` in hooks/useQuizAssignments.ts batch-writes
+  // `lastWriteAt: serverTimestamp()` on every joined/in-progress
+  // response while authenticated as the teacher (auth.uid ==
+  // sessionTeacherUid()). The teacher branch in firestore.rules is
+  // currently unrestricted so this works — but no existing test pins
+  // the contract, leaving a future teacher-branch tightening able to
+  // silently break the resume flow in production. This is the missing
+  // positive shield.
+  const asTeacher = () =>
+    testEnv
+      .authenticatedContext(TEACHER_UID, {
+        email: 'teacher@school.edu',
+        firebase: { sign_in_provider: 'google.com' },
+      })
+      .firestore();
+
+  async function seedStudentResponse() {
+    await testEnv.withSecurityRulesDisabled(async (ctx) => {
+      const db = ctx.firestore();
+      await setDoc(
+        doc(db, `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`),
+        {
+          studentUid: ANON_UID,
+          pin: '01',
+          classPeriod: 'period_1',
+          classId: CLASS_ID,
+          classIds: [CLASS_ID],
+          joinedAt: 1000,
+          score: null,
+          answers: [],
+          status: 'in-progress',
+          completedAttempts: 0,
+          preSyncVersion: 0,
+          tabSwitchWarnings: 0,
+          lastWriteAt: Timestamp.fromMillis(1000),
+        }
+      );
+    });
+  }
+
+  it('teacher UPDATE of lastWriteAt: serverTimestamp() on a student-owned response SUCCEEDS', async () => {
+    await seedStudentResponse();
+    await assertSucceeds(
+      updateDoc(
+        doc(asTeacher(), `quiz_sessions/${SESSION_ID}/responses/${PIN_KEY}`),
+        { lastWriteAt: serverTimestamp() }
+      )
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
 // UPDATE: unlocked self-elevation rejection (companion to CREATE guard)
 // ---------------------------------------------------------------------------
 
 describe('quiz response UPDATE — unlocked self-elevation', () => {
-  it('UPDATE setting unlocked: true is REJECTED', async () => {
-    // The CREATE-side guard above blocks forging `unlocked: true` at
-    // join. This is the companion UPDATE-side guard: a student who
-    // already joined cannot post-hoc flip themselves to unlocked via
-    // an update. The rule predicate is
-    //   `request.resource.data.get('unlocked', false) == false`
-    // — students may only ever CLEAR the flag (write false), never
-    // raise it. The teacher's unlock action runs from the unrestricted
-    // teacher branch and is not affected.
+  // Seed a fresh student-owned response with the full production
+  // schema (classId/classIds present) so the assertFails/assertSucceeds
+  // pair below anchors on the unlocked predicate, not on incidental
+  // gaps in the seed.
+  async function seedSsoResponse() {
     await testEnv.withSecurityRulesDisabled(async (ctx) => {
       const db = ctx.firestore();
       await setDoc(
         doc(db, `quiz_sessions/${SESSION_ID}/responses/${STUDENT_UID}`),
         {
           studentUid: STUDENT_UID,
+          classPeriod: 'period_1',
+          classId: CLASS_ID,
+          classIds: [CLASS_ID],
           joinedAt: 1000,
           score: null,
           answers: [],
@@ -404,6 +491,18 @@ describe('quiz response UPDATE — unlocked self-elevation', () => {
         }
       );
     });
+  }
+
+  it('UPDATE setting unlocked: true is REJECTED', async () => {
+    // The CREATE-side guard above blocks forging `unlocked: true` at
+    // join. This is the companion UPDATE-side guard: a student who
+    // already joined cannot post-hoc flip themselves to unlocked via
+    // an update. The rule predicate is
+    //   `request.resource.data.get('unlocked', false) == false`
+    // — students may only ever CLEAR the flag (write false), never
+    // raise it. The teacher's unlock action runs from the unrestricted
+    // teacher branch and is not affected.
+    await seedSsoResponse();
     await assertFails(
       updateDoc(
         doc(
@@ -411,6 +510,26 @@ describe('quiz response UPDATE — unlocked self-elevation', () => {
           `quiz_sessions/${SESSION_ID}/responses/${STUDENT_UID}`
         ),
         { unlocked: true }
+      )
+    );
+  });
+
+  it('UPDATE setting unlocked: false SUCCEEDS (positive control)', async () => {
+    // Positive control for the rejection test above. With the same
+    // seed and the same auth context, writing `unlocked: false`
+    // must succeed — students are permitted to clear the flag, just
+    // not raise it. This anchors the negative test to the unlocked
+    // predicate specifically; if a future seed change causes the
+    // negative test to fail for an unrelated reason, this positive
+    // control will red and catch the drift.
+    await seedSsoResponse();
+    await assertSucceeds(
+      updateDoc(
+        doc(
+          asStudent(),
+          `quiz_sessions/${SESSION_ID}/responses/${STUDENT_UID}`
+        ),
+        { unlocked: false }
       )
     );
   });

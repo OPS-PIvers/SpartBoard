@@ -24,6 +24,7 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  Timestamp,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
@@ -919,22 +920,34 @@ export const useQuizAssignments = (
       const neverStarted =
         !!session &&
         (session.startedAt == null || session.currentQuestionIndex < 0);
-      await setStatus(
-        assignmentId,
-        'active',
-        neverStarted ? 'waiting' : 'active'
+
+      // Refresh `lastWriteAt` on every joined / in-progress response BEFORE
+      // flipping session status off 'paused'. Order matters: the hourly
+      // idle-finalize cron (functions/src/finalizeIdleQuizAttempts.ts) skips
+      // docs whose parent session is 'paused' or 'waiting'. If we flipped
+      // status to 'active' first, a cron tick landing between the flip and
+      // the response refresh would see status='active', stale `lastWriteAt`,
+      // and force-finalize every paused student — the exact failure this
+      // refresh is meant to prevent. Refreshing while still 'paused' is
+      // safe (cron skips paused anyway) and any failure here leaves the
+      // session paused, so a retry is clean.
+      //
+      // Filter to docs whose `lastWriteAt` is already inside the cron's
+      // idle window — fresh docs don't need touching, which avoids a write
+      // amplification when a teacher pauses/resumes rapidly. The 80-minute
+      // cutoff sits inside the cron's 90-minute idle threshold with a 10-
+      // minute safety margin, so any doc that *could* be swept by the next
+      // tick gets refreshed.
+      //
+      // Teacher branch in `firestore.rules` is unrestricted, so writing
+      // `lastWriteAt: serverTimestamp()` on student-owned response docs is
+      // allowed here. Batched so a typical 30-student session is one
+      // Firestore round-trip; sessions over the 500-op batch cap chunk
+      // into multiple batches.
+      const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
+      const refreshCutoff = Timestamp.fromMillis(
+        Date.now() - IDLE_REFRESH_CUTOFF_MS
       );
-      // Refresh `lastWriteAt` on every joined / in-progress response so the
-      // hourly idle-finalize cron (functions/src/finalizeIdleQuizAttempts.ts)
-      // doesn't force-finalize students who paused with the teacher and
-      // haven't had a chance to re-engage yet. Without this touch, a Friday
-      // pause + Monday resume would leave responses 48h+ stale; the cron
-      // tick after resume would auto-submit every paused student before
-      // they typed a single character. Teacher branch in `firestore.rules`
-      // is unrestricted, so writing `lastWriteAt: serverTimestamp()` on
-      // student-owned response docs is allowed here. Batched so a typical
-      // 30-student session is one Firestore round-trip; sessions over the
-      // 500-op batch cap chunk into multiple batches.
       const responsesSnap = await getDocs(
         query(
           collection(
@@ -943,7 +956,8 @@ export const useQuizAssignments = (
             assignmentId,
             RESPONSES_COLLECTION
           ),
-          where('status', 'in', ['joined', 'in-progress'])
+          where('status', 'in', ['joined', 'in-progress']),
+          where('lastWriteAt', '<', refreshCutoff)
         )
       );
       if (!responsesSnap.empty) {
@@ -961,6 +975,12 @@ export const useQuizAssignments = (
         }
         if (opsInBatch > 0) await batch.commit();
       }
+
+      await setStatus(
+        assignmentId,
+        'active',
+        neverStarted ? 'waiting' : 'active'
+      );
     },
     [userId, setStatus]
   );
