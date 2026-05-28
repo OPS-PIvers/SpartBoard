@@ -5,8 +5,27 @@ import {
   NumberLineGlobalConfig,
   BuildingNumberLineDefaults,
   NumberLineMode,
+  GlobalFontFamily,
 } from '@/types';
 import { Toggle } from '../common/Toggle';
+
+const FONT_FAMILY_OPTIONS: {
+  value: 'global' | GlobalFontFamily;
+  label: string;
+}[] = [
+  { value: 'global', label: 'Inherit (Dashboard default)' },
+  { value: 'sans', label: 'Sans Serif' },
+  { value: 'serif', label: 'Serif' },
+  { value: 'mono', label: 'Monospace' },
+  { value: 'handwritten', label: 'Handwritten' },
+  { value: 'rounded', label: 'Rounded' },
+  { value: 'comic', label: 'Comic' },
+  { value: 'slab', label: 'Slab Serif' },
+  { value: 'retro', label: 'Retro' },
+  { value: 'fun', label: 'Fun' },
+  { value: 'marker', label: 'Marker' },
+  { value: 'cursive', label: 'Cursive' },
+];
 
 interface NumberLineConfigurationPanelProps {
   config: NumberLineGlobalConfig;
@@ -144,6 +163,132 @@ export const NumberLineConfigurationPanel: React.FC<
               handleUpdateBuilding({ showArrows: checked })
             }
           />
+        </div>
+
+        <div className="border-t border-slate-200 pt-4 space-y-4">
+          <h4 className="text-sm font-semibold text-slate-700">
+            Appearance Defaults
+          </h4>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Default Font Family
+            </label>
+            <select
+              value={currentBuildingConfig.fontFamily ?? 'global'}
+              onChange={(e) => {
+                const selected = e.target.value;
+                handleUpdateBuilding({
+                  fontFamily:
+                    selected === 'global'
+                      ? undefined
+                      : (selected as GlobalFontFamily),
+                });
+              }}
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              {FONT_FAMILY_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Default Text Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={currentBuildingConfig.fontColor ?? '#334155'}
+                onChange={(e) =>
+                  handleUpdateBuilding({ fontColor: e.target.value })
+                }
+                className="w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
+                aria-label="Pick default text color"
+              />
+              <input
+                type="text"
+                value={currentBuildingConfig.fontColor ?? ''}
+                onChange={(e) =>
+                  handleUpdateBuilding({
+                    fontColor: e.target.value || undefined,
+                  })
+                }
+                placeholder="#334155"
+                className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+              />
+              {currentBuildingConfig.fontColor && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateBuilding({ fontColor: undefined })}
+                  className="text-xs text-slate-500 hover:text-red-500 font-semibold transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Default Surface Color
+            </label>
+            <div className="flex items-center gap-3">
+              <input
+                type="color"
+                value={currentBuildingConfig.cardColor ?? '#ffffff'}
+                onChange={(e) =>
+                  handleUpdateBuilding({ cardColor: e.target.value })
+                }
+                className="w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
+                aria-label="Pick default surface color"
+              />
+              <input
+                type="text"
+                value={currentBuildingConfig.cardColor ?? ''}
+                onChange={(e) =>
+                  handleUpdateBuilding({
+                    cardColor: e.target.value || undefined,
+                  })
+                }
+                placeholder="#ffffff"
+                className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
+              />
+              {currentBuildingConfig.cardColor && (
+                <button
+                  type="button"
+                  onClick={() => handleUpdateBuilding({ cardColor: undefined })}
+                  className="text-xs text-slate-500 hover:text-red-500 font-semibold transition-colors"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Default Surface Opacity (
+              {Math.round((currentBuildingConfig.cardOpacity ?? 1) * 100)}%)
+            </label>
+            <input
+              type="range"
+              min="0"
+              max="1"
+              step="0.05"
+              value={currentBuildingConfig.cardOpacity ?? 1}
+              onChange={(e) =>
+                handleUpdateBuilding({
+                  cardOpacity: parseFloat(e.target.value),
+                })
+              }
+              className="w-full accent-blue-600"
+              aria-label="Default surface opacity"
+            />
+          </div>
         </div>
       </div>
     </div>

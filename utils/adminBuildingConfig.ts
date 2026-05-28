@@ -120,6 +120,19 @@ export const getAdminBuildingConfig = (
       )
         out.displayMode = raw.displayMode;
       if (typeof raw.showArrows === 'boolean') out.showArrows = raw.showArrows;
+      if (typeof raw.cardColor === 'string' && raw.cardColor.trim() !== '')
+        out.cardColor = raw.cardColor;
+      if (
+        typeof raw.cardOpacity === 'number' &&
+        Number.isFinite(raw.cardOpacity) &&
+        raw.cardOpacity >= 0 &&
+        raw.cardOpacity <= 1
+      )
+        out.cardOpacity = raw.cardOpacity;
+      if (typeof raw.fontFamily === 'string' && raw.fontFamily.trim() !== '')
+        out.fontFamily = raw.fontFamily;
+      if (typeof raw.fontColor === 'string' && raw.fontColor.trim() !== '')
+        out.fontColor = raw.fontColor;
       break;
     }
     case 'syntax-framer':

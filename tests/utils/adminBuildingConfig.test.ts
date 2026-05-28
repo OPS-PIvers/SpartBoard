@@ -175,6 +175,65 @@ describe('getAdminBuildingConfig', () => {
     });
   });
 
+  describe('numberLine', () => {
+    it('passes through valid axis fields and appearance fields together', () => {
+      const perm = makePerm('numberLine', {
+        high: {
+          min: -5,
+          max: 5,
+          step: 0.5,
+          displayMode: 'decimals',
+          showArrows: false,
+          cardColor: '#fef3c7',
+          cardOpacity: 0.8,
+          fontFamily: 'serif',
+          fontColor: '#1e293b',
+        },
+      });
+      expect(getAdminBuildingConfig('numberLine', [perm], ['high'])).toEqual({
+        min: -5,
+        max: 5,
+        step: 0.5,
+        displayMode: 'decimals',
+        showArrows: false,
+        cardColor: '#fef3c7',
+        cardOpacity: 0.8,
+        fontFamily: 'serif',
+        fontColor: '#1e293b',
+      });
+    });
+
+    it('rejects out-of-range cardOpacity, empty colors, and non-string fontFamily', () => {
+      const perm = makePerm('numberLine', {
+        high: {
+          cardColor: '   ', // empty after trim
+          cardOpacity: 1.5, // out of [0, 1]
+          fontFamily: 123, // not a string
+          fontColor: '', // empty
+        },
+      });
+      expect(getAdminBuildingConfig('numberLine', [perm], ['high'])).toEqual(
+        {}
+      );
+    });
+
+    it('accepts cardOpacity at exact bounds 0 and 1', () => {
+      const permZero = makePerm('numberLine', {
+        high: { cardOpacity: 0 },
+      });
+      expect(
+        getAdminBuildingConfig('numberLine', [permZero], ['high'])
+      ).toEqual({ cardOpacity: 0 });
+
+      const permOne = makePerm('numberLine', {
+        high: { cardOpacity: 1 },
+      });
+      expect(getAdminBuildingConfig('numberLine', [permOne], ['high'])).toEqual(
+        { cardOpacity: 1 }
+      );
+    });
+  });
+
   it('returns empty for unknown widget types', () => {
     const perm = makePerm('clock', { high: { format24: true } });
     // Pass a type that has no case in the switch.
