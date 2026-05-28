@@ -348,4 +348,22 @@ describe('computeVideoActivityScorePct', () => {
     // First answer wins, no inflation from arrayUnion races
     expect(score).toBe(100);
   });
+
+  it('counts max points only once when questions array contains duplicate ids', () => {
+    // Duplicate question ids can appear in questions arrays if upstream data
+    // is corrupt (e.g. Drive-sync duplication, arrayUnion race on the template
+    // doc). The `seen` guard must protect `max` accumulation as well as answer
+    // crediting so that the denominator is not inflated and a correct answer
+    // still earns 100 %.
+    const score = computeVideoActivityScorePct(
+      [
+        q({ id: 'q1', type: 'MC', correctAnswer: 'a', points: 2 }),
+        q({ id: 'q1', type: 'MC', correctAnswer: 'a', points: 2 }), // duplicate
+      ],
+      [{ questionId: 'q1', answer: 'a' }] // one correct answer
+    );
+    // Without the fix: max = 4 (counted twice), earned = 2, score = 50.
+    // With the fix:    max = 2 (counted once),  earned = 2, score = 100.
+    expect(score).toBe(100);
+  });
 });
