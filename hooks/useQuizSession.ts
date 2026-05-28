@@ -140,7 +140,11 @@ export function isUnsafeStatusDowngrade(
   isDraft: boolean,
   priorEntry: QuizResponseAnswer | undefined
 ): boolean {
-  return isDraft && priorEntry?.status === 'submitted';
+  // Use `!== 'draft'` rather than `=== 'submitted'` so legacy entries
+  // with `status === undefined` (predate the draft flag — treated as
+  // submitted everywhere else via `isAnswerSubmitted`) are also
+  // protected from being silently downgraded to draft.
+  return isDraft && priorEntry !== undefined && priorEntry.status !== 'draft';
 }
 
 /**
@@ -163,7 +167,10 @@ export function shouldSnapshotHistory(
   if (!priorEntry) return false;
   if (priorEntry.answer === '') return false;
   const textChanged = priorEntry.answer !== newAnswer;
-  const statusDowngrade = priorEntry.status === 'submitted' && newIsDraft;
+  // Mirror `isUnsafeStatusDowngrade`: treat legacy entries with
+  // `status === undefined` as submitted so a downgrade attempt on a
+  // legacy answer still gets a forensic snapshot.
+  const statusDowngrade = priorEntry.status !== 'draft' && newIsDraft;
   if (!textChanged && !statusDowngrade) return false;
   return now - lastSnapshotAt >= throttleMs;
 }

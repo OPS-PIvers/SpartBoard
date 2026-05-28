@@ -1185,14 +1185,27 @@ const ActiveQuiz: React.FC<{
     setSubmitted(true);
   }
 
-  // Keep refs for volatile state used by the countdown effect so the timer
-  // doesn't restart on every keystroke or selection change. The current
-  // question's live answer is mirrored separately into `currentAnswerRef`
-  // (synced in the render body, above) so this set only carries the values
-  // the cache doesn't represent.
+  // Keep refs for volatile state used by the countdown / autosave / flush
+  // paths so the timer doesn't restart on every keystroke or selection
+  // change. The current question's live answer is mirrored separately
+  // into `currentAnswerRef` (synced in the render body, above) so this
+  // set only carries the values the cache doesn't represent.
+  //
+  // These are synced by direct assignment in the render body (not a
+  // useEffect): every consumer reads them from an effect or an event
+  // handler that runs AFTER commit, so assigning during render gives
+  // them the freshest value with no staleness window — matching
+  // `submittedRef` / `currentAnswerRef` and the project's ref-sync rule
+  // (CLAUDE.md "useEffect is an escape hatch, not a default"). Using an
+  // effect here would have meant any imperative reader firing in the
+  // same commit (visibility flush, structured input change) would see
+  // the previous render's value.
   const currentQuestionRef = useRef(currentQuestion);
+  currentQuestionRef.current = currentQuestion;
   const selectedAnswerRef = useRef(selectedAnswer);
+  selectedAnswerRef.current = selectedAnswer;
   const onAnswerRef = useRef(onAnswer);
+  onAnswerRef.current = onAnswer;
   // Mirror of `myResponse.status` for the visibility/unmount flush
   // handlers (which are scoped to `[]` deps and can't read state
   // directly). Used to short-circuit the flush after the student has
@@ -1201,6 +1214,7 @@ const ActiveQuiz: React.FC<{
   // response from `'completed'` back to `'in-progress'` and silently
   // breaking the teacher's "Finished" counter.
   const myResponseStatusRef = useRef(myResponse?.status);
+  myResponseStatusRef.current = myResponse?.status;
   // Mirror of the per-question `submitted` state for the imperative
   // paths (flush handler, structured-input change callbacks) that can't
   // read state directly.
@@ -1214,13 +1228,6 @@ const ActiveQuiz: React.FC<{
   const pendingDraftRef = useRef<{ qid: string; write: () => void } | null>(
     null
   );
-
-  useEffect(() => {
-    currentQuestionRef.current = currentQuestion;
-    selectedAnswerRef.current = selectedAnswer;
-    onAnswerRef.current = onAnswer;
-    myResponseStatusRef.current = myResponse?.status;
-  }, [currentQuestion, selectedAnswer, onAnswer, myResponse?.status]);
 
   // Countdown — only runs the interval; auto-submit is handled above.
   useEffect(() => {

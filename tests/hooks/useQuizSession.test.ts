@@ -534,12 +534,27 @@ describe('isUnsafeStatusDowngrade (review fix)', () => {
     answeredAt: 100,
     status: 'draft',
   };
+  // Predates the draft flag — `status` field omitted, treated as
+  // submitted everywhere else via `isAnswerSubmitted`.
+  const legacyPrior: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'legacy answer',
+    answeredAt: 100,
+  };
 
   it('refuses a draft autosave when the prior entry was status=submitted', () => {
     // The back-nav listener-lag race: cache holds the just-submitted value,
     // `submitted` state briefly flips false, and the autosave would otherwise
     // rewrite the entry as a draft.
     expect(isUnsafeStatusDowngrade(true, submittedPrior)).toBe(true);
+  });
+
+  it('refuses a draft autosave when the prior entry was legacy (status=undefined)', () => {
+    // Legacy docs without a `status` field are treated as submitted by
+    // `isAnswerSubmitted`. The downgrade guard must match — without it,
+    // a back-nav race on a legacy entry would silently flip the doc to
+    // `status: 'draft'` and drop it from the teacher's "Finished" view.
+    expect(isUnsafeStatusDowngrade(true, legacyPrior)).toBe(true);
   });
 
   it('allows a draft autosave when the prior entry was already a draft', () => {
@@ -569,6 +584,14 @@ describe('shouldSnapshotHistory (#5 throttle)', () => {
     answer: 'committed answer',
     answeredAt: 100,
     status: 'submitted',
+  };
+  // Legacy entry — predates the draft flag, `status` omitted. Treated
+  // as submitted everywhere via `isAnswerSubmitted`, so a downgrade
+  // attempt on it must still snapshot.
+  const priorLegacy: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'legacy answer',
+    answeredAt: 100,
   };
   const THROTTLE = 5000;
 
@@ -627,6 +650,22 @@ describe('shouldSnapshotHistory (#5 throttle)', () => {
       shouldSnapshotHistory(
         priorSubmitted,
         'committed answer',
+        true,
+        0,
+        1e9,
+        THROTTLE
+      )
+    ).toBe(true);
+  });
+
+  it('captures a snapshot on a status downgrade from legacy (status=undefined) even with identical text', () => {
+    // Legacy submitted-equivalents (status omitted) must be recoverable
+    // when a draft write would overwrite them — same protection as the
+    // explicit `status: 'submitted'` case above.
+    expect(
+      shouldSnapshotHistory(
+        priorLegacy,
+        'legacy answer',
         true,
         0,
         1e9,
