@@ -36,9 +36,12 @@ export const useNotebookSharing = () => {
         assetUrls: notebook.assetUrls ?? [],
         originalAuthor: user.uid,
         sharedAt: Date.now(),
-        // Firestore rejects `undefined`; only include sections when present.
+        // Firestore rejects `undefined`; only include optional arrays when present.
         ...(notebook.sections && notebook.sections.length > 0
           ? { sections: notebook.sections }
+          : {}),
+        ...(notebook.objectLinks && notebook.objectLinks.length > 0
+          ? { objectLinks: notebook.objectLinks }
           : {}),
       };
       const ref = await addDoc(collection(db, 'shared_notebooks'), payload);
@@ -100,6 +103,9 @@ export const useNotebookSharing = () => {
           createdAt: Date.now(),
           ...(shared.sections && shared.sections.length > 0
             ? { sections: shared.sections }
+            : {}),
+          ...(shared.objectLinks && shared.objectLinks.length > 0
+            ? { objectLinks: shared.objectLinks }
             : {}),
         };
 
