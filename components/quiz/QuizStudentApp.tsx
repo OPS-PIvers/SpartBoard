@@ -1116,7 +1116,7 @@ const ActiveQuiz: React.FC<{
 
   // Reset `selectedAnswer` on question change. The per-type live values
   // (what's currently typed/selected) now live in `answerCache` and are
-  // populated lazily — see the cache-miss-fill block below — so there's
+  // populated by the seed-from-server block below — so there's
   // nothing per-question to wipe here besides the post-submit display
   // indicator.
   const hydrateAnswerControls = (): void => {
@@ -1329,7 +1329,7 @@ const ActiveQuiz: React.FC<{
     currentQid && currentQid in answerCache ? answerCache[currentQid] : null;
   // Render-time live answer for editors and inputs. Falls back to the
   // Firestore saved value on the single render between question
-  // navigation and the cache-miss-fill block populating the cache, so
+  // navigation and the seed-from-server block populating the cache, so
   // controlled inputs (MC highlight, FIB value, structured initial
   // seed) never flicker through an empty state when a saved value is
   // available. `cachedDraft` (cache-only) is what drives autosave —
@@ -1347,10 +1347,10 @@ const ActiveQuiz: React.FC<{
   // fallback). The Submit / NEXT affordances gate on this — not on
   // `liveAnswer` — so a tap can never fire on a value the student hasn't
   // committed to the cache: something they typed/selected this session, or
-  // that the cache-miss-fill seeded from a saved value (resume / revisit).
+  // that the seed-from-server seeded from a saved value (resume / revisit).
   // `liveAnswer` still feeds the inputs/highlights so a saved answer shows
   // immediately while the submit affordance waits for the cache to back it.
-  // (React coalesces the cache-miss-fill render-phase update into the same
+  // (React coalesces the seed-from-server render-phase update into the same
   // commit, so today this matches `liveAnswer` in committed renders — but
   // gating on the cache is the correct statement of intent and stays safe
   // if that seed ever moves into an effect, where the fallback WOULD reach
