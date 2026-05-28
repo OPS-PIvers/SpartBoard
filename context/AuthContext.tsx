@@ -48,6 +48,7 @@ import { AuthContext } from './AuthContextValue';
 import {
   buildingRecordToBuilding,
   canonicalizeBuildingIds,
+  canonicalizeBuildingKeyedRecord,
   getBuildingGradeLevels,
 } from '../config/buildings';
 import i18n from '../i18n';
@@ -1803,7 +1804,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Wrapped in useCallback to prevent unnecessary re-renders since this function
   // is passed through context and used in component dependencies
   const canAccessWidget = useCallback(
-    (widgetType: WidgetType): boolean => {
+    (widgetType: WidgetType, customBuildings?: string[]): boolean => {
       // In bypass mode, always allow everything
       if (isAuthBypass) return true;
 
@@ -1829,14 +1830,49 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         case 'admin':
           return false; // Only admins can access
         case 'beta':
-          return isBetaUser(permission.betaUsers, user.email);
+          if (!isBetaUser(permission.betaUsers, user.email)) return false;
+          break;
         case 'public':
-          return true;
+          break;
         default:
           return false;
       }
+
+      // Per-building gate: when an admin has explicitly turned a widget off
+      // for every one of the user's buildings via `config.dockDefaults`, deny
+      // access. `dockDefaults` was originally just an initial-dock seed, but
+      // admins reasonably read the toggle as "this widget is off for this
+      // building" — and without this gate the widget library still showed
+      // restricted widgets. Semantics:
+      //  - missing dockDefaults → no opinion, allow
+      //  - user has no selected buildings → no opinion, allow
+      //  - building entry missing or true → allow
+      //  - only deny when *every* selected building is explicitly `false`
+      // canonicalize() so legacy IDs from pre-canonicalization admin writes
+      // still match the selection (which is always canonicalized post-load).
+      //
+      // `customBuildings` lets callers that hold a building selection
+      // outside AuthContext state (the new-user wizard, where picks live
+      // in local component state until handleFinish persists them)
+      // evaluate against the in-flight selection. Without this override
+      // the wizard's StepDock would always see AuthContext's empty array
+      // and skip the gate, letting users pick widgets they'd then lose
+      // access to the moment setup completed.
+      const rawDockDefaults = permission.config?.dockDefaults as
+        | Record<string, boolean>
+        | undefined;
+      const checkBuildings = customBuildings ?? selectedBuildings;
+      if (rawDockDefaults && checkBuildings.length > 0) {
+        const dockDefaults = canonicalizeBuildingKeyedRecord(rawDockDefaults);
+        const allExplicitlyOff = checkBuildings.every(
+          (bid) => dockDefaults[bid] === false
+        );
+        if (allExplicitlyOff) return false;
+      }
+
+      return true;
     },
-    [user, featurePermissions, isAdmin, isBetaUser]
+    [user, featurePermissions, isAdmin, isBetaUser, selectedBuildings]
   );
 
   /**

@@ -231,6 +231,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     savedWidgetConfigs,
     saveWidgetConfig,
     profileLoaded,
+    setupCompleted,
     lastActiveCollectionId,
     lastBoardIdByCollection,
     remoteControlEnabled: accountRemoteControlEnabled,
@@ -809,6 +810,18 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     if (isAuthBypass) return;
     if (!dockHydrated) return;
+    // Don't refill while the new-user wizard is still on screen — its picks
+    // would be clobbered the moment dockItems briefly equals [] during the
+    // setDockItems → persist round-trip. The wizard's atomic write owns dock
+    // state until setupCompleted flips true.
+    if (!setupCompleted) return;
+    // Don't fire mid-hydration. The init effect below handles the seed/
+    // preserve decision once on first run; this recovery effect is for the
+    // *steady state* (user emptied their dock, an error left it bare, etc.).
+    // Without this guard, the transient `dockItems = []` window between
+    // cloud-hydration kicking off and `setIsDockInitialized(true)` landing
+    // could trigger a default refill that races the cloud read.
+    if (!isDockInitialized) return;
     if (dockItems.length > 0) return;
     // Wait for permissions when a building is selected — otherwise we'd
     // seed using an empty permission set and land on the `['time-tool']`
@@ -835,6 +848,8 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem('classroom_dock_initialized', 'true');
   }, [
     dockHydrated,
+    setupCompleted,
+    isDockInitialized,
     dockItems.length,
     selectedBuildings,
     featurePermissions,
@@ -846,6 +861,11 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
     // Wait for the Firestore hydration to finish so we don't seed default
     // building tools on top of a cloud-synced dock layout from another device.
     if (!dockHydrated) return;
+    // During first-run setup the wizard owns dock state — don't let this
+    // effect seed defaults underneath it. Once handleFinish writes the
+    // atomic profile and setupCompleted flips, hydration will see the
+    // wizard's selections in localStorage and take the preserve branch.
+    if (!setupCompleted) return;
 
     // If the user already has a saved dock layout/tool visibility in
     // localStorage, preserve it and mark init complete instead of overwriting
@@ -947,6 +967,7 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [
     isDockInitialized,
     dockHydrated,
+    setupCompleted,
     featurePermissions,
     selectedBuildings,
     getDefaultDockTools,
@@ -1015,7 +1036,24 @@ export const DashboardProvider: React.FC<{ children: React.ReactNode }> = ({
             JSON.stringify(cloudLibrary)
           );
         }
-        if (cloudInitialized === true) {
+        // A non-empty cloud dock is itself proof of initialization. The
+        // explicit `dockInitialized` flag landed later than the dock-sync
+        // feature, so existing users who set up their dock before that
+        // commit have dockItems but no flag — without this fallback, on
+        // a new device the init effect would seed building defaults on top
+        // of their real layout. The next dock mutation will persist the
+        // explicit flag via the persist effect below; we don't fire an
+        // extra setDoc here just to backfill (saves a per-load write).
+        //
+        // An *explicit* `dockInitialized: false` still takes precedence
+        // over the inference — that's the documented escape hatch for
+        // re-onboarding a user (admin tool or Cloud Function writes false
+        // while leaving the existing dockItems intact).
+        const inferredInitialized =
+          cloudInitialized !== false &&
+          (cloudInitialized === true ||
+            (cloudDock !== null && cloudDock.length > 0));
+        if (inferredInitialized) {
           setIsDockInitialized(true);
           localStorage.setItem('classroom_dock_initialized', 'true');
         }

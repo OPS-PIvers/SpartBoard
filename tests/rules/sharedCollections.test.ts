@@ -324,10 +324,13 @@ describe('shared_collections — create, substitute field constraints', () => {
   });
 
   it('substitute create rejected when expiresAt is more than 14 days out', async () => {
+    // Use Date.now() instead of the module-load NOW_MS so the 10s margin
+    // is measured against the actual request time. With NOW_MS the margin
+    // erodes during emulator boot + earlier-test execution and CI flakes.
     await assertFails(
       setDoc(
         doc(asHost(), sharePath),
-        subShareDoc({ expiresAt: NOW_MS + FOURTEEN_DAYS_MS + 10_000 })
+        subShareDoc({ expiresAt: Date.now() + FOURTEEN_DAYS_MS + 10_000 })
       )
     );
   });

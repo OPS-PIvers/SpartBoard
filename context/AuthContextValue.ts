@@ -25,7 +25,17 @@ export interface AuthContextType {
   featurePermissions: FeaturePermission[];
   globalPermissions: GlobalFeaturePermission[];
   updateAppSettings: (updates: Partial<AppSettings>) => Promise<void>;
-  canAccessWidget: (widgetType: WidgetType) => boolean;
+  /**
+   * `customBuildings` overrides the AuthContext `selectedBuildings` for
+   * the per-building gate. Used by callers that hold a building
+   * selection outside AuthContext state — e.g. the new-user wizard,
+   * where picks live in local component state until `handleFinish`
+   * persists them. Omit everywhere else.
+   */
+  canAccessWidget: (
+    widgetType: WidgetType,
+    customBuildings?: string[]
+  ) => boolean;
   canAccessFeature: (featureId: GlobalFeature) => boolean;
   /**
    * The org-wide assignment mode for a student-facing widget. Reads from the

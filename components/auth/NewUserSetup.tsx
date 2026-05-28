@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   ChevronRight,
   ChevronLeft,
@@ -8,6 +8,9 @@ import {
   Palette,
   LayoutGrid,
 } from 'lucide-react';
+import { doc, setDoc } from 'firebase/firestore';
+import { db, isAuthBypass } from '@/config/firebase';
+import { canonicalizeBuildingIds } from '@/config/buildings';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
@@ -134,19 +137,51 @@ export const NewUserSetup: React.FC = () => {
   const handleFinish = async () => {
     setFinishing(true);
     try {
-      await setSelectedBuildings(selectedBuildings);
-      setGlobalStyle(style);
       const dockItems: DockItem[] = dockTypes.map((t) => ({
         type: 'tool',
         toolType: t,
       }));
+      // Canonicalize before persisting so legacy building IDs from
+      // useAdminBuildings (e.g. `orono-high-school`) match what every
+      // downstream consumer expects. setSelectedBuildings does this
+      // internally; we mirror it here so the atomic write doesn't
+      // briefly store the raw form.
+      const canonicalBuildings = canonicalizeBuildingIds(selectedBuildings);
+
+      // Persist dock + setup-completion atomically. The empty-dock recovery
+      // effect would otherwise overwrite the wizard's picks if setupCompleted
+      // landed without dockItems. `selectedBuildings` is intentionally NOT in
+      // this write — setSelectedBuildings owns that field, runs the same
+      // canonicalization, and mirrors to /users/{uid} for analytics.
+      if (user && !isAuthBypass) {
+        await setDoc(
+          doc(db, 'users', user.uid, 'userProfile', 'profile'),
+          {
+            dockItems,
+            dockInitialized: true,
+            setupCompleted: true,
+          },
+          { merge: true }
+        );
+      }
+
+      // ORDER MATTERS: reorderDockItems must run before completeSetup.
+      // completeSetup flips local setupCompleted=true, which unblocks the
+      // dock-init effect (DashboardContext.tsx ~:859). That effect takes
+      // the localStorage-preserve branch only if reorderDockItems has
+      // already populated `classroom_dock_items`. Reversing these calls
+      // would cause one render where setupCompleted is true but dockItems
+      // is still empty, firing the recovery effect's default-seed path
+      // and clobbering the wizard's picks until next reload.
+      await setSelectedBuildings(canonicalBuildings);
+      setGlobalStyle(style);
       reorderDockItems(dockItems);
       await completeSetup();
     } catch (error) {
-      // AuthContext persists changes optimistically: completeSetup / setSelectedBuildings
-      // update React state first and swallow Firestore errors internally, so they
-      // will not reach here under normal operation. If something else in this block
-      // throws unexpectedly, log it and reset the spinner so the user can retry.
+      // setSelectedBuildings and completeSetup wrap their own try/catch +
+      // logger, so a Firestore failure inside them won't reach here — but
+      // an unexpected throw from anywhere else in this block should still
+      // reset the spinner so the user can retry.
       console.error('NewUserSetup: handleFinish failed', error);
       setFinishing(false);
     }
@@ -218,7 +253,11 @@ export const NewUserSetup: React.FC = () => {
           )}
           {step === 1 && <StepAppearance style={style} onChange={setStyle} />}
           {step === 2 && (
-            <StepDock dockTypes={dockTypes} onToggle={toggleDockType} />
+            <StepDock
+              dockTypes={dockTypes}
+              onToggle={toggleDockType}
+              selectedBuildings={selectedBuildings}
+            />
           )}
         </div>
 
@@ -469,9 +508,21 @@ const StepAppearance: React.FC<{
 const StepDock: React.FC<{
   dockTypes: WidgetType[];
   onToggle: (type: WidgetType) => void;
-}> = ({ dockTypes, onToggle }) => {
+  selectedBuildings: string[];
+}> = ({ dockTypes, onToggle, selectedBuildings }) => {
   const { canAccessWidget } = useAuth();
   const toolMap = new Map(TOOLS.map((t) => [t.type, t]));
+  // The wizard's `selectedBuildings` lives in local state until handleFinish
+  // persists it, so AuthContext.selectedBuildings is still [] at this point
+  // and the per-building gate inside canAccessWidget would no-op. Canonicalize
+  // and pass the live selection so widgets restricted by `dockDefaults` for
+  // the user's actual schools are filtered out of the picker — otherwise the
+  // user could select widgets they'll immediately lose access to once setup
+  // completes.
+  const canonicalBuildings = useMemo(
+    () => canonicalizeBuildingIds(selectedBuildings),
+    [selectedBuildings]
+  );
 
   return (
     <div className="space-y-5">
@@ -487,7 +538,8 @@ const StepDock: React.FC<{
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
             {cat.types.map((type) => {
               const tool = toolMap.get(type);
-              if (!tool || !canAccessWidget(type)) return null;
+              if (!tool || !canAccessWidget(type, canonicalBuildings))
+                return null;
               const Icon = tool.icon;
               const isSelected = dockTypes.includes(type);
               return (
