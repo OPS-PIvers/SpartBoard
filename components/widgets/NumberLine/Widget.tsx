@@ -42,7 +42,32 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     showArrows,
     cardColor = '#ffffff',
     cardOpacity = 1,
+    fontFamily,
+    fontColor = '#1e293b',
   } = config;
+
+  // Map the typography preset id ('sans', 'handwritten', etc.) to the
+  // Tailwind utility class so the SVG <text> element picks up the same
+  // family the dashboard's CSS pipeline already defines. Defaults to
+  // `font-mono` to preserve the prior tick-label appearance for widgets
+  // that don't override (and for legacy configs missing the field).
+  const FONT_CLASS_MAP: Record<string, string> = {
+    sans: 'font-sans',
+    serif: 'font-serif',
+    mono: 'font-mono',
+    handwritten: 'font-handwritten',
+    rounded: 'font-rounded',
+    fun: 'font-fun',
+    comic: 'font-comic',
+    slab: 'font-slab',
+    retro: 'font-retro',
+    marker: 'font-marker',
+    cursive: 'font-cursive',
+  };
+  const fontClass =
+    typeof fontFamily === 'string' && FONT_CLASS_MAP[fontFamily]
+      ? FONT_CLASS_MAP[fontFamily]
+      : 'font-mono';
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -216,8 +241,8 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                       x={x}
                       y={axisY + 24}
                       textAnchor="middle"
-                      fill="#1e293b"
-                      fontFamily="monospace"
+                      fill={fontColor}
+                      className={fontClass}
                       fontWeight="bold"
                       style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                     >

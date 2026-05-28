@@ -28,11 +28,14 @@ export const SettingsLabel: React.FC<SettingsLabelProps> = ({
     </>
   );
 
-  return htmlFor ? (
-    <label htmlFor={htmlFor} className={combinedClasses}>
+  // Always render as a <label>: HTML allows label without `for=`, and the
+  // element still provides implicit nesting-based association with any
+  // contained input — a semantic that a <div> drops, silently
+  // downgrading accessibility for screen-reader users. htmlFor remains
+  // optional for callers that prefer explicit `for=` wiring.
+  return (
+    <label {...(htmlFor ? { htmlFor } : {})} className={combinedClasses}>
       {content}
     </label>
-  ) : (
-    <div className={combinedClasses}>{content}</div>
   );
 };

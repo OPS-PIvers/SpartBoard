@@ -101,7 +101,18 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     try {
       targetElement.setPointerCapture(e.pointerId);
     } catch (_err) {
-      console.warn('Failed to set pointer capture in AnnotationCanvas:', _err);
+      // Without pointer capture, a stroke that exits the canvas can't
+      // be completed: onPointerLeave was removed (it was committing
+      // strokes prematurely), and a pointerup outside the canvas
+      // won't route back without capture. Refuse to start the stroke
+      // so the user is forced to retry instead of leaving an
+      // uncommittable stroke in flight (which would absorb any
+      // subsequent pointermove events into a corrupted path).
+      console.warn(
+        'Failed to set pointer capture in AnnotationCanvas; refusing to start stroke:',
+        _err
+      );
+      return;
     }
 
     setIsDrawing(true);
