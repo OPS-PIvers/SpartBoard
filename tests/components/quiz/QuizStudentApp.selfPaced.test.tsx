@@ -862,3 +862,68 @@ describe('QuizStudentApp — current-answer ref + submit gating', () => {
     expect(screen.getByRole('button', { name: /^NEXT/i })).not.toBeDisabled();
   });
 });
+
+// ─── Written blank-overwrite guard (#1741 follow-up) ──────────────────────────
+//
+// The written editor's submit affordance is the one explicit-submit path that
+// can fire with an empty value (MC/FIB/structured all gate on content). An
+// explicit submit bypasses the autosave `isUnsafeBlankDraft` guard, so a fast
+// tap on a blank-but-unseeded essay — never typed, OR the saved answer hasn't
+// echoed into myResponse yet — would clobber the saved essay with ''. The fix:
+// when the cache has no entry (`submittableAnswer === null`), self-paced
+// advances WITHOUT writing and teacher-paced disables Submit; a deliberate
+// clear (cache holds '') still writes through.
+
+describe('QuizStudentApp — written blank-overwrite guard', () => {
+  const ESSAY: QuizPublicQuestion = {
+    id: 'qe',
+    type: 'essay',
+    text: 'Describe your summer',
+    timeLimit: 0,
+  };
+
+  it('advances a blank, unseeded essay WITHOUT writing a blank (self-paced)', async () => {
+    const user = userEvent.setup();
+    hookState.session = buildSession({
+      publicQuestions: [ESSAY, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+
+    render(<QuizStudentApp />);
+    expect(
+      await screen.findByText(/Describe your summer/i)
+    ).toBeInTheDocument();
+    // Let the lazy editor settle so NEXT isn't tapped mid-Suspense.
+    await screen.findByRole('textbox', { name: /Your response/i });
+
+    // Tap NEXT without typing. The cache has no entry for this question, so we
+    // must advance without writing — a blank explicit submit here would
+    // clobber a saved essay that simply hasn't echoed back yet.
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+
+    // Advanced to Q2…
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+    // …and nothing was written for the blank essay.
+    expect(mockSubmitAnswer).not.toHaveBeenCalled();
+  });
+
+  it('disables teacher-paced essay Submit while the editor is unseeded', async () => {
+    hookState.session = buildSession({
+      sessionMode: 'teacher',
+      publicQuestions: [ESSAY, QUESTIONS[1]],
+      totalQuestions: 2,
+    });
+
+    render(<QuizStudentApp />);
+    expect(
+      await screen.findByText(/Describe your summer/i)
+    ).toBeInTheDocument();
+    await screen.findByRole('textbox', { name: /Your response/i });
+
+    // No saved answer + nothing typed → cache unseeded → Submit is disabled so
+    // a fast tap can't write a blank over a not-yet-loaded saved essay.
+    expect(
+      screen.getByRole('button', { name: /Submit Response/i })
+    ).toBeDisabled();
+  });
+});

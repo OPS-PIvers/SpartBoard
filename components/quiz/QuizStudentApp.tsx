@@ -1692,7 +1692,18 @@ const ActiveQuiz: React.FC<{
   // On rejection we surface a retry banner via `saveError` instead of letting
   // the failure vanish into the console; the student's selection is still
   // intact (we never reset it on error) so the same tap retries.
-  const handleSubmitAndAdvance = async (answer: string) => {
+  //
+  // `skipWrite` advances WITHOUT calling `onAnswer`. It's used by the written
+  // editor when the cache has no entry for the question (`submittableAnswer`
+  // is null): the student either never typed (a deliberate skip) or their
+  // saved answer hasn't echoed back into `myResponse` yet. In both cases
+  // writing the editor's empty value would be wrong — at best a meaningless
+  // blank, at worst an explicit-submit blank that CLOBBERS the not-yet-loaded
+  // saved essay (explicit submits bypass the `isUnsafeBlankDraft` autosave
+  // guard). Skipping the write lets the student move on while any saved answer
+  // on the server is preserved untouched. A deliberate clear (cache holds '')
+  // still writes through — `submittableAnswer` is '' there, not null.
+  const handleSubmitAndAdvance = async (answer: string, skipWrite = false) => {
     if (advancingRef.current || submitting) return;
     // Self-paced revisits are intentional re-submissions — let them through
     // even when `submitted=true`. Teacher-paced still locks after first submit.
@@ -1708,25 +1719,27 @@ const ActiveQuiz: React.FC<{
     setSubmitting(true);
     setSaveError(null);
     try {
-      let computedSpeedBonus: number | undefined;
-      if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
-        const remaining = Math.max(0, timeLeft ?? 0);
-        const bonusPct = Math.round(
-          (remaining / currentQuestion.timeLimit) * 50
-        );
-        if (bonusPct > 0) computedSpeedBonus = bonusPct;
-      }
+      if (!skipWrite) {
+        let computedSpeedBonus: number | undefined;
+        if (session.speedBonusEnabled && currentQuestion.timeLimit > 0) {
+          const remaining = Math.max(0, timeLeft ?? 0);
+          const bonusPct = Math.round(
+            (remaining / currentQuestion.timeLimit) * 50
+          );
+          if (bonusPct > 0) computedSpeedBonus = bonusPct;
+        }
 
-      try {
-        await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
-      } catch (err) {
-        console.error(
-          '[QuizStudentApp] onAnswer failed for question',
-          currentQuestion.id,
-          err
-        );
-        setSaveError("Couldn't save your answer. Tap to try again.");
-        return;
+        try {
+          await onAnswer(currentQuestion.id, answer, computedSpeedBonus);
+        } catch (err) {
+          console.error(
+            '[QuizStudentApp] onAnswer failed for question',
+            currentQuestion.id,
+            err
+          );
+          setSaveError("Couldn't save your answer. Tap to try again.");
+          return;
+        }
       }
 
       const isLast = currentIndex >= session.totalQuestions - 1;
@@ -2215,13 +2228,19 @@ const ActiveQuiz: React.FC<{
                   <>
                     {saveError && <SaveErrorBanner message={saveError} />}
                     {/* Written NEXT stays enabled (only `submitting` gates it)
-                        so a student can advance past — or deliberately submit —
-                        a blank essay; gating it on the cache like MC/FIB would
-                        trap anyone who wants to skip. Submits the cache-backed
-                        value for consistency with the other types. */}
+                        so a student can advance past a blank essay; gating it
+                        on the cache like MC/FIB would trap anyone who wants to
+                        skip. When the cache HAS a value (typed, seeded, or a
+                        deliberate clear) we submit it; when it's unseeded
+                        (`submittableAnswer === null`) we advance WITHOUT writing
+                        so a fast tap can't clobber a not-yet-loaded saved essay
+                        with a blank (see handleSubmitAndAdvance `skipWrite`). */}
                     <button
                       onClick={() =>
-                        void handleSubmitAndAdvance(submittableAnswer ?? '')
+                        void handleSubmitAndAdvance(
+                          submittableAnswer ?? '',
+                          submittableAnswer === null
+                        )
                       }
                       disabled={submitting}
                       className="w-full py-4 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-black rounded-2xl flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95"
@@ -2243,9 +2262,17 @@ const ActiveQuiz: React.FC<{
                   </>
                 )
               ) : !submitted ? (
+                // Teacher-paced has no self-advance, so (unlike self-paced) we
+                // can safely gate Submit on the cache: disabled while the
+                // editor is unseeded (`submittableAnswer === null`) — never
+                // typed, or the saved answer hasn't echoed yet — so a fast tap
+                // can't write a blank over a not-yet-loaded saved essay. A
+                // deliberate clear (cache holds '') is non-null, so it stays
+                // enabled. The button re-enables once the student types or the
+                // saved answer loads and seeds the cache.
                 <button
                   onClick={() => void handleSubmit(submittableAnswer ?? '')}
-                  disabled={submitting}
+                  disabled={submitting || submittableAnswer === null}
                   className="w-full py-4 bg-violet-600 hover:bg-violet-500 disabled:opacity-50 text-white font-bold rounded-2xl flex items-center justify-center gap-2 transition-colors"
                 >
                   {submitting ? (
