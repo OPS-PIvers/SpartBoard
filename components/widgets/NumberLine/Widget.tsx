@@ -5,6 +5,24 @@ import { WidgetLayout } from '../WidgetLayout';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { hexToRgba } from '@/utils/styles';
 
+// Map the typography preset id ('sans', 'handwritten', etc.) to the
+// Tailwind utility class so the SVG <text> element picks up the same
+// family the dashboard's CSS pipeline already defines. Hoisted out of
+// the component body so it isn't re-allocated on every render.
+const FONT_CLASS_MAP: Record<string, string> = {
+  sans: 'font-sans',
+  serif: 'font-serif',
+  mono: 'font-mono',
+  handwritten: 'font-handwritten',
+  rounded: 'font-rounded',
+  fun: 'font-fun',
+  comic: 'font-comic',
+  slab: 'font-slab',
+  retro: 'font-retro',
+  marker: 'font-marker',
+  cursive: 'font-cursive',
+};
+
 function fractionLabel(num: number, denom: number): string {
   const sign = num < 0 ? -1 : 1;
   const absNum = Math.abs(num);
@@ -46,28 +64,15 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     fontColor = '#1e293b',
   } = config;
 
-  // Map the typography preset id ('sans', 'handwritten', etc.) to the
-  // Tailwind utility class so the SVG <text> element picks up the same
-  // family the dashboard's CSS pipeline already defines. Defaults to
-  // `font-mono` to preserve the prior tick-label appearance for widgets
-  // that don't override (and for legacy configs missing the field).
-  const FONT_CLASS_MAP: Record<string, string> = {
-    sans: 'font-sans',
-    serif: 'font-serif',
-    mono: 'font-mono',
-    handwritten: 'font-handwritten',
-    rounded: 'font-rounded',
-    fun: 'font-fun',
-    comic: 'font-comic',
-    slab: 'font-slab',
-    retro: 'font-retro',
-    marker: 'font-marker',
-    cursive: 'font-cursive',
-  };
+  // Resolve the typography preset id to a Tailwind class. When
+  // fontFamily is undefined the panel's "Inherit (Dashboard default)"
+  // is selected — leave the class empty so the SVG <text> inherits
+  // the parent container's family rather than silently overriding to
+  // monospace (which would make "Inherit" and "Monospace" identical).
   const fontClass =
     typeof fontFamily === 'string' && FONT_CLASS_MAP[fontFamily]
       ? FONT_CLASS_MAP[fontFamily]
-      : 'font-mono';
+      : '';
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {

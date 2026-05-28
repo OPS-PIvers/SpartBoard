@@ -41,7 +41,18 @@ const HexColorTextInput: React.FC<{
       onChange={(e) => setDraft(e.target.value)}
       onBlur={() => {
         const trimmed = draft.trim();
-        onCommit(trimmed === '' ? undefined : trimmed);
+        // Validate on blur: empty → clear the field; valid hex → commit;
+        // invalid (e.g. `#banana`, `#12`, `notahex`) → revert the draft
+        // to the previously committed value rather than persisting
+        // garbage that the server validator would otherwise pass through
+        // and downstream consumers would have to defensively re-validate.
+        if (trimmed === '') {
+          onCommit(undefined);
+        } else if (isValidHex(trimmed)) {
+          onCommit(trimmed);
+        } else {
+          setDraft(value ?? '');
+        }
       }}
       placeholder={placeholder}
       className={className}
