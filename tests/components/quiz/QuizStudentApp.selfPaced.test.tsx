@@ -767,3 +767,98 @@ describe('QuizStudentApp — in-memory answer cache', () => {
     );
   });
 });
+
+// ─── Narrowed current-answer ref + submit gating (#1741 follow-up) ────────────
+//
+// Issue #2: `currentAnswerRef` mirrors ONLY the active question's cached value
+// (not the whole cache). The two imperative readers — the timer auto-submit
+// effect and the visibility/unmount flush handler — must still see the current
+// question's live draft through it. These pin both read paths for a
+// non-structured type (the Matching/Ordering timer tests above cover the
+// structured auto-submit path).
+//
+// Issue #1: the Submit/NEXT affordances gate on the cache-backed value
+// (`submittableAnswer`), not on `liveAnswer` (which folds in the Firestore
+// fallback). The transient pre-seed render the fix guards against is coalesced
+// away by React (the cache-miss-fill is a render-phase update), so it isn't
+// observable here; the test below pins the end-state contract — the gate tracks
+// the cache, going from disabled → enabled as the option lands in it.
+
+describe('QuizStudentApp — current-answer ref + submit gating', () => {
+  it('auto-submits the cached MC selection on timeout (reads currentAnswerRef)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      hookState.session = buildSession({
+        publicQuestions: [
+          { ...QUESTIONS[0], timeLimit: 5 },
+          QUESTIONS[1],
+          QUESTIONS[2],
+        ],
+      });
+
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+      // Pick "4" but never submit — the value lives only in the cache,
+      // mirrored into the narrowed currentAnswerRef.
+      await user.click(screen.getByRole('button', { name: '4' }));
+
+      // Run the clock out. The auto-submit effect must read the cached "4"
+      // back out of the ref, not submit an empty answer.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(6000);
+      });
+
+      expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', '4', 0, undefined);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("flushes the current question's cached draft on visibilitychange→hidden (reads currentAnswerRef)", async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // Cache "4". The 500 ms autosave debounce hasn't fired yet.
+    await user.click(screen.getByRole('button', { name: '4' }));
+
+    // Tab-switch away. The flush handler reads the active question's value out
+    // of the narrowed ref and writes it as a draft immediately (best-effort,
+    // before the debounce would have).
+    try {
+      Object.defineProperty(document, 'visibilityState', {
+        configurable: true,
+        get: () => 'hidden',
+      });
+      act(() => {
+        document.dispatchEvent(new Event('visibilitychange'));
+      });
+
+      await waitFor(() => {
+        expect(mockSubmitAnswer).toHaveBeenCalledWith('q1', '4', undefined, {
+          isDraft: true,
+        });
+      });
+    } finally {
+      // Drop the instance override so the jsdom prototype getter (default
+      // 'visible') is restored for other tests.
+      Reflect.deleteProperty(document, 'visibilityState');
+    }
+  });
+
+  it('keeps NEXT disabled until an option is cached, then enables it (gates on the cache, not the saved fallback)', async () => {
+    const user = userEvent.setup();
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // Fresh question, nothing selected → no cache entry → the submit
+    // affordance is disabled. It gates on `submittableAnswer` (cache-backed),
+    // never on a Firestore fallback showing through `liveAnswer`.
+    expect(screen.getByRole('button', { name: /^NEXT/i })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: '4' }));
+    expect(screen.getByRole('button', { name: /^NEXT/i })).not.toBeDisabled();
+  });
+});
