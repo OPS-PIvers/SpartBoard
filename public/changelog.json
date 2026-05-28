@@ -1,6 +1,42 @@
 {
   "entries": [
     {
+      "version": "2026.05.28.2",
+      "date": "2026-05-28",
+      "title": "Quiz auto-submit safeguards",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "90-minute auto-submit safeguards",
+          "items": [
+            {
+              "text": "Pausing a live quiz now also pauses the 90-minute idle auto-submit, so you can hold a session over lunch, a fire drill, or until tomorrow's class without students being force-submitted while you're away."
+            },
+            {
+              "text": "Students sitting in the lobby of a quiz you haven't launched yet no longer get force-submitted with empty answers if you get pulled away before starting question 1."
+            },
+            {
+              "text": "Resuming a paused session gives every student a fresh 90-minute idle window, so a long pause never causes their work to auto-submit the moment they reconnect."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Live quiz — paused sessions are now exempt from the 90-minute idle auto-submit. If you pause a quiz at the end of a class period to resume the next day (or step out for lunch, a fire drill, or a hallway conversation), students' in-progress attempts are preserved instead of being force-submitted while the session is paused."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — lobby attendees are no longer force-submitted. If you create a quiz, students join the lobby, and you get pulled away before launching question 1, those students stay in the lobby with their join intact rather than being auto-finalized with 0 answers after 90 minutes."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — when you resume a paused session, the 90-minute idle clock restarts for every joined and in-progress student. Even if the pause lasted overnight, students get a full fresh window to keep working when they reconnect, instead of being immediately auto-submitted because their last activity was hours or days ago."
+        }
+      ]
+    },
+    {
       "version": "2026.05.28",
       "date": "2026-05-28",
       "title": "Quiz reliability, grading fixes, and translations",
