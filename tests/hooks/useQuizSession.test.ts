@@ -7,6 +7,7 @@ import {
   toPublicQuestion,
   useQuizSessionStudent,
   useQuizSessionTeacher,
+  isBlankAnswerText,
   isUnsafeBlankDraft,
   isUnsafeStatusDowngrade,
   shouldSnapshotHistory,
@@ -481,6 +482,36 @@ describe('toPublicQuestion', () => {
 // tested without setting up a full Firestore mock — the hook integration
 // is covered separately by the component-level cache tests.
 
+describe('isBlankAnswerText', () => {
+  it('treats the empty string and whitespace-only text as blank', () => {
+    expect(isBlankAnswerText('')).toBe(true);
+    expect(isBlankAnswerText('   ')).toBe(true);
+    expect(isBlankAnswerText('\n\t ')).toBe(true);
+  });
+
+  it('treats the cleared-essay markup the editor emits as blank', () => {
+    // `sanitizeQuizResponse` keeps <p>/<br>, so a cleared essay serializes
+    // to tags-only markup rather than ''.
+    expect(isBlankAnswerText('<p></p>')).toBe(true);
+    expect(isBlankAnswerText('<p><br></p>')).toBe(true);
+    expect(isBlankAnswerText('<br>')).toBe(true);
+    expect(isBlankAnswerText('<p>&nbsp;</p>')).toBe(true);
+  });
+
+  it('treats real prose (even formatted) as non-blank', () => {
+    expect(isBlankAnswerText('<p>Real answer</p>')).toBe(false);
+    expect(isBlankAnswerText('Paris')).toBe(false);
+  });
+
+  it('does not misclassify non-HTML answer serializations as blank', () => {
+    // MC option strings, FIB text, and pipe-delimited matching/ordering
+    // have no tags to strip, so only genuinely text-empty values are blank.
+    expect(isBlankAnswerText('4')).toBe(false);
+    expect(isBlankAnswerText('France:Paris|Germany:Berlin')).toBe(false);
+    expect(isBlankAnswerText('First|Second|Third')).toBe(false);
+  });
+});
+
 describe('isUnsafeBlankDraft (#1 guard)', () => {
   const priorWithText: QuizResponseAnswer = {
     questionId: 'q1',
@@ -497,6 +528,13 @@ describe('isUnsafeBlankDraft (#1 guard)', () => {
 
   it('refuses a draft autosave writing "" over a non-empty prior answer', () => {
     expect(isUnsafeBlankDraft('', true, priorWithText)).toBe(true);
+  });
+
+  it('refuses a draft autosave of cleared-essay markup over a non-empty prior', () => {
+    // Regression: a cleared essay serializes to `<p></p>`, which the old
+    // `=== ''` check let through, silently clobbering the saved essay.
+    expect(isUnsafeBlankDraft('<p></p>', true, priorWithText)).toBe(true);
+    expect(isUnsafeBlankDraft('<p><br></p>', true, priorWithText)).toBe(true);
   });
 
   it('allows a draft autosave writing "" when the prior answer was also empty', () => {
