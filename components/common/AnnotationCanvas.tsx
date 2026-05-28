@@ -145,7 +145,6 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
       onPointerMove={handleMove}
       onPointerUp={handleEnd}
       onPointerCancel={handleEnd}
-      onPointerLeave={handleEnd}
       style={{ touchAction: 'none' }}
     />
   );
