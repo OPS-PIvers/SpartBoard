@@ -140,11 +140,11 @@ export function computeVideoActivityScorePct(
   let earned = 0;
   let max = 0;
   for (const q of questions) {
-    max += q.points ?? 1;
     if (seen.has(q.id)) continue;
+    seen.add(q.id);
+    max += q.points ?? 1;
     const a = answers.find((x) => x.questionId === q.id);
     if (!a) continue;
-    seen.add(q.id);
     earned += gradeVideoActivityAnswer(q, a.answer).pointsEarned;
   }
   if (max === 0) return 0;
