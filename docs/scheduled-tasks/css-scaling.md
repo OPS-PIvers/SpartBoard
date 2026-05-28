@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-27_
+_Last audited: 2026-05-28_
 _Last action: 2026-05-23_
 
 ---
@@ -22,6 +22,7 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-05-28: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits since 2026-05-27: feat(scoreboard) ScoreboardItem ±buttons layout change (ScoreboardItem.tsx), fix(random,stations) restore widget floors + size result (Stations/Widget.tsx, random/RandomWidget.tsx — both skipScaling:true). Stations/Widget.tsx: change is data/logic only (floor values), no new className violations. random/RandomWidget.tsx: result text sizing change — verified inline style still uses cqmin. MaterialsWidget/index.tsx reviewed — top-level `overflow-hidden` on `h-full w-full flex flex-col` container (line 124) is acceptable; content has `flex-1 min-h-0` at line 140. NEW LOW: PollWidget/Widget.tsx:161 progress bar uses `h-[min(5cqmin)] min-h-[16px]` — uncapped upper bound means bar can grow excessively large at big widget sizes (e.g., 50px tall at 1000px width). See new open item below._
 _2026-05-27: Scanned recently changed Widget.tsx files for anti-patterns. New dev-paul commits since 2026-05-26 touching widget content: feat(drawing-widget) toolbar redesign + eraser modes + page titles (DrawingWidget has `skipScaling: false` — CSS transform scaling, not container queries; hardcoded Tailwind sizes in the toolbar are not CQ violations). feat(smart-notebook) multiple sub-component updates — SmartNotebook sub-components verified clean (no hardcoded Tailwind text-size classes in front-face content; `max-w-[240px] min-w-[160px]` on assets side-panel previously documented as acceptable structural constraint). Stations and RevealGrid widgets unchanged. QRWidget (positive reference) still clean. No new anti-patterns detected. All pre-existing open items remain valid._
 _2026-05-26: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits merged since 2026-05-24: refactor(effects) (#1689) touched DiceWidget/Widget.tsx and Checklist/Settings.tsx; perf(qr) (#1688) rewrote QRWidget/Widget.tsx. QRWidget/Widget.tsx verified clean — all sizing uses cqmin inline styles, no hardcoded Tailwind text/size classes in front-face content. DiceWidget/Widget.tsx: new cqmin additions added to the grid div (`gap: '4cqmin', padding: '6cqmin'`) and Roll Dice button (`style={{ fontSize: 'min(20px, 5cqmin)' }}`), but the footer wrapper `className="px-3 pb-3"` and button `py-4 px-6 gap-3` remain hardcoded — group open item still valid for those specific violations. MiniApp portaled toolbar fix (commit 74ff0f94 on scheduled-tasks) confirmed merged into dev-paul via PR #1684 (`7145b53d`) — moving to Completed. No new anti-patterns detected. All remaining pre-existing open items valid._
 
@@ -52,6 +53,13 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
+### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
+
+- **Detected:** 2026-05-28
+- **File:** components/widgets/PollWidget/Widget.tsx:161
+- **Detail:** The poll results progress bar uses `className="h-[min(5cqmin)] min-h-[16px] ..."`. The `h-[min(5cqmin)]` is effectively `height: 5cqmin` (single-argument `min()` is valid CSS but unusual). The `min-h-[16px]` adds a 16px floor. There is no upper cap, so at large widget sizes (e.g., 1000px wide) the bar becomes ~50px tall, taking up a disproportionate amount of the widget area. Widget has `skipScaling: true`.
+- **Fix:** Replace both Tailwind classes with a single inline style using the recommended cap pattern: `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}`. This gives a 16px floor (bar never invisible), scales with `5cqmin`, and caps at 24px (bar never oversized).
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 
