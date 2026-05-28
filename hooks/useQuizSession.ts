@@ -140,7 +140,11 @@ export function isUnsafeStatusDowngrade(
   isDraft: boolean,
   priorEntry: QuizResponseAnswer | undefined
 ): boolean {
-  return isDraft && priorEntry?.status === 'submitted';
+  // Use `!== 'draft'` rather than `=== 'submitted'` so legacy entries
+  // with `status === undefined` (predate the draft flag — treated as
+  // submitted everywhere else via `isAnswerSubmitted`) are also
+  // protected from being silently downgraded to draft.
+  return isDraft && priorEntry !== undefined && priorEntry.status !== 'draft';
 }
 
 /**
@@ -163,7 +167,10 @@ export function shouldSnapshotHistory(
   if (!priorEntry) return false;
   if (priorEntry.answer === '') return false;
   const textChanged = priorEntry.answer !== newAnswer;
-  const statusDowngrade = priorEntry.status === 'submitted' && newIsDraft;
+  // Mirror `isUnsafeStatusDowngrade`: treat legacy entries with
+  // `status === undefined` as submitted so a downgrade attempt on a
+  // legacy answer still gets a forensic snapshot.
+  const statusDowngrade = priorEntry.status !== 'draft' && newIsDraft;
   if (!textChanged && !statusDowngrade) return false;
   return now - lastSnapshotAt >= throttleMs;
 }
@@ -2043,9 +2050,71 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       if (isUnsafeBlankDraft(answer, opts?.isDraft === true, priorEntry)) {
         return;
       }
+
+      // #5 history snapshot decision — runs BEFORE the status-downgrade
+      // guard so a rejected downgrade attempt is still recorded as a
+      // forensic snapshot. Without this ordering, the downgrade branch
+      // of `shouldSnapshotHistory` was unreachable in production
+      // (`isUnsafeStatusDowngrade` returns early on the very condition
+      // the snapshot path wants to capture). Keeping it here means the
+      // recovery log records both completed and rejected overwrites.
+      const now = Date.now();
+      const lastAt = lastHistorySnapshotAtRef.current.get(questionId) ?? 0;
+      const wantSnapshot =
+        !!priorEntry &&
+        shouldSnapshotHistory(
+          priorEntry,
+          answer,
+          opts?.isDraft === true,
+          lastAt,
+          now
+        );
+      if (wantSnapshot && priorEntry) {
+        // Consume the throttle slot eagerly — BEFORE issuing the addDoc
+        // — so a tap-storm with multiple in-flight writes can't all see
+        // the same stale `lastAt` and slip past the throttle, and an
+        // out-of-order resolution can't move the timestamp backwards.
+        // A one-time failure burns the throttle slot for the window
+        // (logged below); the alternative is unbounded write-
+        // amplification on a flaky network, which is the worse failure
+        // mode for a fire-and-forget safety net.
+        lastHistorySnapshotAtRef.current.set(questionId, now);
+        void addDoc(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_COLLECTION,
+            responseKey,
+            RESPONSE_HISTORY_COLLECTION
+          ),
+          {
+            questionId: priorEntry.questionId,
+            answer: priorEntry.answer,
+            // `answeredAt` is typed `number` (required) but Firestore
+            // can return any shape on legacy docs — fall back to `now`
+            // so the rule's required-fields check still passes instead
+            // of crashing on `undefined`.
+            answeredAt: priorEntry.answeredAt ?? now,
+            // Narrow explicitly rather than `?? 'submitted'`: the rule
+            // pins `status in ['draft','submitted']`, so any future
+            // schema value would silently fail every history write.
+            status: priorEntry.status === 'draft' ? 'draft' : 'submitted',
+            snapshotAt: serverTimestamp(),
+          }
+        ).catch((err: unknown) => {
+          // Safety-net write — recovery still works without it, so we
+          // don't surface to the student. But log it: a silently
+          // failing recovery net (e.g. a future rules/schema drift)
+          // should be visible rather than vanish.
+          console.error('[useQuizSession] history snapshot write failed:', err);
+        });
+      }
+
       // Status-downgrade guard — see `isUnsafeStatusDowngrade` doc.
       // Stops the back-nav listener-lag race from silently flipping a
-      // 'submitted' answer back to 'draft' status.
+      // 'submitted' answer back to 'draft' status. Runs AFTER the
+      // history snapshot so the rejected attempt is still recorded.
       if (isUnsafeStatusDowngrade(opts?.isDraft === true, priorEntry)) {
         return;
       }
@@ -2099,62 +2168,6 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           lastWriteAt: serverTimestamp(),
         }
       );
-
-      // #5 history — see `shouldSnapshotHistory` doc. Fire-and-forget
-      // safety net so a value that turns out to be a regression (stray
-      // blank draft that the #1 guard didn't catch, or a student
-      // retyping after a lockout) can still be recovered.
-      const now = Date.now();
-      const lastAt = lastHistorySnapshotAtRef.current.get(questionId) ?? 0;
-      if (
-        shouldSnapshotHistory(
-          priorEntry,
-          answer,
-          opts?.isDraft === true,
-          lastAt,
-          now
-        ) &&
-        priorEntry
-      ) {
-        void addDoc(
-          collection(
-            db,
-            QUIZ_SESSIONS_COLLECTION,
-            sessionId,
-            RESPONSES_COLLECTION,
-            responseKey,
-            RESPONSE_HISTORY_COLLECTION
-          ),
-          {
-            questionId: priorEntry.questionId,
-            answer: priorEntry.answer,
-            answeredAt: priorEntry.answeredAt,
-            // Narrow explicitly rather than `?? 'submitted'`: the rule
-            // pins `status in ['draft','submitted']`, so any future
-            // schema value would silently fail every history write.
-            status: priorEntry.status === 'draft' ? 'draft' : 'submitted',
-            snapshotAt: serverTimestamp(),
-          }
-        )
-          .then(() => {
-            // Only consume the throttle slot for snapshots that actually
-            // landed. A failed write (offline, rule denial, quota) used
-            // to bump `now` regardless, suppressing the next legitimate
-            // snapshot for the throttle window even though no recovery
-            // doc had been written.
-            lastHistorySnapshotAtRef.current.set(questionId, now);
-          })
-          .catch((err: unknown) => {
-            // Safety-net write — recovery still works without it, so we
-            // don't surface to the student. But log it: a silently
-            // failing recovery net (e.g. a future rules/schema drift)
-            // should be visible rather than vanish.
-            console.error(
-              '[useQuizSession] history snapshot write failed:',
-              err
-            );
-          });
-      }
     },
     []
   );
