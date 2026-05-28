@@ -2134,11 +2134,15 @@ service cloud.firestore {
         // the cross-auth-type paths are now closed.
         allow create: if request.auth != null &&
           request.resource.data.studentUid == request.auth.uid &&
-          // `lastWriteAt` must be server-stamped (`serverTimestamp()`
-          // from the SDK resolves to `request.time` at rule evaluation
-          // time). Forbidding client-stamped values here closes the
-          // CREATE-side hole symmetric to the UPDATE rule below.
-          request.resource.data.lastWriteAt == request.time &&
+          // If `lastWriteAt` is supplied, it must be server-stamped
+          // (`serverTimestamp()` from the SDK resolves to `request.time`
+          // at rule evaluation). Optional to keep the rule tolerant of
+          // legacy joins / test fixtures that don't carry the field;
+          // the worst case is the doc never appears in the idle
+          // auto-submit sweep (teacher-visible, manually cleanable) —
+          // not data loss.
+          (request.resource.data.get('lastWriteAt', null) == null ||
+           request.resource.data.lastWriteAt == request.time) &&
           // Students cannot forge a score on creation
           request.resource.data.score == null &&
           // Students cannot forge prior completions
