@@ -19,6 +19,7 @@ import {
   collection,
   onSnapshot,
   setDoc,
+  addDoc,
   updateDoc,
   getDocs,
   getDoc,
@@ -65,6 +66,25 @@ export const RESPONSES_COLLECTION = 'responses';
  */
 export const ARCHIVED_RESPONSES_COLLECTION = 'archived_responses';
 /**
+ * Append-only per-response snapshot log. Each entry captures the prior
+ * value of a question's answer just before it gets overwritten in the
+ * `responses/{rid}.answers` array, so a teacher (or admin) can recover
+ * text that was lost to a race, a stray empty draft, or a student who
+ * retyped over their own work. Writes are fire-and-forget and throttled
+ * per-question (see `HISTORY_SNAPSHOT_THROTTLE_MS`) to keep storage and
+ * write costs bounded — typical essay quiz has a low double-digit
+ * count per student.
+ */
+export const RESPONSE_HISTORY_COLLECTION = 'history';
+/**
+ * Minimum interval between history snapshots for the same questionId on
+ * the same response. The autosave debounce is 500 ms; without throttling
+ * a long essay would fan out to hundreds of near-identical history docs.
+ * 5 s gives "enough resolution to recover meaningful state" without
+ * making history a per-keystroke audit log.
+ */
+const HISTORY_SNAPSHOT_THROTTLE_MS = 5000;
+/**
  * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
  * and accumulates a student's completed-attempt count across every session
  * the teacher creates for the same quiz. Without this collection, the
@@ -88,6 +108,42 @@ export function quizLedgerKey(quizId: string, studentUid: string): string {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Defensive predicate: refuse a draft autosave that would overwrite a
+ * non-empty saved answer with the empty string. Almost always indicates
+ * a race (editor briefly emitted '' after a remount or a hydration miss)
+ * rather than a deliberate clear. Explicit submits (`isDraft=false`)
+ * bypass this — a student who really wants to clear an answer can still
+ * submit empty.
+ */
+export function isUnsafeBlankDraft(
+  answer: string,
+  isDraft: boolean,
+  priorEntry: QuizResponseAnswer | undefined
+): boolean {
+  return isDraft && answer === '' && !!priorEntry && priorEntry.answer !== '';
+}
+
+/**
+ * Decide whether to snapshot the prior answer entry to the history
+ * subcollection before overwriting. Only meaningful prior values
+ * (non-empty and different from the incoming value) are worth
+ * snapshotting, and the per-question throttle keeps a long essay from
+ * fanning out to hundreds of near-identical docs.
+ */
+export function shouldSnapshotHistory(
+  priorEntry: QuizResponseAnswer | undefined,
+  newAnswer: string,
+  lastSnapshotAt: number,
+  now: number,
+  throttleMs: number = HISTORY_SNAPSHOT_THROTTLE_MS
+): boolean {
+  if (!priorEntry) return false;
+  if (priorEntry.answer === '') return false;
+  if (priorEntry.answer === newAnswer) return false;
+  return now - lastSnapshotAt >= throttleMs;
+}
 
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
 function fisherYatesShuffle<T>(arr: T[]): T[] {
@@ -1132,6 +1188,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
 
+  // Per-questionId timestamp of the most recent history snapshot write.
+  // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
+  const lastHistorySnapshotAtRef = useRef<Map<string, number>>(new Map());
+
   // Optimistic local counter state to ensure UI updates immediately.
   // warningCountRef mirrors the state so reportTabSwitch can return the
   // updated value synchronously (React functional updaters run on the next
@@ -1912,6 +1972,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // only) from an explicit submit. The student's `alreadyAnswered` gate
       // checks for `'submitted'` so a draft autosave doesn't masquerade as
       // a final answer and prematurely fire the completion card.
+      const existingAnswers = myResponseRef.current?.answers ?? [];
+      const priorEntry = existingAnswers.find(
+        (a) => a.questionId === questionId
+      );
+
+      // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
+      // that would silently clobber a non-empty saved answer with ''.
+      if (isUnsafeBlankDraft(answer, opts?.isDraft === true, priorEntry)) {
+        return;
+      }
+
       const newAnswer: QuizResponseAnswer = {
         questionId,
         answer,
@@ -1922,7 +1993,6 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           : {}),
       };
 
-      const existingAnswers = myResponseRef.current?.answers ?? [];
       const updated = [
         ...existingAnswers.filter((a) => a.questionId !== questionId),
         newAnswer,
@@ -1962,6 +2032,38 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           lastWriteAt: serverTimestamp(),
         }
       );
+
+      // #5 history — see `shouldSnapshotHistory` doc. Fire-and-forget
+      // safety net so a value that turns out to be a regression (stray
+      // blank draft that the #1 guard didn't catch, or a student
+      // retyping after a lockout) can still be recovered.
+      const now = Date.now();
+      const lastAt = lastHistorySnapshotAtRef.current.get(questionId) ?? 0;
+      if (
+        shouldSnapshotHistory(priorEntry, answer, lastAt, now) &&
+        priorEntry
+      ) {
+        lastHistorySnapshotAtRef.current.set(questionId, now);
+        void addDoc(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_COLLECTION,
+            responseKey,
+            RESPONSE_HISTORY_COLLECTION
+          ),
+          {
+            questionId: priorEntry.questionId,
+            answer: priorEntry.answer,
+            answeredAt: priorEntry.answeredAt,
+            status: priorEntry.status ?? 'submitted',
+            snapshotAt: serverTimestamp(),
+          }
+        ).catch(() => {
+          // Safety-net write; nothing actionable on failure.
+        });
+      }
     },
     []
   );

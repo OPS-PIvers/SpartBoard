@@ -7,11 +7,14 @@ import {
   toPublicQuestion,
   useQuizSessionStudent,
   useQuizSessionTeacher,
+  isUnsafeBlankDraft,
+  shouldSnapshotHistory,
 } from '@/hooks/useQuizSession';
 import { auth } from '@/config/firebase';
 import type {
   QuizQuestion,
   QuizResponse,
+  QuizResponseAnswer,
   QuizSession,
   QuizPublicQuestion,
 } from '@/types';
@@ -466,6 +469,104 @@ describe('toPublicQuestion', () => {
     expect(pub).not.toHaveProperty('correctAnswer');
     expect(pub.id).toBe('q4');
     expect(pub.type).toBe('FIB');
+  });
+});
+
+// ─── Draft-write defensive predicates ─────────────────────────────────────────
+//
+// `isUnsafeBlankDraft` and `shouldSnapshotHistory` are the two guards
+// `submitAnswer` consults before writing the response doc. They are
+// extracted as pure predicates so the race / overwrite logic can be
+// tested without setting up a full Firestore mock — the hook integration
+// is covered separately by the component-level cache tests.
+
+describe('isUnsafeBlankDraft (#1 guard)', () => {
+  const priorWithText: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'My long essay response',
+    answeredAt: 100,
+    status: 'submitted',
+  };
+  const priorEmpty: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: '',
+    answeredAt: 100,
+    status: 'draft',
+  };
+
+  it('refuses a draft autosave writing "" over a non-empty prior answer', () => {
+    expect(isUnsafeBlankDraft('', true, priorWithText)).toBe(true);
+  });
+
+  it('allows a draft autosave writing "" when the prior answer was also empty', () => {
+    // Both sides reduce to '' — no data loss possible, the write is a no-op
+    // on the data dimension but still legitimate (timestamps may update).
+    expect(isUnsafeBlankDraft('', true, priorEmpty)).toBe(false);
+  });
+
+  it('allows a draft autosave writing "" when no prior entry exists', () => {
+    expect(isUnsafeBlankDraft('', true, undefined)).toBe(false);
+  });
+
+  it('allows a draft autosave writing non-empty text over a non-empty prior', () => {
+    // Normal "student kept typing" path — must not be blocked.
+    expect(isUnsafeBlankDraft('new text', true, priorWithText)).toBe(false);
+  });
+
+  it('allows an explicit (non-draft) submit of "" over a non-empty prior', () => {
+    // Student deliberately cleared and clicked Submit — only autosaves are
+    // gated; explicit intent is respected.
+    expect(isUnsafeBlankDraft('', false, priorWithText)).toBe(false);
+  });
+});
+
+describe('shouldSnapshotHistory (#5 throttle)', () => {
+  const priorWithText: QuizResponseAnswer = {
+    questionId: 'q1',
+    answer: 'first draft',
+    answeredAt: 100,
+    status: 'draft',
+  };
+  const THROTTLE = 5000;
+
+  it('captures a snapshot when overwriting a non-empty prior with different content past the throttle window', () => {
+    expect(
+      shouldSnapshotHistory(priorWithText, 'second draft', 0, 6000, THROTTLE)
+    ).toBe(true);
+  });
+
+  it('skips when no prior entry exists', () => {
+    // First write for this question — nothing to snapshot.
+    expect(
+      shouldSnapshotHistory(undefined, 'first text', 0, 1e9, THROTTLE)
+    ).toBe(false);
+  });
+
+  it('skips when the prior entry was empty', () => {
+    const priorEmpty: QuizResponseAnswer = {
+      questionId: 'q1',
+      answer: '',
+      answeredAt: 0,
+      status: 'draft',
+    };
+    expect(
+      shouldSnapshotHistory(priorEmpty, 'new text', 0, 1e9, THROTTLE)
+    ).toBe(false);
+  });
+
+  it('skips when the new value is identical to the prior (no-op overwrite)', () => {
+    // Autosaves can fire with no actual content change in some races;
+    // a snapshot would be wasteful and noise the recovery log.
+    expect(
+      shouldSnapshotHistory(priorWithText, 'first draft', 0, 1e9, THROTTLE)
+    ).toBe(false);
+  });
+
+  it('throttles back-to-back snapshots inside the window', () => {
+    // Previous snapshot was 1s ago, throttle is 5s → not yet allowed.
+    expect(
+      shouldSnapshotHistory(priorWithText, 'second draft', 4000, 5000, THROTTLE)
+    ).toBe(false);
   });
 });
 

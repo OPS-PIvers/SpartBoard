@@ -691,3 +691,79 @@ describe('QuizStudentApp — self-paced flow', () => {
     );
   });
 });
+
+// ─── In-memory answer cache (#2 fix) ──────────────────────────────────────────
+//
+// The cache makes question navigation read from local state instead of
+// re-fetching from the Firestore snapshot. These tests cover the two
+// scenarios where the prior hydration-on-every-question-change design
+// could (and did) lose student work in production:
+//   - Next → Back when the response listener hadn't echoed the just-
+//     submitted answer back yet.
+//   - A late-arriving snapshot for the current question (teacher resume,
+//     SSO listener-fast race) seeding a blank that overwrites local edits.
+
+describe('QuizStudentApp — in-memory answer cache', () => {
+  it('preserves the locally-selected MC option across Next → Back even when Firestore never echoes the submit', async () => {
+    // Drop the default `appendAnswer` side-effect so the answer is never
+    // visible via `myResponse`. The cache is then the ONLY thing
+    // remembering which option the student picked — exactly the pre-fix
+    // race scenario where the snapshot listener fell behind.
+    mockSubmitAnswer.mockImplementation(async () => {
+      // No-op: don't update hookState, don't trigger refresh.
+    });
+    const user = userEvent.setup();
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // Pick "4", advance to Q2.
+    await user.click(screen.getByRole('button', { name: '4' }));
+    await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+    expect(await screen.findByText(/Capital of France/i)).toBeInTheDocument();
+
+    // Back to Q1.
+    await user.click(
+      screen.getByRole('button', { name: /Previous question/i })
+    );
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    // "4" must still be highlighted in the editable draft style. Before
+    // the cache fix this would have come back blank because
+    // savedAnswerForCurrent was null and hydrate seeded the editor with
+    // an empty value.
+    const choice = screen.getByRole('button', { name: '4' });
+    expect(choice.className).toContain('border-violet-500');
+  });
+
+  it('does not clobber a locally-selected option when a snapshot with empty answers fires after the click', async () => {
+    // Simulates the "teacher resume" / late-snapshot race: the student
+    // clicks an option, then a Firestore snapshot arrives for the SAME
+    // question with no saved answer. Pre-fix the editor was reset to
+    // the saved value via hydrateAnswerControls and the student saw
+    // their selection vanish. Post-fix the cache wins because it
+    // already has a value for this question.
+    const user = userEvent.setup();
+
+    render(<QuizStudentApp />);
+    expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: '4' }));
+    expect(screen.getByRole('button', { name: '4' }).className).toContain(
+      'border-violet-500'
+    );
+
+    // Fire a snapshot for an empty response — the kind of state the
+    // listener briefly returns after a teacher unlock or a slow round
+    // trip.
+    act(() => {
+      hookState.myResponse = buildResponse({ answers: [] });
+      triggerRefresh();
+    });
+
+    // Selection must still be intact.
+    expect(screen.getByRole('button', { name: '4' }).className).toContain(
+      'border-violet-500'
+    );
+  });
+});
