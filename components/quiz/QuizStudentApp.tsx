@@ -1027,6 +1027,14 @@ const ActiveQuiz: React.FC<{
   const [answerCache, setAnswerCache] = useState<Record<string, string>>({});
   const answerCacheRef = useRef<Record<string, string>>(answerCache);
   answerCacheRef.current = answerCache;
+  // Questions the student has locally edited this session. Once a question
+  // is touched, the in-memory cache is authoritative for it: the
+  // seed-from-server block below stops mirroring later snapshots into it so
+  // a resync can't clobber an in-progress local edit. Untouched questions
+  // keep tracking the freshest saved value, which keeps the autosave's
+  // saved-equal short-circuit holding and prevents a stale seed from being
+  // written back over a newer server answer.
+  const touchedQuestionsRef = useRef<Set<string>>(new Set());
 
   // Per-question draft autosave timer. Coalesces autosaves for every
   // answer type — dropping non-written answers on tab close was the
@@ -1084,7 +1092,7 @@ const ActiveQuiz: React.FC<{
 
   // Reset `selectedAnswer` on question change. The per-type live values
   // (what's currently typed/selected) now live in `answerCache` and are
-  // populated lazily — see the cache-miss-fill block below — so there's
+  // populated by the seed-from-server block below — so there's
   // nothing per-question to wipe here besides the post-submit display
   // indicator.
   const hydrateAnswerControls = (): void => {
@@ -1095,26 +1103,43 @@ const ActiveQuiz: React.FC<{
     );
   };
 
-  // Lazy cache-miss-fill for the current question. If the cache has no
-  // entry yet AND a saved value exists in the Firestore snapshot, seed
-  // the cache from it. Runs every render but the conditional functional
-  // updater no-ops once the key is present, so it costs nothing on the
-  // hot path. Handles three load orders without dedicated effects:
-  //   1) Initial mount before myResponse arrives — cache is empty, saved
-  //      is null, both miss; the next render after the snapshot fills
-  //      in fires this branch.
-  //   2) Page refresh mid-quiz — myResponse loads with prior answers;
-  //      first render after load seeds the current question.
-  //   3) Teacher resume / late snapshot — saved transitions null→text
-  //      while the question hasn't changed; this re-fills the cache
-  //      without going through hydrateAnswerControls.
-  if (currentQuestion?.id && savedAnswerForCurrent !== null) {
+  // Seed-from-server for the current question. For any question the
+  // student hasn't locally edited this session, mirror the freshest saved
+  // value into the cache so navigation / refresh / teacher-resume all
+  // recover prior work without dedicated effects. Handles the same load
+  // orders the old lazy-fill did (initial mount before myResponse arrives;
+  // page refresh mid-quiz; teacher resume / late snapshot) plus the
+  // data-loss race below. Two correctness details:
+  //
+  //   - Read `savedAnswerForCurrentRef.current` *inside* the updater rather
+  //     than closing over the render-time `savedAnswerForCurrent`. If a
+  //     newer Firestore snapshot lands between this update being scheduled
+  //     and React applying it, the closure would otherwise lock the stale
+  //     pre-snapshot value into the cache while the autosave already diffs
+  //     against the newer saved value — and write the stale one back over
+  //     the newer server answer.
+  //   - Refresh, not fill-once: if the saved value changes while the
+  //     question is still untouched, update the cache to match so the
+  //     autosave's saved-equal short-circuit holds and never fires a write
+  //     of an outdated seed. Touched questions are skipped — the cache wins
+  //     after the first local edit.
+  if (
+    currentQuestion?.id &&
+    savedAnswerForCurrent !== null &&
+    !touchedQuestionsRef.current.has(currentQuestion.id) &&
+    answerCache[currentQuestion.id] !== savedAnswerForCurrent
+  ) {
+    // Guarded so this render-phase update only fires when the cache is
+    // actually out of step with the saved value — calling setState
+    // unconditionally during render would loop. The updater re-reads the
+    // ref so the seed still uses the freshest value if React applies it on
+    // a later tick.
     const qid = currentQuestion.id;
-    if (!(qid in answerCache)) {
-      setAnswerCache((prev) =>
-        qid in prev ? prev : { ...prev, [qid]: savedAnswerForCurrent }
-      );
-    }
+    setAnswerCache((prev) => {
+      const fresh = savedAnswerForCurrentRef.current;
+      if (fresh === null || prev[qid] === fresh) return prev;
+      return { ...prev, [qid]: fresh };
+    });
   }
 
   // Derived state: full reset on question change, narrow update on alreadyAnswered flips.
@@ -1275,7 +1300,7 @@ const ActiveQuiz: React.FC<{
     currentQid && currentQid in answerCache ? answerCache[currentQid] : null;
   // Render-time live answer for editors and inputs. Falls back to the
   // Firestore saved value on the single render between question
-  // navigation and the cache-miss-fill block populating the cache, so
+  // navigation and the seed-from-server block populating the cache, so
   // controlled inputs (MC highlight, FIB value, structured initial
   // seed) never flicker through an empty state when a saved value is
   // available. `cachedDraft` (cache-only) is what drives autosave —
@@ -1287,6 +1312,9 @@ const ActiveQuiz: React.FC<{
   // answer slot, but keeps the type signature honest).
   const setCacheForCurrent = (value: string): void => {
     if (!currentQid) return;
+    // Mark the question touched so the seed-from-server block above stops
+    // mirroring later snapshots over this local edit.
+    touchedQuestionsRef.current.add(currentQid);
     setAnswerCache((prev) => ({ ...prev, [currentQid]: value }));
   };
   useEffect(() => {
@@ -2108,6 +2136,15 @@ const ActiveQuiz: React.FC<{
             onSubmit={(answer) => void handleSubmit(answer)}
             onSubmitAndAdvance={(answer) => void handleSubmitAndAdvance(answer)}
             onAnswerChange={(answer) => {
+              // The input remounts per question (keyed by id) and its
+              // mount effect re-emits the seeded answer. Skip the write
+              // when the emitted value already matches the cache: a
+              // back-nav remount would otherwise mark the question touched
+              // (freezing out the seed-from-server refresh) and churn the
+              // autosave / pollute the history log for a no-op overwrite.
+              // Genuine placements differ from the cache and fall through.
+              if (currentQid && answerCacheRef.current[currentQid] === answer)
+                return;
               // Push the live placement into the cache; the autosave
               // effect picks it up and debounces the Firestore write.
               setCacheForCurrent(answer);
@@ -2136,7 +2173,7 @@ const ActiveQuiz: React.FC<{
                 // seeded" boolean in the questionKey. A page refresh
                 // mid-essay first mounts with value='' (cache empty,
                 // saved null); when the Firestore snapshot arrives the
-                // cache-miss-fill block populates the cache, the key
+                // seed-from-server block populates the cache, the key
                 // flips from `…:init` → `…:seeded`, and the editor
                 // remounts with the recovered text. Without this, the
                 // student stares at a blank editor while React state

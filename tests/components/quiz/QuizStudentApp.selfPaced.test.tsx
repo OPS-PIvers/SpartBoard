@@ -766,4 +766,158 @@ describe('QuizStudentApp — in-memory answer cache', () => {
       'border-violet-500'
     );
   });
+
+  it('does not write a stale lazy-fill seed over a newer snapshot value (untouched question)', async () => {
+    // Issue #1 regression. The student never touches q1 this session — its
+    // value comes purely from the server. The saved answer is a DRAFT so
+    // `submitted` stays false and the autosave path stays armed (a plain
+    // submit short-circuits it). The cache seeds from the first snapshot,
+    // then a later snapshot (teacher resync of a shared assignment, listener
+    // catch-up) moves the saved value to a NEWER one — still with no local
+    // edit. Pre-fix the cache kept the first seed ('4') while saved moved to
+    // '5', and the autosave diffed the two and wrote the stale '4' back over
+    // the server's '5'. The seed must track the freshest saved value.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      mockSubmitAnswer.mockImplementation(async () => {});
+      hookState.myResponse = buildResponse({
+        answers: [
+          {
+            questionId: 'q1',
+            answer: '4',
+            answeredAt: Date.now(),
+            status: 'draft',
+          },
+        ],
+      });
+
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+      // A newer snapshot for the SAME untouched question.
+      act(() => {
+        hookState.myResponse = buildResponse({
+          answers: [
+            {
+              questionId: 'q1',
+              answer: '5',
+              answeredAt: Date.now() + 1,
+              status: 'draft',
+            },
+          ],
+        });
+        triggerRefresh();
+      });
+
+      // Drain the 500 ms autosave debounce.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+
+      // The newer value won the cache — '5' carries the editable draft
+      // highlight, not the stale '4'.
+      expect(screen.getByRole('button', { name: '5' }).className).toContain(
+        'border-violet-500'
+      );
+      // And the stale '4' was never autosaved back over the server's '5'.
+      expect(mockSubmitAnswer).not.toHaveBeenCalledWith('q1', '4', undefined, {
+        isDraft: true,
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('back-nav to a saved Matching question keeps it seed-tracked (no stale draft write after a resync)', async () => {
+    // Issue #2 regression. StructuredQuestionInput remounts per question and
+    // its mount effect re-emits the seeded answer through onAnswerChange. If
+    // that no-op re-emit reached setCacheForCurrent it would mark the
+    // never-edited question touched, freezing out the seed-from-server
+    // refresh — so a later resync to a newer saved value would be ignored
+    // and the autosave would write the stale draft back over it. The guard
+    // skips the re-emit, keeping the question untouched and seed-tracked.
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      const matching: QuizPublicQuestion = {
+        id: 'qm',
+        type: 'Matching',
+        text: 'Match the capitals',
+        timeLimit: 0,
+        matchingLeft: ['France', 'Germany'],
+        matchingRight: ['Paris', 'Berlin'],
+      };
+      hookState.session = buildSession({
+        publicQuestions: [QUESTIONS[0], matching],
+        totalQuestions: 2,
+      });
+      // Matching answer saved as a DRAFT so `submitted` stays false (autosave
+      // armed) and the question renders its editable form, not the
+      // post-submit placeholder.
+      hookState.myResponse = buildResponse({
+        answers: [
+          {
+            questionId: 'qm',
+            answer: 'France:Paris|Germany:Berlin',
+            answeredAt: Date.now(),
+            status: 'draft',
+          },
+        ],
+      });
+
+      render(<QuizStudentApp />);
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+
+      // Forward to the Matching question (submitting q1 on the way).
+      await user.click(screen.getByRole('button', { name: '4' }));
+      await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+      expect(
+        await screen.findByText(/Match the capitals/i)
+      ).toBeInTheDocument();
+
+      // Back to q1, then forward again — the second arrival is the remount
+      // that re-fires StructuredQuestionInput's mount-only re-emit.
+      await user.click(
+        screen.getByRole('button', { name: /Previous question/i })
+      );
+      expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
+      await user.click(screen.getByRole('button', { name: /^NEXT/i }));
+      expect(
+        await screen.findByText(/Match the capitals/i)
+      ).toBeInTheDocument();
+
+      // Teacher resync moves the saved draft to a NEWER arrangement while the
+      // student still hasn't touched the question.
+      act(() => {
+        hookState.myResponse = buildResponse({
+          answers: [
+            { questionId: 'q1', answer: '4', answeredAt: Date.now() },
+            {
+              questionId: 'qm',
+              answer: 'France:Paris|Germany:Madrid',
+              answeredAt: Date.now() + 1,
+              status: 'draft',
+            },
+          ],
+        });
+        triggerRefresh();
+      });
+
+      // Drain the autosave debounce.
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(800);
+      });
+
+      // The stale 'Berlin' arrangement must never be autosaved back over the
+      // server's newer 'Madrid'.
+      expect(mockSubmitAnswer).not.toHaveBeenCalledWith(
+        'qm',
+        'France:Paris|Germany:Berlin',
+        undefined,
+        { isDraft: true }
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
