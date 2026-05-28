@@ -87,6 +87,20 @@ export function buildResultsSheetData<
     'Unknown Teacher';
   const timestamp = new Date().toISOString();
 
+  // Deduplicate questions by id before all downstream point math. Drive-
+  // sync duplication and arrayUnion races on the template doc can leave
+  // the same question id present multiple times in `questions`; without
+  // this fence the maxPoints denominator AND the earnedPoints numerator
+  // both inflate by the duplication factor. Mirrors the seen-set fix
+  // PR #1728 applied to `computeVideoActivityScorePct` — the export
+  // path had the same bug, undetected because no test exercised it.
+  const seenQuestionIds = new Set<string>();
+  questions = questions.filter((q) => {
+    if (seenQuestionIds.has(q.id)) return false;
+    seenQuestionIds.add(q.id);
+    return true;
+  });
+
   // Counts rows that resolved to neither a pseudonym map entry nor a PIN
   // — i.e. an SSO joiner whose ClassLink lookup didn't return a name, OR
   // a truly anonymous response missing both `studentUid` resolution and a

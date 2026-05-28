@@ -339,7 +339,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
         )}
 
       {/* Nexus Connection: Send Groups → Stations */}
-      {mode === 'group' && (
+      {mode === 'groups' && (
         <div className="space-y-1">
           <button
             type="button"

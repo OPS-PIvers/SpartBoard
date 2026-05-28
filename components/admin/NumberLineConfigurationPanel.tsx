@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import {
@@ -8,6 +8,57 @@ import {
   GlobalFontFamily,
 } from '@/types';
 import { Toggle } from '@/components/common/Toggle';
+
+/**
+ * Hex color text input with debounced commit. Keeps user keystrokes in
+ * local state and only writes the (validated, non-empty) value back to
+ * the parent's Firestore-backed config on blur — without this, every
+ * character of "#334155" would trigger a Firestore write AND persist
+ * intermediate invalid values ("#3", "#33", ...) that the validator
+ * downstream then has to defensively paper over. Cost-conscious for
+ * school-district Firestore budgets.
+ */
+const HexColorTextInput: React.FC<{
+  value: string | undefined;
+  onCommit: (next: string | undefined) => void;
+  placeholder: string;
+  className: string;
+}> = ({ value, onCommit, placeholder, className }) => {
+  const [draft, setDraft] = useState(value ?? '');
+  // Resync when the committed value changes externally (e.g. the color
+  // picker writes a new value, or the admin switches buildings). Uses
+  // the "adjust state during render" pattern with useState rather than
+  // useEffect (extra commit) or useRef (react-hooks/refs lint).
+  const [prevValue, setPrevValue] = useState(value);
+  if (prevValue !== value) {
+    setPrevValue(value);
+    setDraft(value ?? '');
+  }
+  return (
+    <input
+      type="text"
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => {
+        const trimmed = draft.trim();
+        // Validate on blur: empty → clear the field; valid hex → commit;
+        // invalid (e.g. `#banana`, `#12`, `notahex`) → revert the draft
+        // to the previously committed value rather than persisting
+        // garbage that the server validator would otherwise pass through
+        // and downstream consumers would have to defensively re-validate.
+        if (trimmed === '') {
+          onCommit(undefined);
+        } else if (isValidHex(trimmed)) {
+          onCommit(trimmed);
+        } else {
+          setDraft(value ?? '');
+        }
+      }}
+      placeholder={placeholder}
+      className={className}
+    />
+  );
+};
 
 const FONT_FAMILY_OPTIONS: {
   value: 'global' | GlobalFontFamily;
@@ -27,8 +78,14 @@ const FONT_FAMILY_OPTIONS: {
   { value: 'cursive', label: 'Cursive' },
 ];
 
+// Accept the three CSS-valid hex forms an HTML color picker / Tailwind
+// palette may emit: 3-digit shortform, 6-digit standard, 8-digit alpha.
+// Matches the server-side `isHexColor` validator in
+// `utils/adminBuildingConfig.ts` so the panel and validator agree on
+// what counts as a valid persistable color.
 const isValidHex = (color?: string): boolean =>
-  typeof color === 'string' && /^#[0-9a-fA-F]{6}$/.test(color);
+  typeof color === 'string' &&
+  /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/.test(color);
 
 interface NumberLineConfigurationPanelProps {
   config: NumberLineGlobalConfig;
@@ -216,14 +273,9 @@ export const NumberLineConfigurationPanel: React.FC<
                 className="w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
                 aria-label="Pick default text color"
               />
-              <input
-                type="text"
-                value={currentBuildingConfig.fontColor ?? ''}
-                onChange={(e) =>
-                  handleUpdateBuilding({
-                    fontColor: e.target.value || undefined,
-                  })
-                }
+              <HexColorTextInput
+                value={currentBuildingConfig.fontColor}
+                onCommit={(next) => handleUpdateBuilding({ fontColor: next })}
                 placeholder="#334155"
                 className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
               />
@@ -257,14 +309,9 @@ export const NumberLineConfigurationPanel: React.FC<
                 className="w-10 h-8 rounded border border-slate-300 cursor-pointer p-0.5 bg-white"
                 aria-label="Pick default surface color"
               />
-              <input
-                type="text"
-                value={currentBuildingConfig.cardColor ?? ''}
-                onChange={(e) =>
-                  handleUpdateBuilding({
-                    cardColor: e.target.value || undefined,
-                  })
-                }
+              <HexColorTextInput
+                value={currentBuildingConfig.cardColor}
+                onCommit={(next) => handleUpdateBuilding({ cardColor: next })}
                 placeholder="#ffffff"
                 className="flex-1 px-2 py-1.5 text-xs font-mono border border-slate-300 rounded focus:ring-1 focus:ring-blue-500 outline-none"
               />

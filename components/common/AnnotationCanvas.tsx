@@ -101,6 +101,11 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     try {
       targetElement.setPointerCapture(e.pointerId);
     } catch (_err) {
+      // Drawing still proceeds without capture — the window-level
+      // pointerup/pointercancel listener below catches the release
+      // when capture isn't available (older Safari touch, iframe
+      // contexts, security-restricted environments). Refusing to
+      // draw at all would lock those users out of annotations.
       console.warn('Failed to set pointer capture in AnnotationCanvas:', _err);
     }
 
@@ -136,6 +141,29 @@ export const AnnotationCanvas: React.FC<AnnotationCanvasProps> = ({
     }
     setCurrentPath([]);
   };
+
+  // Window-level pointerup/pointercancel safety net. The element-level
+  // handleEnd is the primary completion path when setPointerCapture
+  // succeeds; this listener catches the release when capture failed
+  // (older Safari touch, iframe contexts, security-restricted
+  // environments) so the stroke can always finalize. Active only while
+  // a stroke is in progress so the listeners don't outlive the gesture.
+  useEffect(() => {
+    if (!isDrawing) return;
+    const commit = () => {
+      setIsDrawing(false);
+      if (currentPath.length > 0) {
+        onPathsChange([...paths, { points: currentPath, color, width }]);
+      }
+      setCurrentPath([]);
+    };
+    window.addEventListener('pointerup', commit);
+    window.addEventListener('pointercancel', commit);
+    return () => {
+      window.removeEventListener('pointerup', commit);
+      window.removeEventListener('pointercancel', commit);
+    };
+  }, [isDrawing, currentPath, paths, color, width, onPathsChange]);
 
   return (
     <canvas

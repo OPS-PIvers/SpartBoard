@@ -9,6 +9,18 @@ import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
 import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
 
 /**
+ * Validates a CSS hex color string. Accepts the three forms an HTML color
+ * picker / Tailwind palette can emit: `#abc` (shortform), `#aabbcc`
+ * (standard), `#aabbccdd` (with alpha). Mirrors the panel-side `isValidHex`
+ * helper so admin-side validators don't silently accept malformed values
+ * (`'banana'`, `'rgb(0,0,0)'`, `'#fff '` with stray whitespace) that would
+ * round-trip through Firestore and degrade downstream widgets.
+ */
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const isHexColor = (value: unknown): value is string =>
+  typeof value === 'string' && HEX_COLOR_RE.test(value.trim());
+
+/**
  * Extracts building-level config overrides for a widget type from the admin's
  * feature_permissions config. These are applied between widget defaults and
  * explicit overrides so that per-building admin settings pre-configure new
@@ -133,8 +145,7 @@ export const getAdminBuildingConfig = (
       )
         out.displayMode = raw.displayMode;
       if (typeof raw.showArrows === 'boolean') out.showArrows = raw.showArrows;
-      if (typeof raw.cardColor === 'string' && raw.cardColor.trim() !== '')
-        out.cardColor = raw.cardColor;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
       if (
         typeof raw.cardOpacity === 'number' &&
         Number.isFinite(raw.cardOpacity) &&
@@ -147,8 +158,7 @@ export const getAdminBuildingConfig = (
         (validFontFamilies as readonly string[]).includes(raw.fontFamily)
       )
         out.fontFamily = raw.fontFamily;
-      if (typeof raw.fontColor === 'string' && raw.fontColor.trim() !== '')
-        out.fontColor = raw.fontColor;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       break;
     }
     case 'syntax-framer':
