@@ -6,6 +6,7 @@ import { InstructionalRoutine } from '@/config/instructionalRoutines';
 import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 import { getRoutineColorClasses } from '@/components/widgets/InstructionalRoutines/colorHelpers';
 import { useDashboard } from '@/context/useDashboard';
+import { logError } from '@/utils/logError';
 
 interface InstructionalRoutinesManagerProps {
   onClose: () => void;
@@ -154,7 +155,10 @@ export const InstructionalRoutinesManager: React.FC<
                   setEditingRoutine(null);
                   addToast('Routine saved to library', 'success');
                 } catch (error) {
-                  console.error('Failed to save routine:', error);
+                  logError('InstructionalRoutinesManager.saveRoutine', error, {
+                    routineId: editingRoutine.id,
+                    routineName: editingRoutine.name,
+                  });
                   addToast(
                     'Failed to save routine. Please try again.',
                     'error'
@@ -180,7 +184,10 @@ export const InstructionalRoutinesManager: React.FC<
               await deleteRoutine(deleteConfirm.routineId);
               addToast('Routine deleted successfully', 'success');
             } catch (error) {
-              console.error('Failed to delete routine:', error);
+              logError('InstructionalRoutinesManager.deleteRoutine', error, {
+                routineId: deleteConfirm.routineId,
+                routineName: deleteConfirm.routineName,
+              });
               addToast('Failed to delete routine. Please try again.', 'error');
             } finally {
               setDeleteConfirm(null);
