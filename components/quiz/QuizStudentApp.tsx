@@ -1351,6 +1351,17 @@ const ActiveQuiz: React.FC<{
             questionId: capturedQid,
             questionType: type,
           });
+          // Surface autosave failures to the student. The new
+          // `lastWriteAt == request.time` Firestore rule (response
+          // UPDATE predicate) rejects writes from clients with stale
+          // auth tokens or session state, AND any other transient
+          // failure (offline, quota) lands here too. Without this
+          // setter the student silently loses every keystroke for up
+          // to 90 min until the idle-finalize cron sweeps them with
+          // whatever last successfully persisted. The existing
+          // SaveErrorBanner + "Retry Submit" button repurposing
+          // already handles the recovery affordance.
+          setSaveError("Couldn't save your answer. Tap to try again.");
         });
     };
     draftAutosaveTimer.current = setTimeout(writeNow, 500);
@@ -1416,6 +1427,12 @@ const ActiveQuiz: React.FC<{
             questionId: qid,
             questionType: 'structured',
           });
+          // Same rationale as the state-driven autosave path above:
+          // surface autosave failures so the student isn't silently
+          // losing Matching/Ordering placements when Firestore rejects
+          // (rule denial, expired auth, offline) until the idle-finalize
+          // cron picks them up 90 min later.
+          setSaveError("Couldn't save your answer. Tap to try again.");
         });
     };
     draftAutosaveTimer.current = setTimeout(writeNow, 500);
@@ -1504,6 +1521,14 @@ const ActiveQuiz: React.FC<{
             questionId: qid,
             questionType: type,
           });
+          // Surface flush failures from the visibility-hidden /
+          // flush-written / unmount paths. beforeunload + unmount
+          // cleanup paths see this as a no-op (component already
+          // tearing down — React 19 silently ignores the setter), but
+          // the visibilitychange-hidden path matters: when the student
+          // tabs back in, they see the SaveErrorBanner instead of
+          // silently believing their pre-switch keystrokes saved.
+          setSaveError("Couldn't save your answer. Tap to try again.");
         });
     };
     const onVisibilityChange = () => {
