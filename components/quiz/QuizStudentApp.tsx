@@ -49,7 +49,6 @@ import { logError } from '@/utils/logError';
 import {
   useQuizSessionStudent,
   normalizeAnswer,
-  isBlankAnswerText,
   SessionEndedError,
 } from '@/hooks/useQuizSession';
 import {
@@ -1029,17 +1028,6 @@ const ActiveQuiz: React.FC<{
   const answerCacheRef = useRef<Record<string, string>>(answerCache);
   answerCacheRef.current = answerCache;
 
-  // Tracks question ids whose cache entry was seeded from a Firestore saved
-  // value (the recovery path in the cache-miss-fill block), NOT from the
-  // student's own typing. The WrittenResponseEditor seeds its innerHTML once
-  // on mount, so it must remount when recovered text arrives after an empty
-  // mount — but it must NOT remount when the student types the first char.
-  // Keying the editor on general cache presence conflated the two and dropped
-  // focus on the first keystroke; keying on this set flips :init→:seeded only
-  // for the recovery case. Monotonic per question, so it never flip-flops on
-  // autosave echoes.
-  const recoverySeededRef = useRef<Set<string>>(new Set());
-
   // Per-question draft autosave timer. Coalesces autosaves for every
   // answer type — dropping non-written answers on tab close was the
   // primary source of the originally reported quiz data loss.
@@ -1123,11 +1111,6 @@ const ActiveQuiz: React.FC<{
   if (currentQuestion?.id && savedAnswerForCurrent !== null) {
     const qid = currentQuestion.id;
     if (!(qid in answerCache)) {
-      // Recovery seed: this value came from Firestore, not the student's
-      // keystrokes. Mark it so the editor remounts to display it (see
-      // `recoverySeededRef`). Recorded before the questionKey is read later
-      // in this same render pass.
-      recoverySeededRef.current.add(qid);
       setAnswerCache((prev) =>
         qid in prev ? prev : { ...prev, [qid]: savedAnswerForCurrent }
       );
@@ -1327,23 +1310,12 @@ const ActiveQuiz: React.FC<{
     // hint to the student instead of queuing a doomed timer. Submit
     // with the explicit Submit/Next button still bypasses the guard
     // and lets them persist an empty answer if that's really intended.
-    // Uses `isBlankAnswerText` (not `=== ''`) so a cleared essay — which
-    // serializes to `<p></p>`/`<br>`, not '' — is recognized as a clear.
-    if (
-      isBlankAnswerText(cachedDraft) &&
-      (savedAnswerForCurrent ?? '') !== ''
-    ) {
+    if (cachedDraft === '' && (savedAnswerForCurrent ?? '') !== '') {
       setSaveError(
         'Your previously-saved answer is still on file. Click Submit to clear it.'
       );
       return;
     }
-
-    // We have a legitimate non-empty draft that differs from the server.
-    // Clear any stale banner from a prior deliberate-clear hint or failed
-    // write — this fresh autosave attempt supersedes it; `writeNow` re-sets
-    // the banner if this attempt itself fails.
-    setSaveError(null);
 
     const snapshot = cachedDraft;
     const capturedQid = qid;
@@ -2162,24 +2134,17 @@ const ActiveQuiz: React.FC<{
             >
               <WrittenResponseEditor
                 // The editor seeds its `innerHTML` once on mount (caret
-                // preservation), so we encode a "recovered text needs
-                // injecting" boolean in the questionKey. A page refresh
+                // preservation), so we encode the "cache has been
+                // seeded" boolean in the questionKey. A page refresh
                 // mid-essay first mounts with value='' (cache empty,
                 // saved null); when the Firestore snapshot arrives the
-                // cache-miss-fill block recovery-seeds the cache, the key
+                // cache-miss-fill block populates the cache, the key
                 // flips from `…:init` → `…:seeded`, and the editor
                 // remounts with the recovered text. Without this, the
                 // student stares at a blank editor while React state
                 // already holds the recovered value.
-                //
-                // Keyed on `recoverySeededRef` (Firestore-sourced seeds)
-                // rather than general cache presence: a student's own first
-                // keystroke also populates `answerCache`, and keying on that
-                // remounted the editor mid-type, dropping focus and the caret.
                 questionKey={`${currentQuestion.id}:${
-                  recoverySeededRef.current.has(currentQuestion.id)
-                    ? 'seeded'
-                    : 'init'
+                  currentQuestion.id in answerCache ? 'seeded' : 'init'
                 }`}
                 value={liveAnswer ?? ''}
                 onChange={(html) => setCacheForCurrent(html)}

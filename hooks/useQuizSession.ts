@@ -110,31 +110,10 @@ export function quizLedgerKey(quizId: string, studentUid: string): string {
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /**
- * Is this serialized answer effectively blank? Catches the empty string,
- * whitespace-only text, and the tags-only markup the written-response
- * editor emits when a student clears an essay — `sanitizeQuizResponse`
- * keeps `<p>`/`<br>`, so a cleared essay serializes to `<p></p>` /
- * `<p><br></p>`, NOT ''. A plain `=== ''` check misses that and would let
- * the blank-draft guard be bypassed, silently clobbering a saved essay.
- *
- * For non-HTML answer types (MC option strings, FIB text, pipe-delimited
- * matching/ordering) the tag strip is a no-op, so this only reclassifies
- * genuinely text-empty values as blank.
- */
-export function isBlankAnswerText(answer: string): boolean {
-  return (
-    answer
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/gi, ' ')
-      .trim() === ''
-  );
-}
-
-/**
  * Defensive predicate: refuse a draft autosave that would overwrite a
- * non-empty saved answer with a blank one. Almost always indicates a race
- * (editor briefly emitted blank markup after a remount or a hydration
- * miss) rather than a deliberate clear. Explicit submits (`isDraft=false`)
+ * non-empty saved answer with the empty string. Almost always indicates
+ * a race (editor briefly emitted '' after a remount or a hydration miss)
+ * rather than a deliberate clear. Explicit submits (`isDraft=false`)
  * bypass this — a student who really wants to clear an answer can still
  * submit empty.
  */
@@ -143,12 +122,7 @@ export function isUnsafeBlankDraft(
   isDraft: boolean,
   priorEntry: QuizResponseAnswer | undefined
 ): boolean {
-  return (
-    isDraft &&
-    isBlankAnswerText(answer) &&
-    !!priorEntry &&
-    priorEntry.answer !== ''
-  );
+  return isDraft && answer === '' && !!priorEntry && priorEntry.answer !== '';
 }
 
 /**

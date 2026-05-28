@@ -115,11 +115,6 @@ vi.mock('@/hooks/useQuizSession', () => ({
     };
   },
   normalizeAnswer: (s: string) => s,
-  isBlankAnswerText: (answer: string) =>
-    answer
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/gi, ' ')
-      .trim() === '',
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
