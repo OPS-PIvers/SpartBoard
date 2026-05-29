@@ -30,6 +30,12 @@ const firestoreWrites: Array<{ path: string; data: Record<string, unknown> }> =
   [];
 // Pre-seeded grade-sync key docs, keyed by full path, read by pushClassroomGrade.
 const gradeSyncDocs = new Map<string, Record<string, unknown>>();
+// Pre-seeded submission docs for the BATCH `db.collection(...).where(...)`
+// query, keyed by the submissions subcollection path
+// (`classroom_grade_links/{pseudonymUid}/submissions`). Each entry is the list
+// of submission docs that subcollection contains; the mock applies the
+// `.where('attachmentId','==',x)` filter and `.limit(1)` against this list.
+const submissionsByPath = new Map<string, Record<string, unknown>[]>();
 
 vi.mock('firebase-admin', () => {
   return {
@@ -55,6 +61,32 @@ vi.mock('firebase-admin', () => {
           }),
         }),
       }),
+      // Path-aware collection(): the BATCH callable queries the submissions
+      // subcollection (`classroom_grade_links/{uid}/submissions`) by
+      // `.where('attachmentId','==',x).limit(1)`. The mock filters the seeded
+      // `submissionsByPath` list by the queried field/value and caps it.
+      collection: (path: string) => {
+        const makeQuery = (
+          filters: Array<{ field: string; value: unknown }>,
+          cap: number | null
+        ) => ({
+          where: (field: string, _op: string, value: unknown) =>
+            makeQuery([...filters, { field, value }], cap),
+          limit: (n: number) => makeQuery(filters, n),
+          get: async () => {
+            const all = submissionsByPath.get(path) ?? [];
+            let matched = all.filter((d) =>
+              filters.every((f) => d[f.field] === f.value)
+            );
+            if (cap !== null) matched = matched.slice(0, cap);
+            return {
+              empty: matched.length === 0,
+              docs: matched.map((d) => ({ data: () => d })),
+            };
+          },
+        });
+        return makeQuery([], null);
+      },
       // Path-aware doc(): the course-link read returns `courseLinkDoc`; the
       // grade-sync key read returns a pre-seeded entry from `gradeSyncDocs`;
       // `.set()` records into `firestoreWrites` for assertions.
@@ -113,6 +145,7 @@ import {
   classroomAddonLoginV1,
   createClassroomAttachment,
   pushClassroomGrade,
+  pushClassroomGradesForAssignment,
   classroomAddonNet,
 } from './classroomAddonAuth';
 
@@ -156,6 +189,7 @@ beforeEach(() => {
   courseLinkDoc = null;
   firestoreWrites.length = 0;
   gradeSyncDocs.clear();
+  submissionsByPath.clear();
   vi.restoreAllMocks();
 });
 
@@ -907,5 +941,403 @@ describe('pushClassroomGrade', () => {
       code: 'failed-precondition',
     });
     expect(patchSpy).not.toHaveBeenCalled();
+  });
+});
+
+// pushClassroomGradesForAssignment — BATCH grade passback. The teacher's quiz
+// monitor calls this once to publish DRAFT grades for every student on one
+// Classroom-linked assignment. Security hardening: the caller MUST be the
+// linking teacher (request.auth.uid === course-link.teacherUid). Per-student
+// submissionIds are resolved from the persisted grade-sync keys
+// (classroom_grade_links/{pseudonymUid}/submissions, filtered by attachmentId).
+// One upstream PATCH failure (or a student who never opened the attachment)
+// must never abort the rest of the batch.
+const callPushBatch = pushClassroomGradesForAssignment as unknown as (req: {
+  data: unknown;
+  auth?: { uid: string } | null;
+}) => Promise<{
+  results: Array<{
+    pseudonymUid: string;
+    ok: boolean;
+    status?: number;
+    reason?: string;
+  }>;
+  pushed: number;
+  skipped: number;
+}>;
+
+const batchData = {
+  courseId: 'C1',
+  itemId: 'I1',
+  attachmentId: 'ATT1',
+  grades: [
+    { pseudonymUid: 'pseudo-A', pointsEarned: 8 },
+    { pseudonymUid: 'pseudo-B', pointsEarned: 5 },
+  ],
+};
+
+/**
+ * Seed a submission doc into the subcollection the batch queries. Mirrors what
+ * the student handshake persists: { courseId, itemId, attachmentId,
+ * submissionId, teacherUid } — ids only, no PII.
+ */
+function seedSubmission(
+  pseudonymUid: string,
+  doc: {
+    courseId: string;
+    itemId: string;
+    attachmentId: string;
+    submissionId: string;
+    teacherUid?: string;
+  }
+) {
+  const path = `classroom_grade_links/${pseudonymUid}/submissions`;
+  const list = submissionsByPath.get(path) ?? [];
+  list.push(doc);
+  submissionsByPath.set(path, list);
+}
+
+describe('pushClassroomGradesForAssignment (batch)', () => {
+  it('mints the offline token once and PATCHes every matched submission', async () => {
+    courseLinkDoc = {
+      classlinkClassId: 'CL-SECTION-1',
+      classlinkOrgId: 'orono',
+      teacherUid: 'teacher-123',
+    };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+    seedSubmission('pseudo-B', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-B',
+    });
+    const refreshSpy = vi
+      .spyOn(classroomAddonNet, 'refreshOfflineAccessToken')
+      .mockResolvedValue('fresh-teacher-token');
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callPushBatch({
+      data: batchData,
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(2);
+    expect(res.skipped).toBe(0);
+    expect(res.results).toHaveLength(2);
+    expect(res.results.every((r) => r.ok)).toBe(true);
+    // Offline creds minted exactly ONCE for the whole batch.
+    expect(refreshSpy).toHaveBeenCalledTimes(1);
+    expect(refreshSpy).toHaveBeenCalledWith('teacher-123');
+    // Each PATCH carries the resolved submissionId + correct tuple + score.
+    expect(patchSpy).toHaveBeenCalledTimes(2);
+    expect(patchSpy).toHaveBeenCalledWith(
+      'fresh-teacher-token',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB-A',
+      8
+    );
+    expect(patchSpy).toHaveBeenCalledWith(
+      'fresh-teacher-token',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB-B',
+      5
+    );
+  });
+
+  it('rounds fractional scores before PATCHing', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
+      'tok'
+    );
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callPushBatch({
+      data: {
+        ...batchData,
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 7.6 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(1);
+    expect(patchSpy).toHaveBeenCalledWith(
+      'tok',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB-A',
+      8
+    );
+  });
+
+  it('refuses a caller whose uid is not the linking teacher (no token, no PATCH)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+
+    await expect(
+      callPushBatch({ data: batchData, auth: { uid: 'someone-else' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+
+    // The security invariant: an impostor mints NO offline token and PATCHes
+    // NOTHING.
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('refuses an unauthenticated caller (no request.auth)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+
+    await expect(
+      callPushBatch({ data: batchData, auth: null })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('refuses when no course link exists (cannot establish the owning teacher)', async () => {
+    courseLinkDoc = null; // course not linked
+    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+
+    await expect(
+      callPushBatch({ data: batchData, auth: { uid: 'teacher-123' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips a student with no matching submission and still pushes the others', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    // Only pseudo-A has a submission; pseudo-B never opened the attachment.
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
+      'tok'
+    );
+
+    const res = await callPushBatch({
+      data: batchData,
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(1);
+    expect(res.skipped).toBe(1);
+    const a = res.results.find((r) => r.pseudonymUid === 'pseudo-A');
+    const b = res.results.find((r) => r.pseudonymUid === 'pseudo-B');
+    expect(a?.ok).toBe(true);
+    expect(b?.ok).toBe(false);
+    expect(b?.reason).toBeTruthy();
+    // Only the matched student is PATCHed.
+    expect(patchSpy).toHaveBeenCalledTimes(1);
+    expect(patchSpy).toHaveBeenCalledWith(
+      'tok',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB-A',
+      8
+    );
+  });
+
+  it('does NOT match a submission for a different attachment (filtered by attachmentId)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    // pseudo-A has a submission, but for a DIFFERENT attachment → no match.
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'OTHER-ATT',
+      submissionId: 'SUB-OTHER',
+    });
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
+      'tok'
+    );
+
+    const res = await callPushBatch({
+      data: {
+        ...batchData,
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 8 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(0);
+    expect(res.skipped).toBe(1);
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('records ok:false for an upstream PATCH failure without aborting the batch', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+    seedSubmission('pseudo-B', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-B',
+    });
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
+      'tok'
+    );
+    // SUB-A fails upstream (403), SUB-B succeeds.
+    vi.spyOn(
+      classroomAddonNet,
+      'patchStudentSubmissionGrade'
+    ).mockImplementation(
+      async (
+        _token: string,
+        _courseId: string,
+        _itemId: string,
+        _attachmentId: string,
+        submissionId: string
+      ) =>
+        submissionId === 'SUB-A'
+          ? { ok: false, status: 403 }
+          : { ok: true, status: 200 }
+    );
+
+    const res = await callPushBatch({
+      data: batchData,
+      auth: { uid: 'teacher-123' },
+    });
+
+    // The batch does NOT throw; the failure is captured per-entry.
+    expect(res.pushed).toBe(1);
+    expect(res.skipped).toBe(1);
+    const a = res.results.find((r) => r.pseudonymUid === 'pseudo-A');
+    const b = res.results.find((r) => r.pseudonymUid === 'pseudo-B');
+    expect(a?.ok).toBe(false);
+    expect(a?.status).toBe(403);
+    expect(b?.ok).toBe(true);
+  });
+
+  it('propagates the needs-consent error contract from the single offline token mint', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+    const { HttpsError } = await import('firebase-functions/v2/https');
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockRejectedValue(
+      new HttpsError('failed-precondition', 'needs-consent: revoked', {
+        reason: 'needs-consent',
+        cause: 'invalid-grant',
+      })
+    );
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+
+    await expect(
+      callPushBatch({ data: batchData, auth: { uid: 'teacher-123' } })
+    ).rejects.toMatchObject({ code: 'failed-precondition' });
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('validates the input shape before any auth/network work', async () => {
+    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
+
+    // Missing ids.
+    await expect(
+      callPushBatch({
+        data: { ...batchData, courseId: '' },
+        auth: { uid: 'teacher-123' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    await expect(
+      callPushBatch({
+        data: { ...batchData, attachmentId: '' },
+        auth: { uid: 'teacher-123' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    // Empty grades array.
+    await expect(
+      callPushBatch({
+        data: { ...batchData, grades: [] },
+        auth: { uid: 'teacher-123' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    // grades not an array.
+    await expect(
+      callPushBatch({
+        data: { ...batchData, grades: 'nope' },
+        auth: { uid: 'teacher-123' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+
+    expect(refreshSpy).not.toHaveBeenCalled();
+  });
+
+  it('skips malformed grade entries (bad pseudonymUid / negative score) but pushes valid ones', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
+      'tok'
+    );
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callPushBatch({
+      data: {
+        ...batchData,
+        grades: [
+          { pseudonymUid: 'pseudo-A', pointsEarned: 8 },
+          { pseudonymUid: '', pointsEarned: 5 },
+          { pseudonymUid: 'pseudo-C', pointsEarned: -3 },
+        ],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(1);
+    expect(res.skipped).toBe(2);
+    expect(patchSpy).toHaveBeenCalledTimes(1);
+    expect(patchSpy).toHaveBeenCalledWith(
+      'tok',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB-A',
+      8
+    );
   });
 });

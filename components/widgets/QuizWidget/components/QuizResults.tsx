@@ -30,6 +30,7 @@ import {
   Trash2,
   RefreshCw,
   Lock,
+  GraduationCap,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -48,6 +49,7 @@ import {
   type ResponseDocKey,
 } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import {
   buildPinToNameMap,
   buildPinToExportNameMap,
@@ -64,7 +66,8 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { httpsCallable } from 'firebase/functions';
+import { db, functions } from '@/config/firebase';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -220,8 +223,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
   const { googleAccessToken, user, orgId } = useAuth();
+  const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
+  const [pushingGrades, setPushingGrades] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(
     initialExportUrl ?? null
   );
@@ -1016,6 +1021,104 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     }
   };
 
+  // Push the SpartBoard quiz scores into the linked Google Classroom
+  // gradebook as DRAFT grades. Only available when this assignment was
+  // attached to a Classroom coursework item via the add-on (which writes
+  // `session.classroomAttachment`). The grade scale is the quiz's total
+  // points (`maxPoints`), and we push each student's RAW earned points
+  // capped to that total — so a 17/20 quiz reads as 17/20 in Classroom,
+  // never a percentage out of 100. Students map to their Classroom grade
+  // by `r.studentUid`, which equals the ClassLink SSO pseudonym key the
+  // batch CF resolves to a Classroom userId.
+  const classroomAttachment = session?.classroomAttachment ?? null;
+  const handlePushGrades = async () => {
+    if (!classroomAttachment) return;
+    const { attachmentId, courseId, itemId, maxPoints } = classroomAttachment;
+
+    // Build the PII-free grade payload: one entry per completed, scored
+    // response. `getEarnedPoints` returns the raw points; round + clamp to
+    // [0, maxPoints] so the Classroom grade matches the quiz exactly.
+    const grades = completed
+      .filter((r) => !!r.studentUid)
+      .map((r) => ({
+        pseudonymUid: r.studentUid,
+        pointsEarned: Math.max(
+          0,
+          Math.min(
+            maxPoints,
+            Math.round(getEarnedPoints(r, quiz.questions, session))
+          )
+        ),
+      }));
+
+    if (grades.length === 0) {
+      addToast('No completed submissions to push yet', 'info');
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      `Push ${grades.length} grade${grades.length === 1 ? '' : 's'} to Google ` +
+        'Classroom? This writes draft grades to the assignment gradebook — ' +
+        'you still review and return them in Classroom.',
+      {
+        title: 'Push grades to Google Classroom',
+        confirmLabel: 'Push grades',
+        cancelLabel: 'Cancel',
+      }
+    );
+    if (!confirmed) return;
+
+    setPushingGrades(true);
+    try {
+      const callable = httpsCallable<
+        {
+          courseId: string;
+          itemId: string;
+          attachmentId: string;
+          grades: { pseudonymUid: string; pointsEarned: number }[];
+        },
+        {
+          results: {
+            pseudonymUid: string;
+            ok: boolean;
+            status?: number;
+            reason?: string;
+          }[];
+          pushed: number;
+          skipped: number;
+        }
+      >(functions, 'pushClassroomGradesForAssignment');
+      const { data } = await callable({
+        courseId,
+        itemId,
+        attachmentId,
+        grades,
+      });
+      const skippedNote =
+        data.skipped > 0
+          ? ` ${data.skipped} skipped — students who haven't opened the assignment yet.`
+          : '';
+      addToast(
+        `Pushed ${data.pushed} grade${data.pushed === 1 ? '' : 's'} to Google ` +
+          `Classroom.${skippedNote}`,
+        'success'
+      );
+    } catch (err) {
+      logError('QuizResults.pushClassroomGrades', err, {
+        sessionId: session?.id,
+        attachmentId,
+      });
+      const message = err instanceof Error ? err.message : String(err);
+      if (/needs-consent/i.test(message)) {
+        addToast('Reconnect your Google account to push grades.', 'error');
+      } else {
+        addToast('Could not push grades to Google Classroom.', 'error');
+      }
+    } finally {
+      setPushingGrades(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
@@ -1152,6 +1255,37 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               </div>
             )}
           </div>
+        )}
+        {classroomAttachment && (
+          <button
+            onClick={() => void handlePushGrades()}
+            disabled={pushingGrades}
+            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(11px, 3.5cqmin)',
+            }}
+            title="Write draft grades to this assignment's Google Classroom gradebook (matches the quiz score exactly)."
+          >
+            {pushingGrades ? (
+              <Loader2
+                className="animate-spin"
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            ) : (
+              <GraduationCap
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            )}
+            PUSH GRADES
+          </button>
         )}
         {exportUrl ? (
           <>

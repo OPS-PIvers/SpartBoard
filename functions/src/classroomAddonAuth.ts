@@ -974,3 +974,233 @@ export const pushClassroomGrade = onCall(
     return { ok: true, pointsEarned };
   }
 );
+
+/** Defensive cap on the batch size — a class is ≤ ~40 students; 500 is generous. */
+const MAX_BATCH_GRADES = 500;
+
+interface BatchGradeEntryInput {
+  pseudonymUid?: unknown;
+  pointsEarned?: unknown;
+}
+
+interface PushBatchData {
+  courseId?: unknown;
+  itemId?: unknown;
+  attachmentId?: unknown;
+  grades?: unknown;
+}
+
+/** Per-entry outcome in the batch response. */
+interface BatchGradeResult {
+  pseudonymUid: string;
+  ok: boolean;
+  status?: number;
+  reason?: string;
+}
+
+/**
+ * Resolve a student's Classroom `submissionId` from the persisted grade-sync
+ * keys for ONE attachment. Queries
+ * `classroom_grade_links/{pseudonymUid}/submissions` by `attachmentId` (the key
+ * persisted during the student handshake), then verifies courseId/itemId on the
+ * matched doc so a stale key from a different course/item can never be PATCHed.
+ * Returns null when the student never opened the attachment (→ skip, don't
+ * fail). PII-free: only ids are read.
+ */
+async function resolveSubmissionId(
+  db: admin.firestore.Firestore,
+  pseudonymUid: string,
+  courseId: string,
+  itemId: string,
+  attachmentId: string
+): Promise<string | null> {
+  const snap = await db
+    .collection(`${GRADE_SYNC_COLLECTION}/${pseudonymUid}/submissions`)
+    .where('attachmentId', '==', attachmentId)
+    .limit(1)
+    .get();
+  if (snap.empty) return null;
+  const key = snap.docs[0].data() as {
+    courseId?: string;
+    itemId?: string;
+    submissionId?: string;
+  };
+  // Guard against a stale/cross-item key sharing the same attachmentId value.
+  if (key.courseId !== courseId || key.itemId !== itemId) return null;
+  return typeof key.submissionId === 'string' && key.submissionId
+    ? key.submissionId
+    : null;
+}
+
+/**
+ * pushClassroomGradesForAssignment — BATCH DRAFT-grade passback for one
+ * Classroom-linked assignment. Called by the teacher's quiz monitor to publish
+ * every student's grade at once. Mints the linking teacher's OFFLINE access
+ * token ONCE, resolves each student's `submissionId` from the persisted
+ * grade-sync keys, then PATCHes the DRAFT grade per student. A student who never
+ * opened the attachment is SKIPPED (no submissionId) and a single upstream PATCH
+ * failure is recorded per-entry — neither aborts the batch.
+ *
+ * Input (PII-free): { courseId, itemId, attachmentId,
+ *   grades: Array<{ pseudonymUid, pointsEarned }> }
+ *
+ * Security hardening: the caller MUST be the linking teacher. We read
+ * `classroom_course_links/{courseId}` and require it exists AND
+ * `request.auth.uid === link.teacherUid`. A missing link or a uid mismatch
+ * (including an unauthenticated caller) → `permission-denied` — we deliberately
+ * return the SAME error for "no link" and "wrong caller" so the response never
+ * reveals whether a given course is linked. Only after this gate passes do we
+ * mint the offline token or issue any PATCH.
+ */
+export const pushClassroomGradesForAssignment = onCall(
+  {
+    memory: '256MiB',
+    secrets: [
+      GOOGLE_OAUTH_CLIENT_ID,
+      GOOGLE_OAUTH_CLIENT_SECRET,
+      GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
+    ],
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as PushBatchData;
+
+    const courseId = typeof data.courseId === 'string' ? data.courseId : '';
+    const itemId = typeof data.itemId === 'string' ? data.itemId : '';
+    const attachmentId =
+      typeof data.attachmentId === 'string' ? data.attachmentId : '';
+
+    if (!courseId || !itemId || !attachmentId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'courseId, itemId, and attachmentId are required.'
+      );
+    }
+    if (!Array.isArray(data.grades) || data.grades.length === 0) {
+      throw new HttpsError(
+        'invalid-argument',
+        'grades must be a non-empty array.'
+      );
+    }
+    if (data.grades.length > MAX_BATCH_GRADES) {
+      throw new HttpsError(
+        'invalid-argument',
+        `grades exceeds the maximum batch size of ${MAX_BATCH_GRADES}.`
+      );
+    }
+    const rawGrades = data.grades as BatchGradeEntryInput[];
+
+    const db = admin.firestore();
+
+    // SECURITY GATE: the caller must be the teacher who linked this course.
+    // Read the course link and require an exact uid match. A missing link OR a
+    // mismatch (incl. unauthenticated) → permission-denied, BEFORE any token
+    // mint or PATCH.
+    const callerUid = request.auth?.uid ?? '';
+    const linkSnap = await db.doc(`classroom_course_links/${courseId}`).get();
+    const link = linkSnap.exists ? (linkSnap.data() as CourseLink) : null;
+    const teacherUid =
+      typeof link?.teacherUid === 'string' ? link.teacherUid : '';
+    if (!teacherUid || !callerUid || callerUid !== teacherUid) {
+      console.warn(
+        `[pushClassroomGradesForAssignment] caller is not the linking teacher ` +
+          `(course=${courseId}, linked=${teacherUid ? 'yes' : 'no'}).`
+      );
+      throw new HttpsError(
+        'permission-denied',
+        'Only the teacher who linked this Classroom course can push grades for it.'
+      );
+    }
+
+    // Mint the teacher's offline access token ONCE for the whole batch.
+    // Propagate the googleOAuth needs-consent/transient HttpsError contract.
+    let accessToken: string;
+    try {
+      accessToken =
+        await classroomAddonNet.refreshOfflineAccessToken(teacherUid);
+    } catch (err) {
+      if (err instanceof HttpsError) throw err;
+      console.error(
+        '[pushClassroomGradesForAssignment] offline token refresh failed:',
+        err
+      );
+      throw new HttpsError(
+        'internal',
+        'Failed to obtain teacher Google credentials for grade passback.'
+      );
+    }
+
+    const results: BatchGradeResult[] = [];
+    // Sequential: a class is ≤ ~40 students, so correctness/simplicity beats
+    // concurrency here, and one PATCH failure must never abort the others.
+    for (const entry of rawGrades) {
+      const pseudonymUid =
+        typeof entry?.pseudonymUid === 'string' ? entry.pseudonymUid : '';
+      const pointsEarnedRaw =
+        typeof entry?.pointsEarned === 'number' ? entry.pointsEarned : NaN;
+
+      if (!pseudonymUid) {
+        results.push({
+          pseudonymUid: '',
+          ok: false,
+          reason: 'missing pseudonymUid',
+        });
+        continue;
+      }
+      if (!Number.isFinite(pointsEarnedRaw) || pointsEarnedRaw < 0) {
+        results.push({
+          pseudonymUid,
+          ok: false,
+          reason: 'invalid pointsEarned',
+        });
+        continue;
+      }
+      const pointsEarned = Math.round(pointsEarnedRaw);
+
+      try {
+        const submissionId = await resolveSubmissionId(
+          db,
+          pseudonymUid,
+          courseId,
+          itemId,
+          attachmentId
+        );
+        if (!submissionId) {
+          // Student never opened the attachment → no Classroom submission to
+          // grade. Skip, don't fail the batch.
+          results.push({
+            pseudonymUid,
+            ok: false,
+            reason: 'no matching submission',
+          });
+          continue;
+        }
+        const patchResult = await classroomAddonNet.patchStudentSubmissionGrade(
+          accessToken,
+          courseId,
+          itemId,
+          attachmentId,
+          submissionId,
+          pointsEarned
+        );
+        results.push({
+          pseudonymUid,
+          ok: patchResult.ok,
+          status: patchResult.status,
+          ...(patchResult.ok ? {} : { reason: 'upstream PATCH failed' }),
+        });
+      } catch (err) {
+        // A per-entry Firestore/lookup error must not abort the rest.
+        console.warn(
+          '[pushClassroomGradesForAssignment] entry failed (non-fatal):',
+          err
+        );
+        results.push({ pseudonymUid, ok: false, reason: 'lookup error' });
+      }
+    }
+
+    const pushed = results.filter((r) => r.ok).length;
+    const skipped = results.length - pushed;
+    return { results, pushed, skipped };
+  }
+);

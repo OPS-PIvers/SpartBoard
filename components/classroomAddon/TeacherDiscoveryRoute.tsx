@@ -25,7 +25,7 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
@@ -70,6 +70,13 @@ interface CreateAttachmentParams {
   quizCode?: string;
   sessionId?: string;
   kind?: 'quiz' | 'va';
+  /**
+   * The grade scale for this attachment = the quiz's total points. Pushed
+   * student grades are capped to this so Classroom shows the same number/
+   * denominator as the SpartBoard quiz (e.g. 17/20). Quiz path only; the
+   * callable defaults to 100 when omitted (video-activity path).
+   */
+  maxPoints?: number;
 }
 
 type ContentKind = 'quiz' | 'va';
@@ -170,9 +177,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     async (
       title: string,
       contentParams:
-        | { quizCode: string; kind: 'quiz' }
+        | { quizCode: string; kind: 'quiz'; maxPoints: number }
         | { sessionId: string; kind: 'va' }
-    ): Promise<void> => {
+    ): Promise<string> => {
       // The addons.teacher grant is what getAddOnContext validates the teacher
       // launch against — a separate, minimal grant from the SpartBoard Drive
       // sign-in above.
@@ -199,6 +206,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         ...contentParams,
       });
       setAttachmentId(data.attachmentId);
+      return data.attachmentId;
     },
     [append, courseId, itemId, itemType, addOnToken, loginHint]
   );
@@ -216,12 +224,18 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     append(`Loading "${selectedQuiz.title}"…`);
     const quizData = await loadQuizData(selectedQuiz.driveFileId);
 
+    // The Classroom grade scale = the quiz's total points, so a 17/20 quiz
+    // reads as 17/20 in Classroom (not a percentage out of 100). Fall back to
+    // 100 only when the quiz has no questions/points to sum.
+    const quizMaxPoints =
+      quizData.questions.reduce((s, q) => s + (q.points ?? 1), 0) || 100;
+
     const classIds = await resolveClassIds();
 
     // sessionMode 'student' = self-paced/async, which is how a Classroom
     // attachment is taken (no live teacher session).
     append('Creating a class-targeted assignment…');
-    const { code } = await createAssignment(
+    const { id: sessionId, code } = await createAssignment(
       {
         id: selectedQuiz.id,
         title: selectedQuiz.title,
@@ -240,14 +254,51 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     );
     append(`Assignment created (join code ${code}).`);
 
-    await createAttachment(`SpartBoard: ${selectedQuiz.title}`, {
-      quizCode: code,
-      kind: 'quiz',
-    });
+    // Pass the quiz total so the Classroom attachment's maxPoints matches the
+    // quiz exactly — the grade scale pushed grades are later capped to.
+    const attachmentId = await createAttachment(
+      `SpartBoard: ${selectedQuiz.title}`,
+      {
+        quizCode: code,
+        kind: 'quiz',
+        maxPoints: quizMaxPoints,
+      }
+    );
     append(
       `Attached "${selectedQuiz.title}". Students can now open it and take ` +
         'the quiz inside Classroom.'
     );
+
+    // Persist the attachment linkage onto both the teacher's assignment doc
+    // and the session doc so the Results monitor can offer "Push grades to
+    // Google Classroom". Best-effort: a failure here must NOT break the
+    // already-completed attach flow — the activity is attached regardless.
+    if (user?.uid) {
+      const classroomAttachment = {
+        attachmentId,
+        courseId,
+        itemId,
+        maxPoints: quizMaxPoints,
+        attachedAt: Date.now(),
+      };
+      try {
+        await updateDoc(
+          doc(db, 'users', user.uid, 'quiz_assignments', sessionId),
+          { classroomAttachment, updatedAt: Date.now() }
+        );
+        await updateDoc(doc(db, 'quiz_sessions', sessionId), {
+          classroomAttachment,
+        });
+      } catch (persistErr) {
+        append(
+          `Note: couldn't link this attachment for grade push (${
+            persistErr instanceof Error
+              ? persistErr.message
+              : String(persistErr)
+          }). The activity is still attached.`
+        );
+      }
+    }
   }, [
     append,
     selectedQuiz,
@@ -256,6 +307,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     resolveClassIds,
     createAssignment,
     createAttachment,
+    user?.uid,
+    courseId,
+    itemId,
   ]);
 
   const attachVideoActivity = useCallback(async () => {

@@ -2806,6 +2806,30 @@ export interface QuizSession {
    * `unpublishAssignmentScores`.
    */
   scorePublishedAt?: number;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework
+   * item via the add-on. Drives the "Push grades to Google Classroom" action
+   * in the Results view. `maxPoints` is the quiz's total point value (the
+   * grade scale) so a pushed grade reads identically in Classroom (e.g.
+   * 17/20, not a percentage out of 100). Mirrored onto the matching
+   * `QuizAssignment` doc.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
+}
+
+/**
+ * Linkage between a SpartBoard quiz assignment and a Google Classroom
+ * coursework attachment created via the add-on. Persisted on BOTH the
+ * `QuizSession` (read by the Results monitor) and the per-teacher
+ * `QuizAssignment` doc (the teacher-owned archive copy).
+ */
+export interface ClassroomAttachmentLink {
+  attachmentId: string;
+  courseId: string;
+  itemId: string;
+  /** = the quiz's total points; the grade scale pushed grades are capped to. */
+  maxPoints: number;
+  attachedAt?: number;
 }
 
 export interface QuizResponseAnswer {
@@ -3430,6 +3454,13 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * scores have been shared with students.
    */
   scorePublishedAt?: number;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework
+   * item via the add-on. Mirrors the matching `QuizSession.classroomAttachment`
+   * (written together at attach time). `maxPoints` is the quiz's total point
+   * value so pushed grades read identically in Classroom.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
 }
 
 /** See `QuizAssignment.sync`. */
