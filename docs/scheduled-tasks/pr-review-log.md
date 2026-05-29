@@ -4,6 +4,33 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-29
+
+- PRs reviewed:
+  - #1746 — refactor(D1): VideoActivityWidget guard states → ScaledEmptyState (base `dev-paul`, head `nightly/unify-empty-states-2026-05-29`, draft)
+  - #1747 — refactor(D3): RandomSettings 7 hand-rolled labels → SettingsLabel (base `dev-paul`, head `nightly/unify-settings-labels-2026-05-29`, draft)
+  - #1748 — docs(unifier): nightly consistency run 4 — 2026-05-29 (base `dev-paul`, head `nightly/unifier-log-2026-05-29`, draft)
+  - #1749 — fix(dice): use refs to prevent stale-closure bug when props change mid-roll (base `dev-paul`, head `nightly/widgets-2026-05-29`, draft)
+  - #1750 — fix(typography): write undefined instead of 'global' sentinel when Inherit is clicked (base `dev-paul`, head `nightly/dashboard-layout-2026-05-29`, draft)
+  - #1751 — fix(i18n): add sidebar.header.\* and whatsNew.\* keys to DE/ES/FR (base `dev-paul`, head `nightly/admin-config-2026-05-29`, draft)
+  - #1752 — fix(sanitize): escape double-quotes to block JSON-context prompt injection (base `dev-paul`, head `nightly/build-tooling-2026-05-29`, draft)
+  - #1753 — docs(nightly): debugger run log 2026-05-29 (base `dev-paul`, head `nightly/debugger-log-2026-05-29`, draft)
+  - #1754 — action(url-config): dedupe hardcoded URL color palette against URL_COLORS (base `dev-paul`, head `scheduled-tasks`, draft)
+- Comments processed: 10 total — 9 fixed, 1 explained.
+- Fixes pushed: 5
+  - PR #1753 (`nightly/debugger-log-2026-05-29`) — commit `c5104b2` `fix(pr-1753): wrap DiceWidget identifier in backticks in debugger log`. Wrapped the `DiceWidget` identifier in backticks per gemini-code-assist suggestion; prettier rewrapped column padding in adjacent rows.
+  - PR #1752 (`nightly/build-tooling-2026-05-29`) — commit `25eb17c` `fix(pr-1752): escape single-quote in sanitizePrompt for attribute-breakout defense`. Added `"'": '&#39;'` to `ESCAPE_MAP` and extended the regex character class; added a regression test asserting `it's → it&#39;s`. 7/7 tests pass.
+  - PR #1748 (`nightly/unifier-log-2026-05-29`) — commit `99f7743` `fix(pr-1748): prefix admin paths with components/admin/ in D5 backlog table`. Prefixed `SaveAsTemplateModal.tsx` and `Organization/OrganizationPanel.tsx` with `components/admin/` to match the rest of the D5 table.
+  - PR #1747 (`nightly/unify-settings-labels-2026-05-29`) — commit `d0e5246` `fix(pr-1747): associate RandomSettings labels with inputs via useId`. Added `htmlFor`/`id` pairs for 5 form controls using React `useId()` for collision-free ids across multiple Random widget instances. Verified: type-check ✓ lint ✓.
+- Reviews posted: 9 (all open PRs received a structured review comment).
+- Notes:
+  - Branch safety: all 4 fixes were pushed to head branches of PRs targeting `dev-paul`. No push to `main` or `dev-paul`.
+  - PR #1750 had a gemini suggestion to swap `TestConfig` for `TextConfig` in the new test file, claiming type-check would fail. Declined — `pnpm run type-check` exits clean; the explicit `as [Partial<TestConfig>]` cast on `mock.calls[0]` resolves the generic at the call site. Explained on the thread.
+  - PR #1754 (head `scheduled-tasks`) — no reviewer comments; only the gemini summary review existed.
+  - PRs #1746, #1749, #1751 — no reviewer comments beyond the gemini summary; received reviews only.
+
+---
+
 ## 2026-05-28
 
 - PRs reviewed:
