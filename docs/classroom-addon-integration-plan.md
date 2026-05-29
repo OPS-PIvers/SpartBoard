@@ -6,11 +6,11 @@
 
 ## 📌 Current Status — read this first
 
-**Last updated:** 2026-05-28 by audit agent (re-scoped to current codebase; see [Progress Log](#progress-log) top entry).
+**Last updated:** 2026-05-29 by orchestrator (Phase 0A gcloud complete + Day-1 teacher-discovery de-risk stub built; see [Progress Log](#progress-log) top entry).
 
-**Active phase:** _none — awaiting kickoff_
+**Active phase:** Day-1 de-risk slice — **code complete, awaiting Phase 0B install** for the first live iframe test.
 
-**Active agent(s):** _none_
+**Active agent(s):** _none (between phases)_
 
 > **⚠️ Re-scope notice (2026-05-28).** A month of unrelated student-auth work landed the foundation this plan assumed it would build. **Two whole phases are effectively done already:**
 >
@@ -21,9 +21,9 @@
 
 > **⚠️ API-grounding correction (2026-05-28).** The plan was re-verified against the live Google Classroom Add-ons docs (5 research agents, citations in [§ Verified API facts](#-verified-google-classroom-add-ons-api-facts-2026-05-28)). **The single biggest change: Classroom Add-ons do NOT use a signed launch token / JWKS** — that is an LTI concept. Authentication is `login_hint` (an obfuscated Google id in plain query params) → OAuth/GIS sign-in → a server-side `getAddOnContext` call that is the authoritative source of role (`studentContext` vs `teacherContext`) and the grade-passback `submissionId`. Phase 1B/2/3/4 are rewritten accordingly, the grade-write scope is resolved (`classroom.addons.teacher`), and a new Phase 3.5 covers the copy/reuse re-ID gotcha. **Every API-contract `[VERIFY]` is now resolved**; the only markers left are two runtime/operational confirmations (the exact gcloud Marketplace service name, and the precise CSP `frame-ancestors` origins), both with guidance in that section.
 
-**Next action for the next agent:** Review [§ Tracking Protocol](#tracking-protocol), then begin Phase 0A (Sonnet 4.6, GCP config). Phase 0A and Phase 1 can run in parallel — see [§ Order of Operations](#order-of-operations).
+**Next action for the next agent:** The Day-1 de-risk slice (student handshake **and** teacher discovery) is now code-complete and deployable. The gating step is **Phase 0B** (human: Marketplace SDK config + test-domain install — see [docs/classroom-addon-gcp-state.md](classroom-addon-gcp-state.md) for the exact checklist). Once installed, run the **live iframe test** (teacher attaches → student opens → confirm the `studentRole` Firebase session survives a reload inside the partitioned iframe). Only after that go/no-go should full Phase 1A / Phase 2 / Phase 3 begin. Phase 1A (types/rules) has no external deps and can proceed in parallel.
 
-**Blockers / open items:** None.
+**Blockers / open items:** The live iframe test is blocked on **Phase 0B** (human Workspace-admin install). No code blockers.
 
 **Resume instructions if picking up cold:**
 
@@ -38,29 +38,29 @@
 
 Status legend: ⬜ Not started · 🟡 In progress · ✅ Complete · ⚠️ Blocked · ⏭ Skipped/N/A
 
-| Phase     | Agent                                      | Model      | Status           | Owner (Claude session id or human) | Last update                                                |
-| --------- | ------------------------------------------ | ---------- | ---------------- | ---------------------------------- | ---------------------------------------------------------- |
-| 0A        | GCP `gcloud` automation                    | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 0B        | Manual Console + Marketplace install       | _(human)_  | ⬜               | —                                  | —                                                          |
-| 0.5-cf    | **Extend** existing OAuth w/ grade scopes  | Opus 4.7   | ⬜ (reduced)     | —                                  | googleOAuth.ts already does refresh tokens                 |
-| 0.5-rules | ~~Lock down `/google_oauth/`~~             | —          | ⏭ N/A           | —                                  | redundant — `/private/**` already locked (rules:559)       |
-| 0.5-ui    | "Connect to Classroom gradebook" button    | Sonnet 4.6 | ⬜ (reduced)     | —                                  | reuse existing connect-Google flow                         |
-| 1A        | Types + Firestore rules + CSP              | Opus 4.7   | ⬜               | —                                  | —                                                          |
-| 1B        | `classroomAddonLoginV1` Cloud Function     | Opus 4.7   | ⬜               | —                                  | OAuth + `getAddOnContext` (NO JWKS); model on `pinLoginV1` |
-| 1C        | Roster `classIds` synthesis                | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 1D        | VideoActivity SSO branch                   | Opus 4.7   | ✅ (verify-only) | —                                  | already built — see Phase 1D                               |
-| 2-shell   | Teacher route + widget-type picker         | Opus 4.7   | ⬜               | —                                  | —                                                          |
-| 2-cf      | `createClassroomAttachment` CF             | Opus 4.7   | ⬜               | —                                  | —                                                          |
-| 2-quiz    | Quiz selection panel                       | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 2-va      | Video Activity selection panel             | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 3-shell   | Student route + auth handshake             | Opus 4.7   | ⬜               | —                                  | —                                                          |
-| 3-quiz    | Quiz student adapter                       | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 3-va      | Video Activity student adapter             | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 3.5       | Copied-assignment resilience (copyHistory) | Opus 4.7   | ⬜               | —                                  | NEW — copy/reuse re-IDs course/item/attachment             |
-| 4-cf      | `pushClassroomGrade` Cloud Function        | Opus 4.7   | ⬜               | —                                  | grade is a DRAFT; scope = `classroom.addons.teacher`       |
-| 4-quiz    | Quiz submission hook wiring                | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 4-va      | VA submission hook wiring                  | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
-| 5         | Polish                                     | Sonnet 4.6 | ⬜               | —                                  | —                                                          |
+| Phase     | Agent                                      | Model      | Status           | Owner (Claude session id or human) | Last update                                                                                         |
+| --------- | ------------------------------------------ | ---------- | ---------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
+| 0A        | GCP `gcloud` automation                    | Sonnet 4.6 | ✅               | orchestrator                       | 2026-05-29 — APIs enabled; snapshot in classroom-addon-gcp-state.md; marketplace API name corrected |
+| 0B        | Manual Console + Marketplace install       | _(human)_  | ⬜               | —                                  | —                                                                                                   |
+| 0.5-cf    | **Extend** existing OAuth w/ grade scopes  | Opus 4.7   | ⬜ (reduced)     | —                                  | googleOAuth.ts already does refresh tokens                                                          |
+| 0.5-rules | ~~Lock down `/google_oauth/`~~             | —          | ⏭ N/A           | —                                  | redundant — `/private/**` already locked (rules:559)                                                |
+| 0.5-ui    | "Connect to Classroom gradebook" button    | Sonnet 4.6 | ⬜ (reduced)     | —                                  | reuse existing connect-Google flow                                                                  |
+| 1A        | Types + Firestore rules + CSP              | Opus 4.7   | ⬜               | —                                  | —                                                                                                   |
+| 1B        | `classroomAddonLoginV1` Cloud Function     | Opus 4.7   | ⬜               | —                                  | OAuth + `getAddOnContext` (NO JWKS); model on `pinLoginV1`                                          |
+| 1C        | Roster `classIds` synthesis                | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
+| 1D        | VideoActivity SSO branch                   | Opus 4.7   | ✅ (verify-only) | —                                  | already built — see Phase 1D                                                                        |
+| 2-shell   | Teacher route + widget-type picker         | Opus 4.7   | ⬜               | —                                  | —                                                                                                   |
+| 2-cf      | `createClassroomAttachment` CF             | Opus 4.7   | ⬜               | —                                  | —                                                                                                   |
+| 2-quiz    | Quiz selection panel                       | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
+| 2-va      | Video Activity selection panel             | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
+| 3-shell   | Student route + auth handshake             | Opus 4.7   | ⬜               | —                                  | —                                                                                                   |
+| 3-quiz    | Quiz student adapter                       | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
+| 3-va      | Video Activity student adapter             | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
+| 3.5       | Copied-assignment resilience (copyHistory) | Opus 4.7   | ⬜               | —                                  | NEW — copy/reuse re-IDs course/item/attachment                                                      |
+| 4-cf      | `pushClassroomGrade` Cloud Function        | Opus 4.7   | ⬜               | —                                  | grade is a DRAFT; scope = `classroom.addons.teacher`                                                |
+| 4-quiz    | Quiz submission hook wiring                | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
+| 4-va      | VA submission hook wiring                  | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
+| 5         | Polish                                     | Sonnet 4.6 | ⬜               | —                                  | —                                                                                                   |
 
 ---
 
@@ -1156,6 +1156,23 @@ sed -n '115,170p' components/quiz/QuizStudentApp.tsx
 ## Progress Log
 
 > Append-only. Newest entries first. Each entry: `### YYYY-MM-DD HH:MM — <agent name or "orchestrator"> — <one-line summary>` followed by 2-5 bullet points of detail.
+
+### 2026-05-29 — orchestrator — 0B support: consent-screen fix, legal pages, listing assets [IMPLEMENTATION]
+
+- **Consent-screen correction (0B):** the plan assumed the OAuth consent screen was already Internal; it was found **External with no scopes**. The `spartboard` project is under the `orono.k12.mn.us` Workspace org (org 63276922281), so **Internal IS available**. Paul confirmed SpartBoard is **Orono-only in production** (the multi-tenant `/organizations` code exists but no other district uses it) → decision: **switch the consent screen to Internal**, which exempts the Sensitive `classroom.addons.*` scopes from OAuth verification + CASA. Details in [classroom-addon-gcp-state.md](classroom-addon-gcp-state.md).
+- **Marketplace install setting:** use **Individual + Admin Install** for the pilot (lets Paul self-install on his Orono account without an admin domain push); tighten to Admin-Only for production rollout. **App Visibility = Private is the one irreversible setting** (can't be changed without a new Cloud project).
+- **Public legal/support pages built** — `/privacy`, `/terms`, `/support` (anonymous, no-provider routes in `components/legal/`), required as public URLs for the OAuth consent screen + Marketplace listing. Framed with **Orono Public Schools as operator** (FERPA education-records, COPPA school-consent, MN law, support@spartboard.app), grounded in the real data model. ⚠️ **District data-privacy officer / counsel must review before publishing.**
+- **Marketplace listing assets generated** from `public/favicon.png` via Pillow → `marketplace-assets/` (32×32 + 128×128 icons, 220×140 card banner, a `resize_screenshot.py` helper, README). The 128 is a soft ~1.8× upscale (no vector source). Screenshots still pending.
+- **Next:** deploy to `dev-paul` (makes the CF + CSP **and** the legal URLs live), finish the 0B Console config + install, then run the live iframe test.
+
+### 2026-05-29 — orchestrator — Phase 0A done + Day-1 de-risk slice completed (student + teacher) [IMPLEMENTATION]
+
+- **Reconciled stale dashboard:** the student de-risk slice shipped in **PR #1755 (merged to `main` 2026-05-29)** — `functions/src/classroomAddonAuth.ts` (`classroomAddonLoginV1`, 7 unit tests) + `components/classroomAddon/StudentSpikeRoute.tsx` (`/classroom-addon/student`) — but the log/dashboard had never recorded it. The prior "next agent: Phase 0A + de-risk slice" note was a day out of date.
+- **Phase 0A complete (gcloud):** project alignment confirmed (`spartboard` for both gcloud + Firebase). Enabled `classroom.googleapis.com` + `appsmarket-component.googleapis.com`. **API-name correction:** the plan's third API `workspacemarketplace.googleapis.com` **does not exist** (`SERVICE_CONFIG_NOT_FOUND`) — the Marketplace SDK _is_ `appsmarket-component`. License probe returned a scope-403 (not a license denial) → API reachable; license confirmed in 0B. Snapshot written to `docs/classroom-addon-gcp-state.md`.
+- **Built the teacher half of the de-risk slice** (the gap the student-only spike left — you can't reach a student view without a teacher first attaching): `createClassroomAttachment` CF (TDD, 6 new tests — security invariant pinned: **only a `teacherContext` launch creates an attachment**; student/unknown/bad-token/bad-origin/missing-args/create-fail all rejected) + `components/classroomAddon/TeacherDiscoveryRoute.tsx` (`/classroom-addon/teacher`, the Attachment Setup URI) + shared `components/classroomAddon/gisOAuth.ts` (extracted the popup plumbing from the student page). CF re-exported from `index.ts`.
+- **CSP added:** `/classroom-addon/**` now has `frame-ancestors 'self' https://classroom.google.com https://*.google.com https://*.googleusercontent.com` in `firebase.json` (only `/activity/**` had one before). `[VERIFY-AT-RUNTIME]` still applies — tighten once the live iframe loads.
+- **Verification:** `type-check:all` ✓, root `lint` ✓ (covers functions files), 13/13 functions tests ✓. A local browser render smoke test was **inconclusive** (the preview proxy couldn't reach the dev server on this Windows host — not a code defect; Vite served fine per its own logs). The spike pages can only be truly exercised inside a real Classroom iframe → gated on 0B.
+- **Next:** Phase 0B (human install) → live iframe test (session-survival go/no-go). Phase 1A can start in parallel. Not yet committed/pushed — awaiting Paul.
 
 ### 2026-05-28 — implementability agent — Cycle-3 verification + Day-1 critical path (no implementation work)
 
