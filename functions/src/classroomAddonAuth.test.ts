@@ -10,7 +10,7 @@
 /* eslint-disable @typescript-eslint/require-await -- mock handlers return
    Promise-shaped values without awaiting, matching the async production APIs. */
 
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
 // Configurable mock state (reset between tests).
 let orgIdForDomain: string | null = 'org-orono';
@@ -359,5 +359,51 @@ describe('createClassroomAttachment (spike)', () => {
     await expect(callAttach({ data: attachData })).rejects.toMatchObject({
       code: 'internal',
     });
+  });
+});
+
+// Regression: every other test stubs fetchAddOnContext wholesale, so the real
+// URL it builds was never exercised — which is exactly how a wrong REST path
+// shipped. The method is named getAddOnContext, but the REST path segment is
+// `addOnContext` (the `get` is the HTTP verb). A literal `/getAddOnContext`
+// path resolves to nothing at Google's front end and returns a generic HTML
+// 404, surfacing as the opaque "Could not validate the Classroom launch".
+describe('classroomAddonNet.fetchAddOnContext URL construction', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('GETs the /addOnContext REST path (not the literal method name)', async () => {
+    let calledUrl = '';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      calledUrl = url as string;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          courseId: 'C1',
+          itemId: 'I1',
+          teacherContext: {},
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await classroomAddonNet.fetchAddOnContext(
+      'tok',
+      'C1',
+      'courseWork',
+      'I1',
+      'addon-tok'
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(calledUrl).toContain(
+      'https://classroom.googleapis.com/v1/courses/C1/courseWork/I1/addOnContext'
+    );
+    // The literal method name must NOT appear in the path.
+    expect(calledUrl).not.toContain('/getAddOnContext');
+    // addOnToken is passed as a query param when present.
+    expect(calledUrl).toContain('addOnToken=addon-tok');
   });
 });

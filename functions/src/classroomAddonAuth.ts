@@ -147,12 +147,20 @@ export const classroomAddonNet = {
     itemType: ItemType,
     itemId: string,
     addOnToken?: string
-  ): Promise<{ ok: boolean; status: number; context: AddOnContext | null }> {
+  ): Promise<{
+    ok: boolean;
+    status: number;
+    context: AddOnContext | null;
+    errorBody?: string;
+  }> {
     // `addOnToken` is present only in the discovery / link-upgrade iframes; the
     // docs say to pass it as a query param ONLY when present.
+    // REST path segment is `addOnContext` — the method is named getAddOnContext
+    // but the `get` is the HTTP verb, not part of the path. A literal
+    // `/getAddOnContext` returns a generic HTML 404 from Google's front end.
     const base =
       `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
-      `/${itemType}/${encodeURIComponent(itemId)}/getAddOnContext`;
+      `/${itemType}/${encodeURIComponent(itemId)}/addOnContext`;
     const url = addOnToken
       ? `${base}?addOnToken=${encodeURIComponent(addOnToken)}`
       : base;
@@ -161,7 +169,24 @@ export const classroomAddonNet = {
         headers: bearer(accessToken),
         signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
-      if (!res.ok) return { ok: false, status: res.status, context: null };
+      if (!res.ok) {
+        // [DEBUG-addonctx] The status code + Google's structured error body are
+        // the only thing that distinguishes the failure modes (403 insufficient
+        // scope vs Expired/InvalidAddOnToken vs 404 wrong item). The original
+        // code discarded both, leaving "Could not validate the Classroom
+        // launch" opaque. Capture them for the spike. TRIM before Phase 2.
+        let errorBody = '';
+        try {
+          errorBody = (await res.text()).slice(0, 500);
+        } catch {
+          errorBody = '(could not read error body)';
+        }
+        console.warn(
+          `[DEBUG-addonctx] getAddOnContext ${res.status} ` +
+            `${itemType}/${itemId} addOnToken=${addOnToken ? 'present' : 'absent'}: ${errorBody}`
+        );
+        return { ok: false, status: res.status, context: null, errorBody };
+      }
       return {
         ok: true,
         status: res.status,
@@ -172,7 +197,7 @@ export const classroomAddonNet = {
       // validation; the caller turns this into a clean 'unauthenticated'
       // error rather than an unhandled rejection.
       console.warn(
-        '[classroomAddonLoginV1] getAddOnContext fetch failed:',
+        '[DEBUG-addonctx] getAddOnContext fetch failed (network/timeout):',
         err
       );
       return { ok: false, status: 0, context: null };
@@ -267,9 +292,12 @@ export const classroomAddonLoginV1 = onCall(
     );
     if (!ctxResult.ok || !ctxResult.context) {
       // 401/403 → bad/expired access token; other non-2xx → bad launch.
+      // [DEBUG-addonctx] surface the upstream status/body to the spike page.
       throw new HttpsError(
         'unauthenticated',
-        'Could not validate the Classroom launch.'
+        `Could not validate the Classroom launch (getAddOnContext → ${ctxResult.status}${
+          ctxResult.errorBody ? ': ' + ctxResult.errorBody.slice(0, 200) : ''
+        }).`
       );
     }
     const ctx = ctxResult.context;
@@ -406,9 +434,13 @@ export const createClassroomAttachment = onCall(
       addOnToken
     );
     if (!ctxResult.ok || !ctxResult.context) {
+      // [DEBUG-addonctx] surface the upstream status/body to the spike page so
+      // the failure mode (scope vs token vs item) is visible without CF logs.
       throw new HttpsError(
         'unauthenticated',
-        'Could not validate the Classroom launch.'
+        `Could not validate the Classroom launch (getAddOnContext → ${ctxResult.status}${
+          ctxResult.errorBody ? ': ' + ctxResult.errorBody.slice(0, 200) : ''
+        }).`
       );
     }
     // Only a TEACHER launch may create an attachment. Never infer role from a
