@@ -276,6 +276,8 @@ const attachData = {
   itemType: 'courseWork',
   addOnToken: 'addon-tok',
   origin: 'https://spartboard.web.app',
+  quizCode: 'ABC123',
+  title: 'SpartBoard: My Quiz',
 };
 
 describe('createClassroomAttachment (spike)', () => {
@@ -300,15 +302,50 @@ describe('createClassroomAttachment (spike)', () => {
     );
     // View URIs are derived from the validated origin, not client-supplied.
     const body = createSpy.mock.calls[0][5] as {
+      title: string;
       teacherViewUri: { uri: string };
       studentViewUri: { uri: string };
     };
     expect(body.teacherViewUri.uri).toBe(
       'https://spartboard.web.app/classroom-addon/teacher'
     );
+    // The studentViewUri carries the quiz join code so the student route can
+    // hand it to QuizStudentApp (which SSO-auto-joins by ?code=).
     expect(body.studentViewUri.uri).toBe(
-      'https://spartboard.web.app/classroom-addon/student'
+      'https://spartboard.web.app/classroom-addon/student?code=ABC123'
     );
+    // The client-supplied title is used (capped/sanitized server-side).
+    expect(body.title).toBe('SpartBoard: My Quiz');
+  });
+
+  it('requires a quizCode and rejects a malformed one', async () => {
+    const ctxSpy = vi
+      .spyOn(classroomAddonNet, 'fetchAddOnContext')
+      .mockResolvedValue(TEACHER_CTX);
+    const createSpy = vi.spyOn(classroomAddonNet, 'createAttachment');
+
+    // Non-alphanumeric quizCode is rejected before any network call.
+    await expect(
+      callAttach({ data: { ...attachData, quizCode: 'a/../b' } })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    expect(ctxSpy).not.toHaveBeenCalled();
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it('defaults the title when none is supplied', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    const createSpy = vi
+      .spyOn(classroomAddonNet, 'createAttachment')
+      .mockResolvedValue({ ok: true, status: 200, id: 'ATT123' });
+
+    const data = { ...attachData };
+    delete (data as Record<string, unknown>).title;
+    await callAttach({ data });
+
+    const body = createSpy.mock.calls[0][5] as { title: string };
+    expect(body.title.length).toBeGreaterThan(0);
   });
 
   it('refuses to create an attachment for a STUDENT launch', async () => {
@@ -359,6 +396,7 @@ describe('createClassroomAttachment (spike)', () => {
       'itemId',
       'addOnToken',
       'origin',
+      'quizCode',
     ] as const) {
       const data = { ...attachData };
       delete (data as Record<string, unknown>)[missing];

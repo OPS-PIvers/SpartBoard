@@ -86,6 +86,11 @@ interface CreateAttachmentData {
   itemType?: unknown;
   addOnToken?: unknown;
   origin?: unknown;
+  // The join code of the teacher's quiz session; embedded in studentViewUri so
+  // the student route hands it to QuizStudentApp (which SSO-auto-joins by code).
+  quizCode?: unknown;
+  // Display title for the Classroom attachment card (e.g. "SpartBoard: <quiz>").
+  title?: unknown;
 }
 
 /** `EmbedUri` view-URI objects + title, per addOnAttachments.create. */
@@ -416,6 +421,8 @@ export const createClassroomAttachment = onCall(
     const addOnToken =
       typeof data.addOnToken === 'string' ? data.addOnToken : '';
     const origin = typeof data.origin === 'string' ? data.origin : '';
+    const quizCode = typeof data.quizCode === 'string' ? data.quizCode : '';
+    const rawTitle = typeof data.title === 'string' ? data.title : '';
     const itemType: ItemType = isItemType(data.itemType)
       ? data.itemType
       : 'courseWork';
@@ -438,6 +445,17 @@ export const createClassroomAttachment = onCall(
     if (!origin || !isAllowedOrigin(origin)) {
       throw new HttpsError('invalid-argument', 'origin is missing or invalid.');
     }
+    // quizCode is embedded verbatim into the studentViewUri, so constrain it to
+    // the join-code charset (alphanumeric) — never relay arbitrary text into a
+    // stored URI. Join codes are short uppercase alphanumerics.
+    if (!quizCode || !/^[A-Za-z0-9]{1,16}$/.test(quizCode)) {
+      throw new HttpsError(
+        'invalid-argument',
+        'quizCode is missing or malformed.'
+      );
+    }
+    // Title is display-only; cap length and fall back to a sensible default.
+    const title = (rawTitle || 'SpartBoard activity').slice(0, 200);
 
     // Trust anchor: confirm the launch context (passing the addOnToken, which
     // is required in the discovery iframe).
@@ -470,9 +488,11 @@ export const createClassroomAttachment = onCall(
     }
 
     const body: AddOnAttachmentBody = {
-      title: 'SpartBoard (spike)',
+      title,
       teacherViewUri: { uri: `${origin}/classroom-addon/teacher` },
-      studentViewUri: { uri: `${origin}/classroom-addon/student` },
+      studentViewUri: {
+        uri: `${origin}/classroom-addon/student?code=${encodeURIComponent(quizCode)}`,
+      },
     };
     const createResult = await classroomAddonNet.createAttachment(
       accessToken,

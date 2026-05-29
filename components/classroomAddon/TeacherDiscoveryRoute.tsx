@@ -1,27 +1,36 @@
 /**
- * SPIKE — Google Classroom Add-on teacher discovery (Attachment Setup) page.
+ * Google Classroom Add-on teacher discovery (Attachment Setup) route.
  *
- * Route: /classroom-addon/teacher  (set this as the add-on's Attachment Setup
- * URI on the test domain). Classroom opens this iframe when a teacher picks
- * SpartBoard from the assignment "Add-ons" menu, passing courseId/itemId/
- * itemType + an `addOnToken` (+ login_hint).
+ * Route: /classroom-addon/teacher  (the add-on's Attachment Setup URI).
+ * Classroom opens this iframe when a teacher picks SpartBoard from the
+ * assignment "Add-ons" menu, passing courseId/itemId/itemType + an `addOnToken`
+ * (+ login_hint).
  *
- * Its only job in the de-risk slice: prove the TEACHER half of the handshake —
- *   1. Run Google OAuth in a popup (consent cannot redirect inside the iframe).
- *   2. Call `createClassroomAttachment`, which confirms via `getAddOnContext`
- *      that the launch is a teacher and creates an attachment whose
- *      studentViewUri points at `/classroom-addon/student`.
- * Once an attachment exists, a student can open it and the student spike runs.
+ * Flow (the real "attach a quiz" pipe):
+ *   1. Teacher signs into SpartBoard (Google) — gives a Firebase uid + a Drive
+ *      access token so we can list/load their quiz library.
+ *   2. Teacher picks a quiz from their library.
+ *   3. We load the quiz content and create a Classroom-targeted assignment
+ *      (`classIds: ["classroom:<courseId>"]`) → a persistent join `code` the
+ *      student takes the quiz with, async/self-paced.
+ *   4. A short GIS popup grants `classroom.addons.teacher`; the
+ *      `createClassroomAttachment` CF validates the teacher launch via
+ *      `getAddOnContext` and creates the attachment whose studentViewUri is
+ *      `/classroom-addon/student?code=<code>`.
  *
- * This is NOT the real teacher discovery UI (no quiz/VA library picker, no
- * grade-sync maxPoints). Delete once Phase 2 owns the real discovery flow.
+ * NOTE: this still carries throwaway de-risk affordances (the param grid + log)
+ * pending Phase 2 polish, but the attach path is the real one.
  */
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/config/firebase';
+import { useAuth } from '@/context/useAuth';
+import { useQuiz } from '@/hooks/useQuiz';
+import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 
 // The teacher/discovery iframe creates attachments → needs the teacher scope.
+// (The SpartBoard sign-in above grants Drive separately, via AuthContext.)
 const ADDON_TEACHER_SCOPES = [
   'openid',
   'https://www.googleapis.com/auth/userinfo.email',
@@ -47,21 +56,42 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // already-created attachment (no addOnToken in that iframe).
   const existingAttachmentId = params.get('attachmentId') ?? '';
 
+  const { user, signInWithGoogle, googleAccessToken } = useAuth();
+  const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
+  const { createAssignment } = useQuizAssignments(user?.uid);
+
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
-  const [attachmentId, setAttachmentId] = useState<string>('');
+  const [selectedQuizId, setSelectedQuizId] = useState('');
+  const [attachmentId, setAttachmentId] = useState('');
 
   const append = useCallback((line: string) => {
     setLog((prev) => [...prev, `${new Date().toLocaleTimeString()}  ${line}`]);
   }, []);
 
-  const runCreate = useCallback(async () => {
+  const selectedQuiz = useMemo(
+    () => quizzes.find((q) => q.id === selectedQuizId),
+    [quizzes, selectedQuizId]
+  );
+
+  const signIn = useCallback(async () => {
+    setBusy(true);
+    try {
+      append('Signing in to SpartBoard…');
+      await signInWithGoogle();
+      append('Signed in. Pick a quiz to attach.');
+    } catch (err) {
+      append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [append, signInWithGoogle]);
+
+  const runAttach = useCallback(async () => {
     setBusy(true);
     try {
       if (!courseId || !itemId) {
-        append(
-          'Missing courseId/itemId in the URL — set them as query params.'
-        );
+        append('Missing courseId/itemId in the URL.');
         return;
       }
       if (!addOnToken) {
@@ -71,15 +101,54 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         );
         return;
       }
-      append('Loading Google Identity Services…');
+      if (!selectedQuiz) {
+        append('Pick a quiz first.');
+        return;
+      }
+      if (!googleAccessToken) {
+        append('No Google Drive token — sign in to SpartBoard again.');
+        return;
+      }
+
+      append(`Loading "${selectedQuiz.title}"…`);
+      const quizData = await loadQuizData(selectedQuiz.driveFileId);
+
+      // Create a Classroom-targeted assignment. classIds = ["classroom:<id>"]
+      // matches the studentRole token claim minted by classroomAddonLoginV1,
+      // so the Firestore class-gate lets these students write responses.
+      // sessionMode 'student' = self-paced/async, which is how a Classroom
+      // attachment is taken (no live teacher session).
+      append('Creating a class-targeted assignment…');
+      const { code } = await createAssignment(
+        {
+          id: selectedQuiz.id,
+          title: selectedQuiz.title,
+          driveFileId: selectedQuiz.driveFileId,
+          questions: quizData.questions,
+        },
+        {
+          className: 'Google Classroom',
+          sessionMode: 'student',
+          sessionOptions: {},
+        },
+        {
+          classIds: [`classroom:${courseId}`],
+          initialStatus: 'active',
+        }
+      );
+      append(`Assignment created (join code ${code}).`);
+
+      // The addons.teacher grant is what getAddOnContext validates the teacher
+      // launch against — a separate, minimal grant from the SpartBoard Drive
+      // sign-in above.
+      append('Granting Classroom add-on permission…');
       await ensureGis();
-      append('Opening OAuth popup (teacher scope)…');
       const accessToken = await requestAccessToken(
         ADDON_TEACHER_SCOPES,
         loginHint
       );
-      append('Got access token. Calling createClassroomAttachment…');
 
+      append('Creating the Classroom attachment…');
       const callable = httpsCallable<
         {
           accessToken: string;
@@ -88,6 +157,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           itemType: string;
           addOnToken: string;
           origin: string;
+          quizCode: string;
+          title: string;
         },
         CreateAttachmentResult
       >(functions, 'createClassroomAttachment');
@@ -98,30 +169,41 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         itemType,
         addOnToken,
         origin: window.location.origin,
+        quizCode: code,
+        title: `SpartBoard: ${selectedQuiz.title}`,
       });
 
       setAttachmentId(data.attachmentId);
       append(
-        `Attachment created: ${data.attachmentId}. A student can now open it ` +
-          'to run the student handshake spike.'
+        `Attached "${selectedQuiz.title}". Students can now open it and take ` +
+          'the quiz inside Classroom.'
       );
     } catch (err) {
       append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
       setBusy(false);
     }
-  }, [append, courseId, itemId, itemType, addOnToken, loginHint]);
+  }, [
+    append,
+    courseId,
+    itemId,
+    itemType,
+    addOnToken,
+    loginHint,
+    selectedQuiz,
+    googleAccessToken,
+    loadQuizData,
+    createAssignment,
+  ]);
 
   return (
     <div className="min-h-screen bg-slate-900 p-6 font-sans text-slate-100">
       <div className="mx-auto max-w-2xl space-y-4">
         <div>
-          <h1 className="text-xl font-bold">
-            Classroom Add-on — teacher discovery spike
-          </h1>
+          <h1 className="text-xl font-bold">Attach a SpartBoard quiz</h1>
           <p className="text-sm text-slate-400">
-            Throwaway de-risk page. Creates an add-on attachment whose student
-            view points at the student handshake spike.
+            Pick a quiz from your library to attach to this Classroom
+            assignment. Students take it inside Classroom.
           </p>
         </div>
 
@@ -141,35 +223,62 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             <span className="break-all font-mono">
               {addOnToken === '' ? '(none — teacher view?)' : '(present)'}
             </span>
-            <span className="text-slate-400">login_hint</span>
-            <span className="break-all font-mono">{loginHint ?? '(none)'}</span>
-            <span className="text-slate-400">attachmentId (url)</span>
-            <span className="break-all font-mono">
-              {existingAttachmentId === '' ? '(none)' : existingAttachmentId}
-            </span>
           </div>
         </div>
 
         {existingAttachmentId ? (
           <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm">
-            This is the teacher VIEW of an existing attachment (
-            <span className="font-mono">{existingAttachmentId}</span>). Nothing
-            to create — open it as a student to run the student spike.
+            This is the teacher view of an existing attachment (
+            <span className="font-mono">{existingAttachmentId}</span>). Students
+            open it to take the attached quiz.
           </div>
-        ) : (
+        ) : !user ? (
           <button
             type="button"
-            onClick={() => void runCreate()}
+            onClick={() => void signIn()}
             disabled={busy}
             className="rounded bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
           >
-            {busy ? 'Working…' : 'Create attachment'}
+            {busy ? 'Working…' : 'Sign in to SpartBoard'}
           </button>
+        ) : (
+          <div className="space-y-3">
+            <label className="block text-sm">
+              <span className="mb-1 block text-slate-400">Quiz</span>
+              <select
+                value={selectedQuizId}
+                onChange={(e) => setSelectedQuizId(e.target.value)}
+                disabled={busy || quizzesLoading}
+                className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+              >
+                <option value="">
+                  {quizzesLoading
+                    ? 'Loading your quizzes…'
+                    : quizzes.length === 0
+                      ? 'No quizzes in your library yet'
+                      : 'Select a quiz…'}
+                </option>
+                {quizzes.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => void runAttach()}
+              disabled={busy || !selectedQuizId}
+              className="rounded bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+            >
+              {busy ? 'Working…' : 'Attach quiz'}
+            </button>
+          </div>
         )}
 
         {attachmentId && (
-          <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
-            <h2 className="mb-2 font-semibold">Created attachment</h2>
+          <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm">
+            <h2 className="mb-1 font-semibold">Attached ✓</h2>
             <p className="break-all font-mono">{attachmentId}</p>
           </div>
         )}

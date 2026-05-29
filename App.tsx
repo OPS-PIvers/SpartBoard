@@ -460,20 +460,35 @@ const App: React.FC = () => {
     );
   }
 
-  // SPIKE — Classroom Add-on routes. Throwaway; remove once Phase 2/3 own the
-  // real teacher discovery + student routes. `/classroom-addon/teacher` is the
-  // Attachment Setup (discovery) iframe; everything else under the prefix is
-  // the student handshake page.
+  // Classroom Add-on routes. `/classroom-addon/teacher` is the Attachment Setup
+  // (discovery) iframe; everything else under the prefix is the student view.
   if (isClassroomAddonRoute) {
     const isTeacherDiscovery = pathname.startsWith('/classroom-addon/teacher');
+    // Teacher discovery needs the teacher's SpartBoard session (uid + Drive
+    // token) to list/load quizzes and create a class-targeted assignment, so it
+    // mounts AuthProvider. (No DashboardProvider — no dashboard listeners.)
+    if (isTeacherDiscovery) {
+      return (
+        <DialogProvider>
+          <AuthProvider>
+            <Suspense fallback={<FullPageLoader />}>
+              <ClassroomAddonTeacherSpike />
+            </Suspense>
+          </AuthProvider>
+          <DialogContainer />
+        </DialogProvider>
+      );
+    }
+    // Student view: after the custom-token handshake the page renders
+    // QuizStudentApp, which self-handles Firebase auth (preserving the SSO
+    // student token) and SSO-auto-joins by ?code=. Only DialogProvider needed.
     return (
-      <Suspense fallback={<FullPageLoader />}>
-        {isTeacherDiscovery ? (
-          <ClassroomAddonTeacherSpike />
-        ) : (
+      <DialogProvider>
+        <Suspense fallback={<FullPageLoader />}>
           <ClassroomAddonStudentSpike />
-        )}
-      </Suspense>
+        </Suspense>
+        <DialogContainer />
+      </DialogProvider>
     );
   }
 
