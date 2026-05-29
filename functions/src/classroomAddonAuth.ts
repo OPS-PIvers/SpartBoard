@@ -32,11 +32,20 @@ import { onCall, HttpsError } from 'firebase-functions/v2/https';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as CryptoJS from 'crypto-js';
+import axios from 'axios';
+import OAuth from 'oauth-1.0a';
 
-// Same named secret as index.ts; Firebase params dedupes by name.
+// Same named secrets as index.ts; Firebase params dedupes by name. The
+// CLASSLINK_* secrets power the ClassLink identity bridge: a Classroom student
+// is resolved to their OneRoster sourcedId so the minted uid matches their
+// ClassLink SSO identity (HMAC("sid:"+sourcedId)) and the teacher monitor shows
+// their real name — all PII-free (no name/email persisted).
 const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
   'STUDENT_PSEUDONYM_HMAC_SECRET'
 );
+const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
+const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
+const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');
 
 // Keep in sync with ALLOWED_ORIGINS in index.ts (spike duplication; production
 // should import a shared constant).
@@ -67,6 +76,26 @@ interface GoogleUserInfo {
   email?: string;
   email_verified?: boolean;
   hd?: string;
+}
+
+/** OneRoster student shape (subset) — mirrors index.ts's ClassLinkStudent. */
+interface ClassLinkStudent {
+  sourcedId?: string;
+  givenName?: string;
+  familyName?: string;
+  email?: string;
+}
+
+/**
+ * `/classroom_course_links/{googleCourseId}` — written by the teacher's
+ * "Link to Google Classroom" action. Maps a Google Classroom course to the
+ * ClassLink class (section) `sourcedId` so the add-on can resolve students
+ * against the existing OneRoster roster + name pipeline.
+ */
+interface CourseLink {
+  classlinkClassId?: string;
+  classlinkOrgId?: string;
+  teacherUid?: string;
 }
 
 interface ClassroomAddonLoginData {
@@ -108,6 +137,40 @@ function normalizeEmailDomain(email: string): string | null {
   const at = email.lastIndexOf('@');
   if (at < 0 || at === email.length - 1) return null;
   return '@' + email.slice(at + 1).toLowerCase();
+}
+
+const ONEROSTER_BASE = '/ims/oneroster/v1p1';
+
+/**
+ * Stable per-student pseudonym — MUST match index.ts `computeStudentUid`
+ * (`HMAC("sid:"+sourcedId)`) so a Classroom student mints the SAME Firebase uid
+ * as their ClassLink SSO login, and the existing `getPseudonymsForAssignmentV1`
+ * monitor resolves their name. (Spike duplication; production should share it.)
+ */
+function computeStudentUid(sourcedId: string, hmacSecret: string): string {
+  return CryptoJS.HmacSHA256(`sid:${sourcedId}`, hmacSecret).toString(
+    CryptoJS.enc.Hex
+  );
+}
+
+/** OAuth 1.0 headers for the ClassLink OneRoster API — mirrors index.ts. */
+function getOAuthHeaders(
+  baseUrl: string,
+  params: Record<string, string>,
+  method: string,
+  clientId: string,
+  clientSecret: string
+): Record<string, string> {
+  const oauth = new OAuth({
+    consumer: { key: clientId, secret: clientSecret },
+    signature_method: 'HMAC-SHA1',
+    hash_function(base_string: string, key: string) {
+      return CryptoJS.HmacSHA1(base_string, key).toString(CryptoJS.enc.Base64);
+    },
+  });
+  return oauth.toHeader(
+    oauth.authorize({ url: baseUrl, method, data: params })
+  ) as unknown as Record<string, string>;
 }
 
 /**
@@ -232,6 +295,29 @@ export const classroomAddonNet = {
     }
   },
 
+  /**
+   * Fetch a ClassLink class's students from OneRoster (district creds). Used by
+   * the identity bridge to match a Classroom student's verified email →
+   * sourcedId. Seam so tests can stub it without a live ClassLink call.
+   */
+  async fetchClassStudents(
+    tenantUrl: string,
+    clientId: string,
+    clientSecret: string,
+    classId: string
+  ): Promise<ClassLinkStudent[]> {
+    const cleanTenant = tenantUrl.replace(/\/$/, '');
+    const url = `${cleanTenant}${ONEROSTER_BASE}/classes/${encodeURIComponent(
+      classId
+    )}/students`;
+    const headers = getOAuthHeaders(url, {}, 'GET', clientId, clientSecret);
+    const res = await axios.get<{ users?: ClassLinkStudent[] }>(url, {
+      headers,
+      timeout: API_TIMEOUT_MS,
+    });
+    return res.data.users ?? [];
+  },
+
   async createAttachment(
     accessToken: string,
     courseId: string,
@@ -267,7 +353,12 @@ export const classroomAddonNet = {
 export const classroomAddonLoginV1 = onCall(
   {
     memory: '256MiB',
-    secrets: [STUDENT_PSEUDONYM_HMAC_SECRET],
+    secrets: [
+      STUDENT_PSEUDONYM_HMAC_SECRET,
+      CLASSLINK_CLIENT_ID,
+      CLASSLINK_CLIENT_SECRET,
+      CLASSLINK_TENANT_URL,
+    ],
     invoker: 'public',
     cors: ALLOWED_ORIGINS,
   },
@@ -368,21 +459,68 @@ export const classroomAddonLoginV1 = onCall(
       );
     }
 
-    // 3. Deterministic per-student pseudonym from the stable Google subject id.
-    //    Namespaced `classroom-sub:` so it can never collide with a ClassLink
-    //    sourcedId-derived uid.
-    const pseudonym = CryptoJS.HmacSHA256(
-      `classroom-sub:${info.sub}`,
-      hmacSecret
-    ).toString(CryptoJS.enc.Hex);
+    // 3. ClassLink identity bridge (best-effort). If this Google course is
+    //    linked to a ClassLink class, resolve the student's OneRoster sourcedId
+    //    by their VERIFIED email and mint the SAME uid as their ClassLink SSO
+    //    login (HMAC("sid:"+sourcedId)) + the real ClassLink classId — so the
+    //    existing getPseudonymsForAssignmentV1 monitor resolves their real name
+    //    (still PII-free: email is used transiently, only the pseudonym
+    //    persists). If anything is missing/unmatched, fall back to a Google-sub
+    //    pseudonym scoped to the Google courseId — works, but nameless.
+    let uid: string | null = null;
+    let classIds: string[] = [`classroom:${courseId}`];
+    try {
+      const linkSnap = await db.doc(`classroom_course_links/${courseId}`).get();
+      const link = linkSnap.exists ? (linkSnap.data() as CourseLink) : null;
+      const tenantUrl = CLASSLINK_TENANT_URL.value();
+      const clClientId = CLASSLINK_CLIENT_ID.value();
+      const clClientSecret = CLASSLINK_CLIENT_SECRET.value();
+      if (link?.classlinkClassId && tenantUrl && clClientId && clClientSecret) {
+        const students = await classroomAddonNet.fetchClassStudents(
+          tenantUrl,
+          clClientId,
+          clClientSecret,
+          link.classlinkClassId
+        );
+        const emailLower = info.email.toLowerCase();
+        const match = students.find(
+          (s) => (s.email ?? '').toLowerCase() === emailLower
+        );
+        if (match?.sourcedId) {
+          uid = computeStudentUid(match.sourcedId, hmacSecret);
+          classIds = [link.classlinkClassId];
+        } else {
+          console.warn(
+            '[classroomAddonLoginV1] linked course but student email not in ' +
+              'OneRoster roster; falling back to nameless pseudonym.'
+          );
+        }
+      }
+    } catch (err) {
+      // A bridge failure must NEVER block the student from taking the quiz —
+      // fall back to the nameless pseudonym path.
+      console.warn(
+        '[classroomAddonLoginV1] ClassLink bridge failed; falling back:',
+        err
+      );
+    }
+
+    // Fallback: deterministic Google-sub pseudonym, namespaced `classroom-sub:`
+    // so it can never collide with a ClassLink sourcedId-derived uid.
+    if (!uid) {
+      uid = CryptoJS.HmacSHA256(
+        `classroom-sub:${info.sub}`,
+        hmacSecret
+      ).toString(CryptoJS.enc.Hex);
+    }
 
     // 4. Mint the same claim shape as studentLoginV1 / pinLoginV1.
     let customToken: string;
     try {
-      customToken = await admin.auth().createCustomToken(pseudonym, {
+      customToken = await admin.auth().createCustomToken(uid, {
         studentRole: true,
         orgId,
-        classIds: [`classroom:${courseId}`],
+        classIds,
       });
     } catch (err) {
       console.error('[classroomAddonLoginV1] createCustomToken failed:', err);

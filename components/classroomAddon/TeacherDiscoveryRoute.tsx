@@ -23,7 +23,8 @@
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
-import { functions } from '@/config/firebase';
+import { doc, getDoc } from 'firebase/firestore';
+import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
@@ -151,9 +152,33 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       append(`Loading "${selectedQuiz.title}"…`);
       const quizData = await loadQuizData(selectedQuiz.driveFileId);
 
-      // Create a Classroom-targeted assignment. classIds = ["classroom:<id>"]
-      // matches the studentRole token claim minted by classroomAddonLoginV1,
-      // so the Firestore class-gate lets these students write responses.
+      // Resolve the assignment's classId. If this Google course is linked to a
+      // ClassLink class, use that real sourcedId so the assignment's classIds
+      // MATCH the token classroomAddonLoginV1 mints for the student (which is
+      // also the linked sourcedId) — that's what lets the class-gate authorize
+      // their responses AND lets the monitor resolve real names. If unlinked,
+      // both sides fall back to "classroom:<courseId>" (works, but nameless).
+      let classIds = [`classroom:${courseId}`];
+      try {
+        const linkSnap = await getDoc(
+          doc(db, 'classroom_course_links', courseId)
+        );
+        const linkedClassId = linkSnap.exists()
+          ? (linkSnap.data().classlinkClassId as string | undefined)
+          : undefined;
+        if (linkedClassId) {
+          classIds = [linkedClassId];
+          append(`Course is linked to ClassLink class ${linkedClassId}.`);
+        } else {
+          append(
+            'Course not linked to a ClassLink class — students will be ' +
+              'anonymous in the monitor. Link it from your roster to show names.'
+          );
+        }
+      } catch {
+        // Fall back to the courseId-scoped classId.
+      }
+
       // sessionMode 'student' = self-paced/async, which is how a Classroom
       // attachment is taken (no live teacher session).
       append('Creating a class-targeted assignment…');
@@ -170,7 +195,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           sessionOptions: {},
         },
         {
-          classIds: [`classroom:${courseId}`],
+          classIds,
           initialStatus: 'active',
         }
       );

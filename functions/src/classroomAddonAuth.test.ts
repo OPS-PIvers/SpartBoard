@@ -11,10 +11,17 @@
    Promise-shaped values without awaiting, matching the async production APIs. */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import * as CryptoJS from 'crypto-js';
 
 // Configurable mock state (reset between tests).
 let orgIdForDomain: string | null = 'org-orono';
 let lastCustomTokenArgs: { uid: string; claims: unknown } | null = null;
+// Course-link doc returned by `db.doc('classroom_course_links/...').get()`.
+// null = not linked (the common case → bridge falls back to the nameless path).
+let courseLinkDoc: {
+  classlinkClassId?: string;
+  classlinkOrgId?: string;
+} | null = null;
 
 vi.mock('firebase-admin', () => {
   return {
@@ -38,6 +45,12 @@ vi.mock('firebase-admin', () => {
               },
             }),
           }),
+        }),
+      }),
+      doc: () => ({
+        get: async () => ({
+          exists: courseLinkDoc !== null,
+          data: () => courseLinkDoc,
         }),
       }),
     })),
@@ -116,6 +129,7 @@ const baseData = {
 beforeEach(() => {
   orgIdForDomain = 'org-orono';
   lastCustomTokenArgs = null;
+  courseLinkDoc = null;
   vi.restoreAllMocks();
 });
 
@@ -135,6 +149,84 @@ describe('classroomAddonLoginV1 (spike)', () => {
     expect(res.customToken).toBeTruthy();
     expect(res.submissionId).toBe('SUB123');
     // Exact claim shape — must match studentLoginV1 / pinLoginV1.
+    expect(lastCustomTokenArgs?.claims).toEqual({
+      studentRole: true,
+      orgId: 'org-orono',
+      classIds: ['classroom:C1'],
+    });
+  });
+
+  it('bridges to the ClassLink sourcedId uid + classId when the course is linked and the student is in the roster', async () => {
+    courseLinkDoc = {
+      classlinkClassId: 'CL-SECTION-1',
+      classlinkOrgId: 'orono',
+    };
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      STUDENT_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'fetchUserInfo').mockResolvedValue(
+      VALID_STUDENT_INFO
+    );
+    const studentsSpy = vi
+      .spyOn(classroomAddonNet, 'fetchClassStudents')
+      .mockResolvedValue([
+        { sourcedId: 'SID-OTHER', email: 'nope@orono.k12.mn.us' },
+        {
+          sourcedId: 'SID-XYZ',
+          email: 'kid@orono.k12.mn.us',
+          givenName: 'Kid',
+          familyName: 'One',
+        },
+      ]);
+
+    const res = await callLogin({ data: baseData });
+
+    expect(res.role).toBe('student');
+    expect(res.studentRole).toBe(true);
+    // The class roster for the LINKED classId is what we fetch.
+    expect(studentsSpy).toHaveBeenCalledWith(
+      'test-hmac-secret',
+      'test-hmac-secret',
+      'test-hmac-secret',
+      'CL-SECTION-1'
+    );
+    // uid MUST equal HMAC("sid:<sourcedId>") so it matches ClassLink SSO and the
+    // teacher monitor (getPseudonymsForAssignmentV1) resolves the real name.
+    const expectedUid = CryptoJS.HmacSHA256(
+      'sid:SID-XYZ',
+      'test-hmac-secret'
+    ).toString(CryptoJS.enc.Hex);
+    expect(lastCustomTokenArgs?.uid).toBe(expectedUid);
+    expect(lastCustomTokenArgs?.claims).toEqual({
+      studentRole: true,
+      orgId: 'org-orono',
+      classIds: ['CL-SECTION-1'],
+    });
+  });
+
+  it('falls back to the nameless pseudonym when linked but the student is not in the roster', async () => {
+    courseLinkDoc = {
+      classlinkClassId: 'CL-SECTION-1',
+      classlinkOrgId: 'orono',
+    };
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      STUDENT_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'fetchUserInfo').mockResolvedValue(
+      VALID_STUDENT_INFO
+    );
+    vi.spyOn(classroomAddonNet, 'fetchClassStudents').mockResolvedValue([
+      { sourcedId: 'SID-OTHER', email: 'someone-else@orono.k12.mn.us' },
+    ]);
+
+    const res = await callLogin({ data: baseData });
+
+    expect(res.studentRole).toBe(true);
+    const fallbackUid = CryptoJS.HmacSHA256(
+      'classroom-sub:google-sub-1',
+      'test-hmac-secret'
+    ).toString(CryptoJS.enc.Hex);
+    expect(lastCustomTokenArgs?.uid).toBe(fallbackUid);
     expect(lastCustomTokenArgs?.claims).toEqual({
       studentRole: true,
       orgId: 'org-orono',

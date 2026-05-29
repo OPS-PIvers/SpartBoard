@@ -158,6 +158,14 @@ export interface ClassRosterMeta {
   classlinkOrgId?: string;
   /** Epoch ms of the last ClassLink import or merge for this roster. */
   classlinkSyncedAt?: number;
+  /**
+   * Google Classroom `courseId` this ClassLink roster is linked to, set via the
+   * "Link to Google Classroom" action. Mirrors the canonical mapping stored at
+   * `/classroom_course_links/{courseId}`; kept here so the roster UI can show
+   * the linked state. Enables the Classroom Add-on to resolve a launching
+   * student to this class's OneRoster `sourcedId` (PII-free name resolution).
+   */
+  googleClassroomCourseId?: string;
 }
 
 /**
