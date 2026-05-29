@@ -544,15 +544,20 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
-  // Persist a new page list (urls/paths/sections) to Firestore.
+  // Persist a new page list (urls/paths/sections/objectLinks) to Firestore.
+  // objectLinks are written whenever the source notebook has any — even when
+  // the page op produces an empty list (e.g. all links lived on a deleted
+  // page) — so Firestore reflects the deletion instead of holding stale data.
   const persistPageList = async (next: PageListState) => {
     if (!user || !activeNotebook) return;
+    const hadLinks = (activeNotebook.objectLinks ?? []).length > 0;
     await updateDoc(
       doc(db, 'users', user.uid, 'notebooks', activeNotebook.id),
       {
         pageUrls: next.pageUrls,
         pagePaths: next.pagePaths,
         ...(next.sections ? { sections: next.sections } : {}),
+        ...(hadLinks ? { objectLinks: next.objectLinks ?? [] } : {}),
       }
     );
   };
@@ -560,6 +565,10 @@ export const SmartNotebookWidget: React.FC<{
   // Insert a blank page after the current one and navigate to it.
   const handleAddPage = async () => {
     if (!user || !activeNotebook) return;
+    // Flush any pending autosave for the current page before mutating the
+    // page list, otherwise the debounced upload can land on the shifted
+    // pagePaths[currentPage] and overwrite the wrong page's storage blob.
+    flushPending(currentPage);
     setIsPageOp(true);
     const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
     const path = `${notebookPath}/page-blank-${crypto.randomUUID()}.svg`;
@@ -597,18 +606,33 @@ export const SmartNotebookWidget: React.FC<{
       confirmLabel: 'Delete',
     });
     if (!confirmed) return;
+    // Flush before delete so a pending autosave can't fire against the
+    // post-delete pagePaths array (which shifts neighbors left).
+    flushPending(currentPage);
     setIsPageOp(true);
     try {
+      const linkCountBefore = activeNotebook.objectLinks?.length ?? 0;
       const { state: next, removedPath } = deletePage(
         activeNotebook,
         currentPage
       );
+      const droppedLinks =
+        linkCountBefore - (next.objectLinks?.length ?? linkCountBefore);
       await persistPageList(next);
       if (removedPath) {
         await deleteFile(removedPath).catch((e) => console.error(e));
       }
       setCurrentPage((p) => Math.min(p, next.pageUrls.length - 1));
-      addToast('Page deleted', 'success');
+      if (droppedLinks > 0) {
+        // Surface the silent data loss (hotspots on / pointing to the
+        // deleted page) so the teacher isn't surprised later.
+        addToast(
+          `Page deleted (also removed ${droppedLinks} hyperlink${droppedLinks === 1 ? '' : 's'})`,
+          'success'
+        );
+      } else {
+        addToast('Page deleted', 'success');
+      }
     } catch (err) {
       console.error('Failed to delete page', err);
       addToast('Failed to delete page', 'error');
@@ -625,6 +649,10 @@ export const SmartNotebookWidget: React.FC<{
       !canMovePage(activeNotebook, currentPage, dir)
     )
       return;
+    // Flush before swap: pageUrls/pagePaths swap together, so a debounced
+    // autosave keyed by the old index would upload the teacher's edit to
+    // the swapped neighbor's storage path.
+    flushPending(currentPage);
     setIsPageOp(true);
     try {
       await persistPageList(movePage(activeNotebook, currentPage, dir));

@@ -1,20 +1,48 @@
-import { NotebookSection } from '@/types';
+import { NotebookObjectLink, NotebookSection } from '@/types';
 
 /**
  * Pure page-list + lesson-section operations for the SMART Notebook widget
  * (add / delete / reorder pages). Kept separate from Firestore/Storage so the
- * tricky part — keeping the contiguous lesson sections correct as pages move —
- * is fully unit-testable. The Widget applies the result, then persists.
+ * tricky parts — keeping the contiguous lesson sections correct AND rewriting
+ * objectLinks' page indices as pages move — are fully unit-testable. The
+ * Widget applies the result, then persists.
  */
 
 export interface PageListState {
   pageUrls: string[];
   pagePaths: string[];
   sections?: NotebookSection[];
+  /**
+   * Object→page hyperlinks. Stored on PageListState (rather than passed in
+   * separately) so the three structural operations can keep the link
+   * sourcePage/targetPage indices coherent in a single pass alongside
+   * pageUrls and sections.
+   */
+  objectLinks?: NotebookObjectLink[];
 }
 
 const cloneSections = (sections?: NotebookSection[]): NotebookSection[] =>
   (sections ?? []).map((s) => ({ ...s }));
+
+/**
+ * Apply a per-page-index transform to every link's sourcePage and targetPage.
+ * Returning `null` for a given index drops any link that touches it (used by
+ * deletePage to discard links whose source page or target page is gone).
+ */
+const remapLinkPages = (
+  links: NotebookObjectLink[] | undefined,
+  remap: (page: number) => number | null
+): NotebookObjectLink[] | undefined => {
+  if (!links) return links;
+  const next: NotebookObjectLink[] = [];
+  for (const link of links) {
+    const source = remap(link.sourcePage);
+    const target = remap(link.targetPage);
+    if (source === null || target === null) continue;
+    next.push({ ...link, sourcePage: source, targetPage: target });
+  }
+  return next;
+};
 
 /**
  * Clamp a current page index to a (possibly changed) page count. Guards the
@@ -58,10 +86,16 @@ export const insertBlankPage = (
     return s;
   });
 
+  // Any page at or after the insertion point shifts right by one.
+  const objectLinks = remapLinkPages(state.objectLinks, (p) =>
+    p >= insertAt ? p + 1 : p
+  );
+
   return {
     pageUrls,
     pagePaths,
     sections: state.sections ? sections : undefined,
+    objectLinks,
   };
 };
 
@@ -84,11 +118,21 @@ export const deletePage = (
     })
     .filter((s) => s.pageCount > 0);
 
+  // Links whose source page or target page is the deleted page are dropped
+  // (the source object is gone with the page, and a hotspot to a missing
+  // page would jump to nothing). Surviving links pointing past `index`
+  // shift left by one.
+  const objectLinks = remapLinkPages(state.objectLinks, (p) => {
+    if (p === index) return null;
+    return p > index ? p - 1 : p;
+  });
+
   return {
     state: {
       pageUrls,
       pagePaths,
       sections: state.sections ? sections : undefined,
+      objectLinks,
     },
     removedPath,
   };
@@ -114,7 +158,9 @@ export const canMovePage = (
 };
 
 /** Swap page `index` with its neighbor in `dir`. Sections are unchanged
- * (movement is constrained to within a section by `canMovePage`). */
+ * (movement is constrained to within a section by `canMovePage`). Links
+ * on either swapped page have their source/target indices swapped in
+ * lockstep so they keep pointing at the same page content. */
 export const movePage = (
   state: PageListState,
   index: number,
@@ -126,7 +172,19 @@ export const movePage = (
   const pagePaths = [...state.pagePaths];
   [pageUrls[index], pageUrls[target]] = [pageUrls[target], pageUrls[index]];
   [pagePaths[index], pagePaths[target]] = [pagePaths[target], pagePaths[index]];
-  return { pageUrls, pagePaths, sections: state.sections };
+
+  const objectLinks = remapLinkPages(state.objectLinks, (p) => {
+    if (p === index) return target;
+    if (p === target) return index;
+    return p;
+  });
+
+  return {
+    pageUrls,
+    pagePaths,
+    sections: state.sections,
+    objectLinks,
+  };
 };
 
 /** A blank white page SVG (renders via <img> and is editable like any page). */
