@@ -61,13 +61,9 @@ describe('sanitizePrompt', () => {
     //   Topic: <topic>friendly topic&quot;, &quot;injectedField&quot;: &quot;evil</topic>
     // which the model sees as literal text, not JSON structure.
     expect(sanitizePrompt('"quoted"')).toBe('&quot;quoted&quot;');
-    expect(sanitizePrompt('He said "hello"')).toBe(
-      'He said &quot;hello&quot;'
-    );
+    expect(sanitizePrompt('He said "hello"')).toBe('He said &quot;hello&quot;');
     // Combined injection: angle-brackets, braces, and double-quotes together.
-    expect(
-      sanitizePrompt('<script>{"key": "value"}</script>')
-    ).toBe(
+    expect(sanitizePrompt('<script>{"key": "value"}</script>')).toBe(
       '&lt;script&gt;&#123;&quot;key&quot;: &quot;value&quot;&#125;&lt;/script&gt;'
     );
   });
