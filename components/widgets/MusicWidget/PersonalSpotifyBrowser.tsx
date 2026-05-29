@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { WidgetData, MusicConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
@@ -43,10 +43,20 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   // Holds a tap-to-play pick when the user taps a row BEFORE the SDK device
   // has been confirmed-registered by useSpotifyWebPlayback's polling. The
   // effect below flushes it the moment `playback.deviceId` becomes available.
-  // Without this, taps during the 0-15s registration window silently no-op
-  // (handlePlay's `if (!playback.deviceId) return`), which reads to the
-  // teacher as "nothing happened — let me click again."
+  // Without this, taps during the 0-15s registration window silently no-op,
+  // which reads to the teacher as "nothing happened — let me click again."
   const pendingPickRef = useRef<SpotifyPlayablePick | null>(null);
+  // Mirror playback.deviceId into a ref so async paths (handlePlay's
+  // post-await check, the flush effect's post-await re-check) always see
+  // the current value rather than the closure-captured stale one. Synced
+  // via useLayoutEffect to match the codebase pattern (and satisfy the
+  // 'no ref access in render' lint rule); useLayoutEffect commits before
+  // any callback that the next render queues, so the ref is fresh by the
+  // time any user-triggered handler runs.
+  const latestDeviceIdRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    latestDeviceIdRef.current = playback.deviceId;
+  });
 
   const startPick = useCallback(
     async (pick: SpotifyPlayablePick, token: string, deviceId: string) => {
@@ -71,22 +81,23 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
       if (!isPremium) return;
       const token = await getAccessToken();
       if (!token) return;
-      if (!playback.deviceId) {
+      // Read through the ref AFTER the await — playback.deviceId may have
+      // flipped (not_ready cleared it, or registration just finished)
+      // between callback creation and now. Captured-by-closure would be
+      // stale.
+      const currentDeviceId = latestDeviceIdRef.current;
+      if (!currentDeviceId) {
         // Device not yet confirmed by Spotify Connect — queue the pick and
         // let the effect flush it as soon as deviceId arrives.
         pendingPickRef.current = pick;
         return;
       }
-      await startPick(pick, token, playback.deviceId);
+      await startPick(pick, token, currentDeviceId);
     },
-    [
-      updateWidget,
-      widget.id,
-      isPremium,
-      getAccessToken,
-      playback.deviceId,
-      startPick,
-    ]
+    // playback.deviceId is intentionally omitted: we read it through
+    // latestDeviceIdRef.current, which is always fresh. Including it would
+    // recreate the callback on every device change for no benefit.
+    [updateWidget, widget.id, isPremium, getAccessToken, startPick]
   );
 
   // Flush a queued tap when the SDK device finally registers. Only fires
@@ -99,9 +110,9 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
     void (async () => {
       const token = await getAccessToken();
       if (!token) return;
-      // Re-check deviceId after the token await — could have been cleared
+      // Re-check via the ref — playback.deviceId may have been cleared
       // (not_ready, sign-out) while we were resolving the token.
-      const id = playback.deviceId;
+      const id = latestDeviceIdRef.current;
       if (!id) {
         pendingPickRef.current = queued;
         return;
