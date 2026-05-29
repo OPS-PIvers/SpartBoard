@@ -16,12 +16,18 @@ const ESCAPE_MAP: Record<string, string> = {
   '[': '&#91;',
   ']': '&#93;',
   '`': '&#96;',
+  // `"` is escaped to prevent JSON-context prompt injection: AI generators
+  // that return `application/json` responses embed the sanitized user input
+  // inside XML-like delimiters (e.g. <topic>…</topic>), but an unescaped
+  // double-quote lets an attacker close a JSON string and append rogue fields.
+  // Encoding `"` as `&quot;` makes it opaque to the model's JSON layer.
+  '"': '&quot;',
 };
 
 export const sanitizePrompt = (text?: string): string => {
   if (typeof text !== 'string' || text.length === 0) return '';
   return text
-    .replace(/[&<>{}[\]`]/g, (ch) => ESCAPE_MAP[ch])
+    .replace(/[&<>{}[\]`"]/g, (ch) => ESCAPE_MAP[ch])
     .replace(/[\r\n]+/g, ' ')
     .trim();
 };
