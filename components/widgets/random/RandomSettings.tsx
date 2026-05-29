@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -34,6 +34,11 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, activeDashboard, rosters, activeRosterId, addToast } =
     useDashboard();
   const { showConfirm } = useDialog();
+  const groupSizeId = useId();
+  const homeGroupCountId = useId();
+  const expertGroupCountId = useId();
+  const firstNamesId = useId();
+  const lastNamesId = useId();
 
   const stationsWidget = activeDashboard?.widgets.find(
     (w) => w.type === 'stations'
@@ -419,11 +424,12 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'groups' && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <SettingsLabel icon={Hash}>
+          <SettingsLabel icon={Hash} htmlFor={groupSizeId}>
             {t('widgets.random.groupSize', { defaultValue: 'Group Size' })}
           </SettingsLabel>
           <div className="flex items-center gap-4">
             <input
+              id={groupSizeId}
               type="range"
               min="2"
               max="20"
@@ -446,13 +452,14 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       )}
       {mode === 'jigsaw' && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <SettingsLabel icon={Hash}>
+          <SettingsLabel icon={Hash} htmlFor={homeGroupCountId}>
             {t('widgets.random.homeGroupCount', {
               defaultValue: 'Number of Home Groups',
             })}
           </SettingsLabel>
           <div className="flex items-center gap-4">
             <input
+              id={homeGroupCountId}
               type="range"
               min="2"
               max="20"
@@ -476,13 +483,14 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'jigsaw' && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <SettingsLabel icon={Puzzle}>
+          <SettingsLabel icon={Puzzle} htmlFor={expertGroupCountId}>
             {t('widgets.random.expertGroupCount', {
               defaultValue: 'Number of Expert Groups',
             })}
           </SettingsLabel>
           <div className="flex items-center gap-4">
             <input
+              id={expertGroupCountId}
               type="range"
               min="2"
               max="20"
@@ -530,8 +538,9 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <SettingsLabel>First Names</SettingsLabel>
+              <SettingsLabel htmlFor={firstNamesId}>First Names</SettingsLabel>
               <textarea
+                id={firstNamesId}
                 value={localFirstNames}
                 onChange={(e) => setLocalFirstNames(e.target.value)}
                 onBlur={() => {
@@ -551,8 +560,9 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               />
             </div>
             <div>
-              <SettingsLabel>Last Names</SettingsLabel>
+              <SettingsLabel htmlFor={lastNamesId}>Last Names</SettingsLabel>
               <textarea
+                id={lastNamesId}
                 value={localLastNames}
                 onChange={(e) => setLocalLastNames(e.target.value)}
                 onBlur={() => {
