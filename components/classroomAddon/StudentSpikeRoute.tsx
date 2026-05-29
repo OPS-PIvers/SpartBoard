@@ -54,6 +54,9 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   const courseId = params.get('courseId') ?? '';
   const itemId = params.get('itemId') ?? '';
   const itemType = params.get('itemType') ?? 'courseWork';
+  // The student VIEW iframe carries an attachmentId; getAddOnContext requires it
+  // for non-discovery launches.
+  const attachmentId = params.get('attachmentId') ?? '';
 
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -124,6 +127,7 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
           courseId: string;
           itemId: string;
           itemType: string;
+          attachmentId: string;
         },
         ClassroomAddonLoginResult
       >(functions, 'classroomAddonLoginV1');
@@ -132,6 +136,7 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
         courseId,
         itemId,
         itemType,
+        attachmentId,
       });
 
       append(`Server says role=${data.role}, studentRole=${data.studentRole}.`);
@@ -153,7 +158,7 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
     } finally {
       setBusy(false);
     }
-  }, [append, courseId, itemId, itemType, loginHint]);
+  }, [append, courseId, itemId, itemType, attachmentId, loginHint]);
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 p-6 font-sans">
@@ -180,6 +185,10 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
             </span>
             <span className="text-slate-400">itemType</span>
             <span className="font-mono">{itemType}</span>
+            <span className="text-slate-400">attachmentId</span>
+            <span className="font-mono break-all">
+              {attachmentId === '' ? '(missing)' : attachmentId}
+            </span>
             <span className="text-slate-400">login_hint</span>
             <span className="font-mono break-all">{loginHint ?? '(none)'}</span>
           </div>

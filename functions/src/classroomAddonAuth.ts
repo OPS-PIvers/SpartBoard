@@ -74,6 +74,9 @@ interface ClassroomAddonLoginData {
   courseId?: unknown;
   itemId?: unknown;
   itemType?: unknown;
+  // Present in the student/teacher VIEW iframes (not discovery); getAddOnContext
+  // requires it for those launches.
+  attachmentId?: unknown;
 }
 
 interface CreateAttachmentData {
@@ -146,24 +149,30 @@ export const classroomAddonNet = {
     courseId: string,
     itemType: ItemType,
     itemId: string,
-    addOnToken?: string
+    addOnToken?: string,
+    attachmentId?: string
   ): Promise<{
     ok: boolean;
     status: number;
     context: AddOnContext | null;
     errorBody?: string;
   }> {
-    // `addOnToken` is present only in the discovery / link-upgrade iframes; the
-    // docs say to pass it as a query param ONLY when present.
     // REST path segment is `addOnContext` — the method is named getAddOnContext
     // but the `get` is the HTTP verb, not part of the path. A literal
     // `/getAddOnContext` returns a generic HTML 404 from Google's front end.
     const base =
       `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
       `/${itemType}/${encodeURIComponent(itemId)}/addOnContext`;
-    const url = addOnToken
-      ? `${base}?addOnToken=${encodeURIComponent(addOnToken)}`
-      : base;
+    // Iframe-dependent query params: `addOnToken` is present ONLY in the
+    // discovery / link-upgrade iframes; `attachmentId` is REQUIRED for every
+    // other iframe (student view, teacher view, student-work review). Sending
+    // neither yields a 400 "Attachment ID must be specified." Pass whichever
+    // the caller has.
+    const qs = new URLSearchParams();
+    if (addOnToken) qs.set('addOnToken', addOnToken);
+    if (attachmentId) qs.set('attachmentId', attachmentId);
+    const query = qs.toString();
+    const url = query ? `${base}?${query}` : base;
     try {
       const res = await fetch(url, {
         headers: bearer(accessToken),
@@ -266,6 +275,8 @@ export const classroomAddonLoginV1 = onCall(
     const itemType: ItemType = isItemType(data.itemType)
       ? data.itemType
       : 'courseWork';
+    const attachmentId =
+      typeof data.attachmentId === 'string' ? data.attachmentId : '';
 
     if (!accessToken) {
       throw new HttpsError('invalid-argument', 'accessToken is required.');
@@ -283,12 +294,16 @@ export const classroomAddonLoginV1 = onCall(
       throw new HttpsError('internal', 'Server configuration missing.');
     }
 
-    // 1. Trust anchor: confirm the launch + role via getAddOnContext.
+    // 1. Trust anchor: confirm the launch + role via getAddOnContext. The
+    //    student VIEW iframe carries an `attachmentId` (no addOnToken), and
+    //    getAddOnContext requires it — forward it.
     const ctxResult = await classroomAddonNet.fetchAddOnContext(
       accessToken,
       courseId,
       itemType,
-      itemId
+      itemId,
+      undefined,
+      attachmentId || undefined
     );
     if (!ctxResult.ok || !ctxResult.context) {
       // 401/403 → bad/expired access token; other non-2xx → bad launch.

@@ -231,6 +231,28 @@ describe('classroomAddonLoginV1 (spike)', () => {
       callLogin({ data: { accessToken: 'at', itemId: 'I1' } })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
   });
+
+  it('forwards attachmentId to getAddOnContext (the student view requires it)', async () => {
+    const ctxSpy = vi
+      .spyOn(classroomAddonNet, 'fetchAddOnContext')
+      .mockResolvedValue(STUDENT_CTX);
+    vi.spyOn(classroomAddonNet, 'fetchUserInfo').mockResolvedValue(
+      VALID_STUDENT_INFO
+    );
+
+    await callLogin({ data: { ...baseData, attachmentId: 'ATT1' } });
+
+    // The student launch has no addOnToken (5th arg undefined) but must pass
+    // attachmentId (6th arg).
+    expect(ctxSpy).toHaveBeenCalledWith(
+      'at',
+      'C1',
+      'courseWork',
+      'I1',
+      undefined,
+      'ATT1'
+    );
+  });
 });
 
 // createClassroomAttachment — teacher-discovery spike. The trust anchor is the
@@ -405,5 +427,38 @@ describe('classroomAddonNet.fetchAddOnContext URL construction', () => {
     expect(calledUrl).not.toContain('/getAddOnContext');
     // addOnToken is passed as a query param when present.
     expect(calledUrl).toContain('addOnToken=addon-tok');
+  });
+
+  it('sends attachmentId (and no addOnToken) for a student-view launch', async () => {
+    let calledUrl = '';
+    const fetchMock = vi.fn(async (url: unknown) => {
+      calledUrl = url as string;
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          courseId: 'C1',
+          itemId: 'I1',
+          studentContext: { submissionId: 'S1' },
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    // Student/teacher view launches have no addOnToken but DO carry an
+    // attachmentId, which getAddOnContext requires (else 400 INVALID_ARGUMENT
+    // "Attachment ID must be specified.").
+    await classroomAddonNet.fetchAddOnContext(
+      'tok',
+      'C1',
+      'courseWork',
+      'I1',
+      undefined,
+      'ATT1'
+    );
+
+    expect(calledUrl).toContain('/courseWork/I1/addOnContext');
+    expect(calledUrl).toContain('attachmentId=ATT1');
+    expect(calledUrl).not.toContain('addOnToken');
   });
 });
