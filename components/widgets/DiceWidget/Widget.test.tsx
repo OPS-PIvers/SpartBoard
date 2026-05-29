@@ -97,4 +97,43 @@ describe('DiceWidget', () => {
 
     vi.useRealTimers();
   });
+
+  it('persists lastRoll with the current diceCount when count changes mid-roll', () => {
+    // Regression test for stale-closure bug: roll() captured diceCount from
+    // the render scope. If props changed from 2→4 while the interval was
+    // running, the final updateWidget call used the stale count (2) instead
+    // of the new count (4), persisting a lastRoll array with the wrong length.
+    vi.useFakeTimers();
+
+    const { rerender } = render(<DiceWidget widget={createWidgetData(2)} />);
+
+    const rollButton = screen.getByRole('button', { name: /Roll Dice/i });
+    act(() => {
+      rollButton.click();
+    });
+
+    // Advance mid-roll (interval fires every 80ms, 12 ticks total = 960ms)
+    act(() => {
+      vi.advanceTimersByTime(400);
+    });
+
+    // Change dice count to 4 while the roll is in-flight
+    rerender(<DiceWidget widget={createWidgetData(4)} />);
+
+    // Complete the roll
+    act(() => {
+      vi.advanceTimersByTime(1000);
+    });
+
+    // The last updateWidget call should persist a lastRoll array whose length
+    // matches the NEW diceCount (4), not the stale one (2).
+    const allCalls = mockUpdateWidget.mock.calls;
+    const lastCall = allCalls[allCalls.length - 1];
+    const savedLastRoll = (lastCall[1] as { config: { lastRoll: number[] } })
+      .config.lastRoll;
+
+    expect(savedLastRoll).toHaveLength(4);
+
+    vi.useRealTimers();
+  });
 });
