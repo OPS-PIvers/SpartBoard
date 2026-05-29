@@ -26,7 +26,10 @@ export const LegalPageLayout: React.FC<LegalPageLayoutProps> = ({
   lastUpdated,
   children,
 }) => (
-  <div className="flex min-h-screen flex-col bg-slate-50 font-sans text-slate-800">
+  // The app locks `body { overflow: hidden; height: 100% }` (dashboard never
+  // scrolls), so a `min-h-screen` page would be clipped. Make this layout its
+  // own viewport-height scroll container instead.
+  <div className="flex h-screen flex-col overflow-y-auto bg-slate-50 font-sans text-slate-800">
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-3xl items-center justify-between px-6 py-4">
         <a href="/" className="flex items-center gap-2">
