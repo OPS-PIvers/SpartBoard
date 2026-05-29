@@ -1040,16 +1040,16 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     // [0, maxPoints] so the Classroom grade matches the quiz exactly.
     const grades = completed
       .filter((r) => !!r.studentUid)
-      .map((r) => ({
-        pseudonymUid: r.studentUid,
-        pointsEarned: Math.max(
-          0,
-          Math.min(
-            maxPoints,
-            Math.round(getEarnedPoints(r, quiz.questions, session))
-          )
-        ),
-      }));
+      .map((r) => {
+        // Guard against a non-finite score (e.g. missing answers) so it can't
+        // propagate NaN through the clamp and make the CF reject the entry.
+        const rawPoints = getEarnedPoints(r, quiz.questions, session);
+        const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
+        return {
+          pseudonymUid: r.studentUid,
+          pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(earned))),
+        };
+      });
 
     if (grades.length === 0) {
       addToast('No completed submissions to push yet', 'info');

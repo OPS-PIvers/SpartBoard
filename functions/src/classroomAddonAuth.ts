@@ -77,8 +77,8 @@ const API_TIMEOUT_MS = 10000;
  *   `classroom_grade_links/{pseudonymUid}/submissions/{submissionId}`
  * Fields: { courseId, itemId, attachmentId, submissionId, teacherUid,
  * updatedAt } — all Classroom/Firebase ids, NEVER a name or email (PII gate).
- * Written transiently during the student handshake; read by pushClassroomGrade
- * (and any completion orchestrator) to mint the teacher's offline access token
+ * Written transiently during the student handshake; read by
+ * pushClassroomGradesForAssignment to mint the teacher's offline access token
  * and PATCH the DRAFT grade with no teacher present.
  */
 const GRADE_SYNC_COLLECTION = 'classroom_grade_links';
@@ -762,12 +762,16 @@ export const createClassroomAttachment = onCall(
 
     // Grade-passback point value. Only courseWork items support graded student
     // work, so we only attach grade-sync fields for courseWork. A supplied
-    // maxPoints must be a positive integer; otherwise default to 100.
+    // maxPoints must be a positive integer; otherwise default to 100. Coerce
+    // with Number() first so a stringified number from a client (e.g. "20")
+    // isn't silently dropped to the default (which would mismatch the scale).
+    const coercedMaxPoints = Number(data.maxPoints);
     const suppliedMaxPoints =
-      typeof data.maxPoints === 'number' &&
-      Number.isFinite(data.maxPoints) &&
-      data.maxPoints > 0
-        ? Math.floor(data.maxPoints)
+      data.maxPoints !== undefined &&
+      data.maxPoints !== null &&
+      Number.isFinite(coercedMaxPoints) &&
+      coercedMaxPoints > 0
+        ? Math.floor(coercedMaxPoints)
         : DEFAULT_MAX_POINTS;
 
     // Trust anchor: confirm the launch context (passing the addOnToken, which
@@ -989,74 +993,72 @@ export const pushClassroomGradesForAssignment = onCall(
       );
     }
 
-    const results: BatchGradeResult[] = [];
-    // Sequential: a class is ≤ ~40 students, so correctness/simplicity beats
-    // concurrency here, and one PATCH failure must never abort the others.
-    for (const entry of rawGrades) {
-      const pseudonymUid =
-        typeof entry?.pseudonymUid === 'string' ? entry.pseudonymUid : '';
-      const pointsEarnedRaw =
-        typeof entry?.pointsEarned === 'number' ? entry.pointsEarned : NaN;
+    // Resolve + PATCH every student concurrently (the offline token is minted
+    // once above). Each entry has its own try/catch so one student's failure —
+    // or a student who never opened the attachment — is recorded per-entry and
+    // never aborts the rest. Promise.all preserves input order, so `results`
+    // lines up 1:1 with `grades`. MAX_BATCH_GRADES bounds the fan-out.
+    const results: BatchGradeResult[] = await Promise.all(
+      rawGrades.map(async (entry): Promise<BatchGradeResult> => {
+        const pseudonymUid =
+          typeof entry?.pseudonymUid === 'string' ? entry.pseudonymUid : '';
+        const pointsEarnedRaw =
+          typeof entry?.pointsEarned === 'number' ? entry.pointsEarned : NaN;
 
-      if (!pseudonymUid) {
-        results.push({
-          pseudonymUid: '',
-          ok: false,
-          reason: 'missing pseudonymUid',
-        });
-        continue;
-      }
-      if (!Number.isFinite(pointsEarnedRaw) || pointsEarnedRaw < 0) {
-        results.push({
-          pseudonymUid,
-          ok: false,
-          reason: 'invalid pointsEarned',
-        });
-        continue;
-      }
-      const pointsEarned = Math.round(pointsEarnedRaw);
-
-      try {
-        const submissionId = await resolveSubmissionId(
-          db,
-          pseudonymUid,
-          courseId,
-          itemId,
-          attachmentId
-        );
-        if (!submissionId) {
-          // Student never opened the attachment → no Classroom submission to
-          // grade. Skip, don't fail the batch.
-          results.push({
-            pseudonymUid,
+        if (!pseudonymUid) {
+          return {
+            pseudonymUid: '',
             ok: false,
-            reason: 'no matching submission',
-          });
-          continue;
+            reason: 'missing pseudonymUid',
+          };
         }
-        const patchResult = await classroomAddonNet.patchStudentSubmissionGrade(
-          accessToken,
-          courseId,
-          itemId,
-          attachmentId,
-          submissionId,
-          pointsEarned
-        );
-        results.push({
-          pseudonymUid,
-          ok: patchResult.ok,
-          status: patchResult.status,
-          ...(patchResult.ok ? {} : { reason: 'upstream PATCH failed' }),
-        });
-      } catch (err) {
-        // A per-entry Firestore/lookup error must not abort the rest.
-        console.warn(
-          '[pushClassroomGradesForAssignment] entry failed (non-fatal):',
-          err
-        );
-        results.push({ pseudonymUid, ok: false, reason: 'lookup error' });
-      }
-    }
+        if (!Number.isFinite(pointsEarnedRaw) || pointsEarnedRaw < 0) {
+          return { pseudonymUid, ok: false, reason: 'invalid pointsEarned' };
+        }
+        const pointsEarned = Math.round(pointsEarnedRaw);
+
+        try {
+          const submissionId = await resolveSubmissionId(
+            db,
+            pseudonymUid,
+            courseId,
+            itemId,
+            attachmentId
+          );
+          if (!submissionId) {
+            // Student never opened the attachment → no Classroom submission to
+            // grade. Skip, don't fail the batch.
+            return {
+              pseudonymUid,
+              ok: false,
+              reason: 'no matching submission',
+            };
+          }
+          const patchResult =
+            await classroomAddonNet.patchStudentSubmissionGrade(
+              accessToken,
+              courseId,
+              itemId,
+              attachmentId,
+              submissionId,
+              pointsEarned
+            );
+          return {
+            pseudonymUid,
+            ok: patchResult.ok,
+            status: patchResult.status,
+            ...(patchResult.ok ? {} : { reason: 'upstream PATCH failed' }),
+          };
+        } catch (err) {
+          // A per-entry Firestore/lookup error must not abort the rest.
+          console.warn(
+            '[pushClassroomGradesForAssignment] entry failed (non-fatal):',
+            err
+          );
+          return { pseudonymUid, ok: false, reason: 'lookup error' };
+        }
+      })
+    );
 
     const pushed = results.filter((r) => r.ok).length;
     const skipped = results.length - pushed;
