@@ -1,6 +1,10 @@
 /**
- * classroomAddonLoginV1 — SPIKE / de-risk slice for the Google Classroom
- * Add-on student handshake.
+ * Google Classroom Add-on SPIKE / de-risk slice. Two callables:
+ *   - classroomAddonLoginV1 (student handshake → mints a studentRole token)
+ *   - createClassroomAttachment (teacher discovery → creates an attachment)
+ * They share the getAddOnContext trust anchor + the `classroomAddonNet` seam.
+ *
+ * classroomAddonLoginV1 — student handshake.
  *
  * Proves the riskiest part of the integration end-to-end:
  *   client (inside the Classroom student iframe) obtains a Google OAuth access
@@ -72,6 +76,22 @@ interface ClassroomAddonLoginData {
   itemType?: unknown;
 }
 
+interface CreateAttachmentData {
+  accessToken?: unknown;
+  courseId?: unknown;
+  itemId?: unknown;
+  itemType?: unknown;
+  addOnToken?: unknown;
+  origin?: unknown;
+}
+
+/** `EmbedUri` view-URI objects + title, per addOnAttachments.create. */
+interface AddOnAttachmentBody {
+  title: string;
+  teacherViewUri: { uri: string };
+  studentViewUri: { uri: string };
+}
+
 function bearer(accessToken: string): Record<string, string> {
   return { Authorization: `Bearer ${accessToken}` };
 }
@@ -108,6 +128,13 @@ function isItemType(v: unknown): v is ItemType {
   );
 }
 
+/** Validate a client-supplied origin against the same allowlist as CORS. */
+function isAllowedOrigin(origin: string): boolean {
+  return ALLOWED_ORIGINS.some((o) =>
+    typeof o === 'string' ? o === origin : o.test(origin)
+  );
+}
+
 /**
  * Seam for the two outbound Google calls. Exported as a mutable object so the
  * unit test can `vi.spyOn(classroomAddonNet, 'fetchAddOnContext')` without a
@@ -118,11 +145,17 @@ export const classroomAddonNet = {
     accessToken: string,
     courseId: string,
     itemType: ItemType,
-    itemId: string
+    itemId: string,
+    addOnToken?: string
   ): Promise<{ ok: boolean; status: number; context: AddOnContext | null }> {
-    const url =
+    // `addOnToken` is present only in the discovery / link-upgrade iframes; the
+    // docs say to pass it as a query param ONLY when present.
+    const base =
       `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
       `/${itemType}/${encodeURIComponent(itemId)}/getAddOnContext`;
+    const url = addOnToken
+      ? `${base}?addOnToken=${encodeURIComponent(addOnToken)}`
+      : base;
     try {
       const res = await fetch(url, {
         headers: bearer(accessToken),
@@ -157,6 +190,37 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn('[classroomAddonLoginV1] userinfo fetch failed:', err);
       return null;
+    }
+  },
+
+  async createAttachment(
+    accessToken: string,
+    courseId: string,
+    itemType: ItemType,
+    itemId: string,
+    addOnToken: string,
+    body: AddOnAttachmentBody
+  ): Promise<{ ok: boolean; status: number; id: string | null }> {
+    const url =
+      `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
+      `/${itemType}/${encodeURIComponent(itemId)}/addOnAttachments` +
+      `?addOnToken=${encodeURIComponent(addOnToken)}`;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { ...bearer(accessToken), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) return { ok: false, status: res.status, id: null };
+      const json = (await res.json()) as { id?: string };
+      return { ok: true, status: res.status, id: json.id ?? null };
+    } catch (err) {
+      console.warn(
+        '[createClassroomAttachment] addOnAttachments create failed:',
+        err
+      );
+      return { ok: false, status: 0, id: null };
     }
   },
 };
@@ -283,5 +347,105 @@ export const classroomAddonLoginV1 = onCall(
       customToken,
       submissionId,
     };
+  }
+);
+
+/**
+ * createClassroomAttachment — teacher-discovery spike. Called from the
+ * Attachment Setup (discovery) iframe with the teacher's OAuth access token.
+ * Confirms via `getAddOnContext` that the launch is a TEACHER, then creates an
+ * add-on attachment whose student/teacher view URIs point back at SpartBoard.
+ * View URIs are derived from a SERVER-validated origin, never trusted blindly
+ * from the client (mirrors the ALLOWED_ORIGINS gate).
+ */
+export const createClassroomAttachment = onCall(
+  {
+    memory: '256MiB',
+    invoker: 'public',
+    cors: ALLOWED_ORIGINS,
+  },
+  async (request) => {
+    const data = (request.data ?? {}) as CreateAttachmentData;
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
+    const courseId = typeof data.courseId === 'string' ? data.courseId : '';
+    const itemId = typeof data.itemId === 'string' ? data.itemId : '';
+    const addOnToken =
+      typeof data.addOnToken === 'string' ? data.addOnToken : '';
+    const origin = typeof data.origin === 'string' ? data.origin : '';
+    const itemType: ItemType = isItemType(data.itemType)
+      ? data.itemType
+      : 'courseWork';
+
+    if (!accessToken) {
+      throw new HttpsError('invalid-argument', 'accessToken is required.');
+    }
+    if (!courseId || !itemId) {
+      throw new HttpsError(
+        'invalid-argument',
+        'courseId and itemId are required.'
+      );
+    }
+    // The discovery iframe always carries an addOnToken; create needs it.
+    if (!addOnToken) {
+      throw new HttpsError('invalid-argument', 'addOnToken is required.');
+    }
+    // The view URIs are built from this origin, so it must be one of ours —
+    // never relay an arbitrary client-supplied origin into a stored URI.
+    if (!origin || !isAllowedOrigin(origin)) {
+      throw new HttpsError('invalid-argument', 'origin is missing or invalid.');
+    }
+
+    // Trust anchor: confirm the launch context (passing the addOnToken, which
+    // is required in the discovery iframe).
+    const ctxResult = await classroomAddonNet.fetchAddOnContext(
+      accessToken,
+      courseId,
+      itemType,
+      itemId,
+      addOnToken
+    );
+    if (!ctxResult.ok || !ctxResult.context) {
+      throw new HttpsError(
+        'unauthenticated',
+        'Could not validate the Classroom launch.'
+      );
+    }
+    // Only a TEACHER launch may create an attachment. Never infer role from a
+    // query param; a student who reaches this route gets no attachment.
+    if (!ctxResult.context.teacherContext) {
+      throw new HttpsError(
+        'permission-denied',
+        ctxResult.context.studentContext
+          ? 'Students cannot create Classroom attachments.'
+          : 'Only a teacher launch can create a Classroom attachment.'
+      );
+    }
+
+    const body: AddOnAttachmentBody = {
+      title: 'SpartBoard (spike)',
+      teacherViewUri: { uri: `${origin}/classroom-addon/teacher` },
+      studentViewUri: { uri: `${origin}/classroom-addon/student` },
+    };
+    const createResult = await classroomAddonNet.createAttachment(
+      accessToken,
+      courseId,
+      itemType,
+      itemId,
+      addOnToken,
+      body
+    );
+    if (!createResult.ok || !createResult.id) {
+      console.error(
+        '[createClassroomAttachment] create failed, status:',
+        createResult.status
+      );
+      throw new HttpsError(
+        'internal',
+        'Failed to create the Classroom attachment.'
+      );
+    }
+
+    return { attachmentId: createResult.id };
   }
 );

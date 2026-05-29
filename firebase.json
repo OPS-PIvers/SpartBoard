@@ -46,6 +46,15 @@
         ]
       },
       {
+        "source": "/classroom-addon/**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "frame-ancestors 'self' https://classroom.google.com https://*.google.com https://*.googleusercontent.com"
+          }
+        ]
+      },
+      {
         "source": "**/*.@(jpg|jpeg|gif|png|svg|webp|ico)",
         "headers": [
           {

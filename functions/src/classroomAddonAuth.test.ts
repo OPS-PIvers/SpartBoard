@@ -73,7 +73,11 @@ vi.mock('firebase-functions/params', () => ({
 }));
 
 // Imported AFTER the mocks so the module picks them up.
-import { classroomAddonLoginV1, classroomAddonNet } from './classroomAddonAuth';
+import {
+  classroomAddonLoginV1,
+  createClassroomAttachment,
+  classroomAddonNet,
+} from './classroomAddonAuth';
 
 // In tests the onCall mock returns the raw handler, so this is callable.
 const callLogin = classroomAddonLoginV1 as unknown as (req: {
@@ -226,5 +230,134 @@ describe('classroomAddonLoginV1 (spike)', () => {
     await expect(
       callLogin({ data: { accessToken: 'at', itemId: 'I1' } })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+// createClassroomAttachment — teacher-discovery spike. The trust anchor is the
+// same getAddOnContext call, but here the invariant flips: an attachment is
+// created ONLY when the launch is a TEACHER. A student (or unknown) launch must
+// never be able to create an attachment.
+const callAttach = createClassroomAttachment as unknown as (req: {
+  data: unknown;
+}) => Promise<{ attachmentId: string }>;
+
+const TEACHER_CTX = {
+  ok: true,
+  status: 200,
+  context: { courseId: 'C1', itemId: 'I1', teacherContext: {} },
+};
+
+const attachData = {
+  accessToken: 'teacher-at',
+  courseId: 'C1',
+  itemId: 'I1',
+  itemType: 'courseWork',
+  addOnToken: 'addon-tok',
+  origin: 'https://spartboard.web.app',
+};
+
+describe('createClassroomAttachment (spike)', () => {
+  it('creates an attachment for a teacher launch and returns its id', async () => {
+    const ctxSpy = vi
+      .spyOn(classroomAddonNet, 'fetchAddOnContext')
+      .mockResolvedValue(TEACHER_CTX);
+    const createSpy = vi
+      .spyOn(classroomAddonNet, 'createAttachment')
+      .mockResolvedValue({ ok: true, status: 200, id: 'ATT123' });
+
+    const res = await callAttach({ data: attachData });
+
+    expect(res.attachmentId).toBe('ATT123');
+    // getAddOnContext must receive the addOnToken in the discovery iframe.
+    expect(ctxSpy).toHaveBeenCalledWith(
+      'teacher-at',
+      'C1',
+      'courseWork',
+      'I1',
+      'addon-tok'
+    );
+    // View URIs are derived from the validated origin, not client-supplied.
+    const body = createSpy.mock.calls[0][5] as {
+      teacherViewUri: { uri: string };
+      studentViewUri: { uri: string };
+    };
+    expect(body.teacherViewUri.uri).toBe(
+      'https://spartboard.web.app/classroom-addon/teacher'
+    );
+    expect(body.studentViewUri.uri).toBe(
+      'https://spartboard.web.app/classroom-addon/student'
+    );
+  });
+
+  it('refuses to create an attachment for a STUDENT launch', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      STUDENT_CTX
+    );
+    const createSpy = vi
+      .spyOn(classroomAddonNet, 'createAttachment')
+      .mockResolvedValue({ ok: true, status: 200, id: 'ATT123' });
+
+    await expect(callAttach({ data: attachData })).rejects.toMatchObject({
+      code: 'permission-denied',
+    });
+    // The create call must NEVER fire for a non-teacher launch.
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects when getAddOnContext fails (bad/expired teacher token)', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue({
+      ok: false,
+      status: 401,
+      context: null,
+    });
+    const createSpy = vi.spyOn(classroomAddonNet, 'createAttachment');
+
+    await expect(callAttach({ data: attachData })).rejects.toMatchObject({
+      code: 'unauthenticated',
+    });
+    expect(createSpy).not.toHaveBeenCalled();
+  });
+
+  it('rejects an origin that is not in the allowlist', async () => {
+    const ctxSpy = vi.spyOn(classroomAddonNet, 'fetchAddOnContext');
+
+    await expect(
+      callAttach({
+        data: { ...attachData, origin: 'https://evil.example.com' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    // Bad origin is rejected before any network call.
+    expect(ctxSpy).not.toHaveBeenCalled();
+  });
+
+  it('requires accessToken, courseId, itemId, addOnToken, and origin', async () => {
+    for (const missing of [
+      'accessToken',
+      'courseId',
+      'itemId',
+      'addOnToken',
+      'origin',
+    ] as const) {
+      const data = { ...attachData };
+      delete (data as Record<string, unknown>)[missing];
+      await expect(callAttach({ data })).rejects.toMatchObject({
+        code: 'invalid-argument',
+      });
+    }
+  });
+
+  it('surfaces an error when the attachment create call fails', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'createAttachment').mockResolvedValue({
+      ok: false,
+      status: 500,
+      id: null,
+    });
+
+    await expect(callAttach({ data: attachData })).rejects.toMatchObject({
+      code: 'internal',
+    });
   });
 });

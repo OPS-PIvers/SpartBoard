@@ -4342,7 +4342,11 @@ export const pinLoginV1 = onCall(
   }
 );
 
-// SPIKE — Google Classroom Add-on student handshake de-risk slice.
-// Defined in its own module to keep this file from growing; re-exported here
-// so Firebase deploys it. See functions/src/classroomAddonAuth.ts.
-export { classroomAddonLoginV1 } from './classroomAddonAuth';
+// SPIKE — Google Classroom Add-on de-risk slice (student handshake + teacher
+// discovery attachment-create). Defined in their own module to keep this file
+// from growing; re-exported here so Firebase deploys them. See
+// functions/src/classroomAddonAuth.ts.
+export {
+  classroomAddonLoginV1,
+  createClassroomAttachment,
+} from './classroomAddonAuth';

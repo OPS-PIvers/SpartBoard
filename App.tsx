@@ -62,6 +62,14 @@ const ClassroomAddonStudentSpike = lazy(() =>
     default: module.ClassroomAddonStudentSpike,
   }))
 );
+// SPIKE — Classroom Add-on teacher discovery de-risk page (throwaway).
+const ClassroomAddonTeacherSpike = lazy(() =>
+  import('./components/classroomAddon/TeacherDiscoveryRoute').then(
+    (module) => ({
+      default: module.ClassroomAddonTeacherSpike,
+    })
+  )
+);
 const ActivityWallStudentApp = lazy(() =>
   import('./components/activityWall/ActivityWallStudentApp').then((module) => ({
     default: module.ActivityWallStudentApp,
@@ -137,6 +145,23 @@ const SpotifyCallback = lazy(() =>
 const ConverterPage = lazy(() =>
   import('./components/converter/ConverterPage').then((module) => ({
     default: module.ConverterPage,
+  }))
+);
+// Public legal/support pages — anonymous, no providers; must load without
+// sign-in (Google OAuth consent + Marketplace require public Privacy/Terms URLs).
+const PrivacyPolicyPage = lazy(() =>
+  import('./components/legal/PrivacyPolicyPage').then((module) => ({
+    default: module.PrivacyPolicyPage,
+  }))
+);
+const TermsOfServicePage = lazy(() =>
+  import('./components/legal/TermsOfServicePage').then((module) => ({
+    default: module.TermsOfServicePage,
+  }))
+);
+const SupportPage = lazy(() =>
+  import('./components/legal/SupportPage').then((module) => ({
+    default: module.SupportPage,
   }))
 );
 // DEV-only: gate the dynamic import itself (not just the render) so Rollup
@@ -383,6 +408,27 @@ const App: React.FC = () => {
     );
   }
 
+  // Public legal/support pages. Anonymous, no providers — they must render
+  // without sign-in so Google's OAuth consent + Marketplace review can reach
+  // the Privacy Policy / Terms URLs.
+  if (
+    pathname === '/privacy' ||
+    pathname === '/terms' ||
+    pathname === '/support'
+  ) {
+    const LegalPage =
+      pathname === '/privacy'
+        ? PrivacyPolicyPage
+        : pathname === '/terms'
+          ? TermsOfServicePage
+          : SupportPage;
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <LegalPage />
+      </Suspense>
+    );
+  }
+
   // DEV-ONLY: SVG page-editor harness for iterating on the SMART Notebook
   // editor against real pages. The import + component are gated on
   // import.meta.env.DEV, so the harness chunk is excluded from prod builds.
@@ -414,12 +460,19 @@ const App: React.FC = () => {
     );
   }
 
-  // SPIKE — Classroom Add-on student handshake de-risk page. Throwaway;
-  // remove once Phase 3-shell owns the real student route.
+  // SPIKE — Classroom Add-on routes. Throwaway; remove once Phase 2/3 own the
+  // real teacher discovery + student routes. `/classroom-addon/teacher` is the
+  // Attachment Setup (discovery) iframe; everything else under the prefix is
+  // the student handshake page.
   if (isClassroomAddonRoute) {
+    const isTeacherDiscovery = pathname.startsWith('/classroom-addon/teacher');
     return (
       <Suspense fallback={<FullPageLoader />}>
-        <ClassroomAddonStudentSpike />
+        {isTeacherDiscovery ? (
+          <ClassroomAddonTeacherSpike />
+        ) : (
+          <ClassroomAddonStudentSpike />
+        )}
       </Suspense>
     );
   }
