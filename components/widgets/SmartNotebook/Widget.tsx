@@ -599,6 +599,20 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Live mirror of the widget prop. The async page-op handlers below cross
+  // several `await` boundaries (flush, upload, persistPageList) before they
+  // write placedAssets back; their render-closure `config`/`placedAssets`
+  // snapshots can go stale across that gap (PageCanvas stays interactive
+  // during a page op, so a sticker can be dragged/removed mid-operation).
+  // Reading/writing the stale snapshot would silently clobber that concurrent
+  // edit, so those handlers read the freshest config from this ref instead.
+  // Assigned in the render body — same pattern as updateWidgetRef in
+  // DashboardContext (no effect, no staleness window).
+  const widgetRef = useRef(widget);
+  widgetRef.current = widget;
+  const liveConfig = (): SmartNotebookConfig =>
+    widgetRef.current.config as SmartNotebookConfig;
+
   // Placed assets (Assets panel → page overlay) live in this widget's config,
   // NOT in the Firestore notebook doc, so they're written via updateWidget
   // rather than persistPageList. Their `page` field is a 0-based index into
@@ -607,7 +621,11 @@ export const SmartNotebookWidget: React.FC<{
   const placedAssets = config.placedAssets ?? [];
 
   const persistPlacedAssets = (next: PlacedNotebookAsset[]) => {
-    updateWidget(widget.id, { config: { ...config, placedAssets: next } });
+    // Merge onto the live config (not the render-closure snapshot) so a
+    // concurrent config change during a page op's awaits isn't reverted.
+    updateWidget(widget.id, {
+      config: { ...liveConfig(), placedAssets: next },
+    });
   };
 
   // Persist a new page list (urls/paths/sections/objectLinks) to Firestore.
@@ -651,14 +669,18 @@ export const SmartNotebookWidget: React.FC<{
       const url = await uploadFile(path, file);
       await persistPageList(insertBlankPage(fresh, currentPage, url, path));
       // Mirror insertBlankPage's index math: pages at or after the insertion
-      // point shift right by one, so placed assets on them must too.
+      // point shift right by one, so placed assets on them must too. Read the
+      // freshest list (post-await) so a sticker placed during the upload isn't
+      // dropped by the rewrite.
       const insertAt = Math.min(
         Math.max(currentPage + 1, 0),
         fresh.pageUrls.length
       );
       persistPlacedAssets(
-        remapPlacedAssetPages(placedAssets, activeNotebook.id, (p) =>
-          p >= insertAt ? p + 1 : p
+        remapPlacedAssetPages(
+          liveConfig().placedAssets ?? [],
+          activeNotebook.id,
+          (p) => (p >= insertAt ? p + 1 : p)
         )
       );
       setCurrentPage(currentPage + 1);
@@ -702,13 +724,16 @@ export const SmartNotebookWidget: React.FC<{
       const droppedLinks = linkCountBefore - (next.objectLinks?.length ?? 0);
       await persistPageList(next);
       // Remap placed assets the same way: assets on the deleted page are
-      // dropped, those on later pages shift left by one.
+      // dropped, those on later pages shift left by one. Read the freshest
+      // list so the dropped-asset count and the write reflect any concurrent
+      // sticker edit rather than the stale render-closure snapshot.
+      const latestAssets = liveConfig().placedAssets ?? [];
       const remappedAssets = remapPlacedAssetPages(
-        placedAssets,
+        latestAssets,
         activeNotebook.id,
         (p) => (p === currentPage ? null : p > currentPage ? p - 1 : p)
       );
-      const droppedAssets = placedAssets.length - remappedAssets.length;
+      const droppedAssets = latestAssets.length - remappedAssets.length;
       persistPlacedAssets(remappedAssets);
       if (removedPath) {
         await deleteFile(removedPath).catch((e) => console.error(e));
@@ -761,11 +786,14 @@ export const SmartNotebookWidget: React.FC<{
       if (!canMovePage(fresh, currentPage, dir)) return;
       await persistPageList(movePage(fresh, currentPage, dir));
       // Mirror movePage's swap: assets on the two swapped pages trade indices
-      // so they follow their page content to the new position.
+      // so they follow their page content to the new position. Read the
+      // freshest list (post-await) so a concurrent sticker edit survives.
       const target = currentPage + dir;
       persistPlacedAssets(
-        remapPlacedAssetPages(placedAssets, activeNotebook.id, (p) =>
-          p === currentPage ? target : p === target ? currentPage : p
+        remapPlacedAssetPages(
+          liveConfig().placedAssets ?? [],
+          activeNotebook.id,
+          (p) => (p === currentPage ? target : p === target ? currentPage : p)
         )
       );
       setCurrentPage(currentPage + dir);
