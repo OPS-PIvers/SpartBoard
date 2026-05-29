@@ -12,6 +12,7 @@ import {
   createPlacedAsset,
   updatePlacedAsset as updatePlacedAssetIn,
   removePlacedAsset as removePlacedAssetIn,
+  remapPlacedAssetPages,
 } from '@/utils/notebookPlacedAssets';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -598,6 +599,17 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Placed assets (Assets panel → page overlay) live in this widget's config,
+  // NOT in the Firestore notebook doc, so they're written via updateWidget
+  // rather than persistPageList. Their `page` field is a 0-based index into
+  // the active notebook's pageUrls, so the structural page ops must remap it
+  // the same way persistPageList remaps objectLinks.
+  const placedAssets = config.placedAssets ?? [];
+
+  const persistPlacedAssets = (next: PlacedNotebookAsset[]) => {
+    updateWidget(widget.id, { config: { ...config, placedAssets: next } });
+  };
+
   // Persist a new page list (urls/paths/sections/objectLinks) to Firestore.
   // The objectLinks write is gated on `next.objectLinks` (set by the helper
   // iff the input notebook had any) — NOT on the live React-state snapshot,
@@ -638,6 +650,17 @@ export const SmartNotebookWidget: React.FC<{
       });
       const url = await uploadFile(path, file);
       await persistPageList(insertBlankPage(fresh, currentPage, url, path));
+      // Mirror insertBlankPage's index math: pages at or after the insertion
+      // point shift right by one, so placed assets on them must too.
+      const insertAt = Math.min(
+        Math.max(currentPage + 1, 0),
+        fresh.pageUrls.length
+      );
+      persistPlacedAssets(
+        remapPlacedAssetPages(placedAssets, activeNotebook.id, (p) =>
+          p >= insertAt ? p + 1 : p
+        )
+      );
       setCurrentPage(currentPage + 1);
       addToast('Blank page added', 'success');
     } catch (err) {
@@ -678,20 +701,36 @@ export const SmartNotebookWidget: React.FC<{
       );
       const droppedLinks = linkCountBefore - (next.objectLinks?.length ?? 0);
       await persistPageList(next);
+      // Remap placed assets the same way: assets on the deleted page are
+      // dropped, those on later pages shift left by one.
+      const remappedAssets = remapPlacedAssetPages(
+        placedAssets,
+        activeNotebook.id,
+        (p) => (p === currentPage ? null : p > currentPage ? p - 1 : p)
+      );
+      const droppedAssets = placedAssets.length - remappedAssets.length;
+      persistPlacedAssets(remappedAssets);
       if (removedPath) {
         await deleteFile(removedPath).catch((e) => console.error(e));
       }
       setCurrentPage((p) => Math.min(p, next.pageUrls.length - 1));
+      // Surface the silent data loss (hotspots on / pointing to the deleted
+      // page, plus stickers stranded on it) so the teacher isn't surprised.
+      const removed: string[] = [];
       if (droppedLinks > 0) {
-        // Surface the silent data loss (hotspots on / pointing to the
-        // deleted page) so the teacher isn't surprised later.
-        addToast(
-          `Page deleted (also removed ${droppedLinks} hyperlink${droppedLinks === 1 ? '' : 's'})`,
-          'success'
+        removed.push(
+          `${droppedLinks} hyperlink${droppedLinks === 1 ? '' : 's'}`
         );
-      } else {
-        addToast('Page deleted', 'success');
       }
+      if (droppedAssets > 0) {
+        removed.push(`${droppedAssets} asset${droppedAssets === 1 ? '' : 's'}`);
+      }
+      addToast(
+        removed.length > 0
+          ? `Page deleted (also removed ${removed.join(' and ')})`
+          : 'Page deleted',
+        'success'
+      );
     } catch (err) {
       console.error('Failed to delete page', err);
       addToast('Failed to delete page', 'error');
@@ -721,6 +760,14 @@ export const SmartNotebookWidget: React.FC<{
       // shape changed between handler entry and the post-flush read.
       if (!canMovePage(fresh, currentPage, dir)) return;
       await persistPageList(movePage(fresh, currentPage, dir));
+      // Mirror movePage's swap: assets on the two swapped pages trade indices
+      // so they follow their page content to the new position.
+      const target = currentPage + dir;
+      persistPlacedAssets(
+        remapPlacedAssetPages(placedAssets, activeNotebook.id, (p) =>
+          p === currentPage ? target : p === target ? currentPage : p
+        )
+      );
       setCurrentPage(currentPage + dir);
     } catch (err) {
       console.error('Failed to move page', err);
@@ -736,12 +783,6 @@ export const SmartNotebookWidget: React.FC<{
   const handleDragStart = (e: React.DragEvent, url: string) => {
     e.dataTransfer.setData(NOTEBOOK_ASSET_MIME, JSON.stringify({ url }));
     e.dataTransfer.effectAllowed = 'copy';
-  };
-
-  const placedAssets = config.placedAssets ?? [];
-
-  const persistPlacedAssets = (next: PlacedNotebookAsset[]) => {
-    updateWidget(widget.id, { config: { ...config, placedAssets: next } });
   };
 
   // Drop an asset onto the current page at a page-relative fraction point.
