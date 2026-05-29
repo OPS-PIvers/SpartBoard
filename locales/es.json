@@ -55,7 +55,12 @@
       "allChangesSavedTooltip": "Todos los cambios guardados",
       "googleDriveConnected": "Google Drive Conectado",
       "googleDriveDisconnected": "Google Drive Desconectado",
-      "signOut": "Cerrar Sesión"
+      "signOut": "Cerrar Sesión",
+      "live": "En Vivo",
+      "more": "Más",
+      "moreWidgets": "Más Widgets",
+      "openTools": "Abrir Herramientas",
+      "createFolder": "Crear Nueva Carpeta"
     },
     "nav": {
       "workspace": "Espacio de Trabajo",
@@ -705,5 +710,22 @@
   },
   "style": {
     "readOnlyNotice": "This board is read-only. Style changes are not saved."
+  },
+  "whatsNew": {
+    "title": "Novedades",
+    "updateNow": "Actualizar ahora",
+    "later": "Más tarde",
+    "close": "Cerrar",
+    "readFullUpdate": "Leer actualización completa",
+    "showLess": "Mostrar menos",
+    "loading": "Cargando notas de la versión…",
+    "error": "No se pudo cargar el registro de cambios en este momento.",
+    "previewEmpty": "Hay una nueva compilación lista. Actualiza para obtener la versión más reciente.",
+    "browseEmpty": "Estás al día.",
+    "groups": {
+      "feature": "Nuevo",
+      "improvement": "Mejoras",
+      "fix": "Correcciones"
+    }
   }
 }

@@ -55,7 +55,12 @@
       "allChangesSavedTooltip": "Toutes les modifications enregistrées",
       "googleDriveConnected": "Google Drive connecté",
       "googleDriveDisconnected": "Google Drive déconnecté",
-      "signOut": "Se déconnecter"
+      "signOut": "Se déconnecter",
+      "live": "En direct",
+      "more": "Plus",
+      "moreWidgets": "Plus de widgets",
+      "openTools": "Ouvrir les outils",
+      "createFolder": "Créer un nouveau dossier"
     },
     "nav": {
       "workspace": "Espace de travail",
@@ -583,5 +588,22 @@
   },
   "style": {
     "readOnlyNotice": "This board is read-only. Style changes are not saved."
+  },
+  "whatsNew": {
+    "title": "Nouveautés",
+    "updateNow": "Mettre à jour maintenant",
+    "later": "Plus tard",
+    "close": "Fermer",
+    "readFullUpdate": "Lire la mise à jour complète",
+    "showLess": "Afficher moins",
+    "loading": "Chargement des notes de version…",
+    "error": "Impossible de charger le journal des modifications pour l'instant.",
+    "previewEmpty": "Une nouvelle version est prête. Actualisez pour obtenir la dernière version.",
+    "browseEmpty": "Vous êtes à jour.",
+    "groups": {
+      "feature": "Nouveau",
+      "improvement": "Améliorations",
+      "fix": "Corrections"
+    }
   }
 }

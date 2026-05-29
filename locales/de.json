@@ -55,7 +55,12 @@
       "allChangesSavedTooltip": "Alle Änderungen gespeichert",
       "googleDriveConnected": "Google Drive verbunden",
       "googleDriveDisconnected": "Google Drive getrennt",
-      "signOut": "Abmelden"
+      "signOut": "Abmelden",
+      "live": "Live",
+      "more": "Mehr",
+      "moreWidgets": "Mehr Widgets",
+      "openTools": "Tools öffnen",
+      "createFolder": "Neuen Ordner erstellen"
     },
     "nav": {
       "workspace": "Arbeitsbereich",
@@ -583,5 +588,22 @@
   },
   "style": {
     "readOnlyNotice": "This board is read-only. Style changes are not saved."
+  },
+  "whatsNew": {
+    "title": "Was ist neu",
+    "updateNow": "Jetzt aktualisieren",
+    "later": "Später",
+    "close": "Schließen",
+    "readFullUpdate": "Vollständiges Update lesen",
+    "showLess": "Weniger anzeigen",
+    "loading": "Versionshinweise werden geladen…",
+    "error": "Das Änderungsprotokoll konnte gerade nicht geladen werden.",
+    "previewEmpty": "Ein neuer Build ist bereit. Seite neu laden, um die neueste Version zu erhalten.",
+    "browseEmpty": "Du bist auf dem neuesten Stand.",
+    "groups": {
+      "feature": "Neu",
+      "improvement": "Verbesserungen",
+      "fix": "Fehlerbehebungen"
+    }
   }
 }
