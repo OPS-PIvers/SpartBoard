@@ -56,6 +56,12 @@ const VideoActivityStudentApp = lazy(() =>
     (module) => ({ default: module.VideoActivityStudentApp })
   )
 );
+// SPIKE — Classroom Add-on student handshake de-risk page (throwaway).
+const ClassroomAddonStudentSpike = lazy(() =>
+  import('./components/classroomAddon/StudentSpikeRoute').then((module) => ({
+    default: module.ClassroomAddonStudentSpike,
+  }))
+);
 const ActivityWallStudentApp = lazy(() =>
   import('./components/activityWall/ActivityWallStudentApp').then((module) => ({
     default: module.ActivityWallStudentApp,
@@ -339,6 +345,9 @@ const App: React.FC = () => {
   // teacher AuthProvider/DashboardProvider so dashboard listeners don't fire
   // for subs. Phase 4 will wrap this in a domain-gated AuthProvider.
   const isSubsRoute = pathname === '/subs' || pathname.startsWith('/subs/');
+  // SPIKE — Classroom Add-on routes. Anonymous entry; the page drives its own
+  // Google OAuth + custom-token sign-in, so no teacher providers are mounted.
+  const isClassroomAddonRoute = pathname.startsWith('/classroom-addon/');
 
   // Short-link resolver. Runs outside every provider so anonymous visitors
   // can follow admin-created /r/:code links without triggering Firebase
@@ -402,6 +411,16 @@ const App: React.FC = () => {
         </Suspense>
         <DialogContainer />
       </DialogProvider>
+    );
+  }
+
+  // SPIKE — Classroom Add-on student handshake de-risk page. Throwaway;
+  // remove once Phase 3-shell owns the real student route.
+  if (isClassroomAddonRoute) {
+    return (
+      <Suspense fallback={<FullPageLoader />}>
+        <ClassroomAddonStudentSpike />
+      </Suspense>
     );
   }
 

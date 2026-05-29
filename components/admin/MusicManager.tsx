@@ -19,8 +19,8 @@ import { db, storage } from '@/config/firebase';
 import { MusicStation, MUSIC_GENRES, MusicGenre } from '@/types';
 import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useAuth } from '@/context/useAuth';
-import { Button } from '../common/Button';
-import { ConfirmDialog } from '../widgets/InstructionalRoutines/ConfirmDialog';
+import { Button } from '@/components/common/Button';
+import { ConfirmDialog } from '@/components/widgets/InstructionalRoutines/ConfirmDialog';
 import { extractYouTubeId } from '@/utils/youtube';
 
 // ---------------------------------------------------------------------------

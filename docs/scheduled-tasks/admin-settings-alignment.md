@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
 _Last audited: 2026-05-24_
-_Last action: 2026-05-24_
+_Last action: 2026-05-28_
 
 ---
 
@@ -25,10 +25,11 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **Detail:** Multiple widgets expose appearance controls in their user-facing Settings.tsx (via `SurfaceColorSettings` and `TypographySettings`) and have the corresponding fields in their `types.ts` config interface, but these fields are not handled in `getAdminBuildingConfig()` and are not controllable from any admin ConfigurationPanel. Admins cannot set per-building appearance defaults for these widgets. Affected widgets:
   - `smartNotebook` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `SmartNotebookConfig`; `getAdminBuildingConfig` handles only `storageLimitMb`
   - `concept-web` — `cardColor`, `cardOpacity`, `fontColor` fields in `ConceptWebConfig`; `getAdminBuildingConfig` handles only `defaultNodeWidth`, `defaultNodeHeight`, `fontFamily`
-  - `numberLine` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `NumberLineConfig`; `getAdminBuildingConfig` handles only axis parameters
+  - ~~`numberLine`~~ — RESOLVED 2026-05-28 (see Completed below)
   - `checklist` — `cardColor`, `cardOpacity`, `fontFamily`, `fontColor` fields in `ChecklistConfig`; `getAdminBuildingConfig` handles only `items`, `scaleMultiplier`
   - `stations` — `fontFamily`, `fontColor`, `cardColor`, `cardOpacity` fields in `StationsConfig` (added 2026-05-03); exposed via `TypographySettings` + `SurfaceColorSettings` in `components/widgets/Stations/Settings.tsx`; no `StationsConfigurationPanel` exists and `stations` is not registered in `BUILDING_CONFIG_PANELS` or `getAdminBuildingConfig()`
 - **Fix:** For each widget, either (a) add the appearance fields to the widget's `Building*Defaults` interface in `types.ts` and add them to the `getAdminBuildingConfig()` case, plus expose them in the `*ConfigurationPanel.tsx`; or (b) add a note in the config interface comment that appearance fields are intentionally user-only and not admin-configurable per building.
+- **2026-05-28 progress:** Resolved `numberLine` (option a) — moved to Completed. SmartNotebook deferred: SmartNotebook/\* files modified in the last 5 commits (`fix(pr-1718)` 8fcf9267 + `fix(smart-notebook)` 5ff93db2), so per the file-recency rule the smartNotebook subset is BLOCKED for this session. Other 3 widgets (concept-web, checklist, stations) remain Open — stations also needs new infrastructure (no `BuildingStationsDefaults` interface, no `StationsConfigurationPanel`, not registered in `BUILDING_CONFIG_PANELS`).
 
 ### LOW Checklist: `rosterMode` user-configurable but not in admin building config
 
@@ -61,6 +62,14 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 ---
 
 ## Completed
+
+### MEDIUM NumberLine appearance fields (cardColor, cardOpacity, fontFamily, fontColor) absent from admin building defaults
+
+- **Detected:** 2026-04-16 (carved out from group MEDIUM 2026-05-28)
+- **Completed:** 2026-05-28
+- **File:** types.ts (BuildingNumberLineDefaults), utils/adminBuildingConfig.ts (case 'numberLine'), components/admin/NumberLineConfigurationPanel.tsx, tests/utils/adminBuildingConfig.test.ts
+- **Detail:** `NumberLineConfig` exposed `cardColor`, `cardOpacity`, `fontFamily`, and `fontColor` (consumed by `NumberLine/Widget.tsx` lines 43-44 and 130 via `hexToRgba(cardColor, cardOpacity)`), but `BuildingNumberLineDefaults` was a `Pick<NumberLineConfig, 'min' | 'max' | 'step' | 'displayMode' | 'showArrows'>` — appearance fields were not selectable for per-building defaults and the `NumberLineConfigurationPanel` had no controls for them.
+- **Resolution:** Chose fix option (a) — extended the `Pick<>` set in `BuildingNumberLineDefaults` to include `cardColor | cardOpacity | fontFamily | fontColor`. Added validation in the `case 'numberLine'` handler in `utils/adminBuildingConfig.ts`: `cardColor`/`fontColor` validated as non-empty trimmed strings; `cardOpacity` validated as finite number in `[0, 1]` (matches the `0..1` value space written by `SurfaceColorSettings`); `fontFamily` validated as non-empty trimmed string (the `GlobalFontFamily` discriminated-union narrowing happens via the `Pick<>` typing). Added "Appearance Defaults" section to `NumberLineConfigurationPanel.tsx` with a font-family `<select>` (matching the unprefixed value space of ConceptWeb's panel — `'global' | 'sans' | 'serif' | ...`), a text-color picker, a surface-color picker, and a surface-opacity slider — all following the existing panel's plain-input visual style. Added three new tests under a `describe('numberLine')` block in `tests/utils/adminBuildingConfig.test.ts`: valid pass-through of all 9 fields, rejection of empty/invalid appearance values, and acceptance of `cardOpacity` at both bounds (0 and 1). `pnpm exec tsc --noEmit`, `pnpm exec eslint ... --max-warnings 0`, and `pnpm exec prettier --check` all clean. `pnpm exec vitest run tests/utils/adminBuildingConfig.test.ts` — all 18 tests pass.
 
 ### MEDIUM Clock: `clockStyle` and `glow` configurable by user but not included in admin building defaults
 

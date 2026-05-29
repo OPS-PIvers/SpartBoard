@@ -5,6 +5,24 @@ import { WidgetLayout } from '../WidgetLayout';
 import { WIDGET_PALETTE } from '@/config/colors';
 import { hexToRgba } from '@/utils/styles';
 
+// Map the typography preset id ('sans', 'handwritten', etc.) to the
+// Tailwind utility class so the SVG <text> element picks up the same
+// family the dashboard's CSS pipeline already defines. Hoisted out of
+// the component body so it isn't re-allocated on every render.
+const FONT_CLASS_MAP: Record<string, string> = {
+  sans: 'font-sans',
+  serif: 'font-serif',
+  mono: 'font-mono',
+  handwritten: 'font-handwritten',
+  rounded: 'font-rounded',
+  fun: 'font-fun',
+  comic: 'font-comic',
+  slab: 'font-slab',
+  retro: 'font-retro',
+  marker: 'font-marker',
+  cursive: 'font-cursive',
+};
+
 function fractionLabel(num: number, denom: number): string {
   const sign = num < 0 ? -1 : 1;
   const absNum = Math.abs(num);
@@ -42,7 +60,19 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
     showArrows,
     cardColor = '#ffffff',
     cardOpacity = 1,
+    fontFamily,
+    fontColor = '#1e293b',
   } = config;
+
+  // Resolve the typography preset id to a Tailwind class. When
+  // fontFamily is undefined the panel's "Inherit (Dashboard default)"
+  // is selected — leave the class empty so the SVG <text> inherits
+  // the parent container's family rather than silently overriding to
+  // monospace (which would make "Inherit" and "Monospace" identical).
+  const fontClass =
+    typeof fontFamily === 'string' && FONT_CLASS_MAP[fontFamily]
+      ? FONT_CLASS_MAP[fontFamily]
+      : '';
 
   useEffect(() => {
     const observer = new ResizeObserver((entries) => {
@@ -216,8 +246,8 @@ export const NumberLineWidget: React.FC<{ widget: WidgetData }> = ({
                       x={x}
                       y={axisY + 24}
                       textAnchor="middle"
-                      fill="#1e293b"
-                      fontFamily="monospace"
+                      fill={fontColor}
+                      className={fontClass}
                       fontWeight="bold"
                       style={{ fontSize: 'min(12px, 4.5cqmin)' }}
                     >

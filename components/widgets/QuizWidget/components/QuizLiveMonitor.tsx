@@ -1724,7 +1724,24 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                         onRemoveStudent(rowKey)
                                       )
                                         .then(() => setConfirmRemove(null))
-                                        .catch(() => undefined);
+                                        .catch((err: unknown) => {
+                                          // Surface the new "must be
+                                          // signed in" auth-bail
+                                          // message (and any other
+                                          // failure) so the teacher
+                                          // sees actionable feedback
+                                          // instead of a silent no-op.
+                                          logError(
+                                            'QuizLiveMonitor.removeStudent',
+                                            err
+                                          );
+                                          addToast(
+                                            err instanceof Error
+                                              ? err.message
+                                              : 'Could not remove student — try again or check your connection.',
+                                            'error'
+                                          );
+                                        });
                                     }
                                   : undefined
                               }
@@ -2155,7 +2172,24 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                                         onRemoveStudent(rowKey)
                                       )
                                         .then(() => setConfirmRemove(null))
-                                        .catch(() => undefined);
+                                        .catch((err: unknown) => {
+                                          // Surface the new "must be
+                                          // signed in" auth-bail
+                                          // message (and any other
+                                          // failure) so the teacher
+                                          // sees actionable feedback
+                                          // instead of a silent no-op.
+                                          logError(
+                                            'QuizLiveMonitor.removeStudent',
+                                            err
+                                          );
+                                          addToast(
+                                            err instanceof Error
+                                              ? err.message
+                                              : 'Could not remove student — try again or check your connection.',
+                                            'error'
+                                          );
+                                        });
                                     }
                                   : undefined
                               }

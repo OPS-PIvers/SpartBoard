@@ -24,8 +24,8 @@ import {
 } from '@/types';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db, isAuthBypass } from '@/config/firebase';
-import { Toast } from '../common/Toast';
-import { Modal } from '../common/Modal';
+import { Toast } from '@/components/common/Toast';
+import { Modal } from '@/components/common/Modal';
 import { useGoogleCalendar } from '@/hooks/useGoogleCalendar';
 import { DockDefaultsPanel } from './DockDefaultsPanel';
 

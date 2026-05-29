@@ -7,6 +7,7 @@ import {
   getDoc,
   getDocs,
   onSnapshot,
+  serverTimestamp,
   writeBatch,
 } from 'firebase/firestore';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
@@ -16,11 +17,13 @@ import type {
   SharedQuizAssignment,
 } from '@/types';
 
-// `deleteField()` returns a Firestore sentinel; the production code stores
-// the sentinel in the patch object and Firestore SDK interprets it on the
-// wire. For tests we use a unique branded marker so assertions can verify
-// the sentinel landed in the right field without depending on the real SDK.
+// `deleteField()` and `serverTimestamp()` return Firestore sentinels; the
+// production code stores the sentinel in the patch object and Firestore SDK
+// interprets it on the wire. For tests we use unique branded markers so
+// assertions can verify the sentinel landed in the right field without
+// depending on the real SDK.
 const DELETE_FIELD_SENTINEL = Symbol('test:deleteField()');
+const SERVER_TIMESTAMP_SENTINEL = Symbol('test:serverTimestamp()');
 vi.mock('firebase/firestore', () => ({
   collection: vi.fn(),
   deleteField: vi.fn(() => DELETE_FIELD_SENTINEL),
@@ -32,6 +35,14 @@ vi.mock('firebase/firestore', () => ({
   query: vi.fn(),
   where: vi.fn(),
   orderBy: vi.fn(),
+  serverTimestamp: vi.fn(() => SERVER_TIMESTAMP_SENTINEL),
+  // Timestamp.fromMillis is used by resumeAssignment to compute the
+  // idle-refresh cutoff filter. Return a branded object so tests can
+  // verify the value flowed through to the query() args without pulling
+  // in the real SDK Timestamp class.
+  Timestamp: {
+    fromMillis: vi.fn((ms: number) => ({ __testTimestamp: ms })),
+  },
   updateDoc: vi.fn(),
   writeBatch: vi.fn(),
 }));
@@ -154,6 +165,7 @@ function makePublicQuestions(n: number): QuizPublicQuestion[] {
 describe('useQuizAssignments - reopenAssignment', () => {
   const batchUpdate = vi.fn();
   const batchCommit = vi.fn();
+  const mockGetDocs = getDocs as Mock;
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -170,6 +182,13 @@ describe('useQuizAssignments - reopenAssignment', () => {
       update: batchUpdate,
       commit: batchCommit,
     });
+    // `resumeAssignment` now batch-refreshes `lastWriteAt` on every
+    // joined/in-progress response so the idle-finalize cron doesn't
+    // force-finalize students on the next tick after resume. The
+    // reopen + resume tests don't seed any live responses, so an
+    // empty snapshot is the right default; tests that exercise the
+    // refresh behavior override this with their own mock.
+    mockGetDocs.mockResolvedValue({ empty: true, docs: [] });
   });
 
   function findSessionPatch(): Record<string, unknown> {
@@ -367,6 +386,112 @@ describe('useQuizAssignments - reopenAssignment', () => {
     if (!resumeSessionCall)
       throw new Error('expected resume batch.update on quiz_sessions/*');
     expect(resumeSessionCall[1]).toMatchObject({ status: 'waiting' });
+  });
+
+  it('resumeAssignment refreshes lastWriteAt on every joined/in-progress response BEFORE flipping session status, so a concurrent cron tick still sees paused and skips', async () => {
+    // Regression shield for PR #1736 review finding: the cron
+    // (functions/src/finalizeIdleQuizAttempts.ts) skips parent-status
+    // 'paused' / 'waiting', but if a teacher pauses on Friday and
+    // resumes Monday, `session.status` flips to 'active' while every
+    // response's `lastWriteAt` is still 48h+ stale. The refresh stamps
+    // `lastWriteAt: serverTimestamp()` on each joined/in-progress
+    // response so the cron's idle threshold restarts from now.
+    //
+    // Critically, the refresh MUST commit before the status flip so a
+    // cron tick landing between the two operations still reads
+    // status='paused' and skips. This test pins both the field value
+    // (sentinel identity), the commit call (mock.commit invoked at
+    // least once for the response batch), and the ORDER (response
+    // batches before the session-flip batch).
+    const session: Partial<QuizSession> = {
+      id: ASSIGNMENT_ID,
+      sessionMode: 'teacher',
+      status: 'paused',
+      currentQuestionIndex: 2,
+      totalQuestions: 5,
+      startedAt: 1000,
+    };
+    mockGetDoc.mockResolvedValueOnce({ data: () => session });
+
+    // Three live responses (2 joined, 1 in-progress) and one already-
+    // completed response that should NOT be touched. Snapshot `ref` is
+    // a DocumentReference in production; we mock it as an object with
+    // a `path` getter so assertions can inspect the path while still
+    // exercising the same shape the production code passes through to
+    // `batch.update(respSnap.ref, ...)`.
+    const respRefs = {
+      r1: { path: 'quiz_sessions/asg-1/responses/r1' },
+      r2: { path: 'quiz_sessions/asg-1/responses/r2' },
+      r3: { path: 'quiz_sessions/asg-1/responses/r3' },
+    };
+    mockGetDocs.mockResolvedValueOnce({
+      empty: false,
+      docs: [{ ref: respRefs.r1 }, { ref: respRefs.r2 }, { ref: respRefs.r3 }],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.resumeAssignment(ASSIGNMENT_ID);
+    });
+
+    // Every live response got a lastWriteAt: serverTimestamp() update.
+    // Asserting on the sentinel identity AND that serverTimestamp() was
+    // actually called proves the production code didn't substitute a
+    // client-side Date.now() or hard-code the sentinel literal — the
+    // firestore.rules predicate `lastWriteAt == request.time` would
+    // reject anything that's not the server-resolved timestamp.
+    const responseUpdates = batchUpdate.mock.calls.filter(
+      ([ref]) =>
+        ref &&
+        typeof ref === 'object' &&
+        typeof (ref as { path?: string }).path === 'string' &&
+        (ref as { path: string }).path.includes('/responses/')
+    );
+    expect(responseUpdates).toHaveLength(3);
+    for (const [, patch] of responseUpdates) {
+      expect(patch).toEqual({ lastWriteAt: SERVER_TIMESTAMP_SENTINEL });
+    }
+    expect(serverTimestamp).toHaveBeenCalled();
+
+    // Order invariant: every response-doc batch.update must precede
+    // the session-doc batch.update. If a refactor reverses the order,
+    // a cron tick between the flip and the refresh would force-
+    // finalize the very students the refresh is meant to protect.
+    const callIndex = batchUpdate.mock.calls.findIndex(([ref]) => {
+      const refObj = ref as { path?: string } | string;
+      if (typeof refObj === 'object' && refObj?.path) return false; // response ref
+      return (
+        typeof refObj === 'string' &&
+        refObj.startsWith('quiz_sessions/') &&
+        !refObj.includes('/responses/')
+      );
+    });
+    const lastResponseIndex = batchUpdate.mock.calls.reduce<number>(
+      (max, [ref], i) => {
+        if (
+          ref &&
+          typeof ref === 'object' &&
+          typeof (ref as { path?: string }).path === 'string' &&
+          (ref as { path: string }).path.includes('/responses/')
+        ) {
+          return i;
+        }
+        return max;
+      },
+      -1
+    );
+    expect(callIndex).toBeGreaterThan(-1);
+    expect(lastResponseIndex).toBeGreaterThan(-1);
+    expect(lastResponseIndex).toBeLessThan(callIndex);
+
+    // The response batch must commit (not just stage) — a refactor
+    // that forgets the trailing `if (opsInBatch > 0) await
+    // batch.commit()` would leave staged writes uncommitted and the
+    // next cron tick would force-finalize the unrefreshed responses.
+    // With 3 responses < BATCH_LIMIT=450, the tail commit is the only
+    // commit path that fires for the response batch.
+    expect(batchCommit).toHaveBeenCalled();
   });
 });
 

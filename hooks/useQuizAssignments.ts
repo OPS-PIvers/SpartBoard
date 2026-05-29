@@ -23,6 +23,8 @@ import {
   query,
   where,
   orderBy,
+  serverTimestamp,
+  Timestamp,
   updateDoc,
   writeBatch,
 } from 'firebase/firestore';
@@ -918,6 +920,62 @@ export const useQuizAssignments = (
       const neverStarted =
         !!session &&
         (session.startedAt == null || session.currentQuestionIndex < 0);
+
+      // Refresh `lastWriteAt` on every joined / in-progress response BEFORE
+      // flipping session status off 'paused'. Order matters: the hourly
+      // idle-finalize cron (functions/src/finalizeIdleQuizAttempts.ts) skips
+      // docs whose parent session is 'paused' or 'waiting'. If we flipped
+      // status to 'active' first, a cron tick landing between the flip and
+      // the response refresh would see status='active', stale `lastWriteAt`,
+      // and force-finalize every paused student — the exact failure this
+      // refresh is meant to prevent. Refreshing while still 'paused' is
+      // safe (cron skips paused anyway) and any failure here leaves the
+      // session paused, so a retry is clean.
+      //
+      // Filter to docs whose `lastWriteAt` is already inside the cron's
+      // idle window — fresh docs don't need touching, which avoids a write
+      // amplification when a teacher pauses/resumes rapidly. The 80-minute
+      // cutoff sits inside the cron's 90-minute idle threshold with a 10-
+      // minute safety margin, so any doc that *could* be swept by the next
+      // tick gets refreshed.
+      //
+      // Teacher branch in `firestore.rules` is unrestricted, so writing
+      // `lastWriteAt: serverTimestamp()` on student-owned response docs is
+      // allowed here. Batched so a typical 30-student session is one
+      // Firestore round-trip; sessions over the 500-op batch cap chunk
+      // into multiple batches.
+      const IDLE_REFRESH_CUTOFF_MS = 80 * 60 * 1000;
+      const refreshCutoff = Timestamp.fromMillis(
+        Date.now() - IDLE_REFRESH_CUTOFF_MS
+      );
+      const responsesSnap = await getDocs(
+        query(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            assignmentId,
+            RESPONSES_COLLECTION
+          ),
+          where('status', 'in', ['joined', 'in-progress']),
+          where('lastWriteAt', '<', refreshCutoff)
+        )
+      );
+      if (!responsesSnap.empty) {
+        const BATCH_LIMIT = 450; // headroom under the 500-op Firestore cap
+        let batch = writeBatch(db);
+        let opsInBatch = 0;
+        for (const respSnap of responsesSnap.docs) {
+          batch.update(respSnap.ref, { lastWriteAt: serverTimestamp() });
+          opsInBatch++;
+          if (opsInBatch >= BATCH_LIMIT) {
+            await batch.commit();
+            batch = writeBatch(db);
+            opsInBatch = 0;
+          }
+        }
+        if (opsInBatch > 0) await batch.commit();
+      }
+
       await setStatus(
         assignmentId,
         'active',

@@ -2134,6 +2134,15 @@ service cloud.firestore {
         // the cross-auth-type paths are now closed.
         allow create: if request.auth != null &&
           request.resource.data.studentUid == request.auth.uid &&
+          // If `lastWriteAt` is supplied, it must be server-stamped
+          // (`serverTimestamp()` from the SDK resolves to `request.time`
+          // at rule evaluation). Optional to keep the rule tolerant of
+          // legacy joins / test fixtures that don't carry the field;
+          // the worst case is the doc never appears in the idle
+          // auto-submit sweep (teacher-visible, manually cleanable) —
+          // not data loss.
+          (request.resource.data.get('lastWriteAt', null) == null ||
+           request.resource.data.lastWriteAt == request.time) &&
           // Students cannot forge a score on creation
           request.resource.data.score == null &&
           // Students cannot forge prior completions
@@ -2147,6 +2156,19 @@ service cloud.firestore {
           // Tags are written by the teacher on sync, never by the
           // student.
           request.resource.data.get('preSyncVersion', 0) == 0 &&
+          // Block forgery of teacher-only / cron-only fields at create
+          // time. A malicious join payload could otherwise include
+          // `autoSubmitted: true` (cron signal), `unlocked: true`
+          // (teacher signal — would trip the rejoin resume-unlocked
+          // branch), `unlockedAt`, or forged `grading.*` (teacher
+          // grading data). Explicitly deny these rather than maintain
+          // an exhaustive allowlist — the UPDATE rule already has a
+          // hasOnly whitelist that's the source of truth for the
+          // student's mutable surface.
+          request.resource.data.get('autoSubmitted', null) == null &&
+          request.resource.data.get('unlocked', null) == null &&
+          request.resource.data.get('unlockedAt', null) == null &&
+          request.resource.data.get('grading', null) == null &&
           // studentRole users must be enrolled in the session's class
           passesStudentClassGateCompat(sessionClassIds(), sessionClassId()) &&
           // Block submissions on view-only sessions (mode is frozen at creation)
@@ -2220,7 +2242,19 @@ service cloud.firestore {
            // (e.g. `somethingElse: 'hack'`) would land in `addedKeys` and
            // bypass the whitelist entirely.
            request.resource.data.diff(resource.data)
-             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt']) &&
+             .affectedKeys().hasOnly(['answers', 'status', 'submittedAt', 'tabSwitchWarnings', 'completedAttempts', 'classPeriod', 'score', 'preSyncVersion', 'unlocked', 'resultsTabWarnings', 'resultsLockedOut', 'resultsLockedOutAt', 'lastWriteAt']) &&
+           // `lastWriteAt` is the idle-auto-submit cutoff field. Must
+           // be server-stamped (`serverTimestamp()` from the SDK, which
+           // resolves to `request.time` at rule evaluation), NOT a
+           // client `Date.now()`. Equality with `request.time` enforces
+           // server stamping: any client that passes a raw Timestamp
+           // or a number is rejected. This closes the clock-skew
+           // failure modes — past-clock devices can't get force-
+           // finalized on the next sweep, future-clock devices can't
+           // evade idle auto-submit indefinitely, and multi-tab
+           // students with drifting clocks can't lock themselves out.
+           (!request.resource.data.diff(resource.data).affectedKeys().hasAny(['lastWriteAt']) ||
+            request.resource.data.lastWriteAt == request.time) &&
            // Students may only ever CLEAR the unlock flag (write `false`)
            // — never set it to true. The teacher's unlock action sets
            // `unlocked: true`; `completeQuiz` clears it back to false
@@ -2270,6 +2304,79 @@ service cloud.firestore {
         );
         allow delete: if request.auth != null &&
           (request.auth.uid == sessionTeacherUid() || isAdmin());
+
+        // Append-only snapshot log of overwritten answers. Each entry
+        // captures a prior `answers[i]` value the moment before it gets
+        // replaced in the parent response doc — see `submitAnswer` in
+        // `useQuizSession.ts`. Used to recover student text lost to a
+        // race (stray blank draft after a hydration miss) or to a
+        // student retyping over their own work after a lockout. Writes
+        // are throttled per-question on the client; the rule still
+        // pins the doc shape so a hostile authenticated user can't
+        // dump arbitrary data into the subcollection.
+        match /history/{historyId} {
+          function parentStudentUid() {
+            return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)/responses/$(responseKey)).data.studentUid;
+          }
+          // Read: teacher, admin, or the owning student.
+          allow read: if request.auth != null && (
+            isAdmin() ||
+            request.auth.uid == sessionTeacherUid() ||
+            request.auth.uid == parentStudentUid()
+          );
+          // Create: only the owning student of the parent response.
+          // Field shape is strict so a malicious caller can't smuggle
+          // fields; `snapshotAt == request.time` forces server stamping.
+          allow create: if request.auth != null &&
+            request.auth.uid == parentStudentUid() &&
+            request.resource.data.keys().hasOnly(
+              ['questionId', 'answer', 'answeredAt', 'status', 'snapshotAt']
+            ) &&
+            request.resource.data.questionId is string &&
+            request.resource.data.answer is string &&
+            request.resource.data.answeredAt is number &&
+            request.resource.data.status in ['draft', 'submitted'] &&
+            request.resource.data.snapshotAt == request.time;
+          // Immutable from clients. Teachers/admins may clean up.
+          allow update: if false;
+          allow delete: if request.auth != null &&
+            (request.auth.uid == sessionTeacherUid() || isAdmin());
+        }
+      }
+
+      // Archived responses — copies of student responses that the teacher
+      // removed (which used to be a hard delete). Live response is gone
+      // so the deterministic key is free for a fresh rejoin; the archive
+      // preserves partial answers so the teacher can recover them and so
+      // the dev (and admins) can fetch attempts that never reached
+      // submit. Students never read archived responses — privacy from
+      // classmates and from themselves (no use case where they would
+      // need to). Idle auto-submit does NOT archive — those land back
+      // in /responses with `autoSubmitted: true`.
+      match /archived_responses/{responseKey} {
+        function sessionTeacherUidArch() {
+          return get(/databases/$(database)/documents/quiz_sessions/$(sessionId)).data.teacherUid;
+        }
+        allow read: if request.auth != null && (
+          request.auth.uid == sessionTeacherUidArch() || isAdmin()
+        );
+        // The session teacher OR an admin can archive a response. The
+        // delete rule on the parent /responses doc has always allowed
+        // both — without symmetric allowance here, an admin removing a
+        // student would have the archive create rejected and the whole
+        // batch (including the delete) rolls back. archivedBy must be
+        // the writer's own auth.uid (no proxy writes), and the
+        // archiveReason is constrained to a small set so a future log
+        // query can bucket by reason.
+        allow create: if request.auth != null &&
+          (request.auth.uid == sessionTeacherUidArch() || isAdmin()) &&
+          request.resource.data.archivedBy == request.auth.uid &&
+          request.resource.data.archivedAt is number &&
+          request.resource.data.get('archiveReason', '') in
+            ['teacher-removed', 'session-ended', 'idle-auto-submit-failed'];
+        // Archive is otherwise immutable from the client. Future
+        // cleanup (delete after N days) will run via admin SDK only.
+        allow update, delete: if isAdmin();
       }
 
       // View tracking for view-only Share links. Each pageview by a student

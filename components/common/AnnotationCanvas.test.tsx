@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi } from 'vitest';
-import { render, fireEvent } from '@testing-library/react';
+import { render, fireEvent, act } from '@testing-library/react';
 import { AnnotationCanvas } from './AnnotationCanvas';
 
 describe('AnnotationCanvas', () => {
@@ -103,5 +103,50 @@ describe('AnnotationCanvas', () => {
     fireEvent(canvas, upEvent);
 
     expect(stopPropagationSpy).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Regression: pointerleave must NOT commit/abort a stroke mid-flight.
+   *
+   * Root cause: AnnotationCanvas attached `handleEnd` to `onPointerLeave`.
+   * Since `setPointerCapture` does not suppress `pointerleave` events (per
+   * the Pointer Events spec), a stroke is prematurely committed the instant
+   * the pointer exits the canvas bounds — even if the user hasn't released
+   * the button. This truncates fast strokes near canvas edges and causes
+   * `onPathsChange` to be called before the user intends to end the stroke.
+   *
+   * Fix: remove `onPointerLeave` from the canvas element entirely.
+   * `pointerup` and `pointercancel` (both registered) are sufficient because
+   * pointer capture guarantees those events reach the canvas regardless of
+   * where the pointer physically is.
+   */
+  it('does NOT commit an in-progress stroke when pointer leaves the canvas', () => {
+    const onPathsChange = vi.fn();
+    const { container } = render(
+      <AnnotationCanvas {...defaultProps} onPathsChange={onPathsChange} />
+    );
+    const canvas = container.querySelector('canvas');
+    if (!canvas) throw new Error('Canvas not found');
+
+    // Start a stroke and let React flush the state update
+    act(() => {
+      fireEvent.pointerDown(canvas, { clientX: 10, clientY: 10 });
+    });
+
+    // Add a point mid-stroke (isDrawing is now true)
+    act(() => {
+      fireEvent.pointerMove(canvas, { clientX: 20, clientY: 20 });
+    });
+
+    // Simulate the pointer briefly leaving the canvas boundary without releasing.
+    // With `onPointerLeave={handleEnd}` present (the bug), this fires handleEnd
+    // while isDrawing=true, which calls onPathsChange prematurely.
+    act(() => {
+      fireEvent.pointerLeave(canvas);
+    });
+
+    // The stroke must NOT have been committed yet — onPathsChange should not
+    // have been called because the user has not released the pointer.
+    expect(onPathsChange).not.toHaveBeenCalled();
   });
 });

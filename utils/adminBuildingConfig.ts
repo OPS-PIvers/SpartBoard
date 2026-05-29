@@ -9,6 +9,18 @@ import { WIDGET_DEFAULTS } from '../config/widgetDefaults';
 import { getMaterialsCatalog } from '../components/widgets/MaterialsWidget/constants';
 
 /**
+ * Validates a CSS hex color string. Accepts the three forms an HTML color
+ * picker / Tailwind palette can emit: `#abc` (shortform), `#aabbcc`
+ * (standard), `#aabbccdd` (with alpha). Mirrors the panel-side `isValidHex`
+ * helper so admin-side validators don't silently accept malformed values
+ * (`'banana'`, `'rgb(0,0,0)'`, `'#fff '` with stray whitespace) that would
+ * round-trip through Firestore and degrade downstream widgets.
+ */
+const HEX_COLOR_RE = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6}|[0-9a-fA-F]{8})$/;
+const isHexColor = (value: unknown): value is string =>
+  typeof value === 'string' && HEX_COLOR_RE.test(value.trim());
+
+/**
  * Extracts building-level config overrides for a widget type from the admin's
  * feature_permissions config. These are applied between widget defaults and
  * explicit overrides so that per-building admin settings pre-configure new
@@ -104,6 +116,19 @@ export const getAdminBuildingConfig = (
     }
     case 'numberLine': {
       const validDisplayModes = ['integers', 'decimals', 'fractions'] as const;
+      const validFontFamilies = [
+        'sans',
+        'serif',
+        'mono',
+        'handwritten',
+        'rounded',
+        'fun',
+        'comic',
+        'slab',
+        'retro',
+        'marker',
+        'cursive',
+      ] as const;
       if (typeof raw.min === 'number' && Number.isFinite(raw.min))
         out.min = raw.min;
       if (typeof raw.max === 'number' && Number.isFinite(raw.max))
@@ -120,6 +145,20 @@ export const getAdminBuildingConfig = (
       )
         out.displayMode = raw.displayMode;
       if (typeof raw.showArrows === 'boolean') out.showArrows = raw.showArrows;
+      if (isHexColor(raw.cardColor)) out.cardColor = raw.cardColor;
+      if (
+        typeof raw.cardOpacity === 'number' &&
+        Number.isFinite(raw.cardOpacity) &&
+        raw.cardOpacity >= 0 &&
+        raw.cardOpacity <= 1
+      )
+        out.cardOpacity = raw.cardOpacity;
+      if (
+        typeof raw.fontFamily === 'string' &&
+        (validFontFamilies as readonly string[]).includes(raw.fontFamily)
+      )
+        out.fontFamily = raw.fontFamily;
+      if (isHexColor(raw.fontColor)) out.fontColor = raw.fontColor;
       break;
     }
     case 'syntax-framer':

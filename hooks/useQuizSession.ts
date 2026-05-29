@@ -19,6 +19,7 @@ import {
   collection,
   onSnapshot,
   setDoc,
+  addDoc,
   updateDoc,
   getDocs,
   getDoc,
@@ -28,7 +29,9 @@ import {
   increment,
   deleteField,
   runTransaction,
+  serverTimestamp,
   type DocumentSnapshot,
+  type FieldValue,
 } from 'firebase/firestore';
 import { db, auth, functions } from '@/config/firebase';
 import { signInAnonymously, signInWithCustomToken } from 'firebase/auth';
@@ -51,6 +54,36 @@ export type { QuizSessionOptions } from '../types';
 
 export const QUIZ_SESSIONS_COLLECTION = 'quiz_sessions';
 export const RESPONSES_COLLECTION = 'responses';
+/**
+ * Archive subcollection for responses removed by the teacher. Holds a
+ * copy of the original response doc plus archive metadata
+ * (`archivedAt`, `archivedBy`, `archiveReason`). The live doc is deleted
+ * so the deterministic key is freed for a fresh rejoin; the archive
+ * preserves partial answers for teacher recovery + dev queries beyond
+ * the 48h window the user asked for. Cleanup is intentionally not
+ * scheduled — retention is currently indefinite; revisit if storage
+ * cost becomes a concern.
+ */
+export const ARCHIVED_RESPONSES_COLLECTION = 'archived_responses';
+/**
+ * Append-only per-response snapshot log. Each entry captures the prior
+ * value of a question's answer just before it gets overwritten in the
+ * `responses/{rid}.answers` array, so a teacher (or admin) can recover
+ * text that was lost to a race, a stray empty draft, or a student who
+ * retyped over their own work. Writes are fire-and-forget and throttled
+ * per-question (see `HISTORY_SNAPSHOT_THROTTLE_MS`) to keep storage and
+ * write costs bounded — typical essay quiz has a low double-digit
+ * count per student.
+ */
+export const RESPONSE_HISTORY_COLLECTION = 'history';
+/**
+ * Minimum interval between history snapshots for the same questionId on
+ * the same response. The autosave debounce is 500 ms; without throttling
+ * a long essay would fan out to hundreds of near-identical history docs.
+ * 5 s gives "enough resolution to recover meaningful state" without
+ * making history a per-keystroke audit log.
+ */
+const HISTORY_SNAPSHOT_THROTTLE_MS = 5000;
 /**
  * Top-level cross-launch attempt ledger. Sits alongside `/quiz_sessions/`
  * and accumulates a student's completed-attempt count across every session
@@ -75,6 +108,72 @@ export function quizLedgerKey(quizId: string, studentUid: string): string {
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+/**
+ * Defensive predicate: refuse a draft autosave that would overwrite a
+ * non-empty saved answer with the empty string. Almost always indicates
+ * a race (editor briefly emitted '' after a remount or a hydration miss)
+ * rather than a deliberate clear. Explicit submits (`isDraft=false`)
+ * bypass this — a student who really wants to clear an answer can still
+ * submit empty.
+ */
+export function isUnsafeBlankDraft(
+  answer: string,
+  isDraft: boolean,
+  priorEntry: QuizResponseAnswer | undefined
+): boolean {
+  return isDraft && answer === '' && !!priorEntry && priorEntry.answer !== '';
+}
+
+/**
+ * Defensive predicate: refuse a draft autosave that would downgrade an
+ * already-submitted answer's status to 'draft'. The cache-driven
+ * autosave path can re-fire for the same question during the SSO
+ * listener-fast race window (back-nav before the response listener
+ * echoes the just-submitted answer back, so the local `submitted` state
+ * briefly flips false), and without this guard the autosave silently
+ * flips status 'submitted' → 'draft' and drops the question from the
+ * teacher's "Finished" view. Explicit submits (`isDraft=false`) still
+ * pass through.
+ */
+export function isUnsafeStatusDowngrade(
+  isDraft: boolean,
+  priorEntry: QuizResponseAnswer | undefined
+): boolean {
+  // Use `!== 'draft'` rather than `=== 'submitted'` so legacy entries
+  // with `status === undefined` (predate the draft flag — treated as
+  // submitted everywhere else via `isAnswerSubmitted`) are also
+  // protected from being silently downgraded to draft.
+  return isDraft && priorEntry !== undefined && priorEntry.status !== 'draft';
+}
+
+/**
+ * Decide whether to snapshot the prior answer entry to the history
+ * subcollection before overwriting. Captures any prior non-empty value
+ * the incoming write is about to lose — either because the text
+ * changed, or because the status is being destructively downgraded
+ * from 'submitted' to 'draft' (which can erase grading state even
+ * with identical text). The per-question throttle keeps a long essay
+ * from fanning out to hundreds of near-identical docs.
+ */
+export function shouldSnapshotHistory(
+  priorEntry: QuizResponseAnswer | undefined,
+  newAnswer: string,
+  newIsDraft: boolean,
+  lastSnapshotAt: number,
+  now: number,
+  throttleMs: number = HISTORY_SNAPSHOT_THROTTLE_MS
+): boolean {
+  if (!priorEntry) return false;
+  if (priorEntry.answer === '') return false;
+  const textChanged = priorEntry.answer !== newAnswer;
+  // Mirror `isUnsafeStatusDowngrade`: treat legacy entries with
+  // `status === undefined` as submitted so a downgrade attempt on a
+  // legacy answer still gets a forensic snapshot.
+  const statusDowngrade = priorEntry.status !== 'draft' && newIsDraft;
+  if (!textChanged && !statusDowngrade) return false;
+  return now - lastSnapshotAt >= throttleMs;
+}
 
 /** Unbiased Fisher-Yates in-place shuffle (returns new array) */
 function fisherYatesShuffle<T>(arr: T[]): T[] {
@@ -654,15 +753,24 @@ export const useQuizSessionTeacher = (
   const removeStudent = useCallback(
     async (responseKey: string) => {
       if (!sessionId) return;
+      // Auth must be present before we open the batch — the archive
+      // create rule requires `archivedBy == request.auth.uid`, so a
+      // mid-token-refresh null would cause the entire batch (including
+      // the delete) to roll back. Bail early with a clear error
+      // instead.
+      const writerUid = auth.currentUser?.uid;
+      if (!writerUid) {
+        throw new Error(
+          'You must be signed in to remove a student. Try refreshing the page.'
+        );
+      }
       // Look up the response in the snapshot-driven `responses` list to
       // recover the studentUid + quizId we need for the ledger reset
-      // (Phase 2). The teacher's existing UX for `removeStudent` is
-      // "free the student up to retake" — which today only freed the
-      // per-session counter. After Phase 2 the cross-launch ledger
-      // would still cap them, so the reset must clear the ledger entry
-      // too. Falls back to a response-only delete when the response
-      // isn't in the snapshot list (race with a stale UI click).
-      const target = responses.find(
+      // (Phase 2). If the snapshot listener hasn't propagated yet
+      // (teacher just opened the monitor), fall back to a direct
+      // `getDoc` so we still produce an archive — silently skipping
+      // the archive would defeat the data-preservation contract.
+      let target = responses.find(
         (r) => (r._responseKey ?? r.studentUid) === responseKey
       );
       const responseRef = doc(
@@ -672,6 +780,35 @@ export const useQuizSessionTeacher = (
         RESPONSES_COLLECTION,
         responseKey
       );
+      if (!target) {
+        // Best-effort fetch when the snapshot listener hasn't yet
+        // surfaced the response (rare race after a fresh mount). We
+        // need this to satisfy the archive contract for partial work.
+        try {
+          const fallbackSnap = await getDoc(responseRef);
+          if (fallbackSnap?.exists?.()) {
+            target = {
+              ...(fallbackSnap.data() as QuizResponse),
+              _responseKey: fallbackSnap.id,
+            };
+          }
+          // If the doc legitimately doesn't exist (already removed),
+          // fall through to a no-op delete — preserves the pre-fix
+          // delete-only semantics for this case.
+        } catch (err) {
+          // Don't silently swallow permission/transport errors — they
+          // mean the archive write will ALSO fail (same auth/network),
+          // so proceeding with the delete-only batch silently destroys
+          // the student's partial work. Log + rethrow so the caller
+          // toasts the error and the teacher can retry, rather than
+          // discovering later that the archive doesn't exist.
+          console.error(
+            '[useQuizSession] removeStudent fallback getDoc failed; aborting to preserve archive contract',
+            err
+          );
+          throw err;
+        }
+      }
 
       const ledgerRef =
         target && session?.quizId
@@ -682,10 +819,75 @@ export const useQuizSessionTeacher = (
             )
           : null;
 
-      // Delete in a batch so the response and ledger reset are atomic
-      // from a UI perspective (no half-state where the response is
-      // gone but the cap still blocks rejoin).
+      // Clean up the answer-history subcollection BEFORE deleting the
+      // parent response. Firestore does not cascade subcollection
+      // deletes, so without this the snapshots orphan — and because the
+      // response key is deterministic (`auth.uid` for SSO, `pin-…` for
+      // anonymous), a removed student who rejoins lands on the same key
+      // and the history read rule (`request.auth.uid == parentStudentUid`)
+      // would let them read their own prior-attempt drafts. The teacher's
+      // archive preserves the final answers; the intermediate-draft
+      // history is intentionally discarded on removal. Chunked at 450 to
+      // stay under the 500-op Firestore batch limit; these are independent
+      // of the atomic archive+delete batch below, so a partial failure
+      // just leaves a smaller orphan tail that a retry sweeps.
+      const historyDocs = (
+        await getDocs(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_COLLECTION,
+            responseKey,
+            RESPONSE_HISTORY_COLLECTION
+          )
+        )
+      ).docs;
+      const HISTORY_DELETE_CHUNK = 450;
+      for (let i = 0; i < historyDocs.length; i += HISTORY_DELETE_CHUNK) {
+        const historyBatch = writeBatch(db);
+        for (const d of historyDocs.slice(i, i + HISTORY_DELETE_CHUNK)) {
+          historyBatch.delete(d.ref);
+        }
+        await historyBatch.commit();
+      }
+
+      // Archive the response before delete so partial answers survive
+      // the teacher's "remove" action. The deterministic key model
+      // means we can't soft-delete in place (the slot must be free for
+      // a fresh rejoin), so we stash a copy under `archived_responses`
+      // and then delete the live doc + ledger atomically. If `target`
+      // is still missing after the fallback fetch (doc already gone),
+      // skip the archive — there's nothing left to preserve.
       const batch = writeBatch(db);
+      if (target) {
+        // Suffix the archive doc id with `archivedAt` so a student who
+        // rejoins (same deterministic responseKey) and is removed again
+        // doesn't collide with the prior archive. The archive rule only
+        // allows create — a colliding `set()` would be evaluated as
+        // update and rejected, breaking the entire removeStudent
+        // batch. Querying by `originalResponseKey` (a field on the
+        // archive doc) or by `archived_responses` collection-group +
+        // path filter recovers per-student history.
+        const archivedAt = Date.now();
+        const archiveRef = doc(
+          db,
+          QUIZ_SESSIONS_COLLECTION,
+          sessionId,
+          ARCHIVED_RESPONSES_COLLECTION,
+          `${responseKey}__${archivedAt}`
+        );
+        // Strip the listener-only `_responseKey` tag before writing so
+        // the archive matches the original Firestore schema.
+        const { _responseKey: _, ...archivePayload } = target;
+        batch.set(archiveRef, {
+          ...archivePayload,
+          archivedAt,
+          archivedBy: writerUid,
+          archiveReason: 'teacher-removed',
+          originalResponseKey: responseKey,
+        });
+      }
       batch.delete(responseRef);
       if (ledgerRef) batch.delete(ledgerRef);
       await batch.commit();
@@ -741,6 +943,11 @@ export const useQuizSessionTeacher = (
         completedAttempts: refundedAttempts,
         unlocked: true,
         unlockedAt: Date.now(),
+        // Refresh lastWriteAt so the idle auto-submit Cloud Function
+        // doesn't immediately re-finalize this freshly-unlocked attempt
+        // on its next sweep. Without this, an unlock done >90 min after
+        // the original submit would be silently undone within the hour.
+        lastWriteAt: serverTimestamp(),
       });
       if (ledgerRef && ledgerSnap?.exists()) {
         const ledgerCurrent =
@@ -1044,6 +1251,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   const myResponseRef = useRef<QuizResponse | null>(null);
   myResponseRef.current = myResponse;
 
+  // Per-questionId timestamp of the most recent history snapshot write.
+  // Used to throttle snapshots — see HISTORY_SNAPSHOT_THROTTLE_MS.
+  const lastHistorySnapshotAtRef = useRef<Map<string, number>>(new Map());
+
   // Optimistic local counter state to ensure UI updates immediately.
   // warningCountRef mirrors the state so reportTabSwitch can return the
   // updated value synchronously (React functional updaters run on the next
@@ -1194,6 +1405,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
     ): Promise<string> => {
       setLoading(true);
       setError(null);
+      // Clear per-question history throttle on every join. The same hook
+      // instance survives a teacher unlock / attempt-cap rejoin, so a
+      // stale `lastSnapshotAt` from the prior attempt would suppress
+      // legitimate snapshots in the new one.
+      lastHistorySnapshotAtRef.current.clear();
       try {
         const normCode = code
           .trim()
@@ -1293,12 +1509,43 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               },
               { matched: boolean; customToken?: string; reason?: string }
             >(functions, 'pinLoginV1');
-            const res = await callable({
-              kind: 'quiz',
-              code: normCode,
-              pin: sanitizedPin,
-              period: classPeriod,
-            });
+            const callBridge = () =>
+              callable({
+                kind: 'quiz',
+                code: normCode,
+                pin: sanitizedPin,
+                period: classPeriod,
+              });
+            // Retry once on transient errors (cold start, brief network
+            // blip, function deploy mid-call). The lockout the user
+            // reported on tab pop-out happens when the new tab's bridge
+            // call fails with a transient error, falls through to the
+            // anonymous flow, and then can't claim the existing response
+            // doc keyed by the first tab's HMAC pseudonym. Retrying
+            // here covers the common case without adding a second
+            // user-visible failure mode.
+            //
+            // Non-retryable codes (not-found, invalid-argument,
+            // permission-denied) are deterministic — re-running won't
+            // change the answer, so we surface them on the first try.
+            let res;
+            try {
+              res = await callBridge();
+            } catch (err) {
+              const code = getErrorCode(err);
+              const transient =
+                code === 'unavailable' ||
+                code === 'deadline-exceeded' ||
+                code === 'internal' ||
+                code === 'aborted';
+              if (!transient) throw err;
+              console.warn(
+                '[useQuizSession] pinLoginV1 bridge transient failure — retrying:',
+                { code }
+              );
+              await new Promise((r) => setTimeout(r, 300));
+              res = await callBridge();
+            }
             if (res.data.matched && res.data.customToken) {
               await signInWithCustomToken(auth, res.data.customToken);
               const refreshed = auth.currentUser;
@@ -1307,6 +1554,17 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
                 studentUid = refreshed.uid;
                 isAnonymous = refreshed.isAnonymous;
               }
+            } else {
+              // Bridge returned `matched: false` — log the reason so we
+              // can correlate client-side rejoin lockouts with the
+              // server-side fall-through cause (e.g. `no-index-entry`
+              // = roster pin_index out of date). Without this the
+              // anonymous fall-through is silent.
+              console.warn('[useQuizSession] pinLoginV1 bridge no-match:', {
+                reason: res.data.reason ?? 'unknown',
+                hasRoster: sessionHasRosters,
+                classPeriod,
+              });
             }
           } catch (err) {
             // The bridge is best-effort by design — falling through to
@@ -1444,6 +1702,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               status: 'in-progress',
               submittedAt: null,
               score: null,
+              // Refresh so idle auto-submit doesn't immediately
+              // re-finalize the resumed attempt (lastWriteAt would
+              // otherwise still point at the prior submit).
+              lastWriteAt: serverTimestamp(),
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
@@ -1483,6 +1745,11 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
               score: null,
               submittedAt: null,
               preSyncVersion: 0,
+              // Refresh so the idle auto-submit cron doesn't destroy
+              // the fresh attempt — without this, a rejoin >90 min
+              // after the prior submit gets finalized on the next
+              // sweep with zero answers.
+              lastWriteAt: serverTimestamp(),
               ...(classPeriod && existing.classPeriod !== classPeriod
                 ? { classPeriod }
                 : {}),
@@ -1500,16 +1767,20 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           } else if (classPeriod && existing.classPeriod !== classPeriod) {
             // Backfill classPeriod on an in-flight response (e.g. student
             // joined before periods were configured or reloaded after a
-            // change).
-            await updateDoc(responseRef, { classPeriod }).catch(
-              (err: unknown) =>
-                logQuizJoinFirestoreError('update-backfill-period', err, {
-                  sessionId: sessionDoc.id,
-                  responseKey,
-                  studentUid,
-                  existingStudentUid: existing.studentUid,
-                  isAnonymous,
-                })
+            // change). Treat this as activity — refresh lastWriteAt so
+            // a long-running session doesn't trip the idle auto-submit
+            // on the next sweep just because of a backfill touch.
+            await updateDoc(responseRef, {
+              classPeriod,
+              lastWriteAt: serverTimestamp(),
+            }).catch((err: unknown) =>
+              logQuizJoinFirestoreError('update-backfill-period', err, {
+                sessionId: sessionDoc.id,
+                responseKey,
+                studentUid,
+                existingStudentUid: existing.studentUid,
+                isAnonymous,
+              })
             );
           }
         } else if (limit !== null && ledgerCompleted >= limit) {
@@ -1606,9 +1877,18 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           // the same `classPeriod` field so all downstream surfaces (period
           // dropdown, export sheet) read uniformly.
           const finalClassPeriod = classPeriod ?? resolvedPeriodName;
-          const newResponse: QuizResponse = {
+          const newResponse: Omit<QuizResponse, 'lastWriteAt'> & {
+            lastWriteAt: FieldValue;
+          } = {
             studentUid,
             joinedAt: Date.now(),
+            // Seed `lastWriteAt` at join so a student who joins but
+            // never answers still ages into the idle auto-submit query.
+            // Server-stamped (not Date.now()) so a Chromebook with a
+            // skewed clock can't (a) seed a past timestamp and get
+            // force-finalized on the next sweep, or (b) seed a future
+            // timestamp to evade auto-submit indefinitely.
+            lastWriteAt: serverTimestamp(),
             status: 'joined',
             answers: [],
             score: null,
@@ -1666,6 +1946,10 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           if (existing.classPeriod !== resolvedPeriodName) {
             await updateDoc(responseRef, {
               classPeriod: resolvedPeriodName,
+              // Refresh — backfill is a rejoin action, the student is
+              // active. See the in-flight backfill branch above for
+              // the symmetric refresh.
+              lastWriteAt: serverTimestamp(),
             }).catch((err: unknown) =>
               logQuizJoinFirestoreError('update-backfill-class-period', err, {
                 sessionId: sessionDoc.id,
@@ -1711,8 +1995,15 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           getErrorCode(err) === 'permission-denied' &&
           auth.currentUser?.isAnonymous
         ) {
+          // Distinguish the "popped out into a new tab" case from a
+          // genuine PIN collision. Both look the same from Firestore's
+          // perspective (existing doc's studentUid ≠ ours), so we steer
+          // the student toward closing duplicate tabs first — that's the
+          // common case after our pinLoginV1 retry hardening above — and
+          // only escalate to "ask your teacher" if the student is sure
+          // they're not still open elsewhere.
           msg =
-            "Looks like that PIN has already joined this quiz. Ask your teacher to clear it for you, or double-check that you've selected the right class period.";
+            "It looks like you're already in this quiz on another tab or device. Close any other tabs you have this quiz open in and try again. If you're still stuck, ask your teacher to release your attempt.";
         } else if (getErrorCode(err) === 'permission-denied') {
           msg =
             "You can't join this quiz. Ask your teacher to make sure you're enrolled in the right class.";
@@ -1749,6 +2040,85 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // only) from an explicit submit. The student's `alreadyAnswered` gate
       // checks for `'submitted'` so a draft autosave doesn't masquerade as
       // a final answer and prematurely fire the completion card.
+      const existingAnswers = myResponseRef.current?.answers ?? [];
+      const priorEntry = existingAnswers.find(
+        (a) => a.questionId === questionId
+      );
+
+      // #1 guard — see `isUnsafeBlankDraft` doc. Refuses a draft autosave
+      // that would silently clobber a non-empty saved answer with ''.
+      if (isUnsafeBlankDraft(answer, opts?.isDraft === true, priorEntry)) {
+        return;
+      }
+
+      // #5 history snapshot decision — runs BEFORE the status-downgrade
+      // guard so a rejected downgrade attempt is still recorded as a
+      // forensic snapshot. Without this ordering, the downgrade branch
+      // of `shouldSnapshotHistory` was unreachable in production
+      // (`isUnsafeStatusDowngrade` returns early on the very condition
+      // the snapshot path wants to capture). Keeping it here means the
+      // recovery log records both completed and rejected overwrites.
+      const now = Date.now();
+      const lastAt = lastHistorySnapshotAtRef.current.get(questionId) ?? 0;
+      const wantSnapshot =
+        !!priorEntry &&
+        shouldSnapshotHistory(
+          priorEntry,
+          answer,
+          opts?.isDraft === true,
+          lastAt,
+          now
+        );
+      if (wantSnapshot && priorEntry) {
+        // Consume the throttle slot eagerly — BEFORE issuing the addDoc
+        // — so a tap-storm with multiple in-flight writes can't all see
+        // the same stale `lastAt` and slip past the throttle, and an
+        // out-of-order resolution can't move the timestamp backwards.
+        // A one-time failure burns the throttle slot for the window
+        // (logged below); the alternative is unbounded write-
+        // amplification on a flaky network, which is the worse failure
+        // mode for a fire-and-forget safety net.
+        lastHistorySnapshotAtRef.current.set(questionId, now);
+        void addDoc(
+          collection(
+            db,
+            QUIZ_SESSIONS_COLLECTION,
+            sessionId,
+            RESPONSES_COLLECTION,
+            responseKey,
+            RESPONSE_HISTORY_COLLECTION
+          ),
+          {
+            questionId: priorEntry.questionId,
+            answer: priorEntry.answer,
+            // `answeredAt` is typed `number` (required) but Firestore
+            // can return any shape on legacy docs — fall back to `now`
+            // so the rule's required-fields check still passes instead
+            // of crashing on `undefined`.
+            answeredAt: priorEntry.answeredAt ?? now,
+            // Narrow explicitly rather than `?? 'submitted'`: the rule
+            // pins `status in ['draft','submitted']`, so any future
+            // schema value would silently fail every history write.
+            status: priorEntry.status === 'draft' ? 'draft' : 'submitted',
+            snapshotAt: serverTimestamp(),
+          }
+        ).catch((err: unknown) => {
+          // Safety-net write — recovery still works without it, so we
+          // don't surface to the student. But log it: a silently
+          // failing recovery net (e.g. a future rules/schema drift)
+          // should be visible rather than vanish.
+          console.error('[useQuizSession] history snapshot write failed:', err);
+        });
+      }
+
+      // Status-downgrade guard — see `isUnsafeStatusDowngrade` doc.
+      // Stops the back-nav listener-lag race from silently flipping a
+      // 'submitted' answer back to 'draft' status. Runs AFTER the
+      // history snapshot so the rejected attempt is still recorded.
+      if (isUnsafeStatusDowngrade(opts?.isDraft === true, priorEntry)) {
+        return;
+      }
+
       const newAnswer: QuizResponseAnswer = {
         questionId,
         answer,
@@ -1759,7 +2129,6 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           : {}),
       };
 
-      const existingAnswers = myResponseRef.current?.answers ?? [];
       const updated = [
         ...existingAnswers.filter((a) => a.questionId !== questionId),
         newAnswer,
@@ -1785,7 +2154,19 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
           RESPONSES_COLLECTION,
           responseKey
         ),
-        { status: nextStatus, answers: updated }
+        // `lastWriteAt` is the idle-auto-submit Cloud Function's cutoff
+        // field: any joined/in-progress response whose `lastWriteAt` is
+        // older than the assignment's idle threshold gets finalized
+        // automatically. Stamped on every answer write (draft or
+        // submitted) — tab-switch warnings deliberately do NOT update
+        // it, so a student who toggles tabs without answering still
+        // ages out as expected. Server-stamped so client clock skew
+        // can't trigger spurious auto-submit or evade it.
+        {
+          status: nextStatus,
+          answers: updated,
+          lastWriteAt: serverTimestamp(),
+        }
       );
     },
     []

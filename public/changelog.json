@@ -1,6 +1,220 @@
 {
   "entries": [
     {
+      "version": "2026.05.28.4",
+      "date": "2026-05-28",
+      "title": "Live quiz answer integrity safeguards",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Answers no longer disappear",
+          "items": [
+            {
+              "text": "Student-typed essay and written answers no longer come back blank when you unlock a question for editing or when students back-navigate to a previously-submitted question."
+            },
+            {
+              "text": "When a question's timer auto-submits a multiple choice answer, the committed option now stays highlighted on the locked screen instead of appearing blank."
+            },
+            {
+              "text": "Revealing answers immediately after a timer auto-submit no longer shows students a brief flash of \"incorrect\" feedback before the correct response catches up."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "items": [
+            {
+              "text": "If a student tries to clear a previously-saved answer by deleting all their text, a banner now tells them to use Submit to confirm the clear — previously the deletion was silently blocked and the student had no idea why it didn't stick."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Live quiz — student-typed essay and written answers no longer disappear when you unlock a question for editing, or when students back-navigate to a previously-submitted question. The student app now keeps every answer in local memory and prefers that over slower cloud syncs, so a late-arriving sync can't wipe out text the student already typed. Reported on a live \"Independent Reading Test\" essay quiz where students saw their work come back blank after a teacher unlock."
+        },
+        {
+          "type": "fix",
+          "text": "Live quiz — when a question's timer expires and auto-submits a multiple choice answer, the chosen option is now highlighted on the locked screen. Previously the answer was committed correctly but the highlight was missing, making the locked screen look as if nothing had been chosen."
+        },
+        {
+          "type": "fix",
+          "text": "Live quiz — when you reveal answers right after a timer auto-submit, students no longer see a brief flash of \"incorrect\" feedback before the correct response catches up. The reveal now reads from the same local cache the student just committed against, so the feedback matches what they actually answered."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — if a student tries to clear a previously-saved answer by deleting all the text in the field, the app now surfaces a banner asking them to use Submit to confirm the clear. Previously, the deletion was silently refused as a safeguard against accidental loss, and the student had no UI signal explaining why their clear didn't stick."
+        }
+      ]
+    },
+    {
+      "version": "2026.05.28.3",
+      "date": "2026-05-28",
+      "title": "Shared notebook hotspots and Boards modal copy",
+      "details": [
+        {
+          "type": "fix",
+          "text": "Shared notebooks — page-link hotspots no longer disappear when a colleague imports a shared notebook. If you authored a notebook with objects that jump to another page on Ctrl/Cmd+click, those hotspots now travel with the share, and the teacher who imports the copy gets the same jumps wired up to the same objects."
+        },
+        {
+          "type": "improvement",
+          "text": "Boards modal — the header now reads \"Boards & Collections\" instead of just \"Boards\", matching the search placeholder copy already in place and making it clearer that collections live alongside individual boards in the same modal."
+        }
+      ]
+    },
+    {
+      "version": "2026.05.28.2",
+      "date": "2026-05-28",
+      "title": "Quiz safeguards, Scoreboard layout, and Random widget chip",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "90-minute auto-submit safeguards",
+          "items": [
+            {
+              "text": "Pausing a live quiz now also pauses the 90-minute idle auto-submit, so you can hold a session over lunch, a fire drill, or until tomorrow's class without students being force-submitted while you're away."
+            },
+            {
+              "text": "Students sitting in the lobby of a quiz you haven't launched yet no longer get force-submitted with empty answers if you get pulled away before starting question 1. Lobby sessions left untouched for more than 24 hours are treated as abandoned and finalized normally."
+            },
+            {
+              "text": "Resuming a paused session gives every still-joined student a fresh 90-minute idle window, so a long pause never causes their work to auto-submit the moment they reconnect."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Scoreboard layout",
+          "items": [
+            {
+              "text": "The Cards vs Rows layout toggle moved out of the Scoreboard's chrome and into the Settings panel, where it sits alongside team and color settings — easier to find when you're setting up a board for the first time."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Random widget — class context chip",
+          "items": [
+            {
+              "text": "The active class chip and the Mark Absent button merged into a single icon-only chip with a popover. Click the target icon to see the class name, switch class, or mark absent students — frees up header room at narrow widget widths."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Live quiz — paused sessions are now exempt from the 90-minute idle auto-submit. If you pause a quiz at the end of a class period to resume the next day (or step out for lunch, a fire drill, or a hallway conversation), students' in-progress attempts are preserved instead of being force-submitted while the session is paused."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — lobby attendees are no longer force-submitted while the session sits in the waiting state. If you create a quiz, students join the lobby, and you get pulled away before launching question 1, those students stay in the lobby with their join intact instead of being auto-finalized with 0 answers after 90 minutes. Lobby sessions that sit untouched for more than 24 hours are treated as abandoned and swept on the next cron pass, so old practice/demo sessions don't accumulate as never-finalized rows."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — when you resume a paused session, the 90-minute idle clock restarts for every still-joined and in-progress student before the session flips back to active. Even if the pause lasted overnight, students get a full fresh window to keep working when they reconnect, instead of being immediately auto-submitted because their last activity was hours or days ago."
+        },
+        {
+          "type": "improvement",
+          "text": "Scoreboard widget — the Cards / Rows layout toggle moved from the widget header into the Settings panel as a labelled control. Existing scoreboards keep whichever layout they were already using; the header is now reserved for the score display itself."
+        },
+        {
+          "type": "improvement",
+          "text": "Random widget — the active class chip and the Mark Absent button merged into a single icon-only chip with a popover. The popover shows the class name, lets you switch class, and offers a Mark Absent Students action when the Randomizer is pointing at a real class roster (the action hides itself when you're in custom-names mode). Stations, Seating Chart, and Lunch Count keep their separate chips for now."
+        }
+      ]
+    },
+    {
+      "version": "2026.05.28",
+      "date": "2026-05-28",
+      "title": "Quiz reliability, grading fixes, and translations",
+      "overview": [
+        {
+          "type": "improvement",
+          "subtitle": "Live quiz reliability",
+          "items": [
+            {
+              "text": "Student answers to every question type — multiple choice, fill in the blank, matching, and ordering — now save automatically as students work, so closing a tab mid-attempt no longer drops their progress."
+            },
+            {
+              "text": "Popping a quiz into a new browser tab no longer locks students out with a \"PIN already joined\" error — the new tab now retries and recovers automatically."
+            },
+            {
+              "text": "Abandoned quiz attempts auto-submit after 90 minutes of inactivity instead of sitting in limbo on the teacher's monitor."
+            },
+            {
+              "text": "Removing a student from a live quiz now archives their partial work so you can recover their answers later, instead of deleting them."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "\"Send Groups → Stations\" from the Random widget now uses the group names you set (or \"Group 1\", \"Group 2\", …) instead of long, cryptic ID strings."
+            },
+            {
+              "text": "Drawing strokes no longer cut off when your pointer briefly crosses the edge of the canvas mid-stroke."
+            },
+            {
+              "text": "Video Activity scoring no longer counts duplicate questions twice against a student's possible score — a fully correct answer now reads 100% even when the question list contains repeats."
+            },
+            {
+              "text": "PLC panels (titles, buttons, dialogs, and the Remote Control link) now show in German, Spanish, and French instead of silently falling back to English."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Admin building defaults",
+          "items": [
+            {
+              "text": "Set per-building Number Line defaults for font family, text color, surface color, and surface opacity from Admin Settings — new Number Line widgets in that building start with your chosen look."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "improvement",
+          "text": "Live quiz — student answers to multiple choice, fill in the blank, matching, and ordering questions now autosave as the student works, the same way written responses already did. If a student closes their tab, switches devices, or loses connection mid-attempt, the answers they had entered are preserved and reappear when they rejoin."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — popping a quiz out into its own browser window or tab no longer triggers a \"PIN already joined\" lockout for the student. The new tab now retries through a brief network blip and the lockout message points students at closing the other tab first instead of asking the teacher for help."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — abandoned attempts that sit untouched for 90 minutes are now auto-submitted in the background and marked complete, instead of staying as \"in progress\" on the teacher's monitor forever. Whatever the student had answered is kept; unanswered questions stay blank."
+        },
+        {
+          "type": "improvement",
+          "text": "Live quiz — when you remove a student from a session, their partial work is now archived rather than deleted, so you can recover their answers if they were removed by mistake."
+        },
+        {
+          "type": "fix",
+          "text": "Random widget — \"Send Groups → Stations\" now creates stations labeled with the group names you saved (or \"Group 1\", \"Group 2\", …) instead of long ID strings."
+        },
+        {
+          "type": "fix",
+          "text": "Annotation canvas — fast strokes whose motion briefly crosses the canvas edge no longer commit prematurely. The stroke now stays in progress until you actually lift your pointer."
+        },
+        {
+          "type": "fix",
+          "text": "Video Activity grading — if the same question appears twice in an activity (for example, through a Drive sync hiccup), the duplicate no longer inflates the maximum possible score. A fully correct answer now reads 100% in those cases instead of 50%."
+        },
+        {
+          "type": "fix",
+          "text": "Translations — the PLC (Professional Learning Community) sidebar panel and Remote Control sidebar link now display in German, Spanish, and French, instead of silently falling back to English."
+        },
+        {
+          "type": "improvement",
+          "text": "Admin Settings — the Number Line widget configuration panel gains an \"Appearance Defaults\" section, so admins can set per-building default font family, text color, surface color, and surface opacity. Teachers in that building get those defaults the next time they add a new Number Line widget."
+        }
+      ]
+    },
+    {
       "version": "2026.05.27",
       "date": "2026-05-27",
       "title": "Notebook editor: shapes, links, copy/paste, and undo",

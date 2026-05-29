@@ -655,7 +655,17 @@
         "jigsaw": "Jigsaw"
       },
       "modeChipAria": "Operation mode: {{mode}}",
+      "modeChipAriaWithCount_one": "Operation mode: {{mode}}. {{count}} student left.",
+      "modeChipAriaWithCount_other": "Operation mode: {{mode}}. {{count}} students left.",
       "modeChipTitle": "Mode: {{mode}} — click to cycle",
+      "classContext": {
+        "triggerAria": "Active class: {{name}}",
+        "triggerAriaWithAbsent_one": "Active class: {{name}}. {{count}} student marked absent today.",
+        "triggerAriaWithAbsent_other": "Active class: {{name}}. {{count}} students marked absent today.",
+        "menuAria": "Class context for Randomizer",
+        "switchHeading": "Switch class",
+        "markAbsentAction": "Mark absent students"
+      },
       "launchJigsaw": "Launch Jigsaw",
       "launchJigsawHint": "Show expert groups",
       "launchHomeGroup": "Launch Home Group",
@@ -897,7 +907,7 @@
     "root": "No Collection"
   },
   "boardsModal": {
-    "title": "Boards",
+    "title": "Boards & Collections",
     "close": "Close",
     "searchPlaceholder": "Search Boards & Collections",
     "newBoard": "New Board",

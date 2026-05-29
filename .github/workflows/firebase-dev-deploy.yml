@@ -71,8 +71,17 @@ jobs:
       - name: Create Service Account File
         run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > service-account.json
 
-      - name: Deploy Firebase Rules and Functions
+      - name: Deploy Firebase Rules, Indexes, Functions, Storage
         run: pnpm exec firebase deploy --only functions,firestore,storage --project spartboard --force
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
+
+      # `firebase deploy --only firestore` returns once index creation is
+      # queued, not when the build is ready. Wait here so the preview
+      # channel's client bundle can't run a query before its index is
+      # built — matches the production workflow's safety order.
+      - name: Wait for Firestore composite indexes to be READY
+        run: ./.github/scripts/wait-for-firestore-indexes.sh spartboard
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ./service-account.json
 
