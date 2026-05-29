@@ -67,4 +67,13 @@ describe('sanitizePrompt', () => {
       '&lt;script&gt;&#123;&quot;key&quot;: &quot;value&quot;&#125;&lt;/script&gt;'
     );
   });
+
+  it('escapes single-quotes for defense-in-depth against attribute breakout', () => {
+    // Defense-in-depth: if user input is ever embedded inside single-quoted
+    // XML/HTML attributes (e.g. <tag attr='…'>), an unescaped `'` lets the
+    // attacker close the attribute and inject markup. Aligns with the
+    // standard HTML escape set.
+    expect(sanitizePrompt("it's")).toBe('it&#39;s');
+    expect(sanitizePrompt("'quoted'")).toBe('&#39;quoted&#39;');
+  });
 });

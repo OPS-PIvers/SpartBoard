@@ -22,12 +22,16 @@ const ESCAPE_MAP: Record<string, string> = {
   // double-quote lets an attacker close a JSON string and append rogue fields.
   // Encoding `"` as `&quot;` makes it opaque to the model's JSON layer.
   '"': '&quot;',
+  // `'` is escaped for defense-in-depth against XML/HTML attribute breakout
+  // in any context that ever embeds sanitized input inside single-quoted
+  // attributes (e.g. <tag attr='…'>). Aligns with standard HTML escaping.
+  "'": '&#39;',
 };
 
 export const sanitizePrompt = (text?: string): string => {
   if (typeof text !== 'string' || text.length === 0) return '';
   return text
-    .replace(/[&<>{}[\]`"]/g, (ch) => ESCAPE_MAP[ch])
+    .replace(/[&<>{}[\]`"']/g, (ch) => ESCAPE_MAP[ch])
     .replace(/[\r\n]+/g, ' ')
     .trim();
 };
