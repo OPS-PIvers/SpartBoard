@@ -442,6 +442,18 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Drop any pending autosave for `page` without uploading. Used by the
+  // delete handler: the page is about to disappear, so flushing would
+  // upload the edit to a soon-to-be-deleted storage blob (wasted bandwidth)
+  // and race against persistPageList's updateDoc.
+  const cancelPending = (page: number): void => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    editedSvgsRef.current.delete(page);
+  };
+
   // Cancel any pending autosave for `page` and fire the upload immediately.
   // Returns true if a flush actually ran, false if there was nothing pending,
   // so structural page-op callers know whether to re-read the doc afterwards.
@@ -654,13 +666,16 @@ export const SmartNotebookWidget: React.FC<{
     if (!confirmed) return;
     setIsPageOp(true);
     try {
-      // Await the flush + re-read fresh state. A fire-and-forget flush would
-      // race against persistPageList's updateDoc and could restore the
-      // 'deleted' pageUrls/pagePaths entry after we'd already cleared it.
-      const fresh = await flushAndReadFresh(currentPage);
-      if (!fresh) return;
-      const linkCountBefore = fresh.objectLinks?.length ?? 0;
-      const { state: next, removedPath } = deletePage(fresh, currentPage);
+      // Cancel rather than flush: the teacher just decided to delete this
+      // page, so any pending edit on it should be discarded (uploading to a
+      // soon-to-be-deleted storage blob would waste bandwidth and race
+      // persistPageList's updateDoc, possibly restoring the page).
+      cancelPending(currentPage);
+      const linkCountBefore = activeNotebook.objectLinks?.length ?? 0;
+      const { state: next, removedPath } = deletePage(
+        activeNotebook,
+        currentPage
+      );
       const droppedLinks = linkCountBefore - (next.objectLinks?.length ?? 0);
       await persistPageList(next);
       if (removedPath) {
