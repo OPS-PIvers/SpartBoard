@@ -856,12 +856,25 @@ export async function fetchRecentlyPlayed(
  * with the device id makes Spotify treat it as the active device. We pass
  * `play: false` so this only activates without forcing a resume; the caller
  * issues the real `play` (with the desired context/tracks) right after.
+ *
+ * Error policy
+ * ------------
+ * - 403 → throw 'spotify-premium-required'. The transfer endpoint returns
+ *   403 for non-Premium accounts; if we surface the raw status, togglePlay's
+ *   exact-string fallback misses it and the UI never swaps to the embed
+ *   iframe. The 403 here means the same thing as a 403 on the play endpoint.
+ * - Other non-2xx (transient 5xx, 429, 401, 404) → return silently. The
+ *   caller (`putWithDeviceActivation`) will still retry the original PUT
+ *   after the activation wait, and the retry's own error message is more
+ *   actionable than a generic "transfer returned X." Pre-PR this helper
+ *   swallowed all responses; preserving that recovery path for transient
+ *   errors avoids breaking flows that historically self-healed.
  */
 async function transferPlaybackToDevice(
   accessToken: string,
   deviceId: string
 ): Promise<void> {
-  await fetch('https://api.spotify.com/v1/me/player', {
+  const res = await fetch('https://api.spotify.com/v1/me/player', {
     method: 'PUT',
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -869,6 +882,91 @@ async function transferPlaybackToDevice(
     },
     body: JSON.stringify({ device_ids: [deviceId], play: false }),
   });
+  if (res.status === 403) {
+    throw new Error('spotify-premium-required');
+  }
+  // Any other non-2xx: let the caller's retry of the original endpoint
+  // surface the real error. res.ok already covers 200-299 (including 204).
+}
+
+/**
+ * Lists Spotify Connect devices visible to the access token's user.
+ *
+ * Used by `waitForDeviceRegistration` to confirm that a freshly-`ready` Web
+ * Playback SDK device has propagated server-side before the UI starts
+ * targeting it via REST. Returns an empty list on any non-2xx so the caller
+ * just keeps polling — a transient 5xx shouldn't burn the registration wait.
+ */
+export async function fetchSpotifyDevices(
+  accessToken: string
+): Promise<Array<{ id: string; name: string }>> {
+  let res: Response;
+  try {
+    res = await fetch('https://api.spotify.com/v1/me/player/devices', {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+  } catch {
+    // Network failure (offline, DNS, CORS error) — return empty so the
+    // polling loop keeps trying instead of rejecting up through .then().
+    return [];
+  }
+  if (!res.ok) return [];
+  // Spotify edge/CDN occasionally serves a 200 + HTML error page during
+  // incidents (and captive portals do the same). Wrap json() so a parse
+  // failure doesn't reject the whole helper — `waitForDeviceRegistration`
+  // would then escape past the hook's .then() as an unhandled rejection.
+  try {
+    const body = (await res.json()) as {
+      devices?: Array<{ id: string; name: string }>;
+    };
+    return body.devices ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Backoff schedule (ms before each attempt) for `waitForDeviceRegistration`.
+ * Front-loaded so the common case (registration completes in <1s) resolves
+ * fast; tail extended to ~15s for slow-propagating accounts. Exported for
+ * the unit test so it doesn't have to hard-code the timing.
+ */
+export const DEVICE_REGISTRATION_POLL_DELAYS_MS: ReadonlyArray<number> = [
+  0, 300, 600, 1000, 1500, 2500, 4000, 5000,
+];
+
+/**
+ * Polls `GET /v1/me/player/devices` until the given device id appears in the
+ * caller's Spotify Connect device list, or until `isCancelled()` returns true.
+ *
+ * The Web Playback SDK's `ready` event fires the instant the local device
+ * object exists — but Spotify Connect's server-side registration lags by
+ * 1-3 seconds. Calling `play?device_id=` (or `transfer`) before registration
+ * completes returns 404 "Device not found"; the existing transfer-then-retry
+ * self-heal can't recover when the underlying device hasn't propagated
+ * because transfer 404s for the same reason.
+ *
+ * Polling the devices endpoint until the id is visible is the canonical fix.
+ * Returns true once the device appears, false on timeout or cancellation.
+ */
+export async function waitForDeviceRegistration(
+  getAccessToken: () => Promise<string | null>,
+  deviceId: string,
+  isCancelled: () => boolean
+): Promise<boolean> {
+  for (const delay of DEVICE_REGISTRATION_POLL_DELAYS_MS) {
+    if (delay > 0) {
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+    if (isCancelled()) return false;
+    const token = await getAccessToken();
+    if (isCancelled()) return false;
+    if (!token) continue;
+    const devices = await fetchSpotifyDevices(token);
+    if (isCancelled()) return false;
+    if (devices.some((d) => d.id === deviceId)) return true;
+  }
+  return false;
 }
 
 /**

@@ -39,6 +39,7 @@ import {
   playOnDevice,
   setRepeatMode,
   setShuffle,
+  waitForDeviceRegistration,
 } from '@/utils/spotifyAuth';
 
 export interface SpotifyPlaybackTrack {
@@ -123,9 +124,40 @@ export function useSpotifyWebPlayback(
     if (!enabled) return;
 
     let destroyed = false;
+    // Generation counter bumped on every event that invalidates an in-flight
+    // device-registration poll: re-emit of `ready` (SDK reconnects with a new
+    // device_id), `not_ready` (device gone), or `failSdk` (any fatal listener).
+    // The poll closure captures the generation at start and bails on resolve
+    // if it has moved on — without this, a stale poll's `.then()` would
+    // resurrect a dead device_id over the current null/failed state.
+    let pollGeneration = 0;
+
+    // Forward-declare playerRef-disconnect into a local so failSdk can use it
+    // without piercing the outer ref. We assign `player` below once connect()
+    // wires up the SDK.
+    const disconnectActivePlayer = () => {
+      try {
+        playerRef.current?.disconnect();
+      } catch {
+        /* SDK can throw during teardown — best-effort */
+      }
+      playerRef.current = null;
+    };
 
     const failSdk = () => {
       if (destroyed) return;
+      // Invalidate any in-flight registration poll before flipping the flag,
+      // so a poll that resolves between here and the next render can't
+      // overwrite sdkFailed=true with a stale setDeviceId.
+      pollGeneration++;
+      // The SDK player is still connected to Spotify Connect even after we
+      // give up on it — without an explicit disconnect, the orphan device
+      // hogs the user's active-device slot and can later "steal" playback
+      // from the embed iframe fallback. Tear it down here, mirroring the
+      // unmount cleanup path.
+      disconnectActivePlayer();
+      deviceIdRef.current = null;
+      setDeviceId(null);
       setSdkFailed(true);
     };
 
@@ -152,11 +184,53 @@ export function useSpotifyWebPlayback(
 
         player.addListener('ready', ({ device_id }) => {
           if (destroyed) return;
-          deviceIdRef.current = device_id;
-          setDeviceId(device_id);
+          // Don't expose device_id to the UI until Spotify Connect has actually
+          // registered it server-side. The SDK fires 'ready' as soon as the
+          // local device object exists, but server-side registration lags by
+          // 1-3 seconds; calling /play, /repeat, /shuffle, or even /me/player
+          // (transfer) before then returns 404 "Device not found". Polling
+          // /v1/me/player/devices until the id is visible is the canonical fix.
+          //
+          // The poll captures its own generation. `not_ready`, a second
+          // `ready`, and `failSdk` all bump pollGeneration so a late-resolving
+          // poll can't write its (now stale) device_id back over the current
+          // state.
+          const myGeneration = ++pollGeneration;
+          const isStillCurrent = () =>
+            !destroyed && pollGeneration === myGeneration;
+          void waitForDeviceRegistration(
+            () => getAccessTokenRef.current(),
+            device_id,
+            () => !isStillCurrent()
+          )
+            .then((registered) => {
+              if (!isStillCurrent()) return;
+              if (registered) {
+                deviceIdRef.current = device_id;
+                setDeviceId(device_id);
+              } else {
+                // Device never appeared on Spotify Connect within the polling
+                // window — fall back to the embed iframe.
+                failSdk();
+              }
+            })
+            .catch(() => {
+              // waitForDeviceRegistration is defensive (fetchSpotifyDevices
+              // swallows its own errors), so this catch is belt-and-suspenders
+              // for an unexpected rejection (e.g. getAccessToken throwing).
+              // Without it, an unhandled rejection would leave the hook stuck
+              // — deviceId null AND sdkFailed false — the exact silent broken
+              // state this patch was built to prevent.
+              if (!isStillCurrent()) return;
+              failSdk();
+            });
         });
         player.addListener('not_ready', () => {
           if (destroyed) return;
+          // Invalidate any in-flight registration poll: the device the poll
+          // was tracking is gone, and we must not let its eventual resolve
+          // setDeviceId back to the now-dead id.
+          pollGeneration++;
           deviceIdRef.current = null;
           setDeviceId(null);
         });
@@ -205,11 +279,26 @@ export function useSpotifyWebPlayback(
             return;
           }
           if (!connected) {
+            // Disconnect the local player BEFORE failSdk: at this point
+            // playerRef.current is still null, so failSdk's disconnect helper
+            // would no-op and leak the orphan SDK device.
+            try {
+              player.disconnect();
+            } catch {
+              /* best-effort */
+            }
             failSdk();
             return;
           }
           playerRef.current = player;
         } catch {
+          // Same orphan-cleanup concern as the !connected path: player exists
+          // but isn't in playerRef yet.
+          try {
+            player.disconnect();
+          } catch {
+            /* best-effort */
+          }
           failSdk();
         }
       },
@@ -221,12 +310,9 @@ export function useSpotifyWebPlayback(
 
     return () => {
       destroyed = true;
-      try {
-        playerRef.current?.disconnect();
-      } catch {
-        /* SDK can throw during teardown — best-effort */
-      }
-      playerRef.current = null;
+      // Invalidate any in-flight registration poll so its .then() bails.
+      pollGeneration++;
+      disconnectActivePlayer();
       // Reset device/playback so a re-enable starts clean.
       deviceIdRef.current = null;
       setDeviceId(null);

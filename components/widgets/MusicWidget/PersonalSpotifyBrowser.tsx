@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useEffect, useRef } from 'react';
 import { WidgetData, MusicConfig } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { useDashboard } from '@/context/useDashboard';
@@ -40,6 +40,27 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
     await connect();
   }, [disconnect, connect]);
 
+  // Holds a tap-to-play pick when the user taps a row BEFORE the SDK device
+  // has been confirmed-registered by useSpotifyWebPlayback's polling. The
+  // effect below flushes it the moment `playback.deviceId` becomes available.
+  // Without this, taps during the 0-15s registration window silently no-op
+  // (handlePlay's `if (!playback.deviceId) return`), which reads to the
+  // teacher as "nothing happened — let me click again."
+  const pendingPickRef = useRef<SpotifyPlayablePick | null>(null);
+
+  const startPick = useCallback(
+    async (pick: SpotifyPlayablePick, token: string, deviceId: string) => {
+      const payload =
+        pick.type === 'track' ? { uris: [pick.uri] } : { contextUri: pick.uri };
+      try {
+        await playOnDevice(token, deviceId, payload);
+      } catch (err) {
+        console.warn('[PersonalSpotifyBrowser.handlePlay] play failed', err);
+      }
+    },
+    []
+  );
+
   const handlePlay = useCallback(
     async (pick: SpotifyPlayablePick) => {
       updateWidget(widget.id, {
@@ -49,17 +70,45 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
       // after a row tap), so nothing to do here for navigation.
       if (!isPremium) return;
       const token = await getAccessToken();
-      if (!token || !playback.deviceId) return;
-      const payload =
-        pick.type === 'track' ? { uris: [pick.uri] } : { contextUri: pick.uri };
-      try {
-        await playOnDevice(token, playback.deviceId, payload);
-      } catch (err) {
-        console.warn('[PersonalSpotifyBrowser.handlePlay] play failed', err);
+      if (!token) return;
+      if (!playback.deviceId) {
+        // Device not yet confirmed by Spotify Connect — queue the pick and
+        // let the effect flush it as soon as deviceId arrives.
+        pendingPickRef.current = pick;
+        return;
       }
+      await startPick(pick, token, playback.deviceId);
     },
-    [updateWidget, widget.id, isPremium, getAccessToken, playback.deviceId]
+    [
+      updateWidget,
+      widget.id,
+      isPremium,
+      getAccessToken,
+      playback.deviceId,
+      startPick,
+    ]
   );
+
+  // Flush a queued tap when the SDK device finally registers. Only fires
+  // when there's something to flush — no-op on every other render.
+  useEffect(() => {
+    if (!playback.deviceId) return;
+    const queued = pendingPickRef.current;
+    if (!queued) return;
+    pendingPickRef.current = null;
+    void (async () => {
+      const token = await getAccessToken();
+      if (!token) return;
+      // Re-check deviceId after the token await — could have been cleared
+      // (not_ready, sign-out) while we were resolving the token.
+      const id = playback.deviceId;
+      if (!id) {
+        pendingPickRef.current = queued;
+        return;
+      }
+      await startPick(queued, token, id);
+    })();
+  }, [playback.deviceId, getAccessToken, startPick]);
 
   // Shared playback props handed to the leaf player surfaces.
   const playbackProps = {
