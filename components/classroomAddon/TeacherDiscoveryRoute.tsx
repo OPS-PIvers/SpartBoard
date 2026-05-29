@@ -6,20 +6,22 @@
  * assignment "Add-ons" menu, passing courseId/itemId/itemType + an `addOnToken`
  * (+ login_hint).
  *
- * Flow (the real "attach a quiz" pipe):
+ * Flow (the real "attach an activity" pipe):
  *   1. Teacher signs into SpartBoard (Google) — gives a Firebase uid + a Drive
- *      access token so we can list/load their quiz library.
- *   2. Teacher picks a quiz from their library.
- *   3. We load the quiz content and create a Classroom-targeted assignment
- *      (`classIds: ["classroom:<courseId>"]`) → a persistent join `code` the
- *      student takes the quiz with, async/self-paced.
+ *      access token so we can list/load their quiz / video-activity library.
+ *   2. Teacher picks either a Quiz or a Video Activity from their library.
+ *   3. We load the content and create a Classroom-targeted assignment
+ *      (`classIds: [<linked sourcedId> | "classroom:<courseId>"]`):
+ *        - Quiz → a persistent join `code` the student takes the quiz with.
+ *        - Video Activity → a `sessionId` (VA has no join code); the student
+ *          joins by sessionId.
+ *      Both run async / self-paced (no live teacher session).
  *   4. A short GIS popup grants `classroom.addons.teacher`; the
  *      `createClassroomAttachment` CF validates the teacher launch via
- *      `getAddOnContext` and creates the attachment whose studentViewUri is
- *      `/classroom-addon/student?code=<code>`.
- *
- * NOTE: this still carries throwaway de-risk affordances (the param grid + log)
- * pending Phase 2 polish, but the attach path is the real one.
+ *      `getAddOnContext` and creates the attachment. The callable builds the
+ *      studentViewUri from the params we pass:
+ *        - Quiz → `/classroom-addon/student?code=<code>`
+ *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
 import React, { useCallback, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
@@ -28,6 +30,9 @@ import { db, functions } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
 import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
+import { useVideoActivity } from '@/hooks/useVideoActivity';
+import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
+import type { VideoActivitySessionSettings } from '@/types';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 
 // The teacher/discovery iframe creates attachments → needs the teacher scope.
@@ -39,19 +44,35 @@ const ADDON_TEACHER_SCOPES = [
   'https://www.googleapis.com/auth/classroom.addons.teacher',
 ].join(' ');
 
-// PROBE (temporary): read-only Classroom course scope so we can call
-// courses.aliases.list and confirm whether ClassLink preserves the class
-// sourcedId in the course alias (the bridge to the existing ClassLink roster /
-// name-resolution pipeline). Requires `classroom.courses.readonly` to be
-// declared on the OAuth consent screen or Google will drop it.
-const COURSE_READONLY_SCOPES = [
-  'openid',
-  'https://www.googleapis.com/auth/classroom.courses.readonly',
-].join(' ');
+// Conservative player defaults for an async Classroom attachment — mirrors the
+// runner's own fallbacks (require a correct answer, no skipping, no autoplay).
+const VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
+  autoPlay: false,
+  requireCorrectAnswer: true,
+  allowSkipping: false,
+};
 
 interface CreateAttachmentResult {
   attachmentId: string;
 }
+
+// Params the callable accepts. `quizCode` (quiz) and `sessionId`+`kind:'va'`
+// (video activity) are mutually exclusive per the pinned contract; the callable
+// builds the right studentViewUri from whichever set we pass.
+interface CreateAttachmentParams {
+  accessToken: string;
+  courseId: string;
+  itemId: string;
+  itemType: string;
+  addOnToken: string;
+  origin: string;
+  title: string;
+  quizCode?: string;
+  sessionId?: string;
+  kind?: 'quiz' | 'va';
+}
+
+type ContentKind = 'quiz' | 'va';
 
 export const ClassroomAddonTeacherSpike: React.FC = () => {
   const params =
@@ -70,10 +91,19 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const { user, signInWithGoogle, googleAccessToken } = useAuth();
   const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { createAssignment } = useQuizAssignments(user?.uid);
+  const {
+    activities,
+    loadActivityData,
+    loading: activitiesLoading,
+  } = useVideoActivity(user?.uid);
+  const { createAssignment: createVideoActivityAssignment } =
+    useVideoActivityAssignments(user?.uid);
 
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  const [kind, setKind] = useState<ContentKind>('quiz');
   const [selectedQuizId, setSelectedQuizId] = useState('');
+  const [selectedActivityId, setSelectedActivityId] = useState('');
   const [attachmentId, setAttachmentId] = useState('');
 
   const append = useCallback((line: string) => {
@@ -84,13 +114,17 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     () => quizzes.find((q) => q.id === selectedQuizId),
     [quizzes, selectedQuizId]
   );
+  const selectedActivity = useMemo(
+    () => activities.find((a) => a.id === selectedActivityId),
+    [activities, selectedActivityId]
+  );
 
   const signIn = useCallback(async () => {
     setBusy(true);
     try {
       append('Signing in to SpartBoard…');
       await signInWithGoogle();
-      append('Signed in. Pick a quiz to attach.');
+      append('Signed in. Pick something to attach.');
     } catch (err) {
       append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -98,33 +132,185 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     }
   }, [append, signInWithGoogle]);
 
-  // PROBE (temporary): does the Classroom course alias carry the ClassLink
-  // sourcedId? Reads courses.aliases.list with a read-only Classroom token.
-  const checkAlias = useCallback(async () => {
-    setBusy(true);
+  // Resolve the assignment's classId. If this Google course is linked to a
+  // ClassLink class, use that real sourcedId so the assignment's classIds
+  // MATCH the token classroomAddonLoginV1 mints for the student (which is also
+  // the linked sourcedId) — that's what lets the class-gate authorize their
+  // responses AND lets the monitor resolve real names. If unlinked, both sides
+  // fall back to "classroom:<courseId>" (works, but nameless). Shared by both
+  // the quiz and video-activity attach paths.
+  const resolveClassIds = useCallback(async (): Promise<string[]> => {
+    let classIds = [`classroom:${courseId}`];
     try {
-      if (!courseId) {
-        append('No courseId in the URL.');
-        return;
-      }
-      append('Requesting Classroom course read permission…');
-      await ensureGis();
-      const token = await requestAccessToken(COURSE_READONLY_SCOPES, loginHint);
-      append(`Reading aliases for course ${courseId}…`);
-      const res = await fetch(
-        `https://classroom.googleapis.com/v1/courses/${encodeURIComponent(
-          courseId
-        )}/aliases`,
-        { headers: { Authorization: `Bearer ${token}` } }
+      const linkSnap = await getDoc(
+        doc(db, 'classroom_course_links', courseId)
       );
-      const text = await res.text();
-      append(`aliases.list → ${res.status}: ${text.slice(0, 600)}`);
-    } catch (err) {
-      append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
-    } finally {
-      setBusy(false);
+      const linkedClassId = linkSnap.exists()
+        ? (linkSnap.data().classlinkClassId as string | undefined)
+        : undefined;
+      if (linkedClassId) {
+        classIds = [linkedClassId];
+        append(`Course is linked to ClassLink class ${linkedClassId}.`);
+      } else {
+        append(
+          'Course not linked to a ClassLink class — students will be ' +
+            'anonymous in the monitor. Link it from your roster to show names.'
+        );
+      }
+    } catch {
+      // Fall back to the courseId-scoped classId.
     }
-  }, [append, courseId, loginHint]);
+    return classIds;
+  }, [append, courseId]);
+
+  // Mint the addons.teacher access token + create the Classroom attachment.
+  // `contentParams` carries the quiz-vs-VA discriminator (quizCode vs
+  // sessionId+kind) per the pinned createClassroomAttachment contract.
+  const createAttachment = useCallback(
+    async (
+      title: string,
+      contentParams:
+        | { quizCode: string; kind: 'quiz' }
+        | { sessionId: string; kind: 'va' }
+    ): Promise<void> => {
+      // The addons.teacher grant is what getAddOnContext validates the teacher
+      // launch against — a separate, minimal grant from the SpartBoard Drive
+      // sign-in above.
+      append('Granting Classroom add-on permission…');
+      await ensureGis();
+      const accessToken = await requestAccessToken(
+        ADDON_TEACHER_SCOPES,
+        loginHint
+      );
+
+      append('Creating the Classroom attachment…');
+      const callable = httpsCallable<
+        CreateAttachmentParams,
+        CreateAttachmentResult
+      >(functions, 'createClassroomAttachment');
+      const { data } = await callable({
+        accessToken,
+        courseId,
+        itemId,
+        itemType,
+        addOnToken,
+        origin: window.location.origin,
+        title,
+        ...contentParams,
+      });
+      setAttachmentId(data.attachmentId);
+    },
+    [append, courseId, itemId, itemType, addOnToken, loginHint]
+  );
+
+  const attachQuiz = useCallback(async () => {
+    if (!selectedQuiz) {
+      append('Pick a quiz first.');
+      return;
+    }
+    if (!googleAccessToken) {
+      append('No Google Drive token — sign in to SpartBoard again.');
+      return;
+    }
+
+    append(`Loading "${selectedQuiz.title}"…`);
+    const quizData = await loadQuizData(selectedQuiz.driveFileId);
+
+    const classIds = await resolveClassIds();
+
+    // sessionMode 'student' = self-paced/async, which is how a Classroom
+    // attachment is taken (no live teacher session).
+    append('Creating a class-targeted assignment…');
+    const { code } = await createAssignment(
+      {
+        id: selectedQuiz.id,
+        title: selectedQuiz.title,
+        driveFileId: selectedQuiz.driveFileId,
+        questions: quizData.questions,
+      },
+      {
+        className: 'Google Classroom',
+        sessionMode: 'student',
+        sessionOptions: {},
+      },
+      {
+        classIds,
+        initialStatus: 'active',
+      }
+    );
+    append(`Assignment created (join code ${code}).`);
+
+    await createAttachment(`SpartBoard: ${selectedQuiz.title}`, {
+      quizCode: code,
+      kind: 'quiz',
+    });
+    append(
+      `Attached "${selectedQuiz.title}". Students can now open it and take ` +
+        'the quiz inside Classroom.'
+    );
+  }, [
+    append,
+    selectedQuiz,
+    googleAccessToken,
+    loadQuizData,
+    resolveClassIds,
+    createAssignment,
+    createAttachment,
+  ]);
+
+  const attachVideoActivity = useCallback(async () => {
+    if (!selectedActivity) {
+      append('Pick a video activity first.');
+      return;
+    }
+    if (!googleAccessToken) {
+      append('No Google Drive token — sign in to SpartBoard again.');
+      return;
+    }
+
+    append(`Loading "${selectedActivity.title}"…`);
+    const activityData = await loadActivityData(selectedActivity.driveFileId);
+
+    const classIds = await resolveClassIds();
+
+    // VA has no join code — the assignment is identified by its sessionId
+    // (== assignment id). `createAssignment`'s args are POSITIONAL:
+    // (activity, settings, initialStatus?, classIds?, periodNames?, rosterIds?, mode?).
+    append('Creating a class-targeted video-activity assignment…');
+    const { id: sessionId } = await createVideoActivityAssignment(
+      {
+        id: selectedActivity.id,
+        title: selectedActivity.title,
+        driveFileId: selectedActivity.driveFileId,
+        youtubeUrl: activityData.youtubeUrl,
+        questions: activityData.questions,
+      },
+      {
+        className: 'Google Classroom',
+        sessionSettings: VA_SESSION_SETTINGS,
+      },
+      'active',
+      classIds
+    );
+    append(`Video-activity session created (sessionId ${sessionId}).`);
+
+    await createAttachment(`SpartBoard: ${selectedActivity.title}`, {
+      sessionId,
+      kind: 'va',
+    });
+    append(
+      `Attached "${selectedActivity.title}". Students can now open it and ` +
+        'complete the video activity inside Classroom.'
+    );
+  }, [
+    append,
+    selectedActivity,
+    googleAccessToken,
+    loadActivityData,
+    resolveClassIds,
+    createVideoActivityAssignment,
+    createAttachment,
+  ]);
 
   const runAttach = useCallback(async () => {
     setBusy(true);
@@ -140,107 +326,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         );
         return;
       }
-      if (!selectedQuiz) {
-        append('Pick a quiz first.');
-        return;
+      if (kind === 'quiz') {
+        await attachQuiz();
+      } else {
+        await attachVideoActivity();
       }
-      if (!googleAccessToken) {
-        append('No Google Drive token — sign in to SpartBoard again.');
-        return;
-      }
-
-      append(`Loading "${selectedQuiz.title}"…`);
-      const quizData = await loadQuizData(selectedQuiz.driveFileId);
-
-      // Resolve the assignment's classId. If this Google course is linked to a
-      // ClassLink class, use that real sourcedId so the assignment's classIds
-      // MATCH the token classroomAddonLoginV1 mints for the student (which is
-      // also the linked sourcedId) — that's what lets the class-gate authorize
-      // their responses AND lets the monitor resolve real names. If unlinked,
-      // both sides fall back to "classroom:<courseId>" (works, but nameless).
-      let classIds = [`classroom:${courseId}`];
-      try {
-        const linkSnap = await getDoc(
-          doc(db, 'classroom_course_links', courseId)
-        );
-        const linkedClassId = linkSnap.exists()
-          ? (linkSnap.data().classlinkClassId as string | undefined)
-          : undefined;
-        if (linkedClassId) {
-          classIds = [linkedClassId];
-          append(`Course is linked to ClassLink class ${linkedClassId}.`);
-        } else {
-          append(
-            'Course not linked to a ClassLink class — students will be ' +
-              'anonymous in the monitor. Link it from your roster to show names.'
-          );
-        }
-      } catch {
-        // Fall back to the courseId-scoped classId.
-      }
-
-      // sessionMode 'student' = self-paced/async, which is how a Classroom
-      // attachment is taken (no live teacher session).
-      append('Creating a class-targeted assignment…');
-      const { code } = await createAssignment(
-        {
-          id: selectedQuiz.id,
-          title: selectedQuiz.title,
-          driveFileId: selectedQuiz.driveFileId,
-          questions: quizData.questions,
-        },
-        {
-          className: 'Google Classroom',
-          sessionMode: 'student',
-          sessionOptions: {},
-        },
-        {
-          classIds,
-          initialStatus: 'active',
-        }
-      );
-      append(`Assignment created (join code ${code}).`);
-
-      // The addons.teacher grant is what getAddOnContext validates the teacher
-      // launch against — a separate, minimal grant from the SpartBoard Drive
-      // sign-in above.
-      append('Granting Classroom add-on permission…');
-      await ensureGis();
-      const accessToken = await requestAccessToken(
-        ADDON_TEACHER_SCOPES,
-        loginHint
-      );
-
-      append('Creating the Classroom attachment…');
-      const callable = httpsCallable<
-        {
-          accessToken: string;
-          courseId: string;
-          itemId: string;
-          itemType: string;
-          addOnToken: string;
-          origin: string;
-          quizCode: string;
-          title: string;
-        },
-        CreateAttachmentResult
-      >(functions, 'createClassroomAttachment');
-      const { data } = await callable({
-        accessToken,
-        courseId,
-        itemId,
-        itemType,
-        addOnToken,
-        origin: window.location.origin,
-        quizCode: code,
-        title: `SpartBoard: ${selectedQuiz.title}`,
-      });
-
-      setAttachmentId(data.attachmentId);
-      append(
-        `Attached "${selectedQuiz.title}". Students can now open it and take ` +
-          'the quiz inside Classroom.'
-      );
     } catch (err) {
       append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -250,23 +340,38 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     append,
     courseId,
     itemId,
-    itemType,
     addOnToken,
-    loginHint,
-    selectedQuiz,
-    googleAccessToken,
-    loadQuizData,
-    createAssignment,
+    kind,
+    attachQuiz,
+    attachVideoActivity,
   ]);
+
+  const tabBtn = (value: ContentKind, label: string) => (
+    <button
+      type="button"
+      onClick={() => setKind(value)}
+      disabled={busy}
+      aria-pressed={kind === value}
+      className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
+        kind === value
+          ? 'bg-blue-500 text-white'
+          : 'text-slate-300 hover:bg-white/10'
+      }`}
+    >
+      {label}
+    </button>
+  );
+
+  const canAttach = kind === 'quiz' ? !!selectedQuizId : !!selectedActivityId;
 
   return (
     <div className="min-h-screen bg-slate-900 p-6 font-sans text-slate-100">
       <div className="mx-auto max-w-2xl space-y-4">
         <div>
-          <h1 className="text-xl font-bold">Attach a SpartBoard quiz</h1>
+          <h1 className="text-xl font-bold">Attach a SpartBoard activity</h1>
           <p className="text-sm text-slate-400">
-            Pick a quiz from your library to attach to this Classroom
-            assignment. Students take it inside Classroom.
+            Pick a quiz or video activity from your library to attach to this
+            Classroom assignment. Students complete it inside Classroom.
           </p>
         </div>
 
@@ -289,24 +394,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           </div>
         </div>
 
-        {/* PROBE (temporary): verify the ClassLink sourcedId is in the course
-            alias. Independent of sign-in — does its own read-only OAuth popup. */}
-        {courseId && (
-          <button
-            type="button"
-            onClick={() => void checkAlias()}
-            disabled={busy}
-            className="rounded border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-50"
-          >
-            {busy ? 'Working…' : 'Check course alias (debug)'}
-          </button>
-        )}
-
         {existingAttachmentId ? (
           <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm">
             This is the teacher view of an existing attachment (
             <span className="font-mono">{existingAttachmentId}</span>). Students
-            open it to take the attached quiz.
+            open it to complete the attached activity.
           </div>
         ) : !user ? (
           <button
@@ -319,35 +411,72 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           </button>
         ) : (
           <div className="space-y-3">
-            <label className="block text-sm">
-              <span className="mb-1 block text-slate-400">Quiz</span>
-              <select
-                value={selectedQuizId}
-                onChange={(e) => setSelectedQuizId(e.target.value)}
-                disabled={busy || quizzesLoading}
-                className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white"
-              >
-                <option value="">
-                  {quizzesLoading
-                    ? 'Loading your quizzes…'
-                    : quizzes.length === 0
-                      ? 'No quizzes in your library yet'
-                      : 'Select a quiz…'}
-                </option>
-                {quizzes.map((q) => (
-                  <option key={q.id} value={q.id}>
-                    {q.title}
+            <div className="flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
+              {tabBtn('quiz', 'Quiz')}
+              {tabBtn('va', 'Video Activity')}
+            </div>
+
+            {kind === 'quiz' ? (
+              <label className="block text-sm">
+                <span className="mb-1 block text-slate-400">Quiz</span>
+                <select
+                  value={selectedQuizId}
+                  onChange={(e) => setSelectedQuizId(e.target.value)}
+                  disabled={busy || quizzesLoading}
+                  className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+                >
+                  <option value="">
+                    {quizzesLoading
+                      ? 'Loading your quizzes…'
+                      : quizzes.length === 0
+                        ? 'No quizzes in your library yet'
+                        : 'Select a quiz…'}
                   </option>
-                ))}
-              </select>
-            </label>
+                  {quizzes.map((q) => (
+                    <option key={q.id} value={q.id}>
+                      {q.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <label className="block text-sm">
+                <span className="mb-1 block text-slate-400">
+                  Video Activity
+                </span>
+                <select
+                  value={selectedActivityId}
+                  onChange={(e) => setSelectedActivityId(e.target.value)}
+                  disabled={busy || activitiesLoading}
+                  className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+                >
+                  <option value="">
+                    {activitiesLoading
+                      ? 'Loading your video activities…'
+                      : activities.length === 0
+                        ? 'No video activities in your library yet'
+                        : 'Select a video activity…'}
+                  </option>
+                  {activities.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+
             <button
               type="button"
               onClick={() => void runAttach()}
-              disabled={busy || !selectedQuizId}
+              disabled={busy || !canAttach}
               className="rounded bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
             >
-              {busy ? 'Working…' : 'Attach quiz'}
+              {busy
+                ? 'Working…'
+                : kind === 'quiz'
+                  ? 'Attach quiz'
+                  : 'Attach video activity'}
             </button>
           </div>
         )}

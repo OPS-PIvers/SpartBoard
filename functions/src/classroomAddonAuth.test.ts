@@ -21,7 +21,15 @@ let lastCustomTokenArgs: { uid: string; claims: unknown } | null = null;
 let courseLinkDoc: {
   classlinkClassId?: string;
   classlinkOrgId?: string;
+  teacherUid?: string;
 } | null = null;
+
+// Captures every `db.doc(path).set(data, opts)` so tests can assert what was
+// persisted (and prove the PII gate — no name/email in any write).
+const firestoreWrites: Array<{ path: string; data: Record<string, unknown> }> =
+  [];
+// Pre-seeded grade-sync key docs, keyed by full path, read by pushClassroomGrade.
+const gradeSyncDocs = new Map<string, Record<string, unknown>>();
 
 vi.mock('firebase-admin', () => {
   return {
@@ -47,11 +55,26 @@ vi.mock('firebase-admin', () => {
           }),
         }),
       }),
-      doc: () => ({
-        get: async () => ({
-          exists: courseLinkDoc !== null,
-          data: () => courseLinkDoc,
-        }),
+      // Path-aware doc(): the course-link read returns `courseLinkDoc`; the
+      // grade-sync key read returns a pre-seeded entry from `gradeSyncDocs`;
+      // `.set()` records into `firestoreWrites` for assertions.
+      doc: (path: string) => ({
+        get: async () => {
+          if (path.startsWith('classroom_course_links/')) {
+            return {
+              exists: courseLinkDoc !== null,
+              data: () => courseLinkDoc,
+            };
+          }
+          const seeded = gradeSyncDocs.get(path);
+          return {
+            exists: seeded !== undefined,
+            data: () => seeded,
+          };
+        },
+        set: async (data: Record<string, unknown>) => {
+          firestoreWrites.push({ path, data });
+        },
       }),
     })),
     auth: vi.fn(() => ({
@@ -89,6 +112,7 @@ vi.mock('firebase-functions/params', () => ({
 import {
   classroomAddonLoginV1,
   createClassroomAttachment,
+  pushClassroomGrade,
   classroomAddonNet,
 } from './classroomAddonAuth';
 
@@ -130,6 +154,8 @@ beforeEach(() => {
   orgIdForDomain = 'org-orono';
   lastCustomTokenArgs = null;
   courseLinkDoc = null;
+  firestoreWrites.length = 0;
+  gradeSyncDocs.clear();
   vi.restoreAllMocks();
 });
 
@@ -345,6 +371,59 @@ describe('classroomAddonLoginV1 (spike)', () => {
       'ATT1'
     );
   });
+
+  it('persists a PII-free grade-sync key keyed by the student pseudonym', async () => {
+    // Linked course → bridge resolves the sourcedId pseudonym AND records the
+    // linking teacher for the offline-creds grade push.
+    courseLinkDoc = {
+      classlinkClassId: 'CL-SECTION-1',
+      classlinkOrgId: 'orono',
+      teacherUid: 'teacher-123',
+    };
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      STUDENT_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'fetchUserInfo').mockResolvedValue(
+      VALID_STUDENT_INFO
+    );
+    vi.spyOn(classroomAddonNet, 'fetchClassStudents').mockResolvedValue([
+      {
+        sourcedId: 'SID-XYZ',
+        email: 'kid@orono.k12.mn.us',
+        givenName: 'Kid',
+        familyName: 'One',
+      },
+    ]);
+
+    await callLogin({ data: { ...baseData, attachmentId: 'ATT1' } });
+
+    const expectedUid = CryptoJS.HmacSHA256(
+      'sid:SID-XYZ',
+      'test-hmac-secret'
+    ).toString(CryptoJS.enc.Hex);
+
+    // The grade-sync key is written under the pseudonym uid, one sub-doc per
+    // submission, with ONLY Classroom/Firebase ids — never a name or email.
+    const gradeWrite = firestoreWrites.find((w) =>
+      w.path.startsWith('classroom_grade_links/')
+    );
+    expect(gradeWrite).toBeDefined();
+    expect(gradeWrite?.path).toBe(
+      `classroom_grade_links/${expectedUid}/submissions/SUB123`
+    );
+    expect(gradeWrite?.data).toMatchObject({
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB123',
+      teacherUid: 'teacher-123',
+    });
+
+    // PII gate: no name/email field anywhere in the persisted payload.
+    const serialized = JSON.stringify(gradeWrite?.data);
+    expect(serialized).not.toContain('kid@orono.k12.mn.us');
+    expect(serialized).not.toMatch(/givenName|familyName|email|name/i);
+  });
 });
 
 // createClassroomAttachment — teacher-discovery spike. The trust anchor is the
@@ -397,17 +476,79 @@ describe('createClassroomAttachment (spike)', () => {
       title: string;
       teacherViewUri: { uri: string };
       studentViewUri: { uri: string };
+      studentWorkReviewUri?: { uri: string };
+      maxPoints?: number;
     };
     expect(body.teacherViewUri.uri).toBe(
       'https://spartboard.web.app/classroom-addon/teacher'
     );
     // The studentViewUri carries the quiz join code so the student route can
-    // hand it to QuizStudentApp (which SSO-auto-joins by ?code=).
+    // hand it to QuizStudentApp (which SSO-auto-joins by ?code=). `code` MUST
+    // remain present for back-compat; `&kind=quiz` is appended but optional.
+    expect(body.studentViewUri.uri).toContain('code=ABC123');
     expect(body.studentViewUri.uri).toBe(
-      'https://spartboard.web.app/classroom-addon/student?code=ABC123'
+      'https://spartboard.web.app/classroom-addon/student?code=ABC123&kind=quiz'
     );
     // The client-supplied title is used (capped/sanitized server-side).
     expect(body.title).toBe('SpartBoard: My Quiz');
+    // Grade-sync capable: courseWork attachments carry studentWorkReviewUri +
+    // a non-zero maxPoints (added together; maxPoints is invalid without the
+    // review uri). Defaults to 100 when the teacher supplies none.
+    expect(body.studentWorkReviewUri?.uri).toBe(body.studentViewUri.uri);
+    expect(body.maxPoints).toBe(100);
+  });
+
+  it('builds a video-activity studentViewUri (?kind=va&sessionId=) and respects supplied maxPoints', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    const createSpy = vi
+      .spyOn(classroomAddonNet, 'createAttachment')
+      .mockResolvedValue({ ok: true, status: 200, id: 'ATT-VA' });
+
+    const data = {
+      ...attachData,
+      kind: 'va',
+      sessionId: 'sess_AB-12',
+      maxPoints: 50,
+    };
+    delete (data as Record<string, unknown>).quizCode;
+    const res = await callAttach({ data });
+
+    expect(res.attachmentId).toBe('ATT-VA');
+    const body = createSpy.mock.calls[0][5] as {
+      studentViewUri: { uri: string };
+      studentWorkReviewUri?: { uri: string };
+      maxPoints?: number;
+    };
+    expect(body.studentViewUri.uri).toBe(
+      'https://spartboard.web.app/classroom-addon/student?kind=va&sessionId=sess_AB-12'
+    );
+    // No `code=` for the VA runner.
+    expect(body.studentViewUri.uri).not.toContain('code=');
+    expect(body.studentWorkReviewUri?.uri).toBe(body.studentViewUri.uri);
+    expect(body.maxPoints).toBe(50);
+  });
+
+  it('throws when the required identifier for the chosen kind is missing', async () => {
+    const ctxSpy = vi.spyOn(classroomAddonNet, 'fetchAddOnContext');
+    const createSpy = vi.spyOn(classroomAddonNet, 'createAttachment');
+
+    // kind 'va' without a sessionId.
+    const vaData = { ...attachData, kind: 'va' };
+    delete (vaData as Record<string, unknown>).quizCode;
+    await expect(callAttach({ data: vaData })).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    // kind 'quiz' (explicit) without a quizCode.
+    const quizData = { ...attachData, kind: 'quiz' };
+    delete (quizData as Record<string, unknown>).quizCode;
+    await expect(callAttach({ data: quizData })).rejects.toMatchObject({
+      code: 'invalid-argument',
+    });
+    // Both rejected before any network call.
+    expect(ctxSpy).not.toHaveBeenCalled();
+    expect(createSpy).not.toHaveBeenCalled();
   });
 
   it('requires a quizCode and rejects a malformed one', async () => {
@@ -590,5 +731,181 @@ describe('classroomAddonNet.fetchAddOnContext URL construction', () => {
     expect(calledUrl).toContain('/courseWork/I1/addOnContext');
     expect(calledUrl).toContain('attachmentId=ATT1');
     expect(calledUrl).not.toContain('addOnToken');
+  });
+});
+
+// pushClassroomGrade — DRAFT grade passback. The grade PATCH goes through the
+// `patchStudentSubmissionGrade` seam (stubbed here) and the access token is
+// minted from the linking teacher's OFFLINE creds via `refreshOfflineAccessToken`
+// (also stubbed) — so the callable is testable with no live Classroom/Google.
+const callPushGrade = pushClassroomGrade as unknown as (req: {
+  data: unknown;
+}) => Promise<{ ok: boolean; pointsEarned: number }>;
+
+const gradeData = {
+  courseId: 'C1',
+  itemId: 'I1',
+  attachmentId: 'ATT1',
+  submissionId: 'SUB123',
+  teacherUid: 'teacher-123',
+  pointsEarned: 8,
+};
+
+describe('pushClassroomGrade', () => {
+  it('refreshes offline creds and PATCHes the submission with the rounded score', async () => {
+    const refreshSpy = vi
+      .spyOn(classroomAddonNet, 'refreshOfflineAccessToken')
+      .mockResolvedValue('fresh-teacher-token');
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callPushGrade({
+      data: { ...gradeData, pointsEarned: 7.6 },
+    });
+
+    expect(res).toEqual({ ok: true, pointsEarned: 8 });
+    // Offline creds are minted for the LINKING teacher (no teacher present).
+    expect(refreshSpy).toHaveBeenCalledWith('teacher-123');
+    // PATCH receives the refreshed token + full submission tuple + rounded score.
+    expect(patchSpy).toHaveBeenCalledWith(
+      'fresh-teacher-token',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB123',
+      8
+    );
+  });
+
+  it('resolves the submission tuple from the persisted grade-sync key (pseudonym shape)', async () => {
+    const expectedUid = 'pseudo-uid-1';
+    gradeSyncDocs.set(
+      `classroom_grade_links/${expectedUid}/submissions/SUB123`,
+      {
+        courseId: 'C9',
+        itemId: 'I9',
+        attachmentId: 'ATT9',
+        submissionId: 'SUB123',
+        teacherUid: 'teacher-999',
+      }
+    );
+    const refreshSpy = vi
+      .spyOn(classroomAddonNet, 'refreshOfflineAccessToken')
+      .mockResolvedValue('tok9');
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callPushGrade({
+      data: {
+        pseudonymUid: expectedUid,
+        submissionId: 'SUB123',
+        pointsEarned: 5,
+      },
+    });
+
+    expect(res.ok).toBe(true);
+    expect(refreshSpy).toHaveBeenCalledWith('teacher-999');
+    expect(patchSpy).toHaveBeenCalledWith(
+      'tok9',
+      'C9',
+      'I9',
+      'ATT9',
+      'SUB123',
+      5
+    );
+  });
+
+  it('issues the correct PATCH URL, updateMask, and body (real seam)', async () => {
+    // Exercise the real patchStudentSubmissionGrade against a stubbed fetch so
+    // the URL/updateMask/body it builds are pinned (mirrors the addOnContext
+    // URL-construction regression test).
+    let calledUrl = '';
+    let calledInit: { method?: string; body?: string } = {};
+    const fetchMock = vi.fn(async (url: unknown, init: unknown) => {
+      calledUrl = url as string;
+      calledInit = init as { method?: string; body?: string };
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await classroomAddonNet.patchStudentSubmissionGrade(
+      'tok',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB123',
+      8
+    );
+
+    expect(result).toEqual({ ok: true, status: 200 });
+    expect(calledUrl).toBe(
+      'https://classroom.googleapis.com/v1/courses/C1/courseWork/I1' +
+        '/addOnAttachments/ATT1/studentSubmissions/SUB123?updateMask=pointsEarned'
+    );
+    expect(calledInit.method).toBe('PATCH');
+    expect(JSON.parse(calledInit.body ?? '{}')).toEqual({ pointsEarned: 8 });
+    vi.unstubAllGlobals();
+  });
+
+  it('rejects a missing submissionId or a negative score before any network call', async () => {
+    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+
+    await expect(
+      callPushGrade({ data: { ...gradeData, submissionId: '' } })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    await expect(
+      callPushGrade({ data: { ...gradeData, pointsEarned: -1 } })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+
+    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(patchSpy).not.toHaveBeenCalled();
+  });
+
+  it('throws failed-precondition when no linking teacher can be resolved', async () => {
+    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
+    // Full tuple but no teacherUid, and no grade-sync key to fill it in.
+    const data = { ...gradeData };
+    delete (data as Record<string, unknown>).teacherUid;
+
+    await expect(callPushGrade({ data })).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect(refreshSpy).not.toHaveBeenCalled();
+  });
+
+  it('surfaces an internal error when the upstream PATCH fails', async () => {
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
+      'tok'
+    );
+    vi.spyOn(
+      classroomAddonNet,
+      'patchStudentSubmissionGrade'
+    ).mockResolvedValue({ ok: false, status: 403 });
+
+    await expect(callPushGrade({ data: gradeData })).rejects.toMatchObject({
+      code: 'internal',
+    });
+  });
+
+  it('propagates the needs-consent error contract from offline token refresh', async () => {
+    // refreshOfflineAccessToken → refreshGoogleAccessTokenForUid throws an
+    // HttpsError (e.g. revoked grant). pushClassroomGrade must pass it through
+    // unchanged rather than masking it as a generic internal error.
+    const { HttpsError } = await import('firebase-functions/v2/https');
+    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockRejectedValue(
+      new HttpsError('failed-precondition', 'needs-consent: revoked', {
+        reason: 'needs-consent',
+        cause: 'invalid-grant',
+      })
+    );
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
+
+    await expect(callPushGrade({ data: gradeData })).rejects.toMatchObject({
+      code: 'failed-precondition',
+    });
+    expect(patchSpy).not.toHaveBeenCalled();
   });
 });
