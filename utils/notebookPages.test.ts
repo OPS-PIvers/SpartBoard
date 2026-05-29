@@ -11,20 +11,27 @@ import {
 } from './notebookPages';
 import { NotebookObjectLink } from '@/types';
 
+// xFrac/yFrac/wFrac/hFrac don't affect any assertion in this file (the
+// page-index rewrite is the only behavior under test) so they're defaulted
+// to small valid values to keep call sites focused on the indices.
 const link = (
   id: string,
   objectId: string,
   sourcePage: number,
-  targetPage: number
+  targetPage: number,
+  xFrac = 0,
+  yFrac = 0,
+  wFrac = 0.1,
+  hFrac = 0.1
 ): NotebookObjectLink => ({
   id,
   objectId,
   sourcePage,
   targetPage,
-  xFrac: 0,
-  yFrac: 0,
-  wFrac: 0.1,
-  hFrac: 0.1,
+  xFrac,
+  yFrac,
+  wFrac,
+  hFrac,
 });
 
 // Pages p0..p4 across two lessons: A=[0,1,2], B=[3,4].
