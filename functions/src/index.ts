@@ -4349,6 +4349,5 @@ export const pinLoginV1 = onCall(
 export {
   classroomAddonLoginV1,
   createClassroomAttachment,
-  pushClassroomGrade,
   pushClassroomGradesForAssignment,
 } from './classroomAddonAuth';
