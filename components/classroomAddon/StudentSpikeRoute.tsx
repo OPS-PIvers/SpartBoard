@@ -141,13 +141,17 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   // persistence check: after a reload inside the iframe, does the studentRole
   // user come back?
   useEffect(() => {
+    // `active` guards the async `getIdTokenResult` continuation so we don't
+    // setState after the component unmounts (the listener can resolve late).
+    let active = true;
     const unsub = auth.onAuthStateChanged(async (user) => {
       if (!user) {
-        setSession(null);
+        if (active) setSession(null);
         return;
       }
       try {
         const token = await user.getIdTokenResult();
+        if (!active) return;
         setSession({
           uid: user.uid,
           isAnonymous: user.isAnonymous,
@@ -155,6 +159,7 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
           classIds: token.claims.classIds,
         });
       } catch {
+        if (!active) return;
         setSession({
           uid: user.uid,
           isAnonymous: user.isAnonymous,
@@ -163,7 +168,10 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
         });
       }
     });
-    return unsub;
+    return () => {
+      active = false;
+      unsub();
+    };
   }, []);
 
   const runHandshake = useCallback(async () => {

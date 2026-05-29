@@ -45,6 +45,8 @@ const ALLOWED_ORIGINS: (string | RegExp)[] = [
 
 const CLASSROOM_API = 'https://classroom.googleapis.com/v1';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
+// Cap outbound Google calls so a slow/hung response can't pin the function.
+const API_TIMEOUT_MS = 10000;
 
 type ItemType = 'courseWork' | 'courseWorkMaterials' | 'announcements';
 
@@ -121,19 +123,41 @@ export const classroomAddonNet = {
     const url =
       `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
       `/${itemType}/${encodeURIComponent(itemId)}/getAddOnContext`;
-    const res = await fetch(url, { headers: bearer(accessToken) });
-    if (!res.ok) return { ok: false, status: res.status, context: null };
-    return {
-      ok: true,
-      status: res.status,
-      context: (await res.json()) as AddOnContext,
-    };
+    try {
+      const res = await fetch(url, {
+        headers: bearer(accessToken),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) return { ok: false, status: res.status, context: null };
+      return {
+        ok: true,
+        status: res.status,
+        context: (await res.json()) as AddOnContext,
+      };
+    } catch (err) {
+      // Network failure / timeout / abort → treat as a failed launch
+      // validation; the caller turns this into a clean 'unauthenticated'
+      // error rather than an unhandled rejection.
+      console.warn(
+        '[classroomAddonLoginV1] getAddOnContext fetch failed:',
+        err
+      );
+      return { ok: false, status: 0, context: null };
+    }
   },
 
   async fetchUserInfo(accessToken: string): Promise<GoogleUserInfo | null> {
-    const res = await fetch(USERINFO_URL, { headers: bearer(accessToken) });
-    if (!res.ok) return null;
-    return (await res.json()) as GoogleUserInfo;
+    try {
+      const res = await fetch(USERINFO_URL, {
+        headers: bearer(accessToken),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) return null;
+      return (await res.json()) as GoogleUserInfo;
+    } catch (err) {
+      console.warn('[classroomAddonLoginV1] userinfo fetch failed:', err);
+      return null;
+    }
   },
 };
 
