@@ -93,7 +93,7 @@ describe('TypographySettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /inherit/i }));
 
     expect(updateConfig).toHaveBeenCalledOnce();
-    const [calledWith] = updateConfig.mock.calls[0];
+    const [calledWith] = updateConfig.mock.calls[0] as [Partial<TestConfig>];
 
     // Must NOT write the 'global' sentinel — that string is not a valid
     // GlobalFontFamily value and must not be persisted to Firestore.
@@ -114,7 +114,7 @@ describe('TypographySettings', () => {
     fireEvent.click(screen.getByRole('button', { name: /digital/i }));
 
     expect(updateConfig).toHaveBeenCalledOnce();
-    const [calledWith] = updateConfig.mock.calls[0];
+    const [calledWith] = updateConfig.mock.calls[0] as [Partial<TestConfig>];
     expect(calledWith.fontFamily).toBe('font-mono');
   });
 });
