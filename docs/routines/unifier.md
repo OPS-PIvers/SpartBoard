@@ -1,7 +1,7 @@
 # SpartBoard Unifier — Nightly Consistency Memory
 
-_Run count: 3_
-_Last run: 2026-05-28_
+_Run count: 4_
+_Last run: 2026-05-29_
 _Base branch: dev-paul_
 
 ---
@@ -70,7 +70,7 @@ import { Clock } from 'lucide-react';
 
 **Key distinction:** User-configurable color picker defaults (e.g., Countdown `eventColor = '#2d3f89'`, MaterialsWidget `titleColor = '#2d3f89'`) are correct as-is — they are user-owned values, not theme references. Color palette arrays (NextUp/Settings color picker, CollectionColorPicker) are swatch definitions, not theme references. CSS gradient stops in design components (BannerInteraction) are intentional. Only fix inline `backgroundColor` / `color` that should visually track the admin's theme.
 
-**Status (run 3):** Dimension is ALIGNED. All `#ad2122` instances are intentional exceptions (SVG chart fills, swatch arrays, gradient stops, color picker defaults). All `#2d3f89` inline style instances are fixed (merged in runs 1–2) or are intentional exceptions. No further D2 work needed until a new widget introduces the anti-pattern.
+**Status (run 4):** Dimension is ALIGNED. All `#ad2122` instances are intentional exceptions. All `#2d3f89` inline style instances are fixed or intentional exceptions. `MusicWidget/Widget.tsx:348` fallback color is D2-E5; `Countdown/Widget.test.tsx` assertion is a test file, not production code. No further D2 work needed until a new widget introduces the anti-pattern.
 
 ---
 
@@ -116,7 +116,7 @@ Relative `'../foo'` imports are acceptable ONLY within a flat sibling context (s
 
 **Do not unify the local Toast pattern blindly** — confirm whether `useDashboard()` is available in the component's render tree before replacing with `addToast`. If it is available AND the toast is used as a global overlay (not inline in modal body), prefer `addToast`.
 
-**Status (run 3):** D5 is now exhaustively documented. All remaining local Toast instances in admin components are confirmed intentional exceptions (inline modal notifications). `InstructionalRoutinesManager` was the last convertible instance — now fixed. No further admin component conversions are expected.
+**Status (run 4):** D5 is exhaustively documented. Two new admin components found during run 4 staleness scan — `SaveAsTemplateModal.tsx` (D5-E15) and `Organization/OrganizationPanel.tsx` (D5-E16) — both confirmed intentional exceptions (inline modal body and full-panel manager respectively). No further admin component conversions are expected.
 
 ---
 
@@ -169,6 +169,8 @@ These variations look like snowflakes but are deliberate — never auto-unify th
 | D5-E12 | `BackgroundManager/index.tsx` local `message` state                                               | Inline notification within panel body                                                                                         |
 | D5-E13 | `LinkShortenerManager.tsx` local `toast` state with fixed-positioned wrapper div                  | Full-panel manager; fixed-positioned wrapper approximates global overlay but is acceptable as-is                              |
 | D5-E14 | `InstructionalRoutines/LibraryManager.tsx` local Toast for loading state                          | Widget-level local UI, not an admin notification                                                                              |
+| D5-E15 | `SaveAsTemplateModal.tsx` local `message` state                                                   | Inline notification within modal body                                                                                         |
+| D5-E16 | `Organization/OrganizationPanel.tsx` local `toast` state with custom `OrgToast` component         | Full-panel manager with own toast system + setTimeout auto-dismiss; analogous to D5-E13                                       |
 
 ---
 
@@ -184,7 +186,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 | MEDIUM   | SHIPPED (run 2) | `components/widgets/MaterialsWidget/index.tsx:180`                | Hand-rolled focused-empty state → ScaledEmptyState — PR #1704                                                                  |
 | MEDIUM   | SHIPPED (run 3) | `components/widgets/NextUp/Widget.tsx`                            | Hand-rolled "Queue is not active" state → ScaledEmptyState — PR #1721                                                          |
 | MEDIUM   | CLOSED (run 3)  | `components/widgets/SmartNotebook/Widget.tsx`                     | Library.tsx already uses ScaledEmptyState — no action needed                                                                   |
-| MEDIUM   | OPEN            | `components/widgets/VideoActivityWidget/Widget.tsx` lines 324–373 | Two guards: "Sign in required" (LogIn icon) and "Drive access needed" (AlertTriangle) — both are clean ScaledEmptyState shapes |
+| MEDIUM   | SHIPPED (run 4) | `components/widgets/VideoActivityWidget/Widget.tsx` lines 324–373 | Two guards → ScaledEmptyState — PR #1746                                                                                       |
 | LOW      | CLOSED (D1-E4)  | `components/widgets/GuidedLearning/Widget.tsx:778`                | View-only share results screen — intentional variation, added as D1-E4                                                         |
 | LOW      | OPEN            | `components/widgets/random/RandomWidget.tsx` lines 1451–1515      | "No Names Provided" / "Everyone Absent Today" — conditional action button in one variant; check ScaledEmptyState `action` prop |
 
@@ -203,7 +205,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 | MEDIUM   | SHIPPED (run 2) | `components/widgets/Schedule/Settings.tsx`            | 2 section heading labels → SettingsLabel — PR #1706                                                       |
 | MEDIUM   | CLOSED (run 3)  | `components/widgets/VideoActivityWidget/Settings.tsx` | Already clean — uses `text-sm font-bold text-slate-700` pattern, not the canonical anti-pattern           |
 | LOW      | SHIPPED (run 3) | `components/widgets/Calendar/Settings.tsx`            | 3 labels → SettingsLabel — PR #1722                                                                       |
-| LOW      | OPEN            | `components/widgets/random/RandomSettings.tsx`        | 6 instances `text-xxs text-slate-400 uppercase tracking-widest mb-3 block` — all SettingsLabel candidates |
+| LOW      | SHIPPED (run 4) | `components/widgets/random/RandomSettings.tsx`        | 7 instances (6 found + 1 already clean) → SettingsLabel; icon form used for Hash/Puzzle labels — PR #1747  |
 | LOW      | OPEN            | `components/widgets/LunchCount/Settings.tsx`          | 4 instances — same pattern                                                                                |
 | LOW      | OPEN            | `components/widgets/SpecialistSchedule/Settings.tsx`  | 3 instances with exact canonical classes — easiest conversion                                             |
 | LOW      | CLOSED (STALE)  | `components/widgets/PollWidget/Settings.tsx`          | Already uses SettingsLabel throughout                                                                     |
@@ -214,7 +216,8 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 | -------- | --------------- | --------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
 | LOW      | SHIPPED (run 2) | `layout/Dock.tsx`, `layout/RemoteControlMenu.tsx`, `widgets/WidgetRenderer.tsx`, `student/StudentApp.tsx` | 5 imports fixed → @/ alias — PR #1707                                                                        |
 | LOW      | SHIPPED (run 3) | `components/admin/` — 15 files, 25 imports                                                                | `'../common/Toggle'`, `'../common/Toast'`, `'../common/Modal'` etc. → `'@/components/common/...'` — PR #1723 |
-| LOW      | OPEN            | `components/plc/` — ~18 instances                                                                         | Relative imports within plc/ subtree crossing subdirectory boundaries                                        |
+| LOW      | CLOSED (run 4)  | `components/plc/` (original entry) — overview/, grid/, tabs/                                              | plc/ was substantially restructured on dev-paul (overview/, grid/ deleted; tabs/ changed) between bootstrap and run 4; D4 branch obsolete; re-audited below |
+| LOW      | OPEN            | `components/plc/` — re-audit needed                                                                        | 26 relative imports remain in the new plc/ structure (assignments/, authoring/, bodies/, docs/, home/, resources/, sharedData/, tabs/); audit which cross subdirectory boundaries before next D4 run |
 | LOW      | OPEN            | `components/settingsModal/sections/` — 4 files                                                            | `'../SettingsSectionHeader'` → @/ alias                                                                      |
 | LOW      | OPEN            | `hooks/`, `context/`, `utils/` — 43/54/22                                                                 | Relative root-sibling imports; large pass, requires care around test tsconfig resolution                     |
 
@@ -227,6 +230,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 | LOW      | CLOSED (D5-E2)  | `components/admin/GlobalPermissionsManager.tsx`           | Intentional exception confirmed                                                                           |
 | LOW      | SHIPPED (run 3) | `components/admin/InstructionalRoutinesManager.tsx`       | Local Toast state → addToast (removes useState/useRef/useEffect/useCallback) — PR #1724                   |
 | LOW      | CLOSED (run 3)  | All other admin modal local Toast patterns                | 11 components confirmed as intentional exceptions (D5-E4 through D5-E14) — dimension exhaustively audited |
+| LOW      | CLOSED (run 4)  | `SaveAsTemplateModal.tsx`, `Organization/OrganizationPanel.tsx`   | Staleness scan found 2 new files; both confirmed intentional exceptions (D5-E15, D5-E16)                  |
 
 ---
 
@@ -234,6 +238,11 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 
 | Date       | Branch                                           | Dimension          | Action                                                                                                                                 | PR    |
 | ---------- | ------------------------------------------------ | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ----- |
+| 2026-05-29 | `nightly/unify-empty-states-2026-05-29`          | D1 Empty States    | Shipped — VideoActivityWidget/Widget.tsx two hand-rolled guard states → ScaledEmptyState; rebase resolved conflict (getVideoActivityBehavior import added on dev-paul) | #1746 |
+| 2026-05-29 | —                                                | D2 Brand Colors    | Aligned — MusicWidget fallback (D2-E5) and test assertion confirmed; no new production instances                                                                       | —     |
+| 2026-05-29 | `nightly/unify-settings-labels-2026-05-29`       | D3 Settings Labels | Shipped — RandomSettings.tsx 7 hand-rolled labels → SettingsLabel (includes icon form for Hash/Puzzle); 4 card-title/button exceptions correctly excluded              | #1747 |
+| 2026-05-29 | —                                                | D4 Import Paths    | Deferred — plc/ was substantially restructured on dev-paul (overview/, grid/ deleted) between bootstrap and run 4; D4 branch discarded; re-audit plc/ new structure next run | —   |
+| 2026-05-29 | —                                                | D5 Toast Arch      | Aligned — 2 new admin components found (SaveAsTemplateModal, OrganizationPanel); both confirmed intentional exceptions (D5-E15, D5-E16)                                | —     |
 | 2026-05-28 | `nightly/unify-empty-states-2026-05-28`          | D1 Empty States    | Shipped — NextUp/Widget.tsx hand-rolled "Queue is not active" state → ScaledEmptyState; SmartNotebook already clean                    | #1721 |
 | 2026-05-28 | —                                                | D2 Brand Colors    | Aligned — #ad2122 sweep complete, all instances are intentional exceptions; prior fixes already on dev-paul                            | —     |
 | 2026-05-28 | `nightly/unify-settings-labels-2026-05-28`       | D3 Settings Labels | Shipped — Calendar/Settings.tsx 3 labels → SettingsLabel; VideoActivityWidget already clean                                            | #1722 |
@@ -267,4 +276,7 @@ Ordered roughly by severity. Pick the top OPEN item per dimension each night. On
 - **PollWidget/Settings.tsx D3 backlog entry is STALE** — file already uses SettingsLabel throughout. Closed in run 2 review.
 - **Worktree isolation note (runs 2–3):** Agent worktrees sometimes write changes directly to the main working tree (`/home/user/SpartBoard/`) rather than only to their isolated worktree. This typically happens when the agent uses a path resolved from the main git root. After each run, verify the main worktree (`git status` on dev-paul) is clean before ending the session. If changes appear, inspect them: they may be valid dimension work that needs to be committed to a separate branch rather than dev-paul directly.
 - **D4 admin/ complete (run 3):** All 15 files with relative `'../common/...'` and `'../widgets/...'` cross-dir imports in `components/admin/` have been fixed. Next D4 target: `components/plc/` (~18 instances).
-- **D3 next target:** `components/widgets/random/RandomSettings.tsx` — 6 SettingsLabel candidates. VideoActivityWidget/Settings.tsx is CLEAN (uses different font pattern, not the anti-pattern).
+- **D3 next target:** `components/widgets/LunchCount/Settings.tsx` — 4 SettingsLabel candidates (next OPEN item after RandomSettings shipped). Then `SpecialistSchedule/Settings.tsx` (3 instances).
+- **D4 plc/ re-audit (run 4):** The `overview/` and `grid/` subdirectories were deleted from `components/plc/` on dev-paul. The `tabs/` subtree changed. Before running D4 on plc/ again, audit which files remain and which cross-subdirectory imports actually exist. 26 relative imports found in run 4 — but many may be within-plc-subtree and acceptable. Do not reuse the run 4 D4 branch.
+- **D1 next target:** `components/widgets/random/RandomWidget.tsx` lines 1451–1515 — "No Names Provided" / "Everyone Absent Today" (check whether ScaledEmptyState `action` prop handles the conditional action button variant).
+- **D5 fully enumerated (run 4):** D5-E15 (SaveAsTemplateModal) and D5-E16 (OrganizationPanel) added. D5 is exhaustively documented across 16 exceptions.
