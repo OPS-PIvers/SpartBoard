@@ -6,9 +6,9 @@
 
 ## 📌 Current Status — read this first
 
-**Last updated:** 2026-05-29 by orchestrator (Phase 0A gcloud complete + Day-1 teacher-discovery de-risk stub built; see [Progress Log](#progress-log) top entry).
+**Last updated:** 2026-05-29 by debug session (Paul + Claude) — **LIVE iframe test PASSED**; see [Progress Log](#progress-log) top entry.
 
-**Active phase:** Day-1 de-risk slice — **code complete, awaiting Phase 0B install** for the first live iframe test.
+**Active phase:** Day-1 de-risk slice — ✅ **VERIFIED LIVE (GO).** Both slices work against a real Orono Classroom assignment: teacher discovery created an attachment, and the student `studentRole` Firebase session **survived a reload inside Classroom's partitioned iframe** (`studentRole: true`, `isAnonymous: false`, `classIds: ["classroom:<courseId>"]`). **No CHIPS / Storage Access API needed.** Fixed two live bugs en route — wrong `getAddOnContext` REST path (`addOnContext`, not `getAddOnContext`) and a missing `attachmentId` on non-discovery launches (commits `06097e3c`, `4e6d49d5`). Ready to begin Phase 2 / Phase 3.
 
 **Active agent(s):** _none (between phases)_
 
@@ -21,9 +21,9 @@
 
 > **⚠️ API-grounding correction (2026-05-28).** The plan was re-verified against the live Google Classroom Add-ons docs (5 research agents, citations in [§ Verified API facts](#-verified-google-classroom-add-ons-api-facts-2026-05-28)). **The single biggest change: Classroom Add-ons do NOT use a signed launch token / JWKS** — that is an LTI concept. Authentication is `login_hint` (an obfuscated Google id in plain query params) → OAuth/GIS sign-in → a server-side `getAddOnContext` call that is the authoritative source of role (`studentContext` vs `teacherContext`) and the grade-passback `submissionId`. Phase 1B/2/3/4 are rewritten accordingly, the grade-write scope is resolved (`classroom.addons.teacher`), and a new Phase 3.5 covers the copy/reuse re-ID gotcha. **Every API-contract `[VERIFY]` is now resolved**; the only markers left are two runtime/operational confirmations (the exact gcloud Marketplace service name, and the precise CSP `frame-ancestors` origins), both with guidance in that section.
 
-**Next action for the next agent:** The Day-1 de-risk slice (student handshake **and** teacher discovery) is now code-complete and deployable. The gating step is **Phase 0B** (human: Marketplace SDK config + test-domain install — see [docs/classroom-addon-gcp-state.md](classroom-addon-gcp-state.md) for the exact checklist). Once installed, run the **live iframe test** (teacher attaches → student opens → confirm the `studentRole` Firebase session survives a reload inside the partitioned iframe). Only after that go/no-go should full Phase 1A / Phase 2 / Phase 3 begin. Phase 1A (types/rules) has no external deps and can proceed in parallel.
+**Next action for the next agent:** The Day-1 de-risk slice is ✅ **verified live (GO)** — the go/no-go gate is cleared. Begin **Phase 1A** (types/rules/CSP — no external deps), then **Phase 2** (real teacher discovery picker: Quiz/VA library selection → `createClassroomAttachment` widened beyond the hardcoded spike title) and **Phase 3** (thin Quiz/VA student adapters onto the now-proven handshake). When the real routes replace the spike routes (`/classroom-addon/teacher` + `/classroom-addon/student`, `classroomAddonAuth.ts`), **trim the `[DEBUG-addonctx]` instrumentation**. The student adapters can rely on the partitioned-iframe session surviving (proven), so no CHIPS/SAA work is required up front.
 
-**Blockers / open items:** The live iframe test is blocked on **Phase 0B** (human Workspace-admin install). No code blockers.
+**Blockers / open items:** None blocking. Open follow-ups: (1) trim spike `[DEBUG-addonctx]` instrumentation during Phase 2/3; (2) district data-privacy review of the draft legal pages before any non-pilot rollout; (3) Phase 4 grade passback still needs `studentWorkReviewUri` + non-zero `maxPoints` (the spike attachment is minimal — no grade sync yet).
 
 **Resume instructions if picking up cold:**
 
@@ -1156,6 +1156,16 @@ sed -n '115,170p' components/quiz/QuizStudentApp.tsx
 ## Progress Log
 
 > Append-only. Newest entries first. Each entry: `### YYYY-MM-DD HH:MM — <agent name or "orchestrator"> — <one-line summary>` followed by 2-5 bullet points of detail.
+
+### 2026-05-29 — debug session (Paul + Claude) — LIVE iframe test PASSED: both de-risk slices work; studentRole session survives the partitioned iframe [VERIFICATION]
+
+- **GO on the single biggest unknown.** Ran the live iframe test on the dev preview against a real Orono Classroom assignment. After the student handshake (`classroomAddonLoginV1` → `signInWithCustomToken`), **the Firebase `studentRole` session SURVIVED a reload inside Classroom's partitioned student iframe** (`studentRole: true`, `isAnonymous: false`, `classIds: ["classroom:793938994099"]`, stable HMAC uid). **No CHIPS / Storage Access API needed** — Firebase's IndexedDB session persists in the cross-site iframe. Phase 3 is de-risked.
+- **Teacher discovery also verified live** — `createClassroomAttachment` created a real attachment (id `866462732252`) from the discovery iframe.
+- **Bug #1 (affected BOTH slices): wrong `getAddOnContext` REST path.** The code built `.../{itemId}/getAddOnContext`; the REST path segment is `addOnContext` (the `get` is the HTTP verb, not part of the path). The literal path returned a generic Google **HTML 404**, surfacing as the opaque "Could not validate the Classroom launch." Fixed in `fetchAddOnContext`; the Verified API facts + Phase 1B step above were corrected. Commit `06097e3c`.
+- **Bug #2 (student slice): missing `attachmentId`.** `getAddOnContext` requires `attachmentId` for every iframe except Attachment Discovery; the student handshake never read/forwarded it → `400 INVALID_ARGUMENT "Attachment ID must be specified."` Fixed: `StudentSpikeRoute` reads it from the URL and `classroomAddonLoginV1` forwards it. Commit `4e6d49d5`.
+- **Instrumentation + tests:** `fetchAddOnContext` now logs and surfaces the upstream `getAddOnContext` status/body (tagged `[DEBUG-addonctx]`, "trim before Phase 2") — this is what made both bugs legible instead of opaque. Added regression tests at the **URL-construction seam** (every prior test stubbed `fetchAddOnContext` wholesale — exactly how the wrong path shipped). 16/16 function tests pass.
+- **Phase 0B is effectively done for the test domain** — the add-on launched in a real assignment with a valid `addOnToken` + `login_hint`, so the consent-screen scopes + admin install are sufficient for the pilot. Both functions deployed to the `spartboard` backend; preview channel redeployed.
+- **Next:** Phase 3 (real Quiz/VA student adapters onto the proven handshake) and Phase 2 (real teacher discovery picker). Trim the `[DEBUG-addonctx]` spike instrumentation when those routes replace the spike.
 
 ### 2026-05-29 — orchestrator — 0B support: consent-screen fix, legal pages, listing assets [IMPLEMENTATION]
 
