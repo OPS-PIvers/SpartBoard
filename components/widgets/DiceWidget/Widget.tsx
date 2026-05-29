@@ -22,6 +22,14 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const [isRolling, setIsRolling] = useState(false);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Keep refs to the latest prop values so the roll interval always reads the
+  // current diceCount/config even if props change mid-roll.
+  const diceCountRef = useRef(diceCount);
+  const configRef = useRef(config);
+  const widgetIdRef = useRef(widget.id);
+  diceCountRef.current = diceCount;
+  configRef.current = config;
+  widgetIdRef.current = widget.id;
 
   useEffect(() => {
     return () => {
@@ -53,13 +61,18 @@ export const DiceWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           clearInterval(intervalRef.current);
           intervalRef.current = null;
         }
+        // Read from refs so we always use the current values even if props
+        // changed while the roll was in progress.
+        const currentDiceCount = diceCountRef.current;
+        const currentConfig = configRef.current;
+        const currentWidgetId = widgetIdRef.current;
         const finalValues = Array.from(
-          { length: diceCount },
+          { length: currentDiceCount },
           () => Math.floor(Math.random() * 6) + 1
         );
         setAnimatedValues(finalValues);
-        updateWidget(widget.id, {
-          config: { ...config, lastRoll: finalValues } as DiceConfig,
+        updateWidget(currentWidgetId, {
+          config: { ...currentConfig, lastRoll: finalValues } as DiceConfig,
         });
         setIsRolling(false);
       }

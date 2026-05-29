@@ -3,20 +3,10 @@ import { useAdminBuildings } from '@/hooks/useAdminBuildings';
 import { useBuildingSelection } from '@/hooks/useBuildingSelection';
 import { UrlGlobalConfig } from '@/types';
 import { Plus, Trash2 } from 'lucide-react';
-
-const COLORS = [
-  '#ef4444',
-  '#f97316',
-  '#f59e0b',
-  '#84cc16',
-  '#10b981',
-  '#06b6d4',
-  '#3b82f6',
-  '#6366f1',
-  '#8b5cf6',
-  '#d946ef',
-  '#f43f5e',
-];
+import {
+  URL_COLORS,
+  DEFAULT_URL_COLOR,
+} from '@/components/widgets/UrlWidget/icons';
 
 interface UrlConfigurationPanelProps {
   config: UrlGlobalConfig | Record<string, unknown>;
@@ -41,7 +31,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
 
   const [newUrl, setNewUrl] = useState('');
   const [newTitle, setNewTitle] = useState('');
-  const [newColor, setNewColor] = useState(COLORS[4]);
+  const [newColor, setNewColor] = useState(DEFAULT_URL_COLOR);
 
   const updateBuilding = (
     buildingId: string,
@@ -150,7 +140,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
               Button Color
             </label>
             <div className="flex flex-wrap gap-2">
-              {COLORS.map((c) => (
+              {URL_COLORS.map((c) => (
                 <button
                   key={c}
                   type="button"
@@ -191,7 +181,7 @@ export const UrlConfigurationPanel: React.FC<UrlConfigurationPanelProps> = ({
                   <div className="flex items-center gap-3 overflow-hidden">
                     <div
                       className="w-4 h-4 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: u.color ?? '#10b981' }}
+                      style={{ backgroundColor: u.color ?? DEFAULT_URL_COLOR }}
                     />
                     <div className="flex flex-col overflow-hidden">
                       <span className="font-bold text-sm text-slate-800 truncate">

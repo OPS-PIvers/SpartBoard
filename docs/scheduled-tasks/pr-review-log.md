@@ -4,6 +4,67 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-05-29
+
+- PRs reviewed:
+  - #1746 — refactor(D1): VideoActivityWidget guard states → ScaledEmptyState (base `dev-paul`, head `nightly/unify-empty-states-2026-05-29`, draft)
+  - #1747 — refactor(D3): RandomSettings 7 hand-rolled labels → SettingsLabel (base `dev-paul`, head `nightly/unify-settings-labels-2026-05-29`, draft)
+  - #1748 — docs(unifier): nightly consistency run 4 — 2026-05-29 (base `dev-paul`, head `nightly/unifier-log-2026-05-29`, draft)
+  - #1749 — fix(dice): use refs to prevent stale-closure bug when props change mid-roll (base `dev-paul`, head `nightly/widgets-2026-05-29`, draft)
+  - #1750 — fix(typography): write undefined instead of 'global' sentinel when Inherit is clicked (base `dev-paul`, head `nightly/dashboard-layout-2026-05-29`, draft)
+  - #1751 — fix(i18n): add sidebar.header.\* and whatsNew.\* keys to DE/ES/FR (base `dev-paul`, head `nightly/admin-config-2026-05-29`, draft)
+  - #1752 — fix(sanitize): escape double-quotes to block JSON-context prompt injection (base `dev-paul`, head `nightly/build-tooling-2026-05-29`, draft)
+  - #1753 — docs(nightly): debugger run log 2026-05-29 (base `dev-paul`, head `nightly/debugger-log-2026-05-29`, draft)
+  - #1754 — action(url-config): dedupe hardcoded URL color palette against URL_COLORS (base `dev-paul`, head `scheduled-tasks`, draft)
+- Comments processed: 10 total — 9 fixed, 1 explained.
+- Fixes pushed: 5
+  - PR #1753 (`nightly/debugger-log-2026-05-29`) — commit `c5104b2` `fix(pr-1753): wrap DiceWidget identifier in backticks in debugger log`. Wrapped the `DiceWidget` identifier in backticks per gemini-code-assist suggestion; prettier rewrapped column padding in adjacent rows.
+  - PR #1752 (`nightly/build-tooling-2026-05-29`) — commit `25eb17c` `fix(pr-1752): escape single-quote in sanitizePrompt for attribute-breakout defense`. Added `"'": '&#39;'` to `ESCAPE_MAP` and extended the regex character class; added a regression test asserting `it's → it&#39;s`. 7/7 tests pass.
+  - PR #1748 (`nightly/unifier-log-2026-05-29`) — commit `99f7743` `fix(pr-1748): prefix admin paths with components/admin/ in D5 backlog table`. Prefixed `SaveAsTemplateModal.tsx` and `Organization/OrganizationPanel.tsx` with `components/admin/` to match the rest of the D5 table.
+  - PR #1747 (`nightly/unify-settings-labels-2026-05-29`) — commit `d0e5246` `fix(pr-1747): associate RandomSettings labels with inputs via useId`. Added `htmlFor`/`id` pairs for 5 form controls using React `useId()` for collision-free ids across multiple Random widget instances. Verified: type-check ✓ lint ✓.
+- Reviews posted: 9 (all open PRs received a structured review comment).
+- Notes:
+  - Branch safety: all 4 fixes were pushed to head branches of PRs targeting `dev-paul`. No push to `main` or `dev-paul`.
+  - PR #1750 had a gemini suggestion to swap `TestConfig` for `TextConfig` in the new test file, claiming type-check would fail. Declined — `pnpm run type-check` exits clean; the explicit `as [Partial<TestConfig>]` cast on `mock.calls[0]` resolves the generic at the call site. Explained on the thread.
+  - PR #1754 (head `scheduled-tasks`) — no reviewer comments; only the gemini summary review existed.
+  - PRs #1746, #1749, #1751 — no reviewer comments beyond the gemini summary; received reviews only.
+
+---
+
+## 2026-05-28
+
+- PRs reviewed:
+  - #1720 — fix(quiz): preserve student answers + recover from PIN pop-out lockout (base `dev-paul`, head `fix-quiz-data-loss`)
+  - #1721 — unify(D1): replace hand-rolled empty state in NextUp/Widget with ScaledEmptyState (base `dev-paul`, head `nightly/unify-empty-states-2026-05-28`, draft)
+  - #1722 — unify(D3): replace hand-rolled labels with SettingsLabel in Calendar/Settings (base `dev-paul`, head `nightly/unify-settings-labels-2026-05-28`, draft)
+  - #1723 — unify(D4): convert relative cross-dir imports to @/ alias in components/admin/ (base `dev-paul`, head `nightly/unify-import-paths-admin-2026-05-28`, draft)
+  - #1724 — unify(D5): replace local Toast state with addToast in InstructionalRoutinesManager (base `dev-paul`, head `nightly/unify-toast-routines-2026-05-28`, draft)
+  - #1725 — chore(unifier): run 3 memory doc update (base `dev-paul`, head `nightly/unifier-log-2026-05-28`, draft)
+  - #1726 — fix(widgets): resolve UUID group IDs to human-readable names in Stations (base `dev-paul`, head `nightly/widgets-2026-05-28`, draft)
+  - #1727 — fix(canvas): remove onPointerLeave from AnnotationCanvas (base `dev-paul`, head `nightly/dashboard-layout-2026-05-28`, draft)
+  - #1728 — fix(grading): guard max-point accumulation against duplicate question IDs (base `dev-paul`, head `nightly/state-data-2026-05-28`, draft)
+  - #1729 — fix(i18n): add missing sidebar.plcs namespace + remoteControl key to DE/ES/FR (base `dev-paul`, head `nightly/admin-config-2026-05-28`, draft)
+  - #1730 — fix(security): escape & before HTML entities in sanitizePrompt (base `dev-paul`, head `nightly/build-tooling-2026-05-28`, draft)
+  - #1731 — docs(nightly): debugger log — run 3 (base `dev-paul`, head `nightly/debugger-log-2026-05-28`, draft)
+  - #1732 — action(thursday): wire NumberLine appearance fields into admin building defaults (base `dev-paul`, head `claude/loving-bell-M4E0T`, draft)
+- Comments processed: 16 total — 12 fixed, 4 explained.
+- Fixes pushed: 6
+  - PR #1722 (`nightly/unify-settings-labels-2026-05-28`) — commit `f7502ed` `fix(pr-1722): drop colliding mb-3 + add mb-0 on flex/space-y SettingsLabels`. Drops the `mb-3` Tailwind-class-collision with the SettingsLabel default `mb-2`; adds `mb-0` on the two SettingsLabels inside flex-headers / `space-y-3` sections to preserve the original spacing. Verified: type-check ✓ lint ✓ prettier ✓.
+  - PR #1724 (`nightly/unify-toast-routines-2026-05-28`) — commit `09d9bb0` `fix(pr-1724): wrap async saveRoutine in try/catch + guard nullable state`. Adds try/catch around `saveRoutine` so a Firestore/network error surfaces a toast and the modal stays open; adds `if (!editingRoutine) return;` and `if (!deleteConfirm) return;` guards inside the async closures. Verified: type-check ✓ lint ✓ prettier ✓.
+  - PR #1729 (`nightly/admin-config-2026-05-28`) — commit `8fb3c73` `fix(pr-1729): use German typographic quotes („…") in PLG confirm dialogs`. Replaces straight `"` with `„` / `"` in `confirmLeave`, `confirmDelete`, `confirmRemoveMember` to match the existing `sidebar.classes.confirmDelete` style. Verified: i18n tests ✓ (11/11).
+  - PR #1730 (`nightly/build-tooling-2026-05-28`) — commit `e7b5c49` `fix(pr-1730): sanitizePrompt single-pass regex + lookup map`. Collapses the 8 chained `.replace()` calls into a single-pass `/[&<>{}[\]\`]/g`regex +`ESCAPE_MAP`lookup; functionally identical, inherently safer against re-evaluation of inserted`&`, one allocation instead of eight. Verified: type-check ✓ lint ✓ sanitize tests ✓ (5/5).
+  - PR #1731 (`nightly/debugger-log-2026-05-28`) — commit `ee249f6` `fix(pr-1731): use full path components/widgets/Stations/nexus.ts in run log`. Updates the run-3 Widgets row to use the full repo-root path, matching the convention of other rows. Verified: prettier ✓.
+  - PR #1732 (`claude/loving-bell-M4E0T`) — commit `63deb8e` `fix(pr-1732): validate fontFamily union + guard color picker against invalid hex`. Validates `raw.fontFamily` against the `GlobalFontFamily` union in `utils/adminBuildingConfig.ts` (was accepting any non-empty string); adds `isValidHex` helper to `NumberLineConfigurationPanel.tsx` so both color pickers no longer flicker to `#000000` when the adjacent text field has a partial/invalid hex. Added 19th test asserting unknown `fontFamily` strings are rejected. Verified: type-check ✓ lint ✓ prettier ✓ tests ✓ (19/19).
+- Reviews posted: 13 (all open PRs received a structured review comment).
+- Notes:
+  - Branch safety: all 6 fixes were pushed to head branches of PRs targeting `dev-paul`. No push to `main` or `dev-paul`.
+  - PR #1720 (`fix-quiz-data-loss`) had 6 review threads — all already resolved by the author in commits 2fbbdc9 / 615db37 / bbee53a before this run started; no automated fix needed.
+  - PR #1727 (AnnotationCanvas) had 2 review comments suggesting a `hasPointerCapture` guard fallback and corresponding test mocks. Declined — the PR description explicitly evaluated and rejected this as a band-aid. Every browser this app supports (Chrome 90+, Edge 90+, Firefox 88+, Safari 14+) implements pointer capture, so the guarded code path would never fire.
+  - PR #1729 had a defensive `?? {}` test-guard suggestion — declined as a style preference; the current `toHaveProperty` matcher already produces a clear failure if the namespace is missing.
+  - PR #1732 had a suggestion to swap the color inputs for `SurfaceColorSettings`. Declined — the panel intentionally uses a uniform plain-input visual style across font dropdown, opacity slider, number/select inputs, and color fields. A partial swap would create visual discontinuity; a whole-panel migration to shared appearance components is a separate scope.
+
+---
+
 ## 2026-05-27
 
 - PRs reviewed:

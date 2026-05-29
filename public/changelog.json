@@ -1,6 +1,25 @@
 {
   "entries": [
     {
+      "version": "2026.05.29",
+      "date": "2026-05-29",
+      "title": "Translations, typography, and dice fixes",
+      "details": [
+        {
+          "type": "fix",
+          "text": "Translations — the Dock section headers (\"Live\", \"More\", \"More widgets\", \"Open tools\", \"Create folder\") and every label in the What's New modal now appear in German, Spanish, and French. Previously these strings were missing from the non-English translations and either showed as raw text keys or silently fell back to English."
+        },
+        {
+          "type": "fix",
+          "text": "Typography settings — clicking \"Inherit\" on a widget's font picker now properly clears the per-widget font override so the widget picks up the dashboard's global font. Previously the click saved a placeholder value that could leave the widget stuck on the wrong font and prevent later changes to the global font from taking effect."
+        },
+        {
+          "type": "fix",
+          "text": "Dice widget — changing the number of dice from the settings panel while the dice are still rolling now lands on the correct count. Previously, if you bumped the count from 2 to 4 mid-roll, the animation would finish but only the original 2 dice would be saved."
+        }
+      ]
+    },
+    {
       "version": "2026.05.28.4",
       "date": "2026-05-28",
       "title": "Live quiz answer integrity safeguards",

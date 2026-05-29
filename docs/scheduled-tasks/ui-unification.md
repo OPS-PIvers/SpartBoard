@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Wednesday_
 _Last audited: 2026-05-27_
-_Last action: 2026-05-27 — MEDIUM specialist-schedule appearance panel registered_
+_Last action: 2026-05-29 — MEDIUM UrlConfigurationPanel hex palette deduplicated against URL_COLORS_
 
 ---
 
@@ -29,13 +29,6 @@ _Nothing currently in progress._
 - **File:** components/widgets/LunchCount/Settings.tsx (line 90), components/widgets/SpecialistSchedule/Settings.tsx (line 640)
 - **Detail:** Both settings panels use bare HTML `<select>` elements for dropdown controls. All other widget settings panels that need dropdown selection use styled `<select>` inline (e.g. with Tailwind classes matching the design system) or the common `Toggle` component. The bare `<select>` elements do not receive the project's standard `bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white` styling applied elsewhere, producing visually inconsistent dropdowns in dark-mode settings panels.
 - **Fix:** Apply the standard input styling (`className="bg-slate-800 border border-slate-600 rounded px-3 py-2 text-white text-sm"`) to both `<select>` elements, or extract a `<StyledSelect>` component in `components/common/` if a third instance exists.
-
-### MEDIUM `UrlConfigurationPanel.tsx` uses hardcoded hex color palette instead of design system references
-
-- **Detected:** 2026-04-15
-- **File:** components/admin/UrlConfigurationPanel.tsx (lines 7-17, 192)
-- **Detail:** The panel defines a `PRESET_COLORS` array of 11 hardcoded hex values (`#ef4444`, `#f97316`, … `#f43f5e`) for the URL tile color picker swatch row. These are Tailwind color hex values but are hardcoded as string literals rather than referencing the Tailwind palette via CSS variables or a shared constants file. If the design system color palette changes, this panel won't update automatically.
-- **Fix:** Move `PRESET_COLORS` to a shared constants file (e.g. `config/colorPresets.ts`) using the same pattern as `SURFACE_COLOR_PRESETS` in `config/widgetAppearance.ts`. Import from there in UrlConfigurationPanel and any other admin panels that need a color picker swatch row.
 
 ### LOW `FeatureConfigurationPanel.tsx` is 706 lines — complex per-feature layout that could use `SchemaDrivenConfigurationPanel`
 
@@ -82,6 +75,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### MEDIUM `UrlConfigurationPanel.tsx` uses hardcoded hex color palette instead of design system references
+
+- **Detected:** 2026-04-15
+- **Completed:** 2026-05-29
+- **File:** components/admin/UrlConfigurationPanel.tsx
+- **Detail:** The panel defined a local `COLORS` array of 11 hardcoded hex values (`#ef4444`, `#f97316`, … `#f43f5e`) for the URL tile color picker swatch row, plus a hardcoded `'#10b981'` fallback at the active-link list rendering. These were duplicated verbatim in `components/widgets/UrlWidget/icons.ts` which already exported `URL_COLORS` (the same 11 values) and `DEFAULT_URL_COLOR = '#10b981'`, used by `UrlWidget/Settings.tsx`, `UrlWidget/Widget.tsx`, and `UrlWidget/LinkBackgroundInput.tsx`. The admin panel was the only swatch consumer outside the widget directory.
+- **Resolution:** Removed the local `COLORS` array and imported `URL_COLORS` + `DEFAULT_URL_COLOR` from `@/components/widgets/UrlWidget/icons` — the existing canonical source already used by every other URL-tile color picker in the app. Replaced the three call sites: swatch map (`COLORS.map` → `URL_COLORS.map`), initial new-color state (`COLORS[4]` → `DEFAULT_URL_COLOR`), and active-link fallback (`'#10b981'` → `DEFAULT_URL_COLOR`). The admin building defaults now stay in lockstep with the widget's own palette automatically — any future palette change in `icons.ts` propagates to the admin config panel. `pnpm exec tsc --noEmit`, `pnpm exec eslint components/admin/UrlConfigurationPanel.tsx --max-warnings 0`, and `pnpm exec prettier --check components/admin/UrlConfigurationPanel.tsx` all clean.
 
 ### MEDIUM `specialist-schedule` widget has full appearance config but no `WIDGET_APPEARANCE_COMPONENTS` entry
 
