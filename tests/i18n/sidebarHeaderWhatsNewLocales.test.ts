@@ -83,7 +83,11 @@ const REQUIRED_WHATS_NEW_KEYS = [
   'browseEmpty',
 ] as const;
 
-const REQUIRED_WHATS_NEW_GROUP_KEYS = ['feature', 'improvement', 'fix'] as const;
+const REQUIRED_WHATS_NEW_GROUP_KEYS = [
+  'feature',
+  'improvement',
+  'fix',
+] as const;
 
 describe('EN locale — whatsNew baseline', () => {
   it('has a whatsNew section', () => {
@@ -115,9 +119,10 @@ describe.each([
   { code: 'fr', locale: fr as unknown as LocaleFile },
 ])('$code locale — whatsNew parity with EN', ({ code, locale }) => {
   it(`${code}: has a whatsNew section`, () => {
-    expect(locale, `${code}.whatsNew section is entirely missing`).toHaveProperty(
-      'whatsNew'
-    );
+    expect(
+      locale,
+      `${code}.whatsNew section is entirely missing`
+    ).toHaveProperty('whatsNew');
   });
 
   it(`${code}: has all required whatsNew keys`, () => {
@@ -125,7 +130,9 @@ describe.each([
       | Record<string, unknown>
       | undefined;
     for (const key of REQUIRED_WHATS_NEW_KEYS) {
-      expect(whatsNew, `${code}.whatsNew.${key} is missing`).toHaveProperty(key);
+      expect(whatsNew, `${code}.whatsNew.${key} is missing`).toHaveProperty(
+        key
+      );
     }
   });
 
@@ -135,9 +142,10 @@ describe.each([
       | undefined;
     const groups = whatsNew?.groups;
     for (const key of REQUIRED_WHATS_NEW_GROUP_KEYS) {
-      expect(groups, `${code}.whatsNew.groups.${key} is missing`).toHaveProperty(
-        key
-      );
+      expect(
+        groups,
+        `${code}.whatsNew.groups.${key} is missing`
+      ).toHaveProperty(key);
     }
   });
 });
