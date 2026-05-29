@@ -38,6 +38,16 @@ const ADDON_TEACHER_SCOPES = [
   'https://www.googleapis.com/auth/classroom.addons.teacher',
 ].join(' ');
 
+// PROBE (temporary): read-only Classroom course scope so we can call
+// courses.aliases.list and confirm whether ClassLink preserves the class
+// sourcedId in the course alias (the bridge to the existing ClassLink roster /
+// name-resolution pipeline). Requires `classroom.courses.readonly` to be
+// declared on the OAuth consent screen or Google will drop it.
+const COURSE_READONLY_SCOPES = [
+  'openid',
+  'https://www.googleapis.com/auth/classroom.courses.readonly',
+].join(' ');
+
 interface CreateAttachmentResult {
   attachmentId: string;
 }
@@ -86,6 +96,34 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       setBusy(false);
     }
   }, [append, signInWithGoogle]);
+
+  // PROBE (temporary): does the Classroom course alias carry the ClassLink
+  // sourcedId? Reads courses.aliases.list with a read-only Classroom token.
+  const checkAlias = useCallback(async () => {
+    setBusy(true);
+    try {
+      if (!courseId) {
+        append('No courseId in the URL.');
+        return;
+      }
+      append('Requesting Classroom course read permission…');
+      await ensureGis();
+      const token = await requestAccessToken(COURSE_READONLY_SCOPES, loginHint);
+      append(`Reading aliases for course ${courseId}…`);
+      const res = await fetch(
+        `https://classroom.googleapis.com/v1/courses/${encodeURIComponent(
+          courseId
+        )}/aliases`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const text = await res.text();
+      append(`aliases.list → ${res.status}: ${text.slice(0, 600)}`);
+    } catch (err) {
+      append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+    } finally {
+      setBusy(false);
+    }
+  }, [append, courseId, loginHint]);
 
   const runAttach = useCallback(async () => {
     setBusy(true);
@@ -225,6 +263,19 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
             </span>
           </div>
         </div>
+
+        {/* PROBE (temporary): verify the ClassLink sourcedId is in the course
+            alias. Independent of sign-in — does its own read-only OAuth popup. */}
+        {courseId && (
+          <button
+            type="button"
+            onClick={() => void checkAlias()}
+            disabled={busy}
+            className="rounded border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-medium text-amber-200 transition hover:bg-amber-400/20 disabled:opacity-50"
+          >
+            {busy ? 'Working…' : 'Check course alias (debug)'}
+          </button>
+        )}
 
         {existingAttachmentId ? (
           <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm">
