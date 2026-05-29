@@ -81,6 +81,11 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [session, setSession] = useState<SessionInfo | null>(null);
+  // True only after a handshake completes IN THIS page load. We gate the quiz
+  // render on this (not merely on a persisted studentRole session) so a stale
+  // session from another student/course can never mount the quiz with the wrong
+  // classIds — the student always re-handshakes for THIS attachment.
+  const [handshakeDone, setHandshakeDone] = useState(false);
 
   const append = useCallback((line: string) => {
     setLog((prev) => [...prev, `${new Date().toLocaleTimeString()}  ${line}`]);
@@ -170,9 +175,20 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
         `submissionId=${data.submissionId}. Signing in with custom token…`
       );
       await signInWithCustomToken(auth, data.customToken);
-      append(
-        'signInWithCustomToken OK. Now RELOAD to test session persistence.'
-      );
+      // Surface the minted classIds so we can SEE whether the ClassLink bridge
+      // resolved this student to their sourcedId (e.g. ["241232135123123"] →
+      // named) or fell back (["classroom:<courseId>"] → nameless). A mismatch
+      // with the assignment's classIds is what triggers the Firestore
+      // class-gate "insufficient permissions" on join.
+      try {
+        const tr = await auth.currentUser?.getIdTokenResult(true);
+        append(
+          `Signed in. classIds=${JSON.stringify(tr?.claims?.classIds ?? null)}`
+        );
+      } catch {
+        append('signInWithCustomToken OK.');
+      }
+      setHandshakeDone(true);
     } catch (err) {
       append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
     } finally {
@@ -180,14 +196,12 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
     }
   }, [append, courseId, itemId, itemType, attachmentId, loginHint]);
 
-  // Once the student is signed in with a studentRole token and the attachment
-  // carried a quiz code, render the real quiz runner. We intentionally do NOT
-  // gate on a specific classId here: the token's classIds may be either
-  // `classroom:<courseId>` (unlinked) or the ClassLink `sourcedId` (linked via
-  // the identity bridge), and the route can't know which. The authoritative
-  // class-gate is enforced server-side at Firestore-write time; this check only
-  // decides whether to show the quiz vs the "Start quiz" sign-in button.
-  if (code && session?.studentRole === true) {
+  // Render the quiz only after a handshake completed in THIS page load (not on a
+  // merely-persisted session) so a stale session from another student/course
+  // can't mount the quiz with mismatched classIds. The handshake re-mints the
+  // correct token (incl. the ClassLink bridge) for this exact attachment. The
+  // authoritative class-gate is still enforced server-side at write time.
+  if (code && handshakeDone && session?.studentRole === true) {
     return (
       <Suspense
         fallback={
