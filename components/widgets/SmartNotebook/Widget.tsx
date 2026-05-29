@@ -24,6 +24,7 @@ import {
   setDoc,
   updateDoc,
   deleteDoc,
+  getDoc,
   query,
   orderBy,
   arrayRemove,
@@ -441,16 +442,38 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Drop any pending autosave for `page` without uploading. Used by the
+  // delete handler: the page is about to disappear, so flushing would
+  // upload the edit to a soon-to-be-deleted storage blob (wasted bandwidth)
+  // and race against persistPageList's updateDoc.
+  const cancelPending = (page: number): void => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    editedSvgsRef.current.delete(page);
+  };
+
   // Cancel any pending autosave for `page` and fire the upload immediately.
-  // Used on page navigation, present-mode toggle, and close so jumping never
-  // strands edits in the debounce window.
-  const flushPending = (page: number): void => {
+  // Returns true if a flush actually ran, false if there was nothing pending,
+  // so structural page-op callers know whether to re-read the doc afterwards.
+  // Used by page navigation/present/close (fire-and-forget via `void`) and by
+  // add/delete/move handlers, which MUST `await` it before mutating the page
+  // list — otherwise flushPage's in-flight uploadFile+updateDoc resolves
+  // after the page-op's updateDoc and clobbers the swap/insert/delete with
+  // its pre-mutation pageUrls/pagePaths snapshot.
+  const flushPending = async (page: number): Promise<boolean> => {
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
       autosaveTimerRef.current = null;
     }
     const svg = editedSvgsRef.current.get(page);
-    if (svg) void flushPage(page, svg);
+    if (!svg) return false;
+    await flushPage(page, svg);
+    // Drop the cached edit so a later page op or navigation doesn't redisplay
+    // the stale SVG against a (possibly shifted) page at the same index.
+    editedSvgsRef.current.delete(page);
+    return true;
   };
 
   // PageEditor emits an updated SVG after each edit. Cache it (ref, no
@@ -470,19 +493,50 @@ export const SmartNotebookWidget: React.FC<{
 
   const navigateToPage = (newPage: number): void => {
     if (newPage === currentPage) return;
-    flushPending(currentPage);
+    void flushPending(currentPage);
     setCurrentPage(newPage);
   };
 
   const togglePresentMode = (): void => {
     // Flush before showing the class — they shouldn't see a stale page.
-    flushPending(currentPage);
+    void flushPending(currentPage);
     setPresentMode((p) => !p);
   };
 
   const handleClose = (): void => {
-    flushPending(currentPage);
+    void flushPending(currentPage);
     updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
+  };
+
+  // Flush any pending edit for `page`, then return the freshest notebook
+  // state for the structural page op to mutate against. When nothing was
+  // pending we keep using the in-memory snapshot (no extra Firestore read
+  // — page ops happen on manual teacher action, and the budget here is
+  // school-district sensitive); when a flush ran we re-read via getDoc so
+  // the page-op sees the just-uploaded pageUrls[page]=url instead of
+  // overwriting it with the stale React-state copy.
+  const flushAndReadFresh = async (
+    page: number
+  ): Promise<NotebookItem | null> => {
+    if (!user || !activeNotebook) return null;
+    const flushed = await flushPending(page);
+    if (!flushed) return activeNotebook;
+    const snap = await getDoc(
+      doc(db, 'users', user.uid, 'notebooks', activeNotebook.id)
+    );
+    if (!snap.exists()) return activeNotebook;
+    const data = snap.data();
+    return {
+      ...activeNotebook,
+      pageUrls: (data.pageUrls as string[]) ?? activeNotebook.pageUrls,
+      pagePaths: (data.pagePaths as string[]) ?? activeNotebook.pagePaths,
+      sections:
+        (data.sections as NotebookSection[] | undefined) ??
+        activeNotebook.sections,
+      objectLinks:
+        (data.objectLinks as NotebookObjectLink[] | undefined) ??
+        activeNotebook.objectLinks,
+    };
   };
 
   // Add or replace an object→page link. The same {objectId, sourcePage}
@@ -544,7 +598,14 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
-  // Persist a new page list (urls/paths/sections) to Firestore.
+  // Persist a new page list (urls/paths/sections/objectLinks) to Firestore.
+  // The objectLinks write is gated on `next.objectLinks` (set by the helper
+  // iff the input notebook had any) — NOT on the live React-state snapshot,
+  // which can lag the Firestore doc when a concurrent arrayUnion link save
+  // hasn't propagated yet. Gating on the helper result keeps the write
+  // aligned with the input the helper actually remapped against. When all
+  // links lived on a deleted page the helper returns `[]` (not undefined),
+  // so the empty array is written through to clear Firestore.
   const persistPageList = async (next: PageListState) => {
     if (!user || !activeNotebook) return;
     await updateDoc(
@@ -553,6 +614,9 @@ export const SmartNotebookWidget: React.FC<{
         pageUrls: next.pageUrls,
         pagePaths: next.pagePaths,
         ...(next.sections ? { sections: next.sections } : {}),
+        ...(next.objectLinks !== undefined
+          ? { objectLinks: next.objectLinks }
+          : {}),
       }
     );
   };
@@ -564,13 +628,16 @@ export const SmartNotebookWidget: React.FC<{
     const notebookPath = `users/${user.uid}/notebooks/${activeNotebook.id}`;
     const path = `${notebookPath}/page-blank-${crypto.randomUUID()}.svg`;
     try {
+      // Await the flush + re-read fresh state. Doing the flush concurrently
+      // with the page-op write would let flushPage's late updateDoc clobber
+      // the inserted blank.
+      const fresh = await flushAndReadFresh(currentPage);
+      if (!fresh) return;
       const file = new File([blankPageSvg()], 'blank.svg', {
         type: 'image/svg+xml',
       });
       const url = await uploadFile(path, file);
-      await persistPageList(
-        insertBlankPage(activeNotebook, currentPage, url, path)
-      );
+      await persistPageList(insertBlankPage(fresh, currentPage, url, path));
       setCurrentPage(currentPage + 1);
       addToast('Blank page added', 'success');
     } catch (err) {
@@ -599,16 +666,32 @@ export const SmartNotebookWidget: React.FC<{
     if (!confirmed) return;
     setIsPageOp(true);
     try {
+      // Cancel rather than flush: the teacher just decided to delete this
+      // page, so any pending edit on it should be discarded (uploading to a
+      // soon-to-be-deleted storage blob would waste bandwidth and race
+      // persistPageList's updateDoc, possibly restoring the page).
+      cancelPending(currentPage);
+      const linkCountBefore = activeNotebook.objectLinks?.length ?? 0;
       const { state: next, removedPath } = deletePage(
         activeNotebook,
         currentPage
       );
+      const droppedLinks = linkCountBefore - (next.objectLinks?.length ?? 0);
       await persistPageList(next);
       if (removedPath) {
         await deleteFile(removedPath).catch((e) => console.error(e));
       }
       setCurrentPage((p) => Math.min(p, next.pageUrls.length - 1));
-      addToast('Page deleted', 'success');
+      if (droppedLinks > 0) {
+        // Surface the silent data loss (hotspots on / pointing to the
+        // deleted page) so the teacher isn't surprised later.
+        addToast(
+          `Page deleted (also removed ${droppedLinks} hyperlink${droppedLinks === 1 ? '' : 's'})`,
+          'success'
+        );
+      } else {
+        addToast('Page deleted', 'success');
+      }
     } catch (err) {
       console.error('Failed to delete page', err);
       addToast('Failed to delete page', 'error');
@@ -627,7 +710,17 @@ export const SmartNotebookWidget: React.FC<{
       return;
     setIsPageOp(true);
     try {
-      await persistPageList(movePage(activeNotebook, currentPage, dir));
+      // Await the flush + re-read fresh state. A fire-and-forget flush would
+      // race against persistPageList's updateDoc — flushPage's late write
+      // (after its uploadFile round-trip) would land with the pre-swap
+      // pageUrls/pagePaths captured from React-state and silently revert
+      // the move while leaving objectLinks remapped (incoherent post-state).
+      const fresh = await flushAndReadFresh(currentPage);
+      if (!fresh) return;
+      // Re-check canMovePage against the fresh state in case the section
+      // shape changed between handler entry and the post-flush read.
+      if (!canMovePage(fresh, currentPage, dir)) return;
+      await persistPageList(movePage(fresh, currentPage, dir));
       setCurrentPage(currentPage + dir);
     } catch (err) {
       console.error('Failed to move page', err);

@@ -1,8 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   AlertTriangle,
-  ArrowLeft,
-  ArrowRight,
   BringToFront,
   CheckCircle2,
   ChevronDown,
@@ -47,6 +45,7 @@ import {
 } from './pageEditorTypes';
 import { PageJumpMenu } from './PageJumpMenu';
 import { LinkTargetPicker } from './LinkTargetPicker';
+import { ReorderPageControl } from './ReorderPageControl';
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 interface PageEditorOverlayProps {
@@ -296,26 +295,13 @@ export const PageEditorOverlay: React.FC<PageEditorOverlayProps> = ({
               </select>
             )}
             {onMovePage && (
-              <>
-                <button
-                  onClick={() => onMovePage(-1)}
-                  disabled={pageOpBusy || !canMoveEarlier}
-                  className={toolBtnClass}
-                  style={toolBtnStyle}
-                  title="Move page earlier"
-                >
-                  <ArrowLeft style={iconStyle} />
-                </button>
-                <button
-                  onClick={() => onMovePage(1)}
-                  disabled={pageOpBusy || !canMoveLater}
-                  className={toolBtnClass}
-                  style={toolBtnStyle}
-                  title="Move page later"
-                >
-                  <ArrowRight style={iconStyle} />
-                </button>
-              </>
+              <ReorderPageControl
+                onMovePage={onMovePage}
+                pageOpBusy={pageOpBusy}
+                canMoveEarlier={canMoveEarlier}
+                canMoveLater={canMoveLater}
+                iconStyle={iconStyle}
+              />
             )}
             {onAddPage && (
               <button

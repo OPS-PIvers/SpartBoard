@@ -9,6 +9,30 @@ import {
   blankPageSvg,
   PageListState,
 } from './notebookPages';
+import { NotebookObjectLink } from '@/types';
+
+// xFrac/yFrac/wFrac/hFrac don't affect any assertion in this file (the
+// page-index rewrite is the only behavior under test) so they're defaulted
+// to small valid values to keep call sites focused on the indices.
+const link = (
+  id: string,
+  objectId: string,
+  sourcePage: number,
+  targetPage: number,
+  xFrac = 0,
+  yFrac = 0,
+  wFrac = 0.1,
+  hFrac = 0.1
+): NotebookObjectLink => ({
+  id,
+  objectId,
+  sourcePage,
+  targetPage,
+  xFrac,
+  yFrac,
+  wFrac,
+  hFrac,
+});
 
 // Pages p0..p4 across two lessons: A=[0,1,2], B=[3,4].
 const state = (): PageListState => ({
@@ -137,6 +161,65 @@ describe('canMovePage / movePage', () => {
   it('blocks moves out of bounds', () => {
     expect(canMovePage(state(), 0, -1)).toBe(false);
     expect(canMovePage(state(), 4, 1)).toBe(false);
+  });
+});
+
+describe('objectLinks rewrite', () => {
+  const withLinks = (): PageListState => ({
+    ...state(),
+    objectLinks: [
+      link('L0', 'obj0', 0, 4), // p0 → p4
+      link('L1', 'obj1', 2, 0), // p2 → p0
+      link('L2', 'obj2', 3, 3), // p3 → p3 (same-page link)
+    ],
+  });
+
+  it('insertBlankPage shifts link indices at or after the insert point', () => {
+    // Insert after index 1 -> insertAt = 2. Pages 2,3,4 shift to 3,4,5.
+    const next = insertBlankPage(withLinks(), 1, 'NEW', 'NEWP');
+    expect(next.objectLinks).toEqual([
+      link('L0', 'obj0', 0, 5), // target 4 -> 5
+      link('L1', 'obj1', 3, 0), // source 2 -> 3
+      link('L2', 'obj2', 4, 4), // source 3 -> 4, target 3 -> 4
+    ]);
+  });
+
+  it('insertBlankPage leaves links untouched when inserting after them all', () => {
+    // Insert after index 4 -> insertAt = 5, past every page.
+    const next = insertBlankPage(withLinks(), 4, 'NEW', 'NEWP');
+    expect(next.objectLinks).toEqual(withLinks().objectLinks);
+  });
+
+  it('deletePage drops links whose source page is deleted', () => {
+    const { state: next } = deletePage(withLinks(), 0);
+    // L0 (sourcePage 0) and L1 (targetPage 0) are both gone.
+    // L2 survives: 3 -> 2 (both indices shift left).
+    expect(next.objectLinks).toEqual([link('L2', 'obj2', 2, 2)]);
+  });
+
+  it('deletePage drops links whose target page is deleted', () => {
+    const { state: next } = deletePage(withLinks(), 4);
+    // L0 targeted page 4 -> dropped. L1 (2->0) survives unchanged.
+    // L2 (3->3) survives unchanged (both < 4).
+    expect(next.objectLinks).toEqual([
+      link('L1', 'obj1', 2, 0),
+      link('L2', 'obj2', 3, 3),
+    ]);
+  });
+
+  it('movePage swaps page indices on both source and target of every link', () => {
+    // Move p2 left to p1 (both in section A). Indices 1 and 2 swap.
+    const next = movePage(withLinks(), 2, -1);
+    expect(next.objectLinks).toEqual([
+      link('L0', 'obj0', 0, 4), // unaffected
+      link('L1', 'obj1', 1, 0), // source 2 -> 1
+      link('L2', 'obj2', 3, 3), // unaffected
+    ]);
+  });
+
+  it('movePage with no objectLinks leaves the field undefined', () => {
+    const next = movePage(state(), 0, 1);
+    expect(next.objectLinks).toBeUndefined();
   });
 });
 
