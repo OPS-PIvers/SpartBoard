@@ -180,19 +180,14 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
     }
   }, [append, courseId, itemId, itemType, attachmentId, loginHint]);
 
-  // Once the student holds a studentRole session whose classIds cover THIS
-  // course, and the attachment carried a quiz code, render the real quiz runner.
-  // Gating on the course claim means a stale session from another course falls
-  // back to the handshake (which re-mints the token for this courseId) instead
-  // of silently failing the Firestore class-gate. This also makes re-entry
-  // frictionless: a persisted session renders the quiz with no extra click.
-  const sessionClassIds = Array.isArray(session?.classIds)
-    ? (session?.classIds as unknown[]).map((c) => String(c))
-    : [];
-  const hasCourseClaim = courseId
-    ? sessionClassIds.includes(`classroom:${courseId}`)
-    : sessionClassIds.length > 0;
-  if (code && session?.studentRole === true && hasCourseClaim) {
+  // Once the student is signed in with a studentRole token and the attachment
+  // carried a quiz code, render the real quiz runner. We intentionally do NOT
+  // gate on a specific classId here: the token's classIds may be either
+  // `classroom:<courseId>` (unlinked) or the ClassLink `sourcedId` (linked via
+  // the identity bridge), and the route can't know which. The authoritative
+  // class-gate is enforced server-side at Firestore-write time; this check only
+  // decides whether to show the quiz vs the "Start quiz" sign-in button.
+  if (code && session?.studentRole === true) {
     return (
       <Suspense
         fallback={
