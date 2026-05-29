@@ -15,6 +15,7 @@ import {
   Users,
   CheckCircle2,
   XCircle,
+  GraduationCap,
 } from 'lucide-react';
 import {
   PlcLinkage,
@@ -22,11 +23,20 @@ import {
   VideoActivitySession,
 } from '@/types';
 import { useAuth } from '@/context/useAuth';
+import { useDialog } from '@/context/useDialog';
+import { useDashboard } from '@/context/useDashboard';
 import { QuizDriveService } from '@/utils/quizDriveService';
 import {
   gradeVideoActivityAnswer,
   computeVideoActivityScorePct,
 } from '@/utils/videoActivityGrading';
+import {
+  pushClassroomGradesForAssignment,
+  formatGradePushToast,
+  isNeedsConsentError,
+} from '@/utils/classroomGradePush';
+import { logError } from '@/utils/logError';
+import { functions } from '@/config/firebase';
 import {
   useAssignmentPseudonymsMulti,
   formatStudentName,
@@ -55,6 +65,8 @@ export const Results: React.FC<ResultsProps> = ({
   plc: _plc,
 }) => {
   const { googleAccessToken, orgId } = useAuth();
+  const { showConfirm } = useDialog();
+  const { addToast } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
   // mirror of `classIds[0]` only, so the single-class hook would miss
   // SSO students from `classIds[1+]` on multi-class assignments and
@@ -73,6 +85,7 @@ export const Results: React.FC<ResultsProps> = ({
   const [exporting, setExporting] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(null);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [pushingGrades, setPushingGrades] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'overview' | 'questions' | 'students' | 'plc'
   >('overview');
@@ -211,6 +224,87 @@ export const Results: React.FC<ResultsProps> = ({
     }
   };
 
+  // Push the SpartBoard video-activity scores into the linked Google Classroom
+  // gradebook as DRAFT grades. Only available when this assignment was attached
+  // to a Classroom coursework item via the add-on (which writes
+  // `session.classroomAttachment`). VA grades are a 0–100 percentage on screen,
+  // so we scale that displayed percentage onto the frozen Classroom point total
+  // (`maxPoints`) — matching the per-student score the Students tab shows.
+  // Students map to their Classroom grade by `r.studentUid` (the ClassLink SSO
+  // pseudonym the batch CF resolves to a Classroom userId).
+  const classroomAttachment = session?.classroomAttachment ?? null;
+  const handlePushGrades = async () => {
+    if (!classroomAttachment) return;
+    const { attachmentId, courseId, itemId, maxPoints } = classroomAttachment;
+
+    // Defensive guard: `maxPoints` is typed required, but a malformed/stale
+    // attachment doc could carry NaN/0 — which would scale every grade to 0 (or
+    // NaN). Bail with an actionable message rather than push garbage grades.
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
+      addToast(
+        'This assignment is missing its Classroom point total — re-attach it to push grades.',
+        'error'
+      );
+      return;
+    }
+
+    // Build the PII-free grade payload: one entry per completed response with a
+    // resolvable pseudonym. `getStudentScore` returns the SAME 0–100 percentage
+    // the Students tab displays; scale it onto the frozen Classroom denominator,
+    // then round + clamp to [0, maxPoints].
+    const grades = responses
+      .filter((r) => r.completedAt !== null && !!r.studentUid)
+      .map((r) => {
+        const pct = getStudentScore(r);
+        const safePct = Number.isFinite(pct) ? pct : 0;
+        const pointsEarned = Math.max(
+          0,
+          Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
+        );
+        return { pseudonymUid: r.studentUid, pointsEarned };
+      });
+
+    if (grades.length === 0) {
+      addToast('No completed submissions to push yet', 'info');
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      `Push ${grades.length} grade${grades.length === 1 ? '' : 's'} to Google ` +
+        'Classroom? This writes draft grades to the assignment gradebook — ' +
+        'you still review and return them in Classroom.',
+      {
+        title: 'Push grades to Google Classroom',
+        confirmLabel: 'Push grades',
+        cancelLabel: 'Cancel',
+      }
+    );
+    if (!confirmed) return;
+
+    setPushingGrades(true);
+    try {
+      const data = await pushClassroomGradesForAssignment(functions, {
+        courseId,
+        itemId,
+        attachmentId,
+        grades,
+      });
+      addToast(formatGradePushToast(data), 'success');
+    } catch (err) {
+      logError('VideoActivityResults.pushClassroomGrades', err, {
+        sessionId: session?.id,
+        attachmentId,
+      });
+      if (isNeedsConsentError(err)) {
+        addToast('Reconnect your Google account to push grades.', 'error');
+      } else {
+        addToast('Could not push grades to Google Classroom.', 'error');
+      }
+    } finally {
+      setPushingGrades(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
@@ -249,57 +343,93 @@ export const Results: React.FC<ResultsProps> = ({
           </div>
         </div>
 
-        {/* Export button */}
-        {exportUrl ? (
-          <a
-            href={exportUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3cqmin)',
-            }}
-          >
-            <ExternalLink
+        <div className="flex items-center" style={{ gap: 'min(8px, 2cqmin)' }}>
+          {/* Push grades to Google Classroom — only when this assignment was
+              attached to a Classroom coursework item via the add-on. */}
+          {classroomAttachment && (
+            <button
+              onClick={() => void handlePushGrades()}
+              disabled={pushingGrades}
+              className="flex items-center font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark rounded-xl transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               style={{
-                width: 'min(12px, 3cqmin)',
-                height: 'min(12px, 3cqmin)',
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(11px, 3cqmin)',
               }}
-            />
-            Open Sheet
-          </a>
-        ) : (
-          <button
-            onClick={handleExport}
-            disabled={exporting || totalStudents === 0}
-            className="flex items-center font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all active:scale-95 disabled:opacity-50"
-            style={{
-              gap: 'min(6px, 1.5cqmin)',
-              padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
-              fontSize: 'min(11px, 3cqmin)',
-            }}
-          >
-            {exporting ? (
-              <Loader2
-                className="animate-spin"
+              title="Write draft grades to this assignment's Google Classroom gradebook (matches the score shown here)."
+            >
+              {pushingGrades ? (
+                <Loader2
+                  className="animate-spin"
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+              ) : (
+                <GraduationCap
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+              )}
+              Push Grades
+            </button>
+          )}
+
+          {/* Export button */}
+          {exportUrl ? (
+            <a
+              href={exportUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(11px, 3cqmin)',
+              }}
+            >
+              <ExternalLink
                 style={{
                   width: 'min(12px, 3cqmin)',
                   height: 'min(12px, 3cqmin)',
                 }}
               />
-            ) : (
-              <Download
-                style={{
-                  width: 'min(12px, 3cqmin)',
-                  height: 'min(12px, 3cqmin)',
-                }}
-              />
-            )}
-            Export
-          </button>
-        )}
+              Open Sheet
+            </a>
+          ) : (
+            <button
+              onClick={handleExport}
+              disabled={exporting || totalStudents === 0}
+              className="flex items-center font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl transition-all active:scale-95 disabled:opacity-50"
+              style={{
+                gap: 'min(6px, 1.5cqmin)',
+                padding: 'min(6px, 1.5cqmin) min(12px, 3cqmin)',
+                fontSize: 'min(11px, 3cqmin)',
+              }}
+            >
+              {exporting ? (
+                <Loader2
+                  className="animate-spin"
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+              ) : (
+                <Download
+                  style={{
+                    width: 'min(12px, 3cqmin)',
+                    height: 'min(12px, 3cqmin)',
+                  }}
+                />
+              )}
+              Export
+            </button>
+          )}
+        </div>
       </div>
 
       {exportError && (

@@ -812,10 +812,11 @@ export const createClassroomAttachment = onCall(
     // the student view (the teacher review iframe renders the same runner read
     // -only). Only courseWork supports graded student work.
     //
-    // Only quizzes have Classroom grade passback wired today; a VA attachment
-    // must NOT advertise a gradeable slot (maxPoints) that nothing fills. When
-    // VA grade-push is built, extend this to 'va'.
-    if (itemType === 'courseWork' && kind === 'quiz') {
+    // BOTH the quiz AND video-activity courseWork runners are grade-sync
+    // capable: Classroom grade push is wired for each (the teacher monitor for
+    // each runner drives pushClassroomGradesForAssignment), so each gradeable
+    // slot is actually filled.
+    if (itemType === 'courseWork') {
       body.studentWorkReviewUri = { uri: studentViewUri };
       body.maxPoints = suppliedMaxPoints;
     }

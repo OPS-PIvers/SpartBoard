@@ -3912,6 +3912,14 @@ export interface VideoActivitySession {
   scoreVisibility?: VideoActivityScoreVisibility;
   /** Server-set timestamp for when scores were published. */
   scorePublishedAt?: number;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework item
+   * via the add-on. Drives the "Push grades to Google Classroom" action in the
+   * VA Results view. `maxPoints` is the activity's total point value (the grade
+   * scale) so a pushed grade reads identically in Classroom. Mirrors the
+   * matching `VideoActivityAssignment.classroomAttachment` and the Quiz pattern.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
 }
 
 /** Per-session sync linkage to `/synced_video_activities/{groupId}`. */
@@ -6318,6 +6326,13 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   /** Frozen at creation from the org-wide `assignment-modes` admin setting.
    *  Mirrors VideoActivitySession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework item
+   * via the add-on. Mirrors the matching `VideoActivitySession.classroomAttachment`
+   * (written together at attach time). `maxPoints` is the activity's total point
+   * value so pushed grades read identically in Classroom.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
 }
 
 // === MiniApp assignments ===

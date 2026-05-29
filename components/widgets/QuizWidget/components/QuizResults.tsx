@@ -66,8 +66,12 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
-import { httpsCallable } from 'firebase/functions';
 import { db, functions } from '@/config/firebase';
+import {
+  pushClassroomGradesForAssignment,
+  formatGradePushToast,
+  isNeedsConsentError,
+} from '@/utils/classroomGradePush';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -1095,46 +1099,19 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
     setPushingGrades(true);
     try {
-      const callable = httpsCallable<
-        {
-          courseId: string;
-          itemId: string;
-          attachmentId: string;
-          grades: { pseudonymUid: string; pointsEarned: number }[];
-        },
-        {
-          results: {
-            pseudonymUid: string;
-            ok: boolean;
-            status?: number;
-            reason?: string;
-          }[];
-          pushed: number;
-          skipped: number;
-        }
-      >(functions, 'pushClassroomGradesForAssignment');
-      const { data } = await callable({
+      const data = await pushClassroomGradesForAssignment(functions, {
         courseId,
         itemId,
         attachmentId,
         grades,
       });
-      const skippedNote =
-        data.skipped > 0
-          ? ` ${data.skipped} skipped — students who haven't opened the assignment yet.`
-          : '';
-      addToast(
-        `Pushed ${data.pushed} grade${data.pushed === 1 ? '' : 's'} to Google ` +
-          `Classroom.${skippedNote}`,
-        'success'
-      );
+      addToast(formatGradePushToast(data), 'success');
     } catch (err) {
       logError('QuizResults.pushClassroomGrades', err, {
         sessionId: session?.id,
         attachmentId,
       });
-      const message = err instanceof Error ? err.message : String(err);
-      if (/needs-consent/i.test(message)) {
+      if (isNeedsConsentError(err)) {
         addToast('Reconnect your Google account to push grades.', 'error');
       } else {
         addToast('Could not push grades to Google Classroom.', 'error');

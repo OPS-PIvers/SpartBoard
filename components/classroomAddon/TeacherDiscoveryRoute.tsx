@@ -287,7 +287,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       title: string,
       contentParams:
         | { quizCode: string; kind: 'quiz'; maxPoints: number }
-        | { sessionId: string; kind: 'va' }
+        | { sessionId: string; kind: 'va'; maxPoints: number }
     ): Promise<string> => {
       // The addons.teacher grant is what getAddOnContext validates the teacher
       // launch against — a separate, minimal grant from the SpartBoard Drive
@@ -506,6 +506,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     append(`Loading "${selectedActivity.title}"…`);
     const activityData = await loadActivityData(selectedActivity.driveFileId);
 
+    // The Classroom grade scale = the activity's total points, so pushed grades
+    // read identically in Classroom (not a percentage out of 100). Fall back to
+    // 100 only when the activity has no questions/points to sum.
+    const vaMaxPoints =
+      activityData.questions.reduce((s, q) => s + (q.points ?? 1), 0) || 100;
+
     const targeting = await resolveClassTargeting();
 
     // Respect the activity's OWN configured behavior, mirroring the normal VA
@@ -600,14 +606,51 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     );
     append(`Video-activity session created (sessionId ${sessionId}).`);
 
-    await createAttachment(`SpartBoard: ${selectedActivity.title}`, {
-      sessionId,
-      kind: 'va',
-    });
+    // Pass the activity total so the Classroom attachment's maxPoints matches
+    // the activity exactly — the grade scale pushed grades are later capped to.
+    const attachmentId = await createAttachment(
+      `SpartBoard: ${selectedActivity.title}`,
+      {
+        sessionId,
+        kind: 'va',
+        maxPoints: vaMaxPoints,
+      }
+    );
     append(
       `Attached "${selectedActivity.title}". Students can now open it and ` +
         'complete the video activity inside Classroom.'
     );
+
+    // Persist the attachment linkage onto both the teacher's assignment doc and
+    // the session doc so the Results view can offer "Push grades to Google
+    // Classroom". Best-effort: a failure here must NOT break the
+    // already-completed attach flow — the activity is attached regardless.
+    if (user?.uid) {
+      const classroomAttachment = {
+        attachmentId,
+        courseId,
+        itemId,
+        maxPoints: vaMaxPoints,
+        attachedAt: Date.now(),
+      };
+      try {
+        await updateDoc(
+          doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
+          { classroomAttachment, updatedAt: Date.now() }
+        );
+        await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
+          classroomAttachment,
+        });
+      } catch (persistErr) {
+        append(
+          `Note: couldn't link this attachment for grade push (${
+            persistErr instanceof Error
+              ? persistErr.message
+              : String(persistErr)
+          }). The activity is still attached.`
+        );
+      }
+    }
   }, [
     append,
     selectedActivity,
@@ -617,6 +660,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     createVideoActivityAssignment,
     createAttachment,
     user,
+    courseId,
+    itemId,
     dueAtLocal,
     teacherName,
     defaultTeacherName,
