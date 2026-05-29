@@ -532,7 +532,7 @@ describe('createClassroomAttachment (spike)', () => {
     expect(body.maxPoints).toBe(100);
   });
 
-  it('builds a video-activity studentViewUri (?kind=va&sessionId=) and respects supplied maxPoints', async () => {
+  it('builds a video-activity studentViewUri (?kind=va&sessionId=) and is NOT grade-sync capable', async () => {
     vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
       TEACHER_CTX
     );
@@ -544,6 +544,8 @@ describe('createClassroomAttachment (spike)', () => {
       ...attachData,
       kind: 'va',
       sessionId: 'sess_AB-12',
+      // Even when a maxPoints is supplied, a VA attachment must NOT advertise a
+      // gradeable slot — Classroom grade-push is only wired for quizzes today.
       maxPoints: 50,
     };
     delete (data as Record<string, unknown>).quizCode;
@@ -560,8 +562,10 @@ describe('createClassroomAttachment (spike)', () => {
     );
     // No `code=` for the VA runner.
     expect(body.studentViewUri.uri).not.toContain('code=');
-    expect(body.studentWorkReviewUri?.uri).toBe(body.studentViewUri.uri);
-    expect(body.maxPoints).toBe(50);
+    // VA is NOT grade-sync capable: no review URI and no maxPoints, so Classroom
+    // never shows a misleading gradeable slot that nothing ever fills.
+    expect(body.studentWorkReviewUri).toBeUndefined();
+    expect(body.maxPoints).toBeUndefined();
   });
 
   it('throws when the required identifier for the chosen kind is missing', async () => {

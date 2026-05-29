@@ -363,10 +363,19 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         'PLC sharing was on but no PLC was picked — attaching without it.'
       );
     }
-    if (plcShareEnabled && selectedPlcId && user) {
+    // Cache the selected PLC up front. `plcs` can repopulate on a cold load
+    // (usePlcs streams in after first render), so a picked-then-vanished id
+    // must not silently attach with an undefined `plc`.
+    const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
+    if (plcShareEnabled && selectedPlcId && !selectedPlc) {
+      append(
+        'Selected PLC is no longer available — attaching without PLC sharing.'
+      );
+    }
+    if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
       append('Setting up the shared PLC results sheet…');
       const { linkage, error: plcSheetError } = await buildPlcLinkage({
-        plc: plcs.find((p) => p.id === selectedPlcId),
+        plc: selectedPlc,
         quizTitle: selectedQuiz.title,
         selfUid: user.uid,
         googleAccessToken,
@@ -504,8 +513,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // behavior, and the optional due date is folded into `sessionOptions.dueAt`
     // (that's where the VA runner reads it). `sessionSettings` (player
     // behavior) has no home on `behavior`, so it stays the conservative
-    // VA_SESSION_SETTINGS default the route already used. The normal VA assign
-    // flow has NO PLC option, so we intentionally omit PLC for video activities.
+    // VA_SESSION_SETTINGS default the route already used. VA supports PLC
+    // sharing exactly like the quiz path — the sheet creator (`buildPlcLinkage`)
+    // is widget-agnostic — so we build the same linkage and pass it on settings.
     const behavior = getVideoActivityBehavior(selectedActivity);
     const dueAt = parseDueAt(dueAtLocal);
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
@@ -515,11 +525,55 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       ...(dueAt !== undefined ? { dueAt } : {}),
     };
 
+    // Build the PLC linkage when the teacher opted into "Share with PLC" and
+    // picked a PLC — same shared builder the quiz path uses, so the linkage
+    // shape (auto-created sheet + name + member snapshot) is identical. A
+    // failed sheet auto-create falls through to no linkage and is logged.
+    let plcLinkage: PlcLinkage | undefined;
+    if (plcShareEnabled && !selectedPlcId) {
+      append(
+        'PLC sharing was on but no PLC was picked — attaching without it.'
+      );
+    }
+    // Cache the selected PLC up front. `plcs` can repopulate on a cold load
+    // (usePlcs streams in after first render), so a picked-then-vanished id
+    // must not silently attach with an undefined `plc`.
+    const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
+    if (plcShareEnabled && selectedPlcId && !selectedPlc) {
+      append(
+        'Selected PLC is no longer available — attaching without PLC sharing.'
+      );
+    }
+    if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
+      append('Setting up the shared PLC results sheet…');
+      const { linkage, error: plcSheetError } = await buildPlcLinkage({
+        plc: selectedPlc,
+        // `quizTitle` only names the auto-created sheet — the builder is
+        // widget-agnostic, so a VA title is fine here.
+        quizTitle: selectedActivity.title,
+        selfUid: user.uid,
+        googleAccessToken,
+      });
+      plcLinkage = linkage;
+      if (plcSheetError) {
+        append(
+          `Note: couldn't create the shared PLC sheet (${plcSheetError.message}). ` +
+            'Attaching without PLC sharing.'
+        );
+      } else if (linkage) {
+        append(`Results will export to the "${linkage.name}" PLC sheet.`);
+      }
+    }
+
     // VA has no join code — the assignment is identified by its sessionId
     // (== assignment id). `createAssignment`'s args are POSITIONAL:
     // (activity, settings, initialStatus?, classIds?, periodNames?, rosterIds?, mode?).
-    // periodNames/rosterIds are empty arrays when the course is unlinked, which
-    // the hook treats the same as the previous (undefined) behavior.
+    // `periodNames` ALSO rides on the settings object (1st positional after the
+    // activity): the hook writes the assignment doc's `periodNames` from
+    // `settings.periodNames`, while the positional 5th arg only reaches the
+    // SESSION doc — so without it on settings the VA manager's class label is
+    // empty. periodNames/rosterIds are empty arrays when the course is unlinked,
+    // which the hook treats the same as the previous (undefined) behavior.
     append('Creating a class-targeted video-activity assignment…');
     const { id: sessionId } = await createVideoActivityAssignment(
       {
@@ -534,6 +588,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         sessionSettings: VA_SESSION_SETTINGS,
         sessionOptions,
         ...(effectiveTeacherName ? { teacherName: effectiveTeacherName } : {}),
+        ...(plcLinkage ? { plc: plcLinkage } : {}),
+        ...(targeting.periodNames.length > 0
+          ? { periodNames: targeting.periodNames }
+          : {}),
       },
       'active',
       targeting.classIds,
@@ -558,9 +616,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     resolveClassTargeting,
     createVideoActivityAssignment,
     createAttachment,
+    user,
     dueAtLocal,
     teacherName,
     defaultTeacherName,
+    plcShareEnabled,
+    selectedPlcId,
+    plcs,
   ]);
 
   const runAttach = useCallback(async () => {
@@ -767,9 +829,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   />
                 </label>
 
-                {/* PLC sharing is QUIZ-only — the normal Video Activity assign
-                    flow has no PLC option, so we don't invent one for VA. */}
-                {kind === 'quiz' && plcs.length > 0 && (
+                {/* PLC sharing applies to BOTH quizzes and video activities —
+                    `buildPlcLinkage` is widget-agnostic, so the same control
+                    drives the quiz and VA attach paths. */}
+                {plcs.length > 0 && (
                   <div className="space-y-2">
                     <label className="flex items-center gap-2 text-sm text-slate-300">
                       <input

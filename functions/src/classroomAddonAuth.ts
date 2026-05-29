@@ -811,7 +811,11 @@ export const createClassroomAttachment = onCall(
     // `studentWorkReviewUri`, so they're added together. The review URI reuses
     // the student view (the teacher review iframe renders the same runner read
     // -only). Only courseWork supports graded student work.
-    if (itemType === 'courseWork') {
+    //
+    // Only quizzes have Classroom grade passback wired today; a VA attachment
+    // must NOT advertise a gradeable slot (maxPoints) that nothing fills. When
+    // VA grade-push is built, extend this to 'va'.
+    if (itemType === 'courseWork' && kind === 'quiz') {
       body.studentWorkReviewUri = { uri: studentViewUri };
       body.maxPoints = suppliedMaxPoints;
     }

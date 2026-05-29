@@ -1035,9 +1035,32 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     if (!classroomAttachment) return;
     const { attachmentId, courseId, itemId, maxPoints } = classroomAttachment;
 
+    // Defensive guard: `maxPoints` is typed required, but a malformed/stale
+    // attachment doc could carry NaN/0 — which would scale every grade to 0 (or
+    // NaN). Bail with an actionable message rather than push garbage grades.
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
+      addToast(
+        'This assignment is missing its Classroom point total — re-attach it to push grades.',
+        'error'
+      );
+      return;
+    }
+
+    // The current quiz total can drift from the Classroom denominator
+    // (`maxPoints`, frozen at attach time) if the quiz was edited after
+    // attaching. Scale each student's earned score onto the frozen denominator
+    // so the pushed ratio stays correct. When the quiz is unchanged
+    // (`currentTotal === maxPoints`) the scale is a no-op and this equals the
+    // raw earned points (preserves the original "same number" behavior); when
+    // edited, it pushes the correct ratio against the frozen denominator.
+    const currentTotal = quiz.questions.reduce(
+      (s, q) => s + (q.points ?? 1),
+      0
+    );
+
     // Build the PII-free grade payload: one entry per completed, scored
-    // response. `getEarnedPoints` returns the raw points; round + clamp to
-    // [0, maxPoints] so the Classroom grade matches the quiz exactly.
+    // response. `getEarnedPoints` returns the raw points on the current scale;
+    // scale onto the Classroom denominator, then round + clamp to [0, maxPoints].
     const grades = completed
       .filter((r) => !!r.studentUid)
       .map((r) => {
@@ -1045,9 +1068,11 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         // propagate NaN through the clamp and make the CF reject the entry.
         const rawPoints = getEarnedPoints(r, quiz.questions, session);
         const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
+        const scaled =
+          currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
         return {
           pseudonymUid: r.studentUid,
-          pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(earned))),
+          pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(scaled))),
         };
       });
 
