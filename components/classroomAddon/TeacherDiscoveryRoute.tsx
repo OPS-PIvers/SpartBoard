@@ -32,7 +32,18 @@ import { useQuiz } from '@/hooks/useQuiz';
 import { useQuizAssignments } from '@/hooks/useQuizAssignments';
 import { useVideoActivity } from '@/hooks/useVideoActivity';
 import { useVideoActivityAssignments } from '@/hooks/useVideoActivityAssignments';
-import type { VideoActivitySessionSettings } from '@/types';
+import { usePlcs } from '@/hooks/usePlcs';
+import type {
+  PlcLinkage,
+  VideoActivitySessionOptions,
+  VideoActivitySessionSettings,
+} from '@/types';
+import { getQuizBehavior, formatBehaviorSummary } from '@/utils/quizBehavior';
+import {
+  getVideoActivityBehavior,
+  formatVideoActivityBehaviorSummary,
+} from '@/utils/videoActivityBehavior';
+import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 
 // The teacher/discovery iframe creates attachments → needs the teacher scope.
@@ -44,13 +55,30 @@ const ADDON_TEACHER_SCOPES = [
   'https://www.googleapis.com/auth/classroom.addons.teacher',
 ].join(' ');
 
-// Conservative player defaults for an async Classroom attachment — mirrors the
-// runner's own fallbacks (require a correct answer, no skipping, no autoplay).
+// Conservative PLAYER defaults for an async Classroom attachment — mirrors the
+// VA widget's own `defaultSessionSettings` (require a correct answer, no
+// skipping, no autoplay). This covers ONLY the player-behavior surface
+// (`sessionSettings`); the assignment-policy knobs (`sessionOptions`,
+// `attemptLimit`) are sourced from the activity's own configured behavior via
+// `getVideoActivityBehavior` at attach time, mirroring the normal VA flow. The
+// add-on route has no widget config to read a per-teacher player default from,
+// so this constant stands in for it.
 const VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
   autoPlay: false,
   requireCorrectAnswer: true,
   allowSkipping: false,
 };
+
+/**
+ * Parse a `<input type="datetime-local">` value into an epoch-ms due date.
+ * Returns `undefined` for an empty / unparseable value so callers can omit
+ * `dueAt` entirely (absent = no due date) rather than persisting `NaN`.
+ */
+function parseDueAt(local: string): number | undefined {
+  if (!local) return undefined;
+  const ms = new Date(local).getTime();
+  return Number.isFinite(ms) ? ms : undefined;
+}
 
 interface CreateAttachmentResult {
   attachmentId: string;
@@ -120,6 +148,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   } = useVideoActivity(user?.uid);
   const { createAssignment: createVideoActivityAssignment } =
     useVideoActivityAssignments(user?.uid);
+  // PLC list for the quiz "Share with PLC" picker. usePlcs() reads `useAuth`
+  // (mounted on this route) — no DashboardProvider required.
+  const { plcs } = usePlcs();
 
   const [log, setLog] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
@@ -127,6 +158,21 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState('');
   const [attachmentId, setAttachmentId] = useState('');
+
+  // ── Per-assignment settings (parity with the normal SpartBoard assign flow).
+  // All optional — a teacher can attach with no due date / no PLC. Class
+  // targeting is NOT here; it's auto-derived from the Classroom course link.
+  // `dueAtLocal` is the raw <input type="datetime-local"> value; parsed to
+  // epoch-ms only at attach time.
+  const [dueAtLocal, setDueAtLocal] = useState('');
+  // Default the teacher name from the signed-in profile (used for PLC sheet
+  // attribution). Falls back to the email local-part, then empty.
+  const defaultTeacherName =
+    user?.displayName ?? user?.email?.split('@')[0] ?? '';
+  const [teacherName, setTeacherName] = useState('');
+  // Quiz-only: opt into exporting results to a shared PLC sheet.
+  const [plcShareEnabled, setPlcShareEnabled] = useState(false);
+  const [selectedPlcId, setSelectedPlcId] = useState('');
 
   const append = useCallback((line: string) => {
     setLog((prev) => [...prev, `${new Date().toLocaleTimeString()}  ${line}`]);
@@ -140,6 +186,22 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     () => activities.find((a) => a.id === selectedActivityId),
     [activities, selectedActivityId]
   );
+
+  // Read-only summary of the configured behavior the attachment will inherit —
+  // surfaces the parity (the quiz/VA's own session mode, attempts, etc.) so the
+  // teacher can see what students will get before attaching.
+  const behaviorSummary = useMemo(() => {
+    if (kind === 'quiz') {
+      return selectedQuiz
+        ? formatBehaviorSummary(getQuizBehavior(selectedQuiz))
+        : null;
+    }
+    return selectedActivity
+      ? formatVideoActivityBehaviorSummary(
+          getVideoActivityBehavior(selectedActivity)
+        )
+      : null;
+  }, [kind, selectedQuiz, selectedActivity]);
 
   const signIn = useCallback(async () => {
     setBusy(true);
@@ -279,11 +341,52 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
     const targeting = await resolveClassTargeting();
 
-    // sessionMode 'student' = self-paced/async, which is how a Classroom
-    // attachment is taken (no live teacher session). `periodNames` rides on the
-    // settings object (that's where the quiz hook reads it from for both the
-    // assignment + session docs); `rosterIds`/`classPeriodByClassId` ride on
-    // the options bag. Both are only set when the course is linked to a roster.
+    // Respect the quiz's OWN configured behavior (session mode, per-attempt
+    // options, attempt limit) exactly as the normal SpartBoard assign flow
+    // does — no longer hardcoded to a bare self-paced session. Note: even when
+    // the quiz is configured teacher-paced, a Classroom attachment has no live
+    // teacher session, so the runner self-paces regardless; we still carry the
+    // configured options/attemptLimit so per-attempt behavior matches.
+    const { sessionMode, sessionOptions, attemptLimit } =
+      getQuizBehavior(selectedQuiz);
+
+    const dueAt = parseDueAt(dueAtLocal);
+    const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
+
+    // Build the PLC linkage when the teacher opted into "Share with PLC" and
+    // picked a PLC — same shared builder the normal flow uses, so the linkage
+    // shape (auto-created sheet + name + member snapshot) is identical. A
+    // failed sheet auto-create falls through to no linkage and is logged.
+    let plcLinkage: PlcLinkage | undefined;
+    if (plcShareEnabled && !selectedPlcId) {
+      append(
+        'PLC sharing was on but no PLC was picked — attaching without it.'
+      );
+    }
+    if (plcShareEnabled && selectedPlcId && user) {
+      append('Setting up the shared PLC results sheet…');
+      const { linkage, error: plcSheetError } = await buildPlcLinkage({
+        plc: plcs.find((p) => p.id === selectedPlcId),
+        quizTitle: selectedQuiz.title,
+        selfUid: user.uid,
+        googleAccessToken,
+      });
+      plcLinkage = linkage;
+      if (plcSheetError) {
+        append(
+          `Note: couldn't create the shared PLC sheet (${plcSheetError.message}). ` +
+            'Attaching without PLC sharing.'
+        );
+      } else if (linkage) {
+        append(`Results will export to the "${linkage.name}" PLC sheet.`);
+      }
+    }
+
+    // `sessionMode` + `sessionOptions` + `attemptLimit` now come from the
+    // quiz's configured behavior. `periodNames` rides on the settings object
+    // (that's where the quiz hook reads it from for both the assignment +
+    // session docs); `rosterIds`/`classPeriodByClassId` ride on the options
+    // bag. Both are only set when the course is linked to a roster.
     append('Creating a class-targeted assignment…');
     const { id: sessionId, code } = await createAssignment(
       {
@@ -294,8 +397,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       },
       {
         className: 'Google Classroom',
-        sessionMode: 'student',
-        sessionOptions: {},
+        sessionMode,
+        sessionOptions,
+        attemptLimit,
+        ...(dueAt !== undefined ? { dueAt } : {}),
+        ...(effectiveTeacherName ? { teacherName: effectiveTeacherName } : {}),
+        ...(plcLinkage ? { plc: plcLinkage } : {}),
         ...(targeting.periodNames.length > 0
           ? { periodNames: targeting.periodNames }
           : {}),
@@ -366,9 +473,15 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     resolveClassTargeting,
     createAssignment,
     createAttachment,
-    user?.uid,
+    user,
     courseId,
     itemId,
+    dueAtLocal,
+    teacherName,
+    defaultTeacherName,
+    plcShareEnabled,
+    selectedPlcId,
+    plcs,
   ]);
 
   const attachVideoActivity = useCallback(async () => {
@@ -385,6 +498,22 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const activityData = await loadActivityData(selectedActivity.driveFileId);
 
     const targeting = await resolveClassTargeting();
+
+    // Respect the activity's OWN configured behavior, mirroring the normal VA
+    // assign flow: `sessionOptions` + `attemptLimit` come from the activity's
+    // behavior, and the optional due date is folded into `sessionOptions.dueAt`
+    // (that's where the VA runner reads it). `sessionSettings` (player
+    // behavior) has no home on `behavior`, so it stays the conservative
+    // VA_SESSION_SETTINGS default the route already used. The normal VA assign
+    // flow has NO PLC option, so we intentionally omit PLC for video activities.
+    const behavior = getVideoActivityBehavior(selectedActivity);
+    const dueAt = parseDueAt(dueAtLocal);
+    const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
+    const sessionOptions: VideoActivitySessionOptions = {
+      ...behavior.sessionOptions,
+      attemptLimit: behavior.attemptLimit,
+      ...(dueAt !== undefined ? { dueAt } : {}),
+    };
 
     // VA has no join code — the assignment is identified by its sessionId
     // (== assignment id). `createAssignment`'s args are POSITIONAL:
@@ -403,6 +532,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       {
         className: 'Google Classroom',
         sessionSettings: VA_SESSION_SETTINGS,
+        sessionOptions,
+        ...(effectiveTeacherName ? { teacherName: effectiveTeacherName } : {}),
       },
       'active',
       targeting.classIds,
@@ -427,6 +558,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     resolveClassTargeting,
     createVideoActivityAssignment,
     createAttachment,
+    dueAtLocal,
+    teacherName,
+    defaultTeacherName,
   ]);
 
   const runAttach = useCallback(async () => {
@@ -581,6 +715,99 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   ))}
                 </select>
               </label>
+            )}
+
+            {/* Per-assignment settings — parity with the normal SpartBoard
+                assign flow. Shown only once something is selected; all fields
+                are optional. Class targeting is auto-derived from the
+                Classroom course link, so there's no class/roster picker here. */}
+            {canAttach && (
+              <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
+                <h2 className="text-sm font-semibold text-slate-200">
+                  Assignment settings
+                </h2>
+
+                {behaviorSummary && (
+                  <p className="text-xs text-slate-400">
+                    Inherits this {kind === 'quiz' ? 'quiz' : 'activity'}
+                    &rsquo;s settings:{' '}
+                    <span className="font-medium text-slate-300">
+                      {behaviorSummary}
+                    </span>
+                  </p>
+                )}
+
+                <label className="block text-sm">
+                  <span className="mb-1 block text-slate-400">
+                    Due date <span className="text-slate-500">(optional)</span>
+                  </span>
+                  <input
+                    type="datetime-local"
+                    value={dueAtLocal}
+                    onChange={(e) => setDueAtLocal(e.target.value)}
+                    disabled={busy}
+                    className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white disabled:opacity-50 [color-scheme:dark]"
+                  />
+                </label>
+
+                <label className="block text-sm">
+                  <span className="mb-1 block text-slate-400">
+                    Your name{' '}
+                    <span className="text-slate-500">
+                      (optional — shown on shared PLC results)
+                    </span>
+                  </span>
+                  <input
+                    type="text"
+                    value={teacherName}
+                    onChange={(e) => setTeacherName(e.target.value)}
+                    placeholder={defaultTeacherName || 'Teacher name'}
+                    disabled={busy}
+                    className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white placeholder:text-slate-500 disabled:opacity-50"
+                  />
+                </label>
+
+                {/* PLC sharing is QUIZ-only — the normal Video Activity assign
+                    flow has no PLC option, so we don't invent one for VA. */}
+                {kind === 'quiz' && plcs.length > 0 && (
+                  <div className="space-y-2">
+                    <label className="flex items-center gap-2 text-sm text-slate-300">
+                      <input
+                        type="checkbox"
+                        checked={plcShareEnabled}
+                        onChange={(e) => {
+                          const on = e.target.checked;
+                          setPlcShareEnabled(on);
+                          // Preselect the sole PLC so a one-PLC teacher doesn't
+                          // have to also pick from a single-item list.
+                          if (on && !selectedPlcId && plcs.length === 1) {
+                            setSelectedPlcId(plcs[0].id);
+                          }
+                        }}
+                        disabled={busy}
+                        className="h-4 w-4 accent-blue-500"
+                      />
+                      Share results with a PLC
+                    </label>
+                    {plcShareEnabled && (
+                      <select
+                        value={selectedPlcId}
+                        onChange={(e) => setSelectedPlcId(e.target.value)}
+                        disabled={busy}
+                        aria-label="PLC to share results with"
+                        className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white disabled:opacity-50"
+                      >
+                        <option value="">Select a PLC…</option>
+                        {plcs.map((p) => (
+                          <option key={p.id} value={p.id}>
+                            {p.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             <button
