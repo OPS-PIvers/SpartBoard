@@ -94,7 +94,7 @@ In **Google Cloud Console:**
   - **Do NOT add `classroom.coursework.*`.**
 - [ ] **Marketplace SDK → App Configuration:**
   - [ ] App Visibility: **Private** ⚠️ **irreversible** — cannot be changed without a new Cloud project; do NOT pick Public.
-  - [ ] Installation: **Individual + Admin Install** for the pilot (lets you self-install on your Orono account); switch to Admin-Only later for a controlled production rollout. This setting IS changeable later.
+  - [ ] Installation: **Individual + Admin Install** is fine, but note the Classroom caveat below — for Classroom add-ons, an admin must still install OR allowlist the app before it appears in the assignment "Add-ons" picker; individual install of the Marketplace app alone does NOT enable the Classroom launch. This setting IS changeable later.
   - [ ] Enable the **Classroom add-on** integration
   - [ ] Attachment Setup URI: `https://<spartboard-domain>/classroom-addon/teacher` (for dev testing use the dev preview URL, e.g. `https://spartboard--dev-paul-<hash>.web.app/classroom-addon/teacher`)
   - [ ] Allowed Attachment URI Prefixes: `https://<spartboard-domain>/` (literal, **no wildcards**; add the dev preview prefix too for testing). Also add the dev origin to the OAuth client's **Authorized JavaScript origins** (GIS popup requirement).
@@ -102,10 +102,15 @@ In **Google Cloud Console:**
 - [ ] Marketplace SDK → Store Listing: name, description, **128×128 icon + 220×140 card banner** (in `marketplace-assets/`), ≥1 screenshot, **Privacy Policy URL** (`/privacy`), **Terms of Service URL** (`/terms`), support contact. **PUBLISH.**
 - [ ] Confirm NO verification/CASA required (Internal-user-type exemption).
 
-In **Workspace Admin Console:**
+In **Workspace Admin Console (REQUIRED for Classroom add-ons — not optional):**
 
-- [ ] Apps → Google Workspace Marketplace apps → Install for the (test) domain/OU.
-- [ ] Sign in as a test teacher → confirm SpartBoard appears in Classroom's "Add" menu.
+Per Google, a Classroom add-on only launches once an admin has **installed or
+allowlisted** it — the "Individual install" Marketplace setting does NOT cover
+the Classroom launch ([support.google.com/edu/classroom/answer/12351654](https://support.google.com/edu/classroom/answer/12351654)). Pick one:
+
+- [ ] **Admin Install** (simplest for the pilot): Apps → Google Workspace Marketplace apps → SpartBoard → Install for a test OU containing your account. Enables it with no further teacher action.
+- [ ] **OR Allowlist** it, then self-install from inside the Classroom assignment creator.
+- [ ] Sign in as a test teacher → confirm SpartBoard appears in Classroom's assignment "Add-ons" menu.
 
 > ✅ **Reachability prerequisite for 0B — now built (2026-05-29).** Both spike
 > routes exist: `/classroom-addon/student` (PR #1755) and
