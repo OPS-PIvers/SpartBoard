@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-27_
+_Last audited: 2026-05-29_
 _Last action: 2026-05-23_
 
 ---
@@ -22,6 +22,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-05-29: Scanned all 49 Widget.tsx files for anti-patterns. New dev-paul commits absorbed via merge since 2026-05-28 (see widget-registry log for full list) — none introduce new front-face widget changes beyond those already reviewed. THREE NEW LOW items detected: (1) CarRiderPro/Widget.tsx:62 — hardcoded `top-2 right-2 p-1.5` on external-link overlay button (absolute-positioned, skipScaling:true context); (2) First5/Widget.tsx:56 — identical hardcoded overlay button pattern, same snippet copy-pasted; (3) GraphicOrganizer/Widget.tsx:79 — EditableNode contenteditable uses `min-h-[50px]` as a fixed minimum height cap inside the skipScaling:true container-query context (this is a NEW sub-item from EditableNode specifically, not covered by the prior Completed entries which addressed outer structural padding). Also re-found Countdown/TrafficLight/LunchCount using cqh/cqw separately — confirmed these are intentional "fill-better" formulas per journal guidance (same reasoning as ClockWidget WON'T FIX and Checklist WON'T FIX; `min(42cqh, 55cqw)` on countdown number and `min(28cqh, 80cqw)` on traffic-light circles are portrait-fill choices, not anti-patterns). MusicWidget cqh-only sizing also exempt per guidance. Weather/hideClothing compact branch cqh/cqw exempt (portrait orientation sub-mode). No action required for those re-found items._
+_2026-05-28: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits since 2026-05-27: feat(scoreboard) ScoreboardItem ±buttons layout change (ScoreboardItem.tsx), fix(random,stations) restore widget floors + size result (Stations/Widget.tsx, random/RandomWidget.tsx — both skipScaling:true). Stations/Widget.tsx: change is data/logic only (floor values), no new className violations. random/RandomWidget.tsx: result text sizing change — verified inline style still uses cqmin. MaterialsWidget/index.tsx reviewed — top-level `overflow-hidden` on `h-full w-full flex flex-col` container (line 124) is acceptable; content has `flex-1 min-h-0` at line 140. NEW LOW: PollWidget/Widget.tsx:161 progress bar uses `h-[min(5cqmin)] min-h-[16px]` — uncapped upper bound means bar can grow excessively large at big widget sizes (e.g., 50px tall at 1000px width). See new open item below._
 _2026-05-27: Scanned recently changed Widget.tsx files for anti-patterns. New dev-paul commits since 2026-05-26 touching widget content: feat(drawing-widget) toolbar redesign + eraser modes + page titles (DrawingWidget has `skipScaling: false` — CSS transform scaling, not container queries; hardcoded Tailwind sizes in the toolbar are not CQ violations). feat(smart-notebook) multiple sub-component updates — SmartNotebook sub-components verified clean (no hardcoded Tailwind text-size classes in front-face content; `max-w-[240px] min-w-[160px]` on assets side-panel previously documented as acceptable structural constraint). Stations and RevealGrid widgets unchanged. QRWidget (positive reference) still clean. No new anti-patterns detected. All pre-existing open items remain valid._
 _2026-05-26: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits merged since 2026-05-24: refactor(effects) (#1689) touched DiceWidget/Widget.tsx and Checklist/Settings.tsx; perf(qr) (#1688) rewrote QRWidget/Widget.tsx. QRWidget/Widget.tsx verified clean — all sizing uses cqmin inline styles, no hardcoded Tailwind text/size classes in front-face content. DiceWidget/Widget.tsx: new cqmin additions added to the grid div (`gap: '4cqmin', padding: '6cqmin'`) and Roll Dice button (`style={{ fontSize: 'min(20px, 5cqmin)' }}`), but the footer wrapper `className="px-3 pb-3"` and button `py-4 px-6 gap-3` remain hardcoded — group open item still valid for those specific violations. MiniApp portaled toolbar fix (commit 74ff0f94 on scheduled-tasks) confirmed merged into dev-paul via PR #1684 (`7145b53d`) — moving to Completed. No new anti-patterns detected. All remaining pre-existing open items valid._
 
@@ -52,6 +54,27 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
+
+### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
+
+- **Detected:** 2026-05-29
+- **File:** components/widgets/CarRiderPro/Widget.tsx:62, components/widgets/First5/Widget.tsx:56
+- **Detail:** Both widgets render an absolute-positioned external-link overlay button with the className `"absolute top-2 right-2 z-10 bg-white/80 ... rounded-lg p-1.5 ..."`. Both have `skipScaling: true`. The `top-2`, `right-2`, and `p-1.5` classes produce fixed-pixel positioning (8 px, 8 px, 6 px) that does not scale with the container, causing the button to appear disproportionately small at large widget sizes and potentially clipping at small sizes. This is an identical copy-pasted snippet in both files.
+- **Fix:** Replace the three fixed-pixel Tailwind utilities with inline `cqmin` equivalents: `top-2 right-2` → `style={{ top: 'min(8px, 2cqmin)', right: 'min(8px, 2cqmin)' }}`, `p-1.5` → `style={{ padding: 'min(6px, 1.5cqmin)' }}`. Apply the same fix to both files. The visual/color Tailwind classes (`bg-white/80`, `backdrop-blur-sm`, `hover:bg-white`, etc.) do not carry pixel sizes and can remain on `className`.
+
+### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
+
+- **Detected:** 2026-05-29
+- **File:** components/widgets/GraphicOrganizer/Widget.tsx:79
+- **Detail:** The internal `EditableNode` component renders a `contenteditable` div with `className="... min-h-[50px] ..."`. This sets a fixed 50 px minimum height on every editable node inside the graphic organizer (Frayer, T-chart, Venn, KWL, Cause-Effect layouts). Widget has `skipScaling: true`. At small widget sizes this 50 px floor can crowd out other content; at large widget sizes it looks sparse. Note: the prior Completed entries for GraphicOrganizer addressed outer structural padding (`p-4` on Frayer cells, `w-32 h-32` center circle, etc.) — this specific EditableNode `min-h-[50px]` was not covered.
+- **Fix:** Replace `min-h-[50px]` with a `cqmin` inline style: add a `minHeight` key to the existing `style` prop on the contenteditable div → `style={{ ..., minHeight: 'min(50px, 10cqmin)' }}`. This caps the floor at 50 px on large widgets while allowing proportional reduction at small sizes. Alternatively, `min-h-0` with `flex-1` on the parent cell could let the node fill available space.
+
+### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
+
+- **Detected:** 2026-05-28
+- **File:** components/widgets/PollWidget/Widget.tsx:161
+- **Detail:** The poll results progress bar uses `className="h-[min(5cqmin)] min-h-[16px] ..."`. The `h-[min(5cqmin)]` is effectively `height: 5cqmin` (single-argument `min()` is valid CSS but unusual). The `min-h-[16px]` adds a 16px floor. There is no upper cap, so at large widget sizes (e.g., 1000px wide) the bar becomes ~50px tall, taking up a disproportionate amount of the widget area. Widget has `skipScaling: true`.
+- **Fix:** Replace both Tailwind classes with a single inline style using the recommended cap pattern: `style={{ height: 'clamp(16px, 5cqmin, 24px)' }}`. This gives a 16px floor (bar never invisible), scales with `5cqmin`, and caps at 24px (bar never oversized).
 
 ### LOW EmbedWidget zoom toolbar uses hardcoded sizes — portaled outside container query context
 

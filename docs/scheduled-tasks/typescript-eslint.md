@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-27_
+_Last audited: 2026-05-29_
 _Last action: never_
 
 ---
@@ -16,6 +16,8 @@ _Nothing currently in progress._
 
 ## Open
 
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-05-29. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: spike/docs(classroom) Add-on integration planning docs, docs/fix(quiz) cache-miss-fill comment fixes + re-apply #1743 editor/cache fixes onto #1744, plus the batched merge of ~29 additional commits (quiz data-loss PRs #1742–#1745, smart-notebook SVG guards, scoreboard ±button layout, stations/random floor fixes). All changes type-safe and lint-clean._
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-05-28. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: feat(scoreboard) move ±buttons beside score (#1719 — ScoreboardItem.tsx), fix(pr-1718) 15 review findings covering data-loss races in SmartNotebook/PageEditor + event hijacks + regressions, fix(smart-notebook) SVG parsererror guard + insertBefore self guard, docs(changelog) release, fix(random,stations) restore widget floors. Also synced new test files (Dock.test.tsx, commonLocales.test.ts, RandomWidget.test.tsx, useGuidedLearningSession.test.ts, urlHelpers.test.ts) and new parseGeminiJson.test.ts in functions/. All changes type-safe and lint-clean._
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-05-27. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Prettier: all matched files use project code style. Codebase clean after merging dev-paul: fix(smart-notebook) PR #1702 feedback, feat(smart-notebook) page-jump hyperlinks + object→page hyperlinks + rotation handle + edit-first + autosave + page nav + thumbnails, fix(draggable-window) canvas click isolation, feat(drawing-widget) toolbar redesign + eraser modes + page titles, fix(settings-panel) screen rect positioning, fix(i18n) DE/ES/FR colorPicker key sync, fix(specialist-schedule) parseTime guard, fix(parseGeminiJson) depth counter, fix(migration) proportional layout pixel-detection. All changes type-safe and lint-clean._
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-05-26. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: refactor(effects) clear Grade D + top Grade C useEffect anti-patterns (#1689 — DriveFileAttachment.tsx, ActivityWall/ShareModal.tsx, Checklist/Settings.tsx, QRWidget/Settings.tsx, DiceWidget/Widget.tsx, TimeTool/useTimeTool.ts), perf(qr) derive synced URL inline (#1688 — new deriveSyncedUrl.ts + updated Widget/Settings), perf(time-tool) stop RAF restart (#1687), action MiniApp portaled toolbar + Clock building defaults (#1684). All changes type-safe and lint-clean._
 
