@@ -81,6 +81,21 @@ interface CreateAttachmentParams {
 
 type ContentKind = 'quiz' | 'va';
 
+/**
+ * Targeting derived for a Classroom attachment. `classIds` carries the identity-
+ * bridge sourcedId (linked) or `classroom:<courseId>` (unlinked fallback) — this
+ * is what gates student responses and is NEVER changed by this resolver. The
+ * roster fields (`rosterIds`/`periodNames`/`classPeriodByClassId`) are what the
+ * teacher monitor reads to show the assignment's targeted class; they're only
+ * populated when the course is linked to a real SpartBoard roster.
+ */
+interface ResolvedTargeting {
+  classIds: string[];
+  rosterIds: string[];
+  periodNames: string[];
+  classPeriodByClassId: Record<string, string>;
+}
+
 export const ClassroomAddonTeacherSpike: React.FC = () => {
   const params =
     typeof window === 'undefined'
@@ -139,36 +154,68 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     }
   }, [append, signInWithGoogle]);
 
-  // Resolve the assignment's classId. If this Google course is linked to a
+  // Resolve the assignment's targeting. If this Google course is linked to a
   // ClassLink class, use that real sourcedId so the assignment's classIds
   // MATCH the token classroomAddonLoginV1 mints for the student (which is also
   // the linked sourcedId) — that's what lets the class-gate authorize their
-  // responses AND lets the monitor resolve real names. If unlinked, both sides
-  // fall back to "classroom:<courseId>" (works, but nameless). Shared by both
-  // the quiz and video-activity attach paths.
-  const resolveClassIds = useCallback(async (): Promise<string[]> => {
-    let classIds = [`classroom:${courseId}`];
-    try {
-      const linkSnap = await getDoc(
-        doc(db, 'classroom_course_links', courseId)
-      );
-      const linkedClassId = linkSnap.exists()
-        ? (linkSnap.data().classlinkClassId as string | undefined)
-        : undefined;
-      if (linkedClassId) {
-        classIds = [linkedClassId];
-        append(`Course is linked to ClassLink class ${linkedClassId}.`);
-      } else {
-        append(
-          'Course not linked to a ClassLink class — students will be ' +
-            'anonymous in the monitor. Link it from your roster to show names.'
+  // responses AND lets the monitor resolve real names. We ALSO surface the
+  // linked roster's id + name as rosterIds/periodNames so the teacher monitor
+  // shows the targeted class (it reads periodNames, not classIds). If unlinked,
+  // classIds falls back to "classroom:<courseId>" (works, but nameless) and the
+  // roster fields stay empty — an unlinked course has no SpartBoard roster.
+  // Shared by both the quiz and video-activity attach paths.
+  const resolveClassTargeting =
+    useCallback(async (): Promise<ResolvedTargeting> => {
+      const targeting: ResolvedTargeting = {
+        classIds: [`classroom:${courseId}`],
+        rosterIds: [],
+        periodNames: [],
+        classPeriodByClassId: {},
+      };
+      try {
+        const linkSnap = await getDoc(
+          doc(db, 'classroom_course_links', courseId)
         );
+        const linkData = linkSnap.exists() ? linkSnap.data() : undefined;
+        const linkedClassId = linkData?.classlinkClassId as string | undefined;
+        const linkedRosterId = linkData?.rosterId as string | undefined;
+        if (linkedClassId) {
+          targeting.classIds = [linkedClassId];
+          append(`Course is linked to ClassLink class ${linkedClassId}.`);
+
+          // Surface the linked roster so the monitor can label the targeted
+          // class. Best-effort: a missing roster doc/name must not break attach —
+          // fall back to a sensible default rather than throwing.
+          if (linkedRosterId && user?.uid) {
+            let rosterName = 'Google Classroom';
+            try {
+              const rosterSnap = await getDoc(
+                doc(db, 'users', user.uid, 'rosters', linkedRosterId)
+              );
+              const name = rosterSnap.exists()
+                ? (rosterSnap.data().name as string | undefined)
+                : undefined;
+              if (name && name.length > 0) {
+                rosterName = name;
+              }
+            } catch {
+              // Keep the default rosterName; targeting is still valid.
+            }
+            targeting.rosterIds = [linkedRosterId];
+            targeting.periodNames = [rosterName];
+            targeting.classPeriodByClassId = { [linkedClassId]: rosterName };
+          }
+        } else {
+          append(
+            'Course not linked to a ClassLink class — students will be ' +
+              'anonymous in the monitor. Link it from your roster to show names.'
+          );
+        }
+      } catch {
+        // Fall back to the courseId-scoped classId with no roster targeting.
       }
-    } catch {
-      // Fall back to the courseId-scoped classId.
-    }
-    return classIds;
-  }, [append, courseId]);
+      return targeting;
+    }, [append, courseId, user?.uid]);
 
   // Mint the addons.teacher access token + create the Classroom attachment.
   // `contentParams` carries the quiz-vs-VA discriminator (quizCode vs
@@ -230,10 +277,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const quizMaxPoints =
       quizData.questions.reduce((s, q) => s + (q.points ?? 1), 0) || 100;
 
-    const classIds = await resolveClassIds();
+    const targeting = await resolveClassTargeting();
 
     // sessionMode 'student' = self-paced/async, which is how a Classroom
-    // attachment is taken (no live teacher session).
+    // attachment is taken (no live teacher session). `periodNames` rides on the
+    // settings object (that's where the quiz hook reads it from for both the
+    // assignment + session docs); `rosterIds`/`classPeriodByClassId` ride on
+    // the options bag. Both are only set when the course is linked to a roster.
     append('Creating a class-targeted assignment…');
     const { id: sessionId, code } = await createAssignment(
       {
@@ -246,10 +296,19 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         className: 'Google Classroom',
         sessionMode: 'student',
         sessionOptions: {},
+        ...(targeting.periodNames.length > 0
+          ? { periodNames: targeting.periodNames }
+          : {}),
       },
       {
-        classIds,
+        classIds: targeting.classIds,
         initialStatus: 'active',
+        ...(targeting.rosterIds.length > 0
+          ? { rosterIds: targeting.rosterIds }
+          : {}),
+        ...(Object.keys(targeting.classPeriodByClassId).length > 0
+          ? { classPeriodByClassId: targeting.classPeriodByClassId }
+          : {}),
       }
     );
     append(`Assignment created (join code ${code}).`);
@@ -304,7 +363,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     selectedQuiz,
     googleAccessToken,
     loadQuizData,
-    resolveClassIds,
+    resolveClassTargeting,
     createAssignment,
     createAttachment,
     user?.uid,
@@ -325,11 +384,13 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     append(`Loading "${selectedActivity.title}"…`);
     const activityData = await loadActivityData(selectedActivity.driveFileId);
 
-    const classIds = await resolveClassIds();
+    const targeting = await resolveClassTargeting();
 
     // VA has no join code — the assignment is identified by its sessionId
     // (== assignment id). `createAssignment`'s args are POSITIONAL:
     // (activity, settings, initialStatus?, classIds?, periodNames?, rosterIds?, mode?).
+    // periodNames/rosterIds are empty arrays when the course is unlinked, which
+    // the hook treats the same as the previous (undefined) behavior.
     append('Creating a class-targeted video-activity assignment…');
     const { id: sessionId } = await createVideoActivityAssignment(
       {
@@ -344,7 +405,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         sessionSettings: VA_SESSION_SETTINGS,
       },
       'active',
-      classIds
+      targeting.classIds,
+      targeting.periodNames,
+      targeting.rosterIds
     );
     append(`Video-activity session created (sessionId ${sessionId}).`);
 
@@ -361,7 +424,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     selectedActivity,
     googleAccessToken,
     loadActivityData,
-    resolveClassIds,
+    resolveClassTargeting,
     createVideoActivityAssignment,
     createAttachment,
   ]);
