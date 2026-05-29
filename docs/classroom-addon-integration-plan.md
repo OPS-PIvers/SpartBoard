@@ -6,13 +6,20 @@
 
 ## 📌 Current Status — read this first
 
-**Last updated:** 2026-04-28 by review agent (initial draft, no implementation work started)
+**Last updated:** 2026-05-28 by audit agent (re-scoped to current codebase; see [Progress Log](#progress-log) top entry).
 
 **Active phase:** _none — awaiting kickoff_
 
 **Active agent(s):** _none_
 
-**Next action for the next agent:** Review [§ Tracking Protocol](#tracking-protocol), then begin Phase 0A (Sonnet 4.6, GCP config). Phase 0A and Phase 1 (most agents) and Phase 0.5 can run in parallel — see [§ Order of Operations](#order-of-operations).
+> **⚠️ Re-scope notice (2026-05-28).** A month of unrelated student-auth work landed the foundation this plan assumed it would build. **Two whole phases are effectively done already:**
+>
+> - **Phase 1D (VideoActivity SSO branch) is BUILT** — and more completely than this plan described. The `studentRole` branch, a PIN→SSO custom-token bridge (`pinLoginV1`), a shared `computeResponseKey`, and a PII-free response doc all exist in [hooks/useVideoActivitySession.ts](../hooks/useVideoActivitySession.ts) + [components/videoActivity/VideoActivityStudentApp.tsx](../components/videoActivity/VideoActivityStudentApp.tsx). Phase 1D is now **verify-only** — do NOT re-implement it.
+> - **Phase 0.5 (server-side OAuth refresh tokens) is BUILT** — [functions/src/googleOAuth.ts](../functions/src/googleOAuth.ts) already exchanges/stores/refreshes encrypted refresh tokens at `/users/{uid}/private/googleAuth` (locked by [firestore.rules:559](../firestore.rules)). Phase 0.5 collapses to "**extend** the existing module with Classroom grade-write scopes" — do NOT build a parallel module or a new `/google_oauth/` path.
+>
+> The genuinely-new work is: **Phase 0** (GCP/Marketplace config), **`classroomAddonLoginV1`** (JWKS-verify the launch token — now model it on `pinLoginV1`), small additive **types/rules/CSP**, the **teacher discovery view + attachment CF + selection panels** (the real bulk), **thin student adapters** (the runners already do SSO), and **grade passback**. See each phase for the corrected detail.
+
+**Next action for the next agent:** Review [§ Tracking Protocol](#tracking-protocol), then begin Phase 0A (Sonnet 4.6, GCP config). Phase 0A and Phase 1 can run in parallel — see [§ Order of Operations](#order-of-operations).
 
 **Blockers / open items:** None.
 
@@ -29,28 +36,28 @@
 
 Status legend: ⬜ Not started · 🟡 In progress · ✅ Complete · ⚠️ Blocked · ⏭ Skipped/N/A
 
-| Phase     | Agent                                   | Model      | Status | Owner (Claude session id or human) | Last update |
-| --------- | --------------------------------------- | ---------- | ------ | ---------------------------------- | ----------- |
-| 0A        | GCP `gcloud` automation                 | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 0B        | Manual Console + Marketplace install    | _(human)_  | ⬜     | —                                  | —           |
-| 0.5-cf    | Server-side OAuth code grant CF         | Opus 4.7   | ⬜     | —                                  | —           |
-| 0.5-rules | Lock down `/users/{uid}/google_oauth/`  | Opus 4.7   | ⬜     | —                                  | —           |
-| 0.5-ui    | "Connect to Classroom gradebook" button | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 1A        | Types + Firestore rules + CSP           | Opus 4.7   | ⬜     | —                                  | —           |
-| 1B        | `classroomAddonLoginV1` Cloud Function  | Opus 4.7   | ⬜     | —                                  | —           |
-| 1C        | Roster `classIds` synthesis             | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 1D        | VideoActivity SSO branch                | Opus 4.7   | ⬜     | —                                  | —           |
-| 2-shell   | Teacher route + widget-type picker      | Opus 4.7   | ⬜     | —                                  | —           |
-| 2-cf      | `createClassroomAttachment` CF          | Opus 4.7   | ⬜     | —                                  | —           |
-| 2-quiz    | Quiz selection panel                    | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 2-va      | Video Activity selection panel          | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 3-shell   | Student route + auth handshake          | Opus 4.7   | ⬜     | —                                  | —           |
-| 3-quiz    | Quiz student adapter                    | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 3-va      | Video Activity student adapter          | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 4-cf      | `pushClassroomGrade` Cloud Function     | Opus 4.7   | ⬜     | —                                  | —           |
-| 4-quiz    | Quiz submission hook wiring             | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 4-va      | VA submission hook wiring               | Sonnet 4.6 | ⬜     | —                                  | —           |
-| 5         | Polish                                  | Sonnet 4.6 | ⬜     | —                                  | —           |
+| Phase     | Agent                                     | Model      | Status           | Owner (Claude session id or human) | Last update                                          |
+| --------- | ----------------------------------------- | ---------- | ---------------- | ---------------------------------- | ---------------------------------------------------- |
+| 0A        | GCP `gcloud` automation                   | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 0B        | Manual Console + Marketplace install      | _(human)_  | ⬜               | —                                  | —                                                    |
+| 0.5-cf    | **Extend** existing OAuth w/ grade scopes | Opus 4.7   | ⬜ (reduced)     | —                                  | googleOAuth.ts already does refresh tokens           |
+| 0.5-rules | ~~Lock down `/google_oauth/`~~            | —          | ⏭ N/A           | —                                  | redundant — `/private/**` already locked (rules:559) |
+| 0.5-ui    | "Connect to Classroom gradebook" button   | Sonnet 4.6 | ⬜ (reduced)     | —                                  | reuse existing connect-Google flow                   |
+| 1A        | Types + Firestore rules + CSP             | Opus 4.7   | ⬜               | —                                  | —                                                    |
+| 1B        | `classroomAddonLoginV1` Cloud Function    | Opus 4.7   | ⬜               | —                                  | model on `pinLoginV1`                                |
+| 1C        | Roster `classIds` synthesis               | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 1D        | VideoActivity SSO branch                  | Opus 4.7   | ✅ (verify-only) | —                                  | already built — see Phase 1D                         |
+| 2-shell   | Teacher route + widget-type picker        | Opus 4.7   | ⬜               | —                                  | —                                                    |
+| 2-cf      | `createClassroomAttachment` CF            | Opus 4.7   | ⬜               | —                                  | —                                                    |
+| 2-quiz    | Quiz selection panel                      | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 2-va      | Video Activity selection panel            | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 3-shell   | Student route + auth handshake            | Opus 4.7   | ⬜               | —                                  | —                                                    |
+| 3-quiz    | Quiz student adapter                      | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 3-va      | Video Activity student adapter            | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 4-cf      | `pushClassroomGrade` Cloud Function       | Opus 4.7   | ⬜               | —                                  | —                                                    |
+| 4-quiz    | Quiz submission hook wiring               | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 4-va      | VA submission hook wiring                 | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
+| 5         | Polish                                    | Sonnet 4.6 | ⬜               | —                                  | —                                                    |
 
 ---
 
@@ -62,7 +69,7 @@ Status legend: ⬜ Not started · 🟡 In progress · ✅ Complete · ⚠️ Blo
 
 **Project context:** The GCP project already exists and is linked to the SpartBoard Firebase project. **Do not create a new project** — extend the existing one. Use `gcloud` and `firebase` CLI in place of Console UI work wherever possible.
 
-**Scope:** Quiz + Video Activity only. Guided Learning and MiniApp are deferred. Paul's longer-term direction is for all four student runners to share the same auth/data foundation; track that as a separate refactor _after_ this integration ships.
+**Scope:** Quiz + Video Activity only. Guided Learning and MiniApp are deferred. Paul's longer-term direction is for all four student runners to share the same auth/data foundation — and as of 2026-05-28 **that foundation largely exists for Quiz + VA**: both runners have a `studentRole` SSO branch, a shared `computeResponseKey`, and a PIN→SSO custom-token bridge (`pinLoginV1`). This integration plugs Classroom in as a third entry point onto that same foundation rather than building it.
 
 **Resolved decisions (from review with Paul, 2026-04-28):**
 
@@ -81,8 +88,8 @@ Status legend: ⬜ Not started · 🟡 In progress · ✅ Complete · ⚠️ Blo
 3. **Existing student auth flows must keep working unchanged.** ClassLink SSO (`/my-assignments` → `studentLoginV1`) and anonymous PIN joins must continue to function for the same Quiz and Video Activity sessions. The Classroom Add-on entry is _additive_.
 
 4. **Widget-runner change scope:**
-   - **Quiz student runner:** read-only. SSO branch already exists (PR #1431).
-   - **Video Activity student runner:** ✅ authorized to modify — Agent 1D adds the `studentRole` SSO branch, mirroring Quiz. Existing PIN-joined students keep working unchanged.
+   - **Quiz student runner:** read-only. SSO branch already exists ([components/quiz/QuizStudentApp.tsx:133-138](../components/quiz/QuizStudentApp.tsx)).
+   - **Video Activity student runner:** SSO branch **already shipped** ([hooks/useVideoActivitySession.ts:666](../hooks/useVideoActivitySession.ts), [components/videoActivity/VideoActivityStudentApp.tsx:82](../components/videoActivity/VideoActivityStudentApp.tsx)). No runner change remains — Phase 1D is verify-only. Existing PIN-joined students already work unchanged.
    - **MiniApp / GuidedLearning runners:** read-only, out of scope.
 
 5. **`firestore.rules` PII gate must extend cleanly.** `classroomAddonLoginV1` mints custom tokens with the same `{ studentRole: true, orgId, classIds }` shape as `studentLoginV1`. The existing `passesStudentClassGate*` helpers do format-agnostic string matching ([firestore.rules:45](../firestore.rules), [firestore.rules:76](../firestore.rules)) — `classroom:abc123` works without modifying any helper.
@@ -102,23 +109,27 @@ Status legend: ⬜ Not started · 🟡 In progress · ✅ Complete · ⚠️ Blo
 
 ## 🔍 Reference implementations (verified to exist; study before writing)
 
-| Pattern                                                  | File:Line                                                                                                                                                            | What to learn                                                                                                                      |
-| -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| Custom token mint with `studentRole` claims              | [functions/src/index.ts:2761](../functions/src/index.ts) (`studentLoginV1`)                                                                                          | Exact claim shape (line 2870), HMAC pseudonym (line 2687), validation, error responses                                             |
-| PII-free claim extraction                                | [context/StudentAuthContext.tsx:100](../context/StudentAuthContext.tsx) (`extractStudentClaims`); `<RequireStudentAuth>` at line 353                                 | What we read vs. ignore from the ID token                                                                                          |
-| Class-gate enforcement                                   | [firestore.rules:45](../firestore.rules) (`studentRoleCanAccessClass`), [firestore.rules:76](../firestore.rules) (`passesStudentClassGateList`)                      | Format-agnostic string overlap; safe-default `request.auth.token.get('studentRole', false)`                                        |
-| Quiz assignment lifecycle                                | [hooks/useQuizAssignments.ts:75](../hooks/useQuizAssignments.ts) (`createAssignment`)                                                                                | Accepts `(quiz, settings, status?, classIds?, rosterIds?)`; `allocateJoinCode()` is unconditional (line 210); writeBatch atomicity |
-| VA assignment lifecycle                                  | [hooks/useVideoActivityAssignments.ts:66](../hooks/useVideoActivityAssignments.ts) (`createAssignment`)                                                              | Same shape, no join code                                                                                                           |
-| Quiz library listing                                     | [hooks/useQuiz.ts:59](../hooks/useQuiz.ts) (`useQuiz`)                                                                                                               | `onSnapshot` on `/users/{userId}/quizzes`                                                                                          |
-| VA library listing                                       | [hooks/useVideoActivity.ts](../hooks/useVideoActivity.ts) (singular — _not_ `useVideoActivities`)                                                                    | Same pattern as `useQuiz`                                                                                                          |
-| Quiz student SSO branch (template for VA Agent 1D)       | [components/quiz/QuizStudentApp.tsx:56-77](../components/quiz/QuizStudentApp.tsx)                                                                                    | `tokenResult.claims?.studentRole === true` skips PIN — PR #1431                                                                    |
-| Quiz student-side join                                   | [hooks/useQuizSession.ts:565](../hooks/useQuizSession.ts) (`joinQuizSession(code, pin?, classPeriod?)`)                                                              | Code-based join; `lookupSession(code)` resolves session-by-code                                                                    |
-| VA student-side join (target of Agent 1D)                | [hooks/useVideoActivitySession.ts:335](../hooks/useVideoActivitySession.ts) (`joinSession(sessionId, pin, name, classPeriod?)`)                                      | Currently always requires `pin + name`; response-doc write at line 496                                                             |
-| Class-ID derivation                                      | [utils/resolveAssignmentTargets.ts:77](../utils/resolveAssignmentTargets.ts) (`deriveTargetsFromRosterList`)                                                         | Flatmaps `classlinkClassId` and `testClassId` into deduped `classIds`                                                              |
-| Existing SSO assignment href                             | [hooks/useStudentAssignments.ts:130](../hooks/useStudentAssignments.ts)                                                                                              | `/quiz?code=${encodeURIComponent(code)}` — Classroom adapter mirrors                                                               |
-| Tested rules patterns                                    | [tests/rules/studentRoleClassGate.test.ts:495-536](../tests/rules/studentRoleClassGate.test.ts)                                                                      | Auth-fixture pattern; bare-anon-token edge case                                                                                    |
-| Existing CSP frame-ancestors                             | [firebase.json:40-46](../firebase.json)                                                                                                                              | `/activity/**` already lists `https://classroom.google.com`                                                                        |
-| Current access-token-only OAuth (Phase 0.5 changes here) | [context/AuthContext.tsx:190](../context/AuthContext.tsx), [context/AuthContext.tsx:278](../context/AuthContext.tsx), [config/firebase.ts:31](../config/firebase.ts) | No `access_type: 'offline'`; no refresh tokens stored                                                                              |
+> **All line numbers below verified 2026-05-28.** The 2026-04-28 draft had drifted by hundreds of lines in `functions/src/index.ts` and the hooks; these are current.
+
+| Pattern                                                              | File:Line                                                                                                                                                                                                                                   | What to learn                                                                                                                                                                                                                                                               |
+| -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Custom token mint with `studentRole` claims                          | [functions/src/index.ts:3126](../functions/src/index.ts) (`studentLoginV1`)                                                                                                                                                                 | Claim shape minted at line 3322 (`{ studentRole: true, orgId, classIds }`); HMAC pseudonym `computeStudentUid` at line 3052; secret `STUDENT_PSEUDONYM_HMAC_SECRET` (defineSecret line 59) — reuse the **same** secret                                                      |
+| **PIN→SSO custom-token mint (closest model for 1B)**                 | [functions/src/index.ts:4153](../functions/src/index.ts) (`pinLoginV1`)                                                                                                                                                                     | A second, newer custom-token minter: validates `kind: 'quiz' \| 'video-activity'`, reads a `pin_index` doc, mints the same claim shape. `classroomAddonLoginV1` is its sibling with JWKS-verify swapped in for the PIN lookup                                               |
+| PII-free claim extraction                                            | [context/StudentAuthContext.tsx:100](../context/StudentAuthContext.tsx) (`extractStudentClaims`); `<RequireStudentAuth>` at line 353                                                                                                        | Reads only `studentRole`/`orgId`/`classIds`; never `email`/`displayName`                                                                                                                                                                                                    |
+| Class-gate enforcement                                               | [firestore.rules:45](../firestore.rules) (`studentRoleCanAccessClass`), [firestore.rules:76](../firestore.rules) (`passesStudentClassGateList`)                                                                                             | Format-agnostic string membership (`classId in …`, `.hasAny(…)`) — `classroom:abc` works unchanged; safe-default `.get('studentRole', false)` at line 39                                                                                                                    |
+| Quiz assignment lifecycle                                            | [hooks/useQuizAssignments.ts:650](../hooks/useQuizAssignments.ts) (`createAssignment`)                                                                                                                                                      | **Signature changed:** now `(quiz, settings, options)` where `options` is an **object** `{ initialStatus?, classIds?, rosterIds?, mode?, … }`; `allocateJoinCode()` is unconditional (defined line 556, called line 681); writeBatch atomicity                              |
+| VA assignment lifecycle                                              | [hooks/useVideoActivityAssignments.ts:291](../hooks/useVideoActivityAssignments.ts) (`createAssignment`)                                                                                                                                    | **Positional** `(activity, settings, initialStatus?, classIds?, periodNames?, rosterIds?, mode?)`; no join code. Note: different calling convention than Quiz                                                                                                               |
+| Quiz library listing                                                 | [hooks/useQuiz.ts:132](../hooks/useQuiz.ts) (`useQuiz`)                                                                                                                                                                                     | `onSnapshot` on `/users/{userId}/quizzes` (line 155)                                                                                                                                                                                                                        |
+| VA library listing                                                   | [hooks/useVideoActivity.ts:99](../hooks/useVideoActivity.ts) (singular — _not_ `useVideoActivities`)                                                                                                                                        | Same pattern as `useQuiz`                                                                                                                                                                                                                                                   |
+| Quiz student SSO branch (reference, do NOT modify)                   | [components/quiz/QuizStudentApp.tsx:133-138](../components/quiz/QuizStudentApp.tsx)                                                                                                                                                         | `tokenResult.claims?.studentRole === true` → `setIsStudentRole(true)`; renders `<QuizJoinFlow isStudentRole />`. Inside an auth-init effect after `authStateReady()`                                                                                                        |
+| **VA student SSO branch (ALREADY BUILT — Phase 1D done)**            | [hooks/useVideoActivitySession.ts:666](../hooks/useVideoActivitySession.ts) (`joinSession`), [components/videoActivity/VideoActivityStudentApp.tsx:82](../components/videoActivity/VideoActivityStudentApp.tsx)                             | `joinSession(targetSessionId, studentPin?, classPeriod?)` — **`name` param is gone**; SSO joiners skip PIN; PIN→SSO bridge at line 740 (`pinLoginV1`); PII-free response write at line 999 (`pin` only when present, never `name`); shared `computeResponseKey` at line 822 |
+| Quiz student-side join                                               | [hooks/useQuizSession.ts:1182](../hooks/useQuizSession.ts) (`joinQuizSession(code, pin?, classPeriod?)`)                                                                                                                                    | Code-based join; `lookupSession(code)` resolves session-by-code (line 1353)                                                                                                                                                                                                 |
+| Class-ID derivation                                                  | [utils/resolveAssignmentTargets.ts:101](../utils/resolveAssignmentTargets.ts) (`deriveTargetsFromRosterList`)                                                                                                                               | Current flatmap (line 111): `.flatMap((r) => [r.classlinkClassId, r.testClassId])` → deduped `classIds`. Phase 1C extends this                                                                                                                                              |
+| Existing SSO assignment href                                         | [hooks/useStudentAssignments.ts:184](../hooks/useStudentAssignments.ts)                                                                                                                                                                     | `/quiz?code=${encodeURIComponent(code)}` — Classroom adapter mirrors                                                                                                                                                                                                        |
+| Tested rules patterns                                                | [tests/rules/studentRoleClassGate.test.ts:496-537](../tests/rules/studentRoleClassGate.test.ts)                                                                                                                                             | Auth-fixture pattern; bare-anon-token edge case                                                                                                                                                                                                                             |
+| Existing CSP frame-ancestors                                         | [firebase.json:40-46](../firebase.json)                                                                                                                                                                                                     | `/activity/**` already lists `https://classroom.google.com`                                                                                                                                                                                                                 |
+| **Server-side OAuth refresh-token capture (Phase 0.5 EXTENDS this)** | [functions/src/googleOAuth.ts](../functions/src/googleOAuth.ts) (`exchangeGoogleAuthCode` / `refreshGoogleAccessToken` / `revokeGoogleRefreshToken`); client offline grant in [utils/googleOAuthRefresh.ts](../utils/googleOAuthRefresh.ts) | Refresh tokens already captured + **encrypted** at rest at `/users/{uid}/private/googleAuth`; client GIS code-grant already uses `access_type:'offline'` + `prompt:'consent'`. Phase 0.5 adds Classroom grade scopes to this — does NOT build new                           |
+| Token-at-rest lockdown                                               | [firestore.rules:559](../firestore.rules) (`/users/{userId}/private/{document=**}` → `if false`)                                                                                                                                            | Existing deny-all already covers the OAuth tokens — Phase 0.5-rules is redundant                                                                                                                                                                                            |
 
 ---
 
@@ -128,15 +139,15 @@ Status legend: ⬜ Not started · 🟡 In progress · ✅ Complete · ⚠️ Blo
 Phase 0A (gcloud, ~1 hr)  ──┐
 Phase 0B (manual Console, ~30 min) ──┘  (sequential within Phase 0)
    │
-   ├─ Phase 0.5 (parallel with 0; OAuth refresh tokens)
-   │   ├─ 0.5-cf, 0.5-rules ──┐  (parallel)
-   │   └─ 0.5-ui ──────────────┘  (after 0.5-cf merge)
+   ├─ Phase 0.5 (REDUCED — grade scopes only; refresh-token plumbing already exists)
+   │   └─ 0.5-cf (add Classroom scope + helper) ──> 0.5-ui (reuse existing connect flow)
+   │      (0.5-rules is N/A — /private/** already locked)
    │
    └─ Phase 1 (parallel with 0/0.5)
        ├─ 1A ──┐
        ├─ 1B ──┤  (parallel)
-       ├─ 1D ──┤  (parallel)
        └─ 1C ──┘  (after 1A merge)
+       (1D is DONE — verify-only, no agent needed)
 
 Phase 2 (after Phase 0B install completes)
    ├─ 2-shell ──┐
@@ -144,7 +155,7 @@ Phase 2 (after Phase 0B install completes)
    ├─ 2-quiz ───┤  (after 2-shell merge)
    └─ 2-va ─────┘  (parallel with 2-quiz)
 
-Phase 3 (after 1D + 2 merge)
+Phase 3 (after Phase 2 merge; 1D dependency already satisfied)
    ├─ 3-shell ──┐
    ├─ 3-quiz ───┤  (after 3-shell merge)
    └─ 3-va ─────┘  (parallel with 3-quiz)
@@ -157,7 +168,7 @@ Phase 4 (after Phase 0.5 + 3)
 Phase 5 — Polish (sequential, single agent)
 ```
 
-**Realistic timeline:** Phase 0 same day · Phases 0.5 + 1 in parallel ~2-3 days · Phase 2 ~3-5 days · Phase 3 ~2-3 days · Phase 4 ~2-3 days (gated on 0.5) · Phase 5 ~2-3 days. **Total: ~3 weeks** of code work, end-to-end testable from end of Phase 0.
+**Realistic timeline (revised after the 2026-05-28 audit):** Phase 0 same day · reduced Phase 0.5 + Phase 1 in parallel ~1-2 days (1D done, 0.5 plumbing done) · Phase 2 ~3-5 days (the real bulk) · Phase 3 ~1-2 days (adapters are thin; runners already SSO) · Phase 4 ~2-3 days (gated on 0.5) · Phase 5 ~2-3 days. **Total: ~2 weeks** of code work — shorter than the original 3-week estimate because the auth foundation already shipped.
 
 ---
 
@@ -243,45 +254,48 @@ In **Workspace Admin Console:**
 
 ---
 
-## Phase 0.5 — Server-side OAuth refresh-token capture (NEW)
+## Phase 0.5 — Classroom grade-write OAuth scopes (REDUCED — most plumbing already exists)
 
-> **Why a new phase:** The current OAuth flow ([context/AuthContext.tsx:190](../context/AuthContext.tsx)) only stores 1-hour access tokens in `localStorage` and never requests `access_type: 'offline'`. Without this phase, Phase 4 fails the moment a teacher's session expires (~1 hour). Decision (Paul, 2026-04-28): one-time consent step is acceptable friction.
+> **Audit correction (2026-05-28):** The original draft assumed the app "only stores 1-hour access tokens and never requests `access_type: 'offline'`." **That is no longer true.** The server-side refresh-token pipeline is already built:
+>
+> - [functions/src/googleOAuth.ts](../functions/src/googleOAuth.ts) — `exchangeGoogleAuthCode` exchanges an auth code → tokens and stores the **encrypted** refresh token at `/users/{uid}/private/googleAuth`; `refreshGoogleAccessToken` mints a fresh access token from it; `revokeGoogleRefreshToken` tears it down.
+> - [utils/googleOAuthRefresh.ts](../utils/googleOAuthRefresh.ts) — the client GIS code-grant already runs with `access_type: 'offline'` + `prompt: 'consent'`.
+> - [firestore.rules:559](../firestore.rules) — `/users/{userId}/private/{document=**}` is already `allow read, write: if false`, so the tokens are unreadable from the client.
+>
+> So Phase 0.5 is no longer "build a server-side OAuth code grant." It is "**add the Classroom grade-write scope to the existing flow and expose a Classroom-scoped access-token getter for Phase 4.**" Do NOT create `classroomGradebookOAuth.ts` and do NOT introduce a `/users/{uid}/google_oauth/` path — reuse `/private/googleAuth` (or a sibling `/private/` doc) and the existing helpers.
+>
+> Decision (Paul, 2026-04-28) still stands: a one-time consent step is acceptable friction.
 
-### Agent 0.5-cf — OAuth code-grant Cloud Function
+### Agent 0.5-cf — Add Classroom grade scope to the existing OAuth module
 
-- **Status:** ⬜ Not started
+- **Status:** ⬜ Not started (reduced)
 - **Model:** Opus 4.7 (long-lived credential storage; security-critical)
 - **Owner:** _unassigned_
-- **Dependencies:** Phase 0A complete (so we know the GCP project state)
-- **Outputs:** new module `functions/src/classroomGradebookOAuth.ts` exported from `functions/src/index.ts`; helper `getValidClassroomAccessToken(uid)` for Phase 4 reuse.
+- **Dependencies:** Phase 0A + 0B complete (so the verified grade-write scope set is known)
+- **Outputs:** extension of [functions/src/googleOAuth.ts](../functions/src/googleOAuth.ts); a `getValidClassroomAccessToken(uid)`-equivalent for Phase 4 reuse (may be a thin wrapper over the existing `refreshGoogleAccessToken` that asserts the Classroom scope is present).
 
 #### Steps
 
-- [ ] Create new file `functions/src/classroomGradebookOAuth.ts`.
-- [ ] Implement callable `connectClassroomGradebookV1`:
-  - [ ] Input: `{ authCode: string, redirectUri: string }`
-  - [ ] Validate `request.auth.uid` is the teacher; code grant returns claims matching teacher's email.
-  - [ ] Exchange `authCode` for `refresh_token` + `access_token` server-side (Google OAuth token endpoint).
-  - [ ] Persist `{ refreshToken, accessToken, accessTokenExpiresAt, scopes, connectedAt }` to `/users/{uid}/google_oauth/classroomGradebook`.
-  - [ ] Return `{ ok: true, scopes: string[] }` — **never return tokens to the client.**
-- [ ] Implement helper `getValidClassroomAccessToken(uid)`:
-  - [ ] Read stored refresh token; if `accessTokenExpiresAt` is past, refresh against Google; write the new access token back; return live access token.
-  - [ ] Structured error shape on missing/revoked refresh token (Phase 4 surfaces this to user).
-- [ ] Export both from `functions/src/index.ts`.
-- [ ] Unit tests in `functions/test/` (mirror existing patterns):
-  - [ ] Valid code → token persisted.
-  - [ ] Invalid code → rejected.
-  - [ ] `getValidClassroomAccessToken`: expired access token → refreshed.
-  - [ ] `getValidClassroomAccessToken`: missing refresh token → structured error.
+- [ ] **Read [functions/src/googleOAuth.ts](../functions/src/googleOAuth.ts) first.** Understand `exchangeGoogleAuthCode`, `refreshGoogleAccessToken`, `revokeGoogleRefreshToken`, the encryption helper, and the `/users/{uid}/private/googleAuth` doc shape. **You are extending these, not replacing them.**
+- [ ] Decide token-doc strategy and document it in the Progress Log:
+  - **Option A (preferred):** widen the existing `/private/googleAuth` grant to include the Classroom grade scope, store the granted scope list on the doc, and let Phase 4 reuse the same refresh token. Simplest; one consent for Drive + Classroom.
+  - **Option B:** a separate `/private/googleClassroom` doc minted by a parallel exchange, if mixing Drive + Classroom scopes on one grant proves undesirable. Justify in the log if you pick this.
+- [ ] Ensure the access-token getter for Phase 4 verifies the stored scopes include the verified Classroom grade-write scope; if absent, return a structured `needs-classroom-consent` error (so Phase 4 / the UI can prompt a re-consent).
+- [ ] Unit tests in `functions/test/` (mirror existing `googleOAuth` test patterns):
+  - [ ] Code grant including Classroom scope → scope persisted on the doc.
+  - [ ] Access-token getter: expired access token → refreshed via existing path.
+  - [ ] Access-token getter: stored grant lacks Classroom scope → `needs-classroom-consent`.
+  - [ ] Access-token getter: missing/revoked refresh token → structured error.
 - [ ] **Do not auto-deploy.** Stop and request human deploy gate.
 
 #### Completion criteria
 
-- [ ] Unit tests pass.
+- [ ] Unit tests pass; existing `googleOAuth` tests still pass.
+- [ ] No new `/users/{uid}/google_oauth/` path introduced; tokens stay under `/private/`.
 - [ ] Code reviewed by human before deploy.
 - [ ] Non-disruption smoke ([§ Cross-phase verification gates](#cross-phase-verification-gates)).
 - [ ] Update Phase Status Dashboard → ✅.
-- [ ] Append Progress Log entry.
+- [ ] Append Progress Log entry (note the Option A/B decision).
 
 #### Notes / handoff
 
@@ -289,55 +303,32 @@ _(append findings here)_
 
 ---
 
-### Agent 0.5-rules — Lock down `/users/{uid}/google_oauth/`
+### Agent 0.5-rules — ⏭ N/A (already covered)
 
-- **Status:** ⬜ Not started
-- **Model:** Opus 4.7 (Firestore rules + tokens at rest = security blast radius)
-- **Owner:** _unassigned_
-- **Dependencies:** can run in parallel with 0.5-cf (no schema dependency)
-
-#### Steps
-
-- [ ] Edit [firestore.rules](../firestore.rules):
-  ```
-  match /users/{userId}/google_oauth/{doc} {
-    allow read, write: if false;  // Functions admin SDK only
-  }
-  ```
-- [ ] Add tests in `tests/rules/` confirming no client read or write succeeds (authenticated owner, anonymous, admin — all denied).
-- [ ] Run `pnpm test tests/rules/` and confirm full suite still passes (no previously-passing test breaks).
-
-#### Completion criteria
-
-- [ ] New tests pass; full rules suite still green.
-- [ ] `git diff firestore.rules` shows only the new `match` block — no other changes.
-- [ ] Non-disruption smoke.
-- [ ] Update Dashboard + Progress Log.
+- **Status:** ⏭ Skipped — redundant.
+- **Reason:** [firestore.rules:559](../firestore.rules) already denies all client access to `/users/{userId}/private/{document=**}`, which is where the OAuth tokens live. As long as Phase 0.5-cf keeps tokens under `/private/` (per its instructions), no rules change is needed. If — and only if — 0.5-cf is forced to use a new top-level path, add a matching `allow read, write: if false` block and rules tests then; otherwise leave `firestore.rules` untouched and confirm the existing `/private/**` test coverage still passes.
 
 ---
 
-### Agent 0.5-ui — "Connect to Classroom gradebook" button
+### Agent 0.5-ui — "Connect to Classroom gradebook" button (reduced)
 
-- **Status:** ⬜ Not started
+- **Status:** ⬜ Not started (reduced)
 - **Model:** Sonnet 4.6 (wiring work)
 - **Owner:** _unassigned_
-- **Dependencies:** 0.5-cf merged (callable must exist)
+- **Dependencies:** 0.5-cf merged
 
 #### Steps
 
-- [ ] Add a "Connect to Classroom gradebook" button in admin/teacher settings (suggest: `components/admin/AdminSettings.tsx` or a new sub-tab).
-- [ ] Trigger Google OAuth code-grant flow with `access_type=offline&prompt=consent` and the verified Classroom scopes (from Phase 0B).
-- [ ] On callback, POST `authCode` to `connectClassroomGradebookV1`.
-- [ ] Display connection status: connected/not connected, scopes granted, last connected timestamp.
-- [ ] **Critical scoping:** the new flow runs in **parallel to** the existing GIS + Firebase popup auth in `AuthContext.tsx`. It is _not_ a replacement. Verify by:
-  - [ ] Sign in as an existing teacher who hasn't clicked the button. Behavior identical to today.
-  - [ ] Click the button. Consent prompt appears. Approve. Doc exists in Firestore. Doc unreadable from client SDK (verify via dev-tools eval).
+- [ ] **Find the existing "connect Google / Drive" UI** that already drives `utils/googleOAuthRefresh.ts` and reuse its pattern — do not hand-roll a second GIS flow. The only delta is adding the verified Classroom grade-write scope to the requested scope set and surfacing Classroom connection status.
+- [ ] Surface connection status: connected/not connected, whether the Classroom grade scope is granted, last connected timestamp.
+- [ ] **Critical scoping:** this remains a parallel path to the existing Firebase popup sign-in. Verify:
+  - [ ] An existing teacher who never clicks the button has identical behavior to today.
+  - [ ] Clicking the button shows the consent prompt; on approve, the stored grant gains the Classroom scope; the token doc remains unreadable from the client SDK (verify via dev-tools eval).
 
 #### Completion criteria
 
 - [ ] Existing teacher sign-in unchanged for users who don't click the button.
-- [ ] Button consent flow completes successfully.
-- [ ] Refresh token persisted; client cannot read it.
+- [ ] Consent flow completes; Classroom scope persisted; client cannot read the token doc.
 - [ ] Non-disruption smoke.
 - [ ] Update Dashboard + Progress Log.
 
@@ -358,7 +349,7 @@ _(append findings here)_
   - [ ] On `ClassRosterMeta`: add `classroomCourseId?: string` with comment explaining the `classroom:{courseId}` synthesis pattern.
   - [ ] On `QuizAssignment`: add `classroomCourseId?: string` and `classroomAttachmentId?: string`.
   - [ ] On `VideoActivityAssignment`: add the same two fields.
-  - [ ] **Verify** `ClassRosterMeta.origin` already includes `'classroom'` ([types.ts:117](../types.ts)) — no enum change needed. If you find yourself "adding `'classroom'`," stop — it's already there.
+  - [ ] **Add `'classroom'` to `ClassRosterMeta.origin`.** As of 2026-05-28 the union is `'classlink' | 'local'` ([types.ts:135](../types.ts)) — it does **not** include `'classroom'` (the original draft wrongly said it did). Extend it to `'classlink' | 'local' | 'classroom'`. This is an additive enum widening (existing values unchanged), consistent with the "additive only" rule.
 - [ ] **`firestore.rules`:**
   - [ ] Read [firestore.rules:45](../firestore.rules) and [firestore.rules:76](../firestore.rules); confirm `passesStudentClassGate*` does format-agnostic matching. **Do not rewrite the helpers.**
   - [ ] If you find yourself rewriting any helper, stop and re-read this section.
@@ -388,7 +379,7 @@ _(append findings here)_
 
 - [ ] `pnpm run type-check` clean.
 - [ ] `pnpm test tests/rules/` passes including new cases AND every previously-passing test still passes.
-- [ ] `git diff types.ts` shows only `?:` field _additions_ — no renames, no required-field additions, no enum changes.
+- [ ] `git diff types.ts` shows only additive changes — `?:` field additions plus the `origin` enum **widening** (adding `'classroom'`; no existing value renamed or removed), no required-field additions.
 - [ ] Non-disruption smoke.
 - [ ] Update Dashboard + Progress Log.
 
@@ -403,7 +394,7 @@ _(append findings here)_
 
 #### Steps
 
-- [ ] Create new module `functions/src/classroomAddonAuth.ts`. Model on `studentLoginV1` at [functions/src/index.ts:2761](../functions/src/index.ts).
+- [ ] Create new module `functions/src/classroomAddonAuth.ts`. Model the custom-token mint on **`pinLoginV1`** at [functions/src/index.ts:4153](../functions/src/index.ts) (the newer, closer sibling — it already validates a `kind`, looks something up, and mints the `studentRole` claim shape) and cross-reference `studentLoginV1` at [functions/src/index.ts:3126](../functions/src/index.ts) for the claim/pseudonym details. The structural difference is only the identity proof: swap the PIN/`pin_index` lookup for **JWKS launch-token verification**.
 - [ ] **Input:** Classroom Add-on launch token (`login_hint`, `addOnToken` query params). `[VERIFY]` exact param shape against current docs.
 - [ ] **JWT validation against Google's published JWKS for Classroom add-ons** — **highest-stakes step.**
   - [ ] `[VERIFY]` the JWKS URL.
@@ -426,7 +417,7 @@ _(append findings here)_
   - `classIds` array of non-empty strings
 
 - [ ] **Operational hygiene:**
-  - [ ] Rate-limit per-IP (reuse `studentLoginV1`'s pattern if any).
+  - [ ] Rate-limit per-IP. **Note:** neither `studentLoginV1` nor `pinLoginV1` currently has an explicit rate-limit pattern to copy (verified 2026-05-28) — implement this fresh (or consciously defer with a logged justification), don't go hunting for a pattern that isn't there.
   - [ ] Never log raw JWT, studentInfo, or courseId at info level. Debug-only, redacted.
 - [ ] Export from `functions/src/index.ts`.
 - [ ] **Adversarial unit tests (required — all must pass):**
@@ -455,7 +446,7 @@ _(append findings here)_
 
 #### Steps
 
-- [ ] Edit [utils/resolveAssignmentTargets.ts:77](../utils/resolveAssignmentTargets.ts) — extend the flatmap:
+- [ ] Edit `deriveTargetsFromRosterList` in [utils/resolveAssignmentTargets.ts:101](../utils/resolveAssignmentTargets.ts) — the current flatmap is at line 111 (`.flatMap((r) => [r.classlinkClassId, r.testClassId])`); extend it:
   ```ts
   .flatMap((r) => [r.classlinkClassId, r.testClassId, r.classroomCourseId])
   ```
@@ -478,49 +469,34 @@ UI for teachers to _create_ a Classroom-sourced roster — that's Phase 2.
 
 ---
 
-### Agent 1D — VideoActivity SSO branch (NEW)
+### Agent 1D — VideoActivity SSO branch — ✅ ALREADY BUILT (verify-only)
 
-- **Status:** ⬜ Not started
-- **Model:** Opus 4.7 (PII-aware response-doc write — getting the conditional wrong leaks names)
-- **Owner:** _unassigned_
-- **Dependencies:** none (parallel with 1A/1B)
+- **Status:** ✅ Complete (shipped in unrelated student-auth work before this plan kicked off)
+- **Model:** _n/a — no implementation agent needed_
+- **Owner:** _n/a_
+- **Dependencies:** none
 
-> **Authorization:** This is the **only** widget-runner change authorized by this plan. Quiz, MiniApp, GuidedLearning runners stay untouched.
+> **Audit correction (2026-05-28):** The original draft described this as the "only authorized runner change" and "NEW." It is **already implemented**, and more completely than this plan envisioned. Re-implementing it would risk regressing the PIN→SSO bridge. The job here is to **verify**, not to build.
 
-#### Steps
+#### What already exists (confirmed 2026-05-28)
 
-- [ ] **Lock-in regression test FIRST** (before any code changes):
-  - [ ] In `tests/hooks/useVideoActivitySession.test.ts`, write a test that exercises the existing PIN flow and asserts the response doc contains `pin` and `name` fields with their current values.
-  - [ ] Run it; it must pass against the unmodified code. This locks in the existing shape so regressions surface immediately.
-- [ ] **Edit [hooks/useVideoActivitySession.ts](../hooks/useVideoActivitySession.ts):**
-  - [ ] Add `isStudentRole` detection mirroring [hooks/useQuizSession.ts:72-77](../hooks/useQuizSession.ts):
-    ```ts
-    const isStudentRole =
-      !auth.currentUser?.isAnonymous &&
-      (await auth.currentUser?.getIdTokenResult()).claims?.studentRole === true;
-    ```
-  - [ ] Branch [line 496](../hooks/useVideoActivitySession.ts) response-doc write:
-    - **For SSO callers (`isStudentRole === true`):** key the response doc by `auth.currentUser.uid` (pseudonym from `classroomAddonLoginV1`); write the response doc **without** `pin` or `name` fields.
-    - **For existing PIN callers:** behavior unchanged. `pin` and `name` still written exactly as today.
-  - [ ] **Branching must be on `studentRole === true`, never on absence of PIN.**
-- [ ] **Edit [components/videoActivity/VideoActivityStudentApp.tsx](../components/videoActivity/VideoActivityStudentApp.tsx):**
-  - [ ] Use [components/quiz/QuizStudentApp.tsx:56-77](../components/quiz/QuizStudentApp.tsx) as the template.
-  - [ ] If `studentRole === true`: skip PIN/name entry, auto-join.
-  - [ ] PIN-joined fallback unchanged.
-- [ ] **Add SSO-flow test** to `tests/hooks/useVideoActivitySession.test.ts`:
-  - [ ] `studentRole: true` joiner with no PIN/name; assert response doc exists, keyed by uid, with no `pin`/`name` fields.
-- [ ] **Add rules test** in [tests/rules/studentRoleClassGate.test.ts](../tests/rules/studentRoleClassGate.test.ts):
-  - [ ] Extend `video_activity_sessions` cases to mirror existing `quiz_sessions` SSO pattern with `classroom:*` class ids.
+- **`joinSession` SSO branch** — [hooks/useVideoActivitySession.ts:666](../hooks/useVideoActivitySession.ts). Signature is `joinSession(targetSessionId, studentPin?, classPeriod?)`. **There is no `name` param** (the draft's `(sessionId, pin, name, classPeriod)` is obsolete). Anonymous joiners must supply a PIN; `studentRole` custom-token users skip the PIN gate entirely.
+- **PII-free response write** — [line 999](../hooks/useVideoActivitySession.ts). The response doc is keyed by `studentUid: currentUser.uid` and spreads `pin` **only when present** (`...(studentPin ? { pin: studentPin } : {})`). It writes **no `name` field at all** — the design already matches the architectural PII gate.
+- **PIN→SSO identity bridge** — [line 740](../hooks/useVideoActivitySession.ts). On a rostered session, an anonymous PIN joiner is upgraded via the `pinLoginV1` callable + `signInWithCustomToken` so their per-session key converges with the SSO key; best-effort, falls through to the legacy anonymous PIN flow on any miss.
+- **Shared response-key helper** — `computeResponseKey` at [line 822](../hooks/useVideoActivitySession.ts), shared with the Quiz student app.
+- **Student-app UI** — [components/videoActivity/VideoActivityStudentApp.tsx:82](../components/videoActivity/VideoActivityStudentApp.tsx) (`isStudentRole` state), auto-join effect at line 295, skip-PIN render at line 656.
+
+#### Verification steps (do these instead of coding)
+
+- [ ] Run the existing `tests/hooks/useVideoActivitySession.test.ts` suite; confirm it already covers both the PIN flow and the `studentRole` SSO flow (PII-free response doc keyed by uid). If a `classroom:*` class-id case is missing, that gap is covered by **Phase 1A's rules tests**, not by re-touching the runner.
+- [ ] Confirm the response doc shape at line 999 still omits `name`. If so, no PII work remains.
+- [ ] **Do NOT modify** `useVideoActivitySession.ts` or `VideoActivityStudentApp.tsx` for SSO. Phase 3-va is a thin adapter that drives this existing branch.
 
 #### Completion criteria
 
-- [ ] Lock-in regression test passes (PIN flow shape preserved).
-- [ ] New SSO test passes.
-- [ ] Rules test passes.
-- [ ] **Manual smoke (mandatory):** PIN-joined VA still works end-to-end.
-- [ ] **Manual smoke:** SSO branch exercised by minting a fake `studentRole` token via `firebase-admin` in a test script (no Classroom dependency required).
-- [ ] Non-disruption smoke for Quiz flows.
-- [ ] Update Dashboard + Progress Log.
+- [ ] Existing VA tests pass (PIN + SSO).
+- [ ] Response write confirmed PII-free (no `name`).
+- [ ] Dashboard row left as ✅; no code diff produced by this "agent."
 
 ---
 
@@ -621,12 +597,12 @@ UI for teachers to _create_ a Classroom-sourced roster — that's Phase 2.
 #### Steps
 
 - [ ] Create `components/classroomAddon/QuizSelectionPanel.tsx` implementing `AddonSelectionPanelProps`.
-- [ ] Use [hooks/useQuiz.ts:59](../hooks/useQuiz.ts) (`useQuiz`) filtered by `context.teacherUid`.
+- [ ] Use [hooks/useQuiz.ts:132](../hooks/useQuiz.ts) (`useQuiz`) filtered by `context.teacherUid`.
 - [ ] Render `LibraryShell` + `LibraryGrid` (reference [components/widgets/QuizWidget/components/QuizManager.tsx](../components/widgets/QuizWidget/components/QuizManager.tsx)). **Reuse existing primitives — do NOT build custom UI.**
 - [ ] On selection, show `AssignModal` for session settings. **Skip `AssignClassPicker`** entirely.
 - [ ] On confirm:
-  - [ ] Call `createAssignment` from `useQuizAssignments` with `classIds: [\`classroom:${context.courseId}\`]`and empty`rosterIds`.
-  - [ ] **Note:** a 6-character join code WILL be allocated ([line 210](../hooks/useQuizAssignments.ts)). Accept as harmless. Do not branch the hook.
+  - [ ] Call `createAssignment(quiz, settings, { classIds: ['classroom:' + context.courseId], rosterIds: [] })` from `useQuizAssignments`. **The third argument is an options object** (signature changed since the draft) — passing `classIds`/`rosterIds` positionally will not compile.
+  - [ ] **Note:** a 6-character join code WILL be allocated ([useQuizAssignments.ts:681](../hooks/useQuizAssignments.ts)). Accept as harmless. Do not branch the hook.
   - [ ] Call `createClassroomAttachment` with `widgetType: 'quiz'` and the new assignment id.
   - [ ] On success, `props.onAttachmentCreated(attachmentId)`.
 
@@ -657,7 +633,7 @@ Identical structure to 2-quiz, with these differences:
 
 - [ ] New file: `components/classroomAddon/VideoActivitySelectionPanel.tsx`.
 - [ ] Use `useVideoActivity()` (singular — _not_ `useVideoActivities`).
-- [ ] Use `useVideoActivityAssignments`'s `createAssignment` (no join code).
+- [ ] Use `useVideoActivityAssignments`'s `createAssignment` (no join code). **Different calling convention than Quiz:** it stays **positional** — `createAssignment(activity, settings, 'active', ['classroom:' + context.courseId], [], [])` (`initialStatus, classIds, periodNames, rosterIds`). Verify the current arg order against [useVideoActivityAssignments.ts:291](../hooks/useVideoActivityAssignments.ts) before wiring.
 - [ ] Pass `widgetType: 'video-activity'` to `createClassroomAttachment`.
 
 #### Completion criteria
@@ -673,7 +649,7 @@ Same as 2-quiz.
 - **Status:** ⬜ Not started
 - **Model:** Opus 4.7 (custom-token exchange, security-critical)
 - **Owner:** _unassigned_
-- **Dependencies:** Phase 2 merged, Phase 1D merged
+- **Dependencies:** Phase 2 merged (Phase 1D is already shipped — dependency satisfied)
 
 #### Steps
 
@@ -685,8 +661,8 @@ Same as 2-quiz.
 - [ ] Read `widget` query param → which adapter to render.
 - [ ] Look up SpartBoard assignment by `assignmentId`; resolve matching session.
 - [ ] Capture attachment-scoped student id and `submissionId` from launch context (via `getAddOnContext` — `[VERIFY]` exact response field names). These flow into the response doc when written so Phase 4 has its grade-passback keys.
-- [ ] Delegate to existing widget student runner (Quiz: code-based via the assignment's join code; VA: sessionId-based via 1D's SSO branch).
-- [ ] **Critical:** Quiz student runner needs no changes (PR #1431). VA student runner has 1D's SSO branch. Do NOT modify either runner here.
+- [ ] Delegate to existing widget student runner (Quiz: code-based via the assignment's join code; VA: sessionId-based via the already-shipped VA SSO branch).
+- [ ] **Critical:** both runners already have a `studentRole` SSO branch ([QuizStudentApp.tsx:133-138](../components/quiz/QuizStudentApp.tsx); [useVideoActivitySession.ts:666](../hooks/useVideoActivitySession.ts)). Do NOT modify either runner here.
 
 #### Completion criteria
 
@@ -712,7 +688,7 @@ Same as 2-quiz.
 - [ ] Create `components/classroomAddon/QuizStudentAdapter.tsx`.
 - [ ] Resolve `assignmentId → assignment.code` (the unconditionally-allocated join code from Phase 2-quiz).
 - [ ] Redirect/render at `/quiz?code=...` with the existing `studentRole` Firebase auth in place.
-- [ ] Reference: [hooks/useStudentAssignments.ts:130](../hooks/useStudentAssignments.ts) `openHref` pattern.
+- [ ] Reference: [hooks/useStudentAssignments.ts:184](../hooks/useStudentAssignments.ts) `openHref` pattern.
 
 #### Completion criteria
 
@@ -728,13 +704,13 @@ Same as 2-quiz.
 - **Status:** ⬜ Not started
 - **Model:** Sonnet 4.6
 - **Owner:** _unassigned_
-- **Dependencies:** 3-shell merged, 1D merged
+- **Dependencies:** 3-shell merged (Phase 1D already shipped)
 
 #### Steps
 
 - [ ] Create `components/classroomAddon/VideoActivityStudentAdapter.tsx`.
 - [ ] Resolve `assignmentId → sessionId`.
-- [ ] Render at `/activity/:sessionId` with `studentRole` Firebase auth in place. The 1D-added SSO branch in `VideoActivityStudentApp.tsx` skips PIN/name entry.
+- [ ] Render at `/activity/:sessionId` with `studentRole` Firebase auth in place. The already-shipped SSO branch in `VideoActivityStudentApp.tsx` (skip-PIN auto-join at line 295) handles the rest.
 
 #### Completion criteria
 
@@ -747,7 +723,7 @@ Same as 2-quiz.
 
 ## Phase 4 — Grade passback (depends on Phase 0.5 + Phase 3)
 
-> **Hard dependency:** Phase 0.5 must be complete. Without stored refresh tokens, this phase cannot work.
+> **Hard dependency:** Phase 0.5 must be complete — specifically, the existing OAuth grant must carry the Classroom grade-write scope. The refresh-token storage/refresh plumbing ([functions/src/googleOAuth.ts](../functions/src/googleOAuth.ts)) already exists; this phase only needs a valid Classroom-scoped access token from it.
 
 ### Agent 4-cf — `pushClassroomGrade` Cloud Function
 
@@ -770,7 +746,7 @@ Same as 2-quiz.
   }
   ```
 - [ ] Auth: caller is the teacher who owns the assignment (verify against assignment doc).
-- [ ] Use `getValidClassroomAccessToken(uid)` from Phase 0.5.
+- [ ] Get a live Classroom-scoped access token via the Phase 0.5 helper (the thin wrapper over the existing `refreshGoogleAccessToken` in [functions/src/googleOAuth.ts](../functions/src/googleOAuth.ts)). On a `needs-classroom-consent` error, surface "reconnect Classroom gradebook" to the teacher.
 - [ ] Call: `PATCH /v1/courses/{courseId}/courseWork/{courseWorkId}/addOnAttachments/{attachmentId}/studentSubmissions/{submissionId}` with `pointsEarned` in body. `[VERIFY]` exact endpoint.
 - [ ] Return `{ ok: true, classroomSubmissionId }` or structured error.
 - [ ] Unit tests:
@@ -885,7 +861,7 @@ Before merging any phase's PR, the implementing agent confirms:
 End-to-end test, in order:
 
 1. [ ] Phase 0B install propagated: SpartBoard appears in test teacher's Classroom Add menu.
-2. [ ] Phase 0.5: test teacher clicks "Connect to Classroom gradebook," consent flow completes, refresh token persisted in `/users/{uid}/google_oauth/classroomGradebook`, doc unreadable from client.
+2. [ ] Phase 0.5: test teacher clicks "Connect to Classroom gradebook," consent flow completes, the stored OAuth grant under `/users/{uid}/private/` now includes the Classroom grade-write scope, doc unreadable from client.
 3. [ ] Phase 2: teacher creates a Quiz attachment from inside Classroom; assignment doc has `classroomCourseId` and `classroomAttachmentId` set.
 4. [ ] Phase 3: test student (different account) clicks attachment, lands in `/classroom-addon/student/:id`, signs in with custom token, completes the quiz. Response doc keyed by pseudonym UID, no `name`/`email`/`pin` fields, carries `classroomSubmissionId`.
 5. [ ] Phase 4: grade appears in Classroom gradebook within 30 seconds.
@@ -898,10 +874,12 @@ End-to-end test, in order:
 ## 🚫 What NOT to do
 
 - ❌ Create a new GCP project. Extend the existing Firebase-linked one.
+- ❌ **Re-implement the VideoActivity SSO branch.** It already ships (`useVideoActivitySession.ts:666` + `VideoActivityStudentApp.tsx`). Phase 1D is verify-only.
+- ❌ **Build a new server-side OAuth code-grant module or a `/users/{uid}/google_oauth/` path.** Refresh-token capture already exists in `functions/src/googleOAuth.ts`, stored encrypted under `/users/{uid}/private/`. Phase 0.5 _extends_ it with grade scopes.
 - ❌ Add Google `userId` to any type or Firestore field.
 - ❌ Store student names / emails / PINs in Firestore. Drive only, or not at all.
-- ❌ Modify Quiz, MiniApp, or GuidedLearning student runners. The single authorized runner change is the VA SSO branch (Agent 1D).
-- ❌ Build a parallel student auth system. `classroomAddonLoginV1` mirrors `studentLoginV1`'s claim shape exactly.
+- ❌ Modify Quiz, MiniApp, or GuidedLearning student runners. (The VA SSO branch is already done — do not re-touch it either.)
+- ❌ Build a parallel student auth system. `classroomAddonLoginV1` mirrors the existing `pinLoginV1` / `studentLoginV1` claim shape exactly.
 - ❌ Skip JWKS signature verification on launch tokens. Highest-severity bug class.
 - ❌ Pull Classroom rosters via the Classroom REST API. Not needed.
 - ❌ Auto-deploy Cloud Functions. Every CF in this plan requires a human deploy gate.
@@ -925,18 +903,23 @@ firebase projects:list
 gcloud services list --enabled | grep -E '(classroom|marketplace|appsmarket)'
 cat firebase.json | grep -A 5 "frame-ancestors"
 
-# Inventory existing custom-token / auth references
+# Inventory existing custom-token / auth minters (model classroomAddonLoginV1 on these)
 ls functions/src/
-grep -l "studentLoginV1\|customToken" functions/src/
+grep -rn "studentLoginV1\|pinLoginV1\|createCustomToken" functions/src/
 
-# Confirm OAuth flow currently has no offline-access (Phase 0.5 changes this)
-grep -r "access_type\|prompt:\s*'consent'" config/ context/
+# Confirm offline OAuth + refresh-token storage ALREADY EXIST (Phase 0.5 extends, not builds)
+grep -rn "access_type\|prompt: 'consent'" utils/googleOAuthRefresh.ts
+grep -n "exchangeGoogleAuthCode\|refreshGoogleAccessToken\|private/googleAuth" functions/src/googleOAuth.ts
+
+# Confirm the VA SSO branch is ALREADY shipped (Phase 1D = verify-only)
+grep -n "isStudentRole\|pinLoginV1\|computeResponseKey" hooks/useVideoActivitySession.ts
+grep -n "studentRole" components/videoActivity/VideoActivityStudentApp.tsx
 
 # Verify hooks naming (singular, not plural)
 ls hooks/useVideoActiv*.ts
 
-# Read the Quiz SSO template you'll mirror for VA in Agent 1D
-sed -n '50,100p' components/quiz/QuizStudentApp.tsx
+# Read the Quiz SSO branch (reference; do NOT modify either runner)
+sed -n '115,170p' components/quiz/QuizStudentApp.tsx
 ```
 
 ---
@@ -990,6 +973,15 @@ sed -n '50,100p' components/quiz/QuizStudentApp.tsx
 ## Progress Log
 
 > Append-only. Newest entries first. Each entry: `### YYYY-MM-DD HH:MM — <agent name or "orchestrator"> — <one-line summary>` followed by 2-5 bullet points of detail.
+
+### 2026-05-28 — audit agent — Re-scoped to current codebase (no implementation work)
+
+- Verified every file:line reference against current `HEAD`. `functions/src/index.ts` had drifted by ~365–450 lines (`studentLoginV1` 2761 → 3126, token mint 2870 → 3322, HMAC pseudonym 2687 → `computeStudentUid` 3052); hooks and `QuizStudentApp.tsx` also moved. All refs in the reference table + phase steps updated.
+- **Two phases are effectively done:** Phase 1D (VA SSO branch) ships in `useVideoActivitySession.ts:666` + `VideoActivityStudentApp.tsx`, including a `pinLoginV1` PIN→SSO bridge and shared `computeResponseKey` — re-scoped to verify-only. Phase 0.5 (server-side OAuth refresh tokens) ships in `functions/src/googleOAuth.ts` (encrypted, stored under `/private/`, locked by rules:559) — re-scoped to "add Classroom grade scope to the existing module"; 0.5-rules marked N/A.
+- **Corrected three claims that would have misled an agent:** (1) `ClassRosterMeta.origin` is `'classlink' | 'local'` — it does NOT include `'classroom'` (must be added in 1A); (2) `studentLoginV1` has no rate-limit pattern to reuse (1B implements fresh); (3) `useQuizAssignments.createAssignment` now takes an options **object** (Quiz) while VA stays positional — Phase 2 call sites rewritten.
+- New reference rows added: `pinLoginV1` (closest model for 1B), the existing `googleOAuth.ts` refresh pipeline, the token-at-rest lockdown, and the shipped VA SSO branch.
+- Revised timeline ~2 weeks (was ~3) since the auth foundation already exists. Confirmed the Classroom-specific surface is still un-started (no `/classroom-addon` route, no `components/classroomAddon/`, no classroom CFs).
+- Next agent: Phase 0A (Sonnet 4.6) is still the kickoff — unchanged.
 
 ### 2026-04-28 — review agent — Initial plan drafted, no implementation work started
 
