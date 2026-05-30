@@ -1,6 +1,21 @@
 {
   "entries": [
     {
+      "version": "2026.05.30",
+      "date": "2026-05-30",
+      "title": "Music and SMART Notebook fixes",
+      "details": [
+        {
+          "type": "fix",
+          "text": "Music widget — playing music from your connected Spotify account now starts reliably. Previously, tapping a song right after the widget connected could do nothing at all, leaving you to tap again with no idea why the first try was ignored. Taps you make while the widget is still connecting are now remembered and play automatically the moment it's ready, and repeat and shuffle work as expected once playback begins. (Requires a Spotify Premium account.)"
+        },
+        {
+          "type": "fix",
+          "text": "SMART Notebook — stickers and images you place on a page now stay with that page when you reorder or delete pages. Previously, moving pages around left placed items stranded on the wrong page, and deleting a page could leave items pointing at the wrong page or silently vanish. Deleting a page that has placed items now also tells you how many were removed, so nothing disappears without notice."
+        }
+      ]
+    },
+    {
       "version": "2026.05.29.2",
       "date": "2026-05-29",
       "title": "Google Classroom integration",
