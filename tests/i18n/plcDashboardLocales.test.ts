@@ -70,6 +70,8 @@ const REQUIRED_QUIZ_LIBRARY_KEYS = [
   'inLibrary',
   'alreadySynced',
   'unshareAction',
+  'unshareYours',
+  'unshareTeammate',
   'unshareTitle',
   'unshareConfirm',
   'unshared',
@@ -79,9 +81,13 @@ const REQUIRED_QUIZ_LIBRARY_KEYS = [
   'importFailed',
   'editAction',
   'editTooltip',
+  'editTooltipAutoImport',
+  'editAutoImported',
   'editSaved',
+  'editConflict',
   'editFailed',
   'driveRequired',
+  'driveRequiredForEdit',
   'driveDisconnected',
 ] as const;
 
