@@ -47,12 +47,16 @@ export const PersonalSpotifyBrowser: React.FC<Props> = ({ widget }) => {
   // which reads to the teacher as "nothing happened — let me click again."
   const pendingPickRef = useRef<SpotifyPlayablePick | null>(null);
   // Mirror playback.deviceId into a ref so async paths (handlePlay's
-  // post-await check, the flush effect's post-await re-check) always see
-  // the current value rather than the closure-captured stale one. Synced
-  // via useLayoutEffect to match the codebase pattern (and satisfy the
-  // 'no ref access in render' lint rule); useLayoutEffect commits before
-  // any callback that the next render queues, so the ref is fresh by the
-  // time any user-triggered handler runs.
+  // post-await check, the flush effect's post-await re-check) always read the
+  // current value rather than a closure-captured stale one. Synced via an
+  // effect, NOT a render-body `ref.current = ...` assignment: the active
+  // react-hooks/refs rule (React Compiler) reports "Cannot update ref during
+  // render" for ref writes in a fully-analysed component like this one, so the
+  // render-body form fails `lint --max-warnings 0`. (CLAUDE.md's "assign refs
+  // in the render body" guidance only holds where the compiler bails on the
+  // component and the rule never fires.) useLayoutEffect commits before any
+  // callback the next render queues, so the ref is fresh by the time a
+  // user-triggered handler runs.
   const latestDeviceIdRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     latestDeviceIdRef.current = playback.deviceId;
