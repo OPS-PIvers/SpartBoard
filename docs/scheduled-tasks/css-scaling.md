@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-05-30_
-_Last action: 2026-05-23_
+_Last action: 2026-05-30_
 
 ---
 
@@ -55,13 +55,6 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
-
-### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
-
-- **Detected:** 2026-05-29
-- **File:** components/widgets/CarRiderPro/Widget.tsx:62, components/widgets/First5/Widget.tsx:56
-- **Detail:** Both widgets render an absolute-positioned external-link overlay button with the className `"absolute top-2 right-2 z-10 bg-white/80 ... rounded-lg p-1.5 ..."`. Both have `skipScaling: true`. The `top-2`, `right-2`, and `p-1.5` classes produce fixed-pixel positioning (8 px, 8 px, 6 px) that does not scale with the container, causing the button to appear disproportionately small at large widget sizes and potentially clipping at small sizes. This is an identical copy-pasted snippet in both files.
-- **Fix:** Replace the three fixed-pixel Tailwind utilities with inline `cqmin` equivalents: `top-2 right-2` → `style={{ top: 'min(8px, 2cqmin)', right: 'min(8px, 2cqmin)' }}`, `p-1.5` → `style={{ padding: 'min(6px, 1.5cqmin)' }}`. Apply the same fix to both files. The visual/color Tailwind classes (`bg-white/80`, `backdrop-blur-sm`, `hover:bg-white`, etc.) do not carry pixel sizes and can remain on `className`.
 
 ### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
 
@@ -125,6 +118,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
+
+- **Detected:** 2026-05-29
+- **Completed:** 2026-05-30
+- **File:** components/widgets/CarRiderPro/Widget.tsx, components/widgets/First5/Widget.tsx
+- **Detail:** Both widgets render an identical absolute-positioned external-link overlay `<a>` button. Both have `skipScaling: true`, so the `top-2 right-2 ... p-1.5` Tailwind utilities on the anchor produced fixed-pixel positioning/padding (8 px / 8 px / 6 px) that did not scale with the container — the button appeared disproportionately small at large widget sizes and risked crowding at small sizes. (The inner `ExternalLink` icon had already been converted to inline `cqmin` in a prior pass; only the anchor's positioning/padding remained hardcoded.)
+- **Resolution:** Replaced the hardcoded utilities on the anchor in both files with inline `cqmin` styles: `top-2 right-2` → `style={{ top: 'min(8px, 2cqmin)', right: 'min(8px, 2cqmin)' }}`, `p-1.5` → `padding: 'min(6px, 1.5cqmin)'`. Visual/color and structural classes (`absolute`, `z-10`, `bg-white/80`, `backdrop-blur-sm`, `hover:bg-white`, `text-slate-500`, `hover:text-blue-500`, `shadow-sm`, `border`, `border-slate-200/50`, `rounded-lg`, `transition-colors`) remain on `className`. `pnpm type-check`, `npx eslint ... --max-warnings 0`, and `npx prettier --check` on both files all clean.
 
 ### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
 
