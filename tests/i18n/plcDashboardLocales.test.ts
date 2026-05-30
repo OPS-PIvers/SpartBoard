@@ -210,18 +210,18 @@ describe.each([
   });
 
   it(`${code}: has all required top-level sections`, () => {
-    const plc = (locale as Record<string, unknown>)
-      .plcDashboard as Record<string, unknown> | undefined;
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
     for (const key of REQUIRED_TOP_LEVEL_SECTIONS) {
-      expect(plc, `${code}.plcDashboard.${key} is missing`).toHaveProperty(
-        key
-      );
+      expect(plc, `${code}.plcDashboard.${key} is missing`).toHaveProperty(key);
     }
   });
 
   it(`${code}: has all required plcDashboard.tabs keys`, () => {
-    const plc = (locale as Record<string, unknown>)
-      .plcDashboard as Record<string, unknown> | undefined;
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
     const tabs = plc?.tabs as Record<string, unknown> | undefined;
     for (const key of REQUIRED_TABS_KEYS) {
       expect(
@@ -232,8 +232,9 @@ describe.each([
   });
 
   it(`${code}: has all required plcDashboard.quizLibrary keys`, () => {
-    const plc = (locale as Record<string, unknown>)
-      .plcDashboard as Record<string, unknown> | undefined;
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
     const ql = plc?.quizLibrary as Record<string, unknown> | undefined;
     for (const key of REQUIRED_QUIZ_LIBRARY_KEYS) {
       expect(
@@ -244,8 +245,9 @@ describe.each([
   });
 
   it(`${code}: has all required plcDashboard.notes keys`, () => {
-    const plc = (locale as Record<string, unknown>)
-      .plcDashboard as Record<string, unknown> | undefined;
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
     const notes = plc?.notes as Record<string, unknown> | undefined;
     for (const key of REQUIRED_NOTES_KEYS) {
       expect(
@@ -256,8 +258,9 @@ describe.each([
   });
 
   it(`${code}: has all required plcDashboard.todos keys`, () => {
-    const plc = (locale as Record<string, unknown>)
-      .plcDashboard as Record<string, unknown> | undefined;
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
     const todos = plc?.todos as Record<string, unknown> | undefined;
     for (const key of REQUIRED_TODOS_KEYS) {
       expect(
@@ -268,8 +271,9 @@ describe.each([
   });
 
   it(`${code}: has all required plcDashboard.settings keys`, () => {
-    const plc = (locale as Record<string, unknown>)
-      .plcDashboard as Record<string, unknown> | undefined;
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
     const settings = plc?.settings as Record<string, unknown> | undefined;
     for (const key of REQUIRED_SETTINGS_KEYS) {
       expect(
@@ -280,8 +284,9 @@ describe.each([
   });
 
   it(`${code}: has all required plcDashboard.overview keys`, () => {
-    const plc = (locale as Record<string, unknown>)
-      .plcDashboard as Record<string, unknown> | undefined;
+    const plc = (locale as Record<string, unknown>).plcDashboard as
+      | Record<string, unknown>
+      | undefined;
     const overview = plc?.overview as Record<string, unknown> | undefined;
     for (const key of REQUIRED_OVERVIEW_KEYS) {
       expect(
