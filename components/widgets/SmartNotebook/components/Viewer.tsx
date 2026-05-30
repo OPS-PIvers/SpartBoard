@@ -7,8 +7,6 @@ import {
   Pencil,
   Plus,
   Trash2,
-  ArrowLeft,
-  ArrowRight,
   Share2,
   X,
 } from 'lucide-react';
@@ -16,6 +14,7 @@ import { NotebookItem, PlacedNotebookAsset } from '@/types';
 import { WidgetLayout } from '@/components/widgets/WidgetLayout';
 import { PageCanvas } from './PageCanvas';
 import { PageJumpMenu } from './PageJumpMenu';
+import { ReorderPageControl } from './ReorderPageControl';
 
 interface ViewerProps {
   activeNotebook: NotebookItem;
@@ -146,26 +145,13 @@ export const Viewer: React.FC<ViewerProps> = ({
               </select>
             )}
             {onMovePage && (
-              <>
-                <button
-                  onClick={() => onMovePage(-1)}
-                  disabled={pageOpBusy || !canMoveEarlier}
-                  className={toolBtnClass}
-                  style={toolBtnStyle}
-                  title="Move page earlier"
-                >
-                  <ArrowLeft style={iconStyle} />
-                </button>
-                <button
-                  onClick={() => onMovePage(1)}
-                  disabled={pageOpBusy || !canMoveLater}
-                  className={toolBtnClass}
-                  style={toolBtnStyle}
-                  title="Move page later"
-                >
-                  <ArrowRight style={iconStyle} />
-                </button>
-              </>
+              <ReorderPageControl
+                onMovePage={onMovePage}
+                pageOpBusy={pageOpBusy}
+                canMoveEarlier={canMoveEarlier}
+                canMoveLater={canMoveLater}
+                iconStyle={iconStyle}
+              />
             )}
             {onAddPage && (
               <button
