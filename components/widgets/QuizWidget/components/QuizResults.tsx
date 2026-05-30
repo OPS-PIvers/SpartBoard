@@ -30,6 +30,7 @@ import {
   Trash2,
   RefreshCw,
   Lock,
+  GraduationCap,
 } from 'lucide-react';
 import { QuizResponse, QuizData, QuizQuestion, QuizConfig } from '@/types';
 import { useAuth } from '@/context/useAuth';
@@ -48,6 +49,7 @@ import {
   type ResponseDocKey,
 } from '@/hooks/useQuizSession';
 import { useDashboard } from '@/context/useDashboard';
+import { useDialog } from '@/context/useDialog';
 import {
   buildPinToNameMap,
   buildPinToExportNameMap,
@@ -64,7 +66,12 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '@/config/firebase';
+import { db, functions } from '@/config/firebase';
+import {
+  pushClassroomGradesForAssignment,
+  formatGradePushToast,
+  isNeedsConsentError,
+} from '@/utils/classroomGradePush';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -220,8 +227,10 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
   const { activeDashboard, updateWidget, addWidget, addToast, rosters } =
     useDashboard();
   const { googleAccessToken, user, orgId } = useAuth();
+  const { showConfirm } = useDialog();
   const { plcs, clearPlcSharedSheetUrl, setPlcSharedSheetUrl } = usePlcs();
   const [exporting, setExporting] = useState(false);
+  const [pushingGrades, setPushingGrades] = useState(false);
   const [exportUrl, setExportUrl] = useState<string | null>(
     initialExportUrl ?? null
   );
@@ -1016,6 +1025,109 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     }
   };
 
+  // Push the SpartBoard quiz scores into the linked Google Classroom
+  // gradebook as DRAFT grades. Only available when this assignment was
+  // attached to a Classroom coursework item via the add-on (which writes
+  // `session.classroomAttachment`). The grade scale is the quiz's total
+  // points (`maxPoints`), and we push each student's RAW earned points
+  // capped to that total — so a 17/20 quiz reads as 17/20 in Classroom,
+  // never a percentage out of 100. Students map to their Classroom grade
+  // by `r.studentUid`, which equals the ClassLink SSO pseudonym key the
+  // batch CF resolves to a Classroom userId.
+  const classroomAttachment = session?.classroomAttachment ?? null;
+  const handlePushGrades = async () => {
+    if (!classroomAttachment) return;
+    const { attachmentId, courseId, itemId, maxPoints } = classroomAttachment;
+
+    // Defensive guard: `maxPoints` is typed required, but a malformed/stale
+    // attachment doc could carry NaN/0 — which would scale every grade to 0 (or
+    // NaN). Bail with an actionable message rather than push garbage grades.
+    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
+      addToast(
+        'This assignment is missing its Classroom point total — re-attach it to push grades.',
+        'error'
+      );
+      return;
+    }
+
+    // The eligible list — completed responses with a resolvable pseudonym —
+    // is cheap to compute and stable across the confirm dialog, so we derive
+    // it (and gate on it) BEFORE confirming. The grade SCORING, however, is
+    // built AFTER the confirm against the latest props, so an edit pushed by
+    // the Firestore listener while the dialog is open can't bake stale scores
+    // into the payload (TOCTOU).
+    const eligible = completed.filter((r) => !!r.studentUid);
+
+    if (eligible.length === 0) {
+      addToast('No completed submissions to push yet', 'info');
+      return;
+    }
+
+    const confirmed = await showConfirm(
+      `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
+        'Classroom? This writes draft grades to the assignment gradebook — ' +
+        'you still review and return them in Classroom.',
+      {
+        title: 'Push grades to Google Classroom',
+        confirmLabel: 'Push grades',
+        cancelLabel: 'Cancel',
+      }
+    );
+    if (!confirmed) return;
+
+    // The current quiz total can drift from the Classroom denominator
+    // (`maxPoints`, frozen at attach time) if the quiz was edited after
+    // attaching. Scale each student's earned score onto the frozen denominator
+    // so the pushed ratio stays correct. When the quiz is unchanged
+    // (`currentTotal === maxPoints`) the scale is a no-op and this equals the
+    // raw earned points (preserves the original "same number" behavior); when
+    // edited, it pushes the correct ratio against the frozen denominator.
+    // Computed AFTER the confirm so it reflects any edit that landed while the
+    // dialog was open.
+    const currentTotal = quiz.questions.reduce(
+      (s, q) => s + (q.points ?? 1),
+      0
+    );
+
+    // Build the PII-free grade payload: one entry per completed, scored
+    // response. `getEarnedPoints` returns the raw points on the current scale;
+    // scale onto the Classroom denominator, then round + clamp to [0, maxPoints].
+    const grades = eligible.map((r) => {
+      // Guard against a non-finite score (e.g. missing answers) so it can't
+      // propagate NaN through the clamp and make the CF reject the entry.
+      const rawPoints = getEarnedPoints(r, quiz.questions, session);
+      const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
+      const scaled = currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
+      return {
+        pseudonymUid: r.studentUid,
+        pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(scaled))),
+      };
+    });
+
+    setPushingGrades(true);
+    try {
+      const data = await pushClassroomGradesForAssignment(functions, {
+        courseId,
+        itemId,
+        attachmentId,
+        grades,
+      });
+      addToast(formatGradePushToast(data), 'success');
+    } catch (err) {
+      logError('QuizResults.pushClassroomGrades', err, {
+        sessionId: session?.id,
+        attachmentId,
+      });
+      if (isNeedsConsentError(err)) {
+        addToast('Reconnect your Google account to push grades.', 'error');
+      } else {
+        addToast('Could not push grades to Google Classroom.', 'error');
+      }
+    } finally {
+      setPushingGrades(false);
+    }
+  };
+
   return (
     <div className="flex flex-col h-full font-sans">
       {/* Header */}
@@ -1152,6 +1264,37 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
               </div>
             )}
           </div>
+        )}
+        {classroomAttachment && (
+          <button
+            onClick={() => void handlePushGrades()}
+            disabled={pushingGrades}
+            className="flex items-center bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-md active:scale-95 shrink-0"
+            style={{
+              gap: 'min(6px, 1.5cqmin)',
+              padding: 'min(8px, 2cqmin) min(12px, 3cqmin)',
+              fontSize: 'min(11px, 3.5cqmin)',
+            }}
+            title="Write draft grades to this assignment's Google Classroom gradebook (matches the quiz score exactly)."
+          >
+            {pushingGrades ? (
+              <Loader2
+                className="animate-spin"
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            ) : (
+              <GraduationCap
+                style={{
+                  width: 'min(14px, 4cqmin)',
+                  height: 'min(14px, 4cqmin)',
+                }}
+              />
+            )}
+            PUSH GRADES
+          </button>
         )}
         {exportUrl ? (
           <>

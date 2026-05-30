@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -8,18 +8,40 @@ import {
   Trash2,
   RefreshCw,
   Download,
+  GraduationCap,
+  Check,
+  Loader2,
+  AlertTriangle,
 } from 'lucide-react';
+import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
 
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
 import { ClassRoster, Student } from '@/types';
+import { auth, db } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
+import { Modal } from '@/components/common/Modal';
+import {
+  ensureGis,
+  requestAccessToken,
+} from '@/components/classroomAddon/gisOAuth';
 import {
   ClassLinkImportDialog,
   ClassLinkDialogMode,
 } from '@/components/classes/ClassLinkImportDialog';
+
+/** Google Classroom OAuth scope for read-only course listing. */
+const CLASSROOM_COURSES_READONLY_SCOPE =
+  'https://www.googleapis.com/auth/classroom.courses.readonly';
+
+/** Minimal shape of a Google Classroom course we care about. */
+interface GoogleClassroomCourse {
+  id: string;
+  name: string;
+  section?: string;
+}
 
 interface SidebarClassesProps {
   isVisible: boolean;
@@ -44,13 +66,120 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     updateRoster,
     deleteRoster,
     setActiveRoster,
+    addToast,
   } = useDashboard();
-  const { selectedBuildings } = useAuth();
+  const { user, selectedBuildings } = useAuth();
   const classLinkEnabled = useClassLinkEnabled(selectedBuildings[0]);
 
   const [editingRosterId, setEditingRosterId] = useState<string | null>(null);
   const [classLinkMode, setClassLinkMode] =
     useState<ClassLinkDialogMode | null>(null);
+
+  // ── "Link to Google Classroom" modal state ──────────────────────────────
+  // The roster currently being linked (null = modal closed).
+  const [linkingRoster, setLinkingRoster] = useState<ClassRoster | null>(null);
+  const [courseLoadState, setCourseLoadState] = useState<
+    'loading' | 'loaded' | 'error'
+  >('loading');
+  const [courses, setCourses] = useState<GoogleClassroomCourse[]>([]);
+  const [courseLoadError, setCourseLoadError] = useState<string | null>(null);
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const loadCourses = useCallback(async () => {
+    setCourseLoadState('loading');
+    setCourseLoadError(null);
+    setCourses([]);
+    setSelectedCourseId(null);
+    try {
+      await ensureGis();
+      const token = await requestAccessToken(
+        CLASSROOM_COURSES_READONLY_SCOPE,
+        user?.email ?? undefined
+      );
+      const res = await fetch(
+        'https://classroom.googleapis.com/v1/courses?teacherId=me&courseStates=ACTIVE',
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      if (!res.ok) {
+        throw new Error(`Classroom API returned ${res.status}`);
+      }
+      const data = (await res.json()) as { courses?: GoogleClassroomCourse[] };
+      setCourses(data.courses ?? []);
+      setCourseLoadState('loaded');
+    } catch (err) {
+      setCourseLoadError(
+        err instanceof Error ? err.message : 'Failed to load courses.'
+      );
+      setCourseLoadState('error');
+    }
+  }, [user?.email]);
+
+  // Fetch the teacher's active courses whenever the link modal opens.
+  useEffect(() => {
+    if (!linkingRoster) return;
+    void loadCourses();
+  }, [linkingRoster, loadCourses]);
+
+  const closeLinkModal = useCallback(() => {
+    setLinkingRoster(null);
+    setCourses([]);
+    setSelectedCourseId(null);
+    setCourseLoadError(null);
+    setIsSaving(false);
+  }, []);
+
+  const handleConfirmLink = useCallback(async () => {
+    if (!linkingRoster || !selectedCourseId) return;
+    const uid = auth.currentUser?.uid;
+    if (!uid) {
+      addToast(
+        t('sidebar.classes.linkGoogleClassroom.notSignedIn', {
+          defaultValue: 'You must be signed in to link a class.',
+        }),
+        'error'
+      );
+      return;
+    }
+    setIsSaving(true);
+    try {
+      await setDoc(doc(db, 'classroom_course_links', selectedCourseId), {
+        classlinkClassId: linkingRoster.classlinkClassId ?? null,
+        classlinkOrgId: linkingRoster.classlinkOrgId ?? null,
+        teacherUid: uid,
+        rosterId: linkingRoster.id,
+        createdAt: serverTimestamp(),
+      });
+      await updateRoster(linkingRoster.id, {
+        googleClassroomCourseId: selectedCourseId,
+      });
+      addToast(
+        t('sidebar.classes.linkGoogleClassroom.success', {
+          defaultValue: 'Linked to Google Classroom.',
+        }),
+        'success'
+      );
+      closeLinkModal();
+    } catch (err) {
+      addToast(
+        t('sidebar.classes.linkGoogleClassroom.failed', {
+          defaultValue: 'Failed to link to Google Classroom.',
+        }),
+        'error'
+      );
+      setCourseLoadError(
+        err instanceof Error ? err.message : 'Failed to link to Classroom.'
+      );
+      setIsSaving(false);
+    }
+  }, [
+    linkingRoster,
+    selectedCourseId,
+    addToast,
+    t,
+    updateRoster,
+    closeLinkModal,
+  ]);
 
   const editingRoster: ClassRoster | null =
     editingRosterId && editingRosterId !== 'new'
@@ -282,27 +411,55 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
                                 : t('sidebar.classes.syncClassLink', {
                                     defaultValue: 'Sync with ClassLink',
                                   });
+                              const linkLabel = r.googleClassroomCourseId
+                                ? t(
+                                    'sidebar.classes.linkGoogleClassroom.relink',
+                                    {
+                                      defaultValue:
+                                        'Linked to Google Classroom — change link',
+                                    }
+                                  )
+                                : t(
+                                    'sidebar.classes.linkGoogleClassroom.button',
+                                    {
+                                      defaultValue: 'Link to Google Classroom',
+                                    }
+                                  );
                               return (
-                                <button
-                                  onClick={() =>
-                                    setClassLinkMode({
-                                      kind: 'merge',
-                                      rosterId: r.id,
-                                      rosterName: r.name,
-                                    })
-                                  }
-                                  className="relative p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
-                                  title={syncLabel}
-                                  aria-label={syncLabel}
-                                >
-                                  <RefreshCw className="w-3.5 h-3.5" />
-                                  {needsBackfill && (
-                                    <span
-                                      aria-hidden="true"
-                                      className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"
-                                    />
-                                  )}
-                                </button>
+                                <>
+                                  <button
+                                    onClick={() =>
+                                      setClassLinkMode({
+                                        kind: 'merge',
+                                        rosterId: r.id,
+                                        rosterName: r.name,
+                                      })
+                                    }
+                                    className="relative p-1.5 text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter rounded-lg transition-colors"
+                                    title={syncLabel}
+                                    aria-label={syncLabel}
+                                  >
+                                    <RefreshCw className="w-3.5 h-3.5" />
+                                    {needsBackfill && (
+                                      <span
+                                        aria-hidden="true"
+                                        className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-amber-500"
+                                      />
+                                    )}
+                                  </button>
+                                  <button
+                                    onClick={() => setLinkingRoster(r)}
+                                    className={`relative p-1.5 rounded-lg transition-colors ${
+                                      r.googleClassroomCourseId
+                                        ? 'text-emerald-600 hover:bg-emerald-50'
+                                        : 'text-slate-400 hover:text-brand-blue-primary hover:bg-brand-blue-lighter'
+                                    }`}
+                                    title={linkLabel}
+                                    aria-label={linkLabel}
+                                  >
+                                    <GraduationCap className="w-3.5 h-3.5" />
+                                  </button>
+                                </>
                               );
                             })()}
                           <button
@@ -344,6 +501,148 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
           mode={classLinkMode}
           onClose={() => setClassLinkMode(null)}
         />
+      )}
+
+      {linkingRoster && (
+        <Modal
+          isOpen
+          onClose={closeLinkModal}
+          maxWidth="max-w-lg"
+          title={t('sidebar.classes.linkGoogleClassroom.title', {
+            defaultValue: 'Link to Google Classroom',
+          })}
+          footer={
+            <div className="flex items-center justify-end gap-2">
+              <button
+                onClick={closeLinkModal}
+                disabled={isSaving}
+                className="px-4 py-2 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-100 transition-colors disabled:opacity-50"
+              >
+                {t('common.cancel', { defaultValue: 'Cancel' })}
+              </button>
+              <button
+                onClick={() => void handleConfirmLink()}
+                disabled={!selectedCourseId || isSaving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white bg-brand-blue-primary hover:bg-brand-blue-dark shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSaving && <Loader2 className="w-4 h-4 animate-spin" />}
+                {t('sidebar.classes.linkGoogleClassroom.confirm', {
+                  defaultValue: 'Link Class',
+                })}
+              </button>
+            </div>
+          }
+        >
+          <div className="pb-2">
+            <p className="text-sm text-slate-500 mb-4 leading-relaxed">
+              {t('sidebar.classes.linkGoogleClassroom.description', {
+                defaultValue:
+                  'Choose the Google Classroom course to link with "{{name}}". Students launching from that course will be matched to this roster.',
+                name: linkingRoster.name,
+              })}
+            </p>
+
+            {courseLoadState === 'loading' && (
+              <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
+                <Loader2 className="w-7 h-7 animate-spin text-brand-blue-primary" />
+                <p className="text-sm font-semibold">
+                  {t('sidebar.classes.linkGoogleClassroom.loading', {
+                    defaultValue: 'Loading your Google Classroom courses…',
+                  })}
+                </p>
+              </div>
+            )}
+
+            {courseLoadState === 'error' && (
+              <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
+                <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+                  <AlertTriangle className="w-6 h-6 text-red-500" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-700">
+                    {t('sidebar.classes.linkGoogleClassroom.errorTitle', {
+                      defaultValue: 'Could not load courses',
+                    })}
+                  </p>
+                  {courseLoadError && (
+                    <p className="text-xs text-slate-400 mt-1 max-w-xs">
+                      {courseLoadError}
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={() => void loadCourses()}
+                  className="mt-1 px-4 py-2 bg-brand-blue-primary text-white rounded-xl text-xxs font-bold uppercase tracking-wider hover:bg-brand-blue-dark shadow-sm transition-colors"
+                >
+                  {t('common.retry', { defaultValue: 'Try Again' })}
+                </button>
+              </div>
+            )}
+
+            {courseLoadState === 'loaded' && courses.length === 0 && (
+              <div className="flex flex-col items-center justify-center gap-3 py-12 text-slate-400">
+                <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center">
+                  <GraduationCap className="w-6 h-6 text-slate-300" />
+                </div>
+                <div className="text-center">
+                  <p className="text-sm font-bold text-slate-600">
+                    {t('sidebar.classes.linkGoogleClassroom.emptyTitle', {
+                      defaultValue: 'No active courses found',
+                    })}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5 max-w-xs">
+                    {t('sidebar.classes.linkGoogleClassroom.emptySubtitle', {
+                      defaultValue:
+                        'You don’t teach any active Google Classroom courses on this account.',
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {courseLoadState === 'loaded' && courses.length > 0 && (
+              <div className="flex flex-col gap-2 max-h-80 overflow-y-auto custom-scrollbar -mx-1 px-1">
+                {courses.map((course) => {
+                  const isSelected = selectedCourseId === course.id;
+                  return (
+                    <button
+                      key={course.id}
+                      onClick={() => setSelectedCourseId(course.id)}
+                      className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all ${
+                        isSelected
+                          ? 'border-brand-blue-primary bg-brand-blue-lighter ring-1 ring-brand-blue-primary/20'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div
+                        className={`shrink-0 w-9 h-9 rounded-lg flex items-center justify-center ${
+                          isSelected
+                            ? 'bg-brand-blue-primary text-white'
+                            : 'bg-slate-100 text-slate-400'
+                        }`}
+                      >
+                        <GraduationCap className="w-4 h-4" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-slate-800 truncate">
+                          {course.name}
+                        </div>
+                        {course.section && (
+                          <div className="text-xs text-slate-400 truncate">
+                            {course.section}
+                          </div>
+                        )}
+                      </div>
+                      {isSelected && (
+                        <Check className="shrink-0 w-4 h-4 text-brand-blue-primary" />
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </Modal>
       )}
     </>
   );

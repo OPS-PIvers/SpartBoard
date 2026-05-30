@@ -77,3 +77,7 @@ skills-lock.json
 
 # Verification / QA test artifacts
 verification/
+
+# Local data / Drive-sync artifacts — never commit (may contain student PII)
+Data/
+.tmp.driveupload/
