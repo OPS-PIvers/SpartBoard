@@ -5,49 +5,22 @@ import { MaterialsGlobalConfig } from '@/types';
 
 // ── Performance fix ──────────────────────────────────────────────────────────
 // lucide-react ships ~5 700 icons and takes >1 second to import in jsdom.
-// Neither test exercises icon rendering, so we stub the entire module with
-// lightweight no-op components for every icon name that the component tree
-// touches.  This drops the per-file import time from ~1 300 ms to under
-// 50 ms, keeping the combined test well below the 5-second nightly timeout.
+// Neither test exercises icon rendering, so we stub the entire module.
 //
-// All icon stubs are defined INSIDE the factory so the hoisted vi.mock call
-// can reference them without a "used before declaration" error.
+// A catch-all Proxy returns the same no-op renderer for every property access,
+// so the mock stays correct even when the component (or one of its
+// dependencies) starts importing a new Lucide icon — no enumeration to
+// maintain, and no silent "X is not a function" render errors from an icon
+// that resolved to undefined. The __esModule branch keeps Vite/Vitest ESM
+// interop happy so the module is treated as a real ES module.
 vi.mock('lucide-react', () => {
-  const S = () => null; // single tiny stub reused for every icon
-  return {
-    // Named imports used directly in MaterialsConfigurationPanel.tsx
-    Plus: S,
-    Trash2: S,
-    Search: S,
-    // Namespace icons accessed via MATERIAL_ICON_OPTIONS and BUILT_IN_MATERIALS
-    Backpack: S,
-    Book: S,
-    BookCheck: S,
-    BookOpen: S,
-    Bookmark: S,
-    Box: S,
-    Briefcase: S,
-    Calculator: S,
-    ClipboardList: S,
-    Droplets: S,
-    FileText: S,
-    Folder: S,
-    GraduationCap: S,
-    Headphones: S,
-    Highlighter: S,
-    Laptop: S,
-    Library: S,
-    Notebook: S,
-    Package: S,
-    Pencil: S,
-    PenTool: S,
-    Printer: S,
-    Ruler: S,
-    Scissors: S,
-    Smartphone: S,
-    Tablet: S,
-    Wrench: S,
-  };
+  const Stub = () => null;
+  return new Proxy(
+    {},
+    {
+      get: (_target, prop) => (prop === '__esModule' ? true : Stub),
+    }
+  );
 });
 
 // Stub IconPicker — it renders its own `import * as Icons from 'lucide-react'`
