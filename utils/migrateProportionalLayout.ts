@@ -63,6 +63,30 @@ export const migrateWidgetToProportional = (
   savedViewportW: number | undefined,
   savedViewportH: number | undefined
 ): WidgetData => {
+  // Guard against zero/NaN pixel values from corrupted data — fall through
+  // to a reasonable default so the widget is still usable after migration.
+  const pixelW = widget.w > 0 && Number.isFinite(widget.w) ? widget.w : 200;
+  const pixelH = widget.h > 0 && Number.isFinite(widget.h) ? widget.h : 200;
+
+  // Targeted repair: if the four proportional fields are already valid and
+  // migration was triggered solely by a corrupt aspectRatio, preserve the
+  // existing canonical proportions and only re-derive the aspectRatio.
+  // Recomputing proportions from pixel values here would risk layout drift —
+  // when the saved viewport is missing/untrusted we fall back to
+  // REFERENCE_VIEWPORT, producing wrong proportions for a widget that was
+  // originally authored on a different-sized viewport.
+  const proportionsValid =
+    Number.isFinite(widget.xProp) &&
+    Number.isFinite(widget.yProp) &&
+    Number.isFinite(widget.wProp) &&
+    Number.isFinite(widget.hProp);
+  if (proportionsValid) {
+    return {
+      ...widget,
+      aspectRatio: pixelW / pixelH,
+    };
+  }
+
   const vpW =
     typeof savedViewportW === 'number' && savedViewportW >= 300
       ? savedViewportW
@@ -72,10 +96,6 @@ export const migrateWidgetToProportional = (
       ? savedViewportH
       : REFERENCE_VIEWPORT.h;
 
-  // Guard against zero/NaN pixel values from corrupted data — fall through
-  // to a reasonable default so the widget is still usable after migration.
-  const pixelW = widget.w > 0 && Number.isFinite(widget.w) ? widget.w : 200;
-  const pixelH = widget.h > 0 && Number.isFinite(widget.h) ? widget.h : 200;
   const pixelX = Number.isFinite(widget.x) ? widget.x : 0;
   const pixelY = Number.isFinite(widget.y) ? widget.y : 0;
 
