@@ -4,6 +4,7 @@ import {
   createPlacedAsset,
   updatePlacedAsset,
   removePlacedAsset,
+  remapPlacedAssetPages,
   clampWidthFrac,
   clamp01,
   DEFAULT_PLACED_ASSET_WIDTH_FRAC,
@@ -99,5 +100,68 @@ describe('updatePlacedAsset / removePlacedAsset', () => {
   it('removes by id', () => {
     const all = [make({ id: 'a' }), make({ id: 'b' })];
     expect(removePlacedAsset(all, 'a').map((x) => x.id)).toEqual(['b']);
+  });
+});
+
+describe('remapPlacedAssetPages', () => {
+  // Assets across two notebooks; only nb1 is the "active" one being remapped.
+  // a0..a4 on nb1 pages 0..4, plus one stray asset on nb2 that must never move.
+  const all = (): PlacedNotebookAsset[] => [
+    make({ id: 'a0', notebookId: 'nb1', page: 0 }),
+    make({ id: 'a2', notebookId: 'nb1', page: 2 }),
+    make({ id: 'a4', notebookId: 'nb1', page: 4 }),
+    make({ id: 'other', notebookId: 'nb2', page: 2 }),
+  ];
+
+  const pages = (assets: PlacedNotebookAsset[]) =>
+    assets.map((a) => ({ id: a.id, notebookId: a.notebookId, page: a.page }));
+
+  it('shifts assets at or after an insert point (insertBlankPage)', () => {
+    // Insert at index 2: pages >= 2 shift right by one.
+    const next = remapPlacedAssetPages(all(), 'nb1', (p) =>
+      p >= 2 ? p + 1 : p
+    );
+    expect(pages(next)).toEqual([
+      { id: 'a0', notebookId: 'nb1', page: 0 }, // < 2, unchanged
+      { id: 'a2', notebookId: 'nb1', page: 3 }, // 2 -> 3
+      { id: 'a4', notebookId: 'nb1', page: 5 }, // 4 -> 5
+      { id: 'other', notebookId: 'nb2', page: 2 }, // other notebook untouched
+    ]);
+  });
+
+  it('drops assets on a deleted page and shifts later ones left (deletePage)', () => {
+    // Delete page 2: assets on page 2 dropped, pages > 2 shift left.
+    const next = remapPlacedAssetPages(all(), 'nb1', (p) =>
+      p === 2 ? null : p > 2 ? p - 1 : p
+    );
+    expect(pages(next)).toEqual([
+      { id: 'a0', notebookId: 'nb1', page: 0 }, // < 2, unchanged
+      { id: 'a4', notebookId: 'nb1', page: 3 }, // 4 -> 3
+      { id: 'other', notebookId: 'nb2', page: 2 }, // other notebook untouched
+    ]);
+  });
+
+  it('swaps the two pages involved in a move (movePage)', () => {
+    // Move page 2 up to 1: indices 2 and 1 swap.
+    const next = remapPlacedAssetPages(all(), 'nb1', (p) =>
+      p === 2 ? 1 : p === 1 ? 2 : p
+    );
+    expect(pages(next)).toEqual([
+      { id: 'a0', notebookId: 'nb1', page: 0 }, // not involved
+      { id: 'a2', notebookId: 'nb1', page: 1 }, // 2 -> 1
+      { id: 'a4', notebookId: 'nb1', page: 4 }, // not involved
+      { id: 'other', notebookId: 'nb2', page: 2 }, // other notebook untouched
+    ]);
+  });
+
+  it('never touches assets belonging to a different notebook', () => {
+    // A remap that would otherwise drop page 2 must leave nb2's page-2 asset.
+    const next = remapPlacedAssetPages(all(), 'nb1', () => null);
+    expect(pages(next)).toEqual([{ id: 'other', notebookId: 'nb2', page: 2 }]);
+  });
+
+  it('returns an empty array (not undefined) when every active asset is dropped', () => {
+    const onlyActive = [make({ id: 'a0', notebookId: 'nb1', page: 0 })];
+    expect(remapPlacedAssetPages(onlyActive, 'nb1', () => null)).toEqual([]);
   });
 });

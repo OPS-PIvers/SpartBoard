@@ -12,6 +12,7 @@ import {
   createPlacedAsset,
   updatePlacedAsset as updatePlacedAssetIn,
   removePlacedAsset as removePlacedAssetIn,
+  remapPlacedAssetPages,
 } from '@/utils/notebookPlacedAssets';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
@@ -83,6 +84,14 @@ export const SmartNotebookWidget: React.FC<{
   // Pending autosave timer. Cleared (and flushed immediately) on page nav,
   // present-mode toggle, and close — so jumping pages never loses edits.
   const autosaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // In-flight page-content uploads, keyed by nothing (just tracked as a set of
+  // promises). A debounced autosave that has already *started* (its timer fired
+  // and was cleared, so cancelPending/flushPending can no longer see it) must
+  // still be awaited before a structural page op writes the page list —
+  // otherwise its updateDoc can resolve AFTER the op's and overwrite the
+  // reordered/inserted/deleted pageUrls/pagePaths with the pre-op snapshot
+  // (resurrecting a deleted page or undoing a shift). See awaitInFlightSaves.
+  const inFlightSavesRef = useRef<Set<Promise<void>>>(new Set());
 
   // Fetch notebooks from Firestore.
   // The subscription is gated on `isActive`: when the host Board is hidden by
@@ -398,9 +407,13 @@ export const SmartNotebookWidget: React.FC<{
   };
 
   // Upload one page's edited SVG to its Storage path and update the page URL
-  // in Firestore. Returns nothing — callers fire-and-forget; saving state is
-  // tracked via `savingPages` / `saveErrorPage` for the UI indicator.
-  const flushPage = async (page: number, svgString: string): Promise<void> => {
+  // in Firestore. Always resolves — errors are caught and surfaced via
+  // `savingPages` / `saveErrorPage` for the UI indicator. Call through
+  // `flushPage` (below) rather than directly, so the upload is tracked.
+  const uploadEditedPage = async (
+    page: number,
+    svgString: string
+  ): Promise<void> => {
     if (!user || !activeNotebook || !svgString) return;
     setSavingPages((prev) => {
       const next = new Set(prev);
@@ -442,6 +455,32 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Track the upload so structural page ops can await it. Both call sites — the
+  // debounce timer (fire-and-forget) and flushPending (awaited) — go through
+  // here, so every in-flight save lands in inFlightSavesRef regardless of who
+  // started it. The promise removes itself on settle.
+  const flushPage = (page: number, svgString: string): Promise<void> => {
+    const save = uploadEditedPage(page, svgString);
+    inFlightSavesRef.current.add(save);
+    void save.finally(() => inFlightSavesRef.current.delete(save));
+    return save;
+  };
+
+  // Await every in-flight page-content upload (and the autosave timer, cleared
+  // first so it can't fire a fresh upload while we wait). Called before a
+  // structural page op so the op's updateDoc always lands AFTER any save and
+  // can't be reverted by one. Loops until the set drains in case a save starts
+  // mid-wait. Never throws — uploadEditedPage swallows its own errors.
+  const awaitInFlightSaves = async (): Promise<void> => {
+    if (autosaveTimerRef.current) {
+      clearTimeout(autosaveTimerRef.current);
+      autosaveTimerRef.current = null;
+    }
+    while (inFlightSavesRef.current.size > 0) {
+      await Promise.allSettled([...inFlightSavesRef.current]);
+    }
+  };
+
   // Drop any pending autosave for `page` without uploading. Used by the
   // delete handler: the page is about to disappear, so flushing would
   // upload the edit to a soon-to-be-deleted storage blob (wasted bandwidth)
@@ -454,14 +493,13 @@ export const SmartNotebookWidget: React.FC<{
     editedSvgsRef.current.delete(page);
   };
 
-  // Cancel any pending autosave for `page` and fire the upload immediately.
-  // Returns true if a flush actually ran, false if there was nothing pending,
-  // so structural page-op callers know whether to re-read the doc afterwards.
-  // Used by page navigation/present/close (fire-and-forget via `void`) and by
-  // add/delete/move handlers, which MUST `await` it before mutating the page
-  // list — otherwise flushPage's in-flight uploadFile+updateDoc resolves
-  // after the page-op's updateDoc and clobbers the swap/insert/delete with
-  // its pre-mutation pageUrls/pagePaths snapshot.
+  // Cancel a *pending* (debounced-but-not-yet-started) autosave for `page` and
+  // fire its upload immediately. Returns true if a flush actually ran, false if
+  // there was nothing pending, so structural page-op callers know whether to
+  // re-read the doc afterwards. Used by page navigation/present/close
+  // (fire-and-forget via `void`) and, via flushAndReadFresh, by the add/move
+  // handlers. Note: this only covers the not-yet-started case — an autosave
+  // whose flushPage already began is awaited separately by awaitInFlightSaves.
   const flushPending = async (page: number): Promise<boolean> => {
     if (autosaveTimerRef.current) {
       clearTimeout(autosaveTimerRef.current);
@@ -508,35 +546,48 @@ export const SmartNotebookWidget: React.FC<{
     updateWidget(widget.id, { config: { ...config, activeNotebookId: null } });
   };
 
-  // Flush any pending edit for `page`, then return the freshest notebook
-  // state for the structural page op to mutate against. When nothing was
-  // pending we keep using the in-memory snapshot (no extra Firestore read
-  // — page ops happen on manual teacher action, and the budget here is
-  // school-district sensitive); when a flush ran we re-read via getDoc so
-  // the page-op sees the just-uploaded pageUrls[page]=url instead of
-  // overwriting it with the stale React-state copy.
+  // Re-read the active notebook doc so a structural page op mutates against
+  // the freshest pageUrls/pagePaths (i.e. including any autosave that just
+  // landed) instead of the lagging React-state snapshot. Falls back to the
+  // snapshot if the read fails.
+  const readFreshNotebook = async (
+    notebook: NotebookItem
+  ): Promise<NotebookItem> => {
+    if (!user) return notebook;
+    const snap = await getDoc(
+      doc(db, 'users', user.uid, 'notebooks', notebook.id)
+    );
+    if (!snap.exists()) return notebook;
+    const data = snap.data();
+    return {
+      ...notebook,
+      pageUrls: (data.pageUrls as string[]) ?? notebook.pageUrls,
+      pagePaths: (data.pagePaths as string[]) ?? notebook.pagePaths,
+      sections:
+        (data.sections as NotebookSection[] | undefined) ?? notebook.sections,
+      objectLinks:
+        (data.objectLinks as NotebookObjectLink[] | undefined) ??
+        notebook.objectLinks,
+    };
+  };
+
+  // Flush any pending/in-flight edit for `page`, then return the freshest
+  // notebook state for the structural page op to mutate against. We first
+  // await any already-started autosave (awaitInFlightSaves) so its updateDoc
+  // can't resolve after the op's and clobber it. When nothing was pending or
+  // in flight we keep using the in-memory snapshot (no extra Firestore read —
+  // page ops happen on manual teacher action, and the budget here is
+  // school-district sensitive); otherwise we re-read via getDoc so the page-op
+  // sees the just-uploaded pageUrls instead of overwriting them.
   const flushAndReadFresh = async (
     page: number
   ): Promise<NotebookItem | null> => {
     if (!user || !activeNotebook) return null;
+    const hadInFlight = inFlightSavesRef.current.size > 0;
+    await awaitInFlightSaves();
     const flushed = await flushPending(page);
-    if (!flushed) return activeNotebook;
-    const snap = await getDoc(
-      doc(db, 'users', user.uid, 'notebooks', activeNotebook.id)
-    );
-    if (!snap.exists()) return activeNotebook;
-    const data = snap.data();
-    return {
-      ...activeNotebook,
-      pageUrls: (data.pageUrls as string[]) ?? activeNotebook.pageUrls,
-      pagePaths: (data.pagePaths as string[]) ?? activeNotebook.pagePaths,
-      sections:
-        (data.sections as NotebookSection[] | undefined) ??
-        activeNotebook.sections,
-      objectLinks:
-        (data.objectLinks as NotebookObjectLink[] | undefined) ??
-        activeNotebook.objectLinks,
-    };
+    if (!flushed && !hadInFlight) return activeNotebook;
+    return readFreshNotebook(activeNotebook);
   };
 
   // Add or replace an object→page link. The same {objectId, sourcePage}
@@ -598,6 +649,35 @@ export const SmartNotebookWidget: React.FC<{
     }
   };
 
+  // Live mirror of the widget prop. The async page-op handlers below cross
+  // several `await` boundaries (flush, upload, persistPageList) before they
+  // write placedAssets back; their render-closure `config`/`placedAssets`
+  // snapshots can go stale across that gap (PageCanvas stays interactive
+  // during a page op, so a sticker can be dragged/removed mid-operation).
+  // Reading/writing the stale snapshot would silently clobber that concurrent
+  // edit, so those handlers read the freshest config from this ref instead.
+  // Assigned in the render body — same pattern as updateWidgetRef in
+  // DashboardContext (no effect, no staleness window).
+  const widgetRef = useRef(widget);
+  widgetRef.current = widget;
+  const liveConfig = (): SmartNotebookConfig =>
+    widgetRef.current.config as SmartNotebookConfig;
+
+  // Placed assets (Assets panel → page overlay) live in this widget's config,
+  // NOT in the Firestore notebook doc, so they're written via updateWidget
+  // rather than persistPageList. Their `page` field is a 0-based index into
+  // the active notebook's pageUrls, so the structural page ops must remap it
+  // the same way persistPageList remaps objectLinks.
+  const placedAssets = config.placedAssets ?? [];
+
+  const persistPlacedAssets = (next: PlacedNotebookAsset[]) => {
+    // Merge onto the live config (not the render-closure snapshot) so a
+    // concurrent config change during a page op's awaits isn't reverted.
+    updateWidget(widget.id, {
+      config: { ...liveConfig(), placedAssets: next },
+    });
+  };
+
   // Persist a new page list (urls/paths/sections/objectLinks) to Firestore.
   // The objectLinks write is gated on `next.objectLinks` (set by the helper
   // iff the input notebook had any) — NOT on the live React-state snapshot,
@@ -638,6 +718,21 @@ export const SmartNotebookWidget: React.FC<{
       });
       const url = await uploadFile(path, file);
       await persistPageList(insertBlankPage(fresh, currentPage, url, path));
+      // Mirror insertBlankPage's index math: pages at or after the insertion
+      // point shift right by one, so placed assets on them must too. Read the
+      // freshest list (post-await) so a sticker placed during the upload isn't
+      // dropped by the rewrite.
+      const insertAt = Math.min(
+        Math.max(currentPage + 1, 0),
+        fresh.pageUrls.length
+      );
+      persistPlacedAssets(
+        remapPlacedAssetPages(
+          liveConfig().placedAssets ?? [],
+          activeNotebook.id,
+          (p) => (p >= insertAt ? p + 1 : p)
+        )
+      );
       setCurrentPage(currentPage + 1);
       addToast('Blank page added', 'success');
     } catch (err) {
@@ -666,32 +761,57 @@ export const SmartNotebookWidget: React.FC<{
     if (!confirmed) return;
     setIsPageOp(true);
     try {
-      // Cancel rather than flush: the teacher just decided to delete this
-      // page, so any pending edit on it should be discarded (uploading to a
-      // soon-to-be-deleted storage blob would waste bandwidth and race
-      // persistPageList's updateDoc, possibly restoring the page).
+      // Cancel rather than flush THIS page's pending edit: the teacher just
+      // decided to delete it, so a not-yet-started autosave should be dropped
+      // (uploading to a soon-to-be-deleted storage blob wastes bandwidth).
       cancelPending(currentPage);
-      const linkCountBefore = activeNotebook.objectLinks?.length ?? 0;
-      const { state: next, removedPath } = deletePage(
-        activeNotebook,
-        currentPage
-      );
+      // An autosave that already *started* (for this or any other page) can't
+      // be cancelled — await it so its updateDoc lands before ours and can't
+      // resurrect the page or undo the shift. Re-read only when one was in
+      // flight, so a concurrent save to a different page isn't clobbered
+      // either (and we don't spend a Firestore read in the common case).
+      const hadInFlight = inFlightSavesRef.current.size > 0;
+      await awaitInFlightSaves();
+      const fresh = hadInFlight
+        ? await readFreshNotebook(activeNotebook)
+        : activeNotebook;
+      const linkCountBefore = fresh.objectLinks?.length ?? 0;
+      const { state: next, removedPath } = deletePage(fresh, currentPage);
       const droppedLinks = linkCountBefore - (next.objectLinks?.length ?? 0);
       await persistPageList(next);
+      // Remap placed assets the same way: assets on the deleted page are
+      // dropped, those on later pages shift left by one. Read the freshest
+      // list so the dropped-asset count and the write reflect any concurrent
+      // sticker edit rather than the stale render-closure snapshot.
+      const latestAssets = liveConfig().placedAssets ?? [];
+      const remappedAssets = remapPlacedAssetPages(
+        latestAssets,
+        activeNotebook.id,
+        (p) => (p === currentPage ? null : p > currentPage ? p - 1 : p)
+      );
+      const droppedAssets = latestAssets.length - remappedAssets.length;
+      persistPlacedAssets(remappedAssets);
       if (removedPath) {
         await deleteFile(removedPath).catch((e) => console.error(e));
       }
       setCurrentPage((p) => Math.min(p, next.pageUrls.length - 1));
+      // Surface the silent data loss (hotspots on / pointing to the deleted
+      // page, plus stickers stranded on it) so the teacher isn't surprised.
+      const removed: string[] = [];
       if (droppedLinks > 0) {
-        // Surface the silent data loss (hotspots on / pointing to the
-        // deleted page) so the teacher isn't surprised later.
-        addToast(
-          `Page deleted (also removed ${droppedLinks} hyperlink${droppedLinks === 1 ? '' : 's'})`,
-          'success'
+        removed.push(
+          `${droppedLinks} hyperlink${droppedLinks === 1 ? '' : 's'}`
         );
-      } else {
-        addToast('Page deleted', 'success');
       }
+      if (droppedAssets > 0) {
+        removed.push(`${droppedAssets} asset${droppedAssets === 1 ? '' : 's'}`);
+      }
+      addToast(
+        removed.length > 0
+          ? `Page deleted (also removed ${removed.join(' and ')})`
+          : 'Page deleted',
+        'success'
+      );
     } catch (err) {
       console.error('Failed to delete page', err);
       addToast('Failed to delete page', 'error');
@@ -721,6 +841,17 @@ export const SmartNotebookWidget: React.FC<{
       // shape changed between handler entry and the post-flush read.
       if (!canMovePage(fresh, currentPage, dir)) return;
       await persistPageList(movePage(fresh, currentPage, dir));
+      // Mirror movePage's swap: assets on the two swapped pages trade indices
+      // so they follow their page content to the new position. Read the
+      // freshest list (post-await) so a concurrent sticker edit survives.
+      const target = currentPage + dir;
+      persistPlacedAssets(
+        remapPlacedAssetPages(
+          liveConfig().placedAssets ?? [],
+          activeNotebook.id,
+          (p) => (p === currentPage ? target : p === target ? currentPage : p)
+        )
+      );
       setCurrentPage(currentPage + dir);
     } catch (err) {
       console.error('Failed to move page', err);
@@ -736,12 +867,6 @@ export const SmartNotebookWidget: React.FC<{
   const handleDragStart = (e: React.DragEvent, url: string) => {
     e.dataTransfer.setData(NOTEBOOK_ASSET_MIME, JSON.stringify({ url }));
     e.dataTransfer.effectAllowed = 'copy';
-  };
-
-  const placedAssets = config.placedAssets ?? [];
-
-  const persistPlacedAssets = (next: PlacedNotebookAsset[]) => {
-    updateWidget(widget.id, { config: { ...config, placedAssets: next } });
   };
 
   // Drop an asset onto the current page at a page-relative fraction point.

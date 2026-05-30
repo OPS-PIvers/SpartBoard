@@ -81,3 +81,30 @@ export const removePlacedAsset = (
   all: PlacedNotebookAsset[],
   id: string
 ): PlacedNotebookAsset[] => all.filter((a) => a.id !== id);
+
+/**
+ * Apply a per-page-index transform to every asset's `page`, scoped to one
+ * notebook. Assets belonging to other notebooks are passed through untouched
+ * (placedAssets is a single per-widget list spanning all notebooks). Returning
+ * `null` for a page index drops every asset on it — used by deletePage to
+ * discard stickers stranded on the removed page. Mirrors `remapLinkPages` in
+ * utils/notebookPages.ts so the structural page ops keep placedAssets' page
+ * indices coherent the same way they keep objectLinks coherent.
+ */
+export const remapPlacedAssetPages = (
+  assets: PlacedNotebookAsset[],
+  notebookId: string,
+  remap: (page: number) => number | null
+): PlacedNotebookAsset[] => {
+  const next: PlacedNotebookAsset[] = [];
+  for (const asset of assets) {
+    if (asset.notebookId !== notebookId) {
+      next.push(asset);
+      continue;
+    }
+    const page = remap(asset.page);
+    if (page === null) continue;
+    next.push({ ...asset, page });
+  }
+  return next;
+};

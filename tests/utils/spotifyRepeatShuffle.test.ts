@@ -100,6 +100,47 @@ describe('setRepeatMode', () => {
     await vi.advanceTimersByTimeAsync(500);
     await assertion;
   });
+
+  it('still retries the original PUT when transfer itself returns a transient non-2xx', async () => {
+    // Registration polling in useSpotifyWebPlayback now eliminates the
+    // "device-not-yet-registered" race upstream, so transfer rarely fails
+    // by the time this self-heal path is reached. When it does (a transient
+    // 5xx CDN blip mid-play), the caller's retry of the original endpoint
+    // is what surfaces the real, actionable error — so transfer's non-2xx
+    // responses (except 403) are deliberately silent here. This preserves
+    // the pre-PR recovery path where a flaky transfer didn't permanently
+    // block the retry.
+    vi.useFakeTimers();
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(resp(404)) // first repeat PUT
+      .mockResolvedValueOnce(resp(502)) // transfer transient 5xx (swallowed)
+      .mockResolvedValueOnce(resp(204)); // retry succeeds
+
+    const promise = setRepeatMode('tok', 'dev1', 'track');
+    await vi.advanceTimersByTimeAsync(500);
+    await promise;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+  });
+
+  it('translates transfer 403 to spotify-premium-required', async () => {
+    // Transfer 403 means the same thing as a 403 on the play endpoint:
+    // the account isn't Premium. Without this mapping, the caller would
+    // see a generic 'transfer returned 403' that misses the exact-string
+    // check in useSpotifyWebPlayback.togglePlay (line 290) — and the UI
+    // would never swap to the embed-iframe fallback for non-Premium users
+    // who reach the transfer path.
+    const fetchMock = vi.mocked(fetch);
+    fetchMock
+      .mockResolvedValueOnce(resp(404)) // first repeat PUT
+      .mockResolvedValueOnce(resp(403)); // transfer → premium required
+
+    await expect(setRepeatMode('tok', 'dev1', 'off')).rejects.toThrow(
+      'spotify-premium-required'
+    );
+    // No retry should have run — there's no point retrying a Premium issue.
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe('setShuffle', () => {
