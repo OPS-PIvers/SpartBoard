@@ -575,6 +575,10 @@ describe('RandomWidget', () => {
 
     afterEach(() => {
       vi.useRealTimers();
+      // Restore the vi.spyOn(audioUtils, 'playTick') created inside the test so
+      // the spy wrapper doesn't persist on the module namespace and stack with
+      // spies in other tests (which would inflate recorded call counts).
+      vi.restoreAllMocks();
     });
 
     it('stops calling playTick after soundEnabled is toggled off mid-spin', () => {
