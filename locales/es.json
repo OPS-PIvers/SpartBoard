@@ -242,6 +242,270 @@
     },
     "confirmClearBoard": "¿Estás seguro de que deseas cerrar TODAS las ventanas de widgets?"
   },
+  "plcDashboard": {
+    "subtitle": "Panel de la Comunidad",
+    "backToMenu": "Atrás",
+    "close": "Cerrar",
+    "tabs": {
+      "overview": "Resumen",
+      "quizzes": "Cuestionarios",
+      "videoActivities": "Actividades de Video",
+      "notes": "Notas",
+      "todos": "Lista de Tareas",
+      "sharedBoards": "Tableros Compartidos",
+      "settings": "Configuración",
+      "home": "Inicio",
+      "members": "Miembros",
+      "sharedData": "Datos Compartidos",
+      "docs": "Documentos",
+      "resources": "Recursos"
+    },
+    "assignmentsSubTabs": {
+      "label": "Vistas de tareas",
+      "library": "Biblioteca",
+      "inProgress": "En progreso",
+      "completed": "Completado"
+    },
+    "quizzesSubTabs": {
+      "label": "Vistas de cuestionarios",
+      "library": "Biblioteca",
+      "inProgress": "En progreso",
+      "completed": "Completado"
+    },
+    "videoActivitiesSubTabs": {
+      "label": "Vistas de actividades de video",
+      "library": "Biblioteca",
+      "inProgress": "En progreso",
+      "completed": "Completado"
+    },
+    "assignmentsLibrary": {
+      "bySharer": "compartido por {{name}}",
+      "unknownSharer": "un compañero",
+      "addToMyBoard": "Agregar a mi tablero",
+      "unshareAction": "Dejar de compartir",
+      "unshareTitle": "Dejar de compartir plantilla de tarea",
+      "unshareConfirm": "¿Eliminar \"{{title}}\" de esta Comunidad? Los compañeros que ya lo agregaron a su tablero conservan su copia.",
+      "unshareTooltip": "Eliminar de la Comunidad (cualquier miembro puede dejar de compartir; las importaciones existentes siguen funcionando)",
+      "unshared": "\"{{title}}\" eliminado de esta Comunidad.",
+      "unshareFailed": "No se pudo dejar de compartir la plantilla de tarea.",
+      "importedSync": "\"{{title}}\" agregado a tu tablero (pausado, sincronizado).",
+      "importedCopy": "\"{{title}}\" copiado a tu tablero (pausado).",
+      "importFailed": "No se pudo agregar la tarea a tu tablero.",
+      "assignedToClasses_one": "Asignado a {{count}} clase.",
+      "assignedToClasses_other": "Asignado a {{count}} clases.",
+      "assignFailed": "No se pudo guardar la selección de clases.",
+      "driveRequired": "Conecta Google Drive en tu cuenta para tomar tareas de la Comunidad.",
+      "driveDisconnected": "Conecta Google Drive para agregar tareas de la Comunidad a tu tablero.",
+      "emptyTitle": "Aún no hay plantillas de tareas",
+      "emptySubtitle": "Activa \"Compartir con la Comunidad\" en cualquier tarea de cuestionario que crees — aparecerá aquí para que los compañeros puedan agregarla a sus propios tableros."
+    },
+    "assignmentsInProgress": {
+      "heading": "En Vivo en el Equipo",
+      "count_one": "{{count}} en progreso",
+      "count_other": "{{count}} en progreso",
+      "statusActive": "Activo",
+      "statusPaused": "Pausado",
+      "emptyTitle": "No hay tareas en progreso",
+      "emptySubtitle": "Cuando tú o un compañero inicia una tarea en modo Comunidad, aparece aquí. Pausa o detén desde tu tablero y la fila se actualiza en tiempo real."
+    },
+    "meta": {
+      "members_one": "{{count}} Miembro",
+      "members_other": "{{count}} Miembros",
+      "youLead": "Tú lideras esta Comunidad"
+    },
+    "completedAssignments": {
+      "heading": "Resultados Compartidos",
+      "count_one": "{{count}} tarea",
+      "count_other": "{{count}} tareas",
+      "byOwner": "por {{name}}",
+      "openSheet": "Abrir Hoja",
+      "unsafeSheet": "Sin enlace",
+      "emptyTitle": "Aún no hay tareas completadas",
+      "emptySubtitle": "Cuando se detiene una tarea en modo Comunidad desde el tablero de cualquier compañero, aparece aquí con un enlace a la hoja de resultados compartida."
+    },
+    "placeholder": {
+      "comingSoon": "Próximamente"
+    },
+    "settings": {
+      "heading": "Secciones del Panel",
+      "description": "Elige qué secciones aparecen en el panel de esta Comunidad. Cualquier miembro puede actualizar estas opciones.",
+      "saveFailed": "No se pudo guardar la configuración",
+      "quizzes": {
+        "title": "Biblioteca de Cuestionarios",
+        "description": "Comparte cuestionarios con la Comunidad. Los miembros pueden sincronizar ediciones o copiar un cuestionario a su propia biblioteca."
+      },
+      "videoActivities": {
+        "title": "Actividades de Video",
+        "description": "Comparte actividades basadas en video y agrega datos de finalización con la Comunidad."
+      },
+      "notes": {
+        "title": "Notas",
+        "description": "Un cuaderno compartido para la Comunidad."
+      },
+      "todos": {
+        "title": "Lista de Tareas",
+        "description": "Una lista de verificación compartida para que la Comunidad pueda hacer seguimiento de las acciones."
+      },
+      "sharedBoards": {
+        "title": "Tableros Compartidos",
+        "description": "Muestra tableros compartidos con esta Comunidad."
+      }
+    },
+    "overview": {
+      "heading": "Resumen",
+      "editLayout": "Editar diseño",
+      "doneEditing": "Listo",
+      "reset": "Restablecer",
+      "editHint": "Arrastra las fichas por el asa, haz clic en la esquina para redimensionar, haz clic en el ojo para ocultar.",
+      "confirmReset": "¿Restablecer tu diseño bento al arreglo predeterminado? Se restaurarán los tamaños y el orden de las fichas.",
+      "confirmResetTitle": "Restablecer diseño",
+      "dragHandle": "Arrastra para reordenar",
+      "hideTile": "Ocultar ficha",
+      "unhideTile": "Restaurar ficha de {{kind}}",
+      "resizeTile": "Redimensionar ficha (actual: {{size}})",
+      "hiddenTiles": "Fichas ocultas",
+      "hiddenTilesHint": "haz clic para restaurar",
+      "tiles": {
+        "comingSoon": "Fase {{phase}} · pronto",
+        "plcInfo": {
+          "label": "Comunidad de Aprendizaje Profesional",
+          "members": "Miembros",
+          "lead": "Líder",
+          "you": "Tú",
+          "created": "Creado",
+          "openSettings": "Abrir configuración"
+        },
+        "members": {
+          "heading": "Miembros"
+        },
+        "completedAssignments": {
+          "heading": "Resultados recientes",
+          "empty": "Aún no se han ejecutado tareas",
+          "emptySubtitle": "Los cuestionarios que ejecutas en modo Comunidad aparecen aquí.",
+          "viewAll": "Ver todos"
+        },
+        "notes": {
+          "heading": "Notas",
+          "empty": "Aún no hay notas",
+          "emptySubtitle": "Captura notas de reunión, decisiones, ideas.",
+          "untitled": "Sin título",
+          "openAll": "Abrir notas",
+          "justNow": "ahora mismo",
+          "minutesAgo_one": "hace {{count}} min",
+          "minutesAgo_other": "hace {{count}} min",
+          "hoursAgo_one": "hace {{count}} h",
+          "hoursAgo_other": "hace {{count}} h",
+          "daysAgo_one": "hace {{count}} día",
+          "daysAgo_other": "hace {{count}} días"
+        },
+        "todos": {
+          "heading": "Lista de tareas",
+          "empty": "Nada pendiente",
+          "emptySubtitle": "Agrega elementos en la pestaña de Tareas.",
+          "openAll": "Abrir lista",
+          "toggle": "Marcar \"{{text}}\" como completado",
+          "moreCount_one": "+{{count}} más",
+          "moreCount_other": "+{{count}} más"
+        },
+        "sharedSheet": {
+          "heading": "Hoja compartida",
+          "connectedHint": "Los resultados agregados de la Comunidad se guardan en esta Hoja de Google. Todos los miembros pueden abrirla.",
+          "unsetHint": "Aún no hay hoja compartida — se creará automáticamente cuando se ejecute el primer cuestionario de la Comunidad.",
+          "open": "Abrir hoja",
+          "notReady": "Aún no creada"
+        },
+        "quickActions": {
+          "heading": "Acciones rápidas",
+          "addNote": "Agregar nota",
+          "addTodo": "Agregar tarea"
+        },
+        "quizLibrary": {
+          "title": "Biblioteca de cuestionarios",
+          "teaser": "Comparte cuestionarios con tu Comunidad.",
+          "heading": "Biblioteca de Cuestionarios",
+          "empty": "No hay cuestionarios compartidos",
+          "emptySubtitle": "Comparte un cuestionario desde el menú de su tarjeta de biblioteca.",
+          "questionCount_one": "{{count}} preg.",
+          "questionCount_other": "{{count}} preg.",
+          "bySharer": "compartido por {{name}}",
+          "openAll": "Abrir biblioteca"
+        },
+        "activeAssignments": {
+          "title": "Tareas activas",
+          "teaser": "Tareas creadas por la Comunidad en espera de ser tomadas."
+        },
+        "videoActivities": {
+          "title": "Actividades de video",
+          "teaser": "Comparte actividades de video con la Comunidad."
+        },
+        "sharedBoards": {
+          "title": "Tableros compartidos",
+          "teaser": "Tableros compartidos con esta Comunidad."
+        }
+      }
+    },
+    "notes": {
+      "heading": "Notas",
+      "newNote": "Nueva",
+      "untitled": "Sin título",
+      "empty": "Nota vacía",
+      "emptyTitle": "Aún no hay notas",
+      "emptySubtitle": "Crea la primera para comenzar.",
+      "titlePlaceholder": "Título de la nota",
+      "bodyPlaceholder": "Escribe tus notas…",
+      "deleteNote": "Eliminar nota",
+      "confirmDelete": "¿Eliminar esta nota? Esta acción no se puede deshacer.",
+      "confirmDeleteTitle": "Eliminar nota",
+      "lastEdited": "Última edición {{when}}",
+      "pickOrCreate": "Selecciona una nota para editar o crea una nueva."
+    },
+    "todos": {
+      "addPlaceholder": "Agregar una tarea para la Comunidad…",
+      "add": "Agregar",
+      "openHeading": "Por hacer",
+      "doneHeading": "Hecho",
+      "allDone": "Nada en la lista",
+      "toggle": "Marcar \"{{text}}\" como completado",
+      "deleteTodo": "Eliminar tarea",
+      "confirmDelete": "¿Eliminar esta tarea?",
+      "confirmDeleteTitle": "Eliminar tarea"
+    },
+    "quizLibrary": {
+      "heading": "Cuestionarios Compartidos",
+      "count_one": "{{count}} cuestionario",
+      "count_other": "{{count}} cuestionarios",
+      "emptyTitle": "Aún no hay cuestionarios compartidos",
+      "emptySubtitle": "Abre el widget de Cuestionario en tu tablero, haz clic en el menú de cualquier cuestionario y elige \"Compartir con la Comunidad\" para agregarlo aquí.",
+      "bySharer": "compartido por {{name}}",
+      "unknownSharer": "un compañero",
+      "questionCount_one": "{{count}} pregunta",
+      "questionCount_other": "{{count}} preguntas",
+      "addToMyLibrary": "Agregar a mi biblioteca",
+      "reimport": "Reimportar",
+      "inLibrary": "En tu biblioteca",
+      "alreadySynced": "\"{{title}}\" ya está sincronizado con tu biblioteca.",
+      "unshareAction": "Dejar de compartir",
+      "unshareYours": "Dejar de compartir en la Comunidad",
+      "unshareTeammate": "Dejar de compartir en la Comunidad (cualquier miembro puede eliminar)",
+      "unshareTitle": "Dejar de compartir cuestionario",
+      "unshareConfirm": "¿Eliminar \"{{title}}\" de esta Comunidad? Los demás compañeros perderán acceso a la entrada de biblioteca compartida. Las copias personales (si las hay) seguirán funcionando.",
+      "unshared": "\"{{title}}\" eliminado de esta Comunidad.",
+      "unshareFailed": "No se pudo dejar de compartir el cuestionario.",
+      "importedSync": "\"{{title}}\" agregado a tu biblioteca (sincronizado).",
+      "importedCopy": "\"{{title}}\" copiado a tu biblioteca.",
+      "importFailed": "No se pudo importar el cuestionario.",
+      "editAction": "Editar",
+      "editTooltip": "Editar en colaboración (los cambios se sincronizan con los compañeros)",
+      "editTooltipAutoImport": "Editar en colaboración — se agrega a tu biblioteca en la primera edición",
+      "editAutoImported": "\"{{title}}\" agregado a tu biblioteca — abriendo editor.",
+      "editSaved": "Cuestionario guardado — los compañeros se sincronizarán automáticamente.",
+      "editConflict": "Otro profesor publicó una actualización de este cuestionario. Incorporamos sus cambios; tus ediciones no guardadas no se guardaron. Vuelve a abrir el cuestionario para volver a aplicarlas.",
+      "editFailed": "No se pudo abrir el editor.",
+      "driveRequired": "Conecta Google Drive en tu cuenta para importar cuestionarios de la Comunidad.",
+      "driveRequiredForEdit": "Conecta Google Drive en tu cuenta para editar cuestionarios de la Comunidad.",
+      "driveDisconnected": "Conecta Google Drive para importar cuestionarios de la Comunidad a tu biblioteca personal."
+    }
+  },
   "widgetWindow": {
     "closeWidget": "¿Cerrar widget? Se perderán los datos.",
     "settings": "Configuración",
