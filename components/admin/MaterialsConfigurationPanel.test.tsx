@@ -58,10 +58,15 @@ vi.mock('@/components/widgets/InstructionalRoutines/IconPicker', () => ({
 
 vi.mock('@/config/buildings', () => ({
   BUILDINGS: [
-    { id: 'b1', name: 'Building 1' },
-    { id: 'b2', name: 'Building 2' },
+    { id: 'b1', name: 'Building 1', gradeLevels: [], gradeLabel: 'K-12' },
+    { id: 'b2', name: 'Building 2', gradeLevels: [], gradeLabel: 'K-12' },
   ],
-  buildingRecordToBuilding: (r: unknown) => r,
+  buildingRecordToBuilding: (r: { id?: string; name?: string }) => ({
+    id: r?.id,
+    name: r?.name,
+    gradeLevels: [],
+    gradeLabel: 'K-12',
+  }),
 }));
 
 // Stub useAdminBuildings to return the two test buildings without touching
