@@ -39,6 +39,13 @@ export const widgetNeedsProportionalMigration = (w: WidgetData): boolean => {
   ) {
     return true;
   }
+  // aspectRatio must be a positive, finite number. NaN, Infinity, zero, or a
+  // negative value all cause computeWidgetPixelRect to silently skip
+  // fitAspectInside, degrading 'preserve-aspect' widgets to 'fill' behaviour
+  // and distorting their shape on viewport-aspect-ratio changes.
+  if (!Number.isFinite(w.aspectRatio) || w.aspectRatio <= 0) {
+    return true;
+  }
   return false;
 };
 
