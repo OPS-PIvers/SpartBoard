@@ -154,12 +154,13 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
       const isFormField =
-        target.tagName === 'INPUT' ||
-        target.tagName === 'TEXTAREA' ||
-        target.tagName === 'SELECT' ||
-        target.isContentEditable;
+        !!target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
       if (isFormField) return;
       onClose();
     };
