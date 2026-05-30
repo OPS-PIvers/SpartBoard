@@ -189,6 +189,14 @@ describe('widgetNeedsProportionalMigration', () => {
     expect((out.aspectRatio as number) > 0).toBe(true);
     // The re-derived aspectRatio should match pixelW / pixelH = 280 / 140 = 2
     expect(out.aspectRatio).toBeCloseTo(280 / 140, 6);
+    // Regression guard for layout corruption: when aspectRatio is the only
+    // corrupt field, the already-valid proportions must survive unchanged. If
+    // the function recomputed them from pixel values against a fallback
+    // viewport, these would drift away from the originals (0.1 / 0.3).
+    expect(out.xProp).toBeCloseTo(0.1, 6);
+    expect(out.yProp).toBeCloseTo(0.1, 6);
+    expect(out.wProp).toBeCloseTo(0.3, 6);
+    expect(out.hProp).toBeCloseTo(0.3, 6);
   });
 });
 
