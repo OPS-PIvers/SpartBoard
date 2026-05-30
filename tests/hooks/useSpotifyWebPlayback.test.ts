@@ -28,10 +28,13 @@ vi.mock('@/utils/spotifyPlaybackSdk', async () => {
 // ── spotifyAuth mock ──────────────────────────────────────────────────────────
 // The hook now starts the saved URI on first play via playOnDevice; keep the
 // real parseSpotifyResource (so payload selection is exercised) and stub the
-// network call.
+// network calls. waitForDeviceRegistration is also stubbed because the real
+// implementation polls /v1/me/player/devices over real timers — every test
+// that emits 'ready' would otherwise hit real fetch.
 const playOnDeviceMock = vi.fn().mockResolvedValue(undefined);
 const setRepeatModeMock = vi.fn().mockResolvedValue(undefined);
 const setShuffleMock = vi.fn().mockResolvedValue(undefined);
+const waitForDeviceRegistrationMock = vi.fn().mockResolvedValue(true);
 vi.mock('@/utils/spotifyAuth', async () => {
   const actual = await vi.importActual<typeof import('@/utils/spotifyAuth')>(
     '@/utils/spotifyAuth'
@@ -44,6 +47,8 @@ vi.mock('@/utils/spotifyAuth', async () => {
       setRepeatModeMock(...args) as Promise<void>,
     setShuffle: (...args: unknown[]): Promise<void> =>
       setShuffleMock(...args) as Promise<void>,
+    waitForDeviceRegistration: (...args: unknown[]): Promise<boolean> =>
+      waitForDeviceRegistrationMock(...args) as Promise<boolean>,
   };
 });
 
@@ -92,6 +97,12 @@ beforeEach(() => {
   playOnDeviceMock.mockClear();
   setRepeatModeMock.mockClear();
   setShuffleMock.mockClear();
+  // mockReset (not mockClear) is required here because individual tests
+  // override with mockImplementation/mockRejectedValue/mockResolvedValue(false).
+  // Without resetting, the override would leak into the next test. The
+  // mockResolvedValue(true) re-establishes the happy-path default.
+  waitForDeviceRegistrationMock.mockReset();
+  waitForDeviceRegistrationMock.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -111,7 +122,7 @@ describe('useSpotifyWebPlayback', () => {
     expect(result.current.isPlaying).toBe(false);
   });
 
-  it('loads the SDK and sets deviceId when the ready event fires', async () => {
+  it('loads the SDK and sets deviceId once Spotify Connect registers it', async () => {
     installFakeSdk();
     const { result } = renderHook(() =>
       useSpotifyWebPlayback(true, getToken, null)
@@ -124,8 +135,123 @@ describe('useSpotifyWebPlayback', () => {
     act(() => {
       fakePlayer.emit('ready', { device_id: 'device-123' });
     });
-    expect(result.current.deviceId).toBe('device-123');
+    // waitForDeviceRegistration is mocked to resolve(true) — the .then()
+    // callback still has to flush before deviceId is exposed.
+    await waitFor(() => expect(result.current.deviceId).toBe('device-123'));
     expect(result.current.isReady).toBe(true);
+    expect(waitForDeviceRegistrationMock).toHaveBeenCalledWith(
+      expect.any(Function),
+      'device-123',
+      expect.any(Function)
+    );
+  });
+
+  it('falls back to sdkFailed AND disconnects the orphan player when device registration times out', async () => {
+    installFakeSdk();
+    waitForDeviceRegistrationMock.mockResolvedValue(false);
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-zzz' });
+    });
+    // Registration never confirmed → caller is told the SDK is unusable so it
+    // can swap in the embed iframe instead of leaving play permanently broken.
+    await waitFor(() => expect(result.current.sdkFailed).toBe(true));
+    expect(result.current.deviceId).toBeNull();
+    // Crucially, the orphan SDK player must be disconnected too — otherwise
+    // it keeps a Spotify Connect device slot and can steal playback from
+    // the embed-iframe fallback when it eventually registers late.
+    expect(fakePlayer.disconnect).toHaveBeenCalled();
+  });
+
+  it('falls back to sdkFailed when waitForDeviceRegistration itself rejects', async () => {
+    installFakeSdk();
+    waitForDeviceRegistrationMock.mockRejectedValue(
+      new Error('unexpected fetch rejection')
+    );
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-err' });
+    });
+    // Belt-and-suspenders .catch must engage so the hook doesn't end up
+    // with deviceId=null AND sdkFailed=false (the silent-broken state).
+    await waitFor(() => expect(result.current.sdkFailed).toBe(true));
+    expect(result.current.deviceId).toBeNull();
+  });
+
+  it("cancels an in-flight registration poll when 'not_ready' fires before it resolves", async () => {
+    installFakeSdk();
+    // Hold the registration mock open so we can race not_ready against its
+    // resolution.
+    let resolveRegistration: ((v: boolean) => void) | null = null;
+    waitForDeviceRegistrationMock.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolveRegistration = resolve;
+        })
+    );
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-A' });
+    });
+    // Simulate the SDK losing the device mid-poll.
+    act(() => {
+      fakePlayer.emit('not_ready', { device_id: 'device-A' });
+    });
+    // Now the racing poll finally resolves "registered". The bumped poll
+    // generation must make the .then() callback bail — otherwise it would
+    // resurrect device-A over the now-correct null state.
+    act(() => {
+      resolveRegistration?.(true);
+    });
+    await Promise.resolve();
+    expect(result.current.deviceId).toBeNull();
+    expect(result.current.sdkFailed).toBe(false);
+  });
+
+  it("cancels an in-flight registration poll when a second 'ready' fires for a new device", async () => {
+    installFakeSdk();
+    const resolvers: Array<(v: boolean) => void> = [];
+    waitForDeviceRegistrationMock.mockImplementation(
+      () =>
+        new Promise<boolean>((resolve) => {
+          resolvers.push(resolve);
+        })
+    );
+    const { result } = renderHook(() =>
+      useSpotifyWebPlayback(true, getToken, null)
+    );
+    await waitFor(() => expect(fakePlayer.connect).toHaveBeenCalled());
+
+    // Two ready emissions: SDK reconnected with a new device_id.
+    act(() => {
+      fakePlayer.emit('ready', { device_id: 'device-A' });
+      fakePlayer.emit('ready', { device_id: 'device-B' });
+    });
+    // Poll-B resolves first with true — UI should show device-B.
+    act(() => {
+      resolvers[1]?.(true);
+    });
+    await waitFor(() => expect(result.current.deviceId).toBe('device-B'));
+    // Now poll-A (stale) finally resolves true. The generation bump from
+    // the second 'ready' must make it bail; otherwise the dead device-A
+    // would overwrite device-B and subsequent /play calls would 404.
+    act(() => {
+      resolvers[0]?.(true);
+    });
+    await Promise.resolve();
+    expect(result.current.deviceId).toBe('device-B');
   });
 
   it('updates currentTrack and isPlaying on player_state_changed', async () => {
@@ -224,6 +350,7 @@ describe('useSpotifyWebPlayback', () => {
     act(() => {
       fakePlayer.emit('ready', { device_id: 'device-123' });
     });
+    await waitFor(() => expect(result.current.deviceId).toBe('device-123'));
     expect(result.current.currentTrack).toBeNull();
 
     await act(async () => {
@@ -245,6 +372,7 @@ describe('useSpotifyWebPlayback', () => {
     act(() => {
       fakePlayer.emit('ready', { device_id: 'device-123' });
     });
+    await waitFor(() => expect(result.current.deviceId).toBe('device-123'));
 
     await act(async () => {
       await result.current.togglePlay();
@@ -346,6 +474,7 @@ describe('useSpotifyWebPlayback', () => {
     act(() => {
       fakePlayer.emit('ready', { device_id: 'device-123' });
     });
+    await waitFor(() => expect(result.current.deviceId).toBe('device-123'));
 
     // Starts at off(0) → first cycle should request 'track'.
     await act(async () => {
@@ -401,6 +530,7 @@ describe('useSpotifyWebPlayback', () => {
     act(() => {
       fakePlayer.emit('ready', { device_id: 'device-123' });
     });
+    await waitFor(() => expect(result.current.deviceId).toBe('device-123'));
 
     // Default shuffle off → toggle requests true.
     await act(async () => {

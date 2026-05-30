@@ -138,3 +138,63 @@ describe('PersonalSpotifyBrowser', () => {
     });
   });
 });
+
+// ── Queue-and-flush: tap-to-play before SDK device is registered ─────────────
+// A separate describe block with its own useSpotifyWebPlayback mock so we can
+// flip deviceId from null → 'dev1' between renders. Without queueing, a tap
+// during the registration window (up to ~15s) silently no-ops because
+// handlePlay's `if (!playback.deviceId) return` short-circuits before
+// playOnDevice ever runs.
+
+describe('PersonalSpotifyBrowser — tap-before-device-ready queue-and-flush', () => {
+  it('queues the pick and flushes it when deviceId arrives', async () => {
+    playMock.mockClear();
+    mockUpdateWidget.mockClear();
+
+    // Dynamic state for the playback mock so we can transition deviceId.
+    let currentDeviceId: string | null = null;
+    vi.doMock('@/hooks/useSpotifyWebPlayback', () => ({
+      useSpotifyWebPlayback: () => ({
+        deviceId: currentDeviceId,
+        isReady: currentDeviceId !== null,
+        sdkFailed: false,
+        currentTrack: null,
+        isPlaying: false,
+        repeatMode: 0,
+        shuffle: false,
+        togglePlay: vi.fn(),
+        next: vi.fn(),
+        previous: vi.fn(),
+        cycleRepeat: vi.fn(),
+        toggleShuffle: vi.fn(),
+      }),
+    }));
+    // Re-import the component so it picks up the doMock'd hook.
+    const { PersonalSpotifyBrowser: Browser } =
+      await import('@/components/widgets/MusicWidget/PersonalSpotifyBrowser');
+    const { rerender } = render(
+      <Browser widget={makeWidget({ layout: 'default' }) as never} />
+    );
+
+    // Tap a row while deviceId is still null (registration polling in flight).
+    fireEvent.click(screen.getByText('mock-play-track'));
+    // URI is persisted regardless — that's the user's intent, captured.
+    expect(mockUpdateWidget).toHaveBeenCalledWith('w1', {
+      config: { personalSpotifyUrl: 'spotify:track:t1' },
+    });
+    // But playback should NOT have started yet — there's no device.
+    expect(playMock).not.toHaveBeenCalled();
+
+    // Device finally registers. Re-render so the hook returns the new id;
+    // the queue-flush useEffect should fire and call playOnDevice.
+    currentDeviceId = 'dev1';
+    rerender(<Browser widget={makeWidget({ layout: 'default' }) as never} />);
+    // The flush is async (await getAccessToken inside). Microtask wait.
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(playMock).toHaveBeenCalledWith('tok', 'dev1', {
+      uris: ['spotify:track:t1'],
+    });
+    vi.doUnmock('@/hooks/useSpotifyWebPlayback');
+  });
+});
