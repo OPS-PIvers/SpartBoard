@@ -44,6 +44,7 @@ import {
   formatVideoActivityBehaviorSummary,
 } from '@/utils/videoActivityBehavior';
 import { buildPlcLinkage } from '@/utils/plcLinkage';
+import { logError } from '@/utils/logError';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 
 // The teacher/discovery iframe creates attachments → needs the teacher scope.
@@ -320,6 +321,53 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     [append, courseId, itemId, itemType, addOnToken, loginHint]
   );
 
+  // Build the PLC linkage when the teacher opted into "Share with PLC" and
+  // picked a PLC — same shared builder the normal flow uses, so the linkage
+  // shape (auto-created sheet + name + member snapshot) is identical. A failed
+  // sheet auto-create falls through to no linkage and is logged. Shared by both
+  // the quiz and video-activity attach paths; `sheetTitle` only names the
+  // auto-created sheet (the builder is widget-agnostic), so either a quiz or a
+  // VA title is fine.
+  const resolvePlcLinkageForAttach = useCallback(
+    async (sheetTitle: string): Promise<PlcLinkage | undefined> => {
+      let plcLinkage: PlcLinkage | undefined;
+      if (plcShareEnabled && !selectedPlcId) {
+        append(
+          'PLC sharing was on but no PLC was picked — attaching without it.'
+        );
+      }
+      // Cache the selected PLC up front. `plcs` can repopulate on a cold load
+      // (usePlcs streams in after first render), so a picked-then-vanished id
+      // must not silently attach with an undefined `plc`.
+      const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
+      if (plcShareEnabled && selectedPlcId && !selectedPlc) {
+        append(
+          'Selected PLC is no longer available — attaching without PLC sharing.'
+        );
+      }
+      if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
+        append('Setting up the shared PLC results sheet…');
+        const { linkage, error: plcSheetError } = await buildPlcLinkage({
+          plc: selectedPlc,
+          quizTitle: sheetTitle,
+          selfUid: user.uid,
+          googleAccessToken,
+        });
+        plcLinkage = linkage;
+        if (plcSheetError) {
+          append(
+            `Note: couldn't create the shared PLC sheet (${plcSheetError.message}). ` +
+              'Attaching without PLC sharing.'
+          );
+        } else if (linkage) {
+          append(`Results will export to the "${linkage.name}" PLC sheet.`);
+        }
+      }
+      return plcLinkage;
+    },
+    [plcShareEnabled, selectedPlcId, plcs, user, googleAccessToken, append]
+  );
+
   const attachQuiz = useCallback(async () => {
     if (!selectedQuiz) {
       append('Pick a quiz first.');
@@ -357,39 +405,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // picked a PLC — same shared builder the normal flow uses, so the linkage
     // shape (auto-created sheet + name + member snapshot) is identical. A
     // failed sheet auto-create falls through to no linkage and is logged.
-    let plcLinkage: PlcLinkage | undefined;
-    if (plcShareEnabled && !selectedPlcId) {
-      append(
-        'PLC sharing was on but no PLC was picked — attaching without it.'
-      );
-    }
-    // Cache the selected PLC up front. `plcs` can repopulate on a cold load
-    // (usePlcs streams in after first render), so a picked-then-vanished id
-    // must not silently attach with an undefined `plc`.
-    const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
-    if (plcShareEnabled && selectedPlcId && !selectedPlc) {
-      append(
-        'Selected PLC is no longer available — attaching without PLC sharing.'
-      );
-    }
-    if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
-      append('Setting up the shared PLC results sheet…');
-      const { linkage, error: plcSheetError } = await buildPlcLinkage({
-        plc: selectedPlc,
-        quizTitle: selectedQuiz.title,
-        selfUid: user.uid,
-        googleAccessToken,
-      });
-      plcLinkage = linkage;
-      if (plcSheetError) {
-        append(
-          `Note: couldn't create the shared PLC sheet (${plcSheetError.message}). ` +
-            'Attaching without PLC sharing.'
-        );
-      } else if (linkage) {
-        append(`Results will export to the "${linkage.name}" PLC sheet.`);
-      }
-    }
+    const plcLinkage = await resolvePlcLinkageForAttach(selectedQuiz.title);
 
     // `sessionMode` + `sessionOptions` + `attemptLimit` now come from the
     // quiz's configured behavior. `periodNames` rides on the settings object
@@ -457,14 +473,23 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         attachedAt: Date.now(),
       };
       try {
+        // Session doc is load-bearing: the Results monitor reads
+        // `session.classroomAttachment` (NOT the assignment doc) to show
+        // "Push grades". Write it FIRST so a partial failure where the
+        // second (archive) write fails still leaves the push button working.
+        await updateDoc(doc(db, 'quiz_sessions', sessionId), {
+          classroomAttachment,
+        });
         await updateDoc(
           doc(db, 'users', user.uid, 'quiz_assignments', sessionId),
           { classroomAttachment, updatedAt: Date.now() }
         );
-        await updateDoc(doc(db, 'quiz_sessions', sessionId), {
-          classroomAttachment,
-        });
       } catch (persistErr) {
+        logError(
+          'TeacherDiscoveryRoute.persistClassroomAttachment',
+          persistErr,
+          { sessionId, kind }
+        );
         append(
           `Note: couldn't link this attachment for grade push (${
             persistErr instanceof Error
@@ -482,15 +507,14 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     resolveClassTargeting,
     createAssignment,
     createAttachment,
+    resolvePlcLinkageForAttach,
     user,
     courseId,
     itemId,
+    kind,
     dueAtLocal,
     teacherName,
     defaultTeacherName,
-    plcShareEnabled,
-    selectedPlcId,
-    plcs,
   ]);
 
   const attachVideoActivity = useCallback(async () => {
@@ -535,41 +559,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // picked a PLC — same shared builder the quiz path uses, so the linkage
     // shape (auto-created sheet + name + member snapshot) is identical. A
     // failed sheet auto-create falls through to no linkage and is logged.
-    let plcLinkage: PlcLinkage | undefined;
-    if (plcShareEnabled && !selectedPlcId) {
-      append(
-        'PLC sharing was on but no PLC was picked — attaching without it.'
-      );
-    }
-    // Cache the selected PLC up front. `plcs` can repopulate on a cold load
-    // (usePlcs streams in after first render), so a picked-then-vanished id
-    // must not silently attach with an undefined `plc`.
-    const selectedPlc = plcs.find((p) => p.id === selectedPlcId);
-    if (plcShareEnabled && selectedPlcId && !selectedPlc) {
-      append(
-        'Selected PLC is no longer available — attaching without PLC sharing.'
-      );
-    }
-    if (plcShareEnabled && selectedPlcId && selectedPlc && user) {
-      append('Setting up the shared PLC results sheet…');
-      const { linkage, error: plcSheetError } = await buildPlcLinkage({
-        plc: selectedPlc,
-        // `quizTitle` only names the auto-created sheet — the builder is
-        // widget-agnostic, so a VA title is fine here.
-        quizTitle: selectedActivity.title,
-        selfUid: user.uid,
-        googleAccessToken,
-      });
-      plcLinkage = linkage;
-      if (plcSheetError) {
-        append(
-          `Note: couldn't create the shared PLC sheet (${plcSheetError.message}). ` +
-            'Attaching without PLC sharing.'
-        );
-      } else if (linkage) {
-        append(`Results will export to the "${linkage.name}" PLC sheet.`);
-      }
-    }
+    const plcLinkage = await resolvePlcLinkageForAttach(selectedActivity.title);
 
     // VA has no join code — the assignment is identified by its sessionId
     // (== assignment id). `createAssignment`'s args are POSITIONAL:
@@ -634,14 +624,23 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         attachedAt: Date.now(),
       };
       try {
+        // Session doc is load-bearing: the Results monitor reads
+        // `session.classroomAttachment` (NOT the assignment doc) to show
+        // "Push grades". Write it FIRST so a partial failure where the
+        // second (archive) write fails still leaves the push button working.
+        await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
+          classroomAttachment,
+        });
         await updateDoc(
           doc(db, 'users', user.uid, 'video_activity_assignments', sessionId),
           { classroomAttachment, updatedAt: Date.now() }
         );
-        await updateDoc(doc(db, 'video_activity_sessions', sessionId), {
-          classroomAttachment,
-        });
       } catch (persistErr) {
+        logError(
+          'TeacherDiscoveryRoute.persistClassroomAttachment',
+          persistErr,
+          { sessionId, kind }
+        );
         append(
           `Note: couldn't link this attachment for grade push (${
             persistErr instanceof Error
@@ -659,15 +658,14 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     resolveClassTargeting,
     createVideoActivityAssignment,
     createAttachment,
+    resolvePlcLinkageForAttach,
     user,
     courseId,
     itemId,
+    kind,
     dueAtLocal,
     teacherName,
     defaultTeacherName,
-    plcShareEnabled,
-    selectedPlcId,
-    plcs,
   ]);
 
   const runAttach = useCallback(async () => {

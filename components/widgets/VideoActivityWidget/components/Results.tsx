@@ -248,29 +248,23 @@ export const Results: React.FC<ResultsProps> = ({
       return;
     }
 
-    // Build the PII-free grade payload: one entry per completed response with a
-    // resolvable pseudonym. `getStudentScore` returns the SAME 0–100 percentage
-    // the Students tab displays; scale it onto the frozen Classroom denominator,
-    // then round + clamp to [0, maxPoints].
-    const grades = responses
-      .filter((r) => r.completedAt !== null && !!r.studentUid)
-      .map((r) => {
-        const pct = getStudentScore(r);
-        const safePct = Number.isFinite(pct) ? pct : 0;
-        const pointsEarned = Math.max(
-          0,
-          Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
-        );
-        return { pseudonymUid: r.studentUid, pointsEarned };
-      });
+    // The eligible list — completed responses with a resolvable pseudonym —
+    // is cheap to compute and stable across the confirm dialog, so we derive
+    // it (and gate on it) BEFORE confirming. The per-student SCORING, however,
+    // is built AFTER the confirm against the latest props, so an edit pushed by
+    // the Firestore listener while the dialog is open can't bake stale scores
+    // into the payload (TOCTOU).
+    const eligible = responses.filter(
+      (r) => r.completedAt !== null && !!r.studentUid
+    );
 
-    if (grades.length === 0) {
+    if (eligible.length === 0) {
       addToast('No completed submissions to push yet', 'info');
       return;
     }
 
     const confirmed = await showConfirm(
-      `Push ${grades.length} grade${grades.length === 1 ? '' : 's'} to Google ` +
+      `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
         'Classroom? This writes draft grades to the assignment gradebook — ' +
         'you still review and return them in Classroom.',
       {
@@ -280,6 +274,21 @@ export const Results: React.FC<ResultsProps> = ({
       }
     );
     if (!confirmed) return;
+
+    // Build the PII-free grade payload: one entry per completed response with a
+    // resolvable pseudonym. `getStudentScore` returns the SAME 0–100 percentage
+    // the Students tab displays; scale it onto the frozen Classroom denominator,
+    // then round + clamp to [0, maxPoints]. Computed AFTER the confirm so it
+    // reflects any edit that landed while the dialog was open.
+    const grades = eligible.map((r) => {
+      const pct = getStudentScore(r);
+      const safePct = Number.isFinite(pct) ? pct : 0;
+      const pointsEarned = Math.max(
+        0,
+        Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
+      );
+      return { pseudonymUid: r.studentUid, pointsEarned };
+    });
 
     setPushingGrades(true);
     try {

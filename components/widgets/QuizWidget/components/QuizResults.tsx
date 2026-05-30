@@ -1050,43 +1050,21 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       return;
     }
 
-    // The current quiz total can drift from the Classroom denominator
-    // (`maxPoints`, frozen at attach time) if the quiz was edited after
-    // attaching. Scale each student's earned score onto the frozen denominator
-    // so the pushed ratio stays correct. When the quiz is unchanged
-    // (`currentTotal === maxPoints`) the scale is a no-op and this equals the
-    // raw earned points (preserves the original "same number" behavior); when
-    // edited, it pushes the correct ratio against the frozen denominator.
-    const currentTotal = quiz.questions.reduce(
-      (s, q) => s + (q.points ?? 1),
-      0
-    );
+    // The eligible list — completed responses with a resolvable pseudonym —
+    // is cheap to compute and stable across the confirm dialog, so we derive
+    // it (and gate on it) BEFORE confirming. The grade SCORING, however, is
+    // built AFTER the confirm against the latest props, so an edit pushed by
+    // the Firestore listener while the dialog is open can't bake stale scores
+    // into the payload (TOCTOU).
+    const eligible = completed.filter((r) => !!r.studentUid);
 
-    // Build the PII-free grade payload: one entry per completed, scored
-    // response. `getEarnedPoints` returns the raw points on the current scale;
-    // scale onto the Classroom denominator, then round + clamp to [0, maxPoints].
-    const grades = completed
-      .filter((r) => !!r.studentUid)
-      .map((r) => {
-        // Guard against a non-finite score (e.g. missing answers) so it can't
-        // propagate NaN through the clamp and make the CF reject the entry.
-        const rawPoints = getEarnedPoints(r, quiz.questions, session);
-        const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
-        const scaled =
-          currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
-        return {
-          pseudonymUid: r.studentUid,
-          pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(scaled))),
-        };
-      });
-
-    if (grades.length === 0) {
+    if (eligible.length === 0) {
       addToast('No completed submissions to push yet', 'info');
       return;
     }
 
     const confirmed = await showConfirm(
-      `Push ${grades.length} grade${grades.length === 1 ? '' : 's'} to Google ` +
+      `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
         'Classroom? This writes draft grades to the assignment gradebook — ' +
         'you still review and return them in Classroom.',
       {
@@ -1096,6 +1074,35 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       }
     );
     if (!confirmed) return;
+
+    // The current quiz total can drift from the Classroom denominator
+    // (`maxPoints`, frozen at attach time) if the quiz was edited after
+    // attaching. Scale each student's earned score onto the frozen denominator
+    // so the pushed ratio stays correct. When the quiz is unchanged
+    // (`currentTotal === maxPoints`) the scale is a no-op and this equals the
+    // raw earned points (preserves the original "same number" behavior); when
+    // edited, it pushes the correct ratio against the frozen denominator.
+    // Computed AFTER the confirm so it reflects any edit that landed while the
+    // dialog was open.
+    const currentTotal = quiz.questions.reduce(
+      (s, q) => s + (q.points ?? 1),
+      0
+    );
+
+    // Build the PII-free grade payload: one entry per completed, scored
+    // response. `getEarnedPoints` returns the raw points on the current scale;
+    // scale onto the Classroom denominator, then round + clamp to [0, maxPoints].
+    const grades = eligible.map((r) => {
+      // Guard against a non-finite score (e.g. missing answers) so it can't
+      // propagate NaN through the clamp and make the CF reject the entry.
+      const rawPoints = getEarnedPoints(r, quiz.questions, session);
+      const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
+      const scaled = currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
+      return {
+        pseudonymUid: r.studentUid,
+        pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(scaled))),
+      };
+    });
 
     setPushingGrades(true);
     try {

@@ -88,6 +88,8 @@ export function formatGradePushToast(data: PushClassroomGradesData): string {
  * than the generic failure message.
  */
 export function isNeedsConsentError(err: unknown): boolean {
+  const details = (err as { details?: { reason?: string } } | null)?.details;
+  if (details && details.reason === 'needs-consent') return true;
   const message = err instanceof Error ? err.message : String(err);
   return /needs-consent/i.test(message);
 }
