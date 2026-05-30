@@ -1,6 +1,54 @@
 {
   "entries": [
     {
+      "version": "2026.05.29.2",
+      "date": "2026-05-29",
+      "title": "Google Classroom integration",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Attach a SpartBoard quiz or video activity to a Google Classroom assignment, and your students open and take it right inside Classroom."
+            },
+            {
+              "text": "Connect a SpartBoard class to one of your active Google Classroom courses with the new \"Link to Google Classroom\" button in your Classes panel."
+            },
+            {
+              "text": "Two things now flow back to you automatically, with no student personal information ever stored:",
+              "items": [
+                {
+                  "text": "Your live monitor shows each student's real name as they join."
+                },
+                {
+                  "text": "Push earned points straight to the Classroom gradebook as draft grades you review and return."
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Google Classroom — you can now attach a SpartBoard quiz or video activity to a Google Classroom assignment from inside Classroom. Students open the assignment and take the quiz or complete the activity right in the Classroom view, without leaving for a separate link or code."
+        },
+        {
+          "type": "feature",
+          "text": "Link to Google Classroom — a new button in your Classes panel lists your active Google Classroom courses and lets you connect any of them to a SpartBoard class in one step. Once linked, that course can attach SpartBoard activities and receive grades."
+        },
+        {
+          "type": "feature",
+          "text": "Named monitor without storing personal info — when students join a Classroom-attached activity, your live monitor shows their real names so you know who's who at a glance. Names are matched from your roster on the fly and are never saved, keeping student personal information private."
+        },
+        {
+          "type": "feature",
+          "text": "Push grades to the Classroom gradebook — the quiz Results monitor gains a \"Push grades\" button that sends each student's earned points back to the linked Classroom assignment. Scores post as the raw points earned (a 17 out of 20 quiz shows as 17/20, not a percentage) and arrive as draft grades, so you still review and return them in Classroom."
+        }
+      ]
+    },
+    {
       "version": "2026.05.29",
       "date": "2026-05-29",
       "title": "Translations, typography, and dice fixes",
