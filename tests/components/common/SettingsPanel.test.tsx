@@ -163,6 +163,123 @@ describe('SettingsPanel', () => {
    *
    * Viewport is 1024 wide; panel (width≤380) fits to the right of 200.
    */
+  it('click-outside closes the panel even after onClose prop identity changes mid-session', () => {
+    // Regression: SettingsPanel's click-outside useEffect listed `onClose` in its
+    // dependency array. DraggableWindow passes onClose as an inline arrow function
+    // (`() => updateWidget(widget.id, { flipped: false })`), which creates a new
+    // function reference on every DraggableWindow render (e.g., drag, zoom, Firestore
+    // update). Each new onClose reference triggers the useEffect to re-run: the old
+    // 50ms timer is cleared, the event listener is removed, and a fresh 50ms timer
+    // is started. This means a click outside the panel is silently dropped whenever
+    // it arrives within 50ms of a parent re-render — a race condition that is very
+    // common during drag-while-settings-open.
+    //
+    // Fix: store onClose in a ref inside SettingsPanel (`onCloseRef.current = onClose`
+    // on every render) and call `onCloseRef.current()` from the handler. The useEffect
+    // dependency changes from `[onClose, widgetRef]` to `[widgetRef]` only, so the
+    // timer is only restarted when the widget actually changes identity — not on every
+    // parent re-render.
+
+    vi.useFakeTimers();
+
+    try {
+      vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+        left: 100,
+        top: 100,
+        right: 300,
+        bottom: 250,
+        width: 200,
+        height: 150,
+        x: 100,
+        y: 100,
+        toJSON: () => ({}),
+      });
+
+      const onClose1 = vi.fn();
+      const onClose2 = vi.fn();
+
+      // SettingsPanel's click-outside handler gates on widgetRef.current being
+      // non-null (to check if the click was inside the widget). We need a real
+      // DOM element in the ref, positioned far from clientX=10, clientY=10 so
+      // the click is treated as "outside".
+      const ClickOutsideHarness = ({ onClose }: { onClose: () => void }) => {
+        const widgetRef = React.useRef<HTMLDivElement>(null);
+        return (
+          <>
+            <div
+              ref={widgetRef}
+              data-testid="fake-widget"
+              style={{
+                position: 'fixed',
+                left: 500,
+                top: 500,
+                width: 100,
+                height: 100,
+              }}
+            />
+            <SettingsPanel
+              widget={MOCK_WIDGET}
+              widgetRef={widgetRef}
+              settings={<div data-testid="settings-content">Settings</div>}
+              shouldRenderSettings
+              onClose={onClose}
+              updateWidget={vi.fn()}
+              globalStyle={MOCK_GLOBAL_STYLE}
+              title="Test Widget"
+            />
+          </>
+        );
+      };
+
+      const { rerender } = render(<ClickOutsideHarness onClose={onClose1} />);
+
+      // Let the 50ms timer for the initial mount elapse so the pointerdown listener
+      // is registered.
+      act(() => {
+        vi.advanceTimersByTime(60);
+      });
+
+      // Simulate a DraggableWindow re-render by passing a new onClose identity.
+      // In production this happens on every drag/zoom/Firestore update while the
+      // settings panel is open.
+      act(() => {
+        rerender(<ClickOutsideHarness onClose={onClose2} />);
+      });
+
+      // Fire pointerdown on the document body immediately after the re-render.
+      // The timer has been RESET to 0ms (because onClose changed identity).
+      // With the bug: the listener hasn't been re-attached yet (still within the
+      // new 50ms window), so neither onClose1 nor onClose2 is called.
+      // With the fix: the effect doesn't depend on onClose at all, the existing
+      // listener is still attached, and onClose2 is invoked immediately.
+      // Dispatch pointerdown on a specific element in the body that is clearly
+      // OUTSIDE both the SettingsPanel and the fake-widget. The click-outside
+      // handler receives this element as e.target, which must be an Element (not
+      // a Document node) for `.closest()` to be available.
+      const outsideEl = document.createElement('div');
+      document.body.appendChild(outsideEl);
+      try {
+        act(() => {
+          outsideEl.dispatchEvent(
+            new PointerEvent('pointerdown', {
+              bubbles: true,
+              clientX: 10, // Far from the panel (left: 100+), so it's "outside"
+              clientY: 10,
+            })
+          );
+        });
+      } finally {
+        document.body.removeChild(outsideEl);
+      }
+
+      // With the bug the click is dropped — the timer was just reset.
+      // With the fix the click-outside fires immediately.
+      expect(onClose2).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('positions the panel using getBoundingClientRect, not world coordinates', () => {
     // Mock getBoundingClientRect to return a screen rect that DIFFERS from the
     // widget's world coordinates — simulating a zoom/pan transform on the canvas.
