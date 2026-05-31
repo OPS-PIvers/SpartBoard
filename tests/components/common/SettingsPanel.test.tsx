@@ -197,4 +197,119 @@ describe('SettingsPanel', () => {
     // widget.x + widget.w + PANEL_MARGIN = 100 + 200 + 12 = 312
     expect(leftValue).not.toBe(312);
   });
+
+  /**
+   * Regression: pressing Escape inside a form field (input, textarea, select)
+   * inside the settings panel must NOT close the panel.
+   *
+   * Previously the Escape key handler called onClose() unconditionally via a
+   * document-level listener. Because document listeners fire for all key events
+   * (React's stopPropagation on the widget level does not suppress native DOM
+   * events), pressing Escape in a focused input would close the entire panel
+   * instead of simply blurring the field.
+   */
+  it('does not close when Escape is pressed inside a form field', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 100,
+      right: 200,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    const onClose = vi.fn();
+
+    const HarnessWithInput: React.FC = () => {
+      const widgetRef = React.useRef<HTMLDivElement>(null);
+      return (
+        <>
+          <div ref={widgetRef} data-testid="fake-widget" />
+          <SettingsPanel
+            widget={MOCK_WIDGET}
+            widgetRef={widgetRef}
+            settings={
+              <input
+                data-testid="settings-input"
+                defaultValue="hello"
+                aria-label="test input"
+              />
+            }
+            shouldRenderSettings
+            onClose={onClose}
+            updateWidget={vi.fn()}
+            globalStyle={MOCK_GLOBAL_STYLE}
+            title="Test Widget"
+          />
+        </>
+      );
+    };
+
+    act(() => {
+      render(<HarnessWithInput />);
+    });
+
+    const input = screen.getByTestId('settings-input');
+    input.focus();
+
+    // Escape inside the input should NOT close the panel.
+    act(() => {
+      input.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      );
+    });
+
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes when Escape is pressed outside any form field', () => {
+    vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
+      left: 0,
+      top: 100,
+      right: 200,
+      bottom: 250,
+      width: 200,
+      height: 150,
+      x: 0,
+      y: 100,
+      toJSON: () => ({}),
+    });
+
+    const onClose = vi.fn();
+
+    const HarnessSimple: React.FC = () => {
+      const widgetRef = React.useRef<HTMLDivElement>(null);
+      return (
+        <>
+          <div ref={widgetRef} data-testid="fake-widget" />
+          <SettingsPanel
+            widget={MOCK_WIDGET}
+            widgetRef={widgetRef}
+            settings={<div data-testid="no-input">No form fields</div>}
+            shouldRenderSettings
+            onClose={onClose}
+            updateWidget={vi.fn()}
+            globalStyle={MOCK_GLOBAL_STYLE}
+            title="Test Widget"
+          />
+        </>
+      );
+    };
+
+    act(() => {
+      render(<HarnessSimple />);
+    });
+
+    // Escape fired from document.body (not a form field) should close the panel.
+    act(() => {
+      document.body.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })
+      );
+    });
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
 });

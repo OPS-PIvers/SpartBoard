@@ -148,12 +148,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
     };
   }, []);
 
-  // Close on Escape key
+  // Close on Escape key — but not when focus is inside a form field.
+  // Pressing Escape inside an input or select should dismiss the field
+  // focus (browser default) without also closing the entire panel.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        onClose();
-      }
+      if (e.key !== 'Escape') return;
+      const target = e.target as HTMLElement | null;
+      const isFormField =
+        !!target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
+      if (isFormField) return;
+      onClose();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
