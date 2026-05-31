@@ -239,6 +239,270 @@
     },
     "confirmClearBoard": "Êtes-vous sûr de vouloir fermer TOUTES les fenêtres de widgets ?"
   },
+  "plcDashboard": {
+    "subtitle": "Tableau de la Communauté",
+    "backToMenu": "Retour",
+    "close": "Fermer",
+    "tabs": {
+      "overview": "Vue d'ensemble",
+      "quizzes": "Quiz",
+      "videoActivities": "Activités vidéo",
+      "notes": "Notes",
+      "todos": "Liste de tâches",
+      "sharedBoards": "Tableaux partagés",
+      "settings": "Paramètres",
+      "home": "Accueil",
+      "members": "Membres",
+      "sharedData": "Données partagées",
+      "docs": "Documents",
+      "resources": "Ressources"
+    },
+    "assignmentsSubTabs": {
+      "label": "Vues des activités",
+      "library": "Bibliothèque",
+      "inProgress": "En cours",
+      "completed": "Terminé"
+    },
+    "quizzesSubTabs": {
+      "label": "Vues des quiz",
+      "library": "Bibliothèque",
+      "inProgress": "En cours",
+      "completed": "Terminé"
+    },
+    "videoActivitiesSubTabs": {
+      "label": "Vues des activités vidéo",
+      "library": "Bibliothèque",
+      "inProgress": "En cours",
+      "completed": "Terminé"
+    },
+    "assignmentsLibrary": {
+      "bySharer": "partagé par {{name}}",
+      "unknownSharer": "un collègue",
+      "addToMyBoard": "Ajouter à mon tableau",
+      "unshareAction": "Ne plus partager",
+      "unshareTitle": "Ne plus partager le modèle d'activité",
+      "unshareConfirm": "Retirer « {{title}} » de cette Communauté ? Les collègues qui l'ont déjà ajouté à leur tableau conservent leur copie.",
+      "unshareTooltip": "Retirer de la Communauté (tout membre peut arrêter le partage ; les imports existants continuent de fonctionner)",
+      "unshared": "« {{title}} » retiré de cette Communauté.",
+      "unshareFailed": "Impossible d'arrêter le partage du modèle d'activité.",
+      "importedSync": "« {{title}} » ajouté à votre tableau (pausé, synchronisé).",
+      "importedCopy": "« {{title}} » copié dans votre tableau (pausé).",
+      "importFailed": "Impossible d'ajouter l'activité à votre tableau.",
+      "assignedToClasses_one": "Attribuée à {{count}} classe.",
+      "assignedToClasses_other": "Attribuée à {{count}} classes.",
+      "assignFailed": "Impossible d'enregistrer la sélection de classes.",
+      "driveRequired": "Connectez Google Drive dans votre compte pour récupérer les activités de la Communauté.",
+      "driveDisconnected": "Connectez Google Drive pour ajouter des activités de la Communauté à votre tableau.",
+      "emptyTitle": "Aucun modèle d'activité pour l'instant",
+      "emptySubtitle": "Activez « Partager avec la Communauté » sur n'importe quelle activité de quiz que vous créez — elle apparaîtra ici pour que vos collègues puissent l'ajouter à leurs propres tableaux."
+    },
+    "assignmentsInProgress": {
+      "heading": "En direct dans l'équipe",
+      "count_one": "{{count}} en cours",
+      "count_other": "{{count}} en cours",
+      "statusActive": "Actif",
+      "statusPaused": "Pausé",
+      "emptyTitle": "Aucune activité en cours",
+      "emptySubtitle": "Quand vous ou un collègue démarrez une activité en mode Communauté, elle apparaît ici. Mettez-la en pause ou arrêtez-la depuis votre tableau, et la ligne se met à jour en temps réel."
+    },
+    "meta": {
+      "members_one": "{{count}} Membre",
+      "members_other": "{{count}} Membres",
+      "youLead": "Vous dirigez cette Communauté"
+    },
+    "completedAssignments": {
+      "heading": "Résultats partagés",
+      "count_one": "{{count}} activité",
+      "count_other": "{{count}} activités",
+      "byOwner": "par {{name}}",
+      "openSheet": "Ouvrir la feuille",
+      "unsafeSheet": "Pas de lien",
+      "emptyTitle": "Aucune activité terminée pour l'instant",
+      "emptySubtitle": "Quand une activité en mode Communauté est arrêtée depuis le tableau d'un collègue, elle apparaît ici avec un lien vers la feuille de résultats partagée."
+    },
+    "placeholder": {
+      "comingSoon": "Bientôt disponible"
+    },
+    "settings": {
+      "heading": "Sections du tableau",
+      "description": "Choisissez les sections qui apparaissent dans le tableau de cette Communauté. Tout membre peut mettre à jour ces paramètres.",
+      "saveFailed": "Impossible d'enregistrer les paramètres",
+      "quizzes": {
+        "title": "Bibliothèque de quiz",
+        "description": "Partagez des quiz avec la Communauté. Les membres peuvent synchroniser les modifications ou copier un quiz dans leur propre bibliothèque."
+      },
+      "videoActivities": {
+        "title": "Activités vidéo",
+        "description": "Partagez des activités basées sur la vidéo et agrégez les données de complétion avec la Communauté."
+      },
+      "notes": {
+        "title": "Notes",
+        "description": "Un carnet de notes partagé pour la Communauté."
+      },
+      "todos": {
+        "title": "Liste de tâches",
+        "description": "Une liste de contrôle partagée pour que la Communauté puisse suivre les actions à mener."
+      },
+      "sharedBoards": {
+        "title": "Tableaux partagés",
+        "description": "Affiche les tableaux partagés avec cette Communauté."
+      }
+    },
+    "overview": {
+      "heading": "Vue d'ensemble",
+      "editLayout": "Modifier la mise en page",
+      "doneEditing": "Terminé",
+      "reset": "Réinitialiser",
+      "editHint": "Faites glisser les tuiles par la poignée, cliquez sur le coin pour redimensionner, cliquez sur l'œil pour masquer.",
+      "confirmReset": "Réinitialiser votre mise en page bento à l'arrangement par défaut ? Les tailles et l'ordre des tuiles seront restaurés.",
+      "confirmResetTitle": "Réinitialiser la mise en page",
+      "dragHandle": "Faire glisser pour réorganiser",
+      "hideTile": "Masquer la tuile",
+      "unhideTile": "Restaurer la tuile {{kind}}",
+      "resizeTile": "Redimensionner la tuile (actuel : {{size}})",
+      "hiddenTiles": "Tuiles masquées",
+      "hiddenTilesHint": "cliquer pour restaurer",
+      "tiles": {
+        "comingSoon": "Phase {{phase}} · bientôt",
+        "plcInfo": {
+          "label": "Communauté d'Apprentissage Professionnel",
+          "members": "Membres",
+          "lead": "Responsable",
+          "you": "Vous",
+          "created": "Créé",
+          "openSettings": "Ouvrir les paramètres"
+        },
+        "members": {
+          "heading": "Membres"
+        },
+        "completedAssignments": {
+          "heading": "Résultats récents",
+          "empty": "Aucune activité effectuée",
+          "emptySubtitle": "Les quiz que vous exécutez en mode Communauté apparaissent ici.",
+          "viewAll": "Tout afficher"
+        },
+        "notes": {
+          "heading": "Notes",
+          "empty": "Aucune note pour l'instant",
+          "emptySubtitle": "Capturez les notes de réunion, décisions, idées.",
+          "untitled": "Sans titre",
+          "openAll": "Ouvrir les notes",
+          "justNow": "à l'instant",
+          "minutesAgo_one": "il y a {{count}} min",
+          "minutesAgo_other": "il y a {{count}} min",
+          "hoursAgo_one": "il y a {{count}} h",
+          "hoursAgo_other": "il y a {{count}} h",
+          "daysAgo_one": "il y a {{count}} jour",
+          "daysAgo_other": "il y a {{count}} jours"
+        },
+        "todos": {
+          "heading": "Liste de tâches",
+          "empty": "Rien à faire",
+          "emptySubtitle": "Ajoutez des éléments dans l'onglet Tâches.",
+          "openAll": "Ouvrir la liste",
+          "toggle": "Marquer « {{text}} » comme terminé",
+          "moreCount_one": "+{{count}} de plus",
+          "moreCount_other": "+{{count}} de plus"
+        },
+        "sharedSheet": {
+          "heading": "Feuille partagée",
+          "connectedHint": "Les résultats agrégés de la Communauté se trouvent dans cette Feuille Google. Tous les membres peuvent l'ouvrir.",
+          "unsetHint": "Pas encore de feuille partagée — elle sera créée automatiquement lors du premier quiz de la Communauté.",
+          "open": "Ouvrir la feuille",
+          "notReady": "Pas encore créée"
+        },
+        "quickActions": {
+          "heading": "Actions rapides",
+          "addNote": "Ajouter une note",
+          "addTodo": "Ajouter une tâche"
+        },
+        "quizLibrary": {
+          "title": "Bibliothèque de quiz",
+          "teaser": "Partagez des quiz avec votre Communauté.",
+          "heading": "Bibliothèque de Quiz",
+          "empty": "Aucun quiz partagé",
+          "emptySubtitle": "Partagez un quiz depuis le menu de sa carte de bibliothèque.",
+          "questionCount_one": "{{count}} q",
+          "questionCount_other": "{{count}} q",
+          "bySharer": "partagé par {{name}}",
+          "openAll": "Ouvrir la bibliothèque"
+        },
+        "activeAssignments": {
+          "title": "Activités actives",
+          "teaser": "Activités créées par la Communauté en attente d'être prises."
+        },
+        "videoActivities": {
+          "title": "Activités vidéo",
+          "teaser": "Partagez des activités vidéo avec la Communauté."
+        },
+        "sharedBoards": {
+          "title": "Tableaux partagés",
+          "teaser": "Tableaux partagés avec cette Communauté."
+        }
+      }
+    },
+    "notes": {
+      "heading": "Notes",
+      "newNote": "Nouveau",
+      "untitled": "Sans titre",
+      "empty": "Note vide",
+      "emptyTitle": "Aucune note pour l'instant",
+      "emptySubtitle": "Créez la première pour commencer.",
+      "titlePlaceholder": "Titre de la note",
+      "bodyPlaceholder": "Écrivez vos notes…",
+      "deleteNote": "Supprimer la note",
+      "confirmDelete": "Supprimer cette note ? Cette action est irréversible.",
+      "confirmDeleteTitle": "Supprimer la note",
+      "lastEdited": "Dernière modification {{when}}",
+      "pickOrCreate": "Sélectionnez une note à modifier ou créez-en une nouvelle."
+    },
+    "todos": {
+      "addPlaceholder": "Ajouter une tâche pour la Communauté…",
+      "add": "Ajouter",
+      "openHeading": "À faire",
+      "doneHeading": "Terminé",
+      "allDone": "Rien sur la liste",
+      "toggle": "Marquer « {{text}} » comme terminé",
+      "deleteTodo": "Supprimer la tâche",
+      "confirmDelete": "Supprimer cette tâche ?",
+      "confirmDeleteTitle": "Supprimer la tâche"
+    },
+    "quizLibrary": {
+      "heading": "Quiz partagés",
+      "count_one": "{{count}} quiz",
+      "count_other": "{{count}} quiz",
+      "emptyTitle": "Aucun quiz partagé pour l'instant",
+      "emptySubtitle": "Ouvrez le widget Quiz dans votre tableau, cliquez sur le menu d'un quiz et choisissez « Partager avec la Communauté » pour l'ajouter ici.",
+      "bySharer": "partagé par {{name}}",
+      "unknownSharer": "un collègue",
+      "questionCount_one": "{{count}} question",
+      "questionCount_other": "{{count}} questions",
+      "addToMyLibrary": "Ajouter à ma bibliothèque",
+      "reimport": "Réimporter",
+      "inLibrary": "Dans votre bibliothèque",
+      "alreadySynced": "« {{title}} » est déjà synchronisé avec votre bibliothèque.",
+      "unshareAction": "Ne plus partager",
+      "unshareYours": "Ne plus partager dans la Communauté",
+      "unshareTeammate": "Ne plus partager dans la Communauté (tout membre peut supprimer)",
+      "unshareTitle": "Ne plus partager le quiz",
+      "unshareConfirm": "Retirer « {{title}} » de cette Communauté ? Les autres collègues perdront l'accès à l'entrée de bibliothèque partagée. Leurs copies personnelles (le cas échéant) continueront de fonctionner.",
+      "unshared": "« {{title}} » retiré de cette Communauté.",
+      "unshareFailed": "Impossible d'arrêter le partage du quiz.",
+      "importedSync": "« {{title}} » ajouté à votre bibliothèque (synchronisé).",
+      "importedCopy": "« {{title}} » copié dans votre bibliothèque.",
+      "importFailed": "Impossible d'importer le quiz.",
+      "editAction": "Modifier",
+      "editTooltip": "Modifier en collaboration (les modifications se synchronisent avec les collègues)",
+      "editTooltipAutoImport": "Modifier en collaboration — s'ajoute à votre bibliothèque à la première modification",
+      "editAutoImported": "« {{title}} » ajouté à votre bibliothèque — ouverture de l'éditeur.",
+      "editSaved": "Quiz enregistré — les collègues se synchroniseront automatiquement.",
+      "editConflict": "Un autre enseignant a publié une mise à jour de ce quiz. Nous avons récupéré ses modifications ; vos modifications non enregistrées n'ont pas été sauvegardées. Rouvrez le quiz pour les appliquer à nouveau.",
+      "editFailed": "Impossible d'ouvrir l'éditeur.",
+      "driveRequired": "Connectez Google Drive dans votre compte pour importer les quiz de la Communauté.",
+      "driveRequiredForEdit": "Connectez Google Drive dans votre compte pour modifier les quiz de la Communauté.",
+      "driveDisconnected": "Connectez Google Drive pour importer les quiz de la Communauté dans votre bibliothèque personnelle."
+    }
+  },
   "widgetWindow": {
     "closeWidget": "Fermer le widget ? Les données seront perdues.",
     "settings": "Paramètres",
