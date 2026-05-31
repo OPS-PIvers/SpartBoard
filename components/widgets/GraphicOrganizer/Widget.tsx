@@ -76,8 +76,8 @@ const EditableNode: React.FC<{
       suppressContentEditableWarning
       onInput={handleInput}
       onBlur={handleBlur}
-      className={`outline-none min-h-[50px] whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 ${className ?? ''}`}
-      style={style}
+      className={`outline-none whitespace-pre-wrap break-words empty:before:content-[attr(data-placeholder)] empty:before:text-slate-400 ${className ?? ''}`}
+      style={{ minHeight: 'min(50px, 10cqmin)', ...style }}
       data-placeholder={placeholder}
     />
   );

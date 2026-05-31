@@ -1,7 +1,7 @@
 import '@testing-library/jest-dom';
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { act, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CountdownWidget } from './Widget';
 import { CountdownConfig, WidgetData } from '@/types';
 
@@ -45,6 +45,10 @@ describe('CountdownWidget', () => {
     vi.setSystemTime(new Date('2026-04-03T09:00:00.000Z'));
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it('shows the current day as excluded in grid mode when countToday is off', () => {
     render(
       <CountdownWidget
@@ -81,5 +85,23 @@ describe('CountdownWidget', () => {
     const titleEl = screen.getByText('Field Trip');
     expect(titleEl).toHaveStyle({ color: '#2d3f89' });
     expect(titleEl).not.toHaveClass('text-brand-blue-primary');
+  });
+
+  it('recalculates the count when midnight passes without a config change', () => {
+    // Start on April 3. Event is April 6. countToday=true, includeWeekends=true.
+    // Days remaining: Apr 3, Apr 4, Apr 5 → 3
+    render(<CountdownWidget widget={buildWidget({ countToday: true })} />);
+    expect(screen.getByText('3')).toBeInTheDocument();
+
+    // Advance 25 hours so the system clock crosses midnight into April 4.
+    // Days remaining: Apr 4, Apr 5 → 2
+    act(() => {
+      vi.advanceTimersByTime(25 * 60 * 60 * 1000);
+    });
+
+    // The widget must re-render and show the updated count.
+    // Without an internal ticker that re-triggers the useMemo, this fails.
+    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.queryByText('3')).not.toBeInTheDocument();
   });
 });

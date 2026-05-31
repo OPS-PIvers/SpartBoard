@@ -183,4 +183,56 @@ describe('buildContributionDoc', () => {
     expect(doc.responses[0].pin).toBe('zeta');
     expect(doc.responses[1].pin).toBe('alpha');
   });
+
+  it('deduplicates duplicate question IDs before computing maxPoints and pointsEarned (Drive-sync duplication guard)', () => {
+    // Drive-sync or arrayUnion races can write the same question twice.
+    // Without a dedup fence, maxPoints inflates and pointsEarned double-counts
+    // for questions whose graded answer is non-zero.
+    //
+    // Scenario A: q1 correct (2 pts, duplicated), q2 wrong (1 pt)
+    //   Bug:  maxPoints=5, pointsEarned=4, scorePercent=80
+    //   Fix:  maxPoints=3, pointsEarned=2, scorePercent=67
+    const quizA = makeQuiz([
+      makeMcQuestion('q1', 'Q1', 'a', 2),
+      makeMcQuestion('q1', 'Q1', 'a', 2), // duplicate — same id, same shape
+      makeMcQuestion('q2', 'Q2', 'b', 1),
+    ]);
+    const docA = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz: quizA,
+      responses: [
+        makeResponse({ pin: '1', answers: { q1: 'a', q2: 'x' } }), // q1 correct, q2 wrong
+      ],
+    });
+    expect(docA.responses[0].maxPoints).toBe(3);
+    expect(docA.responses[0].pointsEarned).toBe(2);
+    expect(docA.responses[0].scorePercent).toBe(67);
+
+    // Scenario B: q1 wrong (2 pts, duplicated), q2 correct (1 pt)
+    //   Bug:  maxPoints=5, pointsEarned=1, scorePercent=20
+    //   Fix:  maxPoints=3, pointsEarned=1, scorePercent=33
+    const quizB = makeQuiz([
+      makeMcQuestion('q1', 'Q1', 'a', 2),
+      makeMcQuestion('q1', 'Q1', 'a', 2), // duplicate
+      makeMcQuestion('q2', 'Q2', 'b', 1),
+    ]);
+    const docB = buildContributionDoc({
+      plcId: 'plc-A',
+      teacherUid: 'teacher-1',
+      teacherName: 'Teacher One',
+      quiz: quizB,
+      responses: [
+        makeResponse({ pin: '2', answers: { q1: 'x', q2: 'b' } }), // q1 wrong, q2 correct
+      ],
+    });
+    expect(docB.responses[0].maxPoints).toBe(3);
+    expect(docB.responses[0].pointsEarned).toBe(1);
+    expect(docB.responses[0].scorePercent).toBe(33);
+
+    // questionsSnapshot should also deduplicate (no repeated entry)
+    expect(docA.questionsSnapshot).toHaveLength(2);
+    expect(docA.questionsSnapshot.map((q) => q.id)).toEqual(['q1', 'q2']);
+  });
 });
