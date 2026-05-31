@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-24_
+_Last audited: 2026-05-31_
 _Last action: 2026-05-28_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-31 audit notes: Reviewed all changes since 2026-05-24. (1) Scoreboard gained `layout?: 'cards' | 'rows'` in `ScoreboardConfig` (commit 4f5d2bb6) — added as a user-configurable toggle in Settings.tsx. `BuildingScoreboardDefaults` does not include `layout`; `ScoreboardConfigurationPanel.tsx` exposes only team defaults; `case 'scoreboard':` in `adminBuildingConfig.ts` passes through only `teams`. New LOW gap added. (2) Classroom-addon commits (VA grade push, grade passback, assignment settings, PLC parity) added `ClassroomAddonContext`, `ClassroomCourseWork`, and session types to types.ts — none are widget-config fields; no building defaults impact. (3) Notebook fix (#1759) and Spotify fix (#1758) are logic-only; no config changes. (4) NumberLine ConfigurationPanel fix already captured in Completed. No new HIGH or MEDIUM items._
 
 _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget gained `source` (curated/personal/curated-spotify), `layout`, and `personalSpotify*` fields in MusicConfig — these are user-level preferences; personal-spotify access is gated via `canAccessFeature('personal-spotify')` (GlobalFeaturePermission + `buildings?:string[]`), not through building defaults. No building-defaults admin config needed for music. (2) QuizBehaviorSettings added new behavior fields to QuizConfig and VideoActivityConfig — quiz behavior is set per-quiz in the quiz editor, not per-building. No building defaults needed. (3) `refactor(admin)` commit (31e46ad3) removed magic/record/remote panels — already captured in Completed item. (4) SmartNotebook continues to accumulate features but its existing open item (appearance fields gap) covers the new work. No new MEDIUM or HIGH items. One new LOW item added (guided-learning stub panel)._
 
@@ -37,6 +39,13 @@ _2026-05-24 audit notes: Reviewed all changes since 2026-05-17. (1) Music widget
 - **File:** types.ts (ChecklistConfig / BuildingChecklistDefaults), context/DashboardContext.tsx (~line 2183)
 - **Detail:** `ChecklistConfig` has a `rosterMode` field that controls whether the checklist uses a manually-entered list or a synced class roster. Users can toggle this in Settings.tsx. `BuildingChecklistDefaults` does not include `rosterMode`, so admins cannot set a default roster mode per building.
 - **Fix:** Add `rosterMode` to `BuildingChecklistDefaults` in types.ts. Add it to the `case 'checklist'` handler in `getAdminBuildingConfig()`. Expose a toggle in `ChecklistConfigurationPanel.tsx`.
+
+### LOW Scoreboard: `layout` user-configurable but not in admin building config
+
+- **Detected:** 2026-05-31
+- **File:** types.ts (ScoreboardConfig / BuildingScoreboardDefaults), utils/adminBuildingConfig.ts (case 'scoreboard'), components/admin/ScoreboardConfigurationPanel.tsx
+- **Detail:** Commit `4f5d2bb6` added `layout?: 'cards' | 'rows'` to `ScoreboardConfig` and exposed it as a toggle in `Scoreboard/Settings.tsx`. However, `BuildingScoreboardDefaults` only has `buildingId` and `teams?` — no `layout` field. `ScoreboardConfigurationPanel.tsx` exposes only team defaults. The `case 'scoreboard':` handler in `adminBuildingConfig.ts` passes through only `teams`. Admins cannot set a per-building default layout mode.
+- **Fix:** Add `layout?: 'cards' | 'rows'` to `BuildingScoreboardDefaults` in `types.ts`. Add `layout` extraction to the `case 'scoreboard':` handler in `adminBuildingConfig.ts` (validate against allowlist `['cards', 'rows']`). Add a 2-segment pill toggle for "Default Layout" (Cards / Rows) in `ScoreboardConfigurationPanel.tsx`, following the existing pattern from `ClockConfigurationPanel.tsx` for multi-option defaults.
 
 ### MEDIUM `activity-wall` admin ConfigurationPanel writes building defaults that nothing reads
 

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-30_
+_Last audited: 2026-05-31_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-05-31: Full audit of all 63 WidgetType values. New dev-paul commits since 2026-05-30: Fix SmartNotebook placed assets stranding on page reorder/delete (#1759 — SmartNotebook/Widget.tsx), fix(spotify) eliminate Web Playback SDK 'ready' vs Connect registration race (#1758 — MusicWidget sub-components), test(spotify) queue-and-flush null-device path, docs(spotify/changelog) minor docs. None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 63 WidgetTypes correctly registered. Zero new gaps._
 
 _2026-05-30: Full audit of all 63 WidgetType values. New dev-paul commits not yet merged into scheduled-tasks (rebase blocked by journal-file conflicts): 10 classroom-addon commits (docs(changelog) release entry, refactor/feat/fix classroom-addon x9 — VA grade push, grade passback, assignment settings, PLC parity, link-to-Classroom button). None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. Widget file changes (DiceWidget/Widget.tsx, QuizWidget/Widget.tsx, VideoActivityWidget/Widget.tsx, random/RandomSettings.tsx) are logic/test-only changes with no registry impact. All 63 WidgetTypes correctly registered. Zero new gaps. All lazyNamed() export names correct._
 _2026-05-29: Full audit of all 63 WidgetType values. New dev-paul commits absorbed via merge since 2026-05-28: spike(classroom) de-risk slice for Add-on student handshake, docs(classroom) ground plan + re-scope Add-on integration plan, docs(quiz) fix stale cache-miss-fill comments, fix(quiz) re-apply #1743 editor/cache fixes onto #1744 model, plus ~29 additional commits from the batched merge (quiz data-loss PRs #1742–#1745, smart-notebook fixes, scoreboard, stations, random). None of these commits touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 63 WidgetTypes correctly registered (prior journal counted 64 — the corrected count is 63 as verified by full enumeration). Zero new gaps. All lazyNamed() spot-checks pass._
