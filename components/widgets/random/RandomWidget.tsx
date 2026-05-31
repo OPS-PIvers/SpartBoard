@@ -332,14 +332,13 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     return combined;
   }, [firstNames, lastNames, activeRoster, rosterMode, presentClassStudents]);
 
-  // Keep refs to the latest `students` array and `soundEnabled` flag so the
-  // flash/slots setInterval callbacks always read the current values even if
-  // props/config change mid-animation (stale-closure guard — same pattern as
-  // DiceWidget's diceCountRef/configRef fix in PR #1749).
+  // Keep a ref to the latest `students` array so the flash/slots setInterval
+  // callbacks always read the current value even if props/config change
+  // mid-animation (stale-closure guard — same pattern as DiceWidget's
+  // diceCountRef/configRef fix in PR #1749). `soundEnabledRef` is declared
+  // above and already mirrors `soundEnabled` for the same reason.
   const studentsRef = useRef(students);
-  const soundEnabledRef = useRef(soundEnabled);
   studentsRef.current = students;
-  soundEnabledRef.current = soundEnabled;
 
   // Inline stepper display: mirror the call-site default so the on-widget
   // controls show what Pick will actually use until the user sets explicit
