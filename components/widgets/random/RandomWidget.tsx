@@ -78,6 +78,7 @@ import { GroupSizeStepper } from './GroupSizeStepper';
 import { ShuffleList } from './ShuffleList';
 
 import { WidgetLayout } from '../WidgetLayout';
+import { ScaledEmptyState } from '@/components/common/ScaledEmptyState';
 
 interface ModeCycleEntry {
   id: string;
@@ -1509,72 +1510,53 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       activeRoster.students.length > 0 &&
       absentCount >= activeRoster.students.length;
 
+    const emptyTitle = everyoneAbsent
+      ? t('widgets.random.everyoneAbsentTitle', {
+          defaultValue: 'Everyone Absent Today',
+        })
+      : t('widgets.random.noNamesTitle', {
+          defaultValue: 'No Names Provided',
+        });
+
+    const emptySubtitle = everyoneAbsent
+      ? t('widgets.random.everyoneAbsentSubtitle', {
+          defaultValue: 'Tap below to update attendance.',
+        })
+      : t('widgets.random.noNamesSubtitle', {
+          defaultValue: 'Flip this widget to enter your student roster.',
+        });
+
+    const emptyAction = everyoneAbsent ? (
+      <button
+        onClick={() => setAbsentModalOpen(true)}
+        className="flex items-center bg-brand-blue-primary text-white rounded-full font-bold hover:bg-brand-blue-dark transition-colors"
+        style={{
+          gap: 'min(8px, 2cqmin)',
+          padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
+          fontSize: 'min(14px, 3.5cqmin)',
+        }}
+      >
+        <UserX
+          style={{
+            width: 'min(14px, 3.5cqmin)',
+            height: 'min(14px, 3.5cqmin)',
+          }}
+        />
+        {t('widgets.random.updateAttendance', {
+          defaultValue: 'Update attendance',
+        })}
+      </button>
+    ) : undefined;
+
     return (
       <>
-        <div
-          className="flex flex-col items-center justify-center h-full text-slate-400 text-center"
-          style={{
-            padding: 'min(24px, 5cqmin)',
-            gap: 'min(12px, 3cqmin)',
-          }}
-        >
-          <Users
-            className="opacity-20"
-            style={{
-              width: 'min(48px, 12cqmin)',
-              height: 'min(48px, 12cqmin)',
-            }}
-          />
-          <div>
-            <p
-              className="uppercase tracking-widest font-bold"
-              style={{
-                fontSize: 'min(14px, 3.5cqmin)',
-                marginBottom: 'min(4px, 1cqmin)',
-              }}
-            >
-              {everyoneAbsent
-                ? t('widgets.random.everyoneAbsentTitle', {
-                    defaultValue: 'Everyone Absent Today',
-                  })
-                : t('widgets.random.noNamesTitle', {
-                    defaultValue: 'No Names Provided',
-                  })}
-            </p>
-            <p style={{ fontSize: 'min(12px, 3cqmin)' }}>
-              {everyoneAbsent
-                ? t('widgets.random.everyoneAbsentSubtitle', {
-                    defaultValue: 'Tap below to update attendance.',
-                  })
-                : t('widgets.random.noNamesSubtitle', {
-                    defaultValue:
-                      'Flip this widget to enter your student roster.',
-                  })}
-            </p>
-          </div>
-          {everyoneAbsent && (
-            <button
-              onClick={() => setAbsentModalOpen(true)}
-              className="flex items-center bg-brand-blue-primary text-white rounded-full font-bold hover:bg-brand-blue-dark transition-colors"
-              style={{
-                marginTop: 'min(8px, 2cqmin)',
-                gap: 'min(8px, 2cqmin)',
-                padding: 'min(8px, 2cqmin) min(16px, 4cqmin)',
-                fontSize: 'min(14px, 3.5cqmin)',
-              }}
-            >
-              <UserX
-                style={{
-                  width: 'min(14px, 3.5cqmin)',
-                  height: 'min(14px, 3.5cqmin)',
-                }}
-              />
-              {t('widgets.random.updateAttendance', {
-                defaultValue: 'Update attendance',
-              })}
-            </button>
-          )}
-        </div>
+        <ScaledEmptyState
+          icon={Users}
+          title={emptyTitle}
+          subtitle={emptySubtitle}
+          action={emptyAction}
+          iconClassName="text-slate-400 opacity-20"
+        />
         {absentModal}
       </>
     );
