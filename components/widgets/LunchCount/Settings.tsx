@@ -92,9 +92,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
         {/* School Site */}
         <div>
-          <SettingsLabel icon={School} className="mb-1.5">
-            School Site
-          </SettingsLabel>
+          <SettingsLabel icon={School}>School Site</SettingsLabel>
           <select
             value={schoolSite}
             onChange={(e) =>
@@ -112,9 +110,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Lunch Time */}
         <div>
-          <SettingsLabel icon={Clock} className="mb-1.5">
-            Lunch Time
-          </SettingsLabel>
+          <SettingsLabel icon={Clock}>Lunch Time</SettingsLabel>
           <div>
             <div className="flex items-center gap-2">
               <input
@@ -193,9 +189,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Grade Level */}
         <div>
-          <SettingsLabel icon={GraduationCap} className="mb-1.5">
-            Grade Level
-          </SettingsLabel>
+          <SettingsLabel icon={GraduationCap}>Grade Level</SettingsLabel>
           <div className="flex gap-2 flex-wrap">
             {gradeOptions.map((opt) => (
               <button
