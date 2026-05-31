@@ -5,6 +5,7 @@ import { RosterModeControl } from '@/components/common/RosterModeControl';
 import { Toggle } from '@/components/common/Toggle';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TypographySettings } from '@/components/common/TypographySettings';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { toLunchCountSchoolSite } from '@/config/buildings';
 import { School, Users, Clock, GraduationCap } from 'lucide-react';
 
@@ -91,9 +92,9 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
       <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200 space-y-4">
         {/* School Site */}
         <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <School className="w-3 h-3" /> School Site
-          </label>
+          <SettingsLabel icon={School} className="mb-1.5">
+            School Site
+          </SettingsLabel>
           <select
             value={schoolSite}
             onChange={(e) =>
@@ -111,9 +112,9 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Lunch Time */}
         <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <Clock className="w-3 h-3" /> Lunch Time
-          </label>
+          <SettingsLabel icon={Clock} className="mb-1.5">
+            Lunch Time
+          </SettingsLabel>
           <div>
             <div className="flex items-center gap-2">
               <input
@@ -192,9 +193,9 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
 
         {/* Grade Level */}
         <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-1.5 flex items-center gap-1.5">
-            <GraduationCap className="w-3 h-3" /> Grade Level
-          </label>
+          <SettingsLabel icon={GraduationCap} className="mb-1.5">
+            Grade Level
+          </SettingsLabel>
           <div className="flex gap-2 flex-wrap">
             {gradeOptions.map((opt) => (
               <button
@@ -277,9 +278,7 @@ export const LunchCountSettings: React.FC<{ widget: WidgetData }> = ({
         <div>
           {rosterMode === 'custom' ? (
             <>
-              <label className="text-xxs text-slate-400 uppercase tracking-widest mb-2 block flex items-center gap-2">
-                <Users className="w-3 h-3" /> Custom Roster
-              </label>
+              <SettingsLabel icon={Users}>Custom Roster</SettingsLabel>
               <textarea
                 value={roster.join('\n')}
                 onChange={(e) =>
