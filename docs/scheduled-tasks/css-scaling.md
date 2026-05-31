@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
 _Last audited: 2026-05-31_
-_Last action: 2026-05-30_
+_Last action: 2026-05-31_
 
 ---
 
@@ -57,13 +57,6 @@ _2026-05-13: Scanned all 50 Widget.tsx files for hardcoded text-size classes, fi
 _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size classes and Tailwind pixel-cap violations. No new issues since 2026-05-06. `CatalystInstructionWidget.tsx:48` (`text-xs`) confirmed to be in the Settings component (back-face), not the front-face widget content — not a violation. All existing open items remain valid._
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
-
-### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
-
-- **Detected:** 2026-05-29
-- **File:** components/widgets/GraphicOrganizer/Widget.tsx:79
-- **Detail:** The internal `EditableNode` component renders a `contenteditable` div with `className="... min-h-[50px] ..."`. This sets a fixed 50 px minimum height on every editable node inside the graphic organizer (Frayer, T-chart, Venn, KWL, Cause-Effect layouts). Widget has `skipScaling: true`. At small widget sizes this 50 px floor can crowd out other content; at large widget sizes it looks sparse. Note: the prior Completed entries for GraphicOrganizer addressed outer structural padding (`p-4` on Frayer cells, `w-32 h-32` center circle, etc.) — this specific EditableNode `min-h-[50px]` was not covered.
-- **Fix:** Replace `min-h-[50px]` with a `cqmin` inline style: add a `minHeight` key to the existing `style` prop on the contenteditable div → `style={{ ..., minHeight: 'min(50px, 10cqmin)' }}`. This caps the floor at 50 px on large widgets while allowing proportional reduction at small sizes. Alternatively, `min-h-0` with `flex-1` on the parent cell could let the node fill available space.
 
 ### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
 
@@ -120,6 +113,14 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
+
+- **Detected:** 2026-05-29
+- **Completed:** 2026-05-31
+- **File:** components/widgets/GraphicOrganizer/Widget.tsx:79
+- **Detail:** The internal `EditableNode` contenteditable div carried a hardcoded `min-h-[50px]` Tailwind class, fixing a 50 px minimum height on every editable node across all five organizer layouts (Frayer, T-chart, Venn, KWL, Cause-Effect). Widget has `skipScaling: true`, so the floor did not respond to widget size — crowding content at small sizes and looking sparse at large sizes.
+- **Resolution:** Removed `min-h-[50px]` from the `className` and merged a `minHeight: 'min(50px, 10cqmin)'` key into the element's `style` prop. Because `EditableNode` receives `style` as a prop (`style={style}`) rather than an inline object, the fix uses `style={{ minHeight: 'min(50px, 10cqmin)', ...style }}` — the scaled floor applies by default while any caller-provided `style` (including a caller `minHeight`) still wins via the spread. Caps the floor at 50 px on large widgets while letting it scale down proportionally at small sizes. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean.
 
 ### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
 
