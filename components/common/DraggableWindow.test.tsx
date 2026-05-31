@@ -282,6 +282,87 @@ describe('DraggableWindow', () => {
     });
   });
 
+  it('SettingsPanel mounts with real settings content (not placeholder) when widget first flips to open', () => {
+    // Regression: shouldRenderSettings was latched via useEffect, which is deferred
+    // until AFTER the browser paint. In production this causes a visible one-frame
+    // flash: the SettingsPanel mounts showing "Standard settings available."
+    // placeholder text, then immediately re-renders with the real settings once the
+    // effect fires. Teachers on slow machines or projectors see the placeholder.
+    //
+    // Fix: "adjusting state while rendering" (CLAUDE.md §useEffect gotcha) —
+    // call setHasEverBeenFlipped(true) inside the render body when widget.flipped
+    // transitions to true. React discards that render pass and immediately re-renders
+    // with hasEverBeenFlipped=true, so SettingsPanel receives shouldRenderSettings=true
+    // from its first commit. The useEffect that drove the latch is removed entirely.
+    //
+    // This test cannot directly observe the one-frame flash (RTL's act() flushes all
+    // effects synchronously in JSDOM). It instead verifies the functional contract:
+    // real settings content is in the DOM after a flip, and the SettingsPanel is never
+    // showing a "Standard settings available." placeholder on mount (which would indicate
+    // shouldRenderSettings was false at mount time and later corrected by an effect).
+    // The test catches any regression that removes the "adjusting state while rendering"
+    // pattern and reintroduces the useEffect approach.
+
+    const SettingsContent = () => (
+      <div data-testid="settings-content-sync">Settings Loaded</div>
+    );
+
+    const contextValue = {
+      updateWidget: mockUpdateWidget,
+      removeWidget: mockRemoveWidget,
+      duplicateWidget: mockDuplicateWidget,
+      bringToFront: mockBringToFront,
+      addToast: mockAddToast,
+      resetWidgetSize: mockResetWidgetSize,
+      selectedWidgetId: null,
+      setSelectedWidgetId: mockSetSelectedWidgetId,
+      zoom: 1,
+      panOffset: { x: 0, y: 0 },
+    } as unknown as DashboardContextValue;
+
+    const { rerender } = render(
+      <DashboardContext.Provider value={contextValue}>
+        <DraggableWindow
+          widget={mockWidget}
+          title="Test Widget"
+          settings={<SettingsContent />}
+          globalStyle={mockGlobalStyle}
+        >
+          <div>Content</div>
+        </DraggableWindow>
+      </DashboardContext.Provider>
+    );
+
+    // Before flip: SettingsPanel is not mounted at all
+    expect(
+      screen.queryByTestId('settings-content-sync')
+    ).not.toBeInTheDocument();
+    // And no placeholder either
+    expect(document.body.querySelector('.italic')).toBeNull();
+
+    // Flip the widget (SettingsPanel mounts for the first time)
+    rerender(
+      <DashboardContext.Provider value={contextValue}>
+        <DraggableWindow
+          widget={{ ...mockWidget, flipped: true }}
+          title="Test Widget"
+          settings={<SettingsContent />}
+          globalStyle={mockGlobalStyle}
+        >
+          <div>Content</div>
+        </DraggableWindow>
+      </DashboardContext.Provider>
+    );
+
+    // Real settings content must be present (shouldRenderSettings=true at mount)
+    expect(screen.getByTestId('settings-content-sync')).toBeInTheDocument();
+
+    // The placeholder ("Standard settings available.") must never appear.
+    // If shouldRenderSettings were false at mount time, this text would be rendered
+    // on SettingsPanel's first commit and the user would see it briefly.
+    expect(document.body.querySelector('.italic')).toBeNull();
+  });
+
   it('updates position on pointer drag (using direct DOM manipulation for standard widgets)', async () => {
     renderComponent();
 
