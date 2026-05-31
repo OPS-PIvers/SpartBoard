@@ -69,6 +69,12 @@ vi.mock('lucide-react', () => {
   return new Proxy(mocks, {
     get(target, prop) {
       if (prop === '__esModule') return true;
+      // CRITICAL: never auto-stub `then`. A function-valued `then` makes this
+      // mocked module look like a thenable, so vitest's `await import(...)`
+      // tries to chain on it and never resolves — the worker hangs forever
+      // (this was the real cause of the "flaky 5s timeout" actually being an
+      // infinite stall). Symbols already fall through to `undefined` below.
+      if (prop === 'then') return undefined;
       if (typeof prop === 'string' && !(prop in target)) {
         target[prop] = icon(prop);
       }
