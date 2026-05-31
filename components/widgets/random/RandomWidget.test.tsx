@@ -450,6 +450,113 @@ describe('RandomWidget', () => {
     );
   });
 
+  describe('stale-closure regression: soundEnabled read from ref mid-spin', () => {
+    // Regression test for the stale-closure bug where setInterval callbacks in
+    // handlePick (a click handler) captured `soundEnabled` from the closure at
+    // click time. If the teacher toggled sound OFF mid-spin, the interval still
+    // played ticks using the stale `soundEnabled = true` value from when the
+    // spin started.
+    //
+    // The fix: assign `soundEnabledRef.current = soundEnabled` synchronously in
+    // the render body and read `soundEnabledRef.current` inside the callbacks.
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    const makeWidget = (
+      visualStyle: string,
+      soundEnabled: boolean
+    ): WidgetData => ({
+      id: 'test-id',
+      type: 'random',
+      config: {
+        firstNames: 'Alice\nBob\nCharlie',
+        lastNames: '',
+        rosterMode: 'custom',
+        mode: 'single',
+        visualStyle,
+        soundEnabled,
+        remainingStudents: [],
+      } as RandomConfig,
+      x: 0,
+      y: 0,
+      w: 300,
+      h: 200,
+      z: 1,
+      flipped: false,
+    });
+
+    it('flash: stops playing ticks when soundEnabled is toggled off mid-spin', () => {
+      vi.useFakeTimers();
+      const playTick = vi.mocked(audioUtils.playTick);
+
+      const { rerender } = render(
+        <RandomWidget widget={makeWidget('flash', true)} />
+      );
+
+      // Start the spin with soundEnabled = true
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+
+      // Let a few ticks fire (interval is 80ms, so 5 ticks ≈ 400ms)
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+
+      expect(playTick.mock.calls.length).toBeGreaterThan(0);
+
+      // Teacher toggles sound OFF mid-spin
+      rerender(<RandomWidget widget={makeWidget('flash', false)} />);
+      playTick.mockClear();
+
+      // Advance time enough for more interval ticks but not past the 20-tick finish
+      act(() => {
+        vi.advanceTimersByTime(400);
+      });
+
+      // With the fix: the interval reads soundEnabledRef.current, which is now
+      // false, so no further ticks should fire.
+      // Without the fix: stale closure still sees soundEnabled=true.
+      expect(playTick).not.toHaveBeenCalled();
+    });
+
+    it('slots: stops playing ticks when soundEnabled is toggled off mid-spin', () => {
+      vi.useFakeTimers();
+      const playTick = vi.mocked(audioUtils.playTick);
+
+      const { rerender } = render(
+        <RandomWidget widget={makeWidget('slots', true)} />
+      );
+
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+
+      // Let a few ticks fire (interval is 100ms, so 3 ticks ≈ 300ms)
+      act(() => {
+        vi.advanceTimersByTime(300);
+      });
+
+      expect(playTick.mock.calls.length).toBeGreaterThan(0);
+
+      // Toggle sound OFF mid-spin
+      rerender(<RandomWidget widget={makeWidget('slots', false)} />);
+      playTick.mockClear();
+
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+
+      expect(playTick).not.toHaveBeenCalled();
+    });
+  });
+
   describe('Randomize with locks (no sit-out tray)', () => {
     const groupsWidget = (
       override: Partial<RandomConfig> = {}

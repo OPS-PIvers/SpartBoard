@@ -194,6 +194,14 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   // and bail before clobbering the new state.
   const spinGenRef = useRef(0);
 
+  // Ref kept in sync with the latest `soundEnabled` prop value on every render.
+  // setInterval/setTimeout callbacks in handlePick are created inside a click
+  // handler (not a useEffect), so they capture a stale closure. Reading from
+  // this ref instead of the closure-captured `soundEnabled` ensures the callback
+  // always sees the current value even if the teacher toggles sound mid-spin.
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
+
   // Sync displayResult when config.lastResult changes (e.g. mode switch clears
   // it) using the "adjusting state while rendering" pattern. Doing this in a
   // useEffect would leave displayResult stale for one render, which crashed
@@ -1044,12 +1052,12 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           const elapsed = Date.now() - startTime;
           if (elapsed >= duration) {
             setDisplayResult(winnerName);
-            if (soundEnabled) playWinner();
+            if (soundEnabledRef.current) playWinner();
             setIsSpinning(false);
             performUpdate(winnerName, nextRemaining);
             return;
           }
-          if (soundEnabled) playTick(150);
+          if (soundEnabledRef.current) playTick(150);
           const progress = elapsed / duration;
           const nextInterval = 50 + Math.pow(progress, 2) * 400;
           setTimeout(() => {
@@ -1209,7 +1217,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
           );
         }
 
-        if (soundEnabled) playWinner();
+        if (soundEnabledRef.current) playWinner();
         // Wrap home-group state updates in a View Transition so chips
         // visibly move from old groups to new ones on re-randomize.
         withViewTransition(() => {
@@ -1361,7 +1369,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             }
           }
         }
-        if (soundEnabled) playWinner();
+        if (soundEnabledRef.current) playWinner();
         // Wrap the state updates in a View Transition so chips slide from
         // their old positions to new ones (groups + shuffle modes) instead
         // of snapping. Falls back to a plain update on browsers without
