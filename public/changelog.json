@@ -1,6 +1,76 @@
 {
   "entries": [
     {
+      "version": "2026.05.31",
+      "date": "2026-05-31",
+      "title": "Settings panel, widget, and translation fixes",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Widget settings panels",
+          "items": [
+            {
+              "text": "Two fixes to the settings panel you reach with a widget's gear icon:",
+              "items": [
+                {
+                  "text": "Pressing Escape while typing in a field inside the panel now exits the field instead of closing the whole panel."
+                },
+                {
+                  "text": "A click just outside the panel now reliably closes it, even while the board is busy."
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Countdown widgets left running overnight now roll over to the new day at midnight on their own."
+            },
+            {
+              "text": "Turning sound off mid-spin on the Random widget now takes effect right away, and switching class mid-spin no longer picks a name from the old roster."
+            },
+            {
+              "text": "Clocks, timers, and other fixed-shape widgets no longer appear stretched when a saved board opens on a differently-shaped screen."
+            },
+            {
+              "text": "Shared PLC results now score correctly even when a quiz accidentally contains the same question twice."
+            },
+            {
+              "text": "More of the app — the board navigation menu, class and roster restriction settings, and the PLC workspace — now appears in German, Spanish, and French."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Widget settings panels (the back of a widget you flip to with the gear icon) now behave the way you'd expect when you press Escape or click away. Pressing Escape while your cursor is in a text field, dropdown, or number box inside the panel now just leaves that field instead of closing the entire panel, so you no longer lose your place mid-edit. And a click just outside the panel now reliably closes it, even while the board is syncing in the background or you've just been dragging widgets around — previously the click was occasionally ignored and the panel stayed open."
+        },
+        {
+          "type": "fix",
+          "text": "Countdown widget — a countdown left open overnight now updates its day count on its own at midnight. Previously a widget that stayed on screen across midnight kept showing the previous day's number until you edited one of its settings or refreshed the page."
+        },
+        {
+          "type": "fix",
+          "text": "Random widget — changes you make while names are still cycling now take effect immediately. Turning sound off mid-spin now silences it right away instead of finishing the spin with sound, and switching to a different class partway through a spin no longer lands on a name from the previous roster."
+        },
+        {
+          "type": "fix",
+          "text": "Widget layout — clocks, timers, and other widgets that keep a fixed shape no longer appear stretched or squished when you open a saved board on a screen shaped differently from the one it was built on. A small number of boards with corrupted sizing information are now repaired automatically so each widget lands at the right size and position."
+        },
+        {
+          "type": "fix",
+          "text": "PLC shared results — student scores now calculate correctly when a quiz accidentally contains the same question twice (which can happen through a Drive sync hiccup). The duplicate no longer inflates the total points or double-counts a correct answer, so the percentages shown in your PLC's shared results are accurate."
+        },
+        {
+          "type": "fix",
+          "text": "Translations — more of the app now appears in German, Spanish, and French. Newly translated areas include the board navigation menu, the live session info, the sidebar's class and roster restriction settings, and the PLC workspace. Previously these showed in English even when you'd chosen another language."
+        }
+      ]
+    },
+    {
       "version": "2026.05.30",
       "date": "2026-05-30",
       "title": "Music and SMART Notebook fixes",
