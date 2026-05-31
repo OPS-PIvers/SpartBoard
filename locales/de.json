@@ -149,7 +149,18 @@
       "noClassSelected": "Keine Klasse ausgewählt",
       "pickClass": "Wählen Sie unten eine Klasse",
       "clearActive": "Aktive Klasse entfernen",
-      "noActive": "Keine aktive Klasse"
+      "noActive": "Keine aktive Klasse",
+      "addRestrictions": "+ Einschränkungen",
+      "hideRestrictions": "− Einschränkungen",
+      "restrictionsHeader": "Darf nicht zusammenarbeiten mit",
+      "restrictionsNone": "Keine Einschränkungen",
+      "restrictionsCount_one": "{{count}} eingeschränkt",
+      "restrictionsCount_other": "{{count}} eingeschränkt",
+      "restrictionsPickerLabel": "Von der Zusammenarbeit ausschließen",
+      "restrictionsFilter": "Mitschüler/innen suchen…",
+      "restrictionsEmptyRoster": "Füge weitere Schüler/innen hinzu, um Einschränkungen festzulegen.",
+      "restrictionsNoMatches": "Keine Treffer.",
+      "restrictionsFooter": "Einschränkungen gelten automatisch für beide Schüler/innen."
     },
     "plcs": {
       "title": "Meine PLGs",

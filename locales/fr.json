@@ -149,7 +149,18 @@
       "noClassSelected": "Aucune classe sélectionnée",
       "pickClass": "Choisissez une classe ci-dessous",
       "clearActive": "Effacer la classe active",
-      "noActive": "Aucune classe active"
+      "noActive": "Aucune classe active",
+      "addRestrictions": "+ Restrictions",
+      "hideRestrictions": "− Restrictions",
+      "restrictionsHeader": "Ne peut pas travailler avec",
+      "restrictionsNone": "Aucune restriction",
+      "restrictionsCount_one": "{{count}} restriction",
+      "restrictionsCount_other": "{{count}} restrictions",
+      "restrictionsPickerLabel": "Interdire de travailler ensemble",
+      "restrictionsFilter": "Rechercher des camarades…",
+      "restrictionsEmptyRoster": "Ajoutez d'autres élèves pour définir des restrictions.",
+      "restrictionsNoMatches": "Aucun résultat.",
+      "restrictionsFooter": "Les restrictions s'appliquent automatiquement aux deux élèves."
     },
     "plcs": {
       "title": "Mes Communautés",
