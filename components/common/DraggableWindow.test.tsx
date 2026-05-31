@@ -283,25 +283,22 @@ describe('DraggableWindow', () => {
   });
 
   it('SettingsPanel mounts with real settings content (not placeholder) when widget first flips to open', () => {
-    // Regression: shouldRenderSettings was latched via useEffect, which is deferred
-    // until AFTER the browser paint. In production this causes a visible one-frame
-    // flash: the SettingsPanel mounts showing "Standard settings available."
-    // placeholder text, then immediately re-renders with the real settings once the
-    // effect fires. Teachers on slow machines or projectors see the placeholder.
+    // Contract: after DraggableWindow flips to show the settings panel, the real
+    // settings content must be in the DOM (shouldRenderSettings=true).
     //
-    // Fix: "adjusting state while rendering" (CLAUDE.md §useEffect gotcha) —
-    // call setHasEverBeenFlipped(true) inside the render body when widget.flipped
-    // transitions to true. React discards that render pass and immediately re-renders
-    // with hasEverBeenFlipped=true, so SettingsPanel receives shouldRenderSettings=true
-    // from its first commit. The useEffect that drove the latch is removed entirely.
+    // Known limitation: the current implementation uses a useEffect latch to set
+    // shouldRenderSettings=true, which fires after paint. This produces a one-frame
+    // placeholder flash on slow hardware/projectors ("Standard settings available."
+    // is briefly visible before the real content renders). Fixing this requires the
+    // "adjusting state while rendering" pattern (CLAUDE.md §useEffect gotcha), but
+    // DraggableWindow.tsx's size/complexity interacts with the react-hooks/refs ESLint
+    // rule in a way that produces false positives across the file — deferred.
     //
-    // This test cannot directly observe the one-frame flash (RTL's act() flushes all
-    // effects synchronously in JSDOM). It instead verifies the functional contract:
-    // real settings content is in the DOM after a flip, and the SettingsPanel is never
-    // showing a "Standard settings available." placeholder on mount (which would indicate
-    // shouldRenderSettings was false at mount time and later corrected by an effect).
-    // The test catches any regression that removes the "adjusting state while rendering"
-    // pattern and reintroduces the useEffect approach.
+    // This test cannot observe the one-frame flash: RTL's act() flushes effects
+    // synchronously in JSDOM, so both the useEffect and render-body approaches
+    // produce identical observable state here. The test verifies the contract
+    // (real content present, placeholder never shown) and guards against regressions
+    // that would break shouldRenderSettings entirely.
 
     const SettingsContent = () => (
       <div data-testid="settings-content-sync">Settings Loaded</div>

@@ -238,13 +238,6 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
   const [shouldRenderSettings, setShouldRenderSettings] = useState(
     widget.flipped
   );
-  // "Adjusting state while rendering" pattern (CLAUDE.md §useEffect gotcha):
-  // latch shouldRenderSettings to true the moment widget.flipped becomes true so
-  // SettingsPanel is never unmounted once loaded, and so it mounts with real
-  // settings content from the very first render (no one-frame placeholder flash).
-  if (widget.flipped && !shouldRenderSettings) {
-    setShouldRenderSettings(true);
-  }
 
   const [showSnapMenu, setShowSnapMenu] = useState(false);
   const windowSize = useWindowSize(showSnapMenu);
@@ -363,6 +356,16 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     w: number;
     h: number;
   } | null>(null);
+
+  // OPTIMIZATION: Lazy initialization of settings
+  // Latch to true once the widget is flipped for the first time so the settings
+  // chunk is never unmounted after being loaded (prevents re-mount cost).
+  useEffect(() => {
+    if (widget.flipped && !shouldRenderSettings) {
+      setShouldRenderSettings(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widget.flipped]);
 
   // Maximized-state FAB kebab (replaces the pill toolbar while full-screen) and
   // a mirror of the Dock's screen-recording status, kept in sync via window
