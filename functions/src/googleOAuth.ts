@@ -326,6 +326,119 @@ export const exchangeGoogleAuthCode = onCall(
 );
 
 /**
+ * Core refresh logic, factored out of the callable so it can be reused by
+ * server-to-server callers (e.g. `pushClassroomGrade`, which needs a teacher's
+ * offline access token with NO teacher present in the request). Takes a uid
+ * explicitly rather than reading `req.auth`.
+ *
+ * Returns `{ accessToken, expiresIn }` on success.
+ *
+ * Throws `failed-precondition` with `details.reason = 'needs-consent'` when
+ * re-consent is required (no stored token, decrypt failed, or Google returned
+ * `invalid_grant`). Throws `internal` with `details.reason = 'transient'` for
+ * retryable failures. Same error contract as the callable.
+ */
+export async function refreshGoogleAccessTokenForUid(
+  uid: string
+): Promise<{ accessToken: string; expiresIn: number }> {
+  const db = admin.firestore();
+  const ref = db.doc(PRIVATE_DOC_PATH(uid));
+  const snap = await ref.get();
+  if (!snap.exists) {
+    throw needsConsent(
+      'no-stored-token',
+      'needs-consent: no refresh token stored for this user.'
+    );
+  }
+  const stored = parseStoredGoogleAuth(snap.data());
+  if (!stored) {
+    // Shape drift in Firestore — drop the doc and force re-consent.
+    await ref.delete().catch((delErr) => {
+      logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, { uid });
+    });
+    throw needsConsent(
+      'decrypt-failed',
+      'needs-consent: stored refresh token document has an unexpected shape.'
+    );
+  }
+
+  let refreshToken: string;
+  try {
+    refreshToken = decryptRefreshToken(
+      stored.encryptedRefreshToken,
+      GOOGLE_OAUTH_REFRESH_TOKEN_KEY.value()
+    );
+  } catch (err) {
+    // Decryption failed — the most likely cause is rotation of
+    // GOOGLE_OAUTH_REFRESH_TOKEN_KEY, which makes every previously-stored
+    // ciphertext undecryptable. Drop the stored doc and signal
+    // needs-consent so the client routes the user through the
+    // auth-code flow instead of looping on a useless popup retry.
+    logWarn('refreshGoogleAccessToken.decrypt', err, { uid });
+    await ref.delete().catch((delErr) => {
+      logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, { uid });
+    });
+    throw needsConsent(
+      'decrypt-failed',
+      'needs-consent: stored refresh token could not be decrypted (key may have rotated).'
+    );
+  }
+
+  try {
+    const res = await axios.post<GoogleTokenResponse>(
+      GOOGLE_TOKEN_ENDPOINT,
+      new URLSearchParams({
+        client_id: GOOGLE_OAUTH_CLIENT_ID.value(),
+        client_secret: GOOGLE_OAUTH_CLIENT_SECRET.value(),
+        refresh_token: refreshToken,
+        grant_type: 'refresh_token',
+      }).toString(),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: GOOGLE_API_TIMEOUT_MS,
+      }
+    );
+    if (!res.data.access_token) {
+      throw transientError('Google refresh returned no access_token.');
+    }
+    return {
+      accessToken: res.data.access_token,
+      expiresIn: res.data.expires_in,
+    };
+  } catch (err) {
+    // Narrow via `axios.isAxiosError` before reading `.response.data` so a
+    // non-axios failure (e.g. a TypeError from surrounding code) doesn't
+    // get misclassified as a Google API error. Only axios errors carry
+    // the `invalid_grant` signal we need to recognize.
+    if (err instanceof HttpsError) throw err;
+    if (axios.isAxiosError(err)) {
+      const googleErr = (err.response?.data as { error?: string })?.error;
+      if (googleErr === 'invalid_grant') {
+        // Refresh token revoked (user disconnected at myaccount.google.com,
+        // password reset, etc.). Drop the stored token so the next refresh
+        // call surfaces `needs-consent` cleanly and the client re-routes
+        // through the code flow rather than looping on a dead token.
+        await ref.delete().catch((delErr) => {
+          logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, {
+            uid,
+          });
+        });
+        throw needsConsent(
+          'invalid-grant',
+          'needs-consent: stored refresh token was revoked.'
+        );
+      }
+      throw transientError(
+        `Google refresh failed: ${googleErr ?? err.message}`
+      );
+    }
+    throw transientError(
+      `Google refresh failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
+
+/**
  * Exchange the stored refresh_token for a fresh access_token.
  *
  * Returns `{ accessToken, expiresIn }` on success.
@@ -345,101 +458,7 @@ export const refreshGoogleAccessToken = onCall(
   },
   async (req) => {
     const uid = requireAuthUid(req.auth?.uid);
-    const db = admin.firestore();
-    const ref = db.doc(PRIVATE_DOC_PATH(uid));
-    const snap = await ref.get();
-    if (!snap.exists) {
-      throw needsConsent(
-        'no-stored-token',
-        'needs-consent: no refresh token stored for this user.'
-      );
-    }
-    const stored = parseStoredGoogleAuth(snap.data());
-    if (!stored) {
-      // Shape drift in Firestore — drop the doc and force re-consent.
-      await ref.delete().catch((delErr) => {
-        logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, { uid });
-      });
-      throw needsConsent(
-        'decrypt-failed',
-        'needs-consent: stored refresh token document has an unexpected shape.'
-      );
-    }
-
-    let refreshToken: string;
-    try {
-      refreshToken = decryptRefreshToken(
-        stored.encryptedRefreshToken,
-        GOOGLE_OAUTH_REFRESH_TOKEN_KEY.value()
-      );
-    } catch (err) {
-      // Decryption failed — the most likely cause is rotation of
-      // GOOGLE_OAUTH_REFRESH_TOKEN_KEY, which makes every previously-stored
-      // ciphertext undecryptable. Drop the stored doc and signal
-      // needs-consent so the client routes the user through the
-      // auth-code flow instead of looping on a useless popup retry.
-      logWarn('refreshGoogleAccessToken.decrypt', err, { uid });
-      await ref.delete().catch((delErr) => {
-        logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, { uid });
-      });
-      throw needsConsent(
-        'decrypt-failed',
-        'needs-consent: stored refresh token could not be decrypted (key may have rotated).'
-      );
-    }
-
-    try {
-      const res = await axios.post<GoogleTokenResponse>(
-        GOOGLE_TOKEN_ENDPOINT,
-        new URLSearchParams({
-          client_id: GOOGLE_OAUTH_CLIENT_ID.value(),
-          client_secret: GOOGLE_OAUTH_CLIENT_SECRET.value(),
-          refresh_token: refreshToken,
-          grant_type: 'refresh_token',
-        }).toString(),
-        {
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          timeout: GOOGLE_API_TIMEOUT_MS,
-        }
-      );
-      if (!res.data.access_token) {
-        throw transientError('Google refresh returned no access_token.');
-      }
-      return {
-        accessToken: res.data.access_token,
-        expiresIn: res.data.expires_in,
-      };
-    } catch (err) {
-      // Narrow via `axios.isAxiosError` before reading `.response.data` so a
-      // non-axios failure (e.g. a TypeError from surrounding code) doesn't
-      // get misclassified as a Google API error. Only axios errors carry
-      // the `invalid_grant` signal we need to recognize.
-      if (err instanceof HttpsError) throw err;
-      if (axios.isAxiosError(err)) {
-        const googleErr = (err.response?.data as { error?: string })?.error;
-        if (googleErr === 'invalid_grant') {
-          // Refresh token revoked (user disconnected at myaccount.google.com,
-          // password reset, etc.). Drop the stored token so the next refresh
-          // call surfaces `needs-consent` cleanly and the client re-routes
-          // through the code flow rather than looping on a dead token.
-          await ref.delete().catch((delErr) => {
-            logWarn('refreshGoogleAccessToken.deletePoisonDoc', delErr, {
-              uid,
-            });
-          });
-          throw needsConsent(
-            'invalid-grant',
-            'needs-consent: stored refresh token was revoked.'
-          );
-        }
-        throw transientError(
-          `Google refresh failed: ${googleErr ?? err.message}`
-        );
-      }
-      throw transientError(
-        `Google refresh failed: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
+    return refreshGoogleAccessTokenForUid(uid);
   }
 );
 

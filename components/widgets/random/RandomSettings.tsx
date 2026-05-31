@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useDashboard } from '@/context/useDashboard';
 import { useDialog } from '@/context/useDialog';
@@ -34,6 +34,11 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
   const { updateWidget, activeDashboard, rosters, activeRosterId, addToast } =
     useDashboard();
   const { showConfirm } = useDialog();
+  const groupSizeId = useId();
+  const homeGroupCountId = useId();
+  const expertGroupCountId = useId();
+  const firstNamesId = useId();
+  const lastNamesId = useId();
 
   const stationsWidget = activeDashboard?.widgets.find(
     (w) => w.type === 'stations'
@@ -360,9 +365,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       )}
 
       <div>
-        <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block">
-          Operation Mode
-        </label>
+        <SettingsLabel>Operation Mode</SettingsLabel>
         <div className="grid grid-cols-4 gap-2">
           {modes.map((m) => (
             <button
@@ -393,9 +396,7 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'single' && (
         <div>
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block">
-            Animation Style
-          </label>
+          <SettingsLabel>Animation Style</SettingsLabel>
           <div className="grid grid-cols-3 gap-2">
             {styles.map((s) => (
               <button
@@ -423,12 +424,12 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'groups' && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <Hash className="w-3 h-3" />{' '}
+          <SettingsLabel icon={Hash} htmlFor={groupSizeId}>
             {t('widgets.random.groupSize', { defaultValue: 'Group Size' })}
-          </label>
+          </SettingsLabel>
           <div className="flex items-center gap-4">
             <input
+              id={groupSizeId}
               type="range"
               min="2"
               max="20"
@@ -451,14 +452,14 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
       )}
       {mode === 'jigsaw' && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <Hash className="w-3 h-3" />{' '}
+          <SettingsLabel icon={Hash} htmlFor={homeGroupCountId}>
             {t('widgets.random.homeGroupCount', {
               defaultValue: 'Number of Home Groups',
             })}
-          </label>
+          </SettingsLabel>
           <div className="flex items-center gap-4">
             <input
+              id={homeGroupCountId}
               type="range"
               min="2"
               max="20"
@@ -482,14 +483,14 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
       {mode === 'jigsaw' && (
         <div className="p-4 bg-white border border-slate-100 rounded-2xl shadow-sm">
-          <label className="text-xxs text-slate-400 uppercase tracking-widest mb-3 block flex items-center gap-2">
-            <Puzzle className="w-3 h-3" />{' '}
+          <SettingsLabel icon={Puzzle} htmlFor={expertGroupCountId}>
             {t('widgets.random.expertGroupCount', {
               defaultValue: 'Number of Expert Groups',
             })}
-          </label>
+          </SettingsLabel>
           <div className="flex items-center gap-4">
             <input
+              id={expertGroupCountId}
               type="range"
               min="2"
               max="20"
@@ -537,10 +538,9 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xxs text-slate-400 uppercase tracking-widest mb-2 block">
-                First Names
-              </label>
+              <SettingsLabel htmlFor={firstNamesId}>First Names</SettingsLabel>
               <textarea
+                id={firstNamesId}
                 value={localFirstNames}
                 onChange={(e) => setLocalFirstNames(e.target.value)}
                 onBlur={() => {
@@ -560,10 +560,9 @@ export const RandomSettings: React.FC<{ widget: WidgetData }> = ({
               />
             </div>
             <div>
-              <label className="text-xxs text-slate-400 uppercase tracking-widest mb-2 block">
-                Last Names
-              </label>
+              <SettingsLabel htmlFor={lastNamesId}>Last Names</SettingsLabel>
               <textarea
+                id={lastNamesId}
                 value={localLastNames}
                 onChange={(e) => setLocalLastNames(e.target.value)}
                 onBlur={() => {

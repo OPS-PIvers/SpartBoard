@@ -158,6 +158,14 @@ export interface ClassRosterMeta {
   classlinkOrgId?: string;
   /** Epoch ms of the last ClassLink import or merge for this roster. */
   classlinkSyncedAt?: number;
+  /**
+   * Google Classroom `courseId` this ClassLink roster is linked to, set via the
+   * "Link to Google Classroom" action. Mirrors the canonical mapping stored at
+   * `/classroom_course_links/{courseId}`; kept here so the roster UI can show
+   * the linked state. Enables the Classroom Add-on to resolve a launching
+   * student to this class's OneRoster `sourcedId` (PII-free name resolution).
+   */
+  googleClassroomCourseId?: string;
 }
 
 /**
@@ -2798,6 +2806,30 @@ export interface QuizSession {
    * `unpublishAssignmentScores`.
    */
   scorePublishedAt?: number;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework
+   * item via the add-on. Drives the "Push grades to Google Classroom" action
+   * in the Results view. `maxPoints` is the quiz's total point value (the
+   * grade scale) so a pushed grade reads identically in Classroom (e.g.
+   * 17/20, not a percentage out of 100). Mirrored onto the matching
+   * `QuizAssignment` doc.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
+}
+
+/**
+ * Linkage between a SpartBoard quiz assignment and a Google Classroom
+ * coursework attachment created via the add-on. Persisted on BOTH the
+ * `QuizSession` (read by the Results monitor) and the per-teacher
+ * `QuizAssignment` doc (the teacher-owned archive copy).
+ */
+export interface ClassroomAttachmentLink {
+  attachmentId: string;
+  courseId: string;
+  itemId: string;
+  /** = the quiz's total points; the grade scale pushed grades are capped to. */
+  maxPoints: number;
+  attachedAt?: number;
 }
 
 export interface QuizResponseAnswer {
@@ -3422,6 +3454,13 @@ export interface QuizAssignment extends QuizAssignmentSettings {
    * scores have been shared with students.
    */
   scorePublishedAt?: number;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework
+   * item via the add-on. Mirrors the matching `QuizSession.classroomAttachment`
+   * (written together at attach time). `maxPoints` is the quiz's total point
+   * value so pushed grades read identically in Classroom.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
 }
 
 /** See `QuizAssignment.sync`. */
@@ -3873,6 +3912,14 @@ export interface VideoActivitySession {
   scoreVisibility?: VideoActivityScoreVisibility;
   /** Server-set timestamp for when scores were published. */
   scorePublishedAt?: number;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework item
+   * via the add-on. Drives the "Push grades to Google Classroom" action in the
+   * VA Results view. `maxPoints` is the activity's total point value (the grade
+   * scale) so a pushed grade reads identically in Classroom. Mirrors the
+   * matching `VideoActivityAssignment.classroomAttachment` and the Quiz pattern.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
 }
 
 /** Per-session sync linkage to `/synced_video_activities/{groupId}`. */
@@ -6279,6 +6326,13 @@ export interface VideoActivityAssignment extends VideoActivityAssignmentSettings
   /** Frozen at creation from the org-wide `assignment-modes` admin setting.
    *  Mirrors VideoActivitySession.mode. Absent on pre-feature assignments. */
   mode?: AssignmentMode;
+  /**
+   * Set when this assignment is attached to a Google Classroom coursework item
+   * via the add-on. Mirrors the matching `VideoActivitySession.classroomAttachment`
+   * (written together at attach time). `maxPoints` is the activity's total point
+   * value so pushed grades read identically in Classroom.
+   */
+  classroomAttachment?: ClassroomAttachmentLink;
 }
 
 // === MiniApp assignments ===

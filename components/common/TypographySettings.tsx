@@ -26,9 +26,17 @@ export const TypographySettings = <
           {FONTS.map((f) => (
             <button
               key={f.id}
-              onClick={() => updateConfig({ fontFamily: f.id } as Partial<T>)}
+              onClick={() =>
+                updateConfig({
+                  // 'global' is a sentinel meaning "inherit dashboard font".
+                  // Write undefined (clear the override) instead of persisting
+                  // the literal string 'global', which is not a valid
+                  // GlobalFontFamily value and would pollute saved configs.
+                  fontFamily: f.id === 'global' ? undefined : f.id,
+                } as Partial<T>)
+              }
               className={`p-2 rounded-lg border-2 flex flex-col items-center gap-1 transition-[border-color,background-color] ${
-                fontFamily === f.id || (!fontFamily && f.id === 'global')
+                fontFamily === f.id
                   ? 'border-brand-blue-primary bg-brand-blue-lighter'
                   : 'border-slate-100 hover:border-slate-200'
               }`}

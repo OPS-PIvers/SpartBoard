@@ -58,6 +58,20 @@ _2026-05-12: Scanned all Widget.tsx and index.tsx files for hardcoded text-size 
 
 _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.tsx and UrlWidget/Widget.tsx both use `cqmin` units throughout; no new scaling violations introduced._
 
+### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
+
+- **Detected:** 2026-05-29
+- **File:** components/widgets/CarRiderPro/Widget.tsx:62, components/widgets/First5/Widget.tsx:56
+- **Detail:** Both widgets render an absolute-positioned external-link overlay button with the className `"absolute top-2 right-2 z-10 bg-white/80 ... rounded-lg p-1.5 ..."`. Both have `skipScaling: true`. The `top-2`, `right-2`, and `p-1.5` classes produce fixed-pixel positioning (8 px, 8 px, 6 px) that does not scale with the container, causing the button to appear disproportionately small at large widget sizes and potentially clipping at small sizes. This is an identical copy-pasted snippet in both files.
+- **Fix:** Replace the three fixed-pixel Tailwind utilities with inline `cqmin` equivalents: `top-2 right-2` → `style={{ top: 'min(8px, 2cqmin)', right: 'min(8px, 2cqmin)' }}`, `p-1.5` → `style={{ padding: 'min(6px, 1.5cqmin)' }}`. Apply the same fix to both files. The visual/color Tailwind classes (`bg-white/80`, `backdrop-blur-sm`, `hover:bg-white`, etc.) do not carry pixel sizes and can remain on `className`.
+
+### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
+
+- **Detected:** 2026-05-29
+- **File:** components/widgets/GraphicOrganizer/Widget.tsx:79
+- **Detail:** The internal `EditableNode` component renders a `contenteditable` div with `className="... min-h-[50px] ..."`. This sets a fixed 50 px minimum height on every editable node inside the graphic organizer (Frayer, T-chart, Venn, KWL, Cause-Effect layouts). Widget has `skipScaling: true`. At small widget sizes this 50 px floor can crowd out other content; at large widget sizes it looks sparse. Note: the prior Completed entries for GraphicOrganizer addressed outer structural padding (`p-4` on Frayer cells, `w-32 h-32` center circle, etc.) — this specific EditableNode `min-h-[50px]` was not covered.
+- **Fix:** Replace `min-h-[50px]` with a `cqmin` inline style: add a `minHeight` key to the existing `style` prop on the contenteditable div → `style={{ ..., minHeight: 'min(50px, 10cqmin)' }}`. This caps the floor at 50 px on large widgets while allowing proportional reduction at small sizes. Alternatively, `min-h-0` with `flex-1` on the parent cell could let the node fill available space.
+
 ### LOW PollWidget progress bar has no upper size cap — grows excessively at large widget sizes
 
 - **Detected:** 2026-05-28

@@ -323,6 +323,15 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
     return combined;
   }, [firstNames, lastNames, activeRoster, rosterMode, presentClassStudents]);
 
+  // Keep refs to the latest `students` array and `soundEnabled` flag so the
+  // flash/slots setInterval callbacks always read the current values even if
+  // props/config change mid-animation (stale-closure guard — same pattern as
+  // DiceWidget's diceCountRef/configRef fix in PR #1749).
+  const studentsRef = useRef(students);
+  const soundEnabledRef = useRef(soundEnabled);
+  studentsRef.current = students;
+  soundEnabledRef.current = soundEnabled;
+
   // Inline stepper display: mirror the call-site default so the on-widget
   // controls show what Pick will actually use until the user sets explicit
   // values. groupSize already has its own default applied above.
@@ -997,15 +1006,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
       if (visualStyle === 'flash') {
         let count = 0;
         const interval = setInterval(() => {
+          // Read from refs so we always have the current students list and
+          // soundEnabled flag — config/props can change between the time
+          // setInterval fires and when it was created (stale-closure fix).
+          const liveStudents = studentsRef.current;
           const randomName =
-            students[Math.floor(Math.random() * students.length)];
+            liveStudents[Math.floor(Math.random() * liveStudents.length)];
           setDisplayResult(randomName);
-          if (soundEnabled) playTick(150 + Math.random() * 50);
+          if (soundEnabledRef.current) playTick(150 + Math.random() * 50);
           count++;
           if (count > 20) {
             clearInterval(interval);
             setDisplayResult(winnerName);
-            if (soundEnabled) playWinner();
+            if (soundEnabledRef.current) playWinner();
             setIsSpinning(false);
             performUpdate(winnerName, nextRemaining);
           }
@@ -1048,15 +1061,19 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         let count = 0;
         const max = 25;
         const interval = setInterval(() => {
+          // Read from refs so we always have the current students list and
+          // soundEnabled flag — config/props can change between the time
+          // setInterval fires and when it was created (stale-closure fix).
+          const liveStudents = studentsRef.current;
           const randomName =
-            students[Math.floor(Math.random() * students.length)];
+            liveStudents[Math.floor(Math.random() * liveStudents.length)];
           setDisplayResult(randomName);
-          if (soundEnabled) playTick(150, 0.05);
+          if (soundEnabledRef.current) playTick(150, 0.05);
           count++;
           if (count > max) {
             clearInterval(interval);
             setDisplayResult(winnerName);
-            if (soundEnabled) playWinner();
+            if (soundEnabledRef.current) playWinner();
             setIsSpinning(false);
             performUpdate(winnerName, nextRemaining);
           }
