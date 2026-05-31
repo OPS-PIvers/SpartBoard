@@ -21,7 +21,10 @@
     "previous": "Vorherige Tafel",
     "next": "Nächste Tafel",
     "selectBoard": "Tafel auswählen",
-    "boardList": "Alle Tafeln"
+    "boardList": "Alle Tafeln",
+    "manageAllBoards": "Alle Boards verwalten…",
+    "pinned": "Angeheftet",
+    "selectCollection": "Sammlung auswählen"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -73,7 +76,8 @@
       "globalStyle": "Globaler Stil",
       "generalSettings": "Allgemeine Einstellungen",
       "whatsNew": "Was ist neu",
-      "whatsNewBadge": "Neu"
+      "whatsNewBadge": "Neu",
+      "whatsNewSrAnnouncement": "Neue Versionshinweise verfügbar"
     },
     "boards": {
       "newBoard": "Neue Tafel",
@@ -315,7 +319,11 @@
     "uploadingToDrive": "Aufnahme wird auf Google Drive hochgeladen...",
     "recordingSavedToDrive": "Aufnahme auf Google Drive gespeichert!",
     "recordingDriveFailed": "Speichern auf Drive fehlgeschlagen. Lokaler Download...",
-    "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download..."
+    "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download...",
+    "viewLiveSession": "Informationen zur Live-Sitzung anzeigen",
+    "liveSession": "Live-Sitzung",
+    "provideCode": "Gib diesen Code deinen Schülerinnen und Schülern.",
+    "noAppsSelected": "Standardwerte werden wiederhergestellt…"
   },
   "languages": {
     "en": "English",
