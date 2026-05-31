@@ -2,8 +2,9 @@ import React from 'react';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { RandomWidget } from './RandomWidget';
 import { useDashboard } from '@/context/useDashboard';
-import { vi, describe, it, expect, beforeEach } from 'vitest';
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { WidgetData, RandomConfig } from '@/types';
+import * as audioUtils from './audioUtils';
 
 vi.mock('@/context/useDashboard');
 
@@ -538,6 +539,86 @@ describe('RandomWidget', () => {
       } finally {
         vi.useRealTimers();
       }
+    });
+  });
+
+  // ── Regression: stale-closure in flash/slots setInterval (PR #1749 parity)
+  //
+  // Before the fix, the setInterval callback in the 'flash' and 'slots' visual
+  // styles captured `soundEnabled` by value at creation time. If the widget
+  // re-rendered with soundEnabled=false mid-spin, the interval still called
+  // playTick on every subsequent tick (stale closure).
+  //
+  // After the fix, the callback reads from soundEnabledRef.current, which is
+  // updated synchronously on every render, so toggling soundEnabled off mid-
+  // spin silences all remaining ticks immediately.
+  describe('stale-closure regression — flash interval reads latest soundEnabled via ref', () => {
+    const makeWidget = (soundEnabled: boolean): WidgetData => ({
+      id: 'sc-test-id',
+      type: 'random',
+      config: {
+        firstNames: 'Alice\nBob\nCharlie',
+        lastNames: '',
+        mode: 'single',
+        visualStyle: 'flash',
+        soundEnabled,
+        rosterMode: 'custom',
+        remainingStudents: [],
+      } as RandomConfig,
+      x: 0,
+      y: 0,
+      w: 400,
+      h: 300,
+      z: 1,
+      flipped: false,
+    });
+
+    afterEach(() => {
+      vi.useRealTimers();
+      // Restore the vi.spyOn(audioUtils, 'playTick') created inside the test so
+      // the spy wrapper doesn't persist on the module namespace and stack with
+      // spies in other tests (which would inflate recorded call counts).
+      vi.restoreAllMocks();
+    });
+
+    it('stops calling playTick after soundEnabled is toggled off mid-spin', () => {
+      vi.useFakeTimers();
+      const playTickSpy = vi.spyOn(audioUtils, 'playTick');
+
+      const { rerender } = render(<RandomWidget widget={makeWidget(true)} />);
+
+      // Start a spin (flash mode, soundEnabled=true)
+      act(() => {
+        fireEvent.click(
+          screen.getByRole('button', { name: /^Randomize$|^Picking$/ })
+        );
+      });
+
+      // Advance 3 ticks (3 × 80 ms = 240 ms). Each tick should play a sound
+      // because soundEnabled is still true.
+      act(() => {
+        vi.advanceTimersByTime(240);
+      });
+      const ticksWithSoundOn = playTickSpy.mock.calls.length;
+      expect(ticksWithSoundOn).toBeGreaterThan(0);
+
+      // Now toggle soundEnabled off by re-rendering with the updated widget.
+      // The stale-closure bug would have ignored this change and continued
+      // calling playTick for all remaining ticks.
+      playTickSpy.mockClear();
+      rerender(<RandomWidget widget={makeWidget(false)} />);
+
+      // Advance enough time for the remaining ticks (the flash interval fires
+      // for >20 ticks × 80ms = 1680ms total; we are at 240ms, so ~1500ms remain).
+      act(() => {
+        vi.advanceTimersByTime(1600);
+      });
+
+      // With the ref fix: soundEnabledRef.current is false, so playTick must
+      // NOT have been called after the re-render.
+      // Without the fix: playTick would have been called for every remaining
+      // tick because the closure captured soundEnabled=true at creation time.
+      expect(playTickSpy.mock.calls.length).toBe(0);
     });
   });
 });
