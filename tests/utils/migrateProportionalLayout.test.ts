@@ -127,6 +127,77 @@ describe('widgetNeedsProportionalMigration', () => {
     });
     expect(widgetNeedsProportionalMigration(infinityWidget)).toBe(true);
   });
+
+  it('flags widgets with a non-finite or non-positive aspectRatio even when proportional fields are valid', () => {
+    // aspectRatio is `typeof === 'number'` for NaN/Infinity/0/negative, so the
+    // existing typeof guard passes them through. Without an explicit isFinite+positive
+    // check, these widgets skip re-migration and then computeWidgetPixelRect silently
+    // falls back to 'fill' behaviour (because fitAspectInside rejects invalid ratios),
+    // making preserve-aspect widgets appear distorted on viewport-aspect-ratio changes.
+    const validProps = {
+      xProp: 0.1,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.3,
+    };
+
+    // NaN aspectRatio
+    expect(
+      widgetNeedsProportionalMigration(
+        baseWidget({ ...validProps, aspectRatio: Number.NaN })
+      )
+    ).toBe(true);
+
+    // Infinity aspectRatio
+    expect(
+      widgetNeedsProportionalMigration(
+        baseWidget({ ...validProps, aspectRatio: Number.POSITIVE_INFINITY })
+      )
+    ).toBe(true);
+
+    // Zero aspectRatio (invalid — would divide by zero in aspect math)
+    expect(
+      widgetNeedsProportionalMigration(
+        baseWidget({ ...validProps, aspectRatio: 0 })
+      )
+    ).toBe(true);
+
+    // Negative aspectRatio
+    expect(
+      widgetNeedsProportionalMigration(
+        baseWidget({ ...validProps, aspectRatio: -1 })
+      )
+    ).toBe(true);
+  });
+
+  it('re-migration of a widget with NaN aspectRatio produces a finite, positive aspectRatio', () => {
+    // After the guard flags the widget, migrateWidgetToProportional should
+    // re-derive a valid aspectRatio from the widget's pixel w/h.
+    const widget = baseWidget({
+      x: 100,
+      y: 100,
+      w: 280,
+      h: 140,
+      xProp: 0.1,
+      yProp: 0.1,
+      wProp: 0.3,
+      hProp: 0.3,
+      aspectRatio: Number.NaN,
+    });
+    const out = migrateWidgetToProportional(widget, 1920, 1080);
+    expect(Number.isFinite(out.aspectRatio as number)).toBe(true);
+    expect((out.aspectRatio as number) > 0).toBe(true);
+    // The re-derived aspectRatio should match pixelW / pixelH = 280 / 140 = 2
+    expect(out.aspectRatio).toBeCloseTo(280 / 140, 6);
+    // Regression guard for layout corruption: when aspectRatio is the only
+    // corrupt field, the already-valid proportions must survive unchanged. If
+    // the function recomputed them from pixel values against a fallback
+    // viewport, these would drift away from the originals (0.1 / 0.3).
+    expect(out.xProp).toBeCloseTo(0.1, 6);
+    expect(out.yProp).toBeCloseTo(0.1, 6);
+    expect(out.wProp).toBeCloseTo(0.3, 6);
+    expect(out.hProp).toBeCloseTo(0.3, 6);
+  });
 });
 
 describe('migrateWidgetToProportional', () => {

@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Thursday_
-_Last audited: 2026-05-24_
+_Last audited: 2026-05-31_
 _Last action: never_
 
 ---
@@ -42,6 +42,16 @@ _Nothing currently in progress._
 ---
 
 ## Clean (no issues found)
+
+Migration code + dead exports + console.log audit (2026-05-31, re-verified):
+
+- Old type strings 'timer', 'stopwatch': Only in `utils/migration.ts:71-80` — correct. TimeTool uses 'timer'/'stopwatch' as `TimeToolMode` enum values, not legacy WidgetType strings.
+- Old type string 'workSymbols': Only in `utils/migration.ts:93` — correct.
+- `migrateLocalStorageToFirestore()`: Still actively called in `context/DashboardContext.tsx:2027`. Still needed.
+- New commits since 2026-05-24 (classroom-addon, SmartNotebook fixes, Spotify fixes): No new utility files added to this branch (classroom-addon utils like `classroomGradePush.ts` exist only in dev-paul, not merged here). No new commented-out code blocks. console.log(): Zero in components/, context/, hooks/, utils/.
+- `useScaledFont.ts`: Still dead — `ScheduleWidget.test.tsx:34` mocks it (`vi.mock('../../hooks/useScaledFont')`) but no production component imports it. The mock is stale (the test may no longer need it).
+- `videoActivityDriveService.ts`: Still no production imports in components/, hooks/, utils/ (excluding the file itself and its test).
+- `scripts/tools/`: Still present with 9 Python/Playwright scripts. Open item still valid.
 
 Migration code + dead exports + console.log audit (2026-05-24, re-verified):
 
