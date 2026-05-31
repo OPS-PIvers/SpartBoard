@@ -185,7 +185,8 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   // which would silently drop click-outside events arriving within that window.
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
       if (
         panelRef.current &&
         !panelRef.current.contains(target) &&
