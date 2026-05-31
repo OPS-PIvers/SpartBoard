@@ -54,21 +54,27 @@ vi.mock('lucide-react', () => {
     Stub.displayName = name;
     return Stub;
   }
-  return {
-    // Named imports used directly in MaterialsConfigurationPanel
+  // Pre-seed known icons; Proxy auto-stubs any future import so this mock
+  // doesn't need updating when new icons are added to the component.
+  const mocks: Record<string, unknown> = {
     Plus: icon('Plus'),
     Trash2: icon('Trash2'),
     Search: icon('Search'),
-    // Icons referenced by constants.ts (BUILT_IN_MATERIALS + fallback)
     Laptop: icon('Laptop'),
-    // MATERIAL_ICON_OPTIONS item kept by the constants mock below
     Backpack: icon('Backpack'),
-    // Fallback used by resolveMaterialIcon
     Package: icon('Package'),
-    // IconPicker built-in fallbacks
     HelpCircle: icon('HelpCircle'),
     X: icon('X'),
   };
+  return new Proxy(mocks, {
+    get(target, prop) {
+      if (prop === '__esModule') return true;
+      if (typeof prop === 'string' && !(prop in target)) {
+        target[prop] = icon(prop);
+      }
+      return target[prop as string];
+    },
+  });
 });
 
 // 2. Mock useAdminBuildings to skip the firebase/auth transitive import chain
