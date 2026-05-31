@@ -10,7 +10,7 @@ import { MousePointerClick, ShieldX, SlidersHorizontal } from 'lucide-react';
 import { Toggle } from '@/components/common/Toggle';
 import { Card } from '@/components/common/Card';
 import { useAuth } from '@/context/useAuth';
-import { SettingsSectionHeader } from '../SettingsSectionHeader';
+import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
 
 export const BehaviorSection: React.FC = () => {
   const { t } = useTranslation();
