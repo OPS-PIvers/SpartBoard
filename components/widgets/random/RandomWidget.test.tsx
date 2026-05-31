@@ -472,6 +472,7 @@ describe('RandomWidget', () => {
       type: 'random',
       config: {
         firstNames: 'Alice\nBob\nCharlie',
+        lastNames: '',
         rosterMode: 'custom',
         mode: 'single',
         visualStyle,
