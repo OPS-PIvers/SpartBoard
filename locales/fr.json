@@ -21,7 +21,10 @@
     "previous": "Tableau précédent",
     "next": "Tableau suivant",
     "selectBoard": "Sélectionner un tableau",
-    "boardList": "Tous les tableaux"
+    "boardList": "Tous les tableaux",
+    "manageAllBoards": "Gérer tous les tableaux…",
+    "pinned": "Épinglé",
+    "selectCollection": "Sélectionner une collection"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -73,7 +76,8 @@
       "globalStyle": "Style global",
       "generalSettings": "Paramètres généraux",
       "whatsNew": "Nouveautés",
-      "whatsNewBadge": "Nouveau"
+      "whatsNewBadge": "Nouveau",
+      "whatsNewSrAnnouncement": "Nouvelles notes de version disponibles"
     },
     "boards": {
       "newBoard": "Nouveau tableau",
@@ -590,7 +594,11 @@
     "uploadingToDrive": "Téléchargement de l'enregistrement sur Google Drive...",
     "recordingSavedToDrive": "Enregistrement sauvegardé sur Google Drive !",
     "recordingDriveFailed": "Échec de la sauvegarde sur Drive. Téléchargement local...",
-    "noGoogleDrive": "Aucun Google Drive connecté. Téléchargement local..."
+    "noGoogleDrive": "Aucun Google Drive connecté. Téléchargement local...",
+    "viewLiveSession": "Voir les informations de la session en direct",
+    "liveSession": "Session en direct",
+    "provideCode": "Donnez ce code à vos élèves.",
+    "noAppsSelected": "Restauration des valeurs par défaut…"
   },
   "languages": {
     "en": "English",
