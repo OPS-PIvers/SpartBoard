@@ -9,7 +9,7 @@ import { Globe } from 'lucide-react';
 import { useAuth } from '@/context/useAuth';
 import { useDashboard } from '@/context/useDashboard';
 import { SUPPORTED_LANGUAGES } from '@/i18n';
-import { SettingsSectionHeader } from '../SettingsSectionHeader';
+import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
 
 export const LanguageSection: React.FC = () => {
   const { t } = useTranslation();

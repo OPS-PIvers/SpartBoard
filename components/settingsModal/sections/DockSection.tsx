@@ -14,7 +14,7 @@ import { CheckSquare, Minimize } from 'lucide-react';
 import { DockPosition, GlobalStyle } from '@/types';
 import { useAuth } from '@/context/useAuth';
 import { GlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
-import { SettingsSectionHeader } from '../SettingsSectionHeader';
+import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
 
 interface DockSectionProps {
   editor: GlobalStyleEditor;
