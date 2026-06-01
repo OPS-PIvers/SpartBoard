@@ -87,6 +87,12 @@ interface EditProps extends BaseProps {
 
 interface ReadProps extends BaseProps {
   mode: 'read';
+  /**
+   * Render on a LIGHT surface (async / self-paced student review). Defaults to
+   * the dark treatment so the live-ended review and existing call sites are
+   * unchanged.
+   */
+  light?: boolean;
 }
 
 type Props = EditProps | ReadProps;
@@ -104,7 +110,15 @@ const COMMENT_CHIP_MIN_HEIGHT = 56;
 const COMMENT_CHIP_GAP = 8;
 const COMMENT_COLUMN_WIDTH_PX = 240;
 
-const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
+const ReadOnlyView: React.FC<ReadProps> = ({
+  snapshot,
+  annotations,
+  light = false,
+}) => {
+  const articleCls = light
+    ? 'border-slate-200 bg-white text-slate-800'
+    : 'border-slate-700 bg-slate-800/60 text-slate-100';
+  const notesLabelCls = light ? 'text-slate-500' : 'text-slate-400';
   const containerRef = useRef<HTMLDivElement | null>(null);
   const articleRef = useRef<HTMLElement | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -272,7 +286,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
       <div className="flex flex-col gap-3">
         <article
           ref={articleRef}
-          className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-sm leading-relaxed text-slate-100 max-w-none min-w-0 break-words [&_mark]:transition-colors"
+          className={`rounded-xl border p-4 text-sm leading-relaxed max-w-none min-w-0 break-words [&_mark]:transition-colors ${articleCls}`}
           onMouseOver={(e) => {
             const t = (e.target as HTMLElement).closest('mark');
             if (t) setHoveredId(t.getAttribute('data-annotation-id'));
@@ -284,7 +298,9 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
         </article>
         {commented.length > 0 && (
           <aside className="flex flex-col gap-2">
-            <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+            <h4
+              className={`text-[10px] font-bold uppercase tracking-wider ${notesLabelCls}`}
+            >
               Teacher notes
             </h4>
             {commented.map((a) => (
@@ -293,6 +309,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
                 annotation={a}
                 highlighted={hoveredId === a.id || pulsedId === a.id}
                 onHover={(on) => setHoveredId(on ? a.id : null)}
+                light={light}
               />
             ))}
           </aside>
@@ -312,7 +329,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
     >
       <article
         ref={articleRef}
-        className="rounded-xl border border-slate-700 bg-slate-800/60 p-4 text-sm leading-relaxed text-slate-100 max-w-none [&_mark]:transition-colors"
+        className={`rounded-xl border p-4 text-sm leading-relaxed max-w-none [&_mark]:transition-colors ${articleCls}`}
         onMouseOver={(e) => {
           const t = (e.target as HTMLElement).closest('mark');
           if (t) setHoveredId(t.getAttribute('data-annotation-id'));
@@ -327,7 +344,9 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
         style={{ minHeight: '100%' }}
         aria-label="Teacher notes"
       >
-        <h4 className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+        <h4
+          className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${notesLabelCls}`}
+        >
           Teacher notes
         </h4>
         {commented.map((a) => (
@@ -338,6 +357,7 @@ const ReadOnlyView: React.FC<ReadProps> = ({ snapshot, annotations }) => {
             pinned
             top={pinnedTops[a.id] ?? 0}
             onHover={(on) => setHoveredId(on ? a.id : null)}
+            light={light}
           />
         ))}
       </aside>
@@ -352,12 +372,17 @@ const CommentChip: React.FC<{
   /** When pinned, the chip uses absolute positioning at the supplied top. */
   pinned?: boolean;
   top?: number;
-}> = ({ annotation, highlighted, onHover, pinned, top }) => (
+  light?: boolean;
+}> = ({ annotation, highlighted, onHover, pinned, top, light = false }) => (
   <div
     className={`rounded-lg border p-2.5 text-xs leading-relaxed transition-colors ${
       highlighted
-        ? 'border-violet-400/60 bg-violet-500/10 text-slate-100 shadow-lg shadow-violet-500/10'
-        : 'border-slate-700 bg-slate-800/60 text-slate-300'
+        ? light
+          ? 'border-brand-blue-light/60 bg-brand-blue-lighter text-slate-800 shadow-sm shadow-brand-blue-primary/10'
+          : 'border-violet-400/60 bg-violet-500/10 text-slate-100 shadow-lg shadow-violet-500/10'
+        : light
+          ? 'border-slate-200 bg-slate-50 text-slate-600'
+          : 'border-slate-700 bg-slate-800/60 text-slate-300'
     } ${pinned ? 'absolute left-0 right-0' : ''}`}
     style={pinned ? { top: `${top ?? 0}px` } : undefined}
     onMouseEnter={() => onHover(true)}

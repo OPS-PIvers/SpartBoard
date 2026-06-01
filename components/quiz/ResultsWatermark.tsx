@@ -5,6 +5,13 @@ interface ResultsWatermarkProps {
   studentName: string;
   /** ms timestamp of when the teacher published — formatted to locale string. */
   publishedAt: number;
+  /**
+   * Light surface (async/self-paced results). Flips the tile ink to dark so the
+   * watermark stays visible — `text-white` at 0.12 opacity vanishes on a light
+   * background, which would silently defeat the screenshot deterrent. Defaults
+   * to the dark-theme treatment (live quiz results).
+   */
+  light?: boolean;
 }
 
 /**
@@ -21,6 +28,7 @@ interface ResultsWatermarkProps {
 export const ResultsWatermark: React.FC<ResultsWatermarkProps> = ({
   studentName,
   publishedAt,
+  light = false,
 }) => {
   const patternId = React.useId();
   const label = `${studentName} • ${new Date(publishedAt).toLocaleString()}`;
@@ -28,7 +36,9 @@ export const ResultsWatermark: React.FC<ResultsWatermarkProps> = ({
     <svg
       role="presentation"
       aria-hidden="true"
-      className="pointer-events-none fixed inset-0 z-50 h-full w-full select-none text-white"
+      className={`pointer-events-none fixed inset-0 z-50 h-full w-full select-none ${
+        light ? 'text-slate-900' : 'text-white'
+      }`}
       xmlns="http://www.w3.org/2000/svg"
     >
       <defs>
