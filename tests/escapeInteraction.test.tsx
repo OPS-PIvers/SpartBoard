@@ -437,18 +437,13 @@ describe('Global Escape Interaction', () => {
       bubbles: true,
       cancelable: true,
     });
-    let prevented = false;
-    deleteEvent.preventDefault = () => {
-      prevented = true;
-    };
-
     act(() => {
       window.dispatchEvent(deleteEvent);
     });
 
     // The global handler must NOT call preventDefault while an input is focused —
     // doing so blocks the browser from deleting the character the user intended.
-    expect(prevented).toBe(false);
+    expect(deleteEvent.defaultPrevented).toBe(false);
   });
 
   it('does call preventDefault and dispatch widget-keyboard-action when Delete is pressed outside a text input', () => {
@@ -489,17 +484,12 @@ describe('Global Escape Interaction', () => {
       bubbles: true,
       cancelable: true,
     });
-    let prevented = false;
-    deleteEvent.preventDefault = () => {
-      prevented = true;
-    };
-
     act(() => {
       window.dispatchEvent(deleteEvent);
     });
 
     // The handler should prevent default (browser may otherwise navigate back).
-    expect(prevented).toBe(true);
+    expect(deleteEvent.defaultPrevented).toBe(true);
 
     // And it should dispatch a widget-keyboard-action for the top widget.
     expect(dispatchSpy).toHaveBeenCalledWith(
