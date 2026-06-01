@@ -62,6 +62,11 @@ interface WrittenResponseEditorProps {
    * caret/selection.
    */
   questionKey: string;
+  /**
+   * Render the editor on a LIGHT surface (async / self-paced quiz). Defaults
+   * to the dark teacher-paced treatment so existing call sites are unchanged.
+   */
+  light?: boolean;
 }
 
 const countWords = (html: string): number => {
@@ -102,6 +107,7 @@ const WrittenResponseEditorInner: React.FC<
   disabled,
   isEssay,
   blockClipboard,
+  light = false,
 }) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -304,11 +310,18 @@ const WrittenResponseEditorInner: React.FC<
 
   return (
     <div className="flex flex-col gap-2 w-full" ref={containerRef}>
-      <div className="flex items-center gap-1 px-2 py-1.5 bg-slate-800 border border-slate-700 rounded-t-2xl">
+      <div
+        className={`flex items-center gap-1 px-2 py-1.5 border rounded-t-2xl ${
+          light
+            ? 'bg-slate-50 border-slate-200'
+            : 'bg-slate-800 border-slate-700'
+        }`}
+      >
         <ToolbarButton
           label="Bold"
           onClick={() => exec('bold')}
           disabled={disabled}
+          light={light}
         >
           <Bold className="w-4 h-4" />
         </ToolbarButton>
@@ -316,6 +329,7 @@ const WrittenResponseEditorInner: React.FC<
           label="Italic"
           onClick={() => exec('italic')}
           disabled={disabled}
+          light={light}
         >
           <Italic className="w-4 h-4" />
         </ToolbarButton>
@@ -323,16 +337,20 @@ const WrittenResponseEditorInner: React.FC<
           label="Underline"
           onClick={() => exec('underline')}
           disabled={disabled}
+          light={light}
         >
           <Underline className="w-4 h-4" />
         </ToolbarButton>
         {isEssay && (
           <>
-            <div className="w-px h-5 bg-slate-700 mx-1" />
+            <div
+              className={`w-px h-5 mx-1 ${light ? 'bg-slate-200' : 'bg-slate-700'}`}
+            />
             <ToolbarButton
               label="Bulleted list"
               onClick={() => handleListToggle('ul')}
               disabled={disabled}
+              light={light}
             >
               <List className="w-4 h-4" />
             </ToolbarButton>
@@ -340,6 +358,7 @@ const WrittenResponseEditorInner: React.FC<
               label="Numbered list"
               onClick={() => handleListToggle('ol')}
               disabled={disabled}
+              light={light}
             >
               <ListOrdered className="w-4 h-4" />
             </ToolbarButton>
@@ -348,7 +367,11 @@ const WrittenResponseEditorInner: React.FC<
         <div className="flex-1" />
         <span
           className={`text-xs font-mono px-2 py-0.5 rounded ${
-            overCap ? 'bg-amber-500/20 text-amber-300' : 'text-slate-500'
+            overCap
+              ? light
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-amber-500/20 text-amber-300'
+              : 'text-slate-500'
           }`}
           aria-live="polite"
         >
@@ -378,10 +401,16 @@ const WrittenResponseEditorInner: React.FC<
           onCut={handleClipboardCopyCut}
           onDrop={handleDrop}
           spellCheck
-          className={`w-full px-5 py-4 bg-slate-800 border-2 border-t-0 ${
+          className={`w-full px-5 py-4 border-2 border-t-0 ${
+            light ? 'bg-white' : 'bg-slate-800'
+          } ${
             disabled
-              ? 'border-slate-700 text-slate-400 cursor-not-allowed'
-              : 'border-slate-700 text-white focus:outline-none focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
+              ? light
+                ? 'border-slate-200 text-slate-400 cursor-not-allowed'
+                : 'border-slate-700 text-slate-400 cursor-not-allowed'
+              : light
+                ? 'border-slate-300 text-slate-900 focus:outline-none focus:border-brand-blue-light focus-visible:ring-2 focus-visible:ring-brand-blue-light'
+                : 'border-slate-700 text-white focus:outline-none focus:border-violet-500 focus-visible:ring-2 focus-visible:ring-violet-400'
           } rounded-b-2xl text-sm leading-relaxed overflow-y-auto`}
           style={{
             wordBreak: 'break-word',
@@ -407,7 +436,11 @@ const WrittenResponseEditorInner: React.FC<
             onPointerUp={handlePointerUp}
             onPointerCancel={handlePointerUp}
             onKeyDown={handleHandleKeyDown}
-            className="absolute bottom-1.5 right-2 flex items-center justify-center w-7 h-5 rounded text-slate-500 hover:text-slate-300 hover:bg-slate-700/70 cursor-ns-resize touch-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
+            className={`absolute bottom-1.5 right-2 flex items-center justify-center w-7 h-5 rounded cursor-ns-resize touch-none focus-visible:outline-none focus-visible:ring-2 ${
+              light
+                ? 'text-slate-400 hover:text-slate-600 hover:bg-slate-100 focus-visible:ring-brand-blue-light'
+                : 'text-slate-500 hover:text-slate-300 hover:bg-slate-700/70 focus-visible:ring-violet-400'
+            }`}
           >
             <GripHorizontal className="w-4 h-4" />
           </button>
@@ -415,7 +448,9 @@ const WrittenResponseEditorInner: React.FC<
       </div>
 
       {overCap && (
-        <p className="text-xs text-amber-400 italic">
+        <p
+          className={`text-xs italic ${light ? 'text-amber-700' : 'text-amber-400'}`}
+        >
           You&apos;re past the suggested word cap. Your teacher may take this
           into account when grading.
         </p>
@@ -428,8 +463,9 @@ const ToolbarButton: React.FC<{
   label: string;
   onClick: () => void;
   disabled?: boolean;
+  light?: boolean;
   children: React.ReactNode;
-}> = ({ label, onClick, disabled, children }) => (
+}> = ({ label, onClick, disabled, light = false, children }) => (
   <button
     type="button"
     aria-label={label}
@@ -441,7 +477,11 @@ const ToolbarButton: React.FC<{
       e.preventDefault();
     }}
     onClick={onClick}
-    className="p-1.5 rounded text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    className={`p-1.5 rounded focus-visible:outline-none focus-visible:ring-2 disabled:opacity-40 disabled:cursor-not-allowed transition-colors ${
+      light
+        ? 'text-slate-500 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-brand-blue-light'
+        : 'text-slate-300 hover:bg-slate-700 hover:text-white focus-visible:ring-violet-400'
+    }`}
   >
     {children}
   </button>

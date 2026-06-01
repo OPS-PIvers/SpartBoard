@@ -152,7 +152,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
 
       {/* Question */}
       <div className="px-5 pt-5 pb-3">
-        <p className="text-base font-semibold text-slate-800 leading-snug">
+        <p className="text-base font-semibold text-slate-900 leading-snug">
           {question.text}
         </p>
         {type === 'MA' && (
@@ -165,23 +165,22 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
         <div className="px-5 pb-5 grid gap-2.5">
           {options.map((option, i) => {
             let style =
-              'border-2 border-slate-200 bg-white hover:border-brand-blue-primary hover:bg-brand-blue-lighter/30 text-slate-700';
+              'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
             if (submitted) {
               if (option === question.correctAnswer) {
                 style =
-                  'border-2 border-emerald-500 bg-emerald-50 text-emerald-800 font-bold';
+                  'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
               } else if (
                 option === mcSelected &&
                 option !== question.correctAnswer
               ) {
-                style =
-                  'border-2 border-brand-red-primary bg-brand-red-lighter/30 text-brand-red-dark';
+                style = 'border-2 border-red-200 bg-red-50 text-red-700';
               } else {
                 style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
               }
             } else if (mcSelected === option) {
               style =
-                'border-2 border-brand-blue-primary bg-brand-blue-lighter/40 text-brand-blue-dark font-semibold';
+                'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
             }
             return (
               <button
@@ -200,7 +199,7 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
                 {submitted &&
                   option === mcSelected &&
                   option !== question.correctAnswer && (
-                    <XCircle className="w-4 h-4 text-brand-red-primary shrink-0" />
+                    <XCircle className="w-4 h-4 text-red-500 shrink-0" />
                   )}
               </button>
             );
@@ -223,9 +222,9 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             className={`w-full px-4 py-3 text-sm rounded-xl border-2 transition-all focus:outline-none ${
               submitted
                 ? submittedIsCorrect
-                  ? 'border-emerald-500 bg-emerald-50 text-emerald-800 font-bold'
-                  : 'border-brand-red-primary bg-brand-red-lighter/30 text-brand-red-dark'
-                : 'border-slate-200 focus:border-brand-blue-primary text-slate-700'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700 font-bold'
+                  : 'border-red-200 bg-red-50 text-red-700'
+                : 'border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400'
             }`}
           />
           {submitted && !submittedIsCorrect && (
@@ -245,24 +244,23 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
             const isChecked = maSelected.has(option);
             const isCorrectOption = maCorrectSet.has(option);
             let style =
-              'border-2 border-slate-200 bg-white hover:border-brand-blue-primary hover:bg-brand-blue-lighter/30 text-slate-700';
+              'border-2 border-slate-200 bg-white hover:bg-slate-50 text-slate-700';
             if (submitted) {
               if (isCorrectOption && isChecked) {
                 style =
-                  'border-2 border-emerald-500 bg-emerald-50 text-emerald-800 font-bold';
+                  'border-2 border-emerald-200 bg-emerald-50 text-emerald-700 font-bold';
               } else if (isCorrectOption && !isChecked) {
                 // Missed-correct: highlight subtly so students see what they missed.
                 style =
-                  'border-2 border-emerald-300 bg-emerald-50/60 text-emerald-700';
+                  'border-2 border-emerald-200 bg-emerald-50/60 text-emerald-700';
               } else if (!isCorrectOption && isChecked) {
-                style =
-                  'border-2 border-brand-red-primary bg-brand-red-lighter/30 text-brand-red-dark';
+                style = 'border-2 border-red-200 bg-red-50 text-red-700';
               } else {
                 style = 'border-2 border-slate-100 bg-slate-50 text-slate-400';
               }
             } else if (isChecked) {
               style =
-                'border-2 border-brand-blue-primary bg-brand-blue-lighter/40 text-brand-blue-dark font-semibold';
+                'border-2 border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary font-semibold';
             }
             return (
               <button
@@ -304,10 +302,10 @@ export const QuestionOverlay: React.FC<QuestionOverlayProps> = ({
       {submitted && (
         <div className="px-5 pb-5">
           <div
-            className={`text-center text-sm font-bold py-2 rounded-xl ${
+            className={`text-center text-sm font-bold py-2 rounded-xl border ${
               submittedIsCorrect
-                ? 'bg-emerald-100 text-emerald-700'
-                : 'bg-brand-red-lighter/40 text-brand-red-dark'
+                ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border-red-200 text-red-700'
             }`}
           >
             {submittedIsCorrect
