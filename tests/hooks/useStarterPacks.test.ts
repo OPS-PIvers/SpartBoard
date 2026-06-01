@@ -1,4 +1,12 @@
-import { describe, it, expect, vi, beforeEach, type Mock } from 'vitest';
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type Mock,
+} from 'vitest';
 import { act, renderHook } from '@testing-library/react';
 import { collection, onSnapshot, query } from 'firebase/firestore';
 import { useStarterPacks } from '@/hooks/useStarterPacks';
@@ -95,6 +103,9 @@ beforeEach(() => {
   mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
     segs.join('/')
   );
+  // Pinned here (not just in the vi.mock factory) so the implementation
+  // survives the afterEach vi.restoreAllMocks() below.
+  mockQuery.mockImplementation((ref: unknown) => ref);
   mockOnSnapshot.mockImplementation(
     (ref: unknown, onNext: Handler['onNext'], onError: Handler['onError']) => {
       const unsub = vi.fn();
@@ -102,6 +113,12 @@ beforeEach(() => {
       return unsub;
     }
   );
+});
+
+afterEach(() => {
+  // Restores any vi.spyOn spies (e.g. the console.error spies) even if a test
+  // throws before reaching its own mockRestore() call, preventing leakage.
+  vi.restoreAllMocks();
 });
 
 describe('useStarterPacks — listener wiring', () => {
