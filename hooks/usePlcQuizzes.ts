@@ -25,6 +25,7 @@ const QUIZZES_SUBCOLLECTION = 'quizzes';
  */
 const SESSION_OPTION_KEYS: readonly (keyof QuizSessionOptions)[] = [
   'tabWarningsEnabled',
+  'blockCopyPaste',
   'showResultToStudent',
   'showCorrectAnswerToStudent',
   'showCorrectOnBoard',

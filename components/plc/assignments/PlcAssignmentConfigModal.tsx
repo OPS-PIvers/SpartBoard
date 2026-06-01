@@ -108,6 +108,7 @@ type PlcAssignmentConfigModalProps = {
 
 const DEFAULT_QUIZ_SESSION_OPTIONS: QuizSessionOptions = {
   tabWarningsEnabled: true,
+  blockCopyPaste: false,
   showResultToStudent: false,
   showCorrectAnswerToStudent: false,
   showCorrectOnBoard: false,
@@ -573,6 +574,7 @@ export const PlcAssignmentConfigModal: React.FC<
                 attemptLimit={attemptLimit}
                 onAttemptLimitChange={setAttemptLimit}
                 shuffleQuestionsAvailable={false}
+                showCopyPasteToggle
               />
             </>
           ) : vaBehavior ? (

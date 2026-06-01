@@ -35,6 +35,24 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(screen.getByText('Block Copy & Paste')).toBeInTheDocument();
   });
 
+  it('reflects an existing blockCopyPaste: true value as a checked switch', () => {
+    const value: QuizBehaviorSettings = {
+      ...DEFAULT_QUIZ_BEHAVIOR,
+      sessionOptions: {
+        ...DEFAULT_QUIZ_BEHAVIOR.sessionOptions,
+        blockCopyPaste: true,
+      },
+      attemptLimit: null,
+    };
+    render(<QuizBehaviorSettingsPanel value={value} onChange={vi.fn()} />);
+
+    const row = screen.getByText('Block Copy & Paste').closest('div');
+    const switchEl = row?.querySelector('[role="switch"]');
+    expect(switchEl).not.toBeNull();
+    // Not a dead control — the front-face reflects the stored value.
+    expect(switchEl).toHaveAttribute('aria-checked', 'true');
+  });
+
   it('toggling Block Copy & Paste calls onChange with blockCopyPaste: true', () => {
     const onChange = vi.fn();
     render(

@@ -83,6 +83,30 @@ const FIB_QUESTION: QuizPublicQuestion = {
   timeLimit: 0,
 };
 
+const SHORT_QUESTION: QuizPublicQuestion = {
+  id: 'q1',
+  type: 'short',
+  text: 'Explain why the sky is blue.',
+  timeLimit: 0,
+};
+
+// jsdom does not implement document.execCommand; install a stub the editor's
+// paste handler can call (and we can assert against) to distinguish "blocked"
+// (no insert) from "allowed" (plain-text insert).
+type ExecHost = { execCommand?: unknown };
+const withExecStub = async (
+  run: (exec: ReturnType<typeof vi.fn>) => Promise<void>
+): Promise<void> => {
+  const exec = vi.fn();
+  const prev = (document as ExecHost).execCommand;
+  (document as ExecHost).execCommand = exec;
+  try {
+    await run(exec);
+  } finally {
+    (document as ExecHost).execCommand = prev;
+  }
+};
+
 function buildSession(overrides: Partial<QuizSession> = {}): QuizSession {
   return {
     id: 'session-1',
@@ -132,15 +156,54 @@ const getFibInput = async (): Promise<HTMLElement> => {
 };
 
 describe('QuizStudentApp — Block Copy & Paste', () => {
-  it('blocks paste into the answer field when blockCopyPaste is on', async () => {
+  it('blocks paste, cut, and drop on the answer field when blockCopyPaste is on', async () => {
     hookState.session = buildSession({ blockCopyPaste: true });
     render(<QuizStudentApp />);
     const input = await getFibInput();
     // fireEvent returns false when the event's default action was prevented.
-    const notPrevented = fireEvent.paste(input, {
-      clipboardData: { getData: () => 'Paris' },
+    expect(
+      fireEvent.paste(input, { clipboardData: { getData: () => 'Paris' } })
+    ).toBe(false);
+    expect(fireEvent.cut(input)).toBe(false);
+    // Drag-and-drop is the other channel for importing externally-composed
+    // text — the container guard blocks it too.
+    expect(
+      fireEvent.drop(input, { dataTransfer: { getData: () => 'Paris' } })
+    ).toBe(false);
+  });
+
+  it('blocks paste into the short/essay editor when blockCopyPaste is on (prop wiring)', async () => {
+    await withExecStub(async (exec) => {
+      hookState.session = buildSession({
+        blockCopyPaste: true,
+        publicQuestions: [SHORT_QUESTION],
+      });
+      render(<QuizStudentApp />);
+      // The editor is lazy-loaded; wait for the contenteditable to mount.
+      const editor = await screen.findByRole('textbox', {
+        name: /your response/i,
+      });
+      fireEvent.paste(editor, {
+        clipboardData: { getData: () => 'pasted essay' },
+      });
+      // If `blockClipboard` weren't threaded to the editor, its handler would
+      // insert the plain text via execCommand — assert it never does.
+      expect(exec).not.toHaveBeenCalled();
     });
-    expect(notPrevented).toBe(false);
+  });
+
+  it('still inserts pasted text into the short/essay editor when blockCopyPaste is off', async () => {
+    await withExecStub(async (exec) => {
+      hookState.session = buildSession({ publicQuestions: [SHORT_QUESTION] });
+      render(<QuizStudentApp />);
+      const editor = await screen.findByRole('textbox', {
+        name: /your response/i,
+      });
+      fireEvent.paste(editor, {
+        clipboardData: { getData: () => 'pasted essay' },
+      });
+      expect(exec).toHaveBeenCalledWith('insertText', false, 'pasted essay');
+    });
   });
 
   it('blocks copy from the question prompt when blockCopyPaste is on', async () => {
@@ -158,6 +221,9 @@ describe('QuizStudentApp — Block Copy & Paste', () => {
       clipboardData: { getData: () => 'Paris' },
     });
     expect(pastePrevented).toBe(true);
+    expect(
+      fireEvent.drop(input, { dataTransfer: { getData: () => 'Paris' } })
+    ).toBe(true);
     const prompt = screen.getByText(/capital of france/i);
     expect(fireEvent.copy(prompt)).toBe(true);
   });

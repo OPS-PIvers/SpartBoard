@@ -897,16 +897,22 @@ const ActiveQuiz: React.FC<{
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
 
   // Test integrity: when the teacher enabled "Block Copy & Paste", suppress
-  // copy/cut/paste across the question + answer area so a student can't paste
-  // a block of text composed in another tab. Default off (clipboard allowed).
+  // copy/cut/paste — and drag-and-drop, the other channel for importing text
+  // composed elsewhere — across the question + answer area. Default off
+  // (clipboard allowed). The drop guard is safe alongside the Matching/
+  // Ordering inputs because those use dnd-kit's pointer sensors, not native
+  // HTML5 drag events.
   const blockCopyPaste = session.blockCopyPaste === true;
   const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
+    e.preventDefault();
+  const handleBlockedDrop = (e: React.DragEvent<HTMLDivElement>) =>
     e.preventDefault();
   const clipboardGuards = blockCopyPaste
     ? {
         onCopy: handleBlockedClipboard,
         onCut: handleBlockedClipboard,
         onPaste: handleBlockedClipboard,
+        onDrop: handleBlockedDrop,
       }
     : undefined;
 
