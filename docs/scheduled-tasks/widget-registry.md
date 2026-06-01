@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-31_
+_Last audited: 2026-06-01_
 _Last action: 2026-05-15_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-01: Full audit of all 63 WidgetType values. New dev-paul commits since 2026-05-31 absorbed via merge: fix(SettingsPanel) null-guard e.target in pointerdown handler, docs(changelog) release entry for 2026-05-31, chore unifier run 5 log, fix(test) eliminate MaterialsConfigurationPanel flaky timeout, fix(SettingsPanel) prevent click-outside after parent re-renders, plus new test files (MaterialsConfigurationPanel.test.tsx, DraggableWindow.test.tsx, SettingsPanel.test.tsx, RandomWidget.test.tsx, dockBoardNavLocales.test.ts, sidebarClassesRestrictionsLocales.test.ts, plcContributions.test.ts). None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 63 WidgetTypes correctly registered. Zero new gaps. RevealGrid barrel aliases ('Widget'/'Settings') confirmed intentional and functional._
 
 _2026-05-31: Full audit of all 63 WidgetType values. New dev-paul commits since 2026-05-30: Fix SmartNotebook placed assets stranding on page reorder/delete (#1759 — SmartNotebook/Widget.tsx), fix(spotify) eliminate Web Playback SDK 'ready' vs Connect registration race (#1758 — MusicWidget sub-components), test(spotify) queue-and-flush null-device path, docs(spotify/changelog) minor docs. None touch types.ts WidgetType union, WidgetRegistry.ts, widgetDefaults.ts, tools.ts, or widgetGradeLevels.ts. All 63 WidgetTypes correctly registered. Zero new gaps._
 
