@@ -91,6 +91,10 @@ interface GoogleUserInfo {
   email?: string;
   email_verified?: boolean;
   hd?: string;
+  // Full display name (present when the `userinfo.profile` scope is granted —
+  // the student view requests it). Used ONLY as a transient watermark label,
+  // returned to the student's own client; never persisted (PII gate).
+  name?: string;
 }
 
 /** OneRoster student shape (subset) — mirrors index.ts's ClassLinkStudent. */
@@ -152,10 +156,6 @@ interface CreateAttachmentData {
   // the attachment is created grade-sync capable (studentWorkReviewUri +
   // maxPoints); the DRAFT grade later populates via pushClassroomGrade.
   maxPoints?: unknown;
-  // Optional due date (epoch-ms, from the add-on's custom picker). When present
-  // on a courseWork item, we PATCH the PARENT courseWork's dueDate/dueTime so it
-  // shows as THE Classroom assignment due date — the teacher enters it once.
-  dueAtMs?: unknown;
 }
 
 /**
@@ -432,49 +432,6 @@ export const classroomAddonNet = {
       return { ok: false, status: 0 };
     }
   },
-
-  /**
-   * PATCH the PARENT courseWork's due date so the date the teacher picks in the
-   * add-on shows as THE Classroom assignment due date (not just a SpartBoard
-   * value) — they enter it once. Requires the teacher's access token to carry
-   * the `classroom.coursework.students` scope. `updateMask=dueDate,dueTime`
-   * scopes the PATCH to those two fields; both are UTC, as the Classroom API
-   * requires. Seam so tests can stub it without a live course.
-   */
-  async patchCourseWorkDueDate(
-    accessToken: string,
-    courseId: string,
-    courseWorkId: string,
-    dueDate: { year: number; month: number; day: number },
-    dueTime: { hours: number; minutes: number }
-  ): Promise<{ ok: boolean; status: number }> {
-    const url =
-      `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
-      `/courseWork/${encodeURIComponent(courseWorkId)}` +
-      `?updateMask=dueDate,dueTime`;
-    try {
-      const res = await fetch(url, {
-        method: 'PATCH',
-        headers: { ...bearer(accessToken), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dueDate, dueTime }),
-        signal: AbortSignal.timeout(API_TIMEOUT_MS),
-      });
-      if (!res.ok) {
-        console.warn(
-          `[createClassroomAttachment] courseWork.patch dueDate ${res.status} ` +
-            `${courseId}/${courseWorkId}`
-        );
-        return { ok: false, status: res.status };
-      }
-      return { ok: true, status: res.status };
-    } catch (err) {
-      console.warn(
-        '[createClassroomAttachment] courseWork.patch dueDate failed:',
-        err
-      );
-      return { ok: false, status: 0 };
-    }
-  },
 };
 
 export const classroomAddonLoginV1 = onCall(
@@ -595,6 +552,11 @@ export const classroomAddonLoginV1 = onCall(
     //    pseudonym scoped to the Google courseId — works, but nameless.
     let uid: string | null = null;
     let classIds: string[] = [`classroom:${courseId}`];
+    // Transient display name for the results watermark. Roster-resolved name
+    // (ClassLink givenName/familyName) is preferred; the Google userinfo name is
+    // the fallback. Returned to the student's OWN client only — never persisted
+    // (the claims + grade-sync key stay nameless, preserving the PII gate).
+    let displayName: string | null = null;
     // The teacher who linked this course owns the OFFLINE Google creds the
     // grade-passback push uses. Captured here (PII-free — it's a Firebase uid)
     // so it can be persisted alongside the grade-sync key.
@@ -622,6 +584,12 @@ export const classroomAddonLoginV1 = onCall(
         if (match?.sourcedId) {
           uid = computeStudentUid(match.sourcedId, hmacSecret);
           classIds = [link.classlinkClassId];
+          // Roster-resolved name for the watermark (transient; not persisted).
+          const rosterName = [match.givenName, match.familyName]
+            .filter((p): p is string => typeof p === 'string' && p.length > 0)
+            .join(' ')
+            .trim();
+          if (rosterName) displayName = rosterName;
         } else {
           console.warn(
             '[classroomAddonLoginV1] linked course but student email not in ' +
@@ -645,6 +613,11 @@ export const classroomAddonLoginV1 = onCall(
         `classroom-sub:${info.sub}`,
         hmacSecret
       ).toString(CryptoJS.enc.Hex);
+    }
+    // Fall back to the Google userinfo name when the roster bridge didn't
+    // resolve one (unlinked course, or student not in the OneRoster roster).
+    if (!displayName && typeof info.name === 'string') {
+      displayName = info.name.trim() || null;
     }
 
     // 3b. Persist the PII-free grade-sync key so a later completion can push a
@@ -693,6 +666,9 @@ export const classroomAddonLoginV1 = onCall(
       studentRole: true,
       customToken,
       submissionId,
+      // Transient watermark label for the student's own results view. Omitted
+      // when neither the roster nor userinfo yielded a name.
+      ...(displayName ? { displayName } : {}),
     };
   }
 );
@@ -868,36 +844,13 @@ export const createClassroomAttachment = onCall(
       );
     }
 
-    // Optionally sync the teacher's chosen due date onto the PARENT courseWork
-    // so it shows as the Classroom assignment due date (one entry — they don't
-    // re-type it in Classroom's own composer). Only courseWork has a due date,
-    // and it requires the classroom.coursework.students scope on the teacher
-    // token. Best-effort: a failure here NEVER fails the attach — the activity
-    // is already attached and the teacher can set the date manually. `dueAtMs`
-    // is an absolute instant; UTC extraction gives the UTC wall-clock the
-    // Classroom API expects.
-    let dueDateSynced = false;
-    const dueAtMs =
-      typeof data.dueAtMs === 'number' && Number.isFinite(data.dueAtMs)
-        ? data.dueAtMs
-        : null;
-    if (dueAtMs !== null && itemType === 'courseWork') {
-      const d = new Date(dueAtMs);
-      const patchResult = await classroomAddonNet.patchCourseWorkDueDate(
-        accessToken,
-        courseId,
-        itemId,
-        {
-          year: d.getUTCFullYear(),
-          month: d.getUTCMonth() + 1,
-          day: d.getUTCDate(),
-        },
-        { hours: d.getUTCHours(), minutes: d.getUTCMinutes() }
-      );
-      dueDateSynced = patchResult.ok;
-    }
-
-    return { attachmentId: createResult.id, dueDateSynced };
+    // The due date is intentionally NOT synced here. An add-on cannot set the
+    // parent assignment's due date — Google restricts courses.courseWork.patch
+    // to the developer project that CREATED the coursework, and add-on
+    // attachments live under coursework the teacher created in Classroom's own
+    // composer (→ PERMISSION_DENIED). The teacher sets the due date once, in
+    // that composer (the screen this add-on iframe is embedded in).
+    return { attachmentId: createResult.id };
   }
 );
 

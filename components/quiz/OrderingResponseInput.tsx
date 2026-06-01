@@ -178,7 +178,7 @@ const Slot: React.FC<{
                 ? 'border-brand-blue-light bg-brand-blue-lighter text-brand-blue-primary'
                 : 'border-violet-400 bg-violet-500/20 text-white'
               : light
-                ? 'border-slate-300 bg-slate-50 text-slate-400'
+                ? 'border-slate-300 bg-slate-50 text-slate-500'
                 : 'border-slate-600 bg-slate-800/40 text-slate-500'
           } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
         >

@@ -19,13 +19,35 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
 
-const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
+const {
+  mockAuth,
+  mockJoinQuizSession,
+  mockSubscribeForReview,
+  hookState,
+  SessionEndedError,
+  AttemptLimitReachedError,
+} = vi.hoisted(() => {
   type MockUser = {
     uid: string;
     isAnonymous: boolean;
     displayName: string | null;
     getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>;
   };
+  // Real-ish sentinel classes so QuizStudentApp's `err instanceof …` branch
+  // in the SSO auto-join catch can discriminate (the mock module below would
+  // otherwise leave these `undefined`, throwing on `instanceof`).
+  class SessionEndedError extends Error {
+    constructor() {
+      super('This quiz session has already ended.');
+      this.name = 'SessionEndedError';
+    }
+  }
+  class AttemptLimitReachedError extends Error {
+    constructor() {
+      super('Attempt limit reached.');
+      this.name = 'AttemptLimitReachedError';
+    }
+  }
   return {
     mockAuth: {
       onAuthStateChanged: vi.fn(),
@@ -33,10 +55,13 @@ const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
       currentUser: null as MockUser | null,
     },
     mockJoinQuizSession: vi.fn(),
+    mockSubscribeForReview: vi.fn(),
     hookState: {
       session: null as QuizSession | null,
       myResponse: null as QuizResponse | null,
     },
+    SessionEndedError,
+    AttemptLimitReachedError,
   };
 });
 
@@ -65,13 +90,15 @@ vi.mock('@/hooks/useQuizSession', () => ({
     error: null,
     lookupSession: vi.fn(),
     joinQuizSession: mockJoinQuizSession,
-    subscribeForReview: vi.fn(),
+    subscribeForReview: mockSubscribeForReview,
     submitAnswer: vi.fn(),
     completeQuiz: vi.fn(),
     reportTabSwitch: vi.fn(),
     warningCount: 0,
   }),
   normalizeAnswer: (s: string) => s,
+  SessionEndedError,
+  AttemptLimitReachedError,
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
@@ -121,6 +148,7 @@ beforeEach(() => {
     getIdTokenResult: () => Promise.resolve({ claims: { studentRole: true } }),
   };
   mockJoinQuizSession.mockResolvedValue('session-1');
+  mockSubscribeForReview.mockResolvedValue(undefined);
   window.history.replaceState({}, '', '/quiz?code=ABC123');
 });
 
@@ -161,6 +189,77 @@ describe('QuizStudentApp — published results on an active (self-paced) session
     render(<QuizStudentApp />);
 
     expect(await screen.findByText('Quiz Submitted!')).toBeInTheDocument();
+    expect(screen.queryByText('Your Results')).not.toBeInTheDocument();
+  });
+
+  it('shows published results when SSO auto-join hits the attempt cap on a still-active session', async () => {
+    // The Classroom case: the student already completed (attemptLimit 1, at
+    // cap) and the teacher published while the session is still 'active'.
+    // joinQuizSession rejects with AttemptLimitReachedError; the auto-join must
+    // fall back to read-only review so the student reaches PublishedScoreReview
+    // — NOT the generic "attempt limit reached" error screen.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-only',
+      attemptLimit: 1,
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      completedAttempts: 1,
+    });
+    mockJoinQuizSession.mockRejectedValue(new AttemptLimitReachedError());
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(mockSubscribeForReview).toHaveBeenCalledWith('ABC123');
+  });
+
+  it('labels the results watermark with watermarkNameOverride (nameless Classroom SSO session)', async () => {
+    // The Classroom studentRole session has no displayName, so the add-on
+    // passes the roster/userinfo name down. The override must win over the
+    // auth displayName ("Test Student" from beforeEach) so the watermark
+    // identifies the actual student.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-only',
+      scorePublishedAt: 1717200000000,
+      protection: {
+        watermarkEnabled: true,
+        tabWarningEnabled: false,
+        tabWarningThreshold: 3,
+      },
+    });
+    hookState.myResponse = buildResponse({ status: 'completed' });
+
+    render(<QuizStudentApp embedded watermarkNameOverride="Ada Lovelace" />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    // Watermark label is `${name} • ${timestamp}` in an SVG <text> node.
+    expect(screen.getByText(/Ada Lovelace/)).toBeInTheDocument();
+    expect(screen.queryByText(/Test Student/)).not.toBeInTheDocument();
+  });
+
+  it('shows an in-iframe lockout screen (no /my-assignments redirect) when embedded', async () => {
+    // A locked-out student inside the Classroom iframe must see an in-iframe
+    // "Results locked" message — NOT a redirect to the standalone
+    // /my-assignments page, which the partitioned iframe can't host.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-only',
+      protection: {
+        watermarkEnabled: false,
+        tabWarningEnabled: true,
+        tabWarningThreshold: 3,
+      },
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      resultsLockedOut: true,
+      resultsTabWarnings: 3,
+      _responseKey: 'sso-uid-1',
+    });
+
+    render(<QuizStudentApp embedded />);
+
+    expect(await screen.findByText('Results locked')).toBeInTheDocument();
     expect(screen.queryByText('Your Results')).not.toBeInTheDocument();
   });
 });

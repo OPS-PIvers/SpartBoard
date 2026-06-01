@@ -158,7 +158,7 @@ const DropZone: React.FC<DropZoneProps> = ({
               ? 'border-brand-blue-primary/40 bg-brand-blue-lighter text-slate-900 border-solid'
               : 'border-violet-500/40 bg-violet-500/10 text-white border-solid'
             : light
-              ? 'border-slate-300 bg-slate-50 text-slate-400'
+              ? 'border-slate-300 bg-slate-50 text-slate-500'
               : 'border-slate-600 bg-slate-800/40 text-slate-500'
       } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >

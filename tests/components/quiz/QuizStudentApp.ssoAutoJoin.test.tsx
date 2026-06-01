@@ -73,16 +73,23 @@ vi.mock('firebase/auth', () => ({
 
 // Stub the hook so we can observe the call args and control rejections.
 // `normalizeAnswer` is also imported but only fires post-join, so a
-// pass-through identity is fine. `SessionEndedError` is re-exported as a
-// real subclass so the component's `err instanceof SessionEndedError`
-// branch inside the SSO auto-join catch resolves correctly under the
-// mock — without it the `instanceof` would target `undefined` and throw,
-// which would break the "rejection surfaces in the UI" tests below.
+// pass-through identity is fine. `SessionEndedError` and
+// `AttemptLimitReachedError` are re-exported as real subclasses so the
+// component's `err instanceof …` branches inside the SSO auto-join catch
+// resolve correctly under the mock — without them the `instanceof` would
+// target `undefined` and throw, which would break the "rejection surfaces
+// in the UI" tests below.
 vi.mock('@/hooks/useQuizSession', () => {
   class MockSessionEndedError extends Error {
     constructor() {
       super('This quiz session has already ended.');
       this.name = 'SessionEndedError';
+    }
+  }
+  class MockAttemptLimitReachedError extends Error {
+    constructor() {
+      super('Attempt limit reached.');
+      this.name = 'AttemptLimitReachedError';
     }
   }
   return {
@@ -102,6 +109,7 @@ vi.mock('@/hooks/useQuizSession', () => {
     }),
     normalizeAnswer: (s: string) => s,
     SessionEndedError: MockSessionEndedError,
+    AttemptLimitReachedError: MockAttemptLimitReachedError,
   };
 });
 
