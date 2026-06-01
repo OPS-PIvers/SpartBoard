@@ -297,13 +297,13 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
 
       <AddonCard className="p-6">
         <div className="flex flex-col items-center gap-5 text-center">
-          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue-primary/15 ring-1 ring-brand-blue-light/30">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-blue-lighter ring-1 ring-brand-blue-light/20">
             <RunnerIcon
-              className="h-7 w-7 text-brand-blue-light"
+              className="h-7 w-7 text-brand-blue-primary"
               aria-hidden="true"
             />
           </div>
-          <p className="max-w-xs text-sm text-slate-400">
+          <p className="max-w-xs text-sm text-slate-500">
             {hasRunner
               ? 'When you’re ready, open your assignment below. Your progress saves automatically.'
               : 'Sign in below to continue.'}

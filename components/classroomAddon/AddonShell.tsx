@@ -6,10 +6,12 @@
  * a `min-h-full` inner centers short content and scrolls tall content — the same
  * pattern QuizStudentApp's period picker uses.
  *
- * The visual language is SpartBoard's: calm dark glassmorphism, Lexend (`font-
- * sans`), brand-blue accents, generous spacing, restrained motion. None of the
- * spike-era debug tables / log panels live here; raw diagnostics are confined to
- * <AddonDevPanel>, which renders only in DEV builds.
+ * The visual language is SpartBoard's, tuned for the LIGHT context it lives in:
+ * Classroom's chrome is white, so these surfaces are light (matching SpartBoard's
+ * student-facing / login screens) with brand-blue accents, Lexend (`font-sans`),
+ * generous spacing, and restrained motion — clean white cards rather than the
+ * teacher dashboard's dark glass. No spike-era debug tables/logs: only friendly
+ * status + branded error banners are ever shown to teachers/students.
  */
 import React, { useRef, useState } from 'react';
 import {
@@ -22,8 +24,8 @@ import {
 import { useClickOutside } from '@/hooks/useClickOutside';
 
 /**
- * Full-bleed branded page wrapper. Fills the Classroom iframe, paints the calm
- * slate gradient + a subtle brand glow, and owns the vertical scroll so content
+ * Full-bleed branded page wrapper. Fills the Classroom iframe, paints a calm
+ * light background + a faint brand glow, and owns the vertical scroll so content
  * taller than the iframe is always reachable.
  */
 export const AddonShell: React.FC<{
@@ -31,11 +33,11 @@ export const AddonShell: React.FC<{
   /** Max content width. Defaults to a comfortable single-column card width. */
   maxWidthClassName?: string;
 }> = ({ children, maxWidthClassName = 'max-w-xl' }) => (
-  <div className="h-screen overflow-y-auto bg-gradient-to-b from-slate-900 via-slate-900 to-slate-950 font-sans text-slate-100">
+  <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100 font-sans text-slate-900">
     {/* Decorative brand glow — purely atmospheric, behind the content. */}
     <div
       aria-hidden="true"
-      className="pointer-events-none fixed inset-x-0 top-0 h-64 bg-brand-blue-primary/20 blur-3xl"
+      className="pointer-events-none fixed inset-x-0 top-0 h-48 bg-brand-blue-light/10 blur-3xl"
     />
     <div className="relative min-h-full px-4 py-8 sm:px-6">
       <div className={`mx-auto w-full ${maxWidthClassName}`}>{children}</div>
@@ -53,27 +55,29 @@ export const AddonHeader: React.FC<{
   subtitle?: string;
 }> = ({ icon: Icon, title, subtitle }) => (
   <header className="mb-6 flex items-start gap-3.5">
-    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue-light to-brand-blue-primary shadow-lg shadow-brand-blue-primary/30">
+    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue-light to-brand-blue-primary shadow-lg shadow-brand-blue-primary/20">
       <Icon className="h-5 w-5 text-white" strokeWidth={2.25} />
     </div>
     <div className="min-w-0">
       <div className="flex items-center gap-2">
-        <h1 className="text-xl font-bold tracking-tight text-white">{title}</h1>
+        <h1 className="text-xl font-bold tracking-tight text-slate-900">
+          {title}
+        </h1>
       </div>
       {subtitle && (
-        <p className="mt-0.5 text-sm leading-snug text-slate-400">{subtitle}</p>
+        <p className="mt-0.5 text-sm leading-snug text-slate-500">{subtitle}</p>
       )}
     </div>
   </header>
 );
 
-/** A frosted-glass surface — the standard content container for these screens. */
+/** A clean white surface — the standard content container for these screens. */
 export const AddonCard: React.FC<{
   children: React.ReactNode;
   className?: string;
 }> = ({ children, className = '' }) => (
   <div
-    className={`rounded-2xl border border-white/10 bg-white/[0.06] shadow-xl shadow-black/30 backdrop-blur-xl ${className}`}
+    className={`rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-900/5 ${className}`}
   >
     {children}
   </div>
@@ -83,11 +87,11 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost';
 
 const BUTTON_VARIANT: Record<ButtonVariant, string> = {
   primary:
-    'bg-gradient-to-r from-brand-blue-primary to-brand-blue-light text-white shadow-lg shadow-brand-blue-primary/25 hover:brightness-110 focus-visible:ring-brand-blue-light',
+    'bg-gradient-to-r from-brand-blue-primary to-brand-blue-light text-white shadow-sm shadow-brand-blue-primary/25 hover:brightness-110 focus-visible:ring-brand-blue-light',
   secondary:
-    'border border-white/15 bg-white/5 text-slate-100 hover:bg-white/10 focus-visible:ring-white/30',
+    'border border-slate-300 bg-white text-slate-700 hover:bg-slate-50 focus-visible:ring-brand-blue-light',
   ghost:
-    'text-slate-300 hover:bg-white/10 hover:text-white focus-visible:ring-white/30',
+    'text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus-visible:ring-brand-blue-light',
 };
 
 /** Brand button with a built-in loading spinner + consistent focus ring. */
@@ -109,7 +113,7 @@ export const AddonButton: React.FC<
   <button
     type="button"
     disabled={(disabled ?? false) || loading}
-    className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50 ${BUTTON_VARIANT[variant]} ${className}`}
+    className={`inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white disabled:cursor-not-allowed disabled:opacity-50 ${BUTTON_VARIANT[variant]} ${className}`}
     {...rest}
   >
     {loading ? (
@@ -134,11 +138,11 @@ export const AddonStatus: React.FC<{
   return (
     <div
       aria-live="polite"
-      className="flex items-center gap-2 text-sm text-slate-400"
+      className="flex items-center gap-2 text-sm text-slate-500"
     >
       {busy && (
         <Loader2
-          className="h-4 w-4 shrink-0 animate-spin text-brand-blue-light"
+          className="h-4 w-4 shrink-0 animate-spin text-brand-blue-primary"
           aria-hidden="true"
         />
       )}
@@ -152,9 +156,9 @@ export const AddonError: React.FC<{ message: string | null }> = ({
   message,
 }) =>
   message ? (
-    <div className="flex items-start gap-2.5 rounded-xl border border-brand-red-light/40 bg-brand-red-primary/15 p-3 text-sm text-red-100">
+    <div className="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
       <AlertTriangle
-        className="mt-0.5 h-4 w-4 shrink-0 text-brand-red-light"
+        className="mt-0.5 h-4 w-4 shrink-0 text-red-500"
         aria-hidden="true"
       />
       <span className="min-w-0 break-words">{message}</span>
@@ -168,12 +172,11 @@ export interface AddonSelectOption {
 
 /**
  * Brand-styled single-select dropdown. A native `<select>`'s open option list is
- * OS-rendered (unstyled, overflows the control, jarring against the dark glass),
- * so this is a custom listbox: a glass trigger + a popover that is pinned to the
- * trigger's width (`left-0 right-0`) and scrolls (`max-h-60`) instead of
- * spilling past its container. Click-outside + Escape close it; long labels
- * truncate. Empty option lists show a muted placeholder row rather than a
- * zero-height popup.
+ * OS-rendered (unstyled, overflows the control), so this is a custom listbox: a
+ * trigger + a popover pinned to the trigger's width (`left-0 right-0`) that
+ * scrolls (`max-h-60`) instead of spilling past its container. Click-outside +
+ * Escape close it; long labels truncate. Empty option lists show a muted
+ * placeholder row rather than a zero-height popup.
  */
 export const AddonSelect: React.FC<{
   value: string;
@@ -214,10 +217,10 @@ export const AddonSelect: React.FC<{
             setOpen(true);
           }
         }}
-        className="flex w-full items-center gap-2 rounded-xl border border-white/15 bg-slate-900/50 px-3.5 py-2.5 text-left text-sm transition hover:bg-slate-900/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center gap-2 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-left text-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
       >
         <span
-          className={`min-w-0 flex-1 truncate ${selected ? 'text-white' : 'text-slate-500'}`}
+          className={`min-w-0 flex-1 truncate ${selected ? 'text-slate-900' : 'text-slate-400'}`}
         >
           {selected ? selected.label : placeholder}
         </span>
@@ -231,10 +234,10 @@ export const AddonSelect: React.FC<{
         <ul
           role="listbox"
           aria-label={ariaLabel}
-          className="absolute left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-slate-800/95 p-1 shadow-2xl shadow-black/50 backdrop-blur-xl"
+          className="absolute left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-slate-200 bg-white p-1 shadow-lg shadow-slate-900/10"
         >
           {options.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-slate-500">
+            <li className="px-3 py-2 text-sm text-slate-400">
               Nothing to choose yet
             </li>
           ) : (
@@ -250,14 +253,14 @@ export const AddonSelect: React.FC<{
                     }}
                     className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
                       active
-                        ? 'bg-brand-blue-primary/20 text-white'
-                        : 'text-slate-200 hover:bg-white/10'
+                        ? 'bg-brand-blue-lighter text-brand-blue-primary'
+                        : 'text-slate-700 hover:bg-slate-100'
                     }`}
                   >
                     <span className="min-w-0 flex-1 truncate">{o.label}</span>
                     {active && (
                       <Check
-                        className="h-4 w-4 shrink-0 text-brand-blue-light"
+                        className="h-4 w-4 shrink-0 text-brand-blue-primary"
                         aria-hidden="true"
                       />
                     )}

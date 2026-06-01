@@ -744,8 +744,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       {existingAttachmentId ? (
         <AddonCard className="p-5">
           <div className="flex items-start gap-3">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
-            <p className="text-sm leading-relaxed text-slate-300">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+            <p className="text-sm leading-relaxed text-slate-600">
               This activity is already attached. Students open it from the
               assignment to complete it.
             </p>
@@ -753,7 +753,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         </AddonCard>
       ) : !user ? (
         <AddonCard className="p-6">
-          <p className="mb-4 text-sm text-slate-400">
+          <p className="mb-4 text-sm text-slate-500">
             Sign in with your school Google account to load your SpartBoard
             library.
           </p>
@@ -767,7 +767,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           <div
             role="tablist"
             aria-label="Activity type"
-            className="grid grid-cols-2 gap-1 rounded-xl border border-white/10 bg-white/5 p-1"
+            className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1"
           >
             {KIND_TABS.map((tab) => {
               const active = kind === tab.value;
@@ -783,7 +783,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50 ${
                     active
                       ? 'bg-gradient-to-r from-brand-blue-primary to-brand-blue-light text-white shadow'
-                      : 'text-slate-300 hover:bg-white/10'
+                      : 'text-slate-600 hover:bg-white'
                   }`}
                 >
                   <Icon className="h-4 w-4" aria-hidden="true" />
@@ -799,7 +799,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               htmlFor={
                 kind === 'quiz' ? 'addon-quiz-select' : 'addon-va-select'
               }
-              className="mb-1.5 block text-sm font-medium text-slate-300"
+              className="mb-1.5 block text-sm font-medium text-slate-700"
             >
               {kind === 'quiz' ? 'Quiz' : 'Video Activity'}
             </label>
@@ -847,15 +847,15 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               Classroom course link, so there's no class/roster picker here. */}
           {canAttach && (
             <AddonCard className="space-y-4 p-4">
-              <h2 className="text-sm font-semibold text-white">
+              <h2 className="text-sm font-semibold text-slate-900">
                 Assignment settings
               </h2>
 
               {behaviorSummary && (
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-slate-500">
                   Inherits this {kind === 'quiz' ? 'quiz' : 'activity'}
                   &rsquo;s settings:{' '}
-                  <span className="font-medium text-slate-300">
+                  <span className="font-medium text-slate-700">
                     {behaviorSummary}
                   </span>
                 </p>
@@ -864,7 +864,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               <div>
                 <label
                   htmlFor="addon-due-date"
-                  className="mb-1.5 block text-sm font-medium text-slate-300"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Due date{' '}
                   <span className="font-normal text-slate-500">(optional)</span>
@@ -883,7 +883,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               <div>
                 <label
                   htmlFor="addon-teacher-name"
-                  className="mb-1.5 block text-sm font-medium text-slate-300"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Your name{' '}
                   <span className="font-normal text-slate-500">
@@ -897,7 +897,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   onChange={(e) => setTeacherName(e.target.value)}
                   placeholder={defaultTeacherName || 'Teacher name'}
                   disabled={busy}
-                  className="w-full rounded-xl border border-white/15 bg-slate-900/50 px-3 py-2.5 text-sm text-white transition placeholder:text-slate-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
                 />
               </div>
 
@@ -906,7 +906,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   drives the quiz and VA attach paths. */}
               {plcs.length > 0 && (
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2.5 text-sm text-slate-300">
+                  <label className="flex items-center gap-2.5 text-sm text-slate-700">
                     <input
                       type="checkbox"
                       checked={plcShareEnabled}
@@ -954,12 +954,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
       )}
 
       {attachmentId && (
-        <AddonCard className="mt-4 border-emerald-400/30 bg-emerald-400/10 p-4">
+        <AddonCard className="mt-4 border-emerald-200 bg-emerald-50 p-4">
           <div className="flex items-start gap-2.5">
-            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" />
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
             <div>
-              <p className="text-sm font-semibold text-white">Attached</p>
-              <p className="text-sm text-slate-300">
+              <p className="text-sm font-semibold text-slate-900">Attached</p>
+              <p className="text-sm text-slate-600">
                 Students can now open and complete this activity inside
                 Classroom.
               </p>

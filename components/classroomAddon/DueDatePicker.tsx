@@ -160,13 +160,13 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2.5 rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-left text-sm transition hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center gap-2.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2.5 text-left text-sm transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
       >
         <Calendar
-          className="h-4 w-4 shrink-0 text-brand-blue-light"
+          className="h-4 w-4 shrink-0 text-brand-blue-primary"
           aria-hidden="true"
         />
-        <span className={value === null ? 'text-slate-500' : 'text-white'}>
+        <span className={value === null ? 'text-slate-400' : 'text-slate-900'}>
           {formatTrigger(value)}
         </span>
         {value !== null && (
@@ -185,7 +185,7 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
                 onChange(null);
               }
             }}
-            className="ml-auto rounded-md p-0.5 text-slate-500 transition hover:bg-white/10 hover:text-slate-200"
+            className="ml-auto rounded-md p-0.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
           >
             <X className="h-3.5 w-3.5" aria-hidden="true" />
           </span>
@@ -199,7 +199,7 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
           onKeyDown={(e) => {
             if (e.key === 'Escape') close();
           }}
-          className="absolute left-0 z-50 mt-2 w-[20rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-white/10 bg-slate-800/95 p-3 shadow-2xl shadow-black/50 backdrop-blur-xl"
+          className="absolute left-0 z-50 mt-2 w-[20rem] max-w-[calc(100vw-2rem)] rounded-2xl border border-slate-200 bg-white p-3 shadow-xl shadow-slate-900/10"
         >
           {/* Quick presets */}
           <div className="mb-3 flex flex-wrap gap-1.5">
@@ -212,7 +212,7 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
                 key={p.label}
                 type="button"
                 onClick={() => applyPreset(p.days)}
-                className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-medium text-slate-300 transition hover:bg-white/10 hover:text-white"
+                className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
               >
                 {p.label}
               </button>
@@ -225,25 +225,25 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
               type="button"
               aria-label="Previous month"
               onClick={() => stepMonth(-1)}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             >
               <ChevronLeft className="h-4 w-4" aria-hidden="true" />
             </button>
-            <span className="text-sm font-semibold text-white">
+            <span className="text-sm font-semibold text-slate-900">
               {MONTHS[viewMonth]} {viewYear}
             </span>
             <button
               type="button"
               aria-label="Next month"
               onClick={() => stepMonth(1)}
-              className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+              className="rounded-lg p-1.5 text-slate-500 transition hover:bg-slate-100 hover:text-slate-900"
             >
               <ChevronRight className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 
           {/* Weekday labels */}
-          <div className="mb-1 grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-500">
+          <div className="mb-1 grid grid-cols-7 gap-1 text-center text-xs font-medium text-slate-400">
             {WEEKDAYS.map((w) => (
               <span key={w}>{w}</span>
             ))}
@@ -268,12 +268,12 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
                   disabled={isPast}
                   aria-pressed={isSelected}
                   onClick={() => pickDay(day)}
-                  className={`flex h-8 items-center justify-center rounded-lg text-sm transition disabled:cursor-not-allowed disabled:text-slate-600 disabled:hover:bg-transparent ${
+                  className={`flex h-8 items-center justify-center rounded-lg text-sm transition disabled:cursor-not-allowed disabled:text-slate-300 disabled:hover:bg-transparent ${
                     isSelected
                       ? 'bg-brand-blue-primary font-semibold text-white'
                       : isToday
-                        ? 'text-brand-blue-light ring-1 ring-inset ring-brand-blue-light/50 hover:bg-white/10'
-                        : 'text-slate-200 hover:bg-white/10'
+                        ? 'text-brand-blue-primary ring-1 ring-inset ring-brand-blue-primary/40 hover:bg-slate-100'
+                        : 'text-slate-700 hover:bg-slate-100'
                   }`}
                 >
                   {day}
@@ -283,8 +283,8 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
           </div>
 
           {/* Time of day */}
-          <div className="mt-3 flex items-center gap-2 border-t border-white/10 pt-3">
-            <span className="text-xs font-medium text-slate-400">Due time</span>
+          <div className="mt-3 flex items-center gap-2 border-t border-slate-200 pt-3">
+            <span className="text-xs font-medium text-slate-500">Due time</span>
             <div className="ml-auto flex items-center gap-1.5">
               <select
                 aria-label="Hour"
@@ -292,7 +292,7 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
                 onChange={(e) =>
                   changeTime(to24(Number(e.target.value), ampm), minutes)
                 }
-                className="rounded-lg border border-white/15 bg-slate-900/60 px-2 py-1 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
               >
                 {Array.from({ length: 12 }, (_, i) => i + 1).map((h) => (
                   <option key={h} value={h}>
@@ -300,12 +300,12 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
                   </option>
                 ))}
               </select>
-              <span className="text-slate-500">:</span>
+              <span className="text-slate-400">:</span>
               <select
                 aria-label="Minute"
                 value={minutes}
                 onChange={(e) => changeTime(hours, Number(e.target.value))}
-                className="rounded-lg border border-white/15 bg-slate-900/60 px-2 py-1 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
               >
                 {MINUTE_OPTIONS.map((m) => (
                   <option key={m} value={m}>
@@ -319,7 +319,7 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
                 onChange={(e) =>
                   changeTime(to24(hour12, e.target.value), minutes)
                 }
-                className="rounded-lg border border-white/15 bg-slate-900/60 px-2 py-1 text-sm text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
+                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm text-slate-900 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light"
               >
                 <option value="AM">AM</option>
                 <option value="PM">PM</option>
@@ -328,14 +328,14 @@ export const DueDatePicker: React.FC<DueDatePickerProps> = ({
           </div>
 
           {/* Footer actions */}
-          <div className="mt-3 flex items-center justify-between border-t border-white/10 pt-3">
+          <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-3">
             <button
               type="button"
               onClick={() => {
                 onChange(null);
                 close();
               }}
-              className="text-xs font-medium text-slate-400 transition hover:text-slate-200"
+              className="text-xs font-medium text-slate-500 transition hover:text-slate-700"
             >
               Clear
             </button>
