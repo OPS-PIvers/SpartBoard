@@ -30,6 +30,7 @@ interface OrderingResponseInputProps {
   savedAnswer: string | null;
   onChange: (answer: string) => void;
   disabled?: boolean;
+  light?: boolean;
 }
 
 const BANK_ID = '__bank__';
@@ -50,7 +51,8 @@ const DraggableChip: React.FC<{
   disabled?: boolean;
   onTap: () => void;
   ariaLabel?: string;
-}> = ({ id, label, selected, disabled, onTap, ariaLabel }) => {
+  light?: boolean;
+}> = ({ id, label, selected, disabled, onTap, ariaLabel, light }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
   const style: React.CSSProperties = transform
@@ -69,8 +71,12 @@ const DraggableChip: React.FC<{
         isDragging
           ? 'opacity-40'
           : selected
-            ? 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
-            : 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600 hover:border-violet-500/60'
+            ? light
+              ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-sm ring-2 ring-brand-blue-light/40'
+              : 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
+            : light
+              ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-brand-blue-light/60'
+              : 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600 hover:border-violet-500/60'
       } ${disabled ? 'cursor-default opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
       {...listeners}
       {...attributes}
@@ -94,6 +100,7 @@ const Slot: React.FC<{
   upDisabled: boolean;
   downDisabled: boolean;
   disabled?: boolean;
+  light?: boolean;
 }> = ({
   id,
   index,
@@ -105,6 +112,7 @@ const Slot: React.FC<{
   upDisabled,
   downDisabled,
   disabled,
+  light,
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id, disabled });
   const {
@@ -123,7 +131,9 @@ const Slot: React.FC<{
   const slotPosition = `position ${index + 1}`;
   return (
     <div ref={setNodeRef} className="flex items-center gap-2">
-      <span className="text-violet-400 font-black text-sm w-6 shrink-0 text-center">
+      <span
+        className={`font-black text-sm w-6 shrink-0 text-center ${light ? 'text-brand-blue-primary' : 'text-violet-400'}`}
+      >
         {index + 1}.
       </span>
       {filledLabel ? (
@@ -140,8 +150,12 @@ const Slot: React.FC<{
             isDragging
               ? 'opacity-40'
               : selectedHere
-                ? 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
-                : 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600 hover:border-violet-500/60'
+                ? light
+                  ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-sm ring-2 ring-brand-blue-light/40'
+                  : 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
+                : light
+                  ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-brand-blue-light/60'
+                  : 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600 hover:border-violet-500/60'
           } ${disabled ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'}`}
           {...listeners}
           {...attributes}
@@ -160,8 +174,12 @@ const Slot: React.FC<{
           aria-label={`Empty drop zone, ${slotPosition}`}
           className={`flex-1 min-h-[44px] px-3 py-2 rounded-xl text-sm font-bold border-2 border-dashed transition-colors text-left ${
             isOver
-              ? 'border-violet-400 bg-violet-500/20 text-white'
-              : 'border-slate-600 bg-slate-800/40 text-slate-500'
+              ? light
+                ? 'border-brand-blue-light bg-brand-blue-lighter text-brand-blue-primary'
+                : 'border-violet-400 bg-violet-500/20 text-white'
+              : light
+                ? 'border-slate-300 bg-slate-50 text-slate-500'
+                : 'border-slate-600 bg-slate-800/40 text-slate-500'
           } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
         >
           Drop here
@@ -172,7 +190,7 @@ const Slot: React.FC<{
           type="button"
           onClick={() => onMove('up')}
           disabled={(disabled ?? false) || upDisabled || !filledLabel}
-          className="min-w-[32px] min-h-[22px] p-1 text-slate-400 hover:text-white disabled:opacity-20 transition-colors"
+          className={`min-w-[32px] min-h-[22px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
           aria-label={`Move ${slotPosition} up`}
         >
           ▲
@@ -181,7 +199,7 @@ const Slot: React.FC<{
           type="button"
           onClick={() => onMove('down')}
           disabled={(disabled ?? false) || downDisabled || !filledLabel}
-          className="min-w-[32px] min-h-[22px] p-1 text-slate-400 hover:text-white disabled:opacity-20 transition-colors"
+          className={`min-w-[32px] min-h-[22px] p-1 disabled:opacity-20 transition-colors ${light ? 'text-slate-400 hover:text-slate-700' : 'text-slate-400 hover:text-white'}`}
           aria-label={`Move ${slotPosition} down`}
         >
           ▼
@@ -196,6 +214,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
   savedAnswer,
   onChange,
   disabled,
+  light,
 }) => {
   const items = React.useMemo<string[]>(
     () => question.orderingItems ?? [],
@@ -415,21 +434,24 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                 upDisabled={i === 0}
                 downDisabled={i === slots.length - 1}
                 disabled={disabled}
+                light={light}
               />
             );
           })}
         </div>
 
-        <BankDropZone>
+        <BankDropZone light={light}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">
+            <span
+              className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}
+            >
               Word Bank
             </span>
             <button
               type="button"
               onClick={reset}
               disabled={disabled}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
+              className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${light ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
               aria-label="Reset all placements"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -455,6 +477,7 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
                   disabled={disabled}
                   onTap={() => handleBankChipTap(itemIndex)}
                   ariaLabel={`${items[itemIndex]}, in word bank`}
+                  light={light}
                 />
               );
             })}
@@ -465,17 +488,22 @@ export const OrderingResponseInput: React.FC<OrderingResponseInputProps> = ({
   );
 };
 
-const BankDropZone: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const BankDropZone: React.FC<{
+  children: React.ReactNode;
+  light?: boolean;
+}> = ({ children, light }) => {
   const { isOver, setNodeRef } = useDroppable({ id: BANK_ID });
   return (
     <div
       ref={setNodeRef}
       className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${
         isOver
-          ? 'border-violet-400 bg-violet-500/10'
-          : 'border-slate-700 bg-slate-900/40'
+          ? light
+            ? 'border-brand-blue-light bg-brand-blue-lighter'
+            : 'border-violet-400 bg-violet-500/10'
+          : light
+            ? 'border-slate-300 bg-slate-50'
+            : 'border-slate-700 bg-slate-900/40'
       }`}
     >
       {children}

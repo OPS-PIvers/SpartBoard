@@ -32,6 +32,7 @@ interface MatchingResponseInputProps {
   savedAnswer: string | null;
   onChange: (answer: string) => void;
   disabled?: boolean;
+  light?: boolean;
 }
 
 const BANK_ID = '__bank__';
@@ -57,6 +58,7 @@ interface DraggableChipProps {
    *  visible text, which loses pairing context when the chip is placed.
    */
   ariaLabel?: string;
+  light?: boolean;
 }
 
 const DraggableChip: React.FC<DraggableChipProps> = ({
@@ -66,6 +68,7 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
   disabled,
   onTap,
   ariaLabel,
+  light,
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({ id, disabled });
@@ -85,8 +88,12 @@ const DraggableChip: React.FC<DraggableChipProps> = ({
         isDragging
           ? 'opacity-40'
           : selected
-            ? 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
-            : 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600 hover:border-violet-500/60'
+            ? light
+              ? 'bg-brand-blue-primary border-brand-blue-light text-white shadow-sm ring-2 ring-brand-blue-light/40'
+              : 'bg-violet-500 border-violet-400 text-white shadow-lg ring-2 ring-violet-300'
+            : light
+              ? 'bg-white border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-brand-blue-light/60'
+              : 'bg-slate-700 border-slate-600 text-white hover:bg-slate-600 hover:border-violet-500/60'
       } ${disabled ? 'cursor-default opacity-60' : 'cursor-grab active:cursor-grabbing'}`}
       {...listeners}
       {...attributes}
@@ -110,6 +117,7 @@ interface DropZoneProps {
    *  ("Drop zone for France") so screen readers can identify the target.
    */
   termLabel?: string;
+  light?: boolean;
 }
 
 const DropZone: React.FC<DropZoneProps> = ({
@@ -120,6 +128,7 @@ const DropZone: React.FC<DropZoneProps> = ({
   onChipTap,
   disabled,
   termLabel,
+  light,
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id, disabled });
   const ariaLabel = filledLabel
@@ -141,10 +150,16 @@ const DropZone: React.FC<DropZoneProps> = ({
       aria-label={ariaLabel}
       className={`flex-1 min-h-[44px] px-3 py-2 rounded-xl text-sm font-bold border-2 border-dashed transition-colors text-left ${
         isOver
-          ? 'border-violet-400 bg-violet-500/20 text-white'
+          ? light
+            ? 'border-brand-blue-light bg-brand-blue-lighter text-brand-blue-primary'
+            : 'border-violet-400 bg-violet-500/20 text-white'
           : filledLabel
-            ? 'border-violet-500/40 bg-violet-500/10 text-white border-solid'
-            : 'border-slate-600 bg-slate-800/40 text-slate-500'
+            ? light
+              ? 'border-brand-blue-primary/40 bg-brand-blue-lighter text-slate-900 border-solid'
+              : 'border-violet-500/40 bg-violet-500/10 text-white border-solid'
+            : light
+              ? 'border-slate-300 bg-slate-50 text-slate-500'
+              : 'border-slate-600 bg-slate-800/40 text-slate-500'
       } ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
     >
       {filledLabel ?? 'Drop here'}
@@ -157,6 +172,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
   savedAnswer,
   onChange,
   disabled,
+  light,
 }) => {
   const terms = React.useMemo<string[]>(
     () => question.matchingLeft ?? [],
@@ -398,7 +414,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
             return (
               <div key={term} className="flex items-center gap-3">
                 <span
-                  className="text-sm text-slate-200 font-bold w-1/2 break-words"
+                  className={`text-sm font-bold w-1/2 break-words ${light ? 'text-slate-700' : 'text-slate-200'}`}
                   title={term}
                 >
                   {term}
@@ -411,6 +427,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                     disabled={disabled}
                     onTap={() => handleZoneChipTap(term)}
                     ariaLabel={`${placedLabel}, matched to ${term}`}
+                    light={light}
                   />
                 ) : (
                   <DropZone
@@ -421,6 +438,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                     onChipTap={() => handleZoneChipTap(term)}
                     disabled={disabled}
                     termLabel={term}
+                    light={light}
                   />
                 )}
               </div>
@@ -429,16 +447,18 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
         </div>
 
         {/* Word bank */}
-        <BankDropZone>
+        <BankDropZone light={light}>
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs uppercase tracking-wider text-slate-400 font-bold">
+            <span
+              className={`text-xs uppercase tracking-wider font-bold ${light ? 'text-slate-500' : 'text-slate-400'}`}
+            >
               Word Bank
             </span>
             <button
               type="button"
               onClick={reset}
               disabled={disabled}
-              className="flex items-center gap-1 px-2 py-1 text-xs font-bold text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors disabled:opacity-30"
+              className={`flex items-center gap-1 px-2 py-1 text-xs font-bold rounded-lg transition-colors disabled:opacity-30 ${light ? 'text-slate-400 hover:text-slate-700 hover:bg-slate-100' : 'text-slate-400 hover:text-white hover:bg-slate-700'}`}
               aria-label="Reset all placements"
             >
               <RotateCcw className="w-3.5 h-3.5" />
@@ -464,6 +484,7 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
                   disabled={disabled}
                   onTap={() => handleBankChipTap(optionIndex)}
                   ariaLabel={`${allOptions[optionIndex]}, in word bank`}
+                  light={light}
                 />
               );
             })}
@@ -474,17 +495,22 @@ export const MatchingResponseInput: React.FC<MatchingResponseInputProps> = ({
   );
 };
 
-const BankDropZone: React.FC<{ children: React.ReactNode }> = ({
-  children,
-}) => {
+const BankDropZone: React.FC<{
+  children: React.ReactNode;
+  light?: boolean;
+}> = ({ children, light }) => {
   const { isOver, setNodeRef } = useDroppable({ id: BANK_ID });
   return (
     <div
       ref={setNodeRef}
       className={`p-3 rounded-2xl border-2 border-dashed transition-colors ${
         isOver
-          ? 'border-violet-400 bg-violet-500/10'
-          : 'border-slate-700 bg-slate-900/40'
+          ? light
+            ? 'border-brand-blue-light bg-brand-blue-lighter'
+            : 'border-violet-400 bg-violet-500/10'
+          : light
+            ? 'border-slate-300 bg-slate-50'
+            : 'border-slate-700 bg-slate-900/40'
       }`}
     >
       {children}

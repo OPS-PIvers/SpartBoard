@@ -323,9 +323,9 @@ describe('QuizStudentApp — self-paced flow', () => {
     expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
 
     // The previously-chosen "4" should be highlighted in the draft style
-    // (border-violet-500), not the locked emerald style.
+    // (border-brand-blue-primary), not the locked emerald style.
     const choice = screen.getByRole('button', { name: '4' });
-    expect(choice.className).toContain('border-violet-500');
+    expect(choice.className).toContain('border-brand-blue-primary');
     expect(choice.className).not.toContain('border-emerald-500');
   });
 
@@ -373,7 +373,7 @@ describe('QuizStudentApp — self-paced flow', () => {
     expect(await screen.findByText(/What is 2 \+ 2/i)).toBeInTheDocument();
     // No option highlighted yet — myResponse hasn't arrived.
     expect(screen.getByRole('button', { name: '4' }).className).not.toContain(
-      'border-violet-500'
+      'border-brand-blue-primary'
     );
 
     // Listener fires with a prior answer for q1.
@@ -385,7 +385,7 @@ describe('QuizStudentApp — self-paced flow', () => {
     // Saved answer is now highlighted in the editable draft style.
     await waitFor(() => {
       expect(screen.getByRole('button', { name: '4' }).className).toContain(
-        'border-violet-500'
+        'border-brand-blue-primary'
       );
     });
 
@@ -733,7 +733,7 @@ describe('QuizStudentApp — in-memory answer cache', () => {
     // savedAnswerForCurrent was null and hydrate seeded the editor with
     // an empty value.
     const choice = screen.getByRole('button', { name: '4' });
-    expect(choice.className).toContain('border-violet-500');
+    expect(choice.className).toContain('border-brand-blue-primary');
   });
 
   it('does not clobber a locally-selected option when a snapshot with empty answers fires after the click', async () => {
@@ -750,7 +750,7 @@ describe('QuizStudentApp — in-memory answer cache', () => {
 
     await user.click(screen.getByRole('button', { name: '4' }));
     expect(screen.getByRole('button', { name: '4' }).className).toContain(
-      'border-violet-500'
+      'border-brand-blue-primary'
     );
 
     // Fire a snapshot for an empty response — the kind of state the
@@ -763,7 +763,7 @@ describe('QuizStudentApp — in-memory answer cache', () => {
 
     // Selection must still be intact.
     expect(screen.getByRole('button', { name: '4' }).className).toContain(
-      'border-violet-500'
+      'border-brand-blue-primary'
     );
   });
 
@@ -820,7 +820,7 @@ describe('QuizStudentApp — in-memory answer cache', () => {
       // The newer value won the cache — '5' carries the editable draft
       // highlight, not the stale '4'.
       expect(screen.getByRole('button', { name: '5' }).className).toContain(
-        'border-violet-500'
+        'border-brand-blue-primary'
       );
       // And the stale '4' was never autosaved back over the server's '5'.
       expect(mockSubmitAnswer).not.toHaveBeenCalledWith('q1', '4', undefined, {

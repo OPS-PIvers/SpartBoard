@@ -155,20 +155,20 @@ export const VideoActivityStudentApp: React.FC = () => {
  * Firestore — pasting the `?preview=1` URL into a tab is safe regardless of
  * what auth state that browser profile already carries. */
 const VideoActivityPreviewLobby: React.FC = () => (
-  <div className="h-screen overflow-y-auto bg-slate-900 flex flex-col">
+  <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100 flex flex-col">
     <TeacherPreviewBanner />
     <div className="flex-1 flex flex-col items-center justify-center p-6">
       <div className="w-full max-w-sm">
         <div className="flex items-center justify-center mb-8">
-          <PlayCircle className="w-5 h-5 text-violet-400 mr-2" />
-          <span className="text-sm text-slate-300 font-semibold">
+          <PlayCircle className="w-5 h-5 text-brand-blue-primary mr-2" />
+          <span className="text-sm text-slate-700 font-semibold">
             Video Activity
           </span>
         </div>
-        <h1 className="text-2xl font-black text-white mb-2 text-center">
+        <h1 className="text-2xl font-black text-slate-900 mb-2 text-center">
           Join Activity
         </h1>
-        <p className="text-slate-400 text-sm text-center mb-6">
+        <p className="text-slate-500 text-sm text-center mb-6">
           Enter your PIN from your teacher.
         </p>
         <div className="space-y-4" aria-hidden="true">
@@ -177,13 +177,13 @@ const VideoActivityPreviewLobby: React.FC = () => (
             readOnly
             tabIndex={-1}
             placeholder="Your PIN"
-            className="w-full px-4 py-4 bg-slate-800 border border-slate-700 rounded-xl text-white text-xl font-black font-mono tracking-widest text-center placeholder-slate-600 focus:outline-none cursor-default"
+            className="w-full px-4 py-4 bg-white border border-slate-300 rounded-xl text-slate-900 text-xl font-black font-mono tracking-widest text-center placeholder-slate-400 focus:outline-none cursor-default"
           />
           <button
             type="button"
             disabled
             tabIndex={-1}
-            className="w-full py-4 bg-violet-600 disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
+            className="w-full py-4 bg-brand-blue-primary disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 cursor-not-allowed"
           >
             Join <ArrowRight className="w-5 h-5" />
           </button>
@@ -578,26 +578,26 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
   if (periodStep && joinStatus !== 'joined') {
     return (
-      <div className="h-screen overflow-y-auto bg-slate-900">
+      <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-6">
           <div className="w-full max-w-sm">
             <div className="flex items-center justify-center mb-8">
               <ClipboardList className="w-5 h-5 text-brand-blue-primary mr-2" />
-              <span className="text-sm text-slate-300 font-semibold">
+              <span className="text-sm text-slate-700 font-semibold">
                 Video Activity
               </span>
             </div>
 
-            <h1 className="text-2xl font-black text-white mb-2 text-center">
+            <h1 className="text-2xl font-black text-slate-900 mb-2 text-center">
               Select Your Class
             </h1>
-            <p className="text-slate-400 text-sm text-center mb-6">
+            <p className="text-slate-500 text-sm text-center mb-6">
               Which class period are you in?
             </p>
 
             {error && (
-              <div className="mb-4 p-3 bg-red-500/20 border border-red-500/40 rounded-xl text-red-300 text-sm flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-500" />
                 {error}
               </div>
             )}
@@ -609,8 +609,8 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   onClick={() => setSelectedPeriod(period)}
                   className={`w-full px-4 py-4 rounded-xl text-lg font-bold transition-all ${
                     selectedPeriod === period
-                      ? 'bg-brand-blue-primary text-white ring-2 ring-brand-blue-light'
-                      : 'bg-slate-800 border border-slate-700 text-slate-300 hover:bg-slate-700'
+                      ? 'border border-brand-blue-primary bg-brand-blue-lighter text-brand-blue-primary ring-2 ring-brand-blue-light'
+                      : 'bg-white border border-slate-300 text-slate-700 hover:bg-slate-50'
                   }`}
                 >
                   {period}
@@ -621,7 +621,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
             <button
               onClick={() => void handlePeriodConfirm()}
               disabled={joinStatus === 'loading' || !selectedPeriod}
-              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
+              className="w-full py-4 bg-brand-blue-primary hover:bg-brand-blue-dark disabled:opacity-50 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors shadow-sm shadow-brand-blue-primary/20"
             >
               {joinStatus === 'loading' ? (
                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -637,7 +637,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 setPeriodStep(null);
                 setSelectedPeriod(null);
               }}
-              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
+              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-700 text-sm font-medium transition-colors"
             >
               Go Back
             </button>
@@ -664,7 +664,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
     }
 
     return (
-      <div className="h-screen overflow-y-auto bg-slate-900">
+      <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-sm">
             {/* Brand header */}
@@ -673,16 +673,16 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                 <PlayCircle className="w-6 h-6 text-white" />
               </div>
               <div>
-                <p className="text-white font-black text-xl leading-none">
+                <p className="text-slate-900 font-black text-xl leading-none">
                   SpartBoard
                 </p>
-                <p className="text-slate-400 text-xs font-medium mt-0.5">
+                <p className="text-slate-500 text-xs font-medium mt-0.5">
                   Video Activity
                 </p>
               </div>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 overflow-hidden">
               <div className="bg-brand-blue-primary px-5 py-4">
                 <h1 className="text-white font-black text-base uppercase tracking-wide">
                   Join Activity
@@ -701,7 +701,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                     placeholder="Ask your teacher"
                     inputMode="numeric"
                     autoFocus
-                    className="w-full border-2 border-slate-200 focus:border-brand-blue-primary rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
+                    className="w-full bg-white border border-slate-300 focus:border-brand-blue-light focus:ring-2 focus:ring-brand-blue-light text-slate-900 placeholder-slate-400 rounded-xl px-3 py-2.5 text-sm font-medium outline-none transition-colors"
                     required
                   />
                 </div>
@@ -718,7 +718,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
                   disabled={
                     joinStatus === 'loading' || lookingUp || !pin.trim()
                   }
-                  className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2"
+                  className="w-full bg-brand-blue-primary hover:bg-brand-blue-dark disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold rounded-xl py-3 text-sm transition-all active:scale-95 flex items-center justify-center gap-2 shadow-sm shadow-brand-blue-primary/20"
                 >
                   {joinStatus === 'loading' || lookingUp ? (
                     <>
@@ -777,26 +777,26 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       : 0;
 
     return (
-      <div className="h-screen overflow-y-auto bg-slate-900">
+      <div className="h-screen overflow-y-auto bg-gradient-to-b from-white to-slate-100">
         <div className="min-h-full flex flex-col items-center justify-center p-4">
           <div className="w-full max-w-sm">
-            <div className="bg-white rounded-2xl shadow-2xl overflow-hidden text-center">
-              <div className="bg-emerald-600 px-5 py-6">
-                <Trophy className="w-10 h-10 text-white mx-auto mb-2" />
-                <h2 className="text-white font-black text-xl">
+            <div className="bg-white rounded-2xl shadow-sm shadow-slate-900/5 border border-slate-200 overflow-hidden text-center">
+              <div className="bg-emerald-50 border-b border-emerald-200 px-5 py-6">
+                <Trophy className="w-10 h-10 text-emerald-600 mx-auto mb-2" />
+                <h2 className="text-emerald-700 font-black text-xl">
                   Activity Complete!
                 </h2>
               </div>
 
               <div className="p-6 flex flex-col gap-4">
-                <p className="text-slate-600 font-medium">Great work!</p>
+                <p className="text-slate-700 font-medium">Great work!</p>
 
                 {showScore && totalQuestions > 0 && (
-                  <div className="bg-brand-blue-lighter/30 rounded-2xl p-5">
-                    <p className="text-5xl font-black text-brand-blue-dark">
+                  <div className="bg-brand-blue-lighter border border-brand-blue-primary/15 rounded-2xl p-5">
+                    <p className="text-5xl font-black text-brand-blue-primary">
                       {Math.round((correct / totalQuestions) * 100)}%
                     </p>
-                    <p className="text-brand-blue-primary/70 text-sm font-medium mt-1">
+                    <p className="text-slate-500 text-sm font-medium mt-1">
                       {correct} of {totalQuestions} correct
                     </p>
                   </div>
@@ -832,7 +832,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
   const totalQuestions = sortedQuestions.length;
 
   return (
-    <div className="h-screen h-dvh overflow-hidden bg-slate-950 flex flex-col relative">
+    <div className="h-screen h-dvh overflow-hidden bg-gradient-to-b from-white to-slate-100 flex flex-col relative">
       {/* Resume prompt — covers the player on first render after a teacher
           unlock so the student knows what happened before they touch
           anything. */}
@@ -892,7 +892,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
           attempts. Sits above the top bar so it's visible alongside the
           progress counter. */}
       {myResponse?.unlocked && !showResumeModal && (
-        <div className="flex items-start gap-2 px-4 py-2 bg-amber-500/20 border-b border-amber-500/40 text-amber-200 text-xs shrink-0">
+        <div className="flex items-start gap-2 px-4 py-2 bg-amber-50 border-b border-amber-200 text-amber-700 text-xs shrink-0">
           <ShieldAlert className="w-4 h-4 shrink-0 mt-0.5" />
           <span>
             Your teacher unlocked your attempt.{' '}
@@ -905,14 +905,14 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
       )}
 
       {/* Top bar */}
-      <div className="bg-slate-900 px-4 py-2 flex items-center justify-between shrink-0">
+      <div className="bg-white border-b border-slate-200 px-4 py-2 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <PlayCircle className="w-4 h-4 text-brand-red-primary" />
-          <span className="text-white font-bold text-sm truncate max-w-48">
+          <span className="text-slate-900 font-bold text-sm truncate max-w-48">
             {session?.activityTitle}
           </span>
         </div>
-        <span className="text-slate-400 text-xs font-medium">
+        <span className="text-slate-500 text-xs font-medium">
           {answeredCount}/{totalQuestions} answered
         </span>
       </div>
@@ -961,7 +961,7 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 
         {!activeQuestion && (
           <div className="w-full px-4 md:px-6 pb-4 md:pb-6 pt-3">
-            <div className="max-w-5xl mx-auto bg-slate-900 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-300">
+            <div className="max-w-5xl mx-auto bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm text-slate-700">
               {totalQuestions > 0
                 ? 'Watch the video. Questions will appear on top of the video at each checkpoint.'
                 : 'Watch the video to complete this activity.'}
@@ -976,15 +976,15 @@ const JoinAndPlay: React.FC<JoinAndPlayProps> = ({
 // ─── Shared helpers ────────────────────────────────────────────────────────────
 
 const FullPageLoader: React.FC<{ message: string }> = ({ message }) => (
-  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-3">
+  <div className="min-h-screen bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3">
     <Loader2 className="w-8 h-8 text-brand-blue-primary animate-spin" />
-    <p className="text-slate-400 text-sm font-medium">{message}</p>
+    <p className="text-slate-500 text-sm font-medium">{message}</p>
   </div>
 );
 
 const ErrorScreen: React.FC<{ message: string }> = ({ message }) => (
-  <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center gap-3 p-6">
-    <AlertCircle className="w-8 h-8 text-red-400" />
-    <p className="text-slate-300 text-sm text-center">{message}</p>
+  <div className="min-h-screen bg-gradient-to-b from-white to-slate-100 flex flex-col items-center justify-center gap-3 p-6">
+    <AlertCircle className="w-8 h-8 text-red-500" />
+    <p className="text-slate-700 text-sm text-center">{message}</p>
   </div>
 );

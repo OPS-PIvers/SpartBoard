@@ -135,6 +135,100 @@ describe('WrittenResponseEditor', () => {
     ).toBeInTheDocument();
   });
 
+  // jsdom does not implement document.execCommand, so install a stub the
+  // editor's paste handler can call (and we can assert against).
+  type ExecHost = { execCommand?: unknown };
+  const withExecStub = (run: (exec: ReturnType<typeof vi.fn>) => void) => {
+    const exec = vi.fn();
+    const prev = (document as ExecHost).execCommand;
+    (document as ExecHost).execCommand = exec;
+    try {
+      run(exec);
+    } finally {
+      (document as ExecHost).execCommand = prev;
+    }
+  };
+
+  it('inserts pasted plain text when clipboard is not blocked (default)', () => {
+    withExecStub((exec) => {
+      render(
+        <WrittenResponseEditor value="" onChange={vi.fn()} questionKey="q1" />
+      );
+      const notPrevented = fireEvent.paste(getEditor(), {
+        clipboardData: { getData: () => 'pasted text' },
+      });
+      // Default action is prevented (we always strip formatting), but the
+      // plain text IS inserted via execCommand.
+      expect(notPrevented).toBe(false);
+      expect(exec).toHaveBeenCalledWith('insertText', false, 'pasted text');
+    });
+  });
+
+  it('suppresses paste entirely when blockClipboard is set', () => {
+    withExecStub((exec) => {
+      render(
+        <WrittenResponseEditor
+          value=""
+          onChange={vi.fn()}
+          questionKey="q1"
+          blockClipboard
+        />
+      );
+      const prevented = fireEvent.paste(getEditor(), {
+        clipboardData: { getData: () => 'pasted text' },
+      });
+      expect(prevented).toBe(false); // default prevented
+      // Nothing inserted — the blocked path bails before execCommand.
+      expect(exec).not.toHaveBeenCalled();
+    });
+  });
+
+  it('blocks copy and cut when blockClipboard is set', () => {
+    render(
+      <WrittenResponseEditor
+        value="secret answer"
+        onChange={vi.fn()}
+        questionKey="q1"
+        blockClipboard
+      />
+    );
+    expect(fireEvent.copy(getEditor())).toBe(false);
+    expect(fireEvent.cut(getEditor())).toBe(false);
+  });
+
+  it('allows copy and cut when clipboard is not blocked (default)', () => {
+    render(
+      <WrittenResponseEditor
+        value="answer"
+        onChange={vi.fn()}
+        questionKey="q1"
+      />
+    );
+    expect(fireEvent.copy(getEditor())).toBe(true);
+    expect(fireEvent.cut(getEditor())).toBe(true);
+  });
+
+  it('blocks drag-and-drop when blockClipboard is set, allows it otherwise', () => {
+    const { rerender } = render(
+      <WrittenResponseEditor
+        value=""
+        onChange={vi.fn()}
+        questionKey="q1"
+        blockClipboard
+      />
+    );
+    expect(
+      fireEvent.drop(getEditor(), { dataTransfer: { getData: () => 'x' } })
+    ).toBe(false);
+
+    rerender(
+      <WrittenResponseEditor value="" onChange={vi.fn()} questionKey="q2" />
+    );
+    expect(
+      fireEvent.drop(getEditor(), { dataTransfer: { getData: () => 'x' } })
+    ).toBe(true);
+  });
+
   it('disables editing and tab focus when disabled', () => {
     render(
       <WrittenResponseEditor

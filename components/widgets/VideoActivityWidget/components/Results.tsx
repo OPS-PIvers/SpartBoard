@@ -33,8 +33,8 @@ import {
 import {
   pushClassroomGradesForAssignment,
   formatGradePushToast,
-  isNeedsConsentError,
 } from '@/utils/classroomGradePush';
+import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
 import { logError } from '@/utils/logError';
 import { functions } from '@/config/firebase';
 import {
@@ -64,7 +64,7 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
   plc: _plc,
 }) => {
-  const { googleAccessToken, orgId } = useAuth();
+  const { googleAccessToken, user, orgId } = useAuth();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -278,8 +278,8 @@ export const Results: React.FC<ResultsProps> = ({
     // Build the PII-free grade payload: one entry per completed response with a
     // resolvable pseudonym. `getStudentScore` returns the SAME 0–100 percentage
     // the Students tab displays; scale it onto the frozen Classroom denominator,
-    // then round + clamp to [0, maxPoints]. Computed AFTER the confirm so it
-    // reflects any edit that landed while the dialog was open.
+    // then round + clamp to [0, maxPoints]. Built from the responses captured
+    // when the teacher initiated the push (this handler's closure).
     const grades = eligible.map((r) => {
       const pct = getStudentScore(r);
       const safePct = Number.isFinite(pct) ? pct : 0;
@@ -292,11 +292,34 @@ export const Results: React.FC<ResultsProps> = ({
 
     setPushingGrades(true);
     try {
+      // Mint a fresh add-on teacher token via the GIS popup (the teacher is
+      // present), then hand it to the CF to PATCH the DRAFT grades. A cancelled
+      // or failed consent rejects here — surface it distinctly from a CF failure
+      // so the teacher knows nothing was pushed.
+      let accessToken: string;
+      try {
+        accessToken = await requestClassroomTeacherToken(
+          user?.email ?? undefined
+        );
+      } catch (tokenErr) {
+        logError('VideoActivityResults.pushClassroomGrades.token', tokenErr, {
+          sessionId: session?.id,
+          attachmentId,
+        });
+        addToast(
+          'Google sign-in was cancelled — no grades were pushed.',
+          'error'
+        );
+        return;
+      }
+
       const data = await pushClassroomGradesForAssignment(functions, {
         courseId,
         itemId,
         attachmentId,
+        accessToken,
         grades,
+        maxPoints,
       });
       addToast(formatGradePushToast(data), 'success');
     } catch (err) {
@@ -304,11 +327,15 @@ export const Results: React.FC<ResultsProps> = ({
         sessionId: session?.id,
         attachmentId,
       });
-      if (isNeedsConsentError(err)) {
-        addToast('Reconnect your Google account to push grades.', 'error');
-      } else {
-        addToast('Could not push grades to Google Classroom.', 'error');
-      }
+      // permission-denied → this course isn't linked to ClassLink under the
+      // current teacher (the CF gates push on the link doc); tell them how to fix.
+      const code = (err as { code?: string } | null)?.code ?? '';
+      addToast(
+        code.includes('permission-denied')
+          ? 'Only the teacher who linked this course to ClassLink can push grades. Link it from your Classes list first.'
+          : 'Could not push grades to Google Classroom.',
+        'error'
+      );
     } finally {
       setPushingGrades(false);
     }

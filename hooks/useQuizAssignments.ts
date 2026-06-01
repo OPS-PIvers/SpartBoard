@@ -739,6 +739,7 @@ export const useQuizAssignments = (
         publicQuestions: quiz.questions.map(toPublicQuestion),
         // Phase 1 toggles
         tabWarningsEnabled: opts.tabWarningsEnabled ?? true,
+        blockCopyPaste: opts.blockCopyPaste ?? false,
         showResultToStudent: opts.showResultToStudent ?? false,
         showCorrectAnswerToStudent: opts.showCorrectAnswerToStudent ?? false,
         showCorrectOnBoard: opts.showCorrectOnBoard ?? false,
@@ -1167,6 +1168,8 @@ export const useQuizAssignments = (
         const o = patch.sessionOptions;
         if (o.tabWarningsEnabled !== undefined)
           sessionPatch.tabWarningsEnabled = o.tabWarningsEnabled;
+        if (o.blockCopyPaste !== undefined)
+          sessionPatch.blockCopyPaste = o.blockCopyPaste;
         if (o.showResultToStudent !== undefined)
           sessionPatch.showResultToStudent = o.showResultToStudent;
         if (o.showCorrectAnswerToStudent !== undefined)

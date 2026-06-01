@@ -34,7 +34,6 @@ import * as admin from 'firebase-admin';
 import * as CryptoJS from 'crypto-js';
 import axios from 'axios';
 import OAuth from 'oauth-1.0a';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 
 // Same named secrets as index.ts; Firebase params dedupes by name. The
 // CLASSLINK_* secrets power the ClassLink identity bridge: a Classroom student
@@ -47,15 +46,6 @@ const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
 const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
 const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
 const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');
-// Google OAuth secrets — same named secrets as googleOAuth.ts (Firebase params
-// dedupes by name). pushClassroomGrade lists these so its runtime binds the
-// stored offline refresh-token decryption + token-exchange creds that
-// refreshGoogleAccessTokenForUid reads.
-const GOOGLE_OAUTH_CLIENT_ID = defineSecret('GOOGLE_OAUTH_CLIENT_ID');
-const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
-const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
-  'GOOGLE_OAUTH_REFRESH_TOKEN_KEY'
-);
 
 // Keep in sync with ALLOWED_ORIGINS in index.ts (spike duplication; production
 // should import a shared constant).
@@ -78,8 +68,8 @@ const API_TIMEOUT_MS = 10000;
  * Fields: { courseId, itemId, attachmentId, submissionId, teacherUid,
  * updatedAt } — all Classroom/Firebase ids, NEVER a name or email (PII gate).
  * Written transiently during the student handshake; read by
- * pushClassroomGradesForAssignment to mint the teacher's offline access token
- * and PATCH the DRAFT grade with no teacher present.
+ * pushClassroomGradesForAssignment to resolve each student's submissionId
+ * (and `teacherUid` to gate the push to the linking teacher).
  */
 const GRADE_SYNC_COLLECTION = 'classroom_grade_links';
 
@@ -101,6 +91,10 @@ interface GoogleUserInfo {
   email?: string;
   email_verified?: boolean;
   hd?: string;
+  // Full display name (present when the `userinfo.profile` scope is granted —
+  // the student view requests it). Used ONLY as a transient watermark label,
+  // returned to the student's own client; never persisted (PII gate).
+  name?: string;
 }
 
 /** OneRoster student shape (subset) — mirrors index.ts's ClassLinkStudent. */
@@ -438,18 +432,6 @@ export const classroomAddonNet = {
       return { ok: false, status: 0 };
     }
   },
-
-  /**
-   * Refresh a teacher's stored OFFLINE Google access token by uid. Thin seam
-   * over `refreshGoogleAccessTokenForUid` so the grade-push unit test can stub
-   * the token mint without touching the encrypted-token store or Google's
-   * OAuth endpoint. Returns just the access token (the only thing the grade
-   * PATCH needs).
-   */
-  async refreshOfflineAccessToken(teacherUid: string): Promise<string> {
-    const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid);
-    return accessToken;
-  },
 };
 
 export const classroomAddonLoginV1 = onCall(
@@ -570,6 +552,11 @@ export const classroomAddonLoginV1 = onCall(
     //    pseudonym scoped to the Google courseId — works, but nameless.
     let uid: string | null = null;
     let classIds: string[] = [`classroom:${courseId}`];
+    // Transient display name for the results watermark. Roster-resolved name
+    // (ClassLink givenName/familyName) is preferred; the Google userinfo name is
+    // the fallback. Returned to the student's OWN client only — never persisted
+    // (the claims + grade-sync key stay nameless, preserving the PII gate).
+    let displayName: string | null = null;
     // The teacher who linked this course owns the OFFLINE Google creds the
     // grade-passback push uses. Captured here (PII-free — it's a Firebase uid)
     // so it can be persisted alongside the grade-sync key.
@@ -596,7 +583,22 @@ export const classroomAddonLoginV1 = onCall(
         );
         if (match?.sourcedId) {
           uid = computeStudentUid(match.sourcedId, hmacSecret);
-          classIds = [link.classlinkClassId];
+          // Carry BOTH the ClassLink sourcedId (so the monitor name pipeline and
+          // any regular-SSO roster-mate resolve against the same class) AND the
+          // courseId-scoped id. The class-gate (firestore.rules) authorizes a
+          // response when the session's classIds and the token's classIds
+          // overlap; keeping `classroom:<courseId>` on every Classroom token
+          // guarantees that overlap for ANY Classroom-verified course member —
+          // even one the assignment targeted only by courseId (e.g. it was
+          // attached before the course was linked) — honoring the "a bridge
+          // failure must NEVER block the student" invariant below.
+          classIds = [link.classlinkClassId, `classroom:${courseId}`];
+          // Roster-resolved name for the watermark (transient; not persisted).
+          const rosterName = [match.givenName, match.familyName]
+            .filter((p): p is string => typeof p === 'string' && p.length > 0)
+            .join(' ')
+            .trim();
+          if (rosterName) displayName = rosterName;
         } else {
           console.warn(
             '[classroomAddonLoginV1] linked course but student email not in ' +
@@ -620,6 +622,11 @@ export const classroomAddonLoginV1 = onCall(
         `classroom-sub:${info.sub}`,
         hmacSecret
       ).toString(CryptoJS.enc.Hex);
+    }
+    // Fall back to the Google userinfo name when the roster bridge didn't
+    // resolve one (unlinked course, or student not in the OneRoster roster).
+    if (!displayName && typeof info.name === 'string') {
+      displayName = info.name.trim() || null;
     }
 
     // 3b. Persist the PII-free grade-sync key so a later completion can push a
@@ -668,6 +675,9 @@ export const classroomAddonLoginV1 = onCall(
       studentRole: true,
       customToken,
       submissionId,
+      // Transient watermark label for the student's own results view. Omitted
+      // when neither the roster nor userinfo yielded a name.
+      ...(displayName ? { displayName } : {}),
     };
   }
 );
@@ -727,10 +737,10 @@ export const createClassroomAttachment = onCall(
       throw new HttpsError('invalid-argument', 'origin is missing or invalid.');
     }
 
-    // Build the runner-specific studentViewUri. Each identifier is embedded
-    // verbatim into the stored URI, so each is charset-constrained — never
-    // relay arbitrary client text into a stored URI.
-    let studentViewUri: string;
+    // Build the runner-specific content query shared by BOTH view URIs. Each
+    // identifier is embedded verbatim into the stored URI, so each is
+    // charset-constrained — never relay arbitrary client text into a stored URI.
+    let contentQuery: string;
     if (kind === 'va') {
       // Video Activity session ids are SpartBoard-minted; allow the alnum + _-
       // charset Firestore session ids use.
@@ -740,9 +750,7 @@ export const createClassroomAttachment = onCall(
           'sessionId is required and malformed for a video-activity attachment.'
         );
       }
-      studentViewUri =
-        `${origin}/classroom-addon/student?kind=va` +
-        `&sessionId=${encodeURIComponent(sessionId)}`;
+      contentQuery = `kind=va&sessionId=${encodeURIComponent(sessionId)}`;
     } else {
       // Quiz: join codes are short uppercase alphanumerics. `code` is kept for
       // backward compatibility; `kind=quiz` is appended but non-load-bearing.
@@ -752,10 +760,13 @@ export const createClassroomAttachment = onCall(
           'quizCode is missing or malformed.'
         );
       }
-      studentViewUri =
-        `${origin}/classroom-addon/student?code=${encodeURIComponent(quizCode)}` +
-        `&kind=quiz`;
+      contentQuery = `code=${encodeURIComponent(quizCode)}&kind=quiz`;
     }
+    const studentViewUri = `${origin}/classroom-addon/student?${contentQuery}`;
+    // The teacher view carries the SAME content ref so, when a teacher opens the
+    // attachment, the iframe can resolve the session and render the grading view
+    // in-place (no round-trip to the SpartBoard dashboard).
+    const teacherViewUri = `${origin}/classroom-addon/teacher?${contentQuery}`;
 
     // Title is display-only; cap length and fall back to a sensible default.
     const title = (rawTitle || 'SpartBoard activity').slice(0, 200);
@@ -804,20 +815,23 @@ export const createClassroomAttachment = onCall(
 
     const body: AddOnAttachmentBody = {
       title,
-      teacherViewUri: { uri: `${origin}/classroom-addon/teacher` },
+      teacherViewUri: { uri: teacherViewUri },
       studentViewUri: { uri: studentViewUri },
     };
     // Make the attachment grade-sync capable. `maxPoints` is invalid without
-    // `studentWorkReviewUri`, so they're added together. The review URI reuses
-    // the student view (the teacher review iframe renders the same runner read
-    // -only). Only courseWork supports graded student work.
+    // `studentWorkReviewUri`, so they're added together. The review URI is the
+    // TEACHER grading route (same as teacherViewUri) — NOT the student view:
+    // Classroom opens studentWorkReviewUri when a teacher clicks an individual
+    // student's submitted work, so it must land on the grader, not the student
+    // runner (which would see a teacher launch, mint no student token, and loop
+    // back to the sign-in screen). Only courseWork supports graded student work.
     //
     // BOTH the quiz AND video-activity courseWork runners are grade-sync
     // capable: Classroom grade push is wired for each (the teacher monitor for
     // each runner drives pushClassroomGradesForAssignment), so each gradeable
     // slot is actually filled.
     if (itemType === 'courseWork') {
-      body.studentWorkReviewUri = { uri: studentViewUri };
+      body.studentWorkReviewUri = { uri: teacherViewUri };
       body.maxPoints = suppliedMaxPoints;
     }
     const createResult = await classroomAddonNet.createAttachment(
@@ -839,6 +853,12 @@ export const createClassroomAttachment = onCall(
       );
     }
 
+    // The due date is intentionally NOT synced here. An add-on cannot set the
+    // parent assignment's due date — Google restricts courses.courseWork.patch
+    // to the developer project that CREATED the coursework, and add-on
+    // attachments live under coursework the teacher created in Classroom's own
+    // composer (→ PERMISSION_DENIED). The teacher sets the due date once, in
+    // that composer (the screen this add-on iframe is embedded in).
     return { attachmentId: createResult.id };
   }
 );
@@ -855,7 +875,16 @@ interface PushBatchData {
   courseId?: unknown;
   itemId?: unknown;
   attachmentId?: unknown;
+  // Fresh `classroom.addons.teacher` access token minted by the teacher's
+  // monitor at push time. Used directly for the DRAFT-grade PATCH.
+  accessToken?: unknown;
   grades?: unknown;
+  // Optional grade scale (the attachment's frozen maxPoints). When present, the
+  // server clamps each pointsEarned to [0, maxPoints] as defense-in-depth
+  // against a BUGGY client. The caller is the authorized teacher and supplies
+  // both the points and this bound, so it is NOT a trust boundary — just a
+  // sanity cap mirroring the client-side clamp in buildQuizClassroomGradeEntries.
+  maxPoints?: unknown;
 }
 
 /** Per-entry outcome in the batch response. */
@@ -902,14 +931,22 @@ async function resolveSubmissionId(
 
 /**
  * pushClassroomGradesForAssignment — BATCH DRAFT-grade passback for one
- * Classroom-linked assignment. Called by the teacher's quiz monitor to publish
- * every student's grade at once. Mints the linking teacher's OFFLINE access
- * token ONCE, resolves each student's `submissionId` from the persisted
- * grade-sync keys, then PATCHes the DRAFT grade per student. A student who never
- * opened the attachment is SKIPPED (no submissionId) and a single upstream PATCH
- * failure is recorded per-entry — neither aborts the batch.
+ * Classroom-linked assignment. Called by the teacher's quiz / video-activity
+ * monitor to publish every student's grade at once. The teacher is PRESENT (they
+ * clicked "Push grades"), so the caller supplies a fresh `classroom.addons.teacher`
+ * access token; this CF PATCHes the DRAFT grades with it directly. It resolves
+ * each student's `submissionId` from the persisted grade-sync keys, then PATCHes
+ * per student. A student who never opened the attachment is SKIPPED (no
+ * submissionId) and a single upstream PATCH failure is recorded per-entry —
+ * neither aborts the batch.
  *
- * Input (PII-free): { courseId, itemId, attachmentId,
+ * (This replaces an earlier offline-token design that minted a STORED refresh
+ * token server-side. That token was never provisioned by the normal sign-in or
+ * Classroom-attach flows, so the push always failed with `needs-consent:
+ * no-stored-token`. Since the teacher is present at push time, a live token is
+ * both simpler and guaranteed to carry the add-on teacher scope.)
+ *
+ * Input (PII-free): { courseId, itemId, attachmentId, accessToken,
  *   grades: Array<{ pseudonymUid, pointsEarned }> }
  *
  * Security hardening: the caller MUST be the linking teacher. We read
@@ -918,16 +955,11 @@ async function resolveSubmissionId(
  * (including an unauthenticated caller) → `permission-denied` — we deliberately
  * return the SAME error for "no link" and "wrong caller" so the response never
  * reveals whether a given course is linked. Only after this gate passes do we
- * mint the offline token or issue any PATCH.
+ * issue any PATCH.
  */
 export const pushClassroomGradesForAssignment = onCall(
   {
     memory: '256MiB',
-    secrets: [
-      GOOGLE_OAUTH_CLIENT_ID,
-      GOOGLE_OAUTH_CLIENT_SECRET,
-      GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
-    ],
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
@@ -937,11 +969,19 @@ export const pushClassroomGradesForAssignment = onCall(
     const itemId = typeof data.itemId === 'string' ? data.itemId : '';
     const attachmentId =
       typeof data.attachmentId === 'string' ? data.attachmentId : '';
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
 
     if (!courseId || !itemId || !attachmentId) {
       throw new HttpsError(
         'invalid-argument',
         'courseId, itemId, and attachmentId are required.'
+      );
+    }
+    if (!accessToken) {
+      throw new HttpsError(
+        'invalid-argument',
+        'accessToken is required (the teacher add-on token to PATCH grades with).'
       );
     }
     if (!Array.isArray(data.grades) || data.grades.length === 0) {
@@ -957,6 +997,17 @@ export const pushClassroomGradesForAssignment = onCall(
       );
     }
     const rawGrades = data.grades as BatchGradeEntryInput[];
+
+    // Optional server-side clamp bound (defense-in-depth; see PushBatchData).
+    // Absent/invalid → no upper clamp (Number.POSITIVE_INFINITY).
+    const coercedMaxPoints = Number(data.maxPoints);
+    const maxPointsCap =
+      data.maxPoints !== undefined &&
+      data.maxPoints !== null &&
+      Number.isFinite(coercedMaxPoints) &&
+      coercedMaxPoints > 0
+        ? Math.floor(coercedMaxPoints)
+        : Number.POSITIVE_INFINITY;
 
     const db = admin.firestore();
 
@@ -980,26 +1031,13 @@ export const pushClassroomGradesForAssignment = onCall(
       );
     }
 
-    // Mint the teacher's offline access token ONCE for the whole batch.
-    // Propagate the googleOAuth needs-consent/transient HttpsError contract.
-    let accessToken: string;
-    try {
-      accessToken =
-        await classroomAddonNet.refreshOfflineAccessToken(teacherUid);
-    } catch (err) {
-      if (err instanceof HttpsError) throw err;
-      console.error(
-        '[pushClassroomGradesForAssignment] offline token refresh failed:',
-        err
-      );
-      throw new HttpsError(
-        'internal',
-        'Failed to obtain teacher Google credentials for grade passback.'
-      );
-    }
+    // The caller-supplied `accessToken` is the linking teacher's own fresh
+    // `classroom.addons.teacher` token (minted by their monitor's GIS popup).
+    // The security gate above already proved the caller IS that teacher, so we
+    // PATCH with it directly — no stored/offline credential is involved.
 
-    // Resolve + PATCH every student concurrently (the offline token is minted
-    // once above). Each entry has its own try/catch so one student's failure —
+    // Resolve + PATCH every student concurrently. Each entry has its own
+    // try/catch so one student's failure —
     // or a student who never opened the attachment — is recorded per-entry and
     // never aborts the rest. Promise.all preserves input order, so `results`
     // lines up 1:1 with `grades`. MAX_BATCH_GRADES bounds the fan-out.
@@ -1020,7 +1058,11 @@ export const pushClassroomGradesForAssignment = onCall(
         if (!Number.isFinite(pointsEarnedRaw) || pointsEarnedRaw < 0) {
           return { pseudonymUid, ok: false, reason: 'invalid pointsEarned' };
         }
-        const pointsEarned = Math.round(pointsEarnedRaw);
+        // Clamp to the attachment scale when supplied (no-op when unbounded).
+        const pointsEarned = Math.min(
+          maxPointsCap,
+          Math.round(pointsEarnedRaw)
+        );
 
         try {
           const submissionId = await resolveSubmissionId(
@@ -1066,7 +1108,15 @@ export const pushClassroomGradesForAssignment = onCall(
     );
 
     const pushed = results.filter((r) => r.ok).length;
-    const skipped = results.length - pushed;
-    return { results, pushed, skipped };
+    // A "skip" is the BENIGN case: the student never opened the attachment, so
+    // there's no Classroom submission to grade against. Everything else that
+    // isn't `ok` (an upstream PATCH error, a lookup error, a malformed entry) is
+    // a real FAILURE the teacher should retry — never fold those into the
+    // "not opened yet" count, which would report a failed push as a success.
+    const skipped = results.filter(
+      (r) => !r.ok && r.reason === 'no matching submission'
+    ).length;
+    const failed = results.length - pushed - skipped;
+    return { results, pushed, skipped, failed };
   }
 );
