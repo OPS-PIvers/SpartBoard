@@ -1235,6 +1235,17 @@ export const DashboardView: React.FC = () => {
 
       // Delete: Handle clear board if shift or alt is pressed, otherwise target focused/top widget
       if (e.key === 'Delete') {
+        // Don't intercept Delete when the user is typing in an input, textarea,
+        // or contentEditable — let the browser's default deletion behaviour run.
+        // This mirrors the Escape key guard above and fixes a bug where pressing
+        // Delete inside any text field on the board would be silently swallowed
+        // (e.preventDefault() was called before this check was added).
+        const activeEl = document.activeElement as HTMLElement;
+        const isTypingField =
+          ['INPUT', 'TEXTAREA'].includes(activeEl?.tagName || '') ||
+          activeEl?.isContentEditable;
+        if (isTypingField) return;
+
         e.preventDefault();
 
         if (e.shiftKey || e.altKey) {
