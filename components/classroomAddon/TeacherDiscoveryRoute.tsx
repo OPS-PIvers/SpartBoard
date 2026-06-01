@@ -257,7 +257,14 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         const linkedClassId = linkData?.classlinkClassId as string | undefined;
         const linkedRosterId = linkData?.rosterId as string | undefined;
         if (linkedClassId) {
-          targeting.classIds = [linkedClassId];
+          // Carry BOTH the linked sourcedId AND the courseId-scoped id. The
+          // student token always includes `classroom:<courseId>` (see
+          // classroomAddonLoginV1), so including it here guarantees the
+          // class-gate finds an overlap for EVERY Classroom-verified course
+          // member — including a student not yet in the synced ClassLink roster,
+          // and the case where the course was linked AFTER this assignment was
+          // attached. The sourcedId stays first so regular-SSO roster-mates match.
+          targeting.classIds = [linkedClassId, `classroom:${courseId}`];
           append(`Course is linked to ClassLink class ${linkedClassId}.`);
 
           // Surface the linked roster so the monitor can label the targeted

@@ -9,9 +9,17 @@
 import { describe, it, expect, vi } from 'vitest';
 import type { QuizQuestion, QuizResponse } from '@/types';
 
+// Hoisted spy so a test can assert HOW getEarnedPoints is invoked (specifically
+// that the builder passes NO session → speed/streak bonuses are excluded).
+const { getEarnedPointsMock } = vi.hoisted(() => ({
+  // Rest args so a test can inspect the 3rd positional (session) the builder
+  // passes — it must be undefined (no gamification bonuses in the grade).
+  getEarnedPointsMock: vi.fn(
+    (...args: unknown[]) => (args[0] as { __earned: number }).__earned
+  ),
+}));
 vi.mock('@/components/widgets/QuizWidget/utils/quizScoreboard', () => ({
-  // Return the test-only `__earned` field stashed on each response.
-  getEarnedPoints: (r: { __earned: number }) => r.__earned,
+  getEarnedPoints: getEarnedPointsMock,
 }));
 
 import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
@@ -33,7 +41,6 @@ describe('buildQuizClassroomGradeEntries', () => {
     const grades = buildQuizClassroomGradeEntries(
       [resp('u1', 'completed', 17)],
       [q(20)],
-      null,
       20
     );
     expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 17 }]);
@@ -44,7 +51,6 @@ describe('buildQuizClassroomGradeEntries', () => {
     const grades = buildQuizClassroomGradeEntries(
       [resp('u1', 'completed', 5)],
       [q(10)],
-      null,
       20
     );
     expect(grades[0].pointsEarned).toBe(10);
@@ -53,19 +59,14 @@ describe('buildQuizClassroomGradeEntries', () => {
   it('rounds, and clamps to [0, maxPoints]', () => {
     // 1 of 3 onto 10 → 3.33 → round 3.
     expect(
-      buildQuizClassroomGradeEntries(
-        [resp('u', 'completed', 1)],
-        [q(3)],
-        null,
-        10
-      )[0].pointsEarned
+      buildQuizClassroomGradeEntries([resp('u', 'completed', 1)], [q(3)], 10)[0]
+        .pointsEarned
     ).toBe(3);
     // earned beyond the total clamps to maxPoints.
     expect(
       buildQuizClassroomGradeEntries(
         [resp('u', 'completed', 99)],
         [q(10)],
-        null,
         10
       )[0].pointsEarned
     ).toBe(10);
@@ -75,7 +76,6 @@ describe('buildQuizClassroomGradeEntries', () => {
     const grades = buildQuizClassroomGradeEntries(
       [resp('u', 'completed', Number.NaN)],
       [q(10)],
-      null,
       10
     );
     expect(grades[0].pointsEarned).toBe(0);
@@ -86,7 +86,6 @@ describe('buildQuizClassroomGradeEntries', () => {
     const grades = buildQuizClassroomGradeEntries(
       [resp('u', 'completed', 5)],
       [q(0)],
-      null,
       10
     );
     expect(grades[0].pointsEarned).toBe(0);
@@ -100,9 +99,17 @@ describe('buildQuizClassroomGradeEntries', () => {
         resp('', 'completed', 5),
       ],
       [q(10)],
-      null,
       10
     );
     expect(grades).toEqual([{ pseudonymUid: 'u1', pointsEarned: 5 }]);
+  });
+
+  it('scales on correctness points only — getEarnedPoints is called with NO session (excludes speed/streak bonuses)', () => {
+    getEarnedPointsMock.mockClear();
+    buildQuizClassroomGradeEntries([resp('u1', 'completed', 10)], [q(10)], 10);
+    expect(getEarnedPointsMock).toHaveBeenCalledTimes(1);
+    // A session as the 3rd arg would re-enable gamification bonuses; the builder
+    // must omit it so the gradebook grade reflects mastery, not answer speed.
+    expect(getEarnedPointsMock.mock.calls[0][2]).toBeUndefined();
   });
 });

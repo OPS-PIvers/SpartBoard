@@ -131,7 +131,12 @@ describe('QuizResults — Push grades to Google Classroom (live add-on token)', 
 
   it('mints a fresh add-on token and forwards it to the CF, then shows a success toast', async () => {
     mockToken.mockResolvedValue('live-token');
-    mockPush.mockResolvedValue({ results: [], pushed: 1, skipped: 0 });
+    mockPush.mockResolvedValue({
+      results: [],
+      pushed: 1,
+      skipped: 0,
+      failed: 0,
+    });
 
     render(
       <QuizResults

@@ -1051,12 +1051,13 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
       return;
     }
 
-    // The eligible list — completed responses with a resolvable pseudonym —
-    // is cheap to compute and stable across the confirm dialog, so we derive
-    // it (and gate on it) BEFORE confirming. The grade SCORING, however, is
-    // built AFTER the confirm against the latest props, so an edit pushed by
-    // the Firestore listener while the dialog is open can't bake stale scores
-    // into the payload (TOCTOU).
+    // Compute the eligible list — completed responses with a resolvable
+    // pseudonym — and gate on it BEFORE confirming, so we never pop a consent
+    // dialog when there's nothing to push. Both the eligible list and the grade
+    // payload below reflect the responses/quiz captured when the teacher
+    // initiated the push (this handler's closure); a brief mid-dialog Firestore
+    // update is intentionally not re-read — the teacher pushes what they were
+    // looking at when they clicked.
     const eligible = completed.filter((r) => !!r.studentUid);
 
     if (eligible.length === 0) {
@@ -1078,14 +1079,12 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
     // Build the PII-free grade payload via the shared scaler (the single source
     // of truth also used by the in-iframe grader, TeacherReviewRoute, so the two
-    // can't drift): each completed student's raw earned points are scaled onto
+    // can't drift): each completed student's correctness points are scaled onto
     // the frozen Classroom denominator (`maxPoints`), then rounded + clamped to
-    // [0, maxPoints], with a non-finite score treated as 0. Built AFTER the
-    // confirm so it reflects any edit that landed while the dialog was open.
+    // [0, maxPoints], with a non-finite score treated as 0.
     const grades = buildQuizClassroomGradeEntries(
       completed,
       quiz.questions,
-      session,
       maxPoints
     );
 
@@ -1118,6 +1117,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         attachmentId,
         accessToken,
         grades,
+        maxPoints,
       });
       addToast(formatGradePushToast(data), 'success');
     } catch (err) {
@@ -1125,7 +1125,16 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         sessionId: session?.id,
         attachmentId,
       });
-      addToast('Could not push grades to Google Classroom.', 'error');
+      // A permission-denied means this course isn't linked to ClassLink under
+      // the current teacher (the CF gates push on the link doc). Tell the
+      // teacher how to fix it instead of a dead-end generic error.
+      const code = (err as { code?: string } | null)?.code ?? '';
+      addToast(
+        code.includes('permission-denied')
+          ? 'Only the teacher who linked this course to ClassLink can push grades. Link it from your Classes list first.'
+          : 'Could not push grades to Google Classroom.',
+        'error'
+      );
     } finally {
       setPushingGrades(false);
     }

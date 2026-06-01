@@ -293,6 +293,25 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
       if (data.displayName) setStudentName(data.displayName);
       await signInWithCustomToken(auth, data.customToken);
       append('Signed in.');
+      // For a video activity, VideoActivityStudentApp reads its sessionId from
+      // the pathname (`/activity/:sessionId`). Rewrite the URL in place HERE — in
+      // the handshake handler, BEFORE the re-render that mounts the runner — so
+      // the child mounts on the correct path. Doing this during render would be
+      // an impure side effect; a post-render effect would run AFTER the child has
+      // already read the stale path (parent effects fire after child mount).
+      // Idempotent, and the query string is preserved.
+      const vaPath = `/activity/${sessionId}`;
+      if (
+        isVideoActivity &&
+        typeof window !== 'undefined' &&
+        window.location.pathname !== vaPath
+      ) {
+        window.history.replaceState(
+          null,
+          '',
+          `${vaPath}${window.location.search}`
+        );
+      }
       setHandshakeDone(true);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
@@ -301,7 +320,16 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
     } finally {
       setBusy(false);
     }
-  }, [append, courseId, itemId, itemType, attachmentId, loginHint]);
+  }, [
+    append,
+    courseId,
+    itemId,
+    itemType,
+    attachmentId,
+    loginHint,
+    isVideoActivity,
+    sessionId,
+  ]);
 
   // Render the runner only after a handshake completed in THIS page load (not on
   // a merely-persisted session) so a stale session from another student/course
@@ -311,23 +339,10 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   const handshakeReady = handshakeDone && session?.studentRole === true;
 
   if (handshakeReady && isVideoActivity) {
-    // VideoActivityStudentApp reads its sessionId from the pathname
-    // (`/activity/:sessionId`). Rewrite the URL in place so it mounts exactly
-    // as it does on the `/activity` route — same providers (DialogProvider),
-    // same SSO-auto-join path — while preserving the query string for any
-    // params the runner inspects. Idempotent: only rewrites when the path
-    // isn't already `/activity/<sessionId>`.
-    const targetPath = `/activity/${sessionId}`;
-    if (
-      typeof window !== 'undefined' &&
-      window.location.pathname !== targetPath
-    ) {
-      window.history.replaceState(
-        null,
-        '',
-        `${targetPath}${window.location.search}`
-      );
-    }
+    // The URL was rewritten to `/activity/:sessionId` in runHandshake (BEFORE
+    // this mount), so VideoActivityStudentApp reads the right sessionId from the
+    // pathname and mounts exactly as on the `/activity` route — same providers
+    // (DialogProvider), same SSO-auto-join path.
     return (
       <Suspense
         fallback={

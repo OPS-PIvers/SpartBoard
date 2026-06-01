@@ -583,7 +583,16 @@ export const classroomAddonLoginV1 = onCall(
         );
         if (match?.sourcedId) {
           uid = computeStudentUid(match.sourcedId, hmacSecret);
-          classIds = [link.classlinkClassId];
+          // Carry BOTH the ClassLink sourcedId (so the monitor name pipeline and
+          // any regular-SSO roster-mate resolve against the same class) AND the
+          // courseId-scoped id. The class-gate (firestore.rules) authorizes a
+          // response when the session's classIds and the token's classIds
+          // overlap; keeping `classroom:<courseId>` on every Classroom token
+          // guarantees that overlap for ANY Classroom-verified course member —
+          // even one the assignment targeted only by courseId (e.g. it was
+          // attached before the course was linked) — honoring the "a bridge
+          // failure must NEVER block the student" invariant below.
+          classIds = [link.classlinkClassId, `classroom:${courseId}`];
           // Roster-resolved name for the watermark (transient; not persisted).
           const rosterName = [match.givenName, match.familyName]
             .filter((p): p is string => typeof p === 'string' && p.length > 0)
@@ -870,6 +879,12 @@ interface PushBatchData {
   // monitor at push time. Used directly for the DRAFT-grade PATCH.
   accessToken?: unknown;
   grades?: unknown;
+  // Optional grade scale (the attachment's frozen maxPoints). When present, the
+  // server clamps each pointsEarned to [0, maxPoints] as defense-in-depth
+  // against a BUGGY client. The caller is the authorized teacher and supplies
+  // both the points and this bound, so it is NOT a trust boundary — just a
+  // sanity cap mirroring the client-side clamp in buildQuizClassroomGradeEntries.
+  maxPoints?: unknown;
 }
 
 /** Per-entry outcome in the batch response. */
@@ -983,6 +998,17 @@ export const pushClassroomGradesForAssignment = onCall(
     }
     const rawGrades = data.grades as BatchGradeEntryInput[];
 
+    // Optional server-side clamp bound (defense-in-depth; see PushBatchData).
+    // Absent/invalid → no upper clamp (Number.POSITIVE_INFINITY).
+    const coercedMaxPoints = Number(data.maxPoints);
+    const maxPointsCap =
+      data.maxPoints !== undefined &&
+      data.maxPoints !== null &&
+      Number.isFinite(coercedMaxPoints) &&
+      coercedMaxPoints > 0
+        ? Math.floor(coercedMaxPoints)
+        : Number.POSITIVE_INFINITY;
+
     const db = admin.firestore();
 
     // SECURITY GATE: the caller must be the teacher who linked this course.
@@ -1032,7 +1058,11 @@ export const pushClassroomGradesForAssignment = onCall(
         if (!Number.isFinite(pointsEarnedRaw) || pointsEarnedRaw < 0) {
           return { pseudonymUid, ok: false, reason: 'invalid pointsEarned' };
         }
-        const pointsEarned = Math.round(pointsEarnedRaw);
+        // Clamp to the attachment scale when supplied (no-op when unbounded).
+        const pointsEarned = Math.min(
+          maxPointsCap,
+          Math.round(pointsEarnedRaw)
+        );
 
         try {
           const submissionId = await resolveSubmissionId(
@@ -1078,7 +1108,15 @@ export const pushClassroomGradesForAssignment = onCall(
     );
 
     const pushed = results.filter((r) => r.ok).length;
-    const skipped = results.length - pushed;
-    return { results, pushed, skipped };
+    // A "skip" is the BENIGN case: the student never opened the attachment, so
+    // there's no Classroom submission to grade against. Everything else that
+    // isn't `ok` (an upstream PATCH error, a lookup error, a malformed entry) is
+    // a real FAILURE the teacher should retry — never fold those into the
+    // "not opened yet" count, which would report a failed push as a success.
+    const skipped = results.filter(
+      (r) => !r.ok && r.reason === 'no matching submission'
+    ).length;
+    const failed = results.length - pushed - skipped;
+    return { results, pushed, skipped, failed };
   }
 );

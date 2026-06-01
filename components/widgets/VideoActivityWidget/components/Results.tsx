@@ -278,8 +278,8 @@ export const Results: React.FC<ResultsProps> = ({
     // Build the PII-free grade payload: one entry per completed response with a
     // resolvable pseudonym. `getStudentScore` returns the SAME 0–100 percentage
     // the Students tab displays; scale it onto the frozen Classroom denominator,
-    // then round + clamp to [0, maxPoints]. Computed AFTER the confirm so it
-    // reflects any edit that landed while the dialog was open.
+    // then round + clamp to [0, maxPoints]. Built from the responses captured
+    // when the teacher initiated the push (this handler's closure).
     const grades = eligible.map((r) => {
       const pct = getStudentScore(r);
       const safePct = Number.isFinite(pct) ? pct : 0;
@@ -319,6 +319,7 @@ export const Results: React.FC<ResultsProps> = ({
         attachmentId,
         accessToken,
         grades,
+        maxPoints,
       });
       addToast(formatGradePushToast(data), 'success');
     } catch (err) {
@@ -326,7 +327,15 @@ export const Results: React.FC<ResultsProps> = ({
         sessionId: session?.id,
         attachmentId,
       });
-      addToast('Could not push grades to Google Classroom.', 'error');
+      // permission-denied → this course isn't linked to ClassLink under the
+      // current teacher (the CF gates push on the link doc); tell them how to fix.
+      const code = (err as { code?: string } | null)?.code ?? '';
+      addToast(
+        code.includes('permission-denied')
+          ? 'Only the teacher who linked this course to ClassLink can push grades. Link it from your Classes list first.'
+          : 'Could not push grades to Google Classroom.',
+        'error'
+      );
     } finally {
       setPushingGrades(false);
     }

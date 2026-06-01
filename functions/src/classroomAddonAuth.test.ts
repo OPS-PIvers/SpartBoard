@@ -257,10 +257,15 @@ describe('classroomAddonLoginV1 (spike)', () => {
       'test-hmac-secret'
     ).toString(CryptoJS.enc.Hex);
     expect(lastCustomTokenArgs?.uid).toBe(expectedUid);
+    // Carries BOTH the ClassLink sourcedId AND the courseId-scoped id. The
+    // sourcedId bridges name resolution + regular-SSO roster-mates; the
+    // `classroom:<courseId>` entry guarantees the Firestore class-gate overlaps
+    // for every Classroom-verified course member regardless of how the
+    // assignment was targeted (or link timing), so a roster gap can't block them.
     expect(lastCustomTokenArgs?.claims).toEqual({
       studentRole: true,
       orgId: 'org-orono',
-      classIds: ['CL-SECTION-1'],
+      classIds: ['CL-SECTION-1', 'classroom:C1'],
     });
   });
 
@@ -843,6 +848,7 @@ const callPushBatch = pushClassroomGradesForAssignment as unknown as (req: {
   }>;
   pushed: number;
   skipped: number;
+  failed: number;
 }>;
 
 const batchData = {
@@ -1091,14 +1097,50 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       auth: { uid: 'teacher-123' },
     });
 
-    // The batch does NOT throw; the failure is captured per-entry.
+    // The batch does NOT throw; the failure is captured per-entry. An upstream
+    // PATCH error is a real FAILURE (retryable), NOT a benign "not opened" skip.
     expect(res.pushed).toBe(1);
-    expect(res.skipped).toBe(1);
+    expect(res.skipped).toBe(0);
+    expect(res.failed).toBe(1);
     const a = res.results.find((r) => r.pseudonymUid === 'pseudo-A');
     const b = res.results.find((r) => r.pseudonymUid === 'pseudo-B');
     expect(a?.ok).toBe(false);
     expect(a?.status).toBe(403);
     expect(b?.ok).toBe(true);
+  });
+
+  it('clamps pointsEarned to a supplied maxPoints (defense-in-depth)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-123' };
+    seedSubmission('pseudo-A', {
+      courseId: 'C1',
+      itemId: 'I1',
+      attachmentId: 'ATT1',
+      submissionId: 'SUB-A',
+    });
+    const patchSpy = vi
+      .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    const res = await callPushBatch({
+      data: {
+        ...batchData,
+        maxPoints: 20,
+        // A buggy client over-reports 999 against a 20-point scale.
+        grades: [{ pseudonymUid: 'pseudo-A', pointsEarned: 999 }],
+      },
+      auth: { uid: 'teacher-123' },
+    });
+
+    expect(res.pushed).toBe(1);
+    // PATCHed value is clamped to the scale, never the raw 999.
+    expect(patchSpy).toHaveBeenCalledWith(
+      'teacher-token',
+      'C1',
+      'I1',
+      'ATT1',
+      'SUB-A',
+      20
+    );
   });
 
   it('rejects (invalid-argument) when accessToken is missing, before any PATCH', async () => {
@@ -1161,7 +1203,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     expect(patchSpy).not.toHaveBeenCalled();
   });
 
-  it('skips malformed grade entries (bad pseudonymUid / negative score) but pushes valid ones', async () => {
+  it('records malformed grade entries (bad pseudonymUid / negative score) as failed (not skipped) but pushes valid ones', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
     seedSubmission('pseudo-A', {
       courseId: 'C1',
@@ -1186,7 +1228,10 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     });
 
     expect(res.pushed).toBe(1);
-    expect(res.skipped).toBe(2);
+    // Malformed entries are real FAILURES (retryable / a client bug), not the
+    // benign "not opened yet" skip bucket.
+    expect(res.skipped).toBe(0);
+    expect(res.failed).toBe(2);
     expect(patchSpy).toHaveBeenCalledTimes(1);
     expect(patchSpy).toHaveBeenCalledWith(
       'teacher-token',

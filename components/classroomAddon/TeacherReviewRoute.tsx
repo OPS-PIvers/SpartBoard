@@ -275,8 +275,11 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     const attachment = session?.classroomAttachment;
     if (!attachment || !quizData) return;
     // Check for gradeable work BEFORE the OAuth popup — don't prompt the teacher
-    // for Classroom permission only to tell them there's nothing to push.
-    if (!responses.some((r) => r.status === 'completed')) {
+    // for Classroom permission only to tell them there's nothing to push. Require
+    // a RESOLVABLE pseudonym too (the grade builder also needs studentUid), so a
+    // quiz completed only by non-SSO/PIN students doesn't pop a consent dialog
+    // that then no-ops on an empty payload.
+    if (!responses.some((r) => r.status === 'completed' && !!r.studentUid)) {
       setStatusMsg('No completed responses to push yet.');
       return;
     }
@@ -303,7 +306,6 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
       const grades = buildQuizClassroomGradeEntries(
         responses,
         questions,
-        session,
         attachment.maxPoints
       );
       if (grades.length === 0) {
@@ -318,6 +320,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
         attachmentId: attachment.attachmentId,
         accessToken,
         grades,
+        maxPoints: attachment.maxPoints,
       });
       setStatusMsg(`${formatGradePushToast(data)} Return them in Classroom.`);
     } catch (err) {
@@ -325,7 +328,15 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
       logError('ClassroomAddonTeacherReview.pushGrades', err, {
         sessionId,
       });
-      setErrorMsg(`Couldn't push grades: ${message}`);
+      // permission-denied → the course isn't linked to ClassLink under this
+      // teacher (the CF gates push on the link doc); give an actionable hint
+      // instead of the raw error.
+      const code = (err as { code?: string } | null)?.code ?? '';
+      setErrorMsg(
+        code.includes('permission-denied')
+          ? 'Only the teacher who linked this course to ClassLink can push grades. Link it from your Classes list first.'
+          : `Couldn't push grades: ${message}`
+      );
     } finally {
       setBusy(false);
     }
