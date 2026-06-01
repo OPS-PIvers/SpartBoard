@@ -918,4 +918,51 @@ describe('useVideoActivityAssignments — publishAssignmentScores', () => {
     // With the fix: pointsMax=2 (q0 counted once)  → score=round(1/2*100)=50
     expect((responseCall[1] as { score: number }).score).toBe(50);
   });
+
+  it('deduplicates duplicate answers before computing pointsEarned/pointsMax in the grading loop', async () => {
+    // Scenario: an arrayUnion race / Drive-sync wrote the student's q0 answer
+    // twice into `answers`. The grading loop walks the raw answers array, so a
+    // duplicate answer would be scored twice.
+    //
+    // Student answered q0 correctly (duplicated) and q1 incorrectly:
+    //   Without dedup: pointsEarned = 1 + 1 (q0 twice) = 2,
+    //                  pointsMax    = 1 + 1 (q0 twice) + 1 (q1) = 3 → round(2/3*100)=67
+    //   With dedup:    pointsEarned = 1 (q0 once),
+    //                  pointsMax    = 1 (q0) + 1 (q1) = 2 → round(1/2*100)=50
+    const refStudent = { id: 'r-dup-answer' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              // Exact duplicate of the q0 answer — simulates arrayUnion race.
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        activityData,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!responseCall) throw new Error('expected update on response ref');
+    // With the bug: score=round(2/3*100)=67. With the fix: round(1/2*100)=50.
+    expect((responseCall[1] as { score: number }).score).toBe(50);
+  });
 });
