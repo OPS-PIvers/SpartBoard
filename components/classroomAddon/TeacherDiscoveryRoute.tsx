@@ -62,7 +62,6 @@ import {
   AddonError,
   AddonSelect,
 } from './AddonShell';
-import { DueDatePicker } from './DueDatePicker';
 
 // The teacher/discovery iframe creates attachments → needs the teacher scope.
 // (The SpartBoard sign-in above grants Drive separately, via AuthContext.)
@@ -71,11 +70,6 @@ const ADDON_TEACHER_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/classroom.addons.teacher',
-  // Lets the attach flow PATCH the parent courseWork's due date so the date the
-  // teacher picks here becomes THE Classroom assignment due date (entered once).
-  // Sensitive scope, but the Orono OAuth consent screen is Internal, so it's
-  // exempt from verification/CASA.
-  'https://www.googleapis.com/auth/classroom.coursework.students',
 ].join(' ');
 
 // Conservative PLAYER defaults for an async Classroom attachment — mirrors the
@@ -94,8 +88,6 @@ const VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
 
 interface CreateAttachmentResult {
   attachmentId: string;
-  /** True iff the CF also synced the due date onto the parent courseWork. */
-  dueDateSynced?: boolean;
 }
 
 // Params the callable accepts. `quizCode` (quiz) and `sessionId`+`kind:'va'`
@@ -119,12 +111,6 @@ interface CreateAttachmentParams {
    * callable defaults to 100 when omitted (video-activity path).
    */
   maxPoints?: number;
-  /**
-   * Due date as epoch-ms (from the custom <DueDatePicker>). When present on a
-   * courseWork attachment, the callable PATCHes the parent courseWork's
-   * dueDate/dueTime so it shows as the Classroom assignment due date.
-   */
-  dueAtMs?: number;
 }
 
 type ContentKind = 'quiz' | 'va';
@@ -182,17 +168,14 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState('');
   const [attachmentId, setAttachmentId] = useState('');
-  // Whether the due date synced onto the Classroom assignment (null = no due
-  // date was set, so the success card stays silent about it). Surfaced durably
-  // on the success card so a failed/best-effort sync isn't lost when busy clears.
-  const [dueDateSynced, setDueDateSynced] = useState<boolean | null>(null);
 
   // ── Per-assignment settings (parity with the normal SpartBoard assign flow).
-  // All optional — a teacher can attach with no due date / no PLC. Class
-  // targeting is NOT here; it's auto-derived from the Classroom course link.
-  // `dueAt` is epoch-ms (or null = no due date), produced directly by the
-  // custom <DueDatePicker> — no datetime-local string parsing.
-  const [dueAt, setDueAt] = useState<number | null>(null);
+  // All optional — a teacher can attach with no PLC. Class targeting is NOT
+  // here; it's auto-derived from the Classroom course link. The due date is
+  // intentionally NOT collected here: an add-on cannot set the parent
+  // assignment's due date (Google restricts courseWork.patch to the project
+  // that created the coursework), so the teacher sets it once in Classroom's
+  // own composer — the same screen this iframe is embedded in.
   // Default the teacher name from the signed-in profile (used for PLC sheet
   // attribution). Falls back to the email local-part, then empty.
   const defaultTeacherName =
@@ -344,19 +327,12 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         addOnToken,
         origin: window.location.origin,
         title,
-        // Sync the picked due date onto the parent Classroom assignment.
-        ...(dueAt !== null ? { dueAtMs: dueAt } : {}),
         ...contentParams,
       });
       setAttachmentId(data.attachmentId);
-      // Record the due-date sync outcome so the success card can show it durably
-      // (a best-effort failure must not vanish when the busy spinner clears).
-      if (dueAt !== null) {
-        setDueDateSynced(data.dueDateSynced ?? false);
-      }
       return data.attachmentId;
     },
-    [append, courseId, itemId, itemType, addOnToken, loginHint, dueAt]
+    [append, courseId, itemId, itemType, addOnToken, loginHint]
   );
 
   // Build the PLC linkage when the teacher opted into "Share with PLC" and
@@ -462,7 +438,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         sessionMode,
         sessionOptions,
         attemptLimit,
-        ...(dueAt !== null ? { dueAt } : {}),
         ...(effectiveTeacherName ? { teacherName: effectiveTeacherName } : {}),
         ...(plcLinkage ? { plc: plcLinkage } : {}),
         ...(targeting.periodNames.length > 0
@@ -549,7 +524,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     courseId,
     itemId,
     kind,
-    dueAt,
     teacherName,
     defaultTeacherName,
   ]);
@@ -577,8 +551,8 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
     // Respect the activity's OWN configured behavior, mirroring the normal VA
     // assign flow: `sessionOptions` + `attemptLimit` come from the activity's
-    // behavior, and the optional due date is folded into `sessionOptions.dueAt`
-    // (that's where the VA runner reads it). `sessionSettings` (player
+    // behavior. The due date lives in Classroom (the teacher sets it in the
+    // native composer), so it is NOT folded in here. `sessionSettings` (player
     // behavior) has no home on `behavior`, so it stays the conservative
     // VA_SESSION_SETTINGS default the route already used. VA supports PLC
     // sharing exactly like the quiz path — the sheet creator (`buildPlcLinkage`)
@@ -588,7 +562,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const sessionOptions: VideoActivitySessionOptions = {
       ...behavior.sessionOptions,
       attemptLimit: behavior.attemptLimit,
-      ...(dueAt !== null ? { dueAt } : {}),
     };
 
     // Build the PLC linkage when the teacher opted into "Share with PLC" and
@@ -699,7 +672,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     courseId,
     itemId,
     kind,
-    dueAt,
     teacherName,
     defaultTeacherName,
   ]);
@@ -707,7 +679,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const runAttach = useCallback(async () => {
     setBusy(true);
     setErrorMsg(null);
-    setDueDateSynced(null);
     try {
       if (!courseId || !itemId) {
         append('Missing courseId/itemId in the URL.');
@@ -888,25 +859,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
               <div>
                 <label
-                  htmlFor="addon-due-date"
-                  className="mb-1.5 block text-sm font-medium text-slate-700"
-                >
-                  Due date{' '}
-                  <span className="font-normal text-slate-500">(optional)</span>
-                </label>
-                <DueDatePicker
-                  id="addon-due-date"
-                  value={dueAt}
-                  onChange={setDueAt}
-                  disabled={busy}
-                />
-                <p className="mt-1.5 text-xs text-slate-500">
-                  Also sets the due date on the Classroom assignment.
-                </p>
-              </div>
-
-              <div>
-                <label
                   htmlFor="addon-teacher-name"
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
@@ -988,17 +940,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                 Students can now open and complete this activity inside
                 Classroom.
               </p>
-              {dueDateSynced !== null && (
-                <p
-                  className={`mt-1 text-sm ${
-                    dueDateSynced ? 'text-slate-600' : 'text-amber-700'
-                  }`}
-                >
-                  {dueDateSynced
-                    ? 'Due date set on the Classroom assignment.'
-                    : 'Couldn’t set the Classroom due date automatically — set it in Classroom if you need one.'}
-                </p>
-              )}
             </div>
           </div>
         </AddonCard>
