@@ -208,6 +208,27 @@ describe('WrittenResponseEditor', () => {
     expect(fireEvent.cut(getEditor())).toBe(true);
   });
 
+  it('blocks drag-and-drop when blockClipboard is set, allows it otherwise', () => {
+    const { rerender } = render(
+      <WrittenResponseEditor
+        value=""
+        onChange={vi.fn()}
+        questionKey="q1"
+        blockClipboard
+      />
+    );
+    expect(
+      fireEvent.drop(getEditor(), { dataTransfer: { getData: () => 'x' } })
+    ).toBe(false);
+
+    rerender(
+      <WrittenResponseEditor value="" onChange={vi.fn()} questionKey="q2" />
+    );
+    expect(
+      fireEvent.drop(getEditor(), { dataTransfer: { getData: () => 'x' } })
+    ).toBe(true);
+  });
+
   it('disables editing and tab focus when disabled', () => {
     render(
       <WrittenResponseEditor

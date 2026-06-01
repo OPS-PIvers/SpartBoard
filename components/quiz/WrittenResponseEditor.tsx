@@ -269,6 +269,14 @@ const WrittenResponseEditorInner: React.FC<
     if (blockClipboard) e.preventDefault();
   };
 
+  // Drag-and-drop is the other channel for importing externally-composed text,
+  // so block native drops when clipboard is locked. In-app this also bubbles
+  // to QuizStudentApp's container guard, but keeping it here makes the editor
+  // self-contained for any other caller.
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    if (blockClipboard) e.preventDefault();
+  };
+
   const exec = (command: string) => {
     if (disabled) return;
     editorRef.current?.focus();
@@ -368,6 +376,7 @@ const WrittenResponseEditorInner: React.FC<
           onPaste={handlePaste}
           onCopy={handleClipboardCopyCut}
           onCut={handleClipboardCopyCut}
+          onDrop={handleDrop}
           spellCheck
           className={`w-full px-5 py-4 bg-slate-800 border-2 border-t-0 ${
             disabled
