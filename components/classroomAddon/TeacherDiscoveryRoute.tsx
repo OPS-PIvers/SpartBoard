@@ -71,6 +71,11 @@ const ADDON_TEACHER_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/classroom.addons.teacher',
+  // Lets the attach flow PATCH the parent courseWork's due date so the date the
+  // teacher picks here becomes THE Classroom assignment due date (entered once).
+  // Sensitive scope, but the Orono OAuth consent screen is Internal, so it's
+  // exempt from verification/CASA.
+  'https://www.googleapis.com/auth/classroom.coursework.students',
 ].join(' ');
 
 // Conservative PLAYER defaults for an async Classroom attachment — mirrors the
@@ -89,6 +94,8 @@ const VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
 
 interface CreateAttachmentResult {
   attachmentId: string;
+  /** True iff the CF also synced the due date onto the parent courseWork. */
+  dueDateSynced?: boolean;
 }
 
 // Params the callable accepts. `quizCode` (quiz) and `sessionId`+`kind:'va'`
@@ -112,6 +119,12 @@ interface CreateAttachmentParams {
    * callable defaults to 100 when omitted (video-activity path).
    */
   maxPoints?: number;
+  /**
+   * Due date as epoch-ms (from the custom <DueDatePicker>). When present on a
+   * courseWork attachment, the callable PATCHes the parent courseWork's
+   * dueDate/dueTime so it shows as the Classroom assignment due date.
+   */
+  dueAtMs?: number;
 }
 
 type ContentKind = 'quiz' | 'va';
@@ -327,12 +340,22 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         addOnToken,
         origin: window.location.origin,
         title,
+        // Sync the picked due date onto the parent Classroom assignment.
+        ...(dueAt !== null ? { dueAtMs: dueAt } : {}),
         ...contentParams,
       });
       setAttachmentId(data.attachmentId);
+      if (dueAt !== null) {
+        append(
+          data.dueDateSynced
+            ? 'Set the Classroom assignment due date.'
+            : "Couldn't set the Classroom due date automatically — set it in " +
+                'Classroom if you need one.'
+        );
+      }
       return data.attachmentId;
     },
-    [append, courseId, itemId, itemType, addOnToken, loginHint]
+    [append, courseId, itemId, itemType, addOnToken, loginHint, dueAt]
   );
 
   // Build the PLC linkage when the teacher opted into "Share with PLC" and

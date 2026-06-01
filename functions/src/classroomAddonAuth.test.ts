@@ -466,7 +466,7 @@ describe('classroomAddonLoginV1 (spike)', () => {
 // never be able to create an attachment.
 const callAttach = createClassroomAttachment as unknown as (req: {
   data: unknown;
-}) => Promise<{ attachmentId: string }>;
+}) => Promise<{ attachmentId: string; dueDateSynced?: boolean }>;
 
 const TEACHER_CTX = {
   ok: true,
@@ -691,6 +691,77 @@ describe('createClassroomAttachment (spike)', () => {
       code: 'internal',
     });
   });
+
+  it('PATCHes the parent courseWork due date (UTC) when dueAtMs is provided', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'createAttachment').mockResolvedValue({
+      ok: true,
+      status: 200,
+      id: 'ATT123',
+    });
+    const dueSpy = vi
+      .spyOn(classroomAddonNet, 'patchCourseWorkDueDate')
+      .mockResolvedValue({ ok: true, status: 200 });
+
+    // A fixed absolute instant: 2026-06-04 20:06 UTC. The CF extracts the UTC
+    // wall-clock, so the asserted fields are timezone-independent.
+    const dueAtMs = Date.UTC(2026, 5, 4, 20, 6, 0, 0);
+    const res = await callAttach({ data: { ...attachData, dueAtMs } });
+
+    expect(res.attachmentId).toBe('ATT123');
+    expect(res.dueDateSynced).toBe(true);
+    // courseWorkId == itemId; month is 1-based for the Classroom API.
+    expect(dueSpy).toHaveBeenCalledWith(
+      'teacher-at',
+      'C1',
+      'I1',
+      { year: 2026, month: 6, day: 4 },
+      { hours: 20, minutes: 6 }
+    );
+  });
+
+  it('does NOT patch the due date when dueAtMs is absent', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'createAttachment').mockResolvedValue({
+      ok: true,
+      status: 200,
+      id: 'ATT123',
+    });
+    const dueSpy = vi.spyOn(classroomAddonNet, 'patchCourseWorkDueDate');
+
+    const res = await callAttach({ data: attachData });
+
+    expect(res.attachmentId).toBe('ATT123');
+    expect(dueSpy).not.toHaveBeenCalled();
+  });
+
+  it('keeps the attachment when the due-date patch fails (non-fatal)', async () => {
+    vi.spyOn(classroomAddonNet, 'fetchAddOnContext').mockResolvedValue(
+      TEACHER_CTX
+    );
+    vi.spyOn(classroomAddonNet, 'createAttachment').mockResolvedValue({
+      ok: true,
+      status: 200,
+      id: 'ATT123',
+    });
+    vi.spyOn(classroomAddonNet, 'patchCourseWorkDueDate').mockResolvedValue({
+      ok: false,
+      status: 403,
+    });
+
+    const res = await callAttach({
+      data: { ...attachData, dueAtMs: Date.UTC(2026, 5, 4, 20, 6, 0, 0) },
+    });
+
+    // The attachment is created regardless; only the optional due-date sync
+    // failed (e.g. missing scope) — the attach flow does not throw.
+    expect(res.attachmentId).toBe('ATT123');
+    expect(res.dueDateSynced).toBe(false);
+  });
 });
 
 // Regression: every other test stubs fetchAddOnContext wholesale, so the real
@@ -802,6 +873,43 @@ describe('classroomAddonNet.patchStudentSubmissionGrade URL construction', () =>
     );
     expect(calledInit.method).toBe('PATCH');
     expect(JSON.parse(calledInit.body ?? '{}')).toEqual({ pointsEarned: 8 });
+    vi.unstubAllGlobals();
+  });
+});
+
+// The courseWork due-date PATCH seam used to sync the add-on picker's date onto
+// the parent assignment. The createClassroomAttachment tests stub this seam, so
+// this standalone test pins the real URL/updateMask/body it builds against a
+// stubbed fetch (mirrors the addOnContext / studentSubmissions URL tests).
+describe('classroomAddonNet.patchCourseWorkDueDate URL construction', () => {
+  it('issues the correct courseWork PATCH URL, updateMask, and body (real seam)', async () => {
+    let calledUrl = '';
+    let calledInit: { method?: string; body?: string } = {};
+    const fetchMock = vi.fn(async (url: unknown, init: unknown) => {
+      calledUrl = url as string;
+      calledInit = init as { method?: string; body?: string };
+      return { ok: true, status: 200, json: async () => ({}) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await classroomAddonNet.patchCourseWorkDueDate(
+      'tok',
+      'C1',
+      'I1',
+      { year: 2026, month: 6, day: 4 },
+      { hours: 20, minutes: 6 }
+    );
+
+    expect(result).toEqual({ ok: true, status: 200 });
+    expect(calledUrl).toBe(
+      'https://classroom.googleapis.com/v1/courses/C1/courseWork/I1' +
+        '?updateMask=dueDate,dueTime'
+    );
+    expect(calledInit.method).toBe('PATCH');
+    expect(JSON.parse(calledInit.body ?? '{}')).toEqual({
+      dueDate: { year: 2026, month: 6, day: 4 },
+      dueTime: { hours: 20, minutes: 6 },
+    });
     vi.unstubAllGlobals();
   });
 });
