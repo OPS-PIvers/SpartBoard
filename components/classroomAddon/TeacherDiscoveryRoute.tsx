@@ -60,6 +60,7 @@ import {
   AddonButton,
   AddonStatus,
   AddonError,
+  AddonSelect,
 } from './AddonShell';
 import { DueDatePicker } from './DueDatePicker';
 
@@ -732,9 +733,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     { value: 'va', label: 'Video Activity', icon: Video },
   ];
 
-  const selectClassName =
-    'w-full rounded-xl border border-white/15 bg-slate-900/50 px-3 py-2.5 text-sm text-white transition focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50';
-
   return (
     <AddonShell>
       <AddonHeader
@@ -797,52 +795,50 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
           {/* Library picker */}
           <AddonCard className="p-4">
-            <label className="block">
-              <span className="mb-1.5 block text-sm font-medium text-slate-300">
-                {kind === 'quiz' ? 'Quiz' : 'Video Activity'}
-              </span>
-              {kind === 'quiz' ? (
-                <select
-                  value={selectedQuizId}
-                  onChange={(e) => setSelectedQuizId(e.target.value)}
-                  disabled={busy || quizzesLoading}
-                  className={selectClassName}
-                >
-                  <option value="">
-                    {quizzesLoading
-                      ? 'Loading your quizzes…'
-                      : quizzes.length === 0
-                        ? 'No quizzes in your library yet'
-                        : 'Select a quiz…'}
-                  </option>
-                  {quizzes.map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {q.title}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <select
-                  value={selectedActivityId}
-                  onChange={(e) => setSelectedActivityId(e.target.value)}
-                  disabled={busy || activitiesLoading}
-                  className={selectClassName}
-                >
-                  <option value="">
-                    {activitiesLoading
-                      ? 'Loading your video activities…'
-                      : activities.length === 0
-                        ? 'No video activities in your library yet'
-                        : 'Select a video activity…'}
-                  </option>
-                  {activities.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.title}
-                    </option>
-                  ))}
-                </select>
-              )}
+            <label
+              htmlFor={
+                kind === 'quiz' ? 'addon-quiz-select' : 'addon-va-select'
+              }
+              className="mb-1.5 block text-sm font-medium text-slate-300"
+            >
+              {kind === 'quiz' ? 'Quiz' : 'Video Activity'}
             </label>
+            {kind === 'quiz' ? (
+              <AddonSelect
+                id="addon-quiz-select"
+                ariaLabel="Quiz"
+                value={selectedQuizId}
+                onChange={setSelectedQuizId}
+                disabled={busy || quizzesLoading}
+                placeholder={
+                  quizzesLoading
+                    ? 'Loading your quizzes…'
+                    : quizzes.length === 0
+                      ? 'No quizzes in your library yet'
+                      : 'Select a quiz…'
+                }
+                options={quizzes.map((q) => ({ value: q.id, label: q.title }))}
+              />
+            ) : (
+              <AddonSelect
+                id="addon-va-select"
+                ariaLabel="Video Activity"
+                value={selectedActivityId}
+                onChange={setSelectedActivityId}
+                disabled={busy || activitiesLoading}
+                placeholder={
+                  activitiesLoading
+                    ? 'Loading your video activities…'
+                    : activities.length === 0
+                      ? 'No video activities in your library yet'
+                      : 'Select a video activity…'
+                }
+                options={activities.map((a) => ({
+                  value: a.id,
+                  label: a.title,
+                }))}
+              />
+            )}
           </AddonCard>
 
           {/* Per-assignment settings — parity with the normal SpartBoard
@@ -929,20 +925,17 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                     Share results with a PLC
                   </label>
                   {plcShareEnabled && (
-                    <select
+                    <AddonSelect
+                      ariaLabel="PLC to share results with"
                       value={selectedPlcId}
-                      onChange={(e) => setSelectedPlcId(e.target.value)}
+                      onChange={setSelectedPlcId}
                       disabled={busy}
-                      aria-label="PLC to share results with"
-                      className={selectClassName}
-                    >
-                      <option value="">Select a PLC…</option>
-                      {plcs.map((p) => (
-                        <option key={p.id} value={p.id}>
-                          {p.name}
-                        </option>
-                      ))}
-                    </select>
+                      placeholder="Select a PLC…"
+                      options={plcs.map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                      }))}
+                    />
                   )}
                 </div>
               )}

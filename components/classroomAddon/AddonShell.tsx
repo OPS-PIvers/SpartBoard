@@ -11,8 +11,15 @@
  * spike-era debug tables / log panels live here; raw diagnostics are confined to
  * <AddonDevPanel>, which renders only in DEV builds.
  */
-import React from 'react';
-import { Loader2, AlertTriangle, type LucideIcon } from 'lucide-react';
+import React, { useRef, useState } from 'react';
+import {
+  Loader2,
+  AlertTriangle,
+  ChevronDown,
+  Check,
+  type LucideIcon,
+} from 'lucide-react';
+import { useClickOutside } from '@/hooks/useClickOutside';
 
 /**
  * Full-bleed branded page wrapper. Fills the Classroom iframe, paints the calm
@@ -153,3 +160,114 @@ export const AddonError: React.FC<{ message: string | null }> = ({
       <span className="min-w-0 break-words">{message}</span>
     </div>
   ) : null;
+
+export interface AddonSelectOption {
+  value: string;
+  label: string;
+}
+
+/**
+ * Brand-styled single-select dropdown. A native `<select>`'s open option list is
+ * OS-rendered (unstyled, overflows the control, jarring against the dark glass),
+ * so this is a custom listbox: a glass trigger + a popover that is pinned to the
+ * trigger's width (`left-0 right-0`) and scrolls (`max-h-60`) instead of
+ * spilling past its container. Click-outside + Escape close it; long labels
+ * truncate. Empty option lists show a muted placeholder row rather than a
+ * zero-height popup.
+ */
+export const AddonSelect: React.FC<{
+  value: string;
+  onChange: (value: string) => void;
+  options: AddonSelectOption[];
+  placeholder: string;
+  disabled?: boolean;
+  id?: string;
+  ariaLabel?: string;
+}> = ({
+  value,
+  onChange,
+  options,
+  placeholder,
+  disabled = false,
+  id,
+  ariaLabel,
+}) => {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+  useClickOutside(ref, () => setOpen(false));
+  const selected = options.find((o) => o.value === value) ?? null;
+
+  return (
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        id={id}
+        aria-label={ariaLabel}
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        disabled={disabled}
+        onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === 'Escape') setOpen(false);
+          else if (e.key === 'ArrowDown' && !open) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
+        className="flex w-full items-center gap-2 rounded-xl border border-white/15 bg-slate-900/50 px-3.5 py-2.5 text-left text-sm transition hover:bg-slate-900/70 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span
+          className={`min-w-0 flex-1 truncate ${selected ? 'text-white' : 'text-slate-500'}`}
+        >
+          {selected ? selected.label : placeholder}
+        </span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        />
+      </button>
+
+      {open && (
+        <ul
+          role="listbox"
+          aria-label={ariaLabel}
+          className="absolute left-0 right-0 z-50 mt-2 max-h-60 overflow-y-auto rounded-xl border border-white/10 bg-slate-800/95 p-1 shadow-2xl shadow-black/50 backdrop-blur-xl"
+        >
+          {options.length === 0 ? (
+            <li className="px-3 py-2 text-sm text-slate-500">
+              Nothing to choose yet
+            </li>
+          ) : (
+            options.map((o) => {
+              const active = o.value === value;
+              return (
+                <li key={o.value} role="option" aria-selected={active}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onChange(o.value);
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition ${
+                      active
+                        ? 'bg-brand-blue-primary/20 text-white'
+                        : 'text-slate-200 hover:bg-white/10'
+                    }`}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{o.label}</span>
+                    {active && (
+                      <Check
+                        className="h-4 w-4 shrink-0 text-brand-blue-light"
+                        aria-hidden="true"
+                      />
+                    )}
+                  </button>
+                </li>
+              );
+            })
+          )}
+        </ul>
+      )}
+    </div>
+  );
+};
