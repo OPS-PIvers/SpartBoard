@@ -725,6 +725,24 @@ describe('checkUrlCompatibility', () => {
     expect(mockHead).not.toHaveBeenCalled();
   });
 
+  it('blocks IPv4-compatible IPv6 address [::127.0.0.1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler(
+        { url: 'https://[::127.0.0.1]/internal' },
+        { auth: { uid: '123' } }
+      )
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
   it('blocks ULA IPv6 range [fc00::1] to prevent SSRF', async () => {
     const mockHead = vi.mocked(axios.head);
     mockHead.mockResolvedValue({ headers: {} });
