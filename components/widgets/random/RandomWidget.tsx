@@ -203,6 +203,16 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
   const soundEnabledRef = useRef(soundEnabled);
   soundEnabledRef.current = soundEnabled;
 
+  // Ref kept in sync with the latest `activeDashboard` value on every render.
+  // performUpdate (defined inside handlePick) closes over `activeDashboard` at
+  // click time. For flash/slots mode the deferred setInterval fires ~1.7 s
+  // later; if the dashboard mutated in the interim (Firestore update, widget
+  // added/removed) the stale snapshot would cause autoStartTimer to target the
+  // wrong time-tool widget. Reading from this ref instead guarantees we always
+  // act on the current dashboard state when performUpdate fires.
+  const activeDashboardRef = useRef(activeDashboard);
+  activeDashboardRef.current = activeDashboard;
+
   // Sync displayResult when config.lastResult changes (e.g. mode switch clears
   // it) using the "adjusting state while rendering" pattern. Doing this in a
   // useEffect would leave displayResult stale for one render, which crashed
@@ -938,7 +948,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             name: `Group ${i + 1}`,
           }));
 
-          const existing = activeDashboard?.sharedGroups ?? [];
+          const existing = activeDashboardRef.current?.sharedGroups ?? [];
           // IDs that are being reused on this randomize carry the user's
           // rename + color — never drop those, only prune the truly dead
           // ones (e.g. group count went from 6 → 4 and the last 2 ids
@@ -974,8 +984,11 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
         updateWidget(widget.id, { config: updates as WidgetConfig });
 
         // Nexus: Auto-Start Timer Logic
-        if (autoStartTimer && activeDashboard && mode === 'single') {
-          const timeWidget = activeDashboard.widgets.find(
+        // Read from activeDashboardRef so we always act on the current
+        // dashboard state, not the stale snapshot captured at click time.
+        const liveDashboard = activeDashboardRef.current;
+        if (autoStartTimer && liveDashboard && mode === 'single') {
+          const timeWidget = liveDashboard.widgets.find(
             (w) => w.type === 'time-tool'
           );
 
@@ -1235,7 +1248,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             id: g.id ?? '',
             name: `Expert Group ${i + 1}`,
           }));
-          const existing = activeDashboard?.sharedGroups ?? [];
+          const existing = activeDashboardRef.current?.sharedGroups ?? [];
           // Preserve user renames/colors on ids that survive — only drop
           // entries for ids that vanished entirely on this regenerate.
           const newIdSet = new Set(
