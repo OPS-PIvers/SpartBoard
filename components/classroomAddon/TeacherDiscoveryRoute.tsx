@@ -23,7 +23,7 @@
  *        - Quiz → `/classroom-addon/student?code=<code>`
  *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, functions } from '@/config/firebase';
@@ -164,6 +164,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const [statusMsg, setStatusMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Stable, instance-unique ids for label/control pairing so two mounts of
+  // this route on the same page can't collide on a hardcoded string id.
+  const librarySelectId = useId();
+  const teacherNameId = useId();
   const [kind, setKind] = useState<ContentKind>('quiz');
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState('');
@@ -792,16 +797,14 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
           {/* Library picker */}
           <AddonCard className="p-4">
             <label
-              htmlFor={
-                kind === 'quiz' ? 'addon-quiz-select' : 'addon-va-select'
-              }
+              htmlFor={librarySelectId}
               className="mb-1.5 block text-sm font-medium text-slate-700"
             >
               {kind === 'quiz' ? 'Quiz' : 'Video Activity'}
             </label>
             {kind === 'quiz' ? (
               <AddonSelect
-                id="addon-quiz-select"
+                id={librarySelectId}
                 ariaLabel="Quiz"
                 value={selectedQuizId}
                 onChange={setSelectedQuizId}
@@ -817,7 +820,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
               />
             ) : (
               <AddonSelect
-                id="addon-va-select"
+                id={librarySelectId}
                 ariaLabel="Video Activity"
                 value={selectedActivityId}
                 onChange={setSelectedActivityId}
@@ -859,7 +862,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
               <div>
                 <label
-                  htmlFor="addon-teacher-name"
+                  htmlFor={teacherNameId}
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Your name{' '}
@@ -868,7 +871,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   </span>
                 </label>
                 <input
-                  id="addon-teacher-name"
+                  id={teacherNameId}
                   type="text"
                   value={teacherName}
                   onChange={(e) => setTeacherName(e.target.value)}

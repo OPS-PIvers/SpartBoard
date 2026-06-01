@@ -201,7 +201,18 @@ export const AddonSelect: React.FC<{
   const selected = options.find((o) => o.value === value) ?? null;
 
   return (
-    <div className="relative" ref={ref}>
+    <div
+      className="relative"
+      ref={ref}
+      onBlur={(e) => {
+        // useClickOutside only handles pointer dismissals; close on keyboard
+        // tab-out too, so the popover doesn't linger when focus leaves the
+        // control entirely (relatedTarget outside this subtree).
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+          setOpen(false);
+        }
+      }}
+    >
       <button
         type="button"
         id={id}
