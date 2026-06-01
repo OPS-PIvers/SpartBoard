@@ -1,6 +1,93 @@
 {
   "entries": [
     {
+      "version": "2026.06.01.2",
+      "date": "2026-06-01",
+      "title": "Classroom grading and student-app polish",
+      "overview": [
+        {
+          "type": "feature",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Open a student's attached SpartBoard quiz from Google Classroom and grade it — written responses included — right inside Classroom, then send the grades to your gradebook."
+            }
+          ]
+        },
+        {
+          "type": "feature",
+          "subtitle": "Quiz integrity",
+          "items": [
+            {
+              "text": "A new Block Copy & Paste setting stops students from copying, cutting, or pasting in the quiz prompt and answer fields."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "Google Classroom",
+          "items": [
+            {
+              "text": "Students who finish a self-paced quiz attached to Classroom now see their results as soon as you publish, instead of waiting for you to end the quiz."
+            },
+            {
+              "text": "The SpartBoard screens that appear inside Classroom — for both you and your students — have been redesigned to be clean and on-brand."
+            }
+          ]
+        },
+        {
+          "type": "improvement",
+          "subtitle": "A lighter student look",
+          "items": [
+            {
+              "text": "Self-paced quizzes and video activities now use a clean, bright light theme; your live, teacher-paced quizzes keep their bold dark look."
+            }
+          ]
+        },
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Grades you send from a Classroom quiz now reach your gradebook reliably."
+            },
+            {
+              "text": "A student who already finished a Classroom quiz is taken to their results instead of a \"talk to your teacher\" dead end."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "feature",
+          "text": "Grade quizzes right inside Google Classroom. When you open a student's attached SpartBoard quiz from a Classroom assignment, you now get a grading view inside Classroom — see every student, grade their written responses, publish scores, and send grades to your Classroom gradebook, all without leaving Classroom to go back to your board. Grades arrive in Classroom as drafts that you finish returning with Classroom's own grading tool. (Video activities still open in SpartBoard for review.)"
+        },
+        {
+          "type": "feature",
+          "text": "Block Copy & Paste for quizzes. A new test-integrity setting in your quiz settings — just under Tab Switch Detection — stops students from copying, cutting, or pasting in the quiz prompt and answer fields. Turn it on to keep a student from switching to another tab, composing or AI-generating an answer, and pasting a block of text back in. It's off by default, so your existing quizzes behave exactly as before."
+        },
+        {
+          "type": "improvement",
+          "text": "Students see their Classroom quiz results without waiting. A student who finishes a self-paced quiz attached to Google Classroom now sees their published results right away, as soon as you've published scores, instead of being stranded on a \"waiting for your teacher to end the quiz\" screen. Their button reads \"View results\" once grades are published."
+        },
+        {
+          "type": "improvement",
+          "text": "A cleaner, lighter look for self-paced student work. The screens students see when they take a self-paced quiz or video activity on their own time — including through Google Classroom — now use a clean, bright light theme that matches the rest of the student and sign-in experience. Your live, teacher-paced quizzes keep their bold, immersive dark game-show look."
+        },
+        {
+          "type": "improvement",
+          "text": "A polished Google Classroom experience. The SpartBoard screens that appear inside Google Classroom — both the setup screen you see when attaching an activity and the screen your students open — have been redesigned to be clean, readable, and on-brand, with all developer and debug information removed."
+        },
+        {
+          "type": "fix",
+          "text": "Grades sent from a Classroom quiz now reach your gradebook reliably. Previously a grade could silently fail to post back to Google Classroom; sending grades now works as expected."
+        },
+        {
+          "type": "fix",
+          "text": "Students who already finished a Classroom quiz no longer hit a dead end. A student who had completed an active quiz attached to Classroom used to see a \"you've already taken this quiz, talk to your teacher\" message; they're now taken straight to their published results. A student who has used up their attempts sees a clear locked screen inside Classroom rather than being bounced out, and the screenshot watermark on a results screen now identifies the student by name."
+        }
+      ]
+    },
+    {
       "version": "2026.06.01",
       "date": "2026-06-01",
       "title": "Delete key, scoring, and translation fixes",
