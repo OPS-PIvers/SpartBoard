@@ -85,6 +85,13 @@ interface ClassroomAddonLoginResult {
   studentRole: boolean;
   customToken?: string;
   submissionId?: string;
+  /**
+   * Transient display name (roster-resolved, else Google userinfo) for the
+   * results watermark. The studentRole session is otherwise nameless, so
+   * without this the watermark falls back to a generic "Student" label. Never
+   * persisted — held in component state only and passed to the runner.
+   */
+  displayName?: string;
 }
 
 interface SessionInfo {
@@ -141,6 +148,10 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   // and re-verifies identity, so a stale hint (shared device) self-corrects to
   // the right runner screen.
   const [resultsReady, setResultsReady] = useState(false);
+  // Transient display name from the handshake (roster-resolved, else userinfo).
+  // Passed to the runner so the results watermark can identify this student —
+  // the studentRole session itself carries no name. Never persisted.
+  const [studentName, setStudentName] = useState<string | null>(null);
 
   const append = useCallback((line: string) => {
     setStatusMsg(line);
@@ -277,6 +288,9 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
       append(
         `submissionId=${data.submissionId}. Signing in with custom token…`
       );
+      // Capture the transient watermark name BEFORE sign-in so it's ready when
+      // the runner mounts. Held in state only — never persisted.
+      if (data.displayName) setStudentName(data.displayName);
       await signInWithCustomToken(auth, data.customToken);
       append('Signed in.');
       setHandshakeDone(true);
@@ -336,7 +350,14 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
           </FullPage>
         }
       >
-        <QuizStudentApp />
+        {/* embedded: this runs inside Classroom's add-on iframe, so the results
+            lockout must show an in-iframe message instead of redirecting to the
+            standalone /my-assignments page. watermarkNameOverride identifies the
+            otherwise-nameless studentRole session on the results watermark. */}
+        <QuizStudentApp
+          embedded
+          watermarkNameOverride={studentName ?? undefined}
+        />
       </Suspense>
     );
   }

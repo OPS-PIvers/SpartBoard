@@ -213,4 +213,53 @@ describe('QuizStudentApp — published results on an active (self-paced) session
     expect(await screen.findByText('Your Results')).toBeInTheDocument();
     expect(mockSubscribeForReview).toHaveBeenCalledWith('ABC123');
   });
+
+  it('labels the results watermark with watermarkNameOverride (nameless Classroom SSO session)', async () => {
+    // The Classroom studentRole session has no displayName, so the add-on
+    // passes the roster/userinfo name down. The override must win over the
+    // auth displayName ("Test Student" from beforeEach) so the watermark
+    // identifies the actual student.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-only',
+      scorePublishedAt: 1717200000000,
+      protection: {
+        watermarkEnabled: true,
+        tabWarningEnabled: false,
+        tabWarningThreshold: 3,
+      },
+    });
+    hookState.myResponse = buildResponse({ status: 'completed' });
+
+    render(<QuizStudentApp embedded watermarkNameOverride="Ada Lovelace" />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    // Watermark label is `${name} • ${timestamp}` in an SVG <text> node.
+    expect(screen.getByText(/Ada Lovelace/)).toBeInTheDocument();
+    expect(screen.queryByText(/Test Student/)).not.toBeInTheDocument();
+  });
+
+  it('shows an in-iframe lockout screen (no /my-assignments redirect) when embedded', async () => {
+    // A locked-out student inside the Classroom iframe must see an in-iframe
+    // "Results locked" message — NOT a redirect to the standalone
+    // /my-assignments page, which the partitioned iframe can't host.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-only',
+      protection: {
+        watermarkEnabled: false,
+        tabWarningEnabled: true,
+        tabWarningThreshold: 3,
+      },
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      resultsLockedOut: true,
+      resultsTabWarnings: 3,
+      _responseKey: 'sso-uid-1',
+    });
+
+    render(<QuizStudentApp embedded />);
+
+    expect(await screen.findByText('Results locked')).toBeInTheDocument();
+    expect(screen.queryByText('Your Results')).not.toBeInTheDocument();
+  });
 });

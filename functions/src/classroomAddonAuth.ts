@@ -91,6 +91,10 @@ interface GoogleUserInfo {
   email?: string;
   email_verified?: boolean;
   hd?: string;
+  // Full display name (present when the `userinfo.profile` scope is granted —
+  // the student view requests it). Used ONLY as a transient watermark label,
+  // returned to the student's own client; never persisted (PII gate).
+  name?: string;
 }
 
 /** OneRoster student shape (subset) — mirrors index.ts's ClassLinkStudent. */
@@ -548,6 +552,11 @@ export const classroomAddonLoginV1 = onCall(
     //    pseudonym scoped to the Google courseId — works, but nameless.
     let uid: string | null = null;
     let classIds: string[] = [`classroom:${courseId}`];
+    // Transient display name for the results watermark. Roster-resolved name
+    // (ClassLink givenName/familyName) is preferred; the Google userinfo name is
+    // the fallback. Returned to the student's OWN client only — never persisted
+    // (the claims + grade-sync key stay nameless, preserving the PII gate).
+    let displayName: string | null = null;
     // The teacher who linked this course owns the OFFLINE Google creds the
     // grade-passback push uses. Captured here (PII-free — it's a Firebase uid)
     // so it can be persisted alongside the grade-sync key.
@@ -575,6 +584,12 @@ export const classroomAddonLoginV1 = onCall(
         if (match?.sourcedId) {
           uid = computeStudentUid(match.sourcedId, hmacSecret);
           classIds = [link.classlinkClassId];
+          // Roster-resolved name for the watermark (transient; not persisted).
+          const rosterName = [match.givenName, match.familyName]
+            .filter((p): p is string => typeof p === 'string' && p.length > 0)
+            .join(' ')
+            .trim();
+          if (rosterName) displayName = rosterName;
         } else {
           console.warn(
             '[classroomAddonLoginV1] linked course but student email not in ' +
@@ -598,6 +613,11 @@ export const classroomAddonLoginV1 = onCall(
         `classroom-sub:${info.sub}`,
         hmacSecret
       ).toString(CryptoJS.enc.Hex);
+    }
+    // Fall back to the Google userinfo name when the roster bridge didn't
+    // resolve one (unlinked course, or student not in the OneRoster roster).
+    if (!displayName && typeof info.name === 'string') {
+      displayName = info.name.trim() || null;
     }
 
     // 3b. Persist the PII-free grade-sync key so a later completion can push a
@@ -646,6 +666,9 @@ export const classroomAddonLoginV1 = onCall(
       studentRole: true,
       customToken,
       submissionId,
+      // Transient watermark label for the student's own results view. Omitted
+      // when neither the roster nor userinfo yielded a name.
+      ...(displayName ? { displayName } : {}),
     };
   }
 );

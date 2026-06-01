@@ -98,7 +98,26 @@ const WrittenResponseEditor = React.lazy(() =>
 
 // ─── Root component ───────────────────────────────────────────────────────────
 
-export const QuizStudentApp: React.FC = () => {
+interface QuizStudentAppProps {
+  /**
+   * True when rendered inside the Google Classroom add-on iframe. Changes the
+   * results lockout to an in-iframe "see your teacher" screen instead of
+   * redirecting to the standalone /my-assignments page (which isn't designed
+   * for the partitioned iframe). Threaded down to the results screens.
+   */
+  embedded?: boolean;
+  /**
+   * Watermark label for the otherwise-nameless studentRole (Classroom SSO)
+   * session. Standalone routes (/join, /quiz, /my-assignments) leave this unset
+   * and fall back to the auth displayName / PIN.
+   */
+  watermarkNameOverride?: string;
+}
+
+export const QuizStudentApp: React.FC<QuizStudentAppProps> = ({
+  embedded = false,
+  watermarkNameOverride,
+}) => {
   // preview mode — see hooks/usePreviewMode
   const previewMode = usePreviewMode();
 
@@ -167,7 +186,13 @@ export const QuizStudentApp: React.FC = () => {
     );
   }
 
-  return <QuizJoinFlow isStudentRole={isStudentRole} />;
+  return (
+    <QuizJoinFlow
+      isStudentRole={isStudentRole}
+      embedded={embedded}
+      watermarkNameOverride={watermarkNameOverride}
+    />
+  );
 };
 
 // ─── Preview lobby ────────────────────────────────────────────────────────────
@@ -234,9 +259,11 @@ const QuizPreviewLobby: React.FC = () => {
 
 // ─── Join flow ────────────────────────────────────────────────────────────────
 
-const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
-  isStudentRole,
-}) => {
+const QuizJoinFlow: React.FC<{
+  isStudentRole: boolean;
+  embedded: boolean;
+  watermarkNameOverride?: string;
+}> = ({ isStudentRole, embedded, watermarkNameOverride }) => {
   const params = new URLSearchParams(window.location.search);
   const urlCode = params.get('code') ?? '';
 
@@ -677,6 +704,8 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
           myResponse={myResponse}
           visibility={publishedVisibility}
           pin={pin}
+          embedded={embedded}
+          watermarkNameOverride={watermarkNameOverride}
         />
       );
     }
@@ -753,6 +782,8 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
       totalQuestions={session.totalQuestions}
       pin={pin}
       myStudentUid={myResponse?.studentUid}
+      embedded={embedded}
+      watermarkNameOverride={watermarkNameOverride}
     />
   );
 };
@@ -2791,6 +2822,9 @@ const ResultsScreen: React.FC<{
   pin: string;
   /** Auth uid — used by `StudentLeaderboard` to highlight the SSO student's row. */
   myStudentUid?: string;
+  /** Forwarded to PublishedScoreReview — see QuizStudentAppProps. */
+  embedded?: boolean;
+  watermarkNameOverride?: string;
 }> = ({
   session,
   myResponse,
@@ -2798,6 +2832,8 @@ const ResultsScreen: React.FC<{
   totalQuestions,
   pin,
   myStudentUid,
+  embedded = false,
+  watermarkNameOverride,
 }) => {
   const visibility = session.scoreVisibility ?? 'none';
   const showReview = visibility !== 'none' && !!myResponse;
@@ -2809,6 +2845,8 @@ const ResultsScreen: React.FC<{
         myResponse={myResponse}
         visibility={visibility}
         pin={pin}
+        embedded={embedded}
+        watermarkNameOverride={watermarkNameOverride}
       />
     );
   }
@@ -2884,7 +2922,25 @@ const PublishedScoreReview: React.FC<{
   >;
   visibility: NonNullable<QuizSession['scoreVisibility']>;
   pin: string;
-}> = ({ session, myResponse, visibility, pin }) => {
+  /**
+   * Inside the Classroom add-on iframe: on tab-warning lockout, render an
+   * in-iframe "see your teacher" screen instead of redirecting to the
+   * standalone /my-assignments page (which the partitioned iframe can't host).
+   */
+  embedded?: boolean;
+  /**
+   * Watermark label for the nameless Classroom SSO session. Falls back to the
+   * auth displayName / PIN / "Student" when unset (standalone routes).
+   */
+  watermarkNameOverride?: string;
+}> = ({
+  session,
+  myResponse,
+  visibility,
+  pin,
+  embedded = false,
+  watermarkNameOverride,
+}) => {
   const showResponses =
     visibility === 'score-and-responses' ||
     visibility === 'score-responses-and-answers';
@@ -2933,15 +2989,20 @@ const PublishedScoreReview: React.FC<{
   // listener will swap in the real publish time on its next snapshot.
   const [fallbackPublishedAt] = useState(() => Date.now());
   const publishedAt = session.scorePublishedAt ?? fallbackPublishedAt;
-  // Treat blank/whitespace-only displayName as missing so we still fall through
-  // to the PIN label when an SSO provider returns an empty string.
+  // Prefer an explicit override (the Classroom SSO session is nameless, so the
+  // add-on passes the roster-resolved / userinfo name down). Otherwise treat a
+  // blank/whitespace-only displayName as missing and fall through to the PIN
+  // label, then a generic "Student".
+  const trimmedOverride = watermarkNameOverride?.trim() ?? '';
   const trimmedDisplayName = auth.currentUser?.displayName?.trim() ?? '';
   const watermarkStudentName =
-    trimmedDisplayName.length > 0
-      ? trimmedDisplayName
-      : pin
-        ? `PIN ${pin}`
-        : 'Student';
+    trimmedOverride.length > 0
+      ? trimmedOverride
+      : trimmedDisplayName.length > 0
+        ? trimmedDisplayName
+        : pin
+          ? `PIN ${pin}`
+          : 'Student';
 
   // ─── Tab-switch warning protection ─────────────────────────────────────────
   // Listens for visibility/focus loss; each return increments the warning
@@ -2979,8 +3040,14 @@ const PublishedScoreReview: React.FC<{
   // tab that actually contains the locked row (active-tab would hide it).
   // No react-router in this app — match the existing `window.location.assign`
   // pattern used by `ReturnToAssignmentsButton`.
+  //
+  // Skipped when `embedded`: inside the Classroom add-on iframe, navigating to
+  // the standalone /my-assignments page would load it INSIDE the partitioned
+  // iframe (it expects the /student/login SSO lifecycle, not the add-on
+  // handshake). Instead the render below short-circuits to an in-iframe locked
+  // screen.
   useEffect(() => {
-    if (!lockedOut) return;
+    if (!lockedOut || embedded) return;
     try {
       window.sessionStorage.setItem('sb_my_assignments_filter', 'completed');
     } catch {
@@ -2988,7 +3055,28 @@ const PublishedScoreReview: React.FC<{
       // open on its default filter, which is fine.
     }
     window.location.assign('/my-assignments');
-  }, [lockedOut]);
+  }, [lockedOut, embedded]);
+
+  // In-iframe lockout screen for the Classroom add-on. Mirrors the locked-card
+  // messaging from /my-assignments but stays inside the iframe. Pure terminal
+  // state — no results are rendered once locked.
+  if (lockedOut && embedded) {
+    return (
+      <div className="h-screen overflow-y-auto bg-slate-900">
+        <div className="min-h-full flex flex-col items-center justify-center gap-4 p-6 text-center">
+          <ShieldAlert
+            className="h-12 w-12 text-amber-400"
+            aria-hidden="true"
+          />
+          <h1 className="text-2xl font-black text-white">Results locked</h1>
+          <p className="max-w-sm text-sm text-slate-400">
+            You left the results page too many times, so it&rsquo;s locked. Ask
+            your teacher to unlock your results.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Per-question cards dominate this view (snapshot + teacher
   // annotations + score + comment block), so the container is sized
