@@ -23,7 +23,7 @@
  *        - Quiz → `/classroom-addon/student?code=<code>`
  *        - VA   → `/classroom-addon/student?kind=va&sessionId=<sessionId>`
  */
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useCallback, useId, useMemo, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db, functions } from '@/config/firebase';
@@ -165,6 +165,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState<ContentKind>('quiz');
+  // Unique id for the teacher-name field so the label/input pairing can't
+  // collide if the component is ever mounted more than once.
+  const teacherNameId = useId();
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState('');
   const [attachmentId, setAttachmentId] = useState('');
@@ -866,7 +869,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
               <div>
                 <label
-                  htmlFor="addon-teacher-name"
+                  htmlFor={teacherNameId}
                   className="mb-1.5 block text-sm font-medium text-slate-700"
                 >
                   Your name{' '}
@@ -875,7 +878,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                   </span>
                 </label>
                 <input
-                  id="addon-teacher-name"
+                  id={teacherNameId}
                   type="text"
                   value={teacherName}
                   onChange={(e) => setTeacherName(e.target.value)}

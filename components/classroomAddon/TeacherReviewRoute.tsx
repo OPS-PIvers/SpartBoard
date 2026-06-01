@@ -117,6 +117,9 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const [resolvingSession, setResolvingSession] = useState(true);
   useEffect(() => {
     if (kind !== 'quiz' || !code || !user) {
+      // Clear any prior session id so a stale one (after logout / a code change)
+      // can't keep useQuizSessionTeacher subscribed to the previous session.
+      setSessionId(null);
       setResolvingSession(false);
       return;
     }
@@ -156,10 +159,16 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   useEffect(() => {
     const quizId = session?.quizId;
+    if (!quizId) {
+      // No session/quiz resolved (yet, or it changed) — drop any stale quiz so
+      // the grader can't show a previous quiz's questions/answers/scores.
+      setQuizData(null);
+      return;
+    }
     // Wait for the library to finish loading (quizzesLoading) rather than for a
     // non-empty list — an empty library is a legitimate "not found" signal, not
     // "still loading".
-    if (!quizId || quizzesLoading || !googleAccessToken) return;
+    if (quizzesLoading || !googleAccessToken) return;
     const meta = quizzes.find((q) => q.id === quizId);
     if (!meta) {
       // The session's quiz isn't in this teacher's library (e.g. a co-teacher
@@ -451,10 +460,15 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
                       </span>
                       <span className="flex shrink-0 items-center gap-2">
                         <span className="font-semibold text-slate-900">
-                          {Math.round(
-                            getDisplayScore(r, questions, session ?? undefined)
-                          )}
-                          {scoreSuffix}
+                          {quizData
+                            ? `${Math.round(
+                                getDisplayScore(
+                                  r,
+                                  questions,
+                                  session ?? undefined
+                                )
+                              )}${scoreSuffix}`
+                            : '—'}
                         </span>
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${

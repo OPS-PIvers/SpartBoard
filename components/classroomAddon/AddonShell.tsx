@@ -201,7 +201,15 @@ export const AddonSelect: React.FC<{
   const selected = options.find((o) => o.value === value) ?? null;
 
   return (
-    <div className="relative" ref={ref}>
+    <div
+      className="relative"
+      ref={ref}
+      onBlur={(e) => {
+        // Close when focus leaves the whole control (e.g. Tab past the last
+        // option) — useClickOutside only handles pointer dismissal.
+        if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false);
+      }}
+    >
       <button
         type="button"
         id={id}
@@ -244,9 +252,11 @@ export const AddonSelect: React.FC<{
             options.map((o) => {
               const active = o.value === value;
               return (
-                <li key={o.value} role="option" aria-selected={active}>
+                <li key={o.value} role="presentation">
                   <button
                     type="button"
+                    role="option"
+                    aria-selected={active}
                     onClick={() => {
                       onChange(o.value);
                       setOpen(false);
