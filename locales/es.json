@@ -1010,5 +1010,29 @@
       "improvement": "Mejoras",
       "fix": "Correcciones"
     }
+  },
+  "admin": {
+    "stickers": {
+      "title": "Biblioteca global de pegatinas",
+      "uploadDescription": "Subir pegatinas para todos los usuarios",
+      "saveChanges": "Guardar cambios",
+      "discardChanges": "Descartar cambios",
+      "confirmDiscardChanges": "Tienes cambios sin guardar. ¿Cerrar sin guardar?",
+      "description": "Las pegatinas subidas aquí aparecen en la sección «Colección global» del widget Libro de pegatinas de cada usuario.",
+      "dropImages": "Suelta imágenes aquí o haz clic para explorar",
+      "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Se admiten varios archivos",
+      "collectionTitle": "Colección de pegatinas",
+      "clearAll": "Borrar todas las pegatinas del tablero",
+      "wait": "Espera...",
+      "dropOrPaste": "Suelta o pega una imagen",
+      "toAddCustom": "para añadir pegatinas personalizadas",
+      "essentials": "Esenciales",
+      "globalCollection": "Colección global",
+      "myCollection": "Mi colección",
+      "dragOrClick": "Arrastra o haz clic para añadir",
+      "deleteSticker": "Eliminar pegatina",
+      "dragFromLibrary": "Arrastra pegatinas de la biblioteca al tablero",
+      "stickerAdded": "¡Pegatina añadida al tablero!"
+    }
   }
 }

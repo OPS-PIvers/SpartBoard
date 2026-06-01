@@ -888,5 +888,29 @@
       "improvement": "Améliorations",
       "fix": "Corrections"
     }
+  },
+  "admin": {
+    "stickers": {
+      "title": "Bibliothèque globale d'autocollants",
+      "uploadDescription": "Télécharger des autocollants pour tous les utilisateurs",
+      "saveChanges": "Enregistrer les modifications",
+      "discardChanges": "Annuler les modifications",
+      "confirmDiscardChanges": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
+      "description": "Les autocollants téléchargés ici apparaissent dans la section « Collection globale » du widget Livre d'autocollants de chaque utilisateur.",
+      "dropImages": "Déposez des images ici ou cliquez pour parcourir",
+      "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Plusieurs fichiers pris en charge",
+      "collectionTitle": "Collection d'autocollants",
+      "clearAll": "Effacer tous les autocollants du tableau",
+      "wait": "Veuillez patienter...",
+      "dropOrPaste": "Déposer ou coller une image",
+      "toAddCustom": "pour ajouter des autocollants personnalisés",
+      "essentials": "Essentiels",
+      "globalCollection": "Collection globale",
+      "myCollection": "Ma collection",
+      "dragOrClick": "Glisser ou cliquer pour ajouter",
+      "deleteSticker": "Supprimer l'autocollant",
+      "dragFromLibrary": "Faites glisser les autocollants de la bibliothèque vers le tableau",
+      "stickerAdded": "Autocollant ajouté au tableau !"
+    }
   }
 }
