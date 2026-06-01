@@ -50,8 +50,6 @@ const REQUIRED_ADMIN_STICKER_KEYS = [
   'stickerAdded',
 ] as const;
 
-type LocaleFile = typeof en;
-
 // ─── EN baseline ─────────────────────────────────────────────────────────────
 
 describe('EN locale — admin namespace baseline', () => {
@@ -75,10 +73,13 @@ describe('EN locale — admin namespace baseline', () => {
 
 // ─── DE / ES / FR parity ─────────────────────────────────────────────────────
 
+// Vitest's `toHaveProperty` accepts a deep key-path array and safely handles
+// undefined parents, so we can assert the nested shape without casting the
+// other locales to `typeof en` or extracting nested `Record<string, unknown>`s.
 describe.each([
-  { code: 'de', locale: de as unknown as LocaleFile },
-  { code: 'es', locale: es as unknown as LocaleFile },
-  { code: 'fr', locale: fr as unknown as LocaleFile },
+  { code: 'de', locale: de },
+  { code: 'es', locale: es },
+  { code: 'fr', locale: fr },
 ])('$code locale — admin namespace parity with EN', ({ code, locale }) => {
   it(`${code}: has an admin section`, () => {
     expect(locale, `${code}.admin section is entirely missing`).toHaveProperty(
@@ -87,24 +88,17 @@ describe.each([
   });
 
   it(`${code}: has an admin.stickers section`, () => {
-    const admin = (locale as Record<string, unknown>).admin as
-      | Record<string, unknown>
-      | undefined;
-    expect(admin, `${code}.admin.stickers section is missing`).toHaveProperty(
-      'stickers'
-    );
+    expect(locale, `${code}.admin.stickers section is missing`).toHaveProperty([
+      'admin',
+      'stickers',
+    ]);
   });
 
   it(`${code}: has all required admin.stickers keys`, () => {
-    const admin = (locale as Record<string, unknown>).admin as
-      | Record<string, unknown>
-      | undefined;
-    const stickers = admin?.stickers as Record<string, unknown> | undefined;
     for (const key of REQUIRED_ADMIN_STICKER_KEYS) {
-      expect(
-        stickers,
-        `${code}.admin.stickers.${key} is missing`
-      ).toHaveProperty(key);
+      expect(locale, `${code}.admin.stickers.${key} is missing`).toHaveProperty(
+        ['admin', 'stickers', key]
+      );
     }
   });
 });
