@@ -888,5 +888,29 @@
       "improvement": "Verbesserungen",
       "fix": "Fehlerbehebungen"
     }
+  },
+  "admin": {
+    "stickers": {
+      "title": "Globale Sticker-Bibliothek",
+      "uploadDescription": "Sticker für alle Benutzer hochladen",
+      "saveChanges": "Änderungen speichern",
+      "discardChanges": "Änderungen verwerfen",
+      "confirmDiscardChanges": "Du hast ungespeicherte Änderungen. Ohne Speichern schließen?",
+      "description": "Hier hochgeladene Sticker erscheinen im Abschnitt Globale Sammlung des Stickerbuch-Widgets jedes Benutzers.",
+      "dropImages": "Bilder hier ablegen oder zum Durchsuchen klicken",
+      "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Mehrere Dateien unterstützt",
+      "collectionTitle": "Sticker-Sammlung",
+      "clearAll": "Alle Sticker vom Board löschen",
+      "wait": "Warten...",
+      "dropOrPaste": "Bild ablegen oder einfügen",
+      "toAddCustom": "um benutzerdefinierte Sticker hinzuzufügen",
+      "essentials": "Grundlagen",
+      "globalCollection": "Globale Sammlung",
+      "myCollection": "Meine Sammlung",
+      "dragOrClick": "Ziehen oder klicken zum Hinzufügen",
+      "deleteSticker": "Sticker löschen",
+      "dragFromLibrary": "Sticker aus der Bibliothek auf das Board ziehen",
+      "stickerAdded": "Sticker zum Board hinzugefügt!"
+    }
   }
 }
