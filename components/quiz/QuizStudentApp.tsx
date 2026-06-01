@@ -50,6 +50,7 @@ import {
   useQuizSessionStudent,
   normalizeAnswer,
   SessionEndedError,
+  AttemptLimitReachedError,
 } from '@/hooks/useQuizSession';
 import {
   shufflePublicQuestions,
@@ -332,14 +333,28 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
         await joinQuizSession(urlCode, undefined, undefined);
         setJoined(true);
       } catch (err) {
-        // If the session has already ended, fall back to read-only review
-        // mode so the student can see their published score / responses /
-        // answers from the `/my-assignments` Completed list. Branch on the
-        // typed sentinel rather than the error message — the latter would
-        // silently break the fallback if the copy ever changes. Other join
-        // failures (no such code, network error, etc.) bubble up to the
-        // existing error UI.
-        if (err instanceof SessionEndedError) {
+        // Fall back to read-only review mode in two cases so the student can
+        // see their published score / responses / answers:
+        //   1. SessionEndedError — the session is over (the /my-assignments
+        //      Completed path).
+        //   2. AttemptLimitReachedError — the student already completed this
+        //      quiz and is at the attempt cap, but the session is STILL active
+        //      (a Google Classroom async attachment never gets "ended" by a
+        //      live teacher). Without this, a completed student who reopens a
+        //      published assignment hits the generic "attempt limit reached"
+        //      error screen and can never reach the published-results gate —
+        //      the exact symptom of grades being published but invisible until
+        //      the teacher manually ends the session. Re-join threw BEFORE any
+        //      reset, so the response is still `status: 'completed'` and the
+        //      active-session gate renders PublishedScoreReview.
+        // Branch on the typed sentinels rather than the error message — the
+        // latter would silently break the fallback if the copy ever changes.
+        // Other join failures (no such code, network error, etc.) bubble up to
+        // the existing error UI.
+        if (
+          err instanceof SessionEndedError ||
+          err instanceof AttemptLimitReachedError
+        ) {
           try {
             await subscribeForReview(urlCode);
             setJoined(true);

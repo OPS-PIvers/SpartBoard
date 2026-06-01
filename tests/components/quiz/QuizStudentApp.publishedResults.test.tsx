@@ -19,13 +19,35 @@ import { render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import type { QuizSession, QuizResponse, QuizPublicQuestion } from '@/types';
 
-const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
+const {
+  mockAuth,
+  mockJoinQuizSession,
+  mockSubscribeForReview,
+  hookState,
+  SessionEndedError,
+  AttemptLimitReachedError,
+} = vi.hoisted(() => {
   type MockUser = {
     uid: string;
     isAnonymous: boolean;
     displayName: string | null;
     getIdTokenResult: () => Promise<{ claims: Record<string, unknown> }>;
   };
+  // Real-ish sentinel classes so QuizStudentApp's `err instanceof …` branch
+  // in the SSO auto-join catch can discriminate (the mock module below would
+  // otherwise leave these `undefined`, throwing on `instanceof`).
+  class SessionEndedError extends Error {
+    constructor() {
+      super('This quiz session has already ended.');
+      this.name = 'SessionEndedError';
+    }
+  }
+  class AttemptLimitReachedError extends Error {
+    constructor() {
+      super('Attempt limit reached.');
+      this.name = 'AttemptLimitReachedError';
+    }
+  }
   return {
     mockAuth: {
       onAuthStateChanged: vi.fn(),
@@ -33,10 +55,13 @@ const { mockAuth, mockJoinQuizSession, hookState } = vi.hoisted(() => {
       currentUser: null as MockUser | null,
     },
     mockJoinQuizSession: vi.fn(),
+    mockSubscribeForReview: vi.fn(),
     hookState: {
       session: null as QuizSession | null,
       myResponse: null as QuizResponse | null,
     },
+    SessionEndedError,
+    AttemptLimitReachedError,
   };
 });
 
@@ -65,13 +90,15 @@ vi.mock('@/hooks/useQuizSession', () => ({
     error: null,
     lookupSession: vi.fn(),
     joinQuizSession: mockJoinQuizSession,
-    subscribeForReview: vi.fn(),
+    subscribeForReview: mockSubscribeForReview,
     submitAnswer: vi.fn(),
     completeQuiz: vi.fn(),
     reportTabSwitch: vi.fn(),
     warningCount: 0,
   }),
   normalizeAnswer: (s: string) => s,
+  SessionEndedError,
+  AttemptLimitReachedError,
 }));
 
 import { QuizStudentApp } from '@/components/quiz/QuizStudentApp';
@@ -121,6 +148,7 @@ beforeEach(() => {
     getIdTokenResult: () => Promise.resolve({ claims: { studentRole: true } }),
   };
   mockJoinQuizSession.mockResolvedValue('session-1');
+  mockSubscribeForReview.mockResolvedValue(undefined);
   window.history.replaceState({}, '', '/quiz?code=ABC123');
 });
 
@@ -162,5 +190,27 @@ describe('QuizStudentApp — published results on an active (self-paced) session
 
     expect(await screen.findByText('Quiz Submitted!')).toBeInTheDocument();
     expect(screen.queryByText('Your Results')).not.toBeInTheDocument();
+  });
+
+  it('shows published results when SSO auto-join hits the attempt cap on a still-active session', async () => {
+    // The Classroom case: the student already completed (attemptLimit 1, at
+    // cap) and the teacher published while the session is still 'active'.
+    // joinQuizSession rejects with AttemptLimitReachedError; the auto-join must
+    // fall back to read-only review so the student reaches PublishedScoreReview
+    // — NOT the generic "attempt limit reached" error screen.
+    hookState.session = buildSession({
+      scoreVisibility: 'score-only',
+      attemptLimit: 1,
+    });
+    hookState.myResponse = buildResponse({
+      status: 'completed',
+      completedAttempts: 1,
+    });
+    mockJoinQuizSession.mockRejectedValue(new AttemptLimitReachedError());
+
+    render(<QuizStudentApp />);
+
+    expect(await screen.findByText('Your Results')).toBeInTheDocument();
+    expect(mockSubscribeForReview).toHaveBeenCalledWith('ABC123');
   });
 });
