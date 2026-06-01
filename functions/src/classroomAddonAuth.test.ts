@@ -832,6 +832,9 @@ const batchData = {
   courseId: 'C1',
   itemId: 'I1',
   attachmentId: 'ATT1',
+  // The teacher's fresh add-on token, minted by the monitor's GIS popup and
+  // PATCHed with directly. (Replaces the old server-side offline-token mint.)
+  accessToken: 'teacher-token',
   grades: [
     { pseudonymUid: 'pseudo-A', pointsEarned: 8 },
     { pseudonymUid: 'pseudo-B', pointsEarned: 5 },
@@ -860,7 +863,7 @@ function seedSubmission(
 }
 
 describe('pushClassroomGradesForAssignment (batch)', () => {
-  it('mints the offline token once and PATCHes every matched submission', async () => {
+  it('PATCHes every matched submission with the caller-supplied add-on token', async () => {
     courseLinkDoc = {
       classlinkClassId: 'CL-SECTION-1',
       classlinkOrgId: 'orono',
@@ -878,9 +881,6 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       attachmentId: 'ATT1',
       submissionId: 'SUB-B',
     });
-    const refreshSpy = vi
-      .spyOn(classroomAddonNet, 'refreshOfflineAccessToken')
-      .mockResolvedValue('fresh-teacher-token');
     const patchSpy = vi
       .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
       .mockResolvedValue({ ok: true, status: 200 });
@@ -894,13 +894,10 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     expect(res.skipped).toBe(0);
     expect(res.results).toHaveLength(2);
     expect(res.results.every((r) => r.ok)).toBe(true);
-    // Offline creds minted exactly ONCE for the whole batch.
-    expect(refreshSpy).toHaveBeenCalledTimes(1);
-    expect(refreshSpy).toHaveBeenCalledWith('teacher-123');
-    // Each PATCH carries the resolved submissionId + correct tuple + score.
+    // Each PATCH carries the SUPPLIED token + resolved submissionId + score.
     expect(patchSpy).toHaveBeenCalledTimes(2);
     expect(patchSpy).toHaveBeenCalledWith(
-      'fresh-teacher-token',
+      'teacher-token',
       'C1',
       'I1',
       'ATT1',
@@ -908,7 +905,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       8
     );
     expect(patchSpy).toHaveBeenCalledWith(
-      'fresh-teacher-token',
+      'teacher-token',
       'C1',
       'I1',
       'ATT1',
@@ -925,9 +922,6 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       attachmentId: 'ATT1',
       submissionId: 'SUB-A',
     });
-    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
-      'tok'
-    );
     const patchSpy = vi
       .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
       .mockResolvedValue({ ok: true, status: 200 });
@@ -942,7 +936,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
 
     expect(res.pushed).toBe(1);
     expect(patchSpy).toHaveBeenCalledWith(
-      'tok',
+      'teacher-token',
       'C1',
       'I1',
       'ATT1',
@@ -951,42 +945,35 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     );
   });
 
-  it('refuses a caller whose uid is not the linking teacher (no token, no PATCH)', async () => {
+  it('refuses a caller whose uid is not the linking teacher (no PATCH)', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
-    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
 
     await expect(
       callPushBatch({ data: batchData, auth: { uid: 'someone-else' } })
     ).rejects.toMatchObject({ code: 'permission-denied' });
 
-    // The security invariant: an impostor mints NO offline token and PATCHes
-    // NOTHING.
-    expect(refreshSpy).not.toHaveBeenCalled();
+    // The security invariant: an impostor PATCHes NOTHING (even with a token).
     expect(patchSpy).not.toHaveBeenCalled();
   });
 
   it('refuses an unauthenticated caller (no request.auth)', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
-    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
 
     await expect(
       callPushBatch({ data: batchData, auth: null })
     ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(refreshSpy).not.toHaveBeenCalled();
     expect(patchSpy).not.toHaveBeenCalled();
   });
 
   it('refuses when no course link exists (cannot establish the owning teacher)', async () => {
     courseLinkDoc = null; // course not linked
-    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
 
     await expect(
       callPushBatch({ data: batchData, auth: { uid: 'teacher-123' } })
     ).rejects.toMatchObject({ code: 'permission-denied' });
-    expect(refreshSpy).not.toHaveBeenCalled();
     expect(patchSpy).not.toHaveBeenCalled();
   });
 
@@ -1002,9 +989,6 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     const patchSpy = vi
       .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
       .mockResolvedValue({ ok: true, status: 200 });
-    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
-      'tok'
-    );
 
     const res = await callPushBatch({
       data: batchData,
@@ -1021,7 +1005,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     // Only the matched student is PATCHed.
     expect(patchSpy).toHaveBeenCalledTimes(1);
     expect(patchSpy).toHaveBeenCalledWith(
-      'tok',
+      'teacher-token',
       'C1',
       'I1',
       'ATT1',
@@ -1040,9 +1024,6 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       submissionId: 'SUB-OTHER',
     });
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
-    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
-      'tok'
-    );
 
     const res = await callPushBatch({
       data: {
@@ -1071,9 +1052,6 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       attachmentId: 'ATT1',
       submissionId: 'SUB-B',
     });
-    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
-      'tok'
-    );
     // SUB-A fails upstream (403), SUB-B succeeds.
     vi.spyOn(
       classroomAddonNet,
@@ -1106,7 +1084,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     expect(b?.ok).toBe(true);
   });
 
-  it('propagates the needs-consent error contract from the single offline token mint', async () => {
+  it('rejects (invalid-argument) when accessToken is missing, before any PATCH', async () => {
     courseLinkDoc = { teacherUid: 'teacher-123' };
     seedSubmission('pseudo-A', {
       courseId: 'C1',
@@ -1114,23 +1092,19 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       attachmentId: 'ATT1',
       submissionId: 'SUB-A',
     });
-    const { HttpsError } = await import('firebase-functions/v2/https');
-    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockRejectedValue(
-      new HttpsError('failed-precondition', 'needs-consent: revoked', {
-        reason: 'needs-consent',
-        cause: 'invalid-grant',
-      })
-    );
     const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
 
     await expect(
-      callPushBatch({ data: batchData, auth: { uid: 'teacher-123' } })
-    ).rejects.toMatchObject({ code: 'failed-precondition' });
+      callPushBatch({
+        data: { ...batchData, accessToken: '' },
+        auth: { uid: 'teacher-123' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
     expect(patchSpy).not.toHaveBeenCalled();
   });
 
   it('validates the input shape before any auth/network work', async () => {
-    const refreshSpy = vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken');
+    const patchSpy = vi.spyOn(classroomAddonNet, 'patchStudentSubmissionGrade');
 
     // Missing ids.
     await expect(
@@ -1142,6 +1116,13 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     await expect(
       callPushBatch({
         data: { ...batchData, attachmentId: '' },
+        auth: { uid: 'teacher-123' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    // Missing access token.
+    await expect(
+      callPushBatch({
+        data: { ...batchData, accessToken: '' },
         auth: { uid: 'teacher-123' },
       })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
@@ -1160,7 +1141,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
 
-    expect(refreshSpy).not.toHaveBeenCalled();
+    expect(patchSpy).not.toHaveBeenCalled();
   });
 
   it('skips malformed grade entries (bad pseudonymUid / negative score) but pushes valid ones', async () => {
@@ -1171,9 +1152,6 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
       attachmentId: 'ATT1',
       submissionId: 'SUB-A',
     });
-    vi.spyOn(classroomAddonNet, 'refreshOfflineAccessToken').mockResolvedValue(
-      'tok'
-    );
     const patchSpy = vi
       .spyOn(classroomAddonNet, 'patchStudentSubmissionGrade')
       .mockResolvedValue({ ok: true, status: 200 });
@@ -1194,7 +1172,7 @@ describe('pushClassroomGradesForAssignment (batch)', () => {
     expect(res.skipped).toBe(2);
     expect(patchSpy).toHaveBeenCalledTimes(1);
     expect(patchSpy).toHaveBeenCalledWith(
-      'tok',
+      'teacher-token',
       'C1',
       'I1',
       'ATT1',

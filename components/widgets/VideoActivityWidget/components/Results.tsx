@@ -33,8 +33,8 @@ import {
 import {
   pushClassroomGradesForAssignment,
   formatGradePushToast,
-  isNeedsConsentError,
 } from '@/utils/classroomGradePush';
+import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
 import { logError } from '@/utils/logError';
 import { functions } from '@/config/firebase';
 import {
@@ -64,7 +64,7 @@ export const Results: React.FC<ResultsProps> = ({
   onBack,
   plc: _plc,
 }) => {
-  const { googleAccessToken, orgId } = useAuth();
+  const { googleAccessToken, user, orgId } = useAuth();
   const { showConfirm } = useDialog();
   const { addToast } = useDashboard();
   // Use the multi-class variant — `session.classId` is a transitional
@@ -292,10 +292,32 @@ export const Results: React.FC<ResultsProps> = ({
 
     setPushingGrades(true);
     try {
+      // Mint a fresh add-on teacher token via the GIS popup (the teacher is
+      // present), then hand it to the CF to PATCH the DRAFT grades. A cancelled
+      // or failed consent rejects here — surface it distinctly from a CF failure
+      // so the teacher knows nothing was pushed.
+      let accessToken: string;
+      try {
+        accessToken = await requestClassroomTeacherToken(
+          user?.email ?? undefined
+        );
+      } catch (tokenErr) {
+        logError('VideoActivityResults.pushClassroomGrades.token', tokenErr, {
+          sessionId: session?.id,
+          attachmentId,
+        });
+        addToast(
+          'Google sign-in was cancelled — no grades were pushed.',
+          'error'
+        );
+        return;
+      }
+
       const data = await pushClassroomGradesForAssignment(functions, {
         courseId,
         itemId,
         attachmentId,
+        accessToken,
         grades,
       });
       addToast(formatGradePushToast(data), 'success');
@@ -304,11 +326,7 @@ export const Results: React.FC<ResultsProps> = ({
         sessionId: session?.id,
         attachmentId,
       });
-      if (isNeedsConsentError(err)) {
-        addToast('Reconnect your Google account to push grades.', 'error');
-      } else {
-        addToast('Could not push grades to Google Classroom.', 'error');
-      }
+      addToast('Could not push grades to Google Classroom.', 'error');
     } finally {
       setPushingGrades(false);
     }

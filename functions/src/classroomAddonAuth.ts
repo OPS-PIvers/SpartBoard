@@ -34,7 +34,6 @@ import * as admin from 'firebase-admin';
 import * as CryptoJS from 'crypto-js';
 import axios from 'axios';
 import OAuth from 'oauth-1.0a';
-import { refreshGoogleAccessTokenForUid } from './googleOAuth';
 
 // Same named secrets as index.ts; Firebase params dedupes by name. The
 // CLASSLINK_* secrets power the ClassLink identity bridge: a Classroom student
@@ -47,15 +46,6 @@ const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
 const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
 const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
 const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');
-// Google OAuth secrets — same named secrets as googleOAuth.ts (Firebase params
-// dedupes by name). pushClassroomGrade lists these so its runtime binds the
-// stored offline refresh-token decryption + token-exchange creds that
-// refreshGoogleAccessTokenForUid reads.
-const GOOGLE_OAUTH_CLIENT_ID = defineSecret('GOOGLE_OAUTH_CLIENT_ID');
-const GOOGLE_OAUTH_CLIENT_SECRET = defineSecret('GOOGLE_OAUTH_CLIENT_SECRET');
-const GOOGLE_OAUTH_REFRESH_TOKEN_KEY = defineSecret(
-  'GOOGLE_OAUTH_REFRESH_TOKEN_KEY'
-);
 
 // Keep in sync with ALLOWED_ORIGINS in index.ts (spike duplication; production
 // should import a shared constant).
@@ -78,8 +68,8 @@ const API_TIMEOUT_MS = 10000;
  * Fields: { courseId, itemId, attachmentId, submissionId, teacherUid,
  * updatedAt } — all Classroom/Firebase ids, NEVER a name or email (PII gate).
  * Written transiently during the student handshake; read by
- * pushClassroomGradesForAssignment to mint the teacher's offline access token
- * and PATCH the DRAFT grade with no teacher present.
+ * pushClassroomGradesForAssignment to resolve each student's submissionId
+ * (and `teacherUid` to gate the push to the linking teacher).
  */
 const GRADE_SYNC_COLLECTION = 'classroom_grade_links';
 
@@ -437,18 +427,6 @@ export const classroomAddonNet = {
       );
       return { ok: false, status: 0 };
     }
-  },
-
-  /**
-   * Refresh a teacher's stored OFFLINE Google access token by uid. Thin seam
-   * over `refreshGoogleAccessTokenForUid` so the grade-push unit test can stub
-   * the token mint without touching the encrypted-token store or Google's
-   * OAuth endpoint. Returns just the access token (the only thing the grade
-   * PATCH needs).
-   */
-  async refreshOfflineAccessToken(teacherUid: string): Promise<string> {
-    const { accessToken } = await refreshGoogleAccessTokenForUid(teacherUid);
-    return accessToken;
   },
 };
 
@@ -855,6 +833,9 @@ interface PushBatchData {
   courseId?: unknown;
   itemId?: unknown;
   attachmentId?: unknown;
+  // Fresh `classroom.addons.teacher` access token minted by the teacher's
+  // monitor at push time. Used directly for the DRAFT-grade PATCH.
+  accessToken?: unknown;
   grades?: unknown;
 }
 
@@ -902,14 +883,22 @@ async function resolveSubmissionId(
 
 /**
  * pushClassroomGradesForAssignment — BATCH DRAFT-grade passback for one
- * Classroom-linked assignment. Called by the teacher's quiz monitor to publish
- * every student's grade at once. Mints the linking teacher's OFFLINE access
- * token ONCE, resolves each student's `submissionId` from the persisted
- * grade-sync keys, then PATCHes the DRAFT grade per student. A student who never
- * opened the attachment is SKIPPED (no submissionId) and a single upstream PATCH
- * failure is recorded per-entry — neither aborts the batch.
+ * Classroom-linked assignment. Called by the teacher's quiz / video-activity
+ * monitor to publish every student's grade at once. The teacher is PRESENT (they
+ * clicked "Push grades"), so the caller supplies a fresh `classroom.addons.teacher`
+ * access token; this CF PATCHes the DRAFT grades with it directly. It resolves
+ * each student's `submissionId` from the persisted grade-sync keys, then PATCHes
+ * per student. A student who never opened the attachment is SKIPPED (no
+ * submissionId) and a single upstream PATCH failure is recorded per-entry —
+ * neither aborts the batch.
  *
- * Input (PII-free): { courseId, itemId, attachmentId,
+ * (This replaces an earlier offline-token design that minted a STORED refresh
+ * token server-side. That token was never provisioned by the normal sign-in or
+ * Classroom-attach flows, so the push always failed with `needs-consent:
+ * no-stored-token`. Since the teacher is present at push time, a live token is
+ * both simpler and guaranteed to carry the add-on teacher scope.)
+ *
+ * Input (PII-free): { courseId, itemId, attachmentId, accessToken,
  *   grades: Array<{ pseudonymUid, pointsEarned }> }
  *
  * Security hardening: the caller MUST be the linking teacher. We read
@@ -918,16 +907,11 @@ async function resolveSubmissionId(
  * (including an unauthenticated caller) → `permission-denied` — we deliberately
  * return the SAME error for "no link" and "wrong caller" so the response never
  * reveals whether a given course is linked. Only after this gate passes do we
- * mint the offline token or issue any PATCH.
+ * issue any PATCH.
  */
 export const pushClassroomGradesForAssignment = onCall(
   {
     memory: '256MiB',
-    secrets: [
-      GOOGLE_OAUTH_CLIENT_ID,
-      GOOGLE_OAUTH_CLIENT_SECRET,
-      GOOGLE_OAUTH_REFRESH_TOKEN_KEY,
-    ],
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {
@@ -937,11 +921,19 @@ export const pushClassroomGradesForAssignment = onCall(
     const itemId = typeof data.itemId === 'string' ? data.itemId : '';
     const attachmentId =
       typeof data.attachmentId === 'string' ? data.attachmentId : '';
+    const accessToken =
+      typeof data.accessToken === 'string' ? data.accessToken : '';
 
     if (!courseId || !itemId || !attachmentId) {
       throw new HttpsError(
         'invalid-argument',
         'courseId, itemId, and attachmentId are required.'
+      );
+    }
+    if (!accessToken) {
+      throw new HttpsError(
+        'invalid-argument',
+        'accessToken is required (the teacher add-on token to PATCH grades with).'
       );
     }
     if (!Array.isArray(data.grades) || data.grades.length === 0) {
@@ -980,26 +972,13 @@ export const pushClassroomGradesForAssignment = onCall(
       );
     }
 
-    // Mint the teacher's offline access token ONCE for the whole batch.
-    // Propagate the googleOAuth needs-consent/transient HttpsError contract.
-    let accessToken: string;
-    try {
-      accessToken =
-        await classroomAddonNet.refreshOfflineAccessToken(teacherUid);
-    } catch (err) {
-      if (err instanceof HttpsError) throw err;
-      console.error(
-        '[pushClassroomGradesForAssignment] offline token refresh failed:',
-        err
-      );
-      throw new HttpsError(
-        'internal',
-        'Failed to obtain teacher Google credentials for grade passback.'
-      );
-    }
+    // The caller-supplied `accessToken` is the linking teacher's own fresh
+    // `classroom.addons.teacher` token (minted by their monitor's GIS popup).
+    // The security gate above already proved the caller IS that teacher, so we
+    // PATCH with it directly — no stored/offline credential is involved.
 
-    // Resolve + PATCH every student concurrently (the offline token is minted
-    // once above). Each entry has its own try/catch so one student's failure —
+    // Resolve + PATCH every student concurrently. Each entry has its own
+    // try/catch so one student's failure —
     // or a student who never opened the attachment — is recorded per-entry and
     // never aborts the rest. Promise.all preserves input order, so `results`
     // lines up 1:1 with `grades`. MAX_BATCH_GRADES bounds the fan-out.

@@ -1,10 +1,9 @@
 /**
  * Shared Google Identity Services (GIS) OAuth helpers for the Classroom Add-on
- * SPIKE pages (student handshake + teacher discovery).
- *
- * Throwaway alongside the spike routes — the real Phase 3 student runner and
- * Phase 2 teacher discovery will own a hardened version of this. Extracted so
- * the two spike pages don't duplicate the popup plumbing.
+ * flows: the student handshake + teacher discovery pages, AND the teacher-
+ * initiated grade push from the quiz / video-activity monitor
+ * (`requestClassroomTeacherToken`). Extracted so callers don't duplicate the
+ * popup plumbing.
  *
  * OAuth consent CANNOT redirect inside Classroom's iframe, so we use the GIS
  * token popup (top-level) to obtain an access token.
@@ -62,12 +61,15 @@ export function requestAccessToken(
       reject(new Error('VITE_GOOGLE_CLIENT_ID is not set in this build.'));
       return;
     }
-    // `hint` isn't in older @types/google.accounts; widen the config type.
+    // `hint` / `error_callback` aren't in older @types/google.accounts; widen
+    // the config type. `error_callback` rejects on popup failures (blocked,
+    // closed before consent) so the caller's promise settles instead of hanging.
     const init = window.google.accounts.oauth2.initTokenClient as (config: {
       client_id: string;
       scope: string;
       hint?: string;
       callback: (resp: { access_token?: string; error?: string }) => void;
+      error_callback?: (err: { type?: string; message?: string }) => void;
     }) => { requestAccessToken: () => void };
 
     const client = init({
@@ -85,7 +87,40 @@ export function requestAccessToken(
         }
         resolve(resp.access_token);
       },
+      error_callback: (err) => {
+        reject(
+          new Error(
+            `OAuth popup failed: ${err?.type ?? err?.message ?? 'unknown'}`
+          )
+        );
+      },
     });
     client.requestAccessToken();
   });
+}
+
+/**
+ * The single OAuth scope required to PATCH add-on student-submission grades
+ * (`addOnAttachments.studentSubmissions.patch`). The teacher-initiated grade
+ * push obtains a fresh access token for just this scope. (TeacherDiscoveryRoute
+ * requests the same scope alongside openid/email/profile when CREATING the
+ * attachment; pushing grades only needs the add-on teacher scope itself.)
+ */
+export const CLASSROOM_ADDON_TEACHER_SCOPE =
+  'https://www.googleapis.com/auth/classroom.addons.teacher';
+
+/**
+ * Obtain a fresh `classroom.addons.teacher` access token for a teacher-initiated
+ * grade push from the quiz / video-activity monitor. The teacher is present (they
+ * clicked "Push grades"), so the live token replaces the older server-side offline
+ * mint — which required an offline refresh token that the normal sign-in / attach
+ * flows never provisioned. Ensures GIS is loaded, then runs the token popup.
+ * Rejects if the popup fails or the user dismisses consent. `loginHint`
+ * pre-selects the signed-in teacher's Google account.
+ */
+export async function requestClassroomTeacherToken(
+  loginHint?: string
+): Promise<string> {
+  await ensureGis();
+  return requestAccessToken(CLASSROOM_ADDON_TEACHER_SCOPE, loginHint);
 }

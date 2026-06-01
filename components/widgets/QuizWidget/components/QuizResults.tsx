@@ -70,8 +70,8 @@ import { db, functions } from '@/config/firebase';
 import {
   pushClassroomGradesForAssignment,
   formatGradePushToast,
-  isNeedsConsentError,
 } from '@/utils/classroomGradePush';
+import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
 import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
@@ -1106,10 +1106,32 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
     setPushingGrades(true);
     try {
+      // Mint a fresh add-on teacher token via the GIS popup (the teacher is
+      // present), then hand it to the CF to PATCH the DRAFT grades. A cancelled
+      // or failed consent rejects here — surface it distinctly from a CF failure
+      // so the teacher knows nothing was pushed.
+      let accessToken: string;
+      try {
+        accessToken = await requestClassroomTeacherToken(
+          user?.email ?? undefined
+        );
+      } catch (tokenErr) {
+        logError('QuizResults.pushClassroomGrades.token', tokenErr, {
+          sessionId: session?.id,
+          attachmentId,
+        });
+        addToast(
+          'Google sign-in was cancelled — no grades were pushed.',
+          'error'
+        );
+        return;
+      }
+
       const data = await pushClassroomGradesForAssignment(functions, {
         courseId,
         itemId,
         attachmentId,
+        accessToken,
         grades,
       });
       addToast(formatGradePushToast(data), 'success');
@@ -1118,11 +1140,7 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
         sessionId: session?.id,
         attachmentId,
       });
-      if (isNeedsConsentError(err)) {
-        addToast('Reconnect your Google account to push grades.', 'error');
-      } else {
-        addToast('Could not push grades to Google Classroom.', 'error');
-      }
+      addToast('Could not push grades to Google Classroom.', 'error');
     } finally {
       setPushingGrades(false);
     }

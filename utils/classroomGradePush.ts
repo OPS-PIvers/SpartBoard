@@ -11,9 +11,11 @@
  * needs-consent wording from drifting between the two surfaces.
  *
  * The CF (`pushClassroomGradesForAssignment`) is runner-agnostic — it takes
- * `{ courseId, itemId, attachmentId, grades }` and writes DRAFT grades to the
- * linked coursework item, resolving each PII-free `pseudonymUid` to a
- * Classroom userId server-side.
+ * `{ courseId, itemId, attachmentId, accessToken, grades }` and writes DRAFT
+ * grades to the linked coursework item, resolving each PII-free `pseudonymUid`
+ * to a Classroom submission server-side. `accessToken` is a fresh
+ * `classroom.addons.teacher` token the monitor mints via a GIS popup at push
+ * time (the teacher is present), which the CF PATCHes with directly.
  */
 
 import { httpsCallable, type Functions } from 'firebase/functions';
@@ -29,6 +31,13 @@ export interface PushClassroomGradesArgs {
   courseId: string;
   itemId: string;
   attachmentId: string;
+  /**
+   * A fresh `classroom.addons.teacher` access token, minted by the monitor's
+   * GIS popup at push time (see `requestClassroomTeacherToken`). The CF PATCHes
+   * the DRAFT grades with it directly — the caller is still verified as the
+   * linking teacher server-side.
+   */
+  accessToken: string;
   grades: ClassroomGradeEntry[];
 }
 
@@ -79,17 +88,4 @@ export function formatGradePushToast(data: PushClassroomGradesData): string {
     `Pushed ${data.pushed} grade${data.pushed === 1 ? '' : 's'} to Google ` +
     `Classroom.${skippedNote}`
   );
-}
-
-/**
- * True when the CF rejected because the teacher's Google grant is missing the
- * scope needed to write grades (the server throws a `needs-consent` error).
- * Callers surface a "reconnect your Google account" toast in this case rather
- * than the generic failure message.
- */
-export function isNeedsConsentError(err: unknown): boolean {
-  const details = (err as { details?: { reason?: string } } | null)?.details;
-  if (details && details.reason === 'needs-consent') return true;
-  const message = err instanceof Error ? err.message : String(err);
-  return /needs-consent/i.test(message);
 }
