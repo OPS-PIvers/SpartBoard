@@ -104,7 +104,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const loginHint = params.get('login_hint') ?? undefined;
 
   const { user, signInWithGoogle, googleAccessToken, orgId } = useAuth();
-  const { quizzes, loadQuizData } = useQuiz(user?.uid);
+  const { quizzes, loadQuizData, loading: quizzesLoading } = useQuiz(user?.uid);
   const { publishAssignmentScores } = useQuizAssignments(user?.uid);
 
   const [busy, setBusy] = useState(false);
@@ -152,9 +152,22 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const [quizData, setQuizData] = useState<QuizData | null>(null);
   useEffect(() => {
     const quizId = session?.quizId;
-    if (!quizId || quizzes.length === 0 || !googleAccessToken) return;
+    // Wait for the library to finish loading (quizzesLoading) rather than for a
+    // non-empty list — an empty library is a legitimate "not found" signal, not
+    // "still loading".
+    if (!quizId || quizzesLoading || !googleAccessToken) return;
     const meta = quizzes.find((q) => q.id === quizId);
-    if (!meta?.driveFileId) return;
+    if (!meta) {
+      // The session's quiz isn't in this teacher's library (e.g. a co-teacher
+      // who doesn't own it) — say so, rather than leaving the grading controls
+      // silently disabled.
+      setErrorMsg(
+        'This quiz isn’t in your SpartBoard library, so it can’t be graded ' +
+          'here. The teacher who created it can grade and push grades.'
+      );
+      return;
+    }
+    if (!meta.driveFileId) return;
     let active = true;
     void (async () => {
       try {
@@ -169,7 +182,13 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     return () => {
       active = false;
     };
-  }, [session?.quizId, quizzes, googleAccessToken, loadQuizData]);
+  }, [
+    session?.quizId,
+    quizzes,
+    quizzesLoading,
+    googleAccessToken,
+    loadQuizData,
+  ]);
 
   const pseudonyms = useAssignmentPseudonymsMulti(
     sessionId,
@@ -251,6 +270,12 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const pushGrades = useCallback(async () => {
     const attachment = session?.classroomAttachment;
     if (!attachment || !quizData) return;
+    // Check for gradeable work BEFORE the OAuth popup — don't prompt the teacher
+    // for Classroom permission only to tell them there's nothing to push.
+    if (!responses.some((r) => r.status === 'completed')) {
+      setStatusMsg('No completed responses to push yet.');
+      return;
+    }
     setBusy(true);
     setErrorMsg(null);
     try {
