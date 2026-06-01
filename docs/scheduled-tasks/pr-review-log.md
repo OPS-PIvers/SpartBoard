@@ -4,6 +4,41 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-01
+
+- PRs reviewed: 11
+  - #1791 — test(hooks): add useStarterPacks coverage (head `claude/compassionate-noether-ukcDO`, base `dev-paul`)
+  - #1790 — docs(debugger): nightly run log 2026-06-01 (head `nightly/debugger-log-2026-06-01`, base `dev-paul`)
+  - #1789 — fix(functions): block IPv6 private/loopback in checkUrlCompatibility SSRF guard (head `nightly/build-tooling-2026-06-01`, base `dev-paul`)
+  - #1788 — fix(i18n): add missing admin namespace to DE/ES/FR (head `nightly/admin-config-2026-06-01`, base `dev-paul`)
+  - #1787 — fix: dedup questions in VA publishAssignmentScores (head `nightly/state-data-2026-06-01`, base `dev-paul`)
+  - #1786 — fix(DashboardView): guard global Delete handler against focused inputs (head `nightly/dashboard-layout-2026-06-01`, base `dev-paul`)
+  - #1785 — fix(RandomWidget): activeDashboardRef stale-closure fix (head `nightly/widgets-2026-06-01`, base `dev-paul`)
+  - #1784 — chore: unifier run 6 log (head `nightly/unifier-log-2026-06-01`, base `dev-paul`)
+  - #1783 — D3: SpecialistSchedule/Settings.tsx 10 labels → SettingsLabel (head `nightly/unify-settings-labels-2026-06-01`, base `dev-paul`)
+  - #1782 — D4: plc/home/cards ../../sections → @/ alias (head `nightly/unify-import-paths-plc-2026-06-01`, base `dev-paul`)
+  - #1781 — Fix SettingsPanel Escape, i18n, widget migrations (head `dev-paul`, base `main` — read-only)
+- Comments processed: 11 total — 8 fixed, 3 explained
+  - #1789 (2): broadened IPv6 block to `/^\[::/` + added `[::127.0.0.1]` regression test — both fixed
+  - #1788 (1): deep-path `toHaveProperty` refactor (dropped unsafe `as unknown as LocaleFile` casts) — fixed
+  - #1787 (1): added `scoredQuestionIds` Set dedup to the grading loop + regression test — fixed
+  - #1786 (2): switched both Delete tests to `defaultPrevented` instead of monkey-patching `preventDefault` — both fixed
+  - #1785 (1): jigsaw `setTimeout` now reads `activeDashboardRef.current?.sharedGroups` — fixed
+  - #1784 (3): grep `-E`/order-independent pipes/`<path-to-main-repo>` placeholder in doc snippets — all fixed
+  - #1791 (2): afterEach import + `vi.restoreAllMocks()` block already present in branch — explained, no change
+- Fixes pushed: 6
+  - #1789 / `nightly/build-tooling-2026-06-01` — consolidate IPv6 SSRF patterns into `/^\[::/` (+ IPv4-compatible test); functions tests + type-check + lint green
+  - #1788 / `nightly/admin-config-2026-06-01` — type-safe deep-path `toHaveProperty` in locale parity tests
+  - #1787 / `nightly/state-data-2026-06-01` — dedup grading loop via `scoredQuestionIds` Set + regression test
+  - #1786 / `nightly/dashboard-layout-2026-06-01` — assert `KeyboardEvent.defaultPrevented` in Delete-key tests
+  - #1785 / `nightly/widgets-2026-06-01` — jigsaw branch reads `activeDashboardRef.current`
+  - #1784 / `nightly/unifier-log-2026-06-01` — portable, path-agnostic backlog grep snippets
+- Reviews posted: 11 (structured review comment on every open PR)
+- Notes:
+  - Branch-safety: #1781 head `dev-paul` matches `dev-*` → treated read-only (review comment only, no push). All other heads (`nightly/*`, `claude/*`) are pushable. #1781's one prior inline thread was already author-resolved.
+  - #1781 CI status reads `pending` (0 checks reported) on head SHA — flagged in the review to confirm green before merging to `main`.
+  - `scheduled-tasks` is not the head of any open PR this run, so this log is committed and pushed to `scheduled-tasks` directly.
+
 ## 2026-05-29
 
 - PRs reviewed:
