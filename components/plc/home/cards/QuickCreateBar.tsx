@@ -10,7 +10,7 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { BookOpen, Film, FileText, type LucideIcon } from 'lucide-react';
-import type { PlcSectionId } from '../../sections';
+import type { PlcSectionId } from '@/components/plc/sections';
 
 interface QuickCreateBarProps {
   onNavigate: (id: PlcSectionId) => void;
