@@ -513,8 +513,10 @@ describe('createClassroomAttachment (spike)', () => {
       studentWorkReviewUri?: { uri: string };
       maxPoints?: number;
     };
+    // The teacher view now carries the SAME content ref as the student view so
+    // the iframe can resolve the session and render the in-place grading view.
     expect(body.teacherViewUri.uri).toBe(
-      'https://spartboard.web.app/classroom-addon/teacher'
+      'https://spartboard.web.app/classroom-addon/teacher?code=ABC123&kind=quiz'
     );
     // The studentViewUri carries the quiz join code so the student route can
     // hand it to QuizStudentApp (which SSO-auto-joins by ?code=). `code` MUST
@@ -554,11 +556,16 @@ describe('createClassroomAttachment (spike)', () => {
     expect(res.attachmentId).toBe('ATT-VA');
     const body = createSpy.mock.calls[0][5] as {
       studentViewUri: { uri: string };
+      teacherViewUri: { uri: string };
       studentWorkReviewUri?: { uri: string };
       maxPoints?: number;
     };
     expect(body.studentViewUri.uri).toBe(
       'https://spartboard.web.app/classroom-addon/student?kind=va&sessionId=sess_AB-12'
+    );
+    // The teacher view carries the same VA content ref for in-place review.
+    expect(body.teacherViewUri.uri).toBe(
+      'https://spartboard.web.app/classroom-addon/teacher?kind=va&sessionId=sess_AB-12'
     );
     // No `code=` for the VA runner.
     expect(body.studentViewUri.uri).not.toContain('code=');

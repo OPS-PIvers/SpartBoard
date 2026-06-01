@@ -752,10 +752,10 @@ export const createClassroomAttachment = onCall(
       throw new HttpsError('invalid-argument', 'origin is missing or invalid.');
     }
 
-    // Build the runner-specific studentViewUri. Each identifier is embedded
-    // verbatim into the stored URI, so each is charset-constrained — never
-    // relay arbitrary client text into a stored URI.
-    let studentViewUri: string;
+    // Build the runner-specific content query shared by BOTH view URIs. Each
+    // identifier is embedded verbatim into the stored URI, so each is
+    // charset-constrained — never relay arbitrary client text into a stored URI.
+    let contentQuery: string;
     if (kind === 'va') {
       // Video Activity session ids are SpartBoard-minted; allow the alnum + _-
       // charset Firestore session ids use.
@@ -765,9 +765,7 @@ export const createClassroomAttachment = onCall(
           'sessionId is required and malformed for a video-activity attachment.'
         );
       }
-      studentViewUri =
-        `${origin}/classroom-addon/student?kind=va` +
-        `&sessionId=${encodeURIComponent(sessionId)}`;
+      contentQuery = `kind=va&sessionId=${encodeURIComponent(sessionId)}`;
     } else {
       // Quiz: join codes are short uppercase alphanumerics. `code` is kept for
       // backward compatibility; `kind=quiz` is appended but non-load-bearing.
@@ -777,10 +775,13 @@ export const createClassroomAttachment = onCall(
           'quizCode is missing or malformed.'
         );
       }
-      studentViewUri =
-        `${origin}/classroom-addon/student?code=${encodeURIComponent(quizCode)}` +
-        `&kind=quiz`;
+      contentQuery = `code=${encodeURIComponent(quizCode)}&kind=quiz`;
     }
+    const studentViewUri = `${origin}/classroom-addon/student?${contentQuery}`;
+    // The teacher view carries the SAME content ref so, when a teacher opens the
+    // attachment, the iframe can resolve the session and render the grading view
+    // in-place (no round-trip to the SpartBoard dashboard).
+    const teacherViewUri = `${origin}/classroom-addon/teacher?${contentQuery}`;
 
     // Title is display-only; cap length and fall back to a sensible default.
     const title = (rawTitle || 'SpartBoard activity').slice(0, 200);
@@ -829,7 +830,7 @@ export const createClassroomAttachment = onCall(
 
     const body: AddOnAttachmentBody = {
       title,
-      teacherViewUri: { uri: `${origin}/classroom-addon/teacher` },
+      teacherViewUri: { uri: teacherViewUri },
       studentViewUri: { uri: studentViewUri },
     };
     // Make the attachment grade-sync capable. `maxPoints` is invalid without
