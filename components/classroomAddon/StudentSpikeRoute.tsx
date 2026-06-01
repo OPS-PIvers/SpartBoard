@@ -279,12 +279,14 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   const hasRunner = isVideoActivity || code !== '';
   const RunnerIcon = isVideoActivity ? Video : ClipboardList;
 
+  // "Open" (not "Start") works whether the student is taking the activity for
+  // the first time or returning to review published results.
   const startLabel = busy
-    ? 'Starting…'
+    ? 'Opening…'
     : hasRunner
       ? isVideoActivity
-        ? 'Start activity'
-        : 'Start quiz'
+        ? 'Open activity'
+        : 'Open quiz'
       : 'Sign in';
 
   return (
