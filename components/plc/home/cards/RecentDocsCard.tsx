@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import type { Plc, PlcDoc } from '@/types';
 import { usePlcDocs } from '@/hooks/usePlcDocs';
-import type { PlcSectionId } from '../../sections';
+import type { PlcSectionId } from '@/components/plc/sections';
 
 interface RecentDocsCardProps {
   plc: Plc;

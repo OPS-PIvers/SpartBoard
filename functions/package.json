@@ -1,5 +1,6 @@
 {
   "name": "functions",
+  "packageManager": "pnpm@10.30.2",
   "scripts": {
     "type-check": "tsc --noEmit",
     "build": "tsc",
