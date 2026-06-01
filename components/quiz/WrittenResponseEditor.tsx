@@ -45,6 +45,12 @@ interface WrittenResponseEditorProps {
   /** Disable editing (e.g. when the quiz is paused or submitted). */
   disabled?: boolean;
   /**
+   * When true, copy / cut / paste are blocked inside the editor (test
+   * integrity). Paste is fully suppressed rather than stripped-to-plain-text,
+   * and copy/cut from the editor are prevented. Default false.
+   */
+  blockClipboard?: boolean;
+  /**
    * When true, the toolbar exposes list controls and the editor grows to a
    * multi-paragraph height. Short-answer questions stay single-paragraph.
    */
@@ -88,7 +94,15 @@ const KEYBOARD_RESIZE_STEP_PX = 32;
 
 const WrittenResponseEditorInner: React.FC<
   Omit<WrittenResponseEditorProps, 'questionKey'>
-> = ({ value, onChange, placeholder, maxWords, disabled, isEssay }) => {
+> = ({
+  value,
+  onChange,
+  placeholder,
+  maxWords,
+  disabled,
+  isEssay,
+  blockClipboard,
+}) => {
   const editorRef = useRef<HTMLDivElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [wordCount, setWordCount] = useState(() => countWords(value));
@@ -237,12 +251,22 @@ const WrittenResponseEditorInner: React.FC<
   // Strip formatting from pasted content so students can't inject styled
   // HTML by copy/pasting from rich sources. We only allow plain text on
   // paste; the toolbar buttons are the only path to formatting.
+  //
+  // When `blockClipboard` is on (teacher enabled "Block Copy & Paste"),
+  // paste is suppressed entirely — preventDefault and bail before inserting.
   const handlePaste = (e: React.ClipboardEvent<HTMLDivElement>) => {
     e.preventDefault();
+    if (blockClipboard) return;
     const text = e.clipboardData.getData('text/plain');
     if (!text) return;
     // Insert as plain text at the current selection.
     document.execCommand('insertText', false, text);
+  };
+
+  // Block copy/cut from inside the editor when clipboard is locked. (Paste is
+  // handled above.) A no-op handler otherwise so the native clipboard works.
+  const handleClipboardCopyCut = (e: React.ClipboardEvent<HTMLDivElement>) => {
+    if (blockClipboard) e.preventDefault();
   };
 
   const exec = (command: string) => {
@@ -342,6 +366,8 @@ const WrittenResponseEditorInner: React.FC<
           suppressContentEditableWarning
           onInput={handleInput}
           onPaste={handlePaste}
+          onCopy={handleClipboardCopyCut}
+          onCut={handleClipboardCopyCut}
           spellCheck
           className={`w-full px-5 py-4 bg-slate-800 border-2 border-t-0 ${
             disabled

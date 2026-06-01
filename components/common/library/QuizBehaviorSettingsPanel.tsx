@@ -116,8 +116,10 @@ export const QuizBehaviorSettingsPanel: React.FC<
       {/* Toggle group: integrity / feedback / randomization + gamification */}
       <AssignmentSettingsToggleGroup
         modeLocked={modeLocked}
+        showCopyPasteToggle
         options={{
           tabWarningsEnabled: value.sessionOptions.tabWarningsEnabled,
+          blockCopyPaste: value.sessionOptions.blockCopyPaste,
           showResultToStudent: value.sessionOptions.showResultToStudent,
           showCorrectAnswerToStudent:
             value.sessionOptions.showCorrectAnswerToStudent,

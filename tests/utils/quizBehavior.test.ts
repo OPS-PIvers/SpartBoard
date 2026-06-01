@@ -38,4 +38,7 @@ describe('getQuizBehavior', () => {
       true
     );
   });
+  it('DEFAULT leaves copy/paste allowed (blockCopyPaste false)', () => {
+    expect(DEFAULT_QUIZ_BEHAVIOR.sessionOptions.blockCopyPaste).toBe(false);
+  });
 });

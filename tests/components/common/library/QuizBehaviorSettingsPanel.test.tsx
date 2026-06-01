@@ -28,6 +28,31 @@ describe('QuizBehaviorSettingsPanel', () => {
     expect(screen.getByText('Tab Switch Detection')).toBeInTheDocument();
   });
 
+  it('renders the Block Copy & Paste toggle under Tab Switch Detection', () => {
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />
+    );
+    expect(screen.getByText('Block Copy & Paste')).toBeInTheDocument();
+  });
+
+  it('toggling Block Copy & Paste calls onChange with blockCopyPaste: true', () => {
+    const onChange = vi.fn();
+    render(
+      <QuizBehaviorSettingsPanel value={defaultValue} onChange={onChange} />
+    );
+
+    const label = screen.getByText('Block Copy & Paste');
+    const row = label.closest('div');
+    const switchEl = row?.querySelector('[role="switch"]');
+    expect(switchEl).not.toBeNull();
+    fireEvent.click(switchEl as HTMLElement);
+
+    expect(onChange).toHaveBeenCalledOnce();
+    expect(onChange.mock.calls[0][0]).toMatchObject({
+      sessionOptions: expect.objectContaining({ blockCopyPaste: true }),
+    });
+  });
+
   it('renders the gamification section', () => {
     render(
       <QuizBehaviorSettingsPanel value={defaultValue} onChange={vi.fn()} />

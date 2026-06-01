@@ -896,6 +896,20 @@ const ActiveQuiz: React.FC<{
   // The Visibility Tracker — only active when tabWarningsEnabled
   const tabWarningsEnabled = session.tabWarningsEnabled !== false;
 
+  // Test integrity: when the teacher enabled "Block Copy & Paste", suppress
+  // copy/cut/paste across the question + answer area so a student can't paste
+  // a block of text composed in another tab. Default off (clipboard allowed).
+  const blockCopyPaste = session.blockCopyPaste === true;
+  const handleBlockedClipboard = (e: React.ClipboardEvent<HTMLDivElement>) =>
+    e.preventDefault();
+  const clipboardGuards = blockCopyPaste
+    ? {
+        onCopy: handleBlockedClipboard,
+        onCut: handleBlockedClipboard,
+        onPaste: handleBlockedClipboard,
+      }
+    : undefined;
+
   useEffect(() => {
     if (!tabWarningsEnabled) return; // Skip entirely when disabled
 
@@ -1963,6 +1977,7 @@ const ActiveQuiz: React.FC<{
       </div>
 
       <div
+        {...clipboardGuards}
         className={`flex flex-col p-6 mx-auto w-full ${
           // Per-type width caps. Tuned for the personal-device viewport
           // a student actually uses (laptop / Chromebook / tablet), not
@@ -2340,6 +2355,7 @@ const ActiveQuiz: React.FC<{
                 maxWords={currentQuestion.maxWords}
                 disabled={submitted && !isStudentPaced}
                 isEssay={currentQuestion.type === 'essay'}
+                blockClipboard={blockCopyPaste}
               />
             </React.Suspense>
 
