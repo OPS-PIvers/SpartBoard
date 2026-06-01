@@ -984,6 +984,13 @@ export const useVideoActivityAssignments = (
         const answers = Array.isArray(data.answers) ? data.answers : [];
         let pointsEarned = 0;
         let pointsMax = 0;
+        // Track which question ids have already been scored so a duplicate
+        // answer (Drive-sync duplication / arrayUnion race writing the same
+        // questionId twice into `answers`) can't inflate pointsEarned and
+        // pointsMax. Each answer is still graded for its `isCorrect` flag, but
+        // only the first occurrence of a questionId contributes to the totals —
+        // matching the dedup already applied in the unanswered loop below.
+        const scoredQuestionIds = new Set<string>();
         const gradedAnswers: VideoActivityAnswer[] = answers.map((a) => {
           const q = questionsById.get(a.questionId);
           if (!q) {
@@ -996,17 +1003,29 @@ export const useVideoActivityAssignments = (
             return rest;
           }
           const result = gradeVideoActivityAnswer(q, a.answer);
-          pointsEarned += result.pointsEarned;
-          pointsMax += result.pointsMax;
+          if (!scoredQuestionIds.has(a.questionId)) {
+            scoredQuestionIds.add(a.questionId);
+            pointsEarned += result.pointsEarned;
+            pointsMax += result.pointsMax;
+          }
           return { ...a, isCorrect: result.isCorrect };
         });
         // Count unanswered questions toward the denominator so a blank
         // response scores 0%, not undefined. O(Q) Set lookup vs the
         // O(Q*A) `.some` pattern matters on PLC-shared assignments.
+        //
+        // Iterate questionsById (already deduped) rather than the raw
+        // activityData.questions array. Drive-sync duplication and
+        // arrayUnion races can write the same question id twice into
+        // `activityData.questions`; without this guard each duplicated
+        // unanswered question inflates pointsMax and deflates the
+        // published score. Mirrors the identical fix in
+        // `computeVideoActivityScorePct` (videoActivityGrading.ts) and
+        // `buildContributionDoc` (plcContributions.ts).
         const answeredQuestionIds = new Set<string>();
         for (const a of answers) answeredQuestionIds.add(a.questionId);
-        for (const q of activityData.questions) {
-          if (!answeredQuestionIds.has(q.id)) {
+        for (const [qId, q] of questionsById) {
+          if (!answeredQuestionIds.has(qId)) {
             pointsMax += q.points ?? 1;
           }
         }
