@@ -1248,7 +1248,7 @@ export const RandomWidget: React.FC<{ widget: WidgetData }> = ({ widget }) => {
             id: g.id ?? '',
             name: `Expert Group ${i + 1}`,
           }));
-          const existing = activeDashboard?.sharedGroups ?? [];
+          const existing = activeDashboardRef.current?.sharedGroups ?? [];
           // Preserve user renames/colors on ids that survive — only drop
           // entries for ids that vanished entirely on this regenerate.
           const newIdSet = new Set(
