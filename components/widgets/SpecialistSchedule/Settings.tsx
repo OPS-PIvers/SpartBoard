@@ -20,6 +20,7 @@ import {
   Repeat,
 } from 'lucide-react';
 import { Button } from '@/components/common/Button';
+import { SettingsLabel } from '@/components/common/SettingsLabel';
 import { TypographySettings } from '@/components/common/TypographySettings';
 import { SurfaceColorSettings } from '@/components/common/SurfaceColorSettings';
 import { TextSizePresetSettings } from '@/components/common/TextSizePresetSettings';
@@ -273,12 +274,11 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               {/* Items List */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <label className="text-xxs text-slate-400 uppercase tracking-widest block flex items-center gap-2">
-                    <Clock className="w-3 h-3" />{' '}
+                  <SettingsLabel icon={Clock}>
                     {customDayNames?.[selectedCycleDay] ??
                       `${dayLabel} ${selectedCycleDay}`}{' '}
                     Schedule
-                  </label>
+                  </SettingsLabel>
                   <button
                     onClick={startAddItem}
                     className="text-xs font-bold text-teal-600 hover:underline flex items-center gap-1"
@@ -345,9 +345,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
 
               <div className="space-y-3">
                 <div>
-                  <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                    Activity Name
-                  </label>
+                  <SettingsLabel>Activity Name</SettingsLabel>
                   <div className="flex flex-wrap gap-1 mb-2">
                     {specialistOptions.map((opt) => (
                       <button
@@ -382,9 +380,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                      Start Time
-                    </label>
+                    <SettingsLabel>Start Time</SettingsLabel>
                     <input
                       type="time"
                       value={tempItem?.startTime ?? ''}
@@ -397,9 +393,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                      End Time
-                    </label>
+                    <SettingsLabel>End Time</SettingsLabel>
                     <input
                       type="time"
                       value={tempItem?.endTime ?? ''}
@@ -443,9 +437,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               {/* Daily Recurring */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Repeat className="w-3 h-3" /> Every Day
-                  </label>
+                  <SettingsLabel icon={Repeat}>Every Day</SettingsLabel>
                   <button
                     onClick={() => startAddRecurring('daily')}
                     className="text-xs font-bold text-teal-600 hover:underline flex items-center gap-1"
@@ -514,9 +506,9 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
               {/* Weekly Recurring */}
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <label className="text-xxs text-slate-400 uppercase tracking-widest flex items-center gap-2">
-                    <Calendar className="w-3 h-3" /> Specific Day of Week
-                  </label>
+                  <SettingsLabel icon={Calendar}>
+                    Specific Day of Week
+                  </SettingsLabel>
                   <button
                     onClick={() => startAddRecurring('weekly')}
                     className="text-xs font-bold text-teal-600 hover:underline flex items-center gap-1"
@@ -590,9 +582,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   'type' in tempItem &&
                   tempItem.type === 'weekly' && (
                     <div>
-                      <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                        Repeat Every
-                      </label>
+                      <SettingsLabel>Repeat Every</SettingsLabel>
                       <select
                         value={tempItem.dayOfWeek}
                         onChange={(e) =>
@@ -613,9 +603,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                   )}
 
                 <div>
-                  <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                    Activity Name
-                  </label>
+                  <SettingsLabel>Activity Name</SettingsLabel>
                   <input
                     type="text"
                     value={tempItem?.task ?? ''}
@@ -631,9 +619,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                      Start Time
-                    </label>
+                    <SettingsLabel>Start Time</SettingsLabel>
                     <input
                       type="time"
                       value={tempItem?.startTime ?? ''}
@@ -646,9 +632,7 @@ export const SpecialistScheduleSettings: React.FC<{ widget: WidgetData }> = ({
                     />
                   </div>
                   <div>
-                    <label className="text-xxs font-black text-slate-400 uppercase tracking-widest mb-1 block">
-                      End Time
-                    </label>
+                    <SettingsLabel>End Time</SettingsLabel>
                     <input
                       type="time"
                       value={tempItem?.endTime ?? ''}
