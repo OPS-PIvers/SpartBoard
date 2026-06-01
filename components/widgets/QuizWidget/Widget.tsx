@@ -77,6 +77,7 @@ import { getQuizBehavior } from '@/utils/quizBehavior';
  */
 const VIEW_ONLY_SESSION_OPTIONS: Required<QuizSessionOptions> = {
   tabWarningsEnabled: false,
+  blockCopyPaste: false,
   showResultToStudent: false,
   showCorrectAnswerToStudent: false,
   showCorrectOnBoard: false,

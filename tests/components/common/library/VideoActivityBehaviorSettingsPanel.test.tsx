@@ -34,6 +34,16 @@ describe('VideoActivityBehaviorSettingsPanel', () => {
     expect(screen.getByText('Tab Switch Detection')).toBeInTheDocument();
   });
 
+  it('does NOT render the Block Copy & Paste toggle (Quiz-only feature)', () => {
+    render(
+      <VideoActivityBehaviorSettingsPanel
+        value={defaultValue}
+        onChange={vi.fn()}
+      />
+    );
+    expect(screen.queryByText('Block Copy & Paste')).not.toBeInTheDocument();
+  });
+
   it('renders the VA-specific Scoring section', () => {
     render(
       <VideoActivityBehaviorSettingsPanel

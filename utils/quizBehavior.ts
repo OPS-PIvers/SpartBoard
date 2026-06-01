@@ -29,6 +29,7 @@ export const DEFAULT_QUIZ_BEHAVIOR: QuizBehaviorSettings = deepFreeze({
   sessionMode: 'teacher',
   sessionOptions: {
     tabWarningsEnabled: true,
+    blockCopyPaste: false,
     showResultToStudent: false,
     showCorrectAnswerToStudent: false,
     showCorrectOnBoard: false,

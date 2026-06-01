@@ -910,6 +910,22 @@ describe('useQuizAssignments - updateAssignmentSettings', () => {
     return call[1] as Record<string, unknown>;
   }
 
+  it('mirrors a blockCopyPaste change onto the live session doc', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+
+    await act(async () => {
+      await result.current.updateAssignmentSettings(ASSIGNMENT_ID, {
+        sessionOptions: { blockCopyPaste: true },
+      });
+    });
+
+    const sessionCall = batchUpdate.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!sessionCall) throw new Error('expected batch.update on session doc');
+    expect(sessionCall[1]).toMatchObject({ blockCopyPaste: true });
+  });
+
   it('translates explicit-undefined plc into deleteField() so toggle-OFF actually clears the linkage', async () => {
     // Firestore is initialized with `ignoreUndefinedProperties: true`, so a
     // raw `{ plc: undefined }` patch would be silently dropped on the wire
@@ -1541,6 +1557,36 @@ describe('useQuizAssignments - createAssignment (PLC index side effect)', () => 
       },
     };
   }
+
+  function findSessionSet(): Record<string, unknown> {
+    const call = batchSet.mock.calls.find(
+      ([ref]) => typeof ref === 'string' && ref.startsWith('quiz_sessions/')
+    );
+    if (!call) throw new Error('expected batch.set on session doc');
+    return call[1] as Record<string, unknown>;
+  }
+
+  it('mints the session with blockCopyPaste:true when the option is set', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: { blockCopyPaste: true },
+      });
+    });
+    expect(findSessionSet()).toMatchObject({ blockCopyPaste: true });
+  });
+
+  it('defaults blockCopyPaste to false when the option is omitted', async () => {
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.createAssignment(QUIZ, {
+        sessionMode: 'teacher',
+        sessionOptions: {},
+      });
+    });
+    expect(findSessionSet()).toMatchObject({ blockCopyPaste: false });
+  });
 
   it('writes an index entry to the PLC subcollection when settings.plc is set', async () => {
     const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
