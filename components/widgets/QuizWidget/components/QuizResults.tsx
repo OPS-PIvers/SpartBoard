@@ -58,6 +58,7 @@ import {
   getDisplayScore,
   getScoreSuffix,
   getEarnedPoints,
+  scaleEarnedToMaxPoints,
   isGamificationActive,
 } from '../utils/quizScoreboard';
 import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
@@ -1090,19 +1091,19 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     );
 
     // Build the PII-free grade payload: one entry per completed, scored
-    // response. `getEarnedPoints` returns the raw points on the current scale;
-    // scale onto the Classroom denominator, then round + clamp to [0, maxPoints].
-    const grades = eligible.map((r) => {
-      // Guard against a non-finite score (e.g. missing answers) so it can't
-      // propagate NaN through the clamp and make the CF reject the entry.
-      const rawPoints = getEarnedPoints(r, quiz.questions, session);
-      const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
-      const scaled = currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
-      return {
-        pseudonymUid: r.studentUid,
-        pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(scaled))),
-      };
-    });
+    // response. `scaleEarnedToMaxPoints` scales each student's raw earned
+    // points onto the frozen Classroom denominator, guards a non-finite score
+    // (e.g. missing answers) so it can't propagate NaN through the clamp and
+    // make the CF reject the entry, and rounds + clamps to [0, maxPoints].
+    const grades = eligible.map((r) =>
+      scaleEarnedToMaxPoints(
+        r,
+        quiz.questions,
+        session,
+        currentTotal,
+        maxPoints
+      )
+    );
 
     setPushingGrades(true);
     try {

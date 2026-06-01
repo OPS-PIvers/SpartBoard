@@ -30,6 +30,7 @@ vi.mock('@/config/scoreboard', () => ({
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import {
   getEarnedPoints,
+  scaleEarnedToMaxPoints,
   getResponseScore,
   getDisplayScore,
   getScoreSuffix,
@@ -327,6 +328,102 @@ describe('quizScoreboard', () => {
         // answeredAt defaults from helper, should not throw
         expect(getEarnedPoints(response, questions)).toBe(1);
       });
+    });
+  });
+
+  describe('scaleEarnedToMaxPoints', () => {
+    it('maps earned == total onto the full maxPoints (exact-total)', () => {
+      // Two 10-point questions, both correct → earned 20. The quiz is
+      // unchanged from attach time, so total === maxPoints and the scale is a
+      // no-op: the student gets the full denominator.
+      const questions = [
+        makeQuestion('q1', 'A', 10),
+        makeQuestion('q2', 'B', 10),
+      ];
+      const response = makeResponse('01', [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'q2', answer: 'B' },
+      ]);
+      const entry = scaleEarnedToMaxPoints(
+        response,
+        questions,
+        undefined,
+        20,
+        20
+      );
+      expect(entry).toEqual({ pseudonymUid: 'uid-01', pointsEarned: 20 });
+    });
+
+    it('scales a partial score onto a drifted denominator and rounds', () => {
+      // 1 correct of 3 one-point questions → earned 1, total 3. Pushed onto a
+      // frozen maxPoints of 10: (1/3)*10 = 3.33… → rounds to 3.
+      const questions = [
+        makeQuestion('q1', 'A'),
+        makeQuestion('q2', 'B'),
+        makeQuestion('q3', 'C'),
+      ];
+      const response = makeResponse('02', [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'q2', answer: 'wrong' },
+        { questionId: 'q3', answer: 'wrong' },
+      ]);
+      const entry = scaleEarnedToMaxPoints(
+        response,
+        questions,
+        undefined,
+        3,
+        10
+      );
+      expect(entry).toEqual({ pseudonymUid: 'uid-02', pointsEarned: 3 });
+    });
+
+    it('clamps to maxPoints when the scaled value exceeds the denominator', () => {
+      // earned 2 but a stale/drifted total of 1 → (2/1)*10 = 20, which must be
+      // clamped down to the frozen maxPoints (10) rather than over-credited.
+      const questions = [makeQuestion('q1', 'A'), makeQuestion('q2', 'B')];
+      const response = makeResponse('03', [
+        { questionId: 'q1', answer: 'A' },
+        { questionId: 'q2', answer: 'B' },
+      ]);
+      const entry = scaleEarnedToMaxPoints(
+        response,
+        questions,
+        undefined,
+        1,
+        10
+      );
+      expect(entry).toEqual({ pseudonymUid: 'uid-03', pointsEarned: 10 });
+    });
+
+    it('scales to 0 when total is 0 (no scorable questions) instead of dividing by zero', () => {
+      const questions = [makeQuestion('q1', 'A')];
+      const response = makeResponse('04', [{ questionId: 'q1', answer: 'A' }]);
+      const entry = scaleEarnedToMaxPoints(
+        response,
+        questions,
+        undefined,
+        0,
+        10
+      );
+      expect(entry).toEqual({ pseudonymUid: 'uid-04', pointsEarned: 0 });
+    });
+
+    it('coerces a non-finite earned score to 0 so NaN cannot propagate to the CF', () => {
+      // A question with NaN points makes getEarnedPoints return NaN (the
+      // missing-answers / malformed-grade case the guard exists for). Without
+      // the Number.isFinite guard, Math.round(NaN) → NaN slips through the
+      // clamp and the Cloud Function rejects the grade entry.
+      const questions = [makeQuestion('q1', 'A', NaN)];
+      const response = makeResponse('05', [{ questionId: 'q1', answer: 'A' }]);
+      expect(getEarnedPoints(response, questions)).toBeNaN();
+      const entry = scaleEarnedToMaxPoints(
+        response,
+        questions,
+        undefined,
+        2,
+        10
+      );
+      expect(entry).toEqual({ pseudonymUid: 'uid-05', pointsEarned: 0 });
     });
   });
 

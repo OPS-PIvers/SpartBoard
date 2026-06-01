@@ -14,6 +14,7 @@ import {
 import { gradeAnswer } from '@/hooks/useQuizSession';
 import { SCOREBOARD_COLORS } from '@/config/scoreboard';
 import type { StudentName } from '@/hooks/useAssignmentPseudonyms';
+import type { ClassroomGradeEntry } from '@/utils/classroomGradePush';
 import {
   resolveResponseDisplayName,
   responseColorIndex,
@@ -101,6 +102,45 @@ export function getEarnedPoints(
   }
 
   return Math.round(totalPoints);
+}
+
+/**
+ * Scale ONE quiz response's raw earned points onto a Google Classroom
+ * attachment's frozen `maxPoints` denominator, producing the PII-free grade
+ * entry the `pushClassroomGradesForAssignment` Cloud Function expects.
+ *
+ * `total` is the quiz's *current* point total. It can drift from `maxPoints`
+ * (frozen at attach time) when the quiz is edited after attaching, so scaling
+ * keeps the pushed ratio correct. When the quiz is unchanged
+ * (`total === maxPoints`) the scale is a no-op and the result equals the raw
+ * earned points (preserving the original "same number" behavior).
+ *
+ * Guards — so a single bad response can't make the CF reject the whole batch:
+ *   - A non-finite earned score (e.g. `getEarnedPoints` returning `NaN` for a
+ *     response with missing/un-gradeable answers) is coerced to 0 rather than
+ *     propagating `NaN` through the clamp.
+ *   - `total <= 0` (no scorable questions) scales to 0 instead of dividing by
+ *     zero.
+ *   - The scaled value is rounded and clamped to `[0, maxPoints]`.
+ *
+ * Pure and React-free so the passback math is testable without rendering a
+ * results view. Callers pass `total`/`maxPoints` because both denominators are
+ * caller-owned (the current quiz total vs. the frozen attachment total).
+ */
+export function scaleEarnedToMaxPoints(
+  response: QuizResponse,
+  questions: QuizQuestion[],
+  session: QuizScoringSession,
+  total: number,
+  maxPoints: number
+): ClassroomGradeEntry {
+  const rawPoints = getEarnedPoints(response, questions, session);
+  const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
+  const scaled = total > 0 ? (earned / total) * maxPoints : 0;
+  return {
+    pseudonymUid: response.studentUid,
+    pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(scaled))),
+  };
 }
 
 /**
