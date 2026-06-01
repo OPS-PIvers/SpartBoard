@@ -1519,7 +1519,17 @@ export const checkUrlCompatibility = onCall(
     }
 
     const hostname = parsedUrl.hostname.toLowerCase();
-    // Block private/reserved IP ranges and metadata endpoints
+    // Block private/reserved IP ranges and metadata endpoints.
+    //
+    // IPv4 patterns cover RFC 1918 and link-local ranges; IPv6 patterns cover:
+    //   - Loopback  ::1 (any form — Node normalises to [::1])
+    //   - All-zeros ::  (unspecified address, effectively loopback)
+    //   - IPv4-mapped  ::ffff:... (e.g. ::ffff:127.0.0.1 → ::ffff:7f00:1)
+    //   - ULA  fc00::/7  (fc** and fd** prefixes — RFC 4193 private range)
+    //   - Link-local  fe80::/10 (fe80 through febf — never routes globally)
+    //
+    // Regex note: Node wraps IPv6 hostnames in brackets, e.g. `[::1]`.
+    // The patterns below match the bracketed form as returned by URL.hostname.
     const blockedPatterns = [
       /^localhost$/,
       /^127\./,
@@ -1530,6 +1540,15 @@ export const checkUrlCompatibility = onCall(
       /^0\./,
       /^metadata\./,
       /metadata\.google\.internal/,
+      // IPv6 loopback and unspecified
+      /^\[::1\]$/,
+      /^\[::\]$/,
+      // IPv4-mapped IPv6 (::ffff:...)
+      /^\[::ffff:/,
+      // ULA (fc00::/7 — fc** and fd** prefixes)
+      /^\[f[cd]/,
+      // Link-local (fe80::/10 — fe8x through febx)
+      /^\[fe[89ab]/,
     ];
     if (blockedPatterns.some((pattern) => pattern.test(hostname))) {
       throw new HttpsError(
