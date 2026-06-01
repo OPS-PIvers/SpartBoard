@@ -1,6 +1,25 @@
 {
   "entries": [
     {
+      "version": "2026.06.01",
+      "date": "2026-06-01",
+      "title": "Delete key, scoring, and translation fixes",
+      "details": [
+        {
+          "type": "fix",
+          "text": "Board canvas — pressing the Delete key while typing in a text field on the board now deletes the character in front of your cursor, the way it does everywhere else. Previously the board treated Delete as a command for the selected widget and swallowed the keystroke, so forward-delete appeared to do nothing while you were editing a widget's settings, a title, or any other text field on the canvas."
+        },
+        {
+          "type": "fix",
+          "text": "Video Activity — a published activity's scores now read correctly when the activity accidentally contains the same question twice (which can happen through a Drive sync hiccup). The duplicate no longer inflates the total possible points, so the percentage students see on a finished, published activity is accurate."
+        },
+        {
+          "type": "fix",
+          "text": "Translations — the admin Sticker Library now appears in German, Spanish, and French. Previously its title, buttons, and descriptions showed raw text keys for admins using one of those languages instead of readable labels."
+        }
+      ]
+    },
+    {
       "version": "2026.05.31",
       "date": "2026-05-31",
       "title": "Settings panel, widget, and translation fixes",
