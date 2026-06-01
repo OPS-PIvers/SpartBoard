@@ -3,8 +3,8 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-05-29_
-_Last action: 2026-05-23_
+_Last audited: 2026-05-31_
+_Last action: 2026-05-31_
 
 ---
 
@@ -22,6 +22,9 @@ _Nothing currently in progress._
 
 ## Open
 
+_2026-05-31: Scanned widget files changed in dev-paul since 2026-05-30. New dev-paul commits touching widget files: Fix SmartNotebook placed assets stranding on page reorder/delete (#1759 — SmartNotebook/Widget.tsx), fix(spotify) eliminate Web Playback SDK 'ready' vs Connect registration race (#1758 — MusicWidget/PersonalSpotify sub-components). SmartNotebook/Widget.tsx diff inspected — changes are logic-only (stranded asset cleanup on page reorder/delete); no new Tailwind text-size classes, no new pixel-cap violations, no hardcoded icon sizes added to front-face content. SmartNotebook has `skipScaling: true` so CQ rules apply, but no front-face sizing changes in this commit. Spotify/music changes are within MusicWidget sub-components; MusicWidget cqh-only sizing is documented as acceptable (fill-better formula for short/wide layout). No new anti-patterns detected. All pre-existing open items remain valid._
+
+_2026-05-30: Scanned widget files changed in dev-paul since last merge (DiceWidget/Widget.tsx, QuizWidget/Widget.tsx, VideoActivityWidget/Widget.tsx, random/RandomSettings.tsx) for anti-patterns. New dev-paul commits (classroom-addon x10: VA grade push, grade passback, assignment settings, PLC parity, link-to-Classroom button) do not touch any widget front-face content. DiceWidget/Widget.tsx: verified no new className violations — `px-3 pb-3` and `py-4 px-6 gap-3` on footer wrapper and Roll Dice button remain the same tracked items (already in group open item). QuizWidget/Widget.tsx: git diff shows no new className or style changes from dev-paul. VideoActivityWidget/Widget.tsx: same — no new front-face styling changes. random/RandomSettings.tsx: settings panel (back-face), scaling rules do not apply. Note: prior journal entry (2026-05-22) stated QuizWidget and VideoActivityWidget have `skipScaling:false` — this is INCORRECT. Both have `skipScaling: true` in WIDGET_SCALING_CONFIG. This note has been corrected here; however, neither widget has new violations in the current diff. All pre-existing open items remain valid. Zero new anti-patterns detected._
 _2026-05-29: Scanned all 49 Widget.tsx files for anti-patterns. New dev-paul commits absorbed via merge since 2026-05-28 (see widget-registry log for full list) — none introduce new front-face widget changes beyond those already reviewed. THREE NEW LOW items detected: (1) CarRiderPro/Widget.tsx:62 — hardcoded `top-2 right-2 p-1.5` on external-link overlay button (absolute-positioned, skipScaling:true context); (2) First5/Widget.tsx:56 — identical hardcoded overlay button pattern, same snippet copy-pasted; (3) GraphicOrganizer/Widget.tsx:79 — EditableNode contenteditable uses `min-h-[50px]` as a fixed minimum height cap inside the skipScaling:true container-query context (this is a NEW sub-item from EditableNode specifically, not covered by the prior Completed entries which addressed outer structural padding). Also re-found Countdown/TrafficLight/LunchCount using cqh/cqw separately — confirmed these are intentional "fill-better" formulas per journal guidance (same reasoning as ClockWidget WON'T FIX and Checklist WON'T FIX; `min(42cqh, 55cqw)` on countdown number and `min(28cqh, 80cqw)` on traffic-light circles are portrait-fill choices, not anti-patterns). MusicWidget cqh-only sizing also exempt per guidance. Weather/hideClothing compact branch cqh/cqw exempt (portrait orientation sub-mode). No action required for those re-found items._
 _2026-05-28: Scanned all Widget.tsx / index.tsx files for anti-patterns. New dev-paul commits since 2026-05-27: feat(scoreboard) ScoreboardItem ±buttons layout change (ScoreboardItem.tsx), fix(random,stations) restore widget floors + size result (Stations/Widget.tsx, random/RandomWidget.tsx — both skipScaling:true). Stations/Widget.tsx: change is data/logic only (floor values), no new className violations. random/RandomWidget.tsx: result text sizing change — verified inline style still uses cqmin. MaterialsWidget/index.tsx reviewed — top-level `overflow-hidden` on `h-full w-full flex flex-col` container (line 124) is acceptable; content has `flex-1 min-h-0` at line 140. NEW LOW: PollWidget/Widget.tsx:161 progress bar uses `h-[min(5cqmin)] min-h-[16px]` — uncapped upper bound means bar can grow excessively large at big widget sizes (e.g., 50px tall at 1000px width). See new open item below._
 _2026-05-27: Scanned recently changed Widget.tsx files for anti-patterns. New dev-paul commits since 2026-05-26 touching widget content: feat(drawing-widget) toolbar redesign + eraser modes + page titles (DrawingWidget has `skipScaling: false` — CSS transform scaling, not container queries; hardcoded Tailwind sizes in the toolbar are not CQ violations). feat(smart-notebook) multiple sub-component updates — SmartNotebook sub-components verified clean (no hardcoded Tailwind text-size classes in front-face content; `max-w-[240px] min-w-[160px]` on assets side-panel previously documented as acceptable structural constraint). Stations and RevealGrid widgets unchanged. QRWidget (positive reference) still clean. No new anti-patterns detected. All pre-existing open items remain valid._
@@ -124,6 +127,22 @@ _2026-05-05: New widgets from dev-paul merge audited — BlendingBoard/Widget.ts
 ---
 
 ## Completed
+
+### LOW GraphicOrganizer EditableNode uses min-h-[50px] fixed minimum height on contenteditable
+
+- **Detected:** 2026-05-29
+- **Completed:** 2026-05-31
+- **File:** components/widgets/GraphicOrganizer/Widget.tsx:79
+- **Detail:** The internal `EditableNode` contenteditable div carried a hardcoded `min-h-[50px]` Tailwind class, fixing a 50 px minimum height on every editable node across all five organizer layouts (Frayer, T-chart, Venn, KWL, Cause-Effect). Widget has `skipScaling: true`, so the floor did not respond to widget size — crowding content at small sizes and looking sparse at large sizes.
+- **Resolution:** Removed `min-h-[50px]` from the `className` and merged a `minHeight: 'min(50px, 10cqmin)'` key into the element's `style` prop. Because `EditableNode` receives `style` as a prop (`style={style}`) rather than an inline object, the fix uses `style={{ minHeight: 'min(50px, 10cqmin)', ...style }}` — the scaled floor applies by default while any caller-provided `style` (including a caller `minHeight`) still wins via the spread. Caps the floor at 50 px on large widgets while letting it scale down proportionally at small sizes. `tsc --noEmit`, `eslint --max-warnings 0`, and `prettier --check` on the changed file all clean.
+
+### LOW CarRiderPro and First5 share a hardcoded external-link overlay button (group)
+
+- **Detected:** 2026-05-29
+- **Completed:** 2026-05-30
+- **File:** components/widgets/CarRiderPro/Widget.tsx, components/widgets/First5/Widget.tsx
+- **Detail:** Both widgets render an identical absolute-positioned external-link overlay `<a>` button. Both have `skipScaling: true`, so the `top-2 right-2 ... p-1.5` Tailwind utilities on the anchor produced fixed-pixel positioning/padding (8 px / 8 px / 6 px) that did not scale with the container — the button appeared disproportionately small at large widget sizes and risked crowding at small sizes. (The inner `ExternalLink` icon had already been converted to inline `cqmin` in a prior pass; only the anchor's positioning/padding remained hardcoded.)
+- **Resolution:** Replaced the hardcoded utilities on the anchor in both files with inline `cqmin` styles: `top-2 right-2` → `style={{ top: 'min(8px, 2cqmin)', right: 'min(8px, 2cqmin)' }}`, `p-1.5` → `padding: 'min(6px, 1.5cqmin)'`. Visual/color and structural classes (`absolute`, `z-10`, `bg-white/80`, `backdrop-blur-sm`, `hover:bg-white`, `text-slate-500`, `hover:text-blue-500`, `shadow-sm`, `border`, `border-slate-200/50`, `rounded-lg`, `transition-colors`) remain on `className`. `pnpm type-check`, `npx eslint ... --max-warnings 0`, and `npx prettier --check` on both files all clean.
 
 ### LOW MiniApp active-app toolbar uses hardcoded sizes — portaled outside container query context
 

@@ -21,7 +21,10 @@
     "previous": "Vorherige Tafel",
     "next": "Nächste Tafel",
     "selectBoard": "Tafel auswählen",
-    "boardList": "Alle Tafeln"
+    "boardList": "Alle Tafeln",
+    "manageAllBoards": "Alle Tafeln verwalten…",
+    "pinned": "Angeheftet",
+    "selectCollection": "Sammlung auswählen"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -73,7 +76,8 @@
       "globalStyle": "Globaler Stil",
       "generalSettings": "Allgemeine Einstellungen",
       "whatsNew": "Was ist neu",
-      "whatsNewBadge": "Neu"
+      "whatsNewBadge": "Neu",
+      "whatsNewSrAnnouncement": "Neue Versionshinweise verfügbar"
     },
     "boards": {
       "newBoard": "Neue Tafel",
@@ -149,7 +153,18 @@
       "noClassSelected": "Keine Klasse ausgewählt",
       "pickClass": "Wählen Sie unten eine Klasse",
       "clearActive": "Aktive Klasse entfernen",
-      "noActive": "Keine aktive Klasse"
+      "noActive": "Keine aktive Klasse",
+      "addRestrictions": "+ Einschränkungen",
+      "hideRestrictions": "− Einschränkungen",
+      "restrictionsHeader": "Darf nicht zusammenarbeiten mit",
+      "restrictionsNone": "Keine Einschränkungen",
+      "restrictionsCount_one": "{{count}} eingeschränkt",
+      "restrictionsCount_other": "{{count}} eingeschränkt",
+      "restrictionsPickerLabel": "Von der Zusammenarbeit ausschließen",
+      "restrictionsFilter": "Mitschüler/innen suchen…",
+      "restrictionsEmptyRoster": "Füge weitere Schüler/innen hinzu, um Einschränkungen festzulegen.",
+      "restrictionsNoMatches": "Keine Treffer.",
+      "restrictionsFooter": "Einschränkungen gelten automatisch für beide Schüler/innen."
     },
     "plcs": {
       "title": "Meine PLGs",
@@ -239,6 +254,270 @@
     },
     "confirmClearBoard": "Bist du sicher, dass du ALLE Widget-Fenster schließen möchtest?"
   },
+  "plcDashboard": {
+    "subtitle": "PLG-Dashboard",
+    "backToMenu": "Zurück",
+    "close": "Schließen",
+    "tabs": {
+      "overview": "Übersicht",
+      "quizzes": "Quizze",
+      "videoActivities": "Videoaktivitäten",
+      "notes": "Notizen",
+      "todos": "Aufgabenliste",
+      "sharedBoards": "Geteilte Tafeln",
+      "settings": "Einstellungen",
+      "home": "Startseite",
+      "members": "Mitglieder",
+      "sharedData": "Geteilte Daten",
+      "docs": "Dokumente",
+      "resources": "Ressourcen"
+    },
+    "assignmentsSubTabs": {
+      "label": "Aufgabenansichten",
+      "library": "Bibliothek",
+      "inProgress": "Laufend",
+      "completed": "Abgeschlossen"
+    },
+    "quizzesSubTabs": {
+      "label": "Quizansichten",
+      "library": "Bibliothek",
+      "inProgress": "Laufend",
+      "completed": "Abgeschlossen"
+    },
+    "videoActivitiesSubTabs": {
+      "label": "Videoaktivitätsansichten",
+      "library": "Bibliothek",
+      "inProgress": "Laufend",
+      "completed": "Abgeschlossen"
+    },
+    "assignmentsLibrary": {
+      "bySharer": "geteilt von {{name}}",
+      "unknownSharer": "einem Teammitglied",
+      "addToMyBoard": "Zu meiner Tafel hinzufügen",
+      "unshareAction": "Freigabe aufheben",
+      "unshareTitle": "Aufgabenvorlage nicht mehr teilen",
+      "unshareConfirm": "„{{title}}“ aus dieser PLG entfernen? Teammitglieder, die es bereits zu ihrer Tafel hinzugefügt haben, behalten ihre Kopie.",
+      "unshareTooltip": "Aus PLG entfernen (jedes Mitglied kann die Freigabe aufheben; bestehende Importe bleiben funktionsfähig)",
+      "unshared": "„{{title}}“ aus dieser PLG entfernt.",
+      "unshareFailed": "Freigabe der Aufgabenvorlage konnte nicht aufgehoben werden.",
+      "importedSync": "„{{title}}“ zu deiner Tafel hinzugefügt (pausiert, synchronisiert).",
+      "importedCopy": "„{{title}}“ zu deiner Tafel kopiert (pausiert).",
+      "importFailed": "Aufgabe konnte nicht zur Tafel hinzugefügt werden.",
+      "assignedToClasses_one": "{{count}} Klasse zugewiesen.",
+      "assignedToClasses_other": "{{count}} Klassen zugewiesen.",
+      "assignFailed": "Klassenauswahl konnte nicht gespeichert werden.",
+      "driveRequired": "Verbinde Google Drive in deinem Konto, um PLG-Aufgaben zu übernehmen.",
+      "driveDisconnected": "Verbinde Google Drive, um PLG-Aufgaben zu deiner Tafel hinzuzufügen.",
+      "emptyTitle": "Noch keine Aufgabenvorlagen",
+      "emptySubtitle": "Aktiviere „Mit PLG teilen“ bei einer Quiz-Aufgabe – sie erscheint dann hier, damit Teammitglieder sie auf ihre eigene Tafel übernehmen können."
+    },
+    "assignmentsInProgress": {
+      "heading": "Live im Team",
+      "count_one": "{{count}} läuft",
+      "count_other": "{{count}} laufen",
+      "statusActive": "Aktiv",
+      "statusPaused": "Pausiert",
+      "emptyTitle": "Keine laufenden Aufgaben",
+      "emptySubtitle": "Wenn du oder ein Teammitglied eine PLG-Aufgabe startet, erscheint sie hier. Pausiere oder stoppe sie von deiner Tafel, und die Zeile aktualisiert sich in Echtzeit."
+    },
+    "meta": {
+      "members_one": "{{count}} Mitglied",
+      "members_other": "{{count}} Mitglieder",
+      "youLead": "Du leitest diese PLG"
+    },
+    "completedAssignments": {
+      "heading": "Geteilte Ergebnisse",
+      "count_one": "{{count}} Aufgabe",
+      "count_other": "{{count}} Aufgaben",
+      "byOwner": "von {{name}}",
+      "openSheet": "Tabelle öffnen",
+      "unsafeSheet": "Kein Link",
+      "emptyTitle": "Noch keine abgeschlossenen Aufgaben",
+      "emptySubtitle": "Wenn eine PLG-Aufgabe von einer Tafel eines Teammitglieds gestoppt wird, erscheint sie hier mit einem Link zur geteilten Ergebnistabelle."
+    },
+    "placeholder": {
+      "comingSoon": "Demnächst verfügbar"
+    },
+    "settings": {
+      "heading": "Dashboard-Bereiche",
+      "description": "Wähle, welche Bereiche im Dashboard dieser PLG angezeigt werden. Jedes PLG-Mitglied kann diese Einstellungen ändern.",
+      "saveFailed": "Einstellungen konnten nicht gespeichert werden",
+      "quizzes": {
+        "title": "Quiz-Bibliothek",
+        "description": "Teile Quizze mit der PLG. Mitglieder können Bearbeitungen synchronisieren oder ein Quiz in ihre eigene Bibliothek kopieren."
+      },
+      "videoActivities": {
+        "title": "Videoaktivitäten",
+        "description": "Teile videobasierte Aktivitäten und aggregiere Abschlussdaten mit der PLG."
+      },
+      "notes": {
+        "title": "Notizen",
+        "description": "Ein geteiltes Notizbuch für die PLG."
+      },
+      "todos": {
+        "title": "Aufgabenliste",
+        "description": "Eine geteilte Checkliste, damit die PLG Aufgaben verfolgen kann."
+      },
+      "sharedBoards": {
+        "title": "Geteilte Tafeln",
+        "description": "Zeigt Tafeln, die mit dieser PLG geteilt wurden."
+      }
+    },
+    "overview": {
+      "heading": "Übersicht",
+      "editLayout": "Layout bearbeiten",
+      "doneEditing": "Fertig",
+      "reset": "Zurücksetzen",
+      "editHint": "Kacheln am Griff ziehen, Ecke anklicken zum Skalieren, Auge anklicken zum Ausblenden.",
+      "confirmReset": "Dein Bento-Layout auf die Standardanordnung zurücksetzen? Kachelgrößen und -reihenfolge werden wiederhergestellt.",
+      "confirmResetTitle": "Layout zurücksetzen",
+      "dragHandle": "Zum Neuanordnen ziehen",
+      "hideTile": "Kachel ausblenden",
+      "unhideTile": "{{kind}}-Kachel wiederherstellen",
+      "resizeTile": "Kachel skalieren (aktuell: {{size}})",
+      "hiddenTiles": "Ausgeblendete Kacheln",
+      "hiddenTilesHint": "zum Wiederherstellen anklicken",
+      "tiles": {
+        "comingSoon": "Phase {{phase}} · demnächst",
+        "plcInfo": {
+          "label": "Professionelle Lerngemeinschaft",
+          "members": "Mitglieder",
+          "lead": "Leitung",
+          "you": "Du",
+          "created": "Erstellt",
+          "openSettings": "Einstellungen öffnen"
+        },
+        "members": {
+          "heading": "Mitglieder"
+        },
+        "completedAssignments": {
+          "heading": "Aktuelle Ergebnisse",
+          "empty": "Noch keine Aufgaben durchgeführt",
+          "emptySubtitle": "Quizze, die du im PLG-Modus durchführst, erscheinen hier.",
+          "viewAll": "Alle anzeigen"
+        },
+        "notes": {
+          "heading": "Notizen",
+          "empty": "Noch keine Notizen",
+          "emptySubtitle": "Besprechungsnotizen, Entscheidungen, Ideen festhalten.",
+          "untitled": "Ohne Titel",
+          "openAll": "Notizen öffnen",
+          "justNow": "gerade eben",
+          "minutesAgo_one": "vor {{count}} Min.",
+          "minutesAgo_other": "vor {{count}} Min.",
+          "hoursAgo_one": "vor {{count}} Std.",
+          "hoursAgo_other": "vor {{count}} Std.",
+          "daysAgo_one": "vor {{count}} Tag",
+          "daysAgo_other": "vor {{count}} Tagen"
+        },
+        "todos": {
+          "heading": "Aufgabenliste",
+          "empty": "Nichts zu erledigen",
+          "emptySubtitle": "Füge Aufgaben im Aufgaben-Tab hinzu.",
+          "openAll": "Liste öffnen",
+          "toggle": "„{{text}}“ als erledigt markieren",
+          "moreCount_one": "+{{count}} weitere",
+          "moreCount_other": "+{{count}} weitere"
+        },
+        "sharedSheet": {
+          "heading": "Geteilte Tabelle",
+          "connectedHint": "Aggregierte PLG-Ergebnisse landen in dieser Google-Tabelle. Alle Mitglieder können sie öffnen.",
+          "unsetHint": "Noch keine geteilte Tabelle – sie wird automatisch erstellt, wenn das erste PLG-Quiz durchgeführt wird.",
+          "open": "Tabelle öffnen",
+          "notReady": "Noch nicht erstellt"
+        },
+        "quickActions": {
+          "heading": "Schnellaktionen",
+          "addNote": "Notiz hinzufügen",
+          "addTodo": "Aufgabe hinzufügen"
+        },
+        "quizLibrary": {
+          "title": "Quiz-Bibliothek",
+          "teaser": "Teile Quizze mit deiner PLG.",
+          "heading": "Quiz-Bibliothek",
+          "empty": "Keine geteilten Quizze",
+          "emptySubtitle": "Teile ein Quiz über das Menü auf seiner Bibliothekskarte.",
+          "questionCount_one": "{{count}} Frage",
+          "questionCount_other": "{{count}} Fragen",
+          "bySharer": "geteilt von {{name}}",
+          "openAll": "Bibliothek öffnen"
+        },
+        "activeAssignments": {
+          "title": "Aktive Aufgaben",
+          "teaser": "Von PLG erstellte Aufgaben, die noch übernommen werden müssen."
+        },
+        "videoActivities": {
+          "title": "Videoaktivitäten",
+          "teaser": "Teile Videoaktivitäten mit der PLG."
+        },
+        "sharedBoards": {
+          "title": "Geteilte Tafeln",
+          "teaser": "Mit dieser PLG geteilte Tafeln."
+        }
+      }
+    },
+    "notes": {
+      "heading": "Notizen",
+      "newNote": "Neu",
+      "untitled": "Ohne Titel",
+      "empty": "Leere Notiz",
+      "emptyTitle": "Noch keine Notizen",
+      "emptySubtitle": "Erstelle die erste, um loszulegen.",
+      "titlePlaceholder": "Notiztitel",
+      "bodyPlaceholder": "Deine Notizen…",
+      "deleteNote": "Notiz löschen",
+      "confirmDelete": "Diese Notiz löschen? Dies kann nicht rückgängig gemacht werden.",
+      "confirmDeleteTitle": "Notiz löschen",
+      "lastEdited": "Zuletzt bearbeitet {{when}}",
+      "pickOrCreate": "Wähle eine Notiz zum Bearbeiten oder erstelle eine neue."
+    },
+    "todos": {
+      "addPlaceholder": "Aufgabe für die PLG hinzufügen…",
+      "add": "Hinzufügen",
+      "openHeading": "Zu erledigen",
+      "doneHeading": "Erledigt",
+      "allDone": "Nichts auf der Liste",
+      "toggle": "„{{text}}“ als erledigt markieren",
+      "deleteTodo": "Aufgabe löschen",
+      "confirmDelete": "Diese Aufgabe löschen?",
+      "confirmDeleteTitle": "Aufgabe löschen"
+    },
+    "quizLibrary": {
+      "heading": "Geteilte Quizze",
+      "count_one": "{{count}} Quiz",
+      "count_other": "{{count}} Quizze",
+      "emptyTitle": "Noch keine geteilten Quizze",
+      "emptySubtitle": "Öffne das Quiz-Widget in deinem Dashboard, klicke auf das Menü bei einem Quiz und wähle „Mit PLG teilen“.",
+      "bySharer": "geteilt von {{name}}",
+      "unknownSharer": "einem Teammitglied",
+      "questionCount_one": "{{count}} Frage",
+      "questionCount_other": "{{count}} Fragen",
+      "addToMyLibrary": "Zu meiner Bibliothek hinzufügen",
+      "reimport": "Erneut importieren",
+      "inLibrary": "In deiner Bibliothek",
+      "alreadySynced": "„{{title}}“ ist bereits mit deiner Bibliothek synchronisiert.",
+      "unshareAction": "Freigabe aufheben",
+      "unshareYours": "Freigabe aus PLG aufheben",
+      "unshareTeammate": "Freigabe aus PLG aufheben (jedes Mitglied kann entfernen)",
+      "unshareTitle": "Quiz-Freigabe aufheben",
+      "unshareConfirm": "„{{title}}“ aus dieser PLG entfernen? Andere Teammitglieder verlieren den Zugriff auf den geteilten Bibliothekseintrag. Persönliche Kopien (falls vorhanden) bleiben funktionsfähig.",
+      "unshared": "„{{title}}“ aus dieser PLG entfernt.",
+      "unshareFailed": "Quiz-Freigabe konnte nicht aufgehoben werden.",
+      "importedSync": "„{{title}}“ zu deiner Bibliothek hinzugefügt (synchronisiert).",
+      "importedCopy": "„{{title}}“ in deine Bibliothek kopiert.",
+      "importFailed": "Quiz konnte nicht importiert werden.",
+      "editAction": "Bearbeiten",
+      "editTooltip": "Gemeinsam bearbeiten (Änderungen werden mit Teammitgliedern synchronisiert)",
+      "editTooltipAutoImport": "Gemeinsam bearbeiten – wird beim ersten Bearbeiten zu deiner Bibliothek hinzugefügt",
+      "editAutoImported": "„{{title}}“ zu deiner Bibliothek hinzugefügt – Editor wird geöffnet.",
+      "editSaved": "Quiz gespeichert – Teammitglieder synchronisieren automatisch.",
+      "editConflict": "Ein anderer Lehrer hat ein Update für dieses Quiz veröffentlicht. Wir haben seine Änderungen übernommen; deine nicht gespeicherten Änderungen wurden nicht gespeichert. Öffne das Quiz erneut, um sie neu anzuwenden.",
+      "editFailed": "Editor konnte nicht geöffnet werden.",
+      "driveRequired": "Verbinde Google Drive in deinem Konto, um PLG-Quizze zu importieren.",
+      "driveRequiredForEdit": "Verbinde Google Drive in deinem Konto, um PLG-Quizze zu bearbeiten.",
+      "driveDisconnected": "Verbinde Google Drive, um PLG-Quizze in deine persönliche Bibliothek zu importieren."
+    }
+  },
   "widgetWindow": {
     "closeWidget": "Widget schließen? Daten gehen verloren.",
     "settings": "Einstellungen",
@@ -315,7 +594,11 @@
     "uploadingToDrive": "Aufnahme wird auf Google Drive hochgeladen...",
     "recordingSavedToDrive": "Aufnahme auf Google Drive gespeichert!",
     "recordingDriveFailed": "Speichern auf Drive fehlgeschlagen. Lokaler Download...",
-    "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download..."
+    "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download...",
+    "viewLiveSession": "Informationen zur Live-Sitzung anzeigen",
+    "liveSession": "Live-Sitzung",
+    "provideCode": "Gib diesen Code deinen Schülerinnen und Schülern.",
+    "noAppsSelected": "Standardwerte werden wiederhergestellt…"
   },
   "languages": {
     "en": "English",

@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { CheckSquare, ChevronRight, Palette, RotateCcw } from 'lucide-react';
 import { GlobalFontFamily, GlobalStyle, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { GlobalStyleEditor } from '@/hooks/useGlobalStyleEditor';
-import { SettingsSectionHeader } from '../SettingsSectionHeader';
+import { SettingsSectionHeader } from '@/components/settingsModal/SettingsSectionHeader';
 
 const FONT_OPTIONS: { id: GlobalFontFamily; label: string; font: string }[] = [
   { id: 'sans', label: 'Modern Sans', font: 'font-sans' },

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { WidgetData, CountdownConfig, DEFAULT_GLOBAL_STYLE } from '@/types';
 import { WidgetLayout } from '../WidgetLayout';
 import { getFontClass, hexToRgba } from '@/utils/styles';
@@ -46,10 +46,24 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
 
   const fontClass = getFontClass(fontFamily, globalStyle.fontFamily);
 
+  // Stable "today at midnight" timestamp, refreshed every minute so the
+  // widget recomputes automatically when the calendar day changes. Without
+  // this ticker the useMemo dependency arrays never change at midnight and
+  // the countdown stays frozen until the user edits a config field.
+  const [todayMidnightMs, setTodayMidnightMs] = useState(() =>
+    normalizeDate(new Date()).getTime()
+  );
+  useEffect(() => {
+    const id = setInterval(() => {
+      setTodayMidnightMs(normalizeDate(new Date()).getTime());
+    }, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   const calculatedDays = useMemo(() => {
     const start = normalizeDate(new Date(startDate));
     const event = normalizeDate(new Date(eventDate));
-    const todayAtMidnight = normalizeDate(new Date());
+    const todayAtMidnight = new Date(todayMidnightMs);
 
     const countStart = new Date(
       Math.max(todayAtMidnight.getTime(), start.getTime())
@@ -75,12 +89,12 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
     }
 
     return days;
-  }, [startDate, eventDate, includeWeekends, countToday]);
+  }, [startDate, eventDate, includeWeekends, countToday, todayMidnightMs]);
 
   const gridData = useMemo(() => {
     const start = normalizeDate(new Date(startDate));
     const event = normalizeDate(new Date(eventDate));
-    const today = normalizeDate(new Date());
+    const today = new Date(todayMidnightMs);
     const countStart = new Date(Math.max(today.getTime(), start.getTime()));
 
     if (!countToday && countStart.getTime() === today.getTime()) {
@@ -125,7 +139,7 @@ export const CountdownWidget: React.FC<{ widget: WidgetData }> = ({
       ...item,
       number: countdownNumbers.get(item.date.getTime()),
     }));
-  }, [startDate, eventDate, includeWeekends, countToday]);
+  }, [startDate, eventDate, includeWeekends, countToday, todayMidnightMs]);
 
   return (
     <WidgetLayout
