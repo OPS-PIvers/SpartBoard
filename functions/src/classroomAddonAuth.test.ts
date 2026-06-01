@@ -530,7 +530,10 @@ describe('createClassroomAttachment (spike)', () => {
     // Grade-sync capable: courseWork attachments carry studentWorkReviewUri +
     // a non-zero maxPoints (added together; maxPoints is invalid without the
     // review uri). Defaults to 100 when the teacher supplies none.
-    expect(body.studentWorkReviewUri?.uri).toBe(body.studentViewUri.uri);
+    // studentWorkReviewUri must point at the TEACHER grader (where Classroom
+    // sends a teacher reviewing a student's submitted work), NOT the student
+    // runner — otherwise the teacher loops on the student sign-in screen.
+    expect(body.studentWorkReviewUri?.uri).toBe(body.teacherViewUri.uri);
     expect(body.maxPoints).toBe(100);
   });
 
@@ -571,7 +574,10 @@ describe('createClassroomAttachment (spike)', () => {
     expect(body.studentViewUri.uri).not.toContain('code=');
     // VA courseWork IS grade-sync capable: studentWorkReviewUri is present and
     // maxPoints reflects the supplied value (grade push is wired for VA too).
-    expect(body.studentWorkReviewUri?.uri).toBe(body.studentViewUri.uri);
+    // studentWorkReviewUri must point at the TEACHER grader (where Classroom
+    // sends a teacher reviewing a student's submitted work), NOT the student
+    // runner — otherwise the teacher loops on the student sign-in screen.
+    expect(body.studentWorkReviewUri?.uri).toBe(body.teacherViewUri.uri);
     expect(body.maxPoints).toBe(50);
   });
 

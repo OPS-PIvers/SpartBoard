@@ -834,16 +834,19 @@ export const createClassroomAttachment = onCall(
       studentViewUri: { uri: studentViewUri },
     };
     // Make the attachment grade-sync capable. `maxPoints` is invalid without
-    // `studentWorkReviewUri`, so they're added together. The review URI reuses
-    // the student view (the teacher review iframe renders the same runner read
-    // -only). Only courseWork supports graded student work.
+    // `studentWorkReviewUri`, so they're added together. The review URI is the
+    // TEACHER grading route (same as teacherViewUri) — NOT the student view:
+    // Classroom opens studentWorkReviewUri when a teacher clicks an individual
+    // student's submitted work, so it must land on the grader, not the student
+    // runner (which would see a teacher launch, mint no student token, and loop
+    // back to the sign-in screen). Only courseWork supports graded student work.
     //
     // BOTH the quiz AND video-activity courseWork runners are grade-sync
     // capable: Classroom grade push is wired for each (the teacher monitor for
     // each runner drives pushClassroomGradesForAssignment), so each gradeable
     // slot is actually filled.
     if (itemType === 'courseWork') {
-      body.studentWorkReviewUri = { uri: studentViewUri };
+      body.studentWorkReviewUri = { uri: teacherViewUri };
       body.maxPoints = suppliedMaxPoints;
     }
     const createResult = await classroomAddonNet.createAttachment(
