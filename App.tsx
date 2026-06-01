@@ -470,17 +470,17 @@ const App: React.FC = () => {
   // (discovery) iframe; everything else under the prefix is the student view.
   if (isClassroomAddonRoute) {
     const isTeacherDiscovery = pathname.startsWith('/classroom-addon/teacher');
-    // Teacher discovery needs the teacher's SpartBoard session (uid + Drive
-    // token) to list/load quizzes and create a class-targeted assignment, so it
-    // mounts AuthProvider. (No DashboardProvider — no dashboard listeners.)
     if (isTeacherDiscovery) {
       // The discovery (attach) iframe carries an addOnToken; the teacher VIEW of
-      // an already-created attachment does not. Mount the lean in-iframe grader
-      // for the view (its quiz-library + session hooks shouldn't run during
-      // attach), and the attach flow otherwise.
+      // an already-created attachment (and the per-student work review) does
+      // not. Mount the in-iframe grader for the view, the attach flow otherwise.
       const isAttachFlow =
         typeof window !== 'undefined' &&
         new URLSearchParams(window.location.search).has('addOnToken');
+      // Attach only needs auth (uid + Drive token) — no dashboard listeners. The
+      // grader needs DashboardProvider: it reuses the shared WrittenResponseGrader
+      // whose editor shell reads useDashboard (addToast), so wrap ONLY the review
+      // branch — keeping attach lean while the grader has the context it needs.
       return (
         <DialogProvider>
           <AuthProvider>
@@ -488,7 +488,9 @@ const App: React.FC = () => {
               {isAttachFlow ? (
                 <ClassroomAddonTeacherSpike />
               ) : (
-                <ClassroomAddonTeacherReview />
+                <DashboardProvider>
+                  <ClassroomAddonTeacherReview />
+                </DashboardProvider>
               )}
             </Suspense>
           </AuthProvider>
