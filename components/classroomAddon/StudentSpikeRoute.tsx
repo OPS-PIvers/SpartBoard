@@ -25,8 +25,16 @@
 import React, { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
-import { ClipboardList, Video, ArrowRight } from 'lucide-react';
-import { auth, functions } from '@/config/firebase';
+import {
+  collection,
+  doc,
+  getDoc,
+  getDocs,
+  query,
+  where,
+} from 'firebase/firestore';
+import { ClipboardList, ClipboardCheck, Video, ArrowRight } from 'lucide-react';
+import { auth, db, functions } from '@/config/firebase';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 import {
   AddonShell,
@@ -86,6 +94,14 @@ interface SessionInfo {
   classIds: unknown;
 }
 
+/** Normalize a quiz join code to the stored form (uppercase alphanumerics). */
+function normalizeCode(code: string): string {
+  return code
+    .trim()
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .toUpperCase();
+}
+
 export const ClassroomAddonStudentSpike: React.FC = () => {
   const params =
     typeof window === 'undefined'
@@ -119,6 +135,12 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   // session from another student/course can never mount the runner with the
   // wrong classIds — the student always re-handshakes for THIS attachment.
   const [handshakeDone, setHandshakeDone] = useState(false);
+  // Best-effort CTA hint: true when this device's persisted student already
+  // completed THIS quiz AND the teacher has published scores — so we label the
+  // button "View results" instead of "Open quiz". The click still re-handshakes
+  // and re-verifies identity, so a stale hint (shared device) self-corrects to
+  // the right runner screen.
+  const [resultsReady, setResultsReady] = useState(false);
 
   const append = useCallback((line: string) => {
     setStatusMsg(line);
@@ -160,6 +182,49 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
       unsub();
     };
   }, []);
+
+  // A persisted studentRole session lets us pre-check this student's state for
+  // the CTA label without forcing the OAuth popup first. Null unless present.
+  const studentUid = session?.studentRole ? session.uid : null;
+  useEffect(() => {
+    // Reset so the label recomputes cleanly when the session/code change.
+    setResultsReady(false);
+    // Quiz only — the VA completion screen surfaces its own published score.
+    if (isVideoActivity || !code || !studentUid) return;
+    let active = true;
+    void (async () => {
+      try {
+        // Resolve the quiz session by join code (same lookup students use to
+        // join — no extra auth needed).
+        const sessSnap = await getDocs(
+          query(
+            collection(db, 'quiz_sessions'),
+            where('code', '==', normalizeCode(code))
+          )
+        );
+        if (!active || sessSnap.empty) return;
+        const sessDoc = sessSnap.docs[0];
+        const published =
+          ((sessDoc.data().scoreVisibility as string | undefined) ?? 'none') !==
+          'none';
+        if (!published) return;
+        // Read THIS student's own response (doc id == their pseudonym uid).
+        const respSnap = await getDoc(
+          doc(db, 'quiz_sessions', sessDoc.id, 'responses', studentUid)
+        );
+        if (!active) return;
+        const completed =
+          respSnap.exists() &&
+          (respSnap.data().status as string | undefined) === 'completed';
+        if (completed) setResultsReady(true);
+      } catch {
+        // Best-effort hint only — fall back to the default "Open quiz" label.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [isVideoActivity, code, studentUid]);
 
   const runHandshake = useCallback(async () => {
     setBusy(true);
@@ -277,24 +342,43 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
   }
 
   const hasRunner = isVideoActivity || code !== '';
-  const RunnerIcon = isVideoActivity ? Video : ClipboardList;
+  const RunnerIcon = isVideoActivity
+    ? Video
+    : resultsReady
+      ? ClipboardCheck
+      : ClipboardList;
 
-  // "Open" (not "Start") works whether the student is taking the activity for
-  // the first time or returning to review published results.
+  // Label reflects the student's state: "View results" once their teacher has
+  // published their completed quiz; "Open" (not "Start") otherwise, since it
+  // covers both a first attempt and returning mid-quiz.
   const startLabel = busy
-    ? 'Opening…'
+    ? resultsReady
+      ? 'Opening results…'
+      : 'Opening…'
     : hasRunner
-      ? isVideoActivity
-        ? 'Open activity'
-        : 'Open quiz'
+      ? resultsReady
+        ? 'View results'
+        : isVideoActivity
+          ? 'Open activity'
+          : 'Open quiz'
       : 'Sign in';
 
   return (
     <AddonShell maxWidthClassName="max-w-md">
       <AddonHeader
         icon={RunnerIcon}
-        title={isVideoActivity ? 'Your video activity' : 'Your quiz'}
-        subtitle="Sign in with your school account to begin — this confirms who you are inside Classroom."
+        title={
+          resultsReady
+            ? 'Your quiz results'
+            : isVideoActivity
+              ? 'Your video activity'
+              : 'Your quiz'
+        }
+        subtitle={
+          resultsReady
+            ? 'Your teacher published your results — open them below.'
+            : 'Sign in with your school account to begin — this confirms who you are inside Classroom.'
+        }
       />
 
       <AddonCard className="p-6">
@@ -306,9 +390,11 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
             />
           </div>
           <p className="max-w-xs text-sm text-slate-500">
-            {hasRunner
-              ? 'When you’re ready, open your assignment below. Your progress saves automatically.'
-              : 'Sign in below to continue.'}
+            {resultsReady
+              ? 'Your results are ready. Open them to see your score.'
+              : hasRunner
+                ? 'When you’re ready, open your assignment below. Your progress saves automatically.'
+                : 'Sign in below to continue.'}
           </p>
           <AddonButton
             onClick={() => void runHandshake()}
