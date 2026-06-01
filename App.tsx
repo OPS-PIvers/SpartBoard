@@ -70,6 +70,12 @@ const ClassroomAddonTeacherSpike = lazy(() =>
     })
   )
 );
+// Classroom Add-on teacher VIEW — in-iframe quiz grading (no addOnToken launch).
+const ClassroomAddonTeacherReview = lazy(() =>
+  import('./components/classroomAddon/TeacherReviewRoute').then((module) => ({
+    default: module.ClassroomAddonTeacherReview,
+  }))
+);
 const ActivityWallStudentApp = lazy(() =>
   import('./components/activityWall/ActivityWallStudentApp').then((module) => ({
     default: module.ActivityWallStudentApp,
@@ -468,11 +474,22 @@ const App: React.FC = () => {
     // token) to list/load quizzes and create a class-targeted assignment, so it
     // mounts AuthProvider. (No DashboardProvider — no dashboard listeners.)
     if (isTeacherDiscovery) {
+      // The discovery (attach) iframe carries an addOnToken; the teacher VIEW of
+      // an already-created attachment does not. Mount the lean in-iframe grader
+      // for the view (its quiz-library + session hooks shouldn't run during
+      // attach), and the attach flow otherwise.
+      const isAttachFlow =
+        typeof window !== 'undefined' &&
+        new URLSearchParams(window.location.search).has('addOnToken');
       return (
         <DialogProvider>
           <AuthProvider>
             <Suspense fallback={<FullPageLoader />}>
-              <ClassroomAddonTeacherSpike />
+              {isAttachFlow ? (
+                <ClassroomAddonTeacherSpike />
+              ) : (
+                <ClassroomAddonTeacherReview />
+              )}
             </Suspense>
           </AuthProvider>
           <DialogContainer />

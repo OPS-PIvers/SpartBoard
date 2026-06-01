@@ -152,6 +152,10 @@ interface CreateAttachmentData {
   // the attachment is created grade-sync capable (studentWorkReviewUri +
   // maxPoints); the DRAFT grade later populates via pushClassroomGrade.
   maxPoints?: unknown;
+  // Optional due date (epoch-ms, from the add-on's custom picker). When present
+  // on a courseWork item, we PATCH the PARENT courseWork's dueDate/dueTime so it
+  // shows as THE Classroom assignment due date — the teacher enters it once.
+  dueAtMs?: unknown;
 }
 
 /**
@@ -423,6 +427,49 @@ export const classroomAddonNet = {
     } catch (err) {
       console.warn(
         '[pushClassroomGrade] studentSubmissions.patch failed:',
+        err
+      );
+      return { ok: false, status: 0 };
+    }
+  },
+
+  /**
+   * PATCH the PARENT courseWork's due date so the date the teacher picks in the
+   * add-on shows as THE Classroom assignment due date (not just a SpartBoard
+   * value) — they enter it once. Requires the teacher's access token to carry
+   * the `classroom.coursework.students` scope. `updateMask=dueDate,dueTime`
+   * scopes the PATCH to those two fields; both are UTC, as the Classroom API
+   * requires. Seam so tests can stub it without a live course.
+   */
+  async patchCourseWorkDueDate(
+    accessToken: string,
+    courseId: string,
+    courseWorkId: string,
+    dueDate: { year: number; month: number; day: number },
+    dueTime: { hours: number; minutes: number }
+  ): Promise<{ ok: boolean; status: number }> {
+    const url =
+      `${CLASSROOM_API}/courses/${encodeURIComponent(courseId)}` +
+      `/courseWork/${encodeURIComponent(courseWorkId)}` +
+      `?updateMask=dueDate,dueTime`;
+    try {
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: { ...bearer(accessToken), 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dueDate, dueTime }),
+        signal: AbortSignal.timeout(API_TIMEOUT_MS),
+      });
+      if (!res.ok) {
+        console.warn(
+          `[createClassroomAttachment] courseWork.patch dueDate ${res.status} ` +
+            `${courseId}/${courseWorkId}`
+        );
+        return { ok: false, status: res.status };
+      }
+      return { ok: true, status: res.status };
+    } catch (err) {
+      console.warn(
+        '[createClassroomAttachment] courseWork.patch dueDate failed:',
         err
       );
       return { ok: false, status: 0 };
@@ -705,10 +752,10 @@ export const createClassroomAttachment = onCall(
       throw new HttpsError('invalid-argument', 'origin is missing or invalid.');
     }
 
-    // Build the runner-specific studentViewUri. Each identifier is embedded
-    // verbatim into the stored URI, so each is charset-constrained — never
-    // relay arbitrary client text into a stored URI.
-    let studentViewUri: string;
+    // Build the runner-specific content query shared by BOTH view URIs. Each
+    // identifier is embedded verbatim into the stored URI, so each is
+    // charset-constrained — never relay arbitrary client text into a stored URI.
+    let contentQuery: string;
     if (kind === 'va') {
       // Video Activity session ids are SpartBoard-minted; allow the alnum + _-
       // charset Firestore session ids use.
@@ -718,9 +765,7 @@ export const createClassroomAttachment = onCall(
           'sessionId is required and malformed for a video-activity attachment.'
         );
       }
-      studentViewUri =
-        `${origin}/classroom-addon/student?kind=va` +
-        `&sessionId=${encodeURIComponent(sessionId)}`;
+      contentQuery = `kind=va&sessionId=${encodeURIComponent(sessionId)}`;
     } else {
       // Quiz: join codes are short uppercase alphanumerics. `code` is kept for
       // backward compatibility; `kind=quiz` is appended but non-load-bearing.
@@ -730,10 +775,13 @@ export const createClassroomAttachment = onCall(
           'quizCode is missing or malformed.'
         );
       }
-      studentViewUri =
-        `${origin}/classroom-addon/student?code=${encodeURIComponent(quizCode)}` +
-        `&kind=quiz`;
+      contentQuery = `code=${encodeURIComponent(quizCode)}&kind=quiz`;
     }
+    const studentViewUri = `${origin}/classroom-addon/student?${contentQuery}`;
+    // The teacher view carries the SAME content ref so, when a teacher opens the
+    // attachment, the iframe can resolve the session and render the grading view
+    // in-place (no round-trip to the SpartBoard dashboard).
+    const teacherViewUri = `${origin}/classroom-addon/teacher?${contentQuery}`;
 
     // Title is display-only; cap length and fall back to a sensible default.
     const title = (rawTitle || 'SpartBoard activity').slice(0, 200);
@@ -782,7 +830,7 @@ export const createClassroomAttachment = onCall(
 
     const body: AddOnAttachmentBody = {
       title,
-      teacherViewUri: { uri: `${origin}/classroom-addon/teacher` },
+      teacherViewUri: { uri: teacherViewUri },
       studentViewUri: { uri: studentViewUri },
     };
     // Make the attachment grade-sync capable. `maxPoints` is invalid without
@@ -817,7 +865,36 @@ export const createClassroomAttachment = onCall(
       );
     }
 
-    return { attachmentId: createResult.id };
+    // Optionally sync the teacher's chosen due date onto the PARENT courseWork
+    // so it shows as the Classroom assignment due date (one entry — they don't
+    // re-type it in Classroom's own composer). Only courseWork has a due date,
+    // and it requires the classroom.coursework.students scope on the teacher
+    // token. Best-effort: a failure here NEVER fails the attach — the activity
+    // is already attached and the teacher can set the date manually. `dueAtMs`
+    // is an absolute instant; UTC extraction gives the UTC wall-clock the
+    // Classroom API expects.
+    let dueDateSynced = false;
+    const dueAtMs =
+      typeof data.dueAtMs === 'number' && Number.isFinite(data.dueAtMs)
+        ? data.dueAtMs
+        : null;
+    if (dueAtMs !== null && itemType === 'courseWork') {
+      const d = new Date(dueAtMs);
+      const patchResult = await classroomAddonNet.patchCourseWorkDueDate(
+        accessToken,
+        courseId,
+        itemId,
+        {
+          year: d.getUTCFullYear(),
+          month: d.getUTCMonth() + 1,
+          day: d.getUTCDate(),
+        },
+        { hours: d.getUTCHours(), minutes: d.getUTCMinutes() }
+      );
+      dueDateSynced = patchResult.ok;
+    }
+
+    return { attachmentId: createResult.id, dueDateSynced };
   }
 );
 

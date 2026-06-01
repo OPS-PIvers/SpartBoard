@@ -645,6 +645,26 @@ const QuizJoinFlow: React.FC<{ isStudentRole: boolean }> = ({
     myResponse &&
     (myResponse.status === 'completed' || atCap)
   ) {
+    // If the teacher has PUBLISHED results to students (scoreVisibility set on
+    // the archived assignment via "Publish Scores"), a completed student should
+    // see their results immediately — even while the session is still 'active'.
+    // A self-paced / async assignment (e.g. a Google Classroom attachment) never
+    // gets "ended" by a live teacher, so without this a completed student is
+    // stranded on the "waiting for the teacher to end the quiz" screen and can
+    // never see the score the teacher already published. Until results are
+    // published (scoreVisibility 'none'), fall back to the submitted-wait
+    // screen as before. Mirrors the post-end ResultsScreen branch.
+    const publishedVisibility = session.scoreVisibility ?? 'none';
+    if (publishedVisibility !== 'none' && myResponse.status === 'completed') {
+      return (
+        <PublishedScoreReview
+          session={session}
+          myResponse={myResponse}
+          visibility={publishedVisibility}
+          pin={pin}
+        />
+      );
+    }
     return (
       <QuizSubmittedWaitScreen
         session={session}

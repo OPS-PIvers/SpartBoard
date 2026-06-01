@@ -46,6 +46,23 @@ import {
 import { buildPlcLinkage } from '@/utils/plcLinkage';
 import { logError } from '@/utils/logError';
 import { ensureGis, requestAccessToken } from './gisOAuth';
+import {
+  ClipboardList,
+  Video,
+  Paperclip,
+  CheckCircle2,
+  type LucideIcon,
+} from 'lucide-react';
+import {
+  AddonShell,
+  AddonHeader,
+  AddonCard,
+  AddonButton,
+  AddonStatus,
+  AddonError,
+  AddonSelect,
+} from './AddonShell';
+import { DueDatePicker } from './DueDatePicker';
 
 // The teacher/discovery iframe creates attachments → needs the teacher scope.
 // (The SpartBoard sign-in above grants Drive separately, via AuthContext.)
@@ -54,6 +71,11 @@ const ADDON_TEACHER_SCOPES = [
   'https://www.googleapis.com/auth/userinfo.email',
   'https://www.googleapis.com/auth/userinfo.profile',
   'https://www.googleapis.com/auth/classroom.addons.teacher',
+  // Lets the attach flow PATCH the parent courseWork's due date so the date the
+  // teacher picks here becomes THE Classroom assignment due date (entered once).
+  // Sensitive scope, but the Orono OAuth consent screen is Internal, so it's
+  // exempt from verification/CASA.
+  'https://www.googleapis.com/auth/classroom.coursework.students',
 ].join(' ');
 
 // Conservative PLAYER defaults for an async Classroom attachment — mirrors the
@@ -70,19 +92,10 @@ const VA_SESSION_SETTINGS: VideoActivitySessionSettings = {
   allowSkipping: false,
 };
 
-/**
- * Parse a `<input type="datetime-local">` value into an epoch-ms due date.
- * Returns `undefined` for an empty / unparseable value so callers can omit
- * `dueAt` entirely (absent = no due date) rather than persisting `NaN`.
- */
-function parseDueAt(local: string): number | undefined {
-  if (!local) return undefined;
-  const ms = new Date(local).getTime();
-  return Number.isFinite(ms) ? ms : undefined;
-}
-
 interface CreateAttachmentResult {
   attachmentId: string;
+  /** True iff the CF also synced the due date onto the parent courseWork. */
+  dueDateSynced?: boolean;
 }
 
 // Params the callable accepts. `quizCode` (quiz) and `sessionId`+`kind:'va'`
@@ -106,6 +119,12 @@ interface CreateAttachmentParams {
    * callable defaults to 100 when omitted (video-activity path).
    */
   maxPoints?: number;
+  /**
+   * Due date as epoch-ms (from the custom <DueDatePicker>). When present on a
+   * courseWork attachment, the callable PATCHes the parent courseWork's
+   * dueDate/dueTime so it shows as the Classroom assignment due date.
+   */
+  dueAtMs?: number;
 }
 
 type ContentKind = 'quiz' | 'va';
@@ -153,19 +172,27 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   // (mounted on this route) — no DashboardProvider required.
   const { plcs } = usePlcs();
 
-  const [log, setLog] = useState<string[]>([]);
+  // User-facing progress line (the latest step) + a sticky error banner. These
+  // replace the spike's always-visible scrolling log; no raw diagnostics are
+  // ever shown to teachers.
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState<ContentKind>('quiz');
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState('');
   const [attachmentId, setAttachmentId] = useState('');
+  // Whether the due date synced onto the Classroom assignment (null = no due
+  // date was set, so the success card stays silent about it). Surfaced durably
+  // on the success card so a failed/best-effort sync isn't lost when busy clears.
+  const [dueDateSynced, setDueDateSynced] = useState<boolean | null>(null);
 
   // ── Per-assignment settings (parity with the normal SpartBoard assign flow).
   // All optional — a teacher can attach with no due date / no PLC. Class
   // targeting is NOT here; it's auto-derived from the Classroom course link.
-  // `dueAtLocal` is the raw <input type="datetime-local"> value; parsed to
-  // epoch-ms only at attach time.
-  const [dueAtLocal, setDueAtLocal] = useState('');
+  // `dueAt` is epoch-ms (or null = no due date), produced directly by the
+  // custom <DueDatePicker> — no datetime-local string parsing.
+  const [dueAt, setDueAt] = useState<number | null>(null);
   // Default the teacher name from the signed-in profile (used for PLC sheet
   // attribution). Falls back to the email local-part, then empty.
   const defaultTeacherName =
@@ -175,8 +202,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const [plcShareEnabled, setPlcShareEnabled] = useState(false);
   const [selectedPlcId, setSelectedPlcId] = useState('');
 
+  // Records the current step as the user-facing status message.
   const append = useCallback((line: string) => {
-    setLog((prev) => [...prev, `${new Date().toLocaleTimeString()}  ${line}`]);
+    setStatusMsg(line);
   }, []);
 
   const selectedQuiz = useMemo(
@@ -206,12 +234,15 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
   const signIn = useCallback(async () => {
     setBusy(true);
+    setErrorMsg(null);
     try {
       append('Signing in to SpartBoard…');
       await signInWithGoogle();
       append('Signed in. Pick something to attach.');
     } catch (err) {
-      append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      append(`ERROR: ${message}`);
+      setErrorMsg(`Couldn't sign in: ${message}`);
     } finally {
       setBusy(false);
     }
@@ -313,12 +344,19 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         addOnToken,
         origin: window.location.origin,
         title,
+        // Sync the picked due date onto the parent Classroom assignment.
+        ...(dueAt !== null ? { dueAtMs: dueAt } : {}),
         ...contentParams,
       });
       setAttachmentId(data.attachmentId);
+      // Record the due-date sync outcome so the success card can show it durably
+      // (a best-effort failure must not vanish when the busy spinner clears).
+      if (dueAt !== null) {
+        setDueDateSynced(data.dueDateSynced ?? false);
+      }
       return data.attachmentId;
     },
-    [append, courseId, itemId, itemType, addOnToken, loginHint]
+    [append, courseId, itemId, itemType, addOnToken, loginHint, dueAt]
   );
 
   // Build the PLC linkage when the teacher opted into "Share with PLC" and
@@ -398,7 +436,6 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     const { sessionMode, sessionOptions, attemptLimit } =
       getQuizBehavior(selectedQuiz);
 
-    const dueAt = parseDueAt(dueAtLocal);
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
 
     // Build the PLC linkage when the teacher opted into "Share with PLC" and
@@ -425,7 +462,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         sessionMode,
         sessionOptions,
         attemptLimit,
-        ...(dueAt !== undefined ? { dueAt } : {}),
+        ...(dueAt !== null ? { dueAt } : {}),
         ...(effectiveTeacherName ? { teacherName: effectiveTeacherName } : {}),
         ...(plcLinkage ? { plc: plcLinkage } : {}),
         ...(targeting.periodNames.length > 0
@@ -512,7 +549,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     courseId,
     itemId,
     kind,
-    dueAtLocal,
+    dueAt,
     teacherName,
     defaultTeacherName,
   ]);
@@ -547,12 +584,11 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     // sharing exactly like the quiz path — the sheet creator (`buildPlcLinkage`)
     // is widget-agnostic — so we build the same linkage and pass it on settings.
     const behavior = getVideoActivityBehavior(selectedActivity);
-    const dueAt = parseDueAt(dueAtLocal);
     const effectiveTeacherName = teacherName.trim() || defaultTeacherName;
     const sessionOptions: VideoActivitySessionOptions = {
       ...behavior.sessionOptions,
       attemptLimit: behavior.attemptLimit,
-      ...(dueAt !== undefined ? { dueAt } : {}),
+      ...(dueAt !== null ? { dueAt } : {}),
     };
 
     // Build the PLC linkage when the teacher opted into "Share with PLC" and
@@ -663,22 +699,32 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     courseId,
     itemId,
     kind,
-    dueAtLocal,
+    dueAt,
     teacherName,
     defaultTeacherName,
   ]);
 
   const runAttach = useCallback(async () => {
     setBusy(true);
+    setErrorMsg(null);
+    setDueDateSynced(null);
     try {
       if (!courseId || !itemId) {
         append('Missing courseId/itemId in the URL.');
+        setErrorMsg(
+          'This assignment is missing its Classroom context. Re-open the ' +
+            'SpartBoard add-on from the assignment.'
+        );
         return;
       }
       if (!addOnToken) {
         append(
           'Missing addOnToken — this route must be opened as the Attachment ' +
             'Setup URI (discovery), not the teacher view.'
+        );
+        setErrorMsg(
+          'This screen must be opened from the Classroom assignment’s add-on ' +
+            'menu to attach an activity.'
         );
         return;
       }
@@ -688,7 +734,9 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         await attachVideoActivity();
       }
     } catch (err) {
-      append(`ERROR: ${err instanceof Error ? err.message : String(err)}`);
+      const message = err instanceof Error ? err.message : String(err);
+      append(`ERROR: ${message}`);
+      setErrorMsg(`Something went wrong: ${message}`);
     } finally {
       setBusy(false);
     }
@@ -702,250 +750,268 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
     attachVideoActivity,
   ]);
 
-  const tabBtn = (value: ContentKind, label: string) => (
-    <button
-      type="button"
-      onClick={() => setKind(value)}
-      disabled={busy}
-      aria-pressed={kind === value}
-      className={`flex-1 rounded-md px-3 py-1.5 text-sm font-medium transition disabled:opacity-50 ${
-        kind === value
-          ? 'bg-blue-500 text-white'
-          : 'text-slate-300 hover:bg-white/10'
-      }`}
-    >
-      {label}
-    </button>
-  );
-
   const canAttach = kind === 'quiz' ? !!selectedQuizId : !!selectedActivityId;
 
+  // Branded segmented selector for the activity type.
+  const KIND_TABS: { value: ContentKind; label: string; icon: LucideIcon }[] = [
+    { value: 'quiz', label: 'Quiz', icon: ClipboardList },
+    { value: 'va', label: 'Video Activity', icon: Video },
+  ];
+
   return (
-    <div className="min-h-screen bg-slate-900 p-6 font-sans text-slate-100">
-      <div className="mx-auto max-w-2xl space-y-4">
-        <div>
-          <h1 className="text-xl font-bold">Attach a SpartBoard activity</h1>
-          <p className="text-sm text-slate-400">
-            Pick a quiz or video activity from your library to attach to this
-            Classroom assignment. Students complete it inside Classroom.
+    <AddonShell>
+      <AddonHeader
+        icon={Paperclip}
+        title="Attach a SpartBoard activity"
+        subtitle="Pick a quiz or video activity from your library. Students complete it right inside Classroom."
+      />
+
+      {existingAttachmentId ? (
+        <AddonCard className="p-5">
+          <div className="flex items-start gap-3">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+            <p className="text-sm leading-relaxed text-slate-600">
+              This activity is already attached. Students open it from the
+              assignment to complete it.
+            </p>
+          </div>
+        </AddonCard>
+      ) : !user ? (
+        <AddonCard className="p-6">
+          <p className="mb-4 text-sm text-slate-500">
+            Sign in with your school Google account to load your SpartBoard
+            library.
           </p>
-        </div>
-
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4 text-sm">
-          <div className="grid grid-cols-[8rem_1fr] gap-y-1">
-            <span className="text-slate-400">courseId</span>
-            <span className="break-all font-mono">
-              {courseId === '' ? '(missing)' : courseId}
-            </span>
-            <span className="text-slate-400">itemId</span>
-            <span className="break-all font-mono">
-              {itemId === '' ? '(missing)' : itemId}
-            </span>
-            <span className="text-slate-400">itemType</span>
-            <span className="font-mono">{itemType}</span>
-            <span className="text-slate-400">addOnToken</span>
-            <span className="break-all font-mono">
-              {addOnToken === '' ? '(none — teacher view?)' : '(present)'}
-            </span>
-          </div>
-        </div>
-
-        {existingAttachmentId ? (
-          <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm">
-            This is the teacher view of an existing attachment (
-            <span className="font-mono">{existingAttachmentId}</span>). Students
-            open it to complete the attached activity.
-          </div>
-        ) : !user ? (
-          <button
-            type="button"
-            onClick={() => void signIn()}
-            disabled={busy}
-            className="rounded bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+          <AddonButton onClick={() => void signIn()} loading={busy}>
+            Sign in to SpartBoard
+          </AddonButton>
+        </AddonCard>
+      ) : (
+        <div className="space-y-4">
+          {/* Segmented Quiz / Video Activity selector */}
+          <div
+            role="tablist"
+            aria-label="Activity type"
+            className="grid grid-cols-2 gap-1 rounded-xl border border-slate-200 bg-slate-100 p-1"
           >
-            {busy ? 'Working…' : 'Sign in to SpartBoard'}
-          </button>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex gap-1 rounded-lg border border-white/10 bg-white/5 p-1">
-              {tabBtn('quiz', 'Quiz')}
-              {tabBtn('va', 'Video Activity')}
-            </div>
-
-            {kind === 'quiz' ? (
-              <label className="block text-sm">
-                <span className="mb-1 block text-slate-400">Quiz</span>
-                <select
-                  value={selectedQuizId}
-                  onChange={(e) => setSelectedQuizId(e.target.value)}
-                  disabled={busy || quizzesLoading}
-                  className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white"
+            {KIND_TABS.map((tab) => {
+              const active = kind === tab.value;
+              const Icon = tab.icon;
+              return (
+                <button
+                  key={tab.value}
+                  type="button"
+                  role="tab"
+                  aria-selected={active}
+                  disabled={busy}
+                  onClick={() => setKind(tab.value)}
+                  className={`flex items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold transition disabled:opacity-50 ${
+                    active
+                      ? 'bg-gradient-to-r from-brand-blue-primary to-brand-blue-light text-white shadow'
+                      : 'text-slate-600 hover:bg-white'
+                  }`}
                 >
-                  <option value="">
-                    {quizzesLoading
-                      ? 'Loading your quizzes…'
-                      : quizzes.length === 0
-                        ? 'No quizzes in your library yet'
-                        : 'Select a quiz…'}
-                  </option>
-                  {quizzes.map((q) => (
-                    <option key={q.id} value={q.id}>
-                      {q.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            ) : (
-              <label className="block text-sm">
-                <span className="mb-1 block text-slate-400">
-                  Video Activity
-                </span>
-                <select
-                  value={selectedActivityId}
-                  onChange={(e) => setSelectedActivityId(e.target.value)}
-                  disabled={busy || activitiesLoading}
-                  className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white"
-                >
-                  <option value="">
-                    {activitiesLoading
-                      ? 'Loading your video activities…'
-                      : activities.length === 0
-                        ? 'No video activities in your library yet'
-                        : 'Select a video activity…'}
-                  </option>
-                  {activities.map((a) => (
-                    <option key={a.id} value={a.id}>
-                      {a.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
+                  <Icon className="h-4 w-4" aria-hidden="true" />
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
 
-            {/* Per-assignment settings — parity with the normal SpartBoard
-                assign flow. Shown only once something is selected; all fields
-                are optional. Class targeting is auto-derived from the
-                Classroom course link, so there's no class/roster picker here. */}
-            {canAttach && (
-              <div className="space-y-3 rounded-lg border border-white/10 bg-white/5 p-4">
-                <h2 className="text-sm font-semibold text-slate-200">
-                  Assignment settings
-                </h2>
-
-                {behaviorSummary && (
-                  <p className="text-xs text-slate-400">
-                    Inherits this {kind === 'quiz' ? 'quiz' : 'activity'}
-                    &rsquo;s settings:{' '}
-                    <span className="font-medium text-slate-300">
-                      {behaviorSummary}
-                    </span>
-                  </p>
-                )}
-
-                <label className="block text-sm">
-                  <span className="mb-1 block text-slate-400">
-                    Due date <span className="text-slate-500">(optional)</span>
-                  </span>
-                  <input
-                    type="datetime-local"
-                    value={dueAtLocal}
-                    onChange={(e) => setDueAtLocal(e.target.value)}
-                    disabled={busy}
-                    className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white disabled:opacity-50 [color-scheme:dark]"
-                  />
-                </label>
-
-                <label className="block text-sm">
-                  <span className="mb-1 block text-slate-400">
-                    Your name{' '}
-                    <span className="text-slate-500">
-                      (optional — shown on shared PLC results)
-                    </span>
-                  </span>
-                  <input
-                    type="text"
-                    value={teacherName}
-                    onChange={(e) => setTeacherName(e.target.value)}
-                    placeholder={defaultTeacherName || 'Teacher name'}
-                    disabled={busy}
-                    className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white placeholder:text-slate-500 disabled:opacity-50"
-                  />
-                </label>
-
-                {/* PLC sharing applies to BOTH quizzes and video activities —
-                    `buildPlcLinkage` is widget-agnostic, so the same control
-                    drives the quiz and VA attach paths. */}
-                {plcs.length > 0 && (
-                  <div className="space-y-2">
-                    <label className="flex items-center gap-2 text-sm text-slate-300">
-                      <input
-                        type="checkbox"
-                        checked={plcShareEnabled}
-                        onChange={(e) => {
-                          const on = e.target.checked;
-                          setPlcShareEnabled(on);
-                          // Preselect the sole PLC so a one-PLC teacher doesn't
-                          // have to also pick from a single-item list.
-                          if (on && !selectedPlcId && plcs.length === 1) {
-                            setSelectedPlcId(plcs[0].id);
-                          }
-                        }}
-                        disabled={busy}
-                        className="h-4 w-4 accent-blue-500"
-                      />
-                      Share results with a PLC
-                    </label>
-                    {plcShareEnabled && (
-                      <select
-                        value={selectedPlcId}
-                        onChange={(e) => setSelectedPlcId(e.target.value)}
-                        disabled={busy}
-                        aria-label="PLC to share results with"
-                        className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-white disabled:opacity-50"
-                      >
-                        <option value="">Select a PLC…</option>
-                        {plcs.map((p) => (
-                          <option key={p.id} value={p.id}>
-                            {p.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            <button
-              type="button"
-              onClick={() => void runAttach()}
-              disabled={busy || !canAttach}
-              className="rounded bg-blue-500 px-4 py-2 font-medium text-white transition hover:bg-blue-600 disabled:opacity-50"
+          {/* Library picker */}
+          <AddonCard className="p-4">
+            <label
+              htmlFor={
+                kind === 'quiz' ? 'addon-quiz-select' : 'addon-va-select'
+              }
+              className="mb-1.5 block text-sm font-medium text-slate-700"
             >
-              {busy
-                ? 'Working…'
-                : kind === 'quiz'
-                  ? 'Attach quiz'
-                  : 'Attach video activity'}
-            </button>
-          </div>
-        )}
+              {kind === 'quiz' ? 'Quiz' : 'Video Activity'}
+            </label>
+            {kind === 'quiz' ? (
+              <AddonSelect
+                id="addon-quiz-select"
+                ariaLabel="Quiz"
+                value={selectedQuizId}
+                onChange={setSelectedQuizId}
+                disabled={busy || quizzesLoading}
+                placeholder={
+                  quizzesLoading
+                    ? 'Loading your quizzes…'
+                    : quizzes.length === 0
+                      ? 'No quizzes in your library yet'
+                      : 'Select a quiz…'
+                }
+                options={quizzes.map((q) => ({ value: q.id, label: q.title }))}
+              />
+            ) : (
+              <AddonSelect
+                id="addon-va-select"
+                ariaLabel="Video Activity"
+                value={selectedActivityId}
+                onChange={setSelectedActivityId}
+                disabled={busy || activitiesLoading}
+                placeholder={
+                  activitiesLoading
+                    ? 'Loading your video activities…'
+                    : activities.length === 0
+                      ? 'No video activities in your library yet'
+                      : 'Select a video activity…'
+                }
+                options={activities.map((a) => ({
+                  value: a.id,
+                  label: a.title,
+                }))}
+              />
+            )}
+          </AddonCard>
 
-        {attachmentId && (
-          <div className="rounded-lg border border-emerald-400/30 bg-emerald-400/10 p-4 text-sm">
-            <h2 className="mb-1 font-semibold">Attached ✓</h2>
-            <p className="break-all font-mono">{attachmentId}</p>
-          </div>
-        )}
+          {/* Per-assignment settings — parity with the normal SpartBoard
+              assign flow. Shown only once something is selected; all fields
+              are optional. Class targeting is auto-derived from the
+              Classroom course link, so there's no class/roster picker here. */}
+          {canAttach && (
+            <AddonCard className="space-y-4 p-4">
+              <h2 className="text-sm font-semibold text-slate-900">
+                Assignment settings
+              </h2>
 
-        <div className="rounded-lg border border-white/10 bg-black/30 p-4">
-          <h2 className="mb-2 text-sm font-semibold">Log</h2>
-          <pre className="whitespace-pre-wrap break-all font-mono text-xs text-slate-300">
-            {log.length ? log.join('\n') : '(no output yet)'}
-          </pre>
+              {behaviorSummary && (
+                <p className="text-xs text-slate-500">
+                  Inherits this {kind === 'quiz' ? 'quiz' : 'activity'}
+                  &rsquo;s settings:{' '}
+                  <span className="font-medium text-slate-700">
+                    {behaviorSummary}
+                  </span>
+                </p>
+              )}
+
+              <div>
+                <label
+                  htmlFor="addon-due-date"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
+                  Due date{' '}
+                  <span className="font-normal text-slate-500">(optional)</span>
+                </label>
+                <DueDatePicker
+                  id="addon-due-date"
+                  value={dueAt}
+                  onChange={setDueAt}
+                  disabled={busy}
+                />
+                <p className="mt-1.5 text-xs text-slate-500">
+                  Also sets the due date on the Classroom assignment.
+                </p>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="addon-teacher-name"
+                  className="mb-1.5 block text-sm font-medium text-slate-700"
+                >
+                  Your name{' '}
+                  <span className="font-normal text-slate-500">
+                    (optional — shown on shared PLC results)
+                  </span>
+                </label>
+                <input
+                  id="addon-teacher-name"
+                  type="text"
+                  value={teacherName}
+                  onChange={(e) => setTeacherName(e.target.value)}
+                  placeholder={defaultTeacherName || 'Teacher name'}
+                  disabled={busy}
+                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 transition placeholder:text-slate-400 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-blue-light disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </div>
+
+              {/* PLC sharing applies to BOTH quizzes and video activities —
+                  `buildPlcLinkage` is widget-agnostic, so the same control
+                  drives the quiz and VA attach paths. */}
+              {plcs.length > 0 && (
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2.5 text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={plcShareEnabled}
+                      onChange={(e) => {
+                        const on = e.target.checked;
+                        setPlcShareEnabled(on);
+                        // Preselect the sole PLC so a one-PLC teacher doesn't
+                        // have to also pick from a single-item list.
+                        if (on && !selectedPlcId && plcs.length === 1) {
+                          setSelectedPlcId(plcs[0].id);
+                        }
+                      }}
+                      disabled={busy}
+                      className="h-4 w-4 rounded accent-brand-blue-light"
+                    />
+                    Share results with a PLC
+                  </label>
+                  {plcShareEnabled && (
+                    <AddonSelect
+                      ariaLabel="PLC to share results with"
+                      value={selectedPlcId}
+                      onChange={setSelectedPlcId}
+                      disabled={busy}
+                      placeholder="Select a PLC…"
+                      options={plcs.map((p) => ({
+                        value: p.id,
+                        label: p.name,
+                      }))}
+                    />
+                  )}
+                </div>
+              )}
+            </AddonCard>
+          )}
+
+          <AddonButton
+            onClick={() => void runAttach()}
+            loading={busy}
+            disabled={!canAttach}
+            icon={Paperclip}
+          >
+            {kind === 'quiz' ? 'Attach quiz' : 'Attach video activity'}
+          </AddonButton>
         </div>
+      )}
+
+      {attachmentId && (
+        <AddonCard className="mt-4 border-emerald-200 bg-emerald-50 p-4">
+          <div className="flex items-start gap-2.5">
+            <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
+            <div>
+              <p className="text-sm font-semibold text-slate-900">Attached</p>
+              <p className="text-sm text-slate-600">
+                Students can now open and complete this activity inside
+                Classroom.
+              </p>
+              {dueDateSynced !== null && (
+                <p
+                  className={`mt-1 text-sm ${
+                    dueDateSynced ? 'text-slate-600' : 'text-amber-700'
+                  }`}
+                >
+                  {dueDateSynced
+                    ? 'Due date set on the Classroom assignment.'
+                    : 'Couldn’t set the Classroom due date automatically — set it in Classroom if you need one.'}
+                </p>
+              )}
+            </div>
+          </div>
+        </AddonCard>
+      )}
+
+      <div className="mt-4 space-y-2">
+        <AddonError message={errorMsg} />
+        {/* Persistent (not busy-gated) so the terminal status — including a
+            non-fatal warning like a failed grade-push linkage write — stays
+            visible after the spinner clears. */}
+        <AddonStatus message={statusMsg} busy={busy} />
       </div>
-    </div>
+    </AddonShell>
   );
 };
 

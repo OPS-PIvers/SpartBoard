@@ -19,11 +19,48 @@
  */
 
 import { httpsCallable, type Functions } from 'firebase/functions';
+import { getEarnedPoints } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
+import type { QuizQuestion, QuizResponse, QuizSession } from '@/types';
 
 /** A single PII-free grade entry: ClassLink pseudonym → earned points. */
 export interface ClassroomGradeEntry {
   pseudonymUid: string;
   pointsEarned: number;
+}
+
+/**
+ * Build the quiz grade payload for a Classroom push — the single source of truth
+ * shared by the dashboard monitor (QuizResults) and the in-iframe grader
+ * (TeacherReviewRoute) so their scaling can't drift.
+ *
+ * One entry per COMPLETED response with a resolvable pseudonym. The current quiz
+ * total can drift from the Classroom denominator (`maxPoints`, frozen at attach
+ * time) if the quiz was edited after attaching, so each student's raw earned
+ * points are scaled onto `maxPoints`, then rounded and clamped to [0, maxPoints].
+ * A non-finite earned score (e.g. a malformed question) is treated as 0 so NaN
+ * can never propagate into the payload (the CF would otherwise reject it).
+ *
+ * Callers must still validate `maxPoints` (finite & > 0) and surface an
+ * actionable message — this helper assumes a valid denominator.
+ */
+export function buildQuizClassroomGradeEntries(
+  responses: QuizResponse[],
+  questions: QuizQuestion[],
+  session: QuizSession | null | undefined,
+  maxPoints: number
+): ClassroomGradeEntry[] {
+  const currentTotal = questions.reduce((s, q) => s + (q.points ?? 1), 0);
+  return responses
+    .filter((r) => r.status === 'completed' && !!r.studentUid)
+    .map((r) => {
+      const rawPoints = getEarnedPoints(r, questions, session ?? undefined);
+      const earned = Number.isFinite(rawPoints) ? rawPoints : 0;
+      const scaled = currentTotal > 0 ? (earned / currentTotal) * maxPoints : 0;
+      return {
+        pseudonymUid: r.studentUid,
+        pointsEarned: Math.max(0, Math.min(maxPoints, Math.round(scaled))),
+      };
+    });
 }
 
 /** Arguments the `pushClassroomGradesForAssignment` callable accepts. */
