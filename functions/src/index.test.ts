@@ -757,6 +757,36 @@ describe('checkUrlCompatibility', () => {
     ).rejects.toThrow(/private or reserved/i);
     expect(mockHead).not.toHaveBeenCalled();
   });
+
+  it('blocks link-local IPv6 range [fe80::1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler({ url: 'https://[fe80::1]/internal' }, { auth: { uid: '123' } })
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
+
+  it('blocks deprecated site-local IPv6 range [fec0::1] to prevent SSRF', async () => {
+    const mockHead = vi.mocked(axios.head);
+    mockHead.mockResolvedValue({ headers: {} });
+
+    const handler = checkUrlCompatibility as unknown as (
+      req: unknown,
+      context: unknown
+    ) => Promise<unknown>;
+
+    await expect(
+      handler({ url: 'https://[fec0::1]/internal' }, { auth: { uid: '123' } })
+    ).rejects.toThrow(/private or reserved/i);
+    expect(mockHead).not.toHaveBeenCalled();
+  });
 });
 
 describe('adminAnalytics', () => {

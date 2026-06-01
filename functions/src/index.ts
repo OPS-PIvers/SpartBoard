@@ -1527,6 +1527,8 @@ export const checkUrlCompatibility = onCall(
     //     Globally routable IPv6 lives in 2000::/3, so :: is always reserved.
     //   - ULA  fc00::/7  (fc** and fd** prefixes — RFC 4193 private range)
     //   - Link-local  fe80::/10 (fe80 through febf — never routes globally)
+    //   - Site-local  fec0::/10 (fec0 through feff — deprecated by RFC 3879
+    //     but still private/non-routable, so blocked to be safe)
     //
     // Regex note: Node wraps IPv6 hostnames in brackets, e.g. `[::1]`.
     // The patterns below match the bracketed form as returned by URL.hostname.
@@ -1547,8 +1549,9 @@ export const checkUrlCompatibility = onCall(
       /^\[::/,
       // ULA (fc00::/7 — fc** and fd** prefixes)
       /^\[f[cd]/,
-      // Link-local (fe80::/10 — fe8x through febx)
-      /^\[fe[89ab]/,
+      // Link-local (fe80::/10 — fe8x through febx) and site-local
+      // (fec0::/10 — fecx through fefx, deprecated by RFC 3879 but private).
+      /^\[fe[89a-f]/,
     ];
     if (blockedPatterns.some((pattern) => pattern.test(hostname))) {
       throw new HttpsError(

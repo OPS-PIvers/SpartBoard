@@ -892,11 +892,11 @@
   "admin": {
     "stickers": {
       "title": "Bibliothèque globale d'autocollants",
-      "uploadDescription": "Télécharger des autocollants pour tous les utilisateurs",
+      "uploadDescription": "Téléverser des autocollants pour tous les utilisateurs",
       "saveChanges": "Enregistrer les modifications",
       "discardChanges": "Annuler les modifications",
       "confirmDiscardChanges": "Vous avez des modifications non enregistrées. Fermer sans enregistrer ?",
-      "description": "Les autocollants téléchargés ici apparaissent dans la section « Collection globale » du widget Livre d'autocollants de chaque utilisateur.",
+      "description": "Les autocollants téléversés ici apparaissent dans la section « Collection globale » du widget Livre d'autocollants de chaque utilisateur.",
       "dropImages": "Déposez des images ici ou cliquez pour parcourir",
       "supportedFiles": "PNG, JPG, GIF, WebP, SVG · Plusieurs fichiers pris en charge",
       "collectionTitle": "Collection d'autocollants",
