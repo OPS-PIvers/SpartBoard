@@ -148,8 +148,24 @@ export function buildContributionDoc(
     byStudentUid,
   } = args;
   const id = `${quiz.id}_${teacherUid}`;
-  const maxPoints = quiz.questions.reduce((sum, q) => sum + (q.points ?? 1), 0);
-  const questionsSnapshot: PlcContributionQuestion[] = quiz.questions.map(
+
+  // Drive-sync duplication and arrayUnion races can write the same question id
+  // twice into `quiz.questions`. Without dedup, `maxPoints` inflates and
+  // `buildContributionResponse` double-counts `pointsEarned` for any question
+  // whose answer graded non-zero. The same bug was fixed in the export path
+  // (`assignmentExportShared.ts`) — this fence applies the identical guard.
+  const seenQuestionIds = new Set<string>();
+  const dedupedQuestions = quiz.questions.filter((q) => {
+    if (seenQuestionIds.has(q.id)) return false;
+    seenQuestionIds.add(q.id);
+    return true;
+  });
+
+  const maxPoints = dedupedQuestions.reduce(
+    (sum, q) => sum + (q.points ?? 1),
+    0
+  );
+  const questionsSnapshot: PlcContributionQuestion[] = dedupedQuestions.map(
     (q) => ({
       id: q.id,
       text: q.text,
@@ -159,7 +175,7 @@ export function buildContributionDoc(
   const contributionResponses = responses.map((r) =>
     buildContributionResponse(
       r,
-      quiz.questions,
+      dedupedQuestions,
       maxPoints,
       pinToName,
       byStudentUid

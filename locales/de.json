@@ -21,7 +21,10 @@
     "previous": "Vorherige Tafel",
     "next": "Nächste Tafel",
     "selectBoard": "Tafel auswählen",
-    "boardList": "Alle Tafeln"
+    "boardList": "Alle Tafeln",
+    "manageAllBoards": "Alle Tafeln verwalten…",
+    "pinned": "Angeheftet",
+    "selectCollection": "Sammlung auswählen"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -73,7 +76,8 @@
       "globalStyle": "Globaler Stil",
       "generalSettings": "Allgemeine Einstellungen",
       "whatsNew": "Was ist neu",
-      "whatsNewBadge": "Neu"
+      "whatsNewBadge": "Neu",
+      "whatsNewSrAnnouncement": "Neue Versionshinweise verfügbar"
     },
     "boards": {
       "newBoard": "Neue Tafel",
@@ -149,7 +153,18 @@
       "noClassSelected": "Keine Klasse ausgewählt",
       "pickClass": "Wählen Sie unten eine Klasse",
       "clearActive": "Aktive Klasse entfernen",
-      "noActive": "Keine aktive Klasse"
+      "noActive": "Keine aktive Klasse",
+      "addRestrictions": "+ Einschränkungen",
+      "hideRestrictions": "− Einschränkungen",
+      "restrictionsHeader": "Darf nicht zusammenarbeiten mit",
+      "restrictionsNone": "Keine Einschränkungen",
+      "restrictionsCount_one": "{{count}} eingeschränkt",
+      "restrictionsCount_other": "{{count}} eingeschränkt",
+      "restrictionsPickerLabel": "Von der Zusammenarbeit ausschließen",
+      "restrictionsFilter": "Mitschüler/innen suchen…",
+      "restrictionsEmptyRoster": "Füge weitere Schüler/innen hinzu, um Einschränkungen festzulegen.",
+      "restrictionsNoMatches": "Keine Treffer.",
+      "restrictionsFooter": "Einschränkungen gelten automatisch für beide Schüler/innen."
     },
     "plcs": {
       "title": "Meine PLGs",
@@ -579,7 +594,11 @@
     "uploadingToDrive": "Aufnahme wird auf Google Drive hochgeladen...",
     "recordingSavedToDrive": "Aufnahme auf Google Drive gespeichert!",
     "recordingDriveFailed": "Speichern auf Drive fehlgeschlagen. Lokaler Download...",
-    "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download..."
+    "noGoogleDrive": "Kein Google Drive verbunden. Lokaler Download...",
+    "viewLiveSession": "Informationen zur Live-Sitzung anzeigen",
+    "liveSession": "Live-Sitzung",
+    "provideCode": "Gib diesen Code deinen Schülerinnen und Schülern.",
+    "noAppsSelected": "Standardwerte werden wiederhergestellt…"
   },
   "languages": {
     "en": "English",

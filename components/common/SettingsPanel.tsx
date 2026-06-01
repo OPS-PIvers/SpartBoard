@@ -42,6 +42,15 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   title,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Store onClose in a ref so the click-outside and Escape effects never need to
+  // list onClose as a dependency. DraggableWindow passes an inline arrow function
+  // for onClose on every render, which would otherwise cause the 50ms debounce
+  // timer to reset on every parent re-render (e.g., during drag-while-settings-open),
+  // silently dropping any click-outside that arrives within that 50ms window.
+  const onCloseRef = useRef(onClose);
+  // Keep ref in sync with the latest onClose prop on every render.
+  // eslint-disable-next-line react-hooks/refs
+  onCloseRef.current = onClose;
   const [isVisible, setIsVisible] = useState(false);
   const [activeTab, setActiveTab] = useState<'settings' | 'style'>('settings');
   const viewport = useWindowSize();
@@ -131,7 +140,6 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   // `react-hooks/set-state-in-effect` rule's complaint is a false positive
   // for this case.
   useLayoutEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     updatePosition();
   }, [updatePosition, viewport, zoom]);
 
@@ -149,8 +157,10 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
   }, []);
 
   // Close on Escape key — but not when focus is inside a form field.
-  // Pressing Escape inside an input or select should dismiss the field
-  // focus (browser default) without also closing the entire panel.
+  // Pressing Escape inside an input/textarea/select should dismiss the field
+  // focus (browser default) without also closing the entire panel. onClose is
+  // read from onCloseRef (not captured in closure) so this effect never
+  // re-subscribes on parent re-renders.
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
@@ -162,16 +172,21 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
           target.tagName === 'SELECT' ||
           target.isContentEditable);
       if (isFormField) return;
-      onClose();
+      onCloseRef.current();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, []);
 
-  // Click outside to close (exclude widget itself and tool menu)
+  // Click outside to close (exclude widget itself and tool menu).
+  // onClose is intentionally NOT in the dep array — it is read from onCloseRef
+  // instead (updated on every render above). This prevents the 50ms timer from
+  // resetting on every DraggableWindow re-render (drag, zoom, Firestore update),
+  // which would silently drop click-outside events arriving within that window.
   useEffect(() => {
     const handlePointerDown = (e: PointerEvent) => {
-      const target = e.target as HTMLElement;
+      const target = e.target as HTMLElement | null;
+      if (!target) return;
       if (
         panelRef.current &&
         !panelRef.current.contains(target) &&
@@ -179,7 +194,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
         !widgetRef.current.contains(target) &&
         !target.closest('[data-settings-exclude]')
       ) {
-        onClose();
+        onCloseRef.current();
       }
     };
 
@@ -192,7 +207,7 @@ export const SettingsPanel: React.FC<SettingsPanelProps> = ({
       clearTimeout(timer);
       document.removeEventListener('pointerdown', handlePointerDown);
     };
-  }, [onClose, widgetRef]);
+  }, [widgetRef]);
 
   return createPortal(
     <div

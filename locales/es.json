@@ -21,7 +21,10 @@
     "previous": "Tablero anterior",
     "next": "Tablero siguiente",
     "selectBoard": "Seleccionar tablero",
-    "boardList": "Todos los tableros"
+    "boardList": "Todos los tableros",
+    "manageAllBoards": "Administrar todos los tableros…",
+    "pinned": "Fijado",
+    "selectCollection": "Seleccionar colección"
   },
   "boardZoom": {
     "zoomLevel": "Zoom",
@@ -73,7 +76,8 @@
       "globalStyle": "Estilo Global",
       "generalSettings": "Ajustes Generales",
       "whatsNew": "Novedades",
-      "whatsNewBadge": "Nuevo"
+      "whatsNewBadge": "Nuevo",
+      "whatsNewSrAnnouncement": "Nuevas notas de versión disponibles"
     },
     "boards": {
       "newBoard": "Nuevo Tablero",
@@ -152,7 +156,18 @@
       "noClassSelected": "Sin clase seleccionada",
       "pickClass": "Elige una clase abajo",
       "clearActive": "Quitar clase activa",
-      "noActive": "Sin clase activa"
+      "noActive": "Sin clase activa",
+      "addRestrictions": "+ Restricciones",
+      "hideRestrictions": "− Restricciones",
+      "restrictionsHeader": "No puede trabajar con",
+      "restrictionsNone": "Sin restricciones",
+      "restrictionsCount_one": "{{count}} restringido",
+      "restrictionsCount_other": "{{count}} restringidos",
+      "restrictionsPickerLabel": "Restringir de trabajar juntos",
+      "restrictionsFilter": "Buscar compañeros…",
+      "restrictionsEmptyRoster": "Agrega más estudiantes para establecer restricciones.",
+      "restrictionsNoMatches": "Sin coincidencias.",
+      "restrictionsFooter": "Las restricciones se aplican a ambos estudiantes automáticamente."
     },
     "plcs": {
       "title": "Mis Comunidades",
@@ -591,7 +606,11 @@
     "uploadingToDrive": "Subiendo grabación a Google Drive...",
     "recordingSavedToDrive": "¡Grabación guardada en Google Drive!",
     "recordingDriveFailed": "Error al guardar en Drive. Descargando localmente...",
-    "noGoogleDrive": "Sin Google Drive conectado. Descargando localmente..."
+    "noGoogleDrive": "Sin Google Drive conectado. Descargando localmente...",
+    "viewLiveSession": "Ver información de la sesión en vivo",
+    "liveSession": "Sesión en vivo",
+    "provideCode": "Proporciona este código a tus alumnos.",
+    "noAppsSelected": "Restaurando valores predeterminados…"
   },
   "languages": {
     "en": "English",
