@@ -771,3 +771,151 @@ describe('useVideoActivityAssignments — shareAssignment + import', () => {
     expect(mockCallLeave).toHaveBeenCalledWith('group-attach-fail');
   });
 });
+
+describe('useVideoActivityAssignments — publishAssignmentScores', () => {
+  const batchUpdate = vi.fn();
+  const batchCommit = vi.fn();
+
+  // A two-question MC activity. q0 = 1 pt, q1 = 1 pt.
+  const activityData = {
+    id: 'act-pub-1',
+    title: 'Score Publishing Test',
+    youtubeUrl: 'https://youtube.com/watch?v=test',
+    questions: [
+      {
+        id: 'q0',
+        text: 'Q0',
+        type: 'MC' as const,
+        correctAnswer: 'a',
+        incorrectAnswers: ['b', 'c'],
+        timeLimit: 30,
+        timestamp: 10,
+        points: 1,
+      },
+      {
+        id: 'q1',
+        text: 'Q1',
+        type: 'MC' as const,
+        correctAnswer: 'b',
+        incorrectAnswers: ['a', 'c'],
+        timeLimit: 30,
+        timestamp: 60,
+        points: 1,
+      },
+    ],
+    createdAt: 0,
+    updatedAt: 0,
+  };
+
+  const ASSIGNMENT_ID = 'assign-pub-1';
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockDoc.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockCollection.mockImplementation((_db: unknown, ...segs: string[]) =>
+      segs.join('/')
+    );
+    mockOnSnapshot.mockReturnValue(() => undefined);
+    batchUpdate.mockReset();
+    batchCommit.mockReset().mockResolvedValue(undefined);
+    mockWriteBatch.mockReturnValue({
+      update: batchUpdate,
+      commit: batchCommit,
+    });
+  });
+
+  it('computes score correctly when activityData.questions has no duplicates', async () => {
+    // Student answered q0 correctly, q1 incorrectly.
+    // Expected: pointsEarned=1, pointsMax=2, score=50%.
+    const refPartial = { id: 'r-partial' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refPartial,
+          data: () => ({
+            studentUid: 's1',
+            answers: [
+              { questionId: 'q0', answer: 'a', answeredAt: 1 },
+              { questionId: 'q1', answer: 'wrong', answeredAt: 2 },
+            ],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        activityData,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refPartial
+    );
+    if (!responseCall) throw new Error('expected update on response ref');
+    expect((responseCall[1] as { score: number }).score).toBe(50);
+  });
+
+  it('deduplicates duplicate question IDs before computing pointsMax for unanswered questions (Drive-sync duplication guard)', async () => {
+    // Scenario: Drive-sync race wrote q0 twice into activityData.questions.
+    // The student only answered q1 (correctly). q0 is unanswered.
+    //
+    // Without dedup the unanswered loop walks [q0, q0_dup, q1] and adds q0's
+    // points TWICE (q0 and q0_dup are both missing from answeredQuestionIds):
+    //   pointsEarned = 1 (q1 correct, graded in answers.map)
+    //   pointsMax    = 1 (q1 from grading) + 1 (q0 unanswered) + 1 (q0_dup unanswered) = 3
+    //   score        = round(1/3 * 100) = 33  ← wrong
+    //
+    // With the fix (iterate questionsById instead of activityData.questions):
+    //   pointsMax    = 1 (q1 from grading) + 1 (q0 unanswered, counted once) = 2
+    //   score        = round(1/2 * 100) = 50  ← correct
+    const activityWithDupQ0 = {
+      ...activityData,
+      questions: [
+        ...activityData.questions,
+        // Exact duplicate of q0 — same id, same shape — simulates Drive-sync race.
+        { ...activityData.questions[0] },
+      ],
+    };
+
+    const refStudent = { id: 'r-student' };
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            // Student answered q1 correctly; q0 was not answered.
+            answers: [{ questionId: 'q1', answer: 'b', answeredAt: 1 }],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() =>
+      useVideoActivityAssignments(TEACHER_UID)
+    );
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        activityWithDupQ0,
+        'score-only'
+      );
+    });
+
+    const responseCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!responseCall) throw new Error('expected update on response ref');
+    // With the bug: pointsMax=3 (q0 counted twice) → score=round(1/3*100)=33
+    // With the fix: pointsMax=2 (q0 counted once)  → score=round(1/2*100)=50
+    expect((responseCall[1] as { score: number }).score).toBe(50);
+  });
+});

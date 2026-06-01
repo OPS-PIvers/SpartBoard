@@ -1003,10 +1003,19 @@ export const useVideoActivityAssignments = (
         // Count unanswered questions toward the denominator so a blank
         // response scores 0%, not undefined. O(Q) Set lookup vs the
         // O(Q*A) `.some` pattern matters on PLC-shared assignments.
+        //
+        // Iterate questionsById (already deduped) rather than the raw
+        // activityData.questions array. Drive-sync duplication and
+        // arrayUnion races can write the same question id twice into
+        // `activityData.questions`; without this guard each duplicated
+        // unanswered question inflates pointsMax and deflates the
+        // published score. Mirrors the identical fix in
+        // `computeVideoActivityScorePct` (videoActivityGrading.ts) and
+        // `buildContributionDoc` (plcContributions.ts).
         const answeredQuestionIds = new Set<string>();
         for (const a of answers) answeredQuestionIds.add(a.questionId);
-        for (const q of activityData.questions) {
-          if (!answeredQuestionIds.has(q.id)) {
+        for (const [qId, q] of questionsById) {
+          if (!answeredQuestionIds.has(qId)) {
             pointsMax += q.points ?? 1;
           }
         }
