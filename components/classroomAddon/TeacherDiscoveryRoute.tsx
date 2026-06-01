@@ -182,6 +182,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const [selectedQuizId, setSelectedQuizId] = useState('');
   const [selectedActivityId, setSelectedActivityId] = useState('');
   const [attachmentId, setAttachmentId] = useState('');
+  // Whether the due date synced onto the Classroom assignment (null = no due
+  // date was set, so the success card stays silent about it). Surfaced durably
+  // on the success card so a failed/best-effort sync isn't lost when busy clears.
+  const [dueDateSynced, setDueDateSynced] = useState<boolean | null>(null);
 
   // ── Per-assignment settings (parity with the normal SpartBoard assign flow).
   // All optional — a teacher can attach with no due date / no PLC. Class
@@ -345,13 +349,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
         ...contentParams,
       });
       setAttachmentId(data.attachmentId);
+      // Record the due-date sync outcome so the success card can show it durably
+      // (a best-effort failure must not vanish when the busy spinner clears).
       if (dueAt !== null) {
-        append(
-          data.dueDateSynced
-            ? 'Set the Classroom assignment due date.'
-            : "Couldn't set the Classroom due date automatically — set it in " +
-                'Classroom if you need one.'
-        );
+        setDueDateSynced(data.dueDateSynced ?? false);
       }
       return data.attachmentId;
     },
@@ -706,6 +707,7 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
   const runAttach = useCallback(async () => {
     setBusy(true);
     setErrorMsg(null);
+    setDueDateSynced(null);
     try {
       if (!courseId || !itemId) {
         append('Missing courseId/itemId in the URL.');
@@ -986,6 +988,17 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
                 Students can now open and complete this activity inside
                 Classroom.
               </p>
+              {dueDateSynced !== null && (
+                <p
+                  className={`mt-1 text-sm ${
+                    dueDateSynced ? 'text-slate-600' : 'text-amber-700'
+                  }`}
+                >
+                  {dueDateSynced
+                    ? 'Due date set on the Classroom assignment.'
+                    : 'Couldn’t set the Classroom due date automatically — set it in Classroom if you need one.'}
+                </p>
+              )}
             </div>
           </div>
         </AddonCard>
@@ -993,7 +1006,10 @@ export const ClassroomAddonTeacherSpike: React.FC = () => {
 
       <div className="mt-4 space-y-2">
         <AddonError message={errorMsg} />
-        {busy && <AddonStatus message={statusMsg} busy />}
+        {/* Persistent (not busy-gated) so the terminal status — including a
+            non-fatal warning like a failed grade-push linkage write — stays
+            visible after the spinner clears. */}
+        <AddonStatus message={statusMsg} busy={busy} />
       </div>
     </AddonShell>
   );

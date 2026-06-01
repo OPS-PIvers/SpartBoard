@@ -48,11 +48,11 @@ import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { resolveResponseDisplayName } from '@/components/widgets/QuizWidget/utils/resolveDisplayName';
 import {
   getDisplayScore,
-  getEarnedPoints,
   getScoreSuffix,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
 import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
 import {
+  buildQuizClassroomGradeEntries,
   pushClassroomGradesForAssignment,
   formatGradePushToast,
 } from '@/utils/classroomGradePush';
@@ -145,7 +145,11 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     };
   }, [kind, code, user]);
 
-  const { session, responses } = useQuizSessionTeacher(sessionId);
+  const {
+    session,
+    responses,
+    loading: sessionLoading,
+  } = useQuizSessionTeacher(sessionId);
 
   // Load the full quiz (answers + points) for the grader + score math. The
   // session carries quizId; match it to the teacher's library for the Drive id.
@@ -276,6 +280,15 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
       setStatusMsg('No completed responses to push yet.');
       return;
     }
+    // Guard the grade scale BEFORE the OAuth popup: a malformed/stale attachment
+    // could carry 0/NaN maxPoints, which would scale every grade to 0 (or NaN).
+    if (!Number.isFinite(attachment.maxPoints) || attachment.maxPoints <= 0) {
+      setErrorMsg(
+        'This assignment is missing its Classroom point total — re-attach it ' +
+          'to push grades.'
+      );
+      return;
+    }
     setBusy(true);
     setErrorMsg(null);
     try {
@@ -285,26 +298,14 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
       );
 
       // Scale each completed student's earned points onto the attachment's grade
-      // scale (== the quiz's total points), mirroring the dashboard monitor.
-      const total =
-        questions.reduce((s, q) => s + (q.points ?? 1), 0) ||
-        attachment.maxPoints;
-      const grades = responses
-        .filter((r) => r.status === 'completed')
-        .map((r) => {
-          const earned = getEarnedPoints(r, questions, session ?? undefined);
-          const scaled =
-            total > 0 ? (earned / total) * attachment.maxPoints : 0;
-          return {
-            pseudonymUid: r.studentUid,
-            pointsEarned: Math.max(
-              0,
-              Math.min(attachment.maxPoints, Math.round(scaled))
-            ),
-          };
-        })
-        .filter((g) => !!g.pseudonymUid);
-
+      // scale (== the quiz's total points) via the shared builder — same scaling
+      // the dashboard monitor (QuizResults) uses, so they can't drift.
+      const grades = buildQuizClassroomGradeEntries(
+        responses,
+        questions,
+        session,
+        attachment.maxPoints
+      );
       if (grades.length === 0) {
         setStatusMsg('No completed responses to push yet.');
         return;
@@ -385,8 +386,12 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     );
   }
 
-  const loading = resolvingSession || (sessionId !== null && !session);
-  const notFound = !resolvingSession && sessionId === null;
+  // Loading while resolving the code, or while the session doc is streaming.
+  // Once both finish with no session (empty-code query, a doc deleted between
+  // resolve and snapshot, or a listener error the hook swallowed), fall to the
+  // not-found state rather than spinning forever.
+  const loading = resolvingSession || (sessionId !== null && sessionLoading);
+  const notFound = !loading && !session;
 
   return (
     <AddonShell>
