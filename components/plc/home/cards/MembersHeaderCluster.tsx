@@ -11,7 +11,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Crown } from 'lucide-react';
 import type { Plc } from '@/types';
-import type { PlcSectionId } from '../../sections';
+import type { PlcSectionId } from '@/components/plc/sections';
 
 interface MembersHeaderClusterProps {
   plc: Plc;

@@ -21,7 +21,7 @@ import {
 import type { Plc, PlcAssignmentIndexEntry } from '@/types';
 import { usePlcAssignmentIndex } from '@/hooks/usePlcAssignmentIndex';
 import { usePlcContributions } from '@/hooks/usePlcContributions';
-import type { PlcSectionId } from '../../sections';
+import type { PlcSectionId } from '@/components/plc/sections';
 
 interface AttentionCardProps {
   plc: Plc;
