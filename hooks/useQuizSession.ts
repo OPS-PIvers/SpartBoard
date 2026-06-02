@@ -1170,7 +1170,9 @@ export interface UseQuizSessionStudentResult {
    * Returns the session's periodNames so the UI can show a period picker
    * before the student commits to joining.
    */
-  lookupSession: (code: string) => Promise<{ periodNames: string[] } | null>;
+  lookupSession: (
+    code: string
+  ) => Promise<{ periodNames: string[]; classIds: string[] } | null>;
   /**
    * Join a quiz session.
    *
@@ -1351,7 +1353,9 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
   }, [sessionIdState, responseKeyState]);
 
   const lookupSession = useCallback(
-    async (code: string): Promise<{ periodNames: string[] } | null> => {
+    async (
+      code: string
+    ): Promise<{ periodNames: string[]; classIds: string[] } | null> => {
       // Populate the hook's `error` state on failure so callers' .catch
       // handlers (which only console.warn) still produce visible UI feedback.
       // Without this a network/Firestore failure during code lookup silently
@@ -1382,7 +1386,16 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
         // resolvePeriodNames normalises legacy periodName + new periodNames
         // into a typed string[], avoiding the `any[]` from Firestore's
         // DocumentData bleed-through.
-        return { periodNames: resolvePeriodNames(sessionData) };
+        return {
+          periodNames: resolvePeriodNames(sessionData),
+          // ClassLink-rostered sessions carry `classIds`; the join screen uses
+          // this to steer anonymous joiners to SSO (where identity = their own
+          // auth.uid) instead of the PIN+period path, which can fork a
+          // submission onto the wrong roster slot when the period is wrong.
+          classIds: Array.isArray(sessionData.classIds)
+            ? sessionData.classIds
+            : [],
+        };
       } catch (err) {
         const msg =
           err instanceof Error

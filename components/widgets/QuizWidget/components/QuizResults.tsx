@@ -54,6 +54,7 @@ import {
   buildPinToNameMap,
   buildPinToExportNameMap,
   buildScoreboardTeams,
+  canScoreResponse,
   getResponseScore,
   getDisplayScore,
   getScoreSuffix,
@@ -513,13 +514,21 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     () => filteredResponses.filter((r) => r.status === 'completed'),
     [filteredResponses]
   );
+  // Only average responses we can actually score. A completed response that
+  // can't be graded yet (answer key not loaded, or question-id drift) would
+  // otherwise contribute a phantom 0 and drag the class average down — see
+  // `canScoreResponse`.
+  const filteredScoreable = useMemo(
+    () => filteredCompleted.filter((r) => canScoreResponse(r, quiz.questions)),
+    [filteredCompleted, quiz.questions]
+  );
   const filteredAvgScore =
-    filteredCompleted.length > 0
+    filteredScoreable.length > 0
       ? Math.round(
-          filteredCompleted.reduce(
+          filteredScoreable.reduce(
             (sum, r) => sum + getDisplayScore(r, quiz.questions, session),
             0
-          ) / filteredCompleted.length
+          ) / filteredScoreable.length
         )
       : null;
 
@@ -1646,7 +1655,9 @@ const OverviewTab: React.FC<{
   // Distribution chart always uses percentage scores for meaningful bucketing,
   // even when gamification is active (points would not fit 0-100% buckets).
   const completedScores = React.useMemo(() => {
-    return completed.map((r) => getResponseScore(r, questions, session));
+    return completed
+      .filter((r) => canScoreResponse(r, questions))
+      .map((r) => getResponseScore(r, questions, session));
   }, [completed, questions, session]);
 
   return (
@@ -2003,6 +2014,14 @@ const StudentsTab: React.FC<{
           .map((r) => {
             const score = getDisplayScore(r, questions, session);
             const earned = getEarnedPoints(r, questions, session);
+            // A finished/in-progress response is only shown with a numeric
+            // score once it can actually be graded — answer key loaded AND at
+            // least one answer maps to a loaded question. Otherwise we render a
+            // neutral placeholder instead of a misleading 0 (see
+            // `canScoreResponse`).
+            const scoreable =
+              (r.status === 'completed' || r.status === 'in-progress') &&
+              canScoreResponse(r, questions);
             const warnings = r.tabSwitchWarnings ?? 0;
             const resultsLockedOut = r.resultsLockedOut === true;
             const resultsTabWarnings = r.resultsTabWarnings ?? 0;
@@ -2135,7 +2154,7 @@ const StudentsTab: React.FC<{
                 </div>
 
                 <div className="text-right shrink-0 ml-4 pl-4 border-l border-brand-blue-primary/5">
-                  {r.status === 'completed' || r.status === 'in-progress' ? (
+                  {scoreable ? (
                     <>
                       <p
                         className={`font-black ${gamified ? 'text-brand-blue-dark' : score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-brand-red-primary'}`}
@@ -2168,6 +2187,14 @@ const StudentsTab: React.FC<{
                           </span>
                         )}
                     </>
+                  ) : r.status === 'completed' || r.status === 'in-progress' ? (
+                    <p
+                      className="font-black text-brand-gray-primary"
+                      style={{ fontSize: 'min(15px, 5cqmin)' }}
+                      title="Scoring unavailable — the quiz answer key hasn't loaded yet, or this submission doesn't match the current quiz version."
+                    >
+                      &mdash;
+                    </p>
                   ) : (
                     <div
                       className="bg-brand-gray-lightest text-brand-gray-primary font-black uppercase rounded px-2 py-1 tracking-tighter"
