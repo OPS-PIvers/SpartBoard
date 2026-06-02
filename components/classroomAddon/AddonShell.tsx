@@ -207,8 +207,14 @@ export const AddonSelect: React.FC<{
       onBlur={(e) => {
         // useClickOutside only handles pointer dismissals; close on keyboard
         // tab-out too, so the popover doesn't linger when focus leaves the
-        // control entirely (relatedTarget outside this subtree).
-        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+        // control entirely (relatedTarget outside this subtree). Guard against a
+        // null relatedTarget (focus lost to a non-focusable element such as the
+        // dropdown's own scrollbar) so those don't prematurely close the popover —
+        // useClickOutside handles real outside clicks instead.
+        if (
+          e.relatedTarget &&
+          !e.currentTarget.contains(e.relatedTarget as Node)
+        ) {
           setOpen(false);
         }
       }}
