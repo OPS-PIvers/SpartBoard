@@ -1,6 +1,48 @@
 {
   "entries": [
     {
+      "version": "2026.06.02",
+      "date": "2026-06-02",
+      "title": "Quiz scoring, guided learning, and display fixes",
+      "overview": [
+        {
+          "type": "fix",
+          "items": [
+            {
+              "text": "Published quiz scores now read correctly even when a quiz accidentally contains the same question twice."
+            },
+            {
+              "text": "Guided Learning's auto-advance timer no longer restarts each time a student answers, so self-paced sets keep moving on schedule."
+            },
+            {
+              "text": "Flipping a widget to its settings no longer flashes a brief placeholder before the real settings appear."
+            },
+            {
+              "text": "Widget action buttons now appear in German and French instead of showing raw text labels."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Quiz results — the scores students see when you publish results now read correctly even when a quiz accidentally contains the same question twice (which can happen through a Drive sync hiccup). The duplicate no longer inflates the total possible points, so the percentage on each student's published results is accurate rather than quietly lowered."
+        },
+        {
+          "type": "fix",
+          "text": "Guided Learning — in auto-advance mode, answering a question no longer restarts the countdown timer. Previously each answer reset the timer back to the top, so a self-paced set could stall on a question and never move on; the timer now keeps running and advances on schedule."
+        },
+        {
+          "type": "fix",
+          "text": "Widget settings panels — flipping a widget to its settings for the first time no longer flashes a brief \"Standard settings available\" placeholder before the real settings load. The flash was most noticeable on slower computers and classroom projectors."
+        },
+        {
+          "type": "fix",
+          "text": "Translations — the action buttons on a widget's title bar (screenshot, annotate, duplicate, record, minimize, maximize, restore, and more) now appear in German and French. Previously these buttons showed raw text keys like \"widgetWindow.maximize\" instead of readable labels for teachers using one of those languages."
+        }
+      ]
+    },
+    {
       "version": "2026.06.01.2",
       "date": "2026-06-01",
       "title": "Classroom grading and student-app polish",

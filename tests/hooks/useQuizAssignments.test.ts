@@ -1487,6 +1487,93 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     // First batch + at least one continuation batch.
     expect(batchCommit.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
+
+  it('does not inflate pointsMax when quizData.questions contains a duplicate question id (dedup guard)', async () => {
+    // Regression test for the unanswered-questions denominator-inflation bug.
+    //
+    // If `quizData.questions` contains a duplicate question id (possible when
+    // a Drive export writes the same question twice via an arrayUnion-style
+    // race), iterating the raw array for unanswered questions adds that
+    // question's points to `pointsMax` twice. This inflates the denominator
+    // and silently deflates the student's published score.
+    //
+    // Fix: iterate `questionsById` (the deduped Map) instead of the raw array,
+    // mirroring the identical fix in useVideoActivityAssignments (#1728, #1787).
+    //
+    // Scenario: 2 distinct questions (q0 = 1pt, q1 = 2pt) but q1 appears
+    // twice in the raw questions array. A student answers q0 correctly (1/1pt)
+    // and skips q1. Correct denominator = 1 + 2 = 3 → score = 33%.
+    // Buggy denominator = 1 + 2 + 2 = 5 → score = 20% (wrong — deflated).
+    const dupQuizData = {
+      id: 'quiz-dup',
+      title: 'Dup Quiz',
+      questions: [
+        {
+          id: 'q0',
+          text: 'Q0',
+          type: 'MC' as const,
+          correctAnswer: 'a',
+          incorrectAnswers: ['b'],
+          timeLimit: 30,
+          points: 1,
+        },
+        {
+          id: 'q1',
+          text: 'Q1',
+          type: 'MC' as const,
+          correctAnswer: 'b',
+          incorrectAnswers: ['a'],
+          timeLimit: 30,
+          points: 2,
+        },
+        // Duplicate of q1 — same id, simulates a Drive arrayUnion race.
+        {
+          id: 'q1',
+          text: 'Q1 (dup)',
+          type: 'MC' as const,
+          correctAnswer: 'b',
+          incorrectAnswers: ['a'],
+          timeLimit: 30,
+          points: 2,
+        },
+      ],
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    const refStudent = { id: 'r-student' };
+    // Student answers q0 correctly and leaves q1 unanswered.
+    mockGetDocs.mockResolvedValueOnce({
+      docs: [
+        {
+          ref: refStudent,
+          data: () => ({
+            studentUid: 's1',
+            answers: [{ questionId: 'q0', answer: 'a', answeredAt: 1 }],
+          }),
+        },
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizAssignments(TEACHER_UID));
+    await act(async () => {
+      await result.current.publishAssignmentScores(
+        ASSIGNMENT_ID,
+        dupQuizData,
+        'score-only'
+      );
+    });
+
+    const studentCall = batchUpdate.mock.calls.find(
+      ([ref]) => ref === refStudent
+    );
+    if (!studentCall)
+      throw new Error('expected update on student response ref');
+
+    // Correct: 1pt earned / 3pt total (q0=1 + q1=2; q1 dup must not be
+    // counted) = 33%. The bug would produce 1/5 = 20%.
+    expect((studentCall[1] as { score: number }).score).toBe(33);
+  });
 });
 
 // ---------------------------------------------------------------------------
