@@ -82,6 +82,12 @@ const LtiLaunchPage = lazy(() =>
     default: module.LtiLaunchPage,
   }))
 );
+// Schoology LTI 1.3 deep-linking teacher resource picker (/lti/teacher?mode=deeplink).
+const LtiDeepLinkPicker = lazy(() =>
+  import('./components/lti/LtiDeepLinkPicker').then((module) => ({
+    default: module.LtiDeepLinkPicker,
+  }))
+);
 const ActivityWallStudentApp = lazy(() =>
   import('./components/activityWall/ActivityWallStudentApp').then((module) => ({
     default: module.ActivityWallStudentApp,
@@ -523,13 +529,30 @@ const App: React.FC = () => {
 
   // Schoology LTI 1.3 launch surface. Anonymous entry; the page exchanges the
   // one-time launch code for the validated context (and, for a Learner launch, a
-  // studentRole custom token it signs in with). Only DialogProvider needed.
+  // studentRole custom token it signs in with). The deep-linking branch
+  // (/lti/teacher?mode=deeplink) is the teacher resource picker — it loads the
+  // teacher's SpartBoard quiz library, so it ALSO needs AuthProvider (mirroring
+  // the Classroom teacher-discovery attach flow, which mounts AuthProvider for
+  // the uid + Drive token but no DashboardProvider). The validated-launch view
+  // needs only DialogProvider.
   if (isLtiRoute) {
+    const isLtiDeepLink =
+      pathname.startsWith('/lti/teacher') &&
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('mode') === 'deeplink';
     return (
       <DialogProvider>
-        <Suspense fallback={<FullPageLoader />}>
-          <LtiLaunchPage />
-        </Suspense>
+        {isLtiDeepLink ? (
+          <AuthProvider>
+            <Suspense fallback={<FullPageLoader />}>
+              <LtiDeepLinkPicker />
+            </Suspense>
+          </AuthProvider>
+        ) : (
+          <Suspense fallback={<FullPageLoader />}>
+            <LtiLaunchPage />
+          </Suspense>
+        )}
         <DialogContainer />
       </DialogProvider>
     );

@@ -159,22 +159,27 @@ export async function verifyLaunchJwt(
   const dlRaw = asRecord(payload[LTI.DL_SETTINGS]);
   const customRaw = asRecord(payload[LTI.CUSTOM]);
 
-  const ags: AgsEndpoint | null = agsRaw
-    ? {
-        scope: Array.isArray(agsRaw.scope)
-          ? agsRaw.scope.filter((s): s is string => typeof s === 'string')
-          : [],
-        lineitems: asString(agsRaw.lineitems) ?? undefined,
-        lineitem: asString(agsRaw.lineitem) ?? undefined,
-      }
-    : null;
+  // Build without `undefined` fields — Firestore rejects undefined values, and a
+  // deep-linking launch has no single `lineitem` yet (only `lineitems`).
+  let ags: AgsEndpoint | null = null;
+  if (agsRaw) {
+    ags = {
+      scope: Array.isArray(agsRaw.scope)
+        ? agsRaw.scope.filter((s): s is string => typeof s === 'string')
+        : [],
+    };
+    const lineitems = asString(agsRaw.lineitems);
+    if (lineitems) ags.lineitems = lineitems;
+    const lineitem = asString(agsRaw.lineitem);
+    if (lineitem) ags.lineitem = lineitem;
+  }
 
-  const nrps: NrpsEndpoint | null = nrpsRaw
-    ? {
-        contextMembershipsUrl:
-          asString(nrpsRaw.context_memberships_url) ?? undefined,
-      }
-    : null;
+  let nrps: NrpsEndpoint | null = null;
+  if (nrpsRaw) {
+    nrps = {};
+    const url = asString(nrpsRaw.context_memberships_url);
+    if (url) nrps.contextMembershipsUrl = url;
+  }
 
   return {
     payload,

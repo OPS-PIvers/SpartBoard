@@ -11,11 +11,17 @@
  * full handshake end-to-end; the real runner / deep-link picker / grader replace
  * this in Spikes 1+.
  */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { httpsCallable } from 'firebase/functions';
 import { signInWithCustomToken } from 'firebase/auth';
 import { CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react';
 import { auth, functions } from '@/config/firebase';
+
+const QuizStudentApp = lazy(() =>
+  import('@/components/quiz/QuizStudentApp').then((m) => ({
+    default: m.QuizStudentApp,
+  }))
+);
 
 interface LtiExchangeResult {
   role: 'student' | 'teacher' | 'unknown';
@@ -52,7 +58,9 @@ export const LtiLaunchPage: React.FC = () => {
   // Derive the launch code during render (stable for this page load) so the
   // "missing code" case is handled via initial state, not a synchronous
   // setState inside the effect.
-  const code = new URLSearchParams(window.location.search).get('lc') ?? '';
+  const params = new URLSearchParams(window.location.search);
+  const code = params.get('lc') ?? '';
+  const quizCode = params.get('code') ?? '';
   const [phase, setPhase] = useState<Phase>(code ? 'working' : 'error');
   const [result, setResult] = useState<LtiExchangeResult | null>(null);
   const [error, setError] = useState<string | null>(
@@ -82,6 +90,25 @@ export const LtiLaunchPage: React.FC = () => {
       }
     })();
   }, [code]);
+
+  // Student launch with a quiz attached: after sign-in, hand off to the quiz
+  // runner. It reads ?code= and SSO-auto-joins using the studentRole token.
+  if (phase === 'done' && result?.studentRole && quizCode) {
+    return (
+      <Suspense
+        fallback={
+          <div className="flex min-h-screen items-center justify-center bg-slate-50">
+            <Loader2 className="h-10 w-10 animate-spin text-brand-blue-primary" />
+          </div>
+        }
+      >
+        <QuizStudentApp
+          embedded
+          watermarkNameOverride={result.name ?? undefined}
+        />
+      </Suspense>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-50 p-6">

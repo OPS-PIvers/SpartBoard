@@ -192,7 +192,20 @@ export const ltiLaunch = onRequest(
       const target = launchRedirectTarget(claims.role, claims.isDeepLinking);
       const url = new URL(TOOL_ORIGIN + target.path);
       url.searchParams.set('lc', code);
-      if (target.deeplink) url.searchParams.set('mode', 'deeplink');
+      if (target.deeplink) {
+        url.searchParams.set('mode', 'deeplink');
+      } else if (claims.role === 'student' && claims.custom) {
+        // Surface the quiz/VA identity from the content item's custom claim so the
+        // runner can SSO-auto-join (the quiz code is a join code, not a secret).
+        const custom = claims.custom;
+        const kind = typeof custom.kind === 'string' ? custom.kind : 'quiz';
+        url.searchParams.set('kind', kind);
+        if (kind === 'va' && typeof custom.session_id === 'string') {
+          url.searchParams.set('sessionId', custom.session_id);
+        } else if (typeof custom.quiz_code === 'string') {
+          url.searchParams.set('code', custom.quiz_code);
+        }
+      }
 
       res.redirect(302, url.toString());
     } catch (err) {
@@ -237,12 +250,45 @@ export const ltiExchange = onCall(
       deploymentId: launch.deploymentId,
       name: launch.name,
       email: launch.email,
+      // deep_linking_settings (return URL + opaque data) for the picker; custom
+      // params (quiz identity) for diagnostics.
+      deepLinking: launch.deepLinking ?? null,
+      custom: launch.custom ?? null,
     };
 
-    // Teacher / deep-linking launches don't mint a studentRole token — the teacher
-    // authenticates to SpartBoard with their own account in the picker/grader (Phase C).
+    // Teacher launches don't get a studentRole token. For an INSTRUCTOR resource-link
+    // launch we mint a teacherRole token scoped to this resource link so the grader
+    // can authorize an AGS grade push. Deep-linking launches use the teacher's own
+    // SpartBoard auth in the picker, so they need no token here.
     if (launch.role !== 'student') {
-      return { ...context, studentRole: false };
+      let teacherToken: string | undefined;
+      if (
+        launch.role === 'teacher' &&
+        launch.messageType !== MESSAGE_TYPE_DEEP_LINKING &&
+        launch.resourceLinkId
+      ) {
+        const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
+        if (hmacSecret) {
+          const tuid = CryptoJS.HmacSHA256(
+            `schoology-teacher-sub:${launch.sub}`,
+            hmacSecret
+          ).toString(CryptoJS.enc.Hex);
+          try {
+            teacherToken = await admin.auth().createCustomToken(tuid, {
+              teacherRole: true,
+              ltiContextId: launch.contextId ?? '',
+              ltiResourceLinkId: launch.resourceLinkId,
+            });
+          } catch (err) {
+            console.error('[ltiExchange] teacher token mint failed', err);
+          }
+        }
+      }
+      return {
+        ...context,
+        studentRole: false,
+        ...(teacherToken ? { teacherToken } : {}),
+      };
     }
 
     // Learner launch: mint a studentRole custom token (mirrors classroomAddonLoginV1).
