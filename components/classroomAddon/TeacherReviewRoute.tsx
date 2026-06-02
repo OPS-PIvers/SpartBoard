@@ -48,6 +48,7 @@ import { normalizeQuizCode } from '@/utils/quizCode';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { resolveResponseDisplayName } from '@/components/widgets/QuizWidget/utils/resolveDisplayName';
 import {
+  canScoreResponse,
   getDisplayScore,
   getScoreSuffix,
 } from '@/components/widgets/QuizWidget/utils/quizScoreboard';
@@ -283,10 +284,20 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
     if (!attachment || !quizData) return;
     // Pre-flight guards (iframe order): check for gradeable work BEFORE the
     // OAuth popup — don't prompt for Classroom permission only to report there's
-    // nothing to push. Require a RESOLVABLE pseudonym too (the grade builder
-    // needs studentUid), so a quiz completed only by non-SSO/PIN students
-    // doesn't pop a consent dialog that then no-ops on an empty payload.
-    if (!responses.some((r) => r.status === 'completed' && !!r.studentUid)) {
+    // nothing to push. Require a RESOLVABLE pseudonym (the grade builder needs
+    // studentUid) AND a response that can actually be scored — mirroring
+    // buildQuizClassroomGradeEntries, which also drops unscoreable responses
+    // (answer key not loaded / question-id drift). Otherwise a quiz whose only
+    // completed responses are unscoreable would pop a consent dialog that then
+    // no-ops on an empty payload.
+    if (
+      !responses.some(
+        (r) =>
+          r.status === 'completed' &&
+          !!r.studentUid &&
+          canScoreResponse(r, questions)
+      )
+    ) {
       setStatusMsg('No completed responses to push yet.');
       return;
     }
