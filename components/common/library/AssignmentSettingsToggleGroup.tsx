@@ -127,7 +127,19 @@ export const ToggleRow: React.FC<ToggleRowProps> = ({
       >
         {label}
       </span>
-      <Toggle checked={checked} onChange={onChange} size="sm" showLabels />
+      {/*
+        Forward `label` so the switch gets an accessible name (Toggle maps
+        `label` to `aria-label`). Without it, screen readers announce the
+        switch as just "switch, off". The visible "ON"/"OFF" text is driven
+        by `showLabels`, not `label`, so this does not double up the label.
+      */}
+      <Toggle
+        checked={checked}
+        onChange={onChange}
+        size="sm"
+        showLabels
+        label={label}
+      />
     </div>
     {hint && <p className="text-xxs text-slate-500 mt-0.5">{hint}</p>}
   </div>
