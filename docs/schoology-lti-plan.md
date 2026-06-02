@@ -149,10 +149,27 @@ field values. You can start **M1–M3 on day one, in parallel with all my coding
   | **Redirect URLs**       | `https://spartboard.web.app/lti/launch`                    |
   | **JWKS URL**            | `https://spartboard.web.app/.well-known/jwks.json`         |
 
-- **Placement:** check **Course Materials** _(this — not Rich Text Editor — is the placement that
-  enables "Add Materials" deep linking AND carries gradebook line-item/AGS data)._
-- **LTI Advantage Extensions:** check **all three** — **Deep Linking**, **Assignment and Grade
-  Services**, **Names and Roles Services**.
+- **Placement:** check **Course Materials Selection** _(this — not Rich Text Editor — is the placement
+  that enables "Add Materials" deep linking AND carries gradebook line-item/AGS data)._
+- **"This app uses cookies":** leave **UNCHECKED** — the launch is cookieless (server-side Firestore
+  state). Checking it triggers Schoology's legacy cookie-preload popup we don't use.
+- **Privacy:** **"Send Name and Email/Username of user who launches the tool"** — keep this. The email
+  is received transiently (never persisted), enabling the email→ClassLink pseudonym bridge + watermark
+  name, mirroring the Classroom add-on.
+- **LTI Advantage Extensions:**
+  - **Deep Linking** — required (auto-checked because of the Course Materials placement).
+  - **Assignment and Grade Services** — check.
+  - **✅ "Use Unique Lineitem Identifiers for Linked Sections" — CHECK THIS.** Orono teachers link/merge
+    sections constantly. Schoology's linked-section AGS is a known-fragile area: a deep-linked item
+    shows to ALL linked sections and Schoology creates one line item per section, but with the default
+    (shared) identifier, grade posting silently succeeds for only ONE section. Unique-per-section line
+    items is the prerequisite for every merged period's gradebook to receive scores. **Architecture
+    rule:** resolve each student's line item from THEIR OWN launch's AGS claim (per-student
+    `lti_grade_links`), never the deep-link-time line item. **Required Spike-1 go/no-go test:** push
+    grades into a real linked/merged course (students in 2+ sections) and confirm each section's
+    gradebook gets them. If flaky, enable NRPS as the fallback to map students→sections.
+  - **Names and Roles Services** — leave **OFF** for now (PII-minimization; we get per-launcher
+    identity from the Privacy setting). Back-pocket fallback if linked-section AGS proves unreliable.
 - Save.
 
 > ⚠️ I must publish the JWKS + deploy the functions **before** your first launch, or the URLs 404.
@@ -246,10 +263,16 @@ add postMessage Platform Storage here before proceeding._ **80% of total risk di
   `{scoreMaximum, label}`, custom `{quiz_id}`) + auto-POST to `deep_link_return_url`.
 - **C2 [CLAUDE]** AGS client (client-credentials JWT assertion → bearer → `POST <lineitem>/scores`) +
   `ltiPushGradesForAssignmentV1` (reuses `buildQuizClassroomGradeEntries` scaling unchanged; swaps the
-  Classroom PATCH for the AGS score POST; gates on caller==link teacher).
-- **C3 [PAUL]** **M5 Spike-1**: attach a quiz, run as test student, push grade, verify gradebook.
+  Classroom PATCH for the AGS score POST; gates on caller==link teacher). **Each student's line item is
+  resolved from THEIR OWN launch's AGS claim (per-student `lti_grade_links`), never the deep-link-time
+  line item** — this is what makes linked/merged sections work (see Gate C).
+- **C3 [PAUL]** **M5 Spike-1**: attach a quiz, run as test student, push grade, verify gradebook —
+  **including a linked/merged course with students in 2+ sections** (the common Orono case).
 
-**Gate C (HARD):** A scaled correctness score lands in the Schoology gradebook column.
+**Gate C (HARD):** A scaled correctness score lands in the Schoology gradebook column — **and lands in
+EVERY section's gradebook for a linked/merged course.** Linked-section grade sync is a known-fragile
+area of Schoology (the "Use Unique Lineitem Identifiers for Linked Sections" app setting must be on);
+if per-section posting is unreliable, enable NRPS to map students→sections as the fallback.
 
 ### Phase D — Full parity _(parallel tracks once Gates B+C pass)_
 
@@ -296,16 +319,17 @@ Already in the tree and reusable: `ALLOWED_ORIGINS` (`functions/src/classlinkSha
 
 ## 7. Risks & mitigations
 
-| Risk                                                                 | Severity           | Mitigation                                                                                                                                          |
-| -------------------------------------------------------------------- | ------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Cookieless OIDC `state`/`nonce` in the iframe                        | was High → **Med** | Firestore TTL single-use store (no cookies). postMessage Platform Storage as fallback; Spike 0 logs `lti_storage_target` to decide empirically      |
-| JWT validation bugs fail silently                                    | Med-High           | `jose` with strict `iss`/`aud`/`exp`/`nonce`/`kid` checks; unit tests with real captured `id_token`; verbose Spike-0 logging                        |
-| Tool key management / rotation                                       | Med                | Private key in Secret Manager; public JWKS via function with `kid`; documented rotation runbook (E4)                                                |
-| **AGS requires Deep Linking** on Schoology                           | Med                | Always embed `lineItem` in the DeepLinkingResponse so the gradebook column + AGS claim exist on later launches; never rely on non-deep-linked items |
-| `gradingProgress`/`PendingManual` reportedly incomplete on Schoology | Low-Med            | Post `Completed`+`FullyGraded` for autograded quizzes; verify written-response/manual states empirically in Spike 1                                 |
-| `iss` historical variant (`www.schoology.com`)                       | Low                | Validate against the real `id_token`; make `iss` a config constant, easy to flip                                                                    |
-| No isolated Schoology sandbox                                        | Low                | Test in a scoped throwaway course in the live instance; private + single-course install contains blast radius                                       |
-| Deploying LTI functions to prod pre-parity                           | Low                | Endpoints reject all non-Schoology-signed requests; routes inert without a launch code                                                              |
+| Risk                                                                 | Severity           | Mitigation                                                                                                                                                                                                                            |
+| -------------------------------------------------------------------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Cookieless OIDC `state`/`nonce` in the iframe                        | was High → **Med** | Firestore TTL single-use store (no cookies). postMessage Platform Storage as fallback; Spike 0 logs `lti_storage_target` to decide empirically                                                                                        |
+| JWT validation bugs fail silently                                    | Med-High           | `jose` with strict `iss`/`aud`/`exp`/`nonce`/`kid` checks; unit tests with real captured `id_token`; verbose Spike-0 logging                                                                                                          |
+| Tool key management / rotation                                       | Med                | Private key in Secret Manager; public JWKS via function with `kid`; documented rotation runbook (E4)                                                                                                                                  |
+| **AGS requires Deep Linking** on Schoology                           | Med                | Always embed `lineItem` in the DeepLinkingResponse so the gradebook column + AGS claim exist on later launches; never rely on non-deep-linked items                                                                                   |
+| **Linked/merged sections grade sync** (common at Orono)              | **Med-High**       | Check "Use Unique Lineitem Identifiers for Linked Sections" in the app; resolve each student's line item from their OWN launch (per-student `lti_grade_links`); required Spike-1 test on a real merged course; NRPS fallback if flaky |
+| `gradingProgress`/`PendingManual` reportedly incomplete on Schoology | Low-Med            | Post `Completed`+`FullyGraded` for autograded quizzes; verify written-response/manual states empirically in Spike 1                                                                                                                   |
+| `iss` historical variant (`www.schoology.com`)                       | Low                | Validate against the real `id_token`; make `iss` a config constant, easy to flip                                                                                                                                                      |
+| No isolated Schoology sandbox                                        | Low                | Test in a scoped throwaway course in the live instance; private + single-course install contains blast radius                                                                                                                         |
+| Deploying LTI functions to prod pre-parity                           | Low                | Endpoints reject all non-Schoology-signed requests; routes inert without a launch code                                                                                                                                                |
 
 ---
 
