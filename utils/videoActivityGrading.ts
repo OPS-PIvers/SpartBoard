@@ -150,3 +150,46 @@ export function computeVideoActivityScorePct(
   if (max === 0) return 0;
   return Math.round((earned / max) * 100);
 }
+
+/**
+ * Whether a Video Activity response can be meaningfully scored against the
+ * given question set — the VA mirror of `quizScoreboard.canScoreResponse`.
+ *
+ * Guards the same "false 0" failure mode. `computeVideoActivityScorePct`
+ * grades each answer against `questions[].correctAnswer`, so when the question
+ * set is the wrong one (or absent) it silently yields 0: every `answers.find`
+ * misses a loaded question and contributes nothing. That 0 then renders as a
+ * real "0%", which reads as a student who failed rather than a scoring
+ * artifact. Two cases produce it:
+ *
+ *   1. **Question set not loaded** — `questions` is empty. The teacher Results
+ *      view scores against `session.questions`; before that hydrates from
+ *      Firestore (or if it arrives empty) EVERY completed response scores 0,
+ *      so the monitor shows a "0%" class average as if everyone failed.
+ *   2. **Question-id drift** — a completed response's answers reference no
+ *      question in the loaded set (e.g. a PLC-synced activity whose question
+ *      IDs were regenerated after the student submitted). Grading skips all of
+ *      them and the response scores 0 despite real answers.
+ *
+ * Callers should render a pending / "—" indicator (not a score) when this
+ * returns false, exclude these responses from the class average / aggregate,
+ * and keep them out of any Google Classroom gradebook push rather than seating
+ * them at a phantom 0.
+ *
+ * A response with zero answers is treated as scoreable: its 0 is a genuine
+ * "didn't answer", not a missing-key artifact, so the caller can still show 0.
+ */
+export function canScoreVideoActivityResponse(
+  questions: VideoActivityQuestion[],
+  answers: { questionId: string; answer: string }[]
+): boolean {
+  // Case 1: the question set hasn't loaded — nothing can be graded yet.
+  if (questions.length === 0) return false;
+  // A genuine empty submission is scoreable (a real 0, not a missing key).
+  if (answers.length === 0) return true;
+  // Case 2: at least one answer must map to a loaded question. Partial drift
+  // (some ids match, some don't) is still gradable — the matched answers score
+  // and the unmatched ones are skipped, same as computeVideoActivityScorePct.
+  const ids = new Set(questions.map((q) => q.id));
+  return answers.some((a) => ids.has(a.questionId));
+}
