@@ -44,6 +44,7 @@ import {
   QUIZ_SESSIONS_COLLECTION,
   RESPONSES_COLLECTION,
 } from '@/hooks/useQuizSession';
+import { normalizeQuizCode } from '@/utils/quizCode';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { resolveResponseDisplayName } from '@/components/widgets/QuizWidget/utils/resolveDisplayName';
 import {
@@ -53,9 +54,14 @@ import {
 import { WrittenResponseGrader } from '@/components/widgets/QuizWidget/components/WrittenResponseGrader';
 import {
   buildQuizClassroomGradeEntries,
-  pushClassroomGradesForAssignment,
   formatGradePushToast,
 } from '@/utils/classroomGradePush';
+import {
+  runClassroomGradePush,
+  hasValidMaxPoints,
+  MISSING_MAX_POINTS_MESSAGE,
+  PUSH_PERMISSION_DENIED_MESSAGE,
+} from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from './gisOAuth';
 import { logError } from '@/utils/logError';
 import {
@@ -85,14 +91,6 @@ const PUBLISH_OPTIONS: {
     label: 'Score + answers + correct answers',
   },
 ];
-
-/** Resolve the quiz_sessions doc id from a join code (mirrors the student lookup). */
-function normalizeCode(code: string): string {
-  return code
-    .trim()
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase();
-}
 
 export const ClassroomAddonTeacherReview: React.FC = () => {
   const params =
@@ -130,7 +128,7 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
         const snap = await getDocs(
           query(
             collection(db, QUIZ_SESSIONS_COLLECTION),
-            where('code', '==', normalizeCode(code))
+            where('code', '==', normalizeQuizCode(code))
           )
         );
         if (!active) return;
@@ -283,72 +281,80 @@ export const ClassroomAddonTeacherReview: React.FC = () => {
   const pushGrades = useCallback(async () => {
     const attachment = session?.classroomAttachment;
     if (!attachment || !quizData) return;
-    // Check for gradeable work BEFORE the OAuth popup — don't prompt the teacher
-    // for Classroom permission only to tell them there's nothing to push. Require
-    // a RESOLVABLE pseudonym too (the grade builder also needs studentUid), so a
-    // quiz completed only by non-SSO/PIN students doesn't pop a consent dialog
-    // that then no-ops on an empty payload.
+    // Pre-flight guards (iframe order): check for gradeable work BEFORE the
+    // OAuth popup — don't prompt for Classroom permission only to report there's
+    // nothing to push. Require a RESOLVABLE pseudonym too (the grade builder
+    // needs studentUid), so a quiz completed only by non-SSO/PIN students
+    // doesn't pop a consent dialog that then no-ops on an empty payload.
     if (!responses.some((r) => r.status === 'completed' && !!r.studentUid)) {
       setStatusMsg('No completed responses to push yet.');
       return;
     }
-    // Guard the grade scale BEFORE the OAuth popup: a malformed/stale attachment
-    // could carry 0/NaN maxPoints, which would scale every grade to 0 (or NaN).
-    if (!Number.isFinite(attachment.maxPoints) || attachment.maxPoints <= 0) {
-      setErrorMsg(
-        'This assignment is missing its Classroom point total — re-attach it ' +
-          'to push grades.'
-      );
+    if (!hasValidMaxPoints(attachment.maxPoints)) {
+      setErrorMsg(MISSING_MAX_POINTS_MESSAGE);
       return;
     }
-    setBusy(true);
-    setErrorMsg(null);
-    try {
-      setStatusMsg('Granting Classroom permission…');
-      const accessToken = await requestClassroomTeacherToken(
-        user?.email ?? loginHint
-      );
-
-      // Scale each completed student's earned points onto the attachment's grade
-      // scale (== the quiz's total points) via the shared builder — same scaling
-      // the dashboard monitor (QuizResults) uses, so they can't drift.
-      const grades = buildQuizClassroomGradeEntries(
-        responses,
-        questions,
-        attachment.maxPoints
-      );
-      if (grades.length === 0) {
-        setStatusMsg('No completed responses to push yet.');
-        return;
-      }
-
-      setStatusMsg('Pushing grades to Google Classroom…');
-      const data = await pushClassroomGradesForAssignment(functions, {
+    // Shared push flow. The iframe renders progress/result on an inline status
+    // line (no toasts) and pushes WITHOUT a confirm dialog; a token failure is
+    // NOT given the distinct cancelled-consent message (it folds into the
+    // generic error line). The grade builder is the shared quiz scaler — same
+    // scaling the dashboard monitor (QuizResults) uses, so they can't drift.
+    await runClassroomGradePush({
+      functions,
+      attachment: {
         courseId: attachment.courseId,
         itemId: attachment.itemId,
         attachmentId: attachment.attachmentId,
-        accessToken,
-        grades,
         maxPoints: attachment.maxPoints,
-      });
-      setStatusMsg(`${formatGradePushToast(data)} Return them in Classroom.`);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      logError('ClassroomAddonTeacherReview.pushGrades', err, {
-        sessionId,
-      });
-      // permission-denied → the course isn't linked to ClassLink under this
-      // teacher (the CF gates push on the link doc); give an actionable hint
-      // instead of the raw error.
-      const code = (err as { code?: string } | null)?.code ?? '';
-      setErrorMsg(
-        code.includes('permission-denied')
-          ? 'Only the teacher who linked this course to ClassLink can push grades. Link it from your Classes list first.'
-          : `Couldn't push grades: ${message}`
-      );
-    } finally {
-      setBusy(false);
-    }
+      },
+      requestToken: () =>
+        requestClassroomTeacherToken(user?.email ?? loginHint),
+      buildGrades: () =>
+        buildQuizClassroomGradeEntries(
+          responses,
+          questions,
+          attachment.maxPoints
+        ),
+      logTag: 'ClassroomAddonTeacherReview.pushGrades',
+      logContext: { sessionId },
+      onStatus: (status) => {
+        switch (status.phase) {
+          case 'start':
+            setBusy(true);
+            setErrorMsg(null);
+            break;
+          case 'settled':
+            setBusy(false);
+            break;
+          case 'requesting-token':
+            setStatusMsg('Granting Classroom permission…');
+            break;
+          case 'pushing':
+            setStatusMsg('Pushing grades to Google Classroom…');
+            break;
+          case 'nothing-to-push':
+            setStatusMsg('No completed responses to push yet.');
+            break;
+          case 'pushed':
+            setStatusMsg(
+              `${formatGradePushToast(status.data)} Return them in Classroom.`
+            );
+            break;
+          case 'token-cancelled':
+            // Unused: the iframe omits distinctTokenCancel, so a token failure
+            // falls through to onError instead of emitting this beat.
+            break;
+        }
+      },
+      onError: ({ permissionDenied, error }) => {
+        const message = error instanceof Error ? error.message : String(error);
+        setErrorMsg(
+          permissionDenied
+            ? PUSH_PERMISSION_DENIED_MESSAGE
+            : `Couldn't push grades: ${message}`
+        );
+      },
+    });
   }, [
     session,
     quizData,

@@ -22,8 +22,9 @@
  *   - No rate limiting (neither studentLoginV1 nor pinLoginV1 has one to copy).
  *   - Teacher launches are out of scope here: returns `{ role: 'teacher' }`
  *     with no token.
- *   - Helpers (hmac, email-domain→org) are inlined to keep the spike
- *     self-contained; production should share them with `index.ts`.
+ *   - Shared ClassLink helpers (hmac pseudonym, email-domain→org, OAuth
+ *     headers, CORS allowlist, OneRoster base path) now live in
+ *     `./classlinkShared` and are imported by both this file and `index.ts`.
  *   - Outbound Google calls go through `classroomAddonNet` so unit tests can
  *     stub them without a live Classroom install. Uses raw `fetch` + Bearer
  *     (mirrors `getDriveHeaders` in index.ts) — no `googleapis` dependency.
@@ -33,7 +34,15 @@ import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import * as CryptoJS from 'crypto-js';
 import axios from 'axios';
-import OAuth from 'oauth-1.0a';
+import {
+  ALLOWED_ORIGINS,
+  ONEROSTER_BASE,
+  computeStudentUid,
+  getOAuthHeaders,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
+  type ClassLinkStudent,
+} from './classlinkShared';
 
 // Same named secrets as index.ts; Firebase params dedupes by name. The
 // CLASSLINK_* secrets power the ClassLink identity bridge: a Classroom student
@@ -46,15 +55,6 @@ const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
 const CLASSLINK_CLIENT_ID = defineSecret('CLASSLINK_CLIENT_ID');
 const CLASSLINK_CLIENT_SECRET = defineSecret('CLASSLINK_CLIENT_SECRET');
 const CLASSLINK_TENANT_URL = defineSecret('CLASSLINK_TENANT_URL');
-
-// Keep in sync with ALLOWED_ORIGINS in index.ts (spike duplication; production
-// should import a shared constant).
-const ALLOWED_ORIGINS: (string | RegExp)[] = [
-  'https://spartboard.web.app',
-  'https://spartboard.firebaseapp.com',
-  /^https:\/\/spartboard--[\w-]+\.web\.app$/,
-  /^http:\/\/localhost(:\d+)?$/,
-];
 
 const CLASSROOM_API = 'https://classroom.googleapis.com/v1';
 const USERINFO_URL = 'https://www.googleapis.com/oauth2/v3/userinfo';
@@ -95,14 +95,6 @@ interface GoogleUserInfo {
   // the student view requests it). Used ONLY as a transient watermark label,
   // returned to the student's own client; never persisted (PII gate).
   name?: string;
-}
-
-/** OneRoster student shape (subset) — mirrors index.ts's ClassLinkStudent. */
-interface ClassLinkStudent {
-  sourcedId?: string;
-  givenName?: string;
-  familyName?: string;
-  email?: string;
 }
 
 /**
@@ -192,66 +184,6 @@ interface AddOnAttachmentBody {
 
 function bearer(accessToken: string): Record<string, string> {
   return { Authorization: `Bearer ${accessToken}` };
-}
-
-function normalizeEmailDomain(email: string): string | null {
-  const at = email.lastIndexOf('@');
-  if (at < 0 || at === email.length - 1) return null;
-  return '@' + email.slice(at + 1).toLowerCase();
-}
-
-const ONEROSTER_BASE = '/ims/oneroster/v1p1';
-
-/**
- * Stable per-student pseudonym — MUST match index.ts `computeStudentUid`
- * (`HMAC("sid:"+sourcedId)`) so a Classroom student mints the SAME Firebase uid
- * as their ClassLink SSO login, and the existing `getPseudonymsForAssignmentV1`
- * monitor resolves their name. (Spike duplication; production should share it.)
- */
-function computeStudentUid(sourcedId: string, hmacSecret: string): string {
-  return CryptoJS.HmacSHA256(`sid:${sourcedId}`, hmacSecret).toString(
-    CryptoJS.enc.Hex
-  );
-}
-
-/** OAuth 1.0 headers for the ClassLink OneRoster API — mirrors index.ts. */
-function getOAuthHeaders(
-  baseUrl: string,
-  params: Record<string, string>,
-  method: string,
-  clientId: string,
-  clientSecret: string
-): Record<string, string> {
-  const oauth = new OAuth({
-    consumer: { key: clientId, secret: clientSecret },
-    signature_method: 'HMAC-SHA1',
-    hash_function(base_string: string, key: string) {
-      return CryptoJS.HmacSHA1(base_string, key).toString(CryptoJS.enc.Base64);
-    },
-  });
-  return oauth.toHeader(
-    oauth.authorize({ url: baseUrl, method, data: params })
-  ) as unknown as Record<string, string>;
-}
-
-/**
- * Looks up the org that owns an email domain — same query as index.ts's
- * `resolveOrgIdForDomain`. Domains are stored with a leading '@' and must be
- * `status === 'verified'`.
- */
-async function resolveOrgIdForDomain(
-  db: admin.firestore.Firestore,
-  domainWithAt: string
-): Promise<string | null> {
-  const snap = await db
-    .collectionGroup('domains')
-    .where('domain', '==', domainWithAt)
-    .where('status', '==', 'verified')
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  const orgRef = snap.docs[0].ref.parent.parent;
-  return orgRef ? orgRef.id : null;
 }
 
 function isItemType(v: unknown): v is ItemType {
