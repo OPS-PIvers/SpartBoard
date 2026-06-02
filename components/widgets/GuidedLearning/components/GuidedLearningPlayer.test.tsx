@@ -1,9 +1,10 @@
 import React from 'react';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import {
   afterAll,
   beforeAll,
   beforeEach,
+  afterEach,
   describe,
   expect,
   it,
@@ -18,6 +19,20 @@ vi.mock('./interactions/TooltipInteraction', () => ({
   }: {
     step: { xPct: number; yPct: number; text?: string };
   }) => <div data-testid="tooltip-coords">{`${step.xPct},${step.yPct}`}</div>,
+}));
+
+let mockQuestionOnAnswer:
+  | ((answer: string, isCorrect: boolean | null) => void)
+  | null = null;
+vi.mock('./interactions/QuestionInteraction', () => ({
+  QuestionInteraction: ({
+    onAnswer,
+  }: {
+    onAnswer: (answer: string, isCorrect: boolean | null) => void;
+  }) => {
+    mockQuestionOnAnswer = onAnswer;
+    return <div data-testid="question-interaction">Question</div>;
+  },
 }));
 
 vi.mock('./interactions/SpotlightInteraction', () => ({
@@ -103,6 +118,11 @@ describe('GuidedLearningPlayer', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockQuestionOnAnswer = null;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   afterAll(() => {
@@ -148,6 +168,79 @@ describe('GuidedLearningPlayer', () => {
     expect(
       screen.queryByRole('button', { name: /step 1/i })
     ).not.toBeInTheDocument();
+  });
+
+  it('does not restart the auto-advance timer when a question is answered in guided mode', () => {
+    vi.useFakeTimers();
+
+    const set: GuidedLearningSet = {
+      id: 'set-timer',
+      title: 'Timer Test',
+      imageUrls: ['https://example.com/image.png'],
+      steps: [
+        {
+          id: 'q-step-1',
+          xPct: 50,
+          yPct: 50,
+          imageIndex: 0,
+          interactionType: 'question',
+          autoAdvanceDuration: 10,
+          question: {
+            type: 'multiple-choice',
+            text: 'Pick one',
+            choices: ['A', 'B'],
+            correctAnswer: 'A',
+          },
+        },
+        {
+          id: 'q-step-2',
+          xPct: 30,
+          yPct: 30,
+          imageIndex: 0,
+          interactionType: 'tooltip',
+          text: 'Step 2',
+        },
+      ],
+      mode: 'guided',
+      createdAt: 0,
+      updatedAt: 0,
+    };
+
+    render(<GuidedLearningPlayer set={set} />);
+    fireEvent.load(screen.getByAltText('Timer Test'));
+
+    // Start playing
+    fireEvent.click(screen.getByRole('button', { name: /play/i }));
+
+    // Advance 5 seconds (50% of the 10s duration)
+    act(() => {
+      vi.advanceTimersByTime(5000);
+    });
+
+    // The key invariant is that answering the question must NOT restart
+    // progressRef to 0. Answer the question at the 5-second mark.
+    const answerQuestion = mockQuestionOnAnswer;
+    if (answerQuestion === null)
+      throw new Error('mockQuestionOnAnswer was not set');
+    act(() => {
+      answerQuestion('A', true);
+    });
+
+    // After answering, the timer should NOT have restarted. We advance another
+    // 5.1 seconds — if the timer restarted we would still be at 50%; if it
+    // continued from 50% we'd pass 100% and auto-advance to step 2.
+    act(() => {
+      vi.advanceTimersByTime(5100);
+    });
+
+    // The question-interaction mock should no longer be visible: the player
+    // must have advanced to step 2 (tooltip). If the timer restarted, it
+    // would still be at the question step.
+    expect(
+      screen.queryByTestId('question-interaction')
+    ).not.toBeInTheDocument();
+
+    vi.useRealTimers();
   });
 
   it('lets explore mode switch images and keeps pan-zoom spotlight overlays visible', () => {
