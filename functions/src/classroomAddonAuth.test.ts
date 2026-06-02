@@ -983,6 +983,80 @@ describe('classroomAddonNet.patchStudentSubmissionGrade URL construction', () =>
   });
 });
 
+// The teacher course-list seam — the trust anchor for linkClassroomCourse. The
+// linkClassroomCourse tests stub it, so these pin the real URL/pagination it
+// builds and that it degrades safely on a weird upstream body (the parse guard).
+describe('classroomAddonNet.listTeacherCourseIds (real seam)', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('GETs courses?teacherId=me&courseStates=ACTIVE and paginates, collecting ids', async () => {
+    const urls: string[] = [];
+    const fetchMock = vi.fn(async (url: unknown) => {
+      const u = url as string;
+      urls.push(u);
+      // The second page (token present) is the last — no nextPageToken.
+      if (u.includes('pageToken=PAGE2')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ courses: [{ id: 'C3' }] }),
+        };
+      }
+      return {
+        ok: true,
+        status: 200,
+        json: async () => ({
+          courses: [{ id: 'C1' }, { id: 'C2' }],
+          nextPageToken: 'PAGE2',
+        }),
+      };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.listTeacherCourseIds('tok');
+
+    expect(res).toEqual({
+      ok: true,
+      status: 200,
+      courseIds: ['C1', 'C2', 'C3'],
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(urls[0]).toContain('https://classroom.googleapis.com/v1/courses?');
+    expect(urls[0]).toContain('teacherId=me');
+    expect(urls[0]).toContain('courseStates=ACTIVE');
+    expect(urls[1]).toContain('pageToken=PAGE2');
+  });
+
+  it('treats a null/non-object 200 body as an empty final page (no crash)', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => null,
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.listTeacherCourseIds('tok');
+
+    expect(res).toEqual({ ok: true, status: 200, courseIds: [] });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('fails closed (ok:false) on a non-2xx response', async () => {
+    const fetchMock = vi.fn(async () => ({
+      ok: false,
+      status: 401,
+      json: async () => ({}),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const res = await classroomAddonNet.listTeacherCourseIds('tok');
+
+    expect(res).toEqual({ ok: false, status: 401, courseIds: [] });
+  });
+});
+
 // The courseWork due-date PATCH seam used to sync the add-on picker's date onto
 // the parent assignment. The createClassroomAttachment tests stub this seam, so
 // this standalone test pins the real URL/updateMask/body it builds against a

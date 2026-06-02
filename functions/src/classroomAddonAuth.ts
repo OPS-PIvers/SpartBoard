@@ -389,11 +389,19 @@ export const classroomAddonNet = {
         const body = (await res.json()) as {
           courses?: { id?: string }[];
           nextPageToken?: string;
-        };
-        for (const c of body.courses ?? []) {
-          if (typeof c.id === 'string') courseIds.push(c.id);
+        } | null;
+        // A 200 with a null / non-object body shouldn't happen for
+        // courses.list, but guard rather than deref it (and treat it as an
+        // empty final page rather than throwing into the catch, which would
+        // discard course ids already collected from earlier pages).
+        if (body && typeof body === 'object') {
+          for (const c of body.courses ?? []) {
+            if (typeof c.id === 'string') courseIds.push(c.id);
+          }
+          pageToken = body.nextPageToken;
+        } else {
+          pageToken = undefined;
         }
-        pageToken = body.nextPageToken;
         pages += 1;
       } while (pageToken && pages < MAX_PAGES);
       return { ok: true, status: 200, courseIds };
