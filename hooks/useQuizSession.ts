@@ -47,6 +47,7 @@ import {
   GradeResult,
 } from '@/types';
 import { resolvePeriodNames } from '@/utils/periodCompat';
+import { normalizeQuizCode } from '@/utils/quizCode';
 
 // Re-export for backward compatibility with callers that imported
 // QuizSessionOptions from this module before it was moved into types.ts.
@@ -1356,10 +1357,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // Without this a network/Firestore failure during code lookup silently
       // strands the student on the join form with no spinner and no error.
       try {
-        const normCode = code
-          .trim()
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toUpperCase();
+        const normCode = normalizeQuizCode(code);
         if (!normCode) return null;
         setError(null);
         const snap = await getDocs(
@@ -1411,10 +1409,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       // legitimate snapshots in the new one.
       lastHistorySnapshotAtRef.current.clear();
       try {
-        const normCode = code
-          .trim()
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toUpperCase();
+        const normCode = normalizeQuizCode(code);
         if (!normCode) throw new Error('Invalid code');
 
         // Ensure we have an anonymous Firebase Auth session so Firestore
@@ -2350,10 +2345,7 @@ export const useQuizSessionStudent = (): UseQuizSessionStudentResult => {
       setLoading(true);
       setError(null);
       try {
-        const normCode = code
-          .trim()
-          .replace(/[^a-zA-Z0-9]/g, '')
-          .toUpperCase();
+        const normCode = normalizeQuizCode(code);
         if (!normCode) throw new Error('Invalid code');
 
         const currentUser = auth.currentUser;

@@ -31,11 +31,13 @@ import {
   computeVideoActivityScorePct,
 } from '@/utils/videoActivityGrading';
 import {
-  pushClassroomGradesForAssignment,
-  formatGradePushToast,
-} from '@/utils/classroomGradePush';
+  runClassroomGradePush,
+  createToastGradePushHandlers,
+  hasValidMaxPoints,
+  MISSING_MAX_POINTS_MESSAGE,
+  NOTHING_TO_PUSH_TOAST,
+} from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
-import { logError } from '@/utils/logError';
 import { functions } from '@/config/firebase';
 import {
   useAssignmentPseudonymsMulti,
@@ -237,108 +239,59 @@ export const Results: React.FC<ResultsProps> = ({
     if (!classroomAttachment) return;
     const { attachmentId, courseId, itemId, maxPoints } = classroomAttachment;
 
-    // Defensive guard: `maxPoints` is typed required, but a malformed/stale
-    // attachment doc could carry NaN/0 — which would scale every grade to 0 (or
-    // NaN). Bail with an actionable message rather than push garbage grades.
-    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
-      addToast(
-        'This assignment is missing its Classroom point total — re-attach it to push grades.',
-        'error'
-      );
+    // Guard the grade scale FIRST (a malformed/stale attachment could carry
+    // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
+    // completed responses with a resolvable pseudonym — so we never pop a
+    // consent dialog when there's nothing to push.
+    if (!hasValidMaxPoints(maxPoints)) {
+      addToast(MISSING_MAX_POINTS_MESSAGE, 'error');
       return;
     }
-
-    // The eligible list — completed responses with a resolvable pseudonym —
-    // is cheap to compute and stable across the confirm dialog, so we derive
-    // it (and gate on it) BEFORE confirming. The per-student SCORING, however,
-    // is built AFTER the confirm against the latest props, so an edit pushed by
-    // the Firestore listener while the dialog is open can't bake stale scores
-    // into the payload (TOCTOU).
     const eligible = responses.filter(
       (r) => r.completedAt !== null && !!r.studentUid
     );
-
     if (eligible.length === 0) {
-      addToast('No completed submissions to push yet', 'info');
+      addToast(NOTHING_TO_PUSH_TOAST, 'info');
       return;
     }
 
-    const confirmed = await showConfirm(
-      `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
-        'Classroom? This writes draft grades to the assignment gradebook — ' +
-        'you still review and return them in Classroom.',
-      {
-        title: 'Push grades to Google Classroom',
-        confirmLabel: 'Push grades',
-        cancelLabel: 'Cancel',
-      }
-    );
-    if (!confirmed) return;
-
-    // Build the PII-free grade payload: one entry per completed response with a
-    // resolvable pseudonym. `getStudentScore` returns the SAME 0–100 percentage
-    // the Students tab displays; scale it onto the frozen Classroom denominator,
-    // then round + clamp to [0, maxPoints]. Built from the responses captured
-    // when the teacher initiated the push (this handler's closure).
-    const grades = eligible.map((r) => {
-      const pct = getStudentScore(r);
-      const safePct = Number.isFinite(pct) ? pct : 0;
-      const pointsEarned = Math.max(
-        0,
-        Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
-      );
-      return { pseudonymUid: r.studentUid, pointsEarned };
+    // Shared push flow (token mint → CF → result toast); the VA monitor supplies
+    // only its grade builder. `getStudentScore` returns the SAME 0–100
+    // percentage the Students tab shows; scale it onto the frozen denominator,
+    // then round + clamp to [0, maxPoints]. The payload is built inside the flow
+    // (AFTER the confirm) from the responses captured when the teacher clicked
+    // (this closure), so a mid-dialog Firestore edit can't bake in stale scores.
+    await runClassroomGradePush({
+      functions,
+      attachment: { courseId, itemId, attachmentId, maxPoints },
+      requestToken: () =>
+        requestClassroomTeacherToken(user?.email ?? undefined),
+      buildGrades: () =>
+        eligible.map((r) => {
+          const pct = getStudentScore(r);
+          const safePct = Number.isFinite(pct) ? pct : 0;
+          const pointsEarned = Math.max(
+            0,
+            Math.min(maxPoints, Math.round((safePct / 100) * maxPoints))
+          );
+          return { pseudonymUid: r.studentUid, pointsEarned };
+        }),
+      confirm: () =>
+        showConfirm(
+          `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
+            'Classroom? This writes draft grades to the assignment gradebook — ' +
+            'you still review and return them in Classroom.',
+          {
+            title: 'Push grades to Google Classroom',
+            confirmLabel: 'Push grades',
+            cancelLabel: 'Cancel',
+          }
+        ),
+      distinctTokenCancel: true,
+      logTag: 'VideoActivityResults.pushClassroomGrades',
+      logContext: { sessionId: session?.id, attachmentId },
+      ...createToastGradePushHandlers(addToast, setPushingGrades),
     });
-
-    setPushingGrades(true);
-    try {
-      // Mint a fresh add-on teacher token via the GIS popup (the teacher is
-      // present), then hand it to the CF to PATCH the DRAFT grades. A cancelled
-      // or failed consent rejects here — surface it distinctly from a CF failure
-      // so the teacher knows nothing was pushed.
-      let accessToken: string;
-      try {
-        accessToken = await requestClassroomTeacherToken(
-          user?.email ?? undefined
-        );
-      } catch (tokenErr) {
-        logError('VideoActivityResults.pushClassroomGrades.token', tokenErr, {
-          sessionId: session?.id,
-          attachmentId,
-        });
-        addToast(
-          'Google sign-in was cancelled — no grades were pushed.',
-          'error'
-        );
-        return;
-      }
-
-      const data = await pushClassroomGradesForAssignment(functions, {
-        courseId,
-        itemId,
-        attachmentId,
-        accessToken,
-        grades,
-        maxPoints,
-      });
-      addToast(formatGradePushToast(data), 'success');
-    } catch (err) {
-      logError('VideoActivityResults.pushClassroomGrades', err, {
-        sessionId: session?.id,
-        attachmentId,
-      });
-      // permission-denied → this course isn't linked to ClassLink under the
-      // current teacher (the CF gates push on the link doc); tell them how to fix.
-      const code = (err as { code?: string } | null)?.code ?? '';
-      addToast(
-        code.includes('permission-denied')
-          ? 'Only the teacher who linked this course to ClassLink can push grades. Link it from your Classes list first.'
-          : 'Could not push grades to Google Classroom.',
-        'error'
-      );
-    } finally {
-      setPushingGrades(false);
-    }
   };
 
   return (

@@ -67,11 +67,14 @@ import { PlcTab } from '@/components/common/library/PlcTab';
 import { WrittenResponseGrader } from './WrittenResponseGrader';
 import { doc, updateDoc } from 'firebase/firestore';
 import { db, functions } from '@/config/firebase';
+import { buildQuizClassroomGradeEntries } from '@/utils/classroomGradePush';
 import {
-  buildQuizClassroomGradeEntries,
-  pushClassroomGradesForAssignment,
-  formatGradePushToast,
-} from '@/utils/classroomGradePush';
+  runClassroomGradePush,
+  createToastGradePushHandlers,
+  hasValidMaxPoints,
+  MISSING_MAX_POINTS_MESSAGE,
+  NOTHING_TO_PUSH_TOAST,
+} from '@/utils/runClassroomGradePush';
 import { requestClassroomTeacherToken } from '@/components/classroomAddon/gisOAuth';
 import {
   QUIZ_SESSIONS_COLLECTION,
@@ -1040,104 +1043,49 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
     if (!classroomAttachment) return;
     const { attachmentId, courseId, itemId, maxPoints } = classroomAttachment;
 
-    // Defensive guard: `maxPoints` is typed required, but a malformed/stale
-    // attachment doc could carry NaN/0 — which would scale every grade to 0 (or
-    // NaN). Bail with an actionable message rather than push garbage grades.
-    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
-      addToast(
-        'This assignment is missing its Classroom point total — re-attach it to push grades.',
-        'error'
-      );
+    // Guard the grade scale FIRST (a malformed/stale attachment could carry
+    // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
+    // completed responses with a resolvable pseudonym — so we never pop a
+    // consent dialog when there's nothing to push. The eligible list and the
+    // grade payload both reflect the responses/quiz captured when the teacher
+    // clicked (this closure); a brief mid-dialog Firestore update isn't re-read.
+    if (!hasValidMaxPoints(maxPoints)) {
+      addToast(MISSING_MAX_POINTS_MESSAGE, 'error');
       return;
     }
-
-    // Compute the eligible list — completed responses with a resolvable
-    // pseudonym — and gate on it BEFORE confirming, so we never pop a consent
-    // dialog when there's nothing to push. Both the eligible list and the grade
-    // payload below reflect the responses/quiz captured when the teacher
-    // initiated the push (this handler's closure); a brief mid-dialog Firestore
-    // update is intentionally not re-read — the teacher pushes what they were
-    // looking at when they clicked.
     const eligible = completed.filter((r) => !!r.studentUid);
-
     if (eligible.length === 0) {
-      addToast('No completed submissions to push yet', 'info');
+      addToast(NOTHING_TO_PUSH_TOAST, 'info');
       return;
     }
 
-    const confirmed = await showConfirm(
-      `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
-        'Classroom? This writes draft grades to the assignment gradebook — ' +
-        'you still review and return them in Classroom.',
-      {
-        title: 'Push grades to Google Classroom',
-        confirmLabel: 'Push grades',
-        cancelLabel: 'Cancel',
-      }
-    );
-    if (!confirmed) return;
-
-    // Build the PII-free grade payload via the shared scaler (the single source
-    // of truth also used by the in-iframe grader, TeacherReviewRoute, so the two
-    // can't drift): each completed student's correctness points are scaled onto
-    // the frozen Classroom denominator (`maxPoints`), then rounded + clamped to
-    // [0, maxPoints], with a non-finite score treated as 0.
-    const grades = buildQuizClassroomGradeEntries(
-      completed,
-      quiz.questions,
-      maxPoints
-    );
-
-    setPushingGrades(true);
-    try {
-      // Mint a fresh add-on teacher token via the GIS popup (the teacher is
-      // present), then hand it to the CF to PATCH the DRAFT grades. A cancelled
-      // or failed consent rejects here — surface it distinctly from a CF failure
-      // so the teacher knows nothing was pushed.
-      let accessToken: string;
-      try {
-        accessToken = await requestClassroomTeacherToken(
-          user?.email ?? undefined
-        );
-      } catch (tokenErr) {
-        logError('QuizResults.pushClassroomGrades.token', tokenErr, {
-          sessionId: session?.id,
-          attachmentId,
-        });
-        addToast(
-          'Google sign-in was cancelled — no grades were pushed.',
-          'error'
-        );
-        return;
-      }
-
-      const data = await pushClassroomGradesForAssignment(functions, {
-        courseId,
-        itemId,
-        attachmentId,
-        accessToken,
-        grades,
-        maxPoints,
-      });
-      addToast(formatGradePushToast(data), 'success');
-    } catch (err) {
-      logError('QuizResults.pushClassroomGrades', err, {
-        sessionId: session?.id,
-        attachmentId,
-      });
-      // A permission-denied means this course isn't linked to ClassLink under
-      // the current teacher (the CF gates push on the link doc). Tell the
-      // teacher how to fix it instead of a dead-end generic error.
-      const code = (err as { code?: string } | null)?.code ?? '';
-      addToast(
-        code.includes('permission-denied')
-          ? 'Only the teacher who linked this course to ClassLink can push grades. Link it from your Classes list first.'
-          : 'Could not push grades to Google Classroom.',
-        'error'
-      );
-    } finally {
-      setPushingGrades(false);
-    }
+    // Shared push flow (token mint → CF → result toast); QuizResults supplies
+    // only its grade builder (correctness points scaled onto the frozen
+    // denominator via the single-source-of-truth scaler the in-iframe grader
+    // also uses) and the toast reporter.
+    await runClassroomGradePush({
+      functions,
+      attachment: { courseId, itemId, attachmentId, maxPoints },
+      requestToken: () =>
+        requestClassroomTeacherToken(user?.email ?? undefined),
+      buildGrades: () =>
+        buildQuizClassroomGradeEntries(completed, quiz.questions, maxPoints),
+      confirm: () =>
+        showConfirm(
+          `Push ${eligible.length} grade${eligible.length === 1 ? '' : 's'} to Google ` +
+            'Classroom? This writes draft grades to the assignment gradebook — ' +
+            'you still review and return them in Classroom.',
+          {
+            title: 'Push grades to Google Classroom',
+            confirmLabel: 'Push grades',
+            cancelLabel: 'Cancel',
+          }
+        ),
+      distinctTokenCancel: true,
+      logTag: 'QuizResults.pushClassroomGrades',
+      logContext: { sessionId: session?.id, attachmentId },
+      ...createToastGradePushHandlers(addToast, setPushingGrades),
+    });
   };
 
   return (

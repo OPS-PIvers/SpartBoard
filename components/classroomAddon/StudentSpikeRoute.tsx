@@ -35,6 +35,7 @@ import {
 } from 'firebase/firestore';
 import { ClipboardList, ClipboardCheck, Video, ArrowRight } from 'lucide-react';
 import { auth, db, functions } from '@/config/firebase';
+import { normalizeQuizCode } from '@/utils/quizCode';
 import { ensureGis, requestAccessToken } from './gisOAuth';
 import {
   AddonShell,
@@ -99,14 +100,6 @@ interface SessionInfo {
   isAnonymous: boolean;
   studentRole: boolean;
   classIds: unknown;
-}
-
-/** Normalize a quiz join code to the stored form (uppercase alphanumerics). */
-function normalizeCode(code: string): string {
-  return code
-    .trim()
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase();
 }
 
 export const ClassroomAddonStudentSpike: React.FC = () => {
@@ -210,7 +203,7 @@ export const ClassroomAddonStudentSpike: React.FC = () => {
         const sessSnap = await getDocs(
           query(
             collection(db, 'quiz_sessions'),
-            where('code', '==', normalizeCode(code))
+            where('code', '==', normalizeQuizCode(code))
           )
         );
         if (!active || sessSnap.empty) return;
