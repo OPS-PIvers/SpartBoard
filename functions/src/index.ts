@@ -4303,3 +4303,6 @@ export {
   linkClassroomCourse,
   pushClassroomGradesForAssignment,
 } from './classroomAddonAuth';
+
+// Schoology LTI 1.3 — see functions/src/lti/. Phase A: the public JWKS endpoint.
+export { ltiJwks } from './lti/endpoints';

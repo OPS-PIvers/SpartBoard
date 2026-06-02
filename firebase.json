@@ -31,6 +31,13 @@
         }
       },
       {
+        "source": "/.well-known/jwks.json",
+        "function": {
+          "functionId": "ltiJwks",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
@@ -51,6 +58,15 @@
           {
             "key": "Content-Security-Policy",
             "value": "frame-ancestors 'self' https://classroom.google.com https://*.google.com https://*.googleusercontent.com"
+          }
+        ]
+      },
+      {
+        "source": "/lti/**",
+        "headers": [
+          {
+            "key": "Content-Security-Policy",
+            "value": "frame-ancestors 'self' https://*.schoology.com https://app.schoology.com"
           }
         ]
       },
