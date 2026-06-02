@@ -114,7 +114,11 @@ export const Results: React.FC<ResultsProps> = ({
   // Calculate completed count and average score in a single loop
   const { completed, avgScore } = React.useMemo(() => {
     if (responses.length === 0) {
-      return { completed: 0, avgScore: 0 };
+      // No responses → nothing is scoreable, so the average is undefined, not a
+      // real 0. Return `null` (not `0`) so the Avg Score tile renders "—",
+      // matching the no-scoreable-responses path below — otherwise an empty
+      // session would show a phantom "0%" that reads as a class that failed.
+      return { completed: 0, avgScore: null };
     }
 
     let completedCount = 0;
