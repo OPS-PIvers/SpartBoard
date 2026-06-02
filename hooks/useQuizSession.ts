@@ -853,6 +853,31 @@ export const useQuizSessionTeacher = (
         await historyBatch.commit();
       }
 
+      // Probe the cross-launch ledger BEFORE opening the batch so we only
+      // enqueue its delete when it actually exists. A ledger doc is written
+      // ONLY for non-anonymous (SSO/studentRole) joiners that finalize via
+      // `completeQuiz` (see the `writeLedger` guard). Several common states
+      // therefore have NO ledger: anonymous PIN joiners, idle/force
+      // auto-submitted blanks (`autoSubmitted: true` — never ran the ledger
+      // transaction), joined-but-never-submitted stubs, and legacy
+      // pre-ledger responses. The ledger `delete` rule dereferences
+      // `resource.data.teacherUid` with no `resource == null` short-circuit,
+      // so a `batch.delete()` against a missing ledger is REJECTED and rolls
+      // back the entire archive+delete batch — which surfaces to the teacher
+      // as a "Missing or insufficient permissions" toast when removing such a
+      // student. Mirror `unlockStudentAttempt`'s probe-then-touch pattern.
+      //
+      // Skip the probe entirely for anonymous PIN joiners (`pin-…` keys):
+      // their uids rotate per device so they NEVER write a ledger, making the
+      // read a guaranteed miss — so we save the round-trip and just don't
+      // enqueue the delete. The other no-ledger cases (SSO idle auto-submit,
+      // joined-only, legacy) live in the SSO uid keyspace, so the existence
+      // probe still covers them.
+      const ledgerSnap =
+        ledgerRef && !responseKey.startsWith('pin-')
+          ? await getDoc(ledgerRef)
+          : null;
+
       // Archive the response before delete so partial answers survive
       // the teacher's "remove" action. The deterministic key model
       // means we can't soft-delete in place (the slot must be free for
@@ -890,7 +915,10 @@ export const useQuizSessionTeacher = (
         });
       }
       batch.delete(responseRef);
-      if (ledgerRef) batch.delete(ledgerRef);
+      // Only delete the ledger when it exists (see the probe above) — a
+      // delete against a non-existent ledger doc is rejected by the rules
+      // and would roll back the whole batch.
+      if (ledgerRef && ledgerSnap?.exists()) batch.delete(ledgerRef);
       await batch.commit();
     },
     [sessionId, responses, session?.quizId]
