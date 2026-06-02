@@ -766,7 +766,33 @@ describe('useQuizSessionStudent — lookupSession', () => {
 
     const { result } = renderHook(() => useQuizSessionStudent());
     const out = await result.current.lookupSession('abc-123');
-    expect(out).toEqual({ periodNames: ['Period 1', 'Period 2'] });
+    expect(out).toEqual({
+      periodNames: ['Period 1', 'Period 2'],
+      classIds: [],
+    });
+  });
+
+  it('surfaces the session classIds (drives the SSO-redirect gate) and defaults to [] when absent', async () => {
+    (
+      firestore.getDocs as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValueOnce({
+      empty: false,
+      docs: [
+        buildSessionDoc('classlink', {
+          status: 'active',
+          startedAt: 1,
+          periodNames: ['Hour 1'],
+          classIds: ['F33EC569', 'FB8737C8'],
+        }),
+      ],
+    });
+
+    const { result } = renderHook(() => useQuizSessionStudent());
+    const out = await result.current.lookupSession('abc-123');
+    expect(out).toEqual({
+      periodNames: ['Hour 1'],
+      classIds: ['F33EC569', 'FB8737C8'],
+    });
   });
 });
 

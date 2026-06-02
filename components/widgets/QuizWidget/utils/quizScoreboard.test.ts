@@ -34,6 +34,7 @@ import {
   getDisplayScore,
   getScoreSuffix,
   isGamificationActive,
+  canScoreResponse,
   buildPinToNameMap,
   buildPinToExportNameMap,
   buildScoreboardTeams,
@@ -127,6 +128,64 @@ function makeRoster(
 // ─── Tests ──────────────────────────────────────────────────────────────────
 
 describe('quizScoreboard', () => {
+  describe('canScoreResponse', () => {
+    const qs = [makeQuestion('q1', 'a'), makeQuestion('q2', 'b')];
+
+    it('returns false when the answer key has not loaded (empty questions)', () => {
+      const r = makeResponse('1', [{ questionId: 'q1', answer: 'a' }]);
+      expect(canScoreResponse(r, [])).toBe(false);
+    });
+
+    it('returns true for a completed response whose answers match loaded questions', () => {
+      const r = makeResponse('1', [{ questionId: 'q1', answer: 'a' }]);
+      expect(canScoreResponse(r, qs)).toBe(true);
+    });
+
+    it('treats a zero-answer response as scoreable (genuine 0, not a missing key)', () => {
+      const r = makeResponse('1', [], 'completed');
+      expect(canScoreResponse(r, qs)).toBe(true);
+    });
+
+    it('returns false when no answer matches a loaded question id (synced ID drift)', () => {
+      const r = makeResponse('1', [
+        { questionId: 'old-q1', answer: 'a' },
+        { questionId: 'old-q2', answer: 'b' },
+      ]);
+      expect(canScoreResponse(r, qs)).toBe(false);
+    });
+
+    it('returns true when at least one answer matches (partial drift still gradable)', () => {
+      const r = makeResponse('1', [
+        { questionId: 'q1', answer: 'a' },
+        { questionId: 'old-q2', answer: 'b' },
+      ]);
+      expect(canScoreResponse(r, qs)).toBe(true);
+    });
+  });
+
+  describe('ranking builders exclude unscoreable responses', () => {
+    const qs = [makeQuestion('q1', 'a'), makeQuestion('q2', 'b')];
+
+    it('buildScoreboardTeams drops a completed response whose answers match no loaded question', () => {
+      const matched = makeResponse('1', [{ questionId: 'q1', answer: 'a' }]);
+      const drifted = makeResponse('2', [{ questionId: 'old-q', answer: 'a' }]);
+      const teams = buildScoreboardTeams([matched, drifted], qs, 'pin', {});
+      expect(teams.map((t) => t.name)).toEqual(['PIN 1']);
+    });
+
+    it('buildScoreboardTeams returns empty when the answer key has not loaded', () => {
+      const r = makeResponse('1', [{ questionId: 'q1', answer: 'a' }]);
+      expect(buildScoreboardTeams([r], [], 'pin', {})).toEqual([]);
+    });
+
+    it('buildLiveLeaderboard drops a completed response with no matching question ids', () => {
+      const matched = makeResponse('1', [{ questionId: 'q1', answer: 'a' }]);
+      const drifted = makeResponse('2', [{ questionId: 'old-q', answer: 'a' }]);
+      const entries = buildLiveLeaderboard([matched, drifted], qs, null, {});
+      expect(entries.map((e) => e.pin)).toEqual(['1']);
+    });
+  });
+
   describe('getEarnedPoints', () => {
     it('returns points for correct answers', () => {
       const questions = [makeQuestion('q1', 'A'), makeQuestion('q2', 'B')];
