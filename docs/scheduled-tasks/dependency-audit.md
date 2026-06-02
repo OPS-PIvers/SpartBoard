@@ -4,7 +4,7 @@ _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
 _Last audited: 2026-06-02_
-_Last action: 2026-05-19_
+_Last action: 2026-06-02_
 
 ---
 
@@ -15,13 +15,6 @@ _Nothing currently in progress._
 ---
 
 ## Open
-
-### HIGH `path-to-regexp` HIGH ReDoS in root and functions via `firebase-functions@7.2.5 > express`
-
-- **Detected:** 2026-06-02
-- **File:** package.json (devDependency `firebase-functions`), functions/package.json (dependency `firebase-functions`)
-- **Detail:** `path-to-regexp` <=8.x has a HIGH severity Regular Expression Denial of Service (ReDoS) vulnerability. The path is `firebase-functions@7.2.5 > express > path-to-regexp` — present in both root (devDep) and functions/ (direct dep). `pnpm audit` reports this as HIGH in both workspaces. This is a transitive vulnerability through express inside firebase-functions; the Cloud Functions runtime accepts HTTP requests via express, so the vulnerable regex parser is reachable in production if any route or middleware passes attacker-controlled paths. `pnpm audit` confirms the path: `.>firebase-functions>express>path-to-regexp`.
-- **Fix:** (a) Check if updating `firebase-functions` to latest resolves the transitive path-to-regexp version: `pnpm why path-to-regexp` after bumping to the latest firebase-functions. (b) If not, add `"path-to-regexp": ">=8.x patched"` to `pnpm.overrides` in both root and functions/. Verify the patched version is API-compatible with express's usage. Check `pnpm audit` after applying the override. Also update `functions/pnpm.overrides` if applicable. Note: this is separate from the `firebase-tools` item (different package chain).
 
 ### MEDIUM `qs` DoS in functions via `@google-cloud/functions-framework` — patched in >=6.15.2
 
@@ -154,6 +147,14 @@ _Nothing currently in progress._
 ---
 
 ## Completed
+
+### HIGH `path-to-regexp` HIGH ReDoS via `firebase-functions@7.2.5 > express` (root)
+
+- **Detected:** 2026-06-02
+- **Completed:** 2026-06-02
+- **File:** package.json (`pnpm.overrides`)
+- **Detail:** `path-to-regexp` had two HIGH advisories reported by root `pnpm audit`: (1) GHSA-37ch-88jc-xwx2 — ReDoS via multiple route parameters in `<0.1.13`, reached via `.>firebase-functions>express>path-to-regexp` (resolved to the vulnerable `0.1.12`); and (2) GHSA-j3q9-mxjg-w52f — DoS via sequential optional groups in `>=8.0.0 <8.4.0`, reached via `.>@google/genai>@modelcontextprotocol/sdk>express>router>path-to-regexp` (resolved to the vulnerable `8.3.0`). Investigation showed `express@4.22.1` declares `path-to-regexp: ~0.1.12` (permits `0.1.13`) and `router@2.2.0` declares `path-to-regexp: ^8.x` (permits `8.4.x`), so both ranges already allow the patched versions — the root lockfile was simply stale. Confirmed by the functions/ workspace, which (with a more recently regenerated lockfile and no path-to-regexp override) already resolved `0.1.13` and `8.4.2` cleanly; `pnpm audit` in functions/ reports no path-to-regexp advisory. A blanket `"path-to-regexp"` override was NOT used because the `0.1.x` line (express@4) and the `8.x` line (express@5/router) have incompatible APIs; pinning all resolutions to one version would break express@4.
+- **Resolution:** Added two version-scoped entries to root `package.json` `pnpm.overrides`: `"path-to-regexp@0.1": "^0.1.13"` (pins the express@4 chain to the patched `0.1.13`) and `"path-to-regexp@8": "^8.4.0"` (pins the express@5/router chain to the patched `8.4.2`). The unrelated `1.9.0` resolution (via `superstatic > firebase-tools`, not flagged) is left untouched. After `pnpm install`, `pnpm why path-to-regexp` reports `0.1.13`, `1.9.0`, and `8.4.2`; `pnpm audit | grep -c path-to-regexp` returns 0 (both HIGH advisories cleared). functions/ needed no change. Verified clean: `pnpm type-check` (0 errors), `pnpm lint --max-warnings 0` (0 errors/warnings), `pnpm format:check` (package.json clean), `pnpm build` (succeeded, 31.6s). The `8.x` resolution is downstream of the separate MCP SDK Open item, but clearing it here was a trivial same-package, same-fix side effect of refreshing path-to-regexp, so both HIGH advisories were closed together.
 
 ### HIGH `lodash-es@4.17.23` code injection via `@imgly/background-removal` — in production dep chain
 
