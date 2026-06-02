@@ -318,6 +318,14 @@ export const classroomAddonNet = {
         headers: bearer(accessToken),
         signal: AbortSignal.timeout(API_TIMEOUT_MS),
       });
+      // This is the one outbound call here that never reads its body (it
+      // decides purely on the status code), so under Node's fetch (undici) the
+      // socket would be held open until GC instead of returning to the pool.
+      // Drain it on every path. Guarded for the unit-test fetch mocks, which
+      // return a bare `{ ok, status }` with no `text`.
+      if (typeof res.text === 'function') {
+        await res.text();
+      }
       // 2xx → the token owner is a teacher of this course.
       if (res.ok) {
         return { ok: true, status: res.status, isTeacher: true };
