@@ -40,7 +40,8 @@ These are the Schoology-facing pieces no unit test can cover:
    `custom` map (the documented way); confirming Schoology replays it is a live check.
 3. **The student class-gate + quiz join** — the student's token and the quiz session both carry
    `schoology:<contextId>`; confirming they match end-to-end needs a real student.
-4. **Grade passback is BUILT but has no trigger UI yet** — see "Not in scope tomorrow" below.
+4. **Grade passback** — the grader UI is now built behind a flag (`LTI_GRADER_ENABLED`, off).
+   Testable once attach+take works — see "Grade passback" below.
 
 ---
 
@@ -88,15 +89,24 @@ deep-link response. If that's where it breaks, it's a focused fix (likely the co
 
 ---
 
-## Not in scope tomorrow (clearly flagged)
+## Grade passback — Phase D, built behind a flag
 
-- **AGS grade passback end-to-end.** The pieces are built + unit-tested (`ltiPushGradesForAssignmentV1`,
-  the AGS client, per-student line-item resolution for merged sections), but there's **no grader UI to
-  trigger it yet** — that's Phase D (the in-iframe instructor grader, mirroring the Classroom
-  `TeacherReviewRoute`). So you can attach + take a quiz tomorrow, but pushing the grade back is the
-  next build.
-- **Merged/linked sections grade test** — depends on the grader UI above; still the required go/no-go
-  test once it exists (see `docs/schoology-lti-plan.md` Gate C).
+The full grade-push path is now built (`LTI_GRADER_ENABLED` in `config/constants.ts`, default **off**):
+an instructor opens the already-attached quiz → an in-iframe grader loads the responses → "Push grades
+to Schoology" writes the auto-graded scores via AGS. It resolves each student's OWN line item, so
+merged/linked sections each get their own gradebook column.
+
+**Test it ONLY after Steps 1–2 above pass** (attach + take must work first). To enable:
+
+1. Flip `LTI_GRADER_ENABLED = true` and redeploy hosting — **tell me and I'll do it** (one-line change).
+2. As the **teacher**, open the attached quiz (open the existing item, not via Add Materials) → the
+   grader appears → **Push grades to Schoology** → confirm scores land in the gradebook.
+3. **Merged/linked sections (the Orono case):** run it on a course with students in 2+ linked sections
+   and confirm EACH section's gradebook gets the scores. This is **Gate C** — the real go/no-go test.
+
+If the push fails: `functions:log --only ltiPushGradesForAssignmentV1` shows the per-student `results[]`
+(ok/skipped/failed + reason) and the AGS HTTP status — pinpointing token vs. line-item vs.
+Schoology-acceptance. Written-response manual grading is deferred (auto-graded scores only for now).
 
 ---
 
