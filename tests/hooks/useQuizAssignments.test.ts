@@ -1567,7 +1567,8 @@ describe('useQuizAssignments - publishAssignmentScores', () => {
     const studentCall = batchUpdate.mock.calls.find(
       ([ref]) => ref === refStudent
     );
-    if (!studentCall) throw new Error('expected update on student response ref');
+    if (!studentCall)
+      throw new Error('expected update on student response ref');
 
     // Correct: 1pt earned / 3pt total (q0=1 + q1=2; q1 dup must not be
     // counted) = 33%. The bug would produce 1/5 = 20%.
