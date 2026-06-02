@@ -63,8 +63,12 @@ export function hasValidMaxPoints(maxPoints: number): boolean {
  * raised when the course isn't linked to ClassLink under the calling teacher.
  */
 export function isPushPermissionDenied(err: unknown): boolean {
-  const code = (err as { code?: string } | null)?.code ?? '';
-  return code.includes('permission-denied');
+  // `code` is a string for Firebase callable errors, but guard the type: a
+  // non-Firebase error can carry a numeric `code` (e.g. 403), and `??` wouldn't
+  // catch it — `.includes()` on a number would throw and turn a handled error
+  // into an unhandled one.
+  const code = (err as { code?: unknown } | null)?.code;
+  return typeof code === 'string' && code.includes('permission-denied');
 }
 
 /** The Classroom-attachment identifiers + frozen scale a push targets. */
