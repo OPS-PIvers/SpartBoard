@@ -2499,9 +2499,21 @@ service cloud.firestore {
         isAdmin()
       );
       // Owning teacher (or admin) may delete the entry — used by the
-      // teacher monitor's "Reset student" action. The student cannot
-      // delete (they'd be able to wipe their own cap).
+      // teacher monitor's "Reset student" / "Remove student" actions. The
+      // student cannot delete (they'd be able to wipe their own cap).
+      //
+      // The `resource == null` short-circuit makes deleting a NON-EXISTENT
+      // ledger a harmless no-op. Without it the rule dereferences
+      // `resource.data.teacherUid` on a null resource and DENIES — which
+      // breaks `removeStudent`'s atomic archive+delete batch for any response
+      // that never wrote a ledger (anonymous PIN joiners, idle auto-submitted
+      // blanks, joined-only stubs, legacy pre-ledger responses), surfacing as
+      // a "Missing or insufficient permissions" toast. The read rule above
+      // already uses this same pattern; the delete rule must match it.
+      // Defense-in-depth alongside the client existence probe in
+      // `removeStudent`.
       allow delete: if request.auth != null && (
+        resource == null ||
         request.auth.uid == resource.data.teacherUid || isAdmin()
       );
     }
@@ -2545,7 +2557,13 @@ service cloud.firestore {
         ||
         isAdmin()
       );
+      // `resource == null` short-circuit mirrors quiz_attempt_ledger above:
+      // deleting a non-existent ledger is a safe no-op, and without it the
+      // rule null-derefs `resource.data.teacherUid` and denies. VA has no
+      // ledger-deleting remove path today, but the guard keeps the two
+      // ledgers' delete rules symmetric and forecloses the same footgun.
       allow delete: if request.auth != null && (
+        resource == null ||
         request.auth.uid == resource.data.teacherUid || isAdmin()
       );
     }
