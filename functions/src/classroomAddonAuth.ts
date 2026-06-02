@@ -404,6 +404,18 @@ export const classroomAddonNet = {
         }
         pages += 1;
       } while (pageToken && pages < MAX_PAGES);
+      // If we stopped because of the page cap while more pages remained, the
+      // enumeration is INCOMPLETE — fail closed rather than treat the truncated
+      // list as authoritative, which could wrongly deny a teacher whose course
+      // sits beyond the cap. (Practically unreachable — a teacher with >2500
+      // active courses doesn't exist — but it keeps the trust anchor honest.)
+      if (pageToken) {
+        console.warn(
+          '[classroomAddon] listTeacherCourseIds hit the page cap with more ' +
+            'pages remaining; treating the enumeration as unverifiable.'
+        );
+        return { ok: false, status: 0, courseIds: [] };
+      }
       return { ok: true, status: 200, courseIds };
     } catch (err) {
       console.warn(
@@ -971,6 +983,11 @@ export const createClassroomAttachment = onCall(
 export const linkClassroomCourse = onCall(
   {
     memory: '256MiB',
+    // Public IAM invoker like the other add-on callables: the Firebase Auth
+    // check happens IN the callable framework (the ID token is in the request),
+    // not at the IAM layer, so the endpoint must be reachable. Auth is still
+    // enforced below — an unauthenticated caller is rejected before any work.
+    invoker: 'public',
     cors: ALLOWED_ORIGINS,
   },
   async (request) => {

@@ -179,12 +179,14 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
       let accessToken = coursesAccessTokenRef.current;
       if (!accessToken) {
         // The list token expired or was cleared; re-acquire (silent if already
-        // consented this session).
+        // consented this session) and cache it so a retry after a failed link
+        // doesn't pop another token request.
         await ensureGis();
         accessToken = await requestAccessToken(
           CLASSROOM_COURSES_READONLY_SCOPE,
           user?.email ?? undefined
         );
+        coursesAccessTokenRef.current = accessToken;
       }
       const linkCourse = httpsCallable<
         LinkClassroomCourseParams,
