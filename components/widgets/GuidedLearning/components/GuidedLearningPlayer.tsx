@@ -71,12 +71,16 @@ export const GuidedLearningPlayer: React.FC<Props> = ({
   // is in its deps), which would restart the timer (resetting progress to 0)
   // each time the student answered a question in guided mode.
   const answeredStepsRef = useRef(answeredSteps);
-  // Keep the ref in sync after every render so the setInterval callback in
-  // startTimer always reads the latest value without needing answeredSteps in
-  // startTimer's dependency array (which would restart the timer on every answer).
-  useEffect(() => {
-    answeredStepsRef.current = answeredSteps;
-  });
+  // Keep the ref in sync directly in the render body (not a useEffect) so the
+  // setInterval callback in startTimer always reads the latest value
+  // synchronously — without needing answeredSteps in startTimer's dependency
+  // array (which would restart the timer on every answer). A post-paint effect
+  // would leave the callback reading a stale set until the effect commits.
+  // CLAUDE.md-endorsed render-body ref sync; react-hooks/refs v7 false-positives
+  // here because this component also adjusts state during render (the prevMode
+  // latch below).
+  // eslint-disable-next-line react-hooks/refs
+  answeredStepsRef.current = answeredSteps;
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(() => {
     if (
       typeof window === 'undefined' ||
