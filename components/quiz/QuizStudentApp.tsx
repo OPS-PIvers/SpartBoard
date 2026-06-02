@@ -45,6 +45,8 @@ import {
 import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { auth, db } from '@/config/firebase';
+import { QUIZ_SSO_REDIRECT_ENABLED } from '@/config/constants';
+import { shouldGateToSso } from '@/utils/studentJoinRouting';
 import { logError } from '@/utils/logError';
 import {
   useQuizSessionStudent,
@@ -287,6 +289,16 @@ const QuizJoinFlow: React.FC<{
   // the student would sit on the "Joining quiz…" loader forever.
   const [ssoAutoJoinError, setSsoAutoJoinError] = useState<string | null>(null);
 
+  // SSO gate (feature-flagged). Anonymous joiners on a ClassLink-rostered
+  // session are offered Google sign-in by default — which keys their response
+  // by their own stable auth.uid and sidesteps the wrong-period fork — with a
+  // "use a PIN instead" escape. 'pending' means we still need to look up the
+  // session to learn whether it's ClassLink-gated; when the flag is off (the
+  // default) we start at 'pin' so there is zero extra work and zero extra read.
+  const [ssoGate, setSsoGate] = useState<'pending' | 'gate' | 'pin'>(() =>
+    QUIZ_SSO_REDIRECT_ENABLED && !!urlCode && !embedded ? 'pending' : 'pin'
+  );
+
   const {
     session,
     myResponse,
@@ -408,6 +420,51 @@ const QuizJoinFlow: React.FC<{
     };
     void run();
   }, [isStudentRole, urlCode, joined, joinQuizSession, subscribeForReview]);
+
+  // Resolve the SSO gate. SSO students skip it (the auto-join effect handles
+  // them). Otherwise look up the session to learn whether it's ClassLink-
+  // rostered; any failure falls back to the PIN path (fail-open) so a flaky
+  // lookup never blocks a student from joining. This is the only added read,
+  // and it runs solely when the flag is on (otherwise ssoGate starts at 'pin'
+  // and this effect returns immediately).
+  useEffect(() => {
+    if (ssoGate !== 'pending') return;
+    // SSO students are handled by the auto-join effect, and the render branch
+    // above returns for them before the gate is ever shown — so just skip the
+    // lookup. We deliberately don't setState here: forcing ssoGate to 'pin'
+    // would be a synchronous derived-state reset inside an effect (the
+    // remaining 'pending' value is simply never rendered for SSO students).
+    if (isStudentRole) return;
+    // No run-once ref here: the `ssoGate !== 'pending'` guard already stops a
+    // re-run once the gate resolves, and `cancelled` makes StrictMode's
+    // double-invoke safe (run #1 is cancelled, run #2 resolves). A ref set
+    // before the await would instead DEADLOCK under StrictMode — run #2 would
+    // early-return on the ref while run #1's setState is suppressed by
+    // `cancelled`, stranding the student on the 'pending' loader forever.
+    let cancelled = false;
+    void (async () => {
+      try {
+        const info = await lookupSession(urlCode);
+        if (cancelled) return;
+        setSsoGate(
+          shouldGateToSso({
+            flagEnabled: QUIZ_SSO_REDIRECT_ENABLED,
+            isStudentRole,
+            embedded,
+            hasCode: !!urlCode,
+            classIds: info?.classIds,
+          })
+            ? 'gate'
+            : 'pin'
+        );
+      } catch {
+        if (!cancelled) setSsoGate('pin');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [ssoGate, isStudentRole, embedded, urlCode, lookupSession]);
 
   const isViewOnly = session?.mode === 'view-only';
 
@@ -583,6 +640,55 @@ const QuizJoinFlow: React.FC<{
         );
       }
       return <FullPageLoader message="Joining quiz…" light />;
+    }
+    // SSO gate is still deciding whether this is a ClassLink session.
+    if (ssoGate === 'pending') {
+      return <FullPageLoader message="Loading…" />;
+    }
+    // ClassLink-rostered session: offer Google sign-in by default (keys the
+    // response by the student's own stable auth.uid — no PIN/period fork),
+    // with a PIN escape hatch for students who can't sign in.
+    if (ssoGate === 'gate') {
+      const nextTarget = `${window.location.pathname}?code=${encodeURIComponent(
+        urlCode
+      )}`;
+      return (
+        <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">
+          <div className="w-full max-w-sm">
+            <div className="flex items-center justify-center mb-8">
+              <ClipboardList className="w-5 h-5 text-violet-400 mr-2" />
+              <span className="text-sm text-slate-300 font-semibold">
+                Student Quiz
+              </span>
+            </div>
+
+            <h1 className="text-2xl font-black text-white mb-2 text-center">
+              Sign in to join
+            </h1>
+            <p className="text-slate-400 text-sm text-center mb-6">
+              Use your school Google account so your quiz is saved to you.
+            </p>
+
+            <button
+              onClick={() =>
+                window.location.assign(
+                  `/student/login?next=${encodeURIComponent(nextTarget)}`
+                )
+              }
+              className="w-full py-4 bg-violet-600 hover:bg-violet-500 text-white font-bold text-lg rounded-xl flex items-center justify-center gap-2 transition-colors"
+            >
+              Sign in with Google <ArrowRight className="w-5 h-5" />
+            </button>
+
+            <button
+              onClick={() => setSsoGate('pin')}
+              className="w-full mt-3 py-2 text-slate-500 hover:text-slate-300 text-sm font-medium transition-colors"
+            >
+              Can&rsquo;t sign in? Use a PIN instead
+            </button>
+          </div>
+        </div>
+      );
     }
     return (
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center p-6">

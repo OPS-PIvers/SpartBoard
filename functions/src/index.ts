@@ -3,7 +3,6 @@ import { setGlobalOptions } from 'firebase-functions/v2';
 import { defineSecret } from 'firebase-functions/params';
 import * as admin from 'firebase-admin';
 import axios, { AxiosError } from 'axios';
-import OAuth from 'oauth-1.0a';
 import * as CryptoJS from 'crypto-js';
 import { GoogleGenAI, Content, Type, Schema } from '@google/genai';
 import { randomUUID } from 'node:crypto';
@@ -12,6 +11,16 @@ import { sanitizePrompt } from './sanitize';
 import { parseGeminiJson } from './parseGeminiJson';
 import { BoundedLruMap } from './utils/boundedLruMap';
 import { readAnalyticsSnapshot } from './adminAnalyticsSnapshot';
+import {
+  ALLOWED_ORIGINS,
+  ONEROSTER_BASE,
+  computeStudentUid,
+  getOAuthHeaders,
+  normalizeEmailDomain,
+  resolveOrgIdForDomain,
+  type ClassLinkStudent,
+} from './classlinkShared';
+import { normalizeQuizCode } from './quizCode';
 
 // Phase 4 — organization invitations + membership write-through.
 // These modules initialize their own `admin.initializeApp()` guarded by
@@ -61,13 +70,6 @@ const STUDENT_PSEUDONYM_HMAC_SECRET = defineSecret(
 );
 const GOOGLE_OAUTH_CLIENT_ID = defineSecret('GOOGLE_OAUTH_CLIENT_ID');
 
-const ALLOWED_ORIGINS: (string | RegExp)[] = [
-  'https://spartboard.web.app',
-  'https://spartboard.firebaseapp.com',
-  /^https:\/\/spartboard--[\w-]+\.web\.app$/,
-  /^http:\/\/localhost(:\d+)?$/,
-];
-
 admin.initializeApp();
 
 interface ClassLinkUser {
@@ -81,13 +83,6 @@ interface ClassLinkClass {
   sourcedId: string;
   title: string;
   classCode?: string;
-}
-
-interface ClassLinkStudent {
-  sourcedId: string;
-  givenName: string;
-  familyName: string;
-  email: string;
 }
 
 interface AIData {
@@ -456,36 +451,6 @@ const makeDriveFilePublic = async (
   }
 };
 
-/**
- * Generates OAuth 1.0 Headers for ClassLink
- */
-function getOAuthHeaders(
-  baseUrl: string,
-  params: Record<string, string>,
-  method: string,
-  clientId: string,
-  clientSecret: string
-) {
-  const oauth = new OAuth({
-    consumer: {
-      key: clientId,
-      secret: clientSecret,
-    },
-    signature_method: 'HMAC-SHA1',
-    hash_function(base_string: string, key: string) {
-      return CryptoJS.HmacSHA1(base_string, key).toString(CryptoJS.enc.Base64);
-    },
-  });
-
-  const request_data = {
-    url: baseUrl,
-    method: method,
-    data: params,
-  };
-
-  return oauth.toHeader(oauth.authorize(request_data));
-}
-
 export const getClassLinkRosterV1 = onCall(
   {
     memory: '256MiB',
@@ -530,7 +495,7 @@ export const getClassLinkRosterV1 = onCall(
       if (!isSafeEmailForOneRosterFilter(userEmail)) {
         return { classes: [], studentsByClass: {} };
       }
-      const usersBaseUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
+      const usersBaseUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users`;
       const userParams = { filter: `email='${userEmail}'` };
 
       const userHeaders = getOAuthHeaders(
@@ -557,7 +522,7 @@ export const getClassLinkRosterV1 = onCall(
 
       const teacherSourcedId = users[0].sourcedId;
 
-      const classesUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users/${teacherSourcedId}/classes`;
+      const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacherSourcedId}/classes`;
       const classesHeaders = getOAuthHeaders(
         classesUrl,
         {},
@@ -581,7 +546,7 @@ export const getClassLinkRosterV1 = onCall(
       for (const classBatch of chunk(classes, CLASSLINK_FANOUT_CHUNK)) {
         await Promise.all(
           classBatch.map(async (cls: ClassLinkClass) => {
-            const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${cls.sourcedId}/students`;
+            const studentsUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${cls.sourcedId}/students`;
             const studentsHeaders = getOAuthHeaders(
               studentsUrl,
               {},
@@ -3071,22 +3036,12 @@ function hmacSha256Hex(secret: string, message: string): string {
   return CryptoJS.HmacSHA256(message, secret).toString(CryptoJS.enc.Hex);
 }
 
-function computeStudentUid(sourcedId: string, hmacSecret: string): string {
-  return hmacSha256Hex(hmacSecret, `sid:${sourcedId}`);
-}
-
 function computeAssignmentPseudonym(
   uid: string,
   assignmentId: string,
   hmacSecret: string
 ): string {
   return hmacSha256Hex(hmacSecret, `asn:${uid}:${assignmentId}`);
-}
-
-function normalizeEmailDomain(email: string): string | null {
-  const at = email.lastIndexOf('@');
-  if (at < 0 || at === email.length - 1) return null;
-  return '@' + email.slice(at + 1).toLowerCase();
 }
 
 /**
@@ -3097,27 +3052,6 @@ function normalizeEmailDomain(email: string): string | null {
  */
 function isSafeEmailForOneRosterFilter(email: string): boolean {
   return !/['\\]/.test(email);
-}
-
-/**
- * Looks up the organization that owns the given email domain. Matches against
- * the existing /organizations/{orgId}/domains/{doc} subcollection, requiring
- * `status === 'verified'`. Domain values in that collection are stored with a
- * leading '@' (e.g. '@orono.k12.mn.us'). Returns null if no match.
- */
-async function resolveOrgIdForDomain(
-  db: admin.firestore.Firestore,
-  domainWithAt: string
-): Promise<string | null> {
-  const snap = await db
-    .collectionGroup('domains')
-    .where('domain', '==', domainWithAt)
-    .where('status', '==', 'verified')
-    .limit(1)
-    .get();
-  if (snap.empty) return null;
-  const orgRef = snap.docs[0].ref.parent.parent;
-  return orgRef ? orgRef.id : null;
 }
 
 function isOneRosterStudent(user: OneRosterUserWithRole): boolean {
@@ -3282,7 +3216,7 @@ export const studentLoginV1 = onCall(
           'No student record found in ClassLink roster.'
         );
       }
-      const usersBaseUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
+      const usersBaseUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users`;
       const userParams = { filter: `email='${email}'` };
       const userHeaders = getOAuthHeaders(
         usersBaseUrl,
@@ -3306,7 +3240,7 @@ export const studentLoginV1 = onCall(
       }
       sourcedId = studentUser.sourcedId;
 
-      const classesUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users/${sourcedId}/classes`;
+      const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${sourcedId}/classes`;
       const classesHeaders = getOAuthHeaders(
         classesUrl,
         {},
@@ -3801,7 +3735,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
           'Teacher not found in ClassLink roster.'
         );
       }
-      const teacherUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users`;
+      const teacherUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users`;
       const teacherParams = { filter: `email='${teacherEmail}'` };
       const teacherHeaders = getOAuthHeaders(
         teacherUrl,
@@ -3821,7 +3755,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
           'Teacher not found in ClassLink roster.'
         );
       }
-      const classesUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/users/${teacherUser.sourcedId}/classes`;
+      const classesUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/users/${teacherUser.sourcedId}/classes`;
       const classesHeaders = getOAuthHeaders(
         classesUrl,
         {},
@@ -3844,7 +3778,7 @@ export const getPseudonymsForAssignmentV1 = onCall(
       }
 
       // Now fetch the class's students and compute the pseudonym map.
-      const studentsUrl = `${cleanTenantUrl}/ims/oneroster/v1p1/classes/${classId}/students`;
+      const studentsUrl = `${cleanTenantUrl}${ONEROSTER_BASE}/classes/${classId}/students`;
       const studentsHeaders = getOAuthHeaders(
         studentsUrl,
         {},
@@ -4198,12 +4132,7 @@ export const pinLoginV1 = onCall(
     let sessionRef: admin.firestore.DocumentReference;
     if (kind === 'quiz') {
       const code =
-        typeof data.code === 'string'
-          ? data.code
-              .trim()
-              .replace(/[^a-zA-Z0-9]/g, '')
-              .toUpperCase()
-          : '';
+        typeof data.code === 'string' ? normalizeQuizCode(data.code) : '';
       if (!code) {
         throw new HttpsError('invalid-argument', 'code is required for quiz.');
       }
@@ -4371,5 +4300,6 @@ export const pinLoginV1 = onCall(
 export {
   classroomAddonLoginV1,
   createClassroomAttachment,
+  linkClassroomCourse,
   pushClassroomGradesForAssignment,
 } from './classroomAddonAuth';

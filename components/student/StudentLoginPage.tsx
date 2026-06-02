@@ -5,6 +5,7 @@ import { Loader2, GraduationCap, AlertCircle, Inbox } from 'lucide-react';
 import { auth, functions } from '@/config/firebase';
 import { APP_NAME } from '@/config/constants';
 import { STUDENT_FIRST_NAME_KEY } from '@/context/StudentAuthContextValue';
+import { resolveNextTarget } from '@/utils/studentJoinRouting';
 
 /**
  * Student login page (Phase 2A of the ClassLink-via-Google auth flow).
@@ -238,6 +239,18 @@ function readInitialBounceReason(): ErrorKind | null {
   }
 }
 
+/** Pull the validated `?next=` redirect target from the current URL. */
+function readNextTarget(): string | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    return resolveNextTarget(
+      new URLSearchParams(window.location.search).get('next')
+    );
+  } catch {
+    return null;
+  }
+}
+
 const StudentLoginPage: React.FC = () => {
   const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined;
 
@@ -283,12 +296,17 @@ const StudentLoginPage: React.FC = () => {
         await signInWithCustomToken(auth, customToken);
         setStatus({ kind: 'success' });
 
-        // Forward a hint about emptiness if the function told us — the
-        // assignments page will render its own empty state either way.
+        // If we were sent here to authenticate before joining a quiz/activity
+        // (validated `?next=` → e.g. `/quiz?code=ABC`), return there so the
+        // student lands back on their join with a stable SSO identity instead
+        // of the fork-prone anonymous PIN path. Otherwise fall back to the
+        // assignments page, forwarding the emptiness hint when we have one.
+        const next = readNextTarget();
         const target =
-          hasAssignments === false
+          next ??
+          (hasAssignments === false
             ? '/my-assignments?empty=1'
-            : '/my-assignments';
+            : '/my-assignments');
         window.location.assign(target);
       } catch (err) {
         // IMPORTANT: never log the id_token or the raw error object — either

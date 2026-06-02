@@ -57,12 +57,17 @@ import {
 import {
   buildLiveLeaderboard,
   buildPinToNameMap,
+  canScoreResponse,
   getDisplayScore,
   getResponseScore,
   getScoreSuffix,
   isGamificationActive,
 } from '../utils/quizScoreboard';
-import { resolveResponseDisplayName } from '../utils/resolveDisplayName';
+import {
+  resolveResponseDisplayName,
+  responseTeamId,
+  findDuplicateResponseIds,
+} from '../utils/resolveDisplayName';
 import { useAssignmentPseudonymsMulti } from '@/hooks/useAssignmentPseudonyms';
 import { db } from '@/config/firebase';
 import { useAuth } from '@/context/useAuth';
@@ -460,6 +465,17 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
     filterActive,
     session.classPeriodByClassId,
   ]);
+
+  // Detect likely forked / duplicate identities across the FULL response set
+  // (not the period-filtered view): a single physical student who ended up
+  // with two response docs — e.g. an SSO "joined" stub plus a separately-keyed
+  // completed doc from the wrong-period PIN bridge — resolves to one real
+  // roster/ClassLink name spread across multiple rows. Flag those rows so the
+  // teacher can reconcile instead of silently mis-grading one as "not done".
+  const duplicateIds = useMemo(
+    () => findDuplicateResponseIds(responses, pinToName, byStudentUid),
+    [responses, pinToName, byStudentUid]
+  );
 
   const { addToast } = useDashboard();
 
@@ -1768,6 +1784,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               }
                               pinToName={pinToName}
                               byStudentUid={byStudentUid}
+                              isPossibleDuplicate={duplicateIds.has(
+                                responseTeamId(r)
+                              )}
                             />
                           );
                         })}
@@ -2216,6 +2235,9 @@ export const QuizLiveMonitor: React.FC<QuizLiveMonitorProps> = ({
                               }
                               pinToName={pinToName}
                               byStudentUid={byStudentUid}
+                              isPossibleDuplicate={duplicateIds.has(
+                                responseTeamId(r)
+                              )}
                             />
                           );
                         })}
@@ -2665,6 +2687,12 @@ const StudentRow: React.FC<{
     string,
     import('@/hooks/useAssignmentPseudonyms').StudentName
   >;
+  /**
+   * True when this row shares a resolved roster/ClassLink name with another
+   * response — a likely forked/duplicate identity. Drives a "duplicate?" badge
+   * so the teacher reconciles instead of mis-reading one copy as "not done".
+   */
+  isPossibleDuplicate?: boolean;
 }> = ({
   response,
   totalQuestions,
@@ -2682,6 +2710,7 @@ const StudentRow: React.FC<{
   resultsTabWarningThreshold,
   pinToName,
   byStudentUid,
+  isPossibleDuplicate,
 }) => {
   const warnings = response.tabSwitchWarnings ?? 0;
 
@@ -2689,14 +2718,19 @@ const StudentRow: React.FC<{
   // gamification bonuses don't distort the proficiency tier), and the
   // gamification-aware display score drives the pill text (so it agrees
   // with the live scoreboard).
-  const bandScore =
-    response.status === 'completed'
-      ? getResponseScore(response, questions)
-      : null;
-  const displayScore =
-    response.status === 'completed'
-      ? getDisplayScore(response, questions, scoringConfig)
-      : null;
+  //
+  // Both are gated on `canScoreResponse`: a completed response can only be
+  // scored once the answer key has loaded (the teacher view fetches the full
+  // quiz from Drive asynchronously) AND at least one of its answers maps to a
+  // loaded question. Otherwise grading silently yields 0, which would render
+  // as a real "0%"/red row for a student who actually finished. When we can't
+  // score yet we leave both null and the pill shows a neutral placeholder.
+  const scoreable =
+    response.status === 'completed' && canScoreResponse(response, questions);
+  const bandScore = scoreable ? getResponseScore(response, questions) : null;
+  const displayScore = scoreable
+    ? getDisplayScore(response, questions, scoringConfig)
+    : null;
   const scoreSuffix = getScoreSuffix(scoringConfig);
 
   // Row background. When colors are enabled AND the student has finished,
@@ -2785,6 +2819,12 @@ const StudentRow: React.FC<{
     pillText = `${response.answers.length}/${totalQuestions}`;
   } else if (response.status === 'completed' && displayScore != null) {
     pillText = `${displayScore}${scoreSuffix}`;
+  } else if (response.status === 'completed') {
+    // Completed but not scoreable yet — the answer key is still loading, or
+    // this response's answers don't match the loaded quiz (e.g. synced-quiz
+    // id drift). Show a neutral placeholder rather than a misleading 0% or an
+    // "answered/total" count that could be misread as a perfect score.
+    pillText = '—';
   } else {
     // No completed score yet — fall back to progress so teachers always see
     // *something* about in-progress students even when "percent" is selected.
@@ -2835,6 +2875,22 @@ const StudentRow: React.FC<{
         >
           {displayName}
         </span>
+
+        {isPossibleDuplicate && (
+          <span
+            className="flex items-center gap-0.5 bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded uppercase font-black shrink-0"
+            style={{ fontSize: 'min(9px, 2.5cqmin)' }}
+            title="This name appears on more than one submission — a student may have joined twice (e.g. via Google sign-in and a PIN, or under the wrong class period). Review and remove the extra copy before grading."
+          >
+            <Users
+              style={{
+                width: 'min(12px, 3cqmin)',
+                height: 'min(12px, 3cqmin)',
+              }}
+            />
+            Dup?
+          </span>
+        )}
 
         {showTabWarnings && warnings > 0 && (
           <span

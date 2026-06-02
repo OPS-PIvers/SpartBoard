@@ -1,6 +1,43 @@
 {
   "entries": [
     {
+      "version": "2026.06.02.2",
+      "date": "2026-06-02",
+      "title": "Quiz grading accuracy fixes",
+      "overview": [
+        {
+          "type": "fix",
+          "subtitle": "Quiz grading accuracy",
+          "items": [
+            {
+              "text": "A student who actually finished a quiz no longer shows a misleading 0% before their real score is ready:",
+              "items": [
+                {
+                  "text": "Your results, live monitor, scoreboard, and leaderboard now show a neutral dash instead, and that response stays out of class averages and rankings until it can be scored accurately."
+                },
+                {
+                  "text": "A phantom 0 can no longer be pushed to your Google Classroom gradebook."
+                }
+              ]
+            },
+            {
+              "text": "When the same student lands on two submissions — say, a Google sign-in and a PIN — the live monitor now flags both rows with a \"Dup?\" badge so you can clear the extra copy before grading."
+            }
+          ]
+        }
+      ],
+      "details": [
+        {
+          "type": "fix",
+          "text": "Quiz scoring — a student who actually finished a quiz no longer shows up as a real 0% while their score is still being worked out. This could happen when the answer key was still loading or when a student's submission got mixed up across class periods (for example, joining once with Google sign-in and again with a PIN). Those finished-but-not-yet-scoreable submissions now show a neutral \"—\" placeholder in your results, the live monitor, the scoreboard, and the live leaderboard, and they're kept out of your class averages and rankings until they can be scored accurately — rather than sitting at a false 0 and dragging the average down. A genuinely blank submission still counts as a real 0."
+        },
+        {
+          "type": "fix",
+          "text": "Quiz monitor — when the same student turns up on two submissions (for example, they joined once with Google sign-in and again with a PIN, or under the wrong class period), the live monitor now flags both rows with a \"Dup?\" badge. Hovering it explains that a student may have joined twice and to review and remove the extra copy before grading, so you no longer mistake one copy for a student who hasn't finished."
+        }
+      ]
+    },
+    {
       "version": "2026.06.02",
       "date": "2026-06-02",
       "title": "Quiz scoring, guided learning, and display fixes",

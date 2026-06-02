@@ -71,6 +71,45 @@ export function hasPinIdentity(response: QuizResponse): boolean {
 }
 
 /**
+ * Detect likely duplicate / forked identities within a response set.
+ *
+ * A single physical student can end up with two response docs — e.g. a
+ * ClassLink/SSO "joined" stub plus a separate completed doc written under a
+ * different identity by the wrong-period PIN-bridge fork. Both resolve to the
+ * SAME real roster/ClassLink name, so we flag any *resolved* name that maps to
+ * more than one distinct response.
+ *
+ * Only real names are considered. The generic `Student` and `PIN <n>`
+ * fallbacks recur across many unrelated rows (every unresolved SSO joiner is
+ * "Student"), so counting them would flood the teacher with false positives —
+ * they're skipped here.
+ *
+ * Returns the set of `responseTeamId(response)` values that share a real name
+ * with at least one other response; callers badge those rows for review.
+ */
+export function findDuplicateResponseIds(
+  responses: QuizResponse[],
+  pinToName: Record<string, string>,
+  byStudentUid: Map<string, StudentName> | undefined
+): Set<string> {
+  const idsByName = new Map<string, Set<string>>();
+  for (const r of responses) {
+    const name = resolveResponseDisplayName(r, pinToName, byStudentUid);
+    // Skip the generic fallbacks — only a real resolved name is reliable.
+    if (name === UNKNOWN_STUDENT_LABEL) continue;
+    if (r.pin && name === `PIN ${r.pin}`) continue;
+    const ids = idsByName.get(name) ?? new Set<string>();
+    ids.add(responseTeamId(r));
+    idsByName.set(name, ids);
+  }
+  const duplicates = new Set<string>();
+  for (const ids of idsByName.values()) {
+    if (ids.size > 1) ids.forEach((id) => duplicates.add(id));
+  }
+  return duplicates;
+}
+
+/**
  * Stable, unique team id for scoreboard rows. PIN joiners keep their
  * historical `pin-{pin}` shape so existing scoreboard widgets that reference
  * those ids (via `parseInt(response.pin, 10)`) keep working. SSO students
