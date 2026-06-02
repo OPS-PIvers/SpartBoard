@@ -4,6 +4,32 @@ _Automated nightly review by claude-opus-4-6_
 
 ---
 
+## 2026-06-02
+
+- PRs reviewed: 8
+  - #1800 — fix(classroom-addon): address review feedback on PR #1798 (head `claude/serene-meitner-EzK6N`, base `dev-paul`)
+  - #1801 — fix(widgets): GuidedLearningPlayer auto-advance timer resets on every answer (head `nightly/widgets-2026-06-02`, base `dev-paul`)
+  - #1802 — fix(draggable-window): settings panel placeholder flashes on first flip (head `nightly/dashboard-layout-2026-06-02`, base `dev-paul`)
+  - #1803 — fix(quiz): publishAssignmentScores inflates pointsMax on duplicate question ids (head `nightly/state-data-2026-06-02`, base `dev-paul`)
+  - #1804 — fix(i18n): add missing widgetWindow action keys to DE and FR locales (head `nightly/admin-config-2026-06-02`, base `dev-paul`)
+  - #1805 — fix(analytics): blooms-ai usage silently dropped from admin analytics (head `nightly/build-tooling-2026-06-02`, base `dev-paul`)
+  - #1806 — docs(nightly): debugger run log for 2026-06-02 (run 7) (head `nightly/debugger-log-2026-06-02`, base `dev-paul`)
+  - #1807 — fix(deps): pin path-to-regexp to patched versions to close HIGH ReDoS advisories (head `deps/path-to-regexp-redos-fix`, base `dev-paul`)
+- Comments processed: 6 total — 3 fixed, 3 explained
+  - #1800 (AddonShell.tsx, gemini): **fixed** — `AddonSelect` `onBlur` now guards `e.relatedTarget` for null before the `contains` check, so a non-focusable blur target (e.g. the dropdown scrollbar) no longer prematurely closes the popover.
+  - #1800 (TeacherReviewRoute.tsx, gemini): **explained** — code already resets `quizData` to null when `quizId` is absent; the suggested `useSyncedState` hook is a new shared abstraction (architectural call) and the cross-quiz-transition case is an edge case for this single-session route.
+  - #1801 (GuidedLearningPlayer.tsx, gemini): **fixed** — replaced the post-paint `useEffect` ref sync with a synchronous render-body assignment per CLAUDE.md, plus a targeted `react-hooks/refs` disable for the v7 false-positive.
+  - #1802 (DraggableWindow.tsx, gemini): **fixed** — corrected the `shouldRenderSettings` latch comment to describe the actual `!shouldRenderSettings` guard instead of a nonexistent `prevFlipped` (comment-only).
+  - #1804 (widgetWindowLocales.test.ts, gemini): **explained** — recursive full-parity refactor is a test-design enhancement that would broaden scope beyond the PR's 9 keys and risk surfacing unrelated pre-existing gaps; left for a human.
+  - #1806 (debugger.md, gemini): **explained** — reviewer's `.values()` suggestion is incorrect; #1803 iterates `questionsById` directly with `[qId, q]` destructuring (≡ `.entries()`), so the existing wording is accurate.
+- Fixes pushed: 3
+  - #1800 / `claude/serene-meitner-EzK6N` — guard `AddonSelect` `onBlur` against null `relatedTarget` (type-check ✓ lint ✓).
+  - #1801 / `nightly/widgets-2026-06-02` — sync `answeredStepsRef` in render body instead of `useEffect` (type-check ✓ lint ✓ tests ✓ 3946 pass).
+  - #1802 / `nightly/dashboard-layout-2026-06-02` — correct `shouldRenderSettings` latch comment (lint ✓ format ✓).
+- Reviews posted: 8 (one structured `## Automated Code Review` comment per PR above)
+- Notes:
+  - Branch-safety: no PR targets `main`; all eight head branches are non-`main`/non-`dev-*` and pushable. Pushes went only to the three PR head branches with actionable fixes. This log committed on `scheduled-tasks` per task instructions (not a `dev-*`/`main` branch).
+
 ## 2026-06-01
 
 - PRs reviewed: 11
