@@ -654,17 +654,18 @@ service cloud.firestore {
     // CF reads it via the Admin SDK (bypasses rules).
     //
     // READ is open to any authed user (the teacher discovery iframe reads the
-    // link to resolve class targeting). WRITES are SERVER-ONLY: the
-    // `linkClassroomCourse` CF first verifies — with the teacher's own
-    // `classroom.courses.readonly` token — that the caller genuinely teaches the
-    // Google course, then writes via the Admin SDK. Rules cannot verify
-    // Google-course teaching, so a client `create` (checking only
-    // teacherUid == auth.uid) let ANY authed user squat ANY courseId: the
-    // student-login CF mints every student's class-gate `classIds` from whatever
-    // class this doc names, so a squatter could mis-route a victim course's
-    // students AND permanently lock the real teacher out (first-write-wins; an
-    // update requires the existing teacherUid). Blocking client writes closes
-    // that hole.
+    // link to resolve class targeting). WRITES (create/update AND delete) are
+    // SERVER-ONLY: the `linkClassroomCourse` / `unlinkClassroomCourse` CFs first
+    // verify — with the teacher's own `classroom.courses.readonly` token — that
+    // the caller genuinely teaches the Google course, then write/delete via the
+    // Admin SDK. Rules cannot verify Google-course teaching, so a client `create`
+    // (checking only teacherUid == auth.uid) let ANY authed user squat ANY
+    // courseId: the student-login CF mints every student's class-gate `classIds`
+    // from whatever class this doc names, so a squatter could mis-route a victim
+    // course's students AND permanently lock the real teacher out (first-write-
+    // wins; an update requires the existing teacherUid). Blocking client writes
+    // closes that hole; the unlink CF provides the server-verified correction
+    // path (a wrong/stale link can't be fixed by a client delete).
     match /classroom_course_links/{courseId} {
       allow read: if request.auth != null;
       allow write: if false;

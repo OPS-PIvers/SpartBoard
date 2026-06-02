@@ -28,6 +28,31 @@ let courseLinkDoc: {
 // persisted (and prove the PII gate — no name/email in any write).
 const firestoreWrites: Array<{ path: string; data: Record<string, unknown> }> =
   [];
+// Captures every `db.doc(path).delete()` (the unlinkClassroomCourse path).
+const firestoreDeletes: Array<{ path: string }> = [];
+// Counts `db.runTransaction(...)` invocations so the link/unlink tests can pin
+// that the write/delete now happens inside a transaction (the TOCTOU fix), not a
+// bare read-then-write.
+let transactionCount = 0;
+
+// Minimal structural shapes for the transactional mock below. The real Admin SDK
+// is replaced wholesale by this mock at runtime, so these only need to be
+// internally consistent — the production file is type-checked against the real
+// firebase-admin types separately.
+interface DocSnapshotMock {
+  exists: boolean;
+  data: () => unknown;
+}
+interface DocRefMock {
+  get: () => Promise<DocSnapshotMock>;
+  set: (data: Record<string, unknown>, opts?: unknown) => Promise<void>;
+  delete: () => Promise<void>;
+}
+interface TxMock {
+  get: (ref: DocRefMock) => Promise<DocSnapshotMock>;
+  set: (ref: DocRefMock, data: Record<string, unknown>, opts?: unknown) => void;
+  delete: (ref: DocRefMock) => void;
+}
 // Pre-seeded grade-sync key docs, keyed by full path, exercised by the
 // classroomAddonLoginV1 grade-sync persistence test.
 const gradeSyncDocs = new Map<string, Record<string, unknown>>();
@@ -90,8 +115,9 @@ vi.mock('firebase-admin', () => {
       },
       // Path-aware doc(): the course-link read returns `courseLinkDoc`; the
       // grade-sync key read returns a pre-seeded entry from `gradeSyncDocs`;
-      // `.set()` records into `firestoreWrites` for assertions.
-      doc: (path: string) => ({
+      // `.set()` records into `firestoreWrites` and `.delete()` into
+      // `firestoreDeletes` for assertions.
+      doc: (path: string): DocRefMock => ({
         get: async () => {
           if (path.startsWith('classroom_course_links/')) {
             return {
@@ -108,7 +134,30 @@ vi.mock('firebase-admin', () => {
         set: async (data: Record<string, unknown>) => {
           firestoreWrites.push({ path, data });
         },
+        delete: async () => {
+          firestoreDeletes.push({ path });
+        },
       }),
+      // Transaction mock: delegates each tx op to the ref's own method (the same
+      // `db.doc(path)` objects above), so a transactional read-then-write/delete
+      // records into the same `firestoreWrites` / `firestoreDeletes` arrays the
+      // non-transactional path used. Runs the body once (no contention retries),
+      // returning whatever it resolves to — matching runTransaction's contract.
+      runTransaction: async <T>(
+        updateFn: (tx: TxMock) => Promise<T>
+      ): Promise<T> => {
+        transactionCount += 1;
+        const tx: TxMock = {
+          get: (ref) => ref.get(),
+          set: (ref, txData, opts) => {
+            void ref.set(txData, opts);
+          },
+          delete: (ref) => {
+            void ref.delete();
+          },
+        };
+        return updateFn(tx);
+      },
     })),
     auth: vi.fn(() => ({
       createCustomToken: async (uid: string, claims: unknown) => {
@@ -146,6 +195,7 @@ import {
   classroomAddonLoginV1,
   createClassroomAttachment,
   linkClassroomCourse,
+  unlinkClassroomCourse,
   pushClassroomGradesForAssignment,
   classroomAddonNet,
 } from './classroomAddonAuth';
@@ -189,6 +239,8 @@ beforeEach(() => {
   lastCustomTokenArgs = null;
   courseLinkDoc = null;
   firestoreWrites.length = 0;
+  firestoreDeletes.length = 0;
+  transactionCount = 0;
   gradeSyncDocs.clear();
   submissionsByPath.clear();
   vi.restoreAllMocks();
@@ -760,6 +812,22 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
     expect(typeof write?.data.updatedAt).toBe('number');
   });
 
+  it('performs the no-hijack check + write inside a transaction (TOCTOU fix)', async () => {
+    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+      ok: true,
+      status: 200,
+      courseIds: ['C1'],
+    });
+
+    await callLink({ data: linkData, auth: { uid: 'teacher-1' } });
+
+    // The check-then-write must be atomic: two co-teachers racing to link the
+    // same never-linked course can't both pass the "exists?" check and clobber
+    // each other. Pinning that a transaction wraps the write guards the fix.
+    expect(transactionCount).toBe(1);
+    expect(findLinkWrite()?.data.teacherUid).toBe('teacher-1');
+  });
+
   it('refuses to link a course the caller does not teach (squat attempt)', async () => {
     vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
       ok: true,
@@ -867,6 +935,157 @@ describe('linkClassroomCourse (course-squatting fix)', () => {
         auth: { uid: 'teacher-1' },
       })
     ).rejects.toMatchObject({ code: 'invalid-argument' });
+  });
+});
+
+// unlinkClassroomCourse — the correction path for a wrong/stale course→roster
+// mapping. Same trust anchor as linkClassroomCourse (the caller's OWN teacher
+// course list), but it REMOVES the link rather than creating it. These tests pin
+// the documented decision (a verified co-teacher CAN take over / remove a
+// departed teacher's link) and the preserved squatting-fix invariants: a
+// non-teacher can never delete, verification failures fail closed, and the
+// delete runs inside a transaction.
+const callUnlink = unlinkClassroomCourse as unknown as (req: {
+  data: unknown;
+  auth?: { uid: string } | null;
+}) => Promise<{ ok: boolean; courseId: string; removed: boolean }>;
+
+const unlinkData = {
+  accessToken: 'teacher-courses-token',
+  courseId: 'C1',
+};
+
+function findLinkDelete() {
+  return firestoreDeletes.find((d) => d.path === 'classroom_course_links/C1');
+}
+
+describe('unlinkClassroomCourse (correction path)', () => {
+  it('removes a link the caller owns (verified teacher), inside a transaction', async () => {
+    courseLinkDoc = {
+      classlinkClassId: 'CL-SECTION-1',
+      teacherUid: 'teacher-1',
+    };
+    const listSpy = vi
+      .spyOn(classroomAddonNet, 'listTeacherCourseIds')
+      .mockResolvedValue({ ok: true, status: 200, courseIds: ['C0', 'C1'] });
+
+    const res = await callUnlink({
+      data: unlinkData,
+      auth: { uid: 'teacher-1' },
+    });
+
+    expect(res).toMatchObject({ ok: true, courseId: 'C1', removed: true });
+    // Teaching authority is re-verified server-side with the caller's own token.
+    expect(listSpy).toHaveBeenCalledWith('teacher-courses-token');
+    // The delete is transactional (deterministic vs a concurrent link/unlink).
+    expect(transactionCount).toBe(1);
+    expect(findLinkDelete()).toBeDefined();
+  });
+
+  it('lets a verified CO-TEACHER remove a departed teacher’s link (documented takeover)', async () => {
+    // The link is owned by a DIFFERENT teacher (e.g. one who left the district).
+    courseLinkDoc = {
+      classlinkClassId: 'CL-SECTION-1',
+      teacherUid: 'departed-teacher',
+    };
+    // The caller is a co-teacher who genuinely teaches the course.
+    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+      ok: true,
+      status: 200,
+      courseIds: ['C1'],
+    });
+
+    const res = await callUnlink({
+      data: unlinkData,
+      auth: { uid: 'co-teacher' },
+    });
+
+    // Unlike linkClassroomCourse (which refuses a different teacher with
+    // `already-exists`), unlink is the EXPLICIT correction path: a verified
+    // co-teacher of the SAME course may remove the link.
+    expect(res).toMatchObject({ ok: true, removed: true });
+    expect(findLinkDelete()).toBeDefined();
+  });
+
+  it('refuses a caller who does not teach the course (no delete)', async () => {
+    courseLinkDoc = {
+      classlinkClassId: 'CL-SECTION-1',
+      teacherUid: 'teacher-1',
+    };
+    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+      ok: true,
+      status: 200,
+      // The caller teaches OTHER courses, but NOT the one they're unlinking.
+      courseIds: ['SOME-OTHER-COURSE'],
+    });
+
+    await expect(
+      callUnlink({ data: unlinkData, auth: { uid: 'not-a-teacher' } })
+    ).rejects.toMatchObject({ code: 'permission-denied' });
+    // The squatting-fix invariant holds for unlink too: a non-teacher of the
+    // course can never delete the link.
+    expect(findLinkDelete()).toBeUndefined();
+  });
+
+  it('fails closed when the teacher course-list check errors (never unlinks on an unverifiable token)', async () => {
+    courseLinkDoc = { teacherUid: 'teacher-1' };
+    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+      ok: false,
+      status: 401,
+      courseIds: [],
+    });
+
+    await expect(
+      callUnlink({ data: unlinkData, auth: { uid: 'teacher-1' } })
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+    expect(findLinkDelete()).toBeUndefined();
+  });
+
+  it('rejects an unauthenticated caller before any Classroom call', async () => {
+    const listSpy = vi.spyOn(classroomAddonNet, 'listTeacherCourseIds');
+
+    await expect(
+      callUnlink({ data: unlinkData, auth: null })
+    ).rejects.toMatchObject({ code: 'unauthenticated' });
+    expect(listSpy).not.toHaveBeenCalled();
+    expect(findLinkDelete()).toBeUndefined();
+  });
+
+  it('is idempotent: unlinking a course with no existing link is a no-op (removed:false)', async () => {
+    courseLinkDoc = null; // not linked
+    vi.spyOn(classroomAddonNet, 'listTeacherCourseIds').mockResolvedValue({
+      ok: true,
+      status: 200,
+      courseIds: ['C1'],
+    });
+
+    const res = await callUnlink({
+      data: unlinkData,
+      auth: { uid: 'teacher-1' },
+    });
+
+    // A missing link is not an error — a double-click or stale UI shouldn't fail.
+    expect(res).toMatchObject({ ok: true, removed: false });
+    expect(findLinkDelete()).toBeUndefined();
+  });
+
+  it('requires accessToken and courseId', async () => {
+    const listSpy = vi.spyOn(classroomAddonNet, 'listTeacherCourseIds');
+
+    await expect(
+      callUnlink({
+        data: { ...unlinkData, accessToken: '' },
+        auth: { uid: 'teacher-1' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    await expect(
+      callUnlink({
+        data: { ...unlinkData, courseId: '' },
+        auth: { uid: 'teacher-1' },
+      })
+    ).rejects.toMatchObject({ code: 'invalid-argument' });
+    // Malformed input is rejected before any teacher-verification call.
+    expect(listSpy).not.toHaveBeenCalled();
   });
 });
 

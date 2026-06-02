@@ -4301,5 +4301,6 @@ export {
   classroomAddonLoginV1,
   createClassroomAttachment,
   linkClassroomCourse,
+  unlinkClassroomCourse,
   pushClassroomGradesForAssignment,
 } from './classroomAddonAuth';
