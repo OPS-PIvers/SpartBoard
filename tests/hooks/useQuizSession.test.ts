@@ -2086,6 +2086,53 @@ describe('useQuizSessionTeacher — removeStudent / revealAnswer / hideAnswer', 
     ]);
   });
 
+  it('skips the ledger probe entirely for anonymous PIN joiners (pin- keys never have a ledger)', async () => {
+    // A `pin-…` responseKey is an anonymous joiner whose uid rotates per
+    // device — they never write a cross-launch ledger, so probing it is a
+    // guaranteed miss. removeStudent must skip the getDoc round-trip (and the
+    // ledger delete) for them; only the fallback response fetch runs.
+    (auth as unknown as { currentUser: { uid: string } | null }).currentUser = {
+      uid: 'teacher-1',
+    };
+
+    const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
+
+    // Sync state update, so no await (see the no-ledger test above).
+    act(() => {
+      env.sessionCallback?.({
+        exists: () => true,
+        data: () => buildSession({ status: 'active', quizId: 'quiz-1' }),
+      } as never);
+    });
+
+    // Exactly ONE getDoc — the fallback response fetch. No ledger probe.
+    const getDocMock = firestore.getDoc as unknown as ReturnType<typeof vi.fn>;
+    getDocMock.mockResolvedValueOnce({
+      exists: () => true,
+      id: 'pin-period_1-07',
+      data: () => ({
+        studentUid: 'anon-rotating-uid',
+        status: 'completed',
+        answers: [],
+      }),
+    });
+
+    await act(async () => {
+      await result.current.removeStudent('pin-period_1-07');
+    });
+
+    expect(getDocMock).toHaveBeenCalledTimes(1);
+    // Response deleted, no ledger delete enqueued.
+    expect(env.batch.delete).toHaveBeenCalledTimes(1);
+    expect(env.batch.commit).toHaveBeenCalledTimes(1);
+    const deletedPaths = env.batch.delete.mock.calls.map(
+      (c) => (c[0] as { path: string[] }).path
+    );
+    expect(deletedPaths.some((p) => p[0] === 'quiz_attempt_ledger')).toBe(
+      false
+    );
+  });
+
   it('revealAnswer writes a dotted-path map entry on the session doc', async () => {
     const { result } = renderHook(() => useQuizSessionTeacher('sess-1'));
 

@@ -866,7 +866,17 @@ export const useQuizSessionTeacher = (
       // back the entire archive+delete batch — which surfaces to the teacher
       // as a "Missing or insufficient permissions" toast when removing such a
       // student. Mirror `unlockStudentAttempt`'s probe-then-touch pattern.
-      const ledgerSnap = ledgerRef ? await getDoc(ledgerRef) : null;
+      //
+      // Skip the probe entirely for anonymous PIN joiners (`pin-…` keys):
+      // their uids rotate per device so they NEVER write a ledger, making the
+      // read a guaranteed miss — so we save the round-trip and just don't
+      // enqueue the delete. The other no-ledger cases (SSO idle auto-submit,
+      // joined-only, legacy) live in the SSO uid keyspace, so the existence
+      // probe still covers them.
+      const ledgerSnap =
+        ledgerRef && !responseKey.startsWith('pin-')
+          ? await getDoc(ledgerRef)
+          : null;
 
       // Archive the response before delete so partial answers survive
       // the teacher's "remove" action. The deterministic key model
