@@ -443,6 +443,7 @@ export async function computeAnalyticsForOrg(
     'quiz',
     'ocr',
     'guided-learning',
+    'blooms-ai',
   ];
 
   const aiUsageStream = db

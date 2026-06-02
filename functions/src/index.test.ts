@@ -874,6 +874,39 @@ describe('adminAnalytics', () => {
     expect(capturedData.api.totalCalls).toBe(10);
   });
 
+  it('counts blooms-ai usage docs toward byFeature without corrupting uid parsing', async () => {
+    // Regression for: blooms-ai was missing from GEMINI_SPECIFIC_FEATURES in
+    // adminAnalyticsCompute.ts. A doc like `uid1_blooms-ai_2026-06-02` was
+    // treated as an "overall" doc with uid = `uid1_blooms-ai`, which never
+    // matched any org member, so the call was silently dropped from totalCalls
+    // and byFeature['blooms-ai'] was never populated.
+    mockFirestoreState.users = [
+      {
+        id: 'uid1',
+        data: {
+          email: 'teacher@district.org',
+          lastLogin: Date.now(),
+          buildings: [],
+        },
+      },
+    ];
+    mockFirestoreState.dashboards = [];
+    mockFirestoreState.aiUsage = [
+      // Overall usage doc — should count toward totalCalls
+      { id: 'uid1_2026-06-02', data: { count: 5 } },
+      // Per-feature blooms-ai doc — should count toward byFeature['blooms-ai']
+      // but NOT toward totalCalls (to avoid double-counting)
+      { id: 'uid1_blooms-ai_2026-06-02', data: { count: 3 } },
+    ];
+
+    const result = await computeAnalyticsForOrg('orono');
+
+    // totalCalls must only count the overall doc, not the per-feature doc
+    expect(result.api.totalCalls).toBe(5);
+    // byFeature must accumulate the per-feature doc
+    expect(result.api.byFeature['blooms-ai']).toBe(3);
+  });
+
   it('returns topUsers with resolved email and unknown fallback', async () => {
     mockFirestoreState.users = [
       {
