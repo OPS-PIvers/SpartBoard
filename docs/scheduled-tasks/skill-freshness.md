@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-26_
+_Last audited: 2026-06-02_
 _Last action: 2026-05-26_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-02: Skill files NOT accessible at `/mnt/skills/user/` in this environment. Codebase-side verifications performed: (1) `SpecialistSchedule/` still contains `SpecialistScheduleWidget.tsx`, `Settings.tsx`, `index.ts`, `utils.ts` — `Widget.tsx` still absent; MEDIUM item about non-existent `SpecialistScheduleSettings.tsx` remains valid. (2) `FeaturePermissionsManager.tsx` exclusion array (lines ~941–953) still contains the same 13 hardcoded types as 2026-05-26 — LOW item #1 remains valid. (3) `FeatureConfigurationPanel.tsx` `BUILDING_CONFIG_PANELS` now has 38 entries (up from the 2026-05-19 checklist addition; `checklist` confirmed present at line 98, `classes`, `smartNotebook`, `recessGear`, `countdown`, `embed`, `poll`, `qr`, `drawing`, `breathing`, `numberLine`, `mathTools`, `nextUp`, `countdown` all present). The LOW item #2 about undocumented secondary exclusion gate remains valid and more stale as the map grows. (4) lazyNamed() convention confirmed correct across WidgetRegistry.ts. All 3 open items remain valid. No new stale references introduced._
 
 _2026-05-26 action: Fixed MEDIUM `spart-new-widget` reference to non-existent `SpecialistSchedule/Widget.tsx` (PR pending against dev-paul). Item moved to Completed. 3 open items remain (1 MEDIUM, 2 LOW)._
 

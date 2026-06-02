@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: weekly — Tuesday_
-_Last audited: 2026-05-26_
+_Last audited: 2026-06-02_
 _Last action: 2026-05-19_
 
 ---
@@ -15,6 +15,13 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+### HIGH `path-to-regexp` HIGH ReDoS in root and functions via `firebase-functions@7.2.5 > express`
+
+- **Detected:** 2026-06-02
+- **File:** package.json (devDependency `firebase-functions`), functions/package.json (dependency `firebase-functions`)
+- **Detail:** `path-to-regexp` <=8.x has a HIGH severity Regular Expression Denial of Service (ReDoS) vulnerability. The path is `firebase-functions@7.2.5 > express > path-to-regexp` — present in both root (devDep) and functions/ (direct dep). `pnpm audit` reports this as HIGH in both workspaces. This is a transitive vulnerability through express inside firebase-functions; the Cloud Functions runtime accepts HTTP requests via express, so the vulnerable regex parser is reachable in production if any route or middleware passes attacker-controlled paths. `pnpm audit` confirms the path: `.>firebase-functions>express>path-to-regexp`.
+- **Fix:** (a) Check if updating `firebase-functions` to latest resolves the transitive path-to-regexp version: `pnpm why path-to-regexp` after bumping to the latest firebase-functions. (b) If not, add `"path-to-regexp": ">=8.x patched"` to `pnpm.overrides` in both root and functions/. Verify the patched version is API-compatible with express's usage. Check `pnpm audit` after applying the override. Also update `functions/pnpm.overrides` if applicable. Note: this is separate from the `firebase-tools` item (different package chain).
 
 ### MEDIUM `qs` DoS in functions via `@google-cloud/functions-framework` — patched in >=6.15.2
 
@@ -139,8 +146,8 @@ _Nothing currently in progress._
   - `@types/node`: 24.12.2 → **25.9.0** (major — verify Node 24 compat)
   - `jsdom`: 27.4.0 → **29.1.1** (2 majors ahead — test environment only; also resolves ws CVE)
   - `lint-staged`: 16.2.7 → **17.0.5** (major — check husky integration compatibility)
-  - `@google/genai`: 1.51.0 → **2.6.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; latest bumped from 2.4.0 → 2.6.0 as of 2026-05-26)
-    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.6, `firebase-tools` 15.8.0 → 15.18.0, `firebase` 12.8.0 → 12.13.0, `firebase-admin` 13.6.0 → 13.10.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.60.0, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.7, `hono` 4.12.15 → 4.12.23, `dompurify` 3.4.2 → 3.4.5, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1. (Updated 2026-05-26)
+  - `@google/genai`: 1.51.0 → **2.7.0** (major — AI API surface may have breaking changes; test all generation flows after upgrade; bumped from 2.6.0 → 2.7.0 as of 2026-06-02)
+    Also notable patch/minor updates: `react`/`react-dom` 19.2.4 → 19.2.7, `firebase-tools` 15.8.0 → 15.19.0, `firebase` 12.8.0 → 12.14.0, `firebase-admin` 13.6.0 → 13.10.0, `@playwright/test` 1.58.0 → 1.60.0, `@typescript-eslint/*` 8.54.0 → 8.60.1, `vitest`/`@vitest/coverage-v8` 4.0.18 → 4.1.8, `hono` 4.12.15 → 4.12.23, `dompurify` 3.4.2 → 3.4.7, `eslint-plugin-react-hooks` 7.0.1 → 7.1.1, `vite` 6.4.2 → 8.0.16 (now 2 majors behind), `eslint` 9.39.2 → 10.4.1, `@eslint/js` 9.39.2 → 10.0.1. (Updated 2026-06-02)
     These should not be done in a single commit — each needs its own migration PR with testing.
 - **Fix:** Prioritize security patches first. Schedule tailwindcss 4 migration separately (config rewrite required). typescript 6 migration after ensuring all types are clean. Coordinate eslint 9→10 with typescript-eslint team compatibility matrix. `@google/genai` major bump warrants dedicated testing of all AI generation flows (quiz, mini-app, widget builder, OCR, etc.). jsdom update to v29 also resolves the ws CVE tracked separately.
 

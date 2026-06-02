@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-01_
+_Last audited: 2026-06-02_
 _Last action: never_
 
 ---
@@ -15,6 +15,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-02. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). No new commits since 2026-06-01 (rebase onto dev-paul aborted; working from scheduled-tasks HEAD). Codebase clean._
 
 _No open items. Both `pnpm type-check` and `pnpm lint` pass cleanly as of 2026-06-01. TypeScript: 0 errors. ESLint: 0 errors, 0 warnings (`--max-warnings 0`). Codebase clean after merging dev-paul: fix(SettingsPanel) null-guard e.target in pointerdown and Escape keydown handlers, fix(SettingsPanel) prevent click-outside from being dropped after parent re-renders, fix(test) eliminate MaterialsConfigurationPanel flaky 5s timeout, plus new test files. All changes type-safe and lint-clean._
 

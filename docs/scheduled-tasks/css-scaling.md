@@ -3,7 +3,7 @@
 _Audit model: claude-sonnet-4-6_
 _Action model: claude-opus-4-6_
 _Audit cadence: daily_
-_Last audited: 2026-06-01_
+_Last audited: 2026-06-02_
 _Last action: 2026-05-31_
 
 ---
@@ -21,6 +21,8 @@ _Nothing currently in progress._
 ---
 
 ## Open
+
+_2026-06-02: No new widget commits since 2026-06-01 (rebase onto dev-paul aborted; working from scheduled-tasks HEAD). No new anti-patterns introduced. All pre-existing open items remain valid: NextUp maxWidth:120px pixel cap (:327), ActivityWall inline-editor checkbox h-4 w-4 (:1352), CarRiderPro/First5 overlay button (completed 2026-05-30), GraphicOrganizer min-h-[50px] (completed 2026-05-31), PollWidget progress bar uncapped height (:161), EmbedWidget portaled toolbar, QuizResults period-filter text-sm, RevealGridWidget hardcoded spacing, multi-widget group spacing item, MiniApp internal dialog text sizes. All intentional cqh/cqw fill-better deviations (Clock, Checklist, Countdown, InstructionalRoutines, MusicWidget, TrafficLight) re-confirmed present per journal guidance._
 
 _2026-06-01: Scanned all Widget.tsx files for anti-patterns. New dev-paul commits since 2026-05-31 absorbed via merge: SettingsPanel null-guards, LunchCount/Settings.tsx cleanup, Countdown/Widget.tsx fix, RandomWidget.tsx refactor — none introduce new front-face widget violations. TWO NEW items detected: (1) NextUp/Widget.tsx:327 — hardcoded `maxWidth: '120px'` pixel cap on the session-name `<h3>` in the header (new issue, distinct from existing group item line numbers). (2) ActivityWall/Widget.tsx:1352 — `h-4 w-4` Tailwind classes on a native `<input type="checkbox">` inside the inline activity-editor UI, which is rendered in front-face content inside the `skipScaling: true` container-query context. Intentional cqh/cqw deviations in Countdown (min(42cqh,55cqw)), ClockWidget, TrafficLightWidget, and MusicWidget all re-confirmed present; per journal guidance (fill-better formula preference) these are left as-is. Countdown's prior Completed entry ("resolved outside journal workflow") was inaccurate — the cqh/cqw formulas persisted by design, so Countdown joins Clock/Checklist as a documented WON'T FIX case._
 
