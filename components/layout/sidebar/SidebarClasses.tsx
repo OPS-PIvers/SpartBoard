@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   Users,
@@ -13,14 +13,14 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react';
-import { doc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { httpsCallable } from 'firebase/functions';
 
 import { useDashboard } from '@/context/useDashboard';
 import { useAuth } from '@/context/useAuth';
 import { useDialog } from '@/context/useDialog';
 import { useClassLinkEnabled } from '@/hooks/useClassLinkEnabled';
 import { ClassRoster, Student } from '@/types';
-import { auth, db } from '@/config/firebase';
+import { auth, functions } from '@/config/firebase';
 import { RosterEditorModal } from '@/components/classes/RosterEditorModal';
 import { Modal } from '@/components/common/Modal';
 import {
@@ -41,6 +41,26 @@ interface GoogleClassroomCourse {
   id: string;
   name: string;
   section?: string;
+}
+
+/**
+ * Args for the `linkClassroomCourse` Cloud Function. The link doc is written
+ * server-side (not via `setDoc`) so the CF can verify — with the teacher's own
+ * courses token — that the caller actually teaches the Google course before
+ * recording the link. `teacherUid` is intentionally omitted: the CF derives it
+ * from the authenticated caller, so a client can't claim to be another teacher.
+ */
+interface LinkClassroomCourseParams {
+  accessToken: string;
+  courseId: string;
+  classlinkClassId: string | null;
+  classlinkOrgId: string | null;
+  rosterId: string;
+}
+
+interface LinkClassroomCourseResult {
+  ok: boolean;
+  courseId: string;
 }
 
 interface SidebarClassesProps {
@@ -85,6 +105,11 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
   const [courseLoadError, setCourseLoadError] = useState<string | null>(null);
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  // The `classroom.courses.readonly` token used to LIST the teacher's courses is
+  // the same one the link CF needs to RE-VERIFY teaching authority server-side.
+  // Captured here so confirming the link reuses it (no second OAuth popup);
+  // cleared when the modal closes.
+  const coursesAccessTokenRef = useRef<string | null>(null);
 
   const loadCourses = useCallback(async () => {
     setCourseLoadState('loading');
@@ -97,6 +122,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         CLASSROOM_COURSES_READONLY_SCOPE,
         user?.email ?? undefined
       );
+      // Reused at confirm time to verify teaching authority server-side.
+      coursesAccessTokenRef.current = token;
       const res = await fetch(
         'https://classroom.googleapis.com/v1/courses?teacherId=me&courseStates=ACTIVE',
         { headers: { Authorization: `Bearer ${token}` } }
@@ -127,6 +154,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     setSelectedCourseId(null);
     setCourseLoadError(null);
     setIsSaving(false);
+    coursesAccessTokenRef.current = null;
   }, []);
 
   const handleConfirmLink = useCallback(async () => {
@@ -143,12 +171,31 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     }
     setIsSaving(true);
     try {
-      await setDoc(doc(db, 'classroom_course_links', selectedCourseId), {
+      // The link doc is written by the `linkClassroomCourse` Cloud Function, NOT
+      // a direct setDoc: Firestore rules can't verify Google-course teaching, so
+      // client writes to classroom_course_links are blocked. The CF re-verifies
+      // — with the teacher's own courses token — that the caller actually teaches
+      // this course before recording the link, closing the course-squatting hole.
+      let accessToken = coursesAccessTokenRef.current;
+      if (!accessToken) {
+        // The list token expired or was cleared; re-acquire (silent if already
+        // consented this session).
+        await ensureGis();
+        accessToken = await requestAccessToken(
+          CLASSROOM_COURSES_READONLY_SCOPE,
+          user?.email ?? undefined
+        );
+      }
+      const linkCourse = httpsCallable<
+        LinkClassroomCourseParams,
+        LinkClassroomCourseResult
+      >(functions, 'linkClassroomCourse');
+      await linkCourse({
+        accessToken,
+        courseId: selectedCourseId,
         classlinkClassId: linkingRoster.classlinkClassId ?? null,
         classlinkOrgId: linkingRoster.classlinkOrgId ?? null,
-        teacherUid: uid,
         rosterId: linkingRoster.id,
-        createdAt: serverTimestamp(),
       });
       await updateRoster(linkingRoster.id, {
         googleClassroomCourseId: selectedCourseId,
@@ -167,6 +214,8 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
         }),
         'error'
       );
+      // The CF surfaces an actionable message (e.g. "you can only link a course
+      // you teach", "already linked by another teacher") — show it in the modal.
       setCourseLoadError(
         err instanceof Error ? err.message : 'Failed to link to Classroom.'
       );
@@ -179,6 +228,7 @@ export const SidebarClasses: React.FC<SidebarClassesProps> = ({
     t,
     updateRoster,
     closeLinkModal,
+    user?.email,
   ]);
 
   const editingRoster: ClassRoster | null =
