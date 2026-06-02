@@ -2071,6 +2071,7 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
           : shouldUseDragState && dragState.current
             ? dragState.current.h
             : (override?.h ?? widget.h),
+        /* eslint-enable react-hooks/refs */
         zIndex: isMaximized ? Z_INDEX.maximized : widget.z,
         display: 'flex',
         flexDirection: 'column',
