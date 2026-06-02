@@ -359,12 +359,11 @@ export const DraggableWindow: React.FC<DraggableWindowProps> = ({
     h: number;
   } | null>(null);
 
-  // Adjusting state while rendering (React docs pattern — "store previous
-  // value"): latch shouldRenderSettings to true once widget.flipped transitions
-  // from false → true. Using prevFlipped to detect the transition keeps this
-  // to a single extra render when the widget is first opened and avoids
-  // infinite-loop risk (React bails out when state didn't change). Inline
-  // rather than useEffect so it fires in the same synchronous render pass —
+  // Adjusting state while rendering (React docs pattern): latch shouldRenderSettings
+  // to true once widget.flipped transitions from false → true. Checking
+  // !shouldRenderSettings keeps this to a single extra render when the widget is
+  // first opened and avoids infinite-loop risk (React bails out when state didn't change).
+  // Inline rather than useEffect so it fires in the same synchronous render pass —
   // the SettingsPanel therefore always mounts with shouldRenderSettings=true
   // and the "Standard settings available." placeholder is never visible, even
   // on slow hardware or projectors where a post-paint effect would produce a
