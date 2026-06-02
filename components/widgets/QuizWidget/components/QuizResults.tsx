@@ -1067,15 +1067,21 @@ export const QuizResults: React.FC<QuizResultsProps> = ({
 
     // Guard the grade scale FIRST (a malformed/stale attachment could carry
     // NaN/0 maxPoints, scaling every grade to 0/NaN), then the eligible list —
-    // completed responses with a resolvable pseudonym — so we never pop a
-    // consent dialog when there's nothing to push. The eligible list and the
-    // grade payload both reflect the responses/quiz captured when the teacher
-    // clicked (this closure); a brief mid-dialog Firestore update isn't re-read.
+    // completed responses with a resolvable pseudonym THAT CAN BE SCORED — so we
+    // never pop a consent dialog when there's nothing to push. The eligible
+    // filter mirrors buildQuizClassroomGradeEntries (which also drops
+    // unscoreable responses), so the confirm-dialog count matches what actually
+    // gets pushed and we don't confirm only to toast "nothing to push". The
+    // eligible list and the grade payload both reflect the responses/quiz
+    // captured when the teacher clicked (this closure); a brief mid-dialog
+    // Firestore update isn't re-read.
     if (!hasValidMaxPoints(maxPoints)) {
       addToast(MISSING_MAX_POINTS_MESSAGE, 'error');
       return;
     }
-    const eligible = completed.filter((r) => !!r.studentUid);
+    const eligible = completed.filter(
+      (r) => !!r.studentUid && canScoreResponse(r, quiz.questions)
+    );
     if (eligible.length === 0) {
       addToast(NOTHING_TO_PUSH_TOAST, 'info');
       return;
@@ -2021,13 +2027,19 @@ const StudentsTab: React.FC<{
           .sort((a, b) => {
             // Match the row's display gate (below): an unscoreable response
             // renders "—", so rank it with not-started (-1) rather than letting
-            // its phantom 0 sort it in among genuine low scores.
-            const rankScore = (r: QuizResponse) =>
-              (r.status === 'completed' || r.status === 'in-progress') &&
-              canScoreResponse(r, questions)
-                ? getDisplayScore(r, questions, session)
+            // its phantom 0 sort it in among genuine low scores. Computed inline
+            // (no nested helper) so a closure isn't re-allocated per comparison.
+            const scoreA =
+              (a.status === 'completed' || a.status === 'in-progress') &&
+              canScoreResponse(a, questions)
+                ? getDisplayScore(a, questions, session)
                 : -1;
-            return rankScore(b) - rankScore(a);
+            const scoreB =
+              (b.status === 'completed' || b.status === 'in-progress') &&
+              canScoreResponse(b, questions)
+                ? getDisplayScore(b, questions, session)
+                : -1;
+            return scoreB - scoreA;
           })
           .map((r) => {
             const score = getDisplayScore(r, questions, session);
