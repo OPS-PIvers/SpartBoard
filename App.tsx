@@ -529,23 +529,32 @@ const App: React.FC = () => {
 
   // Schoology LTI 1.3 launch surface. Anonymous entry; the page exchanges the
   // one-time launch code for the validated context (and, for a Learner launch, a
-  // studentRole custom token it signs in with). The deep-linking branch
-  // (/lti/teacher?mode=deeplink) is the teacher resource picker — it loads the
-  // teacher's SpartBoard quiz library, so it ALSO needs AuthProvider (mirroring
-  // the Classroom teacher-discovery attach flow, which mounts AuthProvider for
-  // the uid + Drive token but no DashboardProvider). The validated-launch view
-  // needs only DialogProvider.
+  // studentRole custom token it signs in with).
+  //
+  // Provider scoping by route:
+  //   - /lti/teacher?mode=deeplink → the teacher resource PICKER
+  //     (LtiDeepLinkPicker), which loads the teacher's SpartBoard quiz library.
+  //   - /lti/teacher (instructor resource-link launch) → LtiLaunchPage, which on
+  //     an instructor launch mounts the in-iframe GRADER (LtiTeacherGrader) — it
+  //     loads the teacher's quiz library too.
+  // Both teacher cases need AuthProvider (the uid + Drive token), mirroring the
+  // Classroom teacher-discovery attach flow (AuthProvider, but no
+  // DashboardProvider). So ALL /lti/teacher routes get AuthProvider.
+  //   - /lti/student → LtiLaunchPage's student runner only; it never calls
+  //     useAuth, so it stays on DialogProvider alone (no teacher Firestore
+  //     listeners for anonymous students).
   if (isLtiRoute) {
+    const isLtiTeacher = pathname.startsWith('/lti/teacher');
     const isLtiDeepLink =
-      pathname.startsWith('/lti/teacher') &&
+      isLtiTeacher &&
       typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).get('mode') === 'deeplink';
     return (
       <DialogProvider>
-        {isLtiDeepLink ? (
+        {isLtiTeacher ? (
           <AuthProvider>
             <Suspense fallback={<FullPageLoader />}>
-              <LtiDeepLinkPicker />
+              {isLtiDeepLink ? <LtiDeepLinkPicker /> : <LtiLaunchPage />}
             </Suspense>
           </AuthProvider>
         ) : (

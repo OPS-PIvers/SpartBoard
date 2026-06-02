@@ -25,6 +25,7 @@ import {
   consumeOidcState,
   mintLaunchCode,
   consumeLaunchCode,
+  mintGradePushAuth,
   newOpaqueId,
 } from './stores';
 import {
@@ -256,38 +257,31 @@ export const ltiExchange = onCall(
       custom: launch.custom ?? null,
     };
 
-    // Teacher launches don't get a studentRole token. For an INSTRUCTOR resource-link
-    // launch we mint a teacherRole token scoped to this resource link so the grader
-    // can authorize an AGS grade push. Deep-linking launches use the teacher's own
-    // SpartBoard auth in the picker, so they need no token here.
+    // Teacher launches don't get a studentRole token — the grader signs in with the
+    // teacher's own SpartBoard account to read their session. For an INSTRUCTOR
+    // resource-link launch we mint a short-lived grade-push authorization (the
+    // LIVE-token model) the grader passes to authorize an AGS push. Deep-linking
+    // launches use the picker instead, so they need no push-auth here.
     if (launch.role !== 'student') {
-      let teacherToken: string | undefined;
+      let pushAuth: string | undefined;
       if (
         launch.role === 'teacher' &&
         launch.messageType !== MESSAGE_TYPE_DEEP_LINKING &&
         launch.resourceLinkId
       ) {
-        const hmacSecret = STUDENT_PSEUDONYM_HMAC_SECRET.value();
-        if (hmacSecret) {
-          const tuid = CryptoJS.HmacSHA256(
-            `schoology-teacher-sub:${launch.sub}`,
-            hmacSecret
-          ).toString(CryptoJS.enc.Hex);
-          try {
-            teacherToken = await admin.auth().createCustomToken(tuid, {
-              teacherRole: true,
-              ltiContextId: launch.contextId ?? '',
-              ltiResourceLinkId: launch.resourceLinkId,
-            });
-          } catch (err) {
-            console.error('[ltiExchange] teacher token mint failed', err);
-          }
+        try {
+          pushAuth = await mintGradePushAuth(db, {
+            resourceLinkId: launch.resourceLinkId,
+            contextId: launch.contextId,
+          });
+        } catch (err) {
+          console.error('[ltiExchange] grade-push-auth mint failed', err);
         }
       }
       return {
         ...context,
         studentRole: false,
-        ...(teacherToken ? { teacherToken } : {}),
+        ...(pushAuth ? { pushAuth } : {}),
       };
     }
 

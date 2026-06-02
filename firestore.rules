@@ -712,6 +712,13 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Server-internal grade-push authorizations (LIVE-token model). Minted by the
+    // instructor-launch exchange CF and validated by the AGS push CF — both via the
+    // Admin SDK. Never client-visible, so deny all client access.
+    match /lti_grade_push_auth/{token} {
+      allow read, write: if false;
+    }
+
     // Global permissions - all authenticated users can read, only admins can write
     match /global_permissions/{featureId=**} {
       allow read: if request.auth != null;

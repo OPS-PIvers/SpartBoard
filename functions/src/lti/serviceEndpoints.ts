@@ -24,6 +24,7 @@ import {
   isSchoologyReturnUrl,
 } from './deepLink';
 import { getAgsAccessToken, postScore } from './ags';
+import { validateGradePushAuth } from './stores';
 
 const LTI_TOOL_PRIVATE_KEY = defineSecret('LTI_TOOL_PRIVATE_KEY');
 
@@ -114,23 +115,15 @@ export const ltiPushGradesForAssignmentV1 = onCall(
     secrets: [LTI_TOOL_PRIVATE_KEY],
   },
   async (request) => {
-    // Auth: a teacherRole token minted by an instructor launch (ltiExchange),
-    // scoped to the resource link it launched from.
-    const claimToken = (request.auth?.token ?? {}) as Record<string, unknown>;
-    if (claimToken.teacherRole !== true) {
-      throw new HttpsError(
-        'permission-denied',
-        'A SpartBoard teacher launch is required to push grades.'
-      );
-    }
-
     const data = (request.data ?? {}) as {
       resourceLinkId?: unknown;
       maxPoints?: unknown;
       grades?: unknown;
+      pushAuth?: unknown;
     };
     const resourceLinkId =
       typeof data.resourceLinkId === 'string' ? data.resourceLinkId : '';
+    const pushAuth = typeof data.pushAuth === 'string' ? data.pushAuth : '';
     const maxPoints =
       typeof data.maxPoints === 'number' && data.maxPoints > 0
         ? data.maxPoints
@@ -141,10 +134,14 @@ export const ltiPushGradesForAssignmentV1 = onCall(
         'resourceLinkId and a positive maxPoints are required.'
       );
     }
-    if (claimToken.ltiResourceLinkId !== resourceLinkId) {
+
+    const db = admin.firestore();
+    // Authorize via the short-lived grade-push token minted by the instructor
+    // launch (the LIVE-token model) — lets a Google-signed-in teacher push.
+    if (!(await validateGradePushAuth(db, pushAuth, resourceLinkId))) {
       throw new HttpsError(
         'permission-denied',
-        'Not authorized to push grades for this assignment.'
+        'Invalid or expired grade-push authorization. Re-open the assignment from Schoology.'
       );
     }
 
@@ -156,14 +153,13 @@ export const ltiPushGradesForAssignmentV1 = onCall(
       );
     }
 
-    const cfg = await getLtiPlatformConfig(admin.firestore());
+    const cfg = await getLtiPlatformConfig(db);
     const accessToken = await getAgsAccessToken({
       clientId: cfg.clientId,
       tokenUrl: cfg.tokenUrl,
       privatePem: LTI_TOOL_PRIVATE_KEY.value(),
       scopes: [AGS_SCOPE_SCORE],
     });
-    const db = admin.firestore();
     const timestamp = new Date().toISOString();
 
     // Resolve each student's OWN line item (per-section for linked/merged courses)
